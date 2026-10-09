@@ -53,7 +53,7 @@ Gate A rejects uncited review packets; citation alone does not establish that a 
 
 | Change | Evidence |
 |---|---|
-| Code, validator, or exit code | The affected tests |
+| Code, validator, or exit code | The affected tests; `python -m ruff check` for Python under `scripts/` or `skills/`, and `python -m mypy` when the file is in `pyproject.toml`'s mypy list |
 | Agent, skill, command, or bundled reference | The matching asset or contract test |
 | Routing description | The overlapping clean-room scenarios; pure wording changes need no live eval |
 | Eval harness or scenario | The affected `evals/test_*.py`; `python evals/build_probe.py validate` for parsing or targeting changes; `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`), `evals/compare_runs.py`, `evals/graders.py`, `evals/inspect_pilot.py` or an `evals/test_*.py`; `python evals/judge.py --calibrate` after a rubric edit |

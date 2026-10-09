@@ -8,9 +8,10 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Any, NoReturn
 
 
-def _object(pairs):
+def _object(pairs: list[tuple[str, object]]) -> dict[str, object]:
     result = {}
     for key, value in pairs:
         if key in result:
@@ -19,8 +20,8 @@ def _object(pairs):
     return result
 
 
-def read_json(path: Path):
-    def nonfinite(value):
+def read_json(path: Path) -> Any:
+    def nonfinite(value: str) -> NoReturn:
         raise ValueError(f"nonfinite JSON value: {value}")
     return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_object,
                       parse_constant=nonfinite)
@@ -30,18 +31,18 @@ def _pointer(parent: str, key: str) -> str:
     return parent + "/" + key.replace("~", "~0").replace("/", "~1")
 
 
-def _equal(left, right) -> bool:
+def _equal(left: object, right: object) -> bool:
     return type(left) is type(right) and (
         left.keys() == right.keys() and all(_equal(left[k], right[k]) for k in left)
         if isinstance(left, dict) and isinstance(right, dict) else
-        len(left) == len(right) and all(_equal(a, b) for a, b in zip(left, right))
+        len(left) == len(right) and all(_equal(a, b) for a, b in zip(left, right, strict=True))
         if isinstance(left, list) and isinstance(right, list) else left == right)
 
 
-def differences(before, after, path="") -> list[dict]:
+def differences(before: object, after: object, path: str = "") -> list[dict[str, Any]]:
     """Return all leaf changes; missing values are distinct from JSON null."""
     if isinstance(before, dict) and isinstance(after, dict):
-        result = []
+        result: list[dict[str, Any]] = []
         for key in sorted(before.keys() | after.keys()):
             location = _pointer(path, key)
             if key not in before or key not in after:
@@ -57,7 +58,7 @@ def differences(before, after, path="") -> list[dict]:
              "after": {"present": True, "value": after}}]
 
 
-def normalize(snapshot: dict) -> dict:
+def normalize(snapshot: dict[str, Any]) -> dict[str, Any]:
     """Only make entity ordering irrelevant; preserve every recorded field."""
     if not isinstance(snapshot, dict):
         raise ValueError("compatibility snapshot must be an object")
@@ -77,7 +78,7 @@ def normalize(snapshot: dict) -> dict:
     return result
 
 
-def compare(before: dict, after: dict, expected: list[dict]) -> dict:
+def compare(before: dict[str, Any], after: dict[str, Any], expected: list[dict[str, Any]]) -> dict[str, object]:
     actual = differences(normalize(before), normalize(after))
     if not isinstance(expected, list):
         raise ValueError("expected deltas must be an array")
@@ -112,7 +113,7 @@ def compare(before: dict, after: dict, expected: list[dict]) -> dict:
             "scope": "observable comparison only; atlas verification and owner acceptance are separate"}
 
 
-def main(argv=None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("baseline", type=Path)
     parser.add_argument("candidate", type=Path)

@@ -92,11 +92,6 @@ class RunnerDependencies:
         )
 
 
-def _task_lineage(state: Mapping[str, object], node_id: str) -> tuple[str, str]:
-    task_id = f"{state['run_id']}:{node_id}:0"
-    return task_id, f"{task_id}:attempt-1"
-
-
 def _checkout_effect_id(state: Mapping[str, object]) -> str:
     return f"{state['run_id']}:checkout_effect:0:effect-checkout"
 
@@ -933,7 +928,7 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
             return wall_failure
         try:
             budgets = consume_budget(state["budgets"], "attempts", 1)
-        except BudgetExhausted as exc:
+        except BudgetExhausted:
             counter = state["budgets"]["attempts"]
             dependencies.events.emit(
                 "budget.exhausted",

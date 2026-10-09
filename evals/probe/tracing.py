@@ -11,11 +11,58 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Final, NotRequired, TypedDict
 
-from .constants import READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
+from .constants import DISPATCH_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
+
+
+class EffectCall(TypedDict):
+    """One potentially mutating call (an edit, a shell command or a dispatch), in trace order; `_complete`
+    adds its completion evidence once the whole trace is read."""
+
+    id: str
+    tool: str
+    command: str
+    issued: int  # the trace line, counted from 0
+    parent: Any  # the dispatch it ran inside, or None on the main thread
+    background: bool
+    completed: NotRequired[int | None]  # the line of its matched result, or None when unknown
+    reported_error: NotRequired[bool]
+    success: NotRequired[bool]
+    test_summaries: NotRequired[dict[str, str]]  # a shell call's passing summary per test runner
+    test_failures: NotRequired[dict[str, str]]
+
+
+class ReadAttempt(TypedDict):
+    tool: str
+    path: str | None
+    outcome: str  # "allowed" or "denied"
+
+
+class ParentRead(ReadAttempt):
+    """A read the parent completed before its first dispatch, with where it sat in the trace."""
+
+    caller: str
+    tool_use_id: str
+    issued_line: int
+    completed_line: int
+
+
+class DenialDetail(TypedDict):
+    tool: str
+    id: str
+    command: str
+    reason: str  # the matching error tool result
+
+
+class AgentReturn(TypedDict):
+    agent: str
+    tool_use_id: str
+    completed: bool
+    continued: bool  # the dispatching thread spoke again after the return
 
 
 @dataclass
@@ -29,7 +76,7 @@ class TraceSummary:
     # The subset of bash_commands issued inside a dispatched subagent; `scope: subagent` grades only these.
     subagent_bash_commands: list[str] = field(default_factory=list)
     # Ordered potentially mutating calls, with matched completion evidence. Not filesystem attestation.
-    effect_calls: list[dict[str, Any]] = field(default_factory=list)
+    effect_calls: list[EffectCall] = field(default_factory=list)
     dispatches: list[str] = field(default_factory=list)
     # Task/Agent calls that returned a non-error tool_result. `dispatches` records every attempt
     # (the no-dispatch checks grade attempts); routing credits only a completed invocation.
@@ -37,7 +84,7 @@ class TraceSummary:
     agents_failed: list[str] = field(default_factory=list)
     runtime_plugins: list[Any] = field(default_factory=list)
     # {tool, path, outcome} per Read/Grep/Glob call, for the read-path boundary check.
-    read_attempts: list[dict[str, Any]] = field(default_factory=list)
+    read_attempts: list[ReadAttempt] = field(default_factory=list)
     tool_counts: dict[str, int] = field(default_factory=dict)
     denials: list[str] = field(default_factory=list)
     duration_ms: int = 0
@@ -53,9 +100,7 @@ class TraceSummary:
     result_is_error: bool = False
     result_subtype: str = ""
     tool_errors: list[str] = field(default_factory=list)  # is_error tool results, e.g. guard denials
-    denial_details: list[dict[str, Any]] = field(
-        default_factory=list
-    )  # {tool, id, command, reason} per permission denial
+    denial_details: list[DenialDetail] = field(default_factory=list)  # one per permission denial
     # tool_use ids issued inside a dispatched subagent (the event carried parent_tool_use_id).
     subagent_tool_ids: list[str] = field(default_factory=list)
     saw_init: bool = False
@@ -70,9 +115,9 @@ class TraceSummary:
     init_session_ids: list[str] = field(default_factory=list)
     main_skills: list[str] = field(default_factory=list)
     main_skills_before_effects: list[str] = field(default_factory=list)
-    agent_returns: list[dict[str, Any]] = field(default_factory=list)
+    agent_returns: list[AgentReturn] = field(default_factory=list)
     conversation_sessions: list[str] = field(default_factory=list)
-    parent_reads_before_dispatch: list[dict[str, Any]] = field(default_factory=list)
+    parent_reads_before_dispatch: list[ParentRead] = field(default_factory=list)
     parent_skills_before_dispatch: list[str] = field(default_factory=list)
     main_models: list[str] = field(default_factory=list)
 
@@ -264,7 +309,7 @@ class _Reader:
         s.tool_counts[name] = s.tool_counts.get(name, 0) + 1
         if parent:
             s.subagent_tool_ids.append(use_id)
-        if name in WRITING_TOOLS | {"Task", "Agent"}:
+        if name in WRITING_TOOLS | DISPATCH_TOOLS:
             s.effect_calls.append(
                 {
                     "id": use_id,
@@ -291,7 +336,7 @@ class _Reader:
                 (s.bash_commands if name == "Bash" else s.powershell_commands).append(command)
                 if name == "Bash" and parent:
                     s.subagent_bash_commands.append(command)
-            case "Task" | "Agent":
+            case _ if name in DISPATCH_TOOLS:
                 agent_name = str(inp.get("subagent_type") or "") or "<unnamed-agent>"
                 s.dispatches.append(agent_name)
                 self.agent_uses.append((use_id, agent_name, parent, position))
@@ -363,11 +408,11 @@ class _Reader:
             s.models = resolved
         return s
 
-    def _complete(self, call: dict[str, Any]) -> None:
+    def _complete(self, call: EffectCall) -> None:
         """Attach completion evidence to one potentially mutating call."""
         use_id = call["id"]
         returned = self.result_positions.get(use_id)
-        if call["tool"] in {"Task", "Agent"} and use_id in self.asynchronous:
+        if call["tool"] in DISPATCH_TOOLS and use_id in self.asynchronous:
             returned = self.completed.get(use_id)
         receipt = self.shell_receipts.get(use_id, {})
         if call["tool"] in SHELL_TOOLS:
@@ -521,6 +566,65 @@ def parse_trial_trace(run_dir: Path) -> TraceSummary:
         values = [getattr(trace, name) for trace in traces]
         setattr(merged, name, sum(values) if all(value is not None for value in values) else None)
     return merged
+
+
+# What a run's trace summary (outputs/trace-summary.json) saves of its trace, by saved name and
+# TraceSummary field, in the order it writes them. A regrade restores the summary's facts from these
+# names when the raw trace is gone.
+SUMMARY_FIELDS: Final = {
+    "conversation_sessions": "conversation_sessions",
+    "agent_returns": "agent_returns",
+    "initial_parent_reference_reads": "parent_reads_before_dispatch",
+    "initial_parent_skills_before_dispatch": "parent_skills_before_dispatch",
+    "main_models": "main_models",
+    "models": "models",
+    "usage_models": "usage_models",
+    "num_turns": "num_turns",
+    "tool_counts": "tool_counts",
+    "skills": "skills",
+    "skills_failed": "skills_failed",
+    "advertised_tools": "advertised_tools",
+    "advertised_skills": "advertised_skills",
+    "foreign_skills": "foreign_skills",
+    "mcp_servers": "mcp_servers",
+    "permission_mode": "permission_mode",
+    "dispatches": "dispatches",
+    "denials": "denials",
+    "bash_commands": "bash_commands",
+    "subagent_bash_commands": "subagent_bash_commands",
+    "powershell_commands": "powershell_commands",
+    "effect_calls": "effect_calls",
+    "tool_errors": "tool_errors",
+    "denial_details": "denial_details",
+}
+# What a summary restores when the raw trace is gone: the calls, loads, dispatches and errors a check
+# may re-measure from it. Returns, reads and completion order are saved for a reader, but a regrade
+# measures them only from the raw trace (checking.RAW_ONLY), so restoring them could only mislead.
+RESTORED: Final = (
+    "skills",
+    "skills_failed",
+    "bash_commands",
+    "subagent_bash_commands",
+    "powershell_commands",
+    "dispatches",
+    "tool_errors",
+    "tool_counts",
+)
+
+
+def to_saved(trace: TraceSummary) -> dict[str, Any]:
+    """The trace facts a trace summary saves, by saved name."""
+    return {saved: getattr(trace, name) for saved, name in SUMMARY_FIELDS.items()}
+
+
+def from_saved(summary: Mapping[str, Any], result_text: str) -> TraceSummary:
+    """The trace a saved summary restores when the raw trace is gone: its final text and `RESTORED`."""
+    restored: dict[str, Any] = {
+        name: dict(summary.get(saved) or {}) if name == "tool_counts" else list(summary.get(saved) or [])
+        for saved, name in SUMMARY_FIELDS.items()
+        if name in RESTORED
+    }
+    return TraceSummary(result_text=result_text, **restored)
 
 
 def runtime_namespace(trace: TraceSummary, plugin_root: Path) -> str:

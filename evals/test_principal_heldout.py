@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from probe import catalog
+from probe_testkit import scenario_file
 
 ROOT = Path(__file__).resolve().parent
 CASE = "live-store-cutover"
@@ -14,7 +14,7 @@ DOCUMENT = "docs/design/live-store-cutover.md"
 
 def load_pair() -> list[dict[str, Any]]:
     return [
-        catalog.load_scenario(ROOT / f"build-scenarios/build-{agent}-{CASE}.yaml")
+        scenario_file(ROOT / f"build-scenarios/build-{agent}-{CASE}.yaml")
         for agent in ("principal-engineer", "software-engineer")
     ]
 

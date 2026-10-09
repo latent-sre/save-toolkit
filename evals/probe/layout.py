@@ -1,0 +1,147 @@
+"""Where an iteration keeps its saved runs, how a folder's number reads back, and how a saved JSON file is
+read and written.
+
+    <iteration>/eval-<scenario>/<label>/run-N/                  slot N's published attempt
+    <iteration>/eval-<scenario>/<label>/attempts/run-N/<k>/     attempt k of slot N, superseded or incomplete
+    <iteration>/eval-<scenario>/<label>/.run-N-attempt-<hex>/   an attempt being written
+    <iteration>/eval-<scenario>/<label>/.run-N-previous-<hex>/  the run it replaces, while it is published
+    <run>/assessments/<k>/                                      regrade k, beside the run's own grade
+
+The runner writes every number as a plain decimal from 1 (`run-1`, never `run-01` or `run-0`) and
+reads one back only in that spelling, so two folders cannot claim one slot, and an operator's copy
+such as `run-1-old` is never a run. The runner, the regrade and rescore, the run comparison, the
+turn-count summary and the spend cap all find runs through this module, so they agree on what a run is.
+The readers to which a missing or malformed JSON file is an unknown (the v1 record, the spend cap, a
+run's attempt number, the comparison's legacy runs and the turn-count summary) read it through
+`read_object`; the regrade and rescore still refuse a malformed grade or summary. The runner writes each
+saved JSON file through `write_json`.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from collections.abc import Iterator, Mapping
+from pathlib import Path
+from typing import Any
+
+CASE_PREFIX = "eval-"
+SLOT_PREFIX = "run-"
+# A hidden attempt folder names the slot it was written for: `.run-N-attempt-...`, `.run-N-previous-...`.
+HIDDEN_SLOT = re.compile(r"^\.run-([1-9][0-9]*)-")
+
+
+def case_dir(iteration: Path, scenario_id: str) -> Path:
+    return iteration / f"{CASE_PREFIX}{scenario_id}"
+
+
+def case_dirs(iteration: Path) -> list[Path]:
+    """Every scenario folder in an iteration, in name order."""
+    return sorted(iteration.glob(f"{CASE_PREFIX}*"))
+
+
+def case_id(folder: Path) -> str:
+    """The scenario a case folder holds."""
+    return folder.name.removeprefix(CASE_PREFIX)
+
+
+def run_dir(iteration: Path, scenario_id: str, label: str, slot: int) -> Path:
+    """Where slot `slot` of a label publishes its attempt."""
+    return case_dir(iteration, scenario_id) / label / f"{SLOT_PREFIX}{slot}"
+
+
+def attempts_dir(label_dir: Path) -> Path:
+    """Where a label keeps the attempts that are not its published runs, as attempts/run-N/<k>/."""
+    return label_dir / "attempts"
+
+
+def history_dir(run: Path) -> Path:
+    """Where a slot keeps its superseded and incomplete attempts; no run-N glob beside it matches it."""
+    return attempts_dir(run.parent) / run.name
+
+
+def attempt_dir(run: Path, token: str) -> Path:
+    """The hidden sibling an attempt is written in before it is published as `run`."""
+    return run.with_name(f".{run.name}-attempt-{token}")
+
+
+def backup_dir(run: Path, token: str) -> Path:
+    """The hidden sibling a published run moves to while its replacement is published."""
+    return run.with_name(f".{run.name}-previous-{token}")
+
+
+def hidden_slot(name: str) -> int | None:
+    """The slot a hidden attempt folder was written for, or None when its name says none."""
+    match = HIDDEN_SLOT.match(name)
+    return int(match.group(1)) if match else None
+
+
+def number(name: str, prefix: str = "") -> int | None:
+    """The number in a folder name `<prefix><N>` as the runner writes it, or None."""
+    digits = name.removeprefix(prefix) if name.startswith(prefix) else ""
+    return int(digits) if digits.isascii() and digits.isdigit() and digits == str(int(digits)) != "0" else None
+
+
+def numbered(parent: Path, prefix: str = "") -> list[tuple[Path, int]]:
+    """The folders under `parent` named `<prefix><N>`, in numeric order on every host."""
+    if not parent.is_dir():
+        return []
+    found = [
+        (child, n) for child in parent.iterdir() if (n := number(child.name, prefix)) is not None and child.is_dir()
+    ]
+    return sorted(found, key=lambda item: item[1])
+
+
+def kept_attempts(label_dir: Path) -> Iterator[tuple[Path, int, int]]:
+    """Each kept attempt of a label as (folder, slot, attempt number)."""
+    for history, slot in numbered(attempts_dir(label_dir), SLOT_PREFIX):
+        for kept, attempt in numbered(history):
+            yield kept, slot, attempt
+
+
+def slot(name: str) -> int | None:
+    """The slot a folder beside a label's published runs holds, or None for any other folder."""
+    return number(name, SLOT_PREFIX)
+
+
+def taken(parent: Path) -> set[int]:
+    """The numbers already used under `parent`: kept attempts, or a run's assessments."""
+    if not parent.is_dir():
+        return set()
+    return {found for child in parent.iterdir() if (found := number(child.name)) is not None}
+
+
+def next_number(parent: Path) -> int:
+    """The number the next kept attempt or assessment under `parent` takes."""
+    return max(taken(parent), default=0) + 1
+
+
+def read_object(path: Path) -> dict[str, Any] | None:
+    """The JSON object a saved file holds, or None when it is missing, unreadable, not JSON or not an
+    object: an unknown, never a partial reading."""
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def write_json(path: Path, value: object, *, ascii_only: bool = False) -> None:
+    """Save a JSON file as the runner writes every one: indented, UTF-8."""
+    path.write_text(json.dumps(value, indent=2, ensure_ascii=ascii_only), encoding="utf-8")
+
+
+def live_grade(run: Path) -> Path:
+    """The run's live grade: `grading.original.json` where an older runner regraded the run in place."""
+    original = run / "grading.original.json"
+    return original if original.exists() else run / "grading.json"
+
+
+def run_key(row: Mapping[str, object]) -> tuple[object, object, object]:
+    """What names one run in a summary or rescore row: its scenario, label and slot."""
+    return row.get("scenario"), row.get("label"), row.get("run")
+
+
+def run_name(scenario: object, label: object, slot: object) -> str:
+    """A run as the command line reports it."""
+    return f"{CASE_PREFIX}{scenario} {label}/{SLOT_PREFIX}{slot}"

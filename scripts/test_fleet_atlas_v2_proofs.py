@@ -1,13 +1,21 @@
 """Adversarial proof replay tests: containment is not claim support."""
 
-from dataclasses import replace
 import unittest
+from dataclasses import replace
 
 from fleet_atlas_v2_model import (
-    Bucket, EvidenceClass, Fact, FactRef, Node, Predicate, Proof, ProofKind, assemble,
+    Bucket,
+    EvidenceClass,
+    Fact,
+    FactRef,
+    Node,
+    Predicate,
+    Proof,
+    ProofKind,
+    assemble,
 )
-from fleet_atlas_v2_sources import Snapshot, Source
 from fleet_atlas_v2_proofs import Derivation, VerifiedFacts, verify_facts
+from fleet_atlas_v2_sources import Snapshot, Source
 
 
 class ProofTests(unittest.TestCase):
@@ -39,13 +47,20 @@ class ProofTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "only be constructed"):
             VerifiedFacts(checked.graph, checked.snapshot, object())
 
-    def test_real_span_cannot_support_wrong_value(self):
-        with self.assertRaisesRegex(ValueError, "complete claim"):
-            self.verify(replace(self.fact, object="made up"))
-
-    def test_correct_value_with_irrelevant_span_is_rejected(self):
-        with self.assertRaisesRegex(ValueError, "complete claim"):
-            self.verify(replace(self.fact, proof=replace(self.proof, inputs=(self.source.span(1, 1),))))
+    def test_changed_claim_fields_fail_replay_or_the_boundary(self):
+        for case, fact, refusal in (
+            ("real span cannot support a wrong value", replace(self.fact, object="made up"), "complete claim"),
+            ("correct value with an irrelevant span",
+             replace(self.fact, proof=replace(self.proof, inputs=(self.source.span(1, 1),))), "complete claim"),
+            ("wrong evidence class", replace(self.fact, evidence_class=EvidenceClass.CONTRACT), "complete claim"),
+            ("unregistered evaluator is neither imported nor executed",
+             replace(self.fact, proof=replace(self.proof, evaluator="evil.module/v1")), "unknown proof evaluator"),
+            ("unknown debt cannot cross the verified boundary",
+             replace(self.fact, evidence_class=EvidenceClass.UNKNOWN, proof=replace(self.proof, kind=ProofKind.DEBT)),
+             "evidence debt"),
+        ):
+            with self.subTest(case), self.assertRaisesRegex(ValueError, refusal):
+                self.verify(fact)
 
     def test_test_fixture_literal_does_not_establish_agent_fact(self):
         fixture = Source("scripts/test_example.py", b"name: example\n")
@@ -67,20 +82,6 @@ class ProofTests(unittest.TestCase):
         for inputs in ((source.span(1, 1),), (*proof.inputs, source.span(3, 3))):
             with self.assertRaisesRegex(ValueError, "complete claim"):
                 self.verify(replace(fact, proof=replace(proof, inputs=inputs)), snapshot)
-
-    def test_unregistered_evaluator_is_not_imported_or_executed(self):
-        with self.assertRaisesRegex(ValueError, "unknown proof evaluator"):
-            self.verify(replace(self.fact, proof=replace(self.proof, evaluator="evil.module/v1")))
-
-    def test_wrong_evidence_class_fails_replay(self):
-        with self.assertRaisesRegex(ValueError, "complete claim"):
-            self.verify(replace(self.fact, evidence_class=EvidenceClass.CONTRACT))
-
-    def test_unknown_debt_cannot_cross_verified_boundary(self):
-        fact = replace(self.fact, evidence_class=EvidenceClass.UNKNOWN,
-                       proof=replace(self.proof, kind=ProofKind.DEBT))
-        with self.assertRaisesRegex(ValueError, "evidence debt"):
-            self.verify(fact)
 
     def test_absence_is_bound_to_complete_source_scope(self):
         proof = replace(self.proof, kind=ProofKind.ABSENCE,

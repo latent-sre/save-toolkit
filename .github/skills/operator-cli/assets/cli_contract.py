@@ -8,12 +8,12 @@ effects, confirmation only from a terminal or --yes, one outcome per item, exit 
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
 import json
 import os
 import signal
 import stat
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
@@ -81,13 +81,12 @@ def owned_lock():
             raise OSError(f"{LOCK}: ownership changed; stop and inspect the lock before re-running")
 
     try:
-        with defer_stop():
-            with LOCK.open("x", encoding="utf-8") as stream:
-                info = os.fstat(stream.fileno())
-                identity = (info.st_dev, info.st_ino)
-                stream.write(owner)
-                stream.flush()
-                written = True
+        with defer_stop(), LOCK.open("x", encoding="utf-8") as stream:
+            info = os.fstat(stream.fileno())
+            identity = (info.st_dev, info.st_ino)
+            stream.write(owner)
+            stream.flush()
+            written = True
         yield check_owner
     finally:
         if identity is not None:
@@ -150,12 +149,51 @@ def report(items: list[dict], args: argparse.Namespace) -> None:
     sys.stdout.flush()
 
 
+def select(args: argparse.Namespace) -> list[str]:
+    """The plan: the same selection serves the dry run, the confirmation and the recheck before apply."""
+    return sorted(set(orders_client.list_stale(args.older_than)))
+
+
+def confirm(args: argparse.Namespace, plan: list[str]) -> bool:
+    """--yes, or "y" typed at a terminal after seeing the exact targets; never a pipe."""
+    if args.yes:
+        return True
+    if args.no_input or not sys.stdin.isatty():
+        print("error: confirmation required: pass --yes or run on a terminal", file=sys.stderr)
+        return False
+    print("\n".join(plan), file=sys.stderr)
+    print(f"Cancel these {len(plan)} orders? [y/N] ", end="", file=sys.stderr, flush=True)
+    try:
+        answer = input()
+    except EOFError:
+        return False
+    return answer.strip().lower() == "y"
+
+
+def apply(args: argparse.Namespace, plan: list[str], items: list[dict]) -> int:
+    """Under the lock, refuse a changed selection, then cancel in order until the first failure.
+
+    Updates `items` in place, so an interruption or error still reports every outcome so far.
+    """
+    with owned_lock() as check_owner:
+        if select(args) != plan:
+            print("error: the stale set changed after selection; re-run to review it", file=sys.stderr)
+            return EXIT_FAILED
+        for item in items:
+            check_owner()
+            item["status"] = "unknown"  # in flight until the call returns
+            item["status"] = cancel_one(item["id"])
+            if item["status"] != "succeeded":
+                return EXIT_FAILED
+    return EXIT_OK
+
+
 def run(args: argparse.Namespace) -> int:
     items = []
     plan_known = False
     code = EXIT_OK
     try:
-        plan = sorted(set(orders_client.list_stale(args.older_than)))
+        plan = select(args)
         items = [{"id": order_id, "status": "skipped"} for order_id in plan]
         plan_known = True
         if len(plan) > args.max_items:
@@ -163,30 +201,9 @@ def run(args: argparse.Namespace) -> int:
                   file=sys.stderr)
             code = EXIT_FAILED
         elif not args.dry_run:
-            if not args.yes:
-                if args.no_input or not sys.stdin.isatty():
-                    print("error: confirmation required: pass --yes or run on a terminal", file=sys.stderr)
-                    return EXIT_USAGE
-                print("\n".join(plan), file=sys.stderr)
-                print(f"Cancel these {len(plan)} orders? [y/N] ", end="", file=sys.stderr, flush=True)
-                try:
-                    answer = input()
-                except EOFError:
-                    return EXIT_USAGE
-                if answer.strip().lower() != "y":
-                    return EXIT_USAGE
-            with owned_lock() as check_owner:
-                if sorted(set(orders_client.list_stale(args.older_than))) != plan:
-                    print("error: the stale set changed after selection; re-run to review it", file=sys.stderr)
-                    code = EXIT_FAILED
-                else:
-                    for item in items:
-                        check_owner()
-                        item["status"] = "unknown"  # in flight until the call returns
-                        item["status"] = cancel_one(item["id"])
-                        if item["status"] != "succeeded":
-                            code = EXIT_FAILED
-                            break
+            if not confirm(args, plan):
+                return EXIT_USAGE  # unconfirmed is a usage error: exit 2 at once, with no receipt
+            code = apply(args, plan, items)
     except Stopped as stop:
         code = 128 + stop.signum
     except FileExistsError:

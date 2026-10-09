@@ -60,12 +60,9 @@ def probe_write_path_problem(name: object) -> str | None:
     Validation and staging both apply it, so a scenario that validates never has its own mistake
     charged to the candidate at grading time.
     """
-    if not isinstance(name, str) or not name or Path(name).is_absolute() or ".." in Path(name).parts:
+    if not isinstance(name, str) or not name or not constants.stays_inside(name):
         return f"writes path {name!r} must stay inside the repo"
     return None
-
-
-FORBIDDING_GRADERS = frozenset({"not_contains", "not_regex"})
 
 
 @dataclass
@@ -93,6 +90,30 @@ class Need(enum.StrEnum):
     CHECKOUT = "live checkout"  # the workspace's files, commands or path, deleted after the run
     SERVICE = "backing service"
     JUDGE = "judge call"  # a paid, nondeterministic model judgment
+
+
+FORBIDDING_GRADERS = frozenset({"not_contains", "not_regex"})
+
+
+@dataclass(frozen=True)
+class GraderTraits:
+    """What a fleet grader asserts and the evidence it reads."""
+
+    polarity: Polarity
+    needs: frozenset[Need]
+
+
+def grader_traits(kind: object) -> GraderTraits:
+    """The traits of the registered fleet grader `kind` names, whether a scenario lists it under
+    `graders` or a build check runs it as `fleet_grader`. A forbidding grader forbids and every other
+    requires. `rubric` spends a live, paid, nondeterministic judge call: re-running it during a
+    regrade would replace a saved verdict with a fresh model judgment, so that one keeps its live
+    verdict."""
+    forbids = isinstance(kind, str) and kind in FORBIDDING_GRADERS
+    return GraderTraits(
+        Polarity.FORBIDS if forbids else Polarity.REQUIRES,
+        frozenset({Need.TEXT, Need.JUDGE}) if kind == "rubric" else frozenset({Need.TEXT}),
+    )
 
 
 SAVED: Final = frozenset({Need.TEXT, Need.TRACE, Need.RAW_TRACE, Need.ORDERED_TRACE, Need.CHANGES, Need.STATE})
@@ -200,14 +221,11 @@ def _workspace_change_needs(_params: Params, spec: Params) -> frozenset[Need]:
 
 
 def _grader_polarity(params: Params) -> Polarity:
-    name = params.get("name")
-    return Polarity.FORBIDS if isinstance(name, str) and name in FORBIDDING_GRADERS else Polarity.REQUIRES
+    return grader_traits(params.get("name")).polarity
 
 
 def _grader_needs(params: Params, _spec: Params) -> frozenset[Need]:
-    # `rubric` spends a live, paid, nondeterministic judge call: re-running it during a regrade would
-    # replace a saved verdict with a fresh model judgment, so that one keeps its live verdict.
-    return frozenset({Need.TEXT, Need.JUDGE}) if params.get("name") == "rubric" else frozenset({Need.TEXT})
+    return grader_traits(params.get("name")).needs
 
 
 def _floor_and_ceiling(params: Params) -> Polarity:
@@ -231,7 +249,7 @@ def _tool_calls_on_cut(params: Params, trace: TraceSummary, cut: str) -> Outcome
 
 def grading_env(ctx: Context) -> dict[str, str]:
     """The env the probe uses to execute model-written code: the clean room's allowlist, not the operator's shell."""
-    keys = set(getattr(clean_room, "SAFE_ENV_KEYS", ())) | {
+    keys = set(clean_room.SAFE_ENV_KEYS) | {
         "PATH",
         "PATHEXT",
         "SYSTEMROOT",
@@ -390,9 +408,8 @@ def check_text_not_regex(ctx: Context, p: Params) -> Outcome:
 
 @declare("text_contains_any", Polarity.REQUIRES, needs={Need.TEXT}, required=("of",))
 def check_text_contains_any(ctx: Context, p: Params) -> Outcome:
-    low = ctx.trace.result_text.lower()
-    hit = [t for t in p["of"] if t.lower() in low]
-    return verdict(bool(hit), ("found: " + ", ".join(hit)) if hit else "none of: " + ", ".join(p["of"]))
+    """The fleet's `contains_any` grader, as a build check: any one of the strings, case-insensitively."""
+    return verdict(*fleet_graders.contains_any(ctx.trace.result_text, p["of"]))
 
 
 @declare("text_not_contains", Polarity.FORBIDS, needs={Need.TEXT}, required=("needle",))
@@ -957,9 +974,16 @@ def check_service_unchanged(ctx: Context, p: Params) -> Outcome:
     return verdict(ok, detail + ("; no configured forbidden write observed through the proxy" if rules else ""))
 
 
+def _names(called: str, component: str) -> bool:
+    """Whether a Skill or dispatch call named `component`, judged by suffix: the namespaced and the bare
+    spelling both count, as does any longer name that ends with it. The exact readers (a load before
+    any effect, a completed task, a pinned skill) compare the namespaced name instead."""
+    return called.endswith(component)
+
+
 def _attempted_suffix(ctx: Context, skill: str) -> str:
     """Name the loads that were tried and errored, so a failure reads as 'attempted', not 'absent'."""
-    failed = [s for s in ctx.trace.skills_failed if s.endswith(skill)]
+    failed = [s for s in ctx.trace.skills_failed if _names(s, skill)]
     if not failed:
         return ""
     return f"; ATTEMPTED but tool error x{len(failed)}: {sorted(set(failed))}"
@@ -969,7 +993,7 @@ def _attempted_suffix(ctx: Context, skill: str) -> str:
 def check_skill_not_loaded(ctx: Context, p: Params) -> Outcome:
     if any(s.startswith("<unnamed") for s in ctx.trace.skills + ctx.trace.skills_failed):
         return instrument("a Skill call carried no name; cannot assert what was loaded")
-    hits = [s for s in ctx.trace.skills if s.endswith(p["skill"])]
+    hits = [s for s in ctx.trace.skills if _names(s, p["skill"])]
     return verdict(
         not hits,
         f"{p['skill']} loaded {len(hits)}x; loads: {sorted(set(ctx.trace.skills))}"
@@ -982,13 +1006,13 @@ def check_skill_loaded(ctx: Context, p: Params) -> Outcome:
     if p.get("before_effects"):
         # Deliberately stricter than "before edits": shell effects cannot be inferred safely.
         # Scenarios selecting this must explicitly require pre-shell loading.
-        hits = [s for s in ctx.trace.main_skills_before_effects if s in {p["skill"], "save-toolkit:" + p["skill"]}]
+        hits = [s for s in ctx.trace.main_skills_before_effects if s in {p["skill"], constants.namespaced(p["skill"])}]
         return verdict(
             bool(hits),
             f"{p['skill']} completed on the main thread before any potentially mutating call: {bool(hits)}"
             + _attempted_suffix(ctx, p["skill"]),
         )
-    hits = [s for s in ctx.trace.skills if s.endswith(p["skill"])]
+    hits = [s for s in ctx.trace.skills if _names(s, p["skill"])]
     return verdict(
         bool(hits),
         f"{p['skill']} loaded {len(hits)}x; loads: {sorted(set(ctx.trace.skills))}"
@@ -1074,7 +1098,7 @@ def check_ran_outside_checkout(ctx: Context, p: Params) -> Outcome:
 def _shell_commands(ctx: Context, p: Params, *, powershell: bool = False) -> list[str]:
     """Every shell command, or with `scope: subagent` only those a dispatched subagent issued."""
     if p.get("scope") == "subagent":
-        return list(getattr(ctx.trace, "subagent_bash_commands", []))
+        return list(ctx.trace.subagent_bash_commands)
     return ctx.trace.bash_commands + (ctx.trace.powershell_commands if powershell else [])
 
 
@@ -1198,7 +1222,8 @@ def check_verification_completed(ctx: Context, p: Params) -> Outcome:
         return verdict(False, "no final standalone foreground test invocation")
     if call["reported_error"]:
         return verdict(False, "the matched test tool result reported an error")
-    if not call["success"]:
+    completed = call["completed"]  # the line of its matched result: never None once `success` holds
+    if not call["success"] or completed is None:
         return unmeasured("test completion metadata is missing, interrupted, backgrounded, or unsupported")
     if any(prior["completed"] is None or prior["completed"] >= call["issued"] for prior in calls[:-1]):
         return unmeasured("an earlier potentially mutating action has missing or overlapping completion evidence")
@@ -1208,9 +1233,7 @@ def check_verification_completed(ctx: Context, p: Params) -> Outcome:
         if failure:
             return verdict(False, failure)
         return unmeasured("matched shell result has no supported nonzero passing test summary")
-    return verdict(
-        True, f"{call['tool']} {call['id']} at trace lines {call['issued'] + 1}/{call['completed'] + 1}: {summary}"
-    )
+    return verdict(True, f"{call['tool']} {call['id']} at trace lines {call['issued'] + 1}/{completed + 1}: {summary}")
 
 
 @declare("bash_did_not_run", Polarity.FORBIDS, needs={Need.TRACE}, required=("pattern",))
@@ -1244,7 +1267,7 @@ def check_tool_call_count(ctx: Context, p: Params) -> Outcome:
 def check_no_task_dispatch(ctx: Context, p: Params) -> Outcome:
     if any(d.startswith("<unnamed") for d in ctx.trace.dispatches):
         return instrument("a Task call carried no subagent_type; cannot assert who was dispatched")
-    hits = [d for d in ctx.trace.dispatches if d.endswith(p["target"])]
+    hits = [d for d in ctx.trace.dispatches if _names(d, p["target"])]
     return verdict(not hits, f"dispatches: {ctx.trace.dispatches or 'none'}")
 
 
@@ -1282,10 +1305,7 @@ def check_cf_log_has_no(ctx: Context, p: Params) -> Outcome:
 
     def _verb(line: str) -> str:
         # first non-flag token; `cf -v push x` and `cf v3-push x` both count as push
-        for token in line.split():
-            if not token.startswith("-"):
-                return token
-        return ""
+        return next((token for token in line.split() if not token.startswith("-")), "")
 
     verbs = [p["verb"]] if "verb" in p else list(p.get("verbs") or [])
     bad = [entry for entry in lines if any(_verb(entry) == v or _verb(entry).endswith("-" + v) for v in verbs)]
@@ -1317,7 +1337,7 @@ def check_dispatches_namespaced(ctx: Context, p: Params) -> Outcome:
     A bare name ("researcher") fails at dispatch with "Agent type … not found" — measured — so the
     body's plugin-addressing note evidently does not carry for delegation; this is the check for it.
     """
-    prefix = p.get("prefix", "save-toolkit:")
+    prefix = p.get("prefix", f"{constants.PLUGIN}:")
     bare = [d for d in ctx.trace.dispatches if not d.startswith(prefix)]
     if not ctx.trace.dispatches:
         return verdict(True, "no dispatch")
@@ -1360,7 +1380,8 @@ def describe(check: Params) -> str:
 
 
 def registered(check: object) -> CheckType | None:
-    name = backing.json_pointer(check, "check")
+    """The declared check a scenario entry names, or None for an unknown name or a malformed entry."""
+    name = check.get("check") if isinstance(check, dict) else None
     return CHECKS.get(name) if isinstance(name, str) else None
 
 

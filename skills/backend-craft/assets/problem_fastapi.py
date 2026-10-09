@@ -57,12 +57,12 @@ cannot add CORS headers to unhandled 500s. A service without cross-origin client
 """
 from __future__ import annotations
 
-from collections.abc import Mapping
-from contextvars import ContextVar
-from copy import deepcopy
 import logging
 import re
 import sys
+from collections.abc import Mapping
+from contextvars import ContextVar
+from copy import deepcopy
 from traceback import walk_tb
 from types import TracebackType
 from typing import Any
@@ -72,6 +72,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers, MutableHeaders
+
 # The Starlette base catches FastAPI's HTTPException (a subclass) *and* the framework's own
 # 404/405 for an unknown route, which a fastapi.HTTPException handler alone would miss.
 from starlette.exceptions import HTTPException as StarletteHTTPException

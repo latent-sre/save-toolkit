@@ -16,10 +16,11 @@ import re
 import shutil
 import stat
 import tempfile
+from collections.abc import Iterator, Mapping
 from pathlib import Path
+from typing import Any
 
 import fleet_frontmatter
-
 
 PLUGIN_NAME = "save-toolkit"
 # Workspace customizations: opening this repository in VS Code discovers these directly.
@@ -92,16 +93,23 @@ COPILOT_TOOL_MAP = {
     # `EnterWorktree`/`ExitWorktree` have no Copilot alias and are deliberately unmapped: the
     # projection drops them rather than substituting `execute`, which would widen authority.
 }
+# The selected Playwright MCP browser interactions: observe and drive a page, never run page code,
+# upload files or answer dialogs. validate_fleet approves exactly these grants, and only for the
+# browser lane; the Copilot names below are derived from the same list.
+PLAYWRIGHT_MCP_PREFIX = "mcp__microsoft_playwright_mcp__"
+BROWSER_OBSERVATION_TOOLS = (
+    "browser_snapshot",
+    "browser_take_screenshot",
+    "browser_navigate",
+    "browser_click",
+    "browser_hover",
+    "browser_type",
+    "browser_select_option",
+    "browser_press_key",
+    "browser_wait_for",
+)
 COPILOT_MCP_TOOL_MAP = {
-    "mcp__microsoft_playwright_mcp__browser_snapshot": "microsoft/playwright-mcp/browser_snapshot",
-    "mcp__microsoft_playwright_mcp__browser_take_screenshot": "microsoft/playwright-mcp/browser_take_screenshot",
-    "mcp__microsoft_playwright_mcp__browser_navigate": "microsoft/playwright-mcp/browser_navigate",
-    "mcp__microsoft_playwright_mcp__browser_click": "microsoft/playwright-mcp/browser_click",
-    "mcp__microsoft_playwright_mcp__browser_hover": "microsoft/playwright-mcp/browser_hover",
-    "mcp__microsoft_playwright_mcp__browser_type": "microsoft/playwright-mcp/browser_type",
-    "mcp__microsoft_playwright_mcp__browser_select_option": "microsoft/playwright-mcp/browser_select_option",
-    "mcp__microsoft_playwright_mcp__browser_press_key": "microsoft/playwright-mcp/browser_press_key",
-    "mcp__microsoft_playwright_mcp__browser_wait_for": "microsoft/playwright-mcp/browser_wait_for",
+    PLAYWRIGHT_MCP_PREFIX + tool: "microsoft/playwright-mcp/" + tool for tool in BROWSER_OBSERVATION_TOOLS
 }
 # VS Code's integrated browser is independent of Playwright MCP. Derive its exact
 # tool references from the same canonical capabilities; removing a source grant
@@ -114,6 +122,18 @@ COPILOT_NATIVE_BROWSER_MAP = {
     "mcp__microsoft_playwright_mcp__browser_hover": ("hoverElement",),
     "mcp__microsoft_playwright_mcp__browser_type": ("typeInPage",),
     "mcp__microsoft_playwright_mcp__browser_press_key": ("typeInPage",),
+}
+# Offered by two lanes; _copilot_handoffs copies each handoff, so sharing the dict is safe.
+_APPROVED_CLOSEOUT_HANDOFF = {
+    "label": "Start approved closeout",
+    "agent": "scribe",
+    "prompt": (
+        "Continue only the explicitly approved operational knowledge closeout in this "
+        "conversation. Preserve evidence labels, re-read the caller-authorized scope, and "
+        "state what was not done. If approval or checkout binding is absent, report the gap "
+        "without writing."
+    ),
+    "send": True,
 }
 COPILOT_HANDOFFS_BY_SOURCE = {
     "observability-engineer": (
@@ -132,17 +152,7 @@ COPILOT_HANDOFFS_BY_SOURCE = {
             ),
             "send": True,
         },
-        {
-            "label": "Start approved closeout",
-            "agent": "scribe",
-            "prompt": (
-                "Continue only the explicitly approved operational knowledge closeout in this "
-                "conversation. Preserve evidence labels, re-read the caller-authorized scope, and "
-                "state what was not done. If approval or checkout binding is absent, report the gap "
-                "without writing."
-            ),
-            "send": True,
-        },
+        _APPROVED_CLOSEOUT_HANDOFF,
     ),
     "principal-engineer": (
         {
@@ -199,17 +209,7 @@ COPILOT_HANDOFFS_BY_SOURCE = {
             ),
             "send": True,
         },
-        {
-            "label": "Start approved closeout",
-            "agent": "scribe",
-            "prompt": (
-                "Continue only the explicitly approved operational knowledge closeout in this "
-                "conversation. Preserve evidence labels, re-read the caller-authorized scope, and "
-                "state what was not done. If approval or checkout binding is absent, report the gap "
-                "without writing."
-            ),
-            "send": True,
-        },
+        _APPROVED_CLOSEOUT_HANDOFF,
         {
             "label": "Resolve the returned design fork",
             "agent": "principal-engineer",
@@ -262,78 +262,13 @@ PLUGIN_BANNER_RE = re.compile(
     r"^> \*\*Plugin addressing:\*\*(?:.*\n)+?\n", re.MULTILINE
 )
 PLUGIN_TOKEN_RE = re.compile(rf"(?<![A-Za-z0-9_-]){re.escape(PLUGIN_NAME)}:(?=[a-z0-9])")
-# Both spellings of the runtime root: `${CLAUDE_PLUGIN_ROOT}` for POSIX shells, and
-# `$env:CLAUDE_PLUGIN_ROOT` for PowerShell fences, where the braced form is a shell variable rather
-# than the process environment. A spelling missed here survives into the Copilot projection as a
-# Claude-only token pointing outside the installed bundle.
+# A runtime-root spelling missed here survives into the Copilot projection as a Claude-only token
+# pointing outside the installed bundle.
 PLUGIN_PATH_RE = re.compile(
-    r"`?\$(?:\{CLAUDE_PLUGIN_ROOT\}|env:CLAUDE_PLUGIN_ROOT)/(?P<kind>skills|agents)/"
-    r"(?P<name>[a-z0-9]+(?:-[a-z0-9]+)*)(?P<tail>/[^`\s]+|\.md)?`?"
+    rf"`?{fleet_frontmatter.PLUGIN_ROOT}/(?P<kind>skills|agents)/"
+    rf"(?P<name>{fleet_frontmatter.KEBAB_NAME})(?P<tail>/[^`\s]+|\.md)?`?"
 )
 RUNTIME_SUFFIXES = {".pyc", ".pyo"}
-
-
-def decode_scalar(raw: str) -> str:
-    """Public alias for the shared frontmatter scalar decoder."""
-    return fleet_frontmatter.decode_scalar(raw)
-
-
-def split_tool_specs(raw: object) -> list[str]:
-    """Public alias for the shared tool-grant splitter."""
-    return fleet_frontmatter.split_tool_specs(raw)
-
-
-# Backward-compatible aliases; the public names above are preferred.
-_yaml_scalar = fleet_frontmatter.decode_scalar
-_split_tool_specs = split_tool_specs
-
-
-def parse_frontmatter(path: Path) -> tuple[dict[str, object], str, list[str]]:
-    """Compatibility wrapper over the one shared strict parser."""
-    parsed = fleet_frontmatter.parse_file(path, mode="strict")
-    return parsed.fields, parsed.body, list(parsed.raw_lines)
-
-
-def tool_base(spec: str) -> str:
-    """Public base name of one tool grant (drops any ``(args)`` suffix)."""
-    return spec.split("(", 1)[0].strip()
-
-
-def _tool_base(spec: str) -> str:
-    """Backward-compatible alias; prefer tool_base."""
-    return tool_base(spec)
-
-
-def delegation_targets(specs: list[str], source: Path) -> list[str] | None:
-    """Translate exact plugin-qualified ``Agent(plugin:target, ...)`` grants to bare Copilot names.
-
-    Omitting Copilot's ``agents:`` field allows every eligible subagent, so a canonical Agent
-    grant must never degrade to an unscoped ``agent`` tool. Canonical validation independently
-    checks the fleet graph; this parser keeps the generated metadata scoped when invoked on an
-    individual source or fixture. Host runtime enforcement remains version-specific and must be
-    verified separately.
-    """
-
-    targets: list[str] = []
-    for spec in specs:
-        if tool_base(spec) != "Agent":
-            continue
-        match = re.fullmatch(r"Agent\(([^()]*)\)", spec)
-        if match is None:
-            raise ValueError(f"{source}: Agent tool must declare an explicit target allowlist")
-        for target in (item.strip() for item in match.group(1).split(",")):
-            if not re.fullmatch(rf"{re.escape(PLUGIN_NAME)}:[a-z0-9]+(?:-[a-z0-9]+)*", target):
-                raise ValueError(f"{source}: invalid Agent target {target!r}")
-            target = target.removeprefix(f"{PLUGIN_NAME}:")
-            if target in targets:
-                raise ValueError(f"{source}: duplicate Agent target {target!r}")
-            targets.append(target)
-    return targets or None
-
-
-def _delegation_targets(specs: list[str], source: Path) -> list[str] | None:
-    """Backward-compatible alias; prefer delegation_targets."""
-    return delegation_targets(specs, source)
 
 
 def _copilot_handoffs(source_agent: str) -> list[dict[str, object]] | None:
@@ -364,11 +299,9 @@ def _installed_resource(match: re.Match[str]) -> str:
     return f"the installed `{name}` skill's `{tail.lstrip('/')}` resource"
 
 
-def adapt_text(text: str, host: str) -> str:
-    """Remove Claude-only runtime addressing while preserving the authored method."""
+def adapt_text(text: str) -> str:
+    """Remove Claude-only runtime addressing for Copilot while preserving the authored method."""
 
-    if host != "copilot":
-        raise ValueError(f"unknown host {host!r}")
     text = PLUGIN_TOKEN_RE.sub("", text)
     text = PLUGIN_PATH_RE.sub(_installed_resource, text)
     text = text.replace("`.claude/agents/", "`agents/")
@@ -377,7 +310,7 @@ def adapt_text(text: str, host: str) -> str:
     return text
 
 
-def _description(fields: dict[str, object], source: Path) -> str:
+def _description(fields: Mapping[str, object], source: Path) -> str:
     description = fields.get("description")
     if not isinstance(description, str) or not description.strip():
         raise ValueError(f"{source}: missing description")
@@ -385,13 +318,17 @@ def _description(fields: dict[str, object], source: Path) -> str:
 
 
 def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
-    fields, body, _ = parse_frontmatter(source)
+    parsed = fleet_frontmatter.parse_file(source)
+    fields, body = parsed.fields, parsed.body
     if PLUGIN_BANNER_RE.search(body):
         raise ValueError(f"{source}: the Plugin addressing banner is retired; delete it")
     name = str(fields.get("name") or "")
-    tool_specs = split_tool_specs(fields.get("tools"))
-    tools = {tool_base(item) for item in tool_specs}
-    allowed_targets = delegation_targets(tool_specs, source)
+    grants = fleet_frontmatter.tool_grants(fields.get("tools"))
+    tools = {grant.base for grant in grants}
+    # Omitting Copilot's `agents:` field allows every eligible subagent, so a canonical Agent grant
+    # must never degrade to an unscoped `agent` tool: an unreadable allowlist raises instead. Host
+    # runtime enforcement remains version-specific and must be verified separately.
+    allowed_targets = fleet_frontmatter.delegation_targets(grants, source, plugin=PLUGIN_NAME)
     handoffs = _copilot_handoffs(name)
     mapped = {
         COPILOT_TOOL_MAP[item] for item in tools if item in COPILOT_TOOL_MAP
@@ -410,7 +347,7 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     # removed. A host limitation that changes what a lane may do is stated in that lane's own
     # body (`sre-assistant` says it has no shell on Copilot), so it travels with the rule it
     # qualifies instead of in a header every agent repeats.
-    prompt_body = adapt_text(body, "copilot")
+    prompt_body = adapt_text(body)
     prompt_limit = SRE_AGENT_PROMPT_MAX_CHARS if name == "sre-assistant" else COPILOT_AGENT_PROMPT_MAX_CHARS
     if len(prompt_body) > prompt_limit:
         raise ValueError(
@@ -420,10 +357,10 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     frontmatter = (
         "---\n"
         f"name: {json.dumps(name, ensure_ascii=False)}\n"
-        f"description: {json.dumps(adapt_text(_description(fields, source), 'copilot'), ensure_ascii=False)}\n"
+        f"description: {json.dumps(adapt_text(_description(fields, source)), ensure_ascii=False)}\n"
         f"tools: {json.dumps(ordered)}\n"
     )
-    if allowed_targets is not None:
+    if allowed_targets:
         frontmatter += f"agents: {json.dumps(allowed_targets)}\n"
     if handoffs is not None:
         frontmatter += f"handoffs: {json.dumps(handoffs, ensure_ascii=False)}\n"
@@ -446,23 +383,18 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     )
 
 
-def _portable_skill(
-    source: Path, host: str
-) -> tuple[bytes, bool]:
-    fields, body, raw_lines = parse_frontmatter(source)
+def _portable_skill(source: Path) -> str:
+    parsed = fleet_frontmatter.parse_file(source)
+    fields = parsed.fields
     explicit = str(fields.get("name")) in MANUAL_ONLY or fields.get("disable-model-invocation") == "true"
-    portable_frontmatter = adapt_text("\n".join(raw_lines), host)
-    note = ""
-    if explicit:
-        note = "> This skill is explicit-only through Copilot's frontmatter switch.\n\n"
-    rendered = (
+    note = "> This skill is explicit-only through Copilot's frontmatter switch.\n\n" if explicit else ""
+    return (
         "---\n"
-        + portable_frontmatter
+        + adapt_text("\n".join(parsed.raw_lines))
         + "\n---\n\n"
         + note
-        + adapt_text(body, host)
+        + adapt_text(parsed.body)
     )
-    return rendered.encode("utf-8"), explicit
 
 
 def _is_runtime_byproduct(path: Path) -> bool:
@@ -498,26 +430,27 @@ def _assert_no_indirection_below(root: Path, path: Path, label: str) -> None:
             raise ValueError(f"{current}: {label} must not traverse a link/reparse point")
 
 
-def _canonical_skill_files(root: Path) -> list[Path]:
-    result: list[Path] = []
-    skill_root = root / "skills"
-    _assert_no_indirection_below(root, skill_root, "canonical source")
-    for current, directories, files in os.walk(skill_root, followlinks=False):
+def _walk_files(base: Path, label: str) -> Iterator[Path]:
+    """Every file below ``base`` except runtime byproducts, refusing any link/reparse point.
+
+    The walk never follows a link, and refuses one rather than skipping it: a projection must not
+    silently absorb, or a byte gate silently read, content from outside the repository.
+    """
+    for current, directories, files in os.walk(base, followlinks=False):
         current_path = Path(current)
         if _is_link_or_reparse(current_path):
-            raise ValueError(f"{current_path}: canonical source must not be a link/reparse point")
-        for directory in list(directories):
+            raise ValueError(f"{current_path}: {label} must not be a link/reparse point")
+        for directory in directories:
             child = current_path / directory
             if _is_link_or_reparse(child):
-                raise ValueError(f"{child}: canonical source must not be a link/reparse point")
+                raise ValueError(f"{child}: {label} must not be a link/reparse point")
         for filename in files:
             path = current_path / filename
             if _is_runtime_byproduct(path):
                 continue
             if _is_link_or_reparse(path):
-                raise ValueError(f"{path}: canonical source must not be a link/reparse point")
-            result.append(path)
-    return sorted(result)
+                raise ValueError(f"{path}: {label} must not be a link/reparse point")
+            yield path
 
 
 def expected_outputs(root: Path) -> dict[Path, bytes]:
@@ -531,9 +464,9 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
     for source in agents:
         if _is_link_or_reparse(source):
             raise ValueError(f"{source}: canonical source must not be a link/reparse point")
-        rendered = render_copilot_agent(source).encode("utf-8")
-        outputs[COPILOT_AGENTS / f"{source.stem}.agent.md"] = rendered
-        outputs[COPILOT_PLUGIN_AGENTS / f"{source.stem}.agent.md"] = rendered
+        agent = render_copilot_agent(source).encode("utf-8")
+        outputs[COPILOT_AGENTS / f"{source.stem}.agent.md"] = agent
+        outputs[COPILOT_PLUGIN_AGENTS / f"{source.stem}.agent.md"] = agent
     command_root = root / "commands"
     _assert_no_indirection_below(root, command_root, "canonical source")
     commands = sorted(command_root.glob("*.md"))
@@ -543,25 +476,24 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
         _assert_no_indirection_below(root, source, "canonical source")
         # Preserve the command's metadata and selected-agent/write preflight; packaging must
         # neither select an agent nor widen its tools. Normalize line endings as with prose assets.
-        rendered = adapt_text(source.read_text(encoding="utf-8"), "copilot")
-        outputs[COPILOT_PLUGIN_COMMANDS / source.name] = rendered.encode("utf-8")
+        command = adapt_text(source.read_text(encoding="utf-8"))
+        outputs[COPILOT_PLUGIN_COMMANDS / source.name] = command.encode("utf-8")
     hooks = root / COPILOT_HOOKS_SOURCE
     _assert_no_indirection_below(root, hooks, "canonical source")
     outputs[COPILOT_PLUGIN_HOOKS] = hooks.read_text(encoding="utf-8").encode("utf-8")
 
-    skill_files = _canonical_skill_files(root)
+    skill_files = sorted(_walk_files(root / "skills", "canonical source"))
     if not any(path.name == "SKILL.md" for path in skill_files):
         raise ValueError(f"{root / 'skills'}: no canonical skills found")
     for source in skill_files:
         relative = source.relative_to(root / "skills")
         if source.name == "SKILL.md":
-            copilot, _ = _portable_skill(source, "copilot")
-            outputs[COPILOT_SKILLS / relative] = copilot
+            outputs[COPILOT_SKILLS / relative] = _portable_skill(source).encode("utf-8")
             continue
         suffix = source.suffix.lower()
         if suffix in ADAPT_TEXT_SUFFIXES:
             text = source.read_text(encoding="utf-8")
-            outputs[COPILOT_SKILLS / relative] = adapt_text(text, "copilot").encode("utf-8")
+            outputs[COPILOT_SKILLS / relative] = adapt_text(text).encode("utf-8")
         elif suffix in NORMALIZED_CODE_SUFFIXES:
             # Verbatim except line endings — read_text() normalizes CRLF/CR to LF via universal
             # newlines. No adapt_text: a script's tokens and shebang must survive unrewritten. A
@@ -574,8 +506,7 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
                 normalized = source.read_bytes()
             outputs[COPILOT_SKILLS / relative] = normalized
         else:
-            content = source.read_bytes()
-            outputs[COPILOT_SKILLS / relative] = content
+            outputs[COPILOT_SKILLS / relative] = source.read_bytes()
     return outputs
 
 
@@ -583,24 +514,11 @@ def _actual_generated_files(root: Path) -> set[Path]:
     actual: set[Path] = set()
     for relative in GENERATED_ROOTS:
         base = root / relative
+        # Refuses a link at the generated root itself as well as above it.
         _assert_no_indirection_below(root, base, "generated output")
         if not base.exists():
             continue
-        if _is_link_or_reparse(base):
-            raise ValueError(f"{base}: generated root must not be a link/reparse point")
-        for current, directories, files in os.walk(base, followlinks=False):
-            current_path = Path(current)
-            for directory in list(directories):
-                child = current_path / directory
-                if _is_link_or_reparse(child):
-                    raise ValueError(f"{child}: generated output must not be a link/reparse point")
-            for filename in files:
-                path = current_path / filename
-                if _is_runtime_byproduct(path):
-                    continue
-                if _is_link_or_reparse(path):
-                    raise ValueError(f"{path}: generated output must not be a link/reparse point")
-                actual.add(path.relative_to(root))
+        actual.update(path.relative_to(root) for path in _walk_files(base, "generated output"))
     return actual
 
 
@@ -621,7 +539,7 @@ def validate_generated_outputs(root: Path) -> list[str]:
     return failures
 
 
-def read_manifest(path: Path) -> dict:
+def read_manifest(path: Path) -> dict[str, Any]:
     """Public JSON-object manifest reader shared with fleet validation."""
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
@@ -629,15 +547,10 @@ def read_manifest(path: Path) -> dict:
     return value
 
 
-def _manifest(path: Path) -> dict:
-    """Backward-compatible alias; prefer read_manifest."""
-    return read_manifest(path)
-
-
 def validate_platform_contracts(root: Path) -> list[str]:
     failures: list[str] = []
     paths = [root / ".claude-plugin/plugin.json", root / "plugin.json"]
-    manifests: list[dict] = []
+    manifests: list[dict[str, Any]] = []
     for path in paths:
         try:
             manifests.append(read_manifest(path))
@@ -680,14 +593,11 @@ def validate_platform_contracts(root: Path) -> list[str]:
 
 
 def _retired_generated_root_failures(root: Path) -> list[str]:
-    failures: list[str] = []
-    for retired in RETIRED_GENERATED_ROOTS:
-        if (root / retired).exists():
-            failures.append(
-                f"{retired.as_posix()}: retired generated root is present on disk; a host can still "
-                f"load it through an older configuration. Remove it."
-            )
-    return failures
+    return [
+        f"{retired.as_posix()}: retired generated root is present on disk; a host can still "
+        f"load it through an older configuration. Remove it."
+        for retired in RETIRED_GENERATED_ROOTS if (root / retired).exists()
+    ]
 
 
 def _gitattributes_failures(root: Path) -> list[str]:
@@ -745,10 +655,8 @@ def write_generated_outputs(root: Path) -> int:
     root = root.resolve()
     outputs = expected_outputs(root)
     for relative in GENERATED_ROOTS:
-        target = root / relative
-        _assert_no_indirection_below(root, target, "generated root")
-        if target.exists() and _is_link_or_reparse(target):
-            raise ValueError(f"{target}: refusing to replace a link/reparse point")
+        # Refuses a link at the root to be replaced as well as above it.
+        _assert_no_indirection_below(root, root / relative, "generated root")
 
     with tempfile.TemporaryDirectory(prefix=".adapter-stage-", dir=root) as temporary:
         stage = Path(temporary) / "new"

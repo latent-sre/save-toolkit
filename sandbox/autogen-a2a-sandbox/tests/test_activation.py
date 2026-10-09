@@ -8,7 +8,7 @@ import platform
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stderr
+from contextlib import ExitStack, contextmanager, redirect_stderr
 from io import StringIO
 from datetime import datetime
 from pathlib import Path
@@ -247,7 +247,18 @@ def _rebind_final_fixture(module, root):
     root["decision"]["artifact_digest"] = artifact["artifact_digest"]
 
 
-class ActivationImportTests(unittest.TestCase):
+class ActivateModuleTestCase(unittest.TestCase):
+    """Executes activate.py once per class.
+
+    Tests change the shared module only through patch context managers, which restore it.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.module = _load_activate()
+
+
+class ActivationImportTests(ActivateModuleTestCase):
     def test_host_entrypoint_imports_without_third_party_packages(self) -> None:
         source = ACTIVATE_PATH.read_text(encoding="utf-8")
         forbidden = (
@@ -265,13 +276,12 @@ class ActivationImportTests(unittest.TestCase):
         self.assertTrue(callable(module.build_parser))
 
     def test_run_id_bound_reserves_space_for_the_artifact_prefix(self) -> None:
-        module = _load_activate()
-        self.assertEqual(module._validated_run_id("a" * 105), "a" * 105)
-        with self.assertRaisesRegex(Exception, "run ID is malformed"):
-            module._validated_run_id("a" * 106)
+        self.assertEqual(self.module._validated_run_id("a" * 105), "a" * 105)
+        with self.assertRaisesRegex(self.module.ActivationError, "run ID is malformed"):
+            self.module._validated_run_id("a" * 106)
 
     def test_parser_exposes_only_build_fresh_and_resume(self) -> None:
-        parser = _load_activate().build_parser()
+        parser = self.module.build_parser()
         for command in ("build", "fresh", "resume"):
             with self.subTest(command=command):
                 args = parser.parse_args(
@@ -311,17 +321,15 @@ class ActivationImportTests(unittest.TestCase):
                 self.assertEqual(args.command, command)
 
     def test_invalid_cli_is_one_json_error_line(self) -> None:
-        module = _load_activate()
         diagnostic = StringIO()
         with redirect_stderr(diagnostic):
-            exit_code = module.main(["fresh"])
+            exit_code = self.module.main(["fresh"])
         lines = diagnostic.getvalue().splitlines()
-        self.assertEqual(exit_code, module.EXIT_USAGE)
+        self.assertEqual(exit_code, self.module.EXIT_USAGE)
         self.assertEqual(len(lines), 1)
         self.assertEqual(json.loads(lines[0])["error_class"], "invalid_arguments")
 
     def test_only_desktop_linux_local_endpoint_is_accepted(self) -> None:
-        module = _load_activate()
         local = [
             {
                 "Name": "desktop-linux",
@@ -333,7 +341,7 @@ class ActivationImportTests(unittest.TestCase):
                 },
             }
         ]
-        module.validate_docker_context_record(local, "desktop-linux")
+        self.module.validate_docker_context_record(local, "desktop-linux")
         for context, endpoint in (
             ("default", "npipe:////./pipe/dockerDesktopLinuxEngine"),
             ("desktop-linux", "tcp://127.0.0.1:2375"),
@@ -345,24 +353,23 @@ class ActivationImportTests(unittest.TestCase):
                 mutation = copy.deepcopy(local)
                 mutation[0]["Name"] = context
                 mutation[0]["Endpoints"]["docker"]["Host"] = endpoint
-                with self.assertRaises(Exception):
-                    module.validate_docker_context_record(mutation, context)
+                with self.assertRaises(self.module.ActivationError):
+                    self.module.validate_docker_context_record(mutation, context)
 
     def test_daemon_id_is_closed_without_exposing_endpoint(self) -> None:
-        module = _load_activate()
         self.assertEqual(
-            module.validate_daemon_id('"78e193b6-71a1-4a60-9ec0-16e94dd22f62"'),
+            self.module.validate_daemon_id('"78e193b6-71a1-4a60-9ec0-16e94dd22f62"'),
             "78e193b6-71a1-4a60-9ec0-16e94dd22f62",
         )
         for value in ('""', '"bad id"', "null", '{"endpoint":"tcp://host"}'):
             with self.subTest(value=value):
-                with self.assertRaises(Exception):
-                    module.validate_daemon_id(value)
+                with self.assertRaises(self.module.ActivationError):
+                    self.module.validate_daemon_id(value)
 
 
-class AmbientEnvironmentTests(unittest.TestCase):
+class AmbientEnvironmentTests(ActivateModuleTestCase):
     def test_rejects_credential_proxy_model_cloud_and_docker_overrides(self) -> None:
-        reject = _load_activate().reject_ambient_environment
+        reject = self.module.reject_ambient_environment
         for name in (
             "OPENAI_API_KEY",
             "HTTPS_PROXY",
@@ -377,28 +384,26 @@ class AmbientEnvironmentTests(unittest.TestCase):
             "MODEL_NAME",
         ):
             with self.subTest(name=name):
-                with self.assertRaisesRegex(Exception, name):
+                with self.assertRaisesRegex(self.module.ActivationError, name):
                     reject({name: "do-not-print-this-value"})
 
     def test_allows_only_non_sensitive_process_basics(self) -> None:
-        _load_activate().reject_ambient_environment(
+        self.module.reject_ambient_environment(
             {"PATH": "ignored", "SYSTEMROOT": "ignored", "TEMP": "ignored"}
         )
 
     def test_minimal_environment_keeps_windows_compose_plugin_discovery(self) -> None:
-        module = _load_activate()
         with patch.dict(
             os.environ,
             {"PROGRAMFILES": r"C:\Program Files", "PROGRAMDATA": r"C:\ProgramData"},
         ):
-            environment = module._minimal_environment()
+            environment = self.module._minimal_environment()
         self.assertEqual(environment["PROGRAMFILES"], r"C:\Program Files")
         self.assertEqual(environment["PROGRAMDATA"], r"C:\ProgramData")
 
 
-class ComposeModelValidationTests(unittest.TestCase):
+class ComposeModelValidationTests(ActivateModuleTestCase):
     def setUp(self) -> None:
-        self.module = _load_activate()
         self.expected = self.module.ComposeExpectation(
             image="sha256:" + "a" * 64,
             project="a2a-deadbeef",
@@ -434,7 +439,7 @@ class ComposeModelValidationTests(unittest.TestCase):
         command[command.index("--decision") + 1] = "ACCEPT"
         self.module.validate_compose_model(model, resume)
         model["services"]["worker"]["volumes"][0]["read_only"] = False
-        with self.assertRaisesRegex(Exception, "read-only"):
+        with self.assertRaisesRegex(self.module.ActivationError, "read-only"):
             self.module.validate_compose_model(model, resume)
 
     def test_rejects_each_load_bearing_topology_or_security_mutation(self) -> None:
@@ -492,13 +497,12 @@ class ComposeModelValidationTests(unittest.TestCase):
             with self.subTest(label=label):
                 model = _rendered_model()
                 mutate(model)
-                with self.assertRaisesRegex(Exception, label.split()[0]):
+                with self.assertRaisesRegex(self.module.ActivationError, label.split()[0]):
                     self.module.validate_compose_model(model, self.expected)
 
 
-class HandoffValidationTests(unittest.TestCase):
+class HandoffValidationTests(ActivateModuleTestCase):
     def setUp(self) -> None:
-        self.module = _load_activate()
         self.handoff = {
             "handoff_version": "autogen-a2a-resume-handoff/v1",
             "state": "AWAITING_APPROVAL",
@@ -538,7 +542,7 @@ class HandoffValidationTests(unittest.TestCase):
             with self.subTest(field=field):
                 mutation = dict(self.handoff)
                 mutation[field] = value
-                with self.assertRaises(Exception):
+                with self.assertRaises(self.module.ActivationError):
                     self.module.validate_resume_handoff(
                         mutation,
                         source_revision="1" * 40,
@@ -556,7 +560,7 @@ class HandoffValidationTests(unittest.TestCase):
             first = json.dumps(self.handoff, sort_keys=True).encode("utf-8") + b"\n"
             self.module.publish_file_once(target, first)
             self.module.publish_file_once(target, first)
-            with self.assertRaisesRegex(Exception, "overwrite"):
+            with self.assertRaisesRegex(self.module.ActivationError, "overwrite"):
                 self.module.publish_file_once(target, b"changed\n")
 
     def test_private_receipt_rejects_changed_handoff_missing_and_link_substitution(self) -> None:
@@ -567,29 +571,44 @@ class HandoffValidationTests(unittest.TestCase):
             self.module._load_trusted_receipt(self.handoff)
             changed = copy.deepcopy(self.handoff)
             changed["artifact_digest"] = "9" * 64
-            with self.assertRaisesRegex(Exception, "receipt"):
+            with self.assertRaisesRegex(self.module.ActivationError, "receipt"):
                 self.module._load_trusted_receipt(changed)
 
             receipt_path = self.module._receipt_path(self.handoff)
             twin = receipt_path.with_suffix(".hardlink")
             os.link(receipt_path, twin)
-            with self.assertRaisesRegex(Exception, "link"):
+            with self.assertRaisesRegex(self.module.ActivationError, "link"):
                 self.module._load_trusted_receipt(self.handoff)
             twin.unlink()
             receipt_path.unlink()
-            with self.assertRaisesRegex(Exception, "receipt"):
+            with self.assertRaisesRegex(self.module.ActivationError, "receipt"):
                 self.module._load_trusted_receipt(self.handoff)
 
 
-class HostEvidenceValidationTests(unittest.TestCase):
+class HostEvidenceValidationTests(ActivateModuleTestCase):
     def setUp(self) -> None:
-        self.module = _load_activate()
         self.case_object, self.runtime = _final_runtime_fixture(self.module)
 
+    @contextmanager
+    def _resume_inputs(self, *, image_id, handoff, receipt):
+        """Stub the Docker and handoff reads _resume makes before it touches the final bundle."""
+        with ExitStack() as stack:
+            for name, value in (
+                ("_resolve_image", image_id),
+                ("_load_json_file", handoff),
+                ("validate_resume_handoff", handoff),
+                ("_load_trusted_receipt", receipt),
+                ("_render_compose", b"{}"),
+            ):
+                stack.enter_context(patch.object(self.module, name, return_value=value))
+            yield
+
     def _validate(self, root):
+        # The checkpoint comes from the unmutated fixture, as a real handoff predates the final
+        # runtime, so a mutation that removes `approval` reaches the validator.
         handoff = {
             "artifact_digest": root["artifact"]["artifact_digest"],
-            "checkpoint_id": root["approval"]["checkpoint_id"],
+            "checkpoint_id": self.runtime["approval"]["checkpoint_id"],
         }
         return self.module._validate_runtime_final(
             self.module._canonical_json(root),
@@ -631,7 +650,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
         )
         tampered = copy.deepcopy(checkpoint)
         tampered["team_state"] = {"agents": {"forged": True}}
-        with self.assertRaisesRegex(Exception, "checkpoint"):
+        with self.assertRaisesRegex(self.module.ActivationError, "checkpoint"):
             self.module._validate_graphflow_checkpoint(
                 contracts.canonical_json_bytes(tampered),
                 runtime_object=runtime,
@@ -655,7 +674,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                 mutate(root)
                 if label in {"forged packages", "forged call count", "malformed terminal"}:
                     _rebind_final_fixture(self.module, root)
-                with self.assertRaises(Exception):
+                with self.assertRaises(self.module.ActivationError):
                     self._validate(root)
 
     def test_exit2_validator_binds_input_required_timeline_and_terminal(self) -> None:
@@ -724,7 +743,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                     mutation["graphflow"]["state_sha256"] = canonical_sha256(
                         mutation["graphflow"]["terminal_state"]
                     )
-                with self.assertRaises(Exception):
+                with self.assertRaises(self.module.ActivationError):
                     self.module._validate_runtime_terminal(
                         self.module._canonical_json(mutation), run_id=root["run_id"],
                         source_revision=root["source_revision"], case_id=case.case_id,
@@ -958,7 +977,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
             )
             target = root / "final-bundle"
             target.mkdir()
-            with self.assertRaisesRegex(Exception, "overwrite"):
+            with self.assertRaisesRegex(self.module.ActivationError, "overwrite"):
                 self.module._finalize_bundle(
                     stage, target, run_id="host-validator-run", revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -966,7 +985,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                     handoff=handoff, receipt=receipt,
                 )
             self.assertTrue(stage.is_dir())
-            with self.assertRaises(Exception):
+            with self.assertRaises(self.module.ActivationError):
                 self.module.validate_staged_bundle(
                     stage, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -974,7 +993,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                     handoff=handoff, receipt=receipt,
                 )
             (stage / "graphflow-checkpoint.json").unlink()
-            with self.assertRaisesRegex(Exception, "missing|checkpoint|safely"):
+            with self.assertRaisesRegex(self.module.ActivationError, "missing|checkpoint|safely"):
                 self.module.validate_staged_bundle(
                     stage, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -999,7 +1018,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
             ).hexdigest()
             manifest_path.write_bytes(self.module._canonical_json(manifest))
 
-            with self.assertRaisesRegex(Exception, "receipt"):
+            with self.assertRaisesRegex(self.module.ActivationError, "receipt"):
                 self.module.validate_staged_bundle(
                     stage, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -1029,7 +1048,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                 ).hexdigest()
             manifest_path.write_bytes(self.module._canonical_json(manifest))
 
-            with self.assertRaisesRegex(Exception, "authentic|authentication"):
+            with self.assertRaisesRegex(self.module.ActivationError, "authentic|authentication"):
                 self.module.validate_staged_bundle(
                     stage, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -1058,7 +1077,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
             ).hexdigest()
             manifest_path.write_bytes(self.module._canonical_json(manifest))
 
-            with self.assertRaisesRegex(Exception, "authentication"):
+            with self.assertRaisesRegex(self.module.ActivationError, "authentication"):
                 self.module.validate_staged_bundle(
                     stage, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -1105,7 +1124,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                 )
             )
 
-            with self.assertRaisesRegex(Exception, "authentication"):
+            with self.assertRaisesRegex(self.module.ActivationError, "authentication"):
                 self.module._validate_final_bundle(
                     target, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -1137,7 +1156,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
 
             with patch.object(
                 self.module, "_durable_publish_directory", side_effect=rename_then_tamper
-            ), self.assertRaisesRegex(Exception, "authentication"):
+            ), self.assertRaisesRegex(self.module.ActivationError, "authentication"):
                 self.module._finalize_bundle(
                     stage, target, run_id="host-validator-run", revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -1164,7 +1183,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                 self.module,
                 "_validate_staged_contents",
                 side_effect=tamper_then_validate,
-            ), self.assertRaisesRegex(Exception, "changed during validation"):
+            ), self.assertRaisesRegex(self.module.ActivationError, "changed during validation"):
                 self.module.validate_staged_bundle(
                     stage, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -1212,17 +1231,11 @@ class HostEvidenceValidationTests(unittest.TestCase):
                     )
                 )
 
-            with patch.object(self.module, "_resolve_image", return_value=image_id), patch.object(
-                self.module, "_load_json_file", return_value=handoff
-            ), patch.object(
-                self.module, "validate_resume_handoff", return_value=handoff
-            ), patch.object(
-                self.module, "_load_trusted_receipt", return_value=receipt
-            ), patch.object(
-                self.module, "_render_compose", return_value=b"{}"
+            with self._resume_inputs(
+                image_id=image_id, handoff=handoff, receipt=receipt
             ), patch.object(
                 self.module, "_verify_full_cleanup", side_effect=tamper_during_cleanup
-            ), self.assertRaisesRegex(Exception, "authentication"):
+            ), self.assertRaisesRegex(self.module.ActivationError, "authentication"):
                 self.module._resume(
                     SANDBOX_ROOT, "desktop-linux", "1" * 40,
                     "host-validator-run", evidence_root, "ACCEPT", daemon_id,
@@ -1231,7 +1244,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
     def test_runtime_validator_requires_fixed_human_approver(self) -> None:
         runtime = copy.deepcopy(self.runtime)
         runtime["decision"]["approver"] = "alternate-release-owner"
-        with self.assertRaisesRegex(Exception, "requested decision"):
+        with self.assertRaisesRegex(self.module.ActivationError, "requested decision"):
             self._validate(runtime)
 
     def test_stage_rejects_hardlink_and_symlink_substitution(self) -> None:
@@ -1241,7 +1254,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
             artifact_path = stage / "artifact.json"
             hardlink = root / "artifact-hardlink.json"
             os.link(artifact_path, hardlink)
-            with self.assertRaisesRegex(Exception, "link"):
+            with self.assertRaisesRegex(self.module.ActivationError, "link"):
                 self.module.validate_staged_bundle(
                     stage, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -1258,7 +1271,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                 artifact_path.symlink_to(target)
             except OSError as exc:
                 self.skipTest(f"host cannot create a test symlink: {exc}")
-            with self.assertRaisesRegex(Exception, "link"):
+            with self.assertRaisesRegex(self.module.ActivationError, "link"):
                 self.module.validate_staged_bundle(
                     stage, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -1274,7 +1287,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
             {"st_mode": directory_mode, "st_file_attributes": 0x400},
         )()
         with patch.object(self.module.os, "lstat", return_value=details):
-            with self.assertRaisesRegex(Exception, "reparse"):
+            with self.assertRaisesRegex(self.module.ActivationError, "reparse"):
                 self.module._require_safe_directory(Path("unused"))
 
     def test_final_bundle_exact_replay_and_post_rename_crash_are_recoverable(self) -> None:
@@ -1304,7 +1317,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                 daemon_id=daemon_id, requested_decision="ACCEPT",
                 handoff=handoff, receipt=receipt,
             )
-            with self.assertRaises(Exception):
+            with self.assertRaises(self.module.ActivationError):
                 self.module._validate_final_bundle(
                     target, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -1312,7 +1325,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                     handoff=handoff, receipt=receipt,
                 )
             (target / "decision.json").write_bytes(b"{}")
-            with self.assertRaisesRegex(Exception, "digest"):
+            with self.assertRaisesRegex(self.module.ActivationError, "digest"):
                 self.module._validate_final_bundle(
                     target, run_id="host-validator-run", source_revision="1" * 40,
                     case_id="mission-healthy-001", image_id=image_id,
@@ -1323,12 +1336,12 @@ class HostEvidenceValidationTests(unittest.TestCase):
     def test_final_replay_refuses_any_surviving_run_resource(self) -> None:
         identity = self.module._run_identity("host-validator-run", "1" * 40)
         with patch.object(self.module, "_container_ids", return_value=("container",)):
-            with self.assertRaisesRegex(Exception, "remain"):
+            with self.assertRaisesRegex(self.module.ActivationError, "remain"):
                 self.module._verify_full_cleanup("desktop-linux", identity)
         with patch.object(self.module, "_container_ids", return_value=()), patch.object(
             self.module, "_resource_exists", side_effect=lambda _context, kind, _name: kind == "volume"
         ):
-            with self.assertRaisesRegex(Exception, "remain"):
+            with self.assertRaisesRegex(self.module.ActivationError, "remain"):
                 self.module._verify_full_cleanup("desktop-linux", identity)
 
     def test_resume_returns_success_from_only_an_exact_closed_final_bundle(self) -> None:
@@ -1344,14 +1357,8 @@ class HostEvidenceValidationTests(unittest.TestCase):
                 daemon_id=daemon_id, requested_decision="ACCEPT",
                 handoff=handoff, receipt=receipt,
             )
-            with patch.object(self.module, "_resolve_image", return_value=image_id), patch.object(
-                self.module, "_load_json_file", return_value=handoff
-            ), patch.object(
-                self.module, "validate_resume_handoff", return_value=handoff
-            ), patch.object(
-                self.module, "_load_trusted_receipt", return_value=receipt
-            ), patch.object(
-                self.module, "_render_compose", return_value=b"{}"
+            with self._resume_inputs(
+                image_id=image_id, handoff=handoff, receipt=receipt
             ), patch.object(
                 self.module, "_verify_full_cleanup"
             ) as cleanup, patch("builtins.print") as output:
@@ -1369,15 +1376,11 @@ class HostEvidenceValidationTests(unittest.TestCase):
                 ],
             )
 
-            with patch.object(self.module, "_resolve_image", return_value=image_id), patch.object(
-                self.module, "_load_json_file", return_value=handoff
+            with self._resume_inputs(
+                image_id=image_id, handoff=handoff, receipt=receipt
             ), patch.object(
-                self.module, "validate_resume_handoff", return_value=handoff
-            ), patch.object(
-                self.module, "_load_trusted_receipt", return_value=receipt
-            ), patch.object(
-                self.module, "_render_compose", return_value=b"{}"
-            ), self.assertRaises(Exception):
+                self.module, "_verify_full_cleanup"
+            ), self.assertRaisesRegex(self.module.ActivationError, "requested decision"):
                 self.module._resume(
                     SANDBOX_ROOT, "desktop-linux", "1" * 40,
                     "host-validator-run", evidence_root, "REJECT", daemon_id,
@@ -1623,7 +1626,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
                 with self.subTest(sequence=sequence, field=field):
                     mutation = copy.deepcopy(timeline)
                     mutation["events"][sequence][field] = None
-                    with self.assertRaisesRegex(Exception, "lineage"):
+                    with self.assertRaisesRegex(self.module.RuntimeBoundaryError, "lineage"):
                         self.module.validate_persisted_event_timeline(
                             mutation,
                             task_id="task-1",
@@ -1644,7 +1647,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
             with self.subTest(field=field):
                 mutation = copy.deepcopy(timeline)
                 mutation["events"][0][field] = value
-                with self.assertRaisesRegex(Exception, "workflow working"):
+                with self.assertRaisesRegex(self.module.RuntimeBoundaryError, "workflow working"):
                     self.module.validate_persisted_event_timeline(
                         mutation,
                         task_id="task-1",
@@ -1666,7 +1669,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
                 for part in path[:-1]:
                     target = target[part]
                 target[path[-1]] = value
-                with self.assertRaises(Exception):
+                with self.assertRaises(self.module.RuntimeBoundaryError):
                     self.module.validate_runtime_pending(
                         mutation,
                         run_id="mission-healthy-001",
@@ -1683,7 +1686,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
         self.assertEqual(proof["remote_request_info_count"], 1)
         self.assertEqual(proof["approval_request_info_count"], 0)
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(self.module.RuntimeBoundaryError):
             self.module.validate_noncompleted_terminal(
                 a2a_state="input-required",
                 artifact_object={"unauthorized": "artifact"},
@@ -1692,6 +1695,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
 
     def test_existing_expired_decision_recovers_exact_final_without_timestamp_replay(self) -> None:
         from interop_sandbox.contracts import (
+            ContractViolation,
             validate_decision_replay,
             validate_recommendation_artifact,
             validate_release_decision,
@@ -1709,7 +1713,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
             artifact=artifact,
             at_time=datetime.fromisoformat("2026-01-01T00:01:00+00:00"),
         )
-        with self.assertRaisesRegex(Exception, "different value"):
+        with self.assertRaisesRegex(ContractViolation, "different value"):
             validate_decision_replay(existing, candidate)
 
         with tempfile.TemporaryDirectory() as temporary:
@@ -1736,7 +1740,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
             final_path.write_bytes(runtime_bytes)
             decision_path.write_bytes(decision_bytes)
 
-            with self.assertRaisesRegex(Exception, "requested decision"):
+            with self.assertRaisesRegex(self.module.RuntimeBoundaryError, "requested decision"):
                 self.module.recover_existing_final(
                     runtime_final_path=final_path,
                     decision_path=decision_path,
@@ -1753,7 +1757,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
                     mutation = copy.deepcopy(final_object)
                     mutation[field] = value
                     final_path.write_bytes(self.module._canonical_json(mutation))
-                    with self.assertRaises(Exception):
+                    with self.assertRaises(self.module.RuntimeBoundaryError):
                         self.module.recover_existing_final(
                             runtime_final_path=final_path,
                             decision_path=decision_path,
@@ -1767,7 +1771,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
             decision_path.write_bytes(
                 json.dumps(changed_decision, separators=(",", ":"), sort_keys=True).encode()
             )
-            with self.assertRaises(Exception):
+            with self.assertRaises(self.module.RuntimeBoundaryError):
                 self.module.recover_existing_final(
                     runtime_final_path=final_path,
                     decision_path=decision_path,
@@ -1799,7 +1803,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
             final_path = root / "runtime-final.json"
             final_path.write_bytes(runtime_bytes)
             decision_path.unlink()
-            with self.assertRaisesRegex(Exception, "without its exact decision"):
+            with self.assertRaisesRegex(self.module.RuntimeBoundaryError, "without its exact decision"):
                 self.module.recover_existing_final(
                     runtime_final_path=final_path,
                     decision_path=decision_path,

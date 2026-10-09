@@ -16,16 +16,13 @@ import contextlib
 import io
 import json
 import shutil
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
 import compare_runs as comparison
-from probe import catalog
+from probe_testkit import all_scenarios, read_json
 
 BUNDLE = Path(__file__).resolve().parent / "fixtures" / "v1-bundle"
 RUNS = BUNDLE / "runs"
@@ -34,7 +31,7 @@ COST_FIELDS = ("trial_usd", "judge_usd", "known_usd", "complete")
 
 def report_for(runs: Path, scenarios: list[dict] | None = None) -> dict:
     if scenarios is None:
-        scenarios = catalog.load_all_scenarios(BUNDLE / "scenarios")
+        scenarios = all_scenarios(BUNDLE / "scenarios")
     # Through JSON, as a reader of the printed report sees it.
     return json.loads(json.dumps(comparison.compare_bundle(runs, "incumbent", "candidate", scenarios)))
 
@@ -117,14 +114,14 @@ class ComparisonTests(unittest.TestCase):
                 for trial in (pair[role] or {}).get("trials", []):
                     if trial["folder"] is None:
                         continue
-                    record = json.loads((RUNS / trial["folder"] / "record.json").read_text(encoding="utf-8"))
+                    record = read_json(RUNS / trial["folder"] / "record.json")
                     states = [c["state"] for c in record["checks"]]
                     self.assertEqual(record["verdict"]["status"], trial["status"])
                     self.assertEqual({s: states.count(s) for s in ("PASS", "FAIL", "INCONCLUSIVE")}, trial["checks"])
                     self.assertEqual({k: record["cost"][k] for k in COST_FIELDS}, trial["cost"])
                     seen += 1
                 for row in (row for trial in (pair[role] or {}).get("trials", []) for row in trial["kept"]):
-                    record = json.loads((RUNS / row["folder"] / "record.json").read_text(encoding="utf-8"))
+                    record = read_json(RUNS / row["folder"] / "record.json")
                     self.assertEqual((record["attempt"]["number"], record["attempt"]["state"],
                                       record["verdict"]["status"]), (row["attempt"], row["state"], row["status"]))
                     self.assertEqual({k: record["cost"][k] for k in COST_FIELDS}, row["cost"])
@@ -257,7 +254,7 @@ class ComparisonTests(unittest.TestCase):
             shutil.copytree(RUNS, runs)
             for label in ("incumbent", "candidate"):
                 path = runs / "eval-synthetic-gain" / label / "run-1" / "record.json"
-                record = json.loads(path.read_text(encoding="utf-8"))
+                record = read_json(path)
                 record["case"]["scenario_sha256"] = None
                 path.write_text(json.dumps(record), encoding="utf-8")
             gain = case(report_for(runs), "synthetic-gain")
@@ -278,7 +275,7 @@ class ComparisonTests(unittest.TestCase):
                 runs = Path(tmp) / "runs"
                 shutil.copytree(RUNS, runs)
                 path = runs / "eval-synthetic-gain" / "candidate" / "run-1" / "record.json"
-                record = json.loads(path.read_text(encoding="utf-8"))
+                record = read_json(path)
                 record[field].update(value)
                 path.write_text(json.dumps(record), encoding="utf-8")
                 report = report_for(runs)
@@ -302,7 +299,7 @@ class ComparisonTests(unittest.TestCase):
             ("candidate-opus", "synthetic-model", "the arms differ in requested_model, observed_models", None),
         ):
             with self.subTest(label=label):
-                scenarios = catalog.load_all_scenarios(BUNDLE / "scenarios")
+                scenarios = all_scenarios(BUNDLE / "scenarios")
                 report = json.loads(json.dumps(comparison.compare_bundle(RUNS, "incumbent", label, scenarios)))
                 pair = case(report, case_id)
                 self.assertEqual(("not_compared", reason), (pair["outcome"], pair["reason"]))
@@ -334,7 +331,7 @@ class ComparisonTests(unittest.TestCase):
     def test_report_matches_the_committed_report_after_relocation(self) -> None:
         """AC-23 and AC-19: the same logical report from a relocated copy under a path with spaces, every
         evidence link opening there, and the one missing trace still reported missing."""
-        expected = json.loads((BUNDLE / "expected-report.json").read_text(encoding="utf-8"))
+        expected = read_json(BUNDLE / "expected-report.json")
         self.assertEqual(expected, self.report)
         with tempfile.TemporaryDirectory() as tmp:
             runs = Path(tmp) / "relocated bundle" / "with spaces"

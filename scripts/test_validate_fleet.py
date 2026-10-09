@@ -2,33 +2,33 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import json
 import re
 import tempfile
 import unittest
+from collections.abc import Callable
 from pathlib import Path
+from unittest import mock
 
+import fleet_frontmatter
+import generate_platform_adapters
 import validate_fleet
-
+from testkit import markdown_section, must_replace, normalized
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _normalized(text: str) -> str:
-    return re.sub(r"\s+", " ", text.lower()).strip()
-
-
 def _markdown_section(relative: Path, heading: str) -> str:
-    text = (ROOT / relative).read_text(encoding="utf-8")
-    marker = f"{heading}\n"
-    if marker not in text:
-        raise AssertionError(f"{relative.as_posix()}: missing heading {heading!r}")
-    section = text.split(marker, 1)[1]
-    level = len(heading) - len(heading.lstrip("#"))
-    next_heading = re.search(rf"^#{{1,{level}}}\s+", section, re.MULTILINE)
-    if next_heading:
-        section = section[: next_heading.start()]
-    return _normalized(section)
+    """The case- and whitespace-normalized body under `heading` in one repository file."""
+    return normalized(markdown_section((ROOT / relative).read_text(encoding="utf-8"), heading))
+
+
+def _agent(name: str) -> fleet_frontmatter.ParsedFrontmatter:
+    return fleet_frontmatter.parse_file(ROOT / "agents" / f"{name}.md")
+
+
+def _granted_tools(name: str) -> set[str]:
+    return {grant.base for grant in fleet_frontmatter.tool_grants(_agent(name).fields["tools"])}
 
 
 def _agent_failures_after_edit(filename: str, edit: Callable[[str], str]) -> list[str]:
@@ -51,15 +51,61 @@ def _agent_failures_after_edit(filename: str, edit: Callable[[str], str]) -> lis
     return failures
 
 
+class DesignLaneAuthorityContract:
+    """The authority the two design lanes share; their suites mix this into a TestCase and set NAME.
+
+    Both read, write design documents, and delegate to the same three evidence helpers. Neither may
+    execute, reach the web directly, open worktrees, or hand work to the implementer.
+    """
+
+    NAME = ""
+
+    def test_canonical_and_projected_authority(self) -> None:
+        grants = fleet_frontmatter.tool_grants(_agent(self.NAME).fields["tools"])
+        self.assertEqual(
+            {"Read", "Grep", "Glob", "Write", "Edit", "Skill", "Agent"},
+            {grant.base for grant in grants},
+        )
+        self.assertEqual(
+            {"repository-investigator", "sre-assistant", "researcher"},
+            set(fleet_frontmatter.delegation_targets(grants, self.NAME, plugin="save-toolkit")),
+        )
+        projected = fleet_frontmatter.parse_file(ROOT / ".github/agents" / f"{self.NAME}.agent.md").fields
+        self.assertEqual(["read", "search", "edit", "agent"], json.loads(projected["tools"]))
+        self.assertEqual(
+            ["repository-investigator", "sre-assistant", "researcher"],
+            json.loads(projected["agents"]))
+
+    def test_validator_rejects_execution_egress_and_implementation_delegation(self) -> None:
+        filename = f"{self.NAME}.md"
+        for grant in ("Bash", "PowerShell", "WebFetch", "EnterWorktree", "NotebookEdit"):
+            with self.subTest(grant=grant):
+                failures = _agent_failures_after_edit(filename, lambda text: re.sub(
+                    r"(?m)^(tools: .+)$", lambda match: match.group(1) + ", " + grant, text, count=1))  # noqa: B023 -- called within this iteration
+                self.assertTrue(
+                    any(failure.endswith(f"{filename}: forbidden tool(s): {grant}") for failure in failures),
+                    failures,
+                )
+        with self.subTest(grant="Agent(save-toolkit:software-engineer)"):
+            failures = _agent_failures_after_edit(filename, lambda text: must_replace(
+                text, "save-toolkit:researcher)", "save-toolkit:researcher, save-toolkit:software-engineer)"))
+            self.assertTrue(any(f"{filename}: delegation mismatch" in failure for failure in failures), failures)
+
+
 class FleetValidatorTests(unittest.TestCase):
+    def test_validator_reads_the_one_generator_module(self) -> None:
+        """A second copy of the generator (`scripts.generate_platform_adapters`) would carry its own
+        GUARDED_AGENTS and functions, so a patch applied to the generator would not reach the
+        validator's view of it."""
+        self.assertIs(generate_platform_adapters, validate_fleet.adapters)
+
     def test_current_agents_pass(self) -> None:
         names, failures = validate_fleet.validate_agents(ROOT)
         self.assertEqual(sorted(validate_fleet.EXPECTED_AUTHORITY), sorted(names))
         self.assertEqual([], failures)
 
     def test_sre_browser_grants_are_selected_interactions_without_code_execution(self) -> None:
-        fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/sre-assistant.md")
-        grants = validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"]))
+        grants = _granted_tools("sre-assistant")
         self.assertEqual({
             "mcp__microsoft_playwright_mcp__browser_snapshot",
             "mcp__microsoft_playwright_mcp__browser_take_screenshot",
@@ -79,8 +125,8 @@ class FleetValidatorTests(unittest.TestCase):
                 grant = "mcp__microsoft_playwright_mcp__" + tool
                 def add_grant(text: str) -> str:
                     if "tools:\n" in text:
-                        return text.replace("tools:\n", f"tools:\n  - {grant}\n", 1)
-                    return re.sub(r"(?m)^(tools: .+)$", lambda m: m.group(1) + ", " + grant, text, count=1)
+                        return text.replace("tools:\n", f"tools:\n  - {grant}\n", 1)  # noqa: B023 -- called within this iteration
+                    return re.sub(r"(?m)^(tools: .+)$", lambda m: m.group(1) + ", " + grant, text, count=1)  # noqa: B023
                 with self.subTest(agent=name, tool=tool):
                     failures = _agent_failures_after_edit(name + ".md", add_grant)
                     self.assertTrue(any("forbidden tool" in item and grant in item for item in failures), failures)
@@ -92,14 +138,14 @@ class FleetValidatorTests(unittest.TestCase):
             with self.subTest(tool=tool):
                 failures = _agent_failures_after_edit(
                     "sre-assistant.md",
-                    lambda text: re.sub(r"(?m)^(tools: .+)$", lambda m: m.group(1) + ", " + grant, text, count=1),
+                    lambda text: re.sub(r"(?m)^(tools: .+)$", lambda m: m.group(1) + ", " + grant, text, count=1),  # noqa: B023
                 )
                 self.assertTrue(any("not exact-approved" in item and grant in item for item in failures), failures)
 
     def test_missing_tools_returns_a_diagnostic_instead_of_crashing(self) -> None:
         failures = _agent_failures_after_edit(
             "repository-investigator.md",
-            lambda text: text.replace("tools: Read, Grep, Glob", "# tools omitted"),
+            lambda text: must_replace(text, "tools: Read, Grep, Glob", "# tools omitted"),
         )
         self.assertEqual(1, len(failures), failures)
         self.assertIn("tools must be explicit; omission inherits all tools", failures[0])
@@ -120,10 +166,30 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("agents/: roster mismatch;", failures[0])
         self.assertTrue(failures[0].endswith("; found extra-agent"), failures)
 
+    def test_roster_tables_that_disagree_are_reported_instead_of_crashing(self) -> None:
+        """EXPECTED_DELEGATION is the roster; EXPECTED_AUTHORITY must cover exactly its agents."""
+        for table, edit, expected in (
+            ("EXPECTED_DELEGATION", lambda table: table.pop("scribe"),
+             "only in EXPECTED_DELEGATION: none; only in EXPECTED_AUTHORITY: scribe"),
+            ("EXPECTED_AUTHORITY", lambda table: table.pop("scribe"),
+             "only in EXPECTED_DELEGATION: scribe; only in EXPECTED_AUTHORITY: none"),
+            ("EXPECTED_AUTHORITY", lambda table: table.__setitem__("ghost-agent", table["scribe"]),
+             "only in EXPECTED_DELEGATION: none; only in EXPECTED_AUTHORITY: ghost-agent"),
+        ):
+            with self.subTest(table=table, expected=expected):
+                with mock.patch.dict(getattr(validate_fleet, table)):
+                    edit(getattr(validate_fleet, table))
+                    _, failures = validate_fleet.validate_agents(ROOT)
+                self.assertIn(
+                    "scripts/validate_fleet.py: EXPECTED_AUTHORITY and EXPECTED_DELEGATION must name "
+                    f"the same agents; {expected}",
+                    failures,
+                )
+
     def test_field_tool_and_authority_diagnostics_keep_their_order(self) -> None:
         failures = _agent_failures_after_edit(
-            "scribe.md", lambda text: text.replace(
-                "tools: Read, Grep, Glob, Edit, Write, Skill", "hooks: ignored\ntools: Read, Read",
+            "scribe.md", lambda text: must_replace(
+                text, "tools: Read, Grep, Glob, Edit, Write, Skill", "hooks: ignored\ntools: Read, Read",
             ),
         )
         self.assertEqual([
@@ -139,7 +205,7 @@ class FleetValidatorTests(unittest.TestCase):
             ("missing-agent.md", "name:", "not found in agents/"),
         ):
             with self.subTest(filename=filename), self.assertRaisesRegex(AssertionError, message):
-                _agent_failures_after_edit(filename, lambda text: text.replace(before, "replacement"))
+                _agent_failures_after_edit(filename, lambda text: text.replace(before, "replacement"))  # noqa: B023
 
     def test_agent_return_templates_keep_recipient_status_and_parent_separate(self) -> None:
         """Catch removal of return slots, not just loss of prose mentioning them."""
@@ -154,27 +220,25 @@ class FleetValidatorTests(unittest.TestCase):
     def test_builder_agent_uses_software_engineer_identity(self) -> None:
         path = ROOT / "agents/software-engineer.md"
         self.assertTrue(path.is_file())
-        fields, _, _ = validate_fleet.adapters.parse_frontmatter(path)
-        self.assertEqual("software-engineer", fields["name"])
+        self.assertEqual("software-engineer", _agent("software-engineer").fields["name"])
         self.assertIn("software-engineer", validate_fleet.EXPECTED_AUTHORITY)
         old_name = "s" + "de"
         self.assertNotIn(old_name, validate_fleet.EXPECTED_AUTHORITY)
         self.assertFalse((ROOT / "agents" / f"{old_name}.md").exists())
 
     def test_builder_has_native_windows_and_posix_shells(self) -> None:
-        fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/software-engineer.md")
-        grants = validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"]))
+        grants = _granted_tools("software-engineer")
         self.assertTrue({"Bash", "PowerShell"} <= grants, grants)
         for shell in ("Bash", "PowerShell"):
             with self.subTest(removed=shell):
                 failures = _agent_failures_after_edit(
-                    "software-engineer.md", lambda text: text.replace(f", {shell},", ",", 1),
+                    "software-engineer.md", lambda text: must_replace(text, f", {shell},", ",", 1),  # noqa: B023
                 )
                 self.assertTrue(any("missing required tool(s)" in item and shell in item
                                     for item in failures), failures)
 
     def test_always_loaded_guide_keeps_conditional_authority_complete(self) -> None:
-        guide = _normalized((ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+        guide = normalized((ROOT / "AGENTS.md").read_text(encoding="utf-8"))
         self.assertIn(
             "load it before recommending or changing supported runtime, tooling, or "
             "infrastructure choices",
@@ -241,10 +305,7 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("do not require github release controls", checklist)
 
     def test_review_consumers_keep_routine_work_out_of_the_prod_review_gate(self) -> None:
-        software_engineer_path = ROOT / "agents/software-engineer.md"
-        software_engineer_fields, _, _ = validate_fleet.adapters.parse_frontmatter(
-            software_engineer_path
-        )
+        software_engineer_fields = _agent("software-engineer").fields
         contracts = (
             (
                 "agents-learning",
@@ -266,7 +327,7 @@ class FleetValidatorTests(unittest.TestCase):
             ),
             (
                 "software-engineer-description",
-                _normalized(software_engineer_fields["description"]),
+                normalized(software_engineer_fields["description"]),
                 (),
                 ("reviewer",),
             ),
@@ -330,23 +391,18 @@ class FleetValidatorTests(unittest.TestCase):
                     self.assertNotIn(phrase, text)
 
     def test_scribe_is_a_non_executing_document_writer(self) -> None:
-        path = ROOT / "agents" / "scribe.md"
-        fields, body, _ = validate_fleet.adapters.parse_frontmatter(path)
-        self.assertEqual(
-            {"Read", "Grep", "Glob", "Edit", "Write", "Skill"},
-            validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"])),
-        )
+        body = _agent("scribe").body
+        self.assertEqual({"Read", "Grep", "Glob", "Edit", "Write", "Skill"}, _granted_tools("scribe"))
         self.assertIn("Do not execute anything", body)
         self.assertIn("## Pick one primary mode", body)
         self.assertIn("**Knowledge closeout mode**", body)
 
     def test_reviewer_collects_and_verifies_evidence_without_direct_external_tools(self) -> None:
-        path = ROOT / "agents/reviewer.md"
-        fields, _, _ = validate_fleet.adapters.parse_frontmatter(path)
+        grants = fleet_frontmatter.tool_grants(_agent("reviewer").fields["tools"])
         self.assertEqual({"Read", "Grep", "Glob", "Bash", "Write", "Edit", "TodoWrite", "Skill", "Agent"},
-                         validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"])))
-        self.assertEqual({"repository-investigator"},
-                         validate_fleet._delegates(validate_fleet._tool_specs(fields["tools"]), path))
+                         {grant.base for grant in grants})
+        self.assertEqual(["repository-investigator"],
+                         fleet_frontmatter.delegation_targets(grants, "reviewer.md", plugin="save-toolkit"))
 
     def test_handoff_receivers_keep_evidence_confidence_separate_from_taint(self) -> None:
         sections = {
@@ -455,11 +511,7 @@ class FleetValidatorTests(unittest.TestCase):
             Path("skills/operational-learning/references/disposition-policy.md"),
         )
         for relative in contract_paths:
-            text = re.sub(
-                r"\s+",
-                " ",
-                (ROOT / relative).read_text(encoding="utf-8").lower(),
-            )
+            text = normalized((ROOT / relative).read_text(encoding="utf-8"))
             with self.subTest(contract=relative.as_posix()):
                 self.assertIn("mounted checkout's current commit matches the target revision", text)
                 self.assertIn("`[verified]` checkout binding", text)
@@ -519,16 +571,14 @@ class FleetValidatorTests(unittest.TestCase):
             ),
         }
         for relative, phrases in expectations.items():
-            text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
+            text = normalized((ROOT / relative).read_text(encoding="utf-8"))
             for phrase in phrases:
                 with self.subTest(contract=relative.as_posix(), phrase=phrase):
                     self.assertIn(phrase, text)
 
     def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:
-        fields, body, _ = validate_fleet.adapters.parse_frontmatter(
-            ROOT / "agents" / "observability-engineer.md"
-        )
-        description = str(fields["description"]).lower()
+        agent = _agent("observability-engineer")
+        description, body = str(agent.fields["description"]).lower(), agent.body
         self.assertIn("for runbooks or postmortems use save-toolkit:scribe", description)
         self.assertNotIn("operational documentation", description)
         self.assertNotIn("## Documentation lane", body)
@@ -537,19 +587,8 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertNotIn("documentation output, filled", body)
         self.assertIn("→ `scribe`", body)
 
-    def test_scribe_execute_egress_and_delegation_are_rejected(self) -> None:
-        failures = _agent_failures_after_edit(
-            "scribe.md", lambda text: text.replace(
-                "tools: Read, Grep, Glob, Edit, Write, Skill",
-                "tools: Read, Grep, Glob, Edit, Write, Skill, Bash, WebSearch, Agent(save-toolkit:researcher)",
-            ),
-        )
-        rendered = "\n".join(failures)
-        self.assertIn("forbidden tool(s): Agent, Bash, WebSearch", rendered)
-        self.assertIn("delegation mismatch", rendered)
-
     def test_scribe_returns_runbook_link_to_caller_and_preserves_alert_owner(self) -> None:
-        _, body, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/scribe.md")
+        body = _agent("scribe").body
         self.assertNotIn("and link it from the alert", body)
         self.assertIn(
             "Return the exact runbook path or URL and any alert name to the invoking caller",
@@ -569,57 +608,59 @@ class FleetValidatorTests(unittest.TestCase):
         )
         self.assertIn("otherwise leave it unchanged", template)
 
-    def test_inert_plugin_hook_and_missing_tools_fail(self) -> None:
-        failures = _agent_failures_after_edit(
-            "reviewer.md", lambda text: text.replace("tools: Read, Grep, Glob", "hooks: ignored\ntools: Read"),
-        )
-        rendered = "\n".join(failures)
-        self.assertIn("unsupported plugin agent field", rendered)
-        self.assertIn("missing required tool", rendered)
-        # The inert-field rule emits a distinct, more educational message than the generic
-        # unknown-field one (a `hooks:` guard in plugin frontmatter looks like armor and does
-        # nothing). Assert it specifically, so this test fails if that rule is ever deleted —
-        # without this line it would pass on the unknown-field message alone.
-        self.assertIn("plugin-inert authority field(s) are forbidden", rendered)
-
-    def test_mcp_server_wildcard_is_rejected(self) -> None:
-        failures = _agent_failures_after_edit(
-            "researcher.md", lambda text: text.replace(
-                "  - mcp__plugin_githits_githits__search\n", "  - mcp__plugin_githits_githits__*\n",
-            ),
-        )
-        self.assertIn("MCP authority is not exact-approved", "\n".join(failures))
-
-    def test_unknown_delegation_target_is_rejected(self) -> None:
-        failures = _agent_failures_after_edit(
-            "software-engineer.md", lambda text: text.replace(
-                "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
-                "Agent(save-toolkit:does-not-exist)",
-            ),
-        )
-        self.assertIn("does not exist", "\n".join(failures))
-
-    def test_local_investigator_external_egress_is_rejected(self) -> None:
-        failures = _agent_failures_after_edit(
-            "repository-investigator.md",
-            lambda text: text.replace("tools: Read, Grep, Glob", "tools: Read, Grep, Glob, WebSearch"),
-        )
-        self.assertIn("forbidden tool(s): WebSearch", "\n".join(failures))
-
-    def test_external_researcher_local_read_is_rejected(self) -> None:
-        failures = _agent_failures_after_edit(
-            "researcher.md", lambda text: text.replace("  - WebSearch\n", "  - Read\n  - WebSearch\n"),
-        )
-        self.assertIn("forbidden tool(s): Read", "\n".join(failures))
+    def test_one_frontmatter_edit_is_rejected_with_its_diagnostics(self) -> None:
+        for filename, old, new, messages in (
+            ("reviewer.md", "tools: Read, Grep, Glob", "hooks: ignored\ntools: Read",
+             # The inert-field rule emits a distinct, more educational message than the generic
+             # unknown-field one (a `hooks:` guard in plugin frontmatter looks like armor and does
+             # nothing). Assert it specifically, so this row fails if that rule is ever deleted —
+             # without it the row would pass on the unknown-field message alone.
+             ("unsupported plugin agent field", "missing required tool",
+              "plugin-inert authority field(s) are forbidden")),
+            ("scribe.md", "tools: Read, Grep, Glob, Edit, Write, Skill",
+             "tools: Read, Grep, Glob, Edit, Write, Skill, Bash, WebSearch, Agent(save-toolkit:researcher)",
+             ("forbidden tool(s): Agent, Bash, WebSearch", "delegation mismatch")),
+            ("researcher.md", "  - mcp__plugin_githits_githits__search\n", "  - mcp__plugin_githits_githits__*\n",
+             ("MCP authority is not exact-approved",)),
+            ("software-engineer.md", "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
+             "Agent(save-toolkit:does-not-exist)", ("does not exist",)),
+            ("software-engineer.md", "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
+             "Agent(save-toolkit:reviewer)", ("delegation mismatch",)),
+            ("repository-investigator.md", "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, WebSearch",
+             ("forbidden tool(s): WebSearch",)),
+            ("researcher.md", "  - WebSearch\n", "  - Read\n  - WebSearch\n", ("forbidden tool(s): Read",)),
+            ("sre-assistant.md", "Agent(save-toolkit:researcher)",
+             "Agent(save-toolkit:observability-engineer, save-toolkit:scribe, save-toolkit:researcher)",
+             ("delegation mismatch",)),
+            ("sre-assistant.md", "Agent(save-toolkit:researcher)", "Agent(researcher)",
+             ("invalid Agent target 'researcher'",)),
+            # The staleness the old blanket ban existed to prevent: a dated ID keeps pointing at
+            # a model long after the fleet has moved on, and nothing errors.
+            ("sre-assistant.md", "name: sre-assistant\n", "name: sre-assistant\nmodel: claude-opus-4-1-20250805\n",
+             ("model must be one of",)),
+            # `Bash(git diff:*)` reads like a narrowed shell and grants an open one — the runtime
+            # ignores the scope. Only Agent(...) scoping is real.
+            ("sre-assistant.md", "Read, Grep, Glob, Bash, Skill", "Read, Grep, Glob, Bash(git diff:*), Skill",
+             ("scoped tool grant",)),
+            ("reviewer.md", "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Read", ("duplicate tool grant",)),
+            # repository-investigator holds no Bash today; granting it Bash with no write tool makes it
+            # read-only-by-intent, whose read-only-ness is only a promise unless the guard scopes it.
+            ("repository-investigator.md", "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Bash",
+             ("not on the guard roster",)),
+        ):
+            with self.subTest(filename=filename, new=new):
+                rendered = "\n".join(_agent_failures_after_edit(
+                    filename, lambda text: must_replace(text, old, new)))  # noqa: B023 -- called within this iteration
+                for message in messages:
+                    self.assertIn(message, rendered)
 
     def test_external_researcher_can_load_githits_guidance_without_skills(self) -> None:
-        fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/researcher.md")
-        grants = validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"]))
+        grants = _granted_tools("researcher")
         bootstrap = "mcp__plugin_githits_githits__quick_start"
         self.assertIn(bootstrap, grants)
         self.assertNotIn("Skill", grants)
         failures = _agent_failures_after_edit(
-            "researcher.md", lambda text: text.replace(f"  - {bootstrap}\n", ""),
+            "researcher.md", lambda text: must_replace(text, f"  - {bootstrap}\n", ""),
         )
         self.assertIn(f"missing required tool(s): {bootstrap}", "\n".join(failures))
 
@@ -632,30 +673,6 @@ class FleetValidatorTests(unittest.TestCase):
         )
         self.assertIn("forbidden tool(s): WebFetch", "\n".join(failures))
 
-    def test_delegation_contract_is_exact(self) -> None:
-        failures = _agent_failures_after_edit(
-            "software-engineer.md", lambda text: text.replace(
-                "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
-                "Agent(save-toolkit:reviewer)",
-            ),
-        )
-        self.assertIn("delegation mismatch", "\n".join(failures))
-
-    def test_sre_postincident_delegation_edges_are_rejected(self) -> None:
-        failures = _agent_failures_after_edit(
-            "sre-assistant.md", lambda text: text.replace(
-                "Agent(save-toolkit:researcher)",
-                "Agent(save-toolkit:observability-engineer, save-toolkit:scribe, save-toolkit:researcher)",
-            ),
-        )
-        self.assertIn("delegation mismatch", "\n".join(failures))
-
-    def test_bare_plugin_delegation_is_rejected(self) -> None:
-        failures = _agent_failures_after_edit(
-            "sre-assistant.md", lambda text: text.replace("Agent(save-toolkit:researcher)", "Agent(researcher)"),
-        )
-        self.assertIn("invalid Agent target 'researcher'", "\n".join(failures))
-
     def test_model_alias_is_accepted(self) -> None:
         """An alias must produce NO failure at all, not merely avoid one message.
 
@@ -665,123 +682,56 @@ class FleetValidatorTests(unittest.TestCase):
         being tested.
         """
         failures = _agent_failures_after_edit(
-            "sre-assistant.md", lambda text: text.replace(
-                "name: sre-assistant\n", "name: sre-assistant\nmodel: sonnet\n",
+            "sre-assistant.md", lambda text: must_replace(
+                text, "name: sre-assistant\n", "name: sre-assistant\nmodel: sonnet\n",
             ),
         )
         self.assertEqual([], failures)
-
-    def test_full_model_id_is_rejected(self) -> None:
-        # The staleness the old blanket ban existed to prevent: a dated ID keeps pointing at
-        # a model long after the fleet has moved on, and nothing errors.
-        failures = _agent_failures_after_edit(
-            "sre-assistant.md", lambda text: text.replace(
-                "name: sre-assistant\n", "name: sre-assistant\nmodel: claude-opus-4-1-20250805\n",
-            ),
-        )
-        self.assertIn("model must be one of", "\n".join(failures))
-
-    def test_scoped_grant_on_non_agent_tool_is_rejected(self) -> None:
-        # `Bash(git diff:*)` reads like a narrowed shell and grants an open one — the runtime
-        # ignores the scope. Only Agent(...) scoping is real.
-        failures = _agent_failures_after_edit(
-            "sre-assistant.md", lambda text: text.replace(
-                "Read, Grep, Glob, Bash, Skill", "Read, Grep, Glob, Bash(git diff:*), Skill",
-            ),
-        )
-        self.assertIn("scoped tool grant", "\n".join(failures))
-
-    def test_duplicate_tool_grant_is_rejected(self) -> None:
-        failures = _agent_failures_after_edit(
-            "reviewer.md", lambda text: text.replace("tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Read"),
-        )
-        self.assertIn("duplicate tool grant", "\n".join(failures))
 
     def test_incomplete_evidence_triad_is_rejected(self) -> None:
         # Dropping [sourced] while keeping the other two labels loses the ability to distinguish
         # "I ran it" from "the file says so"; the triad is all-or-nothing.
         failures = _agent_failures_after_edit(
-            "software-engineer.md", lambda text: text.replace("[sourced]", "[srcd]"),
+            "software-engineer.md", lambda text: must_replace(text, "[sourced]", "[srcd]", count=-1),
         )
         self.assertIn("incomplete evidence-label triad", "\n".join(failures))
 
-    def test_bash_without_write_must_be_on_guard_roster(self) -> None:
-        # repository-investigator holds no Bash today; granting it Bash with no write tool makes it
-        # read-only-by-intent, whose read-only-ness is only a promise unless the guard scopes it.
-        failures = _agent_failures_after_edit(
-            "repository-investigator.md",
-            lambda text: text.replace("tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Bash"),
-        )
-        self.assertIn("not on the guard roster", "\n".join(failures))
-
-    def _guard_wiring_root(self, temporary: str, guard_mutation=lambda t: t) -> Path:
-        """A minimal root carrying a (possibly mutated) guard and the real Claude manifest."""
-        root = Path(temporary)
-        (root / "scripts").mkdir()
-        (root / ".claude-plugin").mkdir()
-        guard_text = (ROOT / "scripts" / "readonly-guard.py").read_text(encoding="utf-8")
-        (root / "scripts" / "readonly-guard.py").write_text(
-            guard_mutation(guard_text), encoding="utf-8"
-        )
-        (root / ".claude-plugin" / "plugin.json").write_text(
-            (ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), encoding="utf-8"
-        )
-        return root
-
-    def test_guard_roster_mismatch_with_generator_is_rejected(self) -> None:
+    @staticmethod
+    def _guard_wiring_failures(old: str, new: str, agent_names: list[str]) -> list[str]:
+        """validate_guard_wiring over a minimal root: the guard with one edit, and the real Claude manifest."""
         with tempfile.TemporaryDirectory() as temporary:
-            root = self._guard_wiring_root(
-                temporary,
-                lambda t: t.replace(
-                    'frozenset({"sre-assistant"})',
-                    'frozenset({"sre-assistant", "software-engineer"})',
-                ),
+            root = Path(temporary)
+            (root / "scripts").mkdir()
+            (root / ".claude-plugin").mkdir()
+            guard_text = (ROOT / "scripts" / "readonly-guard.py").read_text(encoding="utf-8")
+            (root / "scripts" / "readonly-guard.py").write_text(must_replace(guard_text, old, new), encoding="utf-8")
+            (root / ".claude-plugin" / "plugin.json").write_text(
+                (ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), encoding="utf-8"
             )
-            failures = validate_fleet.validate_guard_wiring(
-                root, sorted(validate_fleet.EXPECTED_AUTHORITY)
-            )
-        self.assertIn("guard roster mismatch", "\n".join(failures))
+            return validate_fleet.validate_guard_wiring(root, agent_names)
 
-    def test_guard_fleet_inventory_missing_a_canonical_agent_is_rejected(self) -> None:
+    def test_guard_wiring_that_disagrees_with_the_fleet_is_rejected(self) -> None:
+        fleet = sorted(validate_fleet.EXPECTED_AUTHORITY)
+        for old, new, agent_names, messages in (
+            ('frozenset({"sre-assistant"})', 'frozenset({"sre-assistant", "software-engineer"})', fleet,
+             ("guard roster mismatch",)),
+            ('    "principal-engineer",\n', "", fleet, ("guard fleet inventory mismatch", "principal-engineer")),
+            ('frozenset({"sre-assistant"})', 'frozenset({"sre-assistant", "ghost-agent"})',
+             ["sre-assistant", "observability-engineer"], ("non-existent agent",)),
+            ('PLUGIN_NAME = "save-toolkit"', 'PLUGIN_NAME = "renamed"', fleet, ("guard PLUGIN_NAME",)),
+        ):
+            with self.subTest(old=old, new=new):
+                rendered = "\n".join(self._guard_wiring_failures(old, new, agent_names))
+                for message in messages:
+                    self.assertIn(message, rendered)
+
+    @staticmethod
+    def _roster_failures(mutate) -> list[str]:
+        """validate_roster_graph over a copy of AGENTS.md with `mutate` applied."""
         with tempfile.TemporaryDirectory() as temporary:
-            root = self._guard_wiring_root(
-                temporary, lambda t: t.replace('    "principal-engineer",\n', "")
-            )
-            failures = validate_fleet.validate_guard_wiring(
-                root, sorted(validate_fleet.EXPECTED_AUTHORITY)
-            )
-        self.assertIn("guard fleet inventory mismatch", "\n".join(failures))
-        self.assertIn("principal-engineer", "\n".join(failures))
-
-    def test_guard_roster_naming_a_non_agent_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = self._guard_wiring_root(
-                temporary,
-                lambda t: t.replace(
-                    'frozenset({"sre-assistant"})',
-                    'frozenset({"sre-assistant", "ghost-agent"})',
-                ),
-            )
-            failures = validate_fleet.validate_guard_wiring(root, ["sre-assistant", "observability-engineer"])
-        self.assertIn("non-existent agent", "\n".join(failures))
-
-    def test_guard_plugin_name_mismatch_with_manifest_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = self._guard_wiring_root(
-                temporary,
-                lambda t: t.replace('PLUGIN_NAME = "save-toolkit"', 'PLUGIN_NAME = "renamed"'),
-            )
-            failures = validate_fleet.validate_guard_wiring(
-                root, sorted(validate_fleet.EXPECTED_AUTHORITY)
-            )
-        self.assertIn("guard PLUGIN_NAME", "\n".join(failures))
-
-    def _roster_root(self, temporary: str, mutate) -> Path:
-        root = Path(temporary)
-        (root / "AGENTS.md").write_text(
-            mutate((ROOT / "AGENTS.md").read_text(encoding="utf-8")), encoding="utf-8"
-        )
-        return root
+            root = Path(temporary)
+            (root / "AGENTS.md").write_text(mutate((ROOT / "AGENTS.md").read_text(encoding="utf-8")), encoding="utf-8")
+            return validate_fleet.validate_roster_graph(root)
 
     def test_current_roster_graph_matches_enforced_graph(self) -> None:
         # Anchor: the shipped roster render already agrees with the enforced graph, or every
@@ -791,16 +741,9 @@ class FleetValidatorTests(unittest.TestCase):
     def test_roster_dropping_a_delegation_edge_is_rejected(self) -> None:
         # software-engineer delegates to reviewer, scribe, researcher in frontmatter; drop researcher from the
         # rendered row and the render now describes a graph the fleet does not have.
-        with tempfile.TemporaryDirectory() as temporary:
-            root = self._roster_root(
-                temporary,
-                lambda t: t.replace(
-                    "| `reviewer`, `scribe`, `researcher` |",
-                    "| `reviewer`, `scribe` |",
-                    1,
-                ),
-            )
-            failures = validate_fleet.validate_roster_graph(root)
+        failures = self._roster_failures(
+            lambda t: must_replace(t, "| `reviewer`, `scribe`, `researcher` |", "| `reviewer`, `scribe` |", 1)
+        )
         self.assertTrue(any("'software-engineer'" in f and "researcher" in f for f in failures), failures)
 
     def test_roster_adding_a_phantom_edge_is_rejected(self) -> None:
@@ -809,38 +752,20 @@ class FleetValidatorTests(unittest.TestCase):
         source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         scribe_row = next(line for line in source.splitlines() if line.startswith("| `scribe` |"))
         phantom_row = scribe_row.removesuffix(" — |") + " `researcher` |"
-        with tempfile.TemporaryDirectory() as temporary:
-            root = self._roster_root(
-                temporary,
-                lambda text: text.replace(scribe_row, phantom_row, 1),
-            )
-            failures = validate_fleet.validate_roster_graph(root)
+        failures = self._roster_failures(lambda text: must_replace(text, scribe_row, phantom_row, 1))
         self.assertTrue(any("'scribe'" in f for f in failures), failures)
 
     def test_roster_with_duplicate_agent_row_is_rejected(self) -> None:
         source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        software_engineer_row = next(
-            line for line in source.splitlines() if line.startswith("| `software-engineer` |")
-        )
-        with tempfile.TemporaryDirectory() as temporary:
-            root = self._roster_root(
-                temporary,
-                lambda text: text.replace(
-                    software_engineer_row,
-                    f"{software_engineer_row}\n{software_engineer_row}",
-                    1,
-                ),
-            )
-            failures = validate_fleet.validate_roster_graph(root)
+        row = next(line for line in source.splitlines() if line.startswith("| `software-engineer` |"))
+        failures = self._roster_failures(lambda text: must_replace(text, row, f"{row}\n{row}", 1))
         self.assertTrue(
             any("duplicate roster row for agent 'software-engineer'" in failure for failure in failures),
             failures,
         )
 
     def test_roster_without_the_table_fails_closed(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = self._roster_root(temporary, lambda t: "# no roster here\n")
-            failures = validate_fleet.validate_roster_graph(root)
+        failures = self._roster_failures(lambda t: "# no roster here\n")
         self.assertTrue(any("could not find the roster" in f for f in failures), failures)
 
 
@@ -854,8 +779,8 @@ class NonDelegatingHandoffTests(unittest.TestCase):
 
     def test_delegating_imperative_in_a_toolless_lane_is_flagged(self) -> None:
         failures = _agent_failures_after_edit(
-            "scribe.md", lambda text: text.replace(
-                "Recommend exactly one next owner. This role cannot invoke that owner",
+            "scribe.md", lambda text: must_replace(
+                text, "Recommend exactly one next owner. This role cannot invoke that owner",
                 "Hand to exactly one agent. If two are needed, sequence them",
             ),
         )

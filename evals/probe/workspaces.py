@@ -197,11 +197,8 @@ def collect_git_facts(ws: Workspace) -> GitFacts:
                 count, branch, [], "", f"git {args[0]} exited {proc.returncode}: {proc.stderr.strip()[:200]}"
             )
         outputs.append(proc.stdout)
-    changed = []
-    for line in outputs[1].splitlines():
-        parts = line.split("\t")
-        if len(parts) >= 2:
-            changed.append((parts[0][:1], parts[-1].replace("\\", "/")))
+    rows = [line.split("\t") for line in outputs[1].splitlines()]
+    changed = [(parts[0][:1], parts[-1].replace("\\", "/")) for parts in rows if len(parts) >= 2]
     return GitFacts(count, branch, changed, outputs[2])
 
 

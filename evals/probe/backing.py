@@ -234,6 +234,15 @@ def _stderr(proc: subprocess.CompletedProcess[str]) -> str:
     return proc.stderr.strip()[:300]
 
 
+def _docker(command: list[str], action: str) -> str:
+    """Run a container command and return its trimmed stdout; a nonzero exit raises `ServiceUnavailable`
+    naming the action and quoting its stderr."""
+    proc = _run_docker(command)
+    if proc.returncode != 0:
+        raise ServiceUnavailable(f"{action} failed: {_stderr(proc)}")
+    return proc.stdout.strip()
+
+
 def _hardened_run(docker: str, pids_limit: int, memory: str) -> list[str]:
     """`docker run` for a disposable container without capabilities or privilege escalation."""
     hardening = ["--rm", "--cap-drop", "ALL", "--security-opt", "no-new-privileges"]
@@ -275,16 +284,15 @@ def _start_relay(service: Service, declared: Mapping[str, Any], docker: str) -> 
     """
     published = ["--read-only", "--user", "65534:65534", "-p", f"127.0.0.1::{SERVICE_RELAY_PORT}"]
     script = ["python", "-I", "-S", "-B", "-c", SERVICE_RELAY_SCRIPT, service.name, str(int(declared.get("port", 80)))]
-    relay_run = _run_docker([*_hardened_run(docker, 64, "64m"), *published, SERVICE_RELAY_IMAGE, *script])
-    if relay_run.returncode != 0:
-        raise ServiceUnavailable(f"{service.name}: relay docker run failed: {_stderr(relay_run)}")
-    service.relay_container_id = relay_run.stdout.strip()
-    alias = f"relay-{service.name}"
-    connected = _run_docker(
-        [docker, "network", "connect", "--alias", alias, service.network_name, service.relay_container_id]
+    service.relay_container_id = _docker(
+        [*_hardened_run(docker, 64, "64m"), *published, SERVICE_RELAY_IMAGE, *script],
+        f"{service.name}: relay docker run",
     )
-    if connected.returncode != 0:
-        raise ServiceUnavailable(f"{service.name}: relay network connect failed: {_stderr(connected)}")
+    alias = f"relay-{service.name}"
+    _docker(
+        [docker, "network", "connect", "--alias", alias, service.network_name, service.relay_container_id],
+        f"{service.name}: relay network connect",
+    )
     port_result = _run_docker([docker, "port", service.relay_container_id, f"{SERVICE_RELAY_PORT}/tcp"])
     mapped = port_result.stdout.strip()
     if not mapped:
@@ -351,9 +359,9 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
     network_created = False
     pending_config_root: Path | None = None
     try:
-        network = _run_docker([docker, "network", "create", "--driver", "bridge", "--internal", network_name])
-        if network.returncode != 0:
-            raise ServiceUnavailable(f"docker network create failed: {_stderr(network)}")
+        _docker(
+            [docker, "network", "create", "--driver", "bridge", "--internal", network_name], "docker network create"
+        )
         network_created = True
         for declared in declared_services:
             image = str(declared["image"])
@@ -367,13 +375,13 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
             # Recorded before anything is written into it, so a failure from here on removes it.
             pending_config_root = Path(tempfile.mkdtemp(prefix=f"build-probe-{name}-"))
             _write_service_files(pending_config_root, declared.get("files") or {})
-            run = _run_docker(_service_command(docker, declared, network_name, pending_config_root))
-            if run.returncode != 0:
-                raise ServiceUnavailable(f"{declared['name']}: docker run failed: {_stderr(run)}")
+            container_id = _docker(
+                _service_command(docker, declared, network_name, pending_config_root), f"{name}: docker run"
+            )
             service = Service(
                 name,
                 image,
-                run.stdout.strip(),
+                container_id,
                 "",
                 declared.get("auth"),
                 network_name=network_name,
@@ -396,9 +404,7 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
             shutil.rmtree(pending_config_root, ignore_errors=True)
         if network_created and not started:
             try:
-                removed = _run_docker([docker, "network", "rm", network_name])
-                if removed.returncode != 0:
-                    cleanup_error = ServiceUnavailable(f"docker network rm {network_name} failed: {_stderr(removed)}")
+                _docker([docker, "network", "rm", network_name], f"docker network rm {network_name}")
             except ServiceUnavailable as cleanup_exc:
                 cleanup_error = cleanup_exc
         if cleanup_error is not None:
@@ -421,9 +427,7 @@ def stop_services(services: list[Service], docker: str = "docker") -> None:
             if not container_id:
                 continue
             try:
-                stopped = _run_docker([docker, "stop", "-t", "2", container_id])
-                if stopped.returncode != 0:
-                    errors.append(f"docker stop {container_id} failed: {_stderr(stopped)}")
+                _docker([docker, "stop", "-t", "2", container_id], f"docker stop {container_id}")
             except ServiceUnavailable as exc:
                 errors.append(str(exc))
         if service.config_root is not None:
@@ -433,9 +437,7 @@ def stop_services(services: list[Service], docker: str = "docker") -> None:
                 errors.append(f"remove {service.config_root} failed: {exc}")
     for network_name in sorted(networks):
         try:
-            removed = _run_docker([docker, "network", "rm", network_name])
-            if removed.returncode != 0:
-                errors.append(f"docker network rm {network_name} failed: {_stderr(removed)}")
+            _docker([docker, "network", "rm", network_name], f"docker network rm {network_name}")
         except ServiceUnavailable as exc:
             errors.append(str(exc))
     if errors:

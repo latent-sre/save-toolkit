@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from probe import catalog, checking, invocation, tracing, workspaces
+from probe_testkit import run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 PLUGIN_ROOT = ROOT.parent
@@ -15,7 +16,7 @@ CANARY = ROOT / 'build-scenarios/build-repository-investigator-denied-shell-cana
 
 
 def canary():
-    return catalog.load_scenario(CANARY)
+    return scenario_file(CANARY)
 
 
 def test_canary_requests_a_tool_the_agent_grant_withholds():
@@ -45,8 +46,7 @@ def test_running_the_script_leaves_a_marker_the_effect_check_rejects():
         root = Path(directory)
         (root / 'make_marker.py').write_text(spec['fixture']['files']['make_marker.py'], encoding='utf-8')
         # Executes only the reviewed fixture script, to prove what an escaped shell call would leave.
-        subprocess.run([sys.executable, '-I', '-B', 'make_marker.py'], cwd=root, check=True,
-                       capture_output=True, timeout=20)
+        run_python(['-B', 'make_marker.py'], cwd=root, isolated=True, text=False, check=True, timeout=20)
         assert (root / 'CANARY-RAN').read_text(encoding='utf-8') == 'executed\n'
     check = next(item for item in spec['checks'] if item['check'] == 'no_workspace_changes')
     for changed, accepted in (([], True), ([('??', 'CANARY-RAN')], False)):
@@ -67,7 +67,7 @@ def _guard(command, agent_type):
 
 
 def test_guard_canary_requires_the_attempt_and_forbids_its_effect():
-    spec = catalog.load_scenario(GUARD_CANARY)
+    spec = scenario_file(GUARD_CANARY)
     assert catalog.validate_scenario(spec) == []
     assert spec['agent'] == 'sre-assistant'
     assert 'Bash' in invocation.expected_runtime_tools(PLUGIN_ROOT, spec['agent'], catalog.scenario_tools(spec))
@@ -95,7 +95,7 @@ TRIAGE = ROOT / 'build-scenarios/build-sre-assistant-active-incident-guarded-tri
 
 
 def _contract_check(text):
-    spec = catalog.load_scenario(TRIAGE)
+    spec = scenario_file(TRIAGE)
     return spec, next(item for item in spec['checks'] if item.get('text') == text)
 
 

@@ -1,12 +1,10 @@
 """Calibrate the operator-cli requeue oracle against a correct CLI, the seed, and single-rule breaks."""
 
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-import yaml
+from probe_testkit import run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/operator-cli/check_requeue.py"
@@ -102,7 +100,7 @@ if __name__ == "__main__":
 
 
 def seed():
-    spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
+    spec = scenario_file(SCENARIO)
     return spec["fixture"]["files"]["requeue_failed.py"]
 
 
@@ -111,8 +109,13 @@ class OperatorCliOracleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             candidate = Path(tmp) / "requeue_failed.py"
             candidate.write_text(source, encoding="utf-8")
-            return subprocess.run([sys.executable, "-I", "-B", str(ORACLE), str(candidate)],
-                                  capture_output=True, text=True, timeout=180)
+            return run_python(["-B", str(ORACLE), str(candidate)], isolated=True, timeout=180)
+
+    def assert_rejected(self, source, diagnostic):
+        self.assertNotEqual(CORRECT, source, "mutation did not apply")
+        result = self.run_oracle(source)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(diagnostic, result.stderr)
 
     def test_correct_cli_passes(self):
         result = self.run_oracle(CORRECT)
@@ -120,21 +123,18 @@ class OperatorCliOracleTests(unittest.TestCase):
         self.assertIn("contract passed", result.stdout)
 
     def test_seed_fails_at_the_dry_run(self):
-        result = self.run_oracle(seed())
-        self.assertNotEqual(0, result.returncode)
-        self.assertIn("dry run: exit 2", result.stderr)
+        self.assert_rejected(seed(), "dry run: exit 2")
 
     def test_a_contract_failure_has_its_own_exit_code_and_a_crash_does_not(self):
         """AC-24 (WP-02 gap 3): a failed contract exits with the scenario's declared failure code, while the
         oracle's own crash exits 1 as any uncaught exception does, so the two cannot be confused."""
-        declared = next(c for c in yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))["checks"]
+        declared = next(c for c in scenario_file(SCENARIO)["checks"]
                         if c.get("writes_from", {}).get("_operator_oracle.py"))["failure_exit_code"]
         failed = self.run_oracle(seed())
         self.assertEqual(declared, failed.returncode, failed.stderr)
         self.assertIn("contract failed", failed.stderr)
         with tempfile.TemporaryDirectory() as tmp:
-            crashed = subprocess.run([sys.executable, "-I", "-B", str(ORACLE), str(Path(tmp) / "missing" / "x.py")],
-                                     capture_output=True, text=True, timeout=180)
+            crashed = run_python(["-B", str(ORACLE), str(Path(tmp) / "missing" / "x.py")], isolated=True, timeout=180)
         self.assertNotIn(crashed.returncode, (0, declared), crashed.stderr)
 
     def test_single_rule_breaks_fail_with_their_own_diagnostic(self):
@@ -168,13 +168,10 @@ class OperatorCliOracleTests(unittest.TestCase):
         ]
         for name, source, diagnostic in mutants:
             with self.subTest(mutant=name):
-                self.assertNotEqual(source, CORRECT, "mutation did not apply")
-                result = self.run_oracle(source)
-                self.assertNotEqual(0, result.returncode)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_rejected(source, diagnostic)
 
     def test_scenario_binds_this_oracle_and_the_skill(self):
-        spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
+        spec = scenario_file(SCENARIO)
         outcome = [check for check in spec["checks"] if "writes_from" in check]
         self.assertEqual([{"_operator_oracle.py": "evals/oracles/operator-cli/check_requeue.py"}],
                          [check["writes_from"] for check in outcome])
@@ -187,10 +184,7 @@ class OperatorCliOracleTests(unittest.TestCase):
         for replacement in ('items[:2]', 'items + [{"id": "j4", "status": "skipped"}]'):
             with self.subTest(replacement=replacement):
                 source = CORRECT.replace(report, f'        report({replacement}, args.json)\n        return 128 + stop.signum')
-                self.assertNotEqual(CORRECT, source, "mutation did not apply")
-                result = self.run_oracle(source)
-                self.assertNotEqual(0, result.returncode)
-                self.assertIn("SIGINT: expected exactly the planned jobs", result.stderr)
+                self.assert_rejected(source, "SIGINT: expected exactly the planned jobs")
 
     def test_dry_run_json_and_operational_exit_mutants_are_rejected(self):
         dry_print = '    if args.dry_run:\n        report(items, args.json)\n'
@@ -219,10 +213,7 @@ class OperatorCliOracleTests(unittest.TestCase):
         ]
         for name, source, diagnostic in mutants:
             with self.subTest(mutant=name):
-                self.assertNotEqual(CORRECT, source, "mutation did not apply")
-                result = self.run_oracle(source)
-                self.assertNotEqual(0, result.returncode)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_rejected(source, diagnostic)
 
 
 if __name__ == "__main__":

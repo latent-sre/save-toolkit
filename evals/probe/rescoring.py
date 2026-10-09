@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import contextlib
 import json
-import re
 import shutil
 import tempfile
 from collections.abc import Iterator, Mapping
@@ -22,11 +21,11 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, checking, fingerprints, invocation, outcomes, records, tracing
+from . import assessment, catalog, checking, fingerprints, invocation, layout, outcomes, records, tracing
 from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_IDENTITY, HARNESS_SOURCE_SHA256
-from .outcomes import EVIDENCE_LIMIT, UNMEASURED, CutShort, Outcome
+from .outcomes import EVIDENCE_LIMIT, UNMEASURED, CutShort, Ending, Outcome, Stop
 from .tracing import TraceSummary
 from .workspaces import GitFacts, Workspace
 
@@ -80,8 +79,8 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
         if not isinstance(argv, list) or not all(isinstance(arg, str) for arg in argv):
             return "native invocation agent command evidence missing; re-run the trial"
         pins = [argv[i + 1] if i + 1 < len(argv) else None for i, arg in enumerate(argv) if arg == "--agent"]
-        expected_pins = [f"save-toolkit:{spec['agent']}"] if spec.get("agent") else []
-        if pins != expected_pins:
+        pin = catalog.agent_pin(spec)
+        if pins != ([pin] if pin else []):
             return "native invocation agent pin differs from scenario; re-run the trial"
         if invocation.credential_markers(trace.result_text, trace_path):
             return "native credential marker detected; re-run the trial"
@@ -105,7 +104,7 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
             # The partial trace still shows the declared identity; the saved stop stays a cut, so
             # a forbidding check it already failed survives the regrade. No follow-up started.
             try:
-                return CutShort(str(metadata["inconclusive"]), metadata.get("run_stop") or "cut_short")
+                return CutShort(str(metadata["inconclusive"]), metadata.get("run_stop") or Stop.UNRECORDED)
             except ValueError:  # a saved stop this runner does not know
                 return _INVALID_NATIVE_EVIDENCE
         resume, workspace = trace.session_id, recorded_workspace
@@ -173,9 +172,7 @@ def _regrade_run(
     write: bool,
     relax_identity: bool,
 ) -> dict[str, Any]:
-    old = json.loads((run_dir / "grading.json").read_text(encoding="utf-8"))
-    original = run_dir / "grading.original.json"
-    live_grade = json.loads(original.read_text(encoding="utf-8")) if original.exists() else old
+    live_grade = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
     old_by_id = {e.get("id"): e for e in live_grade.get("expectations", [])}
     saved_binding = live_grade.get("judge_binding")
     identity = fingerprints.scenario_digest(spec, saved_binding)
@@ -203,7 +200,7 @@ def _regrade_run(
         if not trace.result_text:  # a truncated trace must not silently blank every text check
             trace.result_text = text
     else:
-        trace = _summary_trace(summary, text)
+        trace = tracing.from_saved(summary, text)
     before, after = summary.get("commits_before_after") or [0, 0]
     git = GitFacts(
         int(after),
@@ -229,6 +226,7 @@ def _regrade_run(
         if summary.get("agents_dir"):
             (ws.repo / ".agents").mkdir(parents=True)
         ctx = Context(dict(spec), ws, trace, git, plugin_root=plugin_root)
+        judge_problem = _saved_judge_problem(spec, saved_binding)
         inconclusive = _run_level_reason(
             spec,
             live_grade,
@@ -236,6 +234,7 @@ def _regrade_run(
             trace,
             native_problem,
             saved_binding,
+            judge_problem=judge_problem,
             has_raw_trace=reparsed is not None,
             has_plugin_root=has_plugin_root,
         )
@@ -249,7 +248,12 @@ def _regrade_run(
         items = assessment.plan(
             spec, trace, ctx, ctx.plugin_root, workspace=recorded_workspace, keep=True, raw_trace=reparsed is not None
         )
-        kept = _saved_verdicts(old_by_id, kept_prefix, stale_judge=_stale_judge(spec, saved_binding))
+        stale_judge = (
+            f"{judge_problem}; the kept judgment needs a re-run under the current judge"
+            if isinstance(judge_problem, rubric_judge.JudgeExecutionChanged)
+            else None
+        )
+        kept = _saved_verdicts(old_by_id, kept_prefix, stale_judge=stale_judge)
         graded, unmeasured = assessment.assess(items, inconclusive, kept=kept)
     if fingerprints.scenario_digest(spec, saved_binding) != identity:
         inconclusive = "scenario inputs changed during regrade; re-run the trial"
@@ -259,7 +263,7 @@ def _regrade_run(
     turn_limit = not inconclusive and (
         invocation.reached_turn_limit(trace, spec)
         if reparsed is not None
-        else live_grade.get("run_end") == "turn_limit"
+        else live_grade.get("run_end") == Ending.TURN_LIMIT
     )
     expectations = assessment.records(graded)
     grading = {
@@ -286,21 +290,6 @@ def _regrade_run(
     return _add_assessment(run_dir, grading, summary, trace if reparsed is not None else None)
 
 
-def _summary_trace(summary: Mapping[str, Any], text: str) -> TraceSummary:
-    """The trace facts a saved summary restores when the raw trace is gone."""
-    return TraceSummary(
-        result_text=text,
-        skills=list(summary.get("skills") or []),
-        skills_failed=list(summary.get("skills_failed") or []),
-        bash_commands=list(summary.get("bash_commands") or []),
-        subagent_bash_commands=list(summary.get("subagent_bash_commands") or []),
-        powershell_commands=list(summary.get("powershell_commands") or []),
-        dispatches=list(summary.get("dispatches") or []),
-        tool_errors=list(summary.get("tool_errors") or []),
-        tool_counts=dict(summary.get("tool_counts") or {}),
-    )
-
-
 def _run_level_reason(
     spec: Spec,
     live_grade: Mapping[str, Any],
@@ -309,6 +298,7 @@ def _run_level_reason(
     native_problem: str | None,
     saved_binding: Any,
     *,
+    judge_problem: rubric_judge.JudgeUnavailable | None,
     has_raw_trace: bool,
     has_plugin_root: bool,
 ) -> str | None:
@@ -316,26 +306,22 @@ def _run_level_reason(
     inconclusive: str | None
     if isinstance(native_problem, CutShort):
         inconclusive = native_problem
-    elif live_grade.get("run_end") == "cut_short" and not native_problem:
+    elif live_grade.get("run_end") == Ending.CUT_SHORT and not native_problem:
         # A cut-short FAIL keeps its reason under `unmeasured`; its forbidding checks still count.
         inconclusive = CutShort(
             live_grade.get("inconclusive") or live_grade.get("unmeasured") or "run cut short",
-            live_grade.get("run_stop") or "cut_short",
+            live_grade.get("run_stop") or Stop.UNRECORDED,
         )
     else:
         inconclusive = _saved_void(live_grade, summary) or native_problem
     if spec.get("references") and not has_plugin_root:
         inconclusive = "reference plugin root evidence missing or invalid; re-run the trial"
-    required = fingerprints.required_rubrics(spec)
-    if required and (not saved_binding or live_grade.get("response_sha256") != rubric_judge._digest(trace.result_text)):
+    if fingerprints.required_rubrics(spec) and (
+        not saved_binding or live_grade.get("response_sha256") != rubric_judge._digest(trace.result_text)
+    ):
         inconclusive = "saved judge binding or judged response identity is missing or changed; re-run the trial"
-    elif required:
-        try:
-            rubric_judge.validate_binding(rubric_judge.JudgeBinding(json.dumps(saved_binding)), required, current=False)
-        except rubric_judge.JudgeExecutionChanged:
-            pass  # the run's evidence is intact; only its kept judgments fall (`_stale_judge`)
-        except rubric_judge.JudgeUnavailable as exc:
-            inconclusive = str(exc)
+    elif judge_problem is not None and not isinstance(judge_problem, rubric_judge.JudgeExecutionChanged):
+        inconclusive = str(judge_problem)
     if has_raw_trace and str(inconclusive or "").startswith(invocation.BLOCKED_TOOLS):
         # The denial rule is re-derived from the raw trace so a regrade applies the live rule
         # (a subagent's refusal no longer voids a routing verdict), not the one saved that day.
@@ -364,23 +350,21 @@ def _saved_void(live_grade: Mapping[str, Any], summary: Mapping[str, Any]) -> st
     return str(reason) if all(str(e.get("evidence") or "") == marked for e in expectations) else None
 
 
-def _stale_judge(spec: Spec, saved_binding: Any) -> str | None:
-    """Why the run's kept judgments cannot stand when only the judge has changed since the run.
+def _saved_judge_problem(spec: Spec, saved_binding: Any) -> rubric_judge.JudgeUnavailable | None:
+    """Why the judge binding a run saved no longer validates, or None, as for a run that has none.
 
-    A judge whose code or configuration differs from the one the saved binding certified leaves
-    each kept judgment INCONCLUSIVE; the checks the saved trace re-measures keep their verdicts,
-    so a supported FAIL beside them still fails (result rule 3). Any other binding problem voids
-    the whole run in `_run_level_reason`.
+    `JudgeExecutionChanged`, a judge whose code or configuration differs from the one the binding
+    certified, leaves only each kept judgment INCONCLUSIVE: the checks the saved trace re-measures
+    keep their verdicts, so a supported FAIL beside them still fails (result rule 3). Any other
+    binding problem voids the whole run in `_run_level_reason`.
     """
     required = fingerprints.required_rubrics(spec)
     if not required or not saved_binding:
         return None
     try:
         rubric_judge.validate_binding(rubric_judge.JudgeBinding(json.dumps(saved_binding)), required, current=False)
-    except rubric_judge.JudgeExecutionChanged as exc:
-        return f"{exc}; the kept judgment needs a re-run under the current judge"
-    except rubric_judge.JudgeUnavailable:
-        return None
+    except rubric_judge.JudgeUnavailable as exc:
+        return exc
     return None
 
 
@@ -393,7 +377,7 @@ def _saved_verdicts(
     def kept(index: int, item: assessment.Expectation) -> Outcome | None:
         if stale_judge and item.kept_as == checking.LIVE_JUDGE:
             return outcomes.unmeasured(stale_judge)
-        saved = old_by_id.get(f"{prefix}:{index}")
+        saved = old_by_id.get(fingerprints.assertion_id(str(prefix), index))
         if saved is None or saved.get("text") != item.text:
             return None
         read = Outcome.read(saved["passed"], saved["evidence"])
@@ -408,8 +392,7 @@ def _add_assessment(
     """Write a regrade as assessments/<k>/ beside the run's original grade, never over it
     (threat-model ADR result rule 8), and list it in the attempt's v1 record."""
     revisions = run_dir / "assessments"
-    taken = [int(p.name) for p in revisions.iterdir() if p.name.isdigit()] if revisions.is_dir() else []
-    revision = max(taken, default=0) + 1
+    revision = layout.next_number(revisions)
     target = revisions / str(revision)
     target.mkdir(parents=True)
     grading = {
@@ -418,28 +401,18 @@ def _add_assessment(
         "assessed_at": records.utc_now(),
         "runner_source_sha256": HARNESS_SOURCE_SHA256,
     }
-    (target / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
-    # This assessment's own trace summary: its verdict, and the trace-derived facts as this runner
-    # reads them when the raw trace survives; the live run's summary beside it stays as recorded.
+    layout.write_json(target / "grading.json", grading)
+    # This assessment's own trace summary: its verdict, and every trace fact the run saved as this
+    # runner reads it when the raw trace survives; the live run's summary beside it stays as recorded.
     refreshed = {
         **summary,
         "status": grading["status"],
         "inconclusive": grading["inconclusive"],
         "scenario_sha256": grading["scenario_sha256"],
         "regraded": True,
+        **(tracing.to_saved(trace) if trace is not None else {}),
     }
-    if trace is not None:
-        refreshed.update(
-            skills=trace.skills,
-            skills_failed=trace.skills_failed,
-            dispatches=trace.dispatches,
-            bash_commands=trace.bash_commands,
-            tool_counts=trace.tool_counts,
-            denials=trace.denials,
-            tool_errors=trace.tool_errors,
-            models=trace.models,
-        )
-    (target / "trace-summary.json").write_text(json.dumps(refreshed, indent=2, ensure_ascii=False), encoding="utf-8")
+    layout.write_json(target / "trace-summary.json", refreshed)
     entry = {
         "revision": revision,
         "status": grading["status"],
@@ -454,39 +427,41 @@ def _add_assessment(
 
 def _saved_runs(
     iteration_dir: Path, scenarios: list[dict[str, Any]]
-) -> tuple[list[tuple[dict[str, Any], Path]], dict[str, Any]]:
-    """Each published run in an iteration with its scenario, `eval-<id>/<label>/run-<n>` holding a trace
-    summary, and what was passed over: a scenario not loaded, a folder that is not a numbered run (an
-    operator's `run-1-old`), and a run without a trace summary. Nothing is dropped silently."""
+) -> tuple[list[tuple[dict[str, Any], Path, dict[str, Any]]], dict[str, Any]]:
+    """Each published run in an iteration with its scenario and the row naming it, a run being a
+    `layout` slot folder holding a trace summary, and what was passed over: a scenario not loaded, a
+    folder that is not a numbered run (an operator's `run-1-old`), and a run without a trace summary.
+    Nothing is dropped silently."""
     by_id = {s["id"]: s for s in scenarios}
-    runs: list[tuple[dict[str, Any], Path]] = []
+    runs: list[tuple[dict[str, Any], Path, dict[str, Any]]] = []
     skipped: dict[str, Any] = {"scenarios": [], "other_run_folders": [], "runs_without_trace_summary": 0}
-    for eval_dir in sorted(iteration_dir.glob("eval-*")):
-        spec = by_id.get(eval_dir.name.removeprefix("eval-"))
+    for case_dir in layout.case_dirs(iteration_dir):
+        spec = by_id.get(layout.case_id(case_dir))
         if spec is None:  # retired, renamed, or excluded by --scenario
-            skipped["scenarios"].append(eval_dir.name.removeprefix("eval-"))
+            skipped["scenarios"].append(layout.case_id(case_dir))
             continue
-        for run_dir in sorted(eval_dir.glob("*/run-*")):
-            if not re.fullmatch(r"run-\d+", run_dir.name):
+        for run_dir in sorted(case_dir.glob(f"*/{layout.SLOT_PREFIX}*")):
+            slot = layout.slot(run_dir.name)
+            if slot is None:
                 skipped["other_run_folders"].append(run_dir.relative_to(iteration_dir).as_posix())
             elif not (run_dir / "outputs" / "trace-summary.json").exists():
                 skipped["runs_without_trace_summary"] += 1
             else:
-                runs.append((spec, run_dir))
+                runs.append((spec, run_dir, {"scenario": spec["id"], "label": run_dir.parent.name, "run": slot}))
     return runs, skipped
 
 
 def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[str, Any]]:
     runs, skipped = _saved_runs(iteration_dir, scenarios)
     results = []
-    for spec, run_dir in runs:
+    for spec, run_dir, row in runs:
         g = regrade_run(run_dir, spec)
         results.append(
             {
-                "scenario": spec["id"],
-                "label": run_dir.parent.name,
+                "scenario": row["scenario"],
+                "label": row["label"],
                 **assessment.native_assessment(spec),
-                "run": int(run_dir.name.removeprefix("run-")),
+                "run": row["run"],
                 "status": g["status"],
                 "passed": g["summary"]["passed"],
                 "total": g["summary"]["total"],
@@ -499,9 +474,9 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[s
         )
     # Saved summaries keep the verdicts their batch recorded; the regrade's rows go beside them.
     if results:
-        (iteration_dir / f"regrade-{records.utc_now().replace(':', '')}.json").write_text(
-            json.dumps({"runner": HARNESS_IDENTITY, "runs": results, "skipped": skipped}, indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        layout.write_json(
+            iteration_dir / f"regrade-{records.utc_now().replace(':', '')}.json",
+            {"runner": HARNESS_IDENTITY, "runs": results, "skipped": skipped},
         )
     return results
 
@@ -516,8 +491,9 @@ def _verdicts(grading: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path) -> list[dict[str, Any]]:
-    """Grade every saved run with this runner into `out_dir`, leaving the saved runs untouched.
+def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path) -> dict[str, Any]:
+    """Grade every saved run with this runner into `out_dir`, leaving the saved runs untouched, and
+    return the record written as `out_dir/rescore.json`.
 
     A saved scenario identity binds the runner that graded it, so after any runner edit `--regrade`
     voids every run. Rescoring grades across that change and marks such runs `identity_relaxed`:
@@ -526,13 +502,9 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
     """
     runs, skipped = _saved_runs(iteration_dir, scenarios)
     rows = []
-    for spec, run_dir in runs:
-        row = {"scenario": spec["id"], "label": run_dir.parent.name, "run": int(run_dir.name.removeprefix("run-"))}
+    for spec, run_dir, row in runs:
         try:
-            original = run_dir / "grading.original.json"
-            saved = json.loads(
-                (original if original.exists() else run_dir / "grading.json").read_text(encoding="utf-8")
-            )
+            saved = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
             grading = regrade_run(run_dir, spec, write=False, relax_identity=True)
         except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
             # One unreadable or older-shaped run stays visible instead of ending the comparison.
@@ -541,7 +513,7 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
         target = out_dir / run_dir.relative_to(iteration_dir)
         try:
             target.mkdir(parents=True)
-            (target / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+            layout.write_json(target / "grading.json", grading)
         except OSError as exc:  # e.g. a path past Windows' 260-character limit: report it, keep going
             rows.append({**row, "error": f"cannot write the rescored grade: {type(exc).__name__}: {exc}"[:300]})
             continue
@@ -554,24 +526,21 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
             }
         )
     record = {"runner": HARNESS_IDENTITY, "iteration": str(iteration_dir), "runs": rows, "skipped": skipped}
-    (out_dir / "rescore.json").write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
-    return rows
+    layout.write_json(out_dir / "rescore.json", record)
+    return record
 
 
 def rescore_diff(base: Mapping[str, Any], candidate: Mapping[str, Any]) -> list[str]:
     """Each run and check whose rescored verdict differs between two rescores of the same runs."""
 
-    def key(row: Mapping[str, Any]) -> tuple[Any, ...]:
-        return row.get("scenario"), row.get("label"), row.get("run")
-
     def outcome(row: Mapping[str, Any]) -> Mapping[str, Any]:
         return {"status": "ERROR", "checks": []} if row.get("error") else row.get("rescored") or {}
 
-    left = {key(r): r for r in base.get("runs") or []}
-    right = {key(r): r for r in candidate.get("runs") or []}
+    left = {layout.run_key(r): r for r in base.get("runs") or []}
+    right = {layout.run_key(r): r for r in candidate.get("runs") or []}
     lines = []
     for k in sorted(left.keys() | right.keys(), key=lambda k: tuple(str(part) for part in k)):
-        name = f"eval-{k[0]} {k[1]}/run-{k[2]}"
+        name = layout.run_name(*k)
         if k not in left or k not in right:
             lines.append(f"{name}: rescored only by the {'candidate' if k not in left else 'base'} runner")
             continue

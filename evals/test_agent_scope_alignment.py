@@ -2,22 +2,19 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-import re
 import json
-import sys
-from types import SimpleNamespace
+import re
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
 
+from probe import catalog, checking
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class AgentScopeAlignmentTests(unittest.TestCase):
     def test_reviewer_example_requires_rejection_for_the_execution_path(self) -> None:
-        sys.path.insert(0, str(ROOT / "evals"))
-        from probe import catalog, checking
-
         spec = catalog.load_scenario(
             ROOT / "evals/build-scenarios/build-reviewer-executes-nothing.yaml"
         )
