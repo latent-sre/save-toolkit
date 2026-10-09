@@ -12,32 +12,21 @@ from __future__ import annotations
 
 import argparse
 import collections
-import enum
 import json
 import math
 import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any
 
 import clean_room
 import judge as rubric_judge
 
 from . import assessment, batches, catalog, fingerprints, layout, records, rescoring, trials
 from .constants import ROOT
+from .exits import ExitCode, UsageParser
 from .outcomes import State
-
-
-class ExitCode(enum.IntEnum):
-    """How a job ends; the order of a batch's exits is decided in `_conclude`."""
-
-    OK = 0  # a passing batch or a clean job
-    FAIL = 1  # a FAIL verdict
-    DIFFERENT = 1  # a rescore diff that lists a difference
-    INCONCLUSIVE = 2
-    REFUSED = 3  # bad input or scenario: the job did not run
-    AUTH_LOST = 4  # authentication lost mid-batch
 
 
 def _verdict_exit(states: Sequence[str], *, unfinished: bool) -> ExitCode:
@@ -141,16 +130,8 @@ def _run_options(parser: argparse.ArgumentParser, *, required: bool) -> None:
     parser.add_argument("--docker", default="docker", help="container runtime executable used by backing services")
 
 
-class _Parser(argparse.ArgumentParser):
-    """argparse exits 2 on a usage error, which here means an INCONCLUSIVE batch; a refused command line is 3."""
-
-    def error(self, message: str) -> NoReturn:
-        self.print_usage(sys.stderr)
-        self.exit(ExitCode.REFUSED, f"{self.prog}: error: {message}\n")
-
-
 def _command_parser() -> argparse.ArgumentParser:
-    parser = _Parser(prog="build_probe.py", description=(__doc__ or "").split("\n\n")[0])
+    parser = UsageParser(prog="build_probe.py", description=(__doc__ or "").split("\n\n")[0])
     commands = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
     _run_options(
         commands.add_parser("run", help="run trials of the selected scenarios and publish each attempt"), required=True
@@ -181,7 +162,7 @@ def _command_parser() -> argparse.ArgumentParser:
 
 def _legacy_parser() -> argparse.ArgumentParser:
     """The flat flags every earlier runner took; each one maps onto a subcommand."""
-    parser = _Parser(
+    parser = UsageParser(
         prog="build_probe.py",
         description=(__doc__ or "").split("\n\n")[0],
         epilog=f"Subcommands: {', '.join(COMMANDS)}. Run `build_probe.py COMMAND --help` for each.",

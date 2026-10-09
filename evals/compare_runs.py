@@ -19,7 +19,6 @@ relocated bundle reports the same.
 
 from __future__ import annotations
 
-import argparse
 import json
 import math
 import sys
@@ -30,6 +29,7 @@ from typing import Any
 
 import yaml
 from probe import batches, catalog, fingerprints, layout
+from probe.exits import ExitCode, UsageParser
 from probe.outcomes import State
 from probe.records import RECORD_FORMAT, AttemptState, RecordV1
 from pydantic import ValidationError
@@ -540,7 +540,7 @@ def _side(arm: Mapping[str, Any] | None) -> str:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="compare_runs.py", description=(__doc__ or "").split("\n\n")[0])
+    parser = UsageParser(prog="compare_runs.py", description=(__doc__ or "").split("\n\n")[0])
     parser.add_argument("bundle", type=Path, metavar="ITERATION_DIR")
     parser.add_argument("--incumbent", required=True, metavar="LABEL")
     parser.add_argument("--candidate", required=True, metavar="LABEL")
@@ -548,27 +548,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="print the logical report as JSON")
     try:
         args = parser.parse_args(argv)
-    except SystemExit as exc:  # argparse exits 2 on a usage error; this tool refuses with 3
-        return 0 if exc.code == 0 else 3
+    except SystemExit as exc:  # `main` returns its exit code, a refused command line's or --help's
+        return int(exc.code or ExitCode.OK)
     refusal = _refusal(args.bundle, args.incumbent, args.candidate, args.scenarios)
     if refusal:
         print(refusal, file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     try:
         scenarios = catalog.load_all_scenarios(args.scenarios)
     except (ValueError, OSError, yaml.YAMLError) as exc:
         print(f"invalid scenario: {exc}", file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     try:
         report = compare_bundle(args.bundle, args.incumbent, args.candidate, scenarios)
     except OSError as exc:  # a folder the walk cannot list: no partial report stands in for the whole
         print(f"cannot read the saved runs: {exc}", file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False))
     else:
         print(render_text(report, args.bundle))
-    return 0
+    return ExitCode.OK
 
 
 def _refusal(bundle: Path, incumbent: str, candidate: str, scenario_dir: Path | None) -> str | None:

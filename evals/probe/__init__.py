@@ -3,6 +3,7 @@
 - `constants`: where the runner's inputs live, and the tool inventories;
 - `outcomes`: typed check outcomes, polarity and run stops -- the result rules' vocabulary;
 - `layout`: where an iteration keeps its saved runs, and how a folder's number reads back;
+- `exits`: the exit codes the evals command lines share, and the parser that refuses with them;
 - `tracing`: read a stream-json trace into the facts the checks grade;
 - `backing`: reviewed service containers behind a loopback audit proxy;
 - `workspaces`: the fixture repository, the environment a trial sees, and what changed;
