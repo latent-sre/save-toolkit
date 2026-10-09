@@ -186,3 +186,55 @@ plugin inputs are the reliability agent, resilience entrypoint and worked contra
 budget remains two trials, the same model, no retries and maximum USD 3; no extra trial is implied.
 Independent read-only review approved the exact two-line entrypoint change and generated mirror
 at `37bf6a6d`; no concrete defect or authority expansion was found. This remains static approval.
+
+## Owner-approved comparison on rebuilt arms (2026-10-08)
+
+The owner approved the pending decision on 2026-10-08: one native trial per arm, no retries, USD 3
+cap.
+
+**Identity.**
+- [verified] The frozen checkouts under `F:/iso-tmp` no longer existed. Both arms were rebuilt as
+  detached worktrees at their original paths: the candidate from `37bf6a6d`, the baseline from
+  `cecadc1b`.
+- [verified] Under this document's digest rule they hash to `dcbcf3eb…` and `9029bc99…`, the
+  values recorded above. The runner has also measured `scripts/readonly-guard-hook.ps1` since
+  2026-10-06, so it records `d7fe94bb…` and `45c90e52…` for the same bytes.
+- [verified] Runner: `main` at `3cfe4075`, frozen runner digest `55138c00…`, CLI 2.1.295. Both
+  trials resolved `claude-sonnet-5-5`.
+- [verified] The candidate trial cost USD 0.384 and the baseline USD 0.311; both pass the three
+  structural checks.
+
+**Blind trace review.** An independent `reviewer` graded both arms against the native scenario's
+manual criteria. It read the traces, not only the replies, and was not told which arm was which.
+The arms were revealed after grading. Its verdicts, which it marked `[verified]` against the traces:
+
+| Criterion | Baseline `cecadc1b` | Candidate `37bf6a6d` |
+|---|---|---|
+| Bounded helper request, actual read, provenance, synthesis after return | PASS | PASS |
+| r7 override does not close r8; r8 closes the pool lead only within tested scope | PASS | PASS, but calls the test "representative load" where the record says representative account reads |
+| Morgan as owner, caller as recipient, redelivery and load unknown | PASS | PASS |
+| Claimed reread matches a completed parent Read after return | PASS: no reread claimed | PASS: states it did not reread, the most explicit of the two |
+| Retry count, backoff and slot-release assumptions kept in timing claims | FAIL | FAIL |
+
+[sourced: independent review] Both timing failures share a cause. Each fixes the retry count at
+three, never naming the four-attempt reading of "retries … up to three times". Each turns the
+36-second sum of per-attempt timeouts into a bound on elapsed time and slot occupancy. The
+baseline keeps backoff and jitter as open unknowns but then contradicts that caveat; the candidate
+never mentions backoff. Neither treats the r7 override as closing r8, and neither claims a later
+attempt is unreachable before the overall deadline.
+
+[sourced: independent review] On SRE substance the baseline is slightly stronger. It raises
+duplicate posting in the parent turn, and it states the test load is unknown. Neither arm accounts
+for account reads sharing the 20-slot pool when computing post throughput.
+
+[unverified] One sample per arm cannot establish a rate. In this sample the candidate's targeted
+timing correction did not change the timing defect.
+
+**Packaging note.** [verified] In a two-turn run, `outputs/response.md` holds the follow-up reply
+and `run-1/response.md` the parent's. The blinded copies took the parent reply from the former, so
+both copies of `parent-response.md` held the follow-up. The review found this and graded the parent
+turn from its trace, so its verdicts are unaffected.
+
+Raw records stay private under `.eval-runs/reliability-native-20261008/` (owner-only). The
+blinded copies and the reviewer's scratch parser are under `F:/iso-tmp/rel-blind/`. Exact-candidate
+acceptance remains the owner's decision.

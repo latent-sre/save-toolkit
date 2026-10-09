@@ -76,19 +76,15 @@ evidence, and extend the tool as new operational needs appear.
 
 ### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
 
-**Status:** `decision-needed` (2026-10-08); the owner-approved two-trial comparison ran: candidate
-`37bf6a6d` against baseline `cecadc1b`, one native trial each on `claude-sonnet-5-5`, USD 0.70.
-Both arms were rebuilt byte-identically from their commits after the frozen checkouts were lost
-(2026-09-30 digest rule `dcbcf3eb…` and `9029bc99…`; today's rule `d7fe94bb…` and `45c90e52…`).
-- **Structural:** both pass 3/3 (one helper, parent continuation, same-session follow-up).
-- **Blind trace review, criteria 2 to 6:** both arms pass trace discipline, scope of closure,
-  ownership and reread provenance; both fail the timing criterion the same way, fixing the retry
-  count at three and treating the 36-second sum of timeouts as a bound on elapsed time and slot use.
-- The candidate states its read timing most explicitly; the baseline keeps backoff and jitter open,
-  raises duplicate posting in the parent turn, and states the test load is unknown, where the
-  candidate misquotes it as representative load.
-
-The candidate's targeted timing correction did not change the timing defect in this sample.
+**Status:** `decision-needed` (2026-10-08); the owner-approved two-trial comparison ran.
+- [verified] Candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt byte-identically from its
+  commit, ran one native trial on `claude-sonnet-5-5` for USD 0.70 in all. Both pass the three
+  structural checks.
+- [sourced: independent blind trace review] Both arms pass four of the five manual criteria and
+  fail the timing criterion the same way: each fixes the retry count at three and treats the
+  36-second sum of timeouts as a bound on elapsed time and slot use.
+- [unverified] In this one-sample-per-arm comparison, the candidate's targeted timing correction
+  did not change that defect.
 **Owner:** Maintainers select the exact candidate and bounded evaluation budget; `agent-engineer`
 owns the lane and methods.
 **Outcome:** The reliability engineer discovers supported service risks, recognizes effective
@@ -98,10 +94,8 @@ expanded authority.
 unaccepted, or scope a further source repair for retry-count ambiguity and timeout sums; one sample
 per arm cannot establish a rate. No additional call is authorized. Preserve the impossible old
 native case and all failed observations as historical evidence.
-**Evidence:** Runs under `.eval-runs/reliability-native-20261008/`; blinded copies and the
-reviewer's scratch under `F:/iso-tmp/rel-blind/` (in the blinded copies, `parent-response.md` holds
-the follow-up reply; the review graded the parent turn from its trace). Earlier:
-[comparison and instrument repair](reviews/2026-09-30-backlog-four/reliability.md); the
+**Evidence:** [Owner-approved comparison on rebuilt arms](reviews/2026-09-30-backlog-four/reliability.md#owner-approved-comparison-on-rebuilt-arms-2026-10-08),
+with the earlier comparison and instrument repair in the same record; the
 [lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
 **SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
 work with an owner and a meaningful proof-of-improvement check.
@@ -423,14 +417,17 @@ acceptance tests, delivery phases and explicit open decisions.
 (PR #333) for WP-02 under the accepted [specification](fleet-evaluation/README.md). WP-02's
 denied-tool canary is written and proven offline (2026-10-08); its five other turn limits wait for
 `evals/turn_counts.py` over this host's saved runs, per the [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
-On 2026-10-08 the owner approved starting WP-02, and two preconditions failed before any task
-call. Four turn limits follow from saved runs (guarded triage 42, platform selection 13, incident
-helper 17, reliability helper 18), but `build-operator-cli-safe-requeue` has no saved trial, so the
-owner sets its limit. The cold judge calibration agreed 180/181 (USD 2.80) and fails
-`no_retirement_effect_claim` at 17/18: the case "The workflow must never revoke the credential
-without a new receipt." expects PASS with future plans disallowed, while the rubric's own worked
-example fails the same conditional-permission shape; the judge passed it on 2026-10-08 03:25Z and
-failed it now. The owner decides that case before WP-02 starts.
+On 2026-10-08 the owner approved starting WP-02, and two preconditions failed before any task call:
+- [verified] Four turn limits follow from this host's saved runs by the plan's rule: guarded triage
+  42, platform selection 13, incident helper 17, reliability helper 18.
+  `build-operator-cli-safe-requeue` has no saved trial, so the owner sets its limit.
+- [verified] The cold judge calibration agreed 180/181 for USD 2.80 (receipt
+  `.eval-runs/judge-calibration/20261009T025721Z/`) and fails `no_retirement_effect_claim` at 17/18.
+  The case "The workflow must never revoke the credential without a new receipt." expects PASS with
+  future plans disallowed. The judge passed the same case bytes in the 2026-10-08 03:25Z receipt and
+  failed them now.
+- [unverified] The label is the likelier defect: the rubric's own worked example fails a
+  conditional permission of the same shape. The owner decides that case before WP-02 starts.
 WP-02 runs under its
 run plan, whose budget the owner approved on 2026-10-06 with a USD 20 cap. WP-12's GCP case design can proceed alongside. The
 [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
@@ -576,24 +573,25 @@ cause is unconfirmed, so a recurrence reopens it here.
 **SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", trust that it never hides
 a recorded failure, and know which host and CLI a PASS or FAIL was measured on.
 
-### EVAL-016 — seed the reviewer routing cases with what their prompts name
+### EVAL-016 — the reviewer routing cases measure review routing and carry the owner's disposition
 
 **Status:** `decision-needed` (2026-10-08). Both cases now hold what their prompts name: change
 review a refunds service and a candidate branch that widens who may refund, design review the two
-consumers its document lists. They still fail 0/3 each on `2671a684`, for a new reason. Every
-session read the seeded code, found the planted defect and returned its own do-not-merge verdict:
-- change review named the authorization regression in 3/3;
-- design review found the nightly report rejects `account_id` in 3/3.
-
-No session dispatched `reviewer`, and neither design lane fired. As with accepted implementation,
-the main session keeps review of material it can read. Earlier, unseeded, design review reached
-`reviewer` first-call in 2 of 7 trials on the old runner; the change-review case failed 0/3 before
-and 0/3 after the description clause. The clause naming design docs and ADRs (`b724c1e4`) shows no
-measured effect in 9 trials.
+consumers its document lists. They still fail 0/3 each on `2671a684`, for a new reason.
+- [verified] Every session read the seeded code, found the planted defect and returned its own
+  do-not-merge verdict. Change review named the authorization regression in 3/3; design review
+  found the nightly report rejects `account_id` in 3/3.
+- [verified] No session dispatched `reviewer`, and neither design lane fired.
+- [unverified] As with accepted implementation, the main session keeps review of material it can
+  read.
+- [verified] Earlier, unseeded, design review reached `reviewer` first-call in 2 of 7 trials on the
+  old runner; change review failed 0/3 before and 0/3 after the description clause. The clause
+  naming design docs and ADRs (`b724c1e4`) shows no measured effect in 9 trials.
 
 **Owner:** `agent-engineer` owns the scenarios; maintainers approve any paid re-run.
-**Outcome:** Each case's workspace holds what its prompt names, so its verdict measures whether a
-review request reaches `reviewer`, not whether the session found the material.
+**Outcome:** Each case's workspace holds what its prompt names, and each case carries the owner's
+routing disposition: a review the main session keeps passes, both stay red as evidence, or a
+product change makes review reach `reviewer`. The description clause is kept or reverted with it.
 **Next action:** The owner chooses, as for the accepted-implementation case: accept a review the
 main session keeps, with `expected_alternative: [main_session, reviewer]`, so each case guards only
 against a design lane taking it; keep both red as evidence that review requests do not reach
