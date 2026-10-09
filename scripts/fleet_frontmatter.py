@@ -21,7 +21,7 @@ LIST_ITEM_RE = re.compile(r"\s+-\s+(.+?)\s*")
 BLOCK_MARKERS = {">", ">-", "|", "|-"}
 # A component name: lowercase kebab-case. Pattern text, so callers can embed it in larger patterns.
 KEBAB_NAME = r"[a-z0-9]+(?:-[a-z0-9]+)*"
-NAME_RE = re.compile(KEBAB_NAME)
+NAME_RE = re.compile(rf"^{KEBAB_NAME}$")
 # Both spellings of the Claude plugin's runtime root: `${CLAUDE_PLUGIN_ROOT}` for POSIX shells, and
 # `$env:CLAUDE_PLUGIN_ROOT` for PowerShell, where the braced form is a shell variable rather than the
 # process environment. Pattern text; check_links and the adapter generator must recognize the same set.
