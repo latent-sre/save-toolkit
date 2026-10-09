@@ -928,7 +928,7 @@ def build_graph(dependencies: RunnerDependencies, checkpointer: Any) -> Any:
             return wall_failure
         try:
             budgets = consume_budget(state["budgets"], "attempts", 1)
-        except BudgetExhausted as exc:
+        except BudgetExhausted:
             counter = state["budgets"]["attempts"]
             dependencies.events.emit(
                 "budget.exhausted",

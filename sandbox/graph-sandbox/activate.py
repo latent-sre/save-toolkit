@@ -24,7 +24,6 @@ from preflight import (
     DockerCLI,
     PreflightError,
     REVISION_RE,
-    SandboxCase,
     _load_json,
     _is_link_or_junction,
     _reject_path_indirection,
@@ -2694,7 +2693,6 @@ def execute_validated_compose(
         "--exit-code-from", "graph-runner", "--no-build", "--pull", "never",
     ]
     launch_environment = scrub_environment(environment)
-    launched = False
     journal = list(commands or ())
 
     def assert_exact_compose() -> None:
@@ -2768,7 +2766,6 @@ def execute_validated_compose(
         try:
             if on_launch is not None:
                 on_launch()
-            launched = True
             result = runner(
                 command,
                 environment=launch_environment,

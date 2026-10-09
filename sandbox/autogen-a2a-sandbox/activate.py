@@ -10,7 +10,6 @@ import json
 import os
 import re
 import secrets
-import shutil
 import stat
 import subprocess
 import sys
@@ -18,7 +17,7 @@ import tempfile
 from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, NoReturn, Sequence
+from typing import Mapping, NoReturn, Sequence
 
 
 EXIT_USAGE = 64
