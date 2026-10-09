@@ -11,6 +11,8 @@ from fleet_atlas_v2_model import (assemble, EvidenceClass, ProofKind, Fact, Proo
 from fleet_atlas_v2_sources import Snapshot, Source
 from fleet_atlas_v2_proofs import verify_facts
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 def snapshot(files):
     return Snapshot('1' * 40, tuple(Source(p, text.encode()) for p, text in sorted(files.items())))
@@ -245,6 +247,24 @@ def build(root):
         del files['scripts/fleet_atlas_v2.py']
         _, _, failed = build(files)
         self.assertNotIn(subject, {n.id for n in failed.nodes})
+
+    def test_real_artifact_writer_still_proves_its_schema_projection(self):
+        # The synthetic writer above pins the recogniser; this pins the shipped writer.
+        # Restructuring render_files/_safe_output/build outside the recognised shape
+        # would otherwise drop the projection node from the real atlas without a failure.
+        files = {
+            'schemas/fleet-atlas-v2.schema.json': (ROOT / 'schemas/fleet-atlas-v2.schema.json').read_text(encoding='utf-8'),
+            'scripts/fleet_atlas_v2.py': (ROOT / 'scripts/fleet_atlas_v2.py').read_text(encoding='utf-8'),
+            'scripts/fleet_atlas_v2_artifacts.py': (ROOT / 'scripts/fleet_atlas_v2_artifacts.py').read_text(encoding='utf-8'),
+        }
+        _, _, graph = build(files)
+        subject = 'schema-projection:docs/fleet-atlas/v2/atlas.json'
+        self.assertIn(subject, {n.id for n in graph.nodes})
+        fact = next(f for f in graph.facts if f.subject == subject and f.predicate == 'constrained_by')
+        self.assertEqual('schema:fleet-atlas-v2', fact.object)
+        self.assertEqual(ProofKind.JOINED, fact.proof.kind)
+        self.assertFalse(any(f.predicate == 'unknown' and dict(f.qualifiers)['code'] == 'extract.schema-projection-unproved'
+                             for f in graph.facts))
 
     def test_guard_edge_proof_is_joined_over_roster_and_hook_wiring(self):
         _, _, graph = build({'agents/sre-assistant.md': agent('sre-assistant'),
