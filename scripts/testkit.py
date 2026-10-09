@@ -6,6 +6,11 @@ here runs at import time; every xdist worker imports this module once per proces
 
 Helpers that read Markdown are deliberately independent of the generator's and validator's own
 parsers: checking a tool's output with that tool's parser would make the assertion circular.
+
+Each test module keeps its own `ROOT = Path(__file__).resolve().parents[1]` and reads repository
+files as `ROOT / "..."` there. The fleet atlas credits a test with verifying a file only through
+that module-local binding (fleet_atlas_v2_extract.rooted_reads), so a test that imports ROOT from
+here silently drops out of the atlas's change-impact answers. `_ROOT` below is this module's own.
 """
 
 from __future__ import annotations
@@ -24,7 +29,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import ModuleType
 
-ROOT = Path(__file__).resolve().parents[1]
+_ROOT = Path(__file__).resolve().parents[1]
 
 _GIT_FOR_WINDOWS = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / "Git"
 
@@ -116,7 +121,7 @@ def frontmatter_block(text: str) -> str:
 # on purpose, never read from the guard: codes taken from the module under test would agree with
 # whatever value it chose, and the hook launchers hard-code these three.
 
-GUARD = ROOT / "scripts" / "readonly-guard.py"
+GUARD = _ROOT / "scripts" / "readonly-guard.py"
 GUARD_ALLOW = 42
 GUARD_DENY = 43
 GUARD_INDETERMINATE = 44

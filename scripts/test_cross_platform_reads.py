@@ -8,7 +8,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from testkit import ROOT, SRE_ASSISTANT, guard_decision, guard_payload, require_shell, run_guard
+from testkit import SRE_ASSISTANT, guard_decision, guard_payload, require_shell, run_guard
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class CrossPlatformReads(unittest.TestCase):

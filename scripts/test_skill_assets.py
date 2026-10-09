@@ -5,9 +5,12 @@ from __future__ import annotations
 import re
 import shlex
 import unittest
+from pathlib import Path
 
 import yaml
-from testkit import ROOT, assert_guard_decisions, frontmatter_block
+from testkit import assert_guard_decisions, frontmatter_block
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class SkillAssetTests(unittest.TestCase):

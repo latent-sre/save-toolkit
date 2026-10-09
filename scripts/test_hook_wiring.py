@@ -11,7 +11,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from testkit import ROOT, find_shell, frontmatter_block, require_shell
+from testkit import find_shell, frontmatter_block, require_shell
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def available_powershell() -> str | None:

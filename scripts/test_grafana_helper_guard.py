@@ -2,10 +2,12 @@
 import base64
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
-from testkit import ROOT, SRE_ASSISTANT, guard_decision, guard_payload, run_guard
+from testkit import SRE_ASSISTANT, guard_decision, guard_payload, run_guard
 
+ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "skills/grafana/scripts/grafana_read.py"
 PREFIX = f'python -I -S "{HELPER.as_posix()}"'
 WRAPPER = f"& '{HELPER.with_suffix('.ps1').as_posix()}'"
