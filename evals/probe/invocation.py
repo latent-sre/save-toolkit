@@ -263,7 +263,7 @@ def turns_left(spec: Mapping[str, Any], traces: Sequence[TraceSummary]) -> int |
     """What remains of the scenario's turn limit after `traces`, a conversation's earlier invocations:
     `--max-turns` bounds one invocation, so a resumed one gets only the rest. None without a declared
     limit; zero or less once the conversation has spent it."""
-    limit = spec.get("max_turns")
+    limit: int | None = spec.get("max_turns")
     if not limit:
         return None
     if any(reached_turn_limit(trace, spec) for trace in traces):

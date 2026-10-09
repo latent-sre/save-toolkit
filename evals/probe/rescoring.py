@@ -48,7 +48,9 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
     for folder in (run_dir, run_dir / "followup"):
         left = invocation.turns_left(spec, done)
         if left is not None and left <= 0:  # the conversation spent its limit, so no follow-up started
-            return "native follow-up ran past the conversation's turn limit; re-run the trial" if folder.exists() else None
+            return (
+                "native follow-up ran past the conversation's turn limit; re-run the trial" if folder.exists() else None
+            )
         trace_path, metadata_path = folder / "stdout.jsonl", folder / "invocation.json"
         if not trace_path.is_file():
             return "native conversation trace missing; re-run the trial"
