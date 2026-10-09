@@ -109,8 +109,9 @@ class PrincipalCaseTests(unittest.TestCase):
         for candidate, incumbent in ((CANDIDATE, INCUMBENT), (NEW_SYSTEM, NEW_SYSTEM_INCUMBENT),
                                      (IDENTITY, IDENTITY_INCUMBENT)):
             candidate, incumbent = scenario_file(candidate), scenario_file(incumbent)
-            self.assertEqual("principal-engineer", candidate["agent"])
-            self.assertEqual("software-engineer", incumbent["agent"])
+            with self.subTest(case=candidate["id"], key="agent"):
+                self.assertEqual("principal-engineer", candidate["agent"])
+                self.assertEqual("software-engineer", incumbent["agent"])
             for key in ("prompt", "fixture", "checks", "success_criteria"):
                 with self.subTest(case=candidate["id"], key=key):
                     self.assertEqual(candidate[key], incumbent[key])

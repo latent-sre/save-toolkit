@@ -187,9 +187,11 @@ class PythonCraftOracleTests(unittest.TestCase):
         self.assertIn("contract passed: " + mode, result.stdout)
 
     def assert_rejected(self, mode, source, diagnostic, *child_args):
+        """The oracle fails `source`, naming `diagnostic` unless it is None (any failure)."""
         result = self.run_artifact(mode, source, *child_args)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn(diagnostic, result.stderr)
+        if diagnostic is not None:
+            self.assertIn(diagnostic, result.stderr)
         return result
 
     def test_correct_artifacts_pass_each_outcome_oracle(self):
@@ -454,7 +456,7 @@ class PythonCraftOracleTests(unittest.TestCase):
             original = f'raise ValueError("{message}")'
             for behavior, replacement, diagnostic in (
                 ("returned error text", f'return "{message}"', "disagrees with the specification"),
-                ("wrong exception class", f'raise TypeError("{message}")', ""),  # any failure
+                ("wrong exception class", f'raise TypeError("{message}")', None),
                 ("wrong exception message", 'raise ValueError("other error")', "disagrees with the specification"),
             ):
                 with self.subTest(message=message, behavior=behavior):

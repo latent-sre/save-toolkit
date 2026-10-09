@@ -50,7 +50,8 @@ def test_clean_env_copies_only_the_credentials(tmp_path) -> None:
 
 
 def test_clean_env_is_removed_even_when_the_body_raises(tmp_path) -> None:
-    with claude_env(CLAUDE_CONFIG_DIR=str(_fake_home(tmp_path))), pytest.raises(RuntimeError), \
+    # match: AuthUnavailable is a RuntimeError too, and a refusal must surface as itself.
+    with claude_env(CLAUDE_CONFIG_DIR=str(_fake_home(tmp_path))), pytest.raises(RuntimeError, match="boom"), \
             clean_room.clean_env() as env:
         room = Path(env["CLAUDE_CONFIG_DIR"])
         raise RuntimeError("boom")

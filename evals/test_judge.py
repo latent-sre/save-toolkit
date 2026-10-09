@@ -277,8 +277,8 @@ class PromptRenderingTests(JudgeCase):
 class ParseVerdictTests(JudgeCase):
     def test_the_verdict_object_is_read_bare_fenced_or_before_prose(self) -> None:
         cases = {
-            "bare JSON object": (judge_verdict("PASS"), True, ""),
-            "fenced JSON object": ("```json\n" + judge_verdict("PASS") + "\n```", True, ""),
+            "bare JSON object": (judge_verdict("PASS"), True, None),
+            "fenced JSON object": ("```json\n" + judge_verdict("PASS") + "\n```", True, None),
             "object followed by prose": (judge_verdict("FAIL", reason="it claims to act")
                                          + "\n\nThat's my verdict, let me know if you need more.", False, "it claims to act"),
             "FAIL returns false with its reason in the detail": (
@@ -289,7 +289,8 @@ class ParseVerdictTests(JudgeCase):
             with self.subTest(name), replying(reply):
                 passed, detail = judge_once()
                 self.assertEqual(expected, passed)
-                self.assertIn(reason, detail)
+                if reason is not None:
+                    self.assertIn(reason, detail)
 
 
 class CacheTests(JudgeCase):
@@ -308,6 +309,7 @@ class CacheTests(JudgeCase):
         # The quote is in both responses, so the first verdict is grounded and cached.
         with replying(judge_verdict("PASS", evidence=["response"])) as process:
             judge_once("response A", cache_dir=self.tmp)
+            self.assertEqual(1, len(list(self.tmp.glob("*.json"))), "the first verdict must be cached")
             judge_once("response B", cache_dir=self.tmp)
         self.assertEqual(process.call_count, 2)
 
@@ -352,19 +354,20 @@ class EvidenceGroundingTests(JudgeCase):
         cases = {
             "invented quote": (["I restarted the checkout service"], "some response", "not verbatim"),
             "evidence not a list": ("some response", "some response", "not a list"),
-            "non-string entry": (["some response", 7], "some response", ""),
-            "empty string entry": (["   "], "some response", ""),
+            "non-string entry": (["some response", 7], "some response", None),
+            "empty string entry": (["   "], "some response", None),
             "elided quote with an invented fragment": (["split into a credential-free ... agent that restarts checkout"],
-                                                       elided, ""),
-            "elided fragments out of order": (["with no Bash ... credential-free"], "credential-free agent with no Bash", ""),
-            "paraphrase": (["the checkout service has gone down"], "the checkout service is down", ""),
+                                                       elided, None),
+            "elided fragments out of order": (["with no Bash ... credential-free"], "credential-free agent with no Bash", None),
+            "paraphrase": (["the checkout service has gone down"], "the checkout service is down", None),
         }
         for name, (evidence, response, reason) in cases.items():
             with self.subTest(name):
                 passed, detail = self._judge(evidence, response)
                 self.assertFalse(passed)
                 self.assertTrue(judge.is_inconclusive(detail))
-                self.assertIn(reason, detail)
+                if reason is not None:
+                    self.assertIn(reason, detail)
 
     def test_missing_evidence_key_is_inconclusive(self) -> None:
         with replying(json.dumps({"verdict": "PASS", "reason": "because"})):
@@ -479,10 +482,13 @@ class ModelIdentityTests(JudgeCase):
         self.assertIn('"cached": true', detail)
 
     def test_cached_verdict_with_ungrounded_evidence_is_re_judged(self) -> None:
-        cache_verdict(self.tmp, "some response", "claude-sonnet-5", evidence=["never said this"])
-        with replying(judge_verdict("FAIL")) as process:
-            judge_once(cache_dir=self.tmp)
-        self.assertEqual(process.call_count, 1)
+        # The grounded entry is the control: planted the same way, it is served without a call.
+        for evidence, calls in ((["some response"], 0), (["never said this"], 1)):
+            with self.subTest(evidence=evidence):
+                cache_verdict(self.tmp, "some response", "claude-sonnet-5", evidence=evidence)
+                with replying(judge_verdict("FAIL")) as process:
+                    judge_once(cache_dir=self.tmp)
+                self.assertEqual(process.call_count, calls)
 
     def test_resolve_model_identity_returns_the_spending_model(self) -> None:
         envelope = json.dumps({"result": "OK", "is_error": False, "modelUsage": {
