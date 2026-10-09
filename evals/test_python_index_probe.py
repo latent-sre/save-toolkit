@@ -9,6 +9,7 @@ from probe_testkit import run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 SPEC = scenario_file(ROOT / 'build-scenarios/build-python-indexed-membership.yaml')
+SEED_TESTS = SPEC['fixture']['files']['tests/test_selection.py']
 SET = textwrap.dedent('''
     def iter_selected(rows, allowed_ids):
         index = set(allowed_ids)
@@ -56,6 +57,8 @@ class SearchCostTests(unittest.TestCase):
         self.assertEqual(list(output), [])
         self.assertLessEqual(Key.operations - build, 8192)
 '''
+# The suite a passing candidate leaves: the seed regressions plus focused build and search cost tests.
+CANDIDATE_TESTS = SEED_TESTS + FOCUSED_TESTS
 
 
 class IndexedMembershipTests(unittest.TestCase):
@@ -69,18 +72,31 @@ class IndexedMembershipTests(unittest.TestCase):
             self.assertIn('test_order_duplicates_and_identity', result.stderr)
             self.assertIn('test_missing_key_is_deferred_even_with_empty_allowlist', result.stderr)
 
-    def run_artifact(self, source, tests=None):
+    def run_artifact(self, source, tests=CANDIDATE_TESTS):
         check = next(c for c in SPEC['checks'] if c['check'] == 'command_exit_zero')
         with tempfile.TemporaryDirectory() as tmp:
             write_tree(Path(tmp), SPEC['fixture']['files'])
             (Path(tmp) / 'selection.py').write_text(textwrap.dedent(source), encoding='utf-8')
-            if tests is None:
-                tests = SPEC['fixture']['files']['tests/test_selection.py'] + FOCUSED_TESTS
             (Path(tmp) / 'tests/test_selection.py').write_text(tests, encoding='utf-8')
             for name, oracle in check['writes_from'].items():
                 (Path(tmp) / name).write_bytes((ROOT.parent / oracle).read_bytes())
             # Execute precisely the staged scenario command with the verified interpreter.
             return run_python([*check['command'].split()[1:]], cwd=tmp, timeout=15)
+
+    def assert_passes(self, source, tests=CANDIDATE_TESTS):
+        result = self.run_artifact(source, tests)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('indexed membership contract passed', result.stdout)
+
+    def assert_fails(self, source, diagnostic, tests=CANDIDATE_TESTS, code=None):
+        """The oracle names `diagnostic` and exits `code`, or with any failure when `code` is None."""
+        result = self.run_artifact(source, tests)
+        if code is None:
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+        else:
+            self.assertEqual(result.returncode, code, result.stderr)
+        self.assertIn(diagnostic, result.stderr)
+        return result
 
     def test_candidate_system_exit_is_always_failure(self):
         for code in (0, 3):
@@ -88,57 +104,42 @@ class IndexedMembershipTests(unittest.TestCase):
                                   ('iteration', SET.replace('index = set(allowed_ids)',
                                                            f'raise SystemExit({code})'))]:
                 with self.subTest(code=code, phase=phase):
-                    result = self.run_artifact(source)
-                    self.assertEqual(result.returncode, 1, result.stderr)
-                    self.assertIn('candidate raised SystemExit', result.stderr)
+                    self.assert_fails(source, 'candidate raised SystemExit', code=1)
 
     def test_seed_or_cosmetic_test_extensions_do_not_establish_cost_coverage(self):
-        seed = SPEC['fixture']['files']['tests/test_selection.py']
-        for tests in (seed, seed + '\n# Tests reviewed.\n', seed + '''
+        for tests in (SEED_TESTS, SEED_TESTS + '\n# Tests reviewed.\n', SEED_TESTS + '''
 class CosmeticTests(unittest.TestCase):
     def test_true(self):
         self.assertTrue(True)
 '''):
             with self.subTest(tests=tests):
-                result = self.run_artifact(SET, tests)
-                self.assertEqual(result.returncode, 1, result.stderr)
-                self.assertIn('candidate tests did not reject repeated linear search', result.stderr)
+                self.assert_fails(SET, 'candidate tests did not reject repeated linear search', tests, code=1)
 
     def test_nondict_mappings_are_covered(self):
         source = SET.replace("if row['id'] in index:",
                              "if not isinstance(row, dict):\n            raise TypeError('dict required')\n        if row['id'] in index:")
-        result = self.run_artifact(source)
-        self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn('dict required', result.stderr)
+        self.assert_fails(source, 'dict required', code=1)
 
     def test_replays_preserve_candidate_helpers_imported_by_tests(self):
         source = SET + '\ndef supported_helper():\n    return 42\n'
-        tests = SPEC['fixture']['files']['tests/test_selection.py'] + FOCUSED_TESTS + '''
+        self.assert_passes(source, CANDIDATE_TESTS + '''
 from selection import supported_helper
 
 class HelperTests(unittest.TestCase):
     def test_helper(self):
         self.assertEqual(supported_helper(), 42)
-'''
-        result = self.run_artifact(source, tests)
-        self.assertEqual(result.returncode, 0, result.stderr)
+''')
 
     def test_tests_must_cover_index_construction_too(self):
-        tests = SPEC['fixture']['files']['tests/test_selection.py'] + FOCUSED_TESTS.replace(
-            'self.assertLessEqual(build, 4096)', 'pass')
-        result = self.run_artifact(SET, tests)
-        self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn('candidate tests did not reject quadratic index construction', result.stderr)
+        tests = SEED_TESTS + FOCUSED_TESTS.replace('self.assertLessEqual(build, 4096)', 'pass')
+        self.assert_fails(SET, 'candidate tests did not reject quadratic index construction', tests, code=1)
 
     def test_errors_or_skips_do_not_establish_cost_coverage(self):
         for replacement in ("if Key.operations - build > 8192: raise RuntimeError('over budget')",
                             "if Key.operations - build > 8192: self.skipTest('over budget')"):
             with self.subTest(replacement=replacement):
-                tests = SPEC['fixture']['files']['tests/test_selection.py'] + FOCUSED_TESTS.replace(
-                    'self.assertLessEqual(Key.operations - build, 8192)', replacement)
-                result = self.run_artifact(SET, tests)
-                self.assertEqual(result.returncode, 1, result.stderr)
-                self.assertIn('candidate tests did not reject repeated linear search', result.stderr)
+                tests = SEED_TESTS + FOCUSED_TESTS.replace('self.assertLessEqual(Key.operations - build, 8192)', replacement)
+                self.assert_fails(SET, 'candidate tests did not reject repeated linear search', tests, code=1)
 
     def test_distinct_index_implementations_pass(self):
         repeated_lookup = SET.replace("if row['id'] in index:",
@@ -146,33 +147,24 @@ class HelperTests(unittest.TestCase):
         for name, source in [('set', SET), ('dict', DICT), ('sorted', SORTED),
                              ('repeated mapping lookup', repeated_lookup)]:
             with self.subTest(implementation=name):
-                result = self.run_artifact(source)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn('indexed membership contract passed', result.stdout)
+                self.assert_passes(source)
 
-    def test_masked_lookup_work_is_inconclusive(self):
-        source = SET.replace('set(allowed_ids)', '[str.__str__(value) for value in allowed_ids]').replace(
-            "row['id'] in index", "str.__str__(row['id']) in index")
-        result = self.run_artifact(source)
-        self.assertEqual(result.returncode, 3, result.stderr)
-        self.assertIn('cost measurement unavailable', result.stderr)
-        self.assertNotIn('indexed membership contract passed', result.stdout)
-
-    def test_masked_quadratic_index_build_is_inconclusive(self):
-        source = SET.replace('index = set(allowed_ids)',
-            'values = [str.__str__(value) for value in allowed_ids]\n'
-            '    index = set(value for value in values if value in values)')
-        result = self.run_artifact(source)
-        self.assertEqual(result.returncode, 3, result.stderr)
-        self.assertIn('cost measurement unavailable', result.stderr)
-        self.assertNotIn('indexed membership contract passed', result.stdout)
+    def test_masked_lookup_or_index_build_work_is_inconclusive(self):
+        for name, source in [
+            ('lookup', SET.replace('set(allowed_ids)', '[str.__str__(value) for value in allowed_ids]').replace(
+                "row['id'] in index", "str.__str__(row['id']) in index")),
+            ('quadratic index build', SET.replace('index = set(allowed_ids)',
+                'values = [str.__str__(value) for value in allowed_ids]\n'
+                '    index = set(value for value in values if value in values)')),
+        ]:
+            with self.subTest(masked=name):
+                result = self.assert_fails(source, 'cost measurement unavailable', code=3)
+                self.assertNotIn('indexed membership contract passed', result.stdout)
 
     def test_seed_and_linear_search_fail_for_repeated_search_cost(self):
         for source in (SPEC['fixture']['files']['selection.py'], SET.replace('set(allowed_ids)', 'list(allowed_ids)')):
             with self.subTest(source=source):
-                result = self.run_artifact(source)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn('repeated search cost exceeds indexed budget', result.stderr)
+                self.assert_fails(source, 'repeated search cost exceeds indexed budget')
 
     def test_caching_consumed_prefix_is_rejected(self):
         base = SET.replace('index = set(allowed_ids)', 'index = set(allowed_ids)\n    retained = []')
@@ -180,9 +172,7 @@ class HelperTests(unittest.TestCase):
                 'for row in rows:', 'for row in rows:\n        retained.append(row)')),
                 ('selected rows only', base.replace('yield row', 'retained.append(row)\n            yield row'))]:
             with self.subTest(cache=name):
-                result = self.run_artifact(source)
-                self.assertNotEqual(result.returncode, 0, 'oracle accepted an unbounded retained prefix')
-                self.assertIn('consumed row retention grows with input', result.stderr)
+                self.assert_fails(source, 'consumed row retention grows with input')
 
     def test_named_contract_regressions_are_rejected(self):
         mutants = [
@@ -242,9 +232,7 @@ class HelperTests(unittest.TestCase):
         ]
         for name, source, diagnostic in mutants:
             with self.subTest(regression=name):
-                result = self.run_artifact(source)
-                self.assertNotEqual(result.returncode, 0, result.stdout)
-                self.assertIn(diagnostic, result.stderr)
+                result = self.assert_fails(source, diagnostic)
                 self.assertNotIn('SyntaxError', result.stderr)
                 self.assertNotIn('IndentationError', result.stderr)
 
@@ -252,20 +240,15 @@ class HelperTests(unittest.TestCase):
         for source in (SET.replace("row['id'] in index", "str(row['id']) in index"),
                        SET.replace('set(allowed_ids)', 'set(str(value) for value in allowed_ids)')):
             with self.subTest(source=source):
-                result = self.run_artifact(source)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn('supplied string membership semantics changed', result.stderr)
+                self.assert_fails(source, 'supplied string membership semantics changed')
 
     def test_eager_row_access_is_rejected(self):
-        source = '''
+        self.assert_fails('''
             def iter_selected(rows, allowed_ids):
                 index = set(allowed_ids)
                 accepted = [row for row in rows if row['id'] in index]
                 return iter(accepted)
-        '''
-        result = self.run_artifact(source)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('KeyError', result.stderr)
+        ''', 'KeyError')
 
     def test_build_schema_scope_skill_and_oracle_binding(self):
         self.assertEqual(SPEC['id'], 'build-python-indexed-membership')
