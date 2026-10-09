@@ -224,17 +224,18 @@ def _record_raised_cost(attempt: Path) -> None:
         return
     trace_path = attempt / "stdout.jsonl"
     trial_usd = tracing.parse_trace(trace_path).total_cost_usd if trace_path.exists() else 0.0
-    cost = records.trial_cost(trial_usd, records.judge_spend())
-    (attempt / "timing.json").write_text(
-        json.dumps(
-            {
-                "total_cost_usd": cost["cost_usd"],
-                "known_cost_usd": cost["known_cost_usd"],
-                "cost_complete": cost["cost_complete"],
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
+    judge = records.judge_spend()
+    cost = records.trial_cost(trial_usd, judge)
+    # The parts as well as the total: the v1 record calls a cost complete only beside known parts.
+    _write_json(
+        attempt / "timing.json",
+        {
+            "trial_cost_usd": records.known_usd(trial_usd),
+            "total_cost_usd": cost["cost_usd"],
+            "known_cost_usd": cost["known_cost_usd"],
+            "cost_complete": cost["cost_complete"],
+            "judge": judge,
+        },
     )
 
 

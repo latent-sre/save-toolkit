@@ -909,6 +909,24 @@ class EndToEndStubTests(TempRootTestCase):
         self.assertIsNone(partial["verdict"]["status"], "an incomplete attempt has no verdict, never a guessed one")
         self.assertFalse((out / "eval-tiny" / "auth" / "run-1").exists())
 
+    def test_an_attempt_that_raised_at_a_known_cost_keeps_its_record(self) -> None:
+        """Its timing.json gave the cost as complete but carried neither the trial's nor the judge's part,
+        so the record contract refused the record (`a cost is complete only when the trial and judge
+        costs are both known`) for every raised attempt whose cost was known: one that never reached
+        the CLI, or one whose partial trace priced it."""
+        out = self.root / "iteration"
+        refused = probe_fingerprints.MeasuredInputRefused("plugin root moved")
+        with mock.patch.object(probe_fingerprints, "plugin_provenance", side_effect=refused), \
+                self.assertRaises(probe_fingerprints.MeasuredInputRefused), \
+                contextlib.redirect_stderr(io.StringIO()) as warnings:
+            self._run_trial(out, label="early")
+        kept = out / "eval-tiny" / "early" / "attempts" / "run-1" / "1"
+        self.assertNotIn("no record", warnings.getvalue())
+        record = json.loads((kept / "record.json").read_text(encoding="utf-8"))
+        self.assertEqual(("incomplete", "incomplete"), (record["attempt"]["state"], record["run_end"]["kind"]))
+        self.assertEqual({"trial_usd": 0.0, "judge_usd": 0.0, "known_usd": 0.0, "complete": True},
+                         {key: record["cost"][key] for key in ("trial_usd", "judge_usd", "known_usd", "complete")})
+
     def test_plugin_change_before_trial_does_not_start_services_or_model(self) -> None:
         with mock.patch.object(probe_backing, "start_services", side_effect=AssertionError("no service launch")), \
                 mock.patch.object(probe_invocation, "build_command", side_effect=AssertionError("no model launch")):
