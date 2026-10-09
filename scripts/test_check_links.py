@@ -432,11 +432,16 @@ class GuideLinkTests(Fixture):
         failures = check_links._check_guide(self.root)
         self.assertTrue(any("@AGENTS.md" in f for f in failures), failures)
 
-    def test_guide_dead_markdown_link_is_flagged(self):
+    def test_guide_dead_markdown_link_is_flagged_once(self):
+        """AGENTS.md is a live document, so the live-document check owns its links, containment
+        included; the guide check used to report the same dead link a second time."""
         self.write("CLAUDE.md", "@AGENTS.md\n")
         self.write("AGENTS.md", "# guide\nSee [gone](scripts/renamed_away.py).\n")
-        failures = check_links._check_guide(self.root)
-        self.assertTrue(any("dead link" in f and "renamed_away" in f for f in failures), failures)
+        failures = check_links.check(self.root)
+        self.assertEqual(
+            ["AGENTS.md: dead link 'scripts/renamed_away.py'"],
+            [failure for failure in failures if failure.startswith("AGENTS.md")],
+        )
 
     def test_guide_dead_inline_code_path_is_flagged(self):
         self.write("CLAUDE.md", "@AGENTS.md\n")

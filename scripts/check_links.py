@@ -474,13 +474,14 @@ def _check_direct_bundle_links(skill_path: Path, body: str) -> list[str]:
 def _check_guide(root: Path) -> list[str]:
     """Tie the AGENTS.md fleet guide to the tree it describes.
 
-    Three silent-failure classes, none of which any other check sees:
+    Two silent-failure classes, neither of which any other check sees:
       * CLAUDE.md loads AGENTS.md via an `@AGENTS.md` import; drop that line and the guide silently
         loads empty for every Claude session while both files still exist.
-      * A renamed script or doc leaves the guide pointing at nothing — a dead Markdown link that
-        fails nowhere at runtime.
       * An inline-code path token (`scripts/gate_a.py`, `docs/fleet-roadmap.md`) that stops
         resolving after a rename reads as live guidance and isn't.
+
+    The guide's Markdown links are checked with every other live document in
+    `_check_live_doc_links` (AGENTS.md is in LIVE_DOC_ROOTS), containment included.
 
     Inline-code tokens are checked only when their FIRST segment is a real top-level repo entry.
     That is what keeps this from false-positiving on generic mentions (`references/`, `assets/`) and
@@ -502,12 +503,6 @@ def _check_guide(root: Path) -> list[str]:
     if not guide.is_file():
         return failures  # self-gate: a synthetic root without the guide has nothing to check
     visible = _strip_fences(guide.read_text(encoding="utf-8"))
-    for _label, raw_target in _links(visible):
-        relative = _relative_target(raw_target)
-        if relative is None:
-            continue
-        if not (root / Path(relative.replace("/", os.sep))).exists():
-            failures.append(f"AGENTS.md: dead link '{relative}'")
     for match in re.finditer(r"`([^`]+)`", visible):
         token = match.group(1).strip()
         if "/" not in token or any(ch in token for ch in " :*") or token.startswith(("/", "#", "~")):
