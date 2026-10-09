@@ -2896,7 +2896,7 @@ def execute_validated_compose(
                 )
                 final = root / run_id
             else:
-                root, staging, run_dir, manifest = _validated_staged_run(
+                final = verify_and_publish_evidence(
                     staging,
                     evidence_root=root,
                     run_id=run_id,
@@ -2904,20 +2904,10 @@ def execute_validated_compose(
                     case_digest=case_digest,
                     source_revision=source_revision,
                     exit_code=result.returncode,
-                    runner_state=runner_state,
-                )
-                final = _publish_staged_run(
-                    root,
-                    staging,
-                    run_dir,
-                    manifest=manifest,
                     validated_compose=validated_bytes,
                     verification=final_verification,
-                    exit_code=result.returncode,
-                    source_revision=source_revision,
-                    run_id=run_id,
                     commands=journal,
-                    max_bytes=MAX_EVIDENCE_BYTES,
+                    runner_state=runner_state,
                 )
                 published_dirs = (final,)
             if on_publish is not None:
