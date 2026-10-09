@@ -2,9 +2,9 @@
 
 Read when creating or designing a dashboard for this team. These are the team's target naming,
 folder, time, and variable decisions for new dashboards; discover real names, uids, owners, and
-installed plugins from the target. The existing BSG dashboards are file-provisioned in one "BSG
-Dashboards" folder with hard-coded data-source uids and a UTC timezone; do not treat their
-differences from these conventions as defects to fix through the API.
+installed plugins from the target. Existing dashboards may predate these conventions or be
+provisioned from files: check how a dashboard is managed before treating its differences as
+defects, and change a provisioned dashboard through its source, not the API.
 
 One team owns these per-application dashboards. Confirm the actual owner on the target rather than
 inventing one.

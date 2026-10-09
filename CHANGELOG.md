@@ -34,7 +34,7 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   silence's matchers returns a new ID, so rollback expires that ID. One gated-change list now
   appears in `observability-engineer` and `SKILL.md`, adding dashboard and folder deletion,
   folder moves and annotation writes; dashboard conventions are the target for new dashboards;
-  stack-profile records the file-provisioned BSG dashboards and GCP's own backends; and
+  stack-profile names GCP's own backends; and
   agent-tooling says no Grafana MCP server or CLI is adopted.
 - On macOS and Linux the Grafana helper checked its settings file by path and then read it by path,
   so a replaced file or a symlink could pass the owner-only check. It now opens the file once,

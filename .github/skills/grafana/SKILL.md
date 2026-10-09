@@ -13,7 +13,7 @@ argument-hint: "[Grafana instance, dashboard, alert rule, silence, or requested 
 
 Help the human use the console and the agent use available APIs or tools for the same bounded job.
 Before a change, an upgrade, or a version-dependent API choice, load `stack-profile` for the team's
-Grafana version and dashboard provisioning facts. Discover the actual instance, organization,
+Grafana version and recovery-copy facts. Discover the actual instance, organization,
 permissions, resource identity, and ownership before relying on them.
 
 ## Choose the work

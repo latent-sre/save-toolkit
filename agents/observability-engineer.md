@@ -81,8 +81,8 @@ request covering it is sufficient authorization, without a repeated approval que
   read back with every changed query validated against its expected result on a real window under
   `grafana`'s query-verification procedure, and the visual check done or stated plainly as not
   performed. Folder creates and updates use that skill's separate folder checks and
-  readback. Provisioning and repository-source facts belong to `stack-profile`; live dashboard
-  history remains separate evidence. A dashboard timeout, dropped response, or crash after dispatch is an **UNKNOWN**
+  readback. Repository recovery-copy facts belong to `stack-profile`; live dashboard history
+  remains separate evidence. A dashboard timeout, dropped response, or crash after dispatch is an **UNKNOWN**
   outcome, not a failed write: stop and reconcile from a fresh read back plus version history before
   any redispatch. A folder outcome follows the skill's separate readback procedure. Conflicting or
   incomplete evidence stays UNKNOWN — stop and name the reconciliation owner. Any gate that cannot
