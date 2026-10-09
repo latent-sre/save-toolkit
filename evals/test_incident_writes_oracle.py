@@ -149,19 +149,16 @@ def test_house_reference_passes(tmp_path, check):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_concurrency_overlap_is_observed_server_side(tmp_path):
-    """The oracle sends the second request only once the first is inside the write path."""
-    result = run(materialize(tmp_path, {}), "concurrent")
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "second request sent while the first was held inside store.create_incident" in result.stdout
-
-
-def test_own_sql_locked_design_passes_through_the_fallback(tmp_path):
-    """A correct app that bypasses store.create_incident is raced from a barrier, not failed."""
-    overrides = {"CREATE_CALL": "_own_insert(conn, payload.title, payload.service)"}
+@pytest.mark.parametrize("overrides,route", [
+    # The oracle sends the second request only once the first is inside the write path.
+    ({}, "second request sent while the first was held inside store.create_incident"),
+    # A correct app that bypasses store.create_incident is raced from a barrier, not failed.
+    ({"CREATE_CALL": "_own_insert(conn, payload.title, payload.service)"}, "client-side barrier fallback"),
+], ids=["overlap observed server-side", "own SQL raced through the fallback"])
+def test_correct_designs_pass_the_concurrency_check_by_their_own_route(tmp_path, overrides, route):
     result = run(materialize(tmp_path, overrides), "concurrent")
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "client-side barrier fallback" in result.stdout
+    assert route in result.stdout
 
 
 @pytest.mark.parametrize("name", sorted(MUTANTS))
