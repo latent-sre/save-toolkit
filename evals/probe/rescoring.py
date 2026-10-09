@@ -162,9 +162,7 @@ def _regrade_run(
     write: bool,
     relax_identity: bool,
 ) -> dict[str, Any]:
-    old = json.loads((run_dir / "grading.json").read_text(encoding="utf-8"))
-    live = layout.live_grade(run_dir)
-    live_grade = old if live == run_dir / "grading.json" else json.loads(live.read_text(encoding="utf-8"))
+    live_grade = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
     old_by_id = {e.get("id"): e for e in live_grade.get("expectations", [])}
     saved_binding = live_grade.get("judge_binding")
     identity = fingerprints.scenario_digest(spec, saved_binding)

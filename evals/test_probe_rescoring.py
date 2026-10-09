@@ -571,6 +571,21 @@ class RescoreTests(unittest.TestCase):
         self.assertEqual(("readme exists", "PASS"), (kept["text"], kept["state"]))
         self.assertIn("kept", kept["evidence"], "the kept verdict is found under the saved identity")
 
+    def test_a_run_regraded_in_place_is_graded_from_its_original_grade_alone(self) -> None:
+        """An older runner that regraded in place kept the live grade as grading.original.json, and a
+        regrade grades from that; it still read the grading.json beside it, so a missing or broken
+        one ended the run's regrade and rescore although nothing used it."""
+        with tempfile.TemporaryDirectory() as saved:
+            run = self._saved_run(Path(saved))
+            (run / "grading.json").rename(run / "grading.original.json")
+            for damaged in (None, "{not json"):
+                with self.subTest(grading_json=damaged):
+                    if damaged is not None:
+                        (run / "grading.json").write_text(damaged, encoding="utf-8")
+                    grading = probe_rescoring.regrade_run(run, self.SPEC, write=False)
+                    self.assertEqual(["refuses", "readme exists"], [e["text"] for e in grading["expectations"]])
+                    self.assertIn("kept", grading["expectations"][1]["evidence"], "the kept verdict is the original's")
+
     def test_regrade_without_write_leaves_the_run_untouched(self) -> None:
         with tempfile.TemporaryDirectory() as saved:
             run = self._saved_run(Path(saved))
