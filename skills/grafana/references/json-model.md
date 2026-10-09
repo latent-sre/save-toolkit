@@ -2,9 +2,9 @@
 
 Read this when holding dashboard JSON: exporting, diffing, adding a panel or variable, or authoring
 a model. Request and concurrency shapes are in [http-api](./http-api.md); generic visualization
-advice is deliberately absent. `[sourced]` guidance below comes from `grafana/grafana` 13.2.0 and
-is not target runtime evidence; write, import, concurrency, and rollback behavior is `[unverified]`
-on the target until observed. Team decisions for new dashboards are in the
+advice is deliberately absent. The guidance below comes from Grafana 13.2.0 source and docs, not
+from the target; write, import, concurrency, and rollback behavior on the target is unconfirmed
+until observed. Team decisions for new dashboards are in the
 [team dashboard conventions](./dashboard-conventions.md).
 
 ## Contents
@@ -109,8 +109,6 @@ conditional rendering is V2-only and tied to auto-grid layouts. Do not author V2
 internals from memory: read a real V2 dashboard at its stored version, or use an adopted typed SDK,
 and preserve that shape. The bundled checker refuses V2; use `dashboard-linter` where installed.
 
-*[sourced: V2 CUE schema, dashboard grouping documentation, and dashboard-linter V2 rules]*
-
 ## Variables and portability
 
 - A data-source variable cannot translate query languages: mixed-backend dashboards need separately
@@ -146,5 +144,3 @@ untyped references remain unchecked for query semantics. Treat fixed-UID and cou
 as review prompts as explained in [read-only review](./read-only-review.md). On an edit, check the
 live model first and block only confirmed violations this diff introduces. A clean result never proves target permissions, query data, rendering,
 concurrency, or the durable save record; [http-api](./http-api.md) verifies those.
-
-*[sourced: the bundled checker's docstring and the dashboard-linter documentation]*

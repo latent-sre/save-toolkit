@@ -5,9 +5,10 @@ permissions is set in the parent skill's [Access and authority](../SKILL.md#acce
 Grafana's version history plus the save message records the live edit. `stack-profile` owns the
 repository recovery-copy facts; a backup is not automatically a provisioning source or a tested
 rollback. For review-only work use [read-only checks](./read-only-review.md).
-Create, update, conflict, import, and rollback behavior is `[unverified]` on the current target.
+Create, update, conflict, import, and rollback behavior on the current target is unconfirmed until
+observed.
 Grafana 13 deprecates `/api` in favour of `/apis` but still serves both; 13.2 disables scripted
-dashboards (410) by default. *[sourced: Grafana API and dashboard docs, 13.2.0 feature registry]*
+dashboards (410) by default.
 
 ## Contents
 
@@ -46,7 +47,7 @@ App-platform identity is `metadata.name` (the dashboard uid), not the server-min
 
 The read URL selects the returned shape, not the stored schema. A 13.2.2 target served all six
 versions with preferred `v2`, and a stored Classic dashboard returned `elements` through V2 and
-`panels` through V1 `[verified: 13.2.2 target reads]`, so an unpinned Classic transform can see no
+`panels` through V1, so an unpinned Classic transform can see no
 panels.
 
 1. Read at `v0alpha1` (unstructured, no migration). Take `status.conversion.storedVersion`,
@@ -120,9 +121,7 @@ The app-platform folder API has a separate lifecycle from dashboards. Before a f
 the target's folder permissions and namespace. A create needs `folders:create` and `folders:write`;
 an update needs `folders:write`; both need enough `folders:read` scope to check the target and read
 it back. For a nested folder, confirm that nested folders are enabled and that the parent-specific
-grant applies. These API contracts are [sourced: Grafana's
-Folder HTTP API](https://grafana.com/docs/grafana/latest/developers/http_api/folder/); their
-behavior on the target is `[unverified]` until observed.
+grant applies. Folder API behavior on the target is unconfirmed until observed.
 
 - **Create:** list or read the proposed uid and inspect the intended parent for a title collision.
   `POST /apis/folder.grafana.app/v1/namespaces/<ns>/folders` takes a chosen stable `metadata.name`,
@@ -158,7 +157,6 @@ behavior on the target is `[unverified]` until observed.
    and the panel's empty-state presentation. Use a known populated window when available; otherwise
    report positive-data behavior `[unverified]`. Do not widen filters just to obtain frames, or
    mistake missing telemetry for an expected empty result.
-   [sourced: Grafana's [no-data distinction](https://grafana.com/docs/grafana/latest/alerting/guides/missing-data/)]
 3. Follow [visual verification](./visual-verification.md): inspect a server-rendered panel or use an
    authorized browser. `rendererAvailable: false` rules out neither browser inspection nor supplied
    screenshot evidence. If no visual path is available, label presentation `[unverified]`.
@@ -178,7 +176,7 @@ behavior on the target is `[unverified]` until observed.
    for a full prior model.
 
    For a read-only review, legacy history can return 403 while stable app-platform history remains
-   readable `[verified: 13.2.2 target]`. Preserve the endpoint-specific result; it is
+   readable. Preserve the endpoint-specific result; it is
    not evidence that the dashboard has no versions. A history read cannot verify a new save.
 
 ## Rollback

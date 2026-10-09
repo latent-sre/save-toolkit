@@ -48,11 +48,7 @@ without blocking working queries. Report counts by category rather than calling 
 
 | Check | What to establish |
 |---|---|
-| Dashboard APIs | Discover served/preferred versions, then read the stored version. A 13.2.2 target served all six versions with preferred `v2` while sampled dashboards remained `v0alpha1`. `[verified: read-only target, 2026-09-19]` |
-| History access | A 13.2.2 target returned 403 for legacy history but 200 with entries for the stable app-platform history query in `http-api`. Do not interpret 403 as no history or seek write grants just to finish a review. `[verified: same target/date]` |
-| View panel sidebar | Public preview; inspect availability before relying on it. Viewers can explore visualization options without an edit grant. `[sourced: release notes, checked 2026-09-19]` |
-| Plugins and saved queries | Record installed plugin versions separately from Grafana's version. Saved queries are GA for Enterprise/Cloud; discover entitlement and grants before recommending them. `[sourced: release notes, checked 2026-09-19]` |
-
-Sources: [13.2 release notes](https://grafana.com/docs/grafana/latest/whatsnew/whats-new-in-v13-2/),
-[panel inspection](https://grafana.com/docs/grafana/latest/panels-visualizations/panel-inspector/),
-[Prometheus interval variables](https://grafana.com/docs/grafana/latest/datasources/prometheus/template-variables/).
+| Dashboard APIs | Discover served/preferred versions, then read the stored version. A 13.2.2 target served all six versions with preferred `v2` while sampled dashboards remained `v0alpha1`. |
+| History access | A 13.2.2 target returned 403 for legacy history but 200 with entries for the stable app-platform history query in `http-api`. Do not interpret 403 as no history or seek write grants just to finish a review. |
+| View panel sidebar | Public preview; inspect availability before relying on it. Viewers can explore visualization options without an edit grant. |
+| Plugins and saved queries | Record installed plugin versions separately from Grafana's version. Saved queries are GA for Enterprise/Cloud; discover entitlement and grants before recommending them. |

@@ -11,11 +11,6 @@ groups, notification routing, and runbook metadata get the same review as applic
 - [Notification policies](#contact-points-and-notification-policies)
 - [Review and rollback](#review-and-rollback)
 
-`[sourced]` [configure alert rules](https://grafana.com/docs/grafana/latest/alerting/alerting-rules/),
-[file provisioning](https://grafana.com/docs/grafana/latest/alerting/set-up/provision-alerting-resources/file-provisioning/),
-[labels and annotations](https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rules/annotation-label/),
-[rule evaluation](https://grafana.com/docs/grafana/latest/alerting/fundamentals/alert-rule-evaluation/).
-
 `stack-profile` owns the current minor. Confirm the exact target patch against the current vendor
 advisory before a security verdict; neither a major/minor label nor an old QA result establishes a
 security floor. Inspect alert-author and datasource grants separately; version evidence alone does
@@ -30,21 +25,17 @@ owner per rule and never duplicate a rule in both paths.
 - **`for`** filters flapping on entry; keep-firing-for holds a clearing alert in the Recovering
   state and a re-fire during it returns to Alerting without a new notification. The provisioning
   HTTP API body spells it **`keep_firing_for`**; file-provisioning YAML and the YAML/JSON export use
-  **`keepFiringFor`** *[sourced: Grafana 13.2.2 [API and export definitions](https://github.com/grafana/grafana/blob/v13.2.2/pkg/services/ngalert/api/tooling/definitions/provisioning_alert_rules.go#L180)
-  and [file loader](https://github.com/grafana/grafana/blob/v13.2.2/pkg/services/provisioning/alerting/rules_types.go#L74)]*.
+  **`keepFiringFor`**.
   Verify the running rule's state, not the YAML, before trusting the filter.
 - **Recovery threshold** is hysteresis from the query side: a rule that fires above 1000 ms and
   recovers only below 900 ms cannot oscillate on a value hovering at 1000. Set it on every noisy
-  latency or ratio rule; leave it off a step-function signal *[sourced: queries and conditions]*.
+  latency or ratio rule; leave it off a step-function signal.
 - **No-data and execution-error states** are a decision per rule: for a paging burn-rate rule,
   silent telemetry mapped to Normal is the false all-clear, and an erroring query mapped to Normal
   disarms the alert invisibly. In file-provisioning YAML "Normal" is spelled `OK`
   (`noDataState: NoData|Alerting|OK|KeepLast`, `execErrState: Error|Alerting|OK|KeepLast`).
   `KeepLast` preserves the previous state; it does not establish current health. Literal UI labels
   `Normal` and `Keep Last State` are invalid provisioning values.
-  *[sourced: Grafana 13.2.0 [file loader](https://github.com/grafana/grafana/blob/v13.2.0/pkg/services/provisioning/alerting/rules_types.go#L135)
-  and [state parsers](https://github.com/grafana/grafana/blob/v13.2.0/pkg/services/ngalert/models/alert_rule.go#L67);
-  a source check does not prove a target reload]*.
 
 Review all four per rule; the defaults are not a decision.
 
@@ -78,9 +69,9 @@ tracked provider file.
 **Notification templates are the message; annotations are the facts.** A template assigned to a
 contact point shapes what Slack or email shows; the runbook link and the measured value live in the
 rule's annotations so every channel gets them. A template that computes facts is a second source of
-truth that drifts from the rule *[sourced: template notifications]*.
+truth that drifts from the rule.
 
-**Full-tree warning `[sourced]`.** Grafana treats the notification policy tree as one resource:
+**Full-tree warning.** Grafana treats the notification policy tree as one resource:
 applying a provisioned tree overwrites every policy in it. Export the full current tree immediately
 before review, keep every existing branch in the proposed source, and retain the prior export for
 rollback before any controlled apply. Record the routes:

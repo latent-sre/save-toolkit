@@ -98,8 +98,4 @@ write will never land. Stop with a named reconciliation owner while evidence is 
 Read-only requests never exercise firing conditions or send notifications. Who may make which
 rule change is set in the parent skill's [Access and authority](../SKILL.md#access-and-authority).
 
-[sourced] [Grafana rule provisioning API](https://grafana.com/docs/grafana/latest/developer-resources/api-reference/http-api/api-legacy/alerting_provisioning/)
-and [evaluation behavior](https://grafana.com/docs/grafana/latest/alerting/alerting-rules/create-grafana-managed-rule/);
-provenance handling from Grafana 13.2.2 [header parsing](https://github.com/grafana/grafana/blob/v13.2.2/pkg/services/ngalert/api/api_provisioning.go#L551-L556)
-and [update check](https://github.com/grafana/grafana/blob/v13.2.2/pkg/services/ngalert/provisioning/alert_rules.go#L994-L1002).
-Live alert write, concurrency, and delivery behavior on the target is `[unverified]` until observed.
+Live alert write, concurrency, and delivery behavior on the target is unconfirmed until observed.

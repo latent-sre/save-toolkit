@@ -67,10 +67,4 @@ comment payload and available audit evidence. Check for duplicates and late arri
 on one read is not proof of no write. For uncertain expiry, read the exact ID and its status.
 Incomplete evidence blocks redispatch and names the human reconciliation owner.
 
-[sourced] [Grafana silence documentation](https://grafana.com/docs/grafana/latest/alerting/configure-notifications/create-silence/)
-defines scope and notification semantics; the
-[13.2 client routes](https://github.com/grafana/grafana/blob/v13.2.0/public/app/features/alerting/unified/api/alertSilencesApi.ts)
-provide the endpoint mapping, and Grafana 13.2.2's Alertmanager
-[update rule](https://github.com/grafana/prometheus-alertmanager/blob/18275ca76b0c/silence/silence.go#L680-L705)
-decides when an edit keeps its ID. Target writes and HA reconciliation remain [unverified] until
-exercised.
+Target writes and HA reconciliation are unconfirmed until exercised.

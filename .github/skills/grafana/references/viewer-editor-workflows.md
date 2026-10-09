@@ -15,9 +15,6 @@ the grants on this instance.
   [Access and authority](../SKILL.md#access-and-authority). Prepare the exact requested grant; the
   agent does not apply it.
 
-*[sourced: Grafana basic roles, RBAC fixed roles, and dashboard permissions documentation; target
-behavior remains `[unverified]` until checked]*
-
 ## Viewer evidence
 
 - Preserve the investigation state in the URL: absolute or relative time range, `var-<name>` values,
@@ -28,8 +25,6 @@ behavior remains `[unverified]` until checked]*
 - Internal panel/dashboard links remain access-controlled. A Grafana snapshot embeds queried data
   outside the dashboard's normal access path: scrub it, set an expiry, and treat sharing it as data
   egress.
-
-*[sourced: Grafana URL variables, panel inspection, and sharing documentation]*
 
 ## Editor changes
 

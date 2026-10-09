@@ -117,9 +117,3 @@ this down:
 Grafana 13 removed the Image Renderer plugin; the standalone rendering service is the supported
 server path, and an Editor token cannot install or configure it. Never recommend installing the
 deprecated plugin.
-
-[sourced] [Panel sharing and render parameters](https://grafana.com/docs/grafana/latest/dashboards/share-dashboards-panels/),
-[renderer setup](https://grafana.com/docs/grafana/latest/setup-grafana/image-rendering/),
-[Grafana 13 plugin removal](https://grafana.com/docs/grafana/latest/whatsnew/whats-new-in-v13-0/#grafana-image-renderer-plugin-support-removed),
-[Playwright MCP tools](https://github.com/microsoft/playwright-mcp#tools) and
-[VS Code browser tools](https://code.visualstudio.com/docs/agents/run/browser-tools).

@@ -22,14 +22,14 @@ records the decision here.
 ## The business
 The firm is a stock trading firm; use trading examples (orders, accounts, markets, exchanges),
 never retail ones. Most incidents trace to dependencies, most often order management, the trading
-apps, and the quote plant. *[sourced: operator statement 2026-09-22]*
+apps, and the quote plant.
 
 ## Runtime
 On-prem servers + PCF (VMware Tanzu Application Service); this is what runs today. **The team
 operates PCF through Apps Manager**, not the command line: many SREs do not have the `cf` CLI
 installed. Skills give first checks as Apps Manager views with the `cf` v8 (CAPI V3) equivalent as
 a fallback, and the `sre-assistant` agent says when `cf` is absent where it runs rather than pretending to
-have observed the platform. *[sourced: operator statement 2026-09-02]* **GCP migration is in progress**: GCP is an approved target, arriving (as planned) as
+have observed the platform. **GCP migration is in progress**: GCP is an approved target, arriving (as planned) as
 reference files inside the obs skills plus the `gcp-ops` triage skill, not as a restructure. The
 landing runtime is **decision-pending** (Cloud Run is the primary candidate for TAS-shaped apps;
 GKE only if a workload demands it) — do not present either as decided. [unverified — record the
@@ -47,7 +47,7 @@ state, **Grafana** for the service's dashboards, panels, and alert state, Splunk
 the last minutes, and **Wavefront and PCF App Metrics** for application metrics. Grafana's Mimir,
 Loki, and Tempo backends are the additive stack for services instrumented with OpenTelemetry; GCP
 workloads add Cloud Logging, Cloud Monitoring and Cloud Trace (see the observability-stack
-reference). *[sourced: operator statement 2026-09-02; Grafana second, owner 2026-09-22]*
+reference).
 
 ## Read only the conditional stack facts the request needs
 
@@ -64,19 +64,19 @@ the app/ops lane, settle a pending decision, authorize a platform change, or rep
 verification. The entrypoint rules remain authoritative after a reference is loaded.
 
 ## Incident response
-A formal on-call rotation is in place. *[sourced: operator statement 2026-08-21]*
+A formal on-call rotation is in place.
 The team investigates and recommends fixes. An existing bridge or TLC (Techline Chat) is the
-coordination channel, not a request to open another. *[sourced: operator statement 2026-09-12]*
+coordination channel, not a request to open another.
 ITO (IT Operations) runs the TLC once one is open: it asks for updates, pages teams, and approves
 changes, and does not run the investigation. There is no standing incident lead or commander.
-*[sourced: operator statement 2026-09-22]* `incident-investigation` owns technical advice, the
+`incident-investigation` owns technical advice, the
 investigation board, and recommendations based on supplied impact and policy. Who sets severity is
-not recorded. *[unverified — record the owner]*
+not recorded yet.
 
 ## Change management
 Change records live in **both BMC Remedy and Jira**. `production-change-gate` refers to "the formal
 change record" generically; name whichever system governs the change in hand rather than assuming
-one. *[sourced: operator statement 2026-08-21]*
+one.
 
 ## Documentation home
 **The team-owned GitHub repository is the living source.** Confluence still holds operational
@@ -88,7 +88,6 @@ What follows for the document lanes: `scribe` authors into the repository (it ha
 could not reach Confluence anyway), `runbook` owns the import path, and
 `skills/runbook/scripts/confluence_to_runbook.py` is live working software, not a migration
 leftover. Never write new operational documentation into Confluence.
-*[sourced: operator statement 2026-08-21]*
 
 ## Stay in lane
 Stay in the app/ops lane; hand platform-internal problems to the platform team. GCP managed
@@ -104,7 +103,7 @@ owns which symptoms are platform-side and the evidence to escalate with. On GCP 
 and is **not yet ratified**: the team owns more (service config, revisions, project-scoped
 observability), while org policy, folder/project structure, shared networking, and IAM beyond
 project scope sit with the cloud platform owner. Treat that split
-as [unverified] until recorded here; the `gcp-ops` skill carries the working boundary rules. Akamai
+as unconfirmed until recorded here; the `gcp-ops` skill carries the working boundary rules. Akamai
 delivery and WAF config is team-owned change-managed work (see the `akamai-edge` skill); Akamai the
 platform — the edge network itself — is Akamai's.
 
