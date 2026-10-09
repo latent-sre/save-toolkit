@@ -7,7 +7,7 @@ import shlex
 import unittest
 
 import yaml
-from testkit import ROOT, assert_guard_decisions
+from testkit import ROOT, assert_guard_decisions, frontmatter_block
 
 
 class SkillAssetTests(unittest.TestCase):
@@ -137,12 +137,12 @@ class SkillAssetTests(unittest.TestCase):
         ):
             with self.subTest(template=name):
                 text = (ROOT / "skills" / name).read_text(encoding="utf-8")
-                metadata = yaml.safe_load(text.split("---", 2)[1])
+                metadata = yaml.safe_load(frontmatter_block(text))
                 self.assertEqual(metadata[field], expected)
 
     def test_postmortem_template_keeps_unknown_metadata_nullable(self) -> None:
         text = (ROOT / "skills/postmortem/assets/postmortem-template.md").read_text(encoding="utf-8")
-        metadata = yaml.safe_load(text.split("---", 2)[1])
+        metadata = yaml.safe_load(frontmatter_block(text))
         for field in ("severity", "started_at", "resolved_at", "resolution_confirmed_at"):
             with self.subTest(field=field):
                 self.assertIn(field, metadata)

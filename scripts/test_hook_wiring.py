@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from testkit import ROOT, find_shell, require_shell
+from testkit import ROOT, find_shell, frontmatter_block, require_shell
 
 
 def available_powershell() -> str | None:
@@ -210,7 +210,8 @@ class HookWiringTests(unittest.TestCase):
 
     def test_plugin_agents_do_not_claim_inert_hooks(self) -> None:
         for path in sorted((ROOT / "agents").glob("*.md")):
-            frontmatter = path.read_text(encoding="utf-8").split("---", 2)[1]
+            # The block starts at its first key, so a leading newline lets that key match too.
+            frontmatter = "\n" + frontmatter_block(path.read_text(encoding="utf-8"))
             self.assertNotIn("\nhooks:", frontmatter, path.name)
 
     def test_copilot_hook_is_explicitly_empty(self) -> None:
