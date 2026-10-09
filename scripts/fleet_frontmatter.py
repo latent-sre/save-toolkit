@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Parse the deliberately small frontmatter grammar shared by fleet tooling."""
+"""Parse the deliberately small frontmatter grammar shared by fleet tooling.
+
+It also owns the lexical conventions the grammar's readers must agree on: component names, tool
+grants, and the spellings of the plugin's runtime root.
+"""
 
 from __future__ import annotations
 
@@ -17,6 +21,11 @@ LIST_ITEM_RE = re.compile(r"\s+-\s+(.+?)\s*")
 BLOCK_MARKERS = {">", ">-", "|", "|-"}
 # A component name: lowercase kebab-case. Pattern text, so callers can embed it in larger patterns.
 KEBAB_NAME = r"[a-z0-9]+(?:-[a-z0-9]+)*"
+NAME_RE = re.compile(KEBAB_NAME)
+# Both spellings of the Claude plugin's runtime root: `${CLAUDE_PLUGIN_ROOT}` for POSIX shells, and
+# `$env:CLAUDE_PLUGIN_ROOT` for PowerShell, where the braced form is a shell variable rather than the
+# process environment. Pattern text; check_links and the adapter generator must recognize the same set.
+PLUGIN_ROOT = r"\$(?:\{CLAUDE_PLUGIN_ROOT\}|env:CLAUDE_PLUGIN_ROOT)"
 TOOL_GRANT_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_.*-]*)(?:\((.*)\))?")
 
 

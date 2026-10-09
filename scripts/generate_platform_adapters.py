@@ -93,16 +93,23 @@ COPILOT_TOOL_MAP = {
     # `EnterWorktree`/`ExitWorktree` have no Copilot alias and are deliberately unmapped: the
     # projection drops them rather than substituting `execute`, which would widen authority.
 }
+# The selected Playwright MCP browser interactions: observe and drive a page, never run page code,
+# upload files or answer dialogs. validate_fleet approves exactly these grants, and only for the
+# browser lane; the Copilot names below are derived from the same list.
+PLAYWRIGHT_MCP_PREFIX = "mcp__microsoft_playwright_mcp__"
+BROWSER_OBSERVATION_TOOLS = (
+    "browser_snapshot",
+    "browser_take_screenshot",
+    "browser_navigate",
+    "browser_click",
+    "browser_hover",
+    "browser_type",
+    "browser_select_option",
+    "browser_press_key",
+    "browser_wait_for",
+)
 COPILOT_MCP_TOOL_MAP = {
-    "mcp__microsoft_playwright_mcp__browser_snapshot": "microsoft/playwright-mcp/browser_snapshot",
-    "mcp__microsoft_playwright_mcp__browser_take_screenshot": "microsoft/playwright-mcp/browser_take_screenshot",
-    "mcp__microsoft_playwright_mcp__browser_navigate": "microsoft/playwright-mcp/browser_navigate",
-    "mcp__microsoft_playwright_mcp__browser_click": "microsoft/playwright-mcp/browser_click",
-    "mcp__microsoft_playwright_mcp__browser_hover": "microsoft/playwright-mcp/browser_hover",
-    "mcp__microsoft_playwright_mcp__browser_type": "microsoft/playwright-mcp/browser_type",
-    "mcp__microsoft_playwright_mcp__browser_select_option": "microsoft/playwright-mcp/browser_select_option",
-    "mcp__microsoft_playwright_mcp__browser_press_key": "microsoft/playwright-mcp/browser_press_key",
-    "mcp__microsoft_playwright_mcp__browser_wait_for": "microsoft/playwright-mcp/browser_wait_for",
+    PLAYWRIGHT_MCP_PREFIX + tool: "microsoft/playwright-mcp/" + tool for tool in BROWSER_OBSERVATION_TOOLS
 }
 # VS Code's integrated browser is independent of Playwright MCP. Derive its exact
 # tool references from the same canonical capabilities; removing a source grant
@@ -263,13 +270,11 @@ PLUGIN_BANNER_RE = re.compile(
     r"^> \*\*Plugin addressing:\*\*(?:.*\n)+?\n", re.MULTILINE
 )
 PLUGIN_TOKEN_RE = re.compile(rf"(?<![A-Za-z0-9_-]){re.escape(PLUGIN_NAME)}:(?=[a-z0-9])")
-# Both spellings of the runtime root: `${CLAUDE_PLUGIN_ROOT}` for POSIX shells, and
-# `$env:CLAUDE_PLUGIN_ROOT` for PowerShell fences, where the braced form is a shell variable rather
-# than the process environment. A spelling missed here survives into the Copilot projection as a
-# Claude-only token pointing outside the installed bundle.
+# A runtime-root spelling missed here survives into the Copilot projection as a Claude-only token
+# pointing outside the installed bundle.
 PLUGIN_PATH_RE = re.compile(
-    r"`?\$(?:\{CLAUDE_PLUGIN_ROOT\}|env:CLAUDE_PLUGIN_ROOT)/(?P<kind>skills|agents)/"
-    r"(?P<name>[a-z0-9]+(?:-[a-z0-9]+)*)(?P<tail>/[^`\s]+|\.md)?`?"
+    rf"`?{fleet_frontmatter.PLUGIN_ROOT}/(?P<kind>skills|agents)/"
+    rf"(?P<name>{fleet_frontmatter.KEBAB_NAME})(?P<tail>/[^`\s]+|\.md)?`?"
 )
 RUNTIME_SUFFIXES = {".pyc", ".pyo"}
 

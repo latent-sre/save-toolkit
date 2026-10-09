@@ -14,7 +14,6 @@ import generate_platform_adapters as adapters
 
 
 ROOT = Path(__file__).resolve().parents[1]
-NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 KNOWN_AGENT_FIELDS = {"name", "description", "tools", "model"}
 # `model:` accepts a generation ALIAS only. An alias tracks the current model of its tier and
 # cannot rot; a full ID (claude-opus-4-1-20250805) silently pins a model past its usefulness,
@@ -101,17 +100,9 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__plugin_githits_githits__search",
     "mcp__plugin_githits_githits__search_status",
 }
-BROWSER_OBSERVATION_MCP_TOOLS = {
-    "mcp__microsoft_playwright_mcp__browser_snapshot",
-    "mcp__microsoft_playwright_mcp__browser_take_screenshot",
-    "mcp__microsoft_playwright_mcp__browser_navigate",
-    "mcp__microsoft_playwright_mcp__browser_click",
-    "mcp__microsoft_playwright_mcp__browser_hover",
-    "mcp__microsoft_playwright_mcp__browser_type",
-    "mcp__microsoft_playwright_mcp__browser_select_option",
-    "mcp__microsoft_playwright_mcp__browser_press_key",
-    "mcp__microsoft_playwright_mcp__browser_wait_for",
-}
+BROWSER_OBSERVATION_MCP_TOOLS = {adapters.PLAYWRIGHT_MCP_PREFIX + tool for tool in adapters.BROWSER_OBSERVATION_TOOLS}
+# The only lanes that may hold those browser grants; every other agent is refused them.
+BROWSER_OBSERVATION_AGENTS = {"sre-assistant"}
 EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
 RELIABILITY_TOOLS = {*SCRIBE_TOOLS, "Agent"}
@@ -260,7 +251,7 @@ def _authority_failures(
     authority = EXPECTED_AUTHORITY[name]
     missing = sorted(authority["required"] - bases)
     forbidden_tools = authority["forbidden"]
-    if name != "sre-assistant":
+    if name not in BROWSER_OBSERVATION_AGENTS:
         forbidden_tools = forbidden_tools | BROWSER_OBSERVATION_MCP_TOOLS
     forbidden = sorted(forbidden_tools & bases)
     if missing:
@@ -307,7 +298,7 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
             continue
         fields, body = parsed.fields, parsed.body
         name = fields.get("name")
-        if not isinstance(name, str) or not NAME_RE.fullmatch(name) or name != path.stem:
+        if not isinstance(name, str) or not fleet_frontmatter.NAME_RE.fullmatch(name) or name != path.stem:
             failures.append(f"{path}: name must be kebab-case and match the filename")
             continue
         names.append(name)

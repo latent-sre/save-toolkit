@@ -18,7 +18,6 @@ import fleet_frontmatter
 
 
 ROOT = Path(os.environ.get("FLEET_ROOT") or Path(__file__).resolve().parents[1]).resolve()
-NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SKILL_DESCRIPTION_MAX_CHARS = 1024
 LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+)\)")
 CODE_PATH_RE = re.compile(
@@ -38,7 +37,7 @@ CODE_PATH_RE = re.compile(
 # These Claude-only spellings pass this local link check; the adapter generator separately
 # rejects them for portable helper commands and requires installed-resource resolution.
 SELF_SKILL_PATH_RE = re.compile(
-    r"(?<![A-Za-z0-9._/-])(?P<root>\$(?:\{CLAUDE_PLUGIN_ROOT\}|env:CLAUDE_PLUGIN_ROOT)/)?"
+    rf"(?<![A-Za-z0-9._/-])(?P<root>{fleet_frontmatter.PLUGIN_ROOT}/)?"
     r"skills/(?P<name>[a-z0-9-]+)/"
     r"(?:SKILL\.md|(?:scripts|references|assets)/[A-Za-z0-9._/-]+)"
 )
@@ -300,7 +299,7 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
     if name:
         if len(name) > 64:
             failures.append(f"{where}: name exceeds 64 characters")
-        if not NAME_RE.fullmatch(name) or name != expected_name:
+        if not fleet_frontmatter.NAME_RE.fullmatch(name) or name != expected_name:
             failures.append(
                 f"{where}: name must be kebab-case and equal directory '{expected_name}'"
             )
