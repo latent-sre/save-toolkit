@@ -93,6 +93,13 @@ class _List:
         return "\n".join(output).rstrip("\n")
 
 
+def _reference(label: str, destination: str = "") -> str:
+    """A Markdown link whose label is literal text, or the escaped label alone without a destination."""
+    label = " ".join(label.split())
+    label = re.sub(r"([\\`*_\[\]{}()#+.!|<>~-])", r"\\\1", label)
+    return f"[{label}](<{destination}>)" if destination else label
+
+
 def _integer(value: str | None) -> int | None:
     try:
         return int(value) if value is not None else None
@@ -144,17 +151,11 @@ class _Extractor(HTMLParser):
             return ""
         return quote(value, safe="/:#?&=%@+;,-._~")
 
-    @staticmethod
-    def _reference(label: str, destination: str) -> str:
-        label = " ".join(label.split())
-        label = re.sub(r"([\\`*_\[\]{}()#+.!|<>~-])", r"\\\1", label)
-        return f"[{label}](<{destination}>)" if destination else label
-
     def _finish_link(self) -> None:
         if self._link is not None:
             start, destination = self._link
             label = " ".join(self._text[start:]).strip() or destination
-            self._text[start:] = [self._reference(label, destination)]
+            self._text[start:] = [_reference(label, destination)]
             self._link = None
 
     def _flush_text(self) -> None:
@@ -185,17 +186,17 @@ class _Extractor(HTMLParser):
             return
         if self._ac_depth:
             return
+        attributes = dict(attrs)
         if tag == "a" and self._pre is None and self._heading is None and not self._in_title:
             self._finish_link()
-            if "href" in dict(attrs):
-                self._link = (len(self._text), self._destination(dict(attrs)["href"]))
+            if "href" in attributes:
+                self._link = (len(self._text), self._destination(attributes["href"]))
         elif tag == "img":
             self.image_count += 1
-            attributes = dict(attrs)
-            self._text.append("Image: " + self._reference(
+            self._text.append("Image: " + _reference(
                 attributes.get("alt") or "image", self._destination(attributes.get("src"))
             ))
-        if tag == "title":
+        elif tag == "title":
             self._in_title = True
         elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
             self._flush_text()
@@ -209,13 +210,12 @@ class _Extractor(HTMLParser):
             self.table_count += 1
         elif tag in {"ul", "ol"}:
             self._flush_text()
-            attributes = dict(attrs)
             self._lists.append(_List(tag == "ol", _integer(attributes.get("start")),
                                      -1 if "reversed" in attributes else 1))
         elif tag == "li":
             self._flush_text()
             if self._lists:
-                self._lists[-1].items.append((_integer(dict(attrs).get("value")), []))
+                self._lists[-1].items.append((_integer(attributes.get("value")), []))
         elif tag in {"p", "tr", "br"}:
             if tag != "br" or self._link is None:
                 self._flush_text()
@@ -281,7 +281,7 @@ def slugify(title: str) -> str:
     return slug or "imported-runbook"
 
 
-def service_id(value: str) -> str:
+def parse_service_id(value: str) -> str:
     """Accept only the template's stable slug shape (assets/runbook-template.md)."""
     if not SERVICE_ID_RE.fullmatch(value):
         raise argparse.ArgumentTypeError(
@@ -290,7 +290,7 @@ def service_id(value: str) -> str:
     return value
 
 
-def owner(value: str) -> str:
+def parse_owner(value: str) -> str:
     """Reject owner values that cannot satisfy the frontmatter schema."""
     if not value.strip():
         raise argparse.ArgumentTypeError(
@@ -354,26 +354,15 @@ def render_blocks(blocks: list[tuple[str, str]]) -> list[str]:
     return lines
 
 
-def convert(source: Path, source_url: str | None, service_id: str, owner: str,
-            title: str | None = None) -> tuple[str, str]:
-    """Return (draft_markdown, stdout_report). Raises ValueError on an unusable page JSON."""
-    page = read_page(source)
-    parser = _Extractor(title or page.title)
-    parser.feed(page.html)
-    parser.close()
+def _map_sections(sections: list[tuple[str, list[tuple[str, str]]]]):
+    """Place each non-empty source section in its template slot, or keep it under its own heading.
 
-    title = " ".join((parser.title or source.stem).split())
-    display_title = parser._reference(title, "")
+    Returns (mapped slot -> lines, unmapped lines, one report line per placement).
+    """
     mapped: dict[str, list[str]] = {}
     unmapped: list[str] = []
-    report: list[str] = [f"Converted: {source.name} — “{title}”"]
-    if parser.title_source is None:
-        report.append(f"  warning: no page title found; runbook_id comes from the file name "
-                      f"“{source.stem}” — pass --title, or convert the page JSON")
-    elif parser.title_source == "first heading":
-        report.append("  warning: title taken from the first heading; if that heading is a section, "
-                      "pass --title so it stays in the draft")
-    for heading, blocks in parser.sections:
+    placements: list[str] = []
+    for heading, blocks in sections:
         if not blocks:
             continue
         slot = map_slot(heading) if heading else "Purpose & scope"
@@ -381,21 +370,25 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str,
         if slot:
             note = f"*(from source section: “{heading}”)*" if heading else ""
             mapped.setdefault(slot, []).extend(([note, ""] if note else []) + body)
-            report.append(f"  mapped   “{heading or '(intro)'}” -> {slot}")
+            placements.append(f"  mapped   “{heading or '(intro)'}” -> {slot}")
         else:
-            unmapped += [f"### {heading}", ""] + body
-            report.append(f"  unmapped “{heading}” -> Imported content (unmapped)")
+            unmapped += [f"### {heading}", "", *body]
+            placements.append(f"  unmapped “{heading}” -> Imported content (unmapped)")
+    return mapped, unmapped, placements
 
-    today = datetime.date.today().isoformat()
-    losses = [
+
+def _losses(parser: _Extractor) -> list[str]:
+    return [
         f"Confluence macros dropped (not convertible): {parser.macro_count}",
         f"Image attachments not copied: {parser.image_count} (references retained where usable)",
         f"Unsupported media dropped: {parser.media_count}",
         f"HTML tables flattened: {parser.table_count}",
         f"Unusable link or image destinations: {parser.unusable_destinations}",
     ]
-    report.extend(f"  losses: {loss}" for loss in losses)
 
+
+def _render_draft(title: str, service_id: str, owner: str, mapped: dict[str, list[str]],
+                  unmapped: list[str], provenance: list[str]) -> str:
     lines = [
         "---",
         "schema_version: 1",
@@ -412,7 +405,7 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str,
         "version: 1",
         "---",
         "",
-        f"# Runbook: {display_title}",
+        f"# Runbook: {_reference(title)}",
         "",
         "> **Imported draft.** Converted from a Confluence export; every command below is",
         "> `[unverified]` until rehearsed on the target. Fill applicable slots from evidence; mark",
@@ -445,20 +438,50 @@ def convert(source: Path, source_url: str | None, service_id: str, owner: str,
     lines += ["## References", ""]
     if "References" in mapped:
         lines += mapped["References"]
-    lines += [
+    return "\n".join(lines + provenance)
+
+
+def convert(source: Path, source_url: str | None, service_id: str, owner: str,
+            title: str | None = None, *, today: datetime.date | None = None) -> tuple[str, str]:
+    """Return (draft_markdown, stdout_report). Raises ValueError on an unusable page JSON.
+
+    `today` dates the provenance's conversion line; it defaults to the local date.
+    """
+    page = read_page(source)
+    parser = _Extractor(title or page.title)
+    parser.feed(page.html)
+    parser.close()
+
+    title = " ".join((parser.title or source.stem).split())
+    mapped, unmapped, placements = _map_sections(parser.sections)
+    losses = _losses(parser)
+
+    report = [f"Converted: {source.name} — “{title}”"]
+    if parser.title_source is None:
+        report.append(f"  warning: no page title found; runbook_id comes from the file name "
+                      f"“{source.stem}” — pass --title, or convert the page JSON")
+    elif parser.title_source == "first heading":
+        report.append("  warning: title taken from the first heading; if that heading is a section, "
+                      "pass --title so it stays in the draft")
+    report += placements
+    report += [f"  losses: {loss}" for loss in losses]
+
+    provenance = [
         "**Import provenance**",
         "",
         f"- Source file: `{source.name}`",
-        f"- Source page title: “{display_title}”",
+        f"- Source page title: “{_reference(title)}”",
     ]
     if source_url:
-        lines.append(f"- Source page URL: {json.dumps(source_url, ensure_ascii=False)}")
-    lines += [
+        provenance.append(f"- Source page URL: {json.dumps(source_url, ensure_ascii=False)}")
+    provenance += [
         f"- Source page version: {page.version or '<fill in — page history>'}",
         f"- Source page last modified: {page.modified or '<fill in — page history>'}",
-        f"- Converted: {today}",
-    ] + [f"- Conversion losses: {loss}" for loss in losses] + [""]
-    return "\n".join(lines), "\n".join(report)
+        f"- Converted: {(today or datetime.date.today()).isoformat()}",
+        *(f"- Conversion losses: {loss}" for loss in losses),
+        "",
+    ]
+    return _render_draft(title, service_id, owner, mapped, unmapped, provenance), "\n".join(report)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -472,8 +495,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="exported Confluence page: REST v2 page JSON (preferred) or view/export HTML")
     parser.add_argument("-o", "--output", type=Path, required=True, help="draft runbook path to write")
     parser.add_argument("--source-url", default=None, help="original page URL for provenance")
-    parser.add_argument("--service-id", required=True, type=service_id)
-    parser.add_argument("--owner", default="<team/role>", type=owner)
+    parser.add_argument("--service-id", required=True, type=parse_service_id)
+    parser.add_argument("--owner", default="<team/role>", type=parse_owner)
     parser.add_argument("--title", default=None,
                         help="page title, when the export is a bare body fragment without one")
     parser.add_argument("--force", action="store_true",

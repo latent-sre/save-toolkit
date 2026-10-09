@@ -19,7 +19,7 @@ component tests.
 
 from __future__ import annotations
 
-import importlib.util
+import datetime
 import io
 import json
 import os
@@ -30,6 +30,8 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+
+from testkit import load_path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONVERTER = ROOT / "skills" / "runbook" / "scripts" / "confluence_to_runbook.py"
@@ -570,6 +572,12 @@ class ConfluenceContentTest(unittest.TestCase):
         self.assertEqual(frontmatter_fields(draft)['runbook_id'], 'restart-payments')
 
 
+def load_converter(name: str):
+    """Import the converter in-process; it stays registered only while it executes."""
+    with patch.dict(sys.modules):
+        return load_path(CONVERTER, name)
+
+
 def run_on(name: str, content: str, *args: str, env: dict[str, str] | None = None,
            existing: str | None = None) -> tuple[subprocess.CompletedProcess, str]:
     """Run the converter on a source file called `name`; its suffix selects page JSON or HTML."""
@@ -657,12 +665,7 @@ class ConfluenceImportPathTest(unittest.TestCase):
         self.assertIn("restart-the-order-router", draft)
 
     def test_output_created_during_conversion_is_preserved(self) -> None:
-        spec = importlib.util.spec_from_file_location("confluence_import_race_test", CONVERTER)
-        self.assertIsNotNone(spec)
-        self.assertIsNotNone(spec.loader)
-        converter = importlib.util.module_from_spec(spec)
-        with patch.dict(sys.modules, {spec.name: converter}):
-            spec.loader.exec_module(converter)
+        converter = load_converter("confluence_import_race_test")
 
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "page.json"
@@ -687,6 +690,16 @@ class ConfluenceImportPathTest(unittest.TestCase):
             self.assertEqual(1, returncode)
             self.assertIn("--force", stderr.getvalue())
             self.assertNotIn("Draft written:", stdout.getvalue())
+
+    def test_the_caller_can_date_the_conversion(self) -> None:
+        converter = load_converter("confluence_import_date_test")
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "page.json"
+            source.write_text(self.PAGE_JSON, encoding="utf-8")
+            draft, _ = converter.convert(source, None, "order-router", "<team/role>",
+                                         today=datetime.date(2026, 1, 2))
+        self.assertIn("\n- Converted: 2026-01-02\n", draft)
+        self.assertNotIn("confluence_import_date_test", sys.modules)
 
     def test_report_prints_non_ascii_headings_on_a_legacy_stdout(self) -> None:
         # Captured stdout (an agent's Bash, CI, `> log`) can default to a legacy code page; the draft
