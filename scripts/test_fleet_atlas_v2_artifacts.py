@@ -78,6 +78,7 @@ class ArtifactTests(unittest.TestCase):
 
     def test_running_implementation_is_bound_to_recorded_source_tree(self):
         directory = Path(__file__).resolve().parent
+        # Named here, not via runtime_modules(): a module dropped there must fail this check.
         paths = [*directory.glob("fleet_atlas_v2*.py"), directory / "fleet_frontmatter.py"]
         sources = tuple(Source("scripts/" + path.name, path.read_bytes()) for path in sorted(paths))
         snapshot = Snapshot("fixture", sources)

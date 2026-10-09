@@ -19,17 +19,11 @@ from typing import Callable, Mapping
 from urllib.parse import unquote, urlsplit
 
 import fleet_frontmatter
-from fleet_atlas_v2_model import (Bucket, EvidenceClass as EC, Fact, Node, NodeIndex,
-    NodeRef, Predicate, Proof, ProofKind as PK, Span, Value, WHOLE_DOCUMENT)
+from fleet_atlas_v2_model import (Bucket, EDGE_ENDPOINTS, EDGE_TYPES, EvidenceClass as EC, Fact,
+    Node, NodeIndex, NodeRef, NODE_TYPES, Predicate, Proof, ProofKind as PK, Span, Value, WHOLE_DOCUMENT)
 from fleet_atlas_v2_proofs import Derivation, Evaluator
 from fleet_atlas_v2_sources import Snapshot, Source
 
-NODE_TYPES = frozenset(('agent', 'skill', 'reference', 'bundle-file', 'command', 'rule',
-    'decision', 'roadmap-item', 'review', 'scenario', 'test', 'schema', 'schema-projection',
-    'generated-projection', 'capability', 'owner', 'probe', 'hook', 'document', 'validator'))
-EDGE_TYPES = frozenset(('owns', 'routes_to', 'delegates_to', 'loads_when', 'governed_by',
-    'constrained_by', 'verified_by', 'evidenced_by', 'depends_on', 'blocks', 'supersedes',
-    'generated_from', 'near_miss_for', 'contradicts', 'cites'))
 LIVE_DOCS = frozenset(('AGENTS.md', 'CONTRIBUTING.md', 'README.md', 'docs/README.md',
     'docs/rules.md', 'docs/schema-compatibility.md', 'docs/fleet-roadmap.md'))
 ITEM = re.compile(r'\b[A-Z][A-Z0-9]*-\d{3}\b')
@@ -38,6 +32,7 @@ DATE = re.compile(r'\b20\d\d-\d\d-\d\d\b')
 LINK = re.compile(r'\[([^\]]*)\]\(([^)]+)\)')
 TARGET_LINK = re.compile(r'\]\(([^)]+)\)')
 FIELD = re.compile(r'^\*\*([A-Za-z][A-Za-z ]+):\*\*\s*(.*)$')
+SEPARATOR = re.compile(r'^\|\s*:?-{3,}')  # A Markdown table's header/body separator row.
 EVALUATOR = 'fleet-source-replay/v2'
 
 
@@ -166,6 +161,23 @@ def link_targets(text):
     # The destination remains parseable on the closing line of a wrapped or
     # nested-label link. Labels do not determine a repository target identity.
     return tuple(('', target) for target in TARGET_LINK.findall(text))
+
+
+def table_cells(line: str) -> list[str]:
+    """Raw cells of a Markdown table row, without its outer pipes or surrounding whitespace."""
+    return line.strip().strip('|').split('|')
+
+
+def human_owner(owner: str) -> str:
+    """The human owner an Owner field names before its first `component`, or ''."""
+    prefix = owner.split('`', 1)[0].strip()
+    return re.split(r'\s+owns?\b', prefix, maxsplit=1, flags=re.I)[0].strip(' .,:;')
+
+
+def live_guide(path: str) -> bool:
+    """Current guidance whose text is a live contract rather than historical evidence."""
+    return path in LIVE_DOCS or (Path(path).name in ('README.md', 'CHANGELOG.md')
+                                 and not path.startswith('docs/reviews/'))
 
 
 def slug(text: str) -> str:
@@ -361,7 +373,7 @@ def records_for_roadmap(source: Source):
                        {k: (source.span(min(v), max(v)),) for k, v in positions.items()}))
     # The modern parked register is still live backlog, with its own row selector.
     for i, line in enumerate(source.lines, 1):
-        cells = line.strip().strip('|').split('|')
+        cells = table_cells(line)
         if len(cells) >= 2 and re.fullmatch(r'[A-Z][A-Z0-9]*-\d{3}', plain(cells[0])):
             item_id = plain(cells[0])
             if item_id not in {r[0] for r in result}:
@@ -510,8 +522,7 @@ def _roadmap_records(corpus, inputs):
             for name in re.findall(r'`([a-z][a-z0-9-]+)`', owner):
                 if f'owner:{name}' not in records and name not in components:
                     add(_record(f'owner:{name}', 'owner', name, roadmap.path, proof, authority='external', attrs={'kind': 'human'}, family='owners', selector=f'owner:{name}'))
-            prefix = owner.split('`', 1)[0].strip()
-            human = re.split(r'\s+owns?\b', prefix, maxsplit=1, flags=re.I)[0].strip(' .,:;')
+            human = human_owner(owner)
             if human:
                 key = f'owner:{slug(human)}'
                 if key not in records:
@@ -519,7 +530,7 @@ def _roadmap_records(corpus, inputs):
     closed = corpus.get('docs/roadmap-closed.md')
     if closed:
         for i, line in enumerate(closed.lines, 1):
-            cells = line.strip().strip('|').split('|')
+            cells = table_cells(line)
             if len(cells) < 3 or not line.startswith('| `'):
                 continue
             for item in ITEM.findall(cells[0]):
@@ -539,7 +550,7 @@ def _rule_records(corpus, inputs):
                 section, section_line = line[3:].strip(), i
             if not _table_data(rules.lines, i):
                 continue
-            cells = line.strip().strip('|').split('|')
+            cells = table_cells(line)
             if len(cells) < 2:
                 continue
             statement = plain(cells[0]); key = stable_id('rule', rules.path, statement)
@@ -623,7 +634,7 @@ def _resolve_catalog(corpus, inputs):
         ):
             records[key] = replace(record, node=replace(record.node, selector=WHOLE_DOCUMENT))
     # Exact full-file targets are explicit; no path-first selection erases domain nodes.
-    needed = {p for p in sources if p in LIVE_DOCS or (Path(p).name in ('README.md', 'CHANGELOG.md') and not p.startswith('docs/reviews/'))}
+    needed = {p for p in sources if live_guide(p)}
     needed.update(r.node.path for r in records.values())
     needed.update(canonical for _, canonical, _ in corpus.generated)
     if 'scripts/fleet_atlas_v2_extract.py' in sources:
@@ -643,15 +654,14 @@ def _resolve_catalog(corpus, inputs):
         whole_records = [r for r in records.values() if r.node.path == path and r.node.selector == WHOLE_DOCUMENT]
         if not whole_records:
             typ = 'validator' if path.startswith('scripts/') and path.endswith('.py') else 'document'
-            live_guide = path in LIVE_DOCS or (Path(path).name in ('README.md', 'CHANGELOG.md') and not path.startswith('docs/reviews/'))
-            authority = 'live-contract' if live_guide else 'historical-evidence' if path.startswith('docs/') else 'canonical'
+            authority = 'live-contract' if live_guide(path) else 'historical-evidence' if path.startswith('docs/') else 'canonical'
             add(_record(f'{typ}:{path}', typ, path, path, whole(sources[path]), authority=authority))
     return StageOutput(tuple(records[k] for k in sorted(records)))
 
 
 def _table_data(lines, i):
     line = lines[i - 1].strip()
-    return line.startswith('|') and not re.match(r'^\|\s*:?-{3,}', line) and not (i < len(lines) and re.match(r'^\|\s*:?-{3,}', lines[i].strip()))
+    return line.startswith('|') and not SEPARATOR.match(line) and not (i < len(lines) and SEPARATOR.match(lines[i].strip()))
 
 
 def roster_rows(source):
@@ -1133,8 +1143,8 @@ def _relations(corpus, records):
             load_columns, header_line, inferred_method = (), None, False
             for i, line in enumerate(source.lines, 1):
                 stripped = line.strip()
-                if stripped.startswith('|') and i < len(source.lines) and re.match(r'^\|\s*:?-{3,}', source.lines[i].strip()):
-                    headers = [plain(cell) for cell in stripped.strip('|').split('|')]
+                if stripped.startswith('|') and i < len(source.lines) and SEPARATOR.match(source.lines[i].strip()):
+                    headers = [plain(cell) for cell in table_cells(line)]
                     load_columns = tuple(j for j, header in enumerate(headers) if re.search(r'\b(?:load|skill|method)\b', header, re.I))
                     inferred_method = not any(re.search(r'\b(?:load|skill)\b', headers[j], re.I) for j in load_columns)
                     header_line = i
@@ -1142,7 +1152,7 @@ def _relations(corpus, records):
                 if not stripped.startswith('|'):
                     load_columns, header_line = (), None
                 if load_columns and _table_data(source.lines, i):
-                    cells = stripped.strip('|').split('|')
+                    cells = table_cells(line)
                     selected = ' '.join(cells[j] for j in load_columns if j < len(cells))
                     condition = plain(cells[0])
                     proof = (source.span(header_line, header_line), source.span(i, i))
@@ -1259,8 +1269,7 @@ def _relations(corpus, records):
                 for name in mentioned:
                     if f'owner:{name}' in by_id:
                         edge('owns', f'owner:{name}', subject, proof, attrs={'field': 'Owner'})
-                prefix = owner.split('`', 1)[0].strip()
-                human = re.split(r'\s+owns?\b', prefix, maxsplit=1, flags=re.I)[0].strip(' .,:;')
+                human = human_owner(owner)
                 if human:
                     edge('owns', f'owner:{slug(human)}', subject, proof, attrs={'field': 'Owner'})
                 for match in re.finditer(r'`([a-z][a-z0-9-]+)`\s+owns?\b([^.;]+)', owner):
@@ -1437,27 +1446,6 @@ def _relations(corpus, records):
                  'no direct blocks edge; query reverses depends_on', EC.EXTRACTED,
                  Proof(PK.ABSENCE, whole(implementation), EVALUATOR, corpus.snapshot.tree_digest)))
     return tuple(facts[key] for key in sorted(facts))
-
-
-# Endpoint authority is explicit, while trusted replay enforces syntax-level authority:
-# a path literal inside a test never becomes a verified_by edge merely by matching a glob.
-EDGE_ENDPOINTS = {
-    'owns': ({'owner', 'agent'}, NODE_TYPES),
-    'routes_to': ({'scenario'}, {'agent', 'skill', 'command'}),
-    'delegates_to': ({'agent'}, {'agent'}),
-    'loads_when': ({'skill', 'agent'}, {'reference', 'skill'}),
-    'governed_by': ({'rule'}, NODE_TYPES),
-    'constrained_by': (NODE_TYPES, {'hook', 'schema', 'validator', 'document'}),
-    'verified_by': (NODE_TYPES, {'scenario', 'test'}),
-    'evidenced_by': ({'roadmap-item', 'decision'}, {'decision', 'review'}),
-    'depends_on': ({'roadmap-item'}, {'roadmap-item'}),
-    'blocks': ({'roadmap-item'}, {'roadmap-item'}),
-    'supersedes': ({'decision'}, NODE_TYPES),
-    'generated_from': ({'generated-projection'}, NODE_TYPES),
-    'near_miss_for': ({'scenario'}, {'agent', 'skill', 'command'}),
-    'contradicts': (NODE_TYPES, NODE_TYPES),
-    'cites': (NODE_TYPES, NODE_TYPES),
-}
 
 
 def _guidance(corpus, records):

@@ -169,6 +169,33 @@ class NodeRef:
 
 WHOLE_DOCUMENT = "WHOLE_DOCUMENT"
 
+# The fleet vocabulary: every entity type, and every relationship with the entity types
+# it may join. EDGE_TYPES derives from the endpoint table, so a relationship cannot be
+# declared without its endpoints, nor exported as an edge without being declared.
+NODE_TYPES = frozenset(("agent", "skill", "reference", "bundle-file", "command", "rule",
+    "decision", "roadmap-item", "review", "scenario", "test", "schema", "schema-projection",
+    "generated-projection", "capability", "owner", "probe", "hook", "document", "validator"))
+# Endpoint authority is explicit, while trusted replay enforces syntax-level authority:
+# a path literal inside a test never becomes a verified_by edge merely by matching a glob.
+EDGE_ENDPOINTS = {
+    "owns": ({"owner", "agent"}, NODE_TYPES),
+    "routes_to": ({"scenario"}, {"agent", "skill", "command"}),
+    "delegates_to": ({"agent"}, {"agent"}),
+    "loads_when": ({"skill", "agent"}, {"reference", "skill"}),
+    "governed_by": ({"rule"}, NODE_TYPES),
+    "constrained_by": (NODE_TYPES, {"hook", "schema", "validator", "document"}),
+    "verified_by": (NODE_TYPES, {"scenario", "test"}),
+    "evidenced_by": ({"roadmap-item", "decision"}, {"decision", "review"}),
+    "depends_on": ({"roadmap-item"}, {"roadmap-item"}),
+    "blocks": ({"roadmap-item"}, {"roadmap-item"}),
+    "supersedes": ({"decision"}, NODE_TYPES),
+    "generated_from": ({"generated-projection"}, NODE_TYPES),
+    "near_miss_for": ({"scenario"}, {"agent", "skill", "command"}),
+    "contradicts": (NODE_TYPES, NODE_TYPES),
+    "cites": (NODE_TYPES, NODE_TYPES),
+}
+EDGE_TYPES = frozenset(EDGE_ENDPOINTS)
+
 
 class UnresolvedReference(ValueError):
     pass

@@ -45,11 +45,14 @@ def extraction(snapshot: Snapshot):
     return extract(snapshot)
 
 
+def runtime_modules(directory: Path) -> list[Path]:
+    """The atlas implementation files in `directory`: its own modules and the frontmatter parser."""
+    return sorted([*directory.glob("fleet_atlas_v2*.py"), directory / "fleet_frontmatter.py"])
+
+
 def verify_runtime_sources(snapshot: Snapshot) -> None:
     """The recorded source tree must contain the implementation actually in use."""
-    directory = Path(__file__).resolve().parent
-    modules = [*directory.glob("fleet_atlas_v2*.py"), directory / "fleet_frontmatter.py"]
-    for path in sorted(modules):
+    for path in runtime_modules(Path(__file__).resolve().parent):
         relative = "scripts/" + path.name
         expected = snapshot.source(relative).content.replace(b"\r\n", b"\n")
         actual = path.read_bytes().replace(b"\r\n", b"\n")

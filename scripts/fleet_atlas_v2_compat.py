@@ -8,13 +8,8 @@ No legacy defect or unrepresented predicate is silently normalized away.
 from __future__ import annotations
 
 from fleet_atlas_v2_format import citations, fact_record, graph_dict
-from fleet_atlas_v2_model import Fact, Value, canonical_bytes
+from fleet_atlas_v2_model import EDGE_TYPES, Fact, Value, canonical_bytes
 from fleet_atlas_v2_proofs import VerifiedFacts
-
-
-EDGE_TYPES = frozenset({"owns", "routes_to", "delegates_to", "loads_when", "governed_by",
-                       "constrained_by", "verified_by", "evidenced_by", "depends_on", "blocks",
-                       "supersedes", "generated_from", "near_miss_for", "contradicts", "cites"})
 
 
 def thaw(value: Value):
