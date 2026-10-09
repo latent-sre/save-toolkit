@@ -51,7 +51,8 @@ def decode_scalar(raw: str) -> str:
     """Decode one scalar with the adapter reader's established quote behavior."""
     raw = raw.strip()
     if raw.startswith('"'):
-        return json.loads(raw)
+        decoded: str = json.loads(raw)  # a JSON document opening with `"` is a string or an error
+        return decoded
     if raw.startswith("'") and raw.endswith("'"):
         return raw[1:-1].replace("''", "'")
     return raw

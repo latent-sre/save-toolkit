@@ -6,8 +6,10 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from collections.abc import Mapping
+import importlib.util
 import re
 from pathlib import Path
+from types import ModuleType
 
 import fleet_frontmatter
 import generate_platform_adapters as adapters
@@ -342,10 +344,8 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
     return names, failures
 
 
-def _load_guard(root: Path):
+def _load_guard(root: Path) -> ModuleType:
     """Import scripts/readonly-guard.py by path — its hyphen makes it un-importable by name."""
-    import importlib.util
-
     guard_path = root / "scripts" / "readonly-guard.py"
     spec = importlib.util.spec_from_file_location("_readonly_guard", guard_path)
     if spec is None or spec.loader is None:

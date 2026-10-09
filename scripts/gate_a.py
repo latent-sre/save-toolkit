@@ -11,9 +11,14 @@ All checks run even after a failure. Default output is one verdict plus failure 
 --verbose includes successful step output. Structural success is not behavioral acceptance.
 """
 
+# Postponed annotations keep this module importable on interpreters below the floor, so
+# preflight() can name the floor instead of the interpreter failing on an annotation.
+from __future__ import annotations
+
 import argparse
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 
@@ -35,15 +40,15 @@ def preflight() -> bool:
     required = ".".join(str(part) for part in MINIMUM_PYTHON)
     running = ".".join(str(part) for part in sys.version_info[:3])
     print(
-        "Gate A: FAIL -- this repository requires Python %s or newer; you are on %s.\n"
-        "  Re-run with a %s+ interpreter. On Windows use `python` or `py -3`, never bare\n"
-        "  `python3` (the Microsoft Store stub)." % (required, running, required),
+        f"Gate A: FAIL -- this repository requires Python {required} or newer; you are on {running}.\n"
+        f"  Re-run with a {required}+ interpreter. On Windows use `python` or `py -3`, never bare\n"
+        "  `python3` (the Microsoft Store stub).",
         file=sys.stderr,
     )
     return False
 
 
-def run_steps(steps, *, verbose: bool = False) -> list[str]:
+def run_steps(steps: Sequence[tuple[str, list[str]]], *, verbose: bool = False) -> list[str]:
     """Run every step and return failed labels in roster order."""
     failed: list[str] = []
     for label, argv in steps:
@@ -55,7 +60,7 @@ def run_steps(steps, *, verbose: bool = False) -> list[str]:
             text=True,
         )
         if verbose or proc.returncode != 0:
-            print("\n=== %s ===" % label, flush=True)
+            print(f"\n=== {label} ===", flush=True)
             sys.stdout.write(proc.stdout)
             sys.stdout.flush()
         if proc.returncode != 0:
@@ -63,7 +68,7 @@ def run_steps(steps, *, verbose: bool = False) -> list[str]:
     return failed
 
 
-def main(argv=None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "--verbose",
@@ -78,9 +83,9 @@ def main(argv=None) -> int:
     failed = run_steps(STEPS, verbose=args.verbose)
     if failed:
         print("\n" + "-" * 60)
-        print("Gate A: FAIL -- %d of %d step(s) failed:" % (len(failed), len(STEPS)))
+        print(f"Gate A: FAIL -- {len(failed)} of {len(STEPS)} step(s) failed:")
         for label in failed:
-            print("  - %s" % label)
+            print(f"  - {label}")
         print(
             "\nGate A is structural only. Passing it would still not clear the "
             "verification table in CONTRIBUTING.md."
@@ -88,9 +93,8 @@ def main(argv=None) -> int:
         return 1
 
     print(
-        "Gate A: PASS -- %d/%d structural steps green "
+        f"Gate A: PASS -- {len(STEPS)}/{len(STEPS)} structural steps green "
         "(well-formed only; correctness review remains separate)."
-        % (len(STEPS), len(STEPS))
     )
     return 0
 
