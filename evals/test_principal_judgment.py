@@ -108,13 +108,9 @@ class PrincipalJudgmentTests(unittest.TestCase):
                 spec = proposed_scenario("principal-engineer", PAIRS[case])
                 self.assertEqual({"prompt": spec["prompt"], "files": spec["fixture"]["files"]},
                                  context_from_prompt(prompt)[case])
-                self.assertIn("complete design record", prompt)
-                self.assertIn("request logs", prompt)
-                self.assertIn("90 days", prompt)
-                self.assertIn("query errors", prompt)
-                self.assertIn("retired endpoints", prompt)
-                self.assertIn("human owner", prompt)
-                self.assertIn("inventory/endpoints.csv", prompt)
+                for text in ("complete design record", "request logs", "90 days", "query errors",
+                             "retired endpoints", "human owner", "inventory/endpoints.csv"):
+                    self.assertIn(text, prompt)
 
     def test_corpus_has_reviewable_positive_controls_and_single_fault_counterexamples(self):
         cases = judge._load_calibration(PROPOSAL / "rubrics-calibration.yaml")

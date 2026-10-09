@@ -21,9 +21,11 @@ CORRECT = FIXTURE[APP].replace("import json", "import html\nimport os\nimport js
 
 
 class MaintenanceBannerOracleTests(unittest.TestCase):
-    def seed(self, root, source):
-        write_tree(root, {**FIXTURE, APP: source})
+    def seeded(self, source):
+        """A fresh workspace holding the fixture with `source` as its app, and the oracle beside it."""
+        root = write_tree(Path(self.enterContext(tempfile.TemporaryDirectory())), {**FIXTURE, APP: source})
         (root / "_banner_oracle.py").write_bytes(ORACLE.read_bytes())
+        return root
 
     def run_oracle(self, root, case):
         return run_python(["_banner_oracle.py", case], cwd=root, encoding="utf-8", timeout=10)
@@ -31,15 +33,13 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
     def test_old_comment_only_anchor_and_green_seed_suite_do_not_prove_banner(self):
         source = FIXTURE[APP] + "\n# MAINTENANCE_BANNER\n"
         self.assertIn("MAINTENANCE_BANNER", source)
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            self.seed(root, source)
-            suite = run_python(["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"], cwd=root, timeout=10)
-            self.assertEqual(0, suite.returncode, suite.stderr)
-            self.assertIn("Ran 2 tests", suite.stderr)
-            result = self.run_oracle(root, "enabled")
-            self.assertNotEqual(0, result.returncode)
-            self.assertIn("enabled banner lacks a top bar", result.stderr)
+        root = self.seeded(source)
+        suite = run_python(["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"], cwd=root, timeout=10)
+        self.assertEqual(0, suite.returncode, suite.stderr)
+        self.assertIn("Ran 2 tests", suite.stderr)
+        result = self.run_oracle(root, "enabled")
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("enabled banner lacks a top bar", result.stderr)
 
     def test_correct_request_time_and_startup_configuration_pass_all_cases(self):
         startup = CORRECT.replace(
@@ -47,14 +47,12 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
             'BANNER = os.environ.get("MAINTENANCE_BANNER", "")\n\ndef render_home() -> str:',
         ).replace('banner = os.environ.get("MAINTENANCE_BANNER", "")', "banner = BANNER")
         for source in (CORRECT, startup):
-            with tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)
-                self.seed(root, source)
-                for case in ("enabled", "unset", "empty", "escaped"):
-                    with self.subTest(startup=source == startup, case=case):
-                        result = self.run_oracle(root, case)
-                        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-                        self.assertIn(f"OK: {case}:", result.stdout)
+            root = self.seeded(source)
+            for case in ("enabled", "unset", "empty", "escaped"):
+                with self.subTest(startup=source == startup, case=case):
+                    result = self.run_oracle(root, case)
+                    self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                    self.assertIn(f"OK: {case}:", result.stdout)
 
     def test_meaningful_broken_artifacts_fail_for_the_named_contract(self):
         broken = [
@@ -74,11 +72,9 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
              "enabled", "JSON body changed"),
         ]
         for source, case, error in broken:
-            with self.subTest(case=case, error=error), tempfile.TemporaryDirectory() as directory:
+            with self.subTest(case=case, error=error):
                 self.assertNotEqual(CORRECT, source)
-                root = Path(directory)
-                self.seed(root, source)
-                result = self.run_oracle(root, case)
+                result = self.run_oracle(self.seeded(source), case)
                 self.assertNotEqual(0, result.returncode)
                 self.assertIn(error, result.stderr)
 

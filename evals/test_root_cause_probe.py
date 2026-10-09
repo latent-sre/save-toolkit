@@ -7,7 +7,7 @@ from pathlib import Path
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import tracing as probe_tracing
-from probe_testkit import context, parse_events, run_python, scenario_file
+from probe_testkit import context, parse_events, run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 SPEC = scenario_file(ROOT / "build-scenarios/build-software-engineer-root-cause-reassessment.yaml")
@@ -53,11 +53,8 @@ class RootCauseProbeTests(unittest.TestCase):
 
     def test_initial_ordering_survives_followup_trace_merge(self):
         with tempfile.TemporaryDirectory() as tmp:
-            folder = Path(tmp)
-            (folder / "followup").mkdir()
-            (folder / "stdout.jsonl").write_text("\n".join(map(json.dumps, [
-                use("Skill", "s", skill="root-cause"), result("s"), use("Edit", "e")])), encoding="utf-8")
-            (folder / "followup/stdout.jsonl").write_text("", encoding="utf-8")
+            folder = write_tree(Path(tmp), {"followup/stdout.jsonl": "", "stdout.jsonl": "\n".join(map(json.dumps, [
+                use("Skill", "s", skill="root-cause"), result("s"), use("Edit", "e")]))})
             self.assertEqual(["root-cause"], probe_tracing.parse_trial_trace(folder).main_skills_before_effects)
 
     def test_schema_and_artifact_oracle_reject_wrong_repairs(self):
@@ -81,19 +78,14 @@ class RootCauseProbeTests(unittest.TestCase):
         oracle = (ROOT / "oracles/root-cause/probe_retry.py").read_text(encoding="utf-8")
         for name, (candidate, expected) in variants.items():
             with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
-                folder = Path(tmp)
-                (folder / "retrying.py").write_text(candidate, encoding="utf-8")
-                (folder / "probe_retry.py").write_text(oracle, encoding="utf-8")
+                folder = write_tree(Path(tmp), {"retrying.py": candidate, "probe_retry.py": oracle})
                 run = run_python(["probe_retry.py"], cwd=folder, timeout=15)
                 self.assertEqual(expected, run.returncode == 0, run.stderr)
                 if not expected:
                     self.assertIn("AssertionError", run.stderr)
                 if name in {"baseline_failed_repair", "supported_repair", "classifier_repair", "exact_type_classifier"}:
-                    for relative, content in SPEC["fixture"]["files"].items():
-                        if relative.startswith("tests/"):
-                            path = folder / relative
-                            path.parent.mkdir(exist_ok=True)
-                            path.write_text(content, encoding="utf-8")
+                    write_tree(folder, {path: text for path, text in SPEC["fixture"]["files"].items()
+                                        if path.startswith("tests/")})
                     suite = run_python(["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"], cwd=folder,
                                        timeout=15)
                     seeded_expected = expected or name == "exact_type_classifier"
