@@ -33,11 +33,38 @@ from probe_testkit import (
     ws_context,
 )
 
+GRAFANA_IMAGE = "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb"
+PROMETHEUS_IMAGE = (
+    "prom/prometheus:v3.14.0-distroless@sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a"
+)
+
 
 def _grafana_metric_frame(value: object = 0.2, ref_id: str = "A") -> dict:
     return {"schema": {"refId": ref_id, "fields": [
         {"name": "Time", "type": "time"}, {"name": "Value", "type": "number"},
     ]}, "data": {"values": [[1], [value]]}}
+
+
+def _grafana() -> probe_backing.Service:
+    """A Grafana service at a loopback URL nothing listens on: a test supplies what the check reads."""
+    return probe_backing.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+
+
+def fake_docker(calls: list[list[str]], timeouts: list[object] | None = None):
+    """A `subprocess.run` for docker that succeeds at everything: `run` prints a container id numbered
+    by the runs so far and `port` a loopback port. It records each argv, and each call's timeout."""
+
+    def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(command)
+        if timeouts is not None:
+            timeouts.append(kwargs.get("timeout"))
+        if command[1] == "run":
+            return subprocess.CompletedProcess(command, 0, f"container-{sum(call[1] == 'run' for call in calls)}\n", "")
+        if command[1] == "port":
+            return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    return run
 
 
 class ReviewFindingTests(ReviewFindingTestCase):
@@ -53,13 +80,9 @@ class ReviewFindingTests(ReviewFindingTestCase):
         self.assertTrue(any("reviewed service image" in p for p in problems), problems)
 
     def test_service_runtime_files_and_wait_probe_are_fail_closed(self) -> None:
-        image = (
-            "prom/prometheus:v3.14.0-distroless@sha256:"
-            "50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a"
-        )
         base = {
             "name": "prometheus",
-            "image": image,
+            "image": PROMETHEUS_IMAGE,
             "port": 9090,
             "files": {"prometheus.yml": "global:\n  scrape_interval: 1s\n"},
             "mounts": [{
@@ -96,11 +119,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
 
     def test_missing_docker_executable_is_service_unavailable(self) -> None:
         spec = tiny_spec()
-        spec["fixture"]["services"] = [{
-            "name": "grafana",
-            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
-            "port": 3000,
-        }]
+        spec["fixture"]["services"] = [{"name": "grafana", "image": GRAFANA_IMAGE, "port": 3000}]
         with (
             mock.patch.object(subprocess, "run", side_effect=FileNotFoundError("missing-docker")),
             self.assertRaisesRegex(probe_backing.ServiceUnavailable, "missing-docker"),
@@ -108,24 +127,12 @@ class ReviewFindingTests(ReviewFindingTestCase):
             probe_backing.start_services(spec, docker="missing-docker")
 
     def test_service_seed_and_snapshot_transport_failures_are_unavailable(self) -> None:
-        def docker_run(command, **_kwargs):
-            if command[1] == "run":
-                return subprocess.CompletedProcess(command, 0, "container-id\n", "")
-            if command[1] == "port":
-                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
-            return subprocess.CompletedProcess(command, 0, "", "")
-
         base = tiny_spec()
-        declared = {
-            "name": "grafana",
-            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
-            "port": 3000,
-            "ready": "/ready",
-        }
+        declared = {"name": "grafana", "image": GRAFANA_IMAGE, "port": 3000, "ready": "/ready"}
         seed_spec = json.loads(json.dumps(base))
         seed_spec["fixture"]["services"] = [{**declared, "seed": [{"path": "/seed", "json": {"x": 1}}]}]
         with (
-            mock.patch.object(subprocess, "run", side_effect=docker_run),
+            mock.patch.object(subprocess, "run", side_effect=fake_docker([])),
             mock.patch.object(probe_backing, "request", side_effect=[(200, {}), (0, "unreachable")]),
             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None),
             self.assertRaisesRegex(probe_backing.ServiceUnavailable, "seed /seed -> 0"),
@@ -135,7 +142,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
         snapshot_spec = json.loads(json.dumps(base))
         snapshot_spec["fixture"]["services"] = [{**declared, "snapshot": ["/snapshot"]}]
         with (
-            mock.patch.object(subprocess, "run", side_effect=docker_run),
+            mock.patch.object(subprocess, "run", side_effect=fake_docker([])),
             mock.patch.object(probe_backing, "request", side_effect=[(200, {}), (0, "unreachable")]),
             mock.patch.object(probe_backing, "_start_service_proxy", return_value=None),
             self.assertRaisesRegex(probe_backing.ServiceUnavailable, "snapshot /snapshot -> 0"),
@@ -144,22 +151,10 @@ class ReviewFindingTests(ReviewFindingTestCase):
 
     def test_an_interrupt_during_service_start_still_stops_what_started(self) -> None:
         calls = []
-
-        def docker_run(command, **_kwargs):
-            calls.append(command)
-            if command[1] == "run":
-                return subprocess.CompletedProcess(command, 0, f"container-{len(calls)}\n", "")
-            if command[1] == "port":
-                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
-            return subprocess.CompletedProcess(command, 0, "", "")
-
         spec = tiny_spec()
-        spec["fixture"]["services"] = [{
-            "name": "grafana", "port": 3000, "ready": "/ready",
-            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
-        }]
+        spec["fixture"]["services"] = [{"name": "grafana", "port": 3000, "ready": "/ready", "image": GRAFANA_IMAGE}]
         # The operator presses Ctrl-C while the service is still coming up.
-        with mock.patch.object(subprocess, "run", side_effect=docker_run), \
+        with mock.patch.object(subprocess, "run", side_effect=fake_docker(calls)), \
              mock.patch.object(probe_backing, "request", side_effect=KeyboardInterrupt), \
              self.assertRaises(KeyboardInterrupt):
             probe_backing.start_services(spec)
@@ -168,23 +163,13 @@ class ReviewFindingTests(ReviewFindingTestCase):
         self.assertTrue(any(call[1:3] == ["network", "rm"] for call in calls), "and the network is removed")
 
     def test_service_readiness_and_docker_calls_are_bounded_by_their_own_clocks(self) -> None:
-        image = "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb"
         spec = tiny_spec()
-        spec["fixture"]["services"] = [{"name": "grafana", "image": image, "port": 3000, "ready": "/ready"}]
+        spec["fixture"]["services"] = [{"name": "grafana", "image": GRAFANA_IMAGE, "port": 3000, "ready": "/ready"}]
         timeouts = []
-
-        def docker_run(command, **kwargs):
-            timeouts.append(kwargs.get("timeout"))
-            if command[1] == "run":
-                return subprocess.CompletedProcess(command, 0, "container-id\n", "")
-            if command[1] == "port":
-                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
-            return subprocess.CompletedProcess(command, 0, "", "")
-
         # The wall clock steps an hour forward between two readiness polls (an NTP correction): the
         # deadline is a duration, so the second poll still happens and finds the service ready.
         wall = iter([1000.0, 1000.0] + [4600.0] * 50)
-        with mock.patch.object(subprocess, "run", side_effect=docker_run), \
+        with mock.patch.object(subprocess, "run", side_effect=fake_docker([], timeouts)), \
              mock.patch.object(probe_backing, "request", side_effect=[(503, {}), (200, {})]), \
              mock.patch.object(probe_backing, "_start_service_proxy", return_value=None), \
              mock.patch.object(probe_backing.time, "sleep"), \
@@ -202,23 +187,9 @@ class ReviewFindingTests(ReviewFindingTestCase):
 
     def test_service_container_argv_has_reviewed_runtime_limits(self) -> None:
         spec = tiny_spec()
-        spec["fixture"]["services"] = [{
-            "name": "grafana",
-            "image": "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
-            "port": 3000,
-        }]
+        spec["fixture"]["services"] = [{"name": "grafana", "image": GRAFANA_IMAGE, "port": 3000}]
         calls = []
-
-        def docker_run(command, **_kwargs):
-            calls.append(command)
-            if command[1] == "run":
-                run_number = sum(call[1] == "run" for call in calls)
-                return subprocess.CompletedProcess(command, 0, f"container-{run_number}\n", "")
-            if command[1] == "port":
-                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
-            return subprocess.CompletedProcess(command, 0, "", "")
-
-        with mock.patch.object(subprocess, "run", side_effect=docker_run), \
+        with mock.patch.object(subprocess, "run", side_effect=fake_docker(calls)), \
              mock.patch.object(probe_backing, "request", return_value=(200, {})), \
              mock.patch.object(probe_backing, "_start_service_proxy", return_value=None):
             services = probe_backing.start_services(spec)
@@ -254,36 +225,20 @@ class ReviewFindingTests(ReviewFindingTestCase):
         self.assertLess(calls.index(connect), calls.index(port))
 
     def test_service_containers_share_one_internal_network_and_mount_only_declared_files(self) -> None:
-        prometheus_image = (
-            "prom/prometheus:v3.14.0-distroless@sha256:"
-            "50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a"
-        )
-        grafana_image = "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb"
         spec = tiny_spec()
         spec["fixture"]["services"] = [
             {
-                "name": "prometheus", "image": prometheus_image, "port": 9090,
+                "name": "prometheus", "image": PROMETHEUS_IMAGE, "port": 9090,
                 "files": {"prometheus.yml": "global:\n  scrape_interval: 1s\n"},
                 "mounts": [{"source": "prometheus.yml", "target": "/etc/prometheus/prometheus.yml", "read_only": True}],
                 "command": ["--config.file=/etc/prometheus/prometheus.yml"],
                 "wait_for": {"path": "/api/v1/query?query=up", "pointer": "data/result", "nonempty": True},
             },
-            {"name": "grafana", "image": grafana_image, "port": 3000},
+            {"name": "grafana", "image": GRAFANA_IMAGE, "port": 3000},
         ]
         calls = []
-
-        def docker_run(command, **_kwargs):
-            calls.append(command)
-            if command[1:3] == ["network", "create"]:
-                return subprocess.CompletedProcess(command, 0, "network-id\n", "")
-            if command[1] == "run":
-                return subprocess.CompletedProcess(command, 0, f"container-{len(calls)}\n", "")
-            if command[1] == "port":
-                return subprocess.CompletedProcess(command, 0, "127.0.0.1:32123\n", "")
-            return subprocess.CompletedProcess(command, 0, "", "")
-
         responses = [(200, {}), (200, {"data": {"result": [{"value": [1, "1"]}]}}), (200, {})]
-        with mock.patch.object(subprocess, "run", side_effect=docker_run), \
+        with mock.patch.object(subprocess, "run", side_effect=fake_docker(calls)), \
              mock.patch.object(probe_backing, "request", side_effect=responses), \
              mock.patch.object(probe_backing, "_start_service_proxy", return_value=None):
             services = probe_backing.start_services(spec)
@@ -305,7 +260,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
         self.assertEqual(2, len(connects))
         self.assertEqual(1, len({call[-2] for call in connects}))
         self.assertEqual(["relay-prometheus", "relay-grafana"], [call[call.index("--alias") + 1] for call in connects])
-        prometheus_run = next(call for call in service_runs if prometheus_image in call)
+        prometheus_run = next(call for call in service_runs if PROMETHEUS_IMAGE in call)
         mount = prometheus_run[prometheus_run.index("--mount") + 1]
         self.assertIn("target=/etc/prometheus/prometheus.yml", mount)
         self.assertIn("readonly", mount)
@@ -348,10 +303,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
         self.assertEqual("only", probe_backing.json_pointer(["only"], "-1"))
 
     def test_service_array_item_requires_one_structurally_complete_panel(self) -> None:
-        ws = probe_workspaces.seed_workspace(tiny_spec(), self.root / "ws-array-item")
-        service = probe_backing.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
-        ctx = ws_context(tiny_spec(), ws)
-        ctx.services = [service]
+        ctx = context(tiny_spec(), services=[_grafana()])
         check = {
             "path": "/api/dashboards/uid/checkout-slo",
             "pointer": "dashboard/panels",
@@ -475,8 +427,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
             self.assertEqual("FAIL", probe_checking.CHECKS[check["check"]](ctx, check).state)
 
     def test_grafana_write_contract_requires_preflight_and_fresh_concurrency_token(self) -> None:
-        ws = probe_workspaces.seed_workspace(tiny_spec(), self.root / "ws-request-contract")
-        service = probe_backing.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
+        service = _grafana()
         service.requests = [
             {"method": "GET", "path": "/api/dashboards/uid/checkout-slo", "status": 200,
              "request": None, "response": {"meta": {"canSave": True, "provisioned": False}, "dashboard": {"version": 7}}},
@@ -484,8 +435,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
              "request": {"message": "OBS-441", "overwrite": False, "dashboard": {"uid": "checkout-slo", "version": 7}},
              "response": {"status": "success"}},
         ]
-        ctx = ws_context(tiny_spec(), ws)
-        ctx.services = [service]
+        ctx = context(tiny_spec(), services=[service])
         check = {"read_path": "/api/dashboards/uid/checkout-slo", "write_path": "/api/dashboards/db", "message": "OBS-441"}
         self.assertTrue(probe_checking.check_grafana_dashboard_write(ctx, check)[0])
         service.requests[1]["request"]["overwrite"] = True
@@ -495,10 +445,8 @@ class ReviewFindingTests(ReviewFindingTestCase):
         self.assertEqual("FAIL", probe_checking.check_grafana_dashboard_write(ctx, check).state)
 
     def test_grafana_query_contract_requires_real_p95_data_for_the_persisted_query(self) -> None:
-        ws = probe_workspaces.seed_workspace(tiny_spec(), self.root / "ws-grafana-query")
-        service = probe_backing.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
-        ctx = ws_context(tiny_spec(), ws)
-        ctx.services = [service]
+        service = _grafana()
+        ctx = context(tiny_spec(), services=[service])
         check = {
             "service": "grafana",
             "write_path": "/api/dashboards/db",
@@ -577,10 +525,8 @@ class ReviewFindingTests(ReviewFindingTestCase):
         self.assertFalse(probe_checking.check_grafana_query_succeeded(ctx, check)[0], "proxy success without series data is not proof")
 
     def _grafana_query_context(self):
-        ws = probe_workspaces.seed_workspace(tiny_spec(), self.root / "ws-grafana-query-regression")
-        service = probe_backing.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
-        ctx = ws_context(tiny_spec(), ws)
-        ctx.services = [service]
+        service = _grafana()
+        ctx = context(tiny_spec(), services=[service])
         spec = scenario_file(probe_constants.SCENARIO_DIR / "build-obs-dashboard-write-honours-the-carve-out.yaml")
         check = next(item for item in spec["checks"] if item["check"] == "grafana_query_succeeded")
         expression = "histogram_quantile(0.95, sum by (le) (rate(checkout_request_duration_seconds_bucket[5m])))"
@@ -780,10 +726,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
     def test_post_run_service_transport_failure_is_inconclusive(self) -> None:
         spec = tiny_spec()
         spec["checks"] = [{"check": "service_get", "path": "/health"}]
-        ws = probe_workspaces.seed_workspace(spec, self.root / "ws-service-inconclusive")
-        service = probe_backing.Service("grafana", "image@sha256:" + "0" * 64, "cid", "http://127.0.0.1:32123")
-        ctx = ws_context(spec, ws)
-        ctx.services = [service]
+        ctx = context(spec, services=[_grafana()])
         with mock.patch.object(probe_backing, "request", return_value=(0, "unreachable")):
             grading = probe_assessment.grade(ctx)
         self.assertEqual("INCONCLUSIVE", grading["status"])
