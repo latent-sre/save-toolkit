@@ -344,6 +344,81 @@ def _invoke_turns(
     return inconclusive, identity_failure
 
 
+def _write_json(path: Path, value: object, *, ascii_only: bool = True) -> None:
+    path.write_text(json.dumps(value, indent=2, ensure_ascii=ascii_only), encoding="utf-8")
+
+
+def _warn_on_credentials(run_out: Path, trace: TraceSummary) -> None:
+    """Name any credential-shaped marker in the final text or either invocation's raw trace."""
+    markers = invocation.credential_markers(trace.result_text, run_out / "stdout.jsonl")
+    if (run_out / "followup" / "stdout.jsonl").is_file():
+        markers += invocation.credential_markers("", run_out / "followup" / "stdout.jsonl")
+    if markers:
+        print(f"WARNING: credential-shaped content in {run_out}: {markers}", file=sys.stderr, flush=True)
+
+
+def _saved_summary(
+    ctx: Context,
+    grading: Mapping[str, Any],
+    provenance: Mapping[str, Any],
+    settings: BatchSettings,
+    binding: dict[str, Any] | None,
+    after_assessment: str | None,
+) -> dict[str, Any]:
+    """The run's trace summary: its verdict, the trace facts, and what the workspace showed, so a
+    regrade sees the state the live grade saw after the workspace is gone."""
+    ws, git = ctx.ws, ctx.git
+    return {
+        **assessment.native_assessment(ctx.spec),
+        "status": grading["status"],
+        "inconclusive": grading["inconclusive"],
+        "after_assessment": after_assessment,
+        "run_end": grading.get("run_end"),
+        **tracing.to_saved(ctx.trace),
+        "commits_before_after": [ws.baseline_commits, git.commit_count],
+        "branch": git.branch,
+        "changed_files": git.changed,
+        **({"git_problem": git.problem} if git.problem else {}),
+        # Full contents (bounded), so a regrade sees the same state the live grade saw.
+        "state_files": {
+            p.name: p.read_text(encoding="utf-8", errors="replace")[:50000]
+            for p in ws.state_dir.iterdir()
+            if p.is_file()
+        },
+        "agents_dir": (ws.repo / ".agents").exists(),
+        "plugin": provenance,
+        "runtime": settings.runtime,
+        "workspace": str(ws.repo.resolve()),
+        "judge_binding": binding,
+        "scenario_sha256": grading["scenario_sha256"],
+        "isolation": {"mode": "host"},
+        "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in ctx.services],
+    }
+
+
+def _timing(
+    trace: TraceSummary, elapsed: float, judge: Mapping[str, Any], cost: Mapping[str, Any], settings: BatchSettings
+) -> dict[str, Any]:
+    """What the trial took and cost: the CLI's own duration when it reported one, else the wall clock."""
+    trial_seconds = (trace.duration_ms or elapsed * 1000) / 1000
+    return {
+        "total_tokens": trace.total_tokens,
+        "output_tokens": trace.output_tokens,
+        "duration_ms": trace.duration_ms or int(elapsed * 1000),
+        "trial_duration_seconds": round(trial_seconds, 1),
+        "total_duration_seconds": round(trial_seconds + judge["seconds"], 1),
+        "num_turns": trace.num_turns,
+        "trial_cost_usd": records.known_usd(trace.total_cost_usd),
+        "total_cost_usd": cost["cost_usd"],
+        "known_cost_usd": cost["known_cost_usd"],
+        "cost_complete": cost["cost_complete"],
+        "judge": judge,
+        "requested_model": settings.model,
+        "models": trace.models,
+        "label": settings.label,
+    }
+
+
 def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings: BatchSettings) -> dict[str, Any]:
     eval_name = spec["id"]
     (run_out / "outputs").mkdir(parents=True, exist_ok=True)
@@ -359,8 +434,8 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         "prompt": spec["prompt"],
         "assertions": assessment.scenario_assertions(spec),
     }
-    (run_out.parent.parent / "eval_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    (run_out / "eval_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    _write_json(run_out.parent.parent / "eval_metadata.json", metadata)
+    _write_json(run_out / "eval_metadata.json", metadata)
 
     # Neutral prefix: the cwd is in the agent's context. The root is chosen by clean_room so no
     # CLAUDE.md/AGENTS.md sits above it -- on Windows the default temp dir is under the operator's
@@ -385,17 +460,10 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         scenario_identity = fingerprints.scenario_digest(spec, binding)
         if settings.expected_plugin_digest and provenance["plugin_source_sha256"] != settings.expected_plugin_digest:
             inconclusive = identity_failure = "plugin inputs changed before the trial; re-run with one candidate"
-        (run_out / "provenance.json").write_text(
-            json.dumps(
-                {
-                    **provenance,
-                    **fingerprints.runner_provenance(),
-                    "runtime": settings.runtime,
-                    **({"judge_binding": binding} if binding else {}),
-                },
-                indent=2,
-            ),
-            encoding="utf-8",
+        runner = fingerprints.runner_provenance()
+        _write_json(
+            run_out / "provenance.json",
+            {**provenance, **runner, "runtime": settings.runtime, **({"judge_binding": binding} if binding else {})},
         )
         # A routing or contract scenario has no fixture: it runs in an empty git root outside the
         # checkout, so the repo's own AGENTS.md/CLAUDE.md cannot teach it the routing answer.
@@ -465,77 +533,21 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             grading = assessment.grade(ctx, inconclusive=drift, expected_scenario_digest=scenario_identity)
         if after_assessment:
             grading["after_assessment"] = after_assessment
-        inconclusive = grading["inconclusive"]
         (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
         (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
-        # Full contents (bounded), so --regrade sees the same state the live grade saw.
-        state_files = {
-            p.name: p.read_text(encoding="utf-8", errors="replace")[:50000]
-            for p in ws.state_dir.iterdir()
-            if p.is_file()
-        }
-        markers = invocation.credential_markers(trace.result_text, trace_path)
-        if (run_out / "followup" / "stdout.jsonl").is_file():
-            markers += invocation.credential_markers("", run_out / "followup" / "stdout.jsonl")
-        if markers:
-            print(f"WARNING: credential-shaped content in {run_out}: {markers}", file=sys.stderr, flush=True)
-        (run_out / "outputs" / "trace-summary.json").write_text(
-            json.dumps(
-                {
-                    **assessment.native_assessment(spec),
-                    "status": grading["status"],
-                    "inconclusive": inconclusive,
-                    "after_assessment": after_assessment,
-                    "run_end": grading.get("run_end"),
-                    **tracing.to_saved(trace),
-                    "commits_before_after": [ws.baseline_commits, git.commit_count],
-                    "branch": git.branch,
-                    "changed_files": ctx.git.changed,
-                    **({"git_problem": git.problem} if git.problem else {}),
-                    "state_files": state_files,
-                    "agents_dir": (ws.repo / ".agents").exists(),
-                    "plugin": provenance,
-                    "runtime": settings.runtime,
-                    "workspace": str(ws.repo.resolve()),
-                    "judge_binding": binding,
-                    "scenario_sha256": grading["scenario_sha256"],
-                    "isolation": {"mode": "host"},
-                    "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in ctx.services],
-                },
-                indent=2,
-                ensure_ascii=False,
-            ),
-            encoding="utf-8",
+        _warn_on_credentials(run_out, trace)
+        _write_json(
+            run_out / "outputs" / "trace-summary.json",
+            _saved_summary(ctx, grading, provenance, settings, binding, after_assessment),
+            ascii_only=False,
         )
-        (run_out / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+        _write_json(run_out / "grading.json", grading, ascii_only=False)
         # Drained after grading: a rubric grader's judge call is spend this trial caused.
         judge = records.judge_spend()
         cost = records.trial_cost(trace.total_cost_usd, judge)
-        trial_seconds = (trace.duration_ms or elapsed * 1000) / 1000
-        (run_out / "timing.json").write_text(
-            json.dumps(
-                {
-                    "total_tokens": trace.total_tokens,
-                    "output_tokens": trace.output_tokens,
-                    "duration_ms": trace.duration_ms or int(elapsed * 1000),
-                    "trial_duration_seconds": round(trial_seconds, 1),
-                    "total_duration_seconds": round(trial_seconds + judge["seconds"], 1),
-                    "num_turns": trace.num_turns,
-                    "trial_cost_usd": records.known_usd(trace.total_cost_usd),
-                    "total_cost_usd": cost["cost_usd"],
-                    "known_cost_usd": cost["known_cost_usd"],
-                    "cost_complete": cost["cost_complete"],
-                    "judge": judge,
-                    "requested_model": settings.model,
-                    "models": trace.models,
-                    "label": settings.label,
-                },
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
-        summary = {
-            "scenario": eval_name,
+        _write_json(run_out / "timing.json", _timing(trace, elapsed, judge, cost, settings))
+        return {
+            "scenario": spec["id"],
             "label": settings.label,
             "run": run_number,
             "status": grading["status"],
@@ -546,7 +558,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             "tokens": trace.total_tokens,
             "seconds": round(elapsed, 1),
             "plugin_commit": provenance["plugin_commit"][:12],
-            "runner_commit": (fingerprints.runner_provenance()["runner_commit"] or "")[:12] or None,
+            "runner_commit": (runner["runner_commit"] or "")[:12] or None,
             "runner_source_sha256": HARNESS_SOURCE_SHA256,
             "plugin_source_sha256": provenance["plugin_source_sha256"],
             "scenario_sha256": grading["scenario_sha256"],
@@ -559,7 +571,6 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             **({"identity_failure": identity_failure} if identity_failure else {}),
             **({"service_error": service_error} if service_error else {}),
         }
-        return summary
     finally:
         active_error = sys.exc_info()[1]
         try:
