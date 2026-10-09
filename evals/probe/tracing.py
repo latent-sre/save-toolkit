@@ -11,9 +11,10 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 from .constants import DISPATCH_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
 
@@ -502,6 +503,63 @@ def parse_trial_trace(run_dir: Path) -> TraceSummary:
         values = [getattr(trace, name) for trace in traces]
         setattr(merged, name, sum(values) if all(value is not None for value in values) else None)
     return merged
+
+
+# What a run's trace summary (outputs/trace-summary.json) saves of its trace, by saved name and
+# TraceSummary field, in the order it writes them. A regrade restores the summary's facts from these
+# names when the raw trace is gone.
+SUMMARY_FIELDS: Final = {
+    "conversation_sessions": "conversation_sessions",
+    "agent_returns": "agent_returns",
+    "initial_parent_reference_reads": "parent_reads_before_dispatch",
+    "initial_parent_skills_before_dispatch": "parent_skills_before_dispatch",
+    "main_models": "main_models",
+    "models": "models",
+    "usage_models": "usage_models",
+    "num_turns": "num_turns",
+    "tool_counts": "tool_counts",
+    "skills": "skills",
+    "skills_failed": "skills_failed",
+    "advertised_tools": "advertised_tools",
+    "mcp_servers": "mcp_servers",
+    "permission_mode": "permission_mode",
+    "dispatches": "dispatches",
+    "denials": "denials",
+    "bash_commands": "bash_commands",
+    "subagent_bash_commands": "subagent_bash_commands",
+    "powershell_commands": "powershell_commands",
+    "effect_calls": "effect_calls",
+    "tool_errors": "tool_errors",
+    "denial_details": "denial_details",
+}
+# What a summary restores when the raw trace is gone: the calls, loads, dispatches and errors a check
+# may re-measure from it. Returns, reads and completion order are saved for a reader, but a regrade
+# measures them only from the raw trace (checking.RAW_ONLY), so restoring them could only mislead.
+RESTORED: Final = (
+    "skills",
+    "skills_failed",
+    "bash_commands",
+    "subagent_bash_commands",
+    "powershell_commands",
+    "dispatches",
+    "tool_errors",
+    "tool_counts",
+)
+
+
+def to_saved(trace: TraceSummary) -> dict[str, Any]:
+    """The trace facts a trace summary saves, by saved name."""
+    return {saved: getattr(trace, name) for saved, name in SUMMARY_FIELDS.items()}
+
+
+def from_saved(summary: Mapping[str, Any], result_text: str) -> TraceSummary:
+    """The trace a saved summary restores when the raw trace is gone: its final text and `RESTORED`."""
+    restored: dict[str, Any] = {}
+    for saved, name in SUMMARY_FIELDS.items():
+        if name in RESTORED:
+            value = summary.get(saved)
+            restored[name] = dict(value or {}) if name == "tool_counts" else list(value or [])
+    return TraceSummary(result_text=result_text, **restored)
 
 
 def runtime_namespace(trace: TraceSummary, plugin_root: Path) -> str:

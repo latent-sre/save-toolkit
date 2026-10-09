@@ -442,6 +442,21 @@ class NativeConversationTraceTests(unittest.TestCase):
         self.assertEqual(len(classified), len(set(classified)), "a field has one rule")
         self.assertEqual({field.name for field in dataclasses.fields(probe_tracing.TraceSummary)}, set(classified))
 
+    def test_a_saved_summary_restores_what_it_saved_under_the_same_names(self) -> None:
+        """One table names what a trace summary saves and what a regrade without the raw trace restores."""
+        names = {field.name for field in dataclasses.fields(probe_tracing.TraceSummary)}
+        self.assertLessEqual(set(probe_tracing.SUMMARY_FIELDS.values()), names)
+        self.assertLessEqual(set(probe_tracing.RESTORED), set(probe_tracing.SUMMARY_FIELDS.values()))
+        trace = parse_events(skill_events(is_error=False) + native_dispatch_events())
+        trace.bash_commands, trace.tool_errors = ["pytest -q"], ["denied"]
+        saved = json.loads(json.dumps(probe_tracing.to_saved(trace)))
+        restored = probe_tracing.from_saved(saved, "final text")
+        self.assertEqual("final text", restored.result_text)
+        for name in probe_tracing.RESTORED:
+            with self.subTest(field=name):
+                self.assertEqual(getattr(trace, name), getattr(restored, name))
+        self.assertEqual([], restored.agents, "a completed return is the raw trace's to show")
+
     def test_a_conversation_keeps_every_invocations_usage_models(self) -> None:
         def write(path: Path, use_id: str, model: str) -> None:
             events = [

@@ -190,7 +190,7 @@ def _regrade_run(
         if not trace.result_text:  # a truncated trace must not silently blank every text check
             trace.result_text = text
     else:
-        trace = _summary_trace(summary, text)
+        trace = tracing.from_saved(summary, text)
     before, after = summary.get("commits_before_after") or [0, 0]
     git = GitFacts(
         int(after),
@@ -271,21 +271,6 @@ def _regrade_run(
     if not write:
         return grading
     return _add_assessment(run_dir, grading, summary, trace if reparsed is not None else None)
-
-
-def _summary_trace(summary: Mapping[str, Any], text: str) -> TraceSummary:
-    """The trace facts a saved summary restores when the raw trace is gone."""
-    return TraceSummary(
-        result_text=text,
-        skills=list(summary.get("skills") or []),
-        skills_failed=list(summary.get("skills_failed") or []),
-        bash_commands=list(summary.get("bash_commands") or []),
-        subagent_bash_commands=list(summary.get("subagent_bash_commands") or []),
-        powershell_commands=list(summary.get("powershell_commands") or []),
-        dispatches=list(summary.get("dispatches") or []),
-        tool_errors=list(summary.get("tool_errors") or []),
-        tool_counts=dict(summary.get("tool_counts") or {}),
-    )
 
 
 def _run_level_reason(
