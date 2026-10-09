@@ -99,6 +99,7 @@ def test_legacy_expectation_retains_its_original_label_vocabulary(oracle):
     [
         (CLOSING, "fields"),
         (CHECKPOINT_COLON, "checkpoint"),
+        # The regression that made a sound handover score as nothing.
         (CHECKPOINT_HEADINGS, "checkpoint"),
         (CLOSING + CHECKPOINT_COLON, "both"),
         (NONE, "none"),
@@ -106,11 +107,6 @@ def test_legacy_expectation_retains_its_original_label_vocabulary(oracle):
 )
 def test_classifies_each_closing_shape(oracle, text, expected):
     assert oracle.classify(text) == expected
-
-
-def test_heading_style_checkpoint_is_not_read_as_absence(oracle):
-    """The regression that made a sound handover score as nothing."""
-    assert oracle.classify(CHECKPOINT_HEADINGS) != "none"
 
 
 def test_prose_mention_of_a_field_word_is_not_the_closing_fields(oracle):

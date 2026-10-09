@@ -111,15 +111,19 @@ class OperatorCliOracleTests(unittest.TestCase):
             candidate.write_text(source, encoding="utf-8")
             return run_python(["-B", str(ORACLE), str(candidate)], isolated=True, timeout=180)
 
+    def assert_rejected(self, source, diagnostic):
+        self.assertNotEqual(CORRECT, source, "mutation did not apply")
+        result = self.run_oracle(source)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn(diagnostic, result.stderr)
+
     def test_correct_cli_passes(self):
         result = self.run_oracle(CORRECT)
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("contract passed", result.stdout)
 
     def test_seed_fails_at_the_dry_run(self):
-        result = self.run_oracle(seed())
-        self.assertNotEqual(0, result.returncode)
-        self.assertIn("dry run: exit 2", result.stderr)
+        self.assert_rejected(seed(), "dry run: exit 2")
 
     def test_single_rule_breaks_fail_with_their_own_diagnostic(self):
         mutants = [
@@ -152,10 +156,7 @@ class OperatorCliOracleTests(unittest.TestCase):
         ]
         for name, source, diagnostic in mutants:
             with self.subTest(mutant=name):
-                self.assertNotEqual(source, CORRECT, "mutation did not apply")
-                result = self.run_oracle(source)
-                self.assertNotEqual(0, result.returncode)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_rejected(source, diagnostic)
 
     def test_scenario_binds_this_oracle_and_the_skill(self):
         spec = scenario_file(SCENARIO)
@@ -171,10 +172,7 @@ class OperatorCliOracleTests(unittest.TestCase):
         for replacement in ('items[:2]', 'items + [{"id": "j4", "status": "skipped"}]'):
             with self.subTest(replacement=replacement):
                 source = CORRECT.replace(report, f'        report({replacement}, args.json)\n        return 128 + stop.signum')
-                self.assertNotEqual(CORRECT, source, "mutation did not apply")
-                result = self.run_oracle(source)
-                self.assertNotEqual(0, result.returncode)
-                self.assertIn("SIGINT: expected exactly the planned jobs", result.stderr)
+                self.assert_rejected(source, "SIGINT: expected exactly the planned jobs")
 
     def test_dry_run_json_and_operational_exit_mutants_are_rejected(self):
         dry_print = '    if args.dry_run:\n        report(items, args.json)\n'
@@ -203,10 +201,7 @@ class OperatorCliOracleTests(unittest.TestCase):
         ]
         for name, source, diagnostic in mutants:
             with self.subTest(mutant=name):
-                self.assertNotEqual(CORRECT, source, "mutation did not apply")
-                result = self.run_oracle(source)
-                self.assertNotEqual(0, result.returncode)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_rejected(source, diagnostic)
 
 
 if __name__ == "__main__":

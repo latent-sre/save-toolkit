@@ -50,10 +50,15 @@ def problem(status):
     return {"type": "about:blank", "title": "Invalid limit", "status": status, "request_id": "request-1"}
 
 
-def assert_verdict(oracle, app, expected):
+def exit_code(check, app):
+    """The code one of the oracle's checks exits with against `app`."""
     with TestClient(app) as client, pytest.raises(SystemExit) as result:
-        oracle.check_pagination(client)
-    assert result.value.code == expected
+        check(client)
+    return result.value.code
+
+
+def assert_verdict(oracle, app, expected):
+    assert exit_code(oracle.check_pagination, app) == expected
 
 
 def test_fixture_exceeds_the_accepted_maximum_page(rows):
@@ -114,15 +119,10 @@ def test_oversized_success_must_be_a_real_page(oracle, rows, defect):
     assert_verdict(oracle, make_app(rows, oversized_response=response), 1)
 
 
-@pytest.mark.parametrize("status", [400, 422])
-def test_rejecting_an_oversized_limit_fails_even_as_a_problem(oracle, rows, status):
-    """House rule (AIP-158): a limit above the maximum is lowered to it, not rejected."""
-    response = (status, problem(status), "application/problem+json")
-    assert_verdict(oracle, make_app(rows, oversized_response=response), 1)
-
-
-@pytest.mark.parametrize("status", [201, 401, 404, 429, 500, 503])
-def test_unrelated_status_cannot_pass_as_limit_validation(oracle, rows, status):
+@pytest.mark.parametrize("status", [400, 422, 201, 401, 404, 429, 500, 503])
+def test_an_oversized_limit_answered_as_a_problem_fails(oracle, rows, status):
+    """House rule (AIP-158): a limit above the maximum is lowered to it, not rejected, so even a
+    well-formed problem fails, whether it claims limit validation (400, 422) or an unrelated status."""
     response = (status, problem(status), "application/problem+json")
     assert_verdict(oracle, make_app(rows, oversized_response=response), 1)
 
@@ -156,12 +156,6 @@ def detail_app(status, body, media_type="application/json"):
 PUBLIC = {"id": "inc-0001", "title": "Incident 1", "status": "closed", "service": "search"}
 
 
-def timeout_verdict(oracle, app):
-    with TestClient(app) as client, pytest.raises(SystemExit) as result:
-        oracle.check_timeout(client)
-    return result.value.code
-
-
 @pytest.mark.parametrize("status,body,media_type,expected", [
     (200, {**PUBLIC, "owner": None}, "application/json", 0),
     (200, {**PUBLIC, "owner": "unavailable"}, "application/json", 0),
@@ -172,4 +166,4 @@ def timeout_verdict(oracle, app):
     (500, {**problem(500), "title": "Internal Server Error"}, "application/problem+json", 1),
 ])
 def test_timeout_accepts_only_a_fast_explicit_answer(oracle, status, body, media_type, expected):
-    assert timeout_verdict(oracle, detail_app(status, body, media_type)) == expected
+    assert exit_code(oracle.check_timeout, detail_app(status, body, media_type)) == expected

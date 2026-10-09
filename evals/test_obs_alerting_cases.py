@@ -41,6 +41,13 @@ class AlertPredicateCaseTests(unittest.TestCase):
             target.write_text(yaml.safe_dump(document), encoding="utf-8", newline="")
             return run_python(["-B", "-c", self.code], cwd=root, isolated=True, encoding="utf-8", timeout=15)
 
+    def assert_each_rejected(self, expressions, diagnostic):
+        for expression in expressions:
+            with self.subTest(expression=expression):
+                result = self.check_expression(expression)
+                self.assertNotEqual(0, result.returncode, expression)
+                self.assertIn(diagnostic, result.stderr)
+
     def test_supported_two_window_filters_pass(self):
         expressions = (
             f"({LONG} > 0.0144) and ({SHORT} > 0.0144)",
@@ -53,30 +60,20 @@ class AlertPredicateCaseTests(unittest.TestCase):
                 self.assertEqual(0, result.returncode, result.stderr)
 
     def test_semantic_modifiers_are_rejected_instead_of_erased(self):
-        expressions = (
+        self.assert_each_rejected((
             f"({LONG} > bool 0.0144) and ({SHORT} > bool 0.0144)",
             f"({LONG} > bool 0.0144) and ({SHORT} > 0.0144)",
             f"({LONG} > 0.0144) and on() ({SHORT} > 0.0144)",
             f"({LONG} > 0.0144) and ignoring(job) ({SHORT} > 0.0144)",
-        )
-        for expression in expressions:
-            with self.subTest(expression=expression):
-                result = self.check_expression(expression)
-                self.assertNotEqual(0, result.returncode, expression)
-                self.assertIn("unsupported expression form", result.stderr)
+        ), "unsupported expression form")
 
     def test_wrong_predicates_still_fail(self):
-        expressions = (
+        self.assert_each_rejected((
             f"({LONG} > 0.0144) or ({SHORT} > 0.0144)",
             f"({LONG} > 14.4) and ({SHORT} > 14.4)",
             f"{LONG} > 0.0144",
             f"({LONG} < 0.0144) and ({SHORT} < 0.0144)",
-        )
-        for expression in expressions:
-            with self.subTest(expression=expression):
-                result = self.check_expression(expression)
-                self.assertNotEqual(0, result.returncode, expression)
-                self.assertIn("AssertionError", result.stderr)
+        ), "AssertionError")
 
 
 if __name__ == "__main__":
