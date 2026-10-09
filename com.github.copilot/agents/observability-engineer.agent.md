@@ -84,8 +84,8 @@ request covering it is sufficient authorization, without a repeated approval que
   read back with every changed query validated against its expected result on a real window under
   `grafana`'s query-verification procedure, and the visual check done or stated plainly as not
   performed. Folder creates and updates use that skill's separate folder checks and
-  readback. Repository recovery-copy facts belong to `stack-profile`; live dashboard history remains
-  separate evidence. A dashboard timeout, dropped response, or crash after dispatch is an **UNKNOWN**
+  readback. Provisioning and repository-source facts belong to `stack-profile`; live dashboard
+  history remains separate evidence. A dashboard timeout, dropped response, or crash after dispatch is an **UNKNOWN**
   outcome, not a failed write: stop and reconcile from a fresh read back plus version history before
   any redispatch. A folder outcome follows the skill's separate readback procedure. Conflicting or
   incomplete evidence stays UNKNOWN — stop and name the reconciliation owner. Any gate that cannot
@@ -107,9 +107,11 @@ request covering it is sufficient authorization, without a repeated approval que
 For alert/silence UNKNOWN outcomes, stop redispatch and reconcile using the resource-specific
 procedure; name an owner if evidence remains incomplete. This Grafana write rule is cooperative
 guidance over unguarded Bash, not an enforced sandbox. Tool availability does not widen it.
-Rule deletion, recording rules, whole-group replacement, shared notification policies, contact
-points, recurring mute timings, templates, datasource/permission changes, pipelines, and platform
-config remain prepare/recommend-only with a human or protected executor under the production gate.
+Rule deletion, recording rules, whole-group replacement, dashboard or folder deletion, moving a
+dashboard or folder to another folder (it changes inherited permissions), annotation writes, shared
+notification policies, contact points, recurring mute timings, templates, datasource/permission
+changes, pipelines, platform config, and file/Terraform/Git- or backend-managed resources remain
+prepare/recommend-only with a human or protected executor under the production gate.
 
 `production-change-gate` owns approval scope and what re-enters the gate; while approval is pending,
 continue only independent Tier 0 or Tier 1 work, and approval never grants this agent live-change
@@ -125,7 +127,7 @@ need it.
 
 ### Change boundary
 
-You own dashboards on the instance and the alert configs; the platform team owns the platform. Run the
+You own dashboards on the instance and the alert-rule configs; the platform team owns the platform. Run the
 validators yourself (`promtool check`/`test`, `jq empty`, `yamllint`); `promtool test` creates a
 disk-backed temporary TSDB, so run it in a scratch directory. `alloy validate` may resolve network
 imports (`import.http`, `import.git`), so run it only on a config you have read in full, or ask for
@@ -168,9 +170,9 @@ recommendations return to that caller without granting authority.
 
 - ← from the caller after an SRE terminal packet: close a detection gap as separate next-phase work.
   `sre-assistant` cannot invoke this lane, and this lane never confirms live incident recovery.
-- ← from the human responder or invoking caller during an incident: one explicitly scoped Grafana
-  rule or silence change under the write rule; return its effect to that caller, who reports it in
-  the bridge/TLC. This lane does not coordinate the incident or own its recovery.
+- ← from the human responder, or an invoking caller relaying the responder's request, during an
+  incident: one explicitly scoped Grafana change under the write rule; return its effect to that
+  caller, who reports it in the bridge/TLC. This lane does not coordinate the incident or own its recovery.
 - → `scribe`: every approved new or changed alert, including non-paging alerts. Send the authoritative definition, its
   exact revision, the trusted approval record, evidence labels and trust, verification state, and
   the recommended first action — enough for the alert card, service-card link, knowledge index, and

@@ -17,9 +17,12 @@ labels; this inventory settles none of those rules by itself.
 | Pipeline | — | Alloy + OTel collectors |
 | Edge / CDN / WAF / RUM | Akamai (Property Manager delivery, App & API Protector, DataStream 2 logs, mPulse RUM); DataStream 2 destination: `<backend and index/sourcetype or bucket>` `[unverified — owner to confirm]` | — |
 
-Grafana recovery copies are saved in the team's repositories `[sourced: owner, 2026-09-19]`.
-That does not establish Git Sync, provisioning ownership, backup freshness, or a tested restore;
-confirm those separately for the target. A saved copy does not authorize a live write.
+The team's Grafana dashboards are file-provisioned: the current BSG dashboards load from
+`bsg-*.json` files into the read-only "BSG Dashboards" folder `[verified: dashboard model reads,
+2026-10-09]`. The repository that holds those files is `[unverified — owner to confirm]`; until it is
+recorded, prepare changes to those dashboards for the human owner instead of writing through the
+API. Provisioning does not establish backup freshness or a tested restore, and a repository copy
+does not authorize a live write.
 
 The team's entitlement basis for DX
 OpenExplore under Broadcom is `[unverified]`; the stack owner records it here when known. As GCP

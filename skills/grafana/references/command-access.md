@@ -1,34 +1,32 @@
 # Grafana command access — Windows and macOS
 
 Use when the SRE agent has terminal tools and no Grafana MCP. This reference grants no write
-authority; the host loads the command guard, and a skill cannot install or enforce it. Host setup
-and acceptance checks live in the repository README and VS Code acceptance record, not here.
+authority.
 
 ## Contents
 
 - Bundled read helper
-- Supported native observations
 - Grafana resource reads
 
 ## Bundled read helper
 
 The installed `grafana` skill includes [grafana_read.py](../scripts/grafana_read.py), a stdlib-only Python 3.11+
 client. Run it as `python -I -S` (or `python3`, `python.exe`) with its **absolute installed path** in
-drive-letter form, such as `"C:/Users/<you>/.claude/plugins/cache/.../grafana_read.py"`, never a
-workspace copy, or call its installed [PowerShell wrapper](../scripts/grafana_read.ps1). The SRE
-guard admits only the helper's own argument grammar. It denies the Git Bash `/c/...` path form, the
-`py` launcher, double-quoted arguments (single-quote literals instead), `--flag=value`, pipes,
-redirection including `2>&1`, `timeout` and other wrappers, and custom URL, method or credential
-flags; rely on the host tool's own timeout. The generated Copilot copy is accepted only while its
-bytes match the canonical installed helper. If Python or the helper is missing on the execution
-host, report it; never install tools or switch shells to get around a denial.
+drive-letter form, such as `"C:/Users/<you>/.claude/plugins/cache/.../grafana_read.py"` (on
+Copilot, the generated `.github` copy), never another file, or call its installed
+[PowerShell wrapper](../scripts/grafana_read.ps1). The SRE guard admits only the helper's own
+argument grammar. It denies the Git Bash `/c/...` path form, the `py` launcher, double-quoted
+arguments (single-quote literals instead), `--flag=value`, pipes, redirection including `2>&1`,
+`timeout` and other wrappers, and custom URL, method or credential flags; rely on the host tool's
+own timeout. If Python or the helper is missing on the execution host, report it; never install
+tools or switch shells to get around a denial.
 
 The helper loads `GRAFANA_URL`, `GRAFANA_ORG_ID` and a token (or Basic credentials) from the
 environment or, when the environment names none of them, from the human-written
 `~/.config/save-toolkit/grafana.env`. Never read, print or edit that file, never set the variables,
 and never ask for credentials. A missing or unusable setup is a gap to report:
-`authentication_unavailable`, `invalid_settings_file`, `insecure_settings_file`, or an
-`invalid_*configuration` error. Every request carries `X-Grafana-Org-Id`, and the helper checks
+`authentication_unavailable`, `invalid_authentication`, `invalid_settings_file`,
+`insecure_settings_file`, an `invalid_*configuration` error, or the wrapper's `helper_launch_failed`. Every request carries `X-Grafana-Org-Id`, and the helper checks
 `/api/org` first, failing closed on a mismatch. It masks the configured credentials in its JSON and
 returns static error codes; masking covers only its own output, and the telemetry it returns stays
 private evidence.
@@ -48,9 +46,8 @@ python -I -S "<absolute-installed-path>/grafana_read.py" render --uid dashboard-
 ```
 
 On **Windows PowerShell 5.1 or PowerShell 7**, run queries through the installed wrapper, which
-takes the expression intact and encodes it before invoking Python. Windows PowerShell 5.1 strips the
-quotes in PromQL/LogQL selectors when it passes arguments to a native program; 7.3+ does not, but the
-guard cannot tell them apart and requires the wrapper (or `--expr-base64`) on either:
+takes the expression intact and encodes it before invoking Python; the guard denies a raw `--expr`
+on PowerShell and accepts the wrapper or `--expr-base64`:
 
 ```powershell
 & '<absolute-installed-path>/grafana_read.ps1' -Datasource logs-uid -Kind loki -From 1758400000000 -To 1758403600000 -Expr '{service="example"} |= "error"'
@@ -101,37 +98,20 @@ python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource metr
 Do not invent or alter an encoded query. If neither path is available, report the missing query
 path. This adds no terminal grant to the standard Copilot profile and does not authorize an encoder.
 
-## Supported native observations
-
-| Need | Windows PowerShell | macOS Bash |
-|---|---|---|
-| Time/status | `Get-Date -Format o` | `date -u`, `uptime` |
-| OS identity | supplied host context | `uname -s`, `sw_vers -productVersion` |
-| Service/process status | `Get-Service -Name Spooler`, `Get-Process -Name python` | supplied telemetry; no general process-script grant |
-| DNS/connectivity | `Resolve-DnsName example.com`, `Test-NetConnection example.com -Port 443` | `dig example.com` |
-| Disk usage | supplied telemetry | `df -h` |
-| Application/change evidence | existing `cf`, `gcloud`, `git`, `gh` read forms | same existing read forms |
-
-Names are examples, not discovered targets. Before `ConvertTo-Json`, project only approved fields,
-for example `Get-Process -Name python | Select-Object -Property Name,Id,CPU | ConvertTo-Json`;
-`Select-Object -First` alone can serialize environment credentials through `StartInfo`. The
-PowerShell guard rejects assignments, interpolation, script blocks, command chains, redirection and
-interpreter wrappers. The authenticated GET below is the one explicit environment-variable
-exception. Preserve named targets and bounded windows from the ask.
-
 ## Grafana resource reads
 
 Use the [bundled helper](#bundled-read-helper) first. This `curl` form is a fallback for reads the
-helper lacks: health, organization and permission reads, folders, datasource and plugin inventory,
-datasource health, dashboard version history, the served `/apis/` dashboard APIs, and
-`/api/frontend/settings` (`rendererAvailable`).
+helper lacks: health, your token's permissions, folders, plugin inventory, datasource health, and a
+single `/apis/` dashboard object. The guard denies every other path, including
+`/api/frontend/settings` and `/api/datasources`, whose unmasked output can carry datasource
+connection users or decrypted credentials.
 
 It works only when the human has put `GRAFANA_URL` and `GRAFANA_SA_TOKEN` in the process
 environment. Setting either one makes the helper ignore its settings file, so the two setups do not
-run together. If the variables are absent, report the read as unavailable; never set them, read the
-settings file, or ask for a token to make this form work. Its output is not masked: datasource
-inventory can carry connection usernames, so report only the fields the task needs. Never print a
-credential value or change the destination. Use these exact shapes, replacing only the resource path:
+run together; the helper then also needs `GRAFANA_ORG_ID` in the environment. If the variables are
+absent, report the read as unavailable; never set them, read the settings file, or ask for a token
+to make this form work. Never print a credential value or change the destination. Use these exact
+shapes, replacing only the resource path:
 
 ```bash
 curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =https --header "Authorization: Bearer $GRAFANA_SA_TOKEN" "$GRAFANA_URL/api/health"
@@ -143,7 +123,7 @@ curl.exe -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =h
 
 Use `curl.exe` on Windows; in Windows PowerShell 5.1, `curl` is an alias for `Invoke-WebRequest`.
 The form is one line, GET only, with no redirects, TLS bypass, file output, upload or extra headers.
-Search pages are bounded to 100 items and 100 pages. It never permits datasource proxy URLs, query
+Folder pages are bounded to 100 items and 100 pages. It never permits datasource proxy URLs, query
 POSTs, render URLs or `Invoke-RestMethod`; use the helper's `query` and `render`. A 200 response or
 a healthy datasource does not prove panel data or delivery. Outside these grants, prepare the read
 for the human rather than widening the allowlist.

@@ -233,18 +233,19 @@ _OS_READ_FORMS = {
     "df": {(), ("-h",), ("-k",)},
 }
 
-# POSIX observation heads the command-access reference advertises for macOS that the PowerShell
+# POSIX observation heads the sre-assistant native-observations table advertises for macOS that the PowerShell
 # grammar has no spelling for: Windows reaches the same two needs through `Get-Date` and
 # `Resolve-DnsName`. Admitted in Copilot mode only, and only through the Bash classifier, so
 # `_date_reason`'s clock-SETTING check and the structural denial of `dig $(...)` still decide.
 _COPILOT_POSIX_READERS = frozenset({"date", "dig"})
+# curl output is unmasked, so only reads that return no credentials, logins or unbounded lists stay:
+# frontend/settings carries decrypted basic auth for direct-access datasources, datasources carries
+# connection users, and the rule, search and dashboard reads belong to the masking helper.
 _GRAFANA_READ_PATH = re.compile(
-    r"/(?:api/(?:health|org|plugins|frontend/settings|access-control/user/permissions|"
-    r"datasources(?:/uid/[A-Za-z0-9_-]+/health)?|search|folders|"
-    r"dashboards/uid/[A-Za-z0-9_-]+(?:/versions(?:/[0-9]+)?)?|"
-    r"v1/provisioning/alert-rules|prometheus/grafana/api/v1/rules)|"
-    r"apis/dashboard\.grafana\.app/(?:v[012](?:(?:alpha|beta)1)?/namespaces/"
-    r"[A-Za-z0-9_-]+/dashboards(?:/[A-Za-z0-9_-]+)?|))"
+    r"/(?:api/(?:health|plugins|access-control/user/permissions|"
+    r"datasources/uid/[A-Za-z0-9_-]+/health|folders)|"
+    r"apis/dashboard\.grafana\.app/v[012](?:(?:alpha|beta)1)?/namespaces/"
+    r"[A-Za-z0-9_-]+/dashboards/[A-Za-z0-9_-]+)"
 )
 
 
@@ -269,7 +270,7 @@ def grafana_curl_allowed(command: str, powershell: bool = False) -> bool:
     if not _GRAFANA_READ_PATH.fullmatch(resource.path):
         return False
     params = parse_qs(resource.query, keep_blank_values=True)
-    if set(params) - {"type", "limit", "page", "query", "labelSelector", "fieldSelector"}:
+    if set(params) - {"limit", "page"}:
         return False
     if any(len(values) != 1 for values in params.values()):
         return False
@@ -1028,7 +1029,7 @@ def copilot_read_allowed(command: str) -> bool:
 
     Copilot's integrated terminal is one entry point for both hosts, so it classifies with the
     restricted PowerShell grammar first. That grammar denies the macOS spellings the
-    command-access reference advertises, which would make the documented time and DNS
+    sre-assistant native-observations table advertises, which would make the documented time and DNS
     observations unusable on a macOS execution host. Widening is deliberately narrow: the fixed
     OS forms, the authenticated Grafana GET, and the two POSIX heads above -- never the whole
     Bash allowlist.

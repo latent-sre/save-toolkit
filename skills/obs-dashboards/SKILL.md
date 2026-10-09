@@ -32,7 +32,8 @@ bundled helper. This skill supplies design decisions and grants no live-write au
    request/error rates with traffic context, and saturation against a meaningful capacity limit.
    Use `obs-metrics`, `obs-logs`, or `obs-traces` for query semantics and interpretation. Name the
    backend that holds each signal (per `stack-profile`: Wavefront for PCF application metrics today,
-   Mimir/Loki/Tempo for OpenTelemetry-instrumented and GCP services) and flag any panel that needs
+   Mimir/Loki/Tempo for OpenTelemetry-instrumented services, Cloud Monitoring/Logging/Trace for GCP
+   workloads) and flag any panel that needs
    the Wavefront or Splunk Grafana plugin.
 4. Give each panel a question or clear signal name, correct units, understandable series labels,
    and relevant comparison window. Keep linked views on the same population and time range;

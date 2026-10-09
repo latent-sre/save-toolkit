@@ -18,6 +18,20 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- The `sre-assistant` curl fallback admitted `/api/frontend/settings`, which returns decrypted
+  basic-auth credentials for direct-access datasources, `/api/datasources` with connection users,
+  two alert-rule dumps no admitted parameter could bound, and reads the masking helper already
+  covers. The guard now admits only health, plugins, folders, the token's own permissions,
+  datasource health and a single `/apis/` dashboard object; the reference no longer points
+  agents at the renderer flag through that path.
+- The `grafana` skill told agents the opposite of Grafana 13.2.2 in three places: a
+  provisioning write without `X-Disable-Provenance` converts a UI-created rule to API-managed,
+  the HTTP API body key is `keep_firing_for` (file YAML uses `keepFiringFor`), and editing a
+  silence's matchers returns a new ID, so rollback expires that ID. One gated-change list now
+  appears in `observability-engineer` and `SKILL.md`, adding dashboard and folder deletion,
+  folder moves and annotation writes; dashboard conventions are the target for new dashboards;
+  stack-profile records the file-provisioned BSG dashboards and GCP's own backends; and
+  agent-tooling says no Grafana MCP server or CLI is adopted.
 - On macOS and Linux the Grafana helper checked its settings file by path and then read it by path,
   so a replaced file or a symlink could pass the owner-only check. It now opens the file once,
   without following a symlink, and checks and reads that same descriptor.

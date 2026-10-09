@@ -20,16 +20,16 @@ evidence. A successful API read cannot substitute for a visual check.
 | Only a supplied screenshot | Explain visible features; retain unknown time, variables, query, and freshness unless independently supplied |
 | No usable visual path | Continue model/query checks and mark presentation unverified; name the missing access |
 
-`GET /api/frontend/settings` → `rendererAvailable` describes server-rendering capability; the SRE
-agent reaches it only through the [curl fallback](./command-access.md#grafana-resource-reads).
-False does not rule out browser screenshots; true does not prove a render works. Check the available
-path rather than installing infrastructure as part of a read-only task.
+Grafana's `rendererAvailable` flag describes server-rendering capability only: false does not rule
+out browser screenshots, and true does not prove a render works. The SRE agent must not read
+`/api/frontend/settings`, which also carries datasource connection details; ask the owner or use a
+render attempt instead.
 
 ## SRE browser investigation
 
 The Copilot projection has no shell, so the browser is its only visual path. The Claude Code agent
-grants the Playwright MCP column and the generated Copilot agent the native VS Code column; tools
-from another server or an absent native tool are not available.
+grants the Playwright MCP column; the generated Copilot agent grants both columns. Tools from another
+server or an absent native tool are not available.
 
 | Capability | Playwright MCP | Native VS Code |
 |---|---|---|
@@ -39,7 +39,6 @@ from another server or an absent native tool are not available.
 | Time/variable inputs and scrolling keys | `browser_type`, `browser_press_key` | `typeInPage` |
 | Bounded loading wait | `browser_wait_for` | Read the updated page when ready |
 
-No page-code execution, upload, cookie/storage/network inspection or dialog-accept tool is granted.
 Never pass `filename` to the Playwright capture tools: an explicit name can overwrite a repository
 file. Read a fresh snapshot after each interaction; a text snapshot shows structure, and graph
 interpretation needs image inspection.
@@ -56,15 +55,16 @@ interpretation needs image inspection.
    data through read-only menus. Do not enter dashboard editing to reach a missing inspector.
 4. Compare those observations with the stored model and query results at matching selections. The
    bundled [read helper](./command-access.md#bundled-read-helper) supports dashboard models, bounded
-   Prometheus/Loki queries and single-panel renders; other datasource types remain a named gap.
+   Prometheus/Loki queries and single-panel renders. `query` has no path for other datasource types,
+   but `render` and the browser still show their panels.
 5. Report what was actually inspected. Never save dashboards, add annotations, create snapshots,
    change alerts or silences, or invoke deployment controls. Stop at unavailable protections or
    tools; do not replace a denied tool with another execution channel.
 
-Keep usernames, passwords, cookies and tokens out of results. Screenshots, profile labels, console
-output and login errors can expose identity even when the password stays hidden: use a protected
-capture path or a human-prepared cropped image, or return the gap. Never inspect credential files or
-copy session cookies to manufacture another access path.
+Passwords, cookies and tokens must never reach results. A signed-in display name in Grafana's page
+header may appear in a snapshot; never repeat it in an answer. If a login error, console output or
+page shows a credential, stop that path and report the gap without repeating it. Never inspect
+credential files or copy session cookies to manufacture another access path.
 
 ## Bind query and image evidence
 
@@ -106,7 +106,7 @@ this down:
 
 | Error | Usual cause |
 |---|---|
-| `http_error` | Permission denied, or the render itself failed (a missing or broken renderer answers HTTP 500); read `rendererAvailable` through the [curl fallback](./command-access.md#grafana-resource-reads) or the browser to tell them apart |
+| `http_error` | Permission denied, or the render itself failed (a missing or broken renderer answers HTTP 500); if `dashboard` reads of the same UID succeed, suspect the renderer and report it to the owner |
 | `renderer_busy` | HTTP 429 from the renderer; do not retry in a loop |
 | `renderer_placeholder` | Grafana's own render limit or an unavailable renderer, served as a stock image |
 | `panel_not_found` | No non-row Classic panel with that ID; re-read the model |

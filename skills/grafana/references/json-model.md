@@ -2,11 +2,10 @@
 
 Read this when holding dashboard JSON: exporting, diffing, adding a panel or variable, or authoring
 a model. Request and concurrency shapes are in [http-api](./http-api.md); generic visualization
-advice is deliberately absent. The 13.2 baseline retains `[sourced]` implementation guidance
-reviewed against `grafana/grafana` 13.2.0; a source claim is not target runtime evidence.
-The 2026-09-19 read-only 13.2.2 check verified six served API versions, Classic storage reported as
-`v0alpha1`, V1 reads at schema 42, and V2 reads with `elements`/`layout`. It did not repeat the write,
-import, concurrency, or rollback probes; their historical evidence is not current acceptance.
+advice is deliberately absent. `[sourced]` guidance below comes from `grafana/grafana` 13.2.0 and
+is not target runtime evidence; write, import, concurrency, and rollback behavior is `[unverified]`
+on the target until observed. Team decisions for new dashboards are in the
+[team dashboard conventions](./dashboard-conventions.md).
 
 ## Contents
 
@@ -53,7 +52,7 @@ named in its path.
 5. **Legacy `meta.apiVersion` is not storage evidence.** It reports the requested version.
 
 *[sourced: app-platform storage preparation, conversion, browser import and save, and legacy
-import handlers reviewed at 13.2.0; verified: 13.2.2 target V1/V2 reads only, 2026-09-19]*
+import handlers at 13.2.0]*
 
 ## Classic / V1 rules this team keeps
 
@@ -61,8 +60,8 @@ import handlers reviewed at 13.2.0; verified: 13.2.2 target V1/V2 reads only, 20
   create and dropped from portable exports; `schemaVersion` stays at the exported value (42 is
   final for V1 in Grafana 13); `version` is the legacy concurrency token; never copy `tags` while
   duplicating.
-- `editable` is preserved: `false` blocks this team's UI workflow. `timezone` is left unset.
-  Preserve the requested `time` window; do not `refresh` faster than the data changes.
+- An edit preserves `editable` and `timezone`. Preserve the requested `time` window; do not
+  `refresh` faster than the data changes.
 - A new panel takes `max(existing id) + 1` and goes below the last row at `max(y + h)` on the
   24-column grid; unrelated panels are not renumbered or moved, because panel ids are link and render
   targets and a duplicate silently retargets consumers.
@@ -70,8 +69,8 @@ import handlers reviewed at 13.2.0; verified: 13.2.2 target V1/V2 reads only, 20
   Grafana strips `spec.uid` and `spec.version`, injects defaults, and mints a distinct
   `metadata.uid`. Diff the stored readback, not the local body.
 
-*[sourced: dashboard JSON model, V1 schema, and app-platform handlers reviewed at 13.2.0;
-target writes unverified; the `editable` and `timezone` rules are this team's, owner 2026-08-22]*
+*[sourced: dashboard JSON model, V1 schema, and app-platform handlers at 13.2.0; target writes
+unverified]*
 
 ### The panel shape, with the fields the checker and the on-call reader need
 
@@ -114,17 +113,17 @@ and preserve that shape. The bundled checker refuses V2; use `dashboard-linter` 
 
 ## Variables and portability
 
-- Use `${datasource}` for interchangeable sources of one type. Mixed-backend dashboards need
-  separately typed variables (for example `${metrics_source}` and `${logs_source}`) in corresponding
-  panels and targets: a variable cannot translate query languages. Set each variable's plugin type
-  and resolve it to a discovered source; scope selection when several sources share that type.
-  For portable exports, leave `current` unpinned and verify selected sources after import;
-  do not assume a saved concrete uid resolves to the intended source on another instance.
-- Multi-value or All selectors set `allValue: ".+"` and use `${var:regex}` in regex matchers; a
-  custom all value is not escaped, and the generated expansion can grow large.
+- A data-source variable cannot translate query languages: mixed-backend dashboards need separately
+  typed variables (for example `${metrics_source}` and `${logs_source}`) in corresponding panels and
+  targets. Set each variable's plugin type and resolve it to a discovered source; scope selection
+  when several sources share that type. For portable exports, leave `current` unpinned and verify
+  selected sources after import; do not assume a saved concrete uid resolves to the intended source
+  on another instance.
+- Regex matchers use `${var:regex}`; a custom all value is not escaped, and the generated expansion
+  can grow large.
 - `$__rate_interval` for Prometheus rate panels; `increase(...[$__range])` can deliberately total the
   selected dashboard window. Preserve fixed-horizon intent when justified by scrape cadence. The
-  query API does not expand these macros, so verification substitutes and records concrete intervals.
+  query API does not expand these macros; see [query verification](./http-api.md#verify-then-record).
   LogQL has its own interval semantics; do not apply the Prometheus rule to Loki targets.
 - Links preserve time and variables; the deprecated `[[var]]` syntax is not used.
 

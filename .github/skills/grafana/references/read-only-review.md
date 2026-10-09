@@ -1,14 +1,15 @@
 # Read-only Grafana review
 
-Use this for an existing instance, a post-upgrade check, or testing the obs skills against real
-dashboards. Bind the instance, organization, exact patch, selected dashboards, and UTC window.
-Repository recovery copies do not change the requested read-only scope.
+Use this for a read-only review of an existing instance or a post-upgrade check. Bind the instance,
+organization, exact patch, selected dashboards, and UTC window. Repository copies of dashboards do
+not change the read-only scope.
 
 ## Run the review
 
 1. **Discover with reads.** Use the preflight GETs in [http-api](./http-api.md). Inspect effective
    permission actions, including plugin actions; a Viewer role name alone does not describe every
-   grant. Keep credentials in memory and do not follow redirects carrying authorization.
+   grant. Use the existing credential path without handling credential values, and follow no
+   redirects.
 2. **Inventory and sample.** Paginate dashboard search with a stated cap. Count what the token can
    see, then select dashboard models by relevant datasource, schema, variables, and layout. Record
    the sample; an inventory is not a query or visual test of every panel.
@@ -55,5 +56,3 @@ without blocking working queries. Report counts by category rather than calling 
 Sources: [13.2 release notes](https://grafana.com/docs/grafana/latest/whatsnew/whats-new-in-v13-2/),
 [panel inspection](https://grafana.com/docs/grafana/latest/panels-visualizations/panel-inspector/),
 [Prometheus interval variables](https://grafana.com/docs/grafana/latest/datasources/prometheus/template-variables/).
-Refresh after a Grafana/plugin upgrade, permission change, or conflicting target observation.
-These target observations establish reads only; historical write probes are not 13.2 acceptance.
