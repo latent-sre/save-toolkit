@@ -54,26 +54,36 @@ def load_path(path: Path, name: str) -> ModuleType:
 
 
 def find_shell(name: str = "sh") -> str | None:
-    """A POSIX `sh` or `bash`, including the copies Git for Windows installs off PATH."""
+    """A POSIX `sh` or `bash` for this host's files.
+
+    On Windows, Git for Windows' copy comes first, including where it sits off PATH, and the
+    System32 `bash.exe` is refused: that one launches WSL, a different machine's view of the files.
+    """
+    if os.name != "nt":
+        return shutil.which(name)
+    for directory in ("bin", "usr/bin"):
+        candidate = _GIT_FOR_WINDOWS / directory / f"{name}.exe"
+        if candidate.is_file():
+            return str(candidate)
     found = shutil.which(name)
-    if found:
-        return found
-    if os.name == "nt":
-        for directory in ("bin", "usr/bin"):
-            candidate = _GIT_FOR_WINDOWS / directory / f"{name}.exe"
-            if candidate.is_file():
-                return str(candidate)
-    return None
+    system = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32"
+    if found and Path(found).parent.resolve() == system.resolve():
+        return None
+    return found
 
 
-def require_shell(test: unittest.TestCase, name: str = "sh") -> str:
-    """The shell's path; skip a local run without one, but fail on CI, where a skip reads as green."""
+def require_shell(name: str = "sh") -> str:
+    """The shell's path; skip a local run without one, but fail on CI, where a skip reads as green.
+
+    Raises unittest.SkipTest, which both unittest and pytest report as a skip, so it serves
+    TestCase methods and plain pytest functions alike.
+    """
     found = find_shell(name)
     if found:
         return found
     if os.environ.get("CI"):
-        test.fail(f"CI has no `{name}`; this test's shell contract would be reported green unexercised")
-    test.skipTest(f"no `{name}` on this host")
+        raise AssertionError(f"CI has no `{name}`; this test's shell contract would be reported green unexercised")
+    raise unittest.SkipTest(f"no `{name}` on this host")
 
 
 def must_replace(text: str, old: str, new: str, count: int = 1) -> str:

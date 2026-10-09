@@ -172,7 +172,7 @@ class HookWiringTests(unittest.TestCase):
         self.assertEqual("", result.stdout)
 
     def test_exact_session_start_command_accepts_the_lane_path(self) -> None:
-        shell = require_shell(self)
+        shell = require_shell()
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
         command = document["hooks"]["SessionStart"][0]["hooks"][0]["command"]
         result = subprocess.run(
@@ -232,7 +232,7 @@ class HookWiringTests(unittest.TestCase):
         that reports it skipped did not exercise the real hook command and is incomplete evidence;
         rerun it on a machine with `sh`. Gate A does not run this component suite.
         """
-        shell = require_shell(self)
+        shell = require_shell()
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
         command = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
         environment = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT))
@@ -279,7 +279,7 @@ class HookWiringTests(unittest.TestCase):
         stubs must fail closed. The marker file proves the stub was actually consulted -- without it
         this test could pass while `command -v` never found the stub at all.
         """
-        shell = require_shell(self)
+        shell = require_shell()
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
         command = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
         cat = shutil.which("cat")

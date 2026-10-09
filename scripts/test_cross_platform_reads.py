@@ -93,7 +93,7 @@ class CrossPlatformReads(unittest.TestCase):
 
     def test_posix_copilot_launcher_honors_guard_decisions(self):
         # A local skip leaves installed macOS acceptance outstanding; CI fails without a shell.
-        shell = require_shell(self)
+        shell = require_shell()
         # Agent-scoped VS Code hooks do not receive Claude's plugin-root substitution.
         env = dict(os.environ)
         env.pop("CLAUDE_PLUGIN_ROOT", None)

@@ -37,6 +37,17 @@ class MarkdownHelperTests(unittest.TestCase):
         self.assertEqual(testkit.normalized("One  Two\nthree"), testkit.normalized("one two three "))
 
 
+class ShellTests(unittest.TestCase):
+    def test_a_missing_shell_skips_locally_and_fails_on_ci(self) -> None:
+        with mock.patch.object(testkit, "find_shell", return_value=None):
+            with mock.patch.dict(testkit.os.environ, {"CI": ""}), self.assertRaises(unittest.SkipTest):
+                testkit.require_shell("bash")
+            with mock.patch.dict(testkit.os.environ, {"CI": "true"}), self.assertRaises(AssertionError):
+                testkit.require_shell("bash")
+        with mock.patch.object(testkit, "find_shell", return_value="/bin/sh"):
+            self.assertEqual("/bin/sh", testkit.require_shell())
+
+
 class MutationAndLoadingTests(unittest.TestCase):
     def test_must_replace_refuses_a_mutation_that_matches_nothing(self) -> None:
         self.assertEqual("a-b a", testkit.must_replace("a a a", " a", "-b"))

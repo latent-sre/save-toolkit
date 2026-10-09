@@ -16,7 +16,7 @@ from urllib.error import URLError
 
 import pytest
 
-from testkit import load_path
+from testkit import load_path, require_shell
 
 PATH = Path(__file__).resolve().parents[1] / "skills/grafana/scripts/grafana_read.py"
 reader = load_path(PATH, "grafana_read")
@@ -333,10 +333,7 @@ def test_native_powershell_preserves_expression_into_request_body(tmp_path, shel
 
 @pytest.mark.parametrize("expression", ['{service="edge"} |= "error"', 'up{job=~"checkout$"}'])
 def test_native_bash_preserves_expression_into_request_body(tmp_path, expression):
-    # Windows' System32 bash.exe is a WSL launcher, not the Git Bash used here.
-    executable = str(Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Git/bin/bash.exe") if sys.platform == "win32" else shutil.which("bash")
-    if not executable or not Path(executable).is_file():
-        pytest.skip("native Bash unavailable")
+    executable = require_shell("bash")  # Git Bash on Windows, never System32's WSL launcher
     probe = _request_probe(tmp_path)
     command = " ".join(shlex.quote(value) for value in [Path(sys.executable).as_posix(), "-I", "-S", probe.as_posix(), *QUERY[:-1], expression])
     result = subprocess.run([executable, "--noprofile", "--norc", "-c", command],

@@ -9,13 +9,13 @@ import json
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
 from threading import Thread
 
 import pytest
 import yaml
+from testkit import require_shell
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -110,11 +110,7 @@ def example_steps():
 
 @pytest.fixture
 def shell():
-    git_bash = Path("C:/Program Files/Git/bin/bash.exe")
-    executable = str(git_bash) if os.name == "nt" and git_bash.is_file() else shutil.which("bash")
-    if not executable:
-        pytest.skip("Bash is required to exercise the documented shell")
-    return executable
+    return require_shell("bash")  # the documented step is Bash; skips locally, fails on CI
 
 
 def run_example(tmp_path, shell, script, mode, *, outputs=None, manifest=None, timeout=20):
