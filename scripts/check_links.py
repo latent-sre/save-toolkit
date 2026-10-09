@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -116,7 +117,7 @@ def _check_live_doc_links(root: Path) -> list[str]:
             target = _relative_target(raw)
             if target is None:
                 continue
-            resolved = (path.parent / target.split("#", 1)[0]).resolve()
+            resolved = (path.parent / target).resolve()
             # Containment before existence. With enough `..` components a link resolves outside the
             # repository, where `.exists()` answers a question about the HOST rather than the repo:
             # a root README link to `../../etc/passwd` passes on Unix and fails on Windows, and
@@ -167,9 +168,6 @@ def _citing_candidates(root: Path) -> list[Path]:
     scripts_dir = root / "scripts"
     if scripts_dir.is_dir():
         files.extend(sorted(scripts_dir.glob("*.py")))
-    roadmap = root / "docs" / "fleet-roadmap.md"
-    if roadmap.is_file() and roadmap not in files:
-        files.append(roadmap)
     return files
 
 
@@ -421,7 +419,7 @@ def _check_markdown(path: Path, text: str, owned_root: Path) -> list[str]:
         relative = _relative_target(raw_target)
         if relative is None:
             continue
-        destination = path.parent / Path(relative.replace("/", os.sep))
+        destination = path.parent / relative
         lexical_destination = Path(os.path.abspath(destination))
         try:
             lexical_destination.relative_to(owned_root.absolute())
@@ -437,7 +435,7 @@ def _check_markdown(path: Path, text: str, owned_root: Path) -> list[str]:
     return failures
 
 
-def _bundle_files(skill_root: Path):
+def _bundle_files(skill_root: Path) -> Iterator[Path]:
     for path in sorted(skill_root.iterdir()):
         if path.is_file() and path.name != "SKILL.md":
             yield path
@@ -518,7 +516,7 @@ def _check_guide(root: Path) -> list[str]:
         first = clean.split("/", 1)[0]
         if first in (".", "..") or not (root / first).exists():
             continue  # first segment is not a repo-root entry: a generic or skill-relative mention
-        if not (root / Path(clean.replace("/", os.sep))).exists():
+        if not (root / clean).exists():
             failures.append(f"AGENTS.md: inline-code path does not resolve: '{token}'")
     return failures
 
