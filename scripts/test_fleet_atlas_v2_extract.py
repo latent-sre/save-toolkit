@@ -4,7 +4,7 @@ import random
 import unittest
 from pathlib import Path
 
-from fleet_atlas_v2_extract import extract, test_file_reads as _file_reads, yaml_fields, EDGE_TYPES, NODE_TYPES
+from fleet_atlas_v2_extract import extract, test_file_reads as _file_reads, scenario_fields, EDGE_TYPES, NODE_TYPES
 from fleet_atlas_v2_model import (assemble, EvidenceClass, ProofKind, Proof)
 from fleet_atlas_v2_sources import Snapshot, Source
 from fleet_atlas_v2_proofs import verify_facts
@@ -37,7 +37,7 @@ class ExtractTests(unittest.TestCase):
         """The scenario metadata subset reads `keys` exactly as a real YAML parser does."""
         import yaml  # Independent test oracle; the installed atlas runtime stays stdlib-only.
         expected = yaml.safe_load(text)
-        parsed, _ = yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+        parsed, _ = scenario_fields(Source('evals/scenarios/case.yaml', text.encode()))
         for key in keys:
             self.assertEqual(expected[key], parsed[key])
         return expected, parsed
@@ -594,7 +594,7 @@ fixture:
             with self.subTest(value=value):
                 text = f'prompt: {value}\ntarget: {{kind: agent, name: attacker}}\n'
                 with self.assertRaises(ValueError):
-                    yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+                    scenario_fields(Source('evals/scenarios/case.yaml', text.encode()))
 
     def test_unsupported_explicit_flow_keys_fail_closed(self):
         import yaml  # Independent test oracle; the installed atlas runtime stays stdlib-only.
@@ -606,7 +606,7 @@ fixture:
                         f'prompt: {value}\n')
                 self.assertEqual(yaml.safe_load(text)['target']['name'], 'sre-assistant')
                 with self.assertRaises(ValueError):
-                    yaml_fields(Source('evals/scenarios/case.yaml', text.encode()))
+                    scenario_fields(Source('evals/scenarios/case.yaml', text.encode()))
 
     def test_body_only_symptom_guidance_preserves_every_chunk_with_exact_spans(self):
         body = skill('a') + '## Ledger delays\n\nDependency timeouts can hold the shared pool.\n\n' + ('A longer evidence paragraph. ' * 500) + '\n'

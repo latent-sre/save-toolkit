@@ -15,7 +15,7 @@ from dataclasses import dataclass, replace
 from functools import cached_property, lru_cache
 from pathlib import PurePosixPath as Path
 from types import MappingProxyType
-from typing import Callable, Mapping
+from typing import Callable, Literal, Mapping, NamedTuple
 from urllib.parse import unquote, urlsplit
 
 import fleet_frontmatter
@@ -43,17 +43,50 @@ class Extraction:
     evaluators: Mapping[str, Evaluator]
 
 
+# Fact values must stay exact str (validate_value), so these are annotations, not enums.
+Authority = Literal['canonical', 'live-contract', 'historical-evidence', 'generated', 'external']
+State = Literal['live', 'proposed', 'historical', 'rejected', 'deprecated', 'generated']
+
+
 @dataclass(frozen=True)
 class Record:
     node: Node
     name: str
-    authority: str
-    state: str
+    authority: Authority
+    state: State
     attrs: tuple[tuple[str, Value], ...]
     spans: tuple[Span, ...]
     family: str
     proof_kind: PK = PK.EXTRACTED
     evidence_class: EC = EC.EXTRACTED
+
+    @cached_property
+    def attributes(self) -> Mapping[str, Value]:
+        """The frozen attrs pairs as a read-only mapping; identity still compares fields only."""
+        return MappingProxyType(dict(self.attrs))
+
+
+class RoadmapEntry(NamedTuple):
+    """One roadmap item: its heading or row lines, field texts, and each field's spans."""
+    item: str
+    start: int
+    end: int
+    fields: dict[str, str]
+    positions: dict[str, tuple[Span, ...]]
+
+
+class GeneratedMapping(NamedTuple):
+    """An adapter output, the canonical source it is generated from, and the mapping proof."""
+    projection: str
+    canonical: str
+    proof: tuple[Span, ...]
+
+
+class WriterProjection(NamedTuple):
+    """A schema's declared output bound to the writer that actually produces it."""
+    schema_id: str
+    projection: str
+    proof: tuple[Span, ...]
 
 
 @dataclass(frozen=True)
@@ -84,7 +117,7 @@ class Corpus:
         self.schema_sources = tuple(s for s in snapshot.sources
                                     if s.path.startswith('schemas/') and s.path.endswith('.schema.json'))
         self._json: dict[str, object] = {}
-        self._roadmaps: dict[str, tuple] = {}
+        self._roadmaps: dict[str, tuple[RoadmapEntry, ...]] = {}
         self._headings: dict[str, Mapping[str, int]] = {}
 
     def get(self, path: str) -> Source | None:
@@ -100,7 +133,7 @@ class Corpus:
         catalog = self.get('schemas/catalog-v1.json')
         return self.parsed(catalog).get('schemas', []) if catalog else []
 
-    def roadmap_entries(self, source: Source) -> tuple:
+    def roadmap_entries(self, source: Source) -> tuple[RoadmapEntry, ...]:
         if source.path not in self._roadmaps:
             self._roadmaps[source.path] = records_for_roadmap(source)
         return self._roadmaps[source.path]
@@ -119,11 +152,11 @@ class Corpus:
         return self._headings[source.path]
 
     @cached_property
-    def generated(self):
+    def generated(self) -> tuple[GeneratedMapping, ...]:
         return generated_mappings(self)
 
     @cached_property
-    def projections(self):
+    def projections(self) -> tuple[WriterProjection, ...]:
         return standalone_projections(self)
 
 
@@ -287,10 +320,14 @@ def _flow_scalar(lines, index, value):
     raise ValueError('unterminated YAML quoted or flow scalar')
 
 
-def yaml_fields(source: Source, frontmatter=False):
-    if frontmatter:
-        parsed = fleet_frontmatter.parse(source.text, source.path, mode='lenient')
-        return parsed.fields, (source.span(1, len(parsed.raw_lines) + 2),)
+def frontmatter_fields(source: Source):
+    """Component frontmatter through the fleet's shared parser, cited from the opening fence."""
+    parsed = fleet_frontmatter.parse(source.text, source.path, mode='lenient')
+    return parsed.fields, (source.span(1, len(parsed.raw_lines) + 2),)
+
+
+def scenario_fields(source: Source):
+    """Top-level scenario metadata, cited as the whole file."""
     # Deliberately the donor's scalar identity/routing subset, not executable YAML.
     # Prompt block scalars and fixtures cannot contribute top-level target identity.
     result, stack, block_indent = {}, [], None
@@ -351,7 +388,7 @@ def yaml_key_spans(source: Source, keys: tuple[str, ...]) -> tuple[Span, ...]:
     return tuple(selected) or whole(source)
 
 
-def records_for_roadmap(source: Source):
+def records_for_roadmap(source: Source) -> tuple[RoadmapEntry, ...]:
     starts = [(i, m.group(1)) for i, line in enumerate(source.lines)
               if (m := re.match(r'^###\s+([A-Z][A-Z0-9]*-\d{3})\b', line))]
     result = []
@@ -369,16 +406,16 @@ def records_for_roadmap(source: Source):
             elif current and line:
                 fields[current] += ' ' + line
                 positions[current].append(i + 1)
-        result.append((item_id, start + 1, end, fields,
-                       {k: (source.span(min(v), max(v)),) for k, v in positions.items()}))
+        result.append(RoadmapEntry(item_id, start + 1, end, fields,
+                                   {k: (source.span(min(v), max(v)),) for k, v in positions.items()}))
     # The modern parked register is still live backlog, with its own row selector.
     for i, line in enumerate(source.lines, 1):
         cells = table_cells(line)
         if len(cells) >= 2 and re.fullmatch(r'[A-Z][A-Z0-9]*-\d{3}', plain(cells[0])):
             item_id = plain(cells[0])
-            if item_id not in {r[0] for r in result}:
-                result.append((item_id, i, i, {'Status': 'deferred', 'Next action': cells[1].strip()},
-                               {'Status': (source.span(i, i),), 'Next action': (source.span(i, i),)}))
+            if item_id not in {entry.item for entry in result}:
+                result.append(RoadmapEntry(item_id, i, i, {'Status': 'deferred', 'Next action': cells[1].strip()},
+                                           {'Status': (source.span(i, i),), 'Next action': (source.span(i, i),)}))
     return tuple(result)
 
 
@@ -443,7 +480,7 @@ def _component_records(corpus, inputs):
         path, p = source.path, Path(source.path)
         if path.startswith(('agents/', 'commands/')) and len(p.parts) == 2 and p.suffix == '.md':
             kind = 'agent' if path.startswith('agents/') else 'command'
-            data, proof = yaml_fields(source, True)
+            data, proof = frontmatter_fields(source)
             attrs = {'description': str(data.get('description', '')).strip()}
             if kind == 'agent':
                 tools = data.get('tools', [])
@@ -458,7 +495,7 @@ def _component_records(corpus, inputs):
         elif path.startswith('skills/') and len(p.parts) >= 3:
             skill, tail = p.parts[1], '/'.join(p.parts[2:])
             if tail == 'SKILL.md':
-                data, proof = yaml_fields(source, True)
+                data, proof = frontmatter_fields(source)
                 add(_record(f'skill:{skill}', 'skill', skill, path, spans(proof, whole(source)), attrs={
                     'description': str(data.get('description', '')).strip(), 'manual_only': str(data.get('disable-model-invocation', '')).lower() == 'true', 'bytes': len(source.content)}, family='components'))
             elif tail.startswith('references/') and p.suffix == '.md':
@@ -485,7 +522,7 @@ def _component_records(corpus, inputs):
             add(_record(f'review:{review_id}', 'review', p.stem, path, whole(source), attrs=attrs,
                 authority='generated' if batch else 'historical-evidence', state='generated' if batch else 'historical', family='reviews'))
         elif path.startswith(('evals/scenarios/', 'evals/build-scenarios/')) and p.suffix in ('.yaml', '.yml'):
-            data, _ = yaml_fields(source)
+            data, _ = scenario_fields(source)
             if 'id' not in data:
                 continue
             routing = data.get('routing') or {}
@@ -510,7 +547,7 @@ def _roadmap_records(corpus, inputs):
     records, add = _record_builder(inputs)
     roadmap = corpus.get('docs/fleet-roadmap.md')
     if roadmap:
-        for item, start, end, fields, positions in corpus.roadmap_entries(roadmap):
+        for item, start, _, fields, positions in corpus.roadmap_entries(roadmap):
             proof = spans((roadmap.span(start, start),), *(positions.values()))
             add(_record(f'roadmap-item:{item}', 'roadmap-item', item, roadmap.path, proof,
                 authority='live-contract', attrs={'status': status_marker(fields.get('Status', '')), 'status_text': fields.get('Status', '')[:200], 'owner': fields.get('Owner', '')[:200], 'fields': sorted(fields)}, family='roadmap', selector=item, kind=PK.NORMALIZED, cls=EC.CONTRACT))
@@ -636,7 +673,7 @@ def _resolve_catalog(corpus, inputs):
     # Exact full-file targets are explicit; no path-first selection erases domain nodes.
     needed = {p for p in sources if live_guide(p)}
     needed.update(r.node.path for r in records.values())
-    needed.update(canonical for _, canonical, _ in corpus.generated)
+    needed.update(mapping.canonical for mapping in corpus.generated)
     if 'scripts/fleet_atlas_v2_extract.py' in sources:
         needed.add('scripts/fleet_atlas_v2_extract.py')
     for source in corpus.sources:
@@ -762,7 +799,7 @@ def generated_mappings(corpus):
                               tuple(constant_spans[name] for name in bound_constants))
                 key = projection, canonical
                 result[key] = spans(result.get(key, ()), proof)
-    return tuple((projection, canonical, proof) for (projection, canonical), proof in sorted(result.items()))
+    return tuple(GeneratedMapping(projection, canonical, proof) for (projection, canonical), proof in sorted(result.items()))
 
 
 def _writer_filenames(render, safe, build):
@@ -904,8 +941,8 @@ def standalone_projections(corpus):
             continue
         for projection in declaration.get('x-fleet-generated-projections', []):
             if projection in {posixpath.join(output, filename) for filename in writes}:
-                result.append(('schema:' + Path(source.path).name.removesuffix('.schema.json'), projection,
-                               spans(whole(source), mapping_proof, whole(sources[validator]))))
+                result.append(WriterProjection('schema:' + Path(source.path).name.removesuffix('.schema.json'), projection,
+                                               spans(whole(source), mapping_proof, whole(sources[validator]))))
     return tuple(result)
 
 
@@ -1169,7 +1206,7 @@ def _relations(corpus, records):
                              cls=EC.INFERRED if inferred_method else EC.EXTRACTED,
                              proof_kind=PK.INFERRED if inferred_method else PK.JOINED)
         if node.type == 'bundle-file':
-            skill = dict(record.attrs)['skill']
+            skill = record.attributes['skill']
             edge('cites', f'skill:{skill}', node.id, record.spans)
         if node.type == 'skill':
             references, routing = {}, {}
@@ -1193,7 +1230,7 @@ def _relations(corpus, records):
             if row:
                 links = link_targets(source.lines[row.start_line - 1])
                 if not links:
-                    unknown(node.id, 'extract.rule-source-unlinked', f'{source.path}:{row.start_line} names its source in prose only: {dict(record.attrs)["source_text"][:80]}', (row,), 'Link the primary source')
+                    unknown(node.id, 'extract.rule-source-unlinked', f'{source.path}:{row.start_line} names its source in prose only: {record.attributes["source_text"][:80]}', (row,), 'Link the primary source')
                 for _, raw in links:
                     dest = resolve(source, raw)
                     if dest:
@@ -1210,7 +1247,7 @@ def _relations(corpus, records):
                     elif resolved_link(source, raw, sources) and '#' in raw:
                         unknown(node.id, 'extract.link-selector-unresolved', f'{source.path}:{i} selector does not resolve: {raw}', (source.span(i, i),), 'Correct the section selector or restore its exact target', absence=True)
         if node.type == 'scenario':
-            data, _ = yaml_fields(source); routing = data.get('routing') or {}
+            data, _ = scenario_fields(source); routing = data.get('routing') or {}
             target = data.get('target') or ({'kind': 'agent', 'name': data['agent']} if data.get('agent') else {'kind': 'skill', 'name': data['skill']} if data.get('skill') else {})
             target_id = f'{target.get("kind")}:{target.get("name")}'
             proof = yaml_key_spans(source, ('target', 'agent', 'skill', 'routing', 'mode'))
@@ -1218,7 +1255,7 @@ def _relations(corpus, records):
                 unknown(node.id, 'extract.scenario-target-missing', f'{source.path} targets {target_id}, which has no node', proof, 'Retarget the scenario or restore the component', absence=True)
             elif routing.get('expect') == 'not_fire':
                 alt = routing.get('expected_alternative')
-                edge('near_miss_for', node.id, target_id, proof, attrs={'expected_alternative': dict(record.attrs)['expected_alternative']})
+                edge('near_miss_for', node.id, target_id, proof, attrs={'expected_alternative': record.attributes['expected_alternative']})
                 if isinstance(alt, dict):
                     edge('routes_to', node.id, f'{alt.get("kind")}:{alt.get("name")}', proof, attrs={'via': 'expected_alternative'})
             else:
@@ -1255,7 +1292,7 @@ def _relations(corpus, records):
                     subject = f'agent:{owner}' if f'agent:{owner}' in by_id else f'owner:{owner}'
                     edge('owns', subject, node.id, spans((source.span(i, i),), by_id[subject].spans if subject in by_id else ()), attrs={'field': 'Owner'}, proof_kind=PK.JOINED)
     if roadmap:
-        for item, start, end, fields, positions in corpus.roadmap_entries(roadmap):
+        for item, _, _, fields, positions in corpus.roadmap_entries(roadmap):
             subject = f'roadmap-item:{item}'
             for field, value in fields.items():
                 for other in set(ITEM.findall(value)) - {item}:
@@ -1290,7 +1327,7 @@ def _relations(corpus, records):
             if source.path == 'docs/roadmap-closed.md':
                 ranges = [(p.start_line, p.end_line) for p in record.spans]
             else:
-                ranges = [(start, end) for item, start, end, _, _ in corpus.roadmap_entries(source) if item == record.name]
+                ranges = [(entry.start, entry.end) for entry in corpus.roadmap_entries(source) if entry.item == record.name]
         else:
             ranges = [(1, len(source.lines))]
         for i in sorted({i for start, end in ranges for i in range(start, end + 1)}):
@@ -1302,7 +1339,7 @@ def _relations(corpus, records):
                     edge('evidenced_by', record.node.id, dest.node.id, proof, attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
                     incoming_reviews.add(dest.node.id)
             for batch in set(BATCH.findall(line)):
-                targets = [r for r in records if r.node.type == 'review' and batch in dict(r.attrs).get('batches', ())]
+                targets = [r for r in records if r.node.type == 'review' and batch in r.attributes.get('batches', ())]
                 if not targets and record.node.type == 'roadmap-item':
                     unknown(record.node.id, 'extract.batch-unresolved', f'{source.path}:{i} cites batch {batch} with no review', (source.span(i, i),), 'Retain the durable review behind the batch', absence=True)
                 for target in targets:
@@ -1363,7 +1400,7 @@ def _relations(corpus, records):
             subject = f'agent:{agent}'
             if subject not in by_id:
                 continue
-            granted = set(dict(by_id[subject].attrs)['grants'])
+            granted = set(by_id[subject].attributes['grants'])
             if granted != set(targets):
                 unknown(subject, 'cite.delegation-mismatch', f'agents/{agent}.md grants {sorted(granted)} but EXPECTED_DELEGATION says {sorted(targets)}', spans(expected_proof, by_id[subject].spans), 'Reconcile the agent frontmatter and validated delegation contract')
             else:
@@ -1388,9 +1425,9 @@ def _relations(corpus, records):
     # Staleness is advisory for every dated live status, never an artifact-check failure.
     for record in records:
         if record.node.type == 'roadmap-item' and record.state == 'live':
-            date = DATE.search(str(dict(record.attrs).get('status_text', '')))
+            date = DATE.search(str(record.attributes.get('status_text', '')))
             evidence = [by_id[f.object] for f in facts.values() if f.subject == record.node.id and f.predicate == 'evidenced_by']
-            dated = [(r, dict(r.attrs).get('date')) for r in evidence if dict(r.attrs).get('date')]
+            dated = [(r, r.attributes.get('date')) for r in evidence if r.attributes.get('date')]
             if date and dated and max(d for _, d in dated) < date.group():
                 newest = max(d for _, d in dated)
                 unknown(record.node.id, 'stale.evidence-predates-status', f'{record.name} status is dated {date.group()} but its newest cited evidence is {newest}', spans(record.spans, *(r.spans for r, _ in dated)), 'Cite the evidence behind the current status or revise the status')
@@ -1491,6 +1528,25 @@ def _guidance(corpus, records):
     return tuple(output)
 
 
+# Record fields whose value the extractor derives rather than quotes: a count, list,
+# flag, filename-derived identity, or the donor's bounded display value of a longer field.
+COMPUTED_FIELDS = frozenset(('authority', 'attr.bytes', 'attr.fields', 'attr.batches', 'attr.batch', 'attr.banner',
+                             'attr.linked_from_roadmap', 'attr.kind', 'attr.skill', 'attr.file',
+                             'attr.status_text', 'attr.owner', 'attr.disposition'))
+# Record fields mapped onto a closed vocabulary or normalised text.
+NORMALIZED_FIELDS = frozenset(('state', 'attr.manual_only', 'attr.grants', 'attr.description'))
+
+
+def _field_proof_kind(record: Record, predicate: str) -> PK:
+    if record.evidence_class == EC.INFERRED:
+        return PK.INFERRED
+    if predicate in COMPUTED_FIELDS or (predicate == 'name' and record.node.type != 'scenario'):
+        return PK.COMPUTED  # A scenario's name is its quoted id; others are filenames, identities or rows.
+    if predicate in NORMALIZED_FIELDS or (predicate == 'attr.status' and record.node.type == 'roadmap-item'):
+        return PK.NORMALIZED
+    return record.proof_kind
+
+
 def _record_facts(corpus, inputs):
     records = inputs['catalog'].records
     buckets = {}
@@ -1499,22 +1555,8 @@ def _record_facts(corpus, inputs):
         nodes.append(record.node)
         fields = (('name', record.name), ('authority', record.authority), ('state', record.state)) + tuple(('attr.' + key, value) for key, value in record.attrs)
         for predicate, value in fields:
-            kind = record.proof_kind
-            if record.evidence_class == EC.INFERRED:
-                kind = PK.INFERRED
-            elif predicate == 'authority' or predicate in ('attr.bytes', 'attr.fields', 'attr.batches', 'attr.batch', 'attr.banner',
-                                                         'attr.linked_from_roadmap', 'attr.kind', 'attr.skill', 'attr.file'):
-                kind = PK.COMPUTED
-            elif predicate == 'name' and record.node.type != 'scenario':
-                kind = PK.COMPUTED  # Filename, stable identity, row excerpt or declared owner.
-            elif predicate in ('state', 'attr.manual_only', 'attr.grants', 'attr.description'):
-                kind = PK.NORMALIZED
-            elif predicate == 'attr.status' and record.node.type == 'roadmap-item':
-                kind = PK.NORMALIZED
-            elif predicate in ('attr.status_text', 'attr.owner', 'attr.disposition'):
-                kind = PK.COMPUTED  # The donor's bounded display value, not the entire field.
             facts.append(Fact(stable_id('fact', record.node.id, predicate), record.node.id, predicate, value,
-                record.evidence_class, Proof(kind, record.spans, EVALUATOR)))
+                record.evidence_class, Proof(_field_proof_kind(record, predicate), record.spans, EVALUATOR)))
     return StageOutput(buckets=tuple(Bucket(name, tuple(sorted(nodes)), tuple(sorted(facts, key=lambda f: f.id)))
                  for name, (nodes, facts) in sorted(buckets.items())))
 
