@@ -3165,82 +3165,56 @@ class ActivationTests(unittest.TestCase):
                 reconciled_manifest,
             )
 
-    def test_timeout_stops_without_volumes_and_returns_resume_exit(self) -> None:
-        calls: list[list[str]] = []
+    def test_launch_fault_stops_without_volumes_and_returns_its_exit(self) -> None:
+        def timed_out(arguments, timeout_seconds):
+            return subprocess.TimeoutExpired(arguments, timeout_seconds)
 
-        def runner(arguments, *, environment, timeout_seconds, stdin=None):
-            arguments = list(arguments)
-            calls.append(arguments)
-            if "up" in arguments:
-                raise subprocess.TimeoutExpired(arguments, timeout_seconds)
-            if "stop" in arguments:
-                return completed(arguments)
-            self.fail(f"unexpected timeout command: {arguments}")
+        def interrupted(arguments, timeout_seconds):
+            return KeyboardInterrupt()
 
-        with tempfile.TemporaryDirectory() as temporary:
-            result = self.execute(runner, Path(temporary))
-        self.assertEqual(result.returncode, 124)
-        stop = calls[-1]
-        self.assertIn("stop", stop)
-        self.assertNotIn("--volumes", stop)
+        cases = (
+            # fault raised by `up`, `stop` exit status, host exit
+            (timed_out, 0, 124),
+            (interrupted, 0, 130),
+            (timed_out, 1, 125),
+        )
+        for fault, stop_status, expected_exit in cases:
+            with (
+                self.subTest(fault=fault.__name__, stop_status=stop_status),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
+                calls: list[list[str]] = []
+
+                def runner(arguments, *, environment, timeout_seconds, stdin=None):
+                    arguments = list(arguments)
+                    calls.append(arguments)
+                    if "up" in arguments:
+                        raise fault(arguments, timeout_seconds)
+                    if "stop" in arguments:
+                        return subprocess.CompletedProcess(arguments, stop_status, stdout="", stderr="")
+                    self.fail(f"unexpected command after {fault.__name__}: {arguments}")
+
+                result = self.execute(runner, Path(temporary))
+                self.assertEqual(result.returncode, expected_exit)
+                self.assertIn("stop", calls[-1])
+                self.assertFalse(any("--volumes" in command for command in calls))
 
     def test_production_wrapper_timeout_reaches_preservation_branch(self) -> None:
-        timeout = subprocess.TimeoutExpired(["docker", "compose", "up"], 960)
-        stop = completed(["docker", "compose", "stop"])
-        with tempfile.TemporaryDirectory() as temporary, mock.patch(
-            "preflight.subprocess.run", side_effect=[timeout, stop]
-        ):
-            result = self.execute(run_process, Path(temporary))
-        self.assertEqual(result.returncode, 124)
-
-    def test_production_wrapper_stop_failure_returns_preservation_failure(self) -> None:
-        timeout = subprocess.TimeoutExpired(["docker", "compose", "up"], 960)
-        failed_stop = subprocess.CompletedProcess(
-            ["docker", "compose", "stop"], 1, stdout="", stderr="failed"
-        )
-        with tempfile.TemporaryDirectory() as temporary, mock.patch(
-            "preflight.subprocess.run", side_effect=[timeout, failed_stop]
-        ) as process:
-            result = self.execute(run_process, Path(temporary))
-        self.assertEqual(result.returncode, 125)
-        self.assertFalse(
-            any("--volumes" in list(call.args[0]) for call in process.call_args_list)
-        )
-
-    def test_keyboard_interrupt_stops_without_volumes_and_returns_resume_exit(self) -> None:
-        calls: list[list[str]] = []
-
-        def runner(arguments, *, environment, timeout_seconds, stdin=None):
-            arguments = list(arguments)
-            calls.append(arguments)
-            if "up" in arguments:
-                raise KeyboardInterrupt
-            if "stop" in arguments:
-                return completed(arguments)
-            self.fail(f"unexpected interrupt command: {arguments}")
-
-        with tempfile.TemporaryDirectory() as temporary:
-            result = self.execute(runner, Path(temporary))
-        self.assertEqual(result.returncode, 130)
-        self.assertIn("stop", calls[-1])
-        self.assertNotIn("--volumes", calls[-1])
-
-    def test_stop_failure_returns_preservation_failure_without_volume_removal(self) -> None:
-        calls: list[list[str]] = []
-
-        def runner(arguments, *, environment, timeout_seconds, stdin=None):
-            arguments = list(arguments)
-            calls.append(arguments)
-            if "up" in arguments:
-                raise subprocess.TimeoutExpired(arguments, timeout_seconds)
-            if "stop" in arguments:
-                return subprocess.CompletedProcess(arguments, 1, stdout="", stderr="failed")
-            self.fail(f"unexpected stop-failure command: {arguments}")
-
-        with tempfile.TemporaryDirectory() as temporary:
-            result = self.execute(runner, Path(temporary))
-        self.assertEqual(result.returncode, 125)
-        self.assertFalse(any("--volumes" in command for command in calls))
+        for stop_status, expected_exit in ((0, 124), (1, 125)):
+            side_effect = [
+                subprocess.TimeoutExpired(["docker", "compose", "up"], 960),
+                subprocess.CompletedProcess(["docker", "compose", "stop"], stop_status, stdout="", stderr=""),
+            ]
+            with (
+                self.subTest(stop_status=stop_status),
+                tempfile.TemporaryDirectory() as temporary,
+                mock.patch("preflight.subprocess.run", side_effect=side_effect) as process,
+            ):
+                result = self.execute(run_process, Path(temporary))
+                self.assertEqual(result.returncode, expected_exit)
+                self.assertFalse(
+                    any("--volumes" in list(call.args[0]) for call in process.call_args_list)
+                )
 
     def test_host_export_rejects_unexpected_paths_and_size_overflow(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
