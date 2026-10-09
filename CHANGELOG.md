@@ -6,6 +6,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-10-09
+
 ### Fixed
 
 - The two routing negatives whose alternative is `reviewer` asked about material their empty
