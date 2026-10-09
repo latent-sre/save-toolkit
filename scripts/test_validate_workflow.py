@@ -19,6 +19,10 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "validate.yml"
 
 
+def workflow_jobs() -> dict:
+    return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+
+
 class ValidateWorkflowTests(unittest.TestCase):
     def test_sandbox_dependencies_match_repository_pins(self) -> None:
         def pins(path):
@@ -34,7 +38,7 @@ class ValidateWorkflowTests(unittest.TestCase):
                                  "sandbox dependencies drifted from the repository pin set")
 
     def test_ci_tracks_latest_python_314(self) -> None:
-        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        jobs = workflow_jobs()
         for name in ("validate", "component-tests"):
             setup = next(step for step in jobs[name]["steps"]
                          if step.get("uses", "").startswith("actions/setup-python@"))
@@ -42,7 +46,7 @@ class ValidateWorkflowTests(unittest.TestCase):
             self.assertIs(setup["with"]["check-latest"], True)
 
     def test_repository_actions_use_major_tags(self) -> None:
-        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        jobs = workflow_jobs()
         for job in jobs.values():
             for step in job["steps"]:
                 if "uses" in step:
@@ -75,7 +79,7 @@ class ValidateWorkflowTests(unittest.TestCase):
                         self.assertEqual(oracle.case_reviewed_pins() is None, approved)
 
     def test_plugin_validator_tracks_latest_and_records_its_version(self) -> None:
-        job = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["claude-plugin-contract"]
+        job = workflow_jobs()["claude-plugin-contract"]
         commands = [line.strip() for step in job["steps"] for line in step.get("run", "").splitlines()]
         install = commands.index("npm install -g @anthropic-ai/claude-code@latest")
         version = commands.index("claude --version")
@@ -101,7 +105,7 @@ class ValidateWorkflowTests(unittest.TestCase):
         )
 
     def test_ci_runs_only_linux_and_preserves_the_required_check_name(self) -> None:
-        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        jobs = workflow_jobs()
         self.assertEqual({"ubuntu-latest"}, {job["runs-on"] for job in jobs.values()})
         self.assertNotIn("strategy", jobs["component-tests"])
         self.assertEqual("component-tests (ubuntu-latest)", jobs["component-tests"]["name"])
@@ -231,7 +235,7 @@ class ValidateWorkflowTests(unittest.TestCase):
         self.assertIn("-I -S", hook, "the guard's isolated invocation is what makes this binding")
 
     def test_component_tests_install_dependencies_and_run_pytest(self) -> None:
-        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        jobs = workflow_jobs()
         commands = [step.get("run") for step in jobs["component-tests"]["steps"]]
         self.assertIn("python -m pytest -q", commands)
         self.assertIn("python -m pip install -r requirements-test.txt", commands)
@@ -242,7 +246,7 @@ class ValidateWorkflowTests(unittest.TestCase):
         A .pyc that one worker writes while another runs a native trial reads as plugin drift, so
         parallel workers are only safe while the test step writes no bytecode.
         """
-        jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+        jobs = workflow_jobs()
         step = next(step for step in jobs["component-tests"]["steps"]
                     if step.get("run") == "python -m pytest -q")
         environment = step.get("env", {})
@@ -290,6 +294,16 @@ class ArtifactPromotionOracleTests(unittest.TestCase):
                 capture_output=True, text=True, timeout=20,
             )
 
+    def assert_accepted(self, steps, **options):
+        result = self.probe(steps, **options)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def assert_rejected(self, steps, reason, **options):
+        """The probe fails the artifact-promoted case and its report names `reason`."""
+        result = self.probe(steps, **options)
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn(reason, result.stdout)
+
     @staticmethod
     def checkout(**inputs):
         return {"uses": "actions/checkout@v7", "with": inputs}
@@ -336,21 +350,18 @@ class ArtifactPromotionOracleTests(unittest.TestCase):
         ]
         for name, path, push, options in cases:
             with self.subTest(name=name):
-                result = self.probe([self.checkout(), self.download(path), push], **options)
-                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assert_accepted([self.checkout(), self.download(path), push], **options)
 
     def test_checkout_path_and_step_shell_directory_are_resolved_separately(self):
-        result = self.probe([
+        self.assert_accepted([
             self.checkout(path="source"), self.download("source/dist"),
             {"run": "cd source/dist"},
             {"run": "cf push checkout -f source/manifest.yml -p source/dist/checkout.zip"},
         ])
-        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-        result = self.probe([
+        self.assert_accepted([
             self.checkout(), self.download(None),
             {"run": "cf push checkout -f ../manifest.yml -p ../checkout.zip"},
         ], defaults={"working-directory": "dist"})
-        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_unrelated_ignored_and_unresolved_payloads_are_rejected(self):
         cases = [
@@ -369,11 +380,9 @@ class ArtifactPromotionOracleTests(unittest.TestCase):
         ]
         for name, path, command in cases:
             with self.subTest(name=name):
-                result = self.probe([
+                self.assert_rejected([
                     self.checkout(), self.download(path), {"run": command},
-                ], env={"ARTIFACT_DIR": "dist"})
-                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-                self.assertIn("artifact-promoted", result.stdout)
+                ], "artifact-promoted", env={"ARTIFACT_DIR": "dist"})
 
     def test_replacement_rebuild_and_opaque_shell_before_push_are_rejected(self):
         for command in (
@@ -393,11 +402,9 @@ class ArtifactPromotionOracleTests(unittest.TestCase):
             "echo deploying # comment \\\ncp /tmp/unrelated-bytes dist/checkout.zip",
         ):
             with self.subTest(command=command):
-                result = self.probe([
+                self.assert_rejected([
                     self.checkout(), self.download(), {"run": command + "\ncf push checkout"},
-                ])
-                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-                self.assertIn("unsupported", result.stdout)
+                ], "unsupported")
 
     def test_download_and_reviewed_checkout_must_precede_every_push(self):
         push = {"run": "cf push checkout"}
@@ -414,9 +421,7 @@ class ArtifactPromotionOracleTests(unittest.TestCase):
         ]
         for name, steps in cases:
             with self.subTest(name=name):
-                result = self.probe(steps)
-                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-                self.assertIn("artifact-promoted:", result.stdout)
+                self.assert_rejected(steps, "artifact-promoted:")
 
     def test_opaque_trailing_pushes_and_option_substitutions_are_rejected(self):
         for trailing in (
@@ -427,71 +432,54 @@ class ArtifactPromotionOracleTests(unittest.TestCase):
                 with self.subTest(trailing=trailing, same_step=same_step):
                     runs = ([{"run": "cf push checkout\n" + trailing}] if same_step else
                             [{"run": "cf push checkout"}, {"run": trailing}])
-                    result = self.probe([self.checkout(), self.download(), *runs])
-                    self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-                    self.assertIn("unsupported", result.stdout)
+                    self.assert_rejected([self.checkout(), self.download(), *runs], "unsupported")
         for option in ("--strategy", "-b", "-c"):
             with self.subTest(option=option):
-                result = self.probe([
+                self.assert_rejected([
                     self.checkout(), self.download(),
                     {"run": f'cf push checkout {option} "$(cp /tmp/unrelated-bytes dist/checkout.zip)"'},
-                ])
-                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-                self.assertIn("unsupported", result.stdout)
-        result = self.probe([
+                ], "unsupported")
+        self.assert_accepted([
             self.checkout(), self.download(),
             {"run": "cf push checkout\ncf app checkout"}, {"run": "echo deployment complete"},
         ])
-        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_modified_manifest_and_an_additional_bad_deploy_job_are_rejected(self):
-        result = self.probe([
+        self.assert_rejected([
             self.checkout(), self.download(), {"run": "cf push checkout -p dist/checkout.zip"},
-        ], manifest="applications:\n  - name: checkout\n    path: /tmp/unrelated\n")
-        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-        self.assertIn("reviewed fixture manifest", result.stdout)
-        result = self.probe([
+        ], "reviewed fixture manifest", manifest="applications:\n  - name: checkout\n    path: /tmp/unrelated\n")
+        self.assert_rejected([
             self.checkout(), self.download(), {"run": "cf push checkout"},
-        ], additional_jobs={"other": {"steps": [
+        ], "job other: cf push payload", additional_jobs={"other": {"steps": [
             self.checkout(), self.download("ignored"), {"run": "cf push checkout"},
         ]}})
-        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-        self.assertIn("job other: cf push payload", result.stdout)
 
     def test_every_option_value_must_be_one_resolved_shell_word(self):
         for option in ("--strategy", "-b", "-m", "-i", "-k", "-t", "-c"):
             with self.subTest(option=option):
-                result = self.probe([
+                self.assert_rejected([
                     self.checkout(), self.download(), {"run": f"cf push checkout {option} $BUILDPACK"},
-                ], env={"BUILDPACK": "null -p /tmp/unrelated-bytes"})
-                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-                self.assertIn("unsupported", result.stdout)
+                ], "unsupported", env={"BUILDPACK": "null -p /tmp/unrelated-bytes"})
         for value in (None, "", "*", "?", "[abc]"):
             with self.subTest(value=value):
-                result = self.probe([
+                self.assert_rejected([
                     self.checkout(), self.download(), {"run": "cf push checkout -b $BUILDPACK"},
-                ], env={} if value is None else {"BUILDPACK": value})
-                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-                self.assertIn("unsupported", result.stdout)
+                ], "unsupported", env={} if value is None else {"BUILDPACK": value})
         for value in ("null -p /tmp/unrelated-bytes", "*", "?", "[abc]"):
             with self.subTest(quoted_value=value):
-                result = self.probe([
+                self.assert_accepted([
                     self.checkout(), self.download(), {"run": 'cf push checkout -b "$BUILDPACK"'},
                 ], env={"BUILDPACK": value})
-                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         for option in ("--no-start", "--no-route", "--random-route", "--no-wait"):
             with self.subTest(inline_option=option):
-                result = self.probe([
+                self.assert_rejected([
                     self.checkout(), self.download(), {"run": f"cf push checkout {option}=$FLAGS"},
-                ], env={"FLAGS": "true -p /tmp/unrelated-bytes"})
-                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-                self.assertIn("unsupported", result.stdout)
+                ], "unsupported", env={"FLAGS": "true -p /tmp/unrelated-bytes"})
         for value in ("true", "false"):
             with self.subTest(boolean_value=value):
-                result = self.probe([
+                self.assert_accepted([
                     self.checkout(), self.download(), {"run": f"cf push checkout --no-start={value}"},
                 ])
-                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
