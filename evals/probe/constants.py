@@ -25,6 +25,17 @@ def oracle_source(relative: object) -> Path | None:
     return source if source.is_file() and ORACLE_DIR in source.parents else None
 
 
+# The measured plugin's name: the namespace its skills and agents fire under, as a trial's prompt and
+# `--agent` pin name them. A grade reads the namespace a run actually used from its trace
+# (`tracing.runtime_namespace`).
+PLUGIN = "save-toolkit"
+
+
+def namespaced(component: str) -> str:
+    """A skill or agent as the plugin's namespace spells it: `save-toolkit:<component>`."""
+    return f"{PLUGIN}:{component}"
+
+
 BUILD_TOOLS = ("Read", "Edit", "Write", "Grep", "Glob", "Bash", "Skill", "Task")
 # Tools that can change files. A trial holding any of these never gets the measured checkout as a
 # working directory, so a mistaken or fixture-supplied instruction cannot edit the candidate.

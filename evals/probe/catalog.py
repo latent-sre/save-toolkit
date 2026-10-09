@@ -66,11 +66,17 @@ def scenario_prompt(spec: Spec, plugin_root: Path = ROOT) -> str:
         )
     if spec.get("skill"):
         return (
-            f"Use the Skill tool to invoke `save-toolkit:{spec['skill']}` before answering. "
+            f"Use the Skill tool to invoke `{constants.namespaced(spec['skill'])}` before answering. "
             "If the Skill call does not complete successfully, do not answer the task.\n\n"
             f"{prompt}"
         )
     return prompt
+
+
+def agent_pin(spec: Spec) -> str | None:
+    """The `--agent` value a scenario that pins an agent runs under, which a native regrade checks
+    each saved invocation against."""
+    return constants.namespaced(spec["agent"]) if spec.get("agent") else None
 
 
 def scenario_tools(spec: Spec) -> tuple[str, ...]:
@@ -586,8 +592,8 @@ def _routing_problems(spec: Spec, where: str) -> list[str]:
 
 
 def _prompt_names_target(prompt: str, target: Mapping[str, Any]) -> bool:
-    name = re.escape(target["name"])
-    pattern = rf"(?<![a-z0-9-])(?:/save-toolkit:|@agent-save-toolkit:|save-toolkit:)?{name}(?![a-z0-9-])"
+    name, plugin = re.escape(target["name"]), re.escape(constants.PLUGIN)
+    pattern = rf"(?<![a-z0-9-])(?:/{plugin}:|@agent-{plugin}:|{plugin}:)?{name}(?![a-z0-9-])"
     return re.search(pattern, prompt, re.IGNORECASE) is not None
 
 

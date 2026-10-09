@@ -22,7 +22,7 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, checking, fingerprints, invocation, outcomes, records, tracing
+from . import assessment, catalog, checking, fingerprints, invocation, outcomes, records, tracing
 from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_IDENTITY, HARNESS_SOURCE_SHA256
@@ -74,8 +74,8 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
         if not isinstance(argv, list) or not all(isinstance(arg, str) for arg in argv):
             return "native invocation agent command evidence missing; re-run the trial"
         pins = [argv[i + 1] if i + 1 < len(argv) else None for i, arg in enumerate(argv) if arg == "--agent"]
-        expected_pins = [f"save-toolkit:{spec['agent']}"] if spec.get("agent") else []
-        if pins != expected_pins:
+        pin = catalog.agent_pin(spec)
+        if pins != ([pin] if pin else []):
             return "native invocation agent pin differs from scenario; re-run the trial"
         if invocation.credential_markers(trace.result_text, trace_path):
             return "native credential marker detected; re-run the trial"

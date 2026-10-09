@@ -289,7 +289,7 @@ def _invoke_turns(
         command = invocation.build_command(
             settings.executable,
             served,
-            f"save-toolkit:{spec['agent']}" if spec.get("agent") else None,
+            catalog.agent_pin(spec),
             prompt,
             settings.model,
             catalog.scenario_tools(spec),

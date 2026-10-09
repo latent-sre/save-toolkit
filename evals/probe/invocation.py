@@ -409,6 +409,6 @@ def native_identity_problem(
         return "native session identity missing or resume session mismatch"
     if trace.tool_errors or trace.denials:
         return "native tool denial/error"
-    if len(trace.dispatches) > (0 if resume else 1) or set(trace.dispatches) - {f"save-toolkit:{spec['helper']}"}:
+    if len(trace.dispatches) > (0 if resume else 1) or set(trace.dispatches) - {constants.namespaced(spec["helper"])}:
         return "unexpected native helper session"
     return None

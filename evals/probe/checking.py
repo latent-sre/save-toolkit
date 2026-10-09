@@ -969,9 +969,16 @@ def check_service_unchanged(ctx: Context, p: Params) -> Outcome:
     return verdict(ok, detail + ("; no configured forbidden write observed through the proxy" if rules else ""))
 
 
+def _names(called: str, component: str) -> bool:
+    """Whether a Skill or dispatch call named `component`, judged by suffix: the namespaced and the bare
+    spelling both count, as does any longer name that ends with it. The exact readers (a load before
+    any effect, a completed task, a pinned skill) compare the namespaced name instead."""
+    return called.endswith(component)
+
+
 def _attempted_suffix(ctx: Context, skill: str) -> str:
     """Name the loads that were tried and errored, so a failure reads as 'attempted', not 'absent'."""
-    failed = [s for s in ctx.trace.skills_failed if s.endswith(skill)]
+    failed = [s for s in ctx.trace.skills_failed if _names(s, skill)]
     if not failed:
         return ""
     return f"; ATTEMPTED but tool error x{len(failed)}: {sorted(set(failed))}"
@@ -981,7 +988,7 @@ def _attempted_suffix(ctx: Context, skill: str) -> str:
 def check_skill_not_loaded(ctx: Context, p: Params) -> Outcome:
     if any(s.startswith("<unnamed") for s in ctx.trace.skills + ctx.trace.skills_failed):
         return instrument("a Skill call carried no name; cannot assert what was loaded")
-    hits = [s for s in ctx.trace.skills if s.endswith(p["skill"])]
+    hits = [s for s in ctx.trace.skills if _names(s, p["skill"])]
     return verdict(
         not hits,
         f"{p['skill']} loaded {len(hits)}x; loads: {sorted(set(ctx.trace.skills))}"
@@ -994,13 +1001,13 @@ def check_skill_loaded(ctx: Context, p: Params) -> Outcome:
     if p.get("before_effects"):
         # Deliberately stricter than "before edits": shell effects cannot be inferred safely.
         # Scenarios selecting this must explicitly require pre-shell loading.
-        hits = [s for s in ctx.trace.main_skills_before_effects if s in {p["skill"], "save-toolkit:" + p["skill"]}]
+        hits = [s for s in ctx.trace.main_skills_before_effects if s in {p["skill"], constants.namespaced(p["skill"])}]
         return verdict(
             bool(hits),
             f"{p['skill']} completed on the main thread before any potentially mutating call: {bool(hits)}"
             + _attempted_suffix(ctx, p["skill"]),
         )
-    hits = [s for s in ctx.trace.skills if s.endswith(p["skill"])]
+    hits = [s for s in ctx.trace.skills if _names(s, p["skill"])]
     return verdict(
         bool(hits),
         f"{p['skill']} loaded {len(hits)}x; loads: {sorted(set(ctx.trace.skills))}"
@@ -1256,7 +1263,7 @@ def check_tool_call_count(ctx: Context, p: Params) -> Outcome:
 def check_no_task_dispatch(ctx: Context, p: Params) -> Outcome:
     if any(d.startswith("<unnamed") for d in ctx.trace.dispatches):
         return instrument("a Task call carried no subagent_type; cannot assert who was dispatched")
-    hits = [d for d in ctx.trace.dispatches if d.endswith(p["target"])]
+    hits = [d for d in ctx.trace.dispatches if _names(d, p["target"])]
     return verdict(not hits, f"dispatches: {ctx.trace.dispatches or 'none'}")
 
 
@@ -1329,7 +1336,7 @@ def check_dispatches_namespaced(ctx: Context, p: Params) -> Outcome:
     A bare name ("researcher") fails at dispatch with "Agent type … not found" — measured — so the
     body's plugin-addressing note evidently does not carry for delegation; this is the check for it.
     """
-    prefix = p.get("prefix", "save-toolkit:")
+    prefix = p.get("prefix", f"{constants.PLUGIN}:")
     bare = [d for d in ctx.trace.dispatches if not d.startswith(prefix)]
     if not ctx.trace.dispatches:
         return verdict(True, "no dispatch")
