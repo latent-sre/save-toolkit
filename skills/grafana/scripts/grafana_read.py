@@ -128,16 +128,23 @@ def _settings(environ, path):
     """The environment when it names any Grafana setting, even empty; otherwise the per-user file."""
     if path is None or any(name in environ for name in SETTINGS):
         return environ
+    # One open that follows no final symlink (and cannot hang on a FIFO); check and read that descriptor.
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
     try:
-        if os.name == "posix":
-            info = path.stat()
-            if not stat.S_ISREG(info.st_mode):
-                raise SafeError("invalid_settings_file")
-            if not _private(info, os.getuid()):
-                raise SafeError("insecure_settings_file")
-        raw = path.read_bytes()
+        descriptor = os.open(path, flags)
     except FileNotFoundError:
         return environ
+    except OSError:
+        raise SafeError("invalid_settings_file") from None
+    try:
+        with open(descriptor, "rb") as handle:
+            if os.name == "posix":
+                info = os.fstat(descriptor)
+                if not stat.S_ISREG(info.st_mode):
+                    raise SafeError("invalid_settings_file")
+                if not _private(info, os.getuid()):
+                    raise SafeError("insecure_settings_file")
+            raw = handle.read(MAX_SETTINGS_FILE + 1)
     except OSError:
         raise SafeError("invalid_settings_file") from None
     try:

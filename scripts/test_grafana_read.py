@@ -326,6 +326,29 @@ def test_posix_settings_file_must_be_owner_only(mode, owner, private):
     assert reader._private(info, 1000) is private
 
 
+def test_settings_file_is_checked_and_read_through_one_open(monkeypatch, tmp_path):
+    use_settings(monkeypatch, tmp_path, SETTINGS_TEXT)
+    def resolved_again(*args, **kwargs):
+        raise AssertionError("path resolved again after it was opened")
+    monkeypatch.setattr(Path, "stat", resolved_again)
+    monkeypatch.setattr(Path, "read_bytes", resolved_again)
+    transport = Transport((200, {"dashboard": {"uid": "board"}, "meta": {}}))
+    assert invoke(["dashboard", "--uid", "board"], transport, {})[0] == 0
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX symlinks and O_NOFOLLOW")
+def test_symlinked_settings_file_is_refused(monkeypatch, tmp_path):
+    target = tmp_path / "elsewhere.env"
+    target.write_text(SETTINGS_TEXT)
+    target.chmod(0o600)
+    link = tmp_path / "grafana.env"
+    link.symlink_to(target)
+    monkeypatch.setattr(reader, "_settings_file", lambda: link)
+    transport = Transport()
+    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, {})
+    assert code == 2 and result["error"] == "invalid_settings_file" and not transport.requests
+
+
 @pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits")
 def test_group_or_world_readable_settings_file_is_refused(monkeypatch, tmp_path):
     use_settings(monkeypatch, tmp_path, SETTINGS_TEXT).chmod(0o644)

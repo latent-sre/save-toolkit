@@ -6,6 +6,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Fixed
+
+- On macOS and Linux the Grafana helper checked its settings file by path and then read it by path,
+  so a replaced file or a symlink could pass the owner-only check. It now opens the file once,
+  without following a symlink, and checks and reads that same descriptor.
+
 ## [0.51.0] - 2026-10-09
 
 ### Fixed
