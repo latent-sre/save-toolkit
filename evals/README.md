@@ -176,7 +176,10 @@ and runnable without duplicating its program inside YAML.
 
 `command_exit_zero` can declare `inconclusive_exit_code` (an integer from 1 to 255) for a
 probe-owned unavailable measurement. That exit makes the trial INCONCLUSIVE; zero passes and
-all other nonzero exits fail. Without the declaration, every nonzero exit fails.
+all other nonzero exits fail. Without the declaration, every nonzero exit fails. It can also
+declare `failure_exit_code`, the code its oracle uses for a failed contract: then only that code
+fails the candidate, and any other nonzero exit, such as the oracle's own uncaught exception, is an
+instrument failure that stops the scenario.
 
 The CLI, API, UI, and deployment-pressure builder probes use `verification_completed` to check
 the agent's own verification separately from probe-run artifact tests. It requires a foreground
@@ -657,9 +660,10 @@ measurement failure: its check is INCONCLUSIVE, the grade names it as `grader_er
 runs no more trials of that scenario; a grader returns an error in the candidate's own output as a
 FAIL. A `tool_call_count` with a positive minimum is both: on a run cut short, calls beyond its
 maximum FAIL while a minimum not yet reached stays INCONCLUSIVE.
-An unknown `fleet_grader` name is rejected by `--validate`. Oracle scripts still fail with exit 1,
-which an uncaught exception also produces, until each is moved to a distinct failure code
-(`EVAL-011`). A backing-service cleanup failure after grading keeps
+An unknown `fleet_grader` name is rejected by `--validate`. The operator-CLI oracle fails a
+contract with exit 10, which its scenario declares as `failure_exit_code`. The incident-writes,
+incidents-api and pager-webhook oracles still fail with exit 1, which an uncaught exception also
+produces, until each is moved to a distinct failure code (`EVAL-011`). A backing-service cleanup failure after grading keeps
 the verdict, is recorded as `after_assessment`, and stops the batch from starting another trial.
 A scenario may declare `max_turns` (1 to 500), passed to the CLI as `--max-turns`; a session the CLI
 ends there is a completed run (`run_end: turn_limit`) whose unmet requirements fail, while the same
