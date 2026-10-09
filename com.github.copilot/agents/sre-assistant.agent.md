@@ -149,10 +149,10 @@ must pass, without implementing it.
 
 On Claude, Bash and PowerShell run behind a command allowlist. It checks command syntax only, not
 the target, output safety, or whether a read fits your assignment, so those stay your job.
-On Copilot, this lane has no shell in the standard profile; its VS Code command preview is for
-acceptance testing under `grafana`'s [command-access](../skills/grafana/references/command-access.md)
-prerequisites. Where a read is unavailable, use supplied observations and other permitted reads;
-never substitute a shell, interpreter, or HTTP client to get around the limit.
+On Copilot, this lane has no shell in the standard profile; its VS Code command preview is an
+acceptance-testing profile, not a production path. Where a read is unavailable, use supplied
+observations and other permitted reads; never substitute a shell, interpreter, or HTTP client to
+get around the limit.
 
 ### Grafana: compare what is stored, returned, and visible
 
@@ -160,9 +160,9 @@ Load `grafana`'s [dashboard-reading](../skills/grafana/references/dashboard-read
 [visual-verification](../skills/grafana/references/visual-verification.md) before browser or capture calls.
 Browser tools are for viewing, and no hook checks them, so this rule is the only control. Click, type,
 select, or press keys only to reach and read the requested view: search, time range, panel menu, or
-tab. Never save, apply, submit, silence, acknowledge, or delete through a page; never sign in or
-enter credentials; stay in the requested Grafana context. Use a read-only session on a trusted
-origin and org, and keep captures in a dedicated workspace.
+tab. Never save, apply an edit, submit, silence, acknowledge, or delete through a page (the time
+picker's Apply is a view control); never sign in or enter credentials; stay in the requested Grafana
+context. Use a read-only session on a trusted origin and org.
 
 Follow those references' model/query/image comparisons; report which checks ran and inaccessible panels/data.
 Visual claims require image inspection. Configuration, query results and appearance are separate
@@ -178,7 +178,11 @@ protected or caller-sanitized evidence; without a protected output path, request
 Manager view or sanitized observation. Escalate platform findings; do not debug BOSH/Gorouter.
 
 Other existing guarded reads include selected `gcloud` observations, `git log`/`git diff`, `gh`
-reads, and native status/DNS commands; use the named target, matching skill, and actual guard forms.
+reads, and native observations: PowerShell `Get-Date -Format o`, `Get-Service -Name <name>`,
+`Get-Process -Name <name>`, `Resolve-DnsName <host>`, `Test-NetConnection <host> -Port <n>`; macOS
+`date -u`, `uptime`, `uname -s`, `sw_vers -productVersion`, `dig <host>`, `df -h`. Before
+`ConvertTo-Json`, project named fields with `Select-Object -Property`; a whole process object can
+serialize environment credentials. Use the named target, matching skill, and actual guard forms.
 Filter pipes do not mask credentials, and file redirects and scripts are outside the grant.
 Anything unavailable is a recommendation with the exact supported read, purpose, expected result,
 and sanitization needed for the caller to supply it.
@@ -188,8 +192,10 @@ and sanitization needed for the caller to supply it.
 Prefer documented team helpers with established invocation, target, read effects and safe output;
 run only through a granted, protected path bound to the intended helper. Before Grafana command reads,
 load [command-access](../skills/grafana/references/command-access.md). Its allowlisted installed helper permits
-dashboard reads and validated Prometheus/Loki query POSTs; never use a workspace copy. Arbitrary
-proxies, other datasource queries and renderer installation remain unavailable. Other scripts need
+dashboard search and model reads, alert-rule state, annotation and silence reads, panel image
+renders and validated Prometheus/Loki query POSTs; use the installed copy (on Copilot, the generated
+`.github` copy), never another file. Open a rendered PNG before describing it. Arbitrary proxies, other datasource queries and renderer installation remain
+unavailable. Other scripts need
 a reviewed grant; otherwise use supplied results.
 
 For a failed helper, retain the sanitized error and inspect inputs, configuration references, and
@@ -223,7 +229,8 @@ Your grants, the allowlist, a read-only account, and gitignore do **not** provid
 credential isolation, and a masking helper does not protect other tools. Without an established
 protected path, use caller-sanitized results and report the missing path; unproven controls stay
 `[unverified]`. Do not probe raw paths for leaks or alter helpers to expose credentials. Report
-accidental exposure without repeating the credential or username, and stop that path.
+accidental exposure without repeating the credential or username, and stop that path. A signed-in
+display name shown in a Grafana page header may appear in a browser snapshot; never repeat it.
 
 ## Recommend, never apply
 

@@ -12,6 +12,7 @@ Exit 0: requested API operation succeeded (coverage unproven); 2: safe failure.
 
 import argparse
 import base64
+import hashlib
 import json
 import math
 import os
@@ -19,12 +20,14 @@ import re
 import ssl
 import stat
 import sys
+import tempfile
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError
-from urllib.parse import quote, quote_plus, urlsplit
+from urllib.parse import quote, quote_plus, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener
 
 MAX_RESPONSE = 2 * 1024 * 1024
@@ -42,7 +45,15 @@ UID = re.compile(r"[A-Za-z0-9_-]{1,40}\Z")
 SEARCH_TEXT = re.compile(r"[A-Za-z0-9 _.:-]{1,100}\Z")
 SETTINGS = ("GRAFANA_URL", "GRAFANA_ORG_ID", "GRAFANA_SA_TOKEN", "GRAFANA_USERNAME", "GRAFANA_PASSWORD")
 MAX_SETTINGS_FILE = 4096
-TEMPLATE = re.compile(r"\$(?:[A-Za-z_]|\{)|\[\[[A-Za-z_][^\]]*\]\]")
+MAX_RENDER_RANGE_MS = 7 * 24 * 60 * 60 * 1000
+MAX_IMAGE = 8 * 1024 * 1024
+RENDER_TIMEOUT = 45
+RENDER_WIDTH, RENDER_HEIGHT = 1200, 600
+MAX_VARIABLES = 5
+VARIABLE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}=[A-Za-z0-9_.:-]{1,100}\Z")
+SLUG = re.compile(r"[a-z0-9-]{1,100}\Z")
+PNG_SIGNATURE = bytes((137, 80, 78, 71, 13, 10, 26, 10))
+TEMPLATE =re.compile(r"\$(?:[A-Za-z_]|\{)|\[\[[A-Za-z_][^\]]*\]\]")
 
 
 class SafeError(Exception):
@@ -77,25 +88,39 @@ def parse_args(argv):
     annotations.add_argument("--to", dest="to_ms", type=int, required=True)
     annotations.add_argument("--dashboard-uid")
     commands.add_parser("silences", add_help=False, allow_abbrev=False)
+    render = commands.add_parser("render", add_help=False, allow_abbrev=False)
+    render.add_argument("--uid", required=True)
+    render.add_argument("--panel", type=int, required=True)
+    render.add_argument("--from", dest="from_ms", type=int, required=True)
+    render.add_argument("--to", dest="to_ms", type=int, required=True)
+    render.add_argument("--var", dest="variables", action="append", default=[])
     args = parser.parse_args(argv)
     expected = {"dashboard": {"--uid"}, "query": {"--datasource", "--kind", "--from", "--to", "--expr"},
-                "search": {"--query"}, "alerts": set(), "annotations": {"--from", "--to"}, "silences": set()}[args.command]
+                "search": {"--query"}, "alerts": set(), "annotations": {"--from", "--to"}, "silences": set(),
+                "render": {"--uid", "--panel", "--from", "--to"}}[args.command]
     if args.command == "query" and args.expr_base64 is not None:
         expected.remove("--expr")
         expected.add("--expr-base64")
     for flag, value in (("--folder-uid", getattr(args, "folder_uid", None)), ("--dashboard-uid", getattr(args, "dashboard_uid", None))):
         if value is not None:
             expected.add(flag)
-    # Require separate, single-use named flags; no positional or --flag=value variants.
-    if len(argv) != 1 + 2 * len(expected) or set(argv[1::2]) != expected:
+    # Separate named flags, each exactly once except a repeated --var; no positional or --flag=value variants.
+    variables = getattr(args, "variables", [])
+    wanted = dict.fromkeys(expected, 1) | ({"--var": len(variables)} if variables else {})
+    flags = argv[1::2]
+    if len(argv) % 2 != 1 or {flag: flags.count(flag) for flag in flags} != wanted:
         raise SafeError("invalid_arguments")
     uids = [getattr(args, name, None) for name in ("uid", "datasource", "folder_uid", "dashboard_uid")]
     if any(uid is not None and not UID.fullmatch(uid) for uid in uids):
         raise SafeError("invalid_arguments")
     if args.command == "search" and (not SEARCH_TEXT.fullmatch(args.query) or not args.query.strip()):
         raise SafeError("invalid_arguments")
-    if args.command in ("query", "annotations") and (
-            not 0 <= args.from_ms < args.to_ms <= 253402300799999 or args.to_ms - args.from_ms > MAX_RANGE_MS):
+    limit = MAX_RENDER_RANGE_MS if args.command == "render" else MAX_RANGE_MS
+    if args.command in ("query", "annotations", "render") and (
+            not 0 <= args.from_ms < args.to_ms <= 253402300799999 or args.to_ms - args.from_ms > limit):
+        raise SafeError("invalid_arguments")
+    if args.command == "render" and (not 1 <= args.panel <= 2**31 - 1 or len(variables) > MAX_VARIABLES
+                                     or not all(VARIABLE.fullmatch(item) for item in variables)):
         raise SafeError("invalid_arguments")
     if args.command == "query":
         if args.expr_base64 is not None:
@@ -135,16 +160,23 @@ def _settings(environ, path):
     """The environment when it names any Grafana setting, even empty; otherwise the per-user file."""
     if path is None or any(name in environ for name in SETTINGS):
         return environ
+    # One open that follows no final symlink (and cannot hang on a FIFO); check and read that descriptor.
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
     try:
-        if os.name == "posix":
-            info = path.stat()
-            if not stat.S_ISREG(info.st_mode):
-                raise SafeError("invalid_settings_file")
-            if not _private(info, os.getuid()):
-                raise SafeError("insecure_settings_file")
-        raw = path.read_bytes()
+        descriptor = os.open(path, flags)
     except FileNotFoundError:
         return environ
+    except OSError:
+        raise SafeError("invalid_settings_file") from None
+    try:
+        with open(descriptor, "rb") as handle:
+            if os.name == "posix":
+                info = os.fstat(descriptor)
+                if not stat.S_ISREG(info.st_mode):
+                    raise SafeError("invalid_settings_file")
+                if not _private(info, os.getuid()):
+                    raise SafeError("insecure_settings_file")
+            raw = handle.read(MAX_SETTINGS_FILE + 1)
     except OSError:
         raise SafeError("invalid_settings_file") from None
     try:
@@ -175,7 +207,8 @@ def _reject_constant(name):
 class _Connection:
     """One verified origin, credential and organization; every request carries all three."""
 
-    transport: Callable[[Request], tuple[int, bytes]]
+    # Called as transport(request), or with limit= and timeout= for a bounded image.
+    transport: Callable[..., tuple[int, bytes]]
     base: str
     authorization: str
     organization: int
@@ -211,6 +244,32 @@ class _Connection:
     def items(self, path):
         """A list endpoint: every item is an object, and none names another organization."""
         return _items(self.read(path, expect=list), self.organization)
+
+    def image(self, path):
+        """GET one bounded PNG at the fixed render size; return its bytes or raise SafeError."""
+        request = Request(self.base + path, headers={"Accept": "image/png", "Authorization": self.authorization,
+                                                     "X-Grafana-Org-Id": str(self.organization)}, method="GET")
+        try:
+            status, raw = self.transport(request, limit=MAX_IMAGE, timeout=RENDER_TIMEOUT)
+        except SafeError:
+            raise
+        except Exception:
+            raise SafeError("request_failed") from None
+        if 300 <= status < 400:
+            raise SafeError("redirect_rejected")
+        if status == 429:
+            raise SafeError("renderer_busy")
+        if status < 200 or status >= 300:
+            raise SafeError("http_error")
+        if len(raw) > MAX_IMAGE:
+            raise SafeError("response_too_large")
+        # A login page or error body served with 200 is not an image.
+        if raw[:8] != PNG_SIGNATURE or raw[12:16] != b"IHDR" or len(raw) < 24:
+            raise SafeError("invalid_image")
+        # Grafana answers its own concurrency limit or an unavailable renderer with a stock PNG under HTTP 200.
+        if (int.from_bytes(raw[16:20], "big"), int.from_bytes(raw[20:24], "big")) != (RENDER_WIDTH, RENDER_HEIGHT):
+            raise SafeError("renderer_placeholder")
+        return raw
 
 
 def _items(response, organization):
@@ -294,12 +353,12 @@ class _NoRedirect(HTTPRedirectHandler):
         raise SafeError("redirect_rejected")
 
 
-def http_transport(request):
+def http_transport(request, limit=MAX_RESPONSE, timeout=TIMEOUT):
     """No ambient proxies, redirects, netrc, custom trust bypass or credential files."""
     opener = build_opener(ProxyHandler({}), HTTPSHandler(context=ssl.create_default_context()), _NoRedirect())
     try:
-        with opener.open(request, timeout=TIMEOUT) as response:
-            return response.status, response.read(MAX_RESPONSE + 1)
+        with opener.open(request, timeout=timeout) as response:
+            return response.status, response.read(limit + 1)
     except HTTPError as error:
         # Never read/echo HTTP error bodies or exception text (which can contain auth).
         status = error.code
@@ -382,8 +441,68 @@ def _silences(grafana, args):
             "coverage": "permission_scoped"}
 
 
+def _panel(dashboard, panel_id):
+    """A non-row Classic panel with this integer ID, including panels inside collapsed rows."""
+    top = dashboard.get("panels") if isinstance(dashboard.get("panels"), list) else []
+    nested = [child for panel in top if isinstance(panel, dict) and isinstance(panel.get("panels"), list)
+              for child in panel["panels"]]
+    return next((panel for panel in top + nested if isinstance(panel, dict) and type(panel.get("id")) is int
+                 and panel["id"] == panel_id and panel.get("type") != "row"), None)
+
+
+def _render_dir():
+    """A fixed per-user capture directory, never TMPDIR or the working directory; day-old renders go."""
+    try:
+        path = Path.home() / ".cache" / "save-toolkit" / "grafana-renders"
+    except RuntimeError:
+        raise SafeError("capture_directory_unavailable") from None
+    if not path.is_absolute():
+        raise SafeError("capture_directory_unavailable")
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    cutoff = time.time() - 24 * 60 * 60
+    for old in path.glob("grafana-render-*.png"):
+        try:
+            if old.stat().st_mtime < cutoff:
+                old.unlink()
+        except OSError:
+            pass
+    return path
+
+
+def _save_image(raw):
+    """An owner-only file (mkstemp) in the per-user capture directory."""
+    descriptor, name = tempfile.mkstemp(prefix="grafana-render-", suffix=".png", dir=_render_dir())
+    with open(descriptor, "wb") as handle:
+        handle.write(raw)
+    return name
+
+
+def _render(grafana, args):
+    response = grafana.read("/api/dashboards/uid/" + args.uid)
+    dashboard, meta = response.get("dashboard"), response.get("meta")
+    if not isinstance(dashboard, dict) or dashboard.get("uid") != args.uid or not isinstance(meta, dict):
+        raise SafeError("invalid_dashboard_response")
+    panel = _panel(dashboard, args.panel)
+    if panel is None:
+        raise SafeError("panel_not_found")
+    slug = meta["slug"] if isinstance(meta.get("slug"), str) and SLUG.fullmatch(meta["slug"]) else "_"
+    params = [("orgId", grafana.organization), ("panelId", args.panel), ("from", args.from_ms), ("to", args.to_ms),
+              ("width", RENDER_WIDTH), ("height", RENDER_HEIGHT), ("scale", 1), ("tz", "UTC"),
+              ("timeout", RENDER_TIMEOUT - 5)]
+    params += [("var-" + name, value) for name, _, value in (item.partition("=") for item in args.variables)]
+    raw = grafana.image("/render/d-solo/" + args.uid + "/" + slug + "?" + urlencode(params))
+    return {"ok": True, "operation": "render", "uid": args.uid, "panel_id": args.panel,
+            "panel_title": panel.get("title"), "dashboard_version": dashboard.get("version"),
+            "from": str(args.from_ms), "to": str(args.to_ms), "tz": "UTC", "variables": args.variables,
+            "image_path": _save_image(raw), "image_bytes": len(raw), "image_sha256": hashlib.sha256(raw).hexdigest(),
+            "width": RENDER_WIDTH, "height": RENDER_HEIGHT,
+            # The PNG is evidence only once the caller opens and inspects it.
+            "coverage": "image_uninspected",
+            "limits": {"maxBytes": MAX_IMAGE, "timeoutSeconds": RENDER_TIMEOUT, "maxRangeMs": MAX_RENDER_RANGE_MS}}
+
+
 _OPERATIONS = {"dashboard": _dashboard, "query": _query, "search": _search, "alerts": _alerts,
-               "annotations": _annotations, "silences": _silences}
+               "annotations": _annotations, "silences": _silences, "render": _render}
 
 
 def run(args, environ, transport):
@@ -394,7 +513,12 @@ def run(args, environ, transport):
     result = _OPERATIONS[args.command](grafana, args)
     result.update({"grafana_url": grafana.base, "organization_id": grafana.organization,
                    "retrieved_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")})
-    return _mask(result, secrets)
+    masked = _mask(result, secrets)
+    if args.command == "render" and masked.get("image_path") != result["image_path"]:
+        # A configured Basic credential appears in the path; a masked path cannot be opened.
+        Path(result["image_path"]).unlink(missing_ok=True)
+        raise SafeError("image_path_masked")
+    return masked
 
 
 def main(argv=None, *, environ=None, transport=None, output=None):

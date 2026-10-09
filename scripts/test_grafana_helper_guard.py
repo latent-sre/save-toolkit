@@ -54,6 +54,8 @@ def test_copilot_query_transport_keeps_shell_and_expression_checks(arguments, ex
     "alerts --folder-uid payments",
     "annotations --from 1758400000000 --to 1758403600000 --dashboard-uid bsg-edge",
     "silences",
+    "render --uid bsg-cylon-ai --panel 7 --from 1758400000000 --to 1758403600000",
+    "render --uid bsg-host-detail --panel 3 --from 1758400000000 --to 1758403600000 --var host=adama --var host=cally",
 ])
 def test_only_installed_helper_reads_are_admitted(tool, arguments):
     assert decision(f"{PREFIX} {arguments}", tool) == ("deny" if tool == "PowerShell" and "--expr " in arguments else "allow")
@@ -117,6 +119,9 @@ def test_wrapper_does_not_grant_other_scripts_or_shell_forms(command):
     f"{PREFIX} annotations --from 0 --to 86400001",
     f"{PREFIX} silences --url https://other.invalid",
     f"{PREFIX} silences; cf restart edge",
+    f"{PREFIX} render --uid board --panel 0 --from 1000 --to 61000",
+    f"{PREFIX} render --uid board --panel 7 --from 1000 --to 61000 --var 'host=$(id)'",
+    f"{PREFIX} render --uid board --panel 7 --from 1000 --to 61000 --url https://other.invalid",
     PREFIX.replace(" -I -S ", " ") + " dashboard --uid edge",
     PREFIX.replace("grafana_read.py", "other.py") + " dashboard --uid edge",
     'python -I -S "./skills/grafana/scripts/grafana_read.py" dashboard --uid edge',

@@ -6,7 +6,19 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
-## [0.51.0] - 2026-10-09
+## [0.51.1] - 2026-10-09
+
+### Added
+
+- The Grafana read helper gains `render`: it confirms a Classic panel exists in the dashboard model,
+  then saves one 1200x600 PNG from Grafana's renderer to an owner-only file in
+  ~/.cache/save-toolkit/grafana-renders/ (never TMPDIR or the working directory; renders older than a
+  day are deleted) and prints its path,
+  size, SHA-256 and dimensions. Windows are absolute and at most 7 days, up to five `--var` selections
+  are passed through, a login page or other non-PNG answer fails as `invalid_image`, and an image that is not exactly
+  1200x600 fails as `renderer_placeholder`, because Grafana answers its render limit or a missing
+  renderer with a stock PNG under HTTP 200. The
+  `sre-assistant` guard admits it, and the agent body now lists every helper read.
 
 ### Fixed
 
@@ -47,6 +59,28 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   guard denies `mkdir` when `sre-assistant` runs as the main loop on CLI 2.1.295. The record names
   eleven remaining gaps. On 2026-10-09 the owner accepted the warm calibration receipt, which
   completes WP-02 and lifts the runner freeze, and selected four repairs that `EVAL-011` tracks.
+
+- The `sre-assistant` curl fallback admitted `/api/frontend/settings`, which returns decrypted
+  basic-auth credentials for direct-access datasources, `/api/datasources` with connection users,
+  two alert-rule dumps no admitted parameter could bound, and reads the masking helper already
+  covers. The guard now admits only health, plugins, folders, the token's own permissions,
+  datasource health and a single `/apis/` dashboard object; the reference no longer points
+  agents at the renderer flag through that path.
+- The `grafana` skill told agents the opposite of Grafana 13.2.2 in three places: a
+  provisioning write without `X-Disable-Provenance` converts a UI-created rule to API-managed,
+  the HTTP API body key is `keep_firing_for` (file YAML uses `keepFiringFor`), and editing a
+  silence's matchers returns a new ID, so rollback expires that ID. One gated-change list now
+  appears in `observability-engineer` and `SKILL.md`, adding dashboard and folder deletion,
+  folder moves and annotation writes; dashboard conventions are the target for new dashboards;
+  stack-profile names GCP's own backends; and
+  agent-tooling says no Grafana MCP server or CLI is adopted.
+- On macOS and Linux the Grafana helper checked its settings file by path and then read it by path,
+  so a replaced file or a symlink could pass the owner-only check. It now opens the file once,
+  without following a symlink, and checks and reads that same descriptor.
+
+## [0.51.0] - 2026-10-09
+
+### Fixed
 
 - The two routing negatives whose alternative is `reviewer` asked about material their empty
   workspace lacked, so every session searched, found nothing and answered inline. Change review now

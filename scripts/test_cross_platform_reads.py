@@ -127,6 +127,28 @@ class CrossPlatformReads(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual("deny", self.guard(command, "Bash"))
 
+    def test_grafana_curl_admits_only_reads_without_credentials_or_unbounded_output(self):
+        prefix = ('curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 '
+                  '--proto =https --header "Authorization: Bearer $GRAFANA_SA_TOKEN" "$GRAFANA_URL')
+        kept = ("/api/health", "/api/plugins", "/api/access-control/user/permissions",
+                "/api/datasources/uid/metrics-1/health", "/api/folders?limit=100&page=2",
+                "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards/bsg-backup")
+        # frontend/settings returns decrypted basic auth for direct-access datasources; datasources
+        # returns connection users; both rule paths cannot be bounded; the rest the helper covers.
+        removed = ("/api/frontend/settings", "/api/datasources", "/api/org",
+                   "/api/search?type=dash-db&limit=100&page=1", "/api/dashboards/uid/bsg-backup",
+                   "/api/dashboards/uid/bsg-backup/versions", "/api/v1/provisioning/alert-rules",
+                   "/api/prometheus/grafana/api/v1/rules", "/apis/dashboard.grafana.app/",
+                   "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards",
+                   "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards/x?fieldSelector=a")
+        for tool in ("Bash", "PowerShell"):
+            for path, expected in [*((path, "allow") for path in kept), *((path, "deny") for path in removed)]:
+                command = prefix + path + '"'
+                if tool == "PowerShell":
+                    command = command.replace('curl ', 'curl.exe ', 1).replace('$GRAFANA_', '$env:GRAFANA_')
+                with self.subTest(tool=tool, path=path):
+                    self.assertEqual(expected, self.guard(command, tool))
+
     @unittest.skipUnless(os.name == "nt", "Windows PowerShell launcher requires Windows")
     def test_real_powershell_launcher_allows_reads_and_denies_writes(self):
         launcher = ROOT / "scripts/readonly-guard-hook.ps1"

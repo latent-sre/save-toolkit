@@ -14,7 +14,7 @@ with one narrow exception: an invoked `observability-engineer` may apply scoped 
 folder, and alert-rule writes and temporary silences under its
 [change-authority rule](agents/observability-engineer.md#change-authority).
 
-> **Pre-release (0.51.0).** Installs track `main` and may change without notice. The repository has
+> **Pre-release (0.51.1).** Installs track `main` and may change without notice. The repository has
 > no supported immutable release channel.
 
 ## Install (Claude Code)
@@ -141,6 +141,12 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 ### Other hosts
 
 For read-only observability without MCP, see [Windows/macOS command access](skills/grafana/references/command-access.md).
+The bundled Grafana read helper takes its credentials from the environment or, when the environment
+sets no `GRAFANA_*` variable, from `~/.config/save-toolkit/grafana.env`. Create a Grafana service
+account with the **Viewer** role, add a token, and write the file yourself, one `NAME=value` per line
+with no quotes or spaces around `=`: `GRAFANA_URL` (the HTTPS origin), `GRAFANA_ORG_ID` and
+`GRAFANA_SA_TOKEN`. On macOS and Linux, `chmod 600` it; the helper refuses a file other accounts
+can read. Setting any `GRAFANA_*` variable, even an empty one, makes the helper ignore the file.
 Claude's candidate supports a small native command set and the bundled Grafana read/query helper.
 Selected native VS Code and Playwright browser interactions require a protected read-only session.
 The standard

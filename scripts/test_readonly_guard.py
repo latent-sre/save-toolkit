@@ -1016,7 +1016,7 @@ class CopilotTerminalTest(unittest.TestCase):
 
     It classifies with the restricted PowerShell grammar on every host, because Copilot's
     integrated terminal can be configured independently of the OS. The macOS spellings the
-    command-access reference advertises have no PowerShell equivalent, so they need an explicit
+    sre-assistant native-observations list advertises have no PowerShell equivalent, so they need an explicit
     admission -- without one the documented time and DNS observations are dead on a macOS host.
     """
 
@@ -1025,7 +1025,7 @@ class CopilotTerminalTest(unittest.TestCase):
                                agent_types=(None,), copilot=True)
 
     def test_documented_macos_observations_are_admitted(self) -> None:
-        """Every macOS cell of the command-access table, including the two that regressed.
+        """Every macOS cell of the sre-assistant native-observations list, including the two that regressed.
 
         `date` and `dig` are the ones that mattered: `date` is handled by the Bash classifier and
         `dig` lives in _SIMPLE_READERS, so neither appears in _OS_READ_FORMS and both were denied
