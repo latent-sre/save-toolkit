@@ -350,10 +350,10 @@ and fills seven lane controls, the seventh accepting more than one proportionate
 now cover six pairs (12 cases), with 24 scripted obeying/resisting outputs and effect/format
 mutations. A [natural-response extension](../evals/oracles/natural-injection/README.md) adds
 three pairs with local repair/test and fake-wrapper effects; normal prose requires separate human
-semantic assessment, so mechanical success alone stays INCONCLUSIVE. [Judge-input cases](../evals/drafts/judge-injection/README.md)
-remain drafts outside calibration, with an offline marker-collision proof. These model-free controls
-do not complete WP-10 or establish candidate behavior; the judge fix and combined cold calibration
-remain an owner decision coordinated with the WP-02 runner freeze. A draft [WP-10 run plan](fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md)
+semantic assessment, so mechanical success alone stays INCONCLUSIVE. The judge-input surface's six
+cases are in the active corpus beside `judge.py`'s per-response marker tag, landing with WP-02's
+canary before WP-02 starts: they change the runner identity and the corpus, so one owner-approved
+cold recalibration (181 cases) precedes WP-02's rubric check and any other rubric trial. These model-free controls do not complete WP-10 or establish candidate behavior. A draft [WP-10 run plan](fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md)
 (2026-10-08, not approved) lists the 27 agent-side cases for after WP-02; none needs the judge.
 **Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario/measurement design; implementation and lab owners are assigned per delivery package.
@@ -362,7 +362,9 @@ test generation, selected terminal tasks, GCP managed-service/migration and GKE 
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
 **Next action:** Use the recorded frozen runner identity below and the merged WP-01 comparison
-(PR #333) for WP-02 under the accepted [specification](fleet-evaluation/README.md).
+(PR #333) for WP-02 under the accepted [specification](fleet-evaluation/README.md). WP-02's
+denied-tool canary is written and proven offline (2026-10-08); its five other turn limits wait for
+`evals/turn_counts.py` over this host's saved runs, per the [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
 WP-02 runs under its
 run plan, whose budget the owner approved on 2026-10-06 with a USD 20 cap. WP-12's GCP case design can proceed alongside. The
 [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
@@ -388,15 +390,19 @@ including its result rules. Measurement failures are inconclusive and never hide
 and results record the runner revision, CLI version and host platform. Every in-scope defect from the
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
 **Next action:** Keep the runner frozen through WP-02; run its remaining preconditions and native
-checks under the approved run plan. [verified] Frozen on 2026-10-08 from checkout
-`523525430a0fbb71b0e9e3a846fae8e86db90a99`; latest commit touching runner identity inputs:
-`effa23d7795ea527efce3a5de2c27375cb0f0b89`. The runner's own normalized source SHA-256 is
-`633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`, computed by
+checks under the approved run plan. [verified] Re-frozen on 2026-10-08 with the judge framing fix
+and its required calibration cases; latest commit touching runner identity inputs:
+`2ae94bafbc2b33e3087fcdea3b9c06152fff6549` (reachable from `main` when its PR merges with a merge commit). The
+runner's own normalized source SHA-256 is
+`14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`, computed by
 `probe.fingerprints.harness_source_digest()` over `HARNESS_FILES`. This includes the judge and
 graders; scenario/oracle additions outside those inputs do not change it. See the
 [WP-02 freeze record](fleet-evaluation/run-plan-wp02-native-readiness.md#frozen-runner-record).
-The proposed judge marker fix and calibration-corpus additions remain drafts until an owner decision;
-a judge source change requires a new runner identity and coordinated cold calibration. Any future
+It replaces the first freeze (checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99`, identity input
+`effa23d7795ea527efce3a5de2c27375cb0f0b89`, digest
+`633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`): the owner chose to land the judge
+marker fix and the six judge-input corpus cases before WP-02 starts. They invalidate every earlier
+calibration receipt, so one cold recalibration precedes any rubric trial (WP-02 precondition 5). Any future
 runner edit retains the saved-run rescore/diff gate and an explanation of every verdict difference.
 Implemented:
 - The comparison: `--rescore` grades saved runs into a new directory without writing them;

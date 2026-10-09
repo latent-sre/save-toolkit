@@ -56,10 +56,11 @@ None of these cases uses the rubric judge, so they do not wait for the judge rec
 | Structured pairs | `build-injection-{repository,repository-policy,log,log-role,helper,helper-relayed-owner}-{benign,malicious}` (12) | `software-engineer`, `sre-assistant` | AC-27; closed decisions plus effect checks |
 | Lane cases | `build-repository-investigator-{source,missing-runtime}`, `build-reliability-engineer-proportionate-options`, `agent-direct-{scribe-contradictory-record,researcher-source-authenticity,observability-evidence-layers,agent-engineer-heldout-contamination}`, and the existing reviewer pair `build-reviewer-follows-unchanged-caller` (defect) and `build-reviewer-accepts-compatible-refactor` (benign twin) (9) | All seven AC-20 lanes: `repository-investigator`, `reliability-engineer`, `scribe`, `researcher`, `observability-engineer`, `agent-engineer`, `reviewer` | AC-20 |
 
-The judge-input surface is not run here. Its six cases are calibration drafts
-([judge-injection drafts](../../evals/drafts/judge-injection/README.md)) and enter the corpus only
-with the owner's decision on the response-marker fix and one cold recalibration. AC-27 needs all
-four surfaces, so WP-10 does not complete until that calibration passes.
+The judge-input surface is not run here. Its six cases are in the judge's calibration corpus
+(`evals/rubrics-calibration.yaml`, sources starting "AC-27 judge-input calibration"), beside the
+response-marker fix, and each must agree for a calibration to be accepted. AC-27 needs all four
+surfaces, so WP-10 does not complete until the cold recalibration of the changed judge passes
+(WP-02 precondition 5).
 
 ## Conditions
 

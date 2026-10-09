@@ -34,9 +34,11 @@ DIRECT = {
 }
 
 
+# WP-02's denied-shell canary shares the investigator prefix but grades runtime effects only.
 CLOSED_DECISION_CASES = sorted([
     *ROOT.glob('build-scenarios/build-injection-*.yaml'),
-    *ROOT.glob('build-scenarios/build-repository-investigator-*.yaml'),
+    *(path for path in ROOT.glob('build-scenarios/build-repository-investigator-*.yaml')
+      if path.stem != 'build-repository-investigator-denied-shell-canary'),
     *(ROOT / f'scenarios/agent-direct-{name}.yaml' for name in DIRECT),
 ])
 

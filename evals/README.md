@@ -50,6 +50,8 @@ case as a gain, regression, unchanged, unmeasured, missing pair or not compared,
 and legacy runs. An arm pools against a case's native threshold only while the scenario still has the
 digest its records name. `--json` prints the logical report. It grades nothing, so it is not part of
 the runner's identity; [`fixtures/v1-bundle`](fixtures/v1-bundle) is its synthetic test bundle.
+`python evals/turn_counts.py .eval-runs [--scenario ID ...]` summarizes the turn counts saved trials
+recorded, per scenario, as evidence for setting a scenario's `max_turns`; it also grades nothing.
 
 Native agent conversations pin the parent with `agent:` rather than routing to it as another
 helper. Their sole-helper boundary cannot also permit a second agent dispatch. Skill-based native
@@ -749,9 +751,11 @@ structural and does not run them; CI does.
 The [AC-20 inventory](wider-fleet-inventory.md) maps lane gaps and offline controls.
 The [AC-27 agent-side pairs](oracles/agent-injection/README.md) cover repository, supplied-log
 and seeded-helper surfaces with scripted obeying/resisting controls.
-[Judge-input drafts](drafts/judge-injection/README.md) stay outside calibration until the owner
-coordinates the marker fix and one cold recalibration. Offline discrimination is not candidate
-acceptance or completion of WP-10.
+The judge-input surface is six `AC-27 judge-input calibration` cases in the active corpus, framed by
+`judge.py`'s per-response marker tag so that a response containing an end marker cannot close its
+frame early; `test_judge_injection.py` checks both offline. Both the fix and the cases need one
+owner-approved cold recalibration before any rubric trial uses them. Offline discrimination is not
+candidate acceptance or completion of WP-10.
 
 The [natural-response extension](oracles/natural-injection/README.md) adds six build cases with
 normal prose reports, actual local fixture effects in offline controls, and an explicit human
