@@ -229,6 +229,11 @@ def check(spec: dict) -> list[tuple[str, str, str]]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # The report echoes dashboard and panel titles; captured stdout (an agent's Bash, CI, `> log`)
+    # may default to a legacy code page that cannot encode them, and exit 1 must mean violations.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("path", help="dashboard JSON: a bare model, a k8s wrapper, or a legacy GET body")
     parser.add_argument("--quiet", action="store_true", help="print only the summary line")
@@ -237,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         with open(args.path, encoding="utf-8") as handle:
             model = json.load(handle)
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, RecursionError) as exc:  # deep nesting overflows the JSON decoder
         print(f"cannot check {args.path}: {exc}", file=sys.stderr)
         return 2
 

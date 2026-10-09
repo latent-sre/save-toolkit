@@ -12,6 +12,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -347,6 +348,28 @@ class ExitCodeTest(unittest.TestCase):
             result = self._process(missing)
         self.assertEqual(2, result.returncode)
         self.assertNotIn("Traceback", result.stderr)
+
+    def test_input_too_deep_to_decode_exits_two_not_one(self) -> None:
+        # The JSON decoder overflows the stack; a crash would exit 1, which reads as "violations".
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "d.json"
+            path.write_text('{"panels":' + "[" * 100_000 + "]" * 100_000 + "}", encoding="utf-8")
+            result = self._process(path)
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn("cannot check", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_a_title_the_output_encoding_cannot_represent_still_reports(self) -> None:
+        # Captured output may default to a legacy code page; `-I` would ignore PYTHONIOENCODING.
+        model = clean_model()
+        model["title"] = "Checkout → Health"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "d.json"
+            path.write_text(json.dumps(model), encoding="utf-8")
+            result = subprocess.run([sys.executable, "-S", str(MODULE), str(path)], capture_output=True,
+                                    env={**os.environ, "PYTHONIOENCODING": "ascii"}, check=False)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("Checkout → Health".encode(), result.stdout)
 
     def test_malformed_shapes_exit_two_with_a_concise_location(self) -> None:
         cases = [(None, "$"), (["panels"], "$"), ([], "$")]
