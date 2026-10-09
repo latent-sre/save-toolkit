@@ -17,6 +17,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   alternative passes 6/6; it is a diagnostic, not a run on the committed grading. AGENTS.md's
   routing table now matches: a review of a design doc or ADR stays with the main session or goes to
   `reviewer`, never to `principal-engineer` (the owner's resolution of Codex's P1 on PR #341).
+  The owner accepted that P1's other half as a known gap: a review the main session keeps passes on
+  any nonempty reply without a dispatch, so no grader yet shows the review itself was done.
 - `RELIABILITY-001` is deferred: the owner kept the reliability lane unaccepted. [sourced:
   independent blind trace review] In its two-trial comparison both arms failed the timing criterion
   the same way. It reopens when a source repair for retry-count ambiguity and timeout sums is
