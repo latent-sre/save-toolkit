@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict
+from typing import Any, cast
 
 from fleet_atlas_v2_model import (
     EvidenceClass,
@@ -27,7 +28,7 @@ API_VERSION = "save-toolkit/fleet-atlas/v2"
 PIPELINE = "typed-facts/v2"
 
 
-def graph_dict(graph: Graph) -> dict:
+def graph_dict(graph: Graph) -> dict[str, list[dict[str, Any]]]:
     facts = []
     for fact in graph.facts:
         record = asdict(fact)
@@ -40,7 +41,7 @@ def graph_dict(graph: Graph) -> dict:
     return {"nodes": [asdict(node) for node in graph.nodes], "facts": facts}
 
 
-def _keys(value: object, expected: set[str]) -> dict:
+def _keys(value: object, expected: set[str]) -> dict[str, Any]:
     if not isinstance(value, dict) or set(value) != expected:
         raise ValueError(f"invalid record; expected fields {sorted(expected)}")
     return value
@@ -56,7 +57,7 @@ def _value(value: object) -> Value:
     if isinstance(value, list):
         return tuple(_value(item) for item in value)
     if value is None or type(value) in (str, int, float, bool):
-        return value
+        return cast("Value", value)  # mypy cannot narrow on exact-type membership
     raise ValueError("unsupported fact value")
 
 
@@ -75,7 +76,7 @@ def parse_graph(record: object) -> Graph:
         proof = _keys(item["proof"], {"kind", "inputs", "evaluator", "scope_digest"})
         if not isinstance(proof["inputs"], list):
             raise ValueError("proof inputs must be an array")
-        inputs = []
+        inputs: list[Span | FactRef] = []
         for candidate_input in proof["inputs"]:
             if isinstance(candidate_input, dict) and candidate_input.get("kind") == "span":
                 source = _keys(candidate_input, {"kind", "path", "blob_hash", "start_line", "end_line", "excerpt_hash"})
@@ -122,7 +123,7 @@ def citations(fact: Fact, checked: VerifiedFacts) -> tuple[Span, ...]:
     return tuple(sorted(result))
 
 
-def fact_record(fact: Fact, checked: VerifiedFacts) -> dict:
+def fact_record(fact: Fact, checked: VerifiedFacts) -> dict[str, Any]:
     return {
         "id": fact.id, "subject": fact.subject, "predicate": fact.predicate,
         "object": fact.object, "qualifiers": dict(fact.qualifiers),
@@ -143,7 +144,7 @@ def fact_line(fact: Fact, checked: VerifiedFacts) -> str:
     # Unicode controls/separators get JSON escapes; Markdown/record-significant
     # characters (| < >) need an explicit \uXXXX escape because json.dumps leaves
     # them literal, which would let them split the pipe-delimited record.
-    def inline(value):
+    def inline(value: object) -> str:
         out = []
         for char in str(value):
             if char in '|<>':
@@ -165,7 +166,7 @@ def fact_line(fact: Fact, checked: VerifiedFacts) -> str:
             f"{record['class']} [{record['label']}] | {where}")
 
 
-def self_sized(info: dict, render: Callable[[dict], bytes], what: str) -> bytes:
+def self_sized(info: dict[str, object], render: Callable[[dict[str, object]], bytes], what: str) -> bytes:
     """Re-render until `info["encodedBytes"]` reports the rendered output's own length."""
     for _ in range(12):
         encoded = render(info)
@@ -189,7 +190,7 @@ def _largest_fitting(encode: Callable[[int], bytes], available: int, budget: int
     return encode(low)
 
 
-def bounded_envelope(base: dict, records: Iterable[dict], budget: int = DETAIL_BUDGET) -> bytes:
+def bounded_envelope(base: Mapping[str, object], records: Iterable[object], budget: int = DETAIL_BUDGET) -> bytes:
     """Budget the complete JSON envelope, reserving its own truncation metadata."""
     values = tuple(records)
 
@@ -207,8 +208,8 @@ def bounded_text(header: str, lines: Iterable[str], budget: int) -> bytes:
 
     def encode(count: int) -> bytes:
         prefix = (header.rstrip() + "\n\n" + "\n".join(values[:count]) + "\n").encode("utf-8")
-        info = {"truncated": count < len(values), "omittedResults": len(values) - count,
-                "budgetBytes": budget, "encodedBytes": 0}
+        info: dict[str, object] = {"truncated": count < len(values), "omittedResults": len(values) - count,
+                                   "budgetBytes": budget, "encodedBytes": 0}
         return self_sized(info, lambda current: prefix + b"<!-- " + canonical_bytes(current).rstrip(b"\n") + b" -->\n",
                           "view")
 

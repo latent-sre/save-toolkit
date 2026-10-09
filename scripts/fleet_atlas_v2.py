@@ -5,14 +5,14 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Callable
 from pathlib import Path
+from typing import NoReturn
 
 # Isolated Python (-I -S) deliberately omits the script directory. Only this
 # explicitly selected, source-bound implementation directory is added back.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fleet_atlas_v2_artifacts import ArtifactDrift, VerifiedDocument, build, extraction, verify
+from fleet_atlas_v2_artifacts import ArtifactDrift, Loader, VerifiedDocument, build, extraction, verify
 from fleet_atlas_v2_format import bounded_envelope, fact_record, graph_dict
 from fleet_atlas_v2_model import Fact, canonical_bytes
 
@@ -36,7 +36,7 @@ class UsageError(ValueError):
 
 
 class Parser(argparse.ArgumentParser):
-    def error(self, message):
+    def error(self, message: str) -> NoReturn:
         raise UsageError(message)
 
 
@@ -96,15 +96,15 @@ def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fac
             if fact.predicate in {"name", "attr.description", "attr.statement"}:
                 attributes.setdefault(fact.subject, []).append(str(fact.object))
             if fact.predicate == "guidance" and fact.subject in source_nodes - historical:
-                searchable = (str(fact.object) + " " + str(dict(fact.qualifiers))).casefold()
-                if all(word in searchable for word in words):
+                text = (str(fact.object) + " " + str(dict(fact.qualifiers))).casefold()
+                if all(word in text for word in words):
                     matched_guidance[fact.id] = fact
                     selected.add(fact.subject)
         for node in graph.nodes:
             if node.id not in source_nodes - historical:
                 continue
-            searchable = " ".join((node.id, node.path, *attributes.get(node.id, []))).casefold()
-            if all(word in searchable for word in words):
+            text = " ".join((node.id, node.path, *attributes.get(node.id, []))).casefold()
+            if all(word in text for word in words):
                 selected.add(node.id)
         returned = dict(matched_guidance)
         for fact in graph.facts:
@@ -141,7 +141,7 @@ def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fac
         return tuple(result[key] for key in sorted(result))
     relation = RELATION[verb]
     reverse = verb in REVERSED
-    result = []
+    related: list[Fact] = []
     for fact in graph.facts:
         if fact.predicate != relation:
             continue
@@ -155,11 +155,11 @@ def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fac
         if (verb == "loads-for" and len(terms) >= 2
                 and " ".join(terms[1:]).casefold() not in str(dict(fact.qualifiers).get("predicate", "")).casefold()):
             continue
-        result.append(fact)
+        related.append(fact)
     # A recorded unresolved relationship is not a verified negative. Preserve the
     # advisory alongside positive relations or return an explicitly unknown answer.
-    result.extend(fact for fact in graph.facts if fact.predicate == "unknown" and fact.subject in selected)
-    return tuple(result)
+    related.extend(fact for fact in graph.facts if fact.predicate == "unknown" and fact.subject in selected)
+    return tuple(related)
 
 
 def query(document: VerifiedDocument, verb: str, terms: list[str], *, full: bool = False) -> bytes:
@@ -192,7 +192,7 @@ def _emit(content: bytes) -> None:
         sys.stdout.write(content.decode("utf-8"))
 
 
-def main(argv: list[str] | None = None, loader: Callable = extraction) -> int:
+def main(argv: list[str] | None = None, loader: Loader = extraction) -> int:
     parser = Parser(description=__doc__, add_help=False)
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("-h", "--help", action="store_true")

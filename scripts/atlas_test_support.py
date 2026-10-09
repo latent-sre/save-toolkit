@@ -10,10 +10,12 @@ import json
 import shutil
 import subprocess
 import tempfile
+from collections.abc import Collection, Iterable, Mapping
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
-from fleet_atlas_v2_artifacts import OUTPUT, runtime_modules
+from fleet_atlas_v2_artifacts import OUTPUT, ExtractionResult, runtime_modules
 from fleet_atlas_v2_model import (
     EDGE_TYPES,
     Bucket,
@@ -25,8 +27,14 @@ from fleet_atlas_v2_model import (
     ProofKind,
     assemble,
 )
-from fleet_atlas_v2_proofs import Derivation, VerifiedFacts, verify_facts
-from fleet_atlas_v2_sources import Snapshot
+from fleet_atlas_v2_proofs import Derivation, Evaluator, VerifiedFacts, verify_facts
+from fleet_atlas_v2_sources import Snapshot, Source
+
+if TYPE_CHECKING:
+    # The mixin's tests subclass unittest.TestCase, which supplies addCleanup.
+    from unittest import TestCase as _TestCase
+else:
+    _TestCase = object
 
 RUNTIME = Path(__file__).resolve().parent
 
@@ -52,10 +60,10 @@ def copy_runtime(root: Path) -> Path:
     return scripts
 
 
-class ReadmeRepository:
+class ReadmeRepository(_TestCase):
     """setUp for a temporary one-commit repository whose only file is README.md = b"live\\n"."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
@@ -64,14 +72,14 @@ class ReadmeRepository:
         self.git("add", "README.md")
         self.git("commit", "-qm", "fixture")
 
-    def git(self, *args):
+    def git(self, *args: str) -> bytes:
         return git(self.root, *args)
 
-    def output(self, name):
+    def output(self, name: str) -> Path:
         return self.root / OUTPUT / name
 
 
-def fixture_extract(snapshot):
+def fixture_extract(snapshot: Snapshot) -> ExtractionResult:
     """A one-fact extraction: README.md's first line is the document's state."""
     source = snapshot.source("README.md")
     node = Node("document:README.md", "document", source.path, "WHOLE_DOCUMENT")
@@ -79,7 +87,7 @@ def fixture_extract(snapshot):
     fact = Fact("state:README.md", node.id, "state", source.lines[0], EvidenceClass.EXTRACTED, proof)
     rule = Predicate("state", frozenset({"document"}), None, ("README.md",), 1)
 
-    def evaluate(candidate, sources, premises):
+    def evaluate(candidate: Fact, sources: Snapshot, premises: Mapping[str, Fact]) -> Derivation:
         current = sources.source("README.md")
         return Derivation(current.lines[0], EvidenceClass.EXTRACTED,
                           Proof(ProofKind.EXTRACTED, (current.span(1, 1),), "fixture-title/v1"))
@@ -88,7 +96,7 @@ def fixture_extract(snapshot):
                            predicates=(rule,), evaluators={"fixture-title/v1": evaluate})
 
 
-def fact_rows(rows) -> bytes:
+def fact_rows(rows: Iterable[Iterable[object]]) -> bytes:
     """One JSON row per line: [id, subject, predicate, value] or [..., {qualifier: value}].
 
     ASCII escaping keeps U+2028, U+0085 and other str.splitlines() separators inside a row.
@@ -96,7 +104,7 @@ def fact_rows(rows) -> bytes:
     return b"".join((json.dumps(list(row), ensure_ascii=True, sort_keys=True) + "\n").encode("ascii") for row in rows)
 
 
-def row_extraction(snapshot, path: str, evaluator: str = "row-fixture/v1"):
+def row_extraction(snapshot: Snapshot, path: str, evaluator: str = "row-fixture/v1") -> ExtractionResult:
     """An extraction with one fact per row of `path`, each cited by and replayed from its own line.
 
     Nodes are every row subject and relationship target; a relationship is any row whose
@@ -114,7 +122,7 @@ def row_extraction(snapshot, path: str, evaluator: str = "row-fixture/v1"):
     rules = tuple(Predicate(predicate, kinds, kinds if predicate in EDGE_TYPES else None, (source.path,))
                   for predicate in sorted({row[2] for row in rows}))
 
-    def replay(fact, current_snapshot, premises):
+    def replay(fact: Fact, current_snapshot: Snapshot, premises: Mapping[str, Fact]) -> Derivation:
         current = current_snapshot.source(path)
         i, row = next((i, json.loads(line)) for i, line in enumerate(current.lines, 1)
                       if json.loads(line)[0] == fact.id)
@@ -126,12 +134,13 @@ def row_extraction(snapshot, path: str, evaluator: str = "row-fixture/v1"):
                            evaluators={evaluator: replay})
 
 
-def echo(fact, snapshot, premises):
+def echo(fact: Fact, snapshot: Snapshot, premises: Mapping[str, Fact]) -> Derivation:
     """A replay that confirms whatever the fact claims. For rendering tests only, never proof tests."""
     return Derivation(fact.object, fact.evidence_class, fact.proof, fact.qualifiers)
 
 
-def verified(sources, nodes, facts, predicates, evaluators=None, *, revision="fixture") -> VerifiedFacts:
+def verified(sources: Iterable[Source], nodes: Iterable[Node], facts: Collection[Fact], predicates: Iterable[Predicate],
+             evaluators: Mapping[str, Evaluator] | None = None, *, revision: str = "fixture") -> VerifiedFacts:
     """Proof-verify a fixture graph; without `evaluators`, every fact's evaluator is echo()."""
     predicates = tuple(predicates)
     graph = assemble((Bucket("fixture", tuple(nodes), tuple(facts)),), predicates)

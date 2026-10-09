@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fleet_atlas_v2_artifacts import OUTPUT, VerifiedDocument, extraction, verify
+from fleet_atlas_v2_artifacts import OUTPUT, Loader, VerifiedDocument, extraction, verify
 from fleet_atlas_v2_format import fact_record
 from fleet_atlas_v2_sources import is_source
 
@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = Path(__file__).with_suffix(".html")
 
 
-def payload(document: VerifiedDocument) -> dict:
+def payload(document: VerifiedDocument) -> dict[str, object]:
     if not isinstance(document, VerifiedDocument):
         raise TypeError("dashboard export requires a verified atlas")
     records = [fact_record(fact, document.facts) for fact in document.facts.graph.facts]
@@ -40,7 +40,7 @@ def payload(document: VerifiedDocument) -> dict:
     }
 
 
-def render(data: dict, template: str) -> str:
+def render(data: dict[str, object], template: str) -> str:
     if template.count("__ATLAS_DATA__") != 1 or template.count("__ATLAS_CSP__") != 1:
         raise ValueError("dashboard template must contain one data and one CSP placeholder")
     encoded = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
@@ -60,7 +60,7 @@ def render(data: dict, template: str) -> str:
     return template.replace("__ATLAS_CSP__", policy).replace("__ATLAS_DATA__", encoded)
 
 
-def export(root: Path, output: Path, *, force: bool = False, loader=extraction) -> Path:
+def export(root: Path, output: Path, *, force: bool = False, loader: Loader = extraction) -> Path:
     root = root.resolve(strict=True)
     output = output.resolve()
     if output.suffix.lower() != ".html":
@@ -83,7 +83,7 @@ def export(root: Path, output: Path, *, force: bool = False, loader=extraction) 
     return output
 
 
-def main(argv=None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--output", type=Path)

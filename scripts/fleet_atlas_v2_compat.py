@@ -7,33 +7,38 @@ No legacy defect or unrepresented predicate is silently normalized away.
 
 from __future__ import annotations
 
+from typing import Any, TypeAlias, cast
+
 from fleet_atlas_v2_format import citations, fact_record, graph_dict
-from fleet_atlas_v2_model import EDGE_TYPES, Fact, Value, canonical_bytes
+from fleet_atlas_v2_model import EDGE_TYPES, Fact, Scalar, Value, canonical_bytes
 from fleet_atlas_v2_proofs import VerifiedFacts
 
+Thawed: TypeAlias = "Scalar | list[Thawed] | dict[str, Thawed]"
 
-def thaw(value: Value):
+
+def thaw(value: Value) -> Thawed:
     if isinstance(value, tuple):
         if value and all(isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str)
                          for item in value):
-            return {item[0]: thaw(item[1]) for item in value}
+            # The all() above checked that every item is a (name, value) pair.
+            return {item[0]: thaw(item[1]) for item in cast("tuple[tuple[str, Value], ...]", value)}
         return [thaw(item) for item in value]
     return value
 
 
-def _evidence(facts: tuple[Fact, ...], checked: VerifiedFacts) -> list[dict]:
+def _evidence(facts: tuple[Fact, ...], checked: VerifiedFacts) -> list[dict[str, object]]:
     unique = {}
     for fact in facts:
         for span in citations(fact, checked):
-            record = {"path": span.path, "lines": [span.start_line, span.end_line],
-                      "excerptHash": span.excerpt_hash, "detector": fact.proof.evaluator,
-                      "class": fact.evidence_class.value}
+            record: dict[str, object] = {"path": span.path, "lines": [span.start_line, span.end_line],
+                                         "excerptHash": span.excerpt_hash, "detector": fact.proof.evaluator,
+                                         "class": fact.evidence_class.value}
             unique[canonical_bytes(record)] = record
     return [unique[key] for key in sorted(unique)]
 
 
-def compatibility_snapshot(checked: VerifiedFacts, *, projections: dict | None = None,
-                           queries: dict | None = None) -> dict:
+def compatibility_snapshot(checked: VerifiedFacts, *, projections: dict[str, Any] | None = None,
+                           queries: dict[str, Any] | None = None) -> dict[str, Any]:
     by_subject: dict[str, list[Fact]] = {}
     for fact in checked.graph.facts:
         by_subject.setdefault(fact.subject, []).append(fact)

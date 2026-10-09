@@ -6,9 +6,10 @@ import json
 import os
 import re
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Protocol, TypeAlias, cast
 
 from fleet_atlas_v2_format import (
     API_VERSION,
@@ -21,8 +22,8 @@ from fleet_atlas_v2_format import (
     parse_graph,
     self_sized,
 )
-from fleet_atlas_v2_model import assemble, canonical_bytes, digest
-from fleet_atlas_v2_proofs import VerifiedFacts, verify_facts
+from fleet_atlas_v2_model import Bucket, Predicate, assemble, canonical_bytes, digest
+from fleet_atlas_v2_proofs import Evaluator, VerifiedFacts, verify_facts
 from fleet_atlas_v2_sources import Snapshot, current_snapshot, verify_revision
 
 OUTPUT = Path("docs/fleet-atlas/v2")
@@ -44,7 +45,23 @@ VIEWS = {
 }
 
 
-def extraction(snapshot: Snapshot):
+class ExtractionResult(Protocol):
+    """What a loader returns: extractor buckets, their predicates and the trusted evaluators."""
+
+    @property
+    def buckets(self) -> tuple[Bucket, ...]: ...
+
+    @property
+    def predicates(self) -> tuple[Predicate, ...]: ...
+
+    @property
+    def evaluators(self) -> Mapping[str, Evaluator]: ...
+
+
+Loader: TypeAlias = Callable[[Snapshot], ExtractionResult]
+
+
+def extraction(snapshot: Snapshot) -> ExtractionResult:
     # Fixed trusted implementation import, never a module path from atlas content.
     from fleet_atlas_v2_extract import extract  # noqa: PLC0415 -- loaded only when a derivation runs
 
@@ -77,7 +94,7 @@ class VerifiedDocument:
             raise ValueError("VerifiedDocument requires complete artifact verification")
 
 
-def checked_facts(snapshot: Snapshot, loader: Callable = extraction) -> VerifiedFacts:
+def checked_facts(snapshot: Snapshot, loader: Loader = extraction) -> VerifiedFacts:
     result = loader(snapshot)
     graph = assemble(result.buckets, result.predicates)
     return verify_facts(graph, snapshot, result.predicates, result.evaluators)
@@ -139,8 +156,10 @@ def render_files(checked: VerifiedFacts) -> dict[str, bytes]:
         # Comment conversion only shortens output, so recompute self-reported size.
         marker_end = diagram.rfind(b"\n%% {") + 4
         prefix = diagram[:marker_end]
+        # mypy cannot infer a lambda whose defaulted parameter binds this iteration's prefix.
         files[filename] = self_sized(json.loads(diagram[marker_end:]),
-                                     lambda info, prefix=prefix: prefix + canonical_bytes(info), "diagram")
+                                     cast("Callable[[dict[str, object]], bytes]",
+                                          lambda info, prefix=prefix: prefix + canonical_bytes(info)), "diagram")
     document = {"apiVersion": API_VERSION, "kind": "FleetAtlas",
                 "metadata": {"revision": snapshot.revision, "treeDigest": snapshot.tree_digest,
                              "dirty": False, "pipeline": PIPELINE},
@@ -182,7 +201,7 @@ def _read_files(directory: Path, names: set[str]) -> dict[str, bytes]:
 
 
 def _json(content: bytes) -> object:
-    def unique(pairs):
+    def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
         result = {}
         for key, value in pairs:
             if key in result:
@@ -194,7 +213,7 @@ def _json(content: bytes) -> object:
                       parse_constant=lambda value: (_ for _ in ()).throw(ValueError(f"invalid number: {value}")))
 
 
-def verify(root: Path, loader: Callable = extraction) -> VerifiedDocument:
+def verify(root: Path, loader: Loader = extraction) -> VerifiedDocument:
     """The one entry point used after build and by both check and query."""
     current = current_snapshot(root)
     if loader is extraction:
@@ -234,7 +253,7 @@ def verify(root: Path, loader: Callable = extraction) -> VerifiedDocument:
     return VerifiedDocument(checked, snapshot.revision, _SEAL)
 
 
-def build(root: Path, loader: Callable = extraction) -> VerifiedDocument:
+def build(root: Path, loader: Loader = extraction) -> VerifiedDocument:
     snapshot = current_snapshot(root)
     if loader is extraction:
         verify_runtime_sources(snapshot)

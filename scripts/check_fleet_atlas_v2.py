@@ -6,6 +6,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = (
@@ -17,11 +18,11 @@ CASES = (
 )
 
 
-def check_response(content: bytes, expected: str) -> dict:
+def check_response(content: bytes, expected: str) -> dict[str, Any]:
     """One query response body: within budget, the expected outcome, every fact labelled and cited."""
     if len(content) > 20_000:
         raise ValueError("atlas response exceeds its UTF-8 byte budget")
-    response = json.loads(content)
+    response: dict[str, Any] = json.loads(content)
     if response.get("outcome") != expected:
         raise ValueError(f"expected {expected}, received {response.get('outcome')}")
     if expected == "results":
@@ -35,7 +36,7 @@ def check_response(content: bytes, expected: str) -> dict:
     return response
 
 
-def main(argv=None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--build", action="store_true", help="build outputs before checking; maintenance/CI only")
