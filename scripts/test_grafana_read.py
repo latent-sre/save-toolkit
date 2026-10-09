@@ -47,6 +47,22 @@ def invoke(args, transport, env=None):
     return code, json.loads(output.getvalue()), output.getvalue()
 
 
+REAL_SETTINGS_FILE = reader._settings_file
+SETTINGS_TEXT = "# comment\r\nGRAFANA_URL=https://monitor.example/grafana\r\nGRAFANA_ORG_ID=7\r\nGRAFANA_SA_TOKEN=file-secret-token\r\n"
+
+
+@pytest.fixture(autouse=True)
+def no_settings_file(monkeypatch, tmp_path):
+    """Never read the developer's real per-user settings file."""
+    monkeypatch.setattr(reader, "_settings_file", lambda: tmp_path / "absent.env")
+
+
+def use_settings(monkeypatch, tmp_path, content):
+    path = tmp_path / "grafana.env"
+    path.write_bytes(content if isinstance(content, bytes) else content.encode())
+    monkeypatch.setattr(reader, "_settings_file", lambda: path)
+
+
 @pytest.mark.parametrize("org", [None, "", "0", "-1", "+7", "07", "7.0", "7 ", " 7", "７", "9223372036854775808", "7\r\nInjected: bad"])
 def test_organization_must_be_explicit_positive_canonical_int64(org):
     env = dict(ENV)
@@ -60,7 +76,7 @@ def test_organization_must_be_explicit_positive_canonical_int64(org):
     assert not transport.requests
 
 
-@pytest.mark.parametrize("args", [["dashboard", "--uid", "board"], QUERY])
+@pytest.mark.parametrize("args", [["dashboard", "--uid", "board"], QUERY, ["search", "--query", "edge"], ["silences"]])
 @pytest.mark.parametrize("actual", [2, "7", True, None])
 def test_organization_mismatch_stops_before_selected_operation(args, actual):
     transport = Transport(org_response=(200, {"id": actual}))
@@ -223,6 +239,102 @@ def test_incomplete_or_unexpected_query_results_fail(results):
     assert invoke(QUERY, transport)[0] == 2
 
 
+RULES = {"status": "success", "data": {"groups": [{"name": "checkout", "folderUid": "payments", "rules": []}]}}
+
+
+@pytest.mark.parametrize("args,payload,path", [
+    (["search", "--query", "checkout latency"], [{"uid": "board", "orgId": 7}], "/api/search?type=dash-db&limit=100&query=checkout%20latency"),
+    (["alerts"], RULES, "/api/prometheus/grafana/api/v1/rules?group_limit=100&limit_alerts=20"),
+    (["alerts", "--folder-uid", "payments"], RULES, "/api/prometheus/grafana/api/v1/rules?group_limit=100&limit_alerts=20&folder_uid=payments"),
+    (["annotations", "--from", "1000", "--to", "61000"], [{"id": 1}], "/api/annotations?from=1000&to=61000&limit=100"),
+    (["annotations", "--from", "1000", "--to", "61000", "--dashboard-uid", "board"], [], "/api/annotations?from=1000&to=61000&limit=100&dashboardUID=board"),
+    (["silences"], [{"id": "s1", "status": {"state": "active"}}], "/api/alertmanager/grafana/api/v2/silences"),
+])
+def test_list_reads_use_one_fixed_get_and_report_permission_scope(args, payload, path):
+    transport = Transport((200, payload))
+    code, result, _ = invoke(args, transport)
+    assert code == 0 and result["operation"] == args[0] and result["coverage"] == "permission_scoped"
+    assert [(r.method, r.full_url, r.data) for r in transport.requests[1:]] == [("GET", ENV["GRAFANA_URL"] + path, None)]
+    assert all(request.get_header("X-grafana-org-id") == "7" for request in transport.requests)
+
+
+def test_alerts_reject_grafana_fallback_from_unknown_folder_to_all_folders():
+    other = {"status": "success", "data": {"groups": [{"name": "edge", "folderUid": "other", "rules": []}]}}
+    code, result, _ = invoke(["alerts", "--folder-uid", "payments"], Transport((200, other)))
+    assert code == 2 and result["error"] == "folder_mismatch"
+
+
+@pytest.mark.parametrize("payload", [{"status": "error", "error": "test-secret-token"}, {"status": "success", "data": {}},
+                                     {"status": "success", "data": {"groups": ["text"]}}])
+def test_alerts_rule_api_errors_cannot_be_reported_successfully(payload):
+    code, result, text = invoke(["alerts"], Transport((200, payload)))
+    assert code == 2 and not result["ok"] and "test-secret-token" not in text
+
+
+@pytest.mark.parametrize("args,payload", [
+    (["search", "--query", "edge"], [{"uid": "board", "orgId": 2}]),
+    (["annotations", "--from", "1000", "--to", "61000"], [{"id": 1, "orgId": "7"}]),
+    (["silences"], ["not-an-object"]),
+    (["silences"], {"silences": []}),
+])
+def test_list_items_must_be_objects_from_the_verified_organization(args, payload):
+    code, result, _ = invoke(args, Transport((200, payload)))
+    assert code == 2 and result["error"] in {"organization_mismatch", "invalid_response"}
+
+
+def test_list_truncation_and_masking_are_reported():
+    code, result, text = invoke(["search", "--query", "edge"], Transport((200, [{"uid": f"b{n}", "title": "test-secret-token"} for n in range(100)])))
+    assert code == 0 and result["truncated"] is True and "test-secret-token" not in text
+    paged = {"status": "success", "data": {"groups": [], "groupNextToken": "next"}}
+    assert invoke(["alerts"], Transport((200, paged)))[1]["truncated"] is True
+
+
+def test_settings_file_is_per_user_not_workspace_relative():
+    assert REAL_SETTINGS_FILE() == Path.home() / ".config" / "save-toolkit" / "grafana.env"
+    assert REAL_SETTINGS_FILE().is_absolute()
+
+
+def test_settings_file_supplies_credentials_when_environment_has_none(monkeypatch, tmp_path):
+    use_settings(monkeypatch, tmp_path, b"\xef\xbb\xbf" + SETTINGS_TEXT.encode())
+    transport = Transport((200, {"dashboard": {"uid": "board", "title": "file-secret-token"}, "meta": {}}))
+    code, result, text = invoke(["dashboard", "--uid", "board"], transport, {"PATH": "unrelated"})
+    assert code == 0 and result["organization_id"] == 7 and "file-secret-token" not in text
+    assert transport.requests[0].get_header("Authorization") == "Bearer file-secret-token"
+
+
+def test_any_environment_value_disables_the_settings_file(monkeypatch, tmp_path):
+    use_settings(monkeypatch, tmp_path, SETTINGS_TEXT)
+    transport = Transport()
+    code, result, _ = invoke(["dashboard", "--uid", "board"], transport, {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7"})
+    assert code == 2 and result["error"] == "authentication_unavailable" and not transport.requests
+
+
+@pytest.mark.parametrize("content", [
+    "GRAFANA_SA_TOKEN file-secret-token\n",
+    "GRAFANA_TOKEN=file-secret-token\n",
+    "GRAFANA_SA_TOKEN=a\nGRAFANA_SA_TOKEN=file-secret-token\n",
+    "GRAFANA_SA_TOKEN=file-secret-token\n" + "#" * 4096,
+    b"GRAFANA_SA_TOKEN=\xff file-secret-token\n",
+], ids=["no_separator", "unknown_name", "duplicate", "oversized", "not_utf8"])
+def test_malformed_settings_file_fails_without_echo_or_requests(monkeypatch, tmp_path, content):
+    use_settings(monkeypatch, tmp_path, content)
+    transport = Transport()
+    code, result, text = invoke(["dashboard", "--uid", "board"], transport, {})
+    assert code == 2 and result["error"] == "invalid_settings_file"
+    assert "file-secret-token" not in text and not transport.requests
+
+
+def test_unreadable_settings_path_fails_closed(monkeypatch, tmp_path):
+    monkeypatch.setattr(reader, "_settings_file", lambda: tmp_path)
+    code, result, _ = invoke(["dashboard", "--uid", "board"], Transport(), {})
+    assert code == 2 and result["error"] == "invalid_settings_file"
+
+
+def test_missing_settings_file_keeps_environment_errors():
+    code, result, _ = invoke(["dashboard", "--uid", "board"], Transport(), {})
+    assert code == 2 and result["error"] == "invalid_organization_configuration"
+
+
 def test_token_preferred_and_all_configured_auth_values_masked():
     env = {**ENV, "GRAFANA_USERNAME": "test-person", "GRAFANA_PASSWORD": "basic-password"}
     transport = Transport((200, {"dashboard": {"uid": "board", "text": "test-person basic-password"}, "meta": {}}))
@@ -284,6 +396,10 @@ def test_missing_or_incomplete_auth_never_calls_network(env):
     ["dashboard", "--uid", "ok", "--url", "https://secret"],
     QUERY[:-1] + ["$__interval"], QUERY[:-1] + ["[[service]]"], QUERY[:-1] + [""],
     ["query", "--datasource", "metrics-1", "--kind", "prometheus", "--from", "0", "--to", "86400001", "--expr", "up"],
+    ["search"], ["search", "--query", 'edge"; x'], ["search", "--query", "   "], ["search", "--query", "x" * 101],
+    ["search", "--query", "edge", "--query", "other"], ["alerts", "--folder-uid", "../other"], ["alerts", "--folder-uid", ""],
+    ["alerts", "extra"], ["annotations", "--from", "0", "--to", "86400001"], ["annotations", "--from", "5", "--to", "5"],
+    ["annotations", "--from", "0", "--to", "1000", "--dashboard-uid", "a/b"], ["silences", "--uid", "board"],
 ])
 def test_parser_rejects_unsafe_input_without_echo(args, capsys):
     with pytest.raises(reader.SafeError):

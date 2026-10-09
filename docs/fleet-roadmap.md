@@ -250,14 +250,15 @@ or an untimed aggregate for evidence of incident recovery or cause.
 
 **Status:** `active` (2026-09-21); selected CF reads and authentication without exposing
 credentials are wanted. The caller/coverage fixes, selected browser tools and bounded Grafana
-read/query helper are implemented; live credential/session binding and native acceptance remain open.
+read/query helper, with its per-user credential file, are implemented; live session binding and
+native acceptance remain open, and the credential file is still readable through unhooked Read tools.
 **Owner:** Save Toolkit maintainers.
 **Outcome:** Grafana investigation and selected CF application observations work on
 Claude Code and VS Code/Copilot under an agreed, verified access policy, reusing existing SSO/session
 access first and supporting personal-account authentication when needed without exposing credentials
 to the LLM. Deployment actions, other production mutations, and credential-bearing diagnostic reads
 remain excluded.
-**Next action:** Configure the bundled Grafana helper through a human-controlled credential launcher,
+**Next action:** Run the bundled Grafana helper with a human-written `~/.config/save-toolkit/grafana.env`,
 bind the operations-repository path, and verify one complete dashboard investigation with its controls.
 Identify the existing SSO/browser/CLI session and credential mechanism, including protected personal
 credentials where needed. Complete CF target/output/time bounds, browser runtime verification and an

@@ -15,10 +15,10 @@ WRAPPER = f"& '{HELPER.with_suffix('.ps1').as_posix()}'"
 PS_QUERY = "-Datasource logs -Kind loki -From 1758400000000 -To 1758403600000 -Expr '{service=\"edge\"} |= \"error\"'"
 
 
-def decision(command, tool, *, copilot=False):
+def decision(command, tool, *, copilot=False, agent="save-toolkit:sre-assistant"):
     payload = {"tool_name": tool, "tool_input": {"command": command}}
     if not copilot:
-        payload["agent_type"] = "save-toolkit:sre-assistant"
+        payload["agent_type"] = agent
     result = subprocess.run(
         [sys.executable, "-I", "-S", str(GUARD), *(["--copilot"] if copilot else [])],
         input=json.dumps(payload),
@@ -56,9 +56,26 @@ def test_copilot_query_transport_keeps_shell_and_expression_checks(arguments, ex
     "dashboard --uid bsg-edge",
     "query --datasource metrics --kind prometheus --from 1758400000000 --to 1758403600000 --expr 'up'",
     'query --datasource logs --kind loki --from 1758400000000 --to 1758403600000 --expr \'{service="edge"} |= "error"\'',
+    "search --query checkout",
+    "search --query 'checkout latency'",
+    "alerts",
+    "alerts --folder-uid payments",
+    "annotations --from 1758400000000 --to 1758403600000 --dashboard-uid bsg-edge",
+    "silences",
 ])
 def test_only_installed_helper_reads_are_admitted(tool, arguments):
     assert decision(f"{PREFIX} {arguments}", tool) == (43 if tool == "PowerShell" and "--expr " in arguments else 42)
+
+
+@pytest.mark.parametrize("agent", ["save-toolkit:sre-assistant", "save-toolkit:software-engineer"])
+@pytest.mark.parametrize("tool,command", [
+    ("Bash", "cat ~/.config/save-toolkit/grafana.env"),
+    ("Bash", "cd ~/.config && cat save-toolkit/grafana.env"),
+    ("PowerShell", r"Get-Content $HOME\.config\save-toolkit\grafana.env"),
+    ("PowerShell", r"type C:\Users\someone\.config\save-toolkit\grafana.env"),
+])
+def test_helper_settings_file_is_denied_to_every_roster_lane(agent, tool, command):
+    assert decision(command, tool, agent=agent) == 43
 
 
 @pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
@@ -103,6 +120,11 @@ def test_wrapper_does_not_grant_other_scripts_or_shell_forms(command):
     f"{PREFIX} dashboard --uid edge\ncf restart edge",
     f"{PREFIX} query --datasource metrics --kind sql --from 1758400000000 --to 1758403600000 --expr 'DROP TABLE example'",
     f"{PREFIX} query --datasource metrics --kind prometheus --from 1 --to 9999999999999 --expr 'up'",
+    f"{PREFIX} search --query 'edge\"; cf restart edge'",
+    f"{PREFIX} alerts --folder-uid ../other",
+    f"{PREFIX} annotations --from 0 --to 86400001",
+    f"{PREFIX} silences --url https://other.invalid",
+    f"{PREFIX} silences; cf restart edge",
     PREFIX.replace(" -I -S ", " ") + " dashboard --uid edge",
     PREFIX.replace("grafana_read.py", "other.py") + " dashboard --uid edge",
     'python -I -S "./skills/grafana/scripts/grafana_read.py" dashboard --uid edge',
