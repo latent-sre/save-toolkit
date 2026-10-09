@@ -37,7 +37,7 @@ from fleet_atlas_v2_model import (
 )
 from fleet_atlas_v2_model import EvidenceClass as EC
 from fleet_atlas_v2_model import ProofKind as PK
-from fleet_atlas_v2_proofs import Derivation, Evaluator
+from fleet_atlas_v2_proofs import Derivation, Extraction
 from fleet_atlas_v2_sources import Snapshot, Source
 
 LIVE_DOCS = frozenset(('AGENTS.md', 'CONTRIBUTING.md', 'README.md', 'docs/README.md',
@@ -50,13 +50,6 @@ TARGET_LINK = re.compile(r'\]\(([^)]+)\)')
 FIELD = re.compile(r'^\*\*([A-Za-z][A-Za-z ]+):\*\*\s*(.*)$')
 SEPARATOR = re.compile(r'^\|\s*:?-{3,}')  # A Markdown table's header/body separator row.
 EVALUATOR = 'fleet-source-replay/v2'
-
-
-@dataclass(frozen=True)
-class Extraction:
-    buckets: tuple[Bucket, ...]
-    predicates: tuple[Predicate, ...]
-    evaluators: Mapping[str, Evaluator]
 
 
 # Fact values must stay exact str (validate_value), so these are annotations, not enums.

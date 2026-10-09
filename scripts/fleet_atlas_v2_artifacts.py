@@ -6,10 +6,10 @@ import json
 import os
 import re
 import tempfile
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol, TypeAlias, cast
+from typing import TypeAlias, cast
 
 from fleet_atlas_v2_format import (
     API_VERSION,
@@ -22,8 +22,8 @@ from fleet_atlas_v2_format import (
     parse_graph,
     self_sized,
 )
-from fleet_atlas_v2_model import Bucket, Predicate, assemble, canonical_bytes, digest
-from fleet_atlas_v2_proofs import Evaluator, VerifiedFacts, verify_facts
+from fleet_atlas_v2_model import assemble, canonical_bytes, digest
+from fleet_atlas_v2_proofs import Extraction, VerifiedFacts, verify_facts
 from fleet_atlas_v2_sources import Snapshot, current_snapshot, verify_revision
 
 OUTPUT = Path("docs/fleet-atlas/v2")
@@ -45,23 +45,10 @@ VIEWS = {
 }
 
 
-class ExtractionResult(Protocol):
-    """What a loader returns: extractor buckets, their predicates and the trusted evaluators."""
-
-    @property
-    def buckets(self) -> tuple[Bucket, ...]: ...
-
-    @property
-    def predicates(self) -> tuple[Predicate, ...]: ...
-
-    @property
-    def evaluators(self) -> Mapping[str, Evaluator]: ...
+Loader: TypeAlias = Callable[[Snapshot], Extraction]
 
 
-Loader: TypeAlias = Callable[[Snapshot], ExtractionResult]
-
-
-def extraction(snapshot: Snapshot) -> ExtractionResult:
+def extraction(snapshot: Snapshot) -> Extraction:
     # Fixed trusted implementation import, never a module path from atlas content.
     from fleet_atlas_v2_extract import extract  # noqa: PLC0415 -- loaded only when a derivation runs
 

@@ -42,6 +42,15 @@ _SEAL = object()
 
 
 @dataclass(frozen=True)
+class Extraction:
+    """What a loader returns: extractor buckets, their predicates and the trusted evaluators."""
+
+    buckets: tuple[Bucket, ...]
+    predicates: tuple[Predicate, ...]
+    evaluators: Mapping[str, Evaluator]
+
+
+@dataclass(frozen=True)
 class VerifiedFacts:
     """Only proof-checked graph data; artifact verification is a separate outer step."""
 

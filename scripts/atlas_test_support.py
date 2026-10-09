@@ -12,10 +12,9 @@ import subprocess
 import tempfile
 from collections.abc import Collection, Iterable, Mapping
 from pathlib import Path
-from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
-from fleet_atlas_v2_artifacts import OUTPUT, ExtractionResult, runtime_modules
+from fleet_atlas_v2_artifacts import OUTPUT, runtime_modules
 from fleet_atlas_v2_model import (
     EDGE_TYPES,
     Bucket,
@@ -27,7 +26,7 @@ from fleet_atlas_v2_model import (
     ProofKind,
     assemble,
 )
-from fleet_atlas_v2_proofs import Derivation, Evaluator, VerifiedFacts, verify_facts
+from fleet_atlas_v2_proofs import Derivation, Evaluator, Extraction, VerifiedFacts, verify_facts
 from fleet_atlas_v2_sources import Snapshot, Source
 
 if TYPE_CHECKING:
@@ -79,7 +78,7 @@ class ReadmeRepository(_TestCase):
         return self.root / OUTPUT / name
 
 
-def fixture_extract(snapshot: Snapshot) -> ExtractionResult:
+def fixture_extract(snapshot: Snapshot) -> Extraction:
     """A one-fact extraction: README.md's first line is the document's state."""
     source = snapshot.source("README.md")
     node = Node("document:README.md", "document", source.path, "WHOLE_DOCUMENT")
@@ -92,8 +91,7 @@ def fixture_extract(snapshot: Snapshot) -> ExtractionResult:
         return Derivation(current.lines[0], EvidenceClass.EXTRACTED,
                           Proof(ProofKind.EXTRACTED, (current.span(1, 1),), "fixture-title/v1"))
 
-    return SimpleNamespace(buckets=(Bucket("fixture", (node,), (fact,)),),
-                           predicates=(rule,), evaluators={"fixture-title/v1": evaluate})
+    return Extraction((Bucket("fixture", (node,), (fact,)),), (rule,), {"fixture-title/v1": evaluate})
 
 
 def fact_rows(rows: Iterable[Iterable[object]]) -> bytes:
@@ -104,7 +102,7 @@ def fact_rows(rows: Iterable[Iterable[object]]) -> bytes:
     return b"".join((json.dumps(list(row), ensure_ascii=True, sort_keys=True) + "\n").encode("ascii") for row in rows)
 
 
-def row_extraction(snapshot: Snapshot, path: str, evaluator: str = "row-fixture/v1") -> ExtractionResult:
+def row_extraction(snapshot: Snapshot, path: str, evaluator: str = "row-fixture/v1") -> Extraction:
     """An extraction with one fact per row of `path`, each cited by and replayed from its own line.
 
     Nodes are every row subject and relationship target; a relationship is any row whose
@@ -130,8 +128,7 @@ def row_extraction(snapshot: Snapshot, path: str, evaluator: str = "row-fixture/
                           Proof(ProofKind.EXTRACTED, (current.span(i, i),), evaluator),
                           tuple(sorted(row[4].items())) if len(row) > 4 else ())
 
-    return SimpleNamespace(buckets=(Bucket("rows", nodes, facts),), predicates=rules,
-                           evaluators={evaluator: replay})
+    return Extraction((Bucket("rows", nodes, facts),), rules, {evaluator: replay})
 
 
 def echo(fact: Fact, snapshot: Snapshot, premises: Mapping[str, Fact]) -> Derivation:
