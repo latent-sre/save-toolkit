@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import functools
 import json
 import math
 import os
@@ -74,17 +75,7 @@ def _budget(value: str) -> float:
     return number
 
 
-def _trials(value: str) -> int:
-    """At least one trial: an empty batch is not a green batch."""
-    return _whole_number(value, "--trials", 1, "an empty batch is not a green batch")
-
-
-def _run_offset(value: str) -> int:
-    """At least zero: run numbers start at 1, and the v1 record refuses a `run-0`."""
-    return _whole_number(value, "--run-offset", 0, "run numbers start at 1")
-
-
-def _whole_number(value: str, flag: str, minimum: int, why: str) -> int:
+def _whole_number(value: str, *, flag: str, minimum: int, why: str) -> int:
     try:
         number = int(value)
     except ValueError:
@@ -125,11 +116,16 @@ def _run_options(parser: argparse.ArgumentParser, *, required: bool) -> None:
         type=Path,
         help="completed canonical calibration identity.json required by rubric-backed trials",
     )
-    parser.add_argument("--trials", type=_trials, default=1)
+    parser.add_argument(
+        "--trials",
+        type=functools.partial(_whole_number, flag="--trials", minimum=1, why="an empty batch is not a green batch"),
+        default=1,
+    )
     _threshold_option(parser)
     parser.add_argument(
         "--run-offset",
-        type=_run_offset,
+        # The v1 record refuses a `run-0`.
+        type=functools.partial(_whole_number, flag="--run-offset", minimum=0, why="run numbers start at 1"),
         default=0,
         help="first run number minus one, to append trials to an existing label",
     )
@@ -237,14 +233,10 @@ def _legacy_command(args: argparse.Namespace) -> str:
 
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
-    if arguments and arguments[0] in COMMANDS:
-        parser = _command_parser()
-        args = parser.parse_args(arguments)
-        command = args.command
-    else:
-        parser = _legacy_parser()
-        args = parser.parse_args(arguments)
-        command = _legacy_command(args)
+    subcommand = bool(arguments) and arguments[0] in COMMANDS
+    parser = _command_parser() if subcommand else _legacy_parser()
+    args = parser.parse_args(arguments)
+    command = args.command if subcommand else _legacy_command(args)
     if command == "diff":
         return diff(args.diff_paths)
     if command == "schema":
