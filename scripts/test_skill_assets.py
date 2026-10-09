@@ -14,11 +14,13 @@ from testkit import assert_guard_decisions, frontmatter_block
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def ci_starter() -> dict:
+    return yaml.safe_load((ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(encoding="utf-8"))
+
+
 class SkillAssetTests(unittest.TestCase):
     def test_python_ci_starter_does_not_keep_git_auth_for_checks(self) -> None:
-        workflow = yaml.safe_load(
-            (ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(encoding="utf-8")
-        )
+        workflow = ci_starter()
         for name, job in workflow["jobs"].items():
             checkouts = [step for step in job["steps"]
                          if step.get("uses", "").startswith("actions/checkout@")]
@@ -27,8 +29,7 @@ class SkillAssetTests(unittest.TestCase):
                 self.assertIs(checkout.get("with", {}).get("persist-credentials"), False, name)
 
     def test_python_ci_starter_preserves_lock_and_caller_toolchain(self) -> None:
-        text = (ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(encoding="utf-8")
-        workflow = yaml.safe_load(text)
+        workflow = ci_starter()
         self.assertEqual({job["runs-on"] for job in workflow["jobs"].values()}, {"ubuntu-latest"})
         # PyYAML's YAML 1.1 loader treats the unquoted Actions key `on` as True.
         inputs = workflow.get("on", workflow.get(True))["workflow_call"]["inputs"]
@@ -50,9 +51,7 @@ class SkillAssetTests(unittest.TestCase):
                     self.assertEqual(step["with"]["version"], "${{ inputs.uv-version }}")
 
     def test_python_ci_starter_runs_invariant_checks_outside_matrix(self) -> None:
-        workflow = yaml.safe_load(
-            (ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(encoding="utf-8")
-        )
+        workflow = ci_starter()
         jobs = workflow["jobs"]
         for tool in ("ruff check", "ruff format"):
             owners = [name for name, job in jobs.items()
@@ -70,9 +69,7 @@ class SkillAssetTests(unittest.TestCase):
         self.assertTrue(any("pytest" in step.get("run", "") for step in test["steps"]))
 
     def test_ci_starter_cancellation_is_local_to_each_validation_leg(self) -> None:
-        workflow = yaml.safe_load(
-            (ROOT / "skills/ci-actions/assets/ci.reusable.yml").read_text(encoding="utf-8")
-        )
+        workflow = ci_starter()
         self.assertFalse(workflow.get("concurrency", {}).get("cancel-in-progress", False))
         job = workflow["jobs"]["test"]
         self.assertTrue(job["concurrency"]["cancel-in-progress"])
