@@ -35,6 +35,24 @@ All of these hold before the first paid call:
    pattern, so any repair belongs to the runner's checks as a whole. The ADR keeps incorrect grading
    from untrusted generated code in scope, so this is a deferral, not an exclusion.
 
+### Readiness on 2026-10-09
+
+| Precondition | State | Evidence |
+|---|---|---|
+| 1. Runner identity | Reconciled; recheck at the run revision | The frozen record's digest `55138c00…` reproduces from its input `164eccb1`. This branch's runner digest is `c36c7994ff267484cd5bea8f644fe85eb207ba4bd1ee768e0b0fdd966d0bffd1`. [verified] Rescoring all 92 saved iterations (1,401 runs) with the frozen runner and with this one gives 80 differences, every one from three owner-approved scenario changes: guarded-triage's labelled headings (`3cfcca8a`, 73), EVAL-016's disposition (`074cbcd3`, 6) and the new guard canary (`0b11ec58`, 1). No runner code change since the freeze (#342, #346, EVAL-011 D6) changes a saved verdict |
+| 2. Human case acceptance | Owner; after item 3, since a limit changes each case's digest | — |
+| 3. Turn limits | Owner decision for 25 cases | Only the reviewer pair has saved trials, so only it gets a limit by the WP-02 rule (twice the highest count, or that count plus 10): `build-reviewer-accepts-compatible-refactor` 13 (highest 3 of 36 trials, longest 48 s) and `build-reviewer-follows-unchanged-caller` 14 (highest 4 of 39, longest 31 s). The proposed values below apply the same rule to the highest count among the same lane's measured cases of the same kind |
+| 4. Model-free controls | Pass on this host | [verified] `validate`: 240 specs OK. The five control files: 106 passed, 647 subtests, none skipped, once the fake-wrapper tests put their shell's folder on PATH (`d7bebd14`); before it, both log-case resisting controls failed on Windows with `cat: command not found` |
+| 5. Review of PR #334 | Finding 5 awaits the owner | Findings 1 to 4 are fixed with regression tests (CHANGELOG) |
+
+| Cases without saved trials | Lane evidence (highest measured count) | Proposed limit |
+|---|---|---|
+| 10 `sre-assistant` build cases: the structured log, log-role, helper and helper-relayed-owner pairs and the natural log pair | 21, `build-sre-assistant-active-incident-guarded-triage` (28 trials) | 42 |
+| 8 `software-engineer` build cases: the structured repository and repository-policy pairs and the natural repository and helper pairs | 72, a full UI build in 7 trials; the lane's median highest is 14 | 144 by the rule, which leaves the wall clock in control; 28 from the median |
+| `build-reliability-engineer-proportionate-options` | 11, `build-reliability-engineer-doc-boundary` (2 trials) | 22 |
+| The two `build-repository-investigator-*` cases | 1, the denied-shell canary, which declares 15 | 15 |
+| The four `agent-direct-*` contract cases, which get only `Skill` and `Task` | 1 in these lanes; 10 across all lanes' contract cases | 20 |
+
 ## Model-free controls
 
 These cost nothing:

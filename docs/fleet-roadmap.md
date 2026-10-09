@@ -373,6 +373,21 @@ completes WP-02, and selected the first repairs, which EVAL-011 tracks. WP-12's 
 account read access to the older run folders on 2026-10-06; all 1,562 now open from it. EVAL-015
 holds the deferred judge-replacement comparison and EVAL-011 the native measurement contract. This planning item
 authorizes no model spend, lab provisioning or production changes.
+
+2026-10-09, model-free work toward WP-10 and WP-12:
+- WP-10's [readiness record](fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md#readiness-on-2026-10-09)
+  meets preconditions 1 and 4. [verified] Rescoring all 1,401 saved runs with the frozen runner and
+  with this branch's runner differs only where three owner-approved scenario changes landed after the
+  freeze, and the model-free controls pass on this host once the fake-wrapper tests find their shell's
+  utilities on Windows. Still the owner's: turn limits for the 25 cases with no saved trial (proposed
+  per lane in the record), case acceptance at the resulting digests, PR #334's finding 5, and the cap.
+- WP-12's first pair, GCP-01 startup, is authored as the pilot template: `build-gcp01-startup-{a,b}`
+  for `sre-assistant`, with a fixture `gcloud` read wrapper, a hidden
+  [expected-outcome record and review contract](../evals/oracles/gcp/README.md), and offline controls
+  in `evals/test_gcp_cases.py`. [verified] The variants differ in five application log lines; a
+  useful and a plausible-wrong answer both end INCONCLUSIVE pending human review, while a missing log
+  read, a change or credential request, and a refusal FAIL; each control test fails on its mutant.
+  Next: the owner reviews the template, then the other 11 pilot families follow its shape.
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
 2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what

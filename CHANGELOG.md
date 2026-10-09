@@ -19,6 +19,18 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `reviewer`, never to `principal-engineer` (the owner's resolution of Codex's P1 on PR #341).
   The owner accepted that P1's other half as a known gap: a review the main session keeps passes on
   any nonempty reply without a dispatch, so no grader yet shows the review itself was done.
+- `EVAL-012` WP-12: the GCP-01 startup pair, `build-gcp01-startup-{a,b}`, is the first authored GCP
+  case and the pilot template. A fixture `gcloud` read wrapper serves one synthetic Cloud Run service;
+  only five application log lines separate a loopback bind (A) from a listener waiting on a slow
+  dependency (B). `evals/oracles/gcp/README.md` holds the hidden expected outcomes and the human
+  review contract; `evals/test_gcp_cases.py` replays useful, plausible-wrong, no-log, change and
+  refusal controls through the runner's checks. [verified] 12 tests pass, and each fails on its
+  mutant. No model run or case acceptance yet.
+- `EVAL-012` WP-10: the run plan records readiness on 2026-10-09. [verified] Preconditions 1
+  (runner identity reconciled by a full rescore against the frozen runner) and 4 (model-free
+  controls on this host) hold; turn limits, case acceptance, finding 5 and the cap are the owner's.
+  The natural-injection controls failed on Windows because the fake `cf` wrapper's clean PATH had no
+  `cat`; the test now adds its shell's folder.
 - Eval runner (`EVAL-011`, the 2026-10-07 review's T2 and D6): a regrade of a grade saved before
   `run_end` existed no longer voids a wall-clock timeout when the raw trace, plugin root and
   workspace survive. The partial trace must pass the profile check the live path applies, and then
