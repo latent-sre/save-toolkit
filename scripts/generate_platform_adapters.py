@@ -453,12 +453,6 @@ def _walk_files(base: Path, label: str) -> Iterator[Path]:
             yield path
 
 
-def _canonical_skill_files(root: Path) -> list[Path]:
-    skill_root = root / "skills"
-    _assert_no_indirection_below(root, skill_root, "canonical source")
-    return sorted(_walk_files(skill_root, "canonical source"))
-
-
 def expected_outputs(root: Path) -> dict[Path, bytes]:
     root = root.resolve()
     outputs: dict[Path, bytes] = {}
@@ -488,7 +482,7 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
     _assert_no_indirection_below(root, hooks, "canonical source")
     outputs[COPILOT_PLUGIN_HOOKS] = hooks.read_text(encoding="utf-8").encode("utf-8")
 
-    skill_files = _canonical_skill_files(root)
+    skill_files = sorted(_walk_files(root / "skills", "canonical source"))
     if not any(path.name == "SKILL.md" for path in skill_files):
         raise ValueError(f"{root / 'skills'}: no canonical skills found")
     for source in skill_files:
@@ -520,11 +514,10 @@ def _actual_generated_files(root: Path) -> set[Path]:
     actual: set[Path] = set()
     for relative in GENERATED_ROOTS:
         base = root / relative
+        # Refuses a link at the generated root itself as well as above it.
         _assert_no_indirection_below(root, base, "generated output")
         if not base.exists():
             continue
-        if _is_link_or_reparse(base):
-            raise ValueError(f"{base}: generated root must not be a link/reparse point")
         actual.update(path.relative_to(root) for path in _walk_files(base, "generated output"))
     return actual
 
@@ -600,14 +593,11 @@ def validate_platform_contracts(root: Path) -> list[str]:
 
 
 def _retired_generated_root_failures(root: Path) -> list[str]:
-    failures: list[str] = []
-    for retired in RETIRED_GENERATED_ROOTS:
-        if (root / retired).exists():
-            failures.append(
-                f"{retired.as_posix()}: retired generated root is present on disk; a host can still "
-                f"load it through an older configuration. Remove it."
-            )
-    return failures
+    return [
+        f"{retired.as_posix()}: retired generated root is present on disk; a host can still "
+        f"load it through an older configuration. Remove it."
+        for retired in RETIRED_GENERATED_ROOTS if (root / retired).exists()
+    ]
 
 
 def _gitattributes_failures(root: Path) -> list[str]:
@@ -665,10 +655,8 @@ def write_generated_outputs(root: Path) -> int:
     root = root.resolve()
     outputs = expected_outputs(root)
     for relative in GENERATED_ROOTS:
-        target = root / relative
-        _assert_no_indirection_below(root, target, "generated root")
-        if target.exists() and _is_link_or_reparse(target):
-            raise ValueError(f"{target}: refusing to replace a link/reparse point")
+        # Refuses a link at the root to be replaced as well as above it.
+        _assert_no_indirection_below(root, root / relative, "generated root")
 
     with tempfile.TemporaryDirectory(prefix=".adapter-stage-", dir=root) as temporary:
         stage = Path(temporary) / "new"

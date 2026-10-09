@@ -775,8 +775,8 @@ class PlatformAdapterTests(unittest.TestCase):
         except (OSError, NotImplementedError):  # pragma: no cover - unprivileged Windows
             self.skipTest("cannot create a directory symlink here")
         self.assertTrue(planted.is_symlink(), "fixture did not plant a real link")
-        with self.assertRaisesRegex(ValueError, "must not be a link/reparse point"):
-            adapters._canonical_skill_files(root)
+        with self.assertRaisesRegex(ValueError, "canonical source must not be a link/reparse point"):
+            adapters.expected_outputs(root)
 
     def test_a_real_symlinked_directory_in_a_generated_root_is_refused(self) -> None:
         """Same control on the output side, where a link would make the byte gate read the wrong
