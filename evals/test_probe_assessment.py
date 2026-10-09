@@ -29,14 +29,9 @@ from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
 from probe import trials as probe_trials
 from probe import workspaces as probe_workspaces
-from probe_testkit import (
-    ROOT,
-    all_scenarios,
-    context,
-    scenario_file,
-    tiny_spec,
-    trace_measures,
-)
+from probe_testkit import all_scenarios, context, scenario_file, tiny_spec, trace_measures
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def _trace(*, skills=(), agents=(), text="an answer", plugins=(("save-toolkit",),)) -> probe_tracing.TraceSummary:

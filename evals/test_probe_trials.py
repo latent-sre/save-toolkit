@@ -38,7 +38,6 @@ from probe import tracing as probe_tracing
 from probe import trials as probe_trials
 from probe import workspaces as probe_workspaces
 from probe_testkit import (
-    ROOT,
     ReviewFindingTestCase,
     TempRootTestCase,
     calibration_receipt,
@@ -52,6 +51,8 @@ from probe_testkit import (
     trace_measures,
     write_tree,
 )
+
+ROOT = Path(__file__).resolve().parent.parent
 
 NATIVE_SPEC = tiny_spec(followups=["and then?"], helper="sre-assistant", tools=["Skill", "Read", "Task"], expected_model="claude-sonnet-5-5")
 

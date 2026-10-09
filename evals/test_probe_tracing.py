@@ -21,7 +21,6 @@ from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
 from probe import workspaces as probe_workspaces
 from probe_testkit import (
-    ROOT,
     ReviewFindingTestCase,
     context,
     contract_spec,
@@ -34,6 +33,8 @@ from probe_testkit import (
     write_saved_run,
     ws_context,
 )
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 class TraceAndCommandTests(unittest.TestCase):

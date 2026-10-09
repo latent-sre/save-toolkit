@@ -16,10 +16,9 @@ from pathlib import Path
 from unittest import mock
 
 from probe import fingerprints as probe_fingerprints
-from probe_testkit import (
-    ROOT,
-    run_python,
-)
+from probe_testkit import run_python
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 class RuntimeIdentityTests(unittest.TestCase):

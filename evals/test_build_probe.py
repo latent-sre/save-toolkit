@@ -32,7 +32,6 @@ from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
 from probe import workspaces as probe_workspaces
 from probe_testkit import (
-    ROOT,
     TempRootTestCase,
     all_scenarios,
     context,
@@ -42,6 +41,8 @@ from probe_testkit import (
     tiny_spec,
     ws_context,
 )
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 class ScenarioSpecTests(unittest.TestCase):

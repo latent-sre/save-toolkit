@@ -27,7 +27,6 @@ from probe import tracing as probe_tracing
 from probe import trials as probe_trials
 from probe_testkit import (
     AGENT_SECURITY_REFERENCE,
-    ROOT,
     ReviewFindingTestCase,
     calibration_receipt,
     context,
@@ -42,6 +41,8 @@ from probe_testkit import (
     tiny_spec,
     write_saved_run,
 )
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 class RegradeTests(unittest.TestCase):

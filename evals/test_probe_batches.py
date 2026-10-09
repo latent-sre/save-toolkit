@@ -26,7 +26,6 @@ from probe import records as probe_records
 from probe import rescoring as probe_rescoring
 from probe import trials as probe_trials
 from probe_testkit import (
-    ROOT,
     ReviewFindingTestCase,
     TempRootTestCase,
     all_scenarios,
@@ -35,6 +34,8 @@ from probe_testkit import (
     tiny_spec,
     write_saved_run,
 )
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 class ReviewFindingTests(ReviewFindingTestCase):
