@@ -8,7 +8,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ALLOW_EXIT = 42
 DENY_EXIT = 43
 TIMEOUT_SECONDS = 5

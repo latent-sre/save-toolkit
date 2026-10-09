@@ -2,34 +2,51 @@
 
 from __future__ import annotations
 
+import io
+import json
 import os
 import re
-import json
-import io
-from contextlib import redirect_stderr, redirect_stdout
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
+import fleet_frontmatter
 import generate_platform_adapters as adapters
-
+from testkit import find_shell, frontmatter_block
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def frontmatter_value(rendered: str, key: str) -> Any:
+    """The JSON value of one generated frontmatter line, or None when the projection omits the key."""
+    prefix = f"{key}: "
+    value = next((line.removeprefix(prefix) for line in frontmatter_block(rendered).splitlines()
+                  if line.startswith(prefix)), None)
+    return None if value is None else json.loads(value)
+
+
 class PlatformAdapterTests(unittest.TestCase):
-    @staticmethod
-    def _copy_canonical_sources(root: Path) -> None:
-        """Copy authored agents/, skills/, commands/ and Copilot hooks — the generator's inputs."""
+    def _temporary_root(self) -> Path:
+        """An empty, resolved temporary root, removed when the test ends."""
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        return Path(temporary.name).resolve()
+
+    def _canonical_root(self) -> Path:
+        """A temporary root holding authored agents/, skills/, commands/ and Copilot hooks — the generator's inputs."""
+        root = self._temporary_root()
         shutil.copytree(ROOT / "agents", root / "agents")
         shutil.copytree(ROOT / "skills", root / "skills")
         shutil.copytree(ROOT / "commands", root / "commands")
         (root / adapters.COPILOT_HOOKS_SOURCE).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / adapters.COPILOT_HOOKS_SOURCE, root / adapters.COPILOT_HOOKS_SOURCE)
+        return root
 
     @staticmethod
     def _copy_platform_contract_files(root: Path) -> None:
@@ -43,33 +60,15 @@ class PlatformAdapterTests(unittest.TestCase):
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / relative, target)
 
-    @staticmethod
-    def _copilot_tools(name: str) -> list[str]:
-        rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
-        frontmatter = rendered.split("---", 2)[1]
-        return json.loads(
-            next(line for line in frontmatter.splitlines() if line.startswith("tools: "))[7:]
-        )
+    def _contract_root(self) -> Path:
+        root = self._temporary_root()
+        self._copy_platform_contract_files(root)
+        return root
 
     @staticmethod
-    def _copilot_agents(name: str) -> list[str] | None:
-        rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
-        frontmatter = rendered.split("---", 2)[1]
-        value = next(
-            (line[8:] for line in frontmatter.splitlines() if line.startswith("agents: ")),
-            None,
-        )
-        return None if value is None else json.loads(value)
-
-    @staticmethod
-    def _copilot_handoffs(name: str) -> list[dict[str, object]] | None:
-        rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
-        frontmatter = rendered.split("---", 2)[1]
-        value = next(
-            (line[10:] for line in frontmatter.splitlines() if line.startswith("handoffs: ")),
-            None,
-        )
-        return None if value is None else json.loads(value)
+    def _copilot(name: str, key: str) -> Any:
+        """One frontmatter field of the canonical agent `name` as rendered for Copilot."""
+        return frontmatter_value(adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md"), key)
 
     def test_committed_outputs_match_canonical_sources(self) -> None:
         self.assertEqual([], adapters.validate_generated_outputs(ROOT))
@@ -99,17 +98,17 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_guarded_copilot_agents_do_not_receive_execute(self) -> None:
         for name in sorted(adapters.GUARDED_AGENTS):
-            self.assertNotIn("execute", self._copilot_tools(name), name)
-            self.assertNotIn("execute/runInTerminal", self._copilot_tools(name), name)
+            self.assertNotIn("execute", self._copilot(name, "tools"), name)
+            self.assertNotIn("execute/runInTerminal", self._copilot(name, "tools"), name)
             rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md", command_preview=True)
             self.assertIn("execute/runInTerminal", rendered)
-            self.assertNotIn('"execute"', rendered.split("---", 2)[1])
+            self.assertNotIn('"execute"', frontmatter_block(rendered))
             self.assertIn("target: vscode", rendered)
             self.assertIn("readonly-guard-copilot-hook.sh", rendered)
             self.assertIn("readonly-guard-hook.ps1", rendered)
             self.assertIn('"PreToolUse"', rendered)
-            self.assertNotIn("${CLAUDE_PLUGIN_ROOT}", rendered.split("---", 2)[1])
-            self.assertIn((ROOT / "scripts").as_posix(), rendered.split("---", 2)[1])
+            self.assertNotIn("${CLAUDE_PLUGIN_ROOT}", frontmatter_block(rendered))
+            self.assertIn((ROOT / "scripts").as_posix(), frontmatter_block(rendered))
 
     def test_only_sre_gets_selected_browser_tools(self) -> None:
         expected = {"microsoft/playwright-mcp/" + name for name in (
@@ -120,40 +119,32 @@ class PlatformAdapterTests(unittest.TestCase):
         native = {"openBrowserPage", "navigatePage", "readPage", "screenshotPage",
                   "clickElement", "hoverElement", "typeInPage"}
         for source in (ROOT / "agents").glob("*.md"):
-            tools = set(self._copilot_tools(source.stem))
+            tools = set(self._copilot(source.stem, "tools"))
             browser = {t for t in tools if "playwright" in t}
             self.assertEqual(expected if source.stem == "sre-assistant" else set(), browser, source.stem)
             self.assertEqual(native if source.stem == "sre-assistant" else set(), tools & native)
             self.assertFalse(tools & {"runPlaywrightCode", "handleDialog", "dragElement"})
 
     def test_native_browser_mapping_cannot_survive_removing_source_grants(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory) / "sre-assistant.md"
-            original = (ROOT / "agents/sre-assistant.md").read_text(encoding="utf-8")
-            source.write_text(re.sub(r", mcp__microsoft_playwright_mcp__\w+", "", original), encoding="utf-8")
-            rendered = adapters.render_copilot_agent(source)
-            frontmatter = rendered.split("---", 2)[1]
-            tools = json.loads(next(line[7:] for line in frontmatter.splitlines() if line.startswith("tools: ")))
-            self.assertEqual(["read", "search", "agent"], tools)
+        source = self._temporary_root() / "sre-assistant.md"
+        original = (ROOT / "agents/sre-assistant.md").read_text(encoding="utf-8")
+        source.write_text(re.sub(r", mcp__microsoft_playwright_mcp__\w+", "", original), encoding="utf-8")
+        self.assertEqual(["read", "search", "agent"],
+                         frontmatter_value(adapters.render_copilot_agent(source), "tools"))
 
     def test_powershell_grant_requires_its_hook_handler(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            self._copy_platform_contract_files(root)
-            path = root / "hooks/hooks.json"
-            document = json.loads(path.read_text(encoding="utf-8"))
-            document["hooks"]["PreToolUse"] = [entry for entry in document["hooks"]["PreToolUse"]
-                                                if entry.get("matcher") != "PowerShell"]
-            path.write_text(json.dumps(document), encoding="utf-8")
-            self.assertTrue(any("PowerShell requires" in failure
-                                for failure in adapters.validate_platform_contracts(root)))
+        root = self._contract_root()
+        path = root / "hooks/hooks.json"
+        document = json.loads(path.read_text(encoding="utf-8"))
+        document["hooks"]["PreToolUse"] = [entry for entry in document["hooks"]["PreToolUse"]
+                                            if entry.get("matcher") != "PowerShell"]
+        path.write_text(json.dumps(document), encoding="utf-8")
+        self.assertTrue(any("PowerShell requires" in failure
+                            for failure in adapters.validate_platform_contracts(root)))
 
     def test_exported_hook_runs_from_neutral_directory_without_plugin_environment(self) -> None:
         """Exercise the exported command, not just the launcher, with an install path containing spaces."""
-        shell = shutil.which("sh")
-        if shell is None and os.name == "nt":
-            candidate = Path("C:/Program Files/Git/bin/sh.exe")
-            shell = str(candidate) if candidate.is_file() else None
+        shell = find_shell("sh")
         with tempfile.TemporaryDirectory(prefix="SRE install spaces ") as directory:
             root = Path(directory)
             (root / "agents").mkdir()
@@ -163,8 +154,7 @@ class PlatformAdapterTests(unittest.TestCase):
             for name in ("readonly-guard.py", "readonly-guard-hook.ps1", "readonly-guard-copilot-hook.sh"):
                 shutil.copy2(ROOT / "scripts" / name, root / "scripts" / name)
             rendered = adapters.render_copilot_agent(source, command_preview=True)
-            hooks = json.loads(next(line[7:] for line in rendered.splitlines() if line.startswith("hooks: ")))
-            hook = hooks["PreToolUse"][0]
+            hook = frontmatter_value(rendered, "hooks")["PreToolUse"][0]
             env = {**os.environ, **hook["env"]}
             env.pop("CLAUDE_PLUGIN_ROOT", None)
             env["PATH"] = str(Path(sys.executable).parent) + os.pathsep + env.get("PATH", "")
@@ -192,18 +182,18 @@ class PlatformAdapterTests(unittest.TestCase):
                             self.assertEqual("", result.stdout)
 
     def test_builder_copilot_agent_keeps_edit_and_execute(self) -> None:
-        tools = self._copilot_tools("software-engineer")
+        tools = self._copilot("software-engineer", "tools")
         self.assertIn("edit", tools)
         self.assertIn("execute", tools)
 
     def test_reviewer_has_verification_tools_and_only_evidence_helpers(self) -> None:
         self.assertEqual(["read", "search", "edit", "execute", "agent", "todo"],
-                         self._copilot_tools("reviewer"))
-        self.assertEqual(["repository-investigator"], self._copilot_agents("reviewer"))
-        self.assertNotIn("web", self._copilot_tools("reviewer"))
+                         self._copilot("reviewer", "tools"))
+        self.assertEqual(["repository-investigator"], self._copilot("reviewer", "agents"))
+        self.assertNotIn("web", self._copilot("reviewer", "tools"))
 
     def test_scribe_copilot_agent_can_edit_but_cannot_execute_or_delegate(self) -> None:
-        self.assertEqual(["read", "search", "edit"], self._copilot_tools("scribe"))
+        self.assertEqual(["read", "search", "edit"], self._copilot("scribe", "tools"))
 
     def test_copilot_agents_preserve_every_canonical_delegation_allowlist(self) -> None:
         expected = {
@@ -225,8 +215,8 @@ class PlatformAdapterTests(unittest.TestCase):
         )
         for name, allowed_agents in expected.items():
             with self.subTest(agent=name):
-                self.assertEqual(allowed_agents, self._copilot_agents(name))
-                self.assertEqual(allowed_agents is not None, "agent" in self._copilot_tools(name))
+                self.assertEqual(allowed_agents, self._copilot(name, "agents"))
+                self.assertEqual(allowed_agents is not None, "agent" in self._copilot(name, "tools"))
 
     def test_copilot_agent_rejects_an_unscoped_agent_tool(self) -> None:
         agent = (
@@ -236,11 +226,10 @@ class PlatformAdapterTests(unittest.TestCase):
             "tools: Read, Agent\n"
             "---\n\n# Probe\n"
         )
-        with tempfile.TemporaryDirectory() as temporary:
-            source = Path(temporary) / "probe-agent.md"
-            source.write_text(agent, encoding="utf-8", newline="\n")
-            with self.assertRaisesRegex(ValueError, "explicit target allowlist"):
-                adapters.render_copilot_agent(source)
+        source = self._temporary_root() / "probe-agent.md"
+        source.write_text(agent, encoding="utf-8", newline="\n")
+        with self.assertRaisesRegex(ValueError, "explicit target allowlist"):
+            adapters.render_copilot_agent(source)
 
     def test_copilot_agent_rejects_the_retired_plugin_addressing_banner(self) -> None:
         # The wrapped two-line form is the variant an exact-bytes match once missed.
@@ -254,24 +243,10 @@ class PlatformAdapterTests(unittest.TestCase):
             "> `save-toolkit:<component>`.\n\n"
             "Body.\n"
         )
-        with tempfile.TemporaryDirectory() as temporary:
-            source = Path(temporary) / "probe-agent.md"
-            source.write_text(agent, encoding="utf-8", newline="\n")
-            with self.assertRaisesRegex(ValueError, "Plugin addressing banner is retired"):
-                adapters.render_copilot_agent(source)
-
-    def test_delegation_requires_exact_plugin_namespace(self) -> None:
-        source = ROOT / "agents/software-engineer.md"
-        for spec in ("Agent(reviewer)", "Agent(other:reviewer)", "Agent(save-toolkit:*)",
-                     "Agent(save-toolkit:reviewer,)", "Agent(save-toolkit:reviewer:extra)",
-                     "Agent(save-toolkit:reviewer, save-toolkit:reviewer)"):
-            with self.subTest(spec=spec), self.assertRaises(ValueError):
-                adapters._delegation_targets([spec], source)
-        self.assertEqual(
-            ["reviewer", "scribe", "researcher"],
-            adapters._delegation_targets(
-                ["Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)"], source),
-        )
+        source = self._temporary_root() / "probe-agent.md"
+        source.write_text(agent, encoding="utf-8", newline="\n")
+        with self.assertRaisesRegex(ValueError, "Plugin addressing banner is retired"):
+            adapters.render_copilot_agent(source)
 
     def test_copilot_agents_offer_the_current_roster_handoff_graph(self) -> None:
         expected_targets = {
@@ -286,9 +261,19 @@ class PlatformAdapterTests(unittest.TestCase):
             "software-engineer": ["reviewer", "scribe", "principal-engineer"],
             "sre-assistant": ["scribe", "software-engineer"],
         }
+        # What each receiving lane's handoff prompt must say.
+        prompt_phrases = {
+            "reviewer": ("[UNTRUSTED]", "gather missing Git/PR/history evidence", "preparation gap",
+                         "permitted isolated verification", "Do not modify the candidate"),
+            "scribe": ("explicitly approved", "without writing"),
+            "software-engineer": ("explicitly approved", "[UNTRUSTED]", "without editing"),
+            "principal-engineer": ("[UNTRUSTED]", "Decision needed", "without writing"),
+            "sre-assistant": ("[UNTRUSTED]", "without applying production changes", "human-selected handoff",
+                              "Do not imply automatic return"),
+        }
         for name, targets in expected_targets.items():
             with self.subTest(agent=name):
-                handoffs = self._copilot_handoffs(name) or []
+                handoffs = self._copilot(name, "handoffs") or []
                 self.assertEqual(targets, [item.get("agent") for item in handoffs])
                 self.assertEqual(len(targets), len({item.get("agent") for item in handoffs}))
                 for handoff in handoffs:
@@ -296,32 +281,12 @@ class PlatformAdapterTests(unittest.TestCase):
                     self.assertTrue(str(handoff.get("label", "")).strip())
                     self.assertTrue(str(handoff.get("prompt", "")).strip())
                     self.assertNotEqual("researcher", handoff["agent"])
-                    if handoff["agent"] == "reviewer":
-                        self.assertIn("[UNTRUSTED]", handoff["prompt"])
-                        self.assertIn("gather missing Git/PR/history evidence", handoff["prompt"])
-                        self.assertIn("preparation gap", handoff["prompt"])
-                        self.assertIn("permitted isolated verification", handoff["prompt"])
-                        self.assertIn("Do not modify the candidate", handoff["prompt"])
-                    if handoff["agent"] == "scribe":
-                        self.assertIn("explicitly approved", handoff["prompt"])
-                        self.assertIn("without writing", handoff["prompt"])
-                    if handoff["agent"] == "software-engineer":
-                        self.assertIn("explicitly approved", handoff["prompt"])
-                        self.assertIn("[UNTRUSTED]", handoff["prompt"])
-                        self.assertIn("without editing", handoff["prompt"])
-                    if handoff["agent"] == "principal-engineer":
-                        self.assertIn("[UNTRUSTED]", handoff["prompt"])
-                        self.assertIn("Decision needed", handoff["prompt"])
-                        self.assertIn("without writing", handoff["prompt"])
-                    if handoff["agent"] == "sre-assistant":
-                        self.assertIn("[UNTRUSTED]", handoff["prompt"])
-                        self.assertIn("without applying production changes", handoff["prompt"])
-                        self.assertIn("human-selected handoff", handoff["prompt"])
-                        self.assertIn("Do not imply automatic return", handoff["prompt"])
+                    for phrase in prompt_phrases.get(handoff["agent"], ()):
+                        self.assertIn(phrase, handoff["prompt"])
 
     def test_sre_incident_closeout_handoff_preserves_the_authorized_artifact(self) -> None:
         handoff = next(
-            item for item in self._copilot_handoffs("sre-assistant") or []
+            item for item in self._copilot("sre-assistant", "handoffs") or []
             if item["agent"] == "scribe"
         )
         prompt = handoff["prompt"]
@@ -345,31 +310,27 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIs(handoff["send"], True)
 
     def test_copilot_handoffs_are_independent_of_model_called_subagents(self) -> None:
-        self.assertNotIn("sre-assistant", self._copilot_agents("observability-engineer") or [])
+        self.assertNotIn("sre-assistant", self._copilot("observability-engineer", "agents") or [])
         self.assertEqual(["software-engineer"], [
-            handoff["agent"] for handoff in self._copilot_handoffs("reviewer") or []
+            handoff["agent"] for handoff in self._copilot("reviewer", "handoffs") or []
         ])
-        self.assertNotIn("software-engineer", self._copilot_agents("reviewer"))
+        self.assertNotIn("software-engineer", self._copilot("reviewer", "agents"))
         self.assertEqual(["software-engineer"], [
-            handoff["agent"] for handoff in self._copilot_handoffs("scribe") or []
+            handoff["agent"] for handoff in self._copilot("scribe", "handoffs") or []
         ])
-        self.assertNotIn("agent", self._copilot_tools("scribe"))
+        self.assertNotIn("agent", self._copilot("scribe", "tools"))
 
     def test_copilot_research_boundaries_are_mutually_exclusive(self) -> None:
-        self.assertEqual(["read", "search"], self._copilot_tools("repository-investigator"))
-        self.assertEqual(["web"], self._copilot_tools("researcher"))
+        self.assertEqual(["read", "search"], self._copilot("repository-investigator", "tools"))
+        self.assertEqual(["web"], self._copilot("researcher", "tools"))
         for name in sorted(
             path.stem for path in (ROOT / "agents").glob("*.md") if path.stem != "researcher"
         ):
-            self.assertNotIn("web", self._copilot_tools(name), name)
+            self.assertNotIn("web", self._copilot(name, "tools"), name)
 
     def test_generated_agent_descriptions_use_host_native_names(self) -> None:
         for source in sorted((ROOT / "agents").glob("*.md")):
-            copilot = adapters.render_copilot_agent(source)
-            frontmatter = copilot.split("---", 2)[1]
-            description = json.loads(
-                next(line for line in frontmatter.splitlines() if line.startswith("description: "))[13:]
-            )
+            description = frontmatter_value(adapters.render_copilot_agent(source), "description")
             self.assertNotIn("save-toolkit:", description, source.name)
         self.assertIn("eng-ladder", adapters.render_copilot_agent(ROOT / "agents/software-engineer.md"))
 
@@ -393,9 +354,9 @@ class PlatformAdapterTests(unittest.TestCase):
                 for marker in preface_markers:
                     self.assertNotIn(marker, rendered, marker)
                 # The projection body IS the adapted canonical body: nothing is prepended.
-                canonical_body = adapters.parse_frontmatter(source)[1]
+                canonical_body = fleet_frontmatter.parse_file(source).body
                 self.assertEqual(
-                    adapters.adapt_text(canonical_body, "copilot").lstrip("\n"),
+                    adapters.adapt_text(canonical_body).lstrip("\n"),
                     rendered.split("---\n", 2)[2].lstrip("\n"),
                 )
         # The one host limitation that changes behavior still reaches its lane, from its own body.
@@ -414,31 +375,29 @@ class PlatformAdapterTests(unittest.TestCase):
             + ("x" * 30_001)
             + "\n"
         )
-        with tempfile.TemporaryDirectory() as temporary:
-            source = Path(temporary) / "probe-agent.md"
-            source.write_text(agent, encoding="utf-8", newline="\n")
-            with self.assertRaisesRegex(ValueError, "30,000-character maximum"):
-                adapters.render_copilot_agent(source)
+        source = self._temporary_root() / "probe-agent.md"
+        source.write_text(agent, encoding="utf-8", newline="\n")
+        with self.assertRaisesRegex(ValueError, "30,000-character maximum"):
+            adapters.render_copilot_agent(source)
 
     def test_sre_prompt_budget_is_25000_characters_on_both_profiles(self) -> None:
         """The owner's SRE budget applies to the rendered body, including the command preview."""
-        with tempfile.TemporaryDirectory() as temporary:
-            source = Path(temporary) / "sre-assistant.md"
-            header = "---\nname: sre-assistant\ndescription: Size boundary.\ntools: Read\n---\n"
-            for preview in (False, True):
-                for length in (25_000, 25_001):
-                    source.write_text(header + "x" * length, encoding="utf-8")
-                    with self.subTest(preview=preview, length=length):
-                        if length == 25_000:
-                            rendered = adapters.render_copilot_agent(source, command_preview=preview)
-                            self.assertEqual("x" * length, rendered.split("---\n", 2)[2].strip())
-                        else:
-                            with self.assertRaisesRegex(ValueError, "25,000-character"):
-                                adapters.render_copilot_agent(source, command_preview=preview)
-            # A larger non-SRE agent still uses the documented Copilot ceiling.
-            source.write_text(header.replace("sre-assistant", "probe-agent") + "x" * 29_000,
-                              encoding="utf-8")
-            self.assertIn("x" * 29_000, adapters.render_copilot_agent(source))
+        source = self._temporary_root() / "sre-assistant.md"
+        header = "---\nname: sre-assistant\ndescription: Size boundary.\ntools: Read\n---\n"
+        for preview in (False, True):
+            for length in (25_000, 25_001):
+                source.write_text(header + "x" * length, encoding="utf-8")
+                with self.subTest(preview=preview, length=length):
+                    if length == 25_000:
+                        rendered = adapters.render_copilot_agent(source, command_preview=preview)
+                        self.assertEqual("x" * length, rendered.split("---\n", 2)[2].strip())
+                    else:
+                        with self.assertRaisesRegex(ValueError, "25,000-character"):
+                            adapters.render_copilot_agent(source, command_preview=preview)
+        # A larger non-SRE agent still uses the documented Copilot ceiling.
+        source.write_text(header.replace("sre-assistant", "probe-agent") + "x" * 29_000,
+                          encoding="utf-8")
+        self.assertIn("x" * 29_000, adapters.render_copilot_agent(source))
 
     def test_manual_skills_get_host_native_invocation_controls(self) -> None:
         for name in sorted(adapters.MANUAL_ONLY):
@@ -458,14 +417,12 @@ class PlatformAdapterTests(unittest.TestCase):
         """
 
         def mutated(change) -> list[str]:
-            with tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary).resolve()
-                self._copy_platform_contract_files(root)
-                target = root / "plugin.json"
-                manifest = json.loads(target.read_text(encoding="utf-8"))
-                change(manifest)
-                target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
-                return adapters.validate_platform_contracts(root)
+            root = self._contract_root()
+            target = root / "plugin.json"
+            manifest = json.loads(target.read_text(encoding="utf-8"))
+            change(manifest)
+            target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
+            return adapters.validate_platform_contracts(root)
 
         for schema in (None, "https://agent-plugins.org/schemas/future/plugin.schema.json"):
             with self.subTest(schema=schema):
@@ -497,58 +454,55 @@ class PlatformAdapterTests(unittest.TestCase):
                              for path in outputs), "1.0 reads canonical skills/, not a copy")
 
     def test_plugin_commands_preserve_the_canonical_inventory_and_adr_preflight(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._copy_canonical_sources(root)
-            # A second command proves generation discovers sources instead of special-casing ADR.
-            (root / "commands/probe.md").write_text(
-                '---\ndescription: "Probe command"\n---\nRead the supplied input.\n', encoding="utf-8"
-            )
-            outputs = adapters.expected_outputs(root)
-            command_root = Path("com.github.copilot/commands")
-            canonical = {path.name for path in (root / "commands").glob("*.md")}
-            projected = {path.name for path in outputs if path.parent == command_root}
-            self.assertEqual(canonical, projected)
-            adr = outputs[command_root / "adr.md"].decode("utf-8")
-            # ADR currently needs no addressing rewrite: its full body and metadata must survive.
-            self.assertEqual((root / "commands/adr.md").read_text(encoding="utf-8"), adr)
-            self.assertIn("exactly `software-engineer` or exactly `principal-engineer`", adr)
-            self.assertIn("When the selected agent is `principal-engineer`, write the status as `proposed`", adr)
-            self.assertIn("exclusive create-new operation", adr)
-            self.assertIn("symlink, junction, or reparse point", adr)
-            self.assertIn("disable-model-invocation: true", adr)
-            self.assertNotRegex(adr.split("---", 2)[1], r"(?m)^(?:agent|tools|allowed-tools):")
-            self.assertLess(adr.index("selected-agent preflight"), adr.index("Accepted argument grammar"))
+        root = self._canonical_root()
+        # A second command proves generation discovers sources instead of special-casing ADR.
+        (root / "commands/probe.md").write_text(
+            '---\ndescription: "Probe command"\n---\nRead the supplied input.\n', encoding="utf-8"
+        )
+        outputs = adapters.expected_outputs(root)
+        command_root = Path("com.github.copilot/commands")
+        canonical = {path.name for path in (root / "commands").glob("*.md")}
+        projected = {path.name for path in outputs if path.parent == command_root}
+        self.assertEqual(canonical, projected)
+        adr = outputs[command_root / "adr.md"].decode("utf-8")
+        # ADR currently needs no addressing rewrite: its full body and metadata must survive.
+        self.assertEqual((root / "commands/adr.md").read_text(encoding="utf-8"), adr)
+        self.assertIn("exactly `software-engineer` or exactly `principal-engineer`", adr)
+        self.assertIn("When the selected agent is `principal-engineer`, write the status as `proposed`", adr)
+        self.assertIn("exclusive create-new operation", adr)
+        self.assertIn("symlink, junction, or reparse point", adr)
+        self.assertIn("disable-model-invocation: true", adr)
+        self.assertNotRegex(frontmatter_block(adr), r"(?m)^(?:agent|tools|allowed-tools):")
+        self.assertLess(adr.index("selected-agent preflight"), adr.index("Accepted argument grammar"))
 
     def test_missing_packaged_command_is_detected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._copy_canonical_sources(root)
-            adapters.write_generated_outputs(root)
-            target = root / "com.github.copilot/commands/adr.md"
-            self.assertTrue(target.is_file(), "ADR must be packaged before checking its removal")
-            target.unlink()
-            self.assertEqual(
-                ["com.github.copilot/commands/adr.md: generated output is missing; run adapter generator --write"],
-                adapters.validate_generated_outputs(root),
-            )
+        root = self._canonical_root()
+        adapters.write_generated_outputs(root)
+        target = root / "com.github.copilot/commands/adr.md"
+        self.assertTrue(target.is_file(), "ADR must be packaged before checking its removal")
+        target.unlink()
+        self.assertEqual(
+            ["com.github.copilot/commands/adr.md: generated output is missing; run adapter generator --write"],
+            adapters.validate_generated_outputs(root),
+        )
 
     def test_plugin_commands_reject_indirection_before_writing(self) -> None:
         for relative in ("commands", "commands/adr.md"):
-            with self.subTest(path=relative), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary).resolve()
-                self._copy_canonical_sources(root)
+            with self.subTest(path=relative):
+                root = self._canonical_root()
                 sentinel = root / "com.github.copilot/sentinel.txt"
                 sentinel.parent.mkdir()
                 sentinel.write_text("unchanged", encoding="utf-8")
                 real_check = adapters._is_link_or_reparse
 
                 def mark_as_indirection(path: Path) -> bool:
-                    return path == root / relative or real_check(path)
+                    return path == root / relative or real_check(path)  # noqa: B023 -- called within this iteration
 
-                with mock.patch.object(adapters, "_is_link_or_reparse", side_effect=mark_as_indirection):
-                    with self.assertRaisesRegex(ValueError, "link/reparse point"):
-                        adapters.write_generated_outputs(root)
+                with (
+                    mock.patch.object(adapters, "_is_link_or_reparse", side_effect=mark_as_indirection),
+                    self.assertRaisesRegex(ValueError, "link/reparse point"),
+                ):
+                    adapters.write_generated_outputs(root)
                 self.assertEqual("unchanged", sentinel.read_text(encoding="utf-8"))
 
     def test_installed_skill_names_remain_namespaced_and_workspace_names_are_bare(self) -> None:
@@ -565,9 +519,8 @@ class PlatformAdapterTests(unittest.TestCase):
             Path("plugin.json"),
         )
         for relative in manifests:
-            with self.subTest(path=relative.as_posix()), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary).resolve()
-                self._copy_platform_contract_files(root)
+            with self.subTest(path=relative.as_posix()):
+                root = self._contract_root()
                 self.assertEqual([], adapters.validate_platform_contracts(root))
                 target = root / relative
                 target.unlink()
@@ -575,47 +528,42 @@ class PlatformAdapterTests(unittest.TestCase):
                 self.assertTrue(failures, "deleting a required manifest must fail validation")
 
     def test_shared_manifest_identity_is_mutation_guarded(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._copy_platform_contract_files(root)
-            self.assertEqual([], adapters.validate_platform_contracts(root))
-            target = root / "plugin.json"
-            manifest = json.loads(target.read_text(encoding="utf-8"))
-            manifest["name"] = "different-plugin"
-            target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
-            failures = adapters.validate_platform_contracts(root)
+        root = self._contract_root()
+        self.assertEqual([], adapters.validate_platform_contracts(root))
+        target = root / "plugin.json"
+        manifest = json.loads(target.read_text(encoding="utf-8"))
+        manifest["name"] = "different-plugin"
+        target.write_text(json.dumps(manifest), encoding="utf-8", newline="\n")
+        failures = adapters.validate_platform_contracts(root)
         self.assertTrue(
             any("identity field 'name' differs from Claude manifest" in failure for failure in failures),
             failures,
         )
 
     def test_copilot_component_paths_cannot_be_deduplicated_to_claude(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._copy_platform_contract_files(root)
-            self.assertEqual([], adapters.validate_platform_contracts(root))
-            shutil.copy2(root / ".claude-plugin/plugin.json", root / "plugin.json")
-            failures = adapters.validate_platform_contracts(root)
+        root = self._contract_root()
+        self.assertEqual([], adapters.validate_platform_contracts(root))
+        shutil.copy2(root / ".claude-plugin/plugin.json", root / "plugin.json")
+        failures = adapters.validate_platform_contracts(root)
         for expected in ("$schema must be", "'displayName' is not an Agent Plugins 1.0 manifest field"):
             with self.subTest(expected=expected):
                 self.assertTrue(any(expected in failure for failure in failures), failures)
 
     def test_byte_drift_is_detected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._copy_canonical_sources(root)
-            for relative in adapters.GENERATED_ROOTS:
-                shutil.copytree(ROOT / relative, root / relative)
-            target = root / adapters.COPILOT_AGENTS / "software-engineer.agent.md"
-            target.write_text(target.read_text(encoding="utf-8") + "\nmanual edit\n", encoding="utf-8")
-            failures = adapters.validate_generated_outputs(root)
+        root = self._canonical_root()
+        for relative in adapters.GENERATED_ROOTS:
+            shutil.copytree(ROOT / relative, root / relative)
+        target = root / adapters.COPILOT_AGENTS / "software-engineer.agent.md"
+        target.write_text(target.read_text(encoding="utf-8") + "\nmanual edit\n", encoding="utf-8")
+        failures = adapters.validate_generated_outputs(root)
         self.assertTrue(any("generated output drift" in failure for failure in failures))
 
-    def _prepare_adapter_tree(self, root: Path) -> int:
-        self._copy_canonical_sources(root)
+    def _adapter_tree(self) -> tuple[Path, int]:
+        """A generated temporary tree: canonical sources, platform contracts and .gitattributes."""
+        root = self._canonical_root()
         self._copy_platform_contract_files(root)
         shutil.copy2(ROOT / ".gitattributes", root / ".gitattributes")
-        return adapters.write_generated_outputs(root)
+        return root, adapters.write_generated_outputs(root)
 
     @staticmethod
     def _run_adapter_cli(root: Path, argv: list[str]) -> tuple[int, str, str]:
@@ -626,59 +574,53 @@ class PlatformAdapterTests(unittest.TestCase):
         return status, stdout.getvalue(), stderr.getvalue()
 
     def test_entrypoints_report_ordered_tree_failures_and_recheck_after_write(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            count = self._prepare_adapter_tree(root)
-            relative = Path(".github/agents/software-engineer.agent.md")
-            target = root / relative
-            target.write_bytes(target.read_bytes() + b"\r\nmanual edit\r\n")
-            (root / ".codex/agents").mkdir(parents=True)
-            attributes = root / ".gitattributes"
-            attributes.write_text("\n".join(line for line in attributes.read_text(encoding="utf-8").splitlines()
-                                            if not line.startswith("*.py ")) + "\n", encoding="utf-8")
-            failures = [
-                f"{relative.as_posix()}: generated output drift",
-                ".codex/agents: retired generated root is present on disk; a host can still "
-                "load it through an older configuration. Remove it.",
-                ".gitattributes: missing 'text eol=lf' rule for *.py",
-                f"{relative.as_posix()}: generated file carries a CR byte",
-            ]
-            self.assertEqual(failures, adapters.validate_platform_support(root))
-            self.assertEqual((1, "\n".join(failures) + "\n", ""), self._run_adapter_cli(root, []))
-            # Writing repairs bytes, but must not hide retired content or missing EOL policy.
-            self.assertEqual((1, f"Generated {count} adapter file(s).\n" + "\n".join(failures[1:3]) + "\n", ""),
-                             self._run_adapter_cli(root, ["--write"]))
+        root, count = self._adapter_tree()
+        relative = Path(".github/agents/software-engineer.agent.md")
+        target = root / relative
+        target.write_bytes(target.read_bytes() + b"\r\nmanual edit\r\n")
+        (root / ".codex/agents").mkdir(parents=True)
+        attributes = root / ".gitattributes"
+        attributes.write_text("\n".join(line for line in attributes.read_text(encoding="utf-8").splitlines()
+                                        if not line.startswith("*.py ")) + "\n", encoding="utf-8")
+        failures = [
+            f"{relative.as_posix()}: generated output drift",
+            ".codex/agents: retired generated root is present on disk; a host can still "
+            "load it through an older configuration. Remove it.",
+            ".gitattributes: missing 'text eol=lf' rule for *.py",
+            f"{relative.as_posix()}: generated file carries a CR byte",
+        ]
+        self.assertEqual(failures, adapters.validate_platform_support(root))
+        self.assertEqual((1, "\n".join(failures) + "\n", ""), self._run_adapter_cli(root, []))
+        # Writing repairs bytes, but must not hide retired content or missing EOL policy.
+        self.assertEqual((1, f"Generated {count} adapter file(s).\n" + "\n".join(failures[1:3]) + "\n", ""),
+                         self._run_adapter_cli(root, ["--write"]))
 
     def test_manifest_failure_collects_for_fleet_but_stops_cli_before_write(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._prepare_adapter_tree(root)
-            manifest_path = root / "plugin.json"
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            manifest["agents"] = "./wrong/"
-            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
-            target = root / ".github/agents/software-engineer.agent.md"
-            drift = target.read_bytes() + b"\nmanual edit\n"
-            target.write_bytes(drift)
-            failure = ("plugin.json: 'agents' is not an Agent Plugins 1.0 manifest field; components "
-                       "are discovered from skills/ and com.github.copilot/")
-            self.assertEqual([failure, ".github/agents/software-engineer.agent.md: generated output drift"],
-                             adapters.validate_platform_support(root))
-            with mock.patch.object(adapters, "write_generated_outputs", side_effect=AssertionError("must not write")):
-                self.assertEqual((1, failure + "\n", ""), self._run_adapter_cli(root, ["--write"]))
-            self.assertEqual(drift, target.read_bytes())
+        root, _ = self._adapter_tree()
+        manifest_path = root / "plugin.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["agents"] = "./wrong/"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        target = root / ".github/agents/software-engineer.agent.md"
+        drift = target.read_bytes() + b"\nmanual edit\n"
+        target.write_bytes(drift)
+        failure = ("plugin.json: 'agents' is not an Agent Plugins 1.0 manifest field; components "
+                   "are discovered from skills/ and com.github.copilot/")
+        self.assertEqual([failure, ".github/agents/software-engineer.agent.md: generated output drift"],
+                         adapters.validate_platform_support(root))
+        with mock.patch.object(adapters, "write_generated_outputs", side_effect=AssertionError("must not write")):
+            self.assertEqual((1, failure + "\n", ""), self._run_adapter_cli(root, ["--write"]))
+        self.assertEqual(drift, target.read_bytes())
 
     def test_cli_write_success_and_read_only_success_preserve_output(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            count = self._prepare_adapter_tree(root)
-            target = root / ".github/agents/software-engineer.agent.md"
-            target.write_bytes(target.read_bytes() + b"\nmanual edit\n")
-            self.assertEqual((0, f"Generated {count} adapter file(s).\nPlatform adapters: PASS\n", ""),
-                             self._run_adapter_cli(root, ["--write"]))
-            self.assertEqual([], adapters.validate_platform_support(root))
-            with mock.patch.object(adapters, "write_generated_outputs", side_effect=AssertionError("must not write")):
-                self.assertEqual((0, "Platform adapters: PASS\n", ""), self._run_adapter_cli(root, []))
+        root, count = self._adapter_tree()
+        target = root / ".github/agents/software-engineer.agent.md"
+        target.write_bytes(target.read_bytes() + b"\nmanual edit\n")
+        self.assertEqual((0, f"Generated {count} adapter file(s).\nPlatform adapters: PASS\n", ""),
+                         self._run_adapter_cli(root, ["--write"]))
+        self.assertEqual([], adapters.validate_platform_support(root))
+        with mock.patch.object(adapters, "write_generated_outputs", side_effect=AssertionError("must not write")):
+            self.assertEqual((0, "Platform adapters: PASS\n", ""), self._run_adapter_cli(root, []))
 
     def test_tree_exceptions_propagate_to_fleet_and_are_reported_by_cli(self) -> None:
         for error in (OSError("read failed"), UnicodeError("decode failed"), ValueError("unsafe tree")):
@@ -690,42 +632,32 @@ class PlatformAdapterTests(unittest.TestCase):
                 self.assertIs(raised.exception, error)
 
     def test_retired_generated_root_present_on_disk_is_detected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self.assertEqual([], adapters._retired_generated_root_failures(root))
-            for retired_root in adapters.RETIRED_GENERATED_ROOTS:
-                retired = root / retired_root
-                retired.mkdir(parents=True)
-                (retired / "leftover.md").write_text("stale mirror\n", encoding="utf-8")
-                failures = adapters._retired_generated_root_failures(root)
-                with self.subTest(retired_root=retired_root.as_posix()):
-                    self.assertTrue(
-                        any(f.startswith(f"{retired_root.as_posix()}:") for f in failures),
-                        failures,
-                    )
+        root = self._temporary_root()
+        self.assertEqual([], adapters._retired_generated_root_failures(root))
+        for retired_root in adapters.RETIRED_GENERATED_ROOTS:
+            retired = root / retired_root
+            retired.mkdir(parents=True)
+            (retired / "leftover.md").write_text("stale mirror\n", encoding="utf-8")
+            failures = adapters._retired_generated_root_failures(root)
+            with self.subTest(retired_root=retired_root.as_posix()):
+                self.assertTrue(
+                    any(f.startswith(f"{retired_root.as_posix()}:") for f in failures),
+                    failures,
+                )
 
-    def test_gitattributes_missing_eol_rule_is_detected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
-            # drop the *.py rule specifically
-            broken = "\n".join(
-                line for line in text.splitlines() if not line.startswith("*.py")
-            ) + "\n"
-            (root / ".gitattributes").write_text(broken, encoding="utf-8", newline="\n")
-            failures = adapters._gitattributes_failures(root)
-        self.assertTrue(any("eol=lf' rule for *.py" in f for f in failures), failures)
+    def _gitattributes_failures_without(self, prefix: str) -> list[str]:
+        """_gitattributes_failures for a .gitattributes without its lines starting with `prefix`."""
+        root = self._temporary_root()
+        text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
+        broken = "\n".join(line for line in text.splitlines() if not line.startswith(prefix)) + "\n"
+        (root / ".gitattributes").write_text(broken, encoding="utf-8", newline="\n")
+        return adapters._gitattributes_failures(root)
 
-    def test_gitattributes_must_govern_its_own_line_endings(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
-            broken = "\n".join(
-                line for line in text.splitlines() if not line.startswith(".gitattributes ")
-            ) + "\n"
-            (root / ".gitattributes").write_text(broken, encoding="utf-8", newline="\n")
-            failures = adapters._gitattributes_failures(root)
-        self.assertTrue(any("rule for .gitattributes" in f for f in failures), failures)
+    def test_a_missing_eol_rule_is_detected_including_the_files_own(self) -> None:
+        for prefix, message in (("*.py", "eol=lf' rule for *.py"), (".gitattributes ", "rule for .gitattributes")):
+            with self.subTest(prefix=prefix):
+                failures = self._gitattributes_failures_without(prefix)
+                self.assertTrue(any(message in f for f in failures), failures)
 
     def test_recovery_patches_are_governed_by_the_lf_policy(self) -> None:
         # Recovery patches under docs/reviews/ diff sources that are themselves eol=lf. Without
@@ -736,100 +668,89 @@ class PlatformAdapterTests(unittest.TestCase):
         # purpose: deriving it would let a co-revert of the tuple entry and the .gitattributes
         # rule shrink the loop and pass. Reverting either half alone, or both, must fail here.
         self.assertIn("*.patch", adapters.GITATTRIBUTES_REQUIRED_EOL)
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            text = (ROOT / ".gitattributes").read_text(encoding="utf-8")
-            broken = "\n".join(
-                line for line in text.splitlines() if not line.startswith("*.patch")
-            ) + "\n"
-            (root / ".gitattributes").write_text(broken, encoding="utf-8", newline="\n")
-            failures = adapters._gitattributes_failures(root)
+        failures = self._gitattributes_failures_without("*.patch")
         self.assertTrue(any("eol=lf' rule for *.patch" in f for f in failures), failures)
 
     def test_generated_cr_byte_is_detected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            (root / ".gitattributes").write_bytes(
-                (ROOT / ".gitattributes").read_bytes()
-            )
-            target = root / adapters.COPILOT_AGENTS / "probe.agent.md"
-            target.parent.mkdir(parents=True)
-            target.write_bytes(b"line one\r\nline two\r\n")
-            failures = adapters._gitattributes_failures(root)
+        root = self._temporary_root()
+        (root / ".gitattributes").write_bytes(
+            (ROOT / ".gitattributes").read_bytes()
+        )
+        target = root / adapters.COPILOT_AGENTS / "probe.agent.md"
+        target.parent.mkdir(parents=True)
+        target.write_bytes(b"line one\r\nline two\r\n")
+        failures = adapters._gitattributes_failures(root)
         self.assertTrue(any("carries a CR byte" in f for f in failures), failures)
 
     def test_binary_asset_with_cr_byte_is_not_flagged(self) -> None:
         # A binary passthrough asset (PNG, etc.) routinely contains 0x0D and must not read as a
         # line-ending regression — the CR check is scoped to LF-governed text suffixes.
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            (root / ".gitattributes").write_bytes((ROOT / ".gitattributes").read_bytes())
-            asset = root / adapters.COPILOT_SKILLS / "probe" / "assets" / "logo.png"
-            asset.parent.mkdir(parents=True)
-            asset.write_bytes(b"\x89PNG\r\n\x1a\n\x00\r\x00binary\r\n")
-            self.assertEqual([], adapters._gitattributes_failures(root))
+        root = self._temporary_root()
+        (root / ".gitattributes").write_bytes((ROOT / ".gitattributes").read_bytes())
+        asset = root / adapters.COPILOT_SKILLS / "probe" / "assets" / "logo.png"
+        asset.parent.mkdir(parents=True)
+        asset.write_bytes(b"\x89PNG\r\n\x1a\n\x00\r\x00binary\r\n")
+        self.assertEqual([], adapters._gitattributes_failures(root))
 
     def test_crlf_code_asset_is_normalized_in_projection(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._copy_canonical_sources(root)
-            # find a real projected code asset and give the source CRLF line endings
-            script = next(
-                p for p in (root / "skills").rglob("*.py")
-                if "scripts" in p.parts and "__pycache__" not in p.parts
-            )
-            lf = script.read_text(encoding="utf-8")
-            script.write_bytes(lf.replace("\n", "\r\n").encode("utf-8"))
-            outputs = adapters.expected_outputs(root)
-            relative = script.relative_to(root / "skills")
-            projected = [
-                blob for path, blob in outputs.items()
-                if path.parts[-len(relative.parts):] == relative.parts
-                and adapters.COPILOT_SKILLS in path.parents
-            ]
-            self.assertTrue(projected, "code asset was not projected")
-            for blob in projected:
-                self.assertNotIn(b"\r", blob, "CRLF source leaked into a generated code asset")
+        root = self._canonical_root()
+        # find a real projected code asset and give the source CRLF line endings
+        script = next(
+            p for p in (root / "skills").rglob("*.py")
+            if "scripts" in p.parts and "__pycache__" not in p.parts
+        )
+        lf = script.read_text(encoding="utf-8")
+        script.write_bytes(lf.replace("\n", "\r\n").encode("utf-8"))
+        outputs = adapters.expected_outputs(root)
+        relative = script.relative_to(root / "skills")
+        projected = [
+            blob for path, blob in outputs.items()
+            if path.parts[-len(relative.parts):] == relative.parts
+            and adapters.COPILOT_SKILLS in path.parents
+        ]
+        self.assertTrue(projected, "code asset was not projected")
+        for blob in projected:
+            self.assertNotIn(b"\r", blob, "CRLF source leaked into a generated code asset")
 
     def test_directory_swap_failure_restores_every_existing_root(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._copy_canonical_sources(root)
-            for relative in adapters.GENERATED_ROOTS:
-                destination = root / relative
-                destination.mkdir(parents=True)
-                (destination / "sentinel.txt").write_text(relative.as_posix(), encoding="utf-8")
+        root = self._canonical_root()
+        for relative in adapters.GENERATED_ROOTS:
+            destination = root / relative
+            destination.mkdir(parents=True)
+            (destination / "sentinel.txt").write_text(relative.as_posix(), encoding="utf-8")
 
-            real_replace = adapters.os.replace
+        real_replace = adapters.os.replace
 
-            def fail_second_stage(source: str | Path, destination: str | Path) -> None:
-                source_path = Path(source)
-                destination_path = Path(destination)
-                if destination_path == root / adapters.COPILOT_SKILLS and "new" in source_path.parts:
-                    raise OSError("injected stage swap failure")
-                real_replace(source, destination)
+        def fail_second_stage(source: str | Path, destination: str | Path) -> None:
+            source_path = Path(source)
+            destination_path = Path(destination)
+            if destination_path == root / adapters.COPILOT_SKILLS and "new" in source_path.parts:
+                raise OSError("injected stage swap failure")
+            real_replace(source, destination)
 
-            with mock.patch.object(adapters.os, "replace", side_effect=fail_second_stage):
-                with self.assertRaisesRegex(OSError, "injected"):
-                    adapters.write_generated_outputs(root)
+        with (
+            mock.patch.object(adapters.os, "replace", side_effect=fail_second_stage),
+            self.assertRaisesRegex(OSError, "injected"),
+        ):
+            adapters.write_generated_outputs(root)
 
-            for relative in adapters.GENERATED_ROOTS:
-                sentinel = root / relative / "sentinel.txt"
-                self.assertEqual(relative.as_posix(), sentinel.read_text(encoding="utf-8"), relative)
+        for relative in adapters.GENERATED_ROOTS:
+            sentinel = root / relative / "sentinel.txt"
+            self.assertEqual(relative.as_posix(), sentinel.read_text(encoding="utf-8"), relative)
 
     def test_generated_root_ancestor_indirection_is_refused(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._copy_canonical_sources(root)
-            (root / ".github").mkdir()
-            real_check = adapters._is_link_or_reparse
+        root = self._canonical_root()
+        (root / ".github").mkdir()
+        real_check = adapters._is_link_or_reparse
 
-            def mark_github_as_indirection(path: Path) -> bool:
-                return path == root / ".github" or real_check(path)
+        def mark_github_as_indirection(path: Path) -> bool:
+            return path == root / ".github" or real_check(path)
 
-            with mock.patch.object(adapters, "_is_link_or_reparse", side_effect=mark_github_as_indirection):
-                with self.assertRaisesRegex(ValueError, "must not traverse"):
-                    adapters.write_generated_outputs(root)
+        with (
+            mock.patch.object(adapters, "_is_link_or_reparse", side_effect=mark_github_as_indirection),
+            self.assertRaisesRegex(ValueError, "must not traverse"),
+        ):
+            adapters.write_generated_outputs(root)
 
 
     def test_a_real_symlinked_directory_in_canonical_sources_is_refused(self) -> None:
@@ -844,42 +765,38 @@ class PlatformAdapterTests(unittest.TestCase):
         """
         if not hasattr(os, "symlink"):  # pragma: no cover - platform without symlinks
             self.skipTest("symlinks unavailable")
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._copy_canonical_sources(root)
-            outside = root / "outside"
-            (outside / "references").mkdir(parents=True)
-            (outside / "references" / "smuggled.md").write_text("# smuggled\n", encoding="utf-8")
-            planted = root / "skills" / "stack-profile" / "borrowed"
-            try:
-                os.symlink(outside, planted, target_is_directory=True)
-            except (OSError, NotImplementedError):  # pragma: no cover - unprivileged Windows
-                self.skipTest("cannot create a directory symlink here")
-            self.assertTrue(planted.is_symlink(), "fixture did not plant a real link")
-            with self.assertRaisesRegex(ValueError, "must not be a link/reparse point"):
-                adapters._canonical_skill_files(root)
+        root = self._canonical_root()
+        outside = root / "outside"
+        (outside / "references").mkdir(parents=True)
+        (outside / "references" / "smuggled.md").write_text("# smuggled\n", encoding="utf-8")
+        planted = root / "skills" / "stack-profile" / "borrowed"
+        try:
+            os.symlink(outside, planted, target_is_directory=True)
+        except (OSError, NotImplementedError):  # pragma: no cover - unprivileged Windows
+            self.skipTest("cannot create a directory symlink here")
+        self.assertTrue(planted.is_symlink(), "fixture did not plant a real link")
+        with self.assertRaisesRegex(ValueError, "canonical source must not be a link/reparse point"):
+            adapters.expected_outputs(root)
 
     def test_a_real_symlinked_directory_in_a_generated_root_is_refused(self) -> None:
         """Same control on the output side, where a link would make the byte gate read the wrong
         bytes -- it would compare against a file the repository does not actually contain."""
         if not hasattr(os, "symlink"):  # pragma: no cover - platform without symlinks
             self.skipTest("symlinks unavailable")
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            self._copy_canonical_sources(root)
-            adapters.write_generated_outputs(root)
-            generated = root / adapters.GENERATED_ROOTS[-1]
-            outside = root / "elsewhere"
-            outside.mkdir()
-            (outside / "extra.md").write_text("# extra\n", encoding="utf-8")
-            planted = generated / "borrowed"
-            try:
-                os.symlink(outside, planted, target_is_directory=True)
-            except (OSError, NotImplementedError):  # pragma: no cover - unprivileged Windows
-                self.skipTest("cannot create a directory symlink here")
-            self.assertTrue(planted.is_symlink(), "fixture did not plant a real link")
-            with self.assertRaisesRegex(ValueError, "must not be a link/reparse point"):
-                adapters._actual_generated_files(root)
+        root = self._canonical_root()
+        adapters.write_generated_outputs(root)
+        generated = root / adapters.GENERATED_ROOTS[-1]
+        outside = root / "elsewhere"
+        outside.mkdir()
+        (outside / "extra.md").write_text("# extra\n", encoding="utf-8")
+        planted = generated / "borrowed"
+        try:
+            os.symlink(outside, planted, target_is_directory=True)
+        except (OSError, NotImplementedError):  # pragma: no cover - unprivileged Windows
+            self.skipTest("cannot create a directory symlink here")
+        self.assertTrue(planted.is_symlink(), "fixture did not plant a real link")
+        with self.assertRaisesRegex(ValueError, "must not be a link/reparse point"):
+            adapters._actual_generated_files(root)
 
     # --- non-ASCII must survive projection unescaped -------------------------------------------
     # `json.dumps(..., ensure_ascii=False)` appears at four points that render a description or
@@ -899,10 +816,9 @@ class PlatformAdapterTests(unittest.TestCase):
             "tools: Read, Grep, Glob\n"
             "---\n\n# Probe\n\nBody.\n"
         )
-        with tempfile.TemporaryDirectory() as temporary:
-            source = Path(temporary) / "probe-agent.md"
-            source.write_text(agent, encoding="utf-8")
-            rendered = adapters.render_copilot_agent(source)
+        source = self._temporary_root() / "probe-agent.md"
+        source.write_text(agent, encoding="utf-8")
+        rendered = adapters.render_copilot_agent(source)
         # Prove the sample actually reached the output before asserting the escape is absent;
         # otherwise a renderer that dropped the description entirely would pass.
         self.assertIn("em—dash", rendered)
@@ -919,7 +835,7 @@ class PlatformAdapterTests(unittest.TestCase):
         canonical_non_ascii = sum(
             1
             for path in sorted((ROOT / "agents").glob("*.md"))
-            if any(ord(char) > 127 for char in str(adapters.parse_frontmatter(path)[0].get("description", "")))
+            if any(ord(char) > 127 for char in str(fleet_frontmatter.parse_file(path).fields.get("description", "")))
         )
         self.assertGreater(canonical_non_ascii, 0, "no canonical description carries non-ASCII")
         for relative in (Path(".github/agents"),):
@@ -928,34 +844,9 @@ class PlatformAdapterTests(unittest.TestCase):
                 self.assertNotIn("\\u2014", text, path.name)
                 self.assertNotIn("\\u2192", text, path.name)
 
-    # --- narrow parse paths in the frontmatter reader -------------------------------------------
-    # Operand drops here survived a mutation sweep. Low blast radius on their own -- a malformed
-    # value fails the frontmatter contract in check_links before it could reach a projection --
-    # but this reader is one of three in the repository that disagree about the same grammar, and
-    # consolidating them later is only safe if the behaviour each one has today is written down.
-
-    def test_a_quoted_scalar_needs_BOTH_quotes_to_be_unwrapped(self) -> None:
-        """Either half of the `startswith and endswith` guard alone mis-parses real values.
-
-        With only `endswith`, `abc'` loses its first and last character and becomes `bc`; with only
-        `startswith`, `'abc` becomes `ab`. Both spellings occur in ordinary prose (a trailing
-        apostrophe, a quoted fragment), and silently truncating a description is exactly the kind
-        of corruption that reaches a host without erroring.
-        """
-        self.assertEqual("abc'", adapters._yaml_scalar("abc'"))
-        self.assertEqual("'abc", adapters._yaml_scalar("'abc"))
-        self.assertEqual("abc", adapters._yaml_scalar("'abc'"))
-        self.assertEqual("it's", adapters._yaml_scalar("'it''s'"))
-        self.assertEqual("plain", adapters._yaml_scalar("plain"))
-
-    def test_tool_specs_from_a_missing_field_are_empty_not_the_string_None(self) -> None:
-        """`str(raw or "")` collapses None to empty. Dropping the `or ""` yields the literal
-        string "None", which would parse as a tool named None and silently grant nothing while
-        looking like a grant."""
-        self.assertEqual([], adapters._split_tool_specs(None))
-        self.assertEqual([], adapters._split_tool_specs(""))
-        self.assertEqual(["Read", "Grep"], adapters._split_tool_specs("Read, Grep"))
-        self.assertEqual(["Read", "Grep"], adapters._split_tool_specs(["Read", "Grep"]))
+    # --- narrow paths in installed-resource rewriting --------------------------------------------
+    # Operand drops here survived a mutation sweep; the frontmatter grammar's own narrow paths are
+    # pinned in test_fleet_frontmatter.py.
 
     def test_an_installed_skill_reference_covers_both_bare_and_SKILL_md_tails(self) -> None:
         """`not tail or tail == "/SKILL.md"` treats both spellings as the skill itself. Dropping
@@ -987,47 +878,45 @@ class PlatformAdapterTests(unittest.TestCase):
             'python ${CLAUDE_PLUGIN_ROOT}/skills/runbook/scripts/y.py input.html',
             'py -3 "$env:CLAUDE_PLUGIN_ROOT/skills/runbook/scripts/y.py" input.html',
         ):
-            with self.subTest(command=command):
-                with self.assertRaisesRegex(ValueError, "relative Markdown link"):
-                    adapters.adapt_text(command, "copilot")
+            with self.subTest(command=command), self.assertRaisesRegex(ValueError, "relative Markdown link"):
+                adapters.adapt_text(command)
 
     def test_installed_dashboard_helper_runs_outside_the_plugin_checkout(self) -> None:
         outputs = adapters.expected_outputs(ROOT)
         skill_relative = adapters.COPILOT_SKILLS / "grafana/SKILL.md"
         script_relative = adapters.COPILOT_SKILLS / "grafana/scripts/dashboard_hygiene.py"
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            plugin = root / "installed plugin"
-            workspace = root / "user project"
-            workspace.mkdir()
-            for relative in (skill_relative, script_relative):
-                target = plugin / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(outputs[relative])
-            skill = plugin / skill_relative
-            skill_text = skill.read_text(encoding="utf-8")
-            self.assertNotIn("python skills/grafana/scripts/dashboard_hygiene.py", skill_text)
-            link = re.search(
-                r"\[[^\]\n]*dashboard_hygiene\.py[^\]\n]*\]\(([^)\n]+)\)",
-                skill_text,
-            )
-            self.assertIsNotNone(link, "the installed skill must link its bundled validator")
-            helper = (skill.parent / link[1]).resolve()
-            self.assertTrue(helper.is_relative_to(skill.parent))
-            shadow = workspace / "skills/grafana/scripts/dashboard_hygiene.py"
-            shadow.parent.mkdir(parents=True)
-            shadow.write_text("raise SystemExit('workspace shadow executed')\n", encoding="utf-8")
-            model = workspace / "dashboard.json"
-            model.write_text(
-                json.dumps({"title": "Installed helper probe", "panels": [], "tags": ["probe"]}),
-                encoding="utf-8",
-            )
-            result = subprocess.run(
-                [sys.executable, str(helper), model.name], cwd=workspace,
-                capture_output=True, text=True, timeout=20,
-            )
-            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-            self.assertIn("0 violation(s)", result.stdout)
+        root = self._temporary_root()
+        plugin = root / "installed plugin"
+        workspace = root / "user project"
+        workspace.mkdir()
+        for relative in (skill_relative, script_relative):
+            target = plugin / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(outputs[relative])
+        skill = plugin / skill_relative
+        skill_text = skill.read_text(encoding="utf-8")
+        self.assertNotIn("python skills/grafana/scripts/dashboard_hygiene.py", skill_text)
+        link = re.search(
+            r"\[[^\]\n]*dashboard_hygiene\.py[^\]\n]*\]\(([^)\n]+)\)",
+            skill_text,
+        )
+        self.assertIsNotNone(link, "the installed skill must link its bundled validator")
+        helper = (skill.parent / link[1]).resolve()
+        self.assertTrue(helper.is_relative_to(skill.parent))
+        shadow = workspace / "skills/grafana/scripts/dashboard_hygiene.py"
+        shadow.parent.mkdir(parents=True)
+        shadow.write_text("raise SystemExit('workspace shadow executed')\n", encoding="utf-8")
+        model = workspace / "dashboard.json"
+        model.write_text(
+            json.dumps({"title": "Installed helper probe", "panels": [], "tags": ["probe"]}),
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [sys.executable, str(helper), model.name], cwd=workspace,
+            capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("0 violation(s)", result.stdout)
 
 if __name__ == "__main__":
     unittest.main()

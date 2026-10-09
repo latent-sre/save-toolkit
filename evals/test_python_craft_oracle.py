@@ -1,15 +1,13 @@
 """Calibrate the Python craft outcome oracles against correct and broken artifacts."""
 
 import json
-import subprocess
-import sys
 import tempfile
 import textwrap
 import unittest
 from pathlib import Path
 
-import yaml
 from graders import exact_json
+from probe_testkit import run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/python-craft/check_contracts.py"
@@ -73,7 +71,7 @@ CORRECT = {
 
 def scenario(mode):
     name, _ = SCENARIOS[mode]
-    return yaml.safe_load((ROOT / "build-scenarios" / (name + ".yaml")).read_text(encoding="utf-8"))
+    return scenario_file(ROOT / "build-scenarios" / (name + ".yaml"))
 
 
 CORRECT["modules"] = {
@@ -152,53 +150,54 @@ CORRECT["scoped"] = scenario("scoped")["fixture"]["files"]["fills.py"].replace(
 
 
 class PythonCraftOracleTests(unittest.TestCase):
-    def test_refactoring_judgment_grader_rejects_each_wrong_decision(self):
-        spec = yaml.safe_load((ROOT / "scenarios/python-refactoring-judgment.yaml").read_text(encoding="utf-8"))
-        expected = {"case_a": "share_policy", "case_b": "keep_separate",
-                    "case_c": "change_internal_and_callers", "case_d": "preserve_compatibility",
-                    "case_e": "no_change", "case_f": "coherent_stages",
-                    "case_g": "replace_custom_with_library", "case_h": "fix_established_defect",
-                    "case_i": "explain_without_changes", "case_j": "clarify_behavior",
-                    "case_k": "rewrite_implementation", "case_l": "preserve_effects_with_loop",
-                    "case_m": "name_independent_options", "case_n": "remove_empty_layers",
-                    "case_o": "keep_ordered_records", "case_p": "index_membership_stream_rows",
-                    "case_q": "separate_policy_from_transport"}
-        fields = spec["graders"][0]["fields"]
+    def assert_grader_requires_each_decision(self, path, expected):
+        fields = scenario_file(path)["graders"][0]["fields"]
         self.assertTrue(exact_json(json.dumps(expected), fields)[0])
         for key in expected:
             with self.subTest(case=key):
                 self.assertFalse(exact_json(json.dumps(expected | {key: "incorrect"}), fields)[0])
                 self.assertFalse(exact_json(json.dumps({k: v for k, v in expected.items() if k != key}), fields)[0])
 
+    def test_refactoring_judgment_grader_rejects_each_wrong_decision(self):
+        self.assert_grader_requires_each_decision(ROOT / "scenarios/python-refactoring-judgment.yaml", {
+            "case_a": "share_policy", "case_b": "keep_separate",
+            "case_c": "change_internal_and_callers", "case_d": "preserve_compatibility",
+            "case_e": "no_change", "case_f": "coherent_stages",
+            "case_g": "replace_custom_with_library", "case_h": "fix_established_defect",
+            "case_i": "explain_without_changes", "case_j": "clarify_behavior",
+            "case_k": "rewrite_implementation", "case_l": "preserve_effects_with_loop",
+            "case_m": "name_independent_options", "case_n": "remove_empty_layers",
+            "case_o": "keep_ordered_records", "case_p": "index_membership_stream_rows",
+            "case_q": "separate_policy_from_transport"})
+
     def test_new_code_judgment_grader_rejects_wrong_or_missing_decisions(self):
-        spec = yaml.safe_load((ROOT / "scenarios/python-new-code-judgment.yaml").read_text(encoding="utf-8"))
-        expected = {"case_a": "direct_synchronous_path", "case_b": "importable_core_cli_adapter",
-                    "case_c": "stream_aggregate_then_publish", "case_d": "clarify_failure_contract"}
-        fields = spec["graders"][0]["fields"]
-        self.assertTrue(exact_json(json.dumps(expected), fields)[0])
-        for key in expected:
-            with self.subTest(case=key):
-                self.assertFalse(exact_json(json.dumps(expected | {key: "incorrect"}), fields)[0])
-                self.assertFalse(exact_json(json.dumps({k: v for k, v in expected.items() if k != key}), fields)[0])
+        self.assert_grader_requires_each_decision(ROOT / "scenarios/python-new-code-judgment.yaml", {
+            "case_a": "direct_synchronous_path", "case_b": "importable_core_cli_adapter",
+            "case_c": "stream_aggregate_then_publish", "case_d": "clarify_failure_contract"})
 
     def run_artifact(self, mode, source, *child_args):
         with tempfile.TemporaryDirectory() as tmp:
             files = source if isinstance(source, dict) else {SCENARIOS[mode][1]: source}
-            for name, text in files.items():
-                path = Path(tmp) / name
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(textwrap.dedent(text), encoding="utf-8")
-            return subprocess.run(
-                [sys.executable, "-I", "-B", str(ORACLE), mode, *child_args], cwd=tmp,
-                capture_output=True, text=True, timeout=15,
-            )
+            write_tree(Path(tmp), {name: textwrap.dedent(text) for name, text in files.items()})
+            return run_python(["-B", str(ORACLE), mode, *child_args], cwd=tmp, isolated=True, timeout=15)
+
+    def assert_passes(self, mode, source):
+        result = self.run_artifact(mode, source)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("contract passed: " + mode, result.stdout)
+
+    def assert_rejected(self, mode, source, diagnostic, *child_args):
+        """The oracle fails `source`, naming `diagnostic` unless it is None (any failure)."""
+        result = self.run_artifact(mode, source, *child_args)
+        self.assertNotEqual(result.returncode, 0)
+        if diagnostic is not None:
+            self.assertIn(diagnostic, result.stderr)
+        return result
 
     def test_correct_artifacts_pass_each_outcome_oracle(self):
         for mode, source in CORRECT.items():
             with self.subTest(mode=mode):
-                result = self.run_artifact(mode, source)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn("contract passed: " + mode, result.stdout)
+                self.assert_passes(mode, source)
 
     def test_oracles_reject_candidate_system_exit_before_completion(self):
         api_names = {"refactor": "process", "generator": "iter_records", "migration": "parse_address",
@@ -220,53 +219,43 @@ class PythonCraftOracleTests(unittest.TestCase):
                 ):
                     for child_args in ((), *((first,) for first in children)):
                         with self.subTest(mode=mode, code=code, phase=phase, child_args=child_args):
-                            result = self.run_artifact(mode, files | {filename: mutant}, *child_args)
-                            self.assertNotEqual(result.returncode, 0)
-                            self.assertIn("candidate exited before contract checks completed", result.stderr)
+                            result = self.assert_rejected(mode, files | {filename: mutant},
+                                                          "candidate exited before contract checks completed", *child_args)
                             self.assertNotIn("contract passed: " + mode, result.stdout)
 
     def test_seed_contracts_and_known_gaps_are_distinguished(self):
+        diagnostics = {"generator": "I/O operation on closed file",
+                       "migration": "stdlib validator was not used",
+                       "modules": "No module named 'formatting'",
+                       "calculation": "missing in-memory calculation boundary",
+                       "policy": "No module named 'policy'",
+                       "scoped": "latest_fills(fills, 0)"}
         for mode in SCENARIOS:
             source = scenario(mode)["fixture"]["files"]
             with self.subTest(mode=mode):
-                result = self.run_artifact(mode, source)
                 if mode in {"refactor", "unchanged"}:
-                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assert_passes(mode, source)
                 else:
-                    self.assertNotEqual(result.returncode, 0)
-                    diagnostic = {"generator": "I/O operation on closed file",
-                                  "migration": "stdlib validator was not used",
-                                  "modules": "No module named 'formatting'",
-                                  "calculation": "missing in-memory calculation boundary",
-                                  "policy": "No module named 'policy'",
-                                  "scoped": "latest_fills(fills, 0)"}[mode]
-                    self.assertIn(diagnostic, result.stderr)
+                    self.assert_rejected(mode, source, diagnostics[mode])
 
     def test_generator_open_aliases_remain_valid(self):
-        source = "from io import open\n" + textwrap.dedent(CORRECT["generator"])
-        result = self.run_artifact("generator", source)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assert_passes("generator", "from io import open\n" + textwrap.dedent(CORRECT["generator"]))
 
     def test_calculation_accepts_explicit_loop_without_prescribing_syntax(self):
-        source = CORRECT["calculation"].replace(
+        self.assert_passes("calculation", CORRECT["calculation"].replace(
             "return sum(int(line) for line in lines if line.strip())",
             "total = 0\n            for line in lines:\n                if line.strip():\n"
             "                    total += int(line)\n            return total",
-        )
-        result = self.run_artifact("calculation", source)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        ))
 
     def test_calculation_observes_aliased_file_openers(self):
         for prefix in ("from io import open\n", "from builtins import open\n"):
             source = prefix + textwrap.dedent(CORRECT["calculation"])
             with self.subTest(prefix=prefix):
-                result = self.run_artifact("calculation", source)
-                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assert_passes("calculation", source)
                 source = source.replace("def total_from_lines(lines):",
                                         'def total_from_lines(lines):\n    open("unused", "w")')
-                result = self.run_artifact("calculation", source)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn("calculation attempted file I/O", result.stderr)
+                self.assert_rejected("calculation", source, "calculation attempted file I/O")
 
     def test_calculation_accepts_materialization_and_bare_reraise(self):
         for replacement in ("return total_from_lines(list(source))",
@@ -274,8 +263,7 @@ class PythonCraftOracleTests(unittest.TestCase):
                             "        except ValueError:\n            raise"):
             source = textwrap.dedent(CORRECT["calculation"]).replace("return total_from_lines(source)", replacement)
             with self.subTest(replacement=replacement):
-                result = self.run_artifact("calculation", source)
-                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assert_passes("calculation", source)
 
     def test_calculation_rejects_cosmetic_duplicate_and_behavior_regressions(self):
         seed = scenario("calculation")["fixture"]["files"]["totals.py"]
@@ -308,9 +296,7 @@ class PythonCraftOracleTests(unittest.TestCase):
                 '            raise ValueError(str(exc))'), "parse exception replaced"),
         ]:
             with self.subTest(name=name):
-                result = self.run_artifact("calculation", candidate)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_rejected("calculation", candidate, diagnostic)
 
     def test_generator_rejects_eager_materialization_before_first_yield(self):
         for expression in (
@@ -322,9 +308,7 @@ class PythonCraftOracleTests(unittest.TestCase):
         ):
             source = CORRECT["generator"].replace("for line in source:", f"for line in {expression}:")
             with self.subTest(expression=expression):
-                result = self.run_artifact("generator", source)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn("source consumed eagerly", result.stderr)
+                self.assert_rejected("generator", source, "source consumed eagerly")
 
     def test_generator_accepts_readline_and_bounded_chunk_streaming(self):
         chunked = r'''
@@ -344,17 +328,14 @@ class PythonCraftOracleTests(unittest.TestCase):
         sources.extend(chunked.replace("read(4)", f"read({size})") for size in (4, 64, 8192))
         for source in sources:
             with self.subTest(source=source):
-                result = self.run_artifact("generator", source)
-                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assert_passes("generator", source)
 
     def test_generated_comparisons_catch_adjacent_duplicate_loss(self):
         source = textwrap.dedent(CORRECT["refactor"]).replace(
             "        emit(value)",
             "        if result and result[-1] == value * 2:\n            continue\n        emit(value)",
         )
-        result = self.run_artifact("refactor", source)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Lists differ", result.stderr)
+        self.assert_rejected("refactor", source, "Lists differ")
 
     def test_module_move_rejects_broken_public_lookup_and_circular_imports(self):
         correct = CORRECT["modules"]
@@ -377,16 +358,12 @@ class PythonCraftOracleTests(unittest.TestCase):
             )}, "TypeError not raised"),
         ]:
             with self.subTest(name=name):
-                result = self.run_artifact("modules", {**correct, **changes})
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_rejected("modules", {**correct, **changes}, diagnostic)
 
     def test_dataclass_helpers_with_postponed_annotations_remain_valid(self):
-        source = ("from __future__ import annotations\nfrom dataclasses import dataclass\n"
-                  "@dataclass\nclass Options:\n    threshold: int = 0\n"
-                  "def is_nonnegative(value):\n    return value >= Options().threshold\n")
-        result = self.run_artifact("unchanged", source)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assert_passes("unchanged", "from __future__ import annotations\nfrom dataclasses import dataclass\n"
+                                        "@dataclass\nclass Options:\n    threshold: int = 0\n"
+                                        "def is_nonnegative(value):\n    return value >= Options().threshold\n")
 
     def test_oracles_reject_specific_semantic_regressions(self):
         mutants = [
@@ -425,9 +402,7 @@ class PythonCraftOracleTests(unittest.TestCase):
         ]
         for name, mode, source, diagnostic in mutants:
             with self.subTest(name=name):
-                result = self.run_artifact(mode, source)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_rejected(mode, source, diagnostic)
 
     def test_refactor_preserves_keyword_only_calls_and_propagated_exception_identity(self):
         replaced_error = textwrap.dedent(CORRECT["refactor"]).replace(
@@ -458,18 +433,13 @@ class PythonCraftOracleTests(unittest.TestCase):
             ("input mutated on callback failure", mutated_on_error, "Lists differ"),
         ]:
             with self.subTest(name=name):
-                result = self.run_artifact("refactor", source)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_rejected("refactor", source, diagnostic)
 
     def test_policy_seed_suite_is_green_before_the_refactor(self):
         with tempfile.TemporaryDirectory() as tmp:
-            for name, text in scenario("policy")["fixture"]["files"].items():
-                path = Path(tmp) / name
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(text, encoding="utf-8")
-            result = subprocess.run([sys.executable, "-I", "-B", "-m", "unittest", "discover", "-s", "tests", "-t", "."],
-                                    cwd=tmp, capture_output=True, text=True, timeout=30)
+            write_tree(Path(tmp), scenario("policy")["fixture"]["files"])
+            result = run_python(["-B", "-m", "unittest", "discover", "-s", "tests", "-t", "."], cwd=tmp, isolated=True,
+                                timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Ran 10 tests", result.stderr)
 
@@ -477,25 +447,20 @@ class PythonCraftOracleTests(unittest.TestCase):
         correct = CORRECT["policy"]
         source = ('class PolicyError(ValueError):\n    pass\n\n' +
                   textwrap.dedent(correct["policy.py"]).replace("raise ValueError(", "raise PolicyError("))
-        result = self.run_artifact("policy", correct | {"policy.py": source})
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("contract passed: policy", result.stdout)
+        self.assert_passes("policy", correct | {"policy.py": source})
 
     def test_policy_rejects_returned_errors_and_wrong_exception_contracts(self):
         correct = CORRECT["policy"]
         source = textwrap.dedent(correct["policy.py"])
         for message in ("invalid sku", "invalid quantity", "invalid price"):
             original = f'raise ValueError("{message}")'
-            for behavior, replacement in (
-                ("returned error text", f'return "{message}"'),
-                ("wrong exception class", f'raise TypeError("{message}")'),
-                ("wrong exception message", 'raise ValueError("other error")'),
+            for behavior, replacement, diagnostic in (
+                ("returned error text", f'return "{message}"', "disagrees with the specification"),
+                ("wrong exception class", f'raise TypeError("{message}")', None),
+                ("wrong exception message", 'raise ValueError("other error")', "disagrees with the specification"),
             ):
                 with self.subTest(message=message, behavior=behavior):
-                    result = self.run_artifact("policy", correct | {"policy.py": source.replace(original, replacement)})
-                    self.assertNotEqual(result.returncode, 0)
-                    if behavior != "wrong exception class":
-                        self.assertIn("disagrees with the specification", result.stderr)
+                    self.assert_rejected("policy", correct | {"policy.py": source.replace(original, replacement)}, diagnostic)
 
     def test_policy_unification_rejects_partial_ownership_and_lost_consumers(self):
         correct = CORRECT["policy"]
@@ -553,9 +518,7 @@ class PythonCraftOracleTests(unittest.TestCase):
             ("drift test deleted instead of updated", {"tests/test_cli.py": "import unittest\n"}, "fixture tests were removed"),
         ]:
             with self.subTest(name=name):
-                result = self.run_artifact("policy", {**correct, **changes})
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_rejected("policy", {**correct, **changes}, diagnostic)
 
     def test_scoped_fix_rejects_unrequested_refactors_and_fix_regressions(self):
         correct = CORRECT["scoped"]
@@ -591,9 +554,7 @@ def rejected_notional(fills):
         ]:
             with self.subTest(name=name):
                 self.assertNotEqual(source, correct)
-                result = self.run_artifact("scoped", source)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_rejected("scoped", source, diagnostic)
 
     def test_build_checks_bind_the_correct_oracle_and_unchanged_scope(self):
         for mode in SCENARIOS:

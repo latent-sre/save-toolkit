@@ -4,19 +4,17 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter
+import importlib.util
 import re
+from collections import Counter
+from collections.abc import Mapping
 from pathlib import Path
+from types import ModuleType
 
-try:
-    from scripts import generate_platform_adapters as adapters
-except ModuleNotFoundError:
-    import generate_platform_adapters as adapters  # type: ignore[no-redef]
-
+import fleet_frontmatter
+import generate_platform_adapters as adapters
 
 ROOT = Path(__file__).resolve().parents[1]
-NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-TOOL_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_.*-]*)(?:\((.*)\))?$")
 KNOWN_AGENT_FIELDS = {"name", "description", "tools", "model"}
 # `model:` accepts a generation ALIAS only. An alias tracks the current model of its tier and
 # cannot rot; a full ID (claude-opus-4-1-20250805) silently pins a model past its usefulness,
@@ -103,20 +101,14 @@ EVIDENCE_MCP_TOOLS = {
     "mcp__plugin_githits_githits__search",
     "mcp__plugin_githits_githits__search_status",
 }
-BROWSER_OBSERVATION_MCP_TOOLS = {
-    "mcp__microsoft_playwright_mcp__browser_snapshot",
-    "mcp__microsoft_playwright_mcp__browser_take_screenshot",
-    "mcp__microsoft_playwright_mcp__browser_navigate",
-    "mcp__microsoft_playwright_mcp__browser_click",
-    "mcp__microsoft_playwright_mcp__browser_hover",
-    "mcp__microsoft_playwright_mcp__browser_type",
-    "mcp__microsoft_playwright_mcp__browser_select_option",
-    "mcp__microsoft_playwright_mcp__browser_press_key",
-    "mcp__microsoft_playwright_mcp__browser_wait_for",
-}
+BROWSER_OBSERVATION_MCP_TOOLS = {adapters.PLAYWRIGHT_MCP_PREFIX + tool for tool in adapters.BROWSER_OBSERVATION_TOOLS}
+# The only lanes that may hold those browser grants; every other agent is refused them.
+BROWSER_OBSERVATION_AGENTS = {"sre-assistant"}
 EXTERNAL_EVIDENCE_TOOLS = {"ToolSearch", *WEB_TOOLS, *EVIDENCE_MCP_TOOLS}
 SCRIBE_TOOLS = {"Read", "Grep", "Glob", "Edit", "Write", "Skill"}
 RELIABILITY_TOOLS = {*SCRIBE_TOOLS, "Agent"}
+# Each roster agent's required and forbidden tools. Keyed by exactly EXPECTED_DELEGATION's agents;
+# validate_agents reports any disagreement between the two tables.
 EXPECTED_AUTHORITY = {
     "reliability-engineer": {
         "required": RELIABILITY_TOOLS,
@@ -162,6 +154,8 @@ EXPECTED_AUTHORITY = {
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
     },
 }
+# The roster and its enforced delegation graph. Kept a plain literal: the fleet atlas reads this
+# assignment with ast.literal_eval, and validate_roster_graph binds AGENTS.md's roster table to it.
 EXPECTED_DELEGATION = {
     "reliability-engineer": {"repository-investigator", "sre-assistant", "researcher"},
     "principal-engineer": {"repository-investigator", "sre-assistant", "researcher"},
@@ -176,19 +170,7 @@ EXPECTED_DELEGATION = {
 }
 
 
-def _tool_specs(raw: object) -> list[str]:
-    return adapters.split_tool_specs(raw)  # shared grammar with the generator
-
-
-def _tool_bases(specs: list[str]) -> set[str]:
-    return {adapters.tool_base(spec) for spec in specs}
-
-
-def _delegates(specs: list[str], source: Path) -> set[str]:
-    return set(adapters.delegation_targets(specs, source) or ())
-
-
-def _metadata_failures(path: Path, fields: dict[str, object]) -> list[str]:
+def _metadata_failures(path: Path, fields: Mapping[str, object]) -> list[str]:
     failures: list[str] = []
     unknown = sorted(set(fields) - KNOWN_AGENT_FIELDS)
     if unknown:
@@ -210,27 +192,27 @@ def _metadata_failures(path: Path, fields: dict[str, object]) -> list[str]:
     return failures
 
 
-def _tool_grant_failures(path: Path, specs: list[str]) -> list[str]:
+def _tool_grant_failures(path: Path, grants: list[fleet_frontmatter.ToolGrant]) -> list[str]:
     failures: list[str] = []
     # Repeated grants must be checked before set-based authority reasoning loses them.
-    duplicates = sorted(spec for spec, count in Counter(specs).items() if count > 1)
+    counts = Counter(grant.spec for grant in grants)
+    duplicates = sorted(spec for spec, count in counts.items() if count > 1)
     if duplicates:
         failures.append(f"{path}: duplicate tool grant(s): {', '.join(duplicates)}")
-    for spec in specs:
-        match = TOOL_RE.fullmatch(spec)
-        if not match:
+    for grant in grants:
+        spec, base = grant.spec, grant.base
+        if not grant.well_formed:
             failures.append(f"{path}: malformed tool grant {spec!r}")
             continue
-        base = match.group(1)
         if base.startswith("mcp__"):
             approved_mcp = EVIDENCE_MCP_TOOLS | BROWSER_OBSERVATION_MCP_TOOLS
             if base not in approved_mcp:
                 failures.append(f"{path}: MCP authority is not exact-approved: {base}")
-            if match.group(2):
+            if grant.arguments:
                 failures.append(f"{path}: MCP grants cannot carry scoped arguments: {spec}")
         elif base not in BUILTIN_TOOLS:
             failures.append(f"{path}: unknown tool grant {base!r}")
-        elif match.group(2) and base != "Agent":
+        elif grant.arguments and base != "Agent":
             # Only Agent(target) scoping is honored (and only on a main-thread agent).
             # Bash(git diff:*) ran git status just like bare Bash in the CLI 2.1.200 probe.
             failures.append(
@@ -267,12 +249,14 @@ def _body_failures(path: Path, body: str, bases: set[str]) -> list[str]:
     return failures
 
 
-def _authority_failures(name: str, path: Path, specs: list[str], bases: set[str]) -> list[str]:
+def _authority_failures(
+    name: str, path: Path, grants: list[fleet_frontmatter.ToolGrant], bases: set[str]
+) -> list[str]:
     failures: list[str] = []
     authority = EXPECTED_AUTHORITY[name]
     missing = sorted(authority["required"] - bases)
     forbidden_tools = authority["forbidden"]
-    if name != "sre-assistant":
+    if name not in BROWSER_OBSERVATION_AGENTS:
         forbidden_tools = forbidden_tools | BROWSER_OBSERVATION_MCP_TOOLS
     forbidden = sorted(forbidden_tools & bases)
     if missing:
@@ -280,7 +264,7 @@ def _authority_failures(name: str, path: Path, specs: list[str], bases: set[str]
     if forbidden:
         failures.append(f"{path}: forbidden tool(s): {', '.join(forbidden)}")
     try:
-        delegates = _delegates(specs, path)
+        delegates = set(fleet_frontmatter.delegation_targets(grants, path, plugin=adapters.PLUGIN_NAME))
     except ValueError as exc:
         failures.append(str(exc))
         delegates = set()
@@ -292,7 +276,7 @@ def _authority_failures(name: str, path: Path, specs: list[str], bases: set[str]
             f"{', '.join(sorted(delegates)) or 'none'}"
         )
     for target in sorted(delegates):
-        if target not in EXPECTED_AUTHORITY:
+        if target not in EXPECTED_DELEGATION:
             failures.append(f"{path}: Agent target {target!r} does not exist")
     if name in adapters.GUARDED_AGENTS and "Bash" not in bases:
         failures.append(f"{path}: guard roster claims an agent without Bash")
@@ -306,19 +290,32 @@ def _authority_failures(name: str, path: Path, specs: list[str], bases: set[str]
     return failures
 
 
+def _roster_table_failures() -> list[str]:
+    only_delegation = sorted(set(EXPECTED_DELEGATION) - set(EXPECTED_AUTHORITY))
+    only_authority = sorted(set(EXPECTED_AUTHORITY) - set(EXPECTED_DELEGATION))
+    if not (only_delegation or only_authority):
+        return []
+    return [
+        "scripts/validate_fleet.py: EXPECTED_AUTHORITY and EXPECTED_DELEGATION must name the same "
+        f"agents; only in EXPECTED_DELEGATION: {', '.join(only_delegation) or 'none'}; "
+        f"only in EXPECTED_AUTHORITY: {', '.join(only_authority) or 'none'}"
+    ]
+
+
 def validate_agents(root: Path) -> tuple[list[str], list[str]]:
     """Collect definition failures first, then roster and known-agent authority failures."""
     failures: list[str] = []
     names: list[str] = []
-    authority_inputs: dict[str, tuple[Path, list[str], set[str]]] = {}
+    authority_inputs: dict[str, tuple[Path, list[fleet_frontmatter.ToolGrant], set[str]]] = {}
     for path in sorted((root / "agents").glob("*.md")):
         try:
-            fields, body, _ = adapters.parse_frontmatter(path)
+            parsed = fleet_frontmatter.parse_file(path)
         except (OSError, UnicodeError, ValueError) as exc:
             failures.append(str(exc))
             continue
+        fields, body = parsed.fields, parsed.body
         name = fields.get("name")
-        if not isinstance(name, str) or not NAME_RE.fullmatch(name) or name != path.stem:
+        if not isinstance(name, str) or not fleet_frontmatter.NAME_RE.fullmatch(name) or name != path.stem:
             failures.append(f"{path}: name must be kebab-case and match the filename")
             continue
         names.append(name)
@@ -326,28 +323,28 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
         if "tools" not in fields:
             failures.append(f"{path}: tools must be explicit; omission inherits all tools")
             continue
-        specs = _tool_specs(fields["tools"])
-        bases = _tool_bases(specs)
-        failures.extend(_tool_grant_failures(path, specs))
+        grants = fleet_frontmatter.tool_grants(fields["tools"])
+        bases = {grant.base for grant in grants}
+        failures.extend(_tool_grant_failures(path, grants))
         failures.extend(_body_failures(path, body, bases))
-        if name in EXPECTED_AUTHORITY:
-            authority_inputs[name] = (path, specs, bases)
+        # An agent missing from either table is reported by _roster_table_failures below.
+        if name in EXPECTED_DELEGATION and name in EXPECTED_AUTHORITY:
+            authority_inputs[name] = (path, grants, bases)
 
-    expected_names = set(EXPECTED_AUTHORITY)
+    failures.extend(_roster_table_failures())
+    expected_names = set(EXPECTED_DELEGATION)
     if set(names) != expected_names:
         failures.append(
             "agents/: roster mismatch; expected " + ", ".join(sorted(expected_names))
             + "; found " + ", ".join(sorted(names))
         )
-    for name, (path, specs, bases) in authority_inputs.items():
-        failures.extend(_authority_failures(name, path, specs, bases))
+    for name, (path, grants, bases) in authority_inputs.items():
+        failures.extend(_authority_failures(name, path, grants, bases))
     return names, failures
 
 
-def _load_guard(root: Path):
+def _load_guard(root: Path) -> ModuleType:
     """Import scripts/readonly-guard.py by path — its hyphen makes it un-importable by name."""
-    import importlib.util
-
     guard_path = root / "scripts" / "readonly-guard.py"
     spec = importlib.util.spec_from_file_location("_readonly_guard", guard_path)
     if spec is None or spec.loader is None:

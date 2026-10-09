@@ -1,12 +1,10 @@
 """Offline calibration: real artifacts and exits, no model or external services."""
 
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-import yaml
+from probe_testkit import run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/python-craft/check_new_code.py"
@@ -94,34 +92,38 @@ class CountTests(unittest.TestCase):
 
 class NewCodeProbeTests(unittest.TestCase):
     def run_artifact(self, source, tests=SELF_TEST):
-        spec = yaml.safe_load(SPEC.read_text(encoding="utf-8"))
+        spec = scenario_file(SPEC)
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
-            for name, text in spec["fixture"]["files"].items():
-                (work / name).write_text(text, encoding="utf-8")
+            write_tree(work, spec["fixture"]["files"])
             (work / "outcome_counts.py").write_text(source, encoding="utf-8")
             (work / "tests").mkdir()
             (work / "tests/__init__.py").write_text("", encoding="utf-8")
             (work / "tests/test_outcome_counts.py").write_text(tests, encoding="utf-8")
             (work / "_python_new_oracle.py").write_bytes(ORACLE.read_bytes())
-            return subprocess.run([sys.executable, "-I", "-B", "_python_new_oracle.py"], cwd=work,
-                                  capture_output=True, text=True, encoding="utf-8", timeout=45)
+            return run_python(["-B", "_python_new_oracle.py"], cwd=work, isolated=True, encoding="utf-8", timeout=45)
+
+    def assert_passes(self, source):
+        result = self.run_artifact(source)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("public contracts passed", result.stdout)
+
+    def assert_fails(self, source, diagnostic, tests=SELF_TEST):
+        result = self.run_artifact(source, tests)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn(diagnostic, result.stderr)
 
     def test_loop_and_generator_counter_implementations_pass(self):
         for source in (CORRECT, SHELL.format(api=COUNTER_API)):
             with self.subTest(source=source):
-                result = self.run_artifact(source)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn("public contracts passed", result.stdout)
+                self.assert_passes(source)
 
     def test_old_locale_stdin_artifact_fails_utf8_contract(self):
         # Force the formerly implicit stdin decoder to Latin-1 to reproduce the
         # defect across hosts, rather than depending on Windows' ambient cp1252.
-        source = LEGACY_SOURCE.replace('if __name__ == "__main__":',
-            'if __name__ == "__main__":\n    sys.stdin.reconfigure(encoding="latin-1")')
-        result = self.run_artifact(source)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("invalid UTF-8 stdin: failure exit status", result.stderr)
+        self.assert_fails(LEGACY_SOURCE.replace('if __name__ == "__main__":',
+                                                'if __name__ == "__main__":\n    sys.stdin.reconfigure(encoding="latin-1")'),
+                          "invalid UTF-8 stdin: failure exit status")
 
     def test_candidate_exits_cannot_skip_contract_checks(self):
         for code in (0, 3):
@@ -141,9 +143,7 @@ class NewCodeProbeTests(unittest.TestCase):
             ("from pathlib import Path", "Path(argv[0]).open(encoding=\"utf-8\")"),
         ):
             with self.subTest(imported=imported):
-                source = imported + "\n" + CORRECT.replace('open(argv[0], encoding="utf-8")', expression)
-                result = self.run_artifact(source)
-                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assert_passes(imported + "\n" + CORRECT.replace('open(argv[0], encoding="utf-8")', expression))
 
     def test_compact_stream_retention_fails(self):
         api = API.replace("    for index, row", "    retained = bytearray()\n    for index, row").replace(
@@ -156,14 +156,10 @@ class NewCodeProbeTests(unittest.TestCase):
         )
         for source, diagnostic in cases:
             with self.subTest(diagnostic=diagnostic):
-                result = self.run_artifact(source)
-                self.assertNotEqual(result.returncode, 0, result.stdout)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_fails(source, diagnostic)
 
     def test_large_constant_buffers_pass(self):
-        source = CORRECT.replace("def summarize(rows):", "def summarize(rows):\n    buffer = bytearray(2_000_000)")
-        result = self.run_artifact(source)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assert_passes(CORRECT.replace("def summarize(rows):", "def summarize(rows):\n    buffer = bytearray(2_000_000)"))
 
     def test_binary_and_chunked_file_readers_pass(self):
         binary = CORRECT.replace('open(argv[0], encoding="utf-8")',
@@ -181,8 +177,7 @@ class NewCodeProbeTests(unittest.TestCase):
 def parsed(source):""").replace("enumerate(source, 1)", "enumerate(lines(source), 1)")
         for source in (binary, chunked, chunked.replace("4096", "1_048_576")):
             with self.subTest(source=source):
-                result = self.run_artifact(source)
-                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assert_passes(source)
 
     def test_retained_open_aliases_still_expose_import_io_and_leaks(self):
         for library in ("builtins", "io"):
@@ -195,16 +190,12 @@ def parsed(source):""").replace("enumerate(source, 1)", "enumerate(lines(source)
                  "owned file handle leaked"),
             ):
                 with self.subTest(library=library, diagnostic=diagnostic):
-                    result = self.run_artifact(source)
-                    self.assertNotEqual(result.returncode, 0, result.stdout)
-                    self.assertIn(diagnostic, result.stderr)
+                    self.assert_fails(source, diagnostic)
 
     def test_file_text_wrapper_buffer_reader_passes(self):
-        source = "import codecs\n" + CORRECT.replace(
+        self.assert_passes("import codecs\n" + CORRECT.replace(
             "result = summarize(parsed(stream))",
-            'result = summarize(parsed(codecs.iterdecode(stream.buffer, "utf-8") if argv[0] != "-" else stream))')
-        result = self.run_artifact(source)
-        self.assertEqual(result.returncode, 0, result.stderr)
+            'result = summarize(parsed(codecs.iterdecode(stream.buffer, "utf-8") if argv[0] != "-" else stream))'))
 
     def test_owned_file_must_close_after_late_read_failure(self):
         wrapper = '''
@@ -224,9 +215,7 @@ def file_source(path):
 '''
         source = CORRECT.replace("def main(", wrapper + "def main(").replace(
             'else open(argv[0], encoding="utf-8")', "else file_source(argv[0])")
-        result = self.run_artifact(source)
-        self.assertNotEqual(result.returncode, 0, result.stdout)
-        self.assertIn("owned file handle leaked on read failure", result.stderr)
+        self.assert_fails(source, "owned file handle leaked on read failure")
 
     def test_owned_file_late_read_errors_cannot_be_swallowed(self):
         source = CORRECT.replace("    for index, line in enumerate(source, 1):", """    try:
@@ -237,9 +226,7 @@ def file_source(path):
 
 def parsed_inner(source):
     for index, line in enumerate(source, 1):""")
-        result = self.run_artifact(source)
-        self.assertNotEqual(result.returncode, 0, result.stdout)
-        self.assertIn("file read error: failure exit status", result.stderr)
+        self.assert_fails(source, "file read error: failure exit status")
 
     def test_semantic_mutants_fail_for_the_named_defect(self):
         # Each mutation is independently executed in a fresh external temporary workspace.
@@ -276,20 +263,16 @@ def parsed_inner(source):
         for name, source, diagnostic in cases:
             with self.subTest(name=name):
                 self.assertNotEqual(source, CORRECT)
-                result = self.run_artifact(source)
-                self.assertNotEqual(result.returncode, 0, name + " unexpectedly passed")
-                self.assertIn(diagnostic, result.stderr, name + ": " + result.stderr)
+                self.assert_fails(source, diagnostic)
 
     def test_self_tests_must_execute_and_pass(self):
         for tests, diagnostic in [("import unittest\n", "no self-tests executed"),
                                   (SELF_TEST.replace('"success": 0', '"success": 99'), "candidate self-tests failed")]:
             with self.subTest(tests=tests):
-                result = self.run_artifact(CORRECT, tests)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(diagnostic, result.stderr)
+                self.assert_fails(CORRECT, diagnostic, tests)
 
     def test_scenario_binds_scope_oracle_and_trace_verification(self):
-        spec = yaml.safe_load(SPEC.read_text(encoding="utf-8"))
+        spec = scenario_file(SPEC)
         self.assertEqual(spec["fixture"]["files"], {".gitignore": "__pycache__/\n"})
         checks = spec["checks"]
         outcome = [c for c in checks if "writes_from" in c]

@@ -317,7 +317,7 @@ def validate_analysis_request(value: object) -> AnalysisRequest:
     request_version = _expect_version(
         root["request_version"], REQUEST_VERSION, "analysis_request.request_version"
     )
-    run_id = _expect_id(root["run_id"], "analysis_request.run_id")
+    run_id = _expect_lower_id(root["run_id"], "analysis_request.run_id")
     source_revision = _expect_revision(
         root["source_revision"], "analysis_request.source_revision"
     )
@@ -391,7 +391,7 @@ def validate_recommendation_artifact(
     artifact_version = _expect_version(
         root["artifact_version"], ARTIFACT_VERSION, "recommendation_artifact.artifact_version"
     )
-    run_id = _expect_id(root["run_id"], "recommendation_artifact.run_id")
+    run_id = _expect_lower_id(root["run_id"], "recommendation_artifact.run_id")
     artifact_id = _expect_opaque_id(
         root["artifact_id"], "recommendation_artifact.artifact_id"
     )
@@ -518,7 +518,7 @@ def validate_release_decision(
     decision_version = _expect_version(
         root["decision_version"], DECISION_VERSION, "release_decision.decision_version"
     )
-    run_id = _expect_id(root["run_id"], "release_decision.run_id")
+    run_id = _expect_lower_id(root["run_id"], "release_decision.run_id")
     source_revision = _expect_revision(
         root["source_revision"], "release_decision.source_revision"
     )
@@ -531,7 +531,7 @@ def validate_release_decision(
         root["artifact_digest"], "release_decision.artifact_digest"
     )
     decision = _expect_enum(root["decision"], DECISIONS, "release_decision.decision")
-    approver = _expect_id(root["approver"], "release_decision.approver")
+    approver = _expect_lower_id(root["approver"], "release_decision.approver")
     decided_at, decided_instant = _expect_utc_rfc3339(
         root["decided_at"], "release_decision.decided_at"
     )
@@ -969,10 +969,6 @@ def _expect_lower_id(value: object, path: str) -> str:
     if _LOWER_ID.fullmatch(actual) is None:
         raise ContractViolation(f"{path} is not a valid lowercase ID")
     return actual
-
-
-def _expect_id(value: object, path: str) -> str:
-    return _expect_lower_id(value, path)
 
 
 def _expect_opaque_id(value: object, path: str) -> str:

@@ -28,6 +28,7 @@ from .constants import ROOT
 from .outcomes import (
     EVIDENCE_LIMIT,
     CutShort,
+    Ending,
     Outcome,
     Polarity,
     State,
@@ -153,7 +154,9 @@ def _trace_expectations(
             )
         )
     reference_trace = (
-        replace(trace, read_attempts=trace.parent_reads_before_dispatch) if spec.get("followups") else trace
+        replace(trace, read_attempts=list[tracing.ReadAttempt](trace.parent_reads_before_dispatch))
+        if spec.get("followups")
+        else trace
     )
     for reference in spec.get("references") or []:
         scope = " by initial parent before helper dispatch" if spec.get("followups") else ""
@@ -166,12 +169,13 @@ def _trace_expectations(
             )
         )
     for grader in spec.get("graders") or []:
+        traits = checking.grader_traits(grader.get("type"))
         graded.append(
             (
                 f"grader {grader.get('type')}",
                 functools.partial(_run_grader, grader, trace.result_text, judge_binding),
-                frozenset({Need.TEXT, Need.JUDGE}) if grader.get("type") == "rubric" else frozenset({Need.TEXT}),
-                catalog.grader_polarity(grader),
+                traits.needs,
+                traits.polarity,
             )
         )
     if spec.get("followups"):
@@ -429,15 +433,17 @@ def roll_up(outcomes: Sequence[Outcome], unmeasured_reason: str | None) -> tuple
 
 def records(graded: Sequence[Graded]) -> list[dict[str, Any]]:
     """Each graded expectation as the grade records it."""
-    entries = []
-    for g in graded:
-        entry: dict[str, Any] = {"text": g.expectation.text, "passed": g.outcome.passed, "evidence": g.outcome.evidence}
-        if g.truncated:
-            entry["evidence_truncated"] = True
-        entry["state"] = g.outcome.state
-        entry["kind"] = g.expectation.polarity
-        entries.append(entry)
-    return entries
+    return [
+        {
+            "text": g.expectation.text,
+            "passed": g.outcome.passed,
+            "evidence": g.outcome.evidence,
+            **({"evidence_truncated": True} if g.truncated else {}),
+            "state": g.outcome.state,
+            "kind": g.expectation.polarity,
+        }
+        for g in graded
+    ]
 
 
 def run_fields(
@@ -447,8 +453,8 @@ def run_fields(
     return {
         "inconclusive": reason if status is State.INCONCLUSIVE else None,
         **({"unmeasured": reason} if status is State.FAIL and reason else {}),
-        **({"run_end": "cut_short", "run_stop": inconclusive.kind} if isinstance(inconclusive, CutShort) else {}),
-        **({"run_end": "turn_limit"} if turn_limit else {}),
+        **({"run_end": Ending.CUT_SHORT, "run_stop": inconclusive.kind} if isinstance(inconclusive, CutShort) else {}),
+        **({"run_end": Ending.TURN_LIMIT} if turn_limit else {}),
         **({"void": inconclusive} if inconclusive and not isinstance(inconclusive, CutShort) else {}),
     }
 
@@ -473,7 +479,7 @@ def grade(
     ctx: Context, *, inconclusive: str | None = None, expected_scenario_digest: str | None = None
 ) -> dict[str, Any]:
     """Grade a trial that just ran, against its live workspace, trace and services."""
-    binding = ctx.judge_binding.metadata if ctx.judge_binding and fingerprints.required_rubrics(ctx.spec) else None
+    binding = fingerprints.binding_for(ctx.spec, ctx.judge_binding)
     identity = expected_scenario_digest or fingerprints.scenario_digest(ctx.spec, binding)
     if fingerprints.scenario_digest(ctx.spec, binding) != identity:
         inconclusive = "scenario inputs changed before grading; re-run the trial"

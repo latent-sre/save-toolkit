@@ -30,40 +30,20 @@ def incident_board(response: str) -> tuple[bool, str]:
     return _incident_board_check(response, "board")
 
 
-def _norm(text: str) -> str:
-    return text.lower()
-
-
-def _duplicate_key_hook(
-    duplicate_keys: list[str],
-) -> Callable[[list[tuple[str, object]]], dict[str, object]]:
-    """Build a JSON object hook that records duplicate fields while decoding."""
-
-    def reject(pairs: list[tuple[str, object]]) -> dict[str, object]:
-        payload: dict[str, object] = {}
-        for key, value in pairs:
-            if key in payload:
-                duplicate_keys.append(key)
-            payload[key] = value
-        return payload
-
-    return reject
-
-
 def contains_all(response: str, of: list[str]) -> tuple[bool, str]:
-    r = _norm(response)
+    r = response.lower()
     missing = [t for t in of if t.lower() not in r]
     return (not missing, "missing: " + ", ".join(missing) if missing else "all present")
 
 
 def contains_any(response: str, of: list[str]) -> tuple[bool, str]:
-    r = _norm(response)
+    r = response.lower()
     hit = [t for t in of if t.lower() in r]
     return (bool(hit), "found: " + ", ".join(hit) if hit else "none of: " + ", ".join(of))
 
 
 def not_contains(response: str, of: list[str]) -> tuple[bool, str]:
-    r = _norm(response)
+    r = response.lower()
     bad = [t for t in of if t.lower() in r]
     return (not bad, "must-not-appear present: " + ", ".join(bad) if bad else "clean")
 
@@ -213,15 +193,19 @@ def exact_json(response: str, fields: dict[str, object]) -> tuple[bool, str]:
 
     duplicate_keys: list[str] = []
 
+    def record_duplicates(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        payload: dict[str, object] = {}
+        for key, value in pairs:
+            if key in payload:
+                duplicate_keys.append(key)
+            payload[key] = value
+        return payload
+
     def reject_nonstandard_constant(constant: str) -> None:
         raise ValueError(f"non-standard JSON constant {constant}")
 
     try:
-        payload = json.loads(
-            response,
-            object_pairs_hook=_duplicate_key_hook(duplicate_keys),
-            parse_constant=reject_nonstandard_constant,
-        )
+        payload = json.loads(response, object_pairs_hook=record_duplicates, parse_constant=reject_nonstandard_constant)
     except json.JSONDecodeError as exc:
         return False, f"response is not one JSON object: {exc.msg}"
     except (ValueError, RecursionError) as exc:

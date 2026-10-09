@@ -1,61 +1,46 @@
 """CLI outcomes and source-bound navigation through the real artifact verifier."""
 
-from contextlib import redirect_stdout
 import io
 import json
-import unittest
-from types import SimpleNamespace
-from pathlib import Path
-import shutil
 import subprocess
-import tempfile
 import sys
+import tempfile
+import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from types import SimpleNamespace
 
 import fleet_atlas_v2 as cli
-import test_fleet_atlas_v2_artifacts as fixtures
+from atlas_test_support import (
+    ReadmeRepository,
+    copy_runtime,
+    extended,
+    fact_rows,
+    fixture_extract,
+    git,
+    init_repository,
+    row_extraction,
+)
+from fleet_atlas_v2_format import DETAIL_BUDGET
 from fleet_atlas_v2_model import Bucket, EvidenceClass, Fact, Node, Predicate, Proof, ProofKind
 from fleet_atlas_v2_proofs import Derivation
 from fleet_atlas_v2_sources import current_snapshot
 
 
-class CliTests(unittest.TestCase):
-    setUp = fixtures.ArtifactTests.setUp
-    git = fixtures.ArtifactTests.git
-    output = fixtures.ArtifactTests.output
-
-    def query_fixture(self, identities, rows):
-        (self.root / "README.md").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+class CliTests(ReadmeRepository, unittest.TestCase):
+    def query_fixture(self, rows):
+        """Build an atlas whose facts are `rows`, one cited README.md line each."""
+        (self.root / "README.md").write_bytes(fact_rows(rows))
         self.git("add", "README.md")
         self.git("commit", "-qm", "query contract fixture")
 
         def loader(snapshot):
-            source = snapshot.source("README.md")
-            declarations = [json.loads(line) for line in source.lines]
-            nodes = tuple(Node(identity, identity.split(":", 1)[0], source.path, identity) for identity in identities)
-            facts = tuple(Fact(identity, subject, predicate, value, EvidenceClass.EXTRACTED,
-                               Proof(ProofKind.EXTRACTED, (source.span(i, i),), "query-fixture/v1"),
-                               tuple(sorted(qualifiers.items())))
-                          for i, (identity, subject, predicate, value, qualifiers) in enumerate(declarations, 1))
-            kinds = frozenset(node.type for node in nodes)
-            relations = {"verified_by", "governed_by", "loads_when"}
-            rules = tuple(Predicate(predicate, kinds, kinds if predicate in relations else None, (source.path,))
-                          for predicate in sorted({row[2] for row in declarations}))
-
-            def evaluate(fact, sources, premises):
-                current = sources.source(source.path)
-                i, row = next((i, json.loads(line)) for i, line in enumerate(current.lines, 1)
-                              if json.loads(line)[0] == fact.id)
-                return Derivation(row[3], EvidenceClass.EXTRACTED,
-                                  Proof(ProofKind.EXTRACTED, (current.span(i, i),), "query-fixture/v1"),
-                                  tuple(sorted(row[4].items())))
-
-            return SimpleNamespace(buckets=(Bucket("query", nodes, facts),), predicates=rules,
-                                   evaluators={"query-fixture/v1": evaluate})
+            return row_extraction(snapshot, "README.md")
 
         self.assertEqual(0, self.call("build", loader=loader)[0])
         return loader
 
-    def call(self, *args, loader=fixtures.fixture_extract):
+    def call(self, *args, loader=fixture_extract):
         stdout = io.StringIO()
         with redirect_stdout(stdout):
             code = cli.main(["--root", str(self.root), *args], loader)
@@ -88,9 +73,10 @@ class CliTests(unittest.TestCase):
                 code, data, _ = self.call("query", "loads-for", "agent-authoring")
                 self.assertEqual(2, code)
                 self.assertEqual("usage", data["outcome"])
+                self.assertEqual("invalid query arguments", data["message"])
                 self.assertEqual([], data["results"])
-        document = cli.verify(self.root, fixtures.fixture_extract)
-        with self.assertRaises(cli.UsageError):
+        document = cli.verify(self.root, fixture_extract)
+        with self.assertRaisesRegex(cli.UsageError, "requires a skill and a predicate"):
             cli.select(document, "loads-for", ["agent-authoring"])
 
     def test_verified_empty_is_success_with_explicit_scope(self):
@@ -119,14 +105,13 @@ class CliTests(unittest.TestCase):
 
     def test_query_rejects_duck_typed_container_without_artifact_verification(self):
         self.call("build")
-        document = cli.verify(self.root, fixtures.fixture_extract)
+        document = cli.verify(self.root, fixture_extract)
         loose = SimpleNamespace(facts=document.facts, revision=document.revision)
         with self.assertRaisesRegex(TypeError, "VerifiedDocument"):
             cli.query(loose, "state", ["README.md"])
 
     def test_recorded_unknown_is_not_reported_as_verified_empty(self):
         def loader(snapshot):
-            base = fixtures.fixture_extract(snapshot)
             proof = Proof(ProofKind.ABSENCE, (snapshot.source("README.md").span(1, 1),),
                           "missing-owner/v1", snapshot.tree_digest)
             fact = Fact("unknown:owner", "document:README.md", "unknown", "Owner is not recorded",
@@ -139,10 +124,9 @@ class CliTests(unittest.TestCase):
                                   Proof(ProofKind.ABSENCE, (source.span(1, 1),),
                                         "missing-owner/v1", sources.tree_digest))
 
-            return SimpleNamespace(
-                buckets=(*base.buckets, Bucket("unknown", (), (fact,))),
-                predicates=(*base.predicates, Predicate("unknown", frozenset({"document"}), None, ("README.md",))),
-                evaluators={**base.evaluators, "missing-owner/v1": evaluate})
+            return extended(snapshot, Bucket("unknown", (), (fact,)),
+                            [Predicate("unknown", frozenset({"document"}), None, ("README.md",))],
+                            {"missing-owner/v1": evaluate})
 
         self.assertEqual(0, self.call("build", loader=loader)[0])
         code, data, _ = self.call("query", "owner-of", "README.md", loader=loader)
@@ -158,7 +142,6 @@ class CliTests(unittest.TestCase):
         self.git("commit", "-qm", "guidance and crowded metadata")
 
         def loader(snapshot):
-            base = fixtures.fixture_extract(snapshot)
             source = snapshot.source("README.md")
             claims = (("a-description", "attr.description", 3), ("z-guidance", "guidance", 2))
             facts = tuple(Fact(identity, "document:README.md", predicate, source.lines[line - 1],
@@ -172,33 +155,27 @@ class CliTests(unittest.TestCase):
                 return Derivation(current.lines[line - 1], EvidenceClass.EXTRACTED,
                                   Proof(ProofKind.EXTRACTED, (current.span(line, line),), "guidance-fixture/v1"))
 
-            return SimpleNamespace(
-                buckets=(*base.buckets, Bucket("guidance", (), facts)),
-                predicates=(*base.predicates, *(Predicate(predicate, frozenset({"document"}), None,
-                             ("README.md",)) for _, predicate, _ in claims)),
-                evaluators={**base.evaluators, "guidance-fixture/v1": evaluate})
+            return extended(snapshot, Bucket("guidance", (), facts),
+                            [Predicate(predicate, frozenset({"document"}), None, ("README.md",)) for _, predicate, _ in claims],
+                            {"guidance-fixture/v1": evaluate})
 
         self.assertEqual(0, self.call("build", loader=loader)[0])
         code, data, content = self.call("query", "guidance", "dependency", "timeouts", loader=loader)
         self.assertEqual(0, code)
         self.assertTrue(data["truncated"])
-        self.assertLessEqual(len(content), 20_000)
+        self.assertLessEqual(len(content), DETAIL_BUDGET)
         self.assertEqual("guidance", data["results"][0]["predicate"])
         self.assertIn("caller boundary", data["results"][0]["object"])
 
     def test_supersedes_query_matches_both_old_and_new_decisions(self):
         def loader(snapshot):
-            base = fixtures.fixture_extract(snapshot)
             nodes = (Node("decision:new", "decision", "README.md", "new"),
                      Node("decision:old", "decision", "README.md", "old"))
             proof = Proof(ProofKind.EXTRACTED, (snapshot.source("README.md").span(1, 1),), "supersedes-fixture/v1")
             fact = Fact("edge:new:old", "decision:new", "supersedes", "decision:old", EvidenceClass.EXTRACTED, proof)
-            return SimpleNamespace(
-                buckets=(*base.buckets, Bucket("decisions", nodes, (fact,))),
-                predicates=(*base.predicates, Predicate("supersedes", frozenset({"decision"}),
-                             frozenset({"decision"}), ("README.md",))),
-                evaluators={**base.evaluators, "supersedes-fixture/v1": lambda f, s, p:
-                            Derivation("decision:old", EvidenceClass.EXTRACTED, proof)})
+            return extended(snapshot, Bucket("decisions", nodes, (fact,)),
+                            [Predicate("supersedes", frozenset({"decision"}), frozenset({"decision"}), ("README.md",))],
+                            {"supersedes-fixture/v1": lambda f, s, p: Derivation("decision:old", EvidenceClass.EXTRACTED, proof)})
 
         self.assertEqual(0, self.call("build", loader=loader)[0])
         for name in ("new", "old"):
@@ -211,7 +188,6 @@ class CliTests(unittest.TestCase):
 
     def test_legacy_lookup_uses_exact_name_before_substrings_or_descriptions(self):
         loader = self.query_fixture(
-            ("agent:target", "skill:other-target", "skill:other", "test:a", "test:b", "test:c"),
             [("n:a", "agent:target", "name", "target", {}),
              ("n:b", "skill:other-target", "name", "other-target", {}),
              ("n:c", "skill:other", "name", "other", {}),
@@ -224,7 +200,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(["test:a"], [fact["object"] for fact in data["results"]])
 
     def test_governs_retains_section_source_text_and_rule_facts(self):
-        loader = self.query_fixture(("rule:first", "document:policy"),
+        loader = self.query_fixture(
             [("n:r", "rule:first", "name", "short label", {}),
              ("s:r", "rule:first", "attr.section", "Dependency governance", {}),
              ("t:r", "rule:first", "attr.statement", "Use reviewed source contracts", {}),
@@ -239,7 +215,7 @@ class CliTests(unittest.TestCase):
                 self.assertTrue(any(fact["object"] == "document:policy" for fact in data["results"]))
 
     def test_multiword_state_and_loading_predicate_match_joined_terms(self):
-        loader = self.query_fixture(("skill:demo", "reference:doc"),
+        loader = self.query_fixture(
             [("n:s", "skill:demo", "name", "demo skill", {}),
              ("s:s", "skill:demo", "state", "live", {}),
              ("e:s", "skill:demo", "loads_when", "reference:doc", {"predicate": "dependency is slow"})])
@@ -255,34 +231,24 @@ class RealCliFailureTests(unittest.TestCase):
     def test_malformed_tracked_test_returns_envelope_for_all_commands(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            scripts = root / "scripts"
-            scripts.mkdir()
-            runtime = Path(__file__).resolve().parent
-            for path in [*runtime.glob("fleet_atlas_v2*.py"), runtime / "fleet_frontmatter.py"]:
-                shutil.copyfile(path, scripts / path.name)
+            scripts = copy_runtime(root)
             (root / "README.md").write_bytes(b"# Runtime error fixture\n")
             # The fixture's own interpreter bytecode is an untracked canonical input;
             # like the real repository's .gitignore, exclude it so builds verify.
             (root / ".gitignore").write_bytes(b"__pycache__/\n*.pyc\n")
 
-            def git(*args):
-                subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
-
             def command(*args):
                 return subprocess.run([sys.executable, "-I", "-S", str(scripts / "fleet_atlas_v2.py"),
                                        "--root", str(root), *args], capture_output=True, check=False)
 
-            git("init", "-q")
-            git("config", "user.name", "Atlas malformed fixture")
-            git("config", "user.email", "atlas@example.invalid")
-            git("config", "core.autocrlf", "false")
-            git("add", ".")
-            git("commit", "-qm", "clean fixture")
+            init_repository(root, "Atlas malformed fixture")
+            git(root, "add", ".")
+            git(root, "commit", "-qm", "clean fixture")
             initial = command("build")
             self.assertEqual(0, initial.returncode, initial.stderr.decode())
             (scripts / "test_bad.py").write_bytes(b"def broken(\n")
-            git("add", "scripts/test_bad.py")
-            git("commit", "-qm", "malformed tracked test")
+            git(root, "add", "scripts/test_bad.py")
+            git(root, "commit", "-qm", "malformed tracked test")
             # An untrusted stored atlas can claim fresh metadata. check/query must
             # still envelope the parser failure rather than leak a traceback.
             snapshot = current_snapshot(root)

@@ -61,6 +61,17 @@ class Stop(enum.StrEnum):
     UNRECORDED = "cut_short"  # a saved cut whose runner did not record how it stopped
 
 
+class Ending(enum.StrEnum):
+    """How a run's execution ended, independent of what its checks found: the `run_end` a grade and
+    a v1 record carry."""
+
+    COMPLETED = "completed"
+    TURN_LIMIT = "turn_limit"  # the CLI ended the session at the scenario's declared limit (rule 4)
+    CUT_SHORT = "cut_short"  # stopped early on the declared profile: its forbidding checks still count
+    VOID = "void"  # a run-level failure: nothing it shows is a measurement (rule 1)
+    INCOMPLETE = "incomplete"  # the attempt raised before it was graded
+
+
 class Outcome(tuple[bool, str]):
     """One check's verdict and evidence.
 
@@ -177,7 +188,7 @@ def legacy_state(expectation: Mapping[str, Any]) -> State:
 
 
 class CutShort(str):
-    """A run on the declared profile that ended before completing.
+    """A run on the declared profile that ended before completing (`Ending.CUT_SHORT`).
 
     Its forbidding checks still count: evidence of a forbidden action already in the trace is a
     failure, while everything else stays INCONCLUSIVE (threat-model ADR result rules 2 and 4). Any

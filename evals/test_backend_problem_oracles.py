@@ -1,14 +1,13 @@
 """Calibrate the three independently injected backend problem-response predicates."""
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import pytest
-import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from httpx import Response
+from probe_testkit import load_oracle, scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 ORACLES = ("incidents-api", "incident-writes", "pager-webhook")
@@ -16,11 +15,7 @@ ORACLES = ("incidents-api", "incident-writes", "pager-webhook")
 
 @pytest.fixture(params=ORACLES)
 def oracle(request):
-    path = ROOT / "evals/oracles" / request.param / "probe_checks.py"
-    spec = importlib.util.spec_from_file_location(request.param.replace("-", "_"), path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_oracle(ROOT / "evals/oracles" / request.param / "probe_checks.py")
 
 
 @pytest.fixture
@@ -103,7 +98,7 @@ def test_problem_oracle_rejects_null_or_non_json_body(oracle, content):
 def test_problem_oracle_accepts_its_shipped_error_handler(oracle):
     name = Path(oracle.__file__).parent.name
     scenario = ROOT / "evals/build-scenarios" / f"build-software-engineer-{name}.yaml"
-    source = yaml.safe_load(scenario.read_text(encoding="utf-8"))["fixture"]["files"]["app/errors.py"]
+    source = scenario_file(scenario)["fixture"]["files"]["app/errors.py"]
     namespace = {}
     exec(compile(source, f"{name}/app/errors.py", "exec"), namespace)
     app = FastAPI()

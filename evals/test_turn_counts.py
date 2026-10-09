@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import pytest
 import turn_counts
 
 
@@ -54,6 +55,14 @@ def test_retained_attempts_count_toward_the_highest_turns_and_longest_trial(tmp_
 def test_missing_root_exits_three(tmp_path, capsys):
     assert turn_counts.main([str(tmp_path / 'absent')]) == 3
     assert 'not a directory' in capsys.readouterr().err
+
+
+def test_a_wrong_command_line_is_refused_with_three(capsys):
+    """argparse exits 2, which the runner's batches read as INCONCLUSIVE; every evals CLI refuses with 3."""
+    with pytest.raises(SystemExit) as refused:
+        turn_counts.main(['--no-such-flag'])
+    assert refused.value.code == 3
+    assert 'error: the following arguments are required: runs_root' in capsys.readouterr().err
 
 
 def test_reads_a_whole_runs_tree_as_well_as_one_iteration(tmp_path):

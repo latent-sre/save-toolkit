@@ -7,14 +7,24 @@ inputs from the closed source snapshot. Source containment alone proves no claim
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from types import MappingProxyType
-from typing import Callable, Mapping
 
 from fleet_atlas_v2_model import (
-    Bucket, EvidenceClass, Fact, FactRef, Graph, Predicate, Proof, ProofKind, Span,
-    Value, assemble, assert_debt_subset,
+    Bucket,
+    EvidenceClass,
+    Fact,
+    FactRef,
+    Graph,
+    Predicate,
+    Proof,
+    ProofKind,
+    Span,
+    Value,
+    assemble,
+    assert_debt_subset,
 )
 from fleet_atlas_v2_sources import Snapshot
 
@@ -29,6 +39,15 @@ class Derivation:
 
 Evaluator = Callable[[Fact, Snapshot, Mapping[str, Fact]], Derivation]
 _SEAL = object()
+
+
+@dataclass(frozen=True)
+class Extraction:
+    """What a loader returns: extractor buckets, their predicates and the trusted evaluators."""
+
+    buckets: tuple[Bucket, ...]
+    predicates: tuple[Predicate, ...]
+    evaluators: Mapping[str, Evaluator]
 
 
 @dataclass(frozen=True)

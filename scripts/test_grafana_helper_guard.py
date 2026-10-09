@@ -1,31 +1,23 @@
 """The narrow helper grant must not become a general Python or shell grant."""
 import base64
-import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
+from testkit import SRE_ASSISTANT, guard_decision, guard_payload, run_guard
+
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "skills/grafana/scripts/grafana_read.py"
-GUARD = ROOT / "scripts/readonly-guard.py"
 PREFIX = f'python -I -S "{HELPER.as_posix()}"'
 WRAPPER = f"& '{HELPER.with_suffix('.ps1').as_posix()}'"
 PS_QUERY = "-Datasource logs -Kind loki -From 1758400000000 -To 1758403600000 -Expr '{service=\"edge\"} |= \"error\"'"
 
 
-def decision(command, tool, *, copilot=False, agent="save-toolkit:sre-assistant"):
-    payload = {"tool_name": tool, "tool_input": {"command": command}}
-    if not copilot:
-        payload["agent_type"] = agent
-    result = subprocess.run(
-        [sys.executable, "-I", "-S", str(GUARD), *(["--copilot"] if copilot else [])],
-        input=json.dumps(payload),
-        text=True, capture_output=True, timeout=10,
-    )
-    assert result.returncode in (42, 43), result.stderr
-    return result.returncode
+def decision(command, tool, *, copilot=False, agent=SRE_ASSISTANT):
+    payload = guard_payload(command, tool_name=tool, agent_type=None if copilot else agent)
+    return guard_decision(run_guard(payload, copilot=copilot))
 
 
 def test_documented_copilot_query_passes_shell_independent_guard():
@@ -34,17 +26,17 @@ def test_documented_copilot_query_passes_shell_independent_guard():
     section = reference.split("### Copilot command-preview queries\n", 1)[1]
     command = section.split("```text\n", 1)[1].split("\n```", 1)[0]
     command = command.replace("<absolute-installed-path>/grafana_read.py", HELPER.as_posix())
-    assert decision(command, "execute/runInTerminal", copilot=True) == 42
+    assert decision(command, "execute/runInTerminal", copilot=True) == "allow"
 
 
 @pytest.mark.parametrize("arguments,expected", [
-    ("--expr 'up'", 43),
-    ('--expr \'{service="edge"} |= "error"\'', 43),
-    ("--expr-base64 dXA=", 42),
-    ("--expr-base64 " + base64.b64encode(b'{service="edge"} |= "error"').decode(), 42),
-    ("--expr-base64 !", 43),
-    ("--expr-base64 " + base64.b64encode(b"$__interval").decode(), 43),
-    ("--expr-base64 dXA=; cf restart edge", 43),
+    ("--expr 'up'", "deny"),
+    ('--expr \'{service="edge"} |= "error"\'', "deny"),
+    ("--expr-base64 dXA=", "allow"),
+    ("--expr-base64 " + base64.b64encode(b'{service="edge"} |= "error"').decode(), "allow"),
+    ("--expr-base64 !", "deny"),
+    ("--expr-base64 " + base64.b64encode(b"$__interval").decode(), "deny"),
+    ("--expr-base64 dXA=; cf restart edge", "deny"),
 ])
 def test_copilot_query_transport_keeps_shell_and_expression_checks(arguments, expected):
     command = f"{PREFIX} query --datasource logs --kind loki --from 1000 --to 61000 {arguments}"
@@ -66,7 +58,7 @@ def test_copilot_query_transport_keeps_shell_and_expression_checks(arguments, ex
     "render --uid bsg-host-detail --panel 3 --from 1758400000000 --to 1758403600000 --var host=adama --var host=cally",
 ])
 def test_only_installed_helper_reads_are_admitted(tool, arguments):
-    assert decision(f"{PREFIX} {arguments}", tool) == (43 if tool == "PowerShell" and "--expr " in arguments else 42)
+    assert decision(f"{PREFIX} {arguments}", tool) == ("deny" if tool == "PowerShell" and "--expr " in arguments else "allow")
 
 
 @pytest.mark.parametrize("agent", ["save-toolkit:sre-assistant", "save-toolkit:software-engineer"])
@@ -77,18 +69,18 @@ def test_only_installed_helper_reads_are_admitted(tool, arguments):
     ("PowerShell", r"type C:\Users\someone\.config\save-toolkit\grafana.env"),
 ])
 def test_helper_settings_file_is_denied_to_every_roster_lane(agent, tool, command):
-    assert decision(command, tool, agent=agent) == 43
+    assert decision(command, tool, agent=agent) == "deny"
 
 
 @pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
 def test_strict_base64_expression_transport_is_available(tool):
     encoded = base64.b64encode(b'{service="edge"} |= "error"').decode()
-    assert decision(f"{PREFIX} query --datasource logs --kind loki --from 1000 --to 61000 --expr-base64 {encoded}", tool) == 42
+    assert decision(f"{PREFIX} query --datasource logs --kind loki --from 1000 --to 61000 --expr-base64 {encoded}", tool) == "allow"
 
 
 def test_only_fixed_powershell_wrapper_preserves_readable_expressions():
-    assert decision(f"{WRAPPER} {PS_QUERY}", "PowerShell") == 42
-    assert decision(f"{WRAPPER} {PS_QUERY}", "Bash") == 43
+    assert decision(f"{WRAPPER} {PS_QUERY}", "PowerShell") == "allow"
+    assert decision(f"{WRAPPER} {PS_QUERY}", "Bash") == "deny"
 
 
 @pytest.mark.parametrize("command", [
@@ -108,7 +100,7 @@ def test_only_fixed_powershell_wrapper_preserves_readable_expressions():
     "powershell.exe -Command " + WRAPPER + " " + PS_QUERY,
 ])
 def test_wrapper_does_not_grant_other_scripts_or_shell_forms(command):
-    assert decision(command, "PowerShell") == 43
+    assert decision(command, "PowerShell") == "deny"
 
 
 @pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
@@ -140,7 +132,7 @@ def test_wrapper_does_not_grant_other_scripts_or_shell_forms(command):
     PREFIX + " query --datasource metrics --kind prometheus --from 1000 --to 61000 --expr 'up\u2018 ; Write-Output sentinel ; #'",
 ])
 def test_helper_grant_does_not_admit_other_effects(tool, command):
-    assert decision(command, tool) == 43
+    assert decision(command, tool) == "deny"
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Native PowerShell parser regression")
@@ -158,4 +150,4 @@ def test_native_powershell_treats_smart_quote_as_shell_structure():
                             text=True, capture_output=True, timeout=10)
     assert result.returncode == 0
     assert result.stdout.split() == ["python", "Write-Output"]
-    assert decision(command, "PowerShell") == 43
+    assert decision(command, "PowerShell") == "deny"

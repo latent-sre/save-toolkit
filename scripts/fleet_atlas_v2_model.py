@@ -9,11 +9,11 @@ from __future__ import annotations
 import hashlib
 import json
 import unicodedata
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import PurePosixPath
 from typing import TypeAlias
-
 
 Scalar: TypeAlias = str | int | float | bool | None
 Value: TypeAlias = Scalar | tuple["Value", ...]
@@ -95,14 +95,21 @@ class Span:
 
     @classmethod
     def from_bytes(cls, path: str, blob: bytes, start: int, end: int) -> Span:
-        lines = blob.decode("utf-8").splitlines()
+        return cls.from_lines(path, digest(blob), blob.decode("utf-8").splitlines(), start, end)
+
+    @classmethod
+    def from_lines(cls, path: str, blob_hash: str, lines: Sequence[str], start: int, end: int) -> Span:
+        """The span of an already decoded blob: `lines` must be its UTF-8 text's splitlines()."""
         if not 1 <= start <= end <= len(lines):
             raise ValueError(f"span outside {path}: {start}-{end}")
         excerpt = "\n".join(lines[start - 1:end]).encode("utf-8")
-        return cls(path, digest(blob), start, end, digest(excerpt))
+        return cls(path, blob_hash, start, end, digest(excerpt))
 
     def verify(self, blob: bytes) -> None:
-        if self != Span.from_bytes(self.path, blob, self.start_line, self.end_line):
+        self.verify_lines(digest(blob), blob.decode("utf-8").splitlines())
+
+    def verify_lines(self, blob_hash: str, lines: Sequence[str]) -> None:
+        if self != Span.from_lines(self.path, blob_hash, lines, self.start_line, self.end_line):
             raise ValueError(f"source span differs: {self.path}:{self.start_line}")
 
 
@@ -161,6 +168,33 @@ class NodeRef:
 
 
 WHOLE_DOCUMENT = "WHOLE_DOCUMENT"
+
+# The fleet vocabulary: every entity type, and every relationship with the entity types
+# it may join. EDGE_TYPES derives from the endpoint table, so a relationship cannot be
+# declared without its endpoints, nor exported as an edge without being declared.
+NODE_TYPES = frozenset(("agent", "skill", "reference", "bundle-file", "command", "rule",
+    "decision", "roadmap-item", "review", "scenario", "test", "schema", "schema-projection",
+    "generated-projection", "capability", "owner", "probe", "hook", "document", "validator"))
+# Endpoint authority is explicit, while trusted replay enforces syntax-level authority:
+# a path literal inside a test never becomes a verified_by edge merely by matching a glob.
+EDGE_ENDPOINTS = {
+    "owns": ({"owner", "agent"}, NODE_TYPES),
+    "routes_to": ({"scenario"}, {"agent", "skill", "command"}),
+    "delegates_to": ({"agent"}, {"agent"}),
+    "loads_when": ({"skill", "agent"}, {"reference", "skill"}),
+    "governed_by": ({"rule"}, NODE_TYPES),
+    "constrained_by": (NODE_TYPES, {"hook", "schema", "validator", "document"}),
+    "verified_by": (NODE_TYPES, {"scenario", "test"}),
+    "evidenced_by": ({"roadmap-item", "decision"}, {"decision", "review"}),
+    "depends_on": ({"roadmap-item"}, {"roadmap-item"}),
+    "blocks": ({"roadmap-item"}, {"roadmap-item"}),
+    "supersedes": ({"decision"}, NODE_TYPES),
+    "generated_from": ({"generated-projection"}, NODE_TYPES),
+    "near_miss_for": ({"scenario"}, {"agent", "skill", "command"}),
+    "contradicts": (NODE_TYPES, NODE_TYPES),
+    "cites": (NODE_TYPES, NODE_TYPES),
+}
+EDGE_TYPES = frozenset(EDGE_ENDPOINTS)
 
 
 class UnresolvedReference(ValueError):

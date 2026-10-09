@@ -27,11 +27,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import judge as rubric_judge
 from hypothesis import given, settings
 from hypothesis import strategies as st
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import judge as rubric_judge
 from probe import assessment as probe_assessment
 from probe import backing as probe_backing
 from probe import batches as probe_batches
@@ -42,7 +40,7 @@ from probe import outcomes as probe_outcomes
 from probe import records as probe_records
 from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
-from test_build_probe import INTENDED_POLARITY, _context  # the reviewed table, not the declarations
+from probe_testkit import INTENDED_POLARITY, context  # the reviewed table, not the declarations
 
 RULES = settings(derandomize=True, database=None, deadline=None, max_examples=150)
 GRADES = settings(derandomize=True, database=None, deadline=None, max_examples=60)
@@ -270,7 +268,7 @@ class RunEndProperties(unittest.TestCase):
 
     @staticmethod
     def _grade(text: str, needle: str, word: str, inconclusive: str | None = None) -> dict:
-        ctx = _context(_text_spec(needle, word), probe_tracing.TraceSummary(result_text=text))
+        ctx = context(_text_spec(needle, word), probe_tracing.TraceSummary(result_text=text))
         return probe_assessment.grade(ctx, inconclusive=inconclusive)
 
     @GRADES

@@ -103,7 +103,7 @@ def assert_cursor_page(response):
     assert isinstance(body.get("data"), list), 'house rule: the envelope carries a "data" list'
     assert "next_cursor" in body, 'house rule: the envelope carries "next_cursor", even when null'
     cursor = body["next_cursor"]
-    assert cursor is None or isinstance(cursor, str) and 1 <= len(cursor) <= 2048, (
+    assert cursor is None or (isinstance(cursor, str) and 1 <= len(cursor) <= 2048), (
         "next_cursor must be null or a nonempty string of at most 2048 characters"
     )
     return body

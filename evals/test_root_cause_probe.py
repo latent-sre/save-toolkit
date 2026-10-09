@@ -1,7 +1,5 @@
 """Offline instrument calibration, not native model acceptance or reasoning assessment."""
 import json
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,10 +7,10 @@ from pathlib import Path
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import tracing as probe_tracing
-from test_build_probe import _context
+from probe_testkit import context, parse_events, run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
-SPEC = probe_catalog.load_scenario(ROOT / "build-scenarios/build-software-engineer-root-cause-reassessment.yaml")
+SPEC = scenario_file(ROOT / "build-scenarios/build-software-engineer-root-cause-reassessment.yaml")
 
 
 def use(name, use_id, **inputs):
@@ -27,11 +25,7 @@ def result(use_id, **fields):
 
 class RootCauseProbeTests(unittest.TestCase):
     def verdict(self, events, *, ordered=True):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "trace.jsonl"
-            path.write_text("\n".join(map(json.dumps, events)), encoding="utf-8")
-            trace = probe_tracing.parse_trace(path)
-        ctx = _context(SPEC, trace)
+        ctx = context(SPEC, parse_events(events))
         return probe_checking.check_skill_loaded(ctx, {"skill": "root-cause", "before_effects": ordered})[0]
 
     def test_ordered_load_requires_completed_exact_main_thread_skill(self):
@@ -59,11 +53,8 @@ class RootCauseProbeTests(unittest.TestCase):
 
     def test_initial_ordering_survives_followup_trace_merge(self):
         with tempfile.TemporaryDirectory() as tmp:
-            folder = Path(tmp)
-            (folder / "followup").mkdir()
-            (folder / "stdout.jsonl").write_text("\n".join(map(json.dumps, [
-                use("Skill", "s", skill="root-cause"), result("s"), use("Edit", "e")])), encoding="utf-8")
-            (folder / "followup/stdout.jsonl").write_text("", encoding="utf-8")
+            folder = write_tree(Path(tmp), {"followup/stdout.jsonl": "", "stdout.jsonl": "\n".join(map(json.dumps, [
+                use("Skill", "s", skill="root-cause"), result("s"), use("Edit", "e")]))})
             self.assertEqual(["root-cause"], probe_tracing.parse_trial_trace(folder).main_skills_before_effects)
 
     def test_schema_and_artifact_oracle_reject_wrong_repairs(self):
@@ -87,22 +78,16 @@ class RootCauseProbeTests(unittest.TestCase):
         oracle = (ROOT / "oracles/root-cause/probe_retry.py").read_text(encoding="utf-8")
         for name, (candidate, expected) in variants.items():
             with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
-                folder = Path(tmp)
-                (folder / "retrying.py").write_text(candidate, encoding="utf-8")
-                (folder / "probe_retry.py").write_text(oracle, encoding="utf-8")
-                run = subprocess.run([sys.executable, "probe_retry.py"], cwd=folder,
-                                     capture_output=True, text=True, timeout=15)
+                folder = write_tree(Path(tmp), {"retrying.py": candidate, "probe_retry.py": oracle})
+                run = run_python(["probe_retry.py"], cwd=folder, timeout=15)
                 self.assertEqual(expected, run.returncode == 0, run.stderr)
                 if not expected:
                     self.assertIn("AssertionError", run.stderr)
                 if name in {"baseline_failed_repair", "supported_repair", "classifier_repair", "exact_type_classifier"}:
-                    for relative, content in SPEC["fixture"]["files"].items():
-                        if relative.startswith("tests/"):
-                            path = folder / relative
-                            path.parent.mkdir(exist_ok=True)
-                            path.write_text(content, encoding="utf-8")
-                    suite = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"],
-                                           cwd=folder, capture_output=True, text=True, timeout=15)
+                    write_tree(folder, {path: text for path, text in SPEC["fixture"]["files"].items()
+                                        if path.startswith("tests/")})
+                    suite = run_python(["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"], cwd=folder,
+                                       timeout=15)
                     seeded_expected = expected or name == "exact_type_classifier"
                     self.assertEqual(seeded_expected, suite.returncode == 0, suite.stderr)
                     self.assertIn("Ran 3 tests", suite.stderr)

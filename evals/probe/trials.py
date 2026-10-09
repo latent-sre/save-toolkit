@@ -9,6 +9,7 @@ the measurement: seed, invoke, check each invocation's boundary, grade, and reco
 from __future__ import annotations
 
 import contextlib
+import functools
 import json
 import secrets
 import stat
@@ -24,12 +25,13 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, backing, catalog, fingerprints, invocation, records, tracing, workspaces
+from . import assessment, backing, catalog, fingerprints, invocation, layout, records, tracing, workspaces
 from .backing import Service, ServiceUnavailable
 from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_SOURCE_SHA256
 from .outcomes import CutShort, Stop, void_over_cut
+from .records import AttemptState
 from .tracing import TraceSummary
 
 
@@ -60,22 +62,22 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
         if problems:
             raise ValueError("; ".join(problems))
     rubric_judge.validate_binding(settings.judge_binding, fingerprints.required_rubrics(spec))
-    target = settings.out_dir / f"eval-{spec['id']}" / settings.label / f"run-{run_number}"
+    target = layout.run_dir(settings.out_dir, spec["id"], settings.label, run_number)
     if target.exists() and not settings.overwrite:
         raise RuntimeError(f"{target} already exists; pass --overwrite or a --run-offset")
     target.parent.mkdir(parents=True, exist_ok=True)
     # Every attempt stays visible (threat-model ADR result rule 7): a replaced run and an attempt that
-    # never published move under <label>/attempts/run-N/<k>/, which run-N globs never match.
-    history = attempts_dir(target.parent) / target.name
-    kept = [int(p.name) for p in history.iterdir() if p.name.isdigit()] if history.is_dir() else []
-    current = (_attempt_number(target) or max(kept, default=0) + 1) if target.exists() else None
-    number = max([*kept, current or 0]) + 1
+    # never published move into the slot's history, which run-N globs never match.
+    history = layout.history_dir(target)
+    following = layout.next_number(history)
+    current = (_attempt_number(target) or following) if target.exists() else None
+    number = max(following, (current or 0) + 1)
     attempt = _new_attempt_dir(target)
-    _write_attempt(attempt, number, "final")
+    _write_attempt(attempt, number, AttemptState.FINAL)
     started_at = records.utc_now()
 
-    def record(end: tuple[str, str | None] | None = None) -> None:
-        """This attempt's v1 record; a raised attempt's carries how it ended."""
+    def record(incomplete: str | None = None) -> None:
+        """This attempt's v1 record; a raised attempt's carries why it ended."""
         records.write_record(
             attempt,
             spec,
@@ -85,7 +87,7 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
             started_at=started_at,
             model=settings.model,
             timeout=settings.timeout,
-            end=end,
+            incomplete=incomplete,
         )
 
     backup, published = None, False
@@ -100,7 +102,7 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
             summary["record_problem"] = f"record refused: {exc}"[:500]
             print(f"warning: {attempt} is published without record.json: {exc}", file=sys.stderr, flush=True)
         if target.exists():
-            backup = target.with_name(f".{target.name}-previous-{secrets.token_hex(8)}")
+            backup = layout.backup_dir(target, secrets.token_hex(8))
             target.rename(backup)
         try:
             attempt.rename(target)
@@ -111,7 +113,7 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
             raise
         if backup is not None:
             try:
-                _keep_attempt(backup, history, current, "superseded", f"replaced by attempt {number}")
+                _keep_attempt(backup, history, current, AttemptState.SUPERSEDED, f"replaced by attempt {number}")
             except Exception as exc:
                 print(f"warning: published {target}; previous run retained at {backup}: {exc}", file=sys.stderr)
         print(json.dumps(summary), flush=True)
@@ -119,18 +121,20 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
     except BaseException as exc:
         if not published and attempt.exists():
             reason = f"{type(exc).__name__}: {exc}"[:500]
-            try:
-                _record_raised_cost(attempt)
-            except Exception as cost_error:  # no timing.json leaves the cost unknown, which the cap refuses
-                print(f"warning: no cost recorded for the incomplete attempt {attempt}: {cost_error}", file=sys.stderr)
-            try:
-                record(("incomplete", reason))
-            except Exception as record_error:
-                print(f"warning: no record for the incomplete attempt {attempt}: {record_error}", file=sys.stderr)
-            try:
-                _keep_attempt(attempt, history, number, "incomplete", reason)
-            except Exception as keep_error:
-                print(f"warning: could not keep the incomplete attempt {attempt}: {keep_error}", file=sys.stderr)
+            # Each step is best effort and its failure is only warned of; no timing.json leaves the
+            # cost unknown, which the cap refuses.
+            for warning, step in (
+                ("no cost recorded for the incomplete attempt", functools.partial(_record_raised_cost, attempt)),
+                ("no record for the incomplete attempt", functools.partial(record, incomplete=reason)),
+                (
+                    "could not keep the incomplete attempt",
+                    functools.partial(_keep_attempt, attempt, history, number, AttemptState.INCOMPLETE, reason),
+                ),
+            ):
+                try:
+                    step()
+                except Exception as step_error:
+                    print(f"warning: {warning} {attempt}: {step_error}", file=sys.stderr)
         raise
 
 
@@ -138,7 +142,7 @@ def _new_attempt_dir(target: Path) -> Path:
     """A fresh hidden sibling for one attempt. A plain mkdir inherits the parent's permissions;
     tempfile.mkdtemp makes the folder readable only by its creator on Windows (EVAL-012 DEC-23)."""
     for _ in range(16):
-        attempt = target.with_name(f".{target.name}-attempt-{secrets.token_hex(8)}")
+        attempt = layout.attempt_dir(target, secrets.token_hex(8))
         try:
             attempt.mkdir()
             return attempt
@@ -148,35 +152,20 @@ def _new_attempt_dir(target: Path) -> Path:
 
 
 def _attempt_number(run_dir: Path) -> int | None:
-    try:
-        number = json.loads((run_dir / "attempt.json").read_text(encoding="utf-8")).get("attempt")
-    except (OSError, ValueError, AttributeError):
-        return None
+    number = (layout.read_object(run_dir / "attempt.json") or {}).get("attempt")
     return number if type(number) is int and number > 0 else None
 
 
-def _write_attempt(run_dir: Path, number: int, state: str, reason: str | None = None) -> None:
-    (run_dir / "attempt.json").write_text(
-        json.dumps(
-            {
-                "attempt": number,
-                "state": state,
-                **({"reason": reason} if reason else {}),
-                "recorded_at": records.utc_now(),
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
+def _write_attempt(run_dir: Path, number: int, state: AttemptState, reason: str | None = None) -> None:
+    layout.write_json(
+        run_dir / "attempt.json",
+        {"attempt": number, "state": state, **({"reason": reason} if reason else {}), "recorded_at": records.utc_now()},
+        ascii_only=True,
     )
     records.update_record(
         run_dir,
         lambda record: record["attempt"].update(number=number, state=state, **({"reason": reason} if reason else {})),
     )
-
-
-def attempts_dir(label_dir: Path) -> Path:
-    """Where a label keeps the attempts that are not its published runs, as attempts/run-N/<k>/."""
-    return label_dir / "attempts"
 
 
 def kept_attempt_costs(
@@ -188,34 +177,25 @@ def kept_attempt_costs(
     cannot be read does, and one without a readable `timing.json` reads as an unknown cost, never zero."""
     costs: list[dict[str, Any]] = []
     for scenario_id in sorted(scenario_ids):
-        for attempt in sorted(attempts_dir(out_dir / f"eval-{scenario_id}" / label).glob("run-*/*")):
-            if not attempt.name.isdigit():
-                continue
-            timing = _read_json(attempt / "timing.json")
-            requested = _requested_model(timing, _read_json(attempt / "record.json"))
+        for attempt, _, _ in layout.kept_attempts(layout.case_dir(out_dir, scenario_id) / label):
+            timing = layout.read_object(attempt / "timing.json")
+            requested = _requested_model(timing, layout.read_object(attempt / "record.json"))
             if requested is not _UNKNOWN and requested != model:
                 continue
-            costs.append(timing if isinstance(timing, dict) else {"cost_complete": False})
+            costs.append(timing if timing is not None else {"cost_complete": False})
     return costs
 
 
 _UNKNOWN = object()
 
 
-def _read_json(path: Path) -> object:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-
-
-def _requested_model(timing: object, record: object) -> object:
+def _requested_model(timing: dict[str, Any] | None, record: dict[str, Any] | None) -> object:
     """The model an attempt was run for: a graded attempt's timing names it, a raised one's record does.
 
     Only a string or null names a model; anything else is malformed and falls through, so a paid
     attempt is never attributed to a model no batch runs.
     """
-    conditions = record.get("conditions") if isinstance(record, dict) else None
+    conditions = (record or {}).get("conditions")
     for source in (timing, conditions):
         if isinstance(source, dict) and isinstance(source.get("requested_model", _UNKNOWN), str | None):
             return source["requested_model"]
@@ -230,24 +210,26 @@ def _record_raised_cost(attempt: Path) -> None:
         return
     trace_path = attempt / "stdout.jsonl"
     trial_usd = tracing.parse_trace(trace_path).total_cost_usd if trace_path.exists() else 0.0
-    cost = records.trial_cost(trial_usd, records.judge_spend())
-    (attempt / "timing.json").write_text(
-        json.dumps(
-            {
-                "total_cost_usd": cost["cost_usd"],
-                "known_cost_usd": cost["known_cost_usd"],
-                "cost_complete": cost["cost_complete"],
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
+    judge = records.judge_spend()
+    cost = records.trial_cost(trial_usd, judge)
+    # The parts as well as the total: the v1 record calls a cost complete only beside known parts.
+    layout.write_json(
+        attempt / "timing.json",
+        {
+            "trial_cost_usd": records.known_usd(trial_usd),
+            "total_cost_usd": cost["cost_usd"],
+            "known_cost_usd": cost["known_cost_usd"],
+            "cost_complete": cost["cost_complete"],
+            "judge": judge,
+        },
+        ascii_only=True,
     )
 
 
-def _keep_attempt(run_dir: Path, history: Path, number: int | None, state: str, reason: str) -> Path:
+def _keep_attempt(run_dir: Path, history: Path, number: int | None, state: AttemptState, reason: str) -> Path:
     """Move an attempt that is not the published run into the slot's history, never deleting it."""
     history.mkdir(parents=True, exist_ok=True)
-    taken = {int(p.name) for p in history.iterdir() if p.name.isdigit()}
+    taken = layout.taken(history)
     number = number if number and number not in taken else max(taken, default=0) + 1
     destination = history / str(number)
     run_dir.rename(destination)
@@ -277,7 +259,11 @@ def _invoke_turns(
     inconclusive: str | None = None
     identity_failure: str | None = None
     resume = None
+    done: list[TraceSummary] = []
     for turn, prompt in enumerate([catalog.scenario_prompt(spec, served), *spec.get("followups", [])]):
+        left = invocation.turns_left(spec, done)
+        if left is not None and left <= 0:
+            break  # the conversation spent its declared limit: a completed run (result rule 4)
         inconclusive = _plugin_drift(settings.plugin_root, served, plugin_sha)
         if fingerprints.scenario_digest(spec, binding) != scenario_identity:
             inconclusive = "scenario inputs changed before invocation; re-run the trial"
@@ -289,14 +275,14 @@ def _invoke_turns(
         command = invocation.build_command(
             settings.executable,
             served,
-            f"save-toolkit:{spec['agent']}" if spec.get("agent") else None,
+            catalog.agent_pin(spec),
             prompt,
             settings.model,
             catalog.scenario_tools(spec),
             pre_approve=catalog.scenario_kind(spec) == "build",
             persistent=bool(spec.get("followups")),
             resume=resume,
-            max_turns=spec.get("max_turns"),
+            max_turns=left,
         )
         returncode, timed_out = None, None
         with (
@@ -324,30 +310,100 @@ def _invoke_turns(
         identity_failure = identity_failure or failed
         inconclusive = inconclusive or reason
         if spec.get("followups"):
-            (turn_out / "invocation.json").write_text(
-                json.dumps(
-                    {
-                        "argv": command,
-                        "session_id": current.session_id,
-                        "workspace": str(ws.repo.resolve()),
-                        "exit_code": returncode,
-                        "expected_model": spec.get("expected_model"),
-                        "main_models": current.main_models,
-                        "init_session_ids": current.init_session_ids,
-                        "resume": resume,
-                        "inconclusive": inconclusive,
-                        "cut_short": isinstance(inconclusive, CutShort),
-                        "run_stop": inconclusive.kind if isinstance(inconclusive, CutShort) else None,
-                    },
-                    indent=2,
-                ),
-                encoding="utf-8",
+            layout.write_json(
+                turn_out / "invocation.json",
+                {
+                    "argv": command,
+                    "session_id": current.session_id,
+                    "workspace": str(ws.repo.resolve()),
+                    "exit_code": returncode,
+                    "expected_model": spec.get("expected_model"),
+                    "main_models": current.main_models,
+                    "init_session_ids": current.init_session_ids,
+                    "resume": resume,
+                    "inconclusive": inconclusive,
+                    "cut_short": isinstance(inconclusive, CutShort),
+                    "run_stop": inconclusive.kind if isinstance(inconclusive, CutShort) else None,
+                },
+                ascii_only=True,
             )
             (turn_out / "response.md").write_text(current.result_text, encoding="utf-8")
         if inconclusive:
             break
         resume = current.session_id
+        done.append(current)
     return inconclusive, identity_failure
+
+
+def _warn_on_credentials(run_out: Path, trace: TraceSummary) -> None:
+    """Name any credential-shaped marker in the final text or either invocation's raw trace."""
+    markers = invocation.credential_markers(trace.result_text, run_out / "stdout.jsonl")
+    if (run_out / "followup" / "stdout.jsonl").is_file():
+        markers += invocation.credential_markers("", run_out / "followup" / "stdout.jsonl")
+    if markers:
+        print(f"WARNING: credential-shaped content in {run_out}: {markers}", file=sys.stderr, flush=True)
+
+
+def _saved_summary(
+    ctx: Context,
+    grading: Mapping[str, Any],
+    provenance: Mapping[str, Any],
+    settings: BatchSettings,
+    binding: dict[str, Any] | None,
+    after_assessment: str | None,
+) -> dict[str, Any]:
+    """The run's trace summary: its verdict, the trace facts, and what the workspace showed, so a
+    regrade sees the state the live grade saw after the workspace is gone."""
+    ws, git = ctx.ws, ctx.git
+    return {
+        **assessment.native_assessment(ctx.spec),
+        "status": grading["status"],
+        "inconclusive": grading["inconclusive"],
+        "after_assessment": after_assessment,
+        "run_end": grading.get("run_end"),
+        **tracing.to_saved(ctx.trace),
+        "commits_before_after": [ws.baseline_commits, git.commit_count],
+        "branch": git.branch,
+        "changed_files": git.changed,
+        **({"git_problem": git.problem} if git.problem else {}),
+        # Full contents (bounded), so a regrade sees the same state the live grade saw.
+        "state_files": {
+            p.name: p.read_text(encoding="utf-8", errors="replace")[:50000]
+            for p in ws.state_dir.iterdir()
+            if p.is_file()
+        },
+        "agents_dir": (ws.repo / ".agents").exists(),
+        "plugin": provenance,
+        "runtime": settings.runtime,
+        "workspace": str(ws.repo.resolve()),
+        "judge_binding": binding,
+        "scenario_sha256": grading["scenario_sha256"],
+        "isolation": {"mode": "host"},
+        "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in ctx.services],
+    }
+
+
+def _timing(
+    trace: TraceSummary, elapsed: float, judge: Mapping[str, Any], cost: Mapping[str, Any], settings: BatchSettings
+) -> dict[str, Any]:
+    """What the trial took and cost: the CLI's own duration when it reported one, else the wall clock."""
+    trial_seconds = (trace.duration_ms or elapsed * 1000) / 1000
+    return {
+        "total_tokens": trace.total_tokens,
+        "output_tokens": trace.output_tokens,
+        "duration_ms": trace.duration_ms or int(elapsed * 1000),
+        "trial_duration_seconds": round(trial_seconds, 1),
+        "total_duration_seconds": round(trial_seconds + judge["seconds"], 1),
+        "num_turns": trace.num_turns,
+        "trial_cost_usd": records.known_usd(trace.total_cost_usd),
+        "total_cost_usd": cost["cost_usd"],
+        "known_cost_usd": cost["known_cost_usd"],
+        "cost_complete": cost["cost_complete"],
+        "judge": judge,
+        "requested_model": settings.model,
+        "models": trace.models,
+        "label": settings.label,
+    }
 
 
 def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings: BatchSettings) -> dict[str, Any]:
@@ -365,8 +421,8 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         "prompt": spec["prompt"],
         "assertions": assessment.scenario_assertions(spec),
     }
-    (run_out.parent.parent / "eval_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    (run_out / "eval_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    for folder in (run_out.parent.parent, run_out):
+        layout.write_json(folder / "eval_metadata.json", metadata, ascii_only=True)
 
     # Neutral prefix: the cwd is in the agent's context. The root is chosen by clean_room so no
     # CLAUDE.md/AGENTS.md sits above it -- on Windows the default temp dir is under the operator's
@@ -387,23 +443,15 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         # read this repository's evals, docs and history before choosing an agent (EVAL-014).
         served = fingerprints.stage_plugin(settings.plugin_root, root / "plugin")
         provenance["plugin_served_from"] = str(served.resolve())
-        binding = (
-            settings.judge_binding.metadata if settings.judge_binding and fingerprints.required_rubrics(spec) else None
-        )
+        binding = fingerprints.binding_for(spec, settings.judge_binding)
         scenario_identity = fingerprints.scenario_digest(spec, binding)
         if settings.expected_plugin_digest and provenance["plugin_source_sha256"] != settings.expected_plugin_digest:
             inconclusive = identity_failure = "plugin inputs changed before the trial; re-run with one candidate"
-        (run_out / "provenance.json").write_text(
-            json.dumps(
-                {
-                    **provenance,
-                    **fingerprints.runner_provenance(),
-                    "runtime": settings.runtime,
-                    **({"judge_binding": binding} if binding else {}),
-                },
-                indent=2,
-            ),
-            encoding="utf-8",
+        runner = fingerprints.runner_provenance()
+        layout.write_json(
+            run_out / "provenance.json",
+            {**provenance, **runner, "runtime": settings.runtime, **({"judge_binding": binding} if binding else {})},
+            ascii_only=True,
         )
         # A routing or contract scenario has no fixture: it runs in an empty git root outside the
         # checkout, so the repo's own AGENTS.md/CLAUDE.md cannot teach it the routing answer.
@@ -473,98 +521,20 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             grading = assessment.grade(ctx, inconclusive=drift, expected_scenario_digest=scenario_identity)
         if after_assessment:
             grading["after_assessment"] = after_assessment
-        inconclusive = grading["inconclusive"]
         (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
         (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
-        # Full contents (bounded), so --regrade sees the same state the live grade saw.
-        state_files = {
-            p.name: p.read_text(encoding="utf-8", errors="replace")[:50000]
-            for p in ws.state_dir.iterdir()
-            if p.is_file()
-        }
-        markers = invocation.credential_markers(trace.result_text, trace_path)
-        if (run_out / "followup" / "stdout.jsonl").is_file():
-            markers += invocation.credential_markers("", run_out / "followup" / "stdout.jsonl")
-        if markers:
-            print(f"WARNING: credential-shaped content in {run_out}: {markers}", file=sys.stderr, flush=True)
-        (run_out / "outputs" / "trace-summary.json").write_text(
-            json.dumps(
-                {
-                    **assessment.native_assessment(spec),
-                    "conversation_sessions": trace.conversation_sessions,
-                    "agent_returns": trace.agent_returns,
-                    "initial_parent_reference_reads": trace.parent_reads_before_dispatch,
-                    "initial_parent_skills_before_dispatch": trace.parent_skills_before_dispatch,
-                    "main_models": trace.main_models,
-                    "status": grading["status"],
-                    "inconclusive": inconclusive,
-                    "after_assessment": after_assessment,
-                    "run_end": grading.get("run_end"),
-                    "models": trace.models,
-                    "usage_models": trace.usage_models,
-                    "num_turns": trace.num_turns,
-                    "tool_counts": trace.tool_counts,
-                    "skills": trace.skills,
-                    "skills_failed": trace.skills_failed,
-                    "advertised_tools": trace.advertised_tools,
-                    "mcp_servers": trace.mcp_servers,
-                    "permission_mode": trace.permission_mode,
-                    "dispatches": trace.dispatches,
-                    "denials": trace.denials,
-                    "bash_commands": trace.bash_commands,
-                    "subagent_bash_commands": trace.subagent_bash_commands,
-                    "powershell_commands": trace.powershell_commands,
-                    "effect_calls": trace.effect_calls,
-                    "tool_errors": trace.tool_errors,
-                    "denial_details": trace.denial_details,
-                    "commits_before_after": [ws.baseline_commits, git.commit_count],
-                    "branch": git.branch,
-                    "changed_files": ctx.git.changed,
-                    **({"git_problem": git.problem} if git.problem else {}),
-                    "state_files": state_files,
-                    "agents_dir": (ws.repo / ".agents").exists(),
-                    "plugin": provenance,
-                    "runtime": settings.runtime,
-                    "workspace": str(ws.repo.resolve()),
-                    "judge_binding": binding,
-                    "scenario_sha256": grading["scenario_sha256"],
-                    "isolation": {"mode": "host"},
-                    "services": [{"name": s.name, "image": s.image, "base_url": s.base_url} for s in ctx.services],
-                },
-                indent=2,
-                ensure_ascii=False,
-            ),
-            encoding="utf-8",
+        _warn_on_credentials(run_out, trace)
+        layout.write_json(
+            run_out / "outputs" / "trace-summary.json",
+            _saved_summary(ctx, grading, provenance, settings, binding, after_assessment),
         )
-        (run_out / "grading.json").write_text(json.dumps(grading, indent=2, ensure_ascii=False), encoding="utf-8")
+        layout.write_json(run_out / "grading.json", grading)
         # Drained after grading: a rubric grader's judge call is spend this trial caused.
         judge = records.judge_spend()
         cost = records.trial_cost(trace.total_cost_usd, judge)
-        trial_seconds = (trace.duration_ms or elapsed * 1000) / 1000
-        (run_out / "timing.json").write_text(
-            json.dumps(
-                {
-                    "total_tokens": trace.total_tokens,
-                    "output_tokens": trace.output_tokens,
-                    "duration_ms": trace.duration_ms or int(elapsed * 1000),
-                    "trial_duration_seconds": round(trial_seconds, 1),
-                    "total_duration_seconds": round(trial_seconds + judge["seconds"], 1),
-                    "num_turns": trace.num_turns,
-                    "trial_cost_usd": records.known_usd(trace.total_cost_usd),
-                    "total_cost_usd": cost["cost_usd"],
-                    "known_cost_usd": cost["known_cost_usd"],
-                    "cost_complete": cost["cost_complete"],
-                    "judge": judge,
-                    "requested_model": settings.model,
-                    "models": trace.models,
-                    "label": settings.label,
-                },
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
-        summary = {
-            "scenario": eval_name,
+        layout.write_json(run_out / "timing.json", _timing(trace, elapsed, judge, cost, settings), ascii_only=True)
+        return {
+            "scenario": spec["id"],
             "label": settings.label,
             "run": run_number,
             "status": grading["status"],
@@ -575,7 +545,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             "tokens": trace.total_tokens,
             "seconds": round(elapsed, 1),
             "plugin_commit": provenance["plugin_commit"][:12],
-            "runner_commit": (fingerprints.runner_provenance()["runner_commit"] or "")[:12] or None,
+            "runner_commit": (runner["runner_commit"] or "")[:12] or None,
             "runner_source_sha256": HARNESS_SOURCE_SHA256,
             "plugin_source_sha256": provenance["plugin_source_sha256"],
             "scenario_sha256": grading["scenario_sha256"],
@@ -588,7 +558,6 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             **({"identity_failure": identity_failure} if identity_failure else {}),
             **({"service_error": service_error} if service_error else {}),
         }
-        return summary
     finally:
         active_error = sys.exc_info()[1]
         try:

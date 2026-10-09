@@ -10,20 +10,20 @@ field changed (must fire, and fire that rule specifically).
 from __future__ import annotations
 
 import copy
-import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from testkit import load_path
+
 ROOT = Path(__file__).resolve().parents[1]
 MODULE = ROOT / "skills" / "grafana" / "scripts" / "dashboard_hygiene.py"
 
-_spec = importlib.util.spec_from_file_location("dashboard_hygiene", MODULE)
-hygiene = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(hygiene)
+hygiene = load_path(MODULE, "dashboard_hygiene")
 
 
 def clean_model() -> dict:
@@ -49,6 +49,16 @@ def clean_model() -> dict:
             }],
         }],
     }
+
+
+def clean_model_with(path: tuple, value: object) -> dict:
+    """The clean fixture with the value at `path`, a sequence of keys and list indexes, replaced."""
+    model = clean_model()
+    parent = model
+    for key in path[:-1]:
+        parent = parent[key]
+    parent[path[-1]] = value
+    return model
 
 
 def rules_fired(model: dict) -> set[str]:
@@ -109,36 +119,19 @@ class RuleMutationTest(unittest.TestCase):
         fired = self._mutate(lambda m: m["panels"][0]["fieldConfig"]["defaults"].pop("noValue"))
         self.assertIn("panel-no-value", fired)
 
-    def test_hardcoded_datasource_uid(self) -> None:
-        fired = self._mutate(
-            lambda m: m["panels"][0].update(datasource={"type": "prometheus", "uid": "P1234567890ABCD"})
-        )
-        self.assertIn("panel-datasource", fired)
-
-    def test_a_target_level_datasource_override_is_flagged(self) -> None:
-        # Shipped defect: only panel.datasource was inspected. Grafana uses the target's override
-        # when present, so a panel reading ${datasource} with one hard-coded target broke on move
-        # while reporting clean.
-        fired = self._mutate(
-            lambda m: m["panels"][0]["targets"][0].update(
-                datasource={"type": "prometheus", "uid": "P1234567890ABCD"}
-            )
-        )
-        self.assertIn("panel-datasource", fired)
-
-    def test_a_target_datasource_variable_is_not_flagged(self) -> None:
-        fired = self._mutate(
-            lambda m: m["panels"][0]["targets"][0].update(
-                datasource={"type": "prometheus", "uid": "${datasource}"}
-            )
-        )
-        self.assertNotIn("panel-datasource", fired)
-
-    def test_builtin_datasource_is_not_flagged(self) -> None:
-        fired = self._mutate(
-            lambda m: m["panels"][0].update(datasource={"type": "datasource", "uid": "-- Grafana --"})
-        )
-        self.assertNotIn("panel-datasource", fired)
+    def test_each_datasource_reference_is_judged_for_portability(self) -> None:
+        for path, datasource, fires in (
+            (("panels", 0, "datasource"), {"type": "prometheus", "uid": "P1234567890ABCD"}, True),
+            # Shipped defect: only panel.datasource was inspected. Grafana uses the target's override
+            # when present, so a panel reading ${datasource} with one hard-coded target broke on move
+            # while reporting clean.
+            (("panels", 0, "targets", 0, "datasource"), {"type": "prometheus", "uid": "P1234567890ABCD"}, True),
+            (("panels", 0, "targets", 0, "datasource"), {"type": "prometheus", "uid": "${datasource}"}, False),
+            (("panels", 0, "datasource"), {"type": "datasource", "uid": "-- Grafana --"}, False),
+        ):
+            with self.subTest(path=path, datasource=datasource):
+                fired = rules_fired(clean_model_with(path, datasource))
+                self.assertEqual(fires, "panel-datasource" in fired, fired)
 
     def test_mixed_backends_use_independent_typed_variables(self) -> None:
         model = clean_model()
@@ -162,61 +155,35 @@ class RuleMutationTest(unittest.TestCase):
         logs["targets"][0]["datasource"] = {"type": "splunk", "uid": "literal-uid"}
         self.assertIn("panel-datasource", rules_fired(model))
 
-    def test_rate_without_rate_interval(self) -> None:
-        fired = self._mutate(
-            lambda m: m["panels"][0]["targets"][0].update(expr="sum(rate(http_requests_total[5m]))")
-        )
-        self.assertIn("target-rate-interval", fired)
-
-    def test_interval_variable_is_not_accepted_as_rate_interval(self) -> None:
-        # $__interval is the exact mistake the rule exists to catch; it must not satisfy it.
-        fired = self._mutate(
-            lambda m: m["panels"][0]["targets"][0].update(expr="sum(rate(x_total[$__interval]))")
-        )
-        self.assertIn("target-rate-interval", fired)
-
-    def test_one_correct_rate_call_does_not_excuse_a_second_wrong_one(self) -> None:
-        # Shipped defect: the rule asked whether $__rate_interval appeared ANYWHERE in the
-        # expression, so a compound query passed on the strength of its first call.
-        fired = self._mutate(
-            lambda m: m["panels"][0]["targets"][0].update(
-                expr="rate(a_total[$__rate_interval]) + rate(b_total[5m])"
-            )
-        )
-        self.assertIn("target-rate-interval", fired)
-
-    def test_every_rate_call_correct_is_clean(self) -> None:
-        fired = self._mutate(
-            lambda m: m["panels"][0]["targets"][0].update(
-                expr="rate(a_total[$__rate_interval]) + rate(b_total[$__rate_interval])"
-            )
-        )
-        self.assertNotIn("target-rate-interval", fired)
-
-    def test_raw_counter_without_aggregation(self) -> None:
-        fired = self._mutate(lambda m: m["panels"][0]["targets"][0].update(expr="http_requests_total"))
-        self.assertIn("target-counter-agg", fired)
-
-    def test_counter_inside_rate_is_not_flagged(self) -> None:
-        self.assertNotIn("target-counter-agg", rules_fired(clean_model()))
-
-    def test_a_raw_counter_after_a_closed_rate_call_is_flagged(self) -> None:
-        # Shipped defect: scope was inferred by counting parentheses before the metric, so the
-        # already-closed rate call earlier in the expression made this counter look rated.
-        fired = self._mutate(
-            lambda m: m["panels"][0]["targets"][0].update(
-                expr="sum(rate(a_total[$__rate_interval])) / sum(b_total)"
-            )
-        )
-        self.assertIn("target-counter-agg", fired)
-
-    def test_a_raw_counter_beside_a_rate_call_is_flagged(self) -> None:
-        fired = self._mutate(
-            lambda m: m["panels"][0]["targets"][0].update(
-                expr="rate(a_total[$__rate_interval]) + sum(b_total)"
-            )
-        )
-        self.assertIn("target-counter-agg", fired)
+    def test_promql_rules_judge_each_rate_call_and_counter(self) -> None:
+        # The clean fixture's own counter, inside a rate call, is test_the_clean_fixture_fires_nothing's.
+        for expr, rule, fires in (
+            ("sum(rate(http_requests_total[5m]))", "target-rate-interval", True),
+            # $__interval is the exact mistake the rule exists to catch; it must not satisfy it.
+            ("sum(rate(x_total[$__interval]))", "target-rate-interval", True),
+            # Shipped defect: the rule asked whether $__rate_interval appeared ANYWHERE in the
+            # expression, so a compound query passed on the strength of its first call.
+            ("rate(a_total[$__rate_interval]) + rate(b_total[5m])", "target-rate-interval", True),
+            ("rate(a_total[$__rate_interval]) + rate(b_total[$__rate_interval])", "target-rate-interval", False),
+            # increase over the selected range keeps its total semantics; rate over it does not.
+            ("sum(increase(http_requests_total[$__range]))", "target-rate-interval", False),
+            ("rate(http_requests_total[$__range])", "target-rate-interval", True),
+            # Brackets inside a label regex are not range selectors.
+            ('increase(network_bytes_total{device!~"nic[0-9]+"}[$__range])', "target-rate-interval", False),
+            ('rate(network_bytes_total{device!~"nic[0-9]+"}[5m])', "target-rate-interval", True),
+            # Quoted query text can neither hide nor invent a rate call.
+            ('rate(http_requests_total{label="foo) [$__rate_interval]"}[5m])', "target-rate-interval", True),
+            ('up{label="rate(fake_total[5m])"}', "target-rate-interval", False),
+            ('up{label="rate(fake_total[5m])"}', "target-counter-agg", False),
+            ("http_requests_total", "target-counter-agg", True),
+            # Shipped defect: scope was inferred by counting parentheses before the metric, so the
+            # already-closed rate call earlier in the expression made this counter look rated.
+            ("sum(rate(a_total[$__rate_interval])) / sum(b_total)", "target-counter-agg", True),
+            ("rate(a_total[$__rate_interval]) + sum(b_total)", "target-counter-agg", True),
+        ):
+            with self.subTest(expr=expr, rule=rule):
+                fired = rules_fired(clean_model_with(("panels", 0, "targets", 0, "expr"), expr))
+                self.assertEqual(fires, rule in fired, fired)
 
     def test_include_all_without_custom_all_value(self) -> None:
         fired = self._mutate(lambda m: m["templating"]["list"][1].update(allValue=""))
@@ -251,31 +218,6 @@ class StructureTest(unittest.TestCase):
         target['expr'] = 'rate(http_requests_total[$__interval])'
         self.assertIn('target-rate-interval', rules_fired(model))
 
-    def test_increase_over_selected_range_preserves_total_semantics(self) -> None:
-        model = clean_model()
-        target = model['panels'][0]['targets'][0]
-        target['expr'] = 'sum(increase(http_requests_total[$__range]))'
-        self.assertNotIn('target-rate-interval', rules_fired(model))
-        target['expr'] = 'rate(http_requests_total[$__range])'
-        self.assertIn('target-rate-interval', rules_fired(model))
-
-    def test_label_regex_brackets_are_not_range_selectors(self) -> None:
-        model = clean_model()
-        target = model["panels"][0]["targets"][0]
-        target["expr"] = 'increase(network_bytes_total{device!~"nic[0-9]+"}[$__range])'
-        self.assertNotIn("target-rate-interval", rules_fired(model))
-        target["expr"] = 'rate(network_bytes_total{device!~"nic[0-9]+"}[5m])'
-        self.assertIn("target-rate-interval", rules_fired(model))
-
-    def test_quoted_query_text_cannot_hide_or_invent_rate_checks(self) -> None:
-        model = clean_model()
-        target = model["panels"][0]["targets"][0]
-        target["expr"] = 'rate(http_requests_total{label="foo) [$__rate_interval]"}[5m])'
-        self.assertIn("target-rate-interval", rules_fired(model))
-        target["expr"] = 'up{label="rate(fake_total[5m])"}'
-        self.assertNotIn("target-rate-interval", rules_fired(model))
-        self.assertNotIn("target-counter-agg", rules_fired(model))
-
     def test_panels_inside_a_collapsed_row_are_checked(self) -> None:
         # A row's children are the easiest panels to forget; the walker must descend.
         model = clean_model()
@@ -298,17 +240,26 @@ class StructureTest(unittest.TestCase):
         self.assertNotIn("panel-no-targets", fired)
         self.assertNotIn("panel-description", fired)
 
-    def test_k8s_wrapper_is_unwrapped(self) -> None:
-        wrapped = {"apiVersion": "dashboard.grafana.app/v1", "kind": "Dashboard",
-                   "metadata": {"name": "x"}, "spec": clean_model()}
-        self.assertEqual(clean_model()["title"], hygiene.unwrap(wrapped)["title"])
+    def test_check_refuses_panels_it_cannot_traverse(self) -> None:
+        # check() descends through the walk validation uses, so a caller that skips validation gets
+        # the same located refusal for a panel container, panel or type it cannot traverse, not a
+        # crash or findings computed over that panel. Fields inside a panel remain validation's job.
+        for panels, message in (
+            ([None], r"\$\.panels\[0\] must be an object"),
+            ([{"type": 5, "title": "x"}], r"\$\.panels\[0\]\.type must be a string"),
+            ({"title": "x"}, r"\$\.panels must be an array"),
+            ([{"type": "row", "panels": [[]]}], r"\$\.panels\[0\]\.panels\[0\] must be an object"),
+        ):
+            with self.subTest(panels=panels), self.assertRaisesRegex(hygiene.InputShapeError, message):
+                hygiene.check({"panels": panels, "tags": ["t"]})
 
-    def test_legacy_get_body_is_unwrapped(self) -> None:
-        legacy = {"meta": {"provisioned": False}, "dashboard": clean_model()}
-        self.assertEqual(clean_model()["title"], hygiene.unwrap(legacy)["title"])
-
-    def test_bare_model_passes_through(self) -> None:
-        self.assertEqual(clean_model()["title"], hygiene.unwrap(clean_model())["title"])
+    def test_wrappers_are_unwrapped_and_a_bare_model_passes_through(self) -> None:
+        for model in ({"apiVersion": "dashboard.grafana.app/v1", "kind": "Dashboard",
+                       "metadata": {"name": "x"}, "spec": clean_model()},
+                      {"meta": {"provisioned": False}, "dashboard": clean_model()},
+                      clean_model()):
+            with self.subTest(keys=sorted(model)):
+                self.assertEqual(clean_model()["title"], hygiene.unwrap(model)["title"])
 
 
 class ExitCodeTest(unittest.TestCase):
@@ -318,11 +269,15 @@ class ExitCodeTest(unittest.TestCase):
         return subprocess.run([sys.executable, "-I", "-S", str(MODULE), str(path), "--quiet"],
                               capture_output=True, text=True, encoding="utf-8", check=False)
 
-    def _run(self, model) -> int:
+    def _check(self, text: str) -> subprocess.CompletedProcess[str]:
+        """Run the checker on `text` saved as a dashboard file."""
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "d.json"
-            path.write_text(json.dumps(model), encoding="utf-8")
-            result = self._process(path)
+            path.write_text(text, encoding="utf-8")
+            return self._process(path)
+
+    def _run(self, model) -> int:
+        result = self._check(json.dumps(model))
         self.assertNotIn("Traceback", result.stderr)
         return result.returncode
 
@@ -347,6 +302,38 @@ class ExitCodeTest(unittest.TestCase):
             result = self._process(missing)
         self.assertEqual(2, result.returncode)
         self.assertNotIn("Traceback", result.stderr)
+
+    def test_input_too_deep_to_decode_exits_two_not_one(self) -> None:
+        # The JSON decoder overflows the stack; a crash would exit 1, which reads as "violations".
+        result = self._check('{"panels":' + "[" * 100_000 + "]" * 100_000 + "}")
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn("cannot check", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_rows_nested_too_deep_to_walk_exit_two_not_one(self) -> None:
+        # A decoder that accepts deep JSON leaves the row walk to overflow instead; same contract.
+        # 1,500 rows decode on Python 3.13 and 3.14 and overflow the walk at the default limit.
+        rows = 1_500
+        result = self._check('{"tags":["t"],"panels":[' + '{"type":"row","panels":[' * rows
+                             + '{"type":"timeseries","title":"t"}' + "]}" * rows + "]}")
+        self.assertEqual(2, result.returncode, result.stderr)
+        self.assertIn("cannot check", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        if "while decoding" in result.stderr:
+            self.skipTest("this interpreter's JSON decoder overflows before the row walk (Python 3.11)")
+        self.assertIn("maximum recursion depth exceeded", result.stderr)
+
+    def test_a_title_the_output_encoding_cannot_represent_still_reports(self) -> None:
+        # Captured output may default to a legacy code page; `-I` would ignore PYTHONIOENCODING.
+        model = clean_model()
+        model["title"] = "Checkout → Health"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "d.json"
+            path.write_text(json.dumps(model), encoding="utf-8")
+            result = subprocess.run([sys.executable, "-S", str(MODULE), str(path)], capture_output=True,
+                                    env={**os.environ, "PYTHONIOENCODING": "ascii"}, check=False)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("Checkout → Health".encode(), result.stdout)
 
     def test_malformed_shapes_exit_two_with_a_concise_location(self) -> None:
         cases = [(None, "$"), (["panels"], "$"), ([], "$")]
@@ -373,21 +360,14 @@ class ExitCodeTest(unittest.TestCase):
             (("templating", "list", 0), None),
             (("templating", "list", 1, "allValue"), 12),
         ):
-            model = clean_model()
-            parent = model
-            for key in path[:-1]:
-                parent = parent[key]
-            parent[path[-1]] = value
             location = "$" + "".join(f"[{key}]" if isinstance(key, int) else "." + key for key in path)
-            cases.append((model, location))
+            cases.append((clean_model_with(path, value), location))
         for children, location in (({}, "$.panels[0].panels"),
                                    ([None], "$.panels[0].panels[0]")):
             cases.append(({"panels": [{"type": "row", "panels": children}], "tags": ["ok"]}, location))
         for model, location in cases:
-            with self.subTest(model=model, location=location), tempfile.TemporaryDirectory() as tmp:
-                path = Path(tmp) / "d.json"
-                path.write_text(json.dumps(model), encoding="utf-8")
-                result = self._process(path)
+            with self.subTest(model=model, location=location):
+                result = self._check(json.dumps(model))
                 self.assertEqual(2, result.returncode, result.stderr)
                 self.assertIn("cannot check", result.stderr)
                 self.assertIn(location, result.stderr)
@@ -408,12 +388,7 @@ class ExitCodeTest(unittest.TestCase):
             (("templating", "list", 1, "allValue"), 1),
         ):
             with self.subTest(path=path):
-                model = clean_model()
-                parent = model
-                for key in path[:-1]:
-                    parent = parent[key]
-                parent[path[-1]] = None
-                self.assertEqual(expected, self._run(model))
+                self.assertEqual(expected, self._run(clean_model_with(path, None)))
 
     def test_valid_wrappers_rows_and_opaque_plugin_queries_still_pass(self) -> None:
         nested = clean_model()

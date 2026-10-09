@@ -9,44 +9,40 @@ from unittest import mock
 import check_fleet_atlas_v2
 from check_fleet_atlas_v2 import CASES, check_response
 
+FACT = {"label": "verified", "class": "STATIC_EXTRACTED", "citations": [{"path": "README.md"}]}
+
+
+def response(body):
+    return json.dumps(body, ensure_ascii=False).encode("utf-8")
+
 
 class RealTreeContractTests(unittest.TestCase):
-    def response(self, body, code=0):
-        return subprocess.CompletedProcess([], code, json.dumps(body, ensure_ascii=False).encode("utf-8"), b"")
-
     def test_ci_contract_run_fails_on_empty_flagship_queries(self):
         for body in ({"outcome": "empty", "results": []},
                      {"outcome": "results", "results": []},
                      {"outcome": "unverified", "results": []}):
             with self.subTest(body=body), self.assertRaises(ValueError):
-                check_response(self.response(body), "results")
+                check_response(response(body), "results")
 
     def test_cited_answer_and_verified_empty_have_distinct_contracts(self):
-        fact = {"label": "verified", "class": "STATIC_EXTRACTED", "citations": [{"path": "README.md"}]}
-        check_response(self.response({"outcome": "results", "results": [fact]}), "results")
-        check_response(self.response({"outcome": "empty", "results": []}), "empty")
-        for key in fact:
+        check_response(response({"outcome": "results", "results": [FACT]}), "results")
+        check_response(response({"outcome": "empty", "results": []}), "empty")
+        for key in FACT:
             with self.subTest(key=key), self.assertRaises(ValueError):
-                check_response(self.response({"outcome": "results", "results": [{k: v for k, v in fact.items() if k != key}]}), "results")
-        with self.assertRaises(ValueError):
-            check_response(self.response({"outcome": "verified"}, 1), "verified")
+                check_response(response({"outcome": "results", "results": [{k: v for k, v in FACT.items() if k != key}]}), "results")
 
     def test_limit_is_encoded_bytes_not_character_count(self):
-        response = self.response({"outcome": "verified", "message": "\u2603" * 8000})
         with self.assertRaisesRegex(ValueError, "byte budget"):
-            check_response(response, "verified")
+            check_response(response({"outcome": "verified", "message": "\u2603" * 8000}), "verified")
 
 
 class VerifyOnceTests(unittest.TestCase):
     """Each CLI call re-verifies the whole tree, so the contract run verifies once."""
 
-    FACT = {"label": "verified", "class": "STATIC_EXTRACTED", "citations": [{"path": "README.md"}]}
-
     def answer(self, expected):
-        body = {"outcome": expected, "results": [self.FACT] if expected == "results" else []}
-        return json.dumps(body).encode("utf-8")
+        return response({"outcome": expected, "results": [FACT] if expected == "results" else []})
 
-    def run_main(self, *, build=None, in_process=None):
+    def run_main(self, *, build=None, in_process=None, cli_status=0):
         document = object()
         expected = {(verb, tuple(terms)): outcome for verb, terms, outcome in CASES}
         build = build or mock.Mock(return_value=document)
@@ -54,7 +50,7 @@ class VerifyOnceTests(unittest.TestCase):
         query = mock.Mock(side_effect=in_process or (
             lambda verified, verb, terms: self.answer(expected[verb, tuple(terms)])))
         process = mock.Mock(side_effect=lambda command, **_: subprocess.CompletedProcess(
-            command, 0, self.answer(expected[command[-2], (command[-1],)]), b""))
+            command, cli_status, self.answer(expected[command[-2], (command[-1],)]), b""))
         errors = io.StringIO()
         with mock.patch("fleet_atlas_v2_artifacts.build", build), \
                 mock.patch("fleet_atlas_v2_artifacts.verify", verify), \
@@ -83,6 +79,11 @@ class VerifyOnceTests(unittest.TestCase):
         code, *_, errors = self.run_main(in_process=lambda verified, verb, terms: self.answer("empty"))
         self.assertEqual(1, code)
         self.assertIn("expected results, received empty", errors)
+
+    def test_failed_command_line_query_fails_the_run_despite_a_valid_body(self):
+        code, *_, errors = self.run_main(cli_status=1)
+        self.assertEqual(1, code)
+        self.assertIn("atlas command failed (1)", errors)
 
 
 if __name__ == "__main__":

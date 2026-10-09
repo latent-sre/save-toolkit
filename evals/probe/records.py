@@ -10,17 +10,18 @@ fact from the computer writing it.
 from __future__ import annotations
 
 import datetime
+import enum
 import json
 import math
 import sys
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Annotated, Any, Literal, cast
+from typing import Annotated, Any, Literal, cast, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeFloat, NonNegativeInt, PositiveInt, model_validator
 
-from . import fingerprints
-from .outcomes import EVIDENCE_LIMIT, UNMEASURED, Polarity, State, Stop
+from . import fingerprints, layout
+from .outcomes import EVIDENCE_LIMIT, UNMEASURED, Ending, Polarity, State, Stop
 
 
 def known_usd(value: object) -> float | None:
@@ -69,9 +70,6 @@ def utc_now() -> str:
     return datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds")
 
 
-RECORD_FORMAT = {"name": "save-toolkit.eval-record", "version": 1}
-
-
 class _Section(BaseModel):
     # Strict: a value is checked as the JSON a reader parses, never coerced into place.
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -86,6 +84,10 @@ InsidePath = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za
 class RecordFormat(_Section):
     name: Literal["save-toolkit.eval-record"]
     version: Literal[1]
+
+
+# The one format this runner writes, as its readers check it before validating: read from the model.
+RECORD_FORMAT = {field: get_args(info.annotation)[0] for field, info in RecordFormat.model_fields.items()}
 
 
 class Case(_Section):
@@ -120,26 +122,33 @@ class Conditions(_Section):
     wall_clock_seconds: PositiveInt
 
 
+class AttemptState(enum.StrEnum):
+    """Where an attempt stands: the slot's published run, one a later attempt replaced, or one that
+    raised before it published (threat-model ADR result rule 7)."""
+
+    FINAL = "final"
+    SUPERSEDED = "superseded"
+    INCOMPLETE = "incomplete"
+
+
 class Attempt(_Section):
     label: str
     slot: PositiveInt
     number: PositiveInt
-    state: Literal["final", "superseded", "incomplete"]
+    state: AttemptState
     started_at: UtcTime
     ended_at: UtcTime
     reason: str | None = None
 
 
 class RunEnd(_Section):
-    kind: Literal["completed", "turn_limit", "cut_short", "void", "incomplete"] = Field(
-        description="How execution ended, independent of what the checks found."
-    )
+    kind: Ending = Field(description="How execution ended, independent of what the checks found.")
     stop: Stop | None = Field(description="How a run cut short stopped.")
     reason: str | None
 
     @model_validator(mode="after")
     def _stop_only_when_cut(self) -> RunEnd:
-        if (self.stop is not None) != (self.kind == "cut_short"):
+        if (self.stop is not None) != (self.kind is Ending.CUT_SHORT):
             raise ValueError("a stop is recorded exactly when the run was cut short")
         return self
 
@@ -217,8 +226,8 @@ class RecordV1(_Section):
 
     @model_validator(mode="after")
     def _consistent(self) -> RecordV1:
-        incomplete = self.attempt.state == "incomplete"
-        if incomplete != (self.run_end.kind == "incomplete") or incomplete != (self.verdict.status is None):
+        incomplete = self.attempt.state is AttemptState.INCOMPLETE
+        if incomplete != (self.run_end.kind is Ending.INCOMPLETE) or incomplete != (self.verdict.status is None):
             raise ValueError("an incomplete attempt, and only one, ends incomplete and has no verdict")
         if [entry.revision for entry in self.assessments] != list(range(1, len(self.assessments) + 1)):
             raise ValueError("assessment revisions count up from 1")
@@ -240,32 +249,28 @@ def write_record(
     started_at: str,
     model: str | None,
     timeout: int,
-    end: tuple[str, str | None] | None = None,
+    incomplete: str | None = None,
 ) -> dict[str, Any]:
     """The v1 result record (docs/fleet-evaluation/contracts.md#result-record-v1) for one attempt.
 
     It maps facts the attempt's own files already hold, so a record refused here can be written again
     from them once the runner is fixed; unknown values stay null, never filled from the computer
-    writing it, and evidence paths are relative to the attempt folder.
+    writing it, and evidence paths are relative to the attempt folder. `incomplete` is why an attempt
+    that raised before it was graded ended; such an attempt has no verdict.
     """
 
-    def read(name: str) -> dict[str, Any]:
-        try:
-            value = json.loads((run_dir / name).read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return {}
-        return value if isinstance(value, dict) else {}
-
-    grading, timing, provenance = read("grading.json"), read("timing.json"), read("provenance.json")
-    summary = read("outputs/trace-summary.json")
+    grading, timing, provenance, summary = (
+        layout.read_object(run_dir / name) or {}
+        for name in ("grading.json", "timing.json", "provenance.json", "outputs/trace-summary.json")
+    )
     judge = timing.get("judge") or {}
-    incomplete = bool(end and end[0] == "incomplete")
+    raised = incomplete is not None
     ended = (
-        "void"
+        Ending.VOID
         if grading.get("void")
         else grading["run_end"]
-        if grading.get("run_end") in ("cut_short", "turn_limit")
-        else "completed"
+        if grading.get("run_end") in (Ending.CUT_SHORT, Ending.TURN_LIMIT)
+        else Ending.COMPLETED
     )
     fields = {
         "format": RECORD_FORMAT,
@@ -274,13 +279,8 @@ def write_record(
             "case_sha256": fingerprints.case_digest(spec),
             "scenario_sha256": grading.get("scenario_sha256"),
         },
-        "candidate": {
-            key: provenance.get(key)
-            for key in ("plugin_root", "plugin_commit", "plugin_inputs_dirty", "plugin_source_sha256")
-        },
-        "runner": {
-            key: provenance.get(key) for key in ("runner_commit", "runner_source_dirty", "runner_source_sha256")
-        },
+        "candidate": {key: provenance.get(key) for key in Candidate.model_fields},
+        "runner": {key: provenance.get(key) for key in Runner.model_fields},
         "conditions": {
             "requested_model": model,
             "observed_models": summary.get("models"),
@@ -292,13 +292,13 @@ def write_record(
             "label": label,
             "slot": run_number,
             "number": attempt,
-            "state": "incomplete" if incomplete else "final",
+            "state": AttemptState.INCOMPLETE if raised else AttemptState.FINAL,
             "started_at": started_at,
             "ended_at": utc_now(),
         },
         "run_end": (
-            {"kind": end[0], "stop": None, "reason": end[1]}
-            if end
+            {"kind": Ending.INCOMPLETE, "stop": None, "reason": incomplete}
+            if raised
             else {
                 "kind": ended,
                 "stop": grading.get("run_stop"),
@@ -320,8 +320,8 @@ def write_record(
             for e in grading.get("expectations") or []
         ],
         "verdict": {
-            "status": None if incomplete else grading.get("status"),
-            "reason": None if incomplete else grading.get("inconclusive") or grading.get("unmeasured"),
+            "status": None if raised else grading.get("status"),
+            "reason": None if raised else grading.get("inconclusive") or grading.get("unmeasured"),
             "assessment_revision": 0,
             "after_assessment": grading.get("after_assessment"),
         },
@@ -368,5 +368,5 @@ def update_record(run_dir: Path, change: Callable[[dict[str, Any]], object]) -> 
 def _store(path: Path, fields: Mapping[str, Any]) -> dict[str, Any]:
     """Write a record only once it validates, as the JSON its readers parse."""
     record = RecordV1.model_validate_json(json.dumps(fields)).model_dump(mode="json", exclude_unset=True)
-    path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+    layout.write_json(path, record)
     return record

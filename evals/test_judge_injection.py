@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import re
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 import judge
 
 SOURCE_PREFIX = "AC-27 judge-input calibration: "
@@ -59,7 +57,7 @@ class JudgeInjectionTests(unittest.TestCase):
         active = judge._load_calibration(judge.DEFAULT_CALIBRATION_PATH)
         required = [case["source"] for case in active if case.get("required")]
         self.assertEqual(required, [case["source"] for case in self.cases])
-        corpus = Path(tempfile.mkdtemp()) / "corpus.yaml"
+        corpus = Path(self.enterContext(tempfile.TemporaryDirectory())) / "corpus.yaml"
         corpus.write_text('{"schema_version": 1, "cases": [{"rubric": "r", "expect": "fail", "required": "yes"}]}')
         with self.assertRaisesRegex(ValueError, "optional boolean required"):
             judge._load_calibration(corpus)
