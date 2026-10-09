@@ -304,8 +304,41 @@ def test_list_truncation_and_masking_are_reported():
 def capture_dir(monkeypatch, tmp_path):
     captures = tmp_path / "captures"
     captures.mkdir()
-    monkeypatch.setattr(reader.tempfile, "tempdir", str(captures))
+    monkeypatch.setattr(reader, "_render_dir", lambda: captures)
     return captures
+
+
+REAL_RENDER_DIR = reader._render_dir
+
+
+def test_renders_go_to_a_per_user_directory_that_drops_day_old_images(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv("TMPDIR", str(tmp_path / "workspace"))
+    monkeypatch.setenv("TEMP", str(tmp_path / "workspace"))
+    target = tmp_path / ".cache" / "save-toolkit" / "grafana-renders"
+    target.mkdir(parents=True)
+    old, fresh, other = target / "grafana-render-old.png", target / "grafana-render-new.png", target / "notes.txt"
+    for path in (old, fresh, other):
+        path.write_bytes(b"x")
+    os.utime(old, (1, 1))
+    assert REAL_RENDER_DIR() == target and not (tmp_path / "workspace").exists()
+    assert not old.exists() and fresh.exists() and other.exists()
+
+
+def test_relative_home_never_selects_a_workspace_render_directory(monkeypatch):
+    monkeypatch.setenv("HOME", "relative-home")
+    monkeypatch.setenv("USERPROFILE", "relative-home")
+    with pytest.raises(reader.SafeError, match="capture_directory_unavailable"):
+        REAL_RENDER_DIR()
+
+
+def test_render_fails_rather_than_report_a_masked_image_path(capture_dir):
+    env = {"GRAFANA_URL": ENV["GRAFANA_URL"], "GRAFANA_ORG_ID": "7", "GRAFANA_USERNAME": "captures",
+           "GRAFANA_PASSWORD": "private-pass"}
+    code, result, _ = invoke(RENDER, Transport((200, BOARD), (200, PNG)), env)
+    assert code == 2 and result["error"] == "image_path_masked"
+    assert not list(capture_dir.iterdir())
 
 
 def test_render_checks_the_panel_then_saves_one_bounded_png(capture_dir):

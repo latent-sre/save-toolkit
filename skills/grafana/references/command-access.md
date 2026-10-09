@@ -26,7 +26,9 @@ environment or, when the environment names none of them, from the human-written
 `~/.config/save-toolkit/grafana.env`. Never read, print or edit that file, never set the variables,
 and never ask for credentials. A missing or unusable setup is a gap to report:
 `authentication_unavailable`, `invalid_authentication`, `invalid_settings_file`,
-`insecure_settings_file`, an `invalid_*configuration` error, or the wrapper's `helper_launch_failed`. Every request carries `X-Grafana-Org-Id`, and the helper checks
+`insecure_settings_file`, an `invalid_*configuration` error, or the wrapper's `helper_launch_failed`. `render` also fails as `capture_directory_unavailable`, or as
+`image_path_masked` when a Basic-auth username or password appears in the capture path; use a
+service-account token. Every request carries `X-Grafana-Org-Id`, and the helper checks
 `/api/org` first, failing closed on a mismatch. It masks the configured credentials in its JSON and
 returns static error codes; masking covers only its own output, and the telemetry it returns stays
 private evidence.
@@ -65,7 +67,7 @@ bytes and is not encryption. The guard also rejects general script paths and `po
 | `alerts [--folder-uid]` | Grafana-managed rule groups with state, health and last error | 100 groups, 20 instances per rule | `query_failed` when the rules API reports an error; `folder_mismatch`: Grafana answers a folder this identity cannot see with every folder |
 | `annotations --from --to [--dashboard-uid]` | Annotations in the window | 24 h, 100 items | — |
 | `silences` | Grafana Alertmanager silences with their state | 2 MiB | — |
-| `render --uid --panel --from --to [--var name=value]` | One Classic panel as a 1200×600 PNG in a private temporary file; prints its path, size, SHA-256 and dimensions | 7 days, five `--var` (repeat a name for multi-value), 8 MiB, 45 s | See the [visual verification](./visual-verification.md) error table |
+| `render --uid --panel --from --to [--var name=value]` | One Classic panel as a 1200×600 owner-only PNG in `~/.cache/save-toolkit/grafana-renders/` (renders older than a day are deleted); prints its path, size, SHA-256 and dimensions | 7 days, five `--var` (repeat a name for multi-value), 8 MiB, 45 s | See the [visual verification](./visual-verification.md) error table |
 
 Every operation can also fail with `invalid_arguments`, `organization_mismatch`, `http_error`,
 `redirect_rejected`, `request_failed`, `response_too_large` or `invalid_response`. Redirects, ambient

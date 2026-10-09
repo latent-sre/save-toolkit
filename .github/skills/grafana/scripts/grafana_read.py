@@ -24,6 +24,7 @@ import ssl
 import stat
 import sys
 import tempfile
+import time
 from urllib.error import HTTPError
 from urllib.parse import quote, quote_plus, urlencode, urlsplit
 from urllib.request import HTTPSHandler, HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -345,9 +346,28 @@ def _image(transport, base, authorization, organization, path):
     return raw, width, height
 
 
+def _render_dir():
+    """A fixed per-user capture directory, never TMPDIR or the working directory; day-old renders go."""
+    try:
+        path = Path.home() / ".cache" / "save-toolkit" / "grafana-renders"
+    except RuntimeError:
+        raise SafeError("capture_directory_unavailable") from None
+    if not path.is_absolute():
+        raise SafeError("capture_directory_unavailable")
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    cutoff = time.time() - 24 * 60 * 60
+    for old in path.glob("grafana-render-*.png"):
+        try:
+            if old.stat().st_mtime < cutoff:
+                old.unlink()
+        except OSError:
+            pass
+    return path
+
+
 def _save_image(raw):
-    """A private temporary file outside any workspace; mkstemp creates it owner-only."""
-    descriptor, name = tempfile.mkstemp(prefix="grafana-render-", suffix=".png")
+    """An owner-only file (mkstemp) in the per-user capture directory."""
+    descriptor, name = tempfile.mkstemp(prefix="grafana-render-", suffix=".png", dir=_render_dir())
     with open(descriptor, "wb") as handle:
         handle.write(raw)
     return name
@@ -450,7 +470,12 @@ def run(args, environ, transport):
                   "coverage": "permission_scoped"}
     result.update({"grafana_url": base, "organization_id": organization,
                    "retrieved_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")})
-    return _mask(result, secrets)
+    masked = _mask(result, secrets)
+    if args.command == "render" and masked.get("image_path") != result["image_path"]:
+        # A configured Basic credential appears in the path; a masked path cannot be opened.
+        Path(result["image_path"]).unlink(missing_ok=True)
+        raise SafeError("image_path_masked")
+    return masked
 
 
 def main(argv=None, *, environ=None, transport=None, output=None):
