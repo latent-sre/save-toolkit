@@ -229,16 +229,16 @@ class ReliabilityAuthorizationTests(unittest.TestCase):
 
 
 class AcceptedImplementationCaseTests(unittest.TestCase):
-    """EVAL-013: the routing case seeds the code its assignment names, so dispatching the builder is the
-    reasonable action. In an empty workspace the session searched, found nothing and asked for the
-    repository instead, 0/6 on two trees."""
+    """EVAL-013: the routing case seeds the code its assignment names. Accepted implementation stays
+    with the main session or reaches the builder; a design lane taking it fails the case."""
 
     SCENARIO = ROOT / "scenarios/discovery-reliability-defers-accepted-implementation.yaml"
 
     def test_the_case_routes_without_building_and_keeps_the_read_boundary(self):
         spec = probe_catalog.load_scenario(self.SCENARIO)
         self.assertEqual("routing", probe_catalog.scenario_kind(spec))
-        self.assertEqual("software-engineer", spec["routing"]["expected_alternative"]["name"])
+        self.assertEqual(["main_session", {"kind": "agent", "name": "software-engineer"}],
+                         spec["routing"]["expected_alternative"])
         self.assertFalse({"Edit", "Write", "Bash", "PowerShell"} & set(spec["tools"]))
         self.assertTrue(probe_invocation.read_boundary_applies(spec, spec["tools"]))
 

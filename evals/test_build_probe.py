@@ -3313,6 +3313,44 @@ class RoutingGradeTests(unittest.TestCase):
         self.assertFalse(missing)
         self.assertIn("expected alternative", detail)
 
+    def test_not_fire_main_session_keeps_the_work_with_skills_but_no_agent(self) -> None:
+        """The main session doing the work itself may load craft skills; `inline` forbids them."""
+        spec = {"id": "r", "prompt": "p", "target": {"kind": "agent", "name": "reliability-engineer"},
+                "routing": {"expect": "not_fire", "expected_alternative": "main_session"}}
+        kept, detail = probe_assessment.grade_routing(spec, _trace(skills=["save-toolkit:python-craft"]), self.plugin_root)
+        self.assertTrue(kept, detail)
+        handed, _ = probe_assessment.grade_routing(spec, _trace(agents=["save-toolkit:principal-engineer"]), self.plugin_root)
+        self.assertFalse(handed, "a hand-off to another agent is not the main session keeping the work")
+        silent, _ = probe_assessment.grade_routing(spec, _trace(text="  "), self.plugin_root)
+        self.assertFalse(silent, "an empty response keeps nothing")
+        fired = probe_assessment.grade_routing(spec, _trace(agents=["save-toolkit:reliability-engineer"]), self.plugin_root)
+        self.assertEqual(("FAIL", True), (fired.state, fired.forbidden))
+
+    def test_not_fire_with_a_list_accepts_any_listed_alternative(self) -> None:
+        spec = {"id": "r", "prompt": "p", "target": {"kind": "agent", "name": "reliability-engineer"},
+                "routing": {"expect": "not_fire", "expected_alternative": [
+                    "main_session", {"kind": "agent", "name": "software-engineer"}]}}
+        for trace in (_trace(), _trace(agents=["save-toolkit:software-engineer"])):
+            with self.subTest(agents=trace.agents):
+                passed, detail = probe_assessment.grade_routing(spec, trace, self.plugin_root)
+                self.assertTrue(passed, detail)
+        other, detail = probe_assessment.grade_routing(spec, _trace(agents=["save-toolkit:principal-engineer"]), self.plugin_root)
+        self.assertFalse(other)
+        self.assertIn("software-engineer", detail)
+        fired = probe_assessment.grade_routing(spec, _trace(agents=["save-toolkit:reliability-engineer"]), self.plugin_root)
+        self.assertEqual(("FAIL", True), (fired.state, fired.forbidden))
+
+    def test_a_listed_alternative_is_validated_item_by_item(self) -> None:
+        base = {"id": "r", "split": "regression", "prompt": "p", "success_criteria": ["x"],
+                "target": {"kind": "agent", "name": "reliability-engineer"}}
+        valid = ["main_session", ["main_session", {"kind": "agent", "name": "software-engineer"}], ["inline"]]
+        invalid = [[], ["sometimes"], [["main_session"]], [{"kind": "agent"}], "sometimes"]
+        for alternative in valid + invalid:
+            with self.subTest(alternative=alternative):
+                spec = {**base, "routing": {"expect": "not_fire", "expected_alternative": alternative}}
+                problems = [p for p in probe_catalog.validate_scenario(spec) if "expected_alternative" in p]
+                self.assertEqual(alternative in valid, not problems, problems)
+
     def test_a_negative_routing_cut_fails_only_on_the_forbidden_target(self) -> None:
         negative = {"id": "n", "target": {"kind": "skill", "name": "pcf-deploy"},
                     "routing": {"expect": "not_fire", "expected_alternative": "inline"}}

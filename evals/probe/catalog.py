@@ -34,6 +34,8 @@ REQUIRED_KEYS = ("id", "prompt")
 DEFAULT_MAIN_SESSION_TOOLS = ("Skill", "Task")
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 ROUTING_EXPECTATIONS = ("fire", "not_fire")
+# A negative's alternative is one of these words, a component, or a list of either: any one passes.
+ALTERNATIVE_WORDS = ("inline", "main_session")
 TARGET_KINDS = ("skill", "agent")
 SPLITS = ("calibration", "regression")
 
@@ -571,10 +573,13 @@ def _routing_problems(spec: Spec, where: str) -> list[str]:
     if routing.get("expect") == "not_fire":
         if alternative is None:
             problems.append(f"{where}: routing.expect not_fire requires expected_alternative")
-        elif alternative != "inline":
-            alt_problem = _target_problem(alternative)
-            if alt_problem:
-                problems.append(f"{where}: routing.expected_alternative {alt_problem}")
+        elif isinstance(alternative, list) and not alternative:
+            problems.append(f"{where}: routing.expected_alternative list must name at least one alternative")
+        else:
+            for item in alternative if isinstance(alternative, list) else [alternative]:
+                alt_problem = None if item in ALTERNATIVE_WORDS else _target_problem(item)
+                if alt_problem:
+                    problems.append(f"{where}: routing.expected_alternative {alt_problem}")
     elif alternative is not None:
         problems.append(f"{where}: routing.expected_alternative is only valid for not_fire")
     prompt = spec.get("prompt")

@@ -149,7 +149,9 @@ success_criteria:
 
 A routing prompt is byte-for-byte unhinted — `--validate` rejects one that names its own target.
 For `expect: not_fire`, set `expected_alternative: inline` or name the component expected instead:
-a negative does not pass merely because the forbidden target stayed absent. Negatives are
+a negative does not pass merely because the forbidden target stayed absent. `main_session` passes
+when no agent takes the work and the session answers, with skills allowed, as when the main session
+implements a change itself; a list of alternatives passes on any one of them. Negatives are
 zero-tolerance, so their threshold is always clamped to 1.0 and `--validate` rejects a declared
 threshold below it; `threshold` on a positive is the fraction of trials that must pass. The same
 holds for any scenario with a forbidding check: every check type either forbids an action (such as
