@@ -81,6 +81,9 @@ INTENDED_POLARITY = {
     "text_contains_any": "requires", "text_regex": "requires", "verification_completed": "requires",
 }  # fmt: skip
 
+# A measured runtime a batch accepts: one CLI version and host, as a real batch records once.
+STUB_RUNTIME = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+
 # The one reference the reference-read tests name: a real file in the measured plugin.
 AGENT_SECURITY_REFERENCE = "skills/agent-authoring/references/agent-security.md"
 

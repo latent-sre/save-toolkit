@@ -29,7 +29,7 @@ from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
 from probe import trials as probe_trials
 from probe import workspaces as probe_workspaces
-from probe_testkit import all_scenarios, context, scenario_file, tiny_spec, trace_measures
+from probe_testkit import STUB_RUNTIME, all_scenarios, context, scenario_file, tiny_spec, trace_measures
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -367,7 +367,6 @@ class GradingMachineryTests(unittest.TestCase):
         self.assertTrue(any("unknown grader" in p for p in probe_catalog.validate_scenario(spec)))
 
     def test_a_grader_error_stops_only_its_scenarios_remaining_trials(self) -> None:
-        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
         specs = [s for s in all_scenarios() if not probe_fingerprints.required_rubrics(s)
                  and not (s.get("fixture") or {}).get("services") and not s.get("followups")][:2]
         calls: list[tuple[str, int]] = []
@@ -375,11 +374,11 @@ class GradingMachineryTests(unittest.TestCase):
         def fake_run_trial(spec_arg, **kwargs):
             calls.append((spec_arg["id"], kwargs["run_number"]))
             return {"scenario": spec_arg["id"], "label": "l", "run": kwargs["run_number"], "status": "INCONCLUSIVE",
-                    "passed": 0, "total": 1, "models": ["m"], "runtime": runtime,
+                    "passed": 0, "total": 1, "models": ["m"], "runtime": STUB_RUNTIME,
                     "plugin_source_sha256": "0" * 64, "scenario_sha256": probe_fingerprints.scenario_digest(spec_arg),
                     **({"grader_error": "boom"} if spec_arg["id"] == specs[0]["id"] else {})}
 
-        with tempfile.TemporaryDirectory() as tmp,                 mock.patch.object(probe_catalog, "load_all_scenarios", return_value=specs),                 mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}),                 mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime),                 mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial),                 contextlib.redirect_stdout(io.StringIO()) as out:
+        with tempfile.TemporaryDirectory() as tmp,                 mock.patch.object(probe_catalog, "load_all_scenarios", return_value=specs),                 mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}),                 mock.patch.object(probe_fingerprints, "runtime_identity", return_value=STUB_RUNTIME),                 mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial),                 contextlib.redirect_stdout(io.StringIO()) as out:
             code = probe_cli.main(["--label", "l", "--trials", "3", "--out", str(Path(tmp) / "it")])
         self.assertEqual([(specs[0]["id"], 1), (specs[1]["id"], 1), (specs[1]["id"], 2), (specs[1]["id"], 3)], calls)
         self.assertEqual(2, code)

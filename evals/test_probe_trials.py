@@ -38,6 +38,7 @@ from probe import tracing as probe_tracing
 from probe import trials as probe_trials
 from probe import workspaces as probe_workspaces
 from probe_testkit import (
+    STUB_RUNTIME,
     ReviewFindingTestCase,
     TempRootTestCase,
     calibration_receipt,
@@ -575,7 +576,6 @@ class EndToEndStubTests(TempRootTestCase):
 
     def _batch(self, out: Path, stub: str, specs: list[dict], *extra: str) -> tuple[int, list[tuple[str, int]], str]:
         """Run main with the real run_trial and the stub CLI: the exit, each trial started, stdout."""
-        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
         run_trial = probe_trials.run_trial
         calls: list[tuple[str, int]] = []
 
@@ -585,7 +585,7 @@ class EndToEndStubTests(TempRootTestCase):
             return run_trial(spec_arg, run_number=kwargs["run_number"], settings=settings)
 
         with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=specs), \
-                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=STUB_RUNTIME), \
                 mock.patch.object(probe_trials, "run_trial", side_effect=counted), \
                 contextlib.redirect_stdout(io.StringIO()) as printed:
             code = probe_cli.main(["run", "--label", "l", "--out", str(out), "--executable", stub, *extra])

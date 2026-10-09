@@ -27,6 +27,7 @@ from probe import records as probe_records
 from probe import rescoring as probe_rescoring
 from probe import trials as probe_trials
 from probe_testkit import (
+    STUB_RUNTIME,
     ReviewFindingTestCase,
     TempRootTestCase,
     all_scenarios,
@@ -439,10 +440,6 @@ class UnknownCostTests(unittest.TestCase):
             self.assertIsNone(probe_records.judge_spend()["cost_usd"])
 
 
-# A measured runtime a batch accepts: one CLI version and host, as a real batch records once.
-STUB_RUNTIME = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
-
-
 class BatchSpendCapTests(unittest.TestCase):
     """AC-18: the batch cap stops scheduling at the known spend, or when a cost is unknown."""
 
@@ -525,13 +522,12 @@ class BatchSpendCapTests(unittest.TestCase):
             probe_cli._budget("0")  # a zero cap would schedule nothing; a cap must be positive
 
     def test_a_resumed_batch_counts_what_its_retained_trials_spent(self) -> None:
-        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
         spec = next(s for s in all_scenarios() if not probe_fingerprints.required_rubrics(s)
                     and not (s.get("fixture") or {}).get("services") and not s.get("followups"))
         def row(run, known, complete):
             return {
             "scenario": spec["id"], "label": "l", "run": run, "status": "PASS", "passed": 1, "total": 1,
-            "models": ["m"], "runtime": runtime, "plugin_source_sha256": "0" * 64,
+            "models": ["m"], "runtime": STUB_RUNTIME, "plugin_source_sha256": "0" * 64,
             "scenario_sha256": probe_fingerprints.scenario_digest(spec), "known_cost_usd": known, "cost_complete": complete}
         for retained, expected_calls in (((0.9, True), [2]), ((0.0, False), [])):
             calls: list[int] = []
@@ -545,7 +541,7 @@ class BatchSpendCapTests(unittest.TestCase):
                 tempfile.TemporaryDirectory() as tmp,
                 mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]),
                 mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}),
-                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime),
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=STUB_RUNTIME),
                 mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
@@ -640,7 +636,6 @@ class AuthStopsTheBatchTests(unittest.TestCase):
     """An authentication failure exits 4 and stops the batch; completed trials are still reported."""
 
     def test_an_auth_failure_stops_scheduling_and_exits_distinctly(self) -> None:
-        runtime = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
         spec = all_scenarios()[0]
         calls: list[int] = []
 
@@ -649,12 +644,12 @@ class AuthStopsTheBatchTests(unittest.TestCase):
             if len(calls) == 2:
                 raise clean_room.AuthUnavailable("Not logged in")
             return {"scenario": spec_arg["id"], "label": "l", "run": kwargs["run_number"], "status": "PASS",
-                    "passed": 1, "total": 1, "models": ["m"], "runtime": runtime,
+                    "passed": 1, "total": 1, "models": ["m"], "runtime": STUB_RUNTIME,
                     "plugin_source_sha256": "0" * 64, "scenario_sha256": probe_fingerprints.scenario_digest(spec_arg)}
 
         with tempfile.TemporaryDirectory() as tmp, \
                 mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}), \
-                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=STUB_RUNTIME), \
                 mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial), \
                 contextlib.redirect_stdout(io.StringIO()) as out:
             code = probe_cli.main(["--scenario", spec["id"], "--label", "l", "--trials", "3",
