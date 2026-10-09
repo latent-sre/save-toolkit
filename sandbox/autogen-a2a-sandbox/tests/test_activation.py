@@ -587,9 +587,11 @@ class HostEvidenceValidationTests(unittest.TestCase):
         self.case_object, self.runtime = _final_runtime_fixture(self.module)
 
     def _validate(self, root):
+        # The checkpoint comes from the unmutated fixture, as a real handoff predates the final
+        # runtime, so a mutation that removes `approval` reaches the validator.
         handoff = {
             "artifact_digest": root["artifact"]["artifact_digest"],
-            "checkpoint_id": root["approval"]["checkpoint_id"],
+            "checkpoint_id": self.runtime["approval"]["checkpoint_id"],
         }
         return self.module._validate_runtime_final(
             self.module._canonical_json(root),
@@ -655,7 +657,7 @@ class HostEvidenceValidationTests(unittest.TestCase):
                 mutate(root)
                 if label in {"forged packages", "forged call count", "malformed terminal"}:
                     _rebind_final_fixture(self.module, root)
-                with self.assertRaises(Exception):
+                with self.assertRaises(self.module.ActivationError):
                     self._validate(root)
 
     def test_exit2_validator_binds_input_required_timeline_and_terminal(self) -> None:
