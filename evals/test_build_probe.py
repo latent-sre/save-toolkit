@@ -418,6 +418,34 @@ class WorkspaceAndCheckTests(unittest.TestCase):
                 if expected == "INCONCLUSIVE":
                     self.assertIn("exit 3", result["inconclusive"])
 
+    def test_a_declared_failure_code_separates_a_failed_contract_from_a_crash(self) -> None:
+        """AC-24 (WP-02 gap 3): with `failure_exit_code` declared, only that code fails the candidate; any
+        other nonzero exit, such as 1 from the oracle's own uncaught exception, is an instrument failure."""
+        cases = ((0, "PASS", False), (10, "FAIL", False), (1, "INCONCLUSIVE", True), (3, "INCONCLUSIVE", False))
+        for exit_code, expected, machinery in cases:
+            with self.subTest(exit_code=exit_code):
+                check = {"check": "command_exit_zero", "text": "oracle verdict", "failure_exit_code": 10,
+                         "inconclusive_exit_code": 3,
+                         "command": f'"{sys.executable}" -c "raise SystemExit({exit_code})"'}
+                result = probe_assessment.grade(_ctx({**TINY_SPEC, "checks": [check]}, self.ws))
+                self.assertEqual(expected, result["status"], result)
+                evidence = result["expectations"][0]["evidence"]
+                self.assertEqual(machinery, evidence.startswith("instrument:"), evidence)
+
+    def test_failure_exit_declaration_is_validated(self) -> None:
+        for extra in ({"failure_exit_code": 0}, {"failure_exit_code": 256}, {"failure_exit_code": True},
+                      {"failure_exit_code": 3, "inconclusive_exit_code": 3}):
+            with self.subTest(extra=extra):
+                check = {"check": "command_exit_zero", "command": "python probe.py", **extra}
+                problems = probe_catalog.validate_scenario({**TINY_SPEC, "checks": [check]})
+                self.assertTrue(any("failure_exit_code" in p for p in problems), problems)
+        wrong_check = {"check": "no_new_commits", "failure_exit_code": 10}
+        self.assertTrue(any("failure_exit_code" in p for p in
+                            probe_catalog.validate_scenario({**TINY_SPEC, "checks": [wrong_check]})))
+        fine = {"check": "command_exit_zero", "command": "python probe.py", "failure_exit_code": 10}
+        self.assertFalse([p for p in probe_catalog.validate_scenario({**TINY_SPEC, "checks": [fine]})
+                          if "exit_code" in p])
+
     def test_measurement_exit_declaration_is_validated(self) -> None:
         for value in (0, -1, 256, True, "3", [3]):
             with self.subTest(value=value):
@@ -799,6 +827,26 @@ class TraceAndCommandTests(unittest.TestCase):
         other = {"name": "other", "path": str(ROOT), "source": "other@inline"}
         s = self._parse_events([{"type": "system", "subtype": "init", "plugins": [candidate, builtin, other]}])
         self.assertIn("exactly one", probe_invocation.plugin_identity_problem(s, ROOT))
+
+    def test_the_trace_records_every_advertised_skill_and_flags_foreign_namespaces(self) -> None:
+        """WP-02 gap 1: account skills (`anthropic-skills:*`) reached 5 of 18 trials, at init or in a later
+        `commands_changed`, and nothing recorded them. Names outside every loaded plugin's namespace are
+        foreign; unprefixed names are the CLI's own."""
+        plugins = [{"name": "save-toolkit", "source": "save-toolkit@inline"},
+                   {"name": "telemetry", "source": "telemetry@builtin"}]
+        trace = self._parse_events([
+            {"type": "system", "subtype": "init", "plugins": plugins,
+             "skills": ["deep-research", "save-toolkit:adr", "telemetry:report"]},
+            {"type": "system", "subtype": "commands_changed", "commands": [
+                {"name": "save-toolkit:adr", "builtin": False},
+                {"name": "anthropic-skills:docx", "builtin": False}, {"name": "help", "builtin": True}]},
+        ])
+        self.assertEqual(["anthropic-skills:docx", "deep-research", "help", "save-toolkit:adr", "telemetry:report"],
+                         trace.advertised_skills)
+        self.assertEqual(["anthropic-skills:docx"], trace.foreign_skills)
+        clean = self._parse_events([{"type": "system", "subtype": "init", "plugins": plugins,
+                                     "skills": ["deep-research", "save-toolkit:adr"]}])
+        self.assertEqual([], clean.foreign_skills)
 
     @staticmethod
     def _parse_events(events: list) -> probe_tracing.TraceSummary:
@@ -1542,7 +1590,8 @@ class NativeConversationRunTests(unittest.TestCase):
                 self.assertTrue(probe_catalog.validate_scenario({**self.SPEC, **change}))
 
     def run_native(self, root, *, wrong_session=False, bad_runtime=False, bad_initial=False, credential=False,
-                   wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05, runtime=None):
+                   wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05, runtime=None,
+                   turns=(None, None), initial_subtype="success"):
         calls, environments = [], []
         real_run = subprocess.run
 
@@ -1574,9 +1623,11 @@ class NativeConversationRunTests(unittest.TestCase):
             for event in events:
                 if event.get("type") == "assistant":
                     event["message"]["model"] = observed_model
-            result = {"type": "result", "subtype": "success", "session_id": session_id,
+            result = {"type": "result", "subtype": "success" if resumed else initial_subtype, "session_id": session_id,
                       "result": "Synthetic .credentials.json marker" if credential else "Owner correction assessed.",
                       "duration_ms": 50, "usage": {"input_tokens": 10}, "modelUsage": {"stub-model": {}}, "total_cost_usd": cost}
+            if turns[resumed] is not None:
+                result["num_turns"] = turns[resumed]
             events += [result, result]  # repeated terminal envelopes must not double-charge a turn
             kwargs["stdout"].write("\n".join(json.dumps(event) for event in events) + "\n")
             return subprocess.CompletedProcess(argv, 0)
@@ -1637,6 +1688,51 @@ class NativeConversationRunTests(unittest.TestCase):
             self.assertEqual("INCONCLUSIVE", summary["status"])
             self.assertEqual(1, len(calls))
             self.assertFalse((run / "followup").exists())
+
+    def test_the_turn_limit_covers_the_whole_conversation(self):
+        """Codex on PR #340: `--max-turns` bounds one invocation, so the resumed one gets only the rest."""
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(self, "SPEC", {**self.SPEC, "max_turns": 17}):
+            summary, run, calls, _ = self.run_native(Path(tmp), turns=(5, 4))
+            self.assertEqual(["17", "12"], [argv[argv.index("--max-turns") + 1] for argv, *_ in calls])
+            self.assertEqual("PASS", summary["status"])
+            self.assertEqual("PASS", probe_rescoring.regrade_run(run, self.SPEC)["status"])
+
+    def test_a_conversation_that_spends_its_limit_ends_without_a_followup(self):
+        for subtype in ("error_max_turns", "success"):
+            with self.subTest(subtype=subtype), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.object(self, "SPEC", {**self.SPEC, "max_turns": 17}):
+                summary, run, calls, _ = self.run_native(Path(tmp), turns=(17, None), initial_subtype=subtype)
+                self.assertEqual(1, len(calls))
+                self.assertFalse((run / "followup").exists())
+                self.assertNotEqual("INCONCLUSIVE", summary["status"])
+                grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+                self.assertEqual(subtype == "error_max_turns", grading.get("run_end") == "turn_limit")
+                self.assertEqual(summary["status"], probe_rescoring.regrade_run(run, self.SPEC)["status"])
+
+    def test_a_missing_turn_count_stops_a_limited_conversation(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(self, "SPEC", {**self.SPEC, "max_turns": 17}):
+            summary, run, calls, _ = self.run_native(Path(tmp))
+            self.assertEqual("INCONCLUSIVE", summary["status"])
+            self.assertEqual(1, len(calls))
+            self.assertIn("turn count missing", json.loads((run / "grading.json").read_text(encoding="utf-8"))["inconclusive"])
+
+    def test_regrade_refuses_a_conversation_that_ran_past_its_limit(self):
+        def recount(path, turns):
+            events = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+            for event in events:
+                if event.get("type") == "result":
+                    event["num_turns"] = turns
+            path.write_text("\n".join(json.dumps(event) for event in events) + "\n", encoding="utf-8")
+
+        for first, followup, reason in ((17, 4, "follow-up ran past"), (10, 8, "ran past its turn limit")):
+            with self.subTest(first=first, followup=followup), tempfile.TemporaryDirectory() as tmp, \
+                    mock.patch.object(self, "SPEC", {**self.SPEC, "max_turns": 17}):
+                _, run, _, _ = self.run_native(Path(tmp), turns=(5, 4))
+                recount(run / "stdout.jsonl", first)
+                recount(run / "followup" / "stdout.jsonl", followup)
+                regraded = probe_rescoring.regrade_run(run, self.SPEC)
+                self.assertEqual("INCONCLUSIVE", regraded["status"])
+                self.assertIn(reason, regraded["inconclusive"])
 
     def test_completed_explore_before_correct_helper_stops_before_resume(self):
         events = [
@@ -1862,6 +1958,9 @@ class EndToEndStubTests(unittest.TestCase):
             for absent in ("evals", "docs", ".git", "AGENTS.md", "CLAUDE.md"):
                 self.assertFalse((image / absent).exists(), absent)
             self.assertEqual(provenance["plugin_source_sha256"], probe_fingerprints.plugin_digest(image))
+            # The skill profile the trial ran with is recorded beside its tools (WP-02 gap 1).
+            self.assertEqual([], recorded["advertised_skills"])
+            self.assertEqual([], recorded["foreign_skills"])
         finally:
             probe_workspaces.remove_tree(image.parent)
 
@@ -3412,6 +3511,29 @@ class MainSessionCommandTests(unittest.TestCase):
         denied = command[command.index("--disallowedTools") + 1].split(",")
         self.assertIn("Bash", denied)
         self.assertIn("Write", denied)
+
+    def test_every_trial_turns_off_account_skill_sync(self) -> None:
+        """WP-02 gap 1: account skills download in the background and reached 7 of 8 unisolated probe
+        sessions; `syncClaudeAiSkills: false` kept them out of 16 of 16."""
+        for kwargs in ({}, {"persistent": True}, {"pre_approve": True}):
+            for agent in (None, "save-toolkit:software-engineer"):
+                with self.subTest(agent=agent, **kwargs):
+                    command = probe_invocation.build_command("claude", ROOT, agent, "p", "sonnet",
+                                                             probe_constants.BUILD_TOOLS, **kwargs)
+                    self.assertEqual(1, command.count("--settings"))
+                    self.assertEqual({"syncClaudeAiSkills": False},
+                                     json.loads(command[command.index("--settings") + 1]))
+
+    def test_a_foreign_skill_fails_the_identity_check(self) -> None:
+        spec = {"id": "r", "prompt": "p", "target": {"kind": "skill", "name": "x"}, "routing": {"expect": "fire"}}
+        plugin = {"name": "save-toolkit", "path": str(ROOT.resolve()), "source": "save-toolkit@inline"}
+        def trace(skills):
+            return TraceAndCommandTests._parse_events([{
+                "type": "system", "subtype": "init", "tools": ["Skill", "Task"], "plugins": [plugin],
+                "model": "m", "skills": skills}, {"type": "assistant", "message": {"model": "m", "content": []}}])
+        self.assertIsNone(probe_invocation.identity_problem(trace(["save-toolkit:adr", "deep-research"]), spec, ROOT))
+        problem = probe_invocation.identity_problem(trace(["save-toolkit:adr", "anthropic-skills:docx"]), spec, ROOT)
+        self.assertIn("anthropic-skills:docx", problem or "")
 
     def test_a_scenario_may_widen_its_own_tool_grant(self) -> None:
         spec = {"id": "r", "prompt": "p", "tools": ["Skill", "Task", "Read"]}

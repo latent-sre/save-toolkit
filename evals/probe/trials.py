@@ -277,7 +277,11 @@ def _invoke_turns(
     inconclusive: str | None = None
     identity_failure: str | None = None
     resume = None
+    done: list[TraceSummary] = []
     for turn, prompt in enumerate([catalog.scenario_prompt(spec, served), *spec.get("followups", [])]):
+        left = invocation.turns_left(spec, done)
+        if left is not None and left <= 0:
+            break  # the conversation spent its declared limit: a completed run (result rule 4)
         inconclusive = _plugin_drift(settings.plugin_root, served, plugin_sha)
         if fingerprints.scenario_digest(spec, binding) != scenario_identity:
             inconclusive = "scenario inputs changed before invocation; re-run the trial"
@@ -296,7 +300,7 @@ def _invoke_turns(
             pre_approve=catalog.scenario_kind(spec) == "build",
             persistent=bool(spec.get("followups")),
             resume=resume,
-            max_turns=spec.get("max_turns"),
+            max_turns=left,
         )
         returncode, timed_out = None, None
         with (
@@ -347,6 +351,7 @@ def _invoke_turns(
         if inconclusive:
             break
         resume = current.session_id
+        done.append(current)
     return inconclusive, identity_failure
 
 
@@ -507,6 +512,8 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
                     "skills": trace.skills,
                     "skills_failed": trace.skills_failed,
                     "advertised_tools": trace.advertised_tools,
+                    "advertised_skills": trace.advertised_skills,
+                    "foreign_skills": trace.foreign_skills,
                     "mcp_servers": trace.mcp_servers,
                     "permission_mode": trace.permission_mode,
                     "dispatches": trace.dispatches,

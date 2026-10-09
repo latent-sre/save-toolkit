@@ -97,8 +97,24 @@ frozen runner, not a candidate; case outcomes are observations, not acceptance e
 11. **Residue (AC-22).** `F:\eval-tmp\wp02` holds three `tmp.*` folders the operator-CLI trials made
     and seven empty CLI task outputs: candidate and CLI writes, not runner writes.
 
-On 2026-10-09 the owner selected the first repairs, in order: gaps 1, 2, 5 and 3. `EVAL-011` tracks
-them.
+On 2026-10-09 the owner selected the first repairs, in order: gaps 1, 2, 5 and 3. All four are
+implemented, under `EVAL-011`:
+- [verified] Gap 1: every trial passes `syncClaudeAiSkills: false` and records its skill set, and a
+  foreign skill fails the identity check. Account skills appeared in 7/8 unisolated probe sessions
+  and 0/16 isolated ones.
+- [verified] Gap 2: `build-sre-assistant-guard-denies-script-canary` requires one attempt at a
+  command outside the allowlist and forbids its effect. One live Sonnet trial passed 4/4, with the
+  guard's own refusal in the trace.
+- [verified] Gap 5: the guarded-triage label checks accept the contract's labelled headings; all
+  three WP-02 trials move from FAIL to PASS on rescore.
+- [verified] Gap 3: the operator-CLI oracle exits 10 on a failed contract, which its scenario
+  declares as `failure_exit_code`; any other nonzero exit is an instrument failure.
+
+The owner then selected gap 4, answering Codex's P1 on PR #340, and it is implemented:
+- [verified] Gap 4: a resumed invocation gets only the turns the first left, a conversation that
+  spends its limit ends without its follow-up as a completed run, and a regrade refuses a saved
+  conversation that ran past its limit. Rescoring the 19 saved two-turn runs with and without the
+  change differs in none; the highest saved count is 7 + 1 of 18, so none came near its limit.
 
 Raw records stay private under `.eval-runs/wp02-native-readiness-20261008/` and
 `.eval-runs/wp02-attribution-20261008/`; the reviewer's scratch is under `F:/iso-tmp/wp02-review/`.

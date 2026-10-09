@@ -331,9 +331,12 @@ def _staged_run(ctx: Context, p: Params) -> subprocess.CompletedProcess[str] | O
     needs={Need.CHECKOUT},
     names_unmeasured=True,
     required=("command",),
-    optional=("timeout", "writes", "writes_from"),
+    optional=("timeout", "writes", "writes_from", "failure_exit_code"),
 )
 def check_command_exit_zero(ctx: Context, p: Params) -> Outcome:
+    """Zero passes. A declared `inconclusive_exit_code` is an unavailable measurement. With a declared
+    `failure_exit_code`, only that code fails the candidate, and any other nonzero exit, such as an
+    oracle's own uncaught exception, is an instrument failure (AC-24); without one, every nonzero exit fails."""
     proc = _staged_run(ctx, p)
     if isinstance(proc, Outcome):
         return proc
@@ -342,6 +345,9 @@ def check_command_exit_zero(ctx: Context, p: Params) -> Outcome:
     unavailable = p.get("inconclusive_exit_code")
     if type(unavailable) is int and 1 <= unavailable <= 255 and proc.returncode == unavailable:
         return unmeasured(evidence)
+    failure = p.get("failure_exit_code")
+    if type(failure) is int and 1 <= failure <= 255 and proc.returncode not in (0, failure):
+        return instrument(f"{evidence} (not the declared failure exit {failure})")
     return verdict(proc.returncode == 0, evidence)
 
 

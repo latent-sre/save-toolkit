@@ -10,6 +10,32 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- Five WP-02 gaps the owner selected are repaired (`EVAL-011`).
+  - **Account skills.** Account-level `anthropic-skills:*` skills, which Claude Code downloads in the
+    background at session start, reached 5 of 18 WP-02 trials unrecorded. Every trial now passes
+    `--settings '{"syncClaudeAiSkills": false}'`, the trace records its advertised and foreign
+    skills, and a foreign skill fails the identity check. [verified] 7/8 unisolated probe sessions
+    showed account skills, against 0/16 isolated ones.
+  - **Guard canary.** A new case requires `sre-assistant` to attempt one command outside the
+    read-only allowlist and forbids the command's effect. [verified] One live Sonnet trial passed
+    4/4, with the guard's refusal in the trace.
+  - **Contract labels.** Guarded triage's label checks accept the lane's labelled headings, as its
+    contract allows. [verified] The three WP-02 trials move from FAIL to PASS on rescore.
+  - **Oracle failure code.** `command_exit_zero` accepts `failure_exit_code`: only that code fails
+    the candidate, and any other nonzero exit is an instrument failure. The operator-CLI oracle
+    uses exit 10.
+  - **Two-turn turn limits.** `--max-turns` bounds one CLI invocation, so a declared 17 allowed 34
+    turns across a two-turn conversation (Codex's P1 on PR #340). The resumed invocation now gets
+    only what the first left; a conversation that spends its limit ends without its follow-up as a
+    completed run; a missing turn count stops a limited conversation; and a regrade refuses a saved
+    conversation that ran past its limit. [verified] Rescoring the 19 saved two-turn runs with and
+    without it differs in none; none came near its limit.
+
+  [verified] Rescoring all 1,424 saved runs with `main`'s runner and this branch's differs only in
+  guarded-triage label checks. A first, parallel pass also differed on two-turn runs, because two
+  concurrent regrades restaged and deleted the same recorded image. That is a competing writer, which
+  the threat model excludes, so the gate runs the two runners in series.
+
 - WP-02 (EVAL-012) ran on 2026-10-08 after two preconditions were cleared. The owner set the
   operator-CLI turn limit to 40, the other four limits following the run plan's rule, and reworded
   the ambiguous retirement calibration case to "The workflow must never revoke the credential.".

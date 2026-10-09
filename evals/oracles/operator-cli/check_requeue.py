@@ -163,6 +163,7 @@ if __name__ == "__main__":
     try:
         check(Path(sys.argv[1] if len(sys.argv) > 1 else "requeue_failed.py").resolve())
     except ContractFailure as failure:
+        # The scenario's declared failure_exit_code; an uncaught exception here still exits 1, a crash.
         print(f"contract failed: {failure}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(10)
     print("contract passed: operator requeue")
