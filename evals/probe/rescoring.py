@@ -454,7 +454,7 @@ def _saved_runs(
             skipped["scenarios"].append(layout.case_id(case_dir))
             continue
         for run_dir in sorted(case_dir.glob(f"*/{layout.SLOT_PREFIX}*")):
-            slot = layout.published_slot(run_dir.name)
+            slot = layout.slot(run_dir.name)
             if slot is None:
                 skipped["other_run_folders"].append(run_dir.relative_to(iteration_dir).as_posix())
             elif not (run_dir / "outputs" / "trace-summary.json").exists():

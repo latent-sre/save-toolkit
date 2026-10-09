@@ -4,9 +4,10 @@
 
 Reads `timing.json` from every published trial under RUNS_ROOT (`<iteration>/eval-<scenario>/<label>/run-N/`)
 and every retained attempt (`<label>/attempts/run-N/<k>/`): a replaced or unpublished attempt can hold
-the highest count or the longest run. It prints, per scenario, how many records gave a turn count,
-their minimum, median and maximum, how many gave none, how many were retained attempts, and the
-longest trial in seconds. A native conversation's count sums its
+the highest count or the longest run. Folders are read as the runner's layout names them
+(probe/layout.py), so an operator's copy such as `run-1-old` is not a trial. It prints, per scenario,
+how many records gave a turn count, their minimum, median and maximum, how many gave none, how many
+were retained attempts, and the longest trial in seconds. A native conversation's count sums its
 invocations and its stream's last count is not an exact provider-turn count, so read it as an upper
 estimate. A named scenario with no saved trial is listed with zero trials rather than left out.
 
@@ -23,6 +24,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from probe import layout
+
 
 @dataclass
 class Observed:
@@ -37,14 +40,19 @@ def _number(value: object) -> float | None:
 
 
 def _timings(root: Path) -> list[tuple[str, bool, Path]]:
-    """(scenario, retained, timing.json) for every published run and every retained attempt."""
-    published = [(path.parents[2].name, False, path) for path in root.glob("**/eval-*/*/run-*/timing.json")]
-    retained = [
-        (path.parents[4].name, True, path)
-        for path in root.glob("**/eval-*/*/attempts/run-*/*/timing.json")
-        if path.parent.name.isdigit()
-    ]
-    return sorted((name.removeprefix("eval-"), kept, path) for name, kept, path in published + retained)
+    """(scenario, retained, timing.json) for every published run and every retained attempt, as the
+    runner's layout names them."""
+    found = []
+    for case_dir in (path for path in root.glob(f"**/{layout.CASE_PREFIX}*") if path.is_dir()):
+        scenario = layout.case_id(case_dir)
+        for label_dir in (child for child in case_dir.iterdir() if child.is_dir()):
+            found += [(scenario, False, run) for run, _ in layout.numbered(label_dir, layout.SLOT_PREFIX)]
+            found += [(scenario, True, kept) for kept, _, _ in layout.kept_attempts(label_dir)]
+    return sorted(
+        (scenario, kept, folder / "timing.json")
+        for scenario, kept, folder in found
+        if (folder / "timing.json").exists()
+    )
 
 
 def collect(root: Path, wanted: set[str]) -> dict[str, Observed]:

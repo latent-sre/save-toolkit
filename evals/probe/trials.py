@@ -183,9 +183,7 @@ def kept_attempt_costs(
     cannot be read does, and one without a readable `timing.json` reads as an unknown cost, never zero."""
     costs: list[dict[str, Any]] = []
     for scenario_id in sorted(scenario_ids):
-        for attempt in sorted(layout.attempts_dir(layout.case_dir(out_dir, scenario_id) / label).glob("run-*/*")):
-            if not attempt.name.isdigit():
-                continue
+        for attempt, _, _ in layout.kept_attempts(layout.case_dir(out_dir, scenario_id) / label):
             timing = _read_json(attempt / "timing.json")
             requested = _requested_model(timing, _read_json(attempt / "record.json"))
             if requested is not _UNKNOWN and requested != model:

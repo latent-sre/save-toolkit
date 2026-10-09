@@ -6,8 +6,10 @@
     <iteration>/eval-<scenario>/<label>/.run-N-previous-<hex>/  the run it replaces, while it is published
     <run>/assessments/<k>/                                      regrade k, beside the run's own grade
 
-The runner, the regrade and rescore, the run comparison and the turn-count summary all find runs
-through this module, so they agree on what a run is.
+The runner writes every number as a plain decimal from 1 (`run-1`, never `run-01` or `run-0`) and
+reads one back only in that spelling, so two folders cannot claim one slot, and an operator's copy
+such as `run-1-old` is never a run. The runner, the regrade and rescore, the run comparison, the
+turn-count summary and the spend cap all find runs through this module, so they agree on what a run is.
 """
 
 from __future__ import annotations
@@ -20,7 +22,6 @@ CASE_PREFIX = "eval-"
 SLOT_PREFIX = "run-"
 # A hidden attempt folder names the slot it was written for: `.run-N-attempt-...`, `.run-N-previous-...`.
 HIDDEN_SLOT = re.compile(r"^\.run-([1-9][0-9]*)-")
-_PUBLISHED = re.compile(r"run-\d+")
 
 
 def case_dir(iteration: Path, scenario_id: str) -> Path:
@@ -69,8 +70,7 @@ def hidden_slot(name: str) -> int | None:
 
 
 def number(name: str, prefix: str = "") -> int | None:
-    """The number in a folder name `<prefix><N>` as the runner writes it (`run-1`, never `run-01` or
-    `run-0`, so two folders cannot claim one slot), or None."""
+    """The number in a folder name `<prefix><N>` as the runner writes it, or None."""
     digits = name.removeprefix(prefix) if name.startswith(prefix) else ""
     return int(digits) if digits.isascii() and digits.isdigit() and digits == str(int(digits)) != "0" else None
 
@@ -93,14 +93,16 @@ def kept_attempts(label_dir: Path) -> Iterator[tuple[Path, int, int]]:
             yield kept, slot, attempt
 
 
-def published_slot(name: str) -> int | None:
-    """The slot a folder beside the label's published runs holds, or None for any other folder."""
-    return int(name.removeprefix(SLOT_PREFIX)) if _PUBLISHED.fullmatch(name) else None
+def slot(name: str) -> int | None:
+    """The slot a folder beside a label's published runs holds, or None for any other folder."""
+    return number(name, SLOT_PREFIX)
 
 
 def taken(parent: Path) -> set[int]:
     """The numbers already used under `parent`: kept attempts, or a run's assessments."""
-    return {int(child.name) for child in parent.iterdir() if child.name.isdigit()} if parent.is_dir() else set()
+    if not parent.is_dir():
+        return set()
+    return {found for child in parent.iterdir() if (found := number(child.name)) is not None}
 
 
 def next_number(parent: Path) -> int:
