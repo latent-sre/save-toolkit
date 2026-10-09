@@ -270,6 +270,51 @@ class AcceptedImplementationCaseTests(unittest.TestCase):
             self.assertEqual("['entry', 'self'] True", shape.stdout.strip(), shape.stderr)
 
 
+class ChangeReviewCaseTests(unittest.TestCase):
+    """EVAL-016: the change-review routing case seeds the pull request its prompt names. The candidate
+    branch lets any customer refund any order and drops the amount bound, and removes the tests that
+    would catch either, so the regression is visible only by reviewing the change."""
+
+    SCENARIO = ROOT / "scenarios/discovery-reliability-defers-change-review.yaml"
+
+    def test_the_case_routes_without_building_and_keeps_the_read_boundary(self):
+        spec = probe_catalog.load_scenario(self.SCENARIO)
+        self.assertEqual("routing", probe_catalog.scenario_kind(spec))
+        self.assertEqual({"kind": "agent", "name": "reviewer"}, spec["routing"]["expected_alternative"])
+        self.assertFalse({"Edit", "Write", "Bash", "PowerShell"} & set(spec["tools"]))
+        self.assertTrue(probe_invocation.read_boundary_applies(spec, spec["tools"]))
+        fixture = spec["fixture"]
+        for content in [*fixture["files"].values(), *fixture["branches"]["feature/partial-refunds"]["files"].values()]:
+            self.assertNotIn("reviewer", content.lower(), "the fixture must not name the answer")
+
+    def test_the_candidate_passes_its_suite_but_regresses_against_main(self):
+        spec = probe_catalog.load_scenario(self.SCENARIO)
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = probe_workspaces.seed_workspace(spec, Path(tmp))
+            self.assertEqual("feature/partial-refunds", ws.baseline_branch)
+            suite = subprocess.run(
+                [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
+                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8")
+            self.assertEqual(0, suite.returncode, suite.stderr)
+            probe = ("from orders.refunds import Order, User, refund\n"
+                     "order = Order('o-1', 'u-1', 500)\n"
+                     "for user, amount in ((User('u-2'), 100), (User('u-1'), 501), (User('u-1'), 0)):\n"
+                     "    try:\n"
+                     "        refund(user, order, amount)\n"
+                     "        print('allowed')\n"
+                     "    except Exception as exc:\n"
+                     "        print(type(exc).__name__)\n")
+            outcomes = {}
+            for branch in ("main", "feature/partial-refunds"):
+                subprocess.run(["git", "checkout", "-q", branch], cwd=ws.repo, check=True)
+                run = subprocess.run([sys.executable, "-c", probe], cwd=ws.repo, capture_output=True,
+                                     text=True, encoding="utf-8")
+                outcomes[branch] = run.stdout.split()
+            # Another customer's refund, an over-total refund and a zero refund: refused on main, allowed on the candidate.
+            self.assertEqual(["Forbidden", "ValueError", "ValueError"], outcomes["main"])
+            self.assertEqual(["allowed", "allowed", "allowed"], outcomes["feature/partial-refunds"])
+
+
 class ProportionateOptionsTests(unittest.TestCase):
     """AC-20: more than one proportionate proposal passes; unsupported benefit or authority fails."""
 

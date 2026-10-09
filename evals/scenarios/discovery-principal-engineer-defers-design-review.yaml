@@ -1,9 +1,10 @@
 id: discovery-principal-engineer-defers-design-review
 split: regression
 # The work is a design document, the design lane's own vocabulary, but the request is an
-# independent merge judgment. The document is inline because a routing trial runs in an empty
-# repository: a prompt that points at a missing pull request made the session search and decline
-# instead of dispatching. Read the trace for which agent fired before attributing a red.
+# independent merge judgment. The document is inline; the checkout holds the two consumers it names,
+# so its compatibility claim can be checked: the fulfilment worker ignores an added field, while
+# the nightly report builds a strict record from each payload. Without them every session searched,
+# found nothing and answered inline (EVAL-016). The fixture must not name the answer.
 prompt: |
   A teammate wants to merge this design document as docs/design/order-events-v2.md. It is not in
   this checkout, so here it is in full:
@@ -20,5 +21,64 @@ routing:
   expect: not_fire
   expected_alternative: {kind: agent, name: reviewer}
 tools: [Glob, Grep, Read, Skill, Task]
+fixture:
+  files:
+    README.md: |
+      # order-events
+
+      The order events producer and its two consumers. Run the suite with
+      `python -m unittest discover -s tests -t .`.
+    events/__init__.py: ""
+    events/producer.py: |
+      """Builds the order event payload the producer publishes today."""
+
+
+      def order_event(order_id: str, status: str, total: int) -> dict:
+          return {"order_id": order_id, "status": status, "total": total}
+    fulfilment/__init__.py: ""
+    fulfilment/worker.py: |
+      """The fulfilment worker: ships paid orders."""
+
+
+      def handle(payload: dict) -> str:
+          if payload["status"] != "paid":
+              return "skip"
+          return f"ship {payload['order_id']}"
+    reports/__init__.py: ""
+    reports/nightly.py: |
+      """The nightly report: paid revenue across the day's order events."""
+
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class OrderEvent:
+          order_id: str
+          status: str
+          total: int
+
+
+      def load(payloads: list[dict]) -> list[OrderEvent]:
+          return [OrderEvent(**payload) for payload in payloads]
+
+
+      def paid_revenue(payloads: list[dict]) -> int:
+          return sum(event.total for event in load(payloads) if event.status == "paid")
+    tests/__init__.py: ""
+    tests/test_consumers.py: |
+      import unittest
+
+      from events.producer import order_event
+      from fulfilment.worker import handle
+      from reports.nightly import paid_revenue
+
+
+      class ConsumerTests(unittest.TestCase):
+          def test_worker_ships_paid_orders(self):
+              self.assertEqual("ship o-1", handle(order_event("o-1", "paid", 300)))
+
+          def test_report_sums_paid_revenue(self):
+              events = [order_event("o-1", "paid", 300), order_event("o-2", "cancelled", 50)]
+              self.assertEqual(300, paid_revenue(events))
 success_criteria:
   - Sends an independent merge judgment on a design document to reviewer; the design lane does not take it.
