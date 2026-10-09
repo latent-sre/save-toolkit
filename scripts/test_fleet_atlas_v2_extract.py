@@ -168,6 +168,12 @@ The service-lifecycle lane was discussed in a review.
         self.assertFalse(any(f.predicate == 'cites' for f in changed.facts))
         self.assertTrue(any(f.predicate == 'unknown' and dict(f.qualifiers)['code'] == 'extract.link-selector-unresolved' for f in changed.facts))
 
+    def test_repeated_heading_anchor_selects_its_numbered_occurrence(self):
+        graph = graph_of({'docs/reviews/source.md': '# Source\n[second](target.md#result-1)\n',
+                          'docs/reviews/target.md': '# Target\n## Result\nOne.\n## Result\nTwo.\n'})
+        fact = next(f for f in graph.facts if f.predicate == 'cites')
+        self.assertTrue(any(p.path.endswith('target.md') and p.start_line == p.end_line == 4 for p in fact.proof.inputs))
+
     def test_linked_review_inventory_keeps_source_bound_csv_identity(self):
         path = 'docs/reviews/packet/inventory.csv'
         graph = graph_of({
@@ -186,12 +192,13 @@ The service-lifecycle lane was discussed in a review.
                             for fact in graph.facts))
 
     def test_multiple_selectors_of_one_evidence_file_are_distinct_claims(self):
-        graph = graph_of({'docs/fleet-roadmap.md': '# Roadmap\n### SKILL-001 title\n**Evidence:** [first](reviews/result.md#first)\n[second](reviews/result.md#second)\n[whole](reviews/result.md)\n',
+        graph = graph_of({'docs/fleet-roadmap.md': '# Roadmap\n### SKILL-001 title\n**Evidence:** [first](reviews/result.md#first)\n[second](reviews/result.md#second)\n[whole](reviews/result.md)\n[empty](reviews/result.md#)\n',
                            'docs/reviews/result.md': '# Result\n## First\nOne.\n## Second\nTwo.\n'})
         facts = [f for f in graph.facts if f.predicate == 'evidenced_by']
-        self.assertEqual(3, len(facts))
-        self.assertEqual(3, len({f.id for f in facts}))
-        self.assertEqual({None, 'first', 'second'}, {dict(f.qualifiers).get('anchor') for f in facts})
+        # An empty fragment still selects: it is its own claim, not the whole-file one.
+        self.assertEqual(4, len(facts))
+        self.assertEqual(4, len({f.id for f in facts}))
+        self.assertEqual({None, '', 'first', 'second'}, {dict(f.qualifiers).get('anchor') for f in facts})
         self.assertEqual({'review:result'}, {f.object for f in facts})
 
     def test_standalone_json_schema_retains_declared_contract_without_catalog(self):
@@ -316,6 +323,11 @@ def expected_outputs(root):
         reads = rooted_reads(Source('scripts/test_contract.py', positive.encode()))
         self.assertEqual(['agents/sre-assistant.md'], [p for p, _ in reads])
         self.assertTrue(any(p.start_line == 2 for p in reads[0][1]))
+        # ROOT is a repository root only while Path is pathlib's: imported, and never rebound.
+        for changed in (positive.replace('from pathlib import Path', 'from fixtures import Path'),
+                        positive.replace('ROOT =', 'Path = object\nROOT =')):
+            with self.subTest(changed=changed):
+                self.assertEqual((), rooted_reads(Source('scripts/test_contract.py', changed.encode())))
         for body in (
             'note = "agents/sre-assistant.md"\n',
             '(ROOT / "agents/sre-assistant.md").write_text("fixture")\n',

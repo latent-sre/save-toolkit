@@ -818,7 +818,7 @@ def generated_mappings(corpus: Corpus) -> tuple[GeneratedMapping, ...]:
             family = next((loop.iter.id for loop in loops if isinstance(loop.target, ast.Name) and loop.target.id == 'source'
                            and isinstance(loop.iter, ast.Name) and loop.iter.id in ('agents', 'commands', 'skill_files')), None)
             if family:
-                inputs =[s.path for s in corpus.sources if
+                inputs = [s.path for s in corpus.sources if
                           (family == 'agents' and re.fullmatch(r'agents/[^/]+\.md', s.path)) or
                           (family == 'commands' and re.fullmatch(r'commands/[^/]+\.md', s.path)) or
                           (family == 'skill_files' and s.path.startswith('skills/'))]
@@ -1150,8 +1150,9 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
 class _Relations:
     """The relationship pass's shared state over one derivation's records.
 
-    Emitters add facts only through edge(), link() and unknown(): repeated claims merge
-    their witnesses, and a conflicting claim under the same identity fails the derivation.
+    Emitters add facts only through add(), directly or via edge(), link() and unknown():
+    repeated claims merge their witnesses, and a conflicting claim under the same identity
+    fails the derivation.
     """
 
     def __init__(self, corpus: Corpus, records: tuple[Record, ...]) -> None:
