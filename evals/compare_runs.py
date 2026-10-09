@@ -253,17 +253,17 @@ def _folder_problem(record: RecordV1, case_id: str, label: str, slot: int, numbe
     """How a record disagrees with the folder the runner filed it in. A copied record, or a superseded
     one whose state update failed, would otherwise count as a second published trial."""
     attempt = record.attempt
-    found = []
-    if record.case.id != case_id:
-        found.append(f"case {record.case.id!r} filed under {case_id!r}")
-    if attempt.label != label:
-        found.append(f"label {attempt.label!r} filed under {label!r}")
-    if attempt.slot != slot:
-        found.append(f"slot {attempt.slot} filed under run-{slot}")
-    if (attempt.state is AttemptState.FINAL) != (number is None):
-        found.append(f"state {attempt.state} filed as {'the published run' if number is None else 'a kept attempt'}")
-    if number is not None and attempt.number != number:
-        found.append(f"attempt {attempt.number} filed as {number}")
+    rules = (
+        (record.case.id != case_id, f"case {record.case.id!r} filed under {case_id!r}"),
+        (attempt.label != label, f"label {attempt.label!r} filed under {label!r}"),
+        (attempt.slot != slot, f"slot {attempt.slot} filed under run-{slot}"),
+        (
+            (attempt.state is AttemptState.FINAL) != (number is None),
+            f"state {attempt.state} filed as {'the published run' if number is None else 'a kept attempt'}",
+        ),
+        (number is not None and attempt.number != number, f"attempt {attempt.number} filed as {number}"),
+    )
+    found = [message for disagrees, message in rules if disagrees]
     return "record disagrees with its folder: " + "; ".join(found) if found else None
 
 
@@ -271,16 +271,13 @@ def _legacy_gaps(folder: Path) -> list[str]:
     """What a run folder without a v1 record cannot supply. A gap is cleared only by content that fills
     it: an unreadable or partial provenance.json leaves the identity gaps named."""
     provenance = layout.read_object(folder / "provenance.json") or {}
-    gaps = ["no v1 record"]
-    if not (folder / "grading.json").is_file():
-        gaps.append("verdict and checks")
-    if not all(provenance.get(field) for field in IDENTITY_FIELDS):
-        gaps.append("candidate and runner identity")
-    if not (folder / "timing.json").is_file():
-        gaps.append("cost")
-    if not provenance.get("runtime"):
-        gaps.append("CLI version and host")
-    return gaps
+    missing = (
+        (not (folder / "grading.json").is_file(), "verdict and checks"),
+        (not all(provenance.get(field) for field in IDENTITY_FIELDS), "candidate and runner identity"),
+        (not (folder / "timing.json").is_file(), "cost"),
+        (not provenance.get("runtime"), "CLI version and host"),
+    )
+    return ["no v1 record", *(gap for lacking, gap in missing if lacking)]
 
 
 def _conditions(record: RecordV1) -> dict[str, Any]:

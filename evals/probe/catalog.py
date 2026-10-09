@@ -256,10 +256,13 @@ def _fixture_problems(spec: Spec, where: str) -> list[str]:
         return [f"{where}: fixture.files must be a non-empty mapping of path -> content"]
     problems = []
     for name, content in fixture["files"].items():
-        if not isinstance(content, str):
-            problems.append(f"{where}: fixture file {name!r} content must be a string")
-        if not constants.stays_inside(name):
-            problems.append(f"{where}: fixture file {name!r} must be a relative path inside the repo")
+        problems += _broken(
+            f"{where}: fixture file {name!r} ",
+            (
+                (not isinstance(content, str), "content must be a string"),
+                (not constants.stays_inside(name), "must be a relative path inside the repo"),
+            ),
+        )
     branches = fixture.get("branches") or {}
     if not isinstance(branches, dict):
         problems.append(f"{where}: fixture.branches must map branch names to branches that declare files")
@@ -332,13 +335,21 @@ def _service_problems(service: object, where: str) -> list[str]:
         if not isinstance(mount, dict) or set(mount) != {"source", "target", "read_only"}:
             problems.append(f"{where}: service {name!r} mount needs source, target, and read_only")
             continue
-        if not isinstance(mount["source"], str) or mount["source"] not in files:
-            problems.append(f"{where}: service {name!r} mount source must name a declared service file")
         target = str(mount["target"])
-        if not target.startswith("/") or ".." in target.split("/"):
-            problems.append(f"{where}: service {name!r} mount target must be an absolute container path")
-        if mount["read_only"] is not True:
-            problems.append(f"{where}: service {name!r} runtime file mounts must be read_only")
+        problems += _broken(
+            f"{where}: service {name!r} ",
+            (
+                (
+                    not isinstance(mount["source"], str) or mount["source"] not in files,
+                    "mount source must name a declared service file",
+                ),
+                (
+                    not target.startswith("/") or ".." in target.split("/"),
+                    "mount target must be an absolute container path",
+                ),
+                (mount["read_only"] is not True, "runtime file mounts must be read_only"),
+            ),
+        )
     command = service.get("command") or []
     if not isinstance(command, list) or not all(isinstance(item, str) and item for item in command):
         problems.append(f"{where}: service {name!r} command must be a string list")
