@@ -27,6 +27,8 @@ ENV = {"GRAFANA_URL": "https://monitor.example/grafana", "GRAFANA_ORG_ID": "7", 
 QUERY = ["query", "--datasource", "metrics-1", "--kind", "prometheus", "--from", "1000", "--to", "61000", "--expr", "up"]
 RENDER = ["render", "--uid", "board", "--panel", "7", "--from", "1000", "--to", "61000"]
 PNG = bytes((137, 80, 78, 71, 13, 10, 26, 10)) + (13).to_bytes(4, "big") + b"IHDR" + (1200).to_bytes(4, "big") + (600).to_bytes(4, "big") + bytes(5)
+# Grafana v13.2.2 public/img/rendering_limit_dark.png is 526x202, served with HTTP 200 at its concurrency limit.
+PLACEHOLDER = PNG[:16] + (526).to_bytes(4, "big") + (202).to_bytes(4, "big") + bytes(5)
 BOARD = {"dashboard": {"uid": "board", "version": 3, "panels": [
     {"id": 1, "type": "row", "collapsed": True, "panels": [{"id": 7, "type": "timeseries", "title": "B70 temperatures"}]}]},
     "meta": {"slug": "cylon-ai"}}
@@ -329,6 +331,7 @@ def test_render_refuses_rows_and_unknown_panels_before_rendering(capture_dir, pa
 
 
 @pytest.mark.parametrize("response,error", [((200, b"<html>login</html>"), "invalid_image"), ((429, b""), "renderer_busy"),
+                                            ((200, PLACEHOLDER), "renderer_placeholder"),
                                             ((302, b""), "redirect_rejected"), ((200, PNG + bytes(8 * 1024 * 1024)), "response_too_large")])
 def test_render_failures_save_nothing(capture_dir, response, error):
     code, result, _ = invoke(RENDER, Transport((200, BOARD), response))

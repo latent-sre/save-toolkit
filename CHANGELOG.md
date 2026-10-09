@@ -11,7 +11,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 - The Grafana read helper gains `render`: it confirms a Classic panel exists in the dashboard model,
   then saves one 1200x600 PNG from Grafana's renderer to a private temporary file and prints its path,
   size, SHA-256 and dimensions. Windows are absolute and at most 7 days, up to five `--var` selections
-  are passed through, and a login page or other non-PNG answer fails as `invalid_image`. The
+  are passed through, a login page or other non-PNG answer fails as `invalid_image`, and an image that is not exactly
+  1200x600 fails as `renderer_placeholder`, because Grafana answers its render limit or a missing
+  renderer with a stock PNG under HTTP 200. The
   `sre-assistant` guard admits it, and the agent body now lists every helper read.
 
 ### Fixed

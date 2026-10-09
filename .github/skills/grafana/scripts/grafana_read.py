@@ -338,7 +338,11 @@ def _image(transport, base, authorization, organization, path):
     # A login page or error body served with 200 is not an image.
     if raw[:8] != PNG_SIGNATURE or raw[12:16] != b"IHDR" or len(raw) < 24:
         raise SafeError("invalid_image")
-    return raw, int.from_bytes(raw[16:20], "big"), int.from_bytes(raw[20:24], "big")
+    width, height = int.from_bytes(raw[16:20], "big"), int.from_bytes(raw[20:24], "big")
+    # Grafana answers its own concurrency limit or an unavailable renderer with a stock PNG under HTTP 200.
+    if (width, height) != (RENDER_WIDTH, RENDER_HEIGHT):
+        raise SafeError("renderer_placeholder")
+    return raw, width, height
 
 
 def _save_image(raw):

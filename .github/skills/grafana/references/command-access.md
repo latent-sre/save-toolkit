@@ -116,8 +116,10 @@ most 7 days, and up to five `--var name=value` selections (repeat a name for mul
 the image to a private temporary file and prints its path, size, SHA-256 and dimensions; it never
 returns image bytes or a URL carrying credentials. `coverage: image_uninspected` stays true until you
 open and inspect the PNG with an image-capable read. Without `--var`, the dashboard's saved variable
-defaults apply. Limits: 8 MiB and a 45-second timeout; a busy renderer fails as `renderer_busy`, and
-a non-PNG answer such as a login page fails as `invalid_image`. Follow
+defaults apply. Limits: 8 MiB and a 45-second timeout; a busy renderer fails as `renderer_busy`, a
+non-PNG answer such as a login page fails as `invalid_image`, and an image that is not exactly
+1200×600 fails as `renderer_placeholder`: Grafana serves a stock image with HTTP 200 when it hits its
+render limit or has no renderer. Follow
 [visual verification](./visual-verification.md) to bind the image to a query over the same window.
 
 Resolve variables and macros from actual dashboard selections before querying; the helper rejects
