@@ -383,7 +383,7 @@ class PlatformAdapterTests(unittest.TestCase):
                 # The projection body IS the adapted canonical body: nothing is prepended.
                 canonical_body = fleet_frontmatter.parse_file(source).body
                 self.assertEqual(
-                    adapters.adapt_text(canonical_body, "copilot").lstrip("\n"),
+                    adapters.adapt_text(canonical_body).lstrip("\n"),
                     rendered.split("---\n", 2)[2].lstrip("\n"),
                 )
         # The one host limitation that changes behavior still reaches its lane, from its own body.
@@ -952,7 +952,7 @@ class PlatformAdapterTests(unittest.TestCase):
         ):
             with self.subTest(command=command):
                 with self.assertRaisesRegex(ValueError, "relative Markdown link"):
-                    adapters.adapt_text(command, "copilot")
+                    adapters.adapt_text(command)
 
     def test_installed_dashboard_helper_runs_outside_the_plugin_checkout(self) -> None:
         outputs = adapters.expected_outputs(ROOT)

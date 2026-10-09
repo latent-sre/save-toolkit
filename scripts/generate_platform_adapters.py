@@ -16,8 +16,9 @@ import re
 import shutil
 import stat
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from pathlib import Path
+from typing import Any
 
 import fleet_frontmatter
 
@@ -123,6 +124,18 @@ COPILOT_NATIVE_BROWSER_MAP = {
     "mcp__microsoft_playwright_mcp__browser_type": ("typeInPage",),
     "mcp__microsoft_playwright_mcp__browser_press_key": ("typeInPage",),
 }
+# Offered by two lanes; _copilot_handoffs copies each handoff, so sharing the dict is safe.
+_APPROVED_CLOSEOUT_HANDOFF = {
+    "label": "Start approved closeout",
+    "agent": "scribe",
+    "prompt": (
+        "Continue only the explicitly approved operational knowledge closeout in this "
+        "conversation. Preserve evidence labels, re-read the caller-authorized scope, and "
+        "state what was not done. If approval or checkout binding is absent, report the gap "
+        "without writing."
+    ),
+    "send": True,
+}
 COPILOT_HANDOFFS_BY_SOURCE = {
     "observability-engineer": (
         {
@@ -140,17 +153,7 @@ COPILOT_HANDOFFS_BY_SOURCE = {
             ),
             "send": True,
         },
-        {
-            "label": "Start approved closeout",
-            "agent": "scribe",
-            "prompt": (
-                "Continue only the explicitly approved operational knowledge closeout in this "
-                "conversation. Preserve evidence labels, re-read the caller-authorized scope, and "
-                "state what was not done. If approval or checkout binding is absent, report the gap "
-                "without writing."
-            ),
-            "send": True,
-        },
+        _APPROVED_CLOSEOUT_HANDOFF,
     ),
     "principal-engineer": (
         {
@@ -207,17 +210,7 @@ COPILOT_HANDOFFS_BY_SOURCE = {
             ),
             "send": True,
         },
-        {
-            "label": "Start approved closeout",
-            "agent": "scribe",
-            "prompt": (
-                "Continue only the explicitly approved operational knowledge closeout in this "
-                "conversation. Preserve evidence labels, re-read the caller-authorized scope, and "
-                "state what was not done. If approval or checkout binding is absent, report the gap "
-                "without writing."
-            ),
-            "send": True,
-        },
+        _APPROVED_CLOSEOUT_HANDOFF,
         {
             "label": "Resolve the returned design fork",
             "agent": "principal-engineer",
@@ -307,11 +300,9 @@ def _installed_resource(match: re.Match[str]) -> str:
     return f"the installed `{name}` skill's `{tail.lstrip('/')}` resource"
 
 
-def adapt_text(text: str, host: str) -> str:
-    """Remove Claude-only runtime addressing while preserving the authored method."""
+def adapt_text(text: str) -> str:
+    """Remove Claude-only runtime addressing for Copilot while preserving the authored method."""
 
-    if host != "copilot":
-        raise ValueError(f"unknown host {host!r}")
     text = PLUGIN_TOKEN_RE.sub("", text)
     text = PLUGIN_PATH_RE.sub(_installed_resource, text)
     text = text.replace("`.claude/agents/", "`agents/")
@@ -357,7 +348,7 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     # removed. A host limitation that changes what a lane may do is stated in that lane's own
     # body (`sre-assistant` says it has no shell on Copilot), so it travels with the rule it
     # qualifies instead of in a header every agent repeats.
-    prompt_body = adapt_text(body, "copilot")
+    prompt_body = adapt_text(body)
     prompt_limit = SRE_AGENT_PROMPT_MAX_CHARS if name == "sre-assistant" else COPILOT_AGENT_PROMPT_MAX_CHARS
     if len(prompt_body) > prompt_limit:
         raise ValueError(
@@ -367,7 +358,7 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     frontmatter = (
         "---\n"
         f"name: {json.dumps(name, ensure_ascii=False)}\n"
-        f"description: {json.dumps(adapt_text(_description(fields, source), 'copilot'), ensure_ascii=False)}\n"
+        f"description: {json.dumps(adapt_text(_description(fields, source)), ensure_ascii=False)}\n"
         f"tools: {json.dumps(ordered)}\n"
     )
     if allowed_targets:
@@ -393,24 +384,18 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     )
 
 
-def _portable_skill(
-    source: Path, host: str
-) -> tuple[bytes, bool]:
+def _portable_skill(source: Path) -> str:
     parsed = fleet_frontmatter.parse_file(source)
-    fields, body = parsed.fields, parsed.body
+    fields = parsed.fields
     explicit = str(fields.get("name")) in MANUAL_ONLY or fields.get("disable-model-invocation") == "true"
-    portable_frontmatter = adapt_text("\n".join(parsed.raw_lines), host)
-    note = ""
-    if explicit:
-        note = "> This skill is explicit-only through Copilot's frontmatter switch.\n\n"
-    rendered = (
+    note = "> This skill is explicit-only through Copilot's frontmatter switch.\n\n" if explicit else ""
+    return (
         "---\n"
-        + portable_frontmatter
+        + adapt_text("\n".join(parsed.raw_lines))
         + "\n---\n\n"
         + note
-        + adapt_text(body, host)
+        + adapt_text(parsed.body)
     )
-    return rendered.encode("utf-8"), explicit
 
 
 def _is_runtime_byproduct(path: Path) -> bool:
@@ -446,26 +431,33 @@ def _assert_no_indirection_below(root: Path, path: Path, label: str) -> None:
             raise ValueError(f"{current}: {label} must not traverse a link/reparse point")
 
 
-def _canonical_skill_files(root: Path) -> list[Path]:
-    result: list[Path] = []
-    skill_root = root / "skills"
-    _assert_no_indirection_below(root, skill_root, "canonical source")
-    for current, directories, files in os.walk(skill_root, followlinks=False):
+def _walk_files(base: Path, label: str) -> Iterator[Path]:
+    """Every file below ``base`` except runtime byproducts, refusing any link/reparse point.
+
+    The walk never follows a link, and refuses one rather than skipping it: a projection must not
+    silently absorb, or a byte gate silently read, content from outside the repository.
+    """
+    for current, directories, files in os.walk(base, followlinks=False):
         current_path = Path(current)
         if _is_link_or_reparse(current_path):
-            raise ValueError(f"{current_path}: canonical source must not be a link/reparse point")
-        for directory in list(directories):
+            raise ValueError(f"{current_path}: {label} must not be a link/reparse point")
+        for directory in directories:
             child = current_path / directory
             if _is_link_or_reparse(child):
-                raise ValueError(f"{child}: canonical source must not be a link/reparse point")
+                raise ValueError(f"{child}: {label} must not be a link/reparse point")
         for filename in files:
             path = current_path / filename
             if _is_runtime_byproduct(path):
                 continue
             if _is_link_or_reparse(path):
-                raise ValueError(f"{path}: canonical source must not be a link/reparse point")
-            result.append(path)
-    return sorted(result)
+                raise ValueError(f"{path}: {label} must not be a link/reparse point")
+            yield path
+
+
+def _canonical_skill_files(root: Path) -> list[Path]:
+    skill_root = root / "skills"
+    _assert_no_indirection_below(root, skill_root, "canonical source")
+    return sorted(_walk_files(skill_root, "canonical source"))
 
 
 def expected_outputs(root: Path) -> dict[Path, bytes]:
@@ -479,9 +471,9 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
     for source in agents:
         if _is_link_or_reparse(source):
             raise ValueError(f"{source}: canonical source must not be a link/reparse point")
-        rendered = render_copilot_agent(source).encode("utf-8")
-        outputs[COPILOT_AGENTS / f"{source.stem}.agent.md"] = rendered
-        outputs[COPILOT_PLUGIN_AGENTS / f"{source.stem}.agent.md"] = rendered
+        agent = render_copilot_agent(source).encode("utf-8")
+        outputs[COPILOT_AGENTS / f"{source.stem}.agent.md"] = agent
+        outputs[COPILOT_PLUGIN_AGENTS / f"{source.stem}.agent.md"] = agent
     command_root = root / "commands"
     _assert_no_indirection_below(root, command_root, "canonical source")
     commands = sorted(command_root.glob("*.md"))
@@ -491,8 +483,8 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
         _assert_no_indirection_below(root, source, "canonical source")
         # Preserve the command's metadata and selected-agent/write preflight; packaging must
         # neither select an agent nor widen its tools. Normalize line endings as with prose assets.
-        rendered = adapt_text(source.read_text(encoding="utf-8"), "copilot")
-        outputs[COPILOT_PLUGIN_COMMANDS / source.name] = rendered.encode("utf-8")
+        command = adapt_text(source.read_text(encoding="utf-8"))
+        outputs[COPILOT_PLUGIN_COMMANDS / source.name] = command.encode("utf-8")
     hooks = root / COPILOT_HOOKS_SOURCE
     _assert_no_indirection_below(root, hooks, "canonical source")
     outputs[COPILOT_PLUGIN_HOOKS] = hooks.read_text(encoding="utf-8").encode("utf-8")
@@ -503,13 +495,12 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
     for source in skill_files:
         relative = source.relative_to(root / "skills")
         if source.name == "SKILL.md":
-            copilot, _ = _portable_skill(source, "copilot")
-            outputs[COPILOT_SKILLS / relative] = copilot
+            outputs[COPILOT_SKILLS / relative] = _portable_skill(source).encode("utf-8")
             continue
         suffix = source.suffix.lower()
         if suffix in ADAPT_TEXT_SUFFIXES:
             text = source.read_text(encoding="utf-8")
-            outputs[COPILOT_SKILLS / relative] = adapt_text(text, "copilot").encode("utf-8")
+            outputs[COPILOT_SKILLS / relative] = adapt_text(text).encode("utf-8")
         elif suffix in NORMALIZED_CODE_SUFFIXES:
             # Verbatim except line endings — read_text() normalizes CRLF/CR to LF via universal
             # newlines. No adapt_text: a script's tokens and shebang must survive unrewritten. A
@@ -522,8 +513,7 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
                 normalized = source.read_bytes()
             outputs[COPILOT_SKILLS / relative] = normalized
         else:
-            content = source.read_bytes()
-            outputs[COPILOT_SKILLS / relative] = content
+            outputs[COPILOT_SKILLS / relative] = source.read_bytes()
     return outputs
 
 
@@ -536,19 +526,7 @@ def _actual_generated_files(root: Path) -> set[Path]:
             continue
         if _is_link_or_reparse(base):
             raise ValueError(f"{base}: generated root must not be a link/reparse point")
-        for current, directories, files in os.walk(base, followlinks=False):
-            current_path = Path(current)
-            for directory in list(directories):
-                child = current_path / directory
-                if _is_link_or_reparse(child):
-                    raise ValueError(f"{child}: generated output must not be a link/reparse point")
-            for filename in files:
-                path = current_path / filename
-                if _is_runtime_byproduct(path):
-                    continue
-                if _is_link_or_reparse(path):
-                    raise ValueError(f"{path}: generated output must not be a link/reparse point")
-                actual.add(path.relative_to(root))
+        actual.update(path.relative_to(root) for path in _walk_files(base, "generated output"))
     return actual
 
 
@@ -569,7 +547,7 @@ def validate_generated_outputs(root: Path) -> list[str]:
     return failures
 
 
-def read_manifest(path: Path) -> dict:
+def read_manifest(path: Path) -> dict[str, Any]:
     """Public JSON-object manifest reader shared with fleet validation."""
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
@@ -580,7 +558,7 @@ def read_manifest(path: Path) -> dict:
 def validate_platform_contracts(root: Path) -> list[str]:
     failures: list[str] = []
     paths = [root / ".claude-plugin/plugin.json", root / "plugin.json"]
-    manifests: list[dict] = []
+    manifests: list[dict[str, Any]] = []
     for path in paths:
         try:
             manifests.append(read_manifest(path))
