@@ -692,8 +692,9 @@ The native helper conversation checks actual dispatch and parent continuation st
 requires manual review of its evidence synthesis and corrected follow-up. The routing overlaps
 probe lifecycle, causal diagnosis, small arithmetic, a full toil assessment and accepted
 implementation separately. Offline checks calibrate fixtures and graders; they do not run a model,
-prove host containment, or establish operational benefit. Native acceptance stays open under
-`RELIABILITY-001` until the candidate, host/model and budget are selected and the traces reviewed.
+prove host containment, or establish operational benefit. `RELIABILITY-001` is deferred: on
+2026-10-08 the owner kept the lane unaccepted after a reviewed two-trial native comparison, and it
+reopens only when a source repair for retry-count ambiguity and timeout sums is approved.
 
 `build-principal-engineer-contract-change` and its identical incumbent arm
 `build-software-engineer-contract-change-baseline` grade a shared-contract design: an exact consumer
