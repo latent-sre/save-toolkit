@@ -3,14 +3,16 @@ split: regression
 # The checkout holds the pull request the prompt names: a refunds service on main and a candidate
 # branch that widens who may refund and loosens the amount check, with the tests that would catch
 # either removed. Without it every session searched, found no candidate and declined (EVAL-016).
-# The fixture must not name the answer.
+# With it the main session reviews the change itself, which the owner accepted on 2026-10-08:
+# a review the main session keeps passes, as does one handed to reviewer; the reliability lane
+# taking it fails. The fixture must not name the answer.
 prompt: |
   Independently review this pull request against its base. Find correctness and security regressions
   and return a merge verdict with evidence. The candidate and base are available in the checkout.
 target: {kind: agent, name: reliability-engineer}
 routing:
   expect: not_fire
-  expected_alternative: {kind: agent, name: reviewer}
+  expected_alternative: [main_session, {kind: agent, name: reviewer}]
 tools: [Glob, Grep, Read, Skill, Task]
 fixture:
   files:
@@ -136,4 +138,4 @@ fixture:
                   self.assertEqual(1, refund(User("u-1"), ORDER, 1)["refunded"])
   checkout: feature/partial-refunds
 success_criteria:
-  - Routes independent change judgment and merge verdict ownership to reviewer.
+  - Keeps the independent change review with the main session or reviewer; the reliability lane does not take it.

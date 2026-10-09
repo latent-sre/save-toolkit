@@ -74,32 +74,6 @@ come from the owner discussion on 2026-10-02. All product runtime behavior remai
 **SRE task:** Run the same useful operational checks from a terminal or an agent, preserve their
 evidence, and extend the tool as new operational needs appear.
 
-### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
-
-**Status:** `decision-needed` (2026-10-08); the owner-approved two-trial comparison ran.
-- [verified] Candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt byte-identically from its
-  commit, ran one native trial on `claude-sonnet-5-5` for USD 0.70 in all. Both pass the three
-  structural checks.
-- [sourced: independent blind trace review] Both arms pass four of the five manual criteria and
-  fail the timing criterion the same way: each fixes the retry count at three and treats the
-  36-second sum of timeouts as a bound on elapsed time and slot use.
-- [unverified] In this one-sample-per-arm comparison, the candidate's targeted timing correction
-  did not change that defect.
-**Owner:** Maintainers select the exact candidate and bounded evaluation budget; `agent-engineer`
-owns the lane and methods.
-**Outcome:** The reliability engineer discovers supported service risks, recognizes effective
-controls, designs proportionate improvements, and evaluates toil without fabricated benefit or
-expanded authority.
-**Next action:** The owner decides whether to accept the lane on this evidence, keep it
-unaccepted, or scope a further source repair for retry-count ambiguity and timeout sums; one sample
-per arm cannot establish a rate. No additional call is authorized. Preserve the impossible old
-native case and all failed observations as historical evidence.
-**Evidence:** [Owner-approved comparison on rebuilt arms](reviews/2026-09-30-backlog-four/reliability.md#owner-approved-comparison-on-rebuilt-arms-2026-10-08),
-with the earlier comparison and instrument repair in the same record; the
-[lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
-**SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
-work with an owner and a meaningful proof-of-improvement check.
-
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
 
 **Status:** `active` (2026-10-08). [sourced] The owner's bar is demonstrably better design judgment
@@ -182,8 +156,6 @@ Open choices:
 - a re-run that swaps the "design document" and "design record" wording;
 - whether the 3/3 alert-guidance loads on repaired digest `fb2fba9ac780` suffice for that prerequisite;
   the previous digest's 3/3 and earlier 0/3 remain separate evidence; the written-record check stays;
-- the design-review boundary: re-measured twice on the isolated runner, it waits on `EVAL-016`,
-  which seeds the consumers its prompt names;
 - the combined versus principal-only and architect-only comparison, which the picker sheet decides.
 
 Each further campaign states trial count, estimated cost, review hours and cost cap under DEC-04
@@ -580,35 +552,6 @@ cause is unconfirmed, so a recurrence reopens it here.
 **SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", trust that it never hides
 a recorded failure, and know which host and CLI a PASS or FAIL was measured on.
 
-### EVAL-016 — the reviewer routing cases measure review routing and carry the owner's disposition
-
-**Status:** `decision-needed` (2026-10-08). Both cases now hold what their prompts name: change
-review a refunds service and a candidate branch that widens who may refund, design review the two
-consumers its document lists. They still fail 0/3 each on `2671a684`, for a new reason.
-- [verified] Every session read the seeded code, found the planted defect and returned its own
-  do-not-merge verdict. Change review named the authorization regression in 3/3; design review
-  found the nightly report rejects `account_id` in 3/3.
-- [verified] No session dispatched `reviewer`, and neither design lane fired.
-- [unverified] As with accepted implementation, the main session keeps review of material it can
-  read.
-- [verified] Earlier, unseeded, design review reached `reviewer` first-call in 2 of 7 trials on the
-  old runner; change review failed 0/3 before and 0/3 after the description clause. The clause
-  naming design docs and ADRs (`b724c1e4`) shows no measured effect in 9 trials.
-
-**Owner:** `agent-engineer` owns the scenarios; maintainers approve any paid re-run.
-**Outcome:** Each case's workspace holds what its prompt names, and each case carries the owner's
-routing disposition: a review the main session keeps passes, both stay red as evidence, or a
-product change makes review reach `reviewer`. The description clause is kept or reverted with it.
-**Next action:** The owner chooses, as for the accepted-implementation case: accept a review the
-main session keeps, with `expected_alternative: [main_session, reviewer]`, so each case guards only
-against a design lane taking it; keep both red as evidence that review requests do not reach
-`reviewer` unasked; or ask for a product change that makes them. Then keep or revert the
-description clause. No further paid run is authorized.
-**Evidence:** Label `seeded-sonnet` under `.eval-runs/eval-016-20261008/`, USD 0.72; labels
-`rev-sonnet` and `base-sonnet` under `.eval-runs/eval-013-014-20261008/`.
-**SRE task:** Ask for an independent review and know the routing check shows whether it reaches the
-reviewer.
-
 ### PRECOMMIT-001 — software-engineer reviews a 3-file change before committing, unasked
 
 **Status:** `active` (2026-10-08). The owner chose the trigger on 2026-10-07: review at 3 or more
@@ -632,6 +575,33 @@ five wordings reviewed in 10 of 15 trials. Runs are private under `.eval-runs/pr
 without having to ask for it each time.
 
 ## Deferred
+
+### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
+
+**Status:** `deferred` (2026-10-08); the owner kept the lane unaccepted after the owner-approved
+two-trial comparison.
+- [verified] Candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt byte-identically from its
+  commit, ran one native trial on `claude-sonnet-5-5` for USD 0.70 in all. Both pass the three
+  structural checks.
+- [sourced: independent blind trace review] Both arms pass four of the five manual criteria and
+  fail the timing criterion the same way: each fixes the retry count at three and treats the
+  36-second sum of timeouts as a bound on elapsed time and slot use.
+- [unverified] In this one-sample-per-arm comparison, the candidate's targeted timing correction
+  did not change that defect.
+**Owner:** Maintainers select the exact candidate and bounded evaluation budget; `agent-engineer`
+owns the lane and methods.
+**Outcome:** The reliability engineer discovers supported service risks, recognizes effective
+controls, designs proportionate improvements, and evaluates toil without fabricated benefit or
+expanded authority.
+**Next action:** None. Reopens when the owner scopes and approves a source repair for retry-count
+ambiguity and timeout sums, with its own bounded comparison; one sample per arm cannot establish a
+rate. The reliability lane stays shipped and unaccepted. Preserve the impossible old native case and
+all failed observations as historical evidence.
+**Evidence:** [Owner-approved comparison on rebuilt arms](reviews/2026-09-30-backlog-four/reliability.md#owner-approved-comparison-on-rebuilt-arms-2026-10-08),
+with the earlier comparison and instrument repair in the same record; the
+[lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
+**SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
+work with an owner and a meaningful proof-of-improvement check.
 
 ### REVIEWER-001 — the reviewer reads the history of every changed file
 

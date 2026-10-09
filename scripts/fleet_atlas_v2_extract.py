@@ -345,6 +345,30 @@ def _flow_scalar(lines: Sequence[str], index: int, value: str) -> tuple[int, str
     raise ValueError('unterminated YAML quoted or flow scalar')
 
 
+_FLOW_ITEM = re.compile(r'\{[^{}]*\}|[^,\[\]{}\s][^,\[\]{}]*')
+
+
+def alternatives(value: object) -> list[str | dict[str, str]]:
+    """A negative scenario's alternatives: words and {kind, name} mappings. The subset parser keeps a
+    flow list such as `[main_session, {kind: agent, name: reviewer}]` as text, so split it here."""
+    if isinstance(value, dict):
+        return [value]
+    if not isinstance(value, str) or not value.strip():
+        return []
+    text = value.strip()
+    if not (text.startswith('[') and text.endswith(']')):
+        return [text]
+    items: list[str | dict[str, str]] = []
+    for raw in (item.strip() for item in _FLOW_ITEM.findall(text[1:-1])):
+        items.append(dict(re.findall(r'(\w+)\s*:\s*([\w.-]+)', raw)) if raw.startswith('{') else raw)
+    return items
+
+
+def alternative_label(value: object) -> str:
+    return '|'.join(item if isinstance(item, str) else f'{item.get("kind")}:{item.get("name")}'
+                    for item in alternatives(value))
+
+
 def frontmatter_fields(source: Source) -> tuple[dict[str, fleet_frontmatter.FrontmatterValue], tuple[Span, ...]]:
     """Component frontmatter through the fleet's shared parser, cited from the opening fence."""
     parsed = fleet_frontmatter.parse(source.text, source.path, mode='lenient')
@@ -562,8 +586,7 @@ def _component_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> Sta
             if 'id' not in meta:
                 continue
             routing = meta.get('routing') or {}
-            alt = routing.get('expected_alternative')
-            alt = alt if isinstance(alt, str) else f'{alt.get("kind")}:{alt.get("name")}' if isinstance(alt, dict) else ''
+            alt = alternative_label(routing.get('expected_alternative'))
             add(_record(f'scenario:{meta["id"]}', 'scenario', str(meta['id']), path,
                 yaml_key_spans(source, ('id', 'mode', 'split', 'routing', 'threshold', 'agent', 'target', 'skill')),
                 authority='live-contract', attrs={'mode': meta.get('mode', ''), 'split': meta.get('split', ''), 'expect': routing.get('expect', ''), 'threshold': meta.get('threshold'), 'expected_alternative': alt, 'file': path}, family='scenarios'))
@@ -1332,10 +1355,10 @@ def _scenario_edges(rel: _Relations, record: Record, source: Source) -> None:
     if target_id not in rel.by_id:
         rel.unknown(node.id, 'extract.scenario-target-missing', f'{source.path} targets {target_id}, which has no node', proof, 'Retarget the scenario or restore the component', absence=True)
     elif routing.get('expect') == 'not_fire':
-        alt = routing.get('expected_alternative')
         rel.edge('near_miss_for', node.id, target_id, proof, attrs={'expected_alternative': record.attributes['expected_alternative']})
-        if isinstance(alt, dict):
-            rel.edge('routes_to', node.id, f'{alt.get("kind")}:{alt.get("name")}', proof, attrs={'via': 'expected_alternative'})
+        for alt in alternatives(routing.get('expected_alternative')):
+            if isinstance(alt, dict):
+                rel.edge('routes_to', node.id, f'{alt.get("kind")}:{alt.get("name")}', proof, attrs={'via': 'expected_alternative'})
     else:
         rel.edge('verified_by', target_id, node.id, proof, attrs={'mode': data.get('mode', '')})
     for item in sorted(set(ITEM.findall(source.text))):

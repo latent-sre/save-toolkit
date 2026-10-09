@@ -502,6 +502,28 @@ def test_schema():
                         with self.assertRaises(ValueError):
                             verify_facts(candidate, source, result.predicates, result.evaluators)
 
+    def test_a_listed_negative_alternative_keeps_each_component_route(self):
+        """Codex on PR #341: a list alternative was serialized as one raw string and lost its routes."""
+        files = {'agents/reliability-engineer.md': agent('reliability-engineer'),
+                 'agents/reviewer.md': agent('reviewer'),
+                 'agents/software-engineer.md': agent('software-engineer')}
+        for name, alternative in (('single', '{kind: agent, name: reviewer}'),
+                                  ('listed', '[main_session, {kind: agent, name: reviewer}]'),
+                                  ('two', '[{kind: agent, name: reviewer}, {kind: agent, name: software-engineer}]')):
+            files[f'evals/scenarios/{name}.yaml'] = (
+                f'id: {name}\ntarget: {{kind: agent, name: reliability-engineer}}\n'
+                f'routing:\n  expect: not_fire\n  expected_alternative: {alternative}\nprompt: p\n')
+        _, _, graph = build(files)
+        routes = {(f.subject, f.object) for f in graph.facts if f.predicate == 'routes_to'}
+        self.assertIn(('scenario:single', 'agent:reviewer'), routes)
+        self.assertIn(('scenario:listed', 'agent:reviewer'), routes)
+        self.assertIn(('scenario:two', 'agent:reviewer'), routes)
+        self.assertIn(('scenario:two', 'agent:software-engineer'), routes)
+        recorded = {f.subject: dict(f.qualifiers)['expected_alternative']
+                    for f in graph.facts if f.predicate == 'near_miss_for'}
+        self.assertEqual('main_session|agent:reviewer', recorded['scenario:listed'])
+        self.assertEqual('agent:reviewer', recorded['scenario:single'])
+
     def test_scenario_subset_matches_yaml_identity_and_ignores_prompt_fixture_tokens(self):
         text = '''id: real-case
 target: {kind: agent, name: sre-assistant}

@@ -274,7 +274,7 @@ class ChangeReviewCaseTests(SeededRoutingCase):
 
     def test_the_case_routes_without_building_and_keeps_the_read_boundary(self):
         spec = scenario_file(self.SCENARIO)
-        self.assert_routes_within_the_read_boundary(spec, {"kind": "agent", "name": "reviewer"})
+        self.assert_routes_within_the_read_boundary(spec, ["main_session", {"kind": "agent", "name": "reviewer"}])
         fixture = spec["fixture"]
         for content in [*fixture["files"].values(), *fixture["branches"]["feature/partial-refunds"]["files"].values()]:
             self.assertNotIn("reviewer", content.lower(), "the fixture must not name the answer")
