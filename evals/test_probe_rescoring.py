@@ -36,6 +36,7 @@ from probe_testkit import (
     judge_process,
     judge_verdict,
     latest_assessment,
+    read_json,
     saved_grade,
     saved_summary,
     tiny_spec,
@@ -190,7 +191,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
         added = latest_assessment(run)
         self.assertEqual(("FAIL", 1), (added["status"], added["assessment_revision"]))
         self.assertEqual("FAIL", latest_assessment(run, "trace-summary.json")["status"])
-        report = json.loads(next(self.root.glob("regrade-*.json")).read_text(encoding="utf-8"))
+        report = read_json(next(self.root.glob("regrade-*.json")))
         self.assertEqual(["FAIL"], [r["status"] for r in report["runs"]])
 
 
@@ -251,7 +252,7 @@ class UnifiedRegradeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             run = self._saved(Path(tmp), spec, label="cand", text="latency", events=events)
             summary_path = run / "outputs" / "trace-summary.json"
-            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            summary = read_json(summary_path)
             summary.pop("plugin")
             summary_path.write_text(json.dumps(summary), encoding="utf-8")
             grading = probe_rescoring.regrade_run(run, spec)
@@ -366,7 +367,7 @@ class RegradeIdentityTests(unittest.TestCase):
                     self.assertEqual("FAIL", grading["status"])
                     self.assertEqual([False, True], [e["passed"] for e in grading["expectations"]])
                     self.assertIn("first policy failed", grading["expectations"][0]["evidence"])
-            self.assertEqual(original, json.loads((run / "grading.json").read_text(encoding="utf-8")),
+            self.assertEqual(original, read_json(run / "grading.json"),
                              "the live grade is never rewritten; the regrade sits in assessments/")
 
     def test_legacy_and_changed_scenarios_require_a_rerun_without_a_judge_call(self) -> None:
@@ -576,7 +577,7 @@ class RescoreTests(unittest.TestCase):
             rows = probe_rescoring.rescore(Path(saved), [self.SPEC], Path(out))["runs"]
             self.assertEqual(before, self._snapshot(Path(saved)), "the saved run is byte-for-byte unchanged")
             self.assertTrue((Path(out) / "eval-tiny" / "new_skill" / "run-1" / "grading.json").is_file())
-            record = json.loads((Path(out) / "rescore.json").read_text(encoding="utf-8"))
+            record = read_json(Path(out) / "rescore.json")
         self.assertEqual(probe_fingerprints.HARNESS_IDENTITY, record["runner"])
         self.assertEqual(rows, record["runs"])
         self.assertEqual("FAIL", rows[0]["saved"]["status"])
@@ -626,7 +627,7 @@ class RescoreTests(unittest.TestCase):
             (Path(saved) / "eval-tiny" / "new_skill" / "run-3").mkdir()
             (Path(saved) / "eval-retired-case" / "arm" / "run-1").mkdir(parents=True)
             rows = probe_rescoring.rescore(Path(saved), [self.SPEC], Path(out))["runs"]
-            skipped = json.loads((Path(out) / "rescore.json").read_text(encoding="utf-8"))["skipped"]
+            skipped = read_json(Path(out) / "rescore.json")["skipped"]
         self.assertEqual([1, 2], [r["run"] for r in rows])
         self.assertEqual("PASS", rows[0]["rescored"]["status"])
         self.assertIn("JSONDecodeError", rows[1]["error"])
@@ -740,8 +741,8 @@ class RegradeEvidenceTests(unittest.TestCase):
                 rescored = Path(tmp) / "rescored"
                 rescored.mkdir()
                 probe_rescoring.rescore(iteration, [spec], rescored)
-            regrade_record = json.loads(next(iteration.glob("regrade-*.json")).read_text(encoding="utf-8"))
-            rescore_record = json.loads((rescored / "rescore.json").read_text(encoding="utf-8"))
+            regrade_record = read_json(next(iteration.glob("regrade-*.json")))
+            rescore_record = read_json(rescored / "rescore.json")
         self.assertNotIn("run-1-old", graded, "neither job grades a folder that is not a numbered run")
         self.assertEqual([1], [row["run"] for row in rows])
         for record in (regrade_record, rescore_record):

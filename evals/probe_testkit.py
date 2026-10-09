@@ -375,11 +375,15 @@ def write_saved_run(
     return run
 
 
+def read_json(path: Path) -> Any:
+    """The JSON a run or a regrade wrote at `path`."""
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def latest_assessment(run: Path, name: str = "grading.json") -> dict[str, Any]:
     """The newest assessment a regrade wrote beside the run (threat-model ADR result rule 8)."""
     revisions = sorted(int(p.name) for p in (run / "assessments").iterdir() if p.name.isdigit())
-    loaded: dict[str, Any] = json.loads((run / "assessments" / str(revisions[-1]) / name).read_text(encoding="utf-8"))
-    return loaded
+    return read_json(run / "assessments" / str(revisions[-1]) / name)
 
 
 def judge_process(*, returncode: int = 0, stdout: str = "", stderr: str = "") -> subprocess.CompletedProcess[str]:

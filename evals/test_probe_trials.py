@@ -46,6 +46,7 @@ from probe_testkit import (
     judge_verdict,
     native_dispatch_events,
     parse_events,
+    read_json,
     skill_events,
     tiny_spec,
     trace_measures,
@@ -100,7 +101,7 @@ class NativeConversationRunTests(unittest.TestCase):
                 self.assertEqual("save-toolkit:reliability-engineer", argv[argv.index("--agent") + 1])
                 self.assertEqual("Skill,Read,Task", argv[argv.index("--tools") + 1])
             self.assertEqual("PASS", probe_rescoring.regrade_run(run, self.SPEC)["status"])
-            original = json.loads((run / "invocation.json").read_text(encoding="utf-8"))
+            original = read_json(run / "invocation.json")
             for replacement in (None, "save-toolkit:sre-assistant"):
                 metadata = json.loads(json.dumps(original))
                 index = metadata["argv"].index("--agent")
@@ -240,8 +241,8 @@ class NativeConversationRunTests(unittest.TestCase):
             summary, run, calls, _ = self.run_native(Path(tmp), runtime=runtime)
             self.assertEqual(2, len(calls), "recording the runtime must not add a CLI call")
             self.assertEqual(runtime, summary["runtime"])
-            self.assertEqual(runtime, json.loads((run / "provenance.json").read_text(encoding="utf-8"))["runtime"])
-            self.assertEqual(runtime, json.loads((run / "outputs/trace-summary.json").read_text(encoding="utf-8"))["runtime"])
+            self.assertEqual(runtime, read_json(run / "provenance.json")["runtime"])
+            self.assertEqual(runtime, read_json(run / "outputs/trace-summary.json")["runtime"])
             self.assertEqual(runtime, probe_rescoring.regrade_run(run, self.SPEC)["runtime"],
                              "a regrade reports the runtime that measured the trial, not today's")
 
@@ -259,7 +260,7 @@ class NativeConversationRunTests(unittest.TestCase):
                 self.assertEqual("false", argv[argv.index("--prompt-suggestions") + 1])
             self.assertEqual("PASS", summary["status"])
             self.assertEqual("UNVERIFIED", summary["semantic_assessment"])
-            timing = json.loads((run / "timing.json").read_text(encoding="utf-8"))
+            timing = read_json(run / "timing.json")
             self.assertAlmostEqual(0.1, timing["trial_cost_usd"])
             self.assertEqual(20, timing["total_tokens"])
             self.assertEqual("PASS", probe_rescoring.regrade_run(run, self.SPEC)["status"])
@@ -274,7 +275,7 @@ class NativeConversationRunTests(unittest.TestCase):
                 summary, run, calls, _ = self.run_native(Path(tmp), **flags)
                 self.assertEqual(2, len(calls))
                 self.assertEqual("INCONCLUSIVE", summary["status"])
-                grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+                grading = read_json(run / "grading.json")
                 self.assertIn(reason, grading["inconclusive"])
 
     def test_initial_runtime_failure_stops_before_followup(self):
@@ -298,7 +299,7 @@ class NativeConversationRunTests(unittest.TestCase):
             self.assertEqual(trace.dispatches, trace.agents)
             self.assertEqual([], trace.tool_errors + trace.denials)
             self.assertEqual("INCONCLUSIVE", summary["status"])
-            self.assertEqual("unexpected native helper session", json.loads((run / "grading.json").read_text(encoding="utf-8"))["inconclusive"])
+            self.assertEqual("unexpected native helper session", read_json(run / "grading.json")["inconclusive"])
             self.assertEqual(1, len(calls))
             self.assertFalse((run / "followup").exists())
 
@@ -315,7 +316,7 @@ class NativeConversationRunTests(unittest.TestCase):
                 summary, run, calls, _ = self.run_native(Path(tmp), **flags)
                 self.assertEqual("INCONCLUSIVE", summary["status"])
                 self.assertEqual(1, len(calls))
-                self.assertIn("model", json.loads((run / "grading.json").read_text(encoding="utf-8"))["inconclusive"])
+                self.assertIn("model", read_json(run / "grading.json")["inconclusive"])
 
     def test_unadvertised_child_tool_use_stops_before_resume(self):
         for tool in ("Bash", "Write"):
@@ -323,7 +324,7 @@ class NativeConversationRunTests(unittest.TestCase):
                 summary, run, calls, _ = self.run_native(Path(tmp), hidden_tool=tool)
                 self.assertEqual("INCONCLUSIVE", summary["status"])
                 self.assertEqual(1, len(calls))
-                self.assertIn("ungranted", json.loads((run / "grading.json").read_text(encoding="utf-8"))["inconclusive"])
+                self.assertIn("ungranted", read_json(run / "grading.json")["inconclusive"])
 
     def test_native_missing_or_invalid_cost_stops_before_resume(self):
         for cost in (None, float("nan"), float("inf"), -0.01, 0.76):
@@ -350,7 +351,7 @@ class NativeConversationRunTests(unittest.TestCase):
                     (run / "followup/invocation.json").unlink()
                 elif damage in ("workspace", "exit"):
                     metadata_path = path.parent / "invocation.json"
-                    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+                    metadata = read_json(metadata_path)
                     if damage == "workspace":
                         metadata.pop("workspace")
                     else:
@@ -517,8 +518,8 @@ class EndToEndStubTests(TempRootTestCase):
         out = self.root / "iteration"
         summary = self._run_trial(out, keep_workspace=True)
         run = out / "eval-tiny" / "new_skill" / "run-1"
-        recorded = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
-        provenance = json.loads((run / "provenance.json").read_text(encoding="utf-8"))
+        recorded = read_json(run / "outputs" / "trace-summary.json")
+        provenance = read_json(run / "provenance.json")
         image = Path(recorded["plugin"]["plugin_served_from"])
         try:
             self.assertEqual(str(ROOT.resolve()), provenance["plugin_root"], "the candidate is still the checkout")
@@ -547,8 +548,8 @@ class EndToEndStubTests(TempRootTestCase):
         out = self.root / "iteration"
         self._run_trial(out, spec, executable=f'"{sys.executable}" "{stub}"')
         run = out / "eval-ref" / "new_skill" / "run-1"
-        live = json.loads((run / "grading.json").read_text(encoding="utf-8"))
-        image = Path(json.loads((run / "provenance.json").read_text(encoding="utf-8"))["plugin_served_from"])
+        live = read_json(run / "grading.json")
+        image = Path(read_json(run / "provenance.json")["plugin_served_from"])
         self.assertFalse(image.exists(), "the image left with the workspace")
         regraded = probe_rescoring.regrade_run(run, spec, write=False)
         verdicts = {e["text"]: e["passed"] for e in live["expectations"]}
@@ -600,7 +601,7 @@ class EndToEndStubTests(TempRootTestCase):
                 out = self.root / failure.replace(" ", "-")
                 code, calls, printed = self._batch(out, stub_cli(self.root, **stub), [stub_spec()],
                                                    "--scenario", "tiny", "--trials", "3")
-                row = json.loads((out / "summary-l-default.json").read_text(encoding="utf-8"))[0]
+                row = read_json(out / "summary-l-default.json")[0]
                 stop = json.loads(next(line for line in printed.splitlines() if "stopped after" in line))
                 self.assertEqual((2, [("tiny", 1)]), (code, calls))
                 self.assertIn(failure, row.get("identity_failure", ""))
@@ -658,8 +659,7 @@ class EndToEndStubTests(TempRootTestCase):
         """Codex on PR #328: a trial that resolved no model was graded PASS or FAIL and pooled with
         identified trials, where a result whose required identity is unknown is never merged."""
         summary = self._run_trial(self.root / "it", label="nomodel", executable=stub_cli(self.root, resolved_model=""))
-        grading = json.loads((self.root / "it" / "eval-tiny" / "nomodel" / "run-1" / "grading.json")
-                             .read_text(encoding="utf-8"))
+        grading = read_json(self.root / "it" / "eval-tiny" / "nomodel" / "run-1" / "grading.json")
         self.assertEqual(("INCONCLUSIVE", "resolved model identity missing"), (summary["status"], grading.get("void")))
 
     def test_a_backing_service_lost_during_grading_reaches_the_summary_row(self) -> None:
@@ -682,10 +682,10 @@ class EndToEndStubTests(TempRootTestCase):
         run = out / "eval-tiny" / "new_skill" / "run-1"
         for name in ("grading.json", "timing.json", "stdout.jsonl", "outputs/response.md", "outputs/workspace.patch", "outputs/trace-summary.json"):
             self.assertTrue((run / name).exists(), name)
-        recorded = json.loads((run / "outputs/trace-summary.json").read_text(encoding="utf-8"))
+        recorded = read_json(run / "outputs/trace-summary.json")
         init = json.loads((run / "stdout.jsonl").read_text(encoding="utf-8").splitlines()[0])
         self.assertEqual(Path(init["cwd"]), Path(recorded["workspace"]))
-        timing = json.loads((run / "timing.json").read_text(encoding="utf-8"))
+        timing = read_json(run / "timing.json")
         self.assertEqual(["stub-model"], timing["models"])
         self.assertEqual(120, timing["total_tokens"])
         with self.assertRaises(RuntimeError):  # a second run into the same slot refuses without --overwrite
@@ -696,7 +696,7 @@ class EndToEndStubTests(TempRootTestCase):
         summary = self._run_trial(out,
                                   executable=stub_cli(self.root, is_error=True, subtype="error_max_turns", result="stopped"))
         self.assertEqual("INCONCLUSIVE", summary["status"])
-        grading = json.loads((out / "eval-tiny" / "new_skill" / "run-1" / "grading.json").read_text(encoding="utf-8"))
+        grading = read_json(out / "eval-tiny" / "new_skill" / "run-1" / "grading.json")
         self.assertTrue(all(not e["passed"] for e in grading["expectations"]))
         self.assertIn("error result", grading["expectations"][0]["evidence"])
 
@@ -715,7 +715,7 @@ class EndToEndStubTests(TempRootTestCase):
         out = self.root / "iteration"
         summary = self._run_trial(out, executable=stub_cli(self.root, exit_code=2))
         self.assertEqual("INCONCLUSIVE", summary["status"])
-        grading = json.loads((out / "eval-tiny" / "new_skill" / "run-1" / "grading.json").read_text(encoding="utf-8"))
+        grading = read_json(out / "eval-tiny" / "new_skill" / "run-1" / "grading.json")
         self.assertIn("exited 2", grading["expectations"][0]["evidence"])
 
     def test_foreign_or_missing_tool_inventory_is_inconclusive(self) -> None:
@@ -725,7 +725,7 @@ class EndToEndStubTests(TempRootTestCase):
         self.assertEqual("INCONCLUSIVE", extra["status"])
         missing = self._run_trial(out, run_number=2, executable=stub_cli(self.root, tools=["Bash", "Skill"]))
         self.assertEqual("INCONCLUSIVE", missing["status"])
-        evidence = json.loads((out / "eval-tiny" / "new_skill" / "run-2" / "grading.json").read_text(encoding="utf-8"))["expectations"][0]["evidence"]
+        evidence = read_json(out / "eval-tiny" / "new_skill" / "run-2" / "grading.json")["expectations"][0]["evidence"]
         self.assertIn("inventory mismatch", evidence)
 
     def test_a_read_only_agent_advertises_fewer_tools_and_still_grades(self) -> None:
@@ -762,11 +762,11 @@ class EndToEndStubTests(TempRootTestCase):
         out = self.root / "iteration"
         summary = self._run_trial(out)
         run = out / "eval-tiny" / "new_skill" / "run-1"
-        prov = json.loads((run / "provenance.json").read_text(encoding="utf-8"))
+        prov = read_json(run / "provenance.json")
         self.assertRegex(prov["plugin_commit"], r"^[0-9a-f]{40}$")
         self.assertRegex(prov["plugin_source_sha256"], r"^[0-9a-f]{64}$")
         self.assertIsInstance(prov["plugin_inputs_dirty"], bool)
-        trace = json.loads((run / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
+        trace = read_json(run / "outputs" / "trace-summary.json")
         self.assertEqual(prov, {**trace["plugin"], **probe_fingerprints.runner_provenance(), "runtime": trace["runtime"]})
         self.assertIsNone(prov["runtime"], "a direct run_trial call without a measured runtime records none")
         self.assertEqual({"mode": "host"}, trace["isolation"])
@@ -797,9 +797,9 @@ class EndToEndStubTests(TempRootTestCase):
                                       executable=stub_cli(self.root, result="some response"), judge_binding=binding)
         self.assertEqual("PASS", summary["status"])
         run = self.root / "iteration/eval-tiny/bound/run-1"
-        provenance = json.loads((run / "provenance.json").read_text(encoding="utf-8"))
-        grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
-        timing = json.loads((run / "timing.json").read_text(encoding="utf-8"))
+        provenance = read_json(run / "provenance.json")
+        grading = read_json(run / "grading.json")
+        timing = read_json(run / "timing.json")
         self.assertEqual(binding.metadata, provenance["judge_binding"])
         self.assertEqual(binding.metadata, grading["judge_binding"])
         self.assertEqual(binding.metadata, timing["judge"]["records"][0]["judge_binding"])
@@ -888,8 +888,8 @@ class EndToEndStubTests(TempRootTestCase):
         self.assertEqual(("PASS", 2), (summary["status"], summary["attempt"]))
         kept = run.parent / "attempts" / "run-1" / "1"
         self.assertEqual("old original", (kept / "grading.original.json").read_text(encoding="utf-8"))
-        self.assertEqual("superseded", json.loads((kept / "attempt.json").read_text(encoding="utf-8"))["state"])
-        final = json.loads((run / "attempt.json").read_text(encoding="utf-8"))
+        self.assertEqual("superseded", read_json(kept / "attempt.json")["state"])
+        final = read_json(run / "attempt.json")
         self.assertEqual((2, "final"), (final["attempt"], final["state"]))
         self.assertEqual([], list(run.parent.glob(".run-1-*")), "no hidden attempt or backup is left behind")
 
@@ -899,11 +899,11 @@ class EndToEndStubTests(TempRootTestCase):
             self._run_trial(out, label="auth",
                             executable=stub_cli(self.root, is_error=True, result="Not logged in. Please run /login.", exit_code=1))
         kept = out / "eval-tiny" / "auth" / "attempts" / "run-1" / "1"
-        record = json.loads((kept / "attempt.json").read_text(encoding="utf-8"))
+        record = read_json(kept / "attempt.json")
         self.assertEqual("incomplete", record["state"])
         self.assertIn("AuthUnavailable", record["reason"])
         self.assertTrue((kept / "stdout.jsonl").is_file(), "the trace that showed the failure is kept")
-        partial = json.loads((kept / "record.json").read_text(encoding="utf-8"))
+        partial = read_json(kept / "record.json")
         self.assertEqual(("incomplete", "incomplete"), (partial["attempt"]["state"], partial["run_end"]["kind"]))
         self.assertIn("AuthUnavailable", partial["run_end"]["reason"])
         self.assertIsNone(partial["verdict"]["status"], "an incomplete attempt has no verdict, never a guessed one")
@@ -922,7 +922,7 @@ class EndToEndStubTests(TempRootTestCase):
             self._run_trial(out, label="early")
         kept = out / "eval-tiny" / "early" / "attempts" / "run-1" / "1"
         self.assertNotIn("no record", warnings.getvalue())
-        record = json.loads((kept / "record.json").read_text(encoding="utf-8"))
+        record = read_json(kept / "record.json")
         self.assertEqual(("incomplete", "incomplete"), (record["attempt"]["state"], record["run_end"]["kind"]))
         self.assertEqual({"trial_usd": 0.0, "judge_usd": 0.0, "known_usd": 0.0, "complete": True},
                          {key: record["cost"][key] for key in ("trial_usd", "judge_usd", "known_usd", "complete")})
@@ -967,7 +967,7 @@ class EndToEndStubTests(TempRootTestCase):
         # Result rule 8: a regrade adds assessments beside each run and never rewrites a summary, so
         # an overwritten slot cannot copy one candidate's verdict into another's row.
         self.assertEqual(summaries, {path: path.read_bytes() for path in summaries})
-        sonnet = json.loads((out / "summary-shared-sonnet.json").read_text(encoding="utf-8"))[0]
+        sonnet = read_json(out / "summary-shared-sonnet.json")[0]
         self.assertEqual(("FAIL", "a" * 64, ["sonnet"]), (sonnet["status"], sonnet["plugin_source_sha256"], sonnet["models"]))
         next_run = {**saved["sonnet"], "run": 2, "status": "PASS", "passed": 3}
         with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]), \
@@ -1001,7 +1001,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
 
         self.assertEqual("INCONCLUSIVE", summary["status"])
         run = out / "eval-tiny" / "candidate" / "run-1"
-        grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+        grading = read_json(run / "grading.json")
         self.assertIn("backing service unavailable", grading["expectations"][0]["evidence"])
         self.assertEqual("", (run / "stdout.jsonl").read_text(encoding="utf-8"))
 
@@ -1039,7 +1039,7 @@ class CutShortRunTests(TempRootTestCase):
             plugin_root=ROOT, label="cut", model=None, out_dir=self.root / "iteration", timeout=60,
             executable=stub_cli(self.root, **stub), keep_workspace=False, env_factory=plain_env_factory()))
         run = self.root / "iteration" / "eval-tiny" / "cut" / "run-1"
-        return summary, json.loads((run / "grading.json").read_text(encoding="utf-8")), run
+        return summary, read_json(run / "grading.json"), run
 
     def test_a_forbidden_action_before_an_error_result_fails_the_trial(self) -> None:
         summary, grading, run = self._run(self._cut_spec("unittest"), is_error=True, subtype="error_during_execution")
@@ -1102,7 +1102,7 @@ class ResultRecordV1Tests(TempRootTestCase):
 
     def test_each_attempt_writes_a_v1_record_of_facts_its_files_hold(self) -> None:
         run = self._run()
-        record = json.loads((run / "record.json").read_text(encoding="utf-8"))
+        record = read_json(run / "record.json")
         spec = stub_spec()
         self.assertEqual({"name": "save-toolkit.eval-record", "version": 1}, record["format"])
         self.assertEqual(probe_fingerprints.case_digest(spec), record["case"]["case_sha256"])
@@ -1118,9 +1118,9 @@ class ResultRecordV1Tests(TempRootTestCase):
     def test_a_superseded_attempt_records_its_state(self) -> None:
         self._run()
         run = self._run(overwrite=True)
-        kept = json.loads((run.parent / "attempts" / "run-1" / "1" / "record.json").read_text(encoding="utf-8"))
+        kept = read_json(run.parent / "attempts" / "run-1" / "1" / "record.json")
         self.assertEqual((1, "superseded"), (kept["attempt"]["number"], kept["attempt"]["state"]))
-        self.assertEqual(2, json.loads((run / "record.json").read_text(encoding="utf-8"))["attempt"]["number"])
+        self.assertEqual(2, read_json(run / "record.json")["attempt"]["number"])
 
     def test_the_case_digest_ignores_the_runner_while_the_scenario_digest_binds_it(self) -> None:
         before = (probe_fingerprints.case_digest(tiny_spec()), probe_fingerprints.scenario_digest(tiny_spec()))
@@ -1144,9 +1144,9 @@ class ResultRecordV1Tests(TempRootTestCase):
 
     def test_a_regrade_lists_its_assessment_in_the_v1_record(self) -> None:
         run = self._run()
-        original = json.loads((run / "record.json").read_text(encoding="utf-8"))
+        original = read_json(run / "record.json")
         probe_rescoring.regrade_run(run, stub_spec())
-        record = json.loads((run / "record.json").read_text(encoding="utf-8"))
+        record = read_json(run / "record.json")
         self.assertEqual(original["verdict"], record["verdict"], "the live verdict is never rewritten")
         self.assertEqual([1], [a["revision"] for a in record["assessments"]])
         self.assertEqual("assessments/1/grading.json", record["assessments"][0]["grading"])
@@ -1208,7 +1208,7 @@ class TurnLimitTests(TempRootTestCase):
             executable=stub_cli(self.root, is_error=True, subtype="error_max_turns", result="stopped"), keep_workspace=False,
             env_factory=plain_env_factory()))
         run = self.root / "it" / "eval-tiny" / "turns" / "run-1"
-        return summary, json.loads((run / "grading.json").read_text(encoding="utf-8"))
+        return summary, read_json(run / "grading.json")
 
     def test_a_declared_turn_limit_reaches_the_cli(self) -> None:
         command = probe_invocation.build_command("claude", ROOT, None, "p", None, ("Read",), max_turns=12)

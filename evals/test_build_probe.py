@@ -36,6 +36,7 @@ from probe_testkit import (
     all_scenarios,
     context,
     load_oracle,
+    read_json,
     run_python,
     scenario_file,
     tiny_spec,
@@ -165,7 +166,7 @@ class PackageStructureTests(unittest.TestCase):
             probe_cli.main(["run", "--label", "x"])
 
     def test_the_published_record_schema_is_the_record_model(self) -> None:
-        published = json.loads((ROOT / "docs/fleet-evaluation/eval-record-v1.schema.json").read_text(encoding="utf-8"))
+        published = read_json(ROOT / "docs/fleet-evaluation/eval-record-v1.schema.json")
         self.assertEqual(probe_records.record_schema(), published,
                          "regenerate: python evals/build_probe.py schema --out docs/fleet-evaluation/eval-record-v1.schema.json")
         with contextlib.redirect_stdout(io.StringIO()) as out:

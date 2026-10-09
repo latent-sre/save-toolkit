@@ -30,6 +30,7 @@ from probe_testkit import (
     ReviewFindingTestCase,
     TempRootTestCase,
     all_scenarios,
+    read_json,
     saved_grade,
     saved_summary,
     tiny_spec,
@@ -86,7 +87,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
                 contextlib.redirect_stdout(io.StringIO()), self.assertRaisesRegex(RuntimeError, "harness defect"):
             probe_cli.main(["--scenario", "build-operator-cli-safe-requeue", "--label", "l", "--trials", "2",
                               "--out", str(out), "--executable", sys.executable])
-        self.assertEqual([finished], json.loads((out / "summary-l-default.json").read_text(encoding="utf-8")))
+        self.assertEqual([finished], read_json(out / "summary-l-default.json"))
 
     def test_overwrite_replaces_the_summary_entry(self) -> None:
         existing = [{"scenario": "tiny", "label": "new_skill", "run": 1, "status": "PASS"},
@@ -215,7 +216,7 @@ class BatchAggregationTests(TempRootTestCase):
                     contextlib.redirect_stdout(io.StringIO()) as output:
                 code = probe_cli.main(["regrade", str(iteration), "--threshold", "0.5"])
                 self.assertEqual(expected, code, output.getvalue())
-                rows = json.loads(next(iteration.glob("regrade-*.json")).read_text(encoding="utf-8"))["runs"]
+                rows = read_json(next(iteration.glob("regrade-*.json")))["runs"]
                 self.assertEqual(second.get("runtime", self.RUNTIME), rows[1].get("runtime", "dropped"))
 
     def test_an_auth_stop_exits_4_beside_a_failed_trial(self) -> None:
@@ -291,7 +292,7 @@ class BatchAggregationTests(TempRootTestCase):
     def test_legacy_batch_is_rejected_before_spending_but_complete_overwrite_is_allowed(self) -> None:
         self._main([self._trial(1, "PASS")])
         path = self.out / "summary-cand-default.json"
-        legacy = json.loads(path.read_text(encoding="utf-8"))
+        legacy = read_json(path)
         legacy[0]["plugin_source_sha256"] = "0" * 12
         legacy[0].pop("scenario_sha256")
         path.write_text(json.dumps(legacy), encoding="utf-8")
