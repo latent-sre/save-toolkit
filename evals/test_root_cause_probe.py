@@ -9,7 +9,7 @@ from pathlib import Path
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import tracing as probe_tracing
-from test_build_probe import _context
+from probe_testkit import context, parse_events
 
 ROOT = Path(__file__).resolve().parent
 SPEC = probe_catalog.load_scenario(ROOT / "build-scenarios/build-software-engineer-root-cause-reassessment.yaml")
@@ -27,11 +27,7 @@ def result(use_id, **fields):
 
 class RootCauseProbeTests(unittest.TestCase):
     def verdict(self, events, *, ordered=True):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "trace.jsonl"
-            path.write_text("\n".join(map(json.dumps, events)), encoding="utf-8")
-            trace = probe_tracing.parse_trace(path)
-        ctx = _context(SPEC, trace)
+        ctx = context(SPEC, parse_events(events))
         return probe_checking.check_skill_loaded(ctx, {"skill": "root-cause", "before_effects": ordered})[0]
 
     def test_ordered_load_requires_completed_exact_main_thread_skill(self):

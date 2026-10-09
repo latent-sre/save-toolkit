@@ -10,36 +10,14 @@ import contextlib
 import io
 import json
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 import graders
 import judge
-
-
-def _proc(*, returncode: int = 0, stdout: str = "", stderr: str = "") -> subprocess.CompletedProcess:
-    return subprocess.CompletedProcess(args=["claude"], returncode=returncode, stdout=stdout, stderr=stderr)
-
-
-def _envelope(result: str, *, is_error: bool = False, model: str = "claude-sonnet-5", cost: float = 0.01) -> str:
-    return json.dumps(
-        {
-            "result": result,
-            "is_error": is_error,
-            "modelUsage": {model: {}},
-            "total_cost_usd": cost,
-        }
-    )
-
-
-def _verdict(verdict: str, reason: str = "because", evidence: list | None = None) -> str:
-    # The default quote is grounded in the "some response" text these tests judge: an evidence item
-    # that is not verbatim in the response is inconclusive by contract, not a verdict.
-    return json.dumps({"verdict": verdict, "reason": reason, "evidence": evidence or ["some response"]})
+from probe_testkit import calibration_receipt, judge_envelope, judge_process, judge_verdict
 
 
 class LoadRubricsTests(unittest.TestCase):
@@ -82,15 +60,11 @@ class RunGraderEmptyResponseTests(unittest.TestCase):
     """graders.run_grader(spec, "") must validate the spec and never spawn."""
 
     def setUp(self) -> None:
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        import graders  # noqa: PLC0415
-
-        self.graders = graders
         judge.load_rubrics.cache_clear()
 
     def test_empty_response_short_circuits_without_spawning(self) -> None:
         with mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")):
-            passed, detail = self.graders.run_grader(
+            passed, detail = graders.run_grader(
                 {"type": "rubric", "name": "no_production_action_claim", "params": {}}, ""
             )
         self.assertFalse(passed)
@@ -101,14 +75,14 @@ class RunGraderEmptyResponseTests(unittest.TestCase):
             mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")),
             self.assertRaisesRegex(judge.JudgeUnavailable, "calibration"),
         ):
-            self.graders.run_grader({"type": "rubric", "name": "no_production_action_claim"}, "some response")
+            graders.run_grader({"type": "rubric", "name": "no_production_action_claim"}, "some response")
 
     def test_missing_params_raises_before_any_spawn(self) -> None:
         with (
             mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")),
             self.assertRaises(ValueError),
         ):
-            self.graders.run_grader(
+            graders.run_grader(
                 {
                     "type": "rubric",
                     "name": "unknown_outcome_reconcile_first",
@@ -122,7 +96,7 @@ class RunGraderEmptyResponseTests(unittest.TestCase):
             mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")),
             self.assertRaises(ValueError),
         ):
-            self.graders.run_grader(
+            graders.run_grader(
                 {"type": "rubric", "name": "no_production_action_claim", "params": {"bogus": 1}}, ""
             )
 
@@ -131,20 +105,7 @@ class RunGraderEmptyResponseTests(unittest.TestCase):
             mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("must not spawn")),
             self.assertRaises(ValueError),
         ):
-            self.graders.run_grader({"type": "rubric", "name": "not-a-real-rubric", "params": {}}, "")
-
-
-def calibration_receipt(root: Path) -> Path:
-    """A complete canonical calibration using mocked judgments, never a model call."""
-    cases = iter(judge._load_calibration(judge.DEFAULT_CALIBRATION_PATH))
-    def verdict(response, name, params, **kwargs):
-        case = next(cases)
-        judge._SPEND.append({"cached": False, "cost_usd": 0.01, "seconds": 0.0, "model_resolved": "claude-sonnet-5"})
-        return case["expect"] == "pass", json.dumps({"model_resolved": "claude-sonnet-5", "reason": "mocked", "evidence": []})
-    with mock.patch.object(judge, "REPO_ROOT", root), mock.patch.object(judge, "judge", side_effect=verdict), \
-            contextlib.redirect_stdout(io.StringIO()):
-        assert judge.calibrate(judge.DEFAULT_CALIBRATION_PATH, "sonnet") == 0
-    return next((root / ".eval-runs/judge-calibration").glob("2*/identity.json"))
+            graders.run_grader({"type": "rubric", "name": "not-a-real-rubric", "params": {}}, "")
 
 
 class CalibrationBindingTests(unittest.TestCase):
@@ -157,7 +118,7 @@ class CalibrationBindingTests(unittest.TestCase):
     def test_binding_pins_normal_gateway_and_retains_wrong_model_spend(self):
         binding = judge.load_binding(self.receipt, {"no_production_action_claim"})
         with mock.patch.dict(judge.os.environ, {"EVAL_JUDGE_MODEL": "other", "CLAUDE_BIN": "other-cli", "EVAL_JUDGE_CACHE": "wrong-cache"}), \
-                mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS"), model="wrong-model"))) as spawn:
+                mock.patch.object(judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS"), model="wrong-model"))) as spawn:
             passed, detail = graders.run_grader({"type": "rubric", "name": "no_production_action_claim"}, "some response", judge_binding=binding)
         self.assertFalse(passed)
         self.assertTrue(judge.is_inconclusive(detail))
@@ -182,7 +143,7 @@ class CalibrationBindingTests(unittest.TestCase):
     def test_unbound_bootstrap_keeps_explicit_rubric_overrides(self):
         rubrics = json.loads(json.dumps(judge.load_rubrics()))
         rubrics["no_production_action_claim"]["pass_if"] = "test-only rubric override"
-        with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))) as spawn:
+        with mock.patch.object(judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS")))) as spawn:
             self.assertTrue(judge.judge("some response", "no_production_action_claim", {}, rubrics=rubrics)[0])
         self.assertIn("test-only rubric override", spawn.call_args.args[0])
 
@@ -233,10 +194,10 @@ class CalibrationBindingTests(unittest.TestCase):
         cache = Path(self.tmp.name) / "cache"
         with mock.patch.dict(judge.os.environ, {"EVAL_JUDGE_CACHE": str(cache)}):
             binding = judge.load_binding(self.receipt, {"no_production_action_claim"})
-        with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS"), model="wrong-model"))):
+        with mock.patch.object(judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS"), model="wrong-model"))):
             judge.judge("some response", "no_production_action_claim", {}, model="claude-sonnet-5", cache_dir=cache)
         judge.drain_spend()
-        with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))) as spawn:
+        with mock.patch.object(judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS")))) as spawn:
             self.assertTrue(graders.run_grader({"type": "rubric", "name": "no_production_action_claim"}, "some response", judge_binding=binding)[0])
             self.assertEqual(1, spawn.call_count)
         judge.drain_spend()
@@ -300,7 +261,7 @@ class PromptRenderingTests(unittest.TestCase):
 
     def _capture(self, prompt: str, model: str, **kwargs) -> subprocess.CompletedProcess:
         self.captured_prompt = prompt
-        return _proc(stdout=_envelope(_verdict("PASS")))
+        return judge_process(stdout=judge_envelope(judge_verdict("PASS")))
 
     def test_prompt_carries_rubric_name_rendered_text_and_response(self) -> None:
         with mock.patch.object(judge, "_run_judge_process", side_effect=self._capture):
@@ -328,27 +289,27 @@ class ParseVerdictTests(unittest.TestCase):
 
     def _judge(self, result_text: str, **envelope_kwargs) -> tuple[bool, str]:
         with mock.patch.object(
-            judge, "_run_judge_process", return_value=_proc(stdout=_envelope(result_text, **envelope_kwargs))
+            judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(result_text, **envelope_kwargs))
         ):
             return judge.judge("some response", "no_production_action_claim", {}, model="sonnet")
 
     def test_bare_json_object(self) -> None:
-        passed, _detail = self._judge(_verdict("PASS"))
+        passed, _detail = self._judge(judge_verdict("PASS"))
         self.assertTrue(passed)
 
     def test_fenced_json_object(self) -> None:
-        fenced = "```json\n" + _verdict("PASS") + "\n```"
+        fenced = "```json\n" + judge_verdict("PASS") + "\n```"
         passed, _ = self._judge(fenced)
         self.assertTrue(passed)
 
     def test_object_followed_by_prose(self) -> None:
-        trailing = _verdict("FAIL", reason="it claims to act") + "\n\nThat's my verdict, let me know if you need more."
+        trailing = judge_verdict("FAIL", reason="it claims to act") + "\n\nThat's my verdict, let me know if you need more."
         passed, detail = self._judge(trailing)
         self.assertFalse(passed)
         self.assertIn("it claims to act", detail)
 
     def test_fail_verdict_returns_false_with_reason_in_detail(self) -> None:
-        passed, detail = self._judge(_verdict("FAIL", reason="the assistant said it would restart checkout"))
+        passed, detail = self._judge(judge_verdict("FAIL", reason="the assistant said it would restart checkout"))
         self.assertFalse(passed)
         self.assertIn("the assistant said it would restart checkout", detail)
 
@@ -362,27 +323,27 @@ class FailClosedTests(unittest.TestCase):
             return judge.judge("some response", "no_production_action_claim", {}, model="sonnet")
 
     def test_malformed_json_fails_closed(self) -> None:
-        passed, detail = self._judge_with_proc(_proc(stdout="not json at all"))
+        passed, detail = self._judge_with_proc(judge_process(stdout="not json at all"))
         self.assertFalse(passed)
         self.assertIn("judge inconclusive", detail)
 
     def test_nonzero_exit_fails_closed(self) -> None:
         passed, detail = self._judge_with_proc(
-            _proc(returncode=1, stdout=_envelope(_verdict("PASS")))
+            judge_process(returncode=1, stdout=judge_envelope(judge_verdict("PASS")))
         )
         self.assertFalse(passed)
         self.assertIn("judge inconclusive", detail)
 
     def test_auth_marker_fails_closed(self) -> None:
         passed, detail = self._judge_with_proc(
-            _proc(returncode=1, stdout="", stderr="Not logged in")
+            judge_process(returncode=1, stdout="", stderr="Not logged in")
         )
         self.assertFalse(passed)
         self.assertIn("judge inconclusive", detail)
 
     def test_unknown_verdict_fails_closed(self) -> None:
         malformed_verdict = json.dumps({"verdict": "MAYBE", "reason": "unsure", "evidence": []})
-        passed, detail = self._judge_with_proc(_proc(stdout=_envelope(malformed_verdict)))
+        passed, detail = self._judge_with_proc(judge_process(stdout=judge_envelope(malformed_verdict)))
         self.assertFalse(passed)
         self.assertIn("judge inconclusive", detail)
 
@@ -412,7 +373,7 @@ class CacheTests(unittest.TestCase):
 
     def test_cache_hit_does_not_spawn_and_marks_cached_true(self) -> None:
         with mock.patch.object(
-            judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))
+            judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS")))
         ) as spawn:
             passed1, detail1 = judge.judge(
                 "some response", "no_production_action_claim", {}, model="sonnet", cache_dir=self.cache_dir
@@ -430,7 +391,7 @@ class CacheTests(unittest.TestCase):
 
     def test_different_response_is_a_cache_miss(self) -> None:
         with mock.patch.object(
-            judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))
+            judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS")))
         ) as spawn:
             judge.judge("response A", "no_production_action_claim", {}, model="sonnet", cache_dir=self.cache_dir)
             judge.judge("response B", "no_production_action_claim", {}, model="sonnet", cache_dir=self.cache_dir)
@@ -445,7 +406,7 @@ class EvidenceGroundingTests(unittest.TestCase):
 
     def _judge(self, evidence: object, response: str = "some response") -> tuple[bool, str]:
         payload = json.dumps({"verdict": "PASS", "reason": "because", "evidence": evidence})
-        with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(payload))):
+        with mock.patch.object(judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(payload))):
             return judge.judge(response, "no_production_action_claim", {}, model="sonnet")
 
     def test_invented_quote_is_inconclusive_not_a_verdict(self) -> None:
@@ -467,7 +428,7 @@ class EvidenceGroundingTests(unittest.TestCase):
 
     def test_missing_evidence_key_is_inconclusive(self) -> None:
         payload = json.dumps({"verdict": "PASS", "reason": "because"})
-        with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(payload))):
+        with mock.patch.object(judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(payload))):
             passed, detail = judge.judge("some response", "no_production_action_claim", {}, model="sonnet")
         self.assertFalse(passed)
         self.assertTrue(judge.is_inconclusive(detail))
@@ -545,16 +506,16 @@ class InconclusiveContractTests(unittest.TestCase):
             return judge.judge("some response", "no_production_action_claim", {}, model="sonnet")[1]
 
     def test_fail_verdict_is_not_inconclusive(self) -> None:
-        detail = self._detail(return_value=_proc(stdout=_envelope(_verdict("FAIL"))))
+        detail = self._detail(return_value=judge_process(stdout=judge_envelope(judge_verdict("FAIL"))))
         self.assertFalse(judge.is_inconclusive(detail))
 
     def test_every_broken_spawn_is_inconclusive(self) -> None:
         import clean_room  # noqa: PLC0415
 
         cases = {
-            "malformed": {"return_value": _proc(stdout="not json at all")},
-            "nonzero_exit": {"return_value": _proc(returncode=1, stdout=_envelope(_verdict("PASS")))},
-            "auth": {"return_value": _proc(returncode=1, stderr="Not logged in")},
+            "malformed": {"return_value": judge_process(stdout="not json at all")},
+            "nonzero_exit": {"return_value": judge_process(returncode=1, stdout=judge_envelope(judge_verdict("PASS")))},
+            "auth": {"return_value": judge_process(returncode=1, stderr="Not logged in")},
             "timeout": {"side_effect": subprocess.TimeoutExpired(cmd="claude", timeout=120)},
             "auth_unavailable": {"side_effect": clean_room.AuthUnavailable("no creds")},
             "spawn_oserror": {"side_effect": OSError("no such file")},
@@ -582,7 +543,7 @@ class SpendTests(unittest.TestCase):
 
     def test_live_call_records_cost_and_model(self) -> None:
         with mock.patch.object(
-            judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS"), cost=0.031))
+            judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS"), cost=0.031))
         ):
             judge.judge("some response", "no_production_action_claim", {}, model="sonnet")
         spend = judge.drain_spend()
@@ -593,7 +554,7 @@ class SpendTests(unittest.TestCase):
         self.assertGreaterEqual(spend[0]["seconds"], 0.0)
 
     def test_drain_clears_so_spend_is_not_charged_twice(self) -> None:
-        with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))):
+        with mock.patch.object(judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS")))):
             judge.judge("some response", "no_production_action_claim", {}, model="sonnet")
         self.assertEqual(len(judge.drain_spend()), 1)
         self.assertEqual(judge.drain_spend(), [])
@@ -608,7 +569,7 @@ class SpendTests(unittest.TestCase):
     def test_cache_hit_records_a_free_call_with_the_model_that_judged_it(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with mock.patch.object(
-                judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))
+                judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS")))
             ):
                 judge.judge("some response", "no_production_action_claim", {}, model="sonnet", cache_dir=Path(tmp))
             judge.drain_spend()
@@ -632,7 +593,7 @@ class ModelIdentityTests(unittest.TestCase):
 
     def _seed_cache(self, model: str) -> None:
         with mock.patch.object(
-            judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS"), model=model))
+            judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS"), model=model))
         ):
             judge.judge(
                 "some response", "no_production_action_claim", {}, model="sonnet", cache_dir=self.cache_dir
@@ -641,7 +602,7 @@ class ModelIdentityTests(unittest.TestCase):
     def test_live_call_by_another_model_is_inconclusive(self) -> None:
         with mock.patch.object(
             judge, "_run_judge_process",
-            return_value=_proc(stdout=_envelope(_verdict("PASS"), model="claude-sonnet-4-5")),
+            return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS"), model="claude-sonnet-4-5")),
         ):
             passed, detail = judge.judge(
                 "some response", "no_production_action_claim", {},
@@ -654,7 +615,7 @@ class ModelIdentityTests(unittest.TestCase):
     def test_cached_verdict_from_another_model_is_re_judged_not_served(self) -> None:
         self._seed_cache("claude-sonnet-4-5")
         with mock.patch.object(
-            judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("PASS")))
+            judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS")))
         ) as spawn:
             passed, detail = judge.judge(
                 "some response", "no_production_action_claim", {},
@@ -683,7 +644,7 @@ class ModelIdentityTests(unittest.TestCase):
             encoding="utf-8",
         )
         with mock.patch.object(
-            judge, "_run_judge_process", return_value=_proc(stdout=_envelope(_verdict("FAIL")))
+            judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("FAIL")))
         ) as spawn:
             judge.judge("some response", "no_production_action_claim", {}, model="sonnet", cache_dir=self.cache_dir)
         self.assertEqual(spawn.call_count, 1)
@@ -696,14 +657,14 @@ class ModelIdentityTests(unittest.TestCase):
                 "modelUsage": {"claude-haiku-4-5-20251001": {"costUSD": 0.0001}, "claude-sonnet-5": {"costUSD": 0.02}},
             }
         )
-        with mock.patch.object(judge, "_run_judge_process", return_value=_proc(stdout=envelope)):
+        with mock.patch.object(judge, "_run_judge_process", return_value=judge_process(stdout=envelope)):
             self.assertEqual(judge.resolve_model_identity("sonnet"), "claude-sonnet-5")
 
     def test_resolve_model_identity_raises_when_unavailable(self) -> None:
         cases = {
-            "auth": {"return_value": _proc(returncode=1, stderr="Not logged in")},
-            "nonzero_exit": {"return_value": _proc(returncode=1, stdout='{"result": "OK"}')},
-            "no_model_usage": {"return_value": _proc(stdout='{"result": "OK"}')},
+            "auth": {"return_value": judge_process(returncode=1, stderr="Not logged in")},
+            "nonzero_exit": {"return_value": judge_process(returncode=1, stdout='{"result": "OK"}')},
+            "no_model_usage": {"return_value": judge_process(stdout='{"result": "OK"}')},
             "timeout": {"side_effect": subprocess.TimeoutExpired(cmd="claude", timeout=120)},
         }
         for label, kwargs in cases.items():
@@ -744,7 +705,7 @@ class TransportTests(unittest.TestCase):
 
         with mock.patch.object(judge.clean_room, "clean_env", _fake_env), \
              mock.patch.object(judge.clean_room, "neutral_workspace", _fake_cwd), \
-             mock.patch.object(judge.subprocess, "run", return_value=_proc()) as run:
+             mock.patch.object(judge.subprocess, "run", return_value=judge_process()) as run:
             judge._run_judge_process("PROMPT WITH THE RESPONSE", "sonnet")
         self.assertEqual(run.call_args.kwargs["input"], "PROMPT WITH THE RESPONSE")
         self.assertNotIn("PROMPT WITH THE RESPONSE", run.call_args.args[0])

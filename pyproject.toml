@@ -2,7 +2,8 @@
 # and every dependency stays pinned in requirements-dev.txt. Ruff lints the eval runner
 # (evals/build_probe.py and evals/probe/), the run comparison (evals/compare_runs.py), the turn-count
 # summary (evals/turn_counts.py), the graders,
-# the Inspect pilot and the evals tests, and formats all of them but the tests; strict mypy covers
+# the Inspect pilot, the evals tests and their shared helpers (evals/probe_testkit.py), and formats
+# all of them but the tests; strict mypy covers
 # the same code without the tests. CI runs
 # them in the component-tests job. evals/judge.py, evals/clean_room.py and evals/oracles/ stay outside
 # all three: the judge calibration receipt binds the first two byte for byte and each case's identity
@@ -23,6 +24,7 @@ include = [
     "evals/graders.py",
     "evals/inspect_pilot.py",
     "evals/test_*.py",
+    "evals/probe_testkit.py",
     "scripts/*.py",
     "skills/**/*.py",
 ]

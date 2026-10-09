@@ -19,10 +19,9 @@ import sys
 from datetime import date
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+import graders
 
-import graders  # noqa: E402
+HERE = Path(__file__).resolve().parent
 
 SCENARIOS_DIR = HERE / "scenarios"
 

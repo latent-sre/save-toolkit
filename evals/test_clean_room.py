@@ -13,11 +13,9 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 import clean_room
 
 _results: list[tuple[bool, str]] = []
