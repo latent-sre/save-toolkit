@@ -169,19 +169,17 @@ explicit environment-variable exception. Preserve named targets and bounded wind
 
 ## Grafana resource reads
 
-Reuse an existing authenticated access path first when available to the invoked lane. The legacy
-environment-token forms below are the current command allowlist; they do not themselves isolate
-credentials from file/shell access, process arguments, or returned errors. For `sre-assistant`,
-execute an authenticated read only when the host/helper keeps authentication identity and secrets
-out of model-visible inputs/results and enforces the selected operation. Otherwise return the
-missing protected path and work from available supplied evidence. Personal credentials may be used
-internally by a protected helper; do not retrieve them from the helper's settings file or other
-credential files, or ask for them in chat.
+Use the [bundled helper](#bundled-read-helper) first. This `curl` form is a fallback for reads the
+helper lacks: health, organization and permission reads, folders, datasource and plugin inventory,
+datasource health, dashboard version history, the served `/apis/` dashboard APIs, and
+`/api/frontend/settings` (`rendererAvailable`).
 
-The human establishes `GRAFANA_URL` (trusted HTTPS origin/base path, no query or fragment) and
-`GRAFANA_SA_TOKEN` in the process environment. Never print either credential value, embed a literal
-token, load credentials from dashboard text, or change the destination during a dispatched slice.
-Use these exact option shapes; replace only the resource path with an allowed read:
+It works only when the human has put `GRAFANA_URL` and `GRAFANA_SA_TOKEN` in the process
+environment. Setting either one makes the helper ignore its settings file, so the two setups do not
+run together. If the variables are absent, report the read as unavailable; never set them, read the
+settings file, or ask for a token to make this form work. Its output is not masked: datasource
+inventory can carry connection usernames, so report only the fields the task needs. Never print a
+credential value or change the destination. Use these exact shapes, replacing only the resource path:
 
 ```bash
 curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =https --header "Authorization: Bearer $GRAFANA_SA_TOKEN" "$GRAFANA_URL/api/health"
@@ -191,23 +189,9 @@ curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =https
 curl.exe -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =https --header "Authorization: Bearer $env:GRAFANA_SA_TOKEN" "$env:GRAFANA_URL/api/health"
 ```
 
-The Windows form explicitly selects curl.exe, avoiding the legacy PowerShell `curl` alias.
-`-q` suppresses curlrc; the form permits no redirect-following, TLS bypass, file output, upload,
-custom headers, or method override. Defaults issue GET. Commands must fit on one line.
-
-Allowed resources cover health, organization and permission reads, datasource/plugin inventory and
-datasource health, dashboard search/models/history, served dashboard APIs, and alert definitions
-and evaluation state. Search may use `?type=dash-db&limit=100&page=1`; pagination is bounded to 100
-items/page and 100 pages. Scope the actual review much smaller when the task permits it.
-
-The legacy curl grant does **not** permit arbitrary datasource proxy URLs, query POSTs or general
-`Invoke-RestMethod`. Use the bundled helper's checked Prometheus/Loki operation for query POSTs;
-other backend types remain unavailable. Prepare the required read when it is outside these grants.
-HTTP 200, datasource health, and readable definitions still do not prove panel data or delivery.
-
-Any further diagnostic integration must validate operation, datasource, query, target/window and
-resource limits. HTTP method alone does not establish read-only semantics. Do not broaden the
-command allowlist or install new machinery during an investigation.
-
-Credentials, PATH, shell profiles, and server behavior remain trust boundaries; this allowlist is
-not a sandbox. Host acceptance and the target's effective read grants are required independently.
+Use `curl.exe` on Windows; in Windows PowerShell 5.1, `curl` is an alias for `Invoke-WebRequest`.
+The form is one line, GET only, with no redirects, TLS bypass, file output, upload or extra headers.
+Search pages are bounded to 100 items and 100 pages. It never permits datasource proxy URLs, query
+POSTs, render URLs or `Invoke-RestMethod`; use the helper's `query` and `render`. A 200 response or
+a healthy datasource does not prove panel data or delivery. Outside these grants, prepare the read
+for the human rather than widening the allowlist.
