@@ -90,10 +90,60 @@ class FrontmatterParserTests(unittest.TestCase):
             ["Read", "Agent(reviewer, researcher)", "Grep"],
             frontmatter.split_tool_specs("Read, Agent(reviewer, researcher), Grep"),
         )
+        self.assertEqual(["Read", "Grep"], frontmatter.split_tool_specs("Read, Grep"))
         self.assertEqual(
             ["Read", "Grep"], frontmatter.split_tool_specs(["Read", "", "Grep"])
         )
+        # A missing or empty field grants nothing; it must not become a tool named "None".
         self.assertEqual([], frontmatter.split_tool_specs(None))
+        self.assertEqual([], frontmatter.split_tool_specs(""))
+
+    def test_tool_grants_keep_the_base_of_a_malformed_entry(self) -> None:
+        """Authority checks reason over every grant's base; only the syntax verdict differs."""
+        cases = {
+            "Read": ("Read", None, True),
+            "Bash(git diff:*)": ("Bash", "git diff:*", True),
+            "Bash()": ("Bash", "", True),
+            "Agent(a(b))": ("Agent", "a(b)", True),
+            "mcp__server__tool": ("mcp__server__tool", None, True),
+            "Agent (save-toolkit:reviewer)": ("Agent", None, False),
+            "Read)": ("Read)", None, False),
+            "Bash(unclosed": ("Bash", None, False),
+        }
+        for spec, (base, arguments, well_formed) in cases.items():
+            with self.subTest(spec=spec):
+                self.assertEqual(
+                    frontmatter.ToolGrant(spec, base, arguments, well_formed),
+                    frontmatter.parse_tool_grant(spec),
+                )
+        self.assertEqual(
+            ["Read", "Agent"],
+            [grant.base for grant in frontmatter.tool_grants("Read, Agent(x, y)")],
+        )
+
+    def test_delegation_requires_an_exact_plugin_qualified_allowlist(self) -> None:
+        def targets(*specs: str) -> list[str]:
+            grants = [frontmatter.parse_tool_grant(spec) for spec in specs]
+            return frontmatter.delegation_targets(grants, Path("probe.md"), plugin="save-toolkit")
+
+        for spec, message in (
+            ("Agent", "Agent tool must declare an explicit target allowlist"),
+            ("Agent (save-toolkit:reviewer)", "Agent tool must declare an explicit target allowlist"),
+            ("Agent(save-toolkit:reviewer(x))", "Agent tool must declare an explicit target allowlist"),
+            ("Agent(reviewer)", "invalid Agent target 'reviewer'"),
+            ("Agent(other:reviewer)", "invalid Agent target"),
+            ("Agent(save-toolkit:*)", "invalid Agent target"),
+            ("Agent(save-toolkit:reviewer,)", "invalid Agent target ''"),
+            ("Agent(save-toolkit:reviewer:extra)", "invalid Agent target"),
+            ("Agent(save-toolkit:reviewer, save-toolkit:reviewer)", "duplicate Agent target 'reviewer'"),
+        ):
+            with self.subTest(spec=spec), self.assertRaisesRegex(ValueError, f"^probe.md: {message}"):
+                targets(spec)
+        self.assertEqual(
+            ["reviewer", "scribe", "researcher"],
+            targets("Read", "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)"),
+        )
+        self.assertEqual([], targets("Read", "Grep"))
 
     def test_invalid_double_quote_raises_or_is_collected(self) -> None:
         text = '---\nname: "unterminated\nnext: kept\n---\n'

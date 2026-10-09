@@ -16,6 +16,7 @@ import re
 import shutil
 import stat
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 
 import fleet_frontmatter
@@ -273,69 +274,6 @@ PLUGIN_PATH_RE = re.compile(
 RUNTIME_SUFFIXES = {".pyc", ".pyo"}
 
 
-def decode_scalar(raw: str) -> str:
-    """Public alias for the shared frontmatter scalar decoder."""
-    return fleet_frontmatter.decode_scalar(raw)
-
-
-def split_tool_specs(raw: object) -> list[str]:
-    """Public alias for the shared tool-grant splitter."""
-    return fleet_frontmatter.split_tool_specs(raw)
-
-
-# Backward-compatible aliases; the public names above are preferred.
-_yaml_scalar = fleet_frontmatter.decode_scalar
-_split_tool_specs = split_tool_specs
-
-
-def parse_frontmatter(path: Path) -> tuple[dict[str, object], str, list[str]]:
-    """Compatibility wrapper over the one shared strict parser."""
-    parsed = fleet_frontmatter.parse_file(path, mode="strict")
-    return parsed.fields, parsed.body, list(parsed.raw_lines)
-
-
-def tool_base(spec: str) -> str:
-    """Public base name of one tool grant (drops any ``(args)`` suffix)."""
-    return spec.split("(", 1)[0].strip()
-
-
-def _tool_base(spec: str) -> str:
-    """Backward-compatible alias; prefer tool_base."""
-    return tool_base(spec)
-
-
-def delegation_targets(specs: list[str], source: Path) -> list[str] | None:
-    """Translate exact plugin-qualified ``Agent(plugin:target, ...)`` grants to bare Copilot names.
-
-    Omitting Copilot's ``agents:`` field allows every eligible subagent, so a canonical Agent
-    grant must never degrade to an unscoped ``agent`` tool. Canonical validation independently
-    checks the fleet graph; this parser keeps the generated metadata scoped when invoked on an
-    individual source or fixture. Host runtime enforcement remains version-specific and must be
-    verified separately.
-    """
-
-    targets: list[str] = []
-    for spec in specs:
-        if tool_base(spec) != "Agent":
-            continue
-        match = re.fullmatch(r"Agent\(([^()]*)\)", spec)
-        if match is None:
-            raise ValueError(f"{source}: Agent tool must declare an explicit target allowlist")
-        for target in (item.strip() for item in match.group(1).split(",")):
-            if not re.fullmatch(rf"{re.escape(PLUGIN_NAME)}:[a-z0-9]+(?:-[a-z0-9]+)*", target):
-                raise ValueError(f"{source}: invalid Agent target {target!r}")
-            target = target.removeprefix(f"{PLUGIN_NAME}:")
-            if target in targets:
-                raise ValueError(f"{source}: duplicate Agent target {target!r}")
-            targets.append(target)
-    return targets or None
-
-
-def _delegation_targets(specs: list[str], source: Path) -> list[str] | None:
-    """Backward-compatible alias; prefer delegation_targets."""
-    return delegation_targets(specs, source)
-
-
 def _copilot_handoffs(source_agent: str) -> list[dict[str, object]] | None:
     """Offer human-selected transitions across the explicit local ownership graph.
 
@@ -377,7 +315,7 @@ def adapt_text(text: str, host: str) -> str:
     return text
 
 
-def _description(fields: dict[str, object], source: Path) -> str:
+def _description(fields: Mapping[str, object], source: Path) -> str:
     description = fields.get("description")
     if not isinstance(description, str) or not description.strip():
         raise ValueError(f"{source}: missing description")
@@ -385,13 +323,17 @@ def _description(fields: dict[str, object], source: Path) -> str:
 
 
 def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
-    fields, body, _ = parse_frontmatter(source)
+    parsed = fleet_frontmatter.parse_file(source)
+    fields, body = parsed.fields, parsed.body
     if PLUGIN_BANNER_RE.search(body):
         raise ValueError(f"{source}: the Plugin addressing banner is retired; delete it")
     name = str(fields.get("name") or "")
-    tool_specs = split_tool_specs(fields.get("tools"))
-    tools = {tool_base(item) for item in tool_specs}
-    allowed_targets = delegation_targets(tool_specs, source)
+    grants = fleet_frontmatter.tool_grants(fields.get("tools"))
+    tools = {grant.base for grant in grants}
+    # Omitting Copilot's `agents:` field allows every eligible subagent, so a canonical Agent grant
+    # must never degrade to an unscoped `agent` tool: an unreadable allowlist raises instead. Host
+    # runtime enforcement remains version-specific and must be verified separately.
+    allowed_targets = fleet_frontmatter.delegation_targets(grants, source, plugin=PLUGIN_NAME)
     handoffs = _copilot_handoffs(name)
     mapped = {
         COPILOT_TOOL_MAP[item] for item in tools if item in COPILOT_TOOL_MAP
@@ -423,7 +365,7 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
         f"description: {json.dumps(adapt_text(_description(fields, source), 'copilot'), ensure_ascii=False)}\n"
         f"tools: {json.dumps(ordered)}\n"
     )
-    if allowed_targets is not None:
+    if allowed_targets:
         frontmatter += f"agents: {json.dumps(allowed_targets)}\n"
     if handoffs is not None:
         frontmatter += f"handoffs: {json.dumps(handoffs, ensure_ascii=False)}\n"
@@ -449,9 +391,10 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
 def _portable_skill(
     source: Path, host: str
 ) -> tuple[bytes, bool]:
-    fields, body, raw_lines = parse_frontmatter(source)
+    parsed = fleet_frontmatter.parse_file(source)
+    fields, body = parsed.fields, parsed.body
     explicit = str(fields.get("name")) in MANUAL_ONLY or fields.get("disable-model-invocation") == "true"
-    portable_frontmatter = adapt_text("\n".join(raw_lines), host)
+    portable_frontmatter = adapt_text("\n".join(parsed.raw_lines), host)
     note = ""
     if explicit:
         note = "> This skill is explicit-only through Copilot's frontmatter switch.\n\n"
@@ -627,11 +570,6 @@ def read_manifest(path: Path) -> dict:
     if not isinstance(value, dict):
         raise ValueError(f"{path}: manifest must be a JSON object")
     return value
-
-
-def _manifest(path: Path) -> dict:
-    """Backward-compatible alias; prefer read_manifest."""
-    return read_manifest(path)
 
 
 def validate_platform_contracts(root: Path) -> list[str]:

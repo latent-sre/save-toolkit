@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import fleet_frontmatter
 import generate_platform_adapters
 import validate_fleet
 
@@ -30,6 +31,14 @@ def _markdown_section(relative: Path, heading: str) -> str:
     if next_heading:
         section = section[: next_heading.start()]
     return _normalized(section)
+
+
+def _agent(name: str) -> fleet_frontmatter.ParsedFrontmatter:
+    return fleet_frontmatter.parse_file(ROOT / "agents" / f"{name}.md")
+
+
+def _granted_tools(name: str) -> set[str]:
+    return {grant.base for grant in fleet_frontmatter.tool_grants(_agent(name).fields["tools"])}
 
 
 def _agent_failures_after_edit(filename: str, edit: Callable[[str], str]) -> list[str]:
@@ -65,8 +74,7 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual([], failures)
 
     def test_sre_browser_grants_are_selected_interactions_without_code_execution(self) -> None:
-        fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/sre-assistant.md")
-        grants = validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"]))
+        grants = _granted_tools("sre-assistant")
         self.assertEqual({
             "mcp__microsoft_playwright_mcp__browser_snapshot",
             "mcp__microsoft_playwright_mcp__browser_take_screenshot",
@@ -161,16 +169,14 @@ class FleetValidatorTests(unittest.TestCase):
     def test_builder_agent_uses_software_engineer_identity(self) -> None:
         path = ROOT / "agents/software-engineer.md"
         self.assertTrue(path.is_file())
-        fields, _, _ = validate_fleet.adapters.parse_frontmatter(path)
-        self.assertEqual("software-engineer", fields["name"])
+        self.assertEqual("software-engineer", _agent("software-engineer").fields["name"])
         self.assertIn("software-engineer", validate_fleet.EXPECTED_AUTHORITY)
         old_name = "s" + "de"
         self.assertNotIn(old_name, validate_fleet.EXPECTED_AUTHORITY)
         self.assertFalse((ROOT / "agents" / f"{old_name}.md").exists())
 
     def test_builder_has_native_windows_and_posix_shells(self) -> None:
-        fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/software-engineer.md")
-        grants = validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"]))
+        grants = _granted_tools("software-engineer")
         self.assertTrue({"Bash", "PowerShell"} <= grants, grants)
         for shell in ("Bash", "PowerShell"):
             with self.subTest(removed=shell):
@@ -248,10 +254,7 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("do not require github release controls", checklist)
 
     def test_review_consumers_keep_routine_work_out_of_the_prod_review_gate(self) -> None:
-        software_engineer_path = ROOT / "agents/software-engineer.md"
-        software_engineer_fields, _, _ = validate_fleet.adapters.parse_frontmatter(
-            software_engineer_path
-        )
+        software_engineer_fields = _agent("software-engineer").fields
         contracts = (
             (
                 "agents-learning",
@@ -337,23 +340,18 @@ class FleetValidatorTests(unittest.TestCase):
                     self.assertNotIn(phrase, text)
 
     def test_scribe_is_a_non_executing_document_writer(self) -> None:
-        path = ROOT / "agents" / "scribe.md"
-        fields, body, _ = validate_fleet.adapters.parse_frontmatter(path)
-        self.assertEqual(
-            {"Read", "Grep", "Glob", "Edit", "Write", "Skill"},
-            validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"])),
-        )
+        body = _agent("scribe").body
+        self.assertEqual({"Read", "Grep", "Glob", "Edit", "Write", "Skill"}, _granted_tools("scribe"))
         self.assertIn("Do not execute anything", body)
         self.assertIn("## Pick one primary mode", body)
         self.assertIn("**Knowledge closeout mode**", body)
 
     def test_reviewer_collects_and_verifies_evidence_without_direct_external_tools(self) -> None:
-        path = ROOT / "agents/reviewer.md"
-        fields, _, _ = validate_fleet.adapters.parse_frontmatter(path)
+        grants = fleet_frontmatter.tool_grants(_agent("reviewer").fields["tools"])
         self.assertEqual({"Read", "Grep", "Glob", "Bash", "Write", "Edit", "TodoWrite", "Skill", "Agent"},
-                         validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"])))
-        self.assertEqual({"repository-investigator"},
-                         validate_fleet._delegates(validate_fleet._tool_specs(fields["tools"]), path))
+                         {grant.base for grant in grants})
+        self.assertEqual(["repository-investigator"],
+                         fleet_frontmatter.delegation_targets(grants, "reviewer.md", plugin="save-toolkit"))
 
     def test_handoff_receivers_keep_evidence_confidence_separate_from_taint(self) -> None:
         sections = {
@@ -532,10 +530,8 @@ class FleetValidatorTests(unittest.TestCase):
                     self.assertIn(phrase, text)
 
     def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:
-        fields, body, _ = validate_fleet.adapters.parse_frontmatter(
-            ROOT / "agents" / "observability-engineer.md"
-        )
-        description = str(fields["description"]).lower()
+        agent = _agent("observability-engineer")
+        description, body = str(agent.fields["description"]).lower(), agent.body
         self.assertIn("for runbooks or postmortems use save-toolkit:scribe", description)
         self.assertNotIn("operational documentation", description)
         self.assertNotIn("## Documentation lane", body)
@@ -556,7 +552,7 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("delegation mismatch", rendered)
 
     def test_scribe_returns_runbook_link_to_caller_and_preserves_alert_owner(self) -> None:
-        _, body, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/scribe.md")
+        body = _agent("scribe").body
         self.assertNotIn("and link it from the alert", body)
         self.assertIn(
             "Return the exact runbook path or URL and any alert name to the invoking caller",
@@ -620,8 +616,7 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("forbidden tool(s): Read", "\n".join(failures))
 
     def test_external_researcher_can_load_githits_guidance_without_skills(self) -> None:
-        fields, _, _ = validate_fleet.adapters.parse_frontmatter(ROOT / "agents/researcher.md")
-        grants = validate_fleet._tool_bases(validate_fleet._tool_specs(fields["tools"]))
+        grants = _granted_tools("researcher")
         bootstrap = "mcp__plugin_githits_githits__quick_start"
         self.assertIn(bootstrap, grants)
         self.assertNotIn("Skill", grants)

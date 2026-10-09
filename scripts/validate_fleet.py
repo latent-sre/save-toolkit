@@ -5,15 +5,16 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from collections.abc import Mapping
 import re
 from pathlib import Path
 
+import fleet_frontmatter
 import generate_platform_adapters as adapters
 
 
 ROOT = Path(__file__).resolve().parents[1]
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-TOOL_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_.*-]*)(?:\((.*)\))?$")
 KNOWN_AGENT_FIELDS = {"name", "description", "tools", "model"}
 # `model:` accepts a generation ALIAS only. An alias tracks the current model of its tier and
 # cannot rot; a full ID (claude-opus-4-1-20250805) silently pins a model past its usefulness,
@@ -173,19 +174,7 @@ EXPECTED_DELEGATION = {
 }
 
 
-def _tool_specs(raw: object) -> list[str]:
-    return adapters.split_tool_specs(raw)  # shared grammar with the generator
-
-
-def _tool_bases(specs: list[str]) -> set[str]:
-    return {adapters.tool_base(spec) for spec in specs}
-
-
-def _delegates(specs: list[str], source: Path) -> set[str]:
-    return set(adapters.delegation_targets(specs, source) or ())
-
-
-def _metadata_failures(path: Path, fields: dict[str, object]) -> list[str]:
+def _metadata_failures(path: Path, fields: Mapping[str, object]) -> list[str]:
     failures: list[str] = []
     unknown = sorted(set(fields) - KNOWN_AGENT_FIELDS)
     if unknown:
@@ -207,27 +196,27 @@ def _metadata_failures(path: Path, fields: dict[str, object]) -> list[str]:
     return failures
 
 
-def _tool_grant_failures(path: Path, specs: list[str]) -> list[str]:
+def _tool_grant_failures(path: Path, grants: list[fleet_frontmatter.ToolGrant]) -> list[str]:
     failures: list[str] = []
     # Repeated grants must be checked before set-based authority reasoning loses them.
-    duplicates = sorted(spec for spec, count in Counter(specs).items() if count > 1)
+    counts = Counter(grant.spec for grant in grants)
+    duplicates = sorted(spec for spec, count in counts.items() if count > 1)
     if duplicates:
         failures.append(f"{path}: duplicate tool grant(s): {', '.join(duplicates)}")
-    for spec in specs:
-        match = TOOL_RE.fullmatch(spec)
-        if not match:
+    for grant in grants:
+        spec, base = grant.spec, grant.base
+        if not grant.well_formed:
             failures.append(f"{path}: malformed tool grant {spec!r}")
             continue
-        base = match.group(1)
         if base.startswith("mcp__"):
             approved_mcp = EVIDENCE_MCP_TOOLS | BROWSER_OBSERVATION_MCP_TOOLS
             if base not in approved_mcp:
                 failures.append(f"{path}: MCP authority is not exact-approved: {base}")
-            if match.group(2):
+            if grant.arguments:
                 failures.append(f"{path}: MCP grants cannot carry scoped arguments: {spec}")
         elif base not in BUILTIN_TOOLS:
             failures.append(f"{path}: unknown tool grant {base!r}")
-        elif match.group(2) and base != "Agent":
+        elif grant.arguments and base != "Agent":
             # Only Agent(target) scoping is honored (and only on a main-thread agent).
             # Bash(git diff:*) ran git status just like bare Bash in the CLI 2.1.200 probe.
             failures.append(
@@ -264,7 +253,9 @@ def _body_failures(path: Path, body: str, bases: set[str]) -> list[str]:
     return failures
 
 
-def _authority_failures(name: str, path: Path, specs: list[str], bases: set[str]) -> list[str]:
+def _authority_failures(
+    name: str, path: Path, grants: list[fleet_frontmatter.ToolGrant], bases: set[str]
+) -> list[str]:
     failures: list[str] = []
     authority = EXPECTED_AUTHORITY[name]
     missing = sorted(authority["required"] - bases)
@@ -277,7 +268,7 @@ def _authority_failures(name: str, path: Path, specs: list[str], bases: set[str]
     if forbidden:
         failures.append(f"{path}: forbidden tool(s): {', '.join(forbidden)}")
     try:
-        delegates = _delegates(specs, path)
+        delegates = set(fleet_frontmatter.delegation_targets(grants, path, plugin=adapters.PLUGIN_NAME))
     except ValueError as exc:
         failures.append(str(exc))
         delegates = set()
@@ -307,13 +298,14 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
     """Collect definition failures first, then roster and known-agent authority failures."""
     failures: list[str] = []
     names: list[str] = []
-    authority_inputs: dict[str, tuple[Path, list[str], set[str]]] = {}
+    authority_inputs: dict[str, tuple[Path, list[fleet_frontmatter.ToolGrant], set[str]]] = {}
     for path in sorted((root / "agents").glob("*.md")):
         try:
-            fields, body, _ = adapters.parse_frontmatter(path)
+            parsed = fleet_frontmatter.parse_file(path)
         except (OSError, UnicodeError, ValueError) as exc:
             failures.append(str(exc))
             continue
+        fields, body = parsed.fields, parsed.body
         name = fields.get("name")
         if not isinstance(name, str) or not NAME_RE.fullmatch(name) or name != path.stem:
             failures.append(f"{path}: name must be kebab-case and match the filename")
@@ -323,12 +315,12 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
         if "tools" not in fields:
             failures.append(f"{path}: tools must be explicit; omission inherits all tools")
             continue
-        specs = _tool_specs(fields["tools"])
-        bases = _tool_bases(specs)
-        failures.extend(_tool_grant_failures(path, specs))
+        grants = fleet_frontmatter.tool_grants(fields["tools"])
+        bases = {grant.base for grant in grants}
+        failures.extend(_tool_grant_failures(path, grants))
         failures.extend(_body_failures(path, body, bases))
         if name in EXPECTED_AUTHORITY:
-            authority_inputs[name] = (path, specs, bases)
+            authority_inputs[name] = (path, grants, bases)
 
     expected_names = set(EXPECTED_AUTHORITY)
     if set(names) != expected_names:
@@ -336,8 +328,8 @@ def validate_agents(root: Path) -> tuple[list[str], list[str]]:
             "agents/: roster mismatch; expected " + ", ".join(sorted(expected_names))
             + "; found " + ", ".join(sorted(names))
         )
-    for name, (path, specs, bases) in authority_inputs.items():
-        failures.extend(_authority_failures(name, path, specs, bases))
+    for name, (path, grants, bases) in authority_inputs.items():
+        failures.extend(_authority_failures(name, path, grants, bases))
     return names, failures
 
 

@@ -15,6 +15,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import fleet_frontmatter
 import generate_platform_adapters as adapters
 
 
@@ -260,19 +261,6 @@ class PlatformAdapterTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Plugin addressing banner is retired"):
                 adapters.render_copilot_agent(source)
 
-    def test_delegation_requires_exact_plugin_namespace(self) -> None:
-        source = ROOT / "agents/software-engineer.md"
-        for spec in ("Agent(reviewer)", "Agent(other:reviewer)", "Agent(save-toolkit:*)",
-                     "Agent(save-toolkit:reviewer,)", "Agent(save-toolkit:reviewer:extra)",
-                     "Agent(save-toolkit:reviewer, save-toolkit:reviewer)"):
-            with self.subTest(spec=spec), self.assertRaises(ValueError):
-                adapters._delegation_targets([spec], source)
-        self.assertEqual(
-            ["reviewer", "scribe", "researcher"],
-            adapters._delegation_targets(
-                ["Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)"], source),
-        )
-
     def test_copilot_agents_offer_the_current_roster_handoff_graph(self) -> None:
         expected_targets = {
             "agent-engineer": [],
@@ -393,7 +381,7 @@ class PlatformAdapterTests(unittest.TestCase):
                 for marker in preface_markers:
                     self.assertNotIn(marker, rendered, marker)
                 # The projection body IS the adapted canonical body: nothing is prepended.
-                canonical_body = adapters.parse_frontmatter(source)[1]
+                canonical_body = fleet_frontmatter.parse_file(source).body
                 self.assertEqual(
                     adapters.adapt_text(canonical_body, "copilot").lstrip("\n"),
                     rendered.split("---\n", 2)[2].lstrip("\n"),
@@ -919,7 +907,7 @@ class PlatformAdapterTests(unittest.TestCase):
         canonical_non_ascii = sum(
             1
             for path in sorted((ROOT / "agents").glob("*.md"))
-            if any(ord(char) > 127 for char in str(adapters.parse_frontmatter(path)[0].get("description", "")))
+            if any(ord(char) > 127 for char in str(fleet_frontmatter.parse_file(path).fields.get("description", "")))
         )
         self.assertGreater(canonical_non_ascii, 0, "no canonical description carries non-ASCII")
         for relative in (Path(".github/agents"),):
@@ -928,34 +916,9 @@ class PlatformAdapterTests(unittest.TestCase):
                 self.assertNotIn("\\u2014", text, path.name)
                 self.assertNotIn("\\u2192", text, path.name)
 
-    # --- narrow parse paths in the frontmatter reader -------------------------------------------
-    # Operand drops here survived a mutation sweep. Low blast radius on their own -- a malformed
-    # value fails the frontmatter contract in check_links before it could reach a projection --
-    # but this reader is one of three in the repository that disagree about the same grammar, and
-    # consolidating them later is only safe if the behaviour each one has today is written down.
-
-    def test_a_quoted_scalar_needs_BOTH_quotes_to_be_unwrapped(self) -> None:
-        """Either half of the `startswith and endswith` guard alone mis-parses real values.
-
-        With only `endswith`, `abc'` loses its first and last character and becomes `bc`; with only
-        `startswith`, `'abc` becomes `ab`. Both spellings occur in ordinary prose (a trailing
-        apostrophe, a quoted fragment), and silently truncating a description is exactly the kind
-        of corruption that reaches a host without erroring.
-        """
-        self.assertEqual("abc'", adapters._yaml_scalar("abc'"))
-        self.assertEqual("'abc", adapters._yaml_scalar("'abc"))
-        self.assertEqual("abc", adapters._yaml_scalar("'abc'"))
-        self.assertEqual("it's", adapters._yaml_scalar("'it''s'"))
-        self.assertEqual("plain", adapters._yaml_scalar("plain"))
-
-    def test_tool_specs_from_a_missing_field_are_empty_not_the_string_None(self) -> None:
-        """`str(raw or "")` collapses None to empty. Dropping the `or ""` yields the literal
-        string "None", which would parse as a tool named None and silently grant nothing while
-        looking like a grant."""
-        self.assertEqual([], adapters._split_tool_specs(None))
-        self.assertEqual([], adapters._split_tool_specs(""))
-        self.assertEqual(["Read", "Grep"], adapters._split_tool_specs("Read, Grep"))
-        self.assertEqual(["Read", "Grep"], adapters._split_tool_specs(["Read", "Grep"]))
+    # --- narrow paths in installed-resource rewriting --------------------------------------------
+    # Operand drops here survived a mutation sweep; the frontmatter grammar's own narrow paths are
+    # pinned in test_fleet_frontmatter.py.
 
     def test_an_installed_skill_reference_covers_both_bare_and_SKILL_md_tails(self) -> None:
         """`not tail or tail == "/SKILL.md"` treats both spellings as the skill itself. Dropping

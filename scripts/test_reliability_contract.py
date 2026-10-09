@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import unittest
 
-import generate_platform_adapters as adapters
+import fleet_frontmatter
 import validate_fleet
 
 
@@ -16,18 +16,17 @@ NAME = "reliability-engineer"
 
 class ReliabilityContractTests(unittest.TestCase):
     def test_canonical_and_projected_authority(self):
-        fields, _, _ = adapters.parse_frontmatter(ROOT / "agents" / f"{NAME}.md")
-        specs = validate_fleet._tool_specs(fields["tools"])
+        fields = fleet_frontmatter.parse_file(ROOT / "agents" / f"{NAME}.md").fields
+        grants = fleet_frontmatter.tool_grants(fields["tools"])
         self.assertEqual(
             {"Read", "Grep", "Glob", "Write", "Edit", "Skill", "Agent"},
-            validate_fleet._tool_bases(specs),
+            {grant.base for grant in grants},
         )
         self.assertEqual(
             {"repository-investigator", "sre-assistant", "researcher"},
-            validate_fleet._delegates(specs, Path(NAME)),
+            set(fleet_frontmatter.delegation_targets(grants, NAME, plugin="save-toolkit")),
         )
-        projected, _, _ = adapters.parse_frontmatter(
-            ROOT / ".github/agents" / f"{NAME}.agent.md")
+        projected = fleet_frontmatter.parse_file(ROOT / ".github/agents" / f"{NAME}.agent.md").fields
         self.assertEqual(["read", "search", "edit", "agent"], json.loads(projected["tools"]))
         self.assertEqual(
             ["repository-investigator", "sre-assistant", "researcher"],

@@ -15,6 +15,9 @@ FrontmatterValue: TypeAlias = str | list[str]
 KEY_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*):(?:[ \t]*(.*))?$")
 LIST_ITEM_RE = re.compile(r"\s+-\s+(.+?)\s*")
 BLOCK_MARKERS = {">", ">-", "|", "|-"}
+# A component name: lowercase kebab-case. Pattern text, so callers can embed it in larger patterns.
+KEBAB_NAME = r"[a-z0-9]+(?:-[a-z0-9]+)*"
+TOOL_GRANT_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_.*-]*)(?:\((.*)\))?")
 
 
 class FrontmatterError(ValueError):
@@ -45,6 +48,19 @@ def decode_scalar(raw: str) -> str:
     return raw
 
 
+class ToolGrant(NamedTuple):
+    """One ``tools:`` entry, ``Name`` or ``Name(arguments)``."""
+
+    spec: str
+    # The text before any ``(``, even for a malformed entry: authority checks still reason over
+    # what a malformed grant names, while its syntax is reported separately.
+    base: str
+    # The text inside the parentheses; None when there are none or the entry is malformed. An
+    # empty ``Name()`` gives "", which callers treat as unscoped.
+    arguments: str | None
+    well_formed: bool
+
+
 def split_tool_specs(raw: object) -> list[str]:
     """Split tool grants while keeping commas inside ``Tool(...)`` arguments."""
     if isinstance(raw, list):
@@ -65,6 +81,43 @@ def split_tool_specs(raw: object) -> list[str]:
     if spec := raw[start:].strip():
         result.append(spec)
     return result
+
+
+def parse_tool_grant(spec: str) -> ToolGrant:
+    match = TOOL_GRANT_RE.fullmatch(spec)
+    if match is None:
+        return ToolGrant(spec, spec.split("(", 1)[0].strip(), None, well_formed=False)
+    return ToolGrant(spec, match.group(1), match.group(2), well_formed=True)
+
+
+def tool_grants(raw: object) -> list[ToolGrant]:
+    """Parse a ``tools:`` value, a comma-separated string or a list, in declaration order."""
+    return [parse_tool_grant(spec) for spec in split_tool_specs(raw)]
+
+
+def delegation_targets(grants: list[ToolGrant], source: str | Path, *, plugin: str) -> list[str]:
+    """Bare target names from exact ``Agent(plugin:target, ...)`` grants, in declaration order.
+
+    An ``Agent`` grant without an explicit allowlist, a target outside ``plugin``, and a repeated
+    target are errors: a delegation graph that cannot be read exactly must not be guessed at.
+    """
+    targets: list[str] = []
+    for grant in grants:
+        if grant.base != "Agent":
+            continue
+        # Exactly `Agent(<targets>)`: a bare or malformed grant carries no arguments, and nested
+        # parentheses are not an allowlist.
+        arguments = grant.arguments
+        if arguments is None or "(" in arguments or ")" in arguments:
+            raise ValueError(f"{source}: Agent tool must declare an explicit target allowlist")
+        for target in (item.strip() for item in arguments.split(",")):
+            if not re.fullmatch(rf"{re.escape(plugin)}:{KEBAB_NAME}", target):
+                raise ValueError(f"{source}: invalid Agent target {target!r}")
+            target = target.removeprefix(f"{plugin}:")
+            if target in targets:
+                raise ValueError(f"{source}: duplicate Agent target {target!r}")
+            targets.append(target)
+    return targets
 
 
 def _source_name(source: str | Path) -> str:
