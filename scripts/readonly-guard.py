@@ -1240,14 +1240,20 @@ def main() -> None:
     # carries NO `agent_type`
     # key, so the user's own Bash exits here and is never inspected.
     agent = data.get("agent_type")
+    command = tool_input.get("command")
+    if command is None:
+        command = ""  # an absent command is nothing to run
+    elif agent in FLEET_AGENTS and not isinstance(command, str):
+        # Every lane inspected below reads the command as text, the guarded one included (it is a
+        # fleet lane). A number, list or object is not a command the guard can vouch for: a truthy
+        # one used to crash with exit 1, and a falsy one read as empty and was allowed.
+        sys.exit(EXIT_INDETERMINATE)
 
     # Fleet-wide first: every roster lane, not only the guarded one. The main loop is still
     # exempt — this rule is addressed to the fleet's agents, and denying a human's own
     # `cf env` in their own terminal is over-reach the fleet has no standing to impose.
     if agent in FLEET_AGENTS:
-        credential = credential_reason(
-            (data.get("tool_input") or {}).get("command", "") or ""
-        )
+        credential = credential_reason(command)
         if credential is not None:
             _deny(
                 f"Blocked by the fleet credential rule: {credential}. Ask the human owner to "
@@ -1309,10 +1315,7 @@ def main() -> None:
             )
         _allow()
 
-    command = (data.get("tool_input") or {}).get("command", "") or ""
     bare_agent = agent.split(":", 1)[-1] if isinstance(agent, str) else ""
-    if not isinstance(command, str):
-        sys.exit(EXIT_INDETERMINATE)
     reason = explain_powershell(command) if tool_name == "PowerShell" else explain(command, bare_agent)
     if reason is not None:
         _deny(f"Blocked by the read-only agent allowlist guard: {reason}. {_GUIDANCE}")

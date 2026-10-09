@@ -665,6 +665,58 @@ class ReadonlyGuardTest(unittest.TestCase):
         self.assertEqual(decision(proc), "allow")
 
 
+class NonStringCommandTest(unittest.TestCase):
+    """A command the guard reads must be text; anything else is input it cannot vouch for.
+
+    Every inspected lane (the guarded one and the fleet lanes the credential rule reads) used to
+    crash with exit 1 on a truthy non-string (`'int' object has no attribute 'strip'`), and a falsy
+    one (`0`, `[]`) read as an empty command, which the guarded lane then allowed.
+    """
+
+    INSPECTED = ("save-toolkit:sre-assistant", "sre-assistant", "save-toolkit:software-engineer")
+    NON_STRINGS = (5, True, 0, False, [], ["git", "push"], {}, {"command": "git push"})
+
+    @staticmethod
+    def payload(tool: str, agent: str | None, command: object) -> str:
+        data: dict = {"tool_name": tool, "tool_input": {"command": command}}
+        if agent is not None:
+            data["agent_type"] = agent
+        return json.dumps(data)
+
+    def test_inspected_lanes_answer_indeterminate_without_crashing(self) -> None:
+        cases = [(tool, agent, command) for tool in ("Bash", "PowerShell")
+                 for agent in self.INSPECTED for command in self.NON_STRINGS]
+        procs = run_guard_batch([self.payload(*case) for case in cases])
+        for case, proc in zip(cases, procs, strict=True):
+            with self.subTest(tool=case[0], agent=case[1], command=case[2]):
+                self.assertEqual(
+                    (EXIT_INDETERMINATE, b"", b""), (proc.returncode, proc.stdout, proc.stderr)
+                )
+
+    def test_a_null_command_is_still_nothing_to_run(self) -> None:
+        for tool in ("Bash", "PowerShell"):
+            for agent in self.INSPECTED:
+                with self.subTest(tool=tool, agent=agent):
+                    self.assertEqual(decision(run_guard(self.payload(tool, agent, None))), "allow")
+
+    def test_the_main_loop_command_is_still_never_inspected(self) -> None:
+        for command in self.NON_STRINGS:
+            with self.subTest(command=command):
+                self.assertEqual(decision(run_guard(self.payload("Bash", None, command))), "allow")
+
+    def test_the_copilot_entry_point_answers_indeterminate_too(self) -> None:
+        for command in (*self.NON_STRINGS, None):
+            with self.subTest(command=command):
+                proc = subprocess.run(
+                    [sys.executable, str(GUARD), "--copilot"],
+                    input=self.payload("run_in_terminal", None, command).encode("utf-8"),
+                    capture_output=True, timeout=30,
+                )
+                self.assertEqual(
+                    (EXIT_INDETERMINATE, b"", b""), (proc.returncode, proc.stdout, proc.stderr)
+                )
+
+
 class ScopedCfReadTest(unittest.TestCase):
     """The SRE policy grants five CF forms, not every flag on a read-named verb."""
 
