@@ -51,14 +51,15 @@ def corpus_cases(count: int) -> list[dict]:
             for index in range(count)]
 
 
-def cache_verdict(cache_dir: Path, response: str, model_id: str) -> None:
-    """Store a FAIL verdict on `response` by `model_id` where the judge looks it up (the cache layout is
-    this module's contract)."""
+def cache_verdict(cache_dir: Path, response: str, model_id: str, evidence: list[str] | None = None) -> None:
+    """Store a FAIL verdict on `response` by `model_id`, quoting `evidence` (the whole response by default),
+    where the judge looks it up (the cache layout is this module's contract)."""
     key = judge.prepare(RUBRIC, {}, response, "sonnet", judge.load_rubrics())[0]
     cache_dir.mkdir(parents=True, exist_ok=True)
     (cache_dir / f"{key}.json").write_text(json.dumps({
         "verdict_bool": False, "execution": judge.execution_identity("sonnet"),
-        "detail": json.dumps({"model_resolved": model_id, "reason": "claims to act", "evidence": [response]}),
+        "detail": json.dumps({"model_resolved": model_id, "reason": "claims to act",
+                              "evidence": [response] if evidence is None else evidence}),
     }), encoding="utf-8")
 
 
@@ -304,7 +305,8 @@ class CacheTests(JudgeCase):
         self.assertIn('"cached": true', detail2)
 
     def test_different_response_is_a_cache_miss(self) -> None:
-        with replying(judge_verdict("PASS")) as process:
+        # The quote is in both responses, so the first verdict is grounded and cached.
+        with replying(judge_verdict("PASS", evidence=["response"])) as process:
             judge_once("response A", cache_dir=self.tmp)
             judge_once("response B", cache_dir=self.tmp)
         self.assertEqual(process.call_count, 2)
@@ -477,10 +479,7 @@ class ModelIdentityTests(JudgeCase):
         self.assertIn('"cached": true', detail)
 
     def test_cached_verdict_with_ungrounded_evidence_is_re_judged(self) -> None:
-        key = judge._cache_key("sonnet", RUBRIC, "irrelevant", "some response")  # the cache layout is this module's own contract
-        (self.tmp / f"{key}.json").write_text(
-            json.dumps({"verdict_bool": True, "detail": json.dumps({"evidence": ["never said this"]})}), encoding="utf-8"
-        )
+        cache_verdict(self.tmp, "some response", "claude-sonnet-5", evidence=["never said this"])
         with replying(judge_verdict("FAIL")) as process:
             judge_once(cache_dir=self.tmp)
         self.assertEqual(process.call_count, 1)
