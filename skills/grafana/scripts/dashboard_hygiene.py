@@ -65,32 +65,40 @@ def require_shape(value, expected, where, *, nullable=False):
                               else f"{where} must be a {kind}")
 
 
+def walk_panels(items, where):
+    """Yield (location, panel) for every non-row panel, descending into collapsed rows.
+
+    The one row descent: it checks the shapes it traverses itself (each container, panel object and
+    type), so neither validation nor checking can walk a panel the other would read differently.
+    """
+    require_shape(items, list, where, nullable=True)
+    for index, panel in enumerate(items or []):
+        location = f"{where}[{index}]"
+        require_shape(panel, dict, location)
+        require_shape(panel.get("type"), str, f"{location}.type", nullable=True)
+        if panel.get("type") == "row":
+            yield from walk_panels(panel.get("panels"), f"{location}.panels")
+        else:
+            yield location, panel
+
+
 def validate_shape(spec: dict, root_path="$"):
     """Check only containers/text the helper traverses, not Grafana's full schema.
 
     Optional null containers retain their existing empty interpretation. Datasource type guards
     and opaque plugin query/config values keep their existing behavior.
     """
-    def panels(items, where):
-        require_shape(items, list, where, nullable=True)
-        for index, panel in enumerate(items or []):
-            location = f"{where}[{index}]"
-            require_shape(panel, dict, location)
-            require_shape(panel.get("type"), str, f"{location}.type", nullable=True)
-            if panel.get("type") == "row":
-                panels(panel.get("panels"), f"{location}.panels")
-                continue
-            for key in ("title", "description"):
-                require_shape(panel.get(key), str, f"{location}.{key}", nullable=True)
-            fields = panel.get("fieldConfig")
-            require_shape(fields, dict, f"{location}.fieldConfig", nullable=True)
-            require_shape((fields or {}).get("defaults"), dict, f"{location}.fieldConfig.defaults", nullable=True)
-            targets = panel.get("targets")
-            require_shape(targets, list, f"{location}.targets", nullable=True)
-            for index, target in enumerate(targets or []):
-                require_shape(target, dict, f"{location}.targets[{index}]")
+    for location, panel in walk_panels(spec.get("panels"), f"{root_path}.panels"):
+        for key in ("title", "description"):
+            require_shape(panel.get(key), str, f"{location}.{key}", nullable=True)
+        fields = panel.get("fieldConfig")
+        require_shape(fields, dict, f"{location}.fieldConfig", nullable=True)
+        require_shape((fields or {}).get("defaults"), dict, f"{location}.fieldConfig.defaults", nullable=True)
+        targets = panel.get("targets")
+        require_shape(targets, list, f"{location}.targets", nullable=True)
+        for index, target in enumerate(targets or []):
+            require_shape(target, dict, f"{location}.targets[{index}]")
 
-    panels(spec.get("panels"), f"{root_path}.panels")
     templating = spec.get("templating")
     require_shape(templating, dict, f"{root_path}.templating", nullable=True)
     variables = (templating or {}).get("list")
@@ -153,14 +161,9 @@ def unwrap(model: dict) -> dict:
 
 
 def iter_panels(spec: dict):
-    """Yield every non-row panel, descending into collapsed rows."""
-    def walk(panels):
-        for panel in panels or []:
-            if panel.get("type") == "row":
-                yield from walk(panel.get("panels") or [])
-            else:
-                yield panel
-    yield from walk(spec.get("panels"))
+    """Yield every non-row panel, descending into collapsed rows; untraversable shapes raise."""
+    for _location, panel in walk_panels(spec.get("panels"), "$.panels"):
+        yield panel
 
 
 def panel_findings(panel: dict, where: str):

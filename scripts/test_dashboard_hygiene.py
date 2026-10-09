@@ -299,6 +299,18 @@ class StructureTest(unittest.TestCase):
         self.assertNotIn("panel-no-targets", fired)
         self.assertNotIn("panel-description", fired)
 
+    def test_check_refuses_panels_it_cannot_traverse(self) -> None:
+        # check() walks panels the way the shape validation does, so a caller that skips validation
+        # gets the same located refusal, not a crash or findings computed over an unreadable panel.
+        for panels, message in (
+            ([None], r"\$\.panels\[0\] must be an object"),
+            ([{"type": 5, "title": "x"}], r"\$\.panels\[0\]\.type must be a string"),
+            ({"title": "x"}, r"\$\.panels must be an array"),
+            ([{"type": "row", "panels": [[]]}], r"\$\.panels\[0\]\.panels\[0\] must be an object"),
+        ):
+            with self.subTest(panels=panels), self.assertRaisesRegex(hygiene.InputShapeError, message):
+                hygiene.check({"panels": panels, "tags": ["t"]})
+
     def test_k8s_wrapper_is_unwrapped(self) -> None:
         wrapped = {"apiVersion": "dashboard.grafana.app/v1", "kind": "Dashboard",
                    "metadata": {"name": "x"}, "spec": clean_model()}
