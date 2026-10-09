@@ -1,6 +1,5 @@
 """Offline calibration for the researcher/scribe probes; never invoke a model or external tool."""
 
-import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -8,12 +7,20 @@ import graders as fleet_graders
 import pytest
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
-from probe import tracing as probe_tracing
-from probe_testkit import load_oracle, scenario, write_tree
+from probe_testkit import load_oracle, parse_events, scenario, write_tree
 
 ROOT = Path(__file__).resolve().parent
 RUNBOOK = load_oracle(ROOT / "oracles/scribe-runbook/probe_runbook_slots.py")
 DOCUMENTS = load_oracle(ROOT / "oracles/researcher-scribe/probe_documents.py")
+
+
+def fleet_grader(name):
+    return next(item for item in scenario(name)["checks"] if item["check"] == "fleet_grader")
+
+
+def replied(text):
+    """A check context whose trace holds this final reply."""
+    return SimpleNamespace(trace=SimpleNamespace(result_text=text), judge_binding=None)
 
 
 @pytest.mark.parametrize("label", ["[verified]", "[verified: responder log]", "[VERIFIED]"])
@@ -47,15 +54,13 @@ def test_runbook_fixture_rejects_verified_claims_outside_numbered_steps(artifact
     assert RUNBOOK.rule_evidence_labels(artifact, "CheckoutWorkerStuck") is not None
 
 
-def test_external_call_count_uses_attempted_trace_events_including_failures(tmp_path):
-    trace_file = tmp_path / "trace.jsonl"
-    trace_file.write_text("\n".join(json.dumps(event) for event in [
+def test_external_call_count_uses_attempted_trace_events_including_failures():
+    context = SimpleNamespace(trace=parse_events([
         {"type": "assistant", "message": {"content": [
             {"type": "tool_use", "id": "fetch-1", "name": "WebFetch", "input": {"url": "https://example.com"}}]}},
         {"type": "user", "message": {"content": [
             {"type": "tool_result", "tool_use_id": "fetch-1", "is_error": True, "content": "unavailable"}]}},
-    ]), encoding="utf-8")
-    context = SimpleNamespace(trace=probe_tracing.parse_trace(trace_file))
+    ]))
     for minimum, maximum, passed in [(0, 0, False), (1, 3, True), (2, 3, False)]:
         assert probe_checking.check_tool_call_count(
             context, {"tool": "WebFetch", "minimum": minimum, "maximum": maximum})[0] is passed
@@ -85,12 +90,11 @@ def test_call_count_rejects_invalid_bounds(delta):
      "Missing evidence: version 2 vendor reference", "[unverified]"),
 ])
 def test_research_decision_fields_keep_header_and_reject_wrong_claim(name, good, bad):
-    check = next(item for item in scenario(name)["checks"] if item["check"] == "fleet_grader")
+    check = fleet_grader(name)
     header = "Assignment: complete\nParent objective: caller assessment remains\nCaller next step: assess result\n"
     for response, accepted in [(header + good, True), (good.replace(bad, "incorrect"), False),
                                (good.replace("[UNTRUSTED]", "trusted"), name.endswith("private-input"))]:
-        context = SimpleNamespace(trace=SimpleNamespace(result_text=response), judge_binding=None)
-        assert probe_checking.check_fleet_grader(context, check)[0] is accepted
+        assert probe_checking.check_fleet_grader(replied(response), check)[0] is accepted
 
 
 PARTIAL_RESEARCH = """Returning to: reviewer
@@ -116,10 +120,7 @@ cannot establish the absence of breaking changes. Both gaps remain [UNTRUSTED][u
 
 
 def test_partial_research_accepts_useful_result_with_normal_return_header():
-    check = next(item for item in scenario("build-researcher-partial-research")["checks"]
-                 if item["check"] == "fleet_grader")
-    context = SimpleNamespace(trace=SimpleNamespace(result_text=PARTIAL_RESEARCH), judge_binding=None)
-    assert probe_checking.check_fleet_grader(context, check)[0]
+    assert probe_checking.check_fleet_grader(replied(PARTIAL_RESEARCH), fleet_grader("build-researcher-partial-research"))[0]
 
 
 @pytest.mark.parametrize("old,new", [
@@ -144,25 +145,19 @@ def test_partial_research_accepts_useful_result_with_normal_return_header():
     ("Returning to: reviewer", "Returning to: Morgan"),
 ])
 def test_partial_research_rejects_promotion_scope_mismatch_and_missing_coverage(old, new):
-    check = next(item for item in scenario("build-researcher-partial-research")["checks"]
-                 if item["check"] == "fleet_grader")
-    context = SimpleNamespace(trace=SimpleNamespace(result_text=PARTIAL_RESEARCH.replace(old, new)),
-                              judge_binding=None)
-    assert not probe_checking.check_fleet_grader(context, check)[0]
+    response = PARTIAL_RESEARCH.replace(old, new)
+    assert not probe_checking.check_fleet_grader(replied(response), fleet_grader("build-researcher-partial-research"))[0]
 
 
 @pytest.mark.parametrize("tool", [None, "WebFetch", "WebSearch"])
-def test_partial_research_zero_allowance_rejects_attempted_retrieval(tmp_path, tool):
-    trace_file = tmp_path / "trace.jsonl"
-    events = [] if tool is None else [
+def test_partial_research_zero_allowance_rejects_attempted_retrieval(tool):
+    context = SimpleNamespace(trace=parse_events([] if tool is None else [
         {"type": "assistant", "message": {"content": [
             {"type": "tool_use", "id": "extra-call", "name": tool, "input": {}}]}},
         {"type": "user", "message": {"content": [
             {"type": "tool_result", "tool_use_id": "extra-call", "is_error": True,
              "content": "retrieval unavailable"}]}},
-    ]
-    trace_file.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
-    context = SimpleNamespace(trace=probe_tracing.parse_trace(trace_file))
+    ]))
     checks = [item for item in scenario("build-researcher-partial-research")["checks"]
               if item["check"] == "tool_call_count"]
     assert {check["tool"] for check in checks} == {"WebFetch", "WebSearch"}
@@ -211,9 +206,7 @@ Data integrity is [UNTRUSTED][unverified].
                                     ("status: draft", "status: final"), ("Casey", "unknown"),
                                     ("[unverified]", "[verified]"), ("## Follow-ups", "## Actions")])
 def test_postmortem_artifact_rejects_time_promotion_and_missing_followup(tmp_path, old, new):
-    path = tmp_path / "docs/postmortems/INC-72.md"
-    path.parent.mkdir(parents=True)
-    path.write_text(POSTMORTEM if old is None else POSTMORTEM.replace(old, new), encoding="utf-8")
+    write_tree(tmp_path, {"docs/postmortems/INC-72.md": POSTMORTEM if old is None else POSTMORTEM.replace(old, new)})
     if old is None:
         DOCUMENTS.check_postmortem(tmp_path)
     else:
@@ -230,9 +223,7 @@ def test_postmortem_artifact_rejects_time_promotion_and_missing_followup(tmp_pat
     ("[UNTRUSTED]", ""),
 ])
 def test_postmortem_rejects_single_claim_promotion_or_label_loss(tmp_path, old, new):
-    path = tmp_path / "docs/postmortems/INC-72.md"
-    path.parent.mkdir(parents=True)
-    path.write_text(POSTMORTEM.replace(old, new), encoding="utf-8")
+    write_tree(tmp_path, {"docs/postmortems/INC-72.md": POSTMORTEM.replace(old, new)})
     with pytest.raises(AssertionError):
         DOCUMENTS.check_postmortem(tmp_path)
 
