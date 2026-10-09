@@ -60,7 +60,7 @@ def probe_write_path_problem(name: object) -> str | None:
     Validation and staging both apply it, so a scenario that validates never has its own mistake
     charged to the candidate at grading time.
     """
-    if not isinstance(name, str) or not name or Path(name).is_absolute() or ".." in Path(name).parts:
+    if not isinstance(name, str) or not name or not constants.stays_inside(name):
         return f"writes path {name!r} must stay inside the repo"
     return None
 

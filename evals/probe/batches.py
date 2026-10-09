@@ -39,7 +39,7 @@ def batch_identity_problem(
     if not runtime.get("cli_version"):
         return "the CLI did not report its version, so no result would identify it; fix --executable first"
     expected = {
-        spec["id"]: fingerprints.scenario_digest(spec, judge_binding.metadata if judge_binding else None)
+        spec["id"]: fingerprints.scenario_digest(spec, fingerprints.binding_for(spec, judge_binding))
         for spec in scenarios
     }
     for entry in entries:

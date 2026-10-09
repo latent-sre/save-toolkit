@@ -184,10 +184,7 @@ def _reference_problems(spec: Spec, where: str, kind: str) -> list[str]:
     if (
         not isinstance(references, list)
         or not references
-        or not all(
-            isinstance(r, str) and r.strip() and not Path(r).is_absolute() and ".." not in Path(r).parts
-            for r in references
-        )
+        or not all(isinstance(r, str) and r.strip() and constants.stays_inside(r) for r in references)
     ):
         return [f"{where}: references must be a non-empty list of repo-relative paths"]
     missing = [r for r in references if not (ROOT / r).is_file()]
@@ -235,7 +232,7 @@ def _fixture_problems(spec: Spec, where: str) -> list[str]:
     for name, content in fixture["files"].items():
         if not isinstance(content, str):
             problems.append(f"{where}: fixture file {name!r} content must be a string")
-        if Path(name).is_absolute() or ".." in Path(name).parts:
+        if not constants.stays_inside(name):
             problems.append(f"{where}: fixture file {name!r} must be a relative path inside the repo")
     branches = fixture.get("branches") or {}
     if not isinstance(branches, dict):
@@ -249,8 +246,7 @@ def _fixture_problems(spec: Spec, where: str) -> list[str]:
         problems.append(f"{where}: fixture.checkout {checkout!r} must be main or a declared branch")
     uncommitted = fixture.get("uncommitted") or {}
     if not isinstance(uncommitted, dict) or not all(
-        isinstance(n, str) and isinstance(c, str) and not Path(n).is_absolute() and ".." not in Path(n).parts
-        for n, c in uncommitted.items()
+        isinstance(n, str) and isinstance(c, str) and constants.stays_inside(n) for n, c in uncommitted.items()
     ):
         problems.append(f"{where}: fixture.uncommitted must map relative paths to string content")
     fake_bin = fixture.get("fake_bin") or {}
@@ -295,10 +291,7 @@ def _service_problems(service: object, where: str) -> list[str]:
         )
     files = service.get("files") or {}
     if not isinstance(files, dict) or any(
-        not isinstance(path, str)
-        or not isinstance(content, str)
-        or Path(path).is_absolute()
-        or ".." in Path(path).parts
+        not isinstance(path, str) or not isinstance(content, str) or not constants.stays_inside(path)
         for path, content in (files.items() if isinstance(files, dict) else [])
     ):
         problems.append(f"{where}: service {name!r} files must be relative path -> text mappings")

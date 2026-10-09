@@ -21,6 +21,10 @@ from .constants import BUILD_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
 from .outcomes import CutShort, Stop
 from .tracing import TraceSummary
 
+# A native conversation's spend guard, per invocation: the CLI stops there, and a trace that reports
+# more allows no follow-up.
+NATIVE_SPEND_CAP_USD = 0.75
+
 
 def build_command(
     executable: str,
@@ -70,7 +74,7 @@ def build_command(
             "--add-dir",
             str(plugin_root.resolve()),
             "--max-budget-usd",
-            "0.75",
+            str(NATIVE_SPEND_CAP_USD),
             "--prompt-suggestions",
             "false",
         ]
@@ -357,9 +361,9 @@ def invocation_problem(
         cost = records.known_usd(trace.total_cost_usd)
         if cost is None:
             return "native cost missing or invalid; no further invocation"
-        if cost > 0.75:
+        if cost > NATIVE_SPEND_CAP_USD:
             # The spend guard is an instrument limit: reaching it cuts the conversation short.
-            return CutShort("native cost exceeds $0.75; no further invocation", Stop.SPEND_GUARD)
+            return CutShort(f"native cost exceeds ${NATIVE_SPEND_CAP_USD}; no further invocation", Stop.SPEND_GUARD)
     return None
 
 

@@ -78,6 +78,12 @@ def required_rubrics(spec: Mapping[str, Any]) -> set[str]:
     return {name for definition in definitions if (name := _rubric_name(definition))}
 
 
+def binding_for(spec: Mapping[str, Any], judge_binding: rubric_judge.JudgeBinding | None) -> dict[str, Any] | None:
+    """The judge binding a scenario's identity binds and its grade records: only a scenario that grades
+    a rubric has one."""
+    return judge_binding.metadata if judge_binding and required_rubrics(spec) else None
+
+
 def _case_payload(spec: Mapping[str, Any]) -> dict[str, Any]:
     """The case a verdict is about: the scenario, the judge's cached rubric definitions, and current
     oracle file bytes.
@@ -122,10 +128,15 @@ def case_digest(spec: Mapping[str, Any]) -> str:
     return _digest(_case_payload(spec))
 
 
+def assertion_id(identity: str, index: int) -> str:
+    """An expectation's id: its scenario identity and position. Positions distinguish repeated grader
+    types; the digest binds each position's configuration."""
+    return f"{identity}:{index}"
+
+
 def stamp_assertions(identity: str, expectations: list[dict[str, Any]]) -> str:
-    """Positions distinguish repeated grader types; the digest binds each position's configuration."""
     for index, expectation in enumerate(expectations):
-        expectation["id"] = f"{identity}:{index}"
+        expectation["id"] = assertion_id(identity, index)
     return identity
 
 
@@ -149,6 +160,16 @@ OPTIONAL_PLUGIN_INPUT_PATHS = (
     "scripts/guard-session-preflight-hook.sh",
     "scripts/readonly-guard-hook.ps1",  # hooks.json runs it for PowerShell; measured since 2026-10-06
 )
+
+
+def _measured_inputs(root: Path) -> list[str]:
+    """The plugin inputs measured under `root`: every required one, and each optional one present. A
+    present optional input is measured as a required one is, so a link there is refused, never read
+    as absent; one that is absent is a property of an older plugin image."""
+    return [
+        *PLUGIN_INPUT_PATHS,
+        *(relative for relative in OPTIONAL_PLUGIN_INPUT_PATHS if os.path.lexists(root / relative)),
+    ]
 
 
 class MeasuredInputRefused(RuntimeError):
@@ -192,13 +213,7 @@ def plugin_digest(root: Path = ROOT) -> str:
     with autocrlf holds CRLF for whatever git wrote and LF for whatever a tool rewrote, and a raw
     digest therefore named the host, not the bytes (2026-09-03: three values for one commit).
     """
-    # A present optional input is measured as a required one is, so a link there is refused, never
-    # read as absent; one that is absent is a property of an older plugin image.
-    files = _files_under(
-        *PLUGIN_INPUT_PATHS,
-        *(relative for relative in OPTIONAL_PLUGIN_INPUT_PATHS if os.path.lexists(root / relative)),
-        root=root,
-    )
+    files = _files_under(*_measured_inputs(root), root=root)
     digest = hashlib.sha256()
     for path in sorted((p for p in files if p.is_file()), key=lambda p: p.as_posix()):
         digest.update(path.relative_to(root).as_posix().encode("utf-8"))
@@ -215,10 +230,7 @@ def stage_plugin(source: Path, target: Path) -> Path:
     evals, docs and history, which teach a routing answer (EVAL-014). The image holds nothing else,
     so nothing else is granted. A copy that does not hash as its source is refused.
     """
-    inputs = [
-        *PLUGIN_INPUT_PATHS,
-        *(relative for relative in OPTIONAL_PLUGIN_INPUT_PATHS if os.path.lexists(source / relative)),
-    ]
+    inputs = _measured_inputs(source)
     for relative in inputs:
         if (source / relative).is_dir():  # a directory input with no files is still a measured input
             (target / relative).mkdir(parents=True, exist_ok=True)

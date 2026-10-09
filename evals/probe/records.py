@@ -15,7 +15,7 @@ import math
 import sys
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Annotated, Any, Literal, cast
+from typing import Annotated, Any, Literal, cast, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeFloat, NonNegativeInt, PositiveInt, model_validator
 
@@ -69,9 +69,6 @@ def utc_now() -> str:
     return datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds")
 
 
-RECORD_FORMAT = {"name": "save-toolkit.eval-record", "version": 1}
-
-
 class _Section(BaseModel):
     # Strict: a value is checked as the JSON a reader parses, never coerced into place.
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -86,6 +83,10 @@ InsidePath = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za
 class RecordFormat(_Section):
     name: Literal["save-toolkit.eval-record"]
     version: Literal[1]
+
+
+# The one format this runner writes, as its readers check it before validating: read from the model.
+RECORD_FORMAT = {field: get_args(info.annotation)[0] for field, info in RecordFormat.model_fields.items()}
 
 
 class Case(_Section):
@@ -274,13 +275,8 @@ def write_record(
             "case_sha256": fingerprints.case_digest(spec),
             "scenario_sha256": grading.get("scenario_sha256"),
         },
-        "candidate": {
-            key: provenance.get(key)
-            for key in ("plugin_root", "plugin_commit", "plugin_inputs_dirty", "plugin_source_sha256")
-        },
-        "runner": {
-            key: provenance.get(key) for key in ("runner_commit", "runner_source_dirty", "runner_source_sha256")
-        },
+        "candidate": {key: provenance.get(key) for key in Candidate.model_fields},
+        "runner": {key: provenance.get(key) for key in Runner.model_fields},
         "conditions": {
             "requested_model": model,
             "observed_models": summary.get("models"),

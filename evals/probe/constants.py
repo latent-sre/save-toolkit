@@ -12,6 +12,13 @@ ORACLE_DIR = (ROOT / "evals" / "oracles").resolve()
 CONTRACT_SCENARIO_DIR = ROOT / "evals" / "scenarios"
 
 
+def stays_inside(relative: str) -> bool:
+    """Whether a path a scenario names stays inside the folder it is relative to: not absolute, and
+    no `..` part. Fixture files, references and probe-owned writes all name repository paths."""
+    path = Path(relative)
+    return not path.is_absolute() and ".." not in path.parts
+
+
 def oracle_source(relative: object) -> Path | None:
     """The oracle file a check's `writes_from` names, or None unless it is a file under evals/oracles/."""
     source = (ROOT / str(relative)).resolve()

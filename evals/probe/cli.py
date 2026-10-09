@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import enum
 import json
 import math
 import os
@@ -25,6 +26,27 @@ import judge as rubric_judge
 
 from . import assessment, batches, catalog, fingerprints, records, rescoring, trials
 from .constants import ROOT
+from .outcomes import State
+
+
+class ExitCode(enum.IntEnum):
+    """How a job ends; the order of a batch's exits is decided in `_conclude`."""
+
+    OK = 0  # a passing batch or a clean job
+    FAIL = 1  # a FAIL verdict
+    DIFFERENT = 1  # a rescore diff that lists a difference
+    INCONCLUSIVE = 2
+    REFUSED = 3  # bad input or scenario: the job did not run
+    AUTH_LOST = 4  # authentication lost mid-batch
+
+
+def _verdict_exit(states: Sequence[str], *, unfinished: bool) -> ExitCode:
+    """A batch's exit from its scenario verdicts: any FAIL decides it; otherwise anything unmeasured,
+    or a batch that did not run to the end, is INCONCLUSIVE."""
+    if State.FAIL in states:
+        return ExitCode.FAIL
+    return ExitCode.INCONCLUSIVE if unfinished or State.INCONCLUSIVE in states else ExitCode.OK
+
 
 DEFAULT_TIMEOUT = 900
 COMMANDS = ("run", "validate", "regrade", "rescore", "diff", "schema")
@@ -124,7 +146,7 @@ class _Parser(argparse.ArgumentParser):
 
     def error(self, message: str) -> NoReturn:
         self.print_usage(sys.stderr)
-        self.exit(3, f"{self.prog}: error: {message}\n")
+        self.exit(ExitCode.REFUSED, f"{self.prog}: error: {message}\n")
 
 
 def _command_parser() -> argparse.ArgumentParser:
@@ -226,12 +248,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         scenarios = catalog.load_all_scenarios()
     except ValueError as exc:
         print(f"invalid build scenario:\n{exc}", file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     if args.scenario != "all":
         scenarios = [s for s in scenarios if s["id"] == args.scenario]
         if not scenarios:
             print(f"no scenario named {args.scenario!r}", file=sys.stderr)
-            return 3
+            return ExitCode.REFUSED
     if command == "validate":
         return validate(scenarios)
     if command == "rescore":
@@ -248,14 +270,14 @@ def diff(paths: Sequence[Path]) -> int:
         base, candidate = (rescoring.load_rescore(path) for path in paths)
     except (OSError, ValueError) as exc:
         print(f"cannot read a rescore: {exc}", file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     lines = rescoring.rescore_diff(base, candidate)
     for line in lines:
         print(line)
     if base.get("runner") == candidate.get("runner"):
         print("warning: both rescores came from the same runner identity", file=sys.stderr)
     print(f"{len(lines)} difference(s)")
-    return 1 if lines else 0
+    return ExitCode.DIFFERENT if lines else ExitCode.OK
 
 
 def schema(out: Path | None) -> int:
@@ -264,7 +286,7 @@ def schema(out: Path | None) -> int:
         sys.stdout.write(text)
     else:
         out.write_text(text, encoding="utf-8", newline="\n")
-    return 0
+    return ExitCode.OK
 
 
 def validate(scenarios: list[dict[str, Any]]) -> int:
@@ -272,16 +294,17 @@ def validate(scenarios: list[dict[str, Any]]) -> int:
     shape = ", ".join(f"{n} {k}" for k, n in sorted(kinds.items()))
     expectations = sum(len(assessment.scenario_assertions(s)) for s in scenarios)
     print(f"scenarios OK -- {len(scenarios)} spec(s) ({shape}), {expectations} graded expectations")
-    return 0
+    return ExitCode.OK
 
 
 def rescore(iteration_dir: Path, out_dir: Path | None, scenarios: list[dict[str, Any]]) -> int:
     iteration, out = iteration_dir.resolve(), (out_dir.resolve() if out_dir else None)
     if out is None or out.exists() or out.is_relative_to(iteration):
         print("--rescore needs --out naming a new directory outside the saved runs", file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     out.mkdir(parents=True)
-    rows = rescoring.rescore(iteration, scenarios, out)
+    record = rescoring.rescore(iteration, scenarios, out)
+    rows, skipped = record["runs"], record["skipped"]
     changed = 0
     for r in rows:
         if r.get("error"):
@@ -291,7 +314,6 @@ def rescore(iteration_dir: Path, out_dir: Path | None, scenarios: list[dict[str,
         changed += saved != now
         relaxed = " (identity relaxed)" if r["identity_relaxed"] else ""
         print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: saved {saved}, rescored {now}{relaxed}")
-    skipped = json.loads((out / "rescore.json").read_text(encoding="utf-8"))["skipped"]
     if skipped["scenarios"]:
         print(f"skipped scenario(s) not in this checkout: {', '.join(skipped['scenarios'])}")
     if skipped["runs_without_trace_summary"]:
@@ -302,7 +324,7 @@ def rescore(iteration_dir: Path, out_dir: Path | None, scenarios: list[dict[str,
         f"rescored {len(rows)} run(s) into {out}; {changed} differ from the saved verdict "
         "(including any scenario edits since the run; diff two rescores to isolate a runner change)"
     )
-    return 0
+    return ExitCode.OK
 
 
 def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: float | None) -> int:
@@ -327,15 +349,13 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: flo
         for (_, identity), arm in arms.items()
         for verdict in batches.aggregate_by_scenario(scenarios, arm, threshold).values()
     ]
-    if "FAIL" in states:
-        return 1
-    return 2 if not states or "INCONCLUSIVE" in states else 0
+    return _verdict_exit(states, unfinished=not states)
 
 
 def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     """Run the batch, publish every attempt, and exit on the batch's verdict."""
     prepared = _preflight(args, scenarios)
-    if isinstance(prepared, int):
+    if isinstance(prepared, ExitCode):
         return prepared
     judge_binding, provenance, runtime = prepared
     out = args.out.resolve()
@@ -356,7 +376,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     problem = identity_problem(retained)
     if problem:
         print(json.dumps({"batch": "INCONCLUSIVE", "reason": problem}), flush=True)
-        return 2
+        return ExitCode.INCONCLUSIVE
     results: list[dict[str, Any]] = []
     blocked: str | None = None
     auth_failed = False
@@ -452,7 +472,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
 
 def _preflight(
     args: argparse.Namespace, scenarios: list[dict[str, Any]]
-) -> tuple[rubric_judge.JudgeBinding | None, dict[str, Any], dict[str, Any]] | int:
+) -> tuple[rubric_judge.JudgeBinding | None, dict[str, Any], dict[str, Any]] | ExitCode:
     """The judge binding, candidate and runtime a batch measures with, or exit 3 when it must refuse
     to start; the candidate and runtime are printed before any trial."""
     required = set().union(*(fingerprints.required_rubrics(spec) for spec in scenarios))
@@ -464,12 +484,12 @@ def _preflight(
             judge_binding = rubric_judge.load_binding(args.judge_calibration, required)
     except rubric_judge.JudgeUnavailable as exc:
         print(f"refusing to run: {exc}", file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     try:
         provenance = fingerprints.plugin_provenance(args.plugin_root.resolve())
     except fingerprints.MeasuredInputRefused as exc:
         print(f"refusing to run: {exc}", file=sys.stderr)
-        return 3
+        return ExitCode.REFUSED
     runtime = fingerprints.runtime_identity(args.executable)
     print(
         json.dumps(
@@ -487,7 +507,7 @@ def _preflight(
             "--expect-plugin-digest",
             file=sys.stderr,
         )
-        return 3
+        return ExitCode.REFUSED
     return judge_binding, provenance, runtime
 
 
@@ -522,7 +542,7 @@ def _conclude(
         # Exit 4, distinct from FAIL (1) and INCONCLUSIVE (2): re-authenticate, then resume. Until
         # then no verdict covers the batch, and nothing a later check refuses changes why it stopped.
         print(json.dumps(stop), flush=True)
-        return 4
+        return ExitCode.AUTH_LOST
     identities = batches.model_identities(batch)
     if problem or len(identities) > 1:
         if problem:
@@ -537,7 +557,7 @@ def _conclude(
             print(f"{len(batch)} trial(s) under {len(identities)} resolved models: not aggregated, not publishable")
         if stop:  # why scheduling also ended early, which the refusal must not hide
             print(json.dumps(stop), flush=True)
-        return 2
+        return ExitCode.INCONCLUSIVE
     verdicts = batches.aggregate_by_scenario(scenarios, batch, threshold)
     for scenario_id, verdict in sorted(verdicts.items()):
         print(
@@ -558,6 +578,4 @@ def _conclude(
     states = [v["verdict"] for v in verdicts.values()]
     if stop:
         print(json.dumps(stop), flush=True)
-    if "FAIL" in states:
-        return 1
-    return 2 if stop or "INCONCLUSIVE" in states else 0
+    return _verdict_exit(states, unfinished=bool(stop))

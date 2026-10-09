@@ -473,7 +473,7 @@ def grade(
     ctx: Context, *, inconclusive: str | None = None, expected_scenario_digest: str | None = None
 ) -> dict[str, Any]:
     """Grade a trial that just ran, against its live workspace, trace and services."""
-    binding = ctx.judge_binding.metadata if ctx.judge_binding and fingerprints.required_rubrics(ctx.spec) else None
+    binding = fingerprints.binding_for(ctx.spec, ctx.judge_binding)
     identity = expected_scenario_digest or fingerprints.scenario_digest(ctx.spec, binding)
     if fingerprints.scenario_digest(ctx.spec, binding) != identity:
         inconclusive = "scenario inputs changed before grading; re-run the trial"

@@ -387,9 +387,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         # read this repository's evals, docs and history before choosing an agent (EVAL-014).
         served = fingerprints.stage_plugin(settings.plugin_root, root / "plugin")
         provenance["plugin_served_from"] = str(served.resolve())
-        binding = (
-            settings.judge_binding.metadata if settings.judge_binding and fingerprints.required_rubrics(spec) else None
-        )
+        binding = fingerprints.binding_for(spec, settings.judge_binding)
         scenario_identity = fingerprints.scenario_digest(spec, binding)
         if settings.expected_plugin_digest and provenance["plugin_source_sha256"] != settings.expected_plugin_digest:
             inconclusive = identity_failure = "plugin inputs changed before the trial; re-run with one candidate"

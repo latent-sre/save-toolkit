@@ -548,7 +548,7 @@ class RescoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as saved, tempfile.TemporaryDirectory() as out:
             self._saved_run(Path(saved))
             before = self._snapshot(Path(saved))
-            rows = probe_rescoring.rescore(Path(saved), [self.SPEC], Path(out))
+            rows = probe_rescoring.rescore(Path(saved), [self.SPEC], Path(out))["runs"]
             self.assertEqual(before, self._snapshot(Path(saved)), "the saved run is byte-for-byte unchanged")
             self.assertTrue((Path(out) / "eval-tiny" / "new_skill" / "run-1" / "grading.json").is_file())
             record = json.loads((Path(out) / "rescore.json").read_text(encoding="utf-8"))
@@ -562,7 +562,7 @@ class RescoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as saved, tempfile.TemporaryDirectory() as out:
             run = self._saved_run(Path(saved), identity="f" * 64)
             strict = probe_rescoring.regrade_run(run, self.SPEC, write=False)
-            rows = probe_rescoring.rescore(Path(saved), [self.SPEC], Path(out))
+            rows = probe_rescoring.rescore(Path(saved), [self.SPEC], Path(out))["runs"]
         self.assertEqual("INCONCLUSIVE", strict["status"])
         self.assertIn("saved scenario identity", strict["inconclusive"])
         self.assertTrue(rows[0]["identity_relaxed"])
@@ -585,7 +585,7 @@ class RescoreTests(unittest.TestCase):
             (broken / "grading.json").write_text("{not json", encoding="utf-8")
             (Path(saved) / "eval-tiny" / "new_skill" / "run-3").mkdir()
             (Path(saved) / "eval-retired-case" / "arm" / "run-1").mkdir(parents=True)
-            rows = probe_rescoring.rescore(Path(saved), [self.SPEC], Path(out))
+            rows = probe_rescoring.rescore(Path(saved), [self.SPEC], Path(out))["runs"]
             skipped = json.loads((Path(out) / "rescore.json").read_text(encoding="utf-8"))["skipped"]
         self.assertEqual([1, 2], [r["run"] for r in rows])
         self.assertEqual("PASS", rows[0]["rescored"]["status"])
@@ -600,7 +600,7 @@ class RescoreTests(unittest.TestCase):
             blocked = Path(out) / "eval-tiny" / "new_skill" / "run-1"
             blocked.parent.mkdir(parents=True)
             blocked.write_text("a file where the rescore wants a directory", encoding="utf-8")
-            rows = probe_rescoring.rescore(Path(saved), [self.SPEC], Path(out))
+            rows = probe_rescoring.rescore(Path(saved), [self.SPEC], Path(out))["runs"]
         self.assertIn("cannot write the rescored grade", rows[0]["error"])
         self.assertEqual("PASS", rows[1]["rescored"]["status"])
 

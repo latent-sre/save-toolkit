@@ -383,7 +383,7 @@ def _saved_verdicts(
     def kept(index: int, item: assessment.Expectation) -> Outcome | None:
         if stale_judge and item.kept_as == checking.LIVE_JUDGE:
             return outcomes.unmeasured(stale_judge)
-        saved = old_by_id.get(f"{prefix}:{index}")
+        saved = old_by_id.get(fingerprints.assertion_id(str(prefix), index))
         if saved is None or saved.get("text") != item.text:
             return None
         read = Outcome.read(saved["passed"], saved["evidence"])
@@ -506,8 +506,9 @@ def _verdicts(grading: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path) -> list[dict[str, Any]]:
-    """Grade every saved run with this runner into `out_dir`, leaving the saved runs untouched.
+def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path) -> dict[str, Any]:
+    """Grade every saved run with this runner into `out_dir`, leaving the saved runs untouched, and
+    return the record written as `out_dir/rescore.json`.
 
     A saved scenario identity binds the runner that graded it, so after any runner edit `--regrade`
     voids every run. Rescoring grades across that change and marks such runs `identity_relaxed`:
@@ -545,7 +546,7 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
         )
     record = {"runner": HARNESS_IDENTITY, "iteration": str(iteration_dir), "runs": rows, "skipped": skipped}
     (out_dir / "rescore.json").write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
-    return rows
+    return record
 
 
 def rescore_diff(base: Mapping[str, Any], candidate: Mapping[str, Any]) -> list[str]:
