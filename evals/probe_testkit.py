@@ -224,6 +224,17 @@ class TempRootTestCase(unittest.TestCase):
         self.root = Path(self.enterContext(tempfile.TemporaryDirectory(prefix=self.TEMP_PREFIX)))
 
 
+class ReviewFindingTestCase(TempRootTestCase):
+    """The 2026-08-28 review findings on the probe, filed beside the module each one pins: every test
+    gets a temporary root and its own copy of the tiny spec."""
+
+    TEMP_PREFIX = "build-probe-review-"
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.spec = tiny_spec()
+
+
 def context(
     spec: dict[str, Any],
     trace: tracing.TraceSummary | None = None,
