@@ -16,7 +16,7 @@ import stat
 import subprocess
 import sys
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -43,12 +43,18 @@ HARNESS_FILES = tuple(
 )
 
 
-def harness_source_digest() -> str:
+def _files_digest(paths: Iterable[Path], base: Path) -> str:
+    """One digest over files, each bound to its path under `base` and read with LF line endings, as
+    `plugin_digest` explains."""
     digest = hashlib.sha256()
-    for path in HARNESS_FILES:
-        digest.update(path.relative_to(EVALS_DIR).as_posix().encode("utf-8") + b"\0")
+    for path in paths:
+        digest.update(path.relative_to(base).as_posix().encode("utf-8") + b"\0")
         digest.update(path.read_bytes().replace(b"\r\n", b"\n") + b"\0")
     return digest.hexdigest()
+
+
+def harness_source_digest() -> str:
+    return _files_digest(HARNESS_FILES, EVALS_DIR)
 
 
 # Loaded code is stable for this process. Changed disk bytes require a restart, never a new
@@ -214,13 +220,7 @@ def plugin_digest(root: Path = ROOT) -> str:
     digest therefore named the host, not the bytes (2026-09-03: three values for one commit).
     """
     files = _files_under(*_measured_inputs(root), root=root)
-    digest = hashlib.sha256()
-    for path in sorted((p for p in files if p.is_file()), key=lambda p: p.as_posix()):
-        digest.update(path.relative_to(root).as_posix().encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
-        digest.update(b"\0")
-    return digest.hexdigest()
+    return _files_digest(sorted((p for p in files if p.is_file()), key=lambda p: p.as_posix()), root)
 
 
 def stage_plugin(source: Path, target: Path) -> Path:
