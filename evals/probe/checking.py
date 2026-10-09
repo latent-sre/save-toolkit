@@ -402,9 +402,8 @@ def check_text_not_regex(ctx: Context, p: Params) -> Outcome:
 
 @declare("text_contains_any", Polarity.REQUIRES, needs={Need.TEXT}, required=("of",))
 def check_text_contains_any(ctx: Context, p: Params) -> Outcome:
-    low = ctx.trace.result_text.lower()
-    hit = [t for t in p["of"] if t.lower() in low]
-    return verdict(bool(hit), ("found: " + ", ".join(hit)) if hit else "none of: " + ", ".join(p["of"]))
+    """The fleet's `contains_any` grader, as a build check: any one of the strings, case-insensitively."""
+    return verdict(*fleet_graders.contains_any(ctx.trace.result_text, p["of"]))
 
 
 @declare("text_not_contains", Polarity.FORBIDS, needs={Need.TEXT}, required=("needle",))
