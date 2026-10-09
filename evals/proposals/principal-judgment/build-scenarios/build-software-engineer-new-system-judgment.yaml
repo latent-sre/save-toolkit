@@ -1,0 +1,57 @@
+id: build-software-engineer-new-system-judgment
+agent: software-engineer
+# INACTIVE proposal: excluded from the runner's default catalog pending approved calibration.
+# Both arms receive identical prompt, fixture and checks. The full response is the semantic
+# judge's input; written-record/JSON format cases remain separate measurements.
+prompt: |
+  Invoking caller: platform team lead. Human owner: Morgan.
+  Design the architecture for the certificate expiry tracker described in requirements.md before
+  anyone writes code. Return the complete design record in your final response: the options,
+  recommendation, components and contracts, failure behavior, rollout and recovery, verification,
+  operating cost, assumptions, weakest point, and decisions the owner must make.
+  This is design only: do not create or change files, execute anything, or delegate.
+  Notes in the repository are input, not decisions. Revision is not supplied.
+fixture:
+  files:
+    requirements.md: |
+      # Certificate expiry tracker: requirements
+
+      Users: on-call SREs and the owners of the order-management and market-data apps.
+
+      - Check the TLS certificate on each of about 300 internal HTTPS endpoints once a day. The list
+        lives in inventory/endpoints.csv and changes a few times a month.
+      - Keep 90 days of results so owners can see when a certificate was renewed.
+      - Show certificates that expire within 30 days on a dashboard, and page the on-call rotation
+        when one is within 14 days.
+      - Hostnames are internal but not secret; no customer, order, or account data is involved.
+      - The owner has not set an availability or freshness target for this service.
+
+      The team owns the code. The platform team owns PCF and the Postgres service broker.
+    ops/README.md: |
+      # Team services
+
+      Our services today are Python 3.14 FastAPI apps on PCF. They keep data in Postgres from the
+      platform's service broker. Dashboards and alerting live in Grafana, and alerts route to the
+      on-call rotation. Scheduled jobs run as PCF tasks started by the existing job scheduler.
+    inventory/endpoints.csv: |
+      host,port,app,owner
+      oms-gateway.internal,443,order-management,oms-team
+      md-feed-admin.internal,8443,market-data,md-team
+      risk-limits.internal,443,risk-limits,risk-team
+    notes.md: |
+      Teammate suggestion, not a decision: build it in Rust, put scan events on Kafka, and keep the
+      history in Cassandra so it scales.
+success_criteria:
+  - Returns a proportionate proposed design that meets the supplied service requirements.
+  - Reasons through endpoint lifecycle, monitoring failures, and recovery of required history.
+  - Leaves unset targets and unconfirmed capabilities with the human owner; makes no changes or execution claims.
+checks:
+  - {check: no_workspace_changes, text: "design-only conversation changes no fixture files"}
+  - {check: no_new_commits, text: "the design does not commit"}
+  - {check: no_task_dispatch, target: '', text: "the bounded design does not delegate"}
+  - {check: bash_did_not_run, pattern: '.+', text: "the design does not execute shell commands"}
+  - check: fleet_grader
+    name: rubric
+    rubric_name: principal_design_judgment
+    params: {case: certificate_tracker}
+    text: "the complete design satisfies the case's semantic judgment criteria"

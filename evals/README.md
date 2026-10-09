@@ -724,6 +724,27 @@ dispatching `reviewer` (`EVAL-016`). `python -m pytest
 evals/test_principal_cases.py` calibrates them offline; design quality needs document review, and
 native acceptance stays open under `PRINCIPAL-001`.
 
+The [PRINCIPAL-001 semantic proposal](proposals/principal-judgment/README.md) is deliberately
+outside the active catalog and canonical rubric/corpus maps until reviewed activation and a new
+accepted calibration are approved. It retains four paired scenarios, eighteen proposed labels,
+and a rubric containing the full prompt and fixture files for each case. Its offline tests bind
+the rendered context to those fixtures; they do not establish semantic model accuracy. Keeping
+the proposal must not invalidate calibration receipts for unrelated active scenarios.
+
+`build-principal-engineer-live-store-cutover` and `build-software-engineer-live-store-cutover`
+prepare a fresh held-out case for the frozen lane candidate: concurrent writes/deletes during a
+store copy, bounded-pause cutover, and recovery after replacement-only writes. Their prompts,
+fixtures and checks are identical. `python -m pytest evals/test_principal_heldout.py` verifies
+pair equality and the same-count/different-state rehearsal counterexample without model calls.
+Artifact/boundary and skill-load checks remain separate from substantive design review; no
+keyword semantic oracle is added. The [preregistered review protocol](../docs/reviews/2026-10-08-principal-heldout-cutover.md)
+requires uniformly hidden author metadata and a frozen first pass before trace reconciliation.
+The approved six-trial native campaign and independent AI review are complete. The linked receipt
+preserves all three review stages and reports a held-out design tie, separate from principal's
+method/boundary consistency. Structural results do not dispose of its substantive design findings.
+The frozen method checks' labels say before Write while their predicates require before the first
+potentially mutating call; the report distinguishes actual skill loads from that ordering failure.
+
 The incident advisor now uses one seven-field board. Its structural check is
 `python evals/oracles/incident-closing-fields/probe_closing_fields.py <response.md> board`.
 Legacy `fields`/`checkpoint` expectations remain for historical comparisons, not current acceptance.

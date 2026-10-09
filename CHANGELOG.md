@@ -8,6 +8,35 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- PRINCIPAL-001's alerting prerequisite now follows the service requirements and makes relevant
+  guidance a design-readiness condition. Two matched principal/software-engineer semantic cases
+  return complete design records for the existing rubric judge, with twelve proposed calibration
+  examples covering compatibility, evidence feasibility, endpoint lifecycle, monitoring failures
+  and history recovery. The owner's bar requires better judgment as well as usable records;
+  the approved twelve-attempt diagnostic loaded alert guidance 3/3 and strengthened record
+  consistency, but document review still found material design and source-grounding errors.
+  The campaign cost USD 2.351204 and preserved one OAuth-interrupted trial; acceptance remains
+  open and no model judge was used. The approved follow-up now requires checking named inputs,
+  separating live membership from retained history, testing query-error notifications and gating
+  destructive stages on preservation evidence. Four further proposed calibration examples cover
+  false file-absence claims and unconfirmed recovery. A second approved twelve-trial comparison
+  completed for USD 2.306003 without interruptions: all six principal structural trials passed,
+  and author-aware review found all three tracker records address the four repair targets.
+  Contract migration remains broadly comparable; residual errors, independent human review and
+  held-out evidence keep acceptance open. A separate AI reviewer confirms the bounded split;
+  both passes are preserved verbatim and an unsupported execution-claim accusation is withdrawn.
+  The separately approved six-trial held-out cutover comparison completed for USD 1.905009;
+  a principal fence/abort contradiction and cross-arm replay concerns keep acceptance open.
+  Its independent AI first pass, prompted addendum and trace/unmasking review are preserved
+  verbatim: held-out design quality is tied, while principal method/boundary consistency is
+  stronger. One targeted advantage and two case ties do not establish general superiority.
+  Acceptance remains open; the bounded follow-up is proposed and campaign snapshots remain frozen.
+  PR review keeps the uncalibrated rubric, eighteen proposed labels and four semantic scenarios
+  outside the active catalog so unrelated calibration receipts are not invalidated. The proposed
+  judge now includes complete case prompts/fixtures, with two additional fixture-fact positives;
+  the roadmap explicitly labels receipt-backed and review-reported claims. No live calibration ran.
+  No model judge was used. See the
+  [acceptance candidate](docs/reviews/2026-10-07-principal-judgment-acceptance.md).
 - A trial ran in an empty repository, but `--plugin-dir` and `--add-dir` named the checkout, so a
   routing session could read this repository's evals, docs and history before choosing an agent:
   6 of 38 principal-campaign routing traces searched the checkout first, 2 of them `evals/`

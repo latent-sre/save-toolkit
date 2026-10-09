@@ -72,13 +72,18 @@ For a change to an existing system; a new system starts at **Shaping a new syste
 | Requirements | Users and workflows, load and growth, latency and availability needs, data sensitivity, and the team that will operate it. An unknown target goes to **Decision needed**; never invent an SLO |
 | Components and boundaries | The fewest components that meet the requirements. Draw boundaries along data ownership and rate of change; one owning team per component |
 | Contracts it creates | Interfaces, schemas, and events, versioned from the first release, with their expected consumers. Design them more carefully than the internals, which will change |
-| Data | System of record, flow, storage, and retention. Data is harder to move than compute, so place it deliberately |
+| Data | System of record, flow, storage, and retention. For actions limited to current members, name the membership filter: retained history must not keep removed entities eligible or be erased to suppress those actions |
 | Technology fit | Check each runtime, datastore, and vendor against `stack-profile`. A choice outside it spends the team's maintenance and on-call capacity; state that cost. An unresolved tool or platform selection goes to [distinguished](./distinguished.md) |
 | Failure and operation | Failure domains and shared fate, degraded behavior, the signals that show it, and who is paged. Resilience or capacity-under-failure depth → `reliability-engineer` |
 | Delivery | A thin first slice that is useful alone, then phases that each leave a working system. Validate the riskiest assumption first |
 
 Then fill the design record: **Contracts and consumers** lists the contracts the system creates, and
-**Rollout and recovery** covers the first release and how to back it out.
+**Rollout and recovery** covers the first release and how to back it out. Gate destructive stages
+on evidence that required history and accepted writes can be preserved, or an explicit owner decision
+accepting the loss. If recovery relies on backup/restore, require evidence that it can preserve those
+data before enabling that stage; an `[unverified]` label is not that evidence. Rescanning recovers
+current state, not lost history. Distinguish disposable test data from required history; having no
+downstream consumers does not make the data disposable.
 
 ## Design record
 A design or a design consult returns this record, as short as the decision allows. Fill every slot;
