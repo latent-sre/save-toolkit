@@ -507,6 +507,8 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
                     "skills": trace.skills,
                     "skills_failed": trace.skills_failed,
                     "advertised_tools": trace.advertised_tools,
+                    "advertised_skills": trace.advertised_skills,
+                    "foreign_skills": trace.foreign_skills,
                     "mcp_servers": trace.mcp_servers,
                     "permission_mode": trace.permission_mode,
                     "dispatches": trace.dispatches,

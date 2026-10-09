@@ -21,6 +21,10 @@ from .constants import BUILD_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
 from .outcomes import CutShort, Stop
 from .tracing import TraceSummary
 
+# Account skills synced from claude.ai download in the background at session start and reached 7 of 8
+# unisolated probe sessions; this setting kept them out of 16 of 16 (WP-02 gap 1).
+ISOLATION_SETTINGS = json.dumps({"syncClaudeAiSkills": False})
+
 
 def build_command(
     executable: str,
@@ -52,6 +56,8 @@ def build_command(
         "--mcp-config",
         '{"mcpServers":{}}',
         "--strict-mcp-config",
+        "--settings",
+        ISOLATION_SETTINGS,
         "--tools",
         ",".join(tools),
         "--disallowedTools",
@@ -298,6 +304,8 @@ def identity_problem(trace: TraceSummary, spec: Mapping[str, Any], plugin_root: 
     requested = catalog.scenario_tools(spec)
     expected = expected_runtime_tools(plugin_root, spec["agent"], requested) if spec.get("agent") else requested
     problem = runtime_boundary_problem(trace, expected) or plugin_identity_problem(trace, plugin_root)
+    if not problem and trace.foreign_skills:  # outside the measured plugin: the profile is not the one declared
+        problem = f"skills advertised outside the measured plugin: {trace.foreign_skills[:5]}"
     if not problem and not any(trace.models):  # a result whose model is unknown is never pooled
         problem = "resolved model identity missing"
     return problem
