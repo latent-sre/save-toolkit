@@ -717,6 +717,52 @@ class NonStringCommandTest(unittest.TestCase):
                 )
 
 
+class MalformedEnvelopeTest(unittest.TestCase):
+    """A scoping or input field present with the wrong type is the envelope moving under us.
+
+    `tool_name` and `agent_type` decide scoping. A list or object there crashed the set-membership
+    test with exit 1, and an `agent_type` of another type (a numeric id, an object) read as some
+    other agent and was allowed: the silent-disarm shape the contract canary exists to refuse. A
+    falsy non-object `tool_input` read as absent and was allowed too.
+    """
+
+    PUSH = {"command": "git push origin main"}
+    MALFORMED = (
+        ({"tool_name": ["Bash"], "agent_type": SRE, "tool_input": PUSH}, False),
+        ({"tool_name": {"name": "Bash"}, "tool_input": PUSH}, False),
+        ({"tool_name": 5, "agent_type": SRE, "tool_input": PUSH}, False),
+        ({"tool_name": "Bash", "agent_type": ["sre-assistant"], "tool_input": PUSH}, False),
+        ({"tool_name": "Bash", "agent_type": {"name": SRE}, "tool_input": PUSH}, False),
+        ({"tool_name": "Bash", "agent_type": 7, "tool_input": PUSH}, False),
+        ({"tool_name": "Bash", "agent_type": SRE, "tool_input": []}, False),
+        ({"tool_name": "Bash", "agent_type": SRE, "tool_input": ""}, False),
+        ({"tool_name": "Bash", "agent_type": SRE, "tool_input": 0}, False),
+        ({"tool_name": ["run_in_terminal"], "tool_input": PUSH}, True),
+        ({"tool_name": ["run_in_terminal"], "tool_input": {}}, True),
+        ({"tool_name": "Read", "tool_input": False}, True),
+    )
+
+    def test_wrong_typed_fields_answer_indeterminate_without_crashing(self) -> None:
+        for payload, copilot in self.MALFORMED:
+            with self.subTest(payload=payload, copilot=copilot):
+                proc = subprocess.run(
+                    [sys.executable, str(GUARD), *(["--copilot"] if copilot else [])],
+                    input=json.dumps(payload).encode("utf-8"), capture_output=True, timeout=30,
+                )
+                self.assertEqual(
+                    (EXIT_INDETERMINATE, b"", b""), (proc.returncode, proc.stdout, proc.stderr)
+                )
+
+    def test_null_fields_still_read_as_absent(self) -> None:
+        for payload in (
+            {"tool_name": None, "agent_type": SRE, "tool_input": self.PUSH},
+            {"tool_name": "Bash", "agent_type": None, "tool_input": self.PUSH},
+            {"tool_name": "Bash", "agent_type": SRE, "tool_input": None},
+        ):
+            with self.subTest(payload=payload):
+                self.assertEqual(decision(run_guard(json.dumps(payload))), "allow")
+
+
 class ScopedCfReadTest(unittest.TestCase):
     """The SRE policy grants five CF forms, not every flag on a read-named verb."""
 

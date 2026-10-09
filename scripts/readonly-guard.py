@@ -1214,8 +1214,16 @@ def main() -> None:
     if sys.argv[1:] and not copilot:
         sys.exit(EXIT_INDETERMINATE)
     tool_name = data.get("tool_name")
-    tool_input = data.get("tool_input") or {}
-    if not isinstance(tool_input, dict):
+    agent = data.get("agent_type")
+    tool_input = data.get("tool_input")
+    if tool_input is None:
+        tool_input = {}
+    # A field present with the wrong type is unreadable in the same way; null still means absent.
+    # tool_name and agent_type decide scoping: an unhashable one crashed the membership tests with
+    # exit 1, and an agent_type of another type (a numeric id, an object) read as "some other
+    # agent" and was allowed — a silent disarm if the undocumented field ever changes shape.
+    if not (isinstance(tool_input, dict) and isinstance(tool_name, str | None)
+            and isinstance(agent, str | None)):
         sys.exit(EXIT_INDETERMINATE)
     if copilot:
         # This entry point is attached to sre-assistant's own VS Code agent hook. It must not
@@ -1239,7 +1247,6 @@ def main() -> None:
     # The plugin hook is session-wide, so scope here before inspecting the command. The main loop
     # carries NO `agent_type`
     # key, so the user's own Bash exits here and is never inspected.
-    agent = data.get("agent_type")
     command = tool_input.get("command")
     if command is None:
         command = ""  # an absent command is nothing to run
