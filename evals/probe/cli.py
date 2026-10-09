@@ -24,7 +24,7 @@ from typing import Any, NoReturn
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, batches, catalog, fingerprints, records, rescoring, trials
+from . import assessment, batches, catalog, fingerprints, layout, records, rescoring, trials
 from .constants import ROOT
 from .outcomes import State
 
@@ -308,12 +308,12 @@ def rescore(iteration_dir: Path, out_dir: Path | None, scenarios: list[dict[str,
     changed = 0
     for r in rows:
         if r.get("error"):
-            print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: not rescored: {r['error']}")
+            print(f"{layout.run_name(*layout.run_key(r))}: not rescored: {r['error']}")
             continue
         saved, now = r["saved"]["status"], r["rescored"]["status"]
         changed += saved != now
         relaxed = " (identity relaxed)" if r["identity_relaxed"] else ""
-        print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: saved {saved}, rescored {now}{relaxed}")
+        print(f"{layout.run_name(*layout.run_key(r))}: saved {saved}, rescored {now}{relaxed}")
     if skipped["scenarios"]:
         print(f"skipped scenario(s) not in this checkout: {', '.join(skipped['scenarios'])}")
     if skipped["runs_without_trace_summary"]:
@@ -333,7 +333,7 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: flo
         scope = " (structural only; semantics UNVERIFIED)" if r.get("semantic_assessment") else ""
         if batches.pool_identity(r) is None:
             scope += " (model, candidate, CLI or host unknown: not pooled)"
-        print(f"eval-{r['scenario']} {r['label']}/run-{r['run']}: {r['status']} {r['passed']}/{r['total']}{scope}")
+        print(f"{layout.run_name(*layout.run_key(r))}: {r['status']} {r['passed']}/{r['total']}{scope}")
     print(f"regraded {len(rows)} run(s)")
 
     # Exit like a run: trials aggregate per scenario against its threshold only within one arm, the
@@ -363,9 +363,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     summary_path = out / f"summary-{args.label}-{args.model or 'default'}.json"
     existing = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else []
     replaced = {(s["id"], args.label, args.run_offset + i + 1) for s in scenarios for i in range(args.trials)}
-    retained = [
-        e for e in existing if not args.overwrite or (e.get("scenario"), e.get("label"), e.get("run")) not in replaced
-    ]
+    retained = [e for e in existing if not args.overwrite or layout.run_key(e) not in replaced]
 
     def identity_problem(entries: list[dict[str, Any]]) -> str | None:
         """Why these trials cannot pool with this batch's candidate, judge and runtime, if they cannot."""

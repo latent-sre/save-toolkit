@@ -22,6 +22,7 @@ from probe import batches as probe_batches
 from probe import catalog as probe_catalog
 from probe import cli as probe_cli
 from probe import fingerprints as probe_fingerprints
+from probe import layout as probe_layout
 from probe import records as probe_records
 from probe import rescoring as probe_rescoring
 from probe import trials as probe_trials
@@ -445,7 +446,7 @@ class BatchSpendCapTests(unittest.TestCase):
         """The batch summary is per label and model, but a label's kept attempts are shared: a capped
         sonnet batch counted the opus attempts beside it. An attempt whose model is unreadable counts."""
         with tempfile.TemporaryDirectory() as tmp:
-            kept = probe_trials.attempts_dir(Path(tmp) / "eval-tiny" / "l") / "run-1"
+            kept = probe_layout.attempts_dir(Path(tmp) / "eval-tiny" / "l") / "run-1"
             for number, timing, record in (
                 ("1", {"requested_model": "opus", "known_cost_usd": 0.9, "cost_complete": True}, None),
                 ("2", {"requested_model": "sonnet", "known_cost_usd": 0.2, "cost_complete": True}, None),
@@ -470,7 +471,7 @@ class BatchSpendCapTests(unittest.TestCase):
         """Copilot on PR #329: a `requested_model` that is neither a string nor null was taken as a
         model no batch runs, so the paid attempt counted toward none and the cap understated spend."""
         with tempfile.TemporaryDirectory() as tmp:
-            kept = probe_trials.attempts_dir(Path(tmp) / "eval-tiny" / "l") / "run-1"
+            kept = probe_layout.attempts_dir(Path(tmp) / "eval-tiny" / "l") / "run-1"
             for number, model, record in (("1", [], {"conditions": {"requested_model": "sonnet"}}), ("2", 5, None)):
                 (kept / number).mkdir(parents=True)
                 timing = {"requested_model": model, "known_cost_usd": 0.4, "cost_complete": True}

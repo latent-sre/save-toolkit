@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import re
 import sys
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -30,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from probe import batches, catalog, fingerprints
+from probe import batches, catalog, fingerprints, layout
 from probe.outcomes import State
 from probe.records import RECORD_FORMAT, RecordV1
 from pydantic import ValidationError
@@ -40,8 +39,6 @@ OUTCOMES = ("gain", "regression", "unchanged", "unmeasured", "missing_pair", "no
 
 # The provenance fields that identify a legacy run's candidate and runner.
 IDENTITY_FIELDS = ("plugin_commit", "plugin_source_sha256", "runner_source_sha256")
-# An unpublished attempt folder: `.run-N-attempt-<token>` or `.run-N-previous-<token>`.
-HIDDEN_SLOT = re.compile(r"^\.run-([1-9][0-9]*)-")
 
 # What both arms must share for a pair to be compared; the candidate's plugin is what may differ.
 MATCHED = (
@@ -91,7 +88,7 @@ class Label:
 
 
 def label_present(bundle: Path, label: str) -> bool:
-    return any((case_dir / label).is_dir() for case_dir in bundle.glob("eval-*"))
+    return any((case_dir / label).is_dir() for case_dir in layout.case_dirs(bundle))
 
 
 def compare_bundle(
@@ -139,11 +136,11 @@ def _mixed_candidates(held: Label) -> str | None:
 
 def read_label(bundle: Path, label: str) -> Label:
     held = Label()
-    for case_dir in sorted(bundle.glob("eval-*")):
+    for case_dir in layout.case_dirs(bundle):
         label_dir = case_dir / label
         if not label_dir.is_dir():
             continue
-        case_id = case_dir.name.removeprefix("eval-")
+        case_id = layout.case_id(case_dir)
         hidden = []
         for folder in sorted(label_dir.glob(".run-*")):
             read = _read_record(folder / "record.json")
@@ -158,9 +155,9 @@ def read_label(bundle: Path, label: str) -> Label:
                     f"not compared; {cost}",
                 }
             )
-            match = HIDDEN_SLOT.match(folder.name)
-            if match:
-                hidden.append((int(match.group(1)), {"folder": where, "cost": _cost(saved) if saved else None}))
+            slot = layout.hidden_slot(folder.name)
+            if slot is not None:
+                hidden.append((slot, {"folder": where, "cost": _cost(saved) if saved else None}))
         folders = list(_attempt_folders(label_dir))
         # A case the label ran before v1 records existed is legacy throughout. The runner that writes
         # records writes attempt.json as each attempt starts, so once any folder of the case holds
@@ -196,23 +193,9 @@ def read_label(bundle: Path, label: str) -> Label:
 def _attempt_folders(label_dir: Path) -> Iterator[tuple[Path, int, int | None]]:
     """Each attempt folder as (folder, slot, kept number): run-N is the slot's published attempt and
     attempts/run-N/<k> a kept one, superseded or incomplete."""
-    for run, slot in _numbered(label_dir, "run-"):
+    for run, slot in layout.numbered(label_dir, layout.SLOT_PREFIX):
         yield run, slot, None
-    for history, slot in _numbered(label_dir / "attempts", "run-"):
-        for kept, number in _numbered(history, ""):
-            yield kept, slot, number
-
-
-def _numbered(parent: Path, prefix: str) -> list[tuple[Path, int]]:
-    """The folders named `<prefix><positive number>` as the runner writes it (`run-1`, never `run-01`, so
-    two folders cannot claim one slot), in numeric order on every host."""
-    found = []
-    if parent.is_dir():
-        for child in parent.iterdir():
-            digits = child.name.removeprefix(prefix) if child.name.startswith(prefix) else ""
-            if child.is_dir() and digits.isascii() and digits.isdigit() and digits == str(int(digits)) != "0":
-                found.append((child, int(digits)))
-    return sorted(found, key=lambda item: item[1])
+    yield from layout.kept_attempts(label_dir)
 
 
 def _unavailable(folder: Path, where: str, record: RecordV1) -> tuple[str, ...]:

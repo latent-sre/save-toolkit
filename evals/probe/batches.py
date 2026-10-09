@@ -14,14 +14,14 @@ from typing import Any
 
 import judge as rubric_judge
 
-from . import catalog, fingerprints
+from . import catalog, fingerprints, layout
 from .outcomes import State
 
 
 def merge_summary_entries(existing: list[dict[str, Any]], updates: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Replace the entry for each (scenario, label, run) the updates name; append the rest."""
-    keys = {(u["scenario"], u["label"], u["run"]) for u in updates}
-    kept = [e for e in existing if (e.get("scenario"), e.get("label"), e.get("run")) not in keys]
+    keys = {layout.run_key(u) for u in updates}
+    kept = [e for e in existing if layout.run_key(e) not in keys]
     return kept + updates
 
 

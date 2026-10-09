@@ -24,7 +24,7 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, backing, catalog, fingerprints, invocation, records, tracing, workspaces
+from . import assessment, backing, catalog, fingerprints, invocation, layout, records, tracing, workspaces
 from .backing import Service, ServiceUnavailable
 from .checking import Context
 from .constants import ROOT
@@ -60,16 +60,16 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
         if problems:
             raise ValueError("; ".join(problems))
     rubric_judge.validate_binding(settings.judge_binding, fingerprints.required_rubrics(spec))
-    target = settings.out_dir / f"eval-{spec['id']}" / settings.label / f"run-{run_number}"
+    target = layout.run_dir(settings.out_dir, spec["id"], settings.label, run_number)
     if target.exists() and not settings.overwrite:
         raise RuntimeError(f"{target} already exists; pass --overwrite or a --run-offset")
     target.parent.mkdir(parents=True, exist_ok=True)
     # Every attempt stays visible (threat-model ADR result rule 7): a replaced run and an attempt that
-    # never published move under <label>/attempts/run-N/<k>/, which run-N globs never match.
-    history = attempts_dir(target.parent) / target.name
-    kept = [int(p.name) for p in history.iterdir() if p.name.isdigit()] if history.is_dir() else []
-    current = (_attempt_number(target) or max(kept, default=0) + 1) if target.exists() else None
-    number = max([*kept, current or 0]) + 1
+    # never published move into the slot's history, which run-N globs never match.
+    history = layout.history_dir(target)
+    following = layout.next_number(history)
+    current = (_attempt_number(target) or following) if target.exists() else None
+    number = max(following, (current or 0) + 1)
     attempt = _new_attempt_dir(target)
     _write_attempt(attempt, number, "final")
     started_at = records.utc_now()
@@ -100,7 +100,7 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
             summary["record_problem"] = f"record refused: {exc}"[:500]
             print(f"warning: {attempt} is published without record.json: {exc}", file=sys.stderr, flush=True)
         if target.exists():
-            backup = target.with_name(f".{target.name}-previous-{secrets.token_hex(8)}")
+            backup = layout.backup_dir(target, secrets.token_hex(8))
             target.rename(backup)
         try:
             attempt.rename(target)
@@ -138,7 +138,7 @@ def _new_attempt_dir(target: Path) -> Path:
     """A fresh hidden sibling for one attempt. A plain mkdir inherits the parent's permissions;
     tempfile.mkdtemp makes the folder readable only by its creator on Windows (EVAL-012 DEC-23)."""
     for _ in range(16):
-        attempt = target.with_name(f".{target.name}-attempt-{secrets.token_hex(8)}")
+        attempt = layout.attempt_dir(target, secrets.token_hex(8))
         try:
             attempt.mkdir()
             return attempt
@@ -174,11 +174,6 @@ def _write_attempt(run_dir: Path, number: int, state: str, reason: str | None = 
     )
 
 
-def attempts_dir(label_dir: Path) -> Path:
-    """Where a label keeps the attempts that are not its published runs, as attempts/run-N/<k>/."""
-    return label_dir / "attempts"
-
-
 def kept_attempt_costs(
     out_dir: Path, label: str, scenario_ids: Iterable[str], model: str | None
 ) -> list[dict[str, Any]]:
@@ -188,7 +183,7 @@ def kept_attempt_costs(
     cannot be read does, and one without a readable `timing.json` reads as an unknown cost, never zero."""
     costs: list[dict[str, Any]] = []
     for scenario_id in sorted(scenario_ids):
-        for attempt in sorted(attempts_dir(out_dir / f"eval-{scenario_id}" / label).glob("run-*/*")):
+        for attempt in sorted(layout.attempts_dir(layout.case_dir(out_dir, scenario_id) / label).glob("run-*/*")):
             if not attempt.name.isdigit():
                 continue
             timing = _read_json(attempt / "timing.json")
@@ -247,7 +242,7 @@ def _record_raised_cost(attempt: Path) -> None:
 def _keep_attempt(run_dir: Path, history: Path, number: int | None, state: str, reason: str) -> Path:
     """Move an attempt that is not the published run into the slot's history, never deleting it."""
     history.mkdir(parents=True, exist_ok=True)
-    taken = {int(p.name) for p in history.iterdir() if p.name.isdigit()}
+    taken = layout.taken(history)
     number = number if number and number not in taken else max(taken, default=0) + 1
     destination = history / str(number)
     run_dir.rename(destination)

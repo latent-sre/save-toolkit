@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import contextlib
 import json
-import re
 import shutil
 import tempfile
 from collections.abc import Iterator, Mapping
@@ -22,7 +21,7 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, catalog, checking, fingerprints, invocation, outcomes, records, tracing
+from . import assessment, catalog, checking, fingerprints, invocation, layout, outcomes, records, tracing
 from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_IDENTITY, HARNESS_SOURCE_SHA256
@@ -164,8 +163,8 @@ def _regrade_run(
     relax_identity: bool,
 ) -> dict[str, Any]:
     old = json.loads((run_dir / "grading.json").read_text(encoding="utf-8"))
-    original = run_dir / "grading.original.json"
-    live_grade = json.loads(original.read_text(encoding="utf-8")) if original.exists() else old
+    live = layout.live_grade(run_dir)
+    live_grade = old if live == run_dir / "grading.json" else json.loads(live.read_text(encoding="utf-8"))
     old_by_id = {e.get("id"): e for e in live_grade.get("expectations", [])}
     saved_binding = live_grade.get("judge_binding")
     identity = fingerprints.scenario_digest(spec, saved_binding)
@@ -398,8 +397,7 @@ def _add_assessment(
     """Write a regrade as assessments/<k>/ beside the run's original grade, never over it
     (threat-model ADR result rule 8), and list it in the attempt's v1 record."""
     revisions = run_dir / "assessments"
-    taken = [int(p.name) for p in revisions.iterdir() if p.name.isdigit()] if revisions.is_dir() else []
-    revision = max(taken, default=0) + 1
+    revision = layout.next_number(revisions)
     target = revisions / str(revision)
     target.mkdir(parents=True)
     grading = {
@@ -444,39 +442,41 @@ def _add_assessment(
 
 def _saved_runs(
     iteration_dir: Path, scenarios: list[dict[str, Any]]
-) -> tuple[list[tuple[dict[str, Any], Path]], dict[str, Any]]:
-    """Each published run in an iteration with its scenario, `eval-<id>/<label>/run-<n>` holding a trace
-    summary, and what was passed over: a scenario not loaded, a folder that is not a numbered run (an
-    operator's `run-1-old`), and a run without a trace summary. Nothing is dropped silently."""
+) -> tuple[list[tuple[dict[str, Any], Path, dict[str, Any]]], dict[str, Any]]:
+    """Each published run in an iteration with its scenario and the row naming it, a run being a
+    `layout` slot folder holding a trace summary, and what was passed over: a scenario not loaded, a
+    folder that is not a numbered run (an operator's `run-1-old`), and a run without a trace summary.
+    Nothing is dropped silently."""
     by_id = {s["id"]: s for s in scenarios}
-    runs: list[tuple[dict[str, Any], Path]] = []
+    runs: list[tuple[dict[str, Any], Path, dict[str, Any]]] = []
     skipped: dict[str, Any] = {"scenarios": [], "other_run_folders": [], "runs_without_trace_summary": 0}
-    for eval_dir in sorted(iteration_dir.glob("eval-*")):
-        spec = by_id.get(eval_dir.name.removeprefix("eval-"))
+    for case_dir in layout.case_dirs(iteration_dir):
+        spec = by_id.get(layout.case_id(case_dir))
         if spec is None:  # retired, renamed, or excluded by --scenario
-            skipped["scenarios"].append(eval_dir.name.removeprefix("eval-"))
+            skipped["scenarios"].append(layout.case_id(case_dir))
             continue
-        for run_dir in sorted(eval_dir.glob("*/run-*")):
-            if not re.fullmatch(r"run-\d+", run_dir.name):
+        for run_dir in sorted(case_dir.glob(f"*/{layout.SLOT_PREFIX}*")):
+            slot = layout.published_slot(run_dir.name)
+            if slot is None:
                 skipped["other_run_folders"].append(run_dir.relative_to(iteration_dir).as_posix())
             elif not (run_dir / "outputs" / "trace-summary.json").exists():
                 skipped["runs_without_trace_summary"] += 1
             else:
-                runs.append((spec, run_dir))
+                runs.append((spec, run_dir, {"scenario": spec["id"], "label": run_dir.parent.name, "run": slot}))
     return runs, skipped
 
 
 def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[str, Any]]:
     runs, skipped = _saved_runs(iteration_dir, scenarios)
     results = []
-    for spec, run_dir in runs:
+    for spec, run_dir, row in runs:
         g = regrade_run(run_dir, spec)
         results.append(
             {
-                "scenario": spec["id"],
-                "label": run_dir.parent.name,
+                "scenario": row["scenario"],
+                "label": row["label"],
                 **assessment.native_assessment(spec),
-                "run": int(run_dir.name.removeprefix("run-")),
+                "run": row["run"],
                 "status": g["status"],
                 "passed": g["summary"]["passed"],
                 "total": g["summary"]["total"],
@@ -517,13 +517,9 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
     """
     runs, skipped = _saved_runs(iteration_dir, scenarios)
     rows = []
-    for spec, run_dir in runs:
-        row = {"scenario": spec["id"], "label": run_dir.parent.name, "run": int(run_dir.name.removeprefix("run-"))}
+    for spec, run_dir, row in runs:
         try:
-            original = run_dir / "grading.original.json"
-            saved = json.loads(
-                (original if original.exists() else run_dir / "grading.json").read_text(encoding="utf-8")
-            )
+            saved = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
             grading = regrade_run(run_dir, spec, write=False, relax_identity=True)
         except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
             # One unreadable or older-shaped run stays visible instead of ending the comparison.
@@ -552,17 +548,14 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
 def rescore_diff(base: Mapping[str, Any], candidate: Mapping[str, Any]) -> list[str]:
     """Each run and check whose rescored verdict differs between two rescores of the same runs."""
 
-    def key(row: Mapping[str, Any]) -> tuple[Any, ...]:
-        return row.get("scenario"), row.get("label"), row.get("run")
-
     def outcome(row: Mapping[str, Any]) -> Mapping[str, Any]:
         return {"status": "ERROR", "checks": []} if row.get("error") else row.get("rescored") or {}
 
-    left = {key(r): r for r in base.get("runs") or []}
-    right = {key(r): r for r in candidate.get("runs") or []}
+    left = {layout.run_key(r): r for r in base.get("runs") or []}
+    right = {layout.run_key(r): r for r in candidate.get("runs") or []}
     lines = []
     for k in sorted(left.keys() | right.keys(), key=lambda k: tuple(str(part) for part in k)):
-        name = f"eval-{k[0]} {k[1]}/run-{k[2]}"
+        name = layout.run_name(*k)
         if k not in left or k not in right:
             lines.append(f"{name}: rescored only by the {'candidate' if k not in left else 'base'} runner")
             continue
