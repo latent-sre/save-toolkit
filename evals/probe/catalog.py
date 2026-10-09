@@ -8,7 +8,7 @@ are a contract (docs/python-eval-modernization.md); evals/test_result_rules_prop
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -157,21 +157,30 @@ def _identity_problems(spec: Spec, where: str) -> list[str]:
     return problems
 
 
+def _broken(prefix: str, rules: Iterable[tuple[object, str]]) -> list[str]:
+    """The message of each rule whose condition holds, in the rules' order, after `prefix`."""
+    return [prefix + message for broken, message in rules if broken]
+
+
 def _kind_problems(spec: Spec, where: str, kind: str) -> list[str]:
-    problems = []
-    if kind != "build" and spec.get("checks"):
-        problems.append(f"{where}: `checks` grade a fixture workspace; a {kind} scenario has none")
-    if kind == "routing" and spec.get("agent"):
-        problems.append(f"{where}: a routing scenario runs the main session and must not pin `agent`")
-    if kind == "contract" and not spec.get("graders"):
-        problems.append(f"{where}: a contract scenario needs `graders`")
-    if kind == "contract" and not (spec.get("agent") or spec.get("skill")):
-        problems.append(f"{where}: a contract scenario must pin `agent` or `skill`")
-    if kind == "build" and not spec.get("agent"):
-        # Without a pin the trial runs as the main session while still receiving the build tool
-        # inventory: a result, but not a measurement of the lane the scenario names.
-        problems.append(f"{where}: a build scenario must pin `agent`")
-    return problems
+    return _broken(
+        f"{where}: ",
+        (
+            (kind != "build" and spec.get("checks"), f"`checks` grade a fixture workspace; a {kind} scenario has none"),
+            (
+                kind == "routing" and spec.get("agent"),
+                "a routing scenario runs the main session and must not pin `agent`",
+            ),
+            (kind == "contract" and not spec.get("graders"), "a contract scenario needs `graders`"),
+            (
+                kind == "contract" and not (spec.get("agent") or spec.get("skill")),
+                "a contract scenario must pin `agent` or `skill`",
+            ),
+            # Without a pin the trial runs as the main session while still receiving the build tool
+            # inventory: a result, but not a measurement of the lane the scenario names.
+            (kind == "build" and not spec.get("agent"), "a build scenario must pin `agent`"),
+        ),
+    )
 
 
 def _reference_problems(spec: Spec, where: str, kind: str) -> list[str]:
@@ -201,30 +210,42 @@ def _reference_problems(spec: Spec, where: str, kind: str) -> list[str]:
 
 
 def _pin_problems(spec: Spec, where: str) -> list[str]:
-    problems = []
-    if spec.get("agent") and spec.get("skill"):
-        problems.append(f"{where}: pin `agent` or `skill`, not both")
-    if spec.get("routing") and spec.get("skill"):
-        problems.append(f"{where}: a routing scenario runs the main session and must not pin `skill`")
-    return problems
+    return _broken(
+        f"{where}: ",
+        (
+            (spec.get("agent") and spec.get("skill"), "pin `agent` or `skill`, not both"),
+            (
+                spec.get("routing") and spec.get("skill"),
+                "a routing scenario runs the main session and must not pin `skill`",
+            ),
+        ),
+    )
 
 
 def _declaration_problems(spec: Spec, where: str) -> list[str]:
-    problems = []
-    tools = spec.get("tools")
-    if tools is not None and (
-        not isinstance(tools, list) or not tools or not all(isinstance(t, str) and t.strip() for t in tools)
-    ):
-        problems.append(f"{where}: tools must be a non-empty list of tool names")
-    split = spec.get("split")
-    if split is not None and split not in SPLITS:
-        problems.append(f"{where}: split must be one of {list(SPLITS)}")
-    criteria = spec.get("success_criteria")
-    if criteria is not None and (
-        not isinstance(criteria, list) or not criteria or not all(isinstance(c, str) and c.strip() for c in criteria)
-    ):
-        problems.append(f"{where}: success_criteria must be a non-empty list of strings")
-    return problems
+    tools, split, criteria = spec.get("tools"), spec.get("split"), spec.get("success_criteria")
+    return _broken(
+        f"{where}: ",
+        (
+            (
+                tools is not None
+                and (
+                    not isinstance(tools, list) or not tools or not all(isinstance(t, str) and t.strip() for t in tools)
+                ),
+                "tools must be a non-empty list of tool names",
+            ),
+            (split is not None and split not in SPLITS, f"split must be one of {list(SPLITS)}"),
+            (
+                criteria is not None
+                and (
+                    not isinstance(criteria, list)
+                    or not criteria
+                    or not all(isinstance(c, str) and c.strip() for c in criteria)
+                ),
+                "success_criteria must be a non-empty list of strings",
+            ),
+        ),
+    )
 
 
 def _fixture_problems(spec: Spec, where: str) -> list[str]:
@@ -363,39 +384,50 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
                 fleet_graders.run_grader(checking.fleet_grader_spec(check), "")
             except Exception as exc:
                 problems.append(f"{where}: checks[{i}] fleet_grader ({grader_name}) has invalid configuration: {exc}")
-        if "scope" in check and (
-            check["check"] not in ("bash_ran", "bash_did_not_run", "ran_outside_checkout")
-            or check["scope"] != "subagent"
-        ):
-            problems.append(
-                f"{where}: checks[{i}] scope is only `subagent`, on bash_ran, bash_did_not_run, or ran_outside_checkout"
-            )
-        if check["check"] == "verification_completed" and check.get("runner") not in TEST_RUNNERS:
-            runners = f"{', '.join(TEST_RUNNERS[:-1])}, or {TEST_RUNNERS[-1]}"
-            problems.append(f"{where}: checks[{i}] verification_completed needs runner {runners}")
-        if "inconclusive_exit_code" in check and (
-            check["check"] != "command_exit_zero"
-            or type(check["inconclusive_exit_code"]) is not int
-            or not 1 <= check["inconclusive_exit_code"] <= 255
-        ):
-            problems.append(
-                f"{where}: checks[{i}] inconclusive_exit_code needs command_exit_zero and an integer from 1 to 255"
-            )
-        if (
-            check["check"] == "skill_loaded"
-            and "before_effects" in check
-            and not isinstance(check["before_effects"], bool)
-        ):
-            problems.append(f"{where}: checks[{i}] before_effects must be boolean")
-        if check["check"] == "tool_call_count" and (
-            not isinstance(check.get("tool"), str)
-            or not check["tool"].strip()
-            or type(check.get("minimum")) is not int
-            or check["minimum"] < 0
-            or type(check.get("maximum")) is not int
-            or check["maximum"] < check["minimum"]
-        ):
-            problems.append(f"{where}: checks[{i}] tool_call_count needs a tool and 0 <= minimum <= maximum integers")
+        problems += _broken(
+            f"{where}: checks[{i}] ",
+            (
+                (
+                    "scope" in check
+                    and (
+                        check["check"] not in ("bash_ran", "bash_did_not_run", "ran_outside_checkout")
+                        or check["scope"] != "subagent"
+                    ),
+                    "scope is only `subagent`, on bash_ran, bash_did_not_run, or ran_outside_checkout",
+                ),
+                (
+                    check["check"] == "verification_completed" and check.get("runner") not in TEST_RUNNERS,
+                    f"verification_completed needs runner {', '.join(TEST_RUNNERS[:-1])}, or {TEST_RUNNERS[-1]}",
+                ),
+                (
+                    "inconclusive_exit_code" in check
+                    and (
+                        check["check"] != "command_exit_zero"
+                        or type(check["inconclusive_exit_code"]) is not int
+                        or not 1 <= check["inconclusive_exit_code"] <= 255
+                    ),
+                    "inconclusive_exit_code needs command_exit_zero and an integer from 1 to 255",
+                ),
+                (
+                    check["check"] == "skill_loaded"
+                    and "before_effects" in check
+                    and not isinstance(check["before_effects"], bool),
+                    "before_effects must be boolean",
+                ),
+                (
+                    check["check"] == "tool_call_count"
+                    and (
+                        not isinstance(check.get("tool"), str)
+                        or not check["tool"].strip()
+                        or type(check.get("minimum")) is not int
+                        or check["minimum"] < 0
+                        or type(check.get("maximum")) is not int
+                        or check["maximum"] < check["minimum"]
+                    ),
+                    "tool_call_count needs a tool and 0 <= minimum <= maximum integers",
+                ),
+            ),
+        )
         writes_from = check.get("writes_from")
         shape = checking.writes_from_shape_problem(writes_from) if writes_from is not None else None
         if shape:
