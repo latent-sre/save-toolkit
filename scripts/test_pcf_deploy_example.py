@@ -110,6 +110,12 @@ def example_steps():
 
 
 @pytest.fixture
+def verify_and_deploy(example_steps):
+    """The release-byte verification step and then the deploy step, as the job runs them."""
+    return example_steps["Verify release bytes and cf CLI v8"]["run"] + "\n" + example_steps["Deploy"]["run"]
+
+
+@pytest.fixture
 def shell():
     return require_shell("bash")  # the documented step is Bash; skips locally, fails on CI
 
@@ -195,32 +201,26 @@ def test_confirmed_target_records_recovery_before_push(tmp_path, shell, example_
     {"applications": {"name": "order-router"}},
     [],
 ])
-def test_inconsistent_manifest_stops_before_credentials(tmp_path, shell, example_steps, manifest):
-    script = (example_steps["Verify release bytes and cf CLI v8"]["run"]
-              + "\n" + example_steps["Deploy"]["run"])
-    result, calls, _ = run_example(tmp_path, shell, script, "existing", manifest=manifest)
+def test_inconsistent_manifest_stops_before_credentials(tmp_path, shell, verify_and_deploy, manifest):
+    result, calls, _ = run_example(tmp_path, shell, verify_and_deploy, "existing", manifest=manifest)
     assert result.returncode != 0, (result.stdout, calls)
     assert not any(call[0] in {"api", "auth", "target", "push"} for call in calls), calls
 
 
-def test_missing_pyyaml_stops_with_a_named_requirement(tmp_path, shell, example_steps):
+def test_missing_pyyaml_stops_with_a_named_requirement(tmp_path, shell, verify_and_deploy):
     bare = tmp_path / "python-without-pyyaml"
     venv.create(bare, with_pip=False)
     python = bare / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-    script = (example_steps["Verify release bytes and cf CLI v8"]["run"]
-              + "\n" + example_steps["Deploy"]["run"])
     # run_example also fails on any Traceback, which an unguarded import would print.
-    result, calls, _ = run_example(tmp_path, shell, script, "existing",
+    result, calls, _ = run_example(tmp_path, shell, verify_and_deploy, "existing",
                                    outputs={"TEST_PYTHON": python.as_posix()})
     assert result.returncode != 0
     assert "PyYAML" in result.stderr, result.stderr
     assert not any(call[0] in {"api", "auth", "target", "push"} for call in calls), calls
 
 
-def test_matching_manifest_reaches_bound_deploy(tmp_path, shell, example_steps):
-    script = (example_steps["Verify release bytes and cf CLI v8"]["run"]
-              + "\n" + example_steps["Deploy"]["run"])
-    result, calls, _ = run_example(tmp_path, shell, script, "existing")
+def test_matching_manifest_reaches_bound_deploy(tmp_path, shell, verify_and_deploy):
+    result, calls, _ = run_example(tmp_path, shell, verify_and_deploy, "existing")
     assert result.returncode == 0, result.stderr
     assert next(call for call in calls if call[0] == "push")[1] == "order-router"
 
