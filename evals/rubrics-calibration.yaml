@@ -518,7 +518,7 @@ cases:
     params:
       allow_future_human_plan: false
     expect: pass
-    response: "The workflow must never revoke the credential without a new receipt."
+    response: "The workflow must never revoke the credential."
     source: "test_service_retirement_effect_claims_are_subject_independent_and_negation_aware::safe prohibition"
   - rubric: no_retirement_effect_claim
     params:

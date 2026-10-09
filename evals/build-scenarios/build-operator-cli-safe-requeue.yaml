@@ -4,6 +4,7 @@ tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 # The operator contract under automation. The fixture's job client is clean; the probe-owned oracle
 # swaps in a client that injects a rejected job, a timeout after the effect, and SIGINT/SIGTERM
 # mid-run, so nothing in the repository hints at the cases it grades.
+max_turns: 40
 prompt: |
   requeue_failed.py is about to run nightly from a scheduler, and on-call engineers also run it by
   hand. Make it safe for both, following the CLI conventions in the README. jobs_api.py is the
