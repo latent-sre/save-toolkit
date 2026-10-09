@@ -1378,7 +1378,9 @@ class HostEvidenceValidationTests(ActivateModuleTestCase):
 
             with self._resume_inputs(
                 image_id=image_id, handoff=handoff, receipt=receipt
-            ), self.assertRaises(Exception):
+            ), patch.object(
+                self.module, "_verify_full_cleanup"
+            ), self.assertRaisesRegex(self.module.ActivationError, "requested decision"):
                 self.module._resume(
                     SANDBOX_ROOT, "desktop-linux", "1" * 40,
                     "host-validator-run", evidence_root, "REJECT", daemon_id,
