@@ -12,6 +12,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from collections.abc import Iterable
 from unittest import mock
 
 
@@ -64,6 +65,34 @@ CASE_DIGEST = "74266b9c39a7733128e25f7279bb18820664bfbd6c11d8b0a6a3fa5e53a685d1"
 
 def completed(arguments: list[str], stdout: str = "") -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(arguments, 0, stdout=stdout, stderr="")
+
+
+def _read_json(path: Path) -> dict[str, object]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _write_json(path: Path, value: object) -> None:
+    path.write_text(json.dumps(value) + "\n", encoding="utf-8")
+
+
+def _jsonl(records: Iterable[object]) -> str:
+    """Serialize records as the runner writes JSONL: one json.dumps line per record."""
+    return "".join(json.dumps(record) + "\n" for record in records)
+
+
+def _read_jsonl(path: Path) -> list[dict[str, object]]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
+def _write_jsonl(path: Path, records: Iterable[object]) -> None:
+    path.write_text(_jsonl(records), encoding="utf-8")
+
+
+def _resequence(events: list[dict[str, object]]) -> None:
+    """Number events contiguously from 1 with the event IDs the runner derives from sequence."""
+    for sequence, event in enumerate(events, start=1):
+        event["sequence"] = sequence
+        event["event_id"] = f"{CASE_ID}:{sequence:08d}"
 
 
 class ContextBoundaryTests(unittest.TestCase):
@@ -585,7 +614,7 @@ class SnapshotTests(unittest.TestCase):
                 runner=runner,
                 environ={},
             )
-            locked = json.loads(lock.read_text(encoding="utf-8"))
+            locked = _read_json(lock)
             self.assertRegex(locked["images"]["runner"]["image_id"], r"^sha256:d{64}$")
         docker_calls = [call for call in calls if call and call[0] == "docker"]
         self.assertTrue(docker_calls)
@@ -659,13 +688,17 @@ class ActivationTests(unittest.TestCase):
                 "ended_at": "2026-08-30T12:00:02.000Z",
             }
             event_prefix = {"sequence": 1, "event_type": "effect.unknown"}
-            (unknown / "events.jsonl").write_text(
-                json.dumps(event_prefix) + "\n" + json.dumps({"sequence": 2, "event_type": "run.terminal"}) + "\n",
-                encoding="utf-8",
+            _write_jsonl(
+                unknown / "events.jsonl",
+                [event_prefix, {"sequence": 2, "event_type": "run.terminal"}],
             )
-            (reconciled / "events.jsonl").write_text(
-                json.dumps(event_prefix) + "\n" + json.dumps({"sequence": 2, "event_type": "effect.reconciled"}) + "\n" + json.dumps({"sequence": 3, "event_type": "run.terminal"}) + "\n",
-                encoding="utf-8",
+            _write_jsonl(
+                reconciled / "events.jsonl",
+                [
+                    event_prefix,
+                    {"sequence": 2, "event_type": "effect.reconciled"},
+                    {"sequence": 3, "event_type": "run.terminal"},
+                ],
             )
             unknown_effects = [
                 {"sequence": 1, "effect_id": "reconcile-001:effect", "effect_state": "UNKNOWN"}
@@ -674,14 +707,8 @@ class ActivationTests(unittest.TestCase):
                 *unknown_effects,
                 {"sequence": 2, "effect_id": "reconcile-001:effect", "effect_state": "RECONCILED"},
             ]
-            (unknown / "effects.jsonl").write_text(
-                "".join(json.dumps(record) + "\n" for record in unknown_effects),
-                encoding="utf-8",
-            )
-            (reconciled / "effects.jsonl").write_text(
-                "".join(json.dumps(record) + "\n" for record in reconciled_effects),
-                encoding="utf-8",
-            )
+            _write_jsonl(unknown / "effects.jsonl", unknown_effects)
+            _write_jsonl(reconciled / "effects.jsonl", reconciled_effects)
 
             _validate_reconciliation_pair(
                 unknown,
@@ -690,9 +717,13 @@ class ActivationTests(unittest.TestCase):
                 reconciled_manifest,
             )
             divergent = {"sequence": 1, "event_type": "effect.dispatched"}
-            (reconciled / "events.jsonl").write_text(
-                json.dumps(divergent) + "\n" + json.dumps({"sequence": 2, "event_type": "effect.reconciled"}) + "\n" + json.dumps({"sequence": 3, "event_type": "run.terminal"}) + "\n",
-                encoding="utf-8",
+            _write_jsonl(
+                reconciled / "events.jsonl",
+                [
+                    divergent,
+                    {"sequence": 2, "event_type": "effect.reconciled"},
+                    {"sequence": 3, "event_type": "run.terminal"},
+                ],
             )
 
             with self.assertRaisesRegex(ActivationError, "event history"):
@@ -737,6 +768,49 @@ class ActivationTests(unittest.TestCase):
                 ("teardown", ["docker", "--context", context, "compose", "down", "--volumes"]),
             )
         ]
+
+    def verify(self, staging: Path, evidence_root: Path, **overrides: object) -> Path:
+        """Call verify_and_publish_evidence as the healthy fixture's host would."""
+        exit_code = overrides.get("exit_code", 0)
+        arguments: dict[str, object] = {
+            "run_id": CASE_ID,
+            "case_id": CASE_ID,
+            "case_digest": CASE_DIGEST,
+            "source_revision": SOURCE_REVISION,
+            "exit_code": exit_code,
+            "validated_compose": b"{}\n",
+            "verification": self.host_verification(),
+            "commands": self.command_journal(),
+            "runner_state": {"Status": "exited", "ExitCode": exit_code, "OOMKilled": False},
+        }
+        return verify_and_publish_evidence(
+            staging, evidence_root=evidence_root, **(arguments | overrides)
+        )
+
+    def execute(
+        self,
+        runner,
+        evidence_root: Path,
+        *,
+        validated_bytes: bytes = b'{"name":"validated"}\n',
+        **overrides: object,
+    ) -> subprocess.CompletedProcess[str]:
+        """Call execute_validated_compose for the healthy fixture against a fake Docker runner."""
+        arguments: dict[str, object] = {
+            "docker_context": "desktop-linux",
+            "project_name": project_scope(CASE_ID),
+            "run_id": CASE_ID,
+            "source_revision": SOURCE_REVISION,
+            "verification": self.host_verification(),
+            "environment": {"PATH": "safe"},
+            "revalidate": lambda: None,
+        }
+        return execute_validated_compose(
+            validated_bytes,
+            evidence_root=evidence_root,
+            runner=runner,
+            **(arguments | overrides),
+        )
 
     @staticmethod
     def write_runner_evidence(root: Path, *, outcome: str = "SUCCEEDED") -> Path:
@@ -932,8 +1006,8 @@ class ActivationTests(unittest.TestCase):
                 }
             )
         artifacts = {
-            "events.jsonl": "".join(json.dumps(event) + "\n" for event in events),
-            "effects.jsonl": "".join(json.dumps(record) + "\n" for record in effect_records),
+            "events.jsonl": _jsonl(events),
+            "effects.jsonl": _jsonl(effect_records),
             "final-state.json": json.dumps(final_state) + "\n",
             "checkpoint-lineage.json": json.dumps(
                 {
@@ -1022,15 +1096,9 @@ class ActivationTests(unittest.TestCase):
         state_path = run_dir / "final-state.json"
         events_path = run_dir / "events.jsonl"
         effects_path = run_dir / "effects.jsonl"
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-        events = [
-            json.loads(line)
-            for line in events_path.read_text(encoding="utf-8").splitlines()
-        ]
-        effects = [
-            json.loads(line)
-            for line in effects_path.read_text(encoding="utf-8").splitlines()
-        ]
+        state = _read_json(state_path)
+        events = _read_jsonl(events_path)
+        effects = _read_jsonl(effects_path)
         checkout_task_id = "mission-healthy-001:checkout_effect:0"
         reconcile_task_id = "mission-healthy-001:reconcile_if_ambiguous:0"
         effect_id = f"{checkout_task_id}:effect-checkout"
@@ -1210,19 +1278,11 @@ class ActivationTests(unittest.TestCase):
             *reconciliation_history,
             terminal,
         ]
-        for sequence, event in enumerate(events, start=1):
-            event["sequence"] = sequence
-            event["event_id"] = f"mission-healthy-001:{sequence:08d}"
+        _resequence(events)
 
-        state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
-        events_path.write_text(
-            "".join(json.dumps(event) + "\n" for event in events),
-            encoding="utf-8",
-        )
-        effects_path.write_text(
-            "".join(json.dumps(record) + "\n" for record in effects),
-            encoding="utf-8",
-        )
+        _write_json(state_path, state)
+        _write_jsonl(events_path, events)
+        _write_jsonl(effects_path, effects)
         self._rewrite_checksums(run_dir)
         return run_dir
 
@@ -1233,23 +1293,9 @@ class ActivationTests(unittest.TestCase):
             staging.mkdir()
             self.write_reconciled_retry_evidence(staging)
 
-            final = verify_and_publish_evidence(
-                staging,
-                evidence_root=evidence_root,
-                run_id=CASE_ID,
-                case_id=CASE_ID,
-                case_digest=CASE_DIGEST,
-                source_revision=SOURCE_REVISION,
-                exit_code=0,
-                validated_compose=b"{}\n",
-                verification=self.host_verification(),
-                commands=self.command_journal(),
-                runner_state={"Status": "exited", "ExitCode": 0, "OOMKilled": False},
-            )
+            final = self.verify(staging, evidence_root)
 
-            state = json.loads(
-                (final / "final-state.json").read_text(encoding="utf-8")
-            )
+            state = _read_json(final / "final-state.json")
             self.assertEqual(
                 state["tasks"][f"{CASE_ID}:reconcile_if_ambiguous:0"],
                 {"status": "completed", "attempt": 2},
@@ -1263,16 +1309,11 @@ class ActivationTests(unittest.TestCase):
             staging = evidence_root / ".mission-healthy-001.export"
             staging.mkdir()
             run_dir = self.write_reconciled_retry_evidence(staging)
-            state = json.loads(
-                (run_dir / "final-state.json").read_text(encoding="utf-8")
-            )
+            state = _read_json(run_dir / "final-state.json")
             reconciliation_task_id = f"{CASE_ID}:reconcile_if_ambiguous:0"
             final_attempt = state["tasks"][reconciliation_task_id]["attempt"]
             events_path = run_dir / "events.jsonl"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             reconciled = next(
                 event for event in events if event["event_type"] == "effect.reconciled"
             )
@@ -1285,36 +1326,15 @@ class ActivationTests(unittest.TestCase):
             )
             events.remove(reconciled)
             events.insert(events.index(final_started), reconciled)
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _resequence(events)
+            _write_jsonl(events_path, events)
             self._rewrite_checksums(run_dir)
 
             with self.assertRaisesRegex(
                 ActivationError,
                 "reconciliation task does not enclose its durable result",
             ):
-                verify_and_publish_evidence(
-                    staging,
-                    evidence_root=evidence_root,
-                    run_id=CASE_ID,
-                    case_id=CASE_ID,
-                    case_digest=CASE_DIGEST,
-                    source_revision=SOURCE_REVISION,
-                    exit_code=0,
-                    validated_compose=b"{}\n",
-                    verification=self.host_verification(),
-                    commands=self.command_journal(),
-                    runner_state={
-                        "Status": "exited",
-                        "ExitCode": 0,
-                        "OOMKilled": False,
-                    },
-                )
+                self.verify(staging, evidence_root)
 
     def test_reconciled_success_accepts_recovered_open_reconciliation_attempt(
         self,
@@ -1328,26 +1348,9 @@ class ActivationTests(unittest.TestCase):
                 final_reconciliation_attempt=1,
             )
 
-            final = verify_and_publish_evidence(
-                staging,
-                evidence_root=evidence_root,
-                run_id=CASE_ID,
-                case_id=CASE_ID,
-                case_digest=CASE_DIGEST,
-                source_revision=SOURCE_REVISION,
-                exit_code=0,
-                validated_compose=b"{}\n",
-                verification=self.host_verification(),
-                commands=self.command_journal(),
-                runner_state={"Status": "exited", "ExitCode": 0, "OOMKilled": False},
-            )
+            final = self.verify(staging, evidence_root)
 
-            events = [
-                json.loads(line)
-                for line in (final / "events.jsonl")
-                .read_text(encoding="utf-8")
-                .splitlines()
-            ]
+            events = _read_jsonl(final / "events.jsonl")
             reconciliation_task_id = f"{CASE_ID}:reconcile_if_ambiguous:0"
             self.assertEqual(
                 [
@@ -1372,29 +1375,11 @@ class ActivationTests(unittest.TestCase):
                 )
 
                 def publish() -> Path:
-                    return verify_and_publish_evidence(
-                        staging,
-                        evidence_root=evidence_root,
-                        run_id=CASE_ID,
-                        case_id=CASE_ID,
-                        case_digest=CASE_DIGEST,
-                        source_revision=SOURCE_REVISION,
-                        exit_code=0,
-                        validated_compose=b"{}\n",
-                        verification=self.host_verification(),
-                        commands=self.command_journal(),
-                        runner_state={
-                            "Status": "exited",
-                            "ExitCode": 0,
-                            "OOMKilled": False,
-                        },
-                    )
+                    return self.verify(staging, evidence_root)
 
                 if should_publish:
                     final = publish()
-                    state = json.loads(
-                        (final / "final-state.json").read_text(encoding="utf-8")
-                    )
+                    state = _read_json(final / "final-state.json")
                     self.assertEqual(
                         state["tasks"][f"{CASE_ID}:reconcile_if_ambiguous:0"][
                             "attempt"
@@ -1412,27 +1397,18 @@ class ActivationTests(unittest.TestCase):
         def noncontiguous(run_dir: Path) -> None:
             state_path = run_dir / "final-state.json"
             events_path = run_dir / "events.jsonl"
-            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state = _read_json(state_path)
             state["tasks"][reconciliation_task_id]["attempt"] = 3
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             for event in events:
                 if event["attempt_id"] == f"{reconciliation_task_id}:attempt-2":
                     event["attempt_id"] = f"{reconciliation_task_id}:attempt-3"
-            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _write_json(state_path, state)
+            _write_jsonl(events_path, events)
 
         def unrelated_retry(run_dir: Path) -> None:
             events_path = run_dir / "events.jsonl"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             unrelated = copy.deepcopy(
                 next(
                     event
@@ -1449,44 +1425,30 @@ class ActivationTests(unittest.TestCase):
                 }
             )
             events.insert(-1, unrelated)
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _resequence(events)
+            _write_jsonl(events_path, events)
 
         def retried_checkout_dispatch(run_dir: Path) -> None:
             state_path = run_dir / "final-state.json"
-            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state = _read_json(state_path)
             state["tasks"][checkout_task_id]["attempt"] = 2
-            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+            _write_json(state_path, state)
 
         def retried_effect_ledger(run_dir: Path) -> None:
             effects_path = run_dir / "effects.jsonl"
-            effects = [
-                json.loads(line)
-                for line in effects_path.read_text(encoding="utf-8").splitlines()
-            ]
+            effects = _read_jsonl(effects_path)
             effects[0]["attempt_id"] = f"{checkout_task_id}:attempt-2"
-            effects_path.write_text(
-                "".join(json.dumps(record) + "\n" for record in effects),
-                encoding="utf-8",
-            )
+            _write_jsonl(effects_path, effects)
 
         def consumed_reconciliation_attempt(run_dir: Path) -> None:
             state_path = run_dir / "final-state.json"
-            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state = _read_json(state_path)
             state["budgets"]["attempts"]["consumed"] = 2
-            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+            _write_json(state_path, state)
 
         def invented_recovery_ordinal(run_dir: Path) -> None:
             events_path = run_dir / "events.jsonl"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             reconciled = next(
                 event for event in events if event["event_type"] == "effect.reconciled"
             )
@@ -1511,20 +1473,12 @@ class ActivationTests(unittest.TestCase):
                 )
             ]
             events.insert(events.index(started_first) + 1, reconciled)
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _resequence(events)
+            _write_jsonl(events_path, events)
 
         def duplicate_reconciliation_completion(run_dir: Path) -> None:
             events_path = run_dir / "events.jsonl"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             first_result = next(
                 event
                 for event in events
@@ -1539,17 +1493,11 @@ class ActivationTests(unittest.TestCase):
                     "data": {"status": "completed"},
                 }
             )
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _write_jsonl(events_path, events)
 
         def omitted_retry_refusal(run_dir: Path) -> None:
             events_path = run_dir / "events.jsonl"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             events = [
                 event
                 for event in events
@@ -1558,20 +1506,12 @@ class ActivationTests(unittest.TestCase):
                     and event["node_id"] == "reconcile_if_ambiguous"
                 )
             ]
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _resequence(events)
+            _write_jsonl(events_path, events)
 
         def duplicated_retry_refusal(run_dir: Path) -> None:
             events_path = run_dir / "events.jsonl"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             refusal = next(
                 event
                 for event in events
@@ -1579,20 +1519,12 @@ class ActivationTests(unittest.TestCase):
                 and event["node_id"] == "reconcile_if_ambiguous"
             )
             events.insert(events.index(refusal) + 1, copy.deepcopy(refusal))
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _resequence(events)
+            _write_jsonl(events_path, events)
 
         def out_of_order_retry_refusal(run_dir: Path) -> None:
             events_path = run_dir / "events.jsonl"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             refusal = next(
                 event
                 for event in events
@@ -1607,20 +1539,12 @@ class ActivationTests(unittest.TestCase):
             )
             events.remove(refusal)
             events.insert(events.index(started), refusal)
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _resequence(events)
+            _write_jsonl(events_path, events)
 
         def mismatched_retry_refusal(run_dir: Path) -> None:
             events_path = run_dir / "events.jsonl"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             refusal = next(
                 event
                 for event in events
@@ -1628,17 +1552,11 @@ class ActivationTests(unittest.TestCase):
                 and event["node_id"] == "reconcile_if_ambiguous"
             )
             refusal["error_class"] = "different_gateway_failure"
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _write_jsonl(events_path, events)
 
         def checkout_failure_before_unknown(run_dir: Path) -> None:
             events_path = run_dir / "events.jsonl"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             unknown = next(
                 event for event in events if event["event_type"] == "effect.unknown"
             )
@@ -1650,20 +1568,12 @@ class ActivationTests(unittest.TestCase):
             )
             events.remove(checkout_failed)
             events.insert(events.index(unknown), checkout_failed)
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _resequence(events)
+            _write_jsonl(events_path, events)
 
         def snapshot_refusal_before_checkout_failure(run_dir: Path) -> None:
             events_path = run_dir / "events.jsonl"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             snapshot_refusal = next(
                 event
                 for event in events
@@ -1679,20 +1589,12 @@ class ActivationTests(unittest.TestCase):
             )
             events.remove(snapshot_refusal)
             events.insert(events.index(checkout_failed), snapshot_refusal)
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _resequence(events)
+            _write_jsonl(events_path, events)
 
         def reconciliation_before_snapshot_refusal(run_dir: Path) -> None:
             events_path = run_dir / "events.jsonl"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             snapshot_refusal = next(
                 event
                 for event in events
@@ -1708,13 +1610,8 @@ class ActivationTests(unittest.TestCase):
             )
             events.remove(started)
             events.insert(events.index(snapshot_refusal), started)
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"{CASE_ID}:{sequence:08d}"
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _resequence(events)
+            _write_jsonl(events_path, events)
 
         cases = (
             (noncontiguous, "bounded and contiguous"),
@@ -1742,23 +1639,7 @@ class ActivationTests(unittest.TestCase):
                 self._rewrite_checksums(run_dir)
 
                 with self.assertRaisesRegex(ActivationError, message):
-                    verify_and_publish_evidence(
-                        staging,
-                        evidence_root=evidence_root,
-                        run_id=CASE_ID,
-                        case_id=CASE_ID,
-                        case_digest=CASE_DIGEST,
-                        source_revision=SOURCE_REVISION,
-                        exit_code=0,
-                        validated_compose=b"{}\n",
-                        verification=self.host_verification(),
-                        commands=self.command_journal(),
-                        runner_state={
-                            "Status": "exited",
-                            "ExitCode": 0,
-                            "OOMKilled": False,
-                        },
-                    )
+                    self.verify(staging, evidence_root)
 
     def test_host_verifies_adds_metadata_rechecksums_and_atomically_publishes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -1766,26 +1647,14 @@ class ActivationTests(unittest.TestCase):
             staging = evidence_root / ".mission-healthy-001.export"
             staging.mkdir()
             self.write_runner_evidence(staging)
-            final = verify_and_publish_evidence(
-                staging,
-                evidence_root=evidence_root,
-                run_id="mission-healthy-001",
-                source_revision=SOURCE_REVISION,
-                exit_code=0,
-                validated_compose=b'{"name":"validated"}\n',
-                verification=self.host_verification(),
-                commands=self.command_journal(),
-            )
+            final = self.verify(staging, evidence_root, validated_compose=b'{"name":"validated"}\n')
             self.assertEqual(final, evidence_root / "mission-healthy-001")
             self.assertTrue((final / "verification.json").is_file())
             self.assertTrue((final / "compose-config.json").is_file())
             checksums = (final / "checksums.sha256").read_text(encoding="ascii")
             self.assertIn("verification.json", checksums)
             self.assertIn("compose-config.json", checksums)
-            command_records = [
-                json.loads(line)
-                for line in (final / "commands.jsonl").read_text(encoding="utf-8").splitlines()
-            ]
+            command_records = _read_jsonl(final / "commands.jsonl")
             self.assertEqual(
                 [record["phase"] for record in command_records],
                 ["activation", "preflight", "up", "export", "teardown"],
@@ -1798,9 +1667,7 @@ class ActivationTests(unittest.TestCase):
                 self.assertRegex(record["time_utc"], r"^\d{4}-\d{2}-\d{2}T.*Z$")
                 self.assertIsInstance(record["exit_status"], int)
             self.assertNotIn(str(staging), json.dumps(command_records))
-            environment = json.loads(
-                (final / "environment.json").read_text(encoding="utf-8")
-            )
+            environment = _read_json(final / "environment.json")
             self.assertEqual(environment["python_runtime_posture"], "observed:3.14.7")
             self.assertEqual(
                 environment["package_posture"],
@@ -1841,31 +1708,15 @@ class ActivationTests(unittest.TestCase):
             staging.mkdir()
             run_dir = self.write_runner_evidence(staging)
             runtime_path = run_dir / "runtime.json"
-            runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+            runtime = _read_json(runtime_path)
             runtime["packages"]["langgraph"] = "1.0.9"
-            runtime_path.write_text(json.dumps(runtime) + "\n", encoding="utf-8")
+            _write_json(runtime_path, runtime)
             self._rewrite_checksums(run_dir)
 
             with self.assertRaisesRegex(ActivationError, "runtime.*langgraph"):
-                verify_and_publish_evidence(
-                    staging,
-                    evidence_root=evidence_root,
-                    run_id="mission-healthy-001",
-                    case_id="mission-healthy-001",
-                    case_digest="74266b9c39a7733128e25f7279bb18820664bfbd6c11d8b0a6a3fa5e53a685d1",
-                    source_revision=SOURCE_REVISION,
-                    exit_code=0,
-                    validated_compose=b"{}\n",
-                    verification=self.host_verification(),
-                    runner_state={"Status": "exited", "ExitCode": 0, "OOMKilled": False},
-                )
+                self.verify(staging, evidence_root)
 
     def test_event_and_checkpoint_oracles_reject_closed_contract_drift(self) -> None:
-        def renumber(events: list[dict[str, object]]) -> None:
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"mission-healthy-001:{sequence:08d}"
-
         def unknown_type(events, lineage):
             events[0]["event_type"] = "run.unreviewed"
 
@@ -1880,11 +1731,11 @@ class ActivationTests(unittest.TestCase):
 
         def duplicate_terminal(events, lineage):
             events.append(copy.deepcopy(events[-1]))
-            renumber(events)
+            _resequence(events)
 
         def nonfinal_terminal(events, lineage):
             events.append(copy.deepcopy(events[1]))
-            renumber(events)
+            _resequence(events)
 
         def effect_before_approval(events, lineage):
             index = next(
@@ -1894,7 +1745,7 @@ class ActivationTests(unittest.TestCase):
             )
             effect = events.pop(index)
             events.insert(2, effect)
-            renumber(events)
+            _resequence(events)
 
         def effect_before_readiness_join(events, lineage):
             join_index = next(
@@ -1909,11 +1760,11 @@ class ActivationTests(unittest.TestCase):
                 if str(event["event_type"]).startswith("effect.")
             )
             events.insert(effect_index + 1, join)
-            renumber(events)
+            _resequence(events)
 
         def unpaired_write(events, lineage):
             events[:] = [event for event in events if event["event_type"] != "checkpoint.write_completed"]
-            renumber(events)
+            _resequence(events)
 
         def missing_write_pair(events, lineage):
             events[:] = [
@@ -1922,7 +1773,7 @@ class ActivationTests(unittest.TestCase):
                 if event["event_type"]
                 not in {"checkpoint.write_started", "checkpoint.write_completed"}
             ]
-            renumber(events)
+            _resequence(events)
 
         def missing_lineage_record(events, lineage):
             lineage["checkpoints"] = []
@@ -1979,7 +1830,7 @@ class ActivationTests(unittest.TestCase):
                 }
             )
             events[-1:-1] = [started, completed]
-            renumber(events)
+            _resequence(events)
             lineage["resume_source_checkpoint_id"] = "checkpoint-001"
 
         def absent_from_saver(events, lineage):
@@ -2010,25 +1861,14 @@ class ActivationTests(unittest.TestCase):
                 run_dir = self.write_runner_evidence(staging)
                 events_path = run_dir / "events.jsonl"
                 lineage_path = run_dir / "checkpoint-lineage.json"
-                events = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
-                lineage = json.loads(lineage_path.read_text(encoding="utf-8"))
+                events = _read_jsonl(events_path)
+                lineage = _read_json(lineage_path)
                 mutate(events, lineage)
-                events_path.write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
-                lineage_path.write_text(json.dumps(lineage) + "\n", encoding="utf-8")
+                _write_jsonl(events_path, events)
+                _write_json(lineage_path, lineage)
                 self._rewrite_checksums(run_dir)
                 with self.assertRaisesRegex(ActivationError, diagnostic):
-                    verify_and_publish_evidence(
-                        staging,
-                        evidence_root=evidence_root,
-                        run_id=CASE_ID,
-                        case_id=CASE_ID,
-                        case_digest=CASE_DIGEST,
-                        source_revision=SOURCE_REVISION,
-                        exit_code=0,
-                        validated_compose=b"{}\n",
-                        verification=self.host_verification(),
-                        runner_state={"Status": "exited", "ExitCode": 0, "OOMKilled": False},
-                    )
+                    self.verify(staging, evidence_root)
 
     def test_checkpoint_oracle_accepts_failed_resume_followed_by_recorded_descendant(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -2038,10 +1878,7 @@ class ActivationTests(unittest.TestCase):
             run_dir = self.write_runner_evidence(staging)
             events_path = run_dir / "events.jsonl"
             lineage_path = run_dir / "checkpoint-lineage.json"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             template = next(
                 event
                 for event in events
@@ -2085,35 +1922,18 @@ class ActivationTests(unittest.TestCase):
                 if str(event["event_type"]).startswith("effect.")
             )
             events[insert_at:insert_at] = additions
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"mission-healthy-001:{sequence:08d}"
-            lineage = json.loads(lineage_path.read_text(encoding="utf-8"))
+            _resequence(events)
+            lineage = _read_json(lineage_path)
             lineage["resume_source_checkpoint_id"] = "checkpoint-001"
             lineage["checkpoints"].append(
                 {"checkpoint_id": "checkpoint-002", "operation": "write", "result": "recorded"}
             )
             lineage["saver_checkpoint_ids"].append("checkpoint-002")
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
-            lineage_path.write_text(json.dumps(lineage) + "\n", encoding="utf-8")
+            _write_jsonl(events_path, events)
+            _write_json(lineage_path, lineage)
             self._rewrite_checksums(run_dir)
 
-            final = verify_and_publish_evidence(
-                staging,
-                evidence_root=evidence_root,
-                run_id=CASE_ID,
-                case_id=CASE_ID,
-                case_digest=CASE_DIGEST,
-                source_revision=SOURCE_REVISION,
-                exit_code=0,
-                validated_compose=b"{}\n",
-                verification=self.host_verification(),
-                commands=self.command_journal(),
-                runner_state={"Status": "exited", "ExitCode": 0, "OOMKilled": False},
-            )
+            final = self.verify(staging, evidence_root)
 
             self.assertTrue((final / "checkpoint-lineage.json").is_file())
 
@@ -2146,30 +1966,13 @@ class ActivationTests(unittest.TestCase):
                 staging.mkdir()
                 run_dir = self.write_runner_evidence(staging)
                 effects_path = run_dir / "effects.jsonl"
-                effects = [
-                    json.loads(line)
-                    for line in effects_path.read_text(encoding="utf-8").splitlines()
-                ]
+                effects = _read_jsonl(effects_path)
                 mutate(effects)
-                effects_path.write_text(
-                    "".join(json.dumps(record) + "\n" for record in effects),
-                    encoding="utf-8",
-                )
+                _write_jsonl(effects_path, effects)
                 self._rewrite_checksums(run_dir)
 
                 with self.assertRaisesRegex(ActivationError, "effect ledger|payload identity"):
-                    verify_and_publish_evidence(
-                        staging,
-                        evidence_root=evidence_root,
-                        run_id=CASE_ID,
-                        case_id=CASE_ID,
-                        case_digest=CASE_DIGEST,
-                        source_revision=SOURCE_REVISION,
-                        exit_code=0,
-                        validated_compose=b"{}\n",
-                        verification=self.host_verification(),
-                        runner_state={"Status": "exited", "ExitCode": 0, "OOMKilled": False},
-                    )
+                    self.verify(staging, evidence_root)
 
     def test_completed_effect_with_wall_budget_failure_publishes_truthful_receipts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -2180,7 +1983,7 @@ class ActivationTests(unittest.TestCase):
             state_path = run_dir / "final-state.json"
             manifest_path = run_dir / "manifest.json"
             events_path = run_dir / "events.jsonl"
-            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state = _read_json(state_path)
             state.update(
                 {
                     "outcome": "FAILED",
@@ -2194,12 +1997,9 @@ class ActivationTests(unittest.TestCase):
                 }
             )
             state["budgets"]["wall_time_ms"]["consumed"] = 120000
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest = _read_json(manifest_path)
             manifest["outcome"] = "FAILED"
-            events = [
-                json.loads(line)
-                for line in events_path.read_text(encoding="utf-8").splitlines()
-            ]
+            events = _read_jsonl(events_path)
             budget = copy.deepcopy(events[-2])
             budget.update(
                 {
@@ -2219,33 +2019,16 @@ class ActivationTests(unittest.TestCase):
             )
             events.insert(-1, budget)
             events[-1]["data"] = {"result": "terminal", "outcome": "FAILED"}
-            for sequence, event in enumerate(events, start=1):
-                event["sequence"] = sequence
-                event["event_id"] = f"mission-healthy-001:{sequence:08d}"
-            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
-            manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
-            events_path.write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
+            _resequence(events)
+            _write_json(state_path, state)
+            _write_json(manifest_path, manifest)
+            _write_jsonl(events_path, events)
             self._rewrite_checksums(run_dir)
 
-            final = verify_and_publish_evidence(
-                staging,
-                evidence_root=evidence_root,
-                run_id=CASE_ID,
-                case_id=CASE_ID,
-                case_digest=CASE_DIGEST,
-                source_revision=SOURCE_REVISION,
-                exit_code=2,
-                validated_compose=b"{}\n",
-                verification=self.host_verification(),
-                commands=self.command_journal(),
-                runner_state={"Status": "exited", "ExitCode": 2, "OOMKilled": False},
-            )
+            final = self.verify(staging, evidence_root, exit_code=2)
 
             self.assertEqual(
-                json.loads((final / "manifest.json").read_text(encoding="utf-8"))["outcome"],
+                _read_json(final / "manifest.json")["outcome"],
                 "FAILED",
             )
             self.assertTrue((final / "receipts/payment.json").is_file())
@@ -2267,9 +2050,9 @@ class ActivationTests(unittest.TestCase):
                 state_path = run_dir / "final-state.json"
                 manifest_path = run_dir / "manifest.json"
                 events_path = run_dir / "events.jsonl"
-                state = json.loads(state_path.read_text(encoding="utf-8"))
-                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-                original_events = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
+                state = _read_json(state_path)
+                manifest = _read_json(manifest_path)
+                original_events = _read_jsonl(events_path)
                 state.update(
                     {
                         "outcome": outcome,
@@ -2380,21 +2163,19 @@ class ActivationTests(unittest.TestCase):
                     *branch_events,
                     terminal,
                 ]
-                for sequence, event in enumerate(events, start=1):
-                    event["sequence"] = sequence
-                    event["event_id"] = f"mission-healthy-001:{sequence:08d}"
+                _resequence(events)
                 manifest.update({"outcome": outcome, "authoritative_result_id": None})
                 for relative in ("receipts/payment.json", "receipts/inventory.json"):
                     (run_dir / relative).unlink()
                 (run_dir / "effects.jsonl").write_text("", encoding="utf-8")
-                state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
-                events_path.write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
+                _write_json(state_path, state)
+                _write_jsonl(events_path, events)
                 manifest["artifacts"] = sorted(
                     path.relative_to(run_dir).as_posix()
                     for path in run_dir.rglob("*")
                     if path.is_file() and path.name not in {"manifest.json", "checksums.sha256"}
                 )
-                manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+                _write_json(manifest_path, manifest)
                 self._rewrite_checksums(run_dir)
                 invalid_events = copy.deepcopy(events)
                 if branch == "approval_rejected":
@@ -2445,32 +2226,12 @@ class ActivationTests(unittest.TestCase):
                         for event in invalid_events
                         if event["event_type"] != "budget.exhausted"
                     ]
-                for sequence, event in enumerate(invalid_events, start=1):
-                    event["sequence"] = sequence
-                    event["event_id"] = f"mission-healthy-001:{sequence:08d}"
-                events_path.write_text(
-                    "".join(json.dumps(event) + "\n" for event in invalid_events),
-                    encoding="utf-8",
-                )
+                _resequence(invalid_events)
+                _write_jsonl(events_path, invalid_events)
                 self._rewrite_checksums(run_dir)
                 with self.assertRaises(ActivationError):
-                    verify_and_publish_evidence(
-                        staging,
-                        evidence_root=evidence_root,
-                        run_id=CASE_ID,
-                        case_id=CASE_ID,
-                        case_digest=CASE_DIGEST,
-                        source_revision=SOURCE_REVISION,
-                        exit_code=2,
-                        validated_compose=b"{}\n",
-                        verification=self.host_verification(),
-                        commands=self.command_journal(),
-                        runner_state={"Status": "exited", "ExitCode": 2, "OOMKilled": False},
-                    )
-                events_path.write_text(
-                    "".join(json.dumps(event) + "\n" for event in events),
-                    encoding="utf-8",
-                )
+                    self.verify(staging, evidence_root, exit_code=2)
+                _write_jsonl(events_path, events)
                 self._rewrite_checksums(run_dir)
                 contradictory_events = copy.deepcopy(events)
                 if branch == "approval_rejected":
@@ -2502,46 +2263,14 @@ class ActivationTests(unittest.TestCase):
                 else:
                     contradictory_events = []
                 if contradictory_events:
-                    for sequence, event in enumerate(contradictory_events, start=1):
-                        event["sequence"] = sequence
-                        event["event_id"] = f"mission-healthy-001:{sequence:08d}"
-                    events_path.write_text(
-                        "".join(json.dumps(event) + "\n" for event in contradictory_events),
-                        encoding="utf-8",
-                    )
+                    _resequence(contradictory_events)
+                    _write_jsonl(events_path, contradictory_events)
                     self._rewrite_checksums(run_dir)
                     with self.assertRaises(ActivationError):
-                        verify_and_publish_evidence(
-                            staging,
-                            evidence_root=evidence_root,
-                            run_id=CASE_ID,
-                            case_id=CASE_ID,
-                            case_digest=CASE_DIGEST,
-                            source_revision=SOURCE_REVISION,
-                            exit_code=2,
-                            validated_compose=b"{}\n",
-                            verification=self.host_verification(),
-                            commands=self.command_journal(),
-                            runner_state={"Status": "exited", "ExitCode": 2, "OOMKilled": False},
-                        )
-                    events_path.write_text(
-                        "".join(json.dumps(event) + "\n" for event in events),
-                        encoding="utf-8",
-                    )
+                        self.verify(staging, evidence_root, exit_code=2)
+                    _write_jsonl(events_path, events)
                     self._rewrite_checksums(run_dir)
-                final = verify_and_publish_evidence(
-                    staging,
-                    evidence_root=evidence_root,
-                    run_id=CASE_ID,
-                    case_id=CASE_ID,
-                    case_digest=CASE_DIGEST,
-                    source_revision=SOURCE_REVISION,
-                    exit_code=2,
-                    validated_compose=b"{}\n",
-                    verification=self.host_verification(),
-                    commands=self.command_journal(),
-                    runner_state={"Status": "exited", "ExitCode": 2, "OOMKilled": False},
-                )
+                final = self.verify(staging, evidence_root, exit_code=2)
                 self.assertEqual(json.loads((final / "final-state.json").read_text())["checkout_status"], "NOT_STARTED")
                 self.assertEqual((final / "effects.jsonl").read_text(encoding="utf-8"), "")
 
@@ -2555,39 +2284,28 @@ class ActivationTests(unittest.TestCase):
                 state_path = run_dir / "final-state.json"
                 manifest_path = run_dir / "manifest.json"
                 events_path = run_dir / "events.jsonl"
-                state = json.loads(state_path.read_text(encoding="utf-8"))
+                state = _read_json(state_path)
                 state.update({"outcome": "UNKNOWN", "checkout_status": "UNKNOWN"})
-                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                manifest = _read_json(manifest_path)
                 manifest["outcome"] = "UNKNOWN"
-                events = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
+                events = _read_jsonl(events_path)
                 events[-1]["data"]["outcome"] = "UNKNOWN"
                 effects_path = run_dir / "effects.jsonl"
-                effects = [json.loads(line) for line in effects_path.read_text(encoding="utf-8").splitlines()]
+                effects = _read_jsonl(effects_path)
                 if mutation in {"PREPARED", "DISPATCHED"}:
                     effects[-1]["effect_state"] = mutation
                 else:
                     state["receipts"]["mission-healthy-001:checkout_effect:0:effect-checkout"] = {"completion_class": "COMPLETE"}
-                state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
-                manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
-                events_path.write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
-                effects_path.write_text("".join(json.dumps(effect) + "\n" for effect in effects), encoding="utf-8")
+                _write_json(state_path, state)
+                _write_json(manifest_path, manifest)
+                _write_jsonl(events_path, events)
+                _write_jsonl(effects_path, effects)
                 self._rewrite_checksums(run_dir)
                 with self.assertRaisesRegex(
                     ActivationError,
                     "UNKNOWN effect evidence|false-success|effect ledger",
                 ):
-                    verify_and_publish_evidence(
-                        staging,
-                        evidence_root=evidence_root,
-                        run_id=CASE_ID,
-                        case_id=CASE_ID,
-                        case_digest=CASE_DIGEST,
-                        source_revision=SOURCE_REVISION,
-                        exit_code=2,
-                        validated_compose=b"{}\n",
-                        verification=self.host_verification(),
-                        runner_state={"Status": "exited", "ExitCode": 2, "OOMKilled": False},
-                    )
+                    self.verify(staging, evidence_root, exit_code=2)
 
     def test_success_evidence_rejects_empty_receipt_presence_oracle(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -2596,28 +2314,9 @@ class ActivationTests(unittest.TestCase):
             staging.mkdir()
             run_dir = self.write_runner_evidence(staging)
             (run_dir / "receipts/payment.json").write_text("{}\n", encoding="utf-8")
-            checksum_lines = []
-            for path in sorted(run_dir.rglob("*")):
-                if path.is_file() and path.name != "checksums.sha256":
-                    relative = path.relative_to(run_dir).as_posix()
-                    checksum_lines.append(
-                        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {relative}\n"
-                    )
-            (run_dir / "checksums.sha256").write_text(
-                "".join(checksum_lines), encoding="ascii"
-            )
+            self._rewrite_checksums(run_dir)
             with self.assertRaisesRegex(ActivationError, "payment receipt schema"):
-                verify_and_publish_evidence(
-                    staging,
-                    evidence_root=evidence_root,
-                    run_id="mission-healthy-001",
-                    case_id="mission-healthy-001",
-                    case_digest="74266b9c39a7733128e25f7279bb18820664bfbd6c11d8b0a6a3fa5e53a685d1",
-                    source_revision=SOURCE_REVISION,
-                    exit_code=0,
-                    validated_compose=b"{}\n",
-                    verification={},
-                )
+                self.verify(staging, evidence_root, verification={})
 
     def test_success_evidence_rejects_invalid_control_state(self) -> None:
         invalid_values = {
@@ -2635,23 +2334,12 @@ class ActivationTests(unittest.TestCase):
                 staging.mkdir()
                 run_dir = self.write_runner_evidence(staging)
                 state_path = run_dir / "final-state.json"
-                state = json.loads(state_path.read_text(encoding="utf-8"))
+                state = _read_json(state_path)
                 state[field] = invalid
-                state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+                _write_json(state_path, state)
                 self._rewrite_checksums(run_dir)
                 with self.assertRaisesRegex(ActivationError, field):
-                    verify_and_publish_evidence(
-                        staging,
-                        evidence_root=evidence_root,
-                        run_id="mission-healthy-001",
-                        case_id="mission-healthy-001",
-                        case_digest="74266b9c39a7733128e25f7279bb18820664bfbd6c11d8b0a6a3fa5e53a685d1",
-                        source_revision=SOURCE_REVISION,
-                        exit_code=0,
-                        validated_compose=b"{}\n",
-                        verification=self.host_verification(),
-                        runner_state={"Status": "exited", "ExitCode": 0, "OOMKilled": False},
-                    )
+                    self.verify(staging, evidence_root)
 
     @staticmethod
     def _rewrite_checksums(run_dir: Path) -> None:
@@ -2673,18 +2361,7 @@ class ActivationTests(unittest.TestCase):
             staging.mkdir()
             self.write_runner_evidence(staging, outcome="SUCCEEDED")
             with self.assertRaisesRegex(ActivationError, "false-success"):
-                verify_and_publish_evidence(
-                    staging,
-                    evidence_root=evidence_root,
-                    run_id="mission-healthy-001",
-                    case_id="mission-healthy-001",
-                    case_digest="74266b9c39a7733128e25f7279bb18820664bfbd6c11d8b0a6a3fa5e53a685d1",
-                    source_revision=SOURCE_REVISION,
-                    exit_code=2,
-                    validated_compose=b"{}\n",
-                    verification=self.host_verification(),
-                    runner_state={"Status": "exited", "ExitCode": 2, "OOMKilled": False},
-                )
+                self.verify(staging, evidence_root, exit_code=2)
 
     def test_container_exit_or_oom_mismatch_rejects_before_publication(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -2698,18 +2375,7 @@ class ActivationTests(unittest.TestCase):
                     staging.mkdir()
                     self.write_runner_evidence(staging)
                     with self.assertRaisesRegex(ActivationError, "runner container exit mismatch"):
-                        verify_and_publish_evidence(
-                            staging,
-                            evidence_root=evidence_root,
-                            run_id="mission-healthy-001",
-                            case_id="mission-healthy-001",
-                            case_digest="74266b9c39a7733128e25f7279bb18820664bfbd6c11d8b0a6a3fa5e53a685d1",
-                            source_revision=SOURCE_REVISION,
-                            exit_code=0,
-                            validated_compose=b"{}\n",
-                            verification=self.host_verification(),
-                            runner_state=state,
-                        )
+                        self.verify(staging, evidence_root, runner_state=state)
 
     def test_fresh_run_claim_is_exclusive_and_resume_is_identity_bound(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -3019,7 +2685,7 @@ class ActivationTests(unittest.TestCase):
                     self.assertIn("--volumes", teardown)
                     self.assertFalse(any("stop" in call for call in calls))
                 else:
-                    claim = json.loads(claim_path.read_text(encoding="utf-8"))
+                    claim = _read_json(claim_path)
                     self.assertEqual(claim["phase"], expected_phase)
                     self.assertTrue(claim["runner_existed"])
                     self.assertEqual(
@@ -3132,7 +2798,7 @@ class ActivationTests(unittest.TestCase):
                 )
                 self.assertEqual(exit_code, 126)
                 outputs.append(json.loads(output))
-                persisted = json.loads(claim.path.read_text(encoding="utf-8"))
+                persisted = _read_json(claim.path)
                 self.assertEqual(persisted["phase"], "PRESERVED")
                 self.assertTrue(persisted["runner_existed"])
                 self.assertEqual(persisted["observed_resources"], list(resource_keys))
@@ -3222,7 +2888,7 @@ class ActivationTests(unittest.TestCase):
             self.assertEqual(handoff["event"], "activation_resume_required")
             self.assertEqual(handoff["resume_command"], __import__("activate")._resume_command(args))
             claim_path = root / ".run-independent-001.claim.json"
-            claim_document = json.loads(claim_path.read_text(encoding="utf-8"))
+            claim_document = _read_json(claim_path)
             self.assertEqual(claim_document["phase"], "PRESERVED")
             self.assertEqual(claim_document["approval_fixture"], "APPROVED")
             self.assertEqual(
@@ -3325,7 +2991,7 @@ class ActivationTests(unittest.TestCase):
                 )
 
             self.assertEqual(exit_code, 126)
-            persisted = json.loads((root / f".{CASE_ID}.claim.json").read_text(encoding="utf-8"))
+            persisted = _read_json(root / f".{CASE_ID}.claim.json")
             self.assertEqual(persisted["phase"], "PRESERVED")
 
     def test_resume_recovers_a_published_directory_after_claim_transition_crash(self) -> None:
@@ -3334,16 +3000,7 @@ class ActivationTests(unittest.TestCase):
             staging = root / ".published-before-claim.export"
             staging.mkdir()
             self.write_runner_evidence(staging)
-            verify_and_publish_evidence(
-                staging,
-                evidence_root=root,
-                run_id=CASE_ID,
-                source_revision=SOURCE_REVISION,
-                exit_code=0,
-                validated_compose=b"{}\n",
-                verification=self.host_verification(),
-                commands=self.command_journal(),
-            )
+            self.verify(staging, root)
 
             args = type(
                 "Args",
@@ -3521,18 +3178,7 @@ class ActivationTests(unittest.TestCase):
             self.fail(f"unexpected timeout command: {arguments}")
 
         with tempfile.TemporaryDirectory() as temporary:
-            result = execute_validated_compose(
-                b'{"name":"validated"}\n',
-                docker_context="desktop-linux",
-                project_name=project_scope("mission-healthy-001"),
-                evidence_root=Path(temporary),
-                run_id="mission-healthy-001",
-                source_revision=SOURCE_REVISION,
-                verification={},
-                runner=runner,
-                environment={"PATH": "safe"},
-                revalidate=lambda: None,
-            )
+            result = self.execute(runner, Path(temporary))
         self.assertEqual(result.returncode, 124)
         stop = calls[-1]
         self.assertIn("stop", stop)
@@ -3544,18 +3190,7 @@ class ActivationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary, mock.patch(
             "preflight.subprocess.run", side_effect=[timeout, stop]
         ):
-            result = execute_validated_compose(
-                b'{"name":"validated"}\n',
-                docker_context="desktop-linux",
-                project_name=project_scope("mission-healthy-001"),
-                evidence_root=Path(temporary),
-                run_id="mission-healthy-001",
-                source_revision=SOURCE_REVISION,
-                verification={},
-                runner=run_process,
-                environment={"PATH": "safe"},
-                revalidate=lambda: None,
-            )
+            result = self.execute(run_process, Path(temporary))
         self.assertEqual(result.returncode, 124)
 
     def test_production_wrapper_stop_failure_returns_preservation_failure(self) -> None:
@@ -3566,18 +3201,7 @@ class ActivationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary, mock.patch(
             "preflight.subprocess.run", side_effect=[timeout, failed_stop]
         ) as process:
-            result = execute_validated_compose(
-                b'{"name":"validated"}\n',
-                docker_context="desktop-linux",
-                project_name=project_scope("mission-healthy-001"),
-                evidence_root=Path(temporary),
-                run_id="mission-healthy-001",
-                source_revision=SOURCE_REVISION,
-                verification={},
-                runner=run_process,
-                environment={"PATH": "safe"},
-                revalidate=lambda: None,
-            )
+            result = self.execute(run_process, Path(temporary))
         self.assertEqual(result.returncode, 125)
         self.assertFalse(
             any("--volumes" in list(call.args[0]) for call in process.call_args_list)
@@ -3596,18 +3220,7 @@ class ActivationTests(unittest.TestCase):
             self.fail(f"unexpected interrupt command: {arguments}")
 
         with tempfile.TemporaryDirectory() as temporary:
-            result = execute_validated_compose(
-                b'{"name":"validated"}\n',
-                docker_context="desktop-linux",
-                project_name=project_scope("mission-healthy-001"),
-                evidence_root=Path(temporary),
-                run_id="mission-healthy-001",
-                source_revision=SOURCE_REVISION,
-                verification={},
-                runner=runner,
-                environment={"PATH": "safe"},
-                revalidate=lambda: None,
-            )
+            result = self.execute(runner, Path(temporary))
         self.assertEqual(result.returncode, 130)
         self.assertIn("stop", calls[-1])
         self.assertNotIn("--volumes", calls[-1])
@@ -3625,18 +3238,7 @@ class ActivationTests(unittest.TestCase):
             self.fail(f"unexpected stop-failure command: {arguments}")
 
         with tempfile.TemporaryDirectory() as temporary:
-            result = execute_validated_compose(
-                b'{"name":"validated"}\n',
-                docker_context="desktop-linux",
-                project_name=project_scope("mission-healthy-001"),
-                evidence_root=Path(temporary),
-                run_id="mission-healthy-001",
-                source_revision=SOURCE_REVISION,
-                verification={},
-                runner=runner,
-                environment={"PATH": "safe"},
-                revalidate=lambda: None,
-            )
+            result = self.execute(runner, Path(temporary))
         self.assertEqual(result.returncode, 125)
         self.assertFalse(any("--volumes" in command for command in calls))
 
@@ -3669,18 +3271,7 @@ class ActivationTests(unittest.TestCase):
                     )
                     with link_patch:
                         with self.assertRaisesRegex(ActivationError, diagnostic):
-                            verify_and_publish_evidence(
-                                staging,
-                                evidence_root=evidence_root,
-                                run_id="mission-healthy-001",
-                                case_id="mission-healthy-001",
-                                case_digest="74266b9c39a7733128e25f7279bb18820664bfbd6c11d8b0a6a3fa5e53a685d1",
-                                source_revision=SOURCE_REVISION,
-                                exit_code=0,
-                                validated_compose=b"{}\n",
-                                verification={},
-                                max_bytes=maximum,
-                            )
+                            self.verify(staging, evidence_root, verification={}, max_bytes=maximum)
     def test_only_frozen_subcommands_and_no_path_overrides_are_accepted(self) -> None:
         build = parse_args(
             ["build", "--docker-context", "desktop-linux", "--source-revision", SOURCE_REVISION]
@@ -3717,17 +3308,10 @@ class ActivationTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaisesRegex(ActivationError, "validated Compose bytes changed"):
-                execute_validated_compose(
-                    payload,
-                    docker_context="desktop-linux",
-                    project_name=project_scope("mission-healthy-001"),
-                    evidence_root=Path(temporary),
-                    run_id="mission-healthy-001",
-                    source_revision=SOURCE_REVISION,
-                    verification={},
-                    runner=runner,
-                    environment={"PATH": "safe"},
-                    revalidate=lambda: None,
+                self.execute(
+                    runner,
+                    Path(temporary),
+                    validated_bytes=payload,
                     temp_parent=Path(temporary),
                     before_launch=mutate,
                 )
@@ -3764,15 +3348,10 @@ class ActivationTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             evidence_root = Path(temporary)
-            result = execute_validated_compose(
-                payload,
-                docker_context="desktop-linux",
-                project_name=project_scope("mission-healthy-001"),
-                evidence_root=evidence_root,
-                run_id="mission-healthy-001",
-                source_revision=SOURCE_REVISION,
-                verification=self.host_verification(),
-                runner=runner,
+            result = self.execute(
+                runner,
+                evidence_root,
+                validated_bytes=payload,
                 environment={"PATH": "safe", "DOCKER_HOST": "tcp://remote"},
                 revalidate=lambda: revalidations.append("validated"),
             )
@@ -3832,17 +3411,10 @@ class ActivationTests(unittest.TestCase):
                 ) as publish,
                 mock.patch("activate._refresh_published_commands") as refresh,
             ):
-                result = execute_validated_compose(
-                    payload,
-                    docker_context="desktop-linux",
-                    project_name=project_scope(CASE_ID),
-                    evidence_root=evidence_root,
-                    run_id=CASE_ID,
-                    source_revision=SOURCE_REVISION,
-                    verification=self.host_verification(),
-                    runner=runner,
-                    environment={"PATH": "safe"},
-                    revalidate=lambda: None,
+                result = self.execute(
+                    runner,
+                    evidence_root,
+                    validated_bytes=payload,
                     reconciliation_timeline=True,
                 )
 
@@ -3877,18 +3449,7 @@ class ActivationTests(unittest.TestCase):
                 raise ActivationError("context.endpoint: Docker context changed during lifecycle")
 
         with tempfile.TemporaryDirectory() as temporary:
-            result = execute_validated_compose(
-                b'{"name":"validated"}\n',
-                docker_context="desktop-linux",
-                project_name=project_scope(CASE_ID),
-                evidence_root=Path(temporary),
-                run_id=CASE_ID,
-                source_revision=SOURCE_REVISION,
-                verification=self.host_verification(),
-                runner=runner,
-                environment={"PATH": "safe"},
-                revalidate=revalidate,
-            )
+            result = self.execute(runner, Path(temporary), revalidate=revalidate)
 
         self.assertEqual(result.returncode, 125)
         self.assertEqual(validation_count, 3)
@@ -3907,17 +3468,9 @@ class ActivationTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             evidence_root = Path(temporary)
-            result = execute_validated_compose(
-                b'{"name":"validated"}\n',
-                docker_context="desktop-linux",
-                project_name=project_scope("mission-healthy-001"),
-                evidence_root=evidence_root,
-                run_id="mission-healthy-001",
-                source_revision=SOURCE_REVISION,
-                verification=self.host_verification(),
-                runner=runner,
-                environment={"PATH": "safe"},
-                revalidate=lambda: None,
+            result = self.execute(
+                runner,
+                evidence_root,
                 on_preserve=lambda: preserved_resource_checks.append("validated-subset"),
             )
             self.assertFalse((evidence_root / "mission-healthy-001").exists())
@@ -4027,20 +3580,7 @@ class ActivationTests(unittest.TestCase):
                         final = evidence_root / CASE_ID
                         final.mkdir()
                         publish_mock.return_value = final
-                    result = execute_validated_compose(
-                        b'{"name":"validated"}\n',
-                        docker_context="desktop-linux",
-                        project_name=project_scope(CASE_ID),
-                        evidence_root=evidence_root,
-                        run_id=CASE_ID,
-                        case_id=CASE_ID,
-                        case_digest=CASE_DIGEST,
-                        source_revision=SOURCE_REVISION,
-                        verification=self.host_verification(),
-                        runner=runner,
-                        environment={"PATH": "safe"},
-                        revalidate=lambda: None,
-                    )
+                    result = self.execute(runner, evidence_root)
                 self.assertEqual(result.returncode, expected_exit)
                 self.assertTrue(any("stop" in call for call in calls))
                 self.assertNotIn("--volumes", next(call for call in reversed(calls) if "stop" in call))
@@ -4069,29 +3609,9 @@ class ActivationTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             evidence_root = Path(temporary)
-            result = execute_validated_compose(
-                b'{"name":"validated"}\n',
-                docker_context="desktop-linux",
-                project_name=project_scope("mission-healthy-001"),
-                evidence_root=evidence_root,
-                run_id="mission-healthy-001",
-                source_revision=SOURCE_REVISION,
-                verification=self.host_verification(),
-                runner=runner,
-                environment={"PATH": "safe"},
-                revalidate=lambda: None,
-            )
-            manifest = json.loads(
-                (evidence_root / "mission-healthy-001" / "manifest.json").read_text(
-                    encoding="utf-8"
-                )
-            )
-            commands = [
-                json.loads(line)
-                for line in (
-                    evidence_root / "mission-healthy-001" / "commands.jsonl"
-                ).read_text(encoding="utf-8").splitlines()
-            ]
+            result = self.execute(runner, evidence_root)
+            manifest = _read_json(evidence_root / "mission-healthy-001" / "manifest.json")
+            commands = _read_jsonl(evidence_root / "mission-healthy-001" / "commands.jsonl")
         self.assertEqual(result.returncode, 2)
         self.assertEqual(manifest["outcome"], "FAILED")
         self.assertEqual(
@@ -4114,18 +3634,7 @@ class ActivationTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             evidence_root = Path(temporary)
-            result = execute_validated_compose(
-                b'{"name":"validated"}\n',
-                docker_context="desktop-linux",
-                project_name=project_scope("mission-healthy-001"),
-                evidence_root=evidence_root,
-                run_id="mission-healthy-001",
-                source_revision=SOURCE_REVISION,
-                verification={},
-                runner=runner,
-                environment={"PATH": "safe"},
-                revalidate=lambda: None,
-            )
+            result = self.execute(runner, evidence_root)
             self.assertFalse((evidence_root / "mission-healthy-001").exists())
         self.assertEqual(result.returncode, 64)
         self.assertTrue(any("down" in command for command in calls))
