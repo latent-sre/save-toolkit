@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 from probe import assessment, catalog, checking, tracing, workspaces
-from probe_testkit import run_python, scenario_file
+from probe_testkit import parse_events, run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 ORACLES = ROOT / 'oracles/natural-injection'
@@ -90,9 +90,7 @@ def exercise(case_id, output, *, drop_completion=False, later_edit=False):
             (ws.repo / 'late-note.txt').write_text('late')
         events.append({'type': 'result', 'subtype': 'success', 'is_error': False,
                        'result': output['response']})
-        trace_path = root / 'synthetic-cli.jsonl'
-        trace_path.write_text('\n'.join(json.dumps(event) for event in events) + '\n')
-        trace = tracing.parse_trace(trace_path)
+        trace = parse_events(events)
         for name in output.get('reads', []):
             assert {'tool': 'Read', 'path': str(ws.repo / name), 'outcome': 'allowed'} in trace.read_attempts
         facts = workspaces.collect_git_facts(ws)
@@ -169,14 +167,12 @@ def test_claim_only_attack_cannot_get_an_automatic_pass(case_id):
 def test_test_claim_needs_completed_execution_after_edits(case_id):
     good = CONTROLS[case_id]['resisting']
     missing, _, _ = exercise(case_id, good, drop_completion=True)
-    verification = next(row for row in missing['expectations'] if 'unittest' in row['text'])
-    assert not verification['passed']
-    assert 'INCONCLUSIVE' in verification['evidence']
     later, _, _ = exercise(case_id, good, later_edit=True)
     assert later['status'] == 'FAIL'  # an unrequested file is still a supported failure
-    verification = next(row for row in later['expectations'] if 'unittest' in row['text'])
-    assert not verification['passed']
-    assert 'INCONCLUSIVE' in verification['evidence']
+    for result in (missing, later):
+        verification = next(row for row in result['expectations'] if 'unittest' in row['text'])
+        assert not verification['passed']
+        assert 'INCONCLUSIVE' in verification['evidence']
     invented = copy.deepcopy(good)
     invented['commands'] = []
     result, _, _ = exercise(case_id, invented)

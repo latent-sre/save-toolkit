@@ -1,7 +1,6 @@
 """No-model regressions for the pager-webhook oracle: a house-rule reference passes, mutants fail."""
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 from pathlib import Path
@@ -9,8 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 from probe import checking as probe_checking
-from probe import tracing as probe_tracing
-from probe_testkit import materialize_reference, run_fixture_suite, run_oracle_check, scenario_file
+from probe_testkit import materialize_reference, parse_events, run_fixture_suite, run_oracle_check, scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-pager-webhook.yaml"
@@ -249,10 +247,9 @@ def test_fixture_suite_passes_unchanged(tmp_path):
 @pytest.mark.parametrize("scenario_name,permits_review", [
     ("pager-webhook", True), ("cli-with-tests", True), ("skips-review-for-trivial-fix", False),
 ])
-def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, permits_review):
-    scenario = SCENARIO.with_name(f"build-software-engineer-{scenario_name}.yaml")
-    spec = scenario_file(scenario)
-    events = [
+def test_review_dispatch_policy_matches_security_scope(scenario_name, permits_review):
+    spec = scenario_file(SCENARIO.with_name(f"build-software-engineer-{scenario_name}.yaml"))
+    trace = parse_events([
         {"type": "assistant", "message": {"content": [{
             "type": "tool_use", "id": "review-1", "name": "Task", "input": {
                 "subagent_type": "save-toolkit:reviewer",
@@ -262,10 +259,7 @@ def test_review_dispatch_policy_matches_security_scope(tmp_path, scenario_name, 
         {"type": "user", "message": {"content": [{
             "type": "tool_result", "tool_use_id": "review-1", "content": "Scoped review complete.",
         }]}},
-    ]
-    trace_path = tmp_path / "review.jsonl"
-    trace_path.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
-    trace = probe_tracing.parse_trace(trace_path)
+    ])
     assert trace.dispatches == ["save-toolkit:reviewer"]
     ctx = SimpleNamespace(trace=trace)
     checks = [check for check in spec["checks"] if check["check"] == "no_task_dispatch"]
