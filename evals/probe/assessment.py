@@ -28,6 +28,7 @@ from .constants import ROOT
 from .outcomes import (
     EVIDENCE_LIMIT,
     CutShort,
+    Ending,
     Outcome,
     Polarity,
     State,
@@ -448,8 +449,8 @@ def run_fields(
     return {
         "inconclusive": reason if status is State.INCONCLUSIVE else None,
         **({"unmeasured": reason} if status is State.FAIL and reason else {}),
-        **({"run_end": "cut_short", "run_stop": inconclusive.kind} if isinstance(inconclusive, CutShort) else {}),
-        **({"run_end": "turn_limit"} if turn_limit else {}),
+        **({"run_end": Ending.CUT_SHORT, "run_stop": inconclusive.kind} if isinstance(inconclusive, CutShort) else {}),
+        **({"run_end": Ending.TURN_LIMIT} if turn_limit else {}),
         **({"void": inconclusive} if inconclusive and not isinstance(inconclusive, CutShort) else {}),
     }
 

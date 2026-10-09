@@ -30,6 +30,7 @@ from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_SOURCE_SHA256
 from .outcomes import CutShort, Stop, void_over_cut
+from .records import AttemptState
 from .tracing import TraceSummary
 
 
@@ -71,11 +72,11 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
     current = (_attempt_number(target) or following) if target.exists() else None
     number = max(following, (current or 0) + 1)
     attempt = _new_attempt_dir(target)
-    _write_attempt(attempt, number, "final")
+    _write_attempt(attempt, number, AttemptState.FINAL)
     started_at = records.utc_now()
 
-    def record(end: tuple[str, str | None] | None = None) -> None:
-        """This attempt's v1 record; a raised attempt's carries how it ended."""
+    def record(incomplete: str | None = None) -> None:
+        """This attempt's v1 record; a raised attempt's carries why it ended."""
         records.write_record(
             attempt,
             spec,
@@ -85,7 +86,7 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
             started_at=started_at,
             model=settings.model,
             timeout=settings.timeout,
-            end=end,
+            incomplete=incomplete,
         )
 
     backup, published = None, False
@@ -111,7 +112,7 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
             raise
         if backup is not None:
             try:
-                _keep_attempt(backup, history, current, "superseded", f"replaced by attempt {number}")
+                _keep_attempt(backup, history, current, AttemptState.SUPERSEDED, f"replaced by attempt {number}")
             except Exception as exc:
                 print(f"warning: published {target}; previous run retained at {backup}: {exc}", file=sys.stderr)
         print(json.dumps(summary), flush=True)
@@ -124,11 +125,11 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
             except Exception as cost_error:  # no timing.json leaves the cost unknown, which the cap refuses
                 print(f"warning: no cost recorded for the incomplete attempt {attempt}: {cost_error}", file=sys.stderr)
             try:
-                record(("incomplete", reason))
+                record(incomplete=reason)
             except Exception as record_error:
                 print(f"warning: no record for the incomplete attempt {attempt}: {record_error}", file=sys.stderr)
             try:
-                _keep_attempt(attempt, history, number, "incomplete", reason)
+                _keep_attempt(attempt, history, number, AttemptState.INCOMPLETE, reason)
             except Exception as keep_error:
                 print(f"warning: could not keep the incomplete attempt {attempt}: {keep_error}", file=sys.stderr)
         raise
@@ -155,7 +156,7 @@ def _attempt_number(run_dir: Path) -> int | None:
     return number if type(number) is int and number > 0 else None
 
 
-def _write_attempt(run_dir: Path, number: int, state: str, reason: str | None = None) -> None:
+def _write_attempt(run_dir: Path, number: int, state: AttemptState, reason: str | None = None) -> None:
     (run_dir / "attempt.json").write_text(
         json.dumps(
             {
@@ -237,7 +238,7 @@ def _record_raised_cost(attempt: Path) -> None:
     )
 
 
-def _keep_attempt(run_dir: Path, history: Path, number: int | None, state: str, reason: str) -> Path:
+def _keep_attempt(run_dir: Path, history: Path, number: int | None, state: AttemptState, reason: str) -> Path:
     """Move an attempt that is not the published run into the slot's history, never deleting it."""
     history.mkdir(parents=True, exist_ok=True)
     taken = layout.taken(history)

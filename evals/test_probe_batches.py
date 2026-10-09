@@ -682,7 +682,7 @@ class RecordContractTests(unittest.TestCase):
 
     def test_an_incomplete_attempt_has_no_verdict_even_beside_a_grade(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            record = self._record(Path(tmp), end=("incomplete", "KeyboardInterrupt: "))
+            record = self._record(Path(tmp), incomplete="KeyboardInterrupt: ")
         self.assertEqual(("incomplete", "incomplete", None, None),
                          (record["attempt"]["state"], record["run_end"]["kind"], record["verdict"]["status"],
                           record["verdict"]["reason"]))

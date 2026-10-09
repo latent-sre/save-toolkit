@@ -31,7 +31,7 @@ from typing import Any
 import yaml
 from probe import batches, catalog, fingerprints, layout
 from probe.outcomes import State
-from probe.records import RECORD_FORMAT, RecordV1
+from probe.records import RECORD_FORMAT, AttemptState, RecordV1
 from pydantic import ValidationError
 
 REPORT_FORMAT = {"name": "save-toolkit.eval-comparison", "version": 1}
@@ -260,7 +260,7 @@ def _folder_problem(record: RecordV1, case_id: str, label: str, slot: int, numbe
         found.append(f"label {attempt.label!r} filed under {label!r}")
     if attempt.slot != slot:
         found.append(f"slot {attempt.slot} filed under run-{slot}")
-    if (attempt.state == "final") != (number is None):
+    if (attempt.state is AttemptState.FINAL) != (number is None):
         found.append(f"state {attempt.state} filed as {'the published run' if number is None else 'a kept attempt'}")
     if number is not None and attempt.number != number:
         found.append(f"attempt {attempt.number} filed as {number}")
@@ -388,8 +388,8 @@ def _trial_row(number: int, slot: Slot) -> dict[str, Any]:
         "unpublished": slot.unpublished,
         "attempts": {
             "final": int(final is not None),
-            "superseded": sum(t.record.attempt.state == "superseded" for t in slot.kept),
-            "incomplete": sum(t.record.attempt.state == "incomplete" for t in slot.kept),
+            "superseded": sum(t.record.attempt.state is AttemptState.SUPERSEDED for t in slot.kept),
+            "incomplete": sum(t.record.attempt.state is AttemptState.INCOMPLETE for t in slot.kept),
             "unusable": slot.unusable,
             "unpublished": len(slot.unpublished),
         },
@@ -445,8 +445,8 @@ def _arm_summary(held: Label) -> dict[str, Any]:
         "slots_without_trial": sum(slot.final is None for slot in slots),
         "attempts": {
             "final": len(published),
-            "superseded": sum(t.record.attempt.state == "superseded" for t in trials),
-            "incomplete": sum(t.record.attempt.state == "incomplete" for t in trials),
+            "superseded": sum(t.record.attempt.state is AttemptState.SUPERSEDED for t in trials),
+            "incomplete": sum(t.record.attempt.state is AttemptState.INCOMPLETE for t in trials),
             "unusable": sum(slot.unusable for slot in slots),
             "unpublished": len(held.unpublished),
         },

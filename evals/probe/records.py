@@ -10,6 +10,7 @@ fact from the computer writing it.
 from __future__ import annotations
 
 import datetime
+import enum
 import json
 import math
 import sys
@@ -20,7 +21,7 @@ from typing import Annotated, Any, Literal, cast, get_args
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeFloat, NonNegativeInt, PositiveInt, model_validator
 
 from . import fingerprints
-from .outcomes import EVIDENCE_LIMIT, UNMEASURED, Polarity, State, Stop
+from .outcomes import EVIDENCE_LIMIT, UNMEASURED, Ending, Polarity, State, Stop
 
 
 def known_usd(value: object) -> float | None:
@@ -121,26 +122,33 @@ class Conditions(_Section):
     wall_clock_seconds: PositiveInt
 
 
+class AttemptState(enum.StrEnum):
+    """Where an attempt stands: the slot's published run, one a later attempt replaced, or one that
+    raised before it published (threat-model ADR result rule 7)."""
+
+    FINAL = "final"
+    SUPERSEDED = "superseded"
+    INCOMPLETE = "incomplete"
+
+
 class Attempt(_Section):
     label: str
     slot: PositiveInt
     number: PositiveInt
-    state: Literal["final", "superseded", "incomplete"]
+    state: AttemptState
     started_at: UtcTime
     ended_at: UtcTime
     reason: str | None = None
 
 
 class RunEnd(_Section):
-    kind: Literal["completed", "turn_limit", "cut_short", "void", "incomplete"] = Field(
-        description="How execution ended, independent of what the checks found."
-    )
+    kind: Ending = Field(description="How execution ended, independent of what the checks found.")
     stop: Stop | None = Field(description="How a run cut short stopped.")
     reason: str | None
 
     @model_validator(mode="after")
     def _stop_only_when_cut(self) -> RunEnd:
-        if (self.stop is not None) != (self.kind == "cut_short"):
+        if (self.stop is not None) != (self.kind is Ending.CUT_SHORT):
             raise ValueError("a stop is recorded exactly when the run was cut short")
         return self
 
@@ -218,8 +226,8 @@ class RecordV1(_Section):
 
     @model_validator(mode="after")
     def _consistent(self) -> RecordV1:
-        incomplete = self.attempt.state == "incomplete"
-        if incomplete != (self.run_end.kind == "incomplete") or incomplete != (self.verdict.status is None):
+        incomplete = self.attempt.state is AttemptState.INCOMPLETE
+        if incomplete != (self.run_end.kind is Ending.INCOMPLETE) or incomplete != (self.verdict.status is None):
             raise ValueError("an incomplete attempt, and only one, ends incomplete and has no verdict")
         if [entry.revision for entry in self.assessments] != list(range(1, len(self.assessments) + 1)):
             raise ValueError("assessment revisions count up from 1")
@@ -241,13 +249,14 @@ def write_record(
     started_at: str,
     model: str | None,
     timeout: int,
-    end: tuple[str, str | None] | None = None,
+    incomplete: str | None = None,
 ) -> dict[str, Any]:
     """The v1 result record (docs/fleet-evaluation/contracts.md#result-record-v1) for one attempt.
 
     It maps facts the attempt's own files already hold, so a record refused here can be written again
     from them once the runner is fixed; unknown values stay null, never filled from the computer
-    writing it, and evidence paths are relative to the attempt folder.
+    writing it, and evidence paths are relative to the attempt folder. `incomplete` is why an attempt
+    that raised before it was graded ended; such an attempt has no verdict.
     """
 
     def read(name: str) -> dict[str, Any]:
@@ -260,13 +269,13 @@ def write_record(
     grading, timing, provenance = read("grading.json"), read("timing.json"), read("provenance.json")
     summary = read("outputs/trace-summary.json")
     judge = timing.get("judge") or {}
-    incomplete = bool(end and end[0] == "incomplete")
+    raised = incomplete is not None
     ended = (
-        "void"
+        Ending.VOID
         if grading.get("void")
         else grading["run_end"]
-        if grading.get("run_end") in ("cut_short", "turn_limit")
-        else "completed"
+        if grading.get("run_end") in (Ending.CUT_SHORT, Ending.TURN_LIMIT)
+        else Ending.COMPLETED
     )
     fields = {
         "format": RECORD_FORMAT,
@@ -288,13 +297,13 @@ def write_record(
             "label": label,
             "slot": run_number,
             "number": attempt,
-            "state": "incomplete" if incomplete else "final",
+            "state": AttemptState.INCOMPLETE if raised else AttemptState.FINAL,
             "started_at": started_at,
             "ended_at": utc_now(),
         },
         "run_end": (
-            {"kind": end[0], "stop": None, "reason": end[1]}
-            if end
+            {"kind": Ending.INCOMPLETE, "stop": None, "reason": incomplete}
+            if raised
             else {
                 "kind": ended,
                 "stop": grading.get("run_stop"),
@@ -316,8 +325,8 @@ def write_record(
             for e in grading.get("expectations") or []
         ],
         "verdict": {
-            "status": None if incomplete else grading.get("status"),
-            "reason": None if incomplete else grading.get("inconclusive") or grading.get("unmeasured"),
+            "status": None if raised else grading.get("status"),
+            "reason": None if raised else grading.get("inconclusive") or grading.get("unmeasured"),
             "assessment_revision": 0,
             "after_assessment": grading.get("after_assessment"),
         },

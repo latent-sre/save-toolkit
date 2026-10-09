@@ -68,13 +68,7 @@
           "type": "integer"
         },
         "state": {
-          "enum": [
-            "final",
-            "superseded",
-            "incomplete"
-          ],
-          "title": "State",
-          "type": "string"
+          "$ref": "#/$defs/AttemptState"
         },
         "started_at": {
           "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|\\+00:00)$",
@@ -109,6 +103,16 @@
       ],
       "title": "Attempt",
       "type": "object"
+    },
+    "AttemptState": {
+      "description": "Where an attempt stands: the slot's published run, one a later attempt replaced, or one that\nraised before it published (threat-model ADR result rule 7).",
+      "enum": [
+        "final",
+        "superseded",
+        "incomplete"
+      ],
+      "title": "AttemptState",
+      "type": "string"
     },
     "Candidate": {
       "additionalProperties": false,
@@ -431,6 +435,18 @@
       "title": "Cost",
       "type": "object"
     },
+    "Ending": {
+      "description": "How a run's execution ended, independent of what its checks found: the `run_end` a grade and\na v1 record carry.",
+      "enum": [
+        "completed",
+        "turn_limit",
+        "cut_short",
+        "void",
+        "incomplete"
+      ],
+      "title": "Ending",
+      "type": "string"
+    },
     "Polarity": {
       "description": "What a check asserts (result rules 2 and 3).\n\nA forbidding check fails on any evidence of the forbidden action, even from a run cut short, and\nholds its scenario to every trial; a requiring check can fail only in a completed run. `both` has a\nrequired floor and a forbidden ceiling.",
       "enum": [
@@ -466,16 +482,8 @@
       "additionalProperties": false,
       "properties": {
         "kind": {
-          "description": "How execution ended, independent of what the checks found.",
-          "enum": [
-            "completed",
-            "turn_limit",
-            "cut_short",
-            "void",
-            "incomplete"
-          ],
-          "title": "Kind",
-          "type": "string"
+          "$ref": "#/$defs/Ending",
+          "description": "How execution ended, independent of what the checks found."
         },
         "stop": {
           "anyOf": [

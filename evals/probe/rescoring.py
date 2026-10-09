@@ -25,7 +25,7 @@ from . import assessment, catalog, checking, fingerprints, invocation, layout, o
 from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_IDENTITY, HARNESS_SOURCE_SHA256
-from .outcomes import EVIDENCE_LIMIT, UNMEASURED, CutShort, Outcome
+from .outcomes import EVIDENCE_LIMIT, UNMEASURED, CutShort, Ending, Outcome, Stop
 from .tracing import TraceSummary
 from .workspaces import GitFacts, Workspace
 
@@ -98,7 +98,7 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
             # The partial trace still shows the declared identity; the saved stop stays a cut, so
             # a forbidding check it already failed survives the regrade. No follow-up started.
             try:
-                return CutShort(str(metadata["inconclusive"]), metadata.get("run_stop") or "cut_short")
+                return CutShort(str(metadata["inconclusive"]), metadata.get("run_stop") or Stop.UNRECORDED)
             except ValueError:  # a saved stop this runner does not know
                 return _INVALID_NATIVE_EVIDENCE
         resume, workspace = trace.session_id, recorded_workspace
@@ -246,7 +246,7 @@ def _regrade_run(
     turn_limit = not inconclusive and (
         invocation.reached_turn_limit(trace, spec)
         if reparsed is not None
-        else live_grade.get("run_end") == "turn_limit"
+        else live_grade.get("run_end") == Ending.TURN_LIMIT
     )
     expectations = assessment.records(graded)
     grading = {
@@ -303,11 +303,11 @@ def _run_level_reason(
     inconclusive: str | None
     if isinstance(native_problem, CutShort):
         inconclusive = native_problem
-    elif live_grade.get("run_end") == "cut_short" and not native_problem:
+    elif live_grade.get("run_end") == Ending.CUT_SHORT and not native_problem:
         # A cut-short FAIL keeps its reason under `unmeasured`; its forbidding checks still count.
         inconclusive = CutShort(
             live_grade.get("inconclusive") or live_grade.get("unmeasured") or "run cut short",
-            live_grade.get("run_stop") or "cut_short",
+            live_grade.get("run_stop") or Stop.UNRECORDED,
         )
     else:
         inconclusive = _saved_void(live_grade, summary) or native_problem
