@@ -12,7 +12,7 @@ import json
 import posixpath
 import re
 from dataclasses import dataclass, replace
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from pathlib import PurePosixPath as Path
 from types import MappingProxyType
 from typing import Callable, Mapping
@@ -74,11 +74,69 @@ class StageOutput:
             raise TypeError('stage buckets must be a tuple of Bucket values')
 
 
+class Corpus:
+    """One derivation's read-only view of its snapshot; shared inputs are parsed once.
+
+    _derive builds a new Corpus for every derivation, so proof replay re-parses and
+    re-derives each declaration rather than reusing the primary extraction's work.
+    Views are lazy: a malformed input fails at its first use, as a direct parse would.
+    """
+
+    def __init__(self, snapshot: Snapshot):
+        self.snapshot = snapshot
+        self.sources = snapshot.sources
+        self.by_path: Mapping[str, Source] = MappingProxyType({s.path: s for s in snapshot.sources})
+        self.schema_sources = tuple(s for s in snapshot.sources
+                                    if s.path.startswith('schemas/') and s.path.endswith('.schema.json'))
+        self._json: dict[str, object] = {}
+        self._roadmaps: dict[str, tuple] = {}
+        self._headings: dict[str, Mapping[str, int]] = {}
+
+    def get(self, path: str) -> Source | None:
+        return self.by_path.get(path)
+
+    def parsed(self, source: Source):
+        """The source's JSON document."""
+        if source.path not in self._json:
+            self._json[source.path] = json.loads(source.text)
+        return self._json[source.path]
+
+    def catalog_entries(self) -> list:
+        catalog = self.get('schemas/catalog-v1.json')
+        return self.parsed(catalog).get('schemas', []) if catalog else []
+
+    def roadmap_entries(self, source: Source) -> tuple:
+        if source.path not in self._roadmaps:
+            self._roadmaps[source.path] = records_for_roadmap(source)
+        return self._roadmaps[source.path]
+
+    def headings(self, source: Source) -> Mapping[str, int]:
+        """Markdown section anchors, numbered on repeats, to their heading line."""
+        if source.path not in self._headings:
+            headings, counts = {}, {}
+            for i, line in enumerate(source.lines, 1):
+                if re.match(r'^#{1,6}\s', line):
+                    key = anchor(line.lstrip('#').strip())
+                    count = counts.get(key, 0)
+                    headings[key + (f'-{count}' if count else '')] = i
+                    counts[key] = count + 1
+            self._headings[source.path] = MappingProxyType(headings)
+        return self._headings[source.path]
+
+    @cached_property
+    def generated(self):
+        return generated_mappings(self)
+
+    @cached_property
+    def projections(self):
+        return standalone_projections(self)
+
+
 @dataclass(frozen=True)
 class ExtractionStage:
     name: str
     requires: tuple[str, ...]
-    produce: Callable[[Snapshot, Mapping[str, StageOutput]], StageOutput]
+    produce: Callable[[Corpus, Mapping[str, StageOutput]], StageOutput]
 
     def __post_init__(self):
         if (not isinstance(self.requires, tuple) or len(set(self.requires)) != len(self.requires)
@@ -367,10 +425,9 @@ def _new_records(records, inputs):
     return StageOutput(tuple(records[key] for key in sorted(records) if key not in inherited))
 
 
-def _component_records(snapshot, inputs):
-    sources = {s.path: s for s in snapshot.sources}
+def _component_records(corpus, inputs):
     records, add = _record_builder(inputs)
-    for source in snapshot.sources:
+    for source in corpus.sources:
         path, p = source.path, Path(source.path)
         if path.startswith(('agents/', 'commands/')) and len(p.parts) == 2 and p.suffix == '.md':
             kind = 'agent' if path.startswith('agents/') else 'command'
@@ -428,21 +485,20 @@ def _component_records(snapshot, inputs):
         elif path.startswith(('scripts/', 'evals/')) and len(p.parts) == 2 and p.name.startswith('test_') and p.suffix == '.py':
             add(_record(f'test:{path}', 'test', path, path, whole(source), family='tests'))
         elif path.startswith('docs/probes/') and len(p.parts) == 3:
-            roadmap = sources.get('docs/fleet-roadmap.md')
+            roadmap = corpus.get('docs/fleet-roadmap.md')
             links = tuple(roadmap.span(i, i) for i, line in enumerate(roadmap.lines, 1) if any(
-                (resolved_link(roadmap, raw, set(sources)) or (None,))[0] == path for _, raw in link_targets(line))) if roadmap else ()
+                (resolved_link(roadmap, raw, corpus.by_path) or (None,))[0] == path for _, raw in link_targets(line))) if roadmap else ()
             add(_record(f'probe:{p.stem}', 'probe', p.stem, path, spans(whole(source), links or (whole(roadmap) if roadmap else ())),
                 authority='live-contract' if links else 'historical-evidence', state='live' if links else 'historical',
                 attrs={'linked_from_roadmap': bool(links)}, family='probes', kind=PK.JOINED))
     return _new_records(records, inputs)
 
 
-def _roadmap_records(snapshot, inputs):
-    sources = {s.path: s for s in snapshot.sources}
+def _roadmap_records(corpus, inputs):
     records, add = _record_builder(inputs)
-    roadmap = sources.get('docs/fleet-roadmap.md')
+    roadmap = corpus.get('docs/fleet-roadmap.md')
     if roadmap:
-        for item, start, end, fields, positions in records_for_roadmap(roadmap):
+        for item, start, end, fields, positions in corpus.roadmap_entries(roadmap):
             proof = spans((roadmap.span(start, start),), *(positions.values()))
             add(_record(f'roadmap-item:{item}', 'roadmap-item', item, roadmap.path, proof,
                 authority='live-contract', attrs={'status': status_marker(fields.get('Status', '')), 'status_text': fields.get('Status', '')[:200], 'owner': fields.get('Owner', '')[:200], 'fields': sorted(fields)}, family='roadmap', selector=item, kind=PK.NORMALIZED, cls=EC.CONTRACT))
@@ -460,7 +516,7 @@ def _roadmap_records(snapshot, inputs):
                 key = f'owner:{slug(human)}'
                 if key not in records:
                     add(_record(key, 'owner', human, roadmap.path, proof, authority='external', attrs={'kind': 'human'}, family='owners', selector=key))
-    closed = sources.get('docs/roadmap-closed.md')
+    closed = corpus.get('docs/roadmap-closed.md')
     if closed:
         for i, line in enumerate(closed.lines, 1):
             cells = line.strip().strip('|').split('|')
@@ -473,10 +529,9 @@ def _roadmap_records(snapshot, inputs):
     return _new_records(records, inputs)
 
 
-def _rule_records(snapshot, inputs):
-    sources = {s.path: s for s in snapshot.sources}
+def _rule_records(corpus, inputs):
     records, add = _record_builder(inputs)
-    rules = sources.get('docs/rules.md')
+    rules = corpus.get('docs/rules.md')
     if rules:
         section, section_line = '', None
         for i, line in enumerate(rules.lines, 1):
@@ -493,13 +548,11 @@ def _rule_records(snapshot, inputs):
     return _new_records(records, inputs)
 
 
-def _schema_records(snapshot, inputs):
-    sources = {s.path: s for s in snapshot.sources}
+def _schema_records(corpus, inputs):
     records, add = _record_builder(inputs)
-    catalog = sources.get('schemas/catalog-v1.json')
+    catalog = corpus.get('schemas/catalog-v1.json')
     if catalog:
-        data = json.loads(catalog.text)
-        for entry in data.get('schemas', []):
+        for entry in corpus.catalog_entries():
             proof = whole(catalog)  # All catalog fields determine identity/path/state/relations.
             path = entry['canonical_path']
             add(_record(f'schema:{entry["id"]}', 'schema', entry['id'], path, proof, authority='live-contract', attrs={'status': entry['status'], 'version': entry['version']}, family='schemas', selector=f'schema:{entry["id"]}', cls=EC.CONTRACT))
@@ -508,11 +561,10 @@ def _schema_records(snapshot, inputs):
                     add(_record(f'schema-projection:{projection}', 'schema-projection', projection, projection, proof,
                         authority='generated', state='generated', attrs={'schema': entry['id']}, family='schemas'))
     catalog_paths = {r.node.path for r in records.values() if r.node.type == 'schema'}
-    for source in snapshot.sources:
-        if (not source.path.startswith('schemas/') or not source.path.endswith('.schema.json')
-                or source.path in catalog_paths):
+    for source in corpus.schema_sources:
+        if source.path in catalog_paths:
             continue
-        declaration = json.loads(source.text)
+        declaration = corpus.parsed(source)
         if not isinstance(declaration, dict):
             continue
         name = Path(source.path).name.removesuffix('.schema.json')
@@ -521,17 +573,16 @@ def _schema_records(snapshot, inputs):
                  if key in declaration}
         add(_record(f'schema:{name}', 'schema', name, source.path, whole(source),
                     authority='live-contract', attrs=attrs, family='schemas'))
-    for schema_id, projection, proof in standalone_projections(snapshot):
+    for schema_id, projection, proof in corpus.projections:
         add(_record(f'schema-projection:{projection}', 'schema-projection', projection, projection, proof,
                     authority='generated', state='generated', attrs={'schema': schema_id.removeprefix('schema:')},
                     family='schemas', cls=EC.CONTRACT, kind=PK.JOINED))
     return _new_records(records, inputs)
 
 
-def _roster_records(snapshot, inputs):
-    sources = {s.path: s for s in snapshot.sources}
+def _roster_records(corpus, inputs):
     records, add = _record_builder(inputs)
-    roster = sources.get('AGENTS.md')
+    roster = corpus.get('AGENTS.md')
     if roster:
         for i, cells in roster_rows(roster):
             name = plain(cells[0])
@@ -544,13 +595,13 @@ def _roster_records(snapshot, inputs):
     return _new_records(records, inputs)
 
 
-def _contract_records(snapshot, inputs):
-    sources = {s.path: s for s in snapshot.sources}
+def _contract_records(corpus, inputs):
+    sources = corpus.by_path
     records, add = _record_builder(inputs)
-    hook = sources.get('hooks/hooks.json')
+    hook = corpus.get('hooks/hooks.json')
     if hook and 'readonly-guard.py' in hook.text:
         add(_record('hook:readonly-guard', 'hook', 'readonly-guard', hook.path, whole(hook), authority='live-contract', attrs={'matcher': 'Bash'}, selector='hook:readonly-guard', family='contracts', cls=EC.CONTRACT))
-    for projection, canonical, proof in generated_mappings(snapshot):
+    for projection, canonical, proof in corpus.generated:
         if projection in sources:
             add(_record('generated-projection:' + projection, 'generated-projection', projection, projection,
                 spans(proof, whole(sources[projection]), whole(sources[canonical])), authority='generated', state='generated',
@@ -558,10 +609,10 @@ def _contract_records(snapshot, inputs):
     return _new_records(records, inputs)
 
 
-def _resolve_catalog(snapshot, inputs):
-    sources = {s.path: s for s in snapshot.sources}
+def _resolve_catalog(corpus, inputs):
+    sources = corpus.by_path
     records, add = _record_builder(inputs)
-    catalog = sources.get('schemas/catalog-v1.json')
+    catalog = corpus.get('schemas/catalog-v1.json')
     # A unique catalog schema represents its complete canonical file. If another
     # domain record already owns that whole-file selector, keep the typed schema ID.
     for key, record in tuple(records.items()):
@@ -572,22 +623,20 @@ def _resolve_catalog(snapshot, inputs):
         ):
             records[key] = replace(record, node=replace(record.node, selector=WHOLE_DOCUMENT))
     # Exact full-file targets are explicit; no path-first selection erases domain nodes.
-    paths = set(sources)
-    needed = {p for p in paths if p in LIVE_DOCS or (Path(p).name in ('README.md', 'CHANGELOG.md') and not p.startswith('docs/reviews/'))}
+    needed = {p for p in sources if p in LIVE_DOCS or (Path(p).name in ('README.md', 'CHANGELOG.md') and not p.startswith('docs/reviews/'))}
     needed.update(r.node.path for r in records.values())
-    needed.update(canonical for _, canonical, _ in generated_mappings(snapshot))
+    needed.update(canonical for _, canonical, _ in corpus.generated)
     if 'scripts/fleet_atlas_v2_extract.py' in sources:
         needed.add('scripts/fleet_atlas_v2_extract.py')
-    for source in snapshot.sources:
+    for source in corpus.sources:
         if source.path.endswith('.md'):
-            needed.update(hit[0] for _, raw in link_targets(source.text) if (hit := resolved_link(source, raw, paths)))
+            needed.update(hit[0] for _, raw in link_targets(source.text) if (hit := resolved_link(source, raw, sources)))
     if catalog:
-        needed.update(e['validator'] for e in json.loads(catalog.text).get('schemas', []) if e.get('validator') in sources)
-    for source in snapshot.sources:
-        if source.path.startswith('schemas/') and source.path.endswith('.schema.json'):
-            declaration = json.loads(source.text)
-            if isinstance(declaration, dict) and declaration.get('x-fleet-validator') in sources:
-                needed.add(declaration['x-fleet-validator'])
+        needed.update(e['validator'] for e in corpus.catalog_entries() if e.get('validator') in sources)
+    for source in corpus.schema_sources:
+        declaration = corpus.parsed(source)
+        if isinstance(declaration, dict) and declaration.get('x-fleet-validator') in sources:
+            needed.add(declaration['x-fleet-validator'])
     for path in sorted(needed):
         if path not in sources or not sources[path].content:
             continue
@@ -652,10 +701,9 @@ def _path_expression(node, environment):
     return None
 
 
-def generated_mappings(snapshot):
-    try:
-        source = snapshot.source('scripts/generate_platform_adapters.py')
-    except ValueError:
+def generated_mappings(corpus):
+    source = corpus.get('scripts/generate_platform_adapters.py')
+    if source is None:
         return ()
     tree = _ast(source)
     constants, constant_spans = {'root': ''}, {}
@@ -668,6 +716,7 @@ def generated_mappings(snapshot):
     function = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'expected_outputs'), None)
     if function is None:
         return ()
+    bound_constants = sorted({n.id for n in ast.walk(function) if isinstance(n, ast.Name)} & constant_spans.keys())
     parent = {child: node for node in ast.walk(function) for child in ast.iter_child_nodes(node)}
     result = {}
     for node in ast.walk(function):
@@ -685,7 +734,7 @@ def generated_mappings(snapshot):
                          and isinstance(loop.iter, ast.Name) and loop.iter.id in ('agents', 'commands', 'skill_files')), None)
             if loop:
                 family = loop.iter.id
-                inputs = [s.path for s in snapshot.sources if
+                inputs = [s.path for s in corpus.sources if
                           (family == 'agents' and re.fullmatch(r'agents/[^/]+\.md', s.path)) or
                           (family == 'commands' and re.fullmatch(r'commands/[^/]+\.md', s.path)) or
                           (family == 'skill_files' and s.path.startswith('skills/'))]
@@ -699,9 +748,8 @@ def generated_mappings(snapshot):
                     continue
                 # The full mapping body includes branch predicates and output expressions, not
                 # merely a matching signature; constants bind the output-root declarations.
-                names = {n.id for n in ast.walk(function) if isinstance(n, ast.Name)}
                 proof = spans((source.span(function.lineno + 1, function.end_lineno),),
-                              tuple(constant_spans[name] for name in sorted(names & constant_spans.keys())))
+                              tuple(constant_spans[name] for name in bound_constants))
                 key = projection, canonical
                 result[key] = spans(result.get(key, ()), proof)
     return tuple((projection, canonical, proof) for (projection, canonical), proof in sorted(result.items()))
@@ -812,14 +860,14 @@ def _writer_filenames(render, safe, build):
     return set()
 
 
-def standalone_projections(snapshot):
+def standalone_projections(corpus):
     """Bind the v2 schema's explicit output declaration to its actual writer mapping.
 
     Merely declaring an output, mentioning its path, or having a function with the
     expected name does not establish the generated relationship.
     """
-    sources = {s.path: s for s in snapshot.sources}
-    implementation = sources.get('scripts/fleet_atlas_v2_artifacts.py')
+    sources = corpus.by_path
+    implementation = corpus.get('scripts/fleet_atlas_v2_artifacts.py')
     if implementation is None:
         return ()
     tree = _ast(implementation)
@@ -837,10 +885,8 @@ def standalone_projections(snapshot):
         return ()
     mapping_proof = tuple(implementation.span(n.lineno, n.end_lineno) for n in (assignments[0], render, safe, build))
     result = []
-    for source in snapshot.sources:
-        if not source.path.startswith('schemas/') or not source.path.endswith('.schema.json'):
-            continue
-        declaration = json.loads(source.text)
+    for source in corpus.schema_sources:
+        declaration = corpus.parsed(source)
         if not isinstance(declaration, dict):
             continue
         validator = declaration.get('x-fleet-validator')
@@ -879,16 +925,20 @@ def test_file_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
         # Both forms explicitly derive the repository directory from this test's location.
         if path_imports and not bindings.get('Path') and re.fullmatch(r'Path\(__file__\)\.resolve\(\)\.(?:parents\[1\]|parent\.parent)', expression):
             root_bindings[name] = node
-    parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
-    def scope(call):
-        cursor = call
-        while cursor in parents:
-            cursor = parents[cursor]
-            if isinstance(cursor, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                return cursor
-        return tree
-    def rooted(expression, call_scope, substitutions=None):
-        substituted = substitutions or {}
+    # Nearest enclosing function of every node (the module for top-level code), computed
+    # in one breadth-first pass: a parent is always visited before its children.
+    enclosing = {tree: tree}
+    for node in ast.walk(tree):
+        inner = node if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else enclosing[node]
+        for child in ast.iter_child_nodes(node):
+            enclosing[child] = inner
+    def scope(node):
+        return enclosing.get(node, tree)
+    scope_roots = {}
+    def roots_in(call_scope):
+        """Repository-root bindings visible in one scope; a pure function of that scope."""
+        if call_scope in scope_roots:
+            return scope_roots[call_scope]
         stores = [n for n in ast.walk(call_scope) if isinstance(n, ast.Name)
                   and isinstance(n.ctx, ast.Store) and scope(n) is call_scope] if call_scope is not tree else []
         shadowed = {n.id for n in stores}
@@ -907,6 +957,11 @@ def test_file_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
                     if (isinstance(target, ast.Name) and target.id not in parameters
                             and sum(n.id == target.id for n in stores) == 1):
                         bindings_here[target.id] = declaration
+        scope_roots[call_scope] = MappingProxyType(bindings_here)
+        return scope_roots[call_scope]
+    def rooted(expression, call_scope, substitutions=None):
+        substituted = substitutions or {}
+        bindings_here = roots_in(call_scope)
         environment = {name: '' for name in bindings_here}
         environment.update(substituted)
         value = _path_expression(expression, environment)
@@ -1009,9 +1064,12 @@ def test_file_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
     return tuple(sorted(found.items()))
 
 
-def _relations(snapshot, records):
-    sources = {s.path: s for s in snapshot.sources}
+def _relations(corpus, records):
+    sources = corpus.by_path
     by_id = {r.node.id: r for r in records}
+    by_path = {}
+    for r in records:
+        by_path.setdefault(r.node.path, []).append(r)
     index = NodeIndex(tuple(r.node for r in records))
     facts = {}
     def add(fact):
@@ -1035,13 +1093,13 @@ def _relations(snapshot, records):
     def unknown(subject, code, message, proof, needed, *, absence=False):
         add(Fact(stable_id('unknown', code, subject, message), subject, 'unknown', message, EC.UNKNOWN,
                  Proof(PK.ABSENCE if absence else PK.COMPUTED, spans(proof), EVALUATOR,
-                       snapshot.tree_digest if absence else None), freeze({'code': code, 'neededEvidence': needed, 'path': by_id[subject].node.path})))
+                       corpus.snapshot.tree_digest if absence else None), freeze({'code': code, 'neededEvidence': needed, 'path': by_id[subject].node.path})))
     def resolve(source, raw, *, types=None):
-        hit = resolved_link(source, raw, set(sources))
+        hit = resolved_link(source, raw, sources)
         if not hit:
             return None
         path, fragment = hit
-        candidates = [r for r in records if r.node.path == path and (not types or r.node.type in types)]
+        candidates = [r for r in by_path.get(path, ()) if not types or r.node.type in types]
         if fragment:
             matches = [r for r in candidates if fragment in (r.node.selector, r.node.id, anchor(r.name))
                        or (r.node.type == 'roadmap-item' and fragment.startswith(r.name.lower() + '-'))]
@@ -1052,13 +1110,7 @@ def _relations(snapshot, records):
             # A real section of an otherwise whole-document entity remains that
             # entity, with the exact selector witness retained in its edge proof.
             target_source = sources[path]
-            headings, counts = {}, {}
-            for i, line in enumerate(target_source.lines, 1):
-                if re.match(r'^#{1,6}\s', line):
-                    key = anchor(line.lstrip('#').strip())
-                    count = counts.get(key, 0)
-                    headings[key + (f'-{count}' if count else '')] = i
-                    counts[key] = count + 1
+            headings = corpus.headings(target_source)
             whole_candidates = [r for r in candidates if r.node.selector == WHOLE_DOCUMENT]
             if fragment in headings and len(whole_candidates) == 1:
                 target = whole_candidates[0]
@@ -1145,7 +1197,7 @@ def _relations(snapshot, records):
                     if dest and dest.node.id != node.id:
                         proof = spans((source.span(i, i),), dest.spans) if '#' in raw else (source.span(i, i),)
                         edge('cites', node.id, dest.node.id, proof, key=str(i), attrs={'anchor': raw.split('#', 1)[1]} if '#' in raw else None)
-                    elif resolved_link(source, raw, set(sources)) and '#' in raw:
+                    elif resolved_link(source, raw, sources) and '#' in raw:
                         unknown(node.id, 'extract.link-selector-unresolved', f'{source.path}:{i} selector does not resolve: {raw}', (source.span(i, i),), 'Correct the section selector or restore its exact target', absence=True)
         if node.type == 'scenario':
             data, _ = yaml_fields(source); routing = data.get('routing') or {}
@@ -1193,7 +1245,7 @@ def _relations(snapshot, records):
                     subject = f'agent:{owner}' if f'agent:{owner}' in by_id else f'owner:{owner}'
                     edge('owns', subject, node.id, spans((source.span(i, i),), by_id[subject].spans if subject in by_id else ()), attrs={'field': 'Owner'}, proof_kind=PK.JOINED)
     if roadmap:
-        for item, start, end, fields, positions in records_for_roadmap(roadmap):
+        for item, start, end, fields, positions in corpus.roadmap_entries(roadmap):
             subject = f'roadmap-item:{item}'
             for field, value in fields.items():
                 for other in set(ITEM.findall(value)) - {item}:
@@ -1229,7 +1281,7 @@ def _relations(snapshot, records):
             if source.path == 'docs/roadmap-closed.md':
                 ranges = [(p.start_line, p.end_line) for p in record.spans]
             else:
-                ranges = [(start, end) for item, start, end, _, _ in records_for_roadmap(source) if item == record.name]
+                ranges = [(start, end) for item, start, end, _, _ in corpus.roadmap_entries(source) if item == record.name]
         else:
             ranges = [(1, len(source.lines))]
         for i in sorted({i for start, end in ranges for i in range(start, end + 1)}):
@@ -1249,9 +1301,9 @@ def _relations(snapshot, records):
                          spans((source.span(i, i),), sources[target.node.path].locate(batch)), key=batch,
                          attrs={'batch': batch}, proof_kind=PK.JOINED)
                     incoming_reviews.add(target.node.id)
-    catalog = sources.get('schemas/catalog-v1.json')
+    catalog = corpus.get('schemas/catalog-v1.json')
     if catalog:
-        for entry in json.loads(catalog.text).get('schemas', []):
+        for entry in corpus.catalog_entries():
             subject = f'schema:{entry["id"]}'
             validator = entry.get('validator')
             if validator in sources:
@@ -1259,16 +1311,14 @@ def _relations(snapshot, records):
                 if dest:
                     edge('constrained_by', subject, dest.node.id, whole(catalog), attrs={'via': 'catalog-v1.json'}, cls=EC.CONTRACT)
             for projection in entry.get('generated_projections', []):
-                targets = [r for r in records if r.node.path == projection and r.node.type in ('generated-projection', 'schema-projection')]
+                targets = [r for r in by_path.get(projection, ()) if r.node.type in ('generated-projection', 'schema-projection')]
                 for target in targets:
                     edge('constrained_by', target.node.id, subject, whole(catalog), attrs={'via': 'catalog-v1.json'}, cls=EC.CONTRACT)
                 if not targets:
                     unknown(subject, 'extract.schema-projection-unresolved', f'{entry["id"]} declares generated_projections {projection}, which has no node yet', whole(catalog), 'Build the declared projection or correct its catalog entry', absence=True)
-    declared = {(schema_id, projection): proof for schema_id, projection, proof in standalone_projections(snapshot)}
-    for source in snapshot.sources:
-        if not source.path.startswith('schemas/') or not source.path.endswith('.schema.json'):
-            continue
-        declaration = json.loads(source.text)
+    declared = {(schema_id, projection): proof for schema_id, projection, proof in corpus.projections}
+    for source in corpus.schema_sources:
+        declaration = corpus.parsed(source)
         if not isinstance(declaration, dict):
             continue
         subject = 'schema:' + Path(source.path).name.removesuffix('.schema.json')
@@ -1287,7 +1337,7 @@ def _relations(snapshot, records):
                      attrs={'via': 'schema-declaration-and-writer'}, cls=EC.CONTRACT, proof_kind=PK.JOINED)
             else:
                 unknown(subject, 'extract.schema-projection-unproved', f'{source.path} declares {projection} without a resolved writer mapping', whole(source), 'Bind the declared output to the actual writer mapping', absence=True)
-    for projection, canonical, proof in generated_mappings(snapshot):
+    for projection, canonical, proof in corpus.generated:
         generated = 'generated-projection:' + projection
         if generated not in by_id:
             continue
@@ -1295,9 +1345,9 @@ def _relations(snapshot, records):
         target = index.resolve(NodeRef(canonical, None, WHOLE_DOCUMENT))
         edge('generated_from', generated, target.id, spans(proof, whole(source)),
              attrs={'via': 'generate_platform_adapters.expected_outputs'}, cls=EC.CONTRACT, proof_kind=PK.JOINED)
-    validator = sources.get('scripts/validate_fleet.py')
+    validator = corpus.get('scripts/validate_fleet.py')
     expected, expected_proof = assignment(validator, 'EXPECTED_DELEGATION') if validator else (None, ())
-    roster = sources.get('AGENTS.md')
+    roster = corpus.get('AGENTS.md')
     rows = {plain(cells[0]): (i, cells) for i, cells in roster_rows(roster)} if roster else {}
     if isinstance(expected, dict):
         for agent, targets in sorted(expected.items()):
@@ -1318,9 +1368,9 @@ def _relations(snapshot, records):
                         attrs={'detector': 'delegation_mismatch', 'message': f'roster says {agent} delegates to {sorted(stated)}; validate_fleet enforces {sorted(targets)}'}, cls=EC.INFERRED)
     for agent, (i, cells) in rows.items():
         edge('owns', f'agent:{agent}', 'capability:' + slug(plain(cells[1]))[:60], (roster.span(i, i),), attrs={'via': 'roster-lane'}, cls=EC.INFERRED)
-    generator = sources.get('scripts/generate_platform_adapters.py')
+    generator = corpus.get('scripts/generate_platform_adapters.py')
     guarded, guarded_proof = assignment(generator, 'GUARDED_AGENTS') if generator else (None, ())
-    hook = sources.get('hooks/hooks.json')
+    hook = corpus.get('hooks/hooks.json')
     if hook and 'hook:readonly-guard' in by_id and isinstance(guarded, (set, tuple, list)):
         for agent in sorted(guarded):
             roster_proof = (roster.span(rows[agent][0], rows[agent][0]),) if agent in rows else ()
@@ -1335,7 +1385,7 @@ def _relations(snapshot, records):
             if date and dated and max(d for _, d in dated) < date.group():
                 newest = max(d for _, d in dated)
                 unknown(record.node.id, 'stale.evidence-predates-status', f'{record.name} status is dated {date.group()} but its newest cited evidence is {newest}', spans(record.spans, *(r.spans for r, _ in dated)), 'Cite the evidence behind the current status or revise the status')
-    for source in snapshot.sources:
+    for source in corpus.sources:
         if source.path in LIVE_DOCS or Path(source.path).name in ('README.md', 'CHANGELOG.md') or source.path == 'docs/roadmap-closed.md':
             for _, raw in link_targets(source.text):
                 target = resolve(source, raw, types={'review'})
@@ -1346,11 +1396,11 @@ def _relations(snapshot, records):
         if record.node.type == 'review' and record.node.id not in incoming_reviews:
             unknown(record.node.id, 'stale.review-uncited', f'{record.node.path} is cited by no roadmap item, decision, review, or live guide', record.spans,
                     'Remove unneeded review evidence or restore its authoritative citation', absence=True)
-    stale_source = sources.get('scripts/check_stale_names.py')
+    stale_source = corpus.get('scripts/check_stale_names.py')
     retired, retired_proof = assignment(stale_source, 'STALE') if stale_source else (None, ())
     if isinstance(retired, tuple):
         scanned = ('agents/', 'skills/', 'commands/', 'evals/scenarios/')
-        exempt = {Path(s.path).stem for s in snapshot.sources if s.path.startswith(scanned)} & set(retired)
+        exempt = {Path(s.path).stem for s in corpus.sources if s.path.startswith(scanned)} & set(retired)
         siblings, _ = assignment(stale_source, 'SIBLING_REPOSITORIES')
         if isinstance(siblings, (set, frozenset, tuple)):
             exempt.update(siblings)
@@ -1361,13 +1411,16 @@ def _relations(snapshot, records):
                     and isinstance(declaration.value, ast.Call) and isinstance(declaration.value.func, ast.Name)
                     and declaration.value.func.id == 'frozenset' and len(declaration.value.args) == 1):
                 exempt.update(ast.literal_eval(declaration.value.args[0]))
+        retired_name = None  # Compiled at first use, where the declaration was always read.
         for record in records:
             if not record.node.path.startswith(scanned):
                 continue
             source = sources[record.node.path]
             for i, line in enumerate(source.lines, 1):
                 found = None
-                for match in re.finditer(r'(?<![a-z0-9-])(' + '|'.join(re.escape(name) for name in retired) + r')(?![a-z0-9-])', line):
+                retired_name = retired_name or re.compile(
+                    r'(?<![a-z0-9-])(' + '|'.join(re.escape(name) for name in retired) + r')(?![a-z0-9-])')
+                for match in retired_name.finditer(line):
                     before = line[match.start() - 1] if match.start() else ''
                     after = line[match.end():]
                     if match.group(1) in exempt and (before == '/' or after.startswith(('/', '.md'))):
@@ -1377,12 +1430,12 @@ def _relations(snapshot, records):
                 if found:
                     unknown(record.node.id, 'stale.retired-name', f'{source.path}:{i}: stale fleet-unit name {found!r}', spans((source.span(i, i),), retired_proof), 'Resolve the stale fleet name or document its valid path exemption')
                     break
-    implementation = sources.get('scripts/fleet_atlas_v2_extract.py')
+    implementation = corpus.get('scripts/fleet_atlas_v2_extract.py')
     implementation_id = 'validator:scripts/fleet_atlas_v2_extract.py'
     if implementation and implementation_id in by_id:
         add(Fact(stable_id('fact', implementation_id, 'attr.blocks_emission'), implementation_id, 'attr.blocks_emission',
                  'no direct blocks edge; query reverses depends_on', EC.EXTRACTED,
-                 Proof(PK.ABSENCE, whole(implementation), EVALUATOR, snapshot.tree_digest)))
+                 Proof(PK.ABSENCE, whole(implementation), EVALUATOR, corpus.snapshot.tree_digest)))
     return tuple(facts[key] for key in sorted(facts))
 
 
@@ -1407,7 +1460,7 @@ EDGE_ENDPOINTS = {
 }
 
 
-def _guidance(snapshot, records):
+def _guidance(corpus, records):
     """Complete body paragraphs, split by encoded size without dropping long lines."""
     output = []
     for record in records:
@@ -1415,7 +1468,7 @@ def _guidance(snapshot, records):
                 or record.state != 'live' or not record.node.path.endswith('.md')
                 or record.node.type not in ('agent', 'skill', 'reference', 'command', 'document')):
             continue
-        source = snapshot.source(record.node.path)
+        source = corpus.snapshot.source(record.node.path)
         start = 0
         if source.lines and source.lines[0] == '---':
             start = next((i + 1 for i, line in enumerate(source.lines[1:], 1) if line == '---'), 0)
@@ -1450,7 +1503,7 @@ def _guidance(snapshot, records):
     return tuple(output)
 
 
-def _record_facts(snapshot, inputs):
+def _record_facts(corpus, inputs):
     records = inputs['catalog'].records
     buckets = {}
     for record in records:
@@ -1478,12 +1531,12 @@ def _record_facts(snapshot, inputs):
                  for name, (nodes, facts) in sorted(buckets.items())))
 
 
-def _relationship_facts(snapshot, inputs):
-    return StageOutput(buckets=(Bucket('relationships', (), _relations(snapshot, inputs['catalog'].records)),))
+def _relationship_facts(corpus, inputs):
+    return StageOutput(buckets=(Bucket('relationships', (), _relations(corpus, inputs['catalog'].records)),))
 
 
-def _guidance_facts(snapshot, inputs):
-    facts = _guidance(snapshot, inputs['catalog'].records)
+def _guidance_facts(corpus, inputs):
+    facts = _guidance(corpus, inputs['catalog'].records)
     return StageOutput(buckets=(Bucket('guidance', (), tuple(sorted(facts, key=lambda fact: fact.id))),))
 
 
@@ -1523,10 +1576,11 @@ def _derive(snapshot, stages=EXTRACTION_STAGES):
         for name in ready:
             plan.append(pending.pop(name))
             available.add(name)
-    completed = {}
+    # A fresh corpus per derivation: replay never sees the primary extraction's views.
+    corpus, completed = Corpus(snapshot), {}
     for stage in plan:
         inputs = MappingProxyType({name: completed[name] for name in stage.requires})
-        output = stage.produce(snapshot, inputs)
+        output = stage.produce(corpus, inputs)
         if not isinstance(output, StageOutput):
             raise TypeError(f'extraction stage {stage.name} did not return frozen StageOutput')
         completed[stage.name] = output
