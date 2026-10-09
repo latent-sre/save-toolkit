@@ -166,12 +166,13 @@ def _trace_expectations(
             )
         )
     for grader in spec.get("graders") or []:
+        traits = checking.grader_traits(grader.get("type"))
         graded.append(
             (
                 f"grader {grader.get('type')}",
                 functools.partial(_run_grader, grader, trace.result_text, judge_binding),
-                frozenset({Need.TEXT, Need.JUDGE}) if grader.get("type") == "rubric" else frozenset({Need.TEXT}),
-                catalog.grader_polarity(grader),
+                traits.needs,
+                traits.polarity,
             )
         )
     if spec.get("followups"):

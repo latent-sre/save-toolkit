@@ -65,9 +65,6 @@ def probe_write_path_problem(name: object) -> str | None:
     return None
 
 
-FORBIDDING_GRADERS = frozenset({"not_contains", "not_regex"})
-
-
 @dataclass
 class Context:
     """What a check reads: the scenario, the workspace, the trace, git facts and any backing services."""
@@ -93,6 +90,30 @@ class Need(enum.StrEnum):
     CHECKOUT = "live checkout"  # the workspace's files, commands or path, deleted after the run
     SERVICE = "backing service"
     JUDGE = "judge call"  # a paid, nondeterministic model judgment
+
+
+FORBIDDING_GRADERS = frozenset({"not_contains", "not_regex"})
+
+
+@dataclass(frozen=True)
+class GraderTraits:
+    """What a fleet grader asserts and the evidence it reads."""
+
+    polarity: Polarity
+    needs: frozenset[Need]
+
+
+def grader_traits(kind: object) -> GraderTraits:
+    """The traits of the registered fleet grader `kind` names, whether a scenario lists it under
+    `graders` or a build check runs it as `fleet_grader`. A forbidding grader forbids and every other
+    requires. `rubric` spends a live, paid, nondeterministic judge call: re-running it during a
+    regrade would replace a saved verdict with a fresh model judgment, so that one keeps its live
+    verdict."""
+    forbids = isinstance(kind, str) and kind in FORBIDDING_GRADERS
+    return GraderTraits(
+        Polarity.FORBIDS if forbids else Polarity.REQUIRES,
+        frozenset({Need.TEXT, Need.JUDGE}) if kind == "rubric" else frozenset({Need.TEXT}),
+    )
 
 
 SAVED: Final = frozenset({Need.TEXT, Need.TRACE, Need.RAW_TRACE, Need.ORDERED_TRACE, Need.CHANGES, Need.STATE})
@@ -200,14 +221,11 @@ def _workspace_change_needs(_params: Params, spec: Params) -> frozenset[Need]:
 
 
 def _grader_polarity(params: Params) -> Polarity:
-    name = params.get("name")
-    return Polarity.FORBIDS if isinstance(name, str) and name in FORBIDDING_GRADERS else Polarity.REQUIRES
+    return grader_traits(params.get("name")).polarity
 
 
 def _grader_needs(params: Params, _spec: Params) -> frozenset[Need]:
-    # `rubric` spends a live, paid, nondeterministic judge call: re-running it during a regrade would
-    # replace a saved verdict with a fresh model judgment, so that one keeps its live verdict.
-    return frozenset({Need.TEXT, Need.JUDGE}) if params.get("name") == "rubric" else frozenset({Need.TEXT})
+    return grader_traits(params.get("name")).needs
 
 
 def _floor_and_ceiling(params: Params) -> Polarity:

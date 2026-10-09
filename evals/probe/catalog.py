@@ -17,7 +17,6 @@ import yaml
 
 from . import backing, checking, constants
 from .backing import SERVICE_NAME, TRUSTED_SERVICE_IMAGES
-from .checking import FORBIDDING_GRADERS
 from .constants import BUILD_TOOLS, CONTRACT_SCENARIO_DIR, ROOT, SCENARIO_DIR
 from .outcomes import Polarity
 from .tracing import TEST_RUNNERS
@@ -505,9 +504,8 @@ def routing_polarity(spec: Spec) -> Polarity:
 
 
 def grader_polarity(grader: object) -> Polarity:
-    """A registered forbidding grader forbids; every other grader requires."""
-    kind = grader.get("type") if isinstance(grader, dict) else None
-    return Polarity.FORBIDS if isinstance(kind, str) and kind in FORBIDDING_GRADERS else Polarity.REQUIRES
+    """What a `graders` entry asserts, by its registered type; a malformed entry requires."""
+    return checking.grader_traits(grader.get("type") if isinstance(grader, dict) else None).polarity
 
 
 def assertion_polarities(spec: Spec) -> list[Polarity]:
