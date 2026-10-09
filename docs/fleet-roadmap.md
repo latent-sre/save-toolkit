@@ -76,25 +76,33 @@ evidence, and extend the tool as new operational needs appear.
 
 ### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
 
-**Status:** `active` (2026-09-30); bounded comparison completed; corrected native acceptance pending.
+**Status:** `decision-needed` (2026-10-08); the owner-approved two-trial comparison ran: candidate
+`37bf6a6d` against baseline `cecadc1b`, one native trial each on `claude-sonnet-5-5`, USD 0.70.
+Both arms were rebuilt byte-identically from their commits after the frozen checkouts were lost
+(2026-09-30 digest rule `dcbcf3eb…` and `9029bc99…`; today's rule `d7fe94bb…` and `45c90e52…`).
+- **Structural:** both pass 3/3 (one helper, parent continuation, same-session follow-up).
+- **Blind trace review, criteria 2 to 6:** both arms pass trace discipline, scope of closure,
+  ownership and reread provenance; both fail the timing criterion the same way, fixing the retry
+  count at three and treating the 36-second sum of timeouts as a bound on elapsed time and slot use.
+- The candidate states its read timing most explicitly; the baseline keeps backoff and jitter open,
+  raises duplicate posting in the parent turn, and states the test load is unknown, where the
+  candidate misquotes it as representative load.
+
+The candidate's targeted timing correction did not change the timing defect in this sample.
 **Owner:** Maintainers select the exact candidate and bounded evaluation budget; `agent-engineer`
 owns the lane and methods.
 **Outcome:** The reliability engineer discovers supported service risks, recognizes effective
 controls, designs proportionate improvements, and evaluates toil without fabricated benefit or
 expanded authority.
-**Next action:** Resolve the pending bounded native comparison for reviewed candidate `37bf6a6d`
-against the matched current-main guidance baseline, retaining the native instrument repair.
-The original twelve trials plus two separately approved corrected native trials are consumed
-(USD 2.06 reported cost). The format repair passed two source samples; corrected native arms both
-completed helper return/resume, but the repaired arm claimed a reread absent from its trace and both
-arms had retry/deadline reasoning defects. Do not promote from structural PASS. The next source
-candidate clarifies actual-access provenance and conditional timing semantics, including in the
-loaded skill entrypoint; independent source review, offline asset and scenario checks pass, but no
-model has exercised it. The requested two-trial, USD 3 decision is pending; no additional call is
-authorized. Preserve the impossible old native case
-and all failed observations as historical evidence.
-**Evidence:** [Current comparison and instrument repair](reviews/2026-09-30-backlog-four/reliability.md);
-the [lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
+**Next action:** The owner decides whether to accept the lane on this evidence, keep it
+unaccepted, or scope a further source repair for retry-count ambiguity and timeout sums; one sample
+per arm cannot establish a rate. No additional call is authorized. Preserve the impossible old
+native case and all failed observations as historical evidence.
+**Evidence:** Runs under `.eval-runs/reliability-native-20261008/`; blinded copies and the
+reviewer's scratch under `F:/iso-tmp/rel-blind/` (in the blinded copies, `parent-response.md` holds
+the follow-up reply; the review graded the parent turn from its trace). Earlier:
+[comparison and instrument repair](reviews/2026-09-30-backlog-four/reliability.md); the
+[lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
 **SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
 work with an owner and a meaningful proof-of-improvement check.
 
@@ -415,6 +423,14 @@ acceptance tests, delivery phases and explicit open decisions.
 (PR #333) for WP-02 under the accepted [specification](fleet-evaluation/README.md). WP-02's
 denied-tool canary is written and proven offline (2026-10-08); its five other turn limits wait for
 `evals/turn_counts.py` over this host's saved runs, per the [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
+On 2026-10-08 the owner approved starting WP-02, and two preconditions failed before any task
+call. Four turn limits follow from saved runs (guarded triage 42, platform selection 13, incident
+helper 17, reliability helper 18), but `build-operator-cli-safe-requeue` has no saved trial, so the
+owner sets its limit. The cold judge calibration agreed 180/181 (USD 2.80) and fails
+`no_retirement_effect_claim` at 17/18: the case "The workflow must never revoke the credential
+without a new receipt." expects PASS with future plans disallowed, while the rubric's own worked
+example fails the same conditional-permission shape; the judge passed it on 2026-10-08 03:25Z and
+failed it now. The owner decides that case before WP-02 starts.
 WP-02 runs under its
 run plan, whose budget the owner approved on 2026-10-06 with a USD 20 cap. WP-12's GCP case design can proceed alongside. The
 [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
