@@ -16,6 +16,11 @@ from testkit import find_shell, frontmatter_block, require_shell
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def hook_entries(event: str) -> list[dict]:
+    """The Claude plugin's registered hook entries for one event, in order."""
+    return json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))["hooks"][event]
+
+
 def available_powershell() -> str | None:
     """An interpreter that can run the PowerShell hook command AS WRITTEN, or None.
 
@@ -47,6 +52,13 @@ def rebuild_inline_command(script_lines: list[str]) -> str:
     return rebuilt[0]
 
 
+def launcher_command(relative: str) -> str:
+    """A standalone launcher's code lines, without comments or blanks, rejoined as one hook command."""
+    lines = (ROOT / relative).read_text(encoding="utf-8").splitlines()
+    return rebuild_inline_command([line.strip() for line in lines
+                                   if line.strip() and not line.lstrip().startswith("#")])
+
+
 class RebuildInlineCommandTests(unittest.TestCase):
     def test_an_empty_launcher_is_reported_not_indexed(self) -> None:
         """A launcher that strips to nothing must name the problem, not raise IndexError.
@@ -60,8 +72,7 @@ class RebuildInlineCommandTests(unittest.TestCase):
 
 class HookWiringTests(unittest.TestCase):
     def test_powershell_has_a_separate_guard_handler(self) -> None:
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        entry = next(e for e in document["hooks"]["PreToolUse"] if e["matcher"] == "PowerShell")
+        entry = next(e for e in hook_entries("PreToolUse") if e["matcher"] == "PowerShell")
         handler = entry["hooks"][0]
         self.assertEqual("powershell", handler["shell"])
         self.assertIn("readonly-guard-hook.ps1", handler["command"])
@@ -82,8 +93,7 @@ class HookWiringTests(unittest.TestCase):
         NOT evidence for this hook command; only a local Windows run is, which is why the skip is
         platform-gated rather than made a CI failure the way the POSIX hook's is.
         """
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        entry = next(e for e in document["hooks"]["PreToolUse"] if e["matcher"] == "PowerShell")
+        entry = next(e for e in hook_entries("PreToolUse") if e["matcher"] == "PowerShell")
         command = entry["hooks"][0]["command"].replace("${CLAUDE_PLUGIN_ROOT}", str(ROOT))
         self.assertNotIn("${", command, "a path placeholder went unsubstituted in this test")
 
@@ -124,8 +134,7 @@ class HookWiringTests(unittest.TestCase):
         )
 
     def test_hook_is_session_wide_and_fail_closed_for_guarded_agents(self) -> None:
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        entry = document["hooks"]["PreToolUse"][0]
+        entry = hook_entries("PreToolUse")[0]
         self.assertEqual("Bash", entry["matcher"])
         command = entry["hooks"][0]["command"]
         for token in (
@@ -139,8 +148,7 @@ class HookWiringTests(unittest.TestCase):
         self.assertIn("exit-${RC}", command)
 
     def test_session_start_preflights_the_guard_interpreter_protocol(self) -> None:
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        entry = document["hooks"]["SessionStart"][0]
+        entry = hook_entries("SessionStart")[0]
         self.assertEqual("startup|resume|clear|compact", entry["matcher"])
         command = entry["hooks"][0]["command"]
         for token in (
@@ -149,15 +157,7 @@ class HookWiringTests(unittest.TestCase):
             "candidate failures",
         ):
             self.assertIn(token, command)
-
-        script_lines = [
-            line.strip()
-            for line in (ROOT / "scripts/guard-session-preflight-hook.sh")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if line.strip() and not line.lstrip().startswith("#")
-        ]
-        self.assertEqual(rebuild_inline_command(script_lines), command)
+        self.assertEqual(launcher_command("scripts/guard-session-preflight-hook.sh"), command)
 
     def test_session_preflight_accepts_the_current_interpreter(self) -> None:
         result = subprocess.run(
@@ -173,8 +173,7 @@ class HookWiringTests(unittest.TestCase):
 
     def test_exact_session_start_command_accepts_the_lane_path(self) -> None:
         shell = require_shell()
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        command = document["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        command = hook_entries("SessionStart")[0]["hooks"][0]["command"]
         result = subprocess.run(
             [shell, "-c", command],
             input='{"hook_event_name":"SessionStart","source":"startup"}',
@@ -194,18 +193,9 @@ class HookWiringTests(unittest.TestCase):
         shell file (a hash input for eval provenance). Without this check the two copies can
         drift silently — and the drifting copy would be the enforced one.
         """
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        inlined = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
-        script_lines = [
-            line.strip()
-            for line in (ROOT / "scripts/readonly-guard-hook.sh")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if line.strip() and not line.lstrip().startswith("#")
-        ]
         self.assertEqual(
-            rebuild_inline_command(script_lines),
-            inlined,
+            launcher_command("scripts/readonly-guard-hook.sh"),
+            hook_entries("PreToolUse")[0]["hooks"][0]["command"],
             "hooks.json inline command and scripts/readonly-guard-hook.sh have drifted; "
             "edit both together (strip comments, join with '; ', keep loop bodies on ' ')",
         )
@@ -233,8 +223,7 @@ class HookWiringTests(unittest.TestCase):
         rerun it on a machine with `sh`. Gate A does not run this component suite.
         """
         shell = require_shell()
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        command = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+        command = hook_entries("PreToolUse")[0]["hooks"][0]["command"]
         environment = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT))
 
         def invoke_raw(payload: str, *, env: dict[str, str] = environment) -> subprocess.CompletedProcess[str]:
@@ -280,8 +269,7 @@ class HookWiringTests(unittest.TestCase):
         this test could pass while `command -v` never found the stub at all.
         """
         shell = require_shell()
-        document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
-        command = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+        command = hook_entries("PreToolUse")[0]["hooks"][0]["command"]
         cat = shutil.which("cat")
         if cat is None:
             self.skipTest("`cat` not on PATH; the hook reads stdin through it")
