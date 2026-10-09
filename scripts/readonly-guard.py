@@ -82,6 +82,12 @@ import sys
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+# Type checkers treat a name spelled TYPE_CHECKING as true; at runtime this skips importing
+# `typing`, which measured ~1.5 ms of every hook call's ~17 ms on Python 3.11.
+TYPE_CHECKING = False
+if TYPE_CHECKING:
+    from typing import NoReturn
+
 # The namespace Claude Code would prepend if this repo were ever installed as a plugin; guarding
 # both forms means the guard cannot be sidestepped by installing the agents a different way.
 PLUGIN_NAME = "save-toolkit"
@@ -226,7 +232,7 @@ _UNIQ_FILTER_FLAGS = frozenset({
 })
 
 # Fixed observation forms: do not grant arbitrary flags or a general-purpose HTTP client.
-_OS_READ_FORMS = {
+_OS_READ_FORMS: dict[str, set[tuple[str, ...]]] = {
     "uname": {(), ("-s",), ("-a",), ("-m",), ("-r",)},
     "sw_vers": {(), ("-productVersion",), ("-productName",), ("-buildVersion",)},
     "uptime": {()},
@@ -327,7 +333,7 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
             flags = {"-Datasource": "--datasource", "-Kind": "--kind", "-From": "--from", "-To": "--to", "-Expr": "--expr"}
             if len(arguments) != 10 or set(arguments[::2]) != set(flags):
                 return False
-            arguments = ["query"] + [value for flag, value in zip(arguments[::2], arguments[1::2]) for value in (flags[flag], value)]
+            arguments = ["query"] + [value for flag, value in zip(arguments[::2], arguments[1::2], strict=True) for value in (flags[flag], value)]
         elif powershell and "--expr" in arguments:
             # Windows PowerShell 5.1 strips embedded quotes at native argv transfer.
             # The fixed wrapper or already-encoded expression is portable across hosts.
@@ -389,7 +395,7 @@ def explain_powershell(command: str) -> "str | None":
             binary = binary[:-4]
         if binary not in {"git", "gh", "cf", "gcloud"}:
             return "this PowerShell command is not an approved observation"
-        reason = _segment_reason([binary, *words[1:]], "sre-assistant")
+        reason = _segment_reason([binary, *words[1:]])
         if reason:
             return reason
     return None
@@ -605,12 +611,12 @@ _CODE_RUNNERS = frozenset({
 })
 
 
-def _allow() -> None:
+def _allow() -> "NoReturn":
     """Positively assert ALLOW (no stdout, distinctive exit code) and stop."""
     sys.exit(EXIT_ALLOW)
 
 
-def _deny(reason: str) -> None:
+def _deny(reason: str) -> "NoReturn":
     """Emit the deny decision on stdout and assert DENY via the exit code."""
     print(json.dumps({
         "hookSpecificOutput": {
@@ -825,7 +831,7 @@ def _gcloud_allowed(args: list[str]) -> bool:
     )
 
 
-def _segment_reason(segment: list[str], agent: str) -> "str | None":
+def _segment_reason(segment: list[str]) -> "str | None":
     """None if this segment is an allowed read; otherwise the specific rule that denies it.
 
     The reasons name the rule so the agent's next move is obvious: rephrase into an allowed shape,
@@ -850,7 +856,7 @@ def _segment_reason(segment: list[str], agent: str) -> "str | None":
             )
         if len(args) < 2:
             return "`timeout` needs a command to bound: `timeout <duration> <allowed command>`"
-        return _segment_reason(args[1:], agent)
+        return _segment_reason(args[1:])
     if command == "date":
         return _date_reason(args)
     if command == "git":
@@ -955,7 +961,7 @@ def _tokenize(line: str, *, comments: bool = True) -> list[str]:
     return list(lexer)
 
 
-def _line_reason(line: str, agent: str) -> "str | None":
+def _line_reason(line: str) -> "str | None":
     """None if every segment of one line is an allowed read; otherwise the first denial reason."""
     try:
         for match in _SHELL_WORD.finditer(line):
@@ -984,17 +990,17 @@ def _line_reason(line: str, agent: str) -> "str | None":
     if not segments:
         return "no recognizable command"
     for segment in segments:
-        reason = _segment_reason(segment, agent)
+        reason = _segment_reason(segment)
         if reason is not None:
             return reason
     return None
 
 
-def explain(command: str, agent: str = "") -> "str | None":
+def explain(command: str) -> "str | None":
     """None if `command` is entirely allowed reads; otherwise the specific rule that denies it.
 
-    `agent` is the BARE agent name (namespace already stripped). No rule is agent-specific since
-    `observability-engineer` left the roster; the seam stays for a future per-agent extra.
+    No rule is agent-specific since `observability-engineer` left the roster, so no agent is
+    passed; a future per-agent extra would add that parameter back with its first rule.
     """
     if re.search(r"[\x00-\x08\x0b-\x1f\x7f]", command):
         return "Bash commands may not contain control characters other than tab and newline"
@@ -1017,7 +1023,7 @@ def explain(command: str, agent: str = "") -> "str | None":
     for line in normalized.split("\n"):
         if not line.strip(" \t"):
             continue
-        reason = _line_reason(line, agent)
+        reason = _line_reason(line)
         if reason is not None:
             return reason
     return None
@@ -1139,13 +1145,13 @@ def _gcloud_credential_reason(words: list[str]) -> "str | None":
 
 def _credential_reason_for_tokens(tokens: list[str]) -> "str | None":
     for token in _assignment_prefix(tokens):
-        if _ASSIGNMENT.match(token).group(1) == "CF_TRACE":
-            value = token.partition("=")[2].strip().strip("\"'").lower()
-            if value not in _TRACE_OFF:
-                return (
-                    "`CF_TRACE` dumps the whole CF API exchange, bearer token included, into the "
-                    "transcript"
-                )
+        # Each prefix token matched `NAME=`, and a name holds no `=`, so this split is that match.
+        name, _, value = token.partition("=")
+        if name == "CF_TRACE" and value.strip().strip("\"'").lower() not in _TRACE_OFF:
+            return (
+                "`CF_TRACE` dumps the whole CF API exchange, bearer token included, into the "
+                "transcript"
+            )
     words = [_strip_substitution(token) for token in tokens]
     for index, word in enumerate(words):
         following = [item for item in words[index + 1:] if item and not item.startswith("-")]
@@ -1322,8 +1328,7 @@ def main() -> None:
             )
         _allow()
 
-    bare_agent = agent.split(":", 1)[-1] if isinstance(agent, str) else ""
-    reason = explain_powershell(command) if tool_name == "PowerShell" else explain(command, bare_agent)
+    reason = explain_powershell(command) if tool_name == "PowerShell" else explain(command)
     if reason is not None:
         _deny(f"Blocked by the read-only agent allowlist guard: {reason}. {_GUIDANCE}")
     _allow()
