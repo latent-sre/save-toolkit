@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from testkit import ROOT, SRE_ASSISTANT, guard_decision, guard_payload, run_guard
+from testkit import ROOT, SRE_ASSISTANT, guard_decision, guard_payload, require_shell, run_guard
 
 
 class CrossPlatformReads(unittest.TestCase):
@@ -90,12 +90,8 @@ class CrossPlatformReads(unittest.TestCase):
         self.assertEqual("deny", self.guard("echo $GRAFANA_SA_TOKEN", "Bash"))
 
     def test_posix_copilot_launcher_honors_guard_decisions(self):
-        shell = shutil.which("sh")
-        if shell is None:
-            candidate = Path("C:/Program Files/Git/bin/sh.exe")
-            shell = str(candidate) if candidate.is_file() else None
-        if shell is None:
-            self.skipTest("POSIX shell unavailable; installed macOS acceptance remains required")
+        # A local skip leaves installed macOS acceptance outstanding; CI fails without a shell.
+        shell = require_shell(self)
         # Agent-scoped VS Code hooks do not receive Claude's plugin-root substitution.
         env = dict(os.environ)
         env.pop("CLAUDE_PLUGIN_ROOT", None)

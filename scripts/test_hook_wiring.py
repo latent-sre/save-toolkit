@@ -11,18 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
-ROOT = Path(__file__).resolve().parents[1]
-
-
-def available_shell() -> str | None:
-    discovered = shutil.which("sh")
-    if discovered:
-        return discovered
-    for candidate in (r"C:\Program Files\Git\bin\sh.exe", r"C:\Program Files\Git\usr\bin\sh.exe"):
-        if Path(candidate).is_file():
-            return candidate
-    return None
+from testkit import ROOT, find_shell, require_shell
 
 
 def available_powershell() -> str | None:
@@ -180,12 +169,12 @@ class HookWiringTests(unittest.TestCase):
         self.assertEqual(42, result.returncode, result.stderr)
         self.assertEqual("", result.stdout)
 
-    @unittest.skipUnless(available_shell(), "POSIX shell not available")
     def test_exact_session_start_command_accepts_the_lane_path(self) -> None:
+        shell = require_shell(self)
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
         command = document["hooks"]["SessionStart"][0]["hooks"][0]["command"]
         result = subprocess.run(
-            [available_shell(), "-c", command],
+            [shell, "-c", command],
             input='{"hook_event_name":"SessionStart","source":"startup"}',
             text=True,
             capture_output=True,
@@ -228,25 +217,26 @@ class HookWiringTests(unittest.TestCase):
         document = json.loads((ROOT / "hooks/copilot-hooks.json").read_text(encoding="utf-8"))
         self.assertEqual({}, document.get("hooks"))
 
-    @unittest.skipUnless(available_shell(), "POSIX shell not available")
     def test_exact_hook_command_allows_safe_denies_write_and_ignores_main(self) -> None:
         """The ONLY test that runs the real inlined hooks.json command string.
 
-        Every other guard test invokes `[sys.executable, GUARD]` directly, which is a different
-        invocation: it never exercises `"$C" -I -S "$G"` (isolated mode, no site) or the
-        `python3 python py` interpreter walk that the live hook depends on.
+        Every other guard test runs `sys.executable -I -S GUARD` directly through testkit, the same
+        isolated invocation but a different program: it never exercises the hook's `$(cat)` stdin
+        capture, the `python3 python py` interpreter walk, the translation of 42/43 into the exit-0
+        contract, or the fail-closed deny when no interpreter answers.
 
-        The skip below is a local-developer convenience. A focused run that reports this test
-        skipped did not exercise the real hook command and is incomplete evidence; rerun it on a
-        machine with `sh`. Gate A does not run this component suite.
+        A local run without `sh` skips this test; on CI a missing shell fails it. A focused run
+        that reports it skipped did not exercise the real hook command and is incomplete evidence;
+        rerun it on a machine with `sh`. Gate A does not run this component suite.
         """
+        shell = require_shell(self)
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
         command = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
         environment = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT))
 
         def invoke_raw(payload: str, *, env: dict[str, str] = environment) -> subprocess.CompletedProcess[str]:
             return subprocess.run(
-                [available_shell(), "-c", command],
+                [shell, "-c", command],
                 input=payload,
                 text=True,
                 capture_output=True,
@@ -276,7 +266,6 @@ class HookWiringTests(unittest.TestCase):
         self.assertEqual("deny", json.loads(renamed.stdout)["hookSpecificOutput"]["permissionDecision"])
         self.assertEqual("deny", json.loads(unavailable.stdout)["hookSpecificOutput"]["permissionDecision"])
 
-    @unittest.skipUnless(available_shell(), "POSIX shell not available")
     def test_a_stub_interpreter_first_on_path_does_not_disarm_the_guard(self) -> None:
         """The incident validate.yml cites, reproduced: a non-interpreter named `python3` answers first.
 
@@ -287,6 +276,7 @@ class HookWiringTests(unittest.TestCase):
         stubs must fail closed. The marker file proves the stub was actually consulted -- without it
         this test could pass while `command -v` never found the stub at all.
         """
+        shell = require_shell(self)
         document = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))
         command = document["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
         cat = shutil.which("cat")
@@ -297,7 +287,7 @@ class HookWiringTests(unittest.TestCase):
 
         def run(path: str, payload: str) -> subprocess.CompletedProcess[str]:
             env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT), PATH=path)
-            return subprocess.run([available_shell(), "-c", command], input=payload, text=True,
+            return subprocess.run([shell, "-c", command], input=payload, text=True,
                                   capture_output=True, cwd=ROOT, env=env, timeout=30, check=False)
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -345,15 +335,16 @@ class HookWiringTests(unittest.TestCase):
 
         The structural workflow does not invoke component suites. This assertion applies whenever
         a caller explicitly adds this focused suite to a CI job: the job must not turn a missing
-        shell into green evidence for the hook boundary.
+        shell into green evidence for the hook boundary. The shell tests above fail on CI too
+        (testkit.require_shell); this one names the remedy once.
         """
         if not os.environ.get("CI"):
             self.skipTest("local run; the shell requirement is enforced on CI")
         self.assertIsNotNone(
-            available_shell(),
-            "CI has no POSIX shell, so the only test of the real hooks.json command string would "
-            "be skipped and this job would report green over an unexercised guard. Install a "
-            "shell on this runner (Git for Windows provides one) rather than accepting the skip.",
+            find_shell(),
+            "CI has no POSIX shell, so the only test of the real hooks.json command string cannot "
+            "run and this job would otherwise report over an unexercised guard. Install a shell on "
+            "this runner (Git for Windows provides one) rather than accepting a skip.",
         )
 
 
