@@ -28,12 +28,11 @@ import re
 import unittest
 from pathlib import Path
 
+from testkit import frontmatter_block
+
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_PATH = ROOT / "skills" / "runbook" / "assets" / "runbook-template.md"
 EXAMPLE_PATH = ROOT / "skills" / "runbook" / "assets" / "runbook-example.md"
-
-_KEY_RE = re.compile(r"^([a-z_][a-z0-9_]*):")
-
 
 def frontmatter_keys(path: Path) -> list[str]:
     """Top-level keys between a runbook's first two `---` fences.
@@ -42,17 +41,7 @@ def frontmatter_keys(path: Path) -> list[str]:
     match is exact, not an approximation. If nesting is ever introduced, this parser -- and the
     flat contract it guards -- both need to change, and this test failing is the reminder.
     """
-    lines = path.read_text(encoding="utf-8").splitlines()
-    if not lines or lines[0].strip() != "---":
-        raise AssertionError(f"{path}: must open with a `---` frontmatter fence")
-    keys: list[str] = []
-    for line in lines[1:]:
-        if line.strip() == "---":
-            return keys
-        match = _KEY_RE.match(line)
-        if match:
-            keys.append(match.group(1))
-    raise AssertionError(f"{path}: frontmatter fence never closes")
+    return re.findall(r"(?m)^([a-z_][a-z0-9_]*):", frontmatter_block(path.read_text(encoding="utf-8")))
 
 
 def template_status_enum() -> list[str]:

@@ -31,7 +31,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from testkit import load_path
+from testkit import frontmatter_block, load_path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONVERTER = ROOT / "skills" / "runbook" / "scripts" / "confluence_to_runbook.py"
@@ -42,20 +42,9 @@ CONVERTER = ROOT / "skills" / "runbook" / "scripts" / "confluence_to_runbook.py"
 TEMPLATE_PATH = ROOT / "skills" / "runbook" / "assets" / "runbook-template.md"
 IMPORT_REFERENCE = ROOT / "skills" / "runbook" / "references" / "confluence-import.md"
 
-_TEMPLATE_KEY_RE = re.compile(r"^([a-z_][a-z0-9_]*):")
-
-
 def template_frontmatter_keys() -> list[str]:
     """Top-level keys between the runbook template's first two `---` fences."""
-    lines = TEMPLATE_PATH.read_text(encoding="utf-8").splitlines()
-    keys: list[str] = []
-    for line in lines[1:]:
-        if line.strip() == "---":
-            return keys
-        match = _TEMPLATE_KEY_RE.match(line)
-        if match:
-            keys.append(match.group(1))
-    raise AssertionError(f"{TEMPLATE_PATH}: frontmatter fence never closes")
+    return re.findall(r"(?m)^([a-z_][a-z0-9_]*):", frontmatter_block(TEMPLATE_PATH.read_text(encoding="utf-8")))
 
 VIEW_HTML = """<html><head><title>Restart the checkout worker</title></head><body>
 <h1>Restart the checkout worker</h1>
@@ -112,17 +101,7 @@ def run_converter(content: str | None, *args: str, name: str = "page.html", outp
 
 def frontmatter_fields(draft: str) -> dict[str, str]:
     """Parse the draft's flat YAML frontmatter into raw string values."""
-    lines = draft.splitlines()
-    if not lines or lines[0] != "---":
-        raise AssertionError("draft must open with a frontmatter fence")
-    fields: dict[str, str] = {}
-    for line in lines[1:]:
-        if line.strip() == "---":
-            return fields
-        match = re.match(r"^([a-z_][a-z0-9_]*):\s*(.*)$", line)
-        if match:
-            fields[match.group(1)] = match.group(2)
-    raise AssertionError("frontmatter fence never closes")
+    return dict(re.findall(r"(?m)^([a-z_][a-z0-9_]*):[ \t]*(.*)$", frontmatter_block(draft)))
 
 
 def slot_text(draft: str, slot: str) -> str:
