@@ -11,6 +11,7 @@ import hashlib
 import json
 import posixpath
 import re
+from collections import Counter, defaultdict
 from collections.abc import Callable, Container, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from functools import cached_property, lru_cache
@@ -153,15 +154,12 @@ class Corpus:
     def headings(self, source: Source) -> Mapping[str, int]:
         """Markdown section anchors, numbered on repeats, to their heading line."""
         if source.path not in self._headings:
-            headings: dict[str, int]
-            counts: dict[str, int]
-            headings, counts = {}, {}
+            headings, counts = {}, Counter[str]()
             for i, line in enumerate(source.lines, 1):
                 if re.match(r'^#{1,6}\s', line):
                     key = anchor(line.lstrip('#').strip())
-                    count = counts.get(key, 0)
-                    headings[key + (f'-{count}' if count else '')] = i
-                    counts[key] = count + 1
+                    headings[key + (f'-{counts[key]}' if counts[key] else '')] = i
+                    counts[key] += 1
             self._headings[source.path] = MappingProxyType(headings)
         return self._headings[source.path]
 
@@ -291,9 +289,6 @@ def _scalar_start(lines: Sequence[str], index: int, indent: int, value: str) -> 
 
 def _flow_scalar(lines: Sequence[str], index: int, value: str) -> tuple[int, str]:
     """Consume a quoted/flow value through its terminator, never as mapping keys."""
-    quote: str | None
-    closers: list[str]
-    parts: list[str]
     quote, escaped, closers, token_start, parts = None, False, [], True, []
     for current in range(index, len(lines)):
         text = value if current == index else lines[current]
@@ -359,11 +354,8 @@ def scenario_fields(source: Source) -> tuple[dict[str, Any], tuple[Span, ...]]:
     """Top-level scenario metadata, cited as the whole file."""
     # Deliberately the donor's scalar identity/routing subset, not executable YAML.
     # Prompt block scalars and fixtures cannot contribute top-level target identity.
-    result: dict[str, Any]
-    stack: list[tuple[int, dict[str, Any]]]
-    block_indent: int | None
-    result, stack, block_indent = {}, [], None
-    stack.append((-1, result))
+    result: dict[str, Any] = {}
+    stack, block_indent = [(-1, result)], None
     lines, index = source.lines, 0
     while index < len(lines):
         raw, current = lines[index], index
@@ -430,9 +422,6 @@ def records_for_roadmap(source: Source) -> tuple[RoadmapEntry, ...]:
     result = []
     for n, (start, item_id) in enumerate(starts):
         end = starts[n + 1][0] if n + 1 < len(starts) else len(source.lines)
-        fields: dict[str, str]
-        positions: dict[str, list[int]]
-        current: str | None
         fields, positions, current = {}, {}, None
         for i in range(start + 1, end):
             line = source.lines[i].strip()
@@ -521,7 +510,6 @@ def _new_records(records: Mapping[str, Record], inputs: Mapping[str, StageOutput
 
 def _component_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOutput:
     records, add = _record_builder(inputs)
-    data: dict[str, Any]  # Frontmatter fields or scenario metadata, by source family.
     for source in corpus.sources:
         path, p = source.path, PurePosixPath(source.path)
         if path.startswith(('agents/', 'commands/')) and len(p.parts) == 2 and p.suffix == '.md':
@@ -569,15 +557,15 @@ def _component_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> Sta
             add(_record(f'review:{review_id}', 'review', p.stem, path, whole(source), attrs=attrs,
                 authority='generated' if batch else 'historical-evidence', state='generated' if batch else 'historical', family='reviews'))
         elif path.startswith(('evals/scenarios/', 'evals/build-scenarios/')) and p.suffix in ('.yaml', '.yml'):
-            data, _ = scenario_fields(source)
-            if 'id' not in data:
+            meta, _ = scenario_fields(source)
+            if 'id' not in meta:
                 continue
-            routing = data.get('routing') or {}
+            routing = meta.get('routing') or {}
             alt = routing.get('expected_alternative')
             alt = alt if isinstance(alt, str) else f'{alt.get("kind")}:{alt.get("name")}' if isinstance(alt, dict) else ''
-            add(_record(f'scenario:{data["id"]}', 'scenario', str(data['id']), path,
+            add(_record(f'scenario:{meta["id"]}', 'scenario', str(meta['id']), path,
                 yaml_key_spans(source, ('id', 'mode', 'split', 'routing', 'threshold', 'agent', 'target', 'skill')),
-                authority='live-contract', attrs={'mode': data.get('mode', ''), 'split': data.get('split', ''), 'expect': routing.get('expect', ''), 'threshold': data.get('threshold'), 'expected_alternative': alt, 'file': path}, family='scenarios'))
+                authority='live-contract', attrs={'mode': meta.get('mode', ''), 'split': meta.get('split', ''), 'expect': routing.get('expect', ''), 'threshold': meta.get('threshold'), 'expected_alternative': alt, 'file': path}, family='scenarios'))
         elif path.startswith(('scripts/', 'evals/')) and len(p.parts) == 2 and p.name.startswith('test_') and p.suffix == '.py':
             add(_record(f'test:{path}', 'test', path, path, whole(source), family='tests'))
         elif path.startswith('docs/probes/') and len(p.parts) == 3:
@@ -628,7 +616,6 @@ def _rule_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> StageOut
     records, add = _record_builder(inputs)
     rules = corpus.get('docs/rules.md')
     if rules:
-        section_line: int | None
         section, section_line = '', None
         for i, line in enumerate(rules.lines, 1):
             if line.startswith('## '):
@@ -773,11 +760,10 @@ def _path_expression(node: ast.AST, environment: Mapping[str, str]) -> str | Non
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
         left, right = _path_expression(node.left, environment), _path_expression(node.right, environment)
         return posixpath.join(left, right) if isinstance(left, str) and isinstance(right, str) else None
-    value: ast.expr | str | None  # A JoinedStr piece, or an evaluated operand below.
     if isinstance(node, ast.JoinedStr):
         pieces = []
-        for value in node.values:
-            part = _path_expression(value.value if isinstance(value, ast.FormattedValue) else value, environment)
+        for piece in node.values:
+            part = _path_expression(piece.value if isinstance(piece, ast.FormattedValue) else piece, environment)
             if not isinstance(part, str):
                 return None
             pieces.append(part)
@@ -804,12 +790,9 @@ def generated_mappings(corpus: Corpus) -> tuple[GeneratedMapping, ...]:
     if source is None:
         return ()
     tree = _ast(source)
-    constant_spans: dict[str, Span]
     constants, constant_spans = {'root': ''}, {}
-    for statement in tree.body:
-        targets = statement.targets if isinstance(statement, ast.Assign) else []
-        for target in targets:
-            assert isinstance(statement, ast.Assign)  # Only an assignment has targets here.
+    for statement in (s for s in tree.body if isinstance(s, ast.Assign)):
+        for target in statement.targets:
             if isinstance(target, ast.Name) and (value := _path_expression(statement.value, constants)) is not None:
                 constants[target.id] = value
                 constant_spans[target.id] = _node_span(source, statement)
@@ -826,19 +809,15 @@ def generated_mappings(corpus: Corpus) -> tuple[GeneratedMapping, ...]:
         for target in node.targets:
             if not (isinstance(target, ast.Subscript) and isinstance(target.value, ast.Name) and target.value.id == 'outputs'):
                 continue
-            loops: list[ast.For]
-            cursor: ast.AST
-            loops, cursor = [], node
-            while cursor in parent:
-                cursor = parent[cursor]
+            loops, cursor = [], parent.get(node)
+            while cursor is not None:
                 if isinstance(cursor, ast.For):
                     loops.append(cursor)
-            loop = next((loop for loop in loops if isinstance(loop.target, ast.Name) and loop.target.id == 'source'
-                         and isinstance(loop.iter, ast.Name) and loop.iter.id in ('agents', 'commands', 'skill_files')), None)
-            if loop:
-                assert isinstance(loop.iter, ast.Name)  # The loop was selected by its Name iterator.
-                family = loop.iter.id
-                inputs = [s.path for s in corpus.sources if
+                cursor = parent.get(cursor)
+            family = next((loop.iter.id for loop in loops if isinstance(loop.target, ast.Name) and loop.target.id == 'source'
+                           and isinstance(loop.iter, ast.Name) and loop.iter.id in ('agents', 'commands', 'skill_files')), None)
+            if family:
+                inputs =[s.path for s in corpus.sources if
                           (family == 'agents' and re.fullmatch(r'agents/[^/]+\.md', s.path)) or
                           (family == 'commands' and re.fullmatch(r'commands/[^/]+\.md', s.path)) or
                           (family == 'skill_files' and s.path.startswith('skills/'))]
@@ -931,8 +910,7 @@ def _writer_filenames(render: ast.FunctionDef, safe: ast.FunctionDef, build: ast
             continue
         if max(assigned(build, 'files')[0].lineno, assigned(build, 'output')[0].lineno) >= loop.lineno:
             continue
-        temporary_writes: list[ast.With] = []
-        block: ast.stmt
+        temporary_writes = []
         for block in (n for n in loop.body if isinstance(n, ast.With)):
             for item in block.items:
                 call = item.context_expr
@@ -952,9 +930,9 @@ def _writer_filenames(render: ast.FunctionDef, safe: ast.FunctionDef, build: ast
         if len(temporary_writes) != 1 or len(assigned(build, 'temporary')) != 1:
             continue
         assert temporary_writes[0].end_lineno is not None  # ast.parse sets every end_lineno.
-        publications: list[ast.Expr] = []
-        for block in loop.body:
-            body = block.body if isinstance(block, ast.Try) else [block]
+        publications = []
+        for child in loop.body:
+            body = child.body if isinstance(child, ast.Try) else [child]
             for statement in body:
                 if (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call)
                         and ast.unparse(statement.value.func) == 'os.replace'
@@ -1006,6 +984,10 @@ def standalone_projections(corpus: Corpus) -> tuple[WriterProjection, ...]:
     return tuple(result)
 
 
+# A repository-root binding: both forms explicitly derive the directory from the test's own location.
+REPOSITORY_ROOT = re.compile(r'Path\(__file__\)\.resolve\(\)\.(?:parents\[1\]|parent\.parent)')
+
+
 def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
     """Rooted read dependencies only, with binding and helper-body provenance.
 
@@ -1014,26 +996,17 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
     Python dataflow. Unresolved dynamic paths yield no verified_by claim.
     """
     tree = _ast(source)
-    node: ast.AST
-    expression: str | ast.expr | None  # A binding's source text, then each call's path argument.
     path_imports = tuple(_node_span(source, node) for node in tree.body
                          if isinstance(node, ast.ImportFrom) and node.module == 'pathlib'
                          and any(alias.name == 'Path' and alias.asname in (None, 'Path') for alias in node.names))
     bindings: dict[str, list[ast.Assign]] = {}
-    for node in tree.body:
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name):
-                    bindings.setdefault(target.id, []).append(node)
-    root_bindings: dict[str, ast.Assign] = {}
-    for name, declarations in bindings.items():
-        if len(declarations) != 1:
-            continue
-        node = declarations[0]
-        expression = ast.unparse(node.value)
-        # Both forms explicitly derive the repository directory from this test's location.
-        if path_imports and not bindings.get('Path') and re.fullmatch(r'Path\(__file__\)\.resolve\(\)\.(?:parents\[1\]|parent\.parent)', expression):
-            root_bindings[name] = node
+    for statement in (s for s in tree.body if isinstance(s, ast.Assign)):
+        for target in statement.targets:
+            if isinstance(target, ast.Name):
+                bindings.setdefault(target.id, []).append(statement)
+    pathlib_path = bool(path_imports) and not bindings.get('Path')
+    root_bindings = {name: declarations[0] for name, declarations in bindings.items() if len(declarations) == 1
+                     and REPOSITORY_ROOT.fullmatch(ast.unparse(declarations[0].value)) and pathlib_path}
     # Nearest enclosing function of every node (the module for top-level code), computed
     # in one breadth-first pass: a parent is always visited before its children.
     enclosing: dict[ast.AST, ast.AST] = {tree: tree}
@@ -1056,11 +1029,11 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
             parameters = {a.arg for a in (*call_scope.args.posonlyargs, *call_scope.args.args, *call_scope.args.kwonlyargs)}
             shadowed.update(parameters)
         bindings_here = {name: declaration for name, declaration in root_bindings.items() if name not in shadowed}
-        if call_scope is not tree and path_imports and not bindings.get('Path') and 'Path' not in shadowed:
+        if call_scope is not tree and pathlib_path and 'Path' not in shadowed:
             for declaration in ast.walk(call_scope):
                 if not isinstance(declaration, ast.Assign) or scope(declaration) is not call_scope:
                     continue
-                if not re.fullmatch(r'Path\(__file__\)\.resolve\(\)\.(?:parents\[1\]|parent\.parent)', ast.unparse(declaration.value)):
+                if not REPOSITORY_ROOT.fullmatch(ast.unparse(declaration.value)):
                     continue
                 for target in declaration.targets:
                     if (isinstance(target, ast.Name) and target.id not in parameters
@@ -1097,14 +1070,13 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
     functions = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
     written: set[str] = set()
     def write_expression(call: ast.Call) -> ast.expr | None:
-        expression: ast.expr | None = None
         if isinstance(call.func, ast.Attribute) and call.func.attr in ('write_text', 'write_bytes'):
-            expression = call.func.value
-        elif isinstance(call.func, ast.Name) and call.func.id == 'open' and call.args and read_expression(call) is None:
-            expression = call.args[0]
-        elif isinstance(call.func, ast.Attribute) and call.func.attr == 'open' and read_expression(call) is None:
-            expression = call.func.value
-        return expression
+            return call.func.value
+        if isinstance(call.func, ast.Name) and call.func.id == 'open' and call.args and read_expression(call) is None:
+            return call.args[0]
+        if isinstance(call.func, ast.Attribute) and call.func.attr == 'open' and read_expression(call) is None:
+            return call.func.value
+        return None
 
     def parameters(function: ast.FunctionDef, call: ast.Call, caller_scope: ast.AST,
                    substitutions: Mapping[str, str]) -> dict[str, str]:
@@ -1258,11 +1230,9 @@ class _Relations:
 
 def _agent_method_edges(rel: _Relations, record: Record, source: Source) -> None:
     """A method table or Load line selecting a skill for a stated condition."""
-    node, by_id = record.node, rel.by_id
-    load_columns: tuple[int, ...]
-    header_line: int | None
-    proof: tuple[Span, ...]
-    load_columns, header_line, inferred_method = (), None, False
+    # header_line is read only under nonempty load_columns, which its table header sets with it.
+    load_columns: tuple[int, ...] = ()
+    header_line, inferred_method = 0, False
     for i, line in enumerate(source.lines, 1):
         stripped = line.strip()
         if stripped.startswith('|') and i < len(source.lines) and SEPARATOR.match(source.lines[i].strip()):
@@ -1272,13 +1242,12 @@ def _agent_method_edges(rel: _Relations, record: Record, source: Source) -> None
             header_line = i
             continue
         if not stripped.startswith('|'):
-            load_columns, header_line = (), None
+            load_columns = ()
         if load_columns and _table_data(source.lines, i):
             cells = table_cells(line)
             selected = ' '.join(cells[j] for j in load_columns if j < len(cells))
             condition = plain(cells[0])
-            assert header_line is not None  # Set with every nonempty load_columns.
-            proof = (source.span(header_line, header_line), source.span(i, i))
+            proof: tuple[Span, ...] = (source.span(header_line, header_line), source.span(i, i))
         elif re.match(r'^Load\s+`', stripped):
             selected, condition, proof = stripped, plain(stripped), (source.span(i, i),)
             inferred_method = False
@@ -1286,8 +1255,8 @@ def _agent_method_edges(rel: _Relations, record: Record, source: Source) -> None
             continue
         for name in re.findall(r'`([a-z][a-z0-9-]+)`', selected):
             target = f'skill:{name}'
-            if target in by_id:
-                rel.edge('loads_when', node.id, target, spans(proof, by_id[target].spans),
+            if target in rel.by_id:
+                rel.edge('loads_when', record.node.id, target, spans(proof, rel.by_id[target].spans),
                          key=condition, attrs={'predicate': condition, 'via': 'agent-method'},
                          cls=EC.INFERRED if inferred_method else EC.EXTRACTED,
                          proof_kind=PK.INFERRED if inferred_method else PK.JOINED)
@@ -1300,26 +1269,22 @@ def _bundle_citation(rel: _Relations, record: Record, source: Source) -> None:
 
 def _skill_reference_edges(rel: _Relations, record: Record, source: Source) -> None:
     """Each linked reference, with the routing-table condition that loads it."""
-    node = record.node
-    references: dict[str, list[int]]
-    routing: dict[str, list[tuple[str, int]]]
-    line: str | int  # A source line's text, then a routing row's line number.
-    references, routing = {}, {}
+    references, routing = defaultdict(list), defaultdict(list)
     for i, line in enumerate(source.lines, 1):
         targets = [raw for _, raw in link_targets(line) if raw.startswith(('references/', './references/'))]
         if targets and _table_data(source.lines, i):
             predicate = plain(line.strip('|').split('|')[0])
             for target in targets:
-                routing.setdefault(target, []).append((predicate, i))
+                routing[target].append((predicate, i))
         for target in targets:
-            references.setdefault(target, []).append(i)
+            references[target].append(i)
     for target, positions in references.items():
         dest = rel.resolve(source, target, types={'reference'})
         if not dest:
-            rel.unknown(node.id, 'extract.skill-link-unresolved', f'{source.path}:{positions[0]} links {target}, which does not exist', (source.span(positions[0], positions[0]),), 'Restore the file or remove the link', absence=True)
+            rel.unknown(record.node.id, 'extract.skill-link-unresolved', f'{source.path}:{positions[0]} links {target}, which does not exist', (source.span(positions[0], positions[0]),), 'Restore the file or remove the link', absence=True)
             continue
-        for predicate, line in routing.get(target, [('UNKNOWN', positions[0])]):
-            rel.edge('loads_when', node.id, dest.node.id, (source.span(line, line),), attrs={'predicate': predicate}, key=predicate)
+        for predicate, row in routing.get(target, [('UNKNOWN', positions[0])]):
+            rel.edge('loads_when', record.node.id, dest.node.id, (source.span(row, row),), attrs={'predicate': predicate}, key=predicate)
 
 
 def _rule_source_edges(rel: _Relations, record: Record, source: Source) -> None:
@@ -1723,9 +1688,8 @@ def _paragraphs(lines: Sequence[str], first_line: int) -> Iterator[tuple[list[tu
     A heading line closes the paragraph before it, which keeps the earlier heading, and opens
     its own paragraph under the new one.
     """
-    paragraph: list[tuple[int, str]]
-    heading_line: int | None
-    paragraph, heading, heading_line = [], '', None
+    paragraph: list[tuple[int, str]] = []
+    heading, heading_line = '', None
     for i, line in enumerate(lines, first_line):
         if line.startswith('#'):
             if paragraph:
@@ -1811,9 +1775,8 @@ def _derive(snapshot: Snapshot, stages: Iterable[ExtractionStage] = EXTRACTION_S
         if missing:
             raise ValueError(f'missing extraction prerequisites for {stage.name}: {sorted(missing)}')
     # Validate the complete dependency plan before invoking any producer.
-    plan: list[ExtractionStage]
-    available: set[str]
-    pending, plan, available = dict(registered), [], set()
+    available: set[str] = set()
+    pending, plan = dict(registered), []
     while pending:
         ready = sorted(name for name, stage in pending.items() if set(stage.requires) <= available)
         if not ready:
@@ -1822,8 +1785,8 @@ def _derive(snapshot: Snapshot, stages: Iterable[ExtractionStage] = EXTRACTION_S
             plan.append(pending.pop(name))
             available.add(name)
     # A fresh corpus per derivation: replay never sees the primary extraction's views.
-    completed: dict[str, StageOutput]
-    corpus, completed = Corpus(snapshot), {}
+    corpus = Corpus(snapshot)
+    completed: dict[str, StageOutput] = {}
     for stage in plan:
         inputs = MappingProxyType({name: completed[name] for name in stage.requires})
         output = stage.produce(corpus, inputs)
