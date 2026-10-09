@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import json
 import re
 import tempfile
 import unittest
@@ -12,6 +13,7 @@ from unittest import mock
 import fleet_frontmatter
 import generate_platform_adapters
 import validate_fleet
+from testkit import must_replace
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,6 +62,47 @@ def _agent_failures_after_edit(filename: str, edit: Callable[[str], str]) -> lis
             raise AssertionError(f"{filename} not found in agents/")
         _, failures = validate_fleet.validate_agents(root)
     return failures
+
+
+class DesignLaneAuthorityContract:
+    """The authority the two design lanes share; their suites mix this into a TestCase and set NAME.
+
+    Both read, write design documents, and delegate to the same three evidence helpers. Neither may
+    execute, reach the web directly, open worktrees, or hand work to the implementer.
+    """
+
+    NAME = ""
+
+    def test_canonical_and_projected_authority(self) -> None:
+        grants = fleet_frontmatter.tool_grants(_agent(self.NAME).fields["tools"])
+        self.assertEqual(
+            {"Read", "Grep", "Glob", "Write", "Edit", "Skill", "Agent"},
+            {grant.base for grant in grants},
+        )
+        self.assertEqual(
+            {"repository-investigator", "sre-assistant", "researcher"},
+            set(fleet_frontmatter.delegation_targets(grants, self.NAME, plugin="save-toolkit")),
+        )
+        projected = fleet_frontmatter.parse_file(ROOT / ".github/agents" / f"{self.NAME}.agent.md").fields
+        self.assertEqual(["read", "search", "edit", "agent"], json.loads(projected["tools"]))
+        self.assertEqual(
+            ["repository-investigator", "sre-assistant", "researcher"],
+            json.loads(projected["agents"]))
+
+    def test_validator_rejects_execution_egress_and_implementation_delegation(self) -> None:
+        filename = f"{self.NAME}.md"
+        for grant in ("Bash", "PowerShell", "WebFetch", "EnterWorktree", "NotebookEdit"):
+            with self.subTest(grant=grant):
+                failures = _agent_failures_after_edit(filename, lambda text: re.sub(
+                    r"(?m)^(tools: .+)$", lambda match: match.group(1) + ", " + grant, text, count=1))
+                self.assertTrue(
+                    any(failure.endswith(f"{filename}: forbidden tool(s): {grant}") for failure in failures),
+                    failures,
+                )
+        with self.subTest(grant="Agent(save-toolkit:software-engineer)"):
+            failures = _agent_failures_after_edit(filename, lambda text: must_replace(
+                text, "save-toolkit:researcher)", "save-toolkit:researcher, save-toolkit:software-engineer)"))
+            self.assertTrue(any(f"{filename}: delegation mismatch" in failure for failure in failures), failures)
 
 
 class FleetValidatorTests(unittest.TestCase):

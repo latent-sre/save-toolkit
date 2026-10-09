@@ -1,58 +1,12 @@
 """Authority regressions for the reliability design lane; no model calls."""
 
-import json
-from pathlib import Path
-import shutil
-import tempfile
 import unittest
 
-import fleet_frontmatter
-import validate_fleet
+from test_validate_fleet import DesignLaneAuthorityContract
 
 
-ROOT = Path(__file__).resolve().parents[1]
-NAME = "reliability-engineer"
-
-
-class ReliabilityContractTests(unittest.TestCase):
-    def test_canonical_and_projected_authority(self):
-        fields = fleet_frontmatter.parse_file(ROOT / "agents" / f"{NAME}.md").fields
-        grants = fleet_frontmatter.tool_grants(fields["tools"])
-        self.assertEqual(
-            {"Read", "Grep", "Glob", "Write", "Edit", "Skill", "Agent"},
-            {grant.base for grant in grants},
-        )
-        self.assertEqual(
-            {"repository-investigator", "sre-assistant", "researcher"},
-            set(fleet_frontmatter.delegation_targets(grants, NAME, plugin="save-toolkit")),
-        )
-        projected = fleet_frontmatter.parse_file(ROOT / ".github/agents" / f"{NAME}.agent.md").fields
-        self.assertEqual(["read", "search", "edit", "agent"], json.loads(projected["tools"]))
-        self.assertEqual(
-            ["repository-investigator", "sre-assistant", "researcher"],
-            json.loads(projected["agents"]))
-
-    def test_validator_rejects_execution_egress_and_implementation_delegation(self):
-        for grant in ("Bash", "PowerShell", "WebFetch", "EnterWorktree", "NotebookEdit",
-                      "Agent(save-toolkit:software-engineer)"):
-            with self.subTest(grant=grant), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary)
-                shutil.copytree(ROOT / "agents", root / "agents")
-                path = root / "agents" / f"{NAME}.md"
-                original = path.read_text(encoding="utf-8")
-                lines = original.splitlines()
-                index = next(i for i, line in enumerate(lines) if line.startswith("tools:"))
-                if grant.startswith("Agent("):
-                    lines[index] = lines[index].replace(
-                        "save-toolkit:researcher)",
-                        "save-toolkit:researcher, save-toolkit:software-engineer)")
-                else:
-                    lines[index] += ", " + grant
-                path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-                _, failures = validate_fleet.validate_agents(root)
-                self.assertTrue(any(NAME in failure and (
-                    "forbidden tool" in failure or "delegation mismatch" in failure
-                ) for failure in failures), failures)
+class ReliabilityContractTests(DesignLaneAuthorityContract, unittest.TestCase):
+    NAME = "reliability-engineer"
 
 
 if __name__ == "__main__":
