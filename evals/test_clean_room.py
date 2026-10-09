@@ -144,7 +144,7 @@ def test_neutral_workspace_is_empty_outside_the_repository_and_removed() -> None
         check(not workspace.is_relative_to(Path.cwd()), "neutral workspace is outside the plugin repository")
         top = subprocess.run(
             ["git", "-C", str(workspace), "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, check=True, encoding="utf-8",
+            capture_output=True, text=True, check=True, encoding="utf-8", timeout=60,
         ).stdout.strip()
         check(Path(top).resolve() == workspace.resolve(), "neutral workspace is its own git root")
     check(room is not None and not room.exists(), "neutral workspace is removed after the trial")

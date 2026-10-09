@@ -74,7 +74,7 @@ def _oracle(text: str) -> int:
         record = Path(temporary) / "record.md"
         record.write_text(text, encoding="utf-8")
         return subprocess.run([sys.executable, str(ORACLE), str(record)],
-                              capture_output=True, text=True).returncode
+                              capture_output=True, text=True, timeout=60).returncode
 
 
 def _headings_record(slots=SLOT_HEADINGS, body="Supplied requirement [sourced] requirements.md.") -> str:
@@ -366,7 +366,7 @@ class DesignReviewCaseTests(unittest.TestCase):
             ws = probe_workspaces.seed_workspace(spec, Path(tmp))
             suite = subprocess.run(
                 [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
-                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8")
+                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8", timeout=120)
             self.assertEqual(0, suite.returncode, suite.stderr)
             probe = ("from events.producer import order_event\n"
                      "from fulfilment.worker import handle\n"
@@ -379,7 +379,7 @@ class DesignReviewCaseTests(unittest.TestCase):
                      "except TypeError:\n"
                      "    print('report TypeError')\n")
             run = subprocess.run([sys.executable, "-c", probe], cwd=ws.repo, capture_output=True,
-                                 text=True, encoding="utf-8")
+                                 text=True, encoding="utf-8", timeout=60)
             self.assertEqual(["ship o-1", "report TypeError"], run.stdout.strip().splitlines(), run.stderr)
 
 

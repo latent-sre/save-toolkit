@@ -3956,7 +3956,7 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
             script = "from probe import fingerprints as b; print(b.scenario_digest({'id':'x','prompt':'p','graders':[{'type':'contains_all','of':['x']}]}))"
             def digest():
                 result = subprocess.run([sys.executable, "-B", "-c", script], cwd=folder,
-                                        capture_output=True, text=True, check=True)
+                                        capture_output=True, text=True, check=True, timeout=120)
                 return result.stdout.strip()
             before = digest()
             replacements = {
@@ -3997,7 +3997,7 @@ else:
     raise AssertionError('cached implementation was attributed to changed disk bytes')
 """
             result = subprocess.run([sys.executable, "-B", "-c", script], cwd=tmp,
-                                    capture_output=True, text=True)
+                                    capture_output=True, text=True, timeout=120)
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertIn("new process", result.stdout)
 
@@ -5025,7 +5025,7 @@ class ResultRecordV1Tests(TempRootTestCase):
     @unittest.skipUnless(sys.platform == "win32", "Windows ACL inheritance")
     def test_a_run_folder_inherits_its_parents_permissions(self) -> None:
         run = self._run()
-        acl = subprocess.run(["icacls", str(run)], capture_output=True, text=True).stdout
+        acl = subprocess.run(["icacls", str(run)], capture_output=True, text=True, timeout=60).stdout
         self.assertIn("(I)", acl, "a mkdtemp folder lists only explicit owner-only entries")
 
     def test_a_regrade_lists_its_assessment_in_the_v1_record(self) -> None:

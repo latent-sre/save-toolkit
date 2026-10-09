@@ -256,7 +256,7 @@ class AcceptedImplementationCaseTests(unittest.TestCase):
             ws = probe_workspaces.seed_workspace(spec, Path(tmp))
             suite = subprocess.run(
                 [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
-                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8")
+                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8", timeout=120)
             self.assertEqual(0, suite.returncode, suite.stderr)
             self.assertIn("Ran 2 tests", suite.stderr)
             # The assignment is real code: the request carries a deadline the ledger call never receives.
@@ -266,7 +266,7 @@ class AcceptedImplementationCaseTests(unittest.TestCase):
                  "from checkout_worker.worker import CheckoutRequest; "
                  "print(sorted(inspect.signature(LedgerClient.post).parameters), "
                  "'deadline' in CheckoutRequest.__dataclass_fields__)"],
-                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8")
+                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8", timeout=60)
             self.assertEqual("['entry', 'self'] True", shape.stdout.strip(), shape.stderr)
 
 
@@ -294,7 +294,7 @@ class ChangeReviewCaseTests(unittest.TestCase):
             self.assertEqual("feature/partial-refunds", ws.baseline_branch)
             suite = subprocess.run(
                 [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
-                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8")
+                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8", timeout=120)
             self.assertEqual(0, suite.returncode, suite.stderr)
             probe = ("from orders.refunds import Order, User, refund\n"
                      "order = Order('o-1', 'u-1', 500)\n"
@@ -306,9 +306,9 @@ class ChangeReviewCaseTests(unittest.TestCase):
                      "        print(type(exc).__name__)\n")
             outcomes = {}
             for branch in ("main", "feature/partial-refunds"):
-                subprocess.run(["git", "checkout", "-q", branch], cwd=ws.repo, check=True)
+                subprocess.run(["git", "checkout", "-q", branch], cwd=ws.repo, check=True, timeout=60)
                 run = subprocess.run([sys.executable, "-c", probe], cwd=ws.repo, capture_output=True,
-                                     text=True, encoding="utf-8")
+                                     text=True, encoding="utf-8", timeout=60)
                 outcomes[branch] = run.stdout.split()
             # Another customer's refund, an over-total refund and a zero refund: refused on main, allowed on the candidate.
             self.assertEqual(["Forbidden", "ValueError", "ValueError"], outcomes["main"])
