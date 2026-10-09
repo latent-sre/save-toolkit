@@ -25,6 +25,11 @@ RELATION = {
     "supersedes": "supersedes", "depends-on": "depends_on", "blocks": "depends_on",
     "verified-by": "verified_by", "evidence-for": "evidenced_by", "generated-from": "generated_from",
 }
+# Verbs whose term matches the relation's object rather than its subject.
+REVERSED = frozenset({"blocks", "owner-of"})
+# Verbs that accept several terms; every other verb takes exactly one quoted term.
+MULTI_TERM = frozenset({"guidance", "loads-for", "governs", "state"})
+TERM_BYTES = 2048
 
 
 class UsageError(ValueError):
@@ -34,6 +39,18 @@ class UsageError(ValueError):
 class Parser(argparse.ArgumentParser):
     def error(self, message):
         raise UsageError(message)
+
+
+def _validate_terms(verb: str, terms: list[str]) -> None:
+    """The one usage contract for query terms, checked before and after verification."""
+    if verb not in VERBS or not terms or any(not term.strip() for term in terms):
+        raise UsageError("a supported verb and nonempty search term are required")
+    if len(" ".join(terms).encode("utf-8")) > TERM_BYTES:
+        raise UsageError(f"query terms exceed {TERM_BYTES} encoded bytes")
+    if verb == "loads-for" and len(terms) < 2:
+        raise UsageError("loads-for requires a skill and a predicate")
+    if verb not in MULTI_TERM and len(terms) != 1:
+        raise UsageError(f"{verb} requires one quoted term")
 
 
 def _matched(document: VerifiedDocument, term: str) -> set[str]:
@@ -52,14 +69,7 @@ def _matched(document: VerifiedDocument, term: str) -> set[str]:
 def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fact, ...]:
     if not isinstance(document, VerifiedDocument):
         raise TypeError("queries require an artifact-verified VerifiedDocument")
-    if verb not in VERBS or not terms or any(not term.strip() for term in terms):
-        raise UsageError("a supported verb and nonempty search term are required")
-    if len(" ".join(terms).encode("utf-8")) > 2048:
-        raise UsageError("query terms exceed 2048 encoded bytes")
-    if verb == "loads-for" and len(terms) < 2:
-        raise UsageError("loads-for requires a skill and a predicate")
-    if verb not in {"guidance", "loads-for", "governs", "state"} and len(terms) != 1:
-        raise UsageError(f"{verb} requires one quoted term")
+    _validate_terms(verb, terms)
     graph = document.facts.graph
     selected = _matched(document, " ".join(terms) if verb == "state" else terms[0])
     if verb == "governs":
@@ -131,7 +141,7 @@ def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fac
                 result[fact.id] = fact
         return tuple(result[key] for key in sorted(result))
     relation = RELATION[verb]
-    reverse = verb in {"blocks", "owner-of"}
+    reverse = verb in REVERSED
     result = []
     for fact in graph.facts:
         if fact.predicate != relation:
@@ -154,9 +164,7 @@ def select(document: VerifiedDocument, verb: str, terms: list[str]) -> tuple[Fac
 
 
 def query(document: VerifiedDocument, verb: str, terms: list[str], *, full: bool = False) -> bytes:
-    if not isinstance(document, VerifiedDocument):
-        raise TypeError("queries require an artifact-verified VerifiedDocument")
-    facts = select(document, verb, terms)
+    facts = select(document, verb, terms)  # Refuses anything but an artifact-verified document.
     outcome = "results" if facts else "empty"
     if facts and all(fact.predicate == "unknown" for fact in facts):
         outcome = "unverified"
@@ -205,11 +213,10 @@ def main(argv: list[str] | None = None, loader: Callable = extraction) -> int:
             raise UsageError("choose build, check, or query")
         # Validate query shape before touching an absent atlas so invalid usage is 2.
         if args.command == "query":
-            if (not args.terms or any(not term.strip() for term in args.terms)
-                    or len(" ".join(args.terms).encode("utf-8")) > 2048
-                    or (args.verb == "loads-for" and len(args.terms) < 2)
-                    or (args.verb not in {"guidance", "loads-for", "governs", "state"} and len(args.terms) != 1)):
-                raise UsageError("invalid query arguments")
+            try:
+                _validate_terms(args.verb, args.terms)
+            except UsageError:
+                raise UsageError("invalid query arguments") from None
         document = build(args.root, loader) if args.command == "build" else verify(args.root, loader)
         if args.command == "query":
             content = query(document, args.verb, args.terms, full=args.full)
@@ -227,7 +234,7 @@ def main(argv: list[str] | None = None, loader: Callable = extraction) -> int:
     except ArtifactDrift as error:
         _emit(bounded_envelope({"outcome": "drift", "message": str(error)[:1000]}, []))
         return 1
-    except (ValueError, OSError, UnicodeError, TypeError, KeyError, ImportError, RecursionError, SyntaxError) as error:
+    except (ValueError, OSError, TypeError, KeyError, ImportError, RecursionError, SyntaxError) as error:
         _emit(bounded_envelope({"outcome": "unverified", "message": str(error)[:1000]}, []))
         return 1
 
