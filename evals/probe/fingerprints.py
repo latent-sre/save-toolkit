@@ -94,19 +94,17 @@ def _case_payload(spec: Mapping[str, Any]) -> dict[str, Any]:
     """The case a verdict is about: the scenario, the judge's cached rubric definitions, and current
     oracle file bytes.
 
-    The judge loads rubrics once per process. A disk edit takes effect in a new process, so hash
-    the same cached definitions it consumes rather than attributing a verdict to unconsumed bytes.
+    The judge loads rubrics once per process (`load_rubrics` is cached). A disk edit takes effect in a
+    new process, so hash the same cached definitions it consumes rather than attributing a verdict to
+    unconsumed bytes.
     """
     if harness_source_digest() != HARNESS_SOURCE_SHA256:
         raise RuntimeError("evaluator source changed after import; start a new process")
     rubrics, oracles = {}, {}
-    available = None
     for definition in [*spec.get("graders", []), *spec.get("checks", [])]:
         name = _rubric_name(definition)
         if name:
-            if available is None:
-                available = rubric_judge.load_rubrics()
-            rubrics[name] = available.get(name)
+            rubrics[name] = rubric_judge.load_rubrics().get(name)
         for relative in (definition.get("writes_from") or {}).values():
             source = constants.oracle_source(relative)
             oracles[relative] = (

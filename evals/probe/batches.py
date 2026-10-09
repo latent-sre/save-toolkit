@@ -21,8 +21,7 @@ from .outcomes import State
 def merge_summary_entries(existing: list[dict[str, Any]], updates: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Replace the entry for each (scenario, label, run) the updates name; append the rest."""
     keys = {layout.run_key(u) for u in updates}
-    kept = [e for e in existing if layout.run_key(e) not in keys]
-    return kept + updates
+    return [e for e in existing if layout.run_key(e) not in keys] + updates
 
 
 def batch_identity_problem(

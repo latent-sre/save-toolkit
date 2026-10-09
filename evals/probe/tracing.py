@@ -598,11 +598,11 @@ def to_saved(trace: TraceSummary) -> dict[str, Any]:
 
 def from_saved(summary: Mapping[str, Any], result_text: str) -> TraceSummary:
     """The trace a saved summary restores when the raw trace is gone: its final text and `RESTORED`."""
-    restored: dict[str, Any] = {}
-    for saved, name in SUMMARY_FIELDS.items():
-        if name in RESTORED:
-            value = summary.get(saved)
-            restored[name] = dict(value or {}) if name == "tool_counts" else list(value or [])
+    restored: dict[str, Any] = {
+        name: dict(summary.get(saved) or {}) if name == "tool_counts" else list(summary.get(saved) or [])
+        for saved, name in SUMMARY_FIELDS.items()
+        if name in RESTORED
+    }
     return TraceSummary(result_text=result_text, **restored)
 
 

@@ -129,12 +129,9 @@ def declared_agent_tools(plugin_root: Path, agent: str) -> tuple[str, ...] | Non
     raw = (yaml.safe_load(match.group(1)) or {}).get("tools")
     if raw is None:
         return None
-    resolved = []
-    for grant in raw if isinstance(raw, list) else tool_grants(str(raw)):
-        base = str(grant).strip().split("(")[0].strip()
-        if base:
-            resolved.append(constants.requested_tool_name(base))
-    return tuple(dict.fromkeys(resolved))
+    grants = raw if isinstance(raw, list) else tool_grants(str(raw))
+    bases = [str(grant).strip().split("(")[0].strip() for grant in grants]
+    return tuple(dict.fromkeys(constants.requested_tool_name(base) for base in bases if base))
 
 
 def tool_grants(line: str) -> list[str]:

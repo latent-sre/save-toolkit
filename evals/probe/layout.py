@@ -79,12 +79,11 @@ def number(name: str, prefix: str = "") -> int | None:
 
 def numbered(parent: Path, prefix: str = "") -> list[tuple[Path, int]]:
     """The folders under `parent` named `<prefix><N>`, in numeric order on every host."""
-    found = []
-    if parent.is_dir():
-        for child in parent.iterdir():
-            found_number = number(child.name, prefix)
-            if child.is_dir() and found_number is not None:
-                found.append((child, found_number))
+    if not parent.is_dir():
+        return []
+    found = [
+        (child, n) for child in parent.iterdir() if (n := number(child.name, prefix)) is not None and child.is_dir()
+    ]
     return sorted(found, key=lambda item: item[1])
 
 
