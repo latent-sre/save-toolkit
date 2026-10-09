@@ -616,5 +616,29 @@ class EscapingLinkTests(unittest.TestCase):
         self.assertTrue(any("escapes the repository" in f for f in failures), failures)
 
 
+class CommandLineTests(unittest.TestCase):
+    """The gate step runs with no arguments; anything else is a request about the command."""
+
+    SCRIPT = Path(check_links.__file__)
+
+    def _run(self, *arguments: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(self.SCRIPT), *arguments],
+            capture_output=True, text=True, timeout=60,
+        )
+
+    def test_help_describes_the_check_without_running_it(self) -> None:
+        result = self._run("--help")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("usage:", result.stdout)
+        self.assertNotIn("check_links:", result.stdout)
+
+    def test_an_unknown_argument_is_a_usage_error_not_a_gate_verdict(self) -> None:
+        result = self._run("--root", ".")
+        self.assertEqual(2, result.returncode, result.stdout)
+        self.assertIn("unrecognized arguments", result.stderr)
+        self.assertNotIn("check_links:", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

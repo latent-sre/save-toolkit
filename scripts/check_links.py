@@ -7,6 +7,7 @@ host adapters are consequences and are checked separately by the adapter generat
 
 from __future__ import annotations
 
+import argparse
 import os
 import re
 import subprocess
@@ -583,7 +584,13 @@ def check(root: Path = ROOT) -> list[str]:
     return failures
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Exit status: 0 when every check passes, 1 when any fails, 2 on a usage error.",
+    )
+    parser.parse_args(argv)
     failures = check(ROOT)
     if failures:
         print("check_links: FAIL")
