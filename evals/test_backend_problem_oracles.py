@@ -1,14 +1,13 @@
 """Calibrate the three independently injected backend problem-response predicates."""
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from httpx import Response
-from probe_testkit import scenario_file
+from probe_testkit import load_oracle, scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 ORACLES = ("incidents-api", "incident-writes", "pager-webhook")
@@ -16,11 +15,7 @@ ORACLES = ("incidents-api", "incident-writes", "pager-webhook")
 
 @pytest.fixture(params=ORACLES)
 def oracle(request):
-    path = ROOT / "evals/oracles" / request.param / "probe_checks.py"
-    spec = importlib.util.spec_from_file_location(request.param.replace("-", "_"), path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_oracle(ROOT / "evals/oracles" / request.param / "probe_checks.py")
 
 
 @pytest.fixture

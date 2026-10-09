@@ -1,14 +1,13 @@
 """No-model pagination regressions against the shipped fixture and in-process HTTP apps."""
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
-from probe_testkit import scenario_file
+from probe_testkit import load_oracle, scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-incidents-api.yaml"
@@ -26,10 +25,7 @@ def rows():
 
 @pytest.fixture
 def oracle():
-    spec = importlib.util.spec_from_file_location("incidents_api_oracle", ORACLE)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_oracle(ORACLE)
 
 
 def make_app(rows, cap=None, oversized_response=None, mutate=None):

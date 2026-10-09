@@ -65,8 +65,10 @@ from probe_testkit import (
     judge_process,
     judge_verdict,
     latest_assessment,
+    load_oracle,
     native_dispatch_events,
     parse_events,
+    run_python,
     saved_grade,
     saved_summary,
     scenario_file,
@@ -75,6 +77,7 @@ from probe_testkit import (
     tiny_spec,
     trace_measures,
     write_saved_run,
+    write_tree,
     ws_context,
 )
 
@@ -162,11 +165,9 @@ class ScenarioSpecTests(unittest.TestCase):
         source = next(
             c["writes_from"]["probe_runbook_slots.py"] for c in spec["checks"] if c.get("writes_from")
         )
-        script = (ROOT / source).read_text(encoding="utf-8")
-        namespace: dict = {"__name__": "probe_runbook_slots"}
-        exec(compile(script, "probe_runbook_slots.py", "exec"), namespace)
+        oracle = load_oracle(ROOT / source)
         template = (ROOT / "skills" / "runbook" / "assets" / "runbook-template.md").read_text(encoding="utf-8")
-        self.assertEqual(set(re.findall(r"<[^<>\n]*>", template)), set(namespace["TEMPLATE_LITERALS"]))
+        self.assertEqual(set(re.findall(r"<[^<>\n]*>", template)), set(oracle.TEMPLATE_LITERALS))
 
     def test_validation_reports_malformed_checks_instead_of_crashing(self) -> None:
         problems = probe_catalog.validate_scenario(tiny_spec(threshold=0.5, checks=["bad"], graders=[7]))
@@ -1082,7 +1083,7 @@ class PositiveControlTests(TempRootTestCase):
                 lock.unlink()
             # check=False: setup.py may fail AFTER the write when setuptools is absent; the lock must
             # already be there — the write sits above every third-party import by design.
-            subprocess.run([sys.executable, name], cwd=str(ws.repo), env=env, capture_output=True, timeout=60)
+            run_python([name], cwd=str(ws.repo), text=False, env=env, timeout=60)
             self.assertTrue(lock.exists(), f"{name} executed without writing the lock")
         probe_workspaces._git(ws.repo, "checkout", "-q", "main")
         ctx = ws_context(spec, ws)
@@ -1996,11 +1997,9 @@ class EndToEndStubTests(TempRootTestCase):
 
     def test_a_dirty_state_git_cannot_report_is_unknown_not_clean(self) -> None:
         root = self.root / "plugin"
-        for relative in ("agents/a.md", "skills/s/SKILL.md", "commands/c.md", "hooks/hooks.json",
-                         ".claude-plugin/plugin.json", "scripts/fleet_frontmatter.py", "scripts/readonly-guard.py",
-                         "scripts/readonly-guard-hook.sh"):
-            (root / relative).parent.mkdir(parents=True, exist_ok=True)
-            (root / relative).write_text("x\n", encoding="utf-8")
+        write_tree(root, dict.fromkeys(("agents/a.md", "skills/s/SKILL.md", "commands/c.md", "hooks/hooks.json",
+                                        ".claude-plugin/plugin.json", "scripts/fleet_frontmatter.py",
+                                        "scripts/readonly-guard.py", "scripts/readonly-guard-hook.sh"), "x\n"))
         probe_workspaces._git(root, "init", "-q", "-b", "main")
         probe_workspaces._git(root, "add", "-A")
         probe_workspaces._git(root, "commit", "-q", "-m", "base")
@@ -3957,8 +3956,7 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
                 shutil.copyfile(ROOT / "evals" / name, folder / name)
             script = "from probe import fingerprints as b; print(b.scenario_digest({'id':'x','prompt':'p','graders':[{'type':'contains_all','of':['x']}]}))"
             def digest():
-                result = subprocess.run([sys.executable, "-B", "-c", script], cwd=folder,
-                                        capture_output=True, text=True, check=True, timeout=120)
+                result = run_python(["-B", "-c", script], cwd=folder, check=True, timeout=120)
                 return result.stdout.strip()
             before = digest()
             replacements = {
@@ -3998,8 +3996,7 @@ except RuntimeError as exc:
 else:
     raise AssertionError('cached implementation was attributed to changed disk bytes')
 """
-            result = subprocess.run([sys.executable, "-B", "-c", script], cwd=tmp,
-                                    capture_output=True, text=True, timeout=120)
+            result = run_python(["-B", "-c", script], cwd=tmp, timeout=120)
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertIn("new process", result.stdout)
 

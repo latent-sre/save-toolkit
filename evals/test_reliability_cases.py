@@ -3,7 +3,6 @@
 import json
 import shlex
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,7 +15,7 @@ from probe import checking as probe_checking
 from probe import invocation as probe_invocation
 from probe import tracing as probe_tracing
 from probe import workspaces as probe_workspaces
-from probe_testkit import scenario_file
+from probe_testkit import run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 EXPECTED = {
@@ -156,10 +155,7 @@ def run_oracle_check(check, document, text):
         def run_actual(_ctx, command, timeout):
             arguments = shlex.split(command)
             assert arguments[0] == "python", command
-            result = subprocess.run(
-                [sys.executable, "-I", "-B", *arguments[1:]], cwd=root,
-                capture_output=True, text=True, encoding="utf-8", timeout=timeout,
-            )
+            result = run_python(["-B", *arguments[1:]], cwd=root, isolated=True, encoding="utf-8", timeout=timeout)
             completed.append(result)
             return result
 
@@ -255,19 +251,15 @@ class AcceptedImplementationCaseTests(unittest.TestCase):
             self.assertNotIn("software-engineer", content, f"{name} must not name the answer")
         with tempfile.TemporaryDirectory() as tmp:
             ws = probe_workspaces.seed_workspace(spec, Path(tmp))
-            suite = subprocess.run(
-                [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
-                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8", timeout=120)
+            suite = run_python(["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"], cwd=ws.repo,
+                               encoding="utf-8", timeout=120)
             self.assertEqual(0, suite.returncode, suite.stderr)
             self.assertIn("Ran 2 tests", suite.stderr)
             # The assignment is real code: the request carries a deadline the ledger call never receives.
-            shape = subprocess.run(
-                [sys.executable, "-c",
-                 "import inspect; from checkout_worker.ledger import LedgerClient; "
+            shape = run_python(["-c", "import inspect; from checkout_worker.ledger import LedgerClient; "
                  "from checkout_worker.worker import CheckoutRequest; "
                  "print(sorted(inspect.signature(LedgerClient.post).parameters), "
-                 "'deadline' in CheckoutRequest.__dataclass_fields__)"],
-                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8", timeout=60)
+                 "'deadline' in CheckoutRequest.__dataclass_fields__)"], cwd=ws.repo, encoding="utf-8", timeout=60)
             self.assertEqual("['entry', 'self'] True", shape.stdout.strip(), shape.stderr)
 
 
@@ -293,9 +285,8 @@ class ChangeReviewCaseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             ws = probe_workspaces.seed_workspace(spec, Path(tmp))
             self.assertEqual("feature/partial-refunds", ws.baseline_branch)
-            suite = subprocess.run(
-                [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
-                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8", timeout=120)
+            suite = run_python(["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"], cwd=ws.repo,
+                               encoding="utf-8", timeout=120)
             self.assertEqual(0, suite.returncode, suite.stderr)
             probe = ("from orders.refunds import Order, User, refund\n"
                      "order = Order('o-1', 'u-1', 500)\n"
@@ -308,8 +299,7 @@ class ChangeReviewCaseTests(unittest.TestCase):
             outcomes = {}
             for branch in ("main", "feature/partial-refunds"):
                 subprocess.run(["git", "checkout", "-q", branch], cwd=ws.repo, check=True, timeout=60)
-                run = subprocess.run([sys.executable, "-c", probe], cwd=ws.repo, capture_output=True,
-                                     text=True, encoding="utf-8", timeout=60)
+                run = run_python(["-c", probe], cwd=ws.repo, encoding="utf-8", timeout=60)
                 outcomes[branch] = run.stdout.split()
             # Another customer's refund, an over-total refund and a zero refund: refused on main, allowed on the candidate.
             self.assertEqual(["Forbidden", "ValueError", "ValueError"], outcomes["main"])

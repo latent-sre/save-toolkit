@@ -4,14 +4,13 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from probe import checking as probe_checking
 from probe import tracing as probe_tracing
-from probe_testkit import scenario_file
+from probe_testkit import materialize_reference, run_fixture_suite, run_oracle_check, scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-pager-webhook.yaml"
@@ -181,17 +180,7 @@ MUTANTS = {
 
 
 def materialize(tmp_path: Path, overrides: dict[str, str]) -> Path:
-    spec = scenario_file(SCENARIO)
-    for rel, text in spec["fixture"]["files"].items():
-        path = tmp_path / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-    code = REFERENCE
-    for marker, value in {**HOUSE, **overrides}.items():
-        code = code.replace(marker, value)
-    (tmp_path / "app/main.py").write_text(code, encoding="utf-8")
-    (tmp_path / "probe_checks.py").write_text(ORACLE.read_text(encoding="utf-8"), encoding="utf-8")
-    return tmp_path
+    return materialize_reference(tmp_path, SCENARIO, REFERENCE, {**HOUSE, **overrides}, ORACLE)
 
 
 def run(workspace: Path, check: str) -> subprocess.CompletedProcess:
@@ -200,8 +189,7 @@ def run(workspace: Path, check: str) -> subprocess.CompletedProcess:
     # at about 9 s, inside the 4 + 10 s signature wait, and the reference recovers at once.
     env = dict(os.environ, PROBE_RUNBOOK_DELAY="4", PROBE_PROCESSING_ALLOWANCE="10",
                PROBE_RECOVERY_ALLOWANCE="15", PYTHONDONTWRITEBYTECODE="1")
-    return subprocess.run([sys.executable, "-B", "probe_checks.py", check], cwd=workspace, env=env,
-                          capture_output=True, text=True, timeout=180)
+    return run_oracle_check(workspace, check, env=env, timeout=180)
 
 
 @pytest.mark.parametrize("check", CHECKS)
@@ -226,13 +214,7 @@ def test_enrich_later_design_completes(tmp_path):
 
 
 def test_fixture_suite_passes_unchanged(tmp_path):
-    spec = scenario_file(SCENARIO)
-    for rel, text in spec["fixture"]["files"].items():
-        path = tmp_path / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-    result = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", "-p", "no:cacheprovider"],
-                            cwd=tmp_path, capture_output=True, text=True, timeout=120)
+    result = run_fixture_suite(SCENARIO, tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
 
 

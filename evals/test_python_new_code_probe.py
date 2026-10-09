@@ -1,12 +1,10 @@
 """Offline calibration: real artifacts and exits, no model or external services."""
 
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from probe_testkit import scenario_file
+from probe_testkit import run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/python-craft/check_new_code.py"
@@ -97,15 +95,13 @@ class NewCodeProbeTests(unittest.TestCase):
         spec = scenario_file(SPEC)
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
-            for name, text in spec["fixture"]["files"].items():
-                (work / name).write_text(text, encoding="utf-8")
+            write_tree(work, spec["fixture"]["files"])
             (work / "outcome_counts.py").write_text(source, encoding="utf-8")
             (work / "tests").mkdir()
             (work / "tests/__init__.py").write_text("", encoding="utf-8")
             (work / "tests/test_outcome_counts.py").write_text(tests, encoding="utf-8")
             (work / "_python_new_oracle.py").write_bytes(ORACLE.read_bytes())
-            return subprocess.run([sys.executable, "-I", "-B", "_python_new_oracle.py"], cwd=work,
-                                  capture_output=True, text=True, encoding="utf-8", timeout=45)
+            return run_python(["-B", "_python_new_oracle.py"], cwd=work, isolated=True, encoding="utf-8", timeout=45)
 
     def test_loop_and_generator_counter_implementations_pass(self):
         for source in (CORRECT, SHELL.format(api=COUNTER_API)):

@@ -1,14 +1,12 @@
 """Calibrate the partial-helper alert predicate without a model or Prometheus."""
 
 import shlex
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 import yaml
-from probe_testkit import scenario_file
+from probe_testkit import run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 LONG = "checkout:availability:error_ratio_rate1h"
@@ -41,10 +39,7 @@ class AlertPredicateCaseTests(unittest.TestCase):
             target = root / "alerts/checkout.rules.yml"
             target.parent.mkdir()
             target.write_text(yaml.safe_dump(document), encoding="utf-8", newline="")
-            return subprocess.run(
-                [sys.executable, "-I", "-B", "-c", self.code],
-                cwd=root, capture_output=True, text=True, encoding="utf-8", timeout=15,
-            )
+            return run_python(["-B", "-c", self.code], cwd=root, isolated=True, encoding="utf-8", timeout=15)
 
     def test_supported_two_window_filters_pass(self):
         expressions = (

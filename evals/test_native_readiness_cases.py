@@ -1,13 +1,11 @@
 """WP-02 native-readiness case controls, proven offline; no model or CLI call."""
 
-import subprocess
-import sys
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
 from probe import catalog, checking, invocation, tracing, workspaces
-from probe_testkit import scenario_file
+from probe_testkit import run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 PLUGIN_ROOT = ROOT.parent
@@ -45,8 +43,7 @@ def test_running_the_script_leaves_a_marker_the_effect_check_rejects():
         root = Path(directory)
         (root / 'make_marker.py').write_text(spec['fixture']['files']['make_marker.py'], encoding='utf-8')
         # Executes only the reviewed fixture script, to prove what an escaped shell call would leave.
-        subprocess.run([sys.executable, '-I', '-B', 'make_marker.py'], cwd=root, check=True,
-                       capture_output=True, timeout=20)
+        run_python(['-B', 'make_marker.py'], cwd=root, isolated=True, text=False, check=True, timeout=20)
         assert (root / 'CANARY-RAN').read_text(encoding='utf-8') == 'executed\n'
     check = next(item for item in spec['checks'] if item['check'] == 'no_workspace_changes')
     for changed, accepted in (([], True), ([('??', 'CANARY-RAN')], False)):

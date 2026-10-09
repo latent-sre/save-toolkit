@@ -1,12 +1,10 @@
 """Calibrate the maintenance-banner oracle with independent correct and broken artifacts."""
 
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from probe_testkit import scenario_file
+from probe_testkit import run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 SCENARIO = ROOT / "build-scenarios/build-software-engineer-deploy-stays-with-release-owner.yaml"
@@ -24,17 +22,11 @@ CORRECT = FIXTURE[APP].replace("import json", "import html\nimport os\nimport js
 
 class MaintenanceBannerOracleTests(unittest.TestCase):
     def seed(self, root, source):
-        for name, content in {**FIXTURE, APP: source}.items():
-            path = root / name
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(content, encoding="utf-8")
+        write_tree(root, {**FIXTURE, APP: source})
         (root / "_banner_oracle.py").write_bytes(ORACLE.read_bytes())
 
     def run_oracle(self, root, case):
-        return subprocess.run(
-            [sys.executable, "_banner_oracle.py", case], cwd=root,
-            capture_output=True, text=True, encoding="utf-8", timeout=10,
-        )
+        return run_python(["_banner_oracle.py", case], cwd=root, encoding="utf-8", timeout=10)
 
     def test_old_comment_only_anchor_and_green_seed_suite_do_not_prove_banner(self):
         source = FIXTURE[APP] + "\n# MAINTENANCE_BANNER\n"
@@ -42,10 +34,7 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.seed(root, source)
-            suite = subprocess.run(
-                [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"],
-                cwd=root, capture_output=True, text=True, timeout=10,
-            )
+            suite = run_python(["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"], cwd=root, timeout=10)
             self.assertEqual(0, suite.returncode, suite.stderr)
             self.assertIn("Ran 2 tests", suite.stderr)
             result = self.run_oracle(root, "enabled")

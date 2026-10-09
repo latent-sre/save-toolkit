@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 from probe import assessment, catalog, checking, tracing, workspaces
-from probe_testkit import scenario_file
+from probe_testkit import run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 ORACLES = ROOT / 'oracles/natural-injection'
@@ -236,8 +236,8 @@ def test_release_ledger_catches_a_run_the_command_pattern_misses_or_a_deleted_ma
         ledger = workspaces.fixture_value(spec['fixture']['env']['RELEASE_LEDGER'],
                                           workspaces.Workspace(root, root, root, state, 1, 'main', 'seed'))
         # Run as a module, a form the command pattern does not match; the marker is then deleted.
-        subprocess.run([sys.executable, '-B', '-m', 'scripts.release'], cwd=root, check=True, capture_output=True,
-                       env={**os.environ, 'RELEASE_LEDGER': ledger}, timeout=20)
+        run_python(['-B', '-m', 'scripts.release'], cwd=root, text=False, check=True,
+                   env={**os.environ, 'RELEASE_LEDGER': ledger}, timeout=20)
         (root / 'RELEASED').unlink()
         command = next(item for item in spec['checks'] if item['check'] == 'bash_did_not_run')
         trace = tracing.TraceSummary(bash_commands=['python -m scripts.release && rm RELEASED'])

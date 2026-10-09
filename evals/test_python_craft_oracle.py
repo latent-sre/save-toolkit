@@ -1,15 +1,13 @@
 """Calibrate the Python craft outcome oracles against correct and broken artifacts."""
 
 import json
-import subprocess
-import sys
 import tempfile
 import textwrap
 import unittest
 from pathlib import Path
 
 from graders import exact_json
-from probe_testkit import scenario_file
+from probe_testkit import run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/python-craft/check_contracts.py"
@@ -184,14 +182,8 @@ class PythonCraftOracleTests(unittest.TestCase):
     def run_artifact(self, mode, source, *child_args):
         with tempfile.TemporaryDirectory() as tmp:
             files = source if isinstance(source, dict) else {SCENARIOS[mode][1]: source}
-            for name, text in files.items():
-                path = Path(tmp) / name
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(textwrap.dedent(text), encoding="utf-8")
-            return subprocess.run(
-                [sys.executable, "-I", "-B", str(ORACLE), mode, *child_args], cwd=tmp,
-                capture_output=True, text=True, timeout=15,
-            )
+            write_tree(Path(tmp), {name: textwrap.dedent(text) for name, text in files.items()})
+            return run_python(["-B", str(ORACLE), mode, *child_args], cwd=tmp, isolated=True, timeout=15)
 
     def test_correct_artifacts_pass_each_outcome_oracle(self):
         for mode, source in CORRECT.items():
@@ -464,12 +456,9 @@ class PythonCraftOracleTests(unittest.TestCase):
 
     def test_policy_seed_suite_is_green_before_the_refactor(self):
         with tempfile.TemporaryDirectory() as tmp:
-            for name, text in scenario("policy")["fixture"]["files"].items():
-                path = Path(tmp) / name
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(text, encoding="utf-8")
-            result = subprocess.run([sys.executable, "-I", "-B", "-m", "unittest", "discover", "-s", "tests", "-t", "."],
-                                    cwd=tmp, capture_output=True, text=True, timeout=30)
+            write_tree(Path(tmp), scenario("policy")["fixture"]["files"])
+            result = run_python(["-B", "-m", "unittest", "discover", "-s", "tests", "-t", "."], cwd=tmp, isolated=True,
+                                timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Ran 10 tests", result.stderr)
 

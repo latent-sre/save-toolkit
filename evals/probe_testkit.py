@@ -16,12 +16,17 @@ from __future__ import annotations
 import contextlib
 import copy
 import functools
+import importlib.util
 import io
 import json
+import re
 import subprocess
+import sys
 import tempfile
 import unittest
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 from unittest import mock
 
@@ -123,6 +128,90 @@ def all_scenarios(directory: Path | None = None) -> list[dict[str, Any]]:
     # never served another directory's scenarios.
     key = (directory,) if directory is not None else (catalog.SCENARIO_DIR, catalog.CONTRACT_SCENARIO_DIR)
     return copy.deepcopy(_parsed_scenarios(key))
+
+
+def write_tree(root: Path, files: Mapping[str, str], *, newline: str | None = None) -> Path:
+    """Write each relative path's text under `root`, creating its folders, and return `root`.
+
+    `newline` is Path.write_text's: the default writes the platform's line ending for each "\\n",
+    as a checkout of the fixture would; "\\n" or "" keeps the text's own endings.
+    """
+    for relative, text in files.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8", newline=newline)
+    return root
+
+
+def run_python(
+    args: Sequence[str],
+    *,
+    cwd: Path | str | None = None,
+    isolated: bool = False,
+    timeout: float = 120,
+    **options: Any,
+) -> subprocess.CompletedProcess[Any]:
+    """Run this interpreter on `args`, capturing its output as text unless the caller says otherwise.
+
+    `isolated` adds -I, which also implies -P: the script's own folder is then not on sys.path, so an
+    oracle that imports a module beside it must run without it. Every run is bounded: a hung child
+    fails its test with TimeoutExpired instead of holding the job until CI's limit.
+    """
+    options.setdefault("capture_output", True)
+    options.setdefault("text", True)
+    command = [sys.executable, *(["-I"] if isolated else []), *args]
+    return subprocess.run(command, cwd=cwd, timeout=timeout, **options)
+
+
+def load_oracle(path: Path) -> ModuleType:
+    """Execute an oracle script as a new module, as its check would run it, for in-process calls.
+
+    Every call executes the file afresh: some oracles keep module state (incident-writes' GATE,
+    pager-webhook's _PROCS), so a shared module would carry one test's state into another. The module
+    is registered in sys.modules only while it executes, which is what a dataclass defined there needs.
+    """
+    name = "oracle_" + re.sub(r"\W", "_", f"{path.parent.name}_{path.stem}")
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {path} as a module")
+    module = importlib.util.module_from_spec(spec)
+    previous = sys.modules.get(name)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        if previous is None:
+            sys.modules.pop(name, None)
+        else:
+            sys.modules[name] = previous
+    return module
+
+
+def materialize_reference(
+    workspace: Path, scenario_path: Path, template: str, markers: Mapping[str, str], oracle: Path
+) -> Path:
+    """Seed a backend scenario's fixture, write its reference app/main.py with each marker in
+    `template` replaced in order, and stage the oracle as probe_checks.py beside it."""
+    write_tree(workspace, scenario_file(scenario_path)["fixture"]["files"])
+    code = template
+    for marker, value in markers.items():
+        code = code.replace(marker, value)
+    (workspace / "app/main.py").write_text(code, encoding="utf-8")
+    (workspace / "probe_checks.py").write_text(oracle.read_text(encoding="utf-8"), encoding="utf-8")
+    return workspace
+
+
+def run_oracle_check(
+    workspace: Path, check: str, *, timeout: float, env: Mapping[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Run one check of the oracle materialize_reference staged in `workspace`."""
+    return run_python(["-B", "probe_checks.py", check], cwd=workspace, env=env, timeout=timeout)
+
+
+def run_fixture_suite(scenario_path: Path, workspace: Path) -> subprocess.CompletedProcess[str]:
+    """Seed the scenario's fixture alone and run its own pytest suite, as the agent receives it."""
+    write_tree(workspace, scenario_file(scenario_path)["fixture"]["files"])
+    return run_python(["-B", "-m", "pytest", "-q", "-p", "no:cacheprovider"], cwd=workspace)
 
 
 class TempRootTestCase(unittest.TestCase):

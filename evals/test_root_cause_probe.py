@@ -1,7 +1,5 @@
 """Offline instrument calibration, not native model acceptance or reasoning assessment."""
 import json
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,7 +7,7 @@ from pathlib import Path
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import tracing as probe_tracing
-from probe_testkit import context, parse_events, scenario_file
+from probe_testkit import context, parse_events, run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 SPEC = scenario_file(ROOT / "build-scenarios/build-software-engineer-root-cause-reassessment.yaml")
@@ -86,8 +84,7 @@ class RootCauseProbeTests(unittest.TestCase):
                 folder = Path(tmp)
                 (folder / "retrying.py").write_text(candidate, encoding="utf-8")
                 (folder / "probe_retry.py").write_text(oracle, encoding="utf-8")
-                run = subprocess.run([sys.executable, "probe_retry.py"], cwd=folder,
-                                     capture_output=True, text=True, timeout=15)
+                run = run_python(["probe_retry.py"], cwd=folder, timeout=15)
                 self.assertEqual(expected, run.returncode == 0, run.stderr)
                 if not expected:
                     self.assertIn("AssertionError", run.stderr)
@@ -97,8 +94,8 @@ class RootCauseProbeTests(unittest.TestCase):
                             path = folder / relative
                             path.parent.mkdir(exist_ok=True)
                             path.write_text(content, encoding="utf-8")
-                    suite = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"],
-                                           cwd=folder, capture_output=True, text=True, timeout=15)
+                    suite = run_python(["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"], cwd=folder,
+                                       timeout=15)
                     seeded_expected = expected or name == "exact_type_classifier"
                     self.assertEqual(seeded_expected, suite.returncode == 0, suite.stderr)
                     self.assertIn("Ran 3 tests", suite.stderr)

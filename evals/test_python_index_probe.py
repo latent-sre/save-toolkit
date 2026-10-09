@@ -1,13 +1,11 @@
 """Offline calibration of the indexed-membership build probe's actual command."""
 
-import subprocess
-import sys
 import tempfile
 import textwrap
 import unittest
 from pathlib import Path
 
-from probe_testkit import scenario_file
+from probe_testkit import run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 SPEC = scenario_file(ROOT / 'build-scenarios/build-python-indexed-membership.yaml')
@@ -63,13 +61,9 @@ class SearchCostTests(unittest.TestCase):
 class IndexedMembershipTests(unittest.TestCase):
     def test_fixture_has_a_passing_existing_regression_suite(self):
         with tempfile.TemporaryDirectory() as tmp:
-            for name, content in SPEC['fixture']['files'].items():
-                target = Path(tmp) / name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text(content, encoding='utf-8')
-            result = subprocess.run(
-                [sys.executable, '-I', '-B', '-m', 'unittest', 'discover', '-s', 'tests', '-t', '.', '-v'],
-                cwd=tmp, capture_output=True, text=True, timeout=15)
+            write_tree(Path(tmp), SPEC['fixture']['files'])
+            result = run_python(['-B', '-m', 'unittest', 'discover', '-s', 'tests', '-t', '.', '-v'], cwd=tmp,
+                                isolated=True, timeout=15)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('Ran 2 tests', result.stderr)
             self.assertIn('test_order_duplicates_and_identity', result.stderr)
@@ -78,10 +72,7 @@ class IndexedMembershipTests(unittest.TestCase):
     def run_artifact(self, source, tests=None):
         check = next(c for c in SPEC['checks'] if c['check'] == 'command_exit_zero')
         with tempfile.TemporaryDirectory() as tmp:
-            for name, content in SPEC['fixture']['files'].items():
-                target = Path(tmp) / name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text(content, encoding='utf-8')
+            write_tree(Path(tmp), SPEC['fixture']['files'])
             (Path(tmp) / 'selection.py').write_text(textwrap.dedent(source), encoding='utf-8')
             if tests is None:
                 tests = SPEC['fixture']['files']['tests/test_selection.py'] + FOCUSED_TESTS
@@ -89,8 +80,7 @@ class IndexedMembershipTests(unittest.TestCase):
             for name, oracle in check['writes_from'].items():
                 (Path(tmp) / name).write_bytes((ROOT.parent / oracle).read_bytes())
             # Execute precisely the staged scenario command with the verified interpreter.
-            return subprocess.run([sys.executable, *check['command'].split()[1:]], cwd=tmp,
-                                  capture_output=True, text=True, timeout=15)
+            return run_python([*check['command'].split()[1:]], cwd=tmp, timeout=15)
 
     def test_candidate_system_exit_is_always_failure(self):
         for code in (0, 3):

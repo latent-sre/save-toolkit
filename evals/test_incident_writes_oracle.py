@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
-from probe_testkit import scenario_file
+from probe_testkit import materialize_reference, run_fixture_suite, run_oracle_check
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-incident-writes.yaml"
@@ -130,28 +129,18 @@ MUTANTS = {
 
 
 def materialize(tmp_path: Path, overrides: dict[str, str], defer_commit: bool = True, status: str = "open") -> Path:
-    spec = scenario_file(SCENARIO)
-    for rel, text in spec["fixture"]["files"].items():
-        path = tmp_path / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-    code = REFERENCE
-    for marker, value in {**HOUSE, **overrides}.items():
-        code = code.replace(marker, value)
-    (tmp_path / "app/main.py").write_text(code, encoding="utf-8")
+    materialize_reference(tmp_path, SCENARIO, REFERENCE, {**HOUSE, **overrides}, ORACLE)
     store = tmp_path / "app/store.py"
     text = store.read_text(encoding="utf-8")
     assert STORE_COMMIT[0] in text and STORE_OPEN in text, "fixture store changed; update the reference"
     if defer_commit:
         text = text.replace(*STORE_COMMIT)
     store.write_text(text.replace(STORE_OPEN, f'"status": "{status}"'), encoding="utf-8")
-    (tmp_path / "probe_checks.py").write_text(ORACLE.read_text(encoding="utf-8"), encoding="utf-8")
     return tmp_path
 
 
 def run(workspace: Path, check: str) -> subprocess.CompletedProcess:
-    return subprocess.run([sys.executable, "-B", "probe_checks.py", check], cwd=workspace,
-                          capture_output=True, text=True, timeout=120)
+    return run_oracle_check(workspace, check, timeout=120)
 
 
 @pytest.mark.parametrize("check", CHECKS)
@@ -184,11 +173,5 @@ def test_mutant_fails_its_check(tmp_path, name):
 
 
 def test_fixture_suite_passes_unchanged(tmp_path):
-    spec = scenario_file(SCENARIO)
-    for rel, text in spec["fixture"]["files"].items():
-        path = tmp_path / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-    result = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", "-p", "no:cacheprovider"],
-                            cwd=tmp_path, capture_output=True, text=True, timeout=120)
+    result = run_fixture_suite(SCENARIO, tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr

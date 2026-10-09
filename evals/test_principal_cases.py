@@ -2,8 +2,6 @@
 
 import json
 import re
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,7 +12,7 @@ from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import invocation as probe_invocation
 from probe import workspaces as probe_workspaces
-from probe_testkit import scenario_file
+from probe_testkit import run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 CANDIDATE = ROOT / "build-scenarios/build-principal-engineer-contract-change.yaml"
@@ -74,8 +72,7 @@ def _oracle(text: str) -> int:
     with tempfile.TemporaryDirectory() as temporary:
         record = Path(temporary) / "record.md"
         record.write_text(text, encoding="utf-8")
-        return subprocess.run([sys.executable, str(ORACLE), str(record)],
-                              capture_output=True, text=True, timeout=60).returncode
+        return run_python([str(ORACLE), str(record)], timeout=60).returncode
 
 
 def _headings_record(slots=SLOT_HEADINGS, body="Supplied requirement [sourced] requirements.md.") -> str:
@@ -365,9 +362,8 @@ class DesignReviewCaseTests(unittest.TestCase):
         spec = scenario_file(self.SCENARIO)
         with tempfile.TemporaryDirectory() as tmp:
             ws = probe_workspaces.seed_workspace(spec, Path(tmp))
-            suite = subprocess.run(
-                [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"],
-                cwd=ws.repo, capture_output=True, text=True, encoding="utf-8", timeout=120)
+            suite = run_python(["-m", "unittest", "discover", "-s", "tests", "-t", ".", "-q"], cwd=ws.repo,
+                               encoding="utf-8", timeout=120)
             self.assertEqual(0, suite.returncode, suite.stderr)
             probe = ("from events.producer import order_event\n"
                      "from fulfilment.worker import handle\n"
@@ -379,8 +375,7 @@ class DesignReviewCaseTests(unittest.TestCase):
                      "    print('report ok')\n"
                      "except TypeError:\n"
                      "    print('report TypeError')\n")
-            run = subprocess.run([sys.executable, "-c", probe], cwd=ws.repo, capture_output=True,
-                                 text=True, encoding="utf-8", timeout=60)
+            run = run_python(["-c", probe], cwd=ws.repo, encoding="utf-8", timeout=60)
             self.assertEqual(["ship o-1", "report TypeError"], run.stdout.strip().splitlines(), run.stderr)
 
 

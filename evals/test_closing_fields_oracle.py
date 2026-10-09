@@ -5,13 +5,12 @@ quality. Missing, empty, quoted, or nonterminal fields must not pass as a comple
 """
 from __future__ import annotations
 
-import importlib.util
 import re
 from pathlib import Path
 
 import pytest
 from graders import run_grader
-from probe_testkit import scenario_file
+from probe_testkit import load_oracle, scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 ORACLE = ROOT / "evals/oracles/incident-closing-fields/probe_closing_fields.py"
@@ -20,10 +19,7 @@ SKILL = ROOT / "skills/incident-investigation/SKILL.md"
 
 @pytest.fixture(scope="module")
 def oracle():
-    spec = importlib.util.spec_from_file_location("probe_closing_fields", ORACLE)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_oracle(ORACLE)
 
 
 CLOSING = """Check the pool counts next.

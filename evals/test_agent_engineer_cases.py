@@ -1,13 +1,11 @@
 """Calibrate the agent-engineer repair fixture without invoking a model."""
 
 import shlex
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from probe_testkit import scenario_file
+from probe_testkit import run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 
@@ -31,10 +29,7 @@ class AgentEngineerCaseTests(unittest.TestCase):
             target = root / "skills/weekly-report/SKILL.md"
             target.parent.mkdir(parents=True)
             target.write_text(content, encoding="utf-8", newline="")
-            return subprocess.run(
-                [sys.executable, "-I", "-B", "-c", self.code],
-                cwd=root, capture_output=True, text=True, encoding="utf-8", timeout=15,
-            )
+            return run_python(["-B", "-c", self.code], cwd=root, isolated=True, encoding="utf-8", timeout=15)
 
     def test_repair_accepts_only_documented_whitespace_normalization(self):
         cases = {

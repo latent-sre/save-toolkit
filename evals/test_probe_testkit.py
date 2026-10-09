@@ -4,13 +4,26 @@ Run directly: python evals/test_probe_testkit.py
 """
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from probe import catalog as probe_catalog
-from probe_testkit import EVALS, all_scenarios, scenario, scenario_file, tiny_fixture, tiny_spec
+from probe_testkit import (
+    EVALS,
+    all_scenarios,
+    load_oracle,
+    run_python,
+    scenario,
+    scenario_file,
+    tiny_fixture,
+    tiny_spec,
+    write_tree,
+)
 
 
 class SpecFactoryTests(unittest.TestCase):
@@ -47,6 +60,33 @@ class ScenarioLoaderTests(unittest.TestCase):
                 mock.patch.object(probe_catalog, "CONTRACT_SCENARIO_DIR", Path(tmp) / "none"):
             self.assertEqual([], all_scenarios())
         self.assertTrue(all_scenarios())
+
+
+class FileAndProcessHelperTests(unittest.TestCase):
+    def test_write_tree_creates_folders_and_keeps_the_requested_line_endings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertEqual(root, write_tree(root, {"a/b/c.txt": "one\ntwo\n", "top.txt": ""}, newline="\n"))
+            self.assertEqual(b"one\ntwo\n", (root / "a/b/c.txt").read_bytes())
+            self.assertEqual(b"", (root / "top.txt").read_bytes())
+            write_tree(root, {"native.txt": "x\n"})
+            self.assertEqual(b"x" + os.linesep.encode(), (root / "native.txt").read_bytes())
+
+    def test_run_python_captures_text_bounds_the_run_and_isolates_on_request(self) -> None:
+        probe = "import sys; print(sys.flags.isolated, sys.flags.safe_path)"
+        self.assertEqual("0 False", run_python(["-c", probe]).stdout.strip())
+        self.assertEqual("1 True", run_python(["-c", probe], isolated=True).stdout.strip())
+        self.assertEqual(b"raw", run_python(["-c", "print('raw')"], text=False).stdout.strip())
+        with self.assertRaises(subprocess.TimeoutExpired):
+            run_python(["-c", "import time; time.sleep(30)"], timeout=0.5)
+
+    def test_each_oracle_load_is_a_fresh_module_that_leaves_no_registration(self) -> None:
+        path = EVALS / "oracles/incident-writes/probe_checks.py"
+        first, second = load_oracle(path), load_oracle(path)
+        self.assertIsNot(first, second)
+        self.assertIsNot(first.GATE, second.GATE, "module state is never shared between loads")
+        self.assertEqual(str(path), first.__file__)
+        self.assertNotIn(first.__name__, sys.modules)
 
 
 if __name__ == "__main__":

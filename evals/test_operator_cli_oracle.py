@@ -1,12 +1,10 @@
 """Calibrate the operator-cli requeue oracle against a correct CLI, the seed, and single-rule breaks."""
 
-import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from probe_testkit import scenario_file
+from probe_testkit import run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/operator-cli/check_requeue.py"
@@ -111,8 +109,7 @@ class OperatorCliOracleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             candidate = Path(tmp) / "requeue_failed.py"
             candidate.write_text(source, encoding="utf-8")
-            return subprocess.run([sys.executable, "-I", "-B", str(ORACLE), str(candidate)],
-                                  capture_output=True, text=True, timeout=180)
+            return run_python(["-B", str(ORACLE), str(candidate)], isolated=True, timeout=180)
 
     def test_correct_cli_passes(self):
         result = self.run_oracle(CORRECT)
