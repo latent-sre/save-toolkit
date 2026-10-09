@@ -10,9 +10,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
 import check_links
+from testkit import must_replace
 
 # The real repository root, for the handful of tests that assert against the live tree rather than
 # a synthetic fixture. Taken from check_links so the two can never disagree about where root is.
@@ -148,8 +147,8 @@ class LinkCheckerTests(Fixture):
         )
 
     def test_top_level_frontmatter_comment_is_allowed(self):
-        frontmatter = CLEAN_FRONTMATTER.replace(
-            'argument-hint: "[the probe]"',
+        frontmatter = must_replace(
+            CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
             '# Human-invoked skill; this comment is model-visible context.\n'
             'argument-hint: "[the probe]"',
         )
@@ -157,8 +156,8 @@ class LinkCheckerTests(Fixture):
         self.assertEqual([], check_links.check(self.root))
 
     def test_list_value_uses_shared_syntax_then_fails_skill_field_policy(self):
-        frontmatter = CLEAN_FRONTMATTER.replace(
-            'argument-hint: "[the probe]"',
+        frontmatter = must_replace(
+            CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
             "argument-hint:\n  - one\n  - two",
         )
         self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
@@ -171,40 +170,40 @@ class LinkCheckerTests(Fixture):
             with self.subTest(value=value):
                 root = Path(self._tmp.name) / value.strip('"').replace(" ", "-")
                 self.root = root
-                frontmatter = CLEAN_FRONTMATTER.replace('"[the probe]"', value)
+                frontmatter = must_replace(CLEAN_FRONTMATTER, '"[the probe]"', value)
                 self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
                 self.assertEqual([], check_links.check(self.root))
 
     def test_frontmatter_contract_rejects_each_silent_load_failure(self):
         cases = {
-            "unknown": CLEAN_FRONTMATTER.replace(
-                'argument-hint: "[the probe]"',
+            "unknown": must_replace(
+                CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
                 'argument-hint: "[the probe]"\nrogue: true',
             ),
-            "blank-hint": CLEAN_FRONTMATTER.replace(
-                'argument-hint: "[the probe]"', 'argument-hint: ""'
+            "blank-hint": must_replace(
+                CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"', 'argument-hint: ""'
             ),
-            "list-hint": CLEAN_FRONTMATTER.replace(
-                'argument-hint: "[the probe]"', "argument-hint: [the probe]"
+            "list-hint": must_replace(
+                CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"', "argument-hint: [the probe]"
             ),
-            "boolean-hint": CLEAN_FRONTMATTER.replace(
-                'argument-hint: "[the probe]"', "argument-hint: false"
+            "boolean-hint": must_replace(
+                CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"', "argument-hint: false"
             ),
-            "number-hint": CLEAN_FRONTMATTER.replace(
-                'argument-hint: "[the probe]"', "argument-hint: 123"
+            "number-hint": must_replace(
+                CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"', "argument-hint: 123"
             ),
-            "null-hint": CLEAN_FRONTMATTER.replace(
-                'argument-hint: "[the probe]"', "argument-hint: null"
+            "null-hint": must_replace(
+                CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"', "argument-hint: null"
             ),
-            "unmatched-single-hint": CLEAN_FRONTMATTER.replace(
-                'argument-hint: "[the probe]"', "argument-hint: 'the probe"
+            "unmatched-single-hint": must_replace(
+                CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"', "argument-hint: 'the probe"
             ),
-            "missing-triggers": CLEAN_FRONTMATTER.replace("Triggers:", "Use when"),
-            "one-trigger": CLEAN_FRONTMATTER.replace(
-                ', "inspect this probe"', ""
+            "missing-triggers": must_replace(CLEAN_FRONTMATTER, "Triggers:", "Use when"),
+            "one-trigger": must_replace(
+                CLEAN_FRONTMATTER, ', "inspect this probe"', ""
             ),
-            "over-1024": CLEAN_FRONTMATTER.replace(
-                "A clean probe skill.", "x" * 1025
+            "over-1024": must_replace(
+                CLEAN_FRONTMATTER, "A clean probe skill.", "x" * 1025
             ),
         }
         for label, frontmatter in cases.items():
@@ -219,8 +218,8 @@ class LinkCheckerTests(Fixture):
     def test_skill_description_limit_counts_characters_not_utf8_bytes(self):
         suffix = ' Triggers: "check this probe", "inspect this probe".'
         description = "é" * (check_links.SKILL_DESCRIPTION_MAX_CHARS - len(suffix)) + suffix
-        frontmatter = CLEAN_FRONTMATTER.replace(
-            'A clean probe skill. Triggers: "check this probe", "inspect this probe".',
+        frontmatter = must_replace(
+            CLEAN_FRONTMATTER, 'A clean probe skill. Triggers: "check this probe", "inspect this probe".',
             description,
         )
         self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
@@ -232,7 +231,7 @@ class LinkCheckerTests(Fixture):
 
         self.write(
             "skills/probe-skill/SKILL.md",
-            frontmatter.replace(description, "é" + description) + "\n# Probe\n",
+            must_replace(frontmatter, description, "é" + description) + "\n# Probe\n",
         )
         failures = check_links.check(self.root)
         self.assertTrue(
@@ -242,7 +241,7 @@ class LinkCheckerTests(Fixture):
 
     def test_skill_name_over_64_characters_is_rejected(self):
         name = "a" * 65
-        frontmatter = CLEAN_FRONTMATTER.replace("probe-skill", name)
+        frontmatter = must_replace(CLEAN_FRONTMATTER, "probe-skill", name)
         self.write(f"skills/{name}/SKILL.md", frontmatter + "\n# Probe\n")
         failures = check_links.check(self.root)
         self.assertTrue(
@@ -251,8 +250,8 @@ class LinkCheckerTests(Fixture):
         )
 
     def test_skill_compatibility_over_500_characters_is_rejected(self):
-        frontmatter = CLEAN_FRONTMATTER.replace(
-            'argument-hint: "[the probe]"',
+        frontmatter = must_replace(
+            CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
             'argument-hint: "[the probe]"\ncompatibility: "' + "x" * 501 + '"',
         )
         self.write("skills/probe-skill/SKILL.md", frontmatter + "\n# Probe\n")
@@ -263,8 +262,8 @@ class LinkCheckerTests(Fixture):
         )
 
     def test_skill_compatibility_block_scalar_cannot_bypass_length_gate(self):
-        frontmatter = CLEAN_FRONTMATTER.replace(
-            'argument-hint: "[the probe]"',
+        frontmatter = must_replace(
+            CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
             'argument-hint: "[the probe]"\ncompatibility: |-\n  x\n'
             + "  \n" * 501
             + "  y",
@@ -277,9 +276,8 @@ class LinkCheckerTests(Fixture):
         )
 
     def test_manual_only_control_is_required_inside_frontmatter_and_cannot_widen(self):
-        manual_frontmatter = CLEAN_FRONTMATTER.replace(
-            "name: probe-skill", "name: pcf-deploy"
-        ).replace(
+        manual_frontmatter = must_replace(
+            must_replace(CLEAN_FRONTMATTER, "name: probe-skill", "name: pcf-deploy"),
             'argument-hint: "[the probe]"',
             'argument-hint: "[the probe]"\ndisable-model-invocation: true',
         )
@@ -294,7 +292,7 @@ class LinkCheckerTests(Fixture):
         self.root = missing
         self.write(
             "skills/pcf-deploy/SKILL.md",
-            manual_frontmatter.replace("disable-model-invocation: true\n", "")
+            must_replace(manual_frontmatter, "disable-model-invocation: true\n", "")
             + "\n# Manual probe\n",
         )
         self.assertTrue(
@@ -305,7 +303,7 @@ class LinkCheckerTests(Fixture):
         self.root = moved
         self.write(
             "skills/pcf-deploy/SKILL.md",
-            manual_frontmatter.replace("disable-model-invocation: true\n", "")
+            must_replace(manual_frontmatter, "disable-model-invocation: true\n", "")
             + "\ndisable-model-invocation: true\n# Manual probe\n",
         )
         self.assertTrue(
@@ -316,8 +314,8 @@ class LinkCheckerTests(Fixture):
         self.root = widened
         self.write(
             "skills/probe-skill/SKILL.md",
-            CLEAN_FRONTMATTER.replace(
-                'argument-hint: "[the probe]"',
+            must_replace(
+                CLEAN_FRONTMATTER, 'argument-hint: "[the probe]"',
                 'argument-hint: "[the probe]"\ndisable-model-invocation: true',
             )
             + "\n# Probe\n",

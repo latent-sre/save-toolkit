@@ -13,27 +13,15 @@ from unittest import mock
 import fleet_frontmatter
 import generate_platform_adapters
 import validate_fleet
-from testkit import must_replace
+from testkit import markdown_section, must_replace, normalized
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _normalized(text: str) -> str:
-    return re.sub(r"\s+", " ", text.lower()).strip()
-
-
 def _markdown_section(relative: Path, heading: str) -> str:
-    text = (ROOT / relative).read_text(encoding="utf-8")
-    marker = f"{heading}\n"
-    if marker not in text:
-        raise AssertionError(f"{relative.as_posix()}: missing heading {heading!r}")
-    section = text.split(marker, 1)[1]
-    level = len(heading) - len(heading.lstrip("#"))
-    next_heading = re.search(rf"^#{{1,{level}}}\s+", section, re.MULTILINE)
-    if next_heading:
-        section = section[: next_heading.start()]
-    return _normalized(section)
+    """The case- and whitespace-normalized body under `heading` in one repository file."""
+    return normalized(markdown_section((ROOT / relative).read_text(encoding="utf-8"), heading))
 
 
 def _agent(name: str) -> fleet_frontmatter.ParsedFrontmatter:
@@ -158,7 +146,7 @@ class FleetValidatorTests(unittest.TestCase):
     def test_missing_tools_returns_a_diagnostic_instead_of_crashing(self) -> None:
         failures = _agent_failures_after_edit(
             "repository-investigator.md",
-            lambda text: text.replace("tools: Read, Grep, Glob", "# tools omitted"),
+            lambda text: must_replace(text, "tools: Read, Grep, Glob", "# tools omitted"),
         )
         self.assertEqual(1, len(failures), failures)
         self.assertIn("tools must be explicit; omission inherits all tools", failures[0])
@@ -201,8 +189,8 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_field_tool_and_authority_diagnostics_keep_their_order(self) -> None:
         failures = _agent_failures_after_edit(
-            "scribe.md", lambda text: text.replace(
-                "tools: Read, Grep, Glob, Edit, Write, Skill", "hooks: ignored\ntools: Read, Read",
+            "scribe.md", lambda text: must_replace(
+                text, "tools: Read, Grep, Glob, Edit, Write, Skill", "hooks: ignored\ntools: Read, Read",
             ),
         )
         self.assertEqual([
@@ -245,13 +233,13 @@ class FleetValidatorTests(unittest.TestCase):
         for shell in ("Bash", "PowerShell"):
             with self.subTest(removed=shell):
                 failures = _agent_failures_after_edit(
-                    "software-engineer.md", lambda text: text.replace(f", {shell},", ",", 1),
+                    "software-engineer.md", lambda text: must_replace(text, f", {shell},", ",", 1),
                 )
                 self.assertTrue(any("missing required tool(s)" in item and shell in item
                                     for item in failures), failures)
 
     def test_always_loaded_guide_keeps_conditional_authority_complete(self) -> None:
-        guide = _normalized((ROOT / "AGENTS.md").read_text(encoding="utf-8"))
+        guide = normalized((ROOT / "AGENTS.md").read_text(encoding="utf-8"))
         self.assertIn(
             "load it before recommending or changing supported runtime, tooling, or "
             "infrastructure choices",
@@ -340,7 +328,7 @@ class FleetValidatorTests(unittest.TestCase):
             ),
             (
                 "software-engineer-description",
-                _normalized(software_engineer_fields["description"]),
+                normalized(software_engineer_fields["description"]),
                 (),
                 ("reviewer",),
             ),
@@ -588,7 +576,7 @@ class FleetValidatorTests(unittest.TestCase):
             ),
         }
         for relative, phrases in expectations.items():
-            text = _normalized((ROOT / relative).read_text(encoding="utf-8"))
+            text = normalized((ROOT / relative).read_text(encoding="utf-8"))
             for phrase in phrases:
                 with self.subTest(contract=relative.as_posix(), phrase=phrase):
                     self.assertIn(phrase, text)
@@ -606,8 +594,8 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_scribe_execute_egress_and_delegation_are_rejected(self) -> None:
         failures = _agent_failures_after_edit(
-            "scribe.md", lambda text: text.replace(
-                "tools: Read, Grep, Glob, Edit, Write, Skill",
+            "scribe.md", lambda text: must_replace(
+                text, "tools: Read, Grep, Glob, Edit, Write, Skill",
                 "tools: Read, Grep, Glob, Edit, Write, Skill, Bash, WebSearch, Agent(save-toolkit:researcher)",
             ),
         )
@@ -638,7 +626,7 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_inert_plugin_hook_and_missing_tools_fail(self) -> None:
         failures = _agent_failures_after_edit(
-            "reviewer.md", lambda text: text.replace("tools: Read, Grep, Glob", "hooks: ignored\ntools: Read"),
+            "reviewer.md", lambda text: must_replace(text, "tools: Read, Grep, Glob", "hooks: ignored\ntools: Read"),
         )
         rendered = "\n".join(failures)
         self.assertIn("unsupported plugin agent field", rendered)
@@ -651,16 +639,16 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_mcp_server_wildcard_is_rejected(self) -> None:
         failures = _agent_failures_after_edit(
-            "researcher.md", lambda text: text.replace(
-                "  - mcp__plugin_githits_githits__search\n", "  - mcp__plugin_githits_githits__*\n",
+            "researcher.md", lambda text: must_replace(
+                text, "  - mcp__plugin_githits_githits__search\n", "  - mcp__plugin_githits_githits__*\n",
             ),
         )
         self.assertIn("MCP authority is not exact-approved", "\n".join(failures))
 
     def test_unknown_delegation_target_is_rejected(self) -> None:
         failures = _agent_failures_after_edit(
-            "software-engineer.md", lambda text: text.replace(
-                "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
+            "software-engineer.md", lambda text: must_replace(
+                text, "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
                 "Agent(save-toolkit:does-not-exist)",
             ),
         )
@@ -669,13 +657,13 @@ class FleetValidatorTests(unittest.TestCase):
     def test_local_investigator_external_egress_is_rejected(self) -> None:
         failures = _agent_failures_after_edit(
             "repository-investigator.md",
-            lambda text: text.replace("tools: Read, Grep, Glob", "tools: Read, Grep, Glob, WebSearch"),
+            lambda text: must_replace(text, "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, WebSearch"),
         )
         self.assertIn("forbidden tool(s): WebSearch", "\n".join(failures))
 
     def test_external_researcher_local_read_is_rejected(self) -> None:
         failures = _agent_failures_after_edit(
-            "researcher.md", lambda text: text.replace("  - WebSearch\n", "  - Read\n  - WebSearch\n"),
+            "researcher.md", lambda text: must_replace(text, "  - WebSearch\n", "  - Read\n  - WebSearch\n"),
         )
         self.assertIn("forbidden tool(s): Read", "\n".join(failures))
 
@@ -685,7 +673,7 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn(bootstrap, grants)
         self.assertNotIn("Skill", grants)
         failures = _agent_failures_after_edit(
-            "researcher.md", lambda text: text.replace(f"  - {bootstrap}\n", ""),
+            "researcher.md", lambda text: must_replace(text, f"  - {bootstrap}\n", ""),
         )
         self.assertIn(f"missing required tool(s): {bootstrap}", "\n".join(failures))
 
@@ -700,8 +688,8 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_delegation_contract_is_exact(self) -> None:
         failures = _agent_failures_after_edit(
-            "software-engineer.md", lambda text: text.replace(
-                "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
+            "software-engineer.md", lambda text: must_replace(
+                text, "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
                 "Agent(save-toolkit:reviewer)",
             ),
         )
@@ -709,8 +697,8 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_sre_postincident_delegation_edges_are_rejected(self) -> None:
         failures = _agent_failures_after_edit(
-            "sre-assistant.md", lambda text: text.replace(
-                "Agent(save-toolkit:researcher)",
+            "sre-assistant.md", lambda text: must_replace(
+                text, "Agent(save-toolkit:researcher)",
                 "Agent(save-toolkit:observability-engineer, save-toolkit:scribe, save-toolkit:researcher)",
             ),
         )
@@ -718,7 +706,7 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_bare_plugin_delegation_is_rejected(self) -> None:
         failures = _agent_failures_after_edit(
-            "sre-assistant.md", lambda text: text.replace("Agent(save-toolkit:researcher)", "Agent(researcher)"),
+            "sre-assistant.md", lambda text: must_replace(text, "Agent(save-toolkit:researcher)", "Agent(researcher)"),
         )
         self.assertIn("invalid Agent target 'researcher'", "\n".join(failures))
 
@@ -731,8 +719,8 @@ class FleetValidatorTests(unittest.TestCase):
         being tested.
         """
         failures = _agent_failures_after_edit(
-            "sre-assistant.md", lambda text: text.replace(
-                "name: sre-assistant\n", "name: sre-assistant\nmodel: sonnet\n",
+            "sre-assistant.md", lambda text: must_replace(
+                text, "name: sre-assistant\n", "name: sre-assistant\nmodel: sonnet\n",
             ),
         )
         self.assertEqual([], failures)
@@ -741,8 +729,8 @@ class FleetValidatorTests(unittest.TestCase):
         # The staleness the old blanket ban existed to prevent: a dated ID keeps pointing at
         # a model long after the fleet has moved on, and nothing errors.
         failures = _agent_failures_after_edit(
-            "sre-assistant.md", lambda text: text.replace(
-                "name: sre-assistant\n", "name: sre-assistant\nmodel: claude-opus-4-1-20250805\n",
+            "sre-assistant.md", lambda text: must_replace(
+                text, "name: sre-assistant\n", "name: sre-assistant\nmodel: claude-opus-4-1-20250805\n",
             ),
         )
         self.assertIn("model must be one of", "\n".join(failures))
@@ -751,15 +739,15 @@ class FleetValidatorTests(unittest.TestCase):
         # `Bash(git diff:*)` reads like a narrowed shell and grants an open one — the runtime
         # ignores the scope. Only Agent(...) scoping is real.
         failures = _agent_failures_after_edit(
-            "sre-assistant.md", lambda text: text.replace(
-                "Read, Grep, Glob, Bash, Skill", "Read, Grep, Glob, Bash(git diff:*), Skill",
+            "sre-assistant.md", lambda text: must_replace(
+                text, "Read, Grep, Glob, Bash, Skill", "Read, Grep, Glob, Bash(git diff:*), Skill",
             ),
         )
         self.assertIn("scoped tool grant", "\n".join(failures))
 
     def test_duplicate_tool_grant_is_rejected(self) -> None:
         failures = _agent_failures_after_edit(
-            "reviewer.md", lambda text: text.replace("tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Read"),
+            "reviewer.md", lambda text: must_replace(text, "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Read"),
         )
         self.assertIn("duplicate tool grant", "\n".join(failures))
 
@@ -767,7 +755,7 @@ class FleetValidatorTests(unittest.TestCase):
         # Dropping [sourced] while keeping the other two labels loses the ability to distinguish
         # "I ran it" from "the file says so"; the triad is all-or-nothing.
         failures = _agent_failures_after_edit(
-            "software-engineer.md", lambda text: text.replace("[sourced]", "[srcd]"),
+            "software-engineer.md", lambda text: must_replace(text, "[sourced]", "[srcd]", count=-1),
         )
         self.assertIn("incomplete evidence-label triad", "\n".join(failures))
 
@@ -776,7 +764,7 @@ class FleetValidatorTests(unittest.TestCase):
         # read-only-by-intent, whose read-only-ness is only a promise unless the guard scopes it.
         failures = _agent_failures_after_edit(
             "repository-investigator.md",
-            lambda text: text.replace("tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Bash"),
+            lambda text: must_replace(text, "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, Bash"),
         )
         self.assertIn("not on the guard roster", "\n".join(failures))
 
@@ -798,8 +786,8 @@ class FleetValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = self._guard_wiring_root(
                 temporary,
-                lambda t: t.replace(
-                    'frozenset({"sre-assistant"})',
+                lambda t: must_replace(
+                    t, 'frozenset({"sre-assistant"})',
                     'frozenset({"sre-assistant", "software-engineer"})',
                 ),
             )
@@ -811,7 +799,7 @@ class FleetValidatorTests(unittest.TestCase):
     def test_guard_fleet_inventory_missing_a_canonical_agent_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = self._guard_wiring_root(
-                temporary, lambda t: t.replace('    "principal-engineer",\n', "")
+                temporary, lambda t: must_replace(t, '    "principal-engineer",\n', "")
             )
             failures = validate_fleet.validate_guard_wiring(
                 root, sorted(validate_fleet.EXPECTED_AUTHORITY)
@@ -823,8 +811,8 @@ class FleetValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = self._guard_wiring_root(
                 temporary,
-                lambda t: t.replace(
-                    'frozenset({"sre-assistant"})',
+                lambda t: must_replace(
+                    t, 'frozenset({"sre-assistant"})',
                     'frozenset({"sre-assistant", "ghost-agent"})',
                 ),
             )
@@ -835,7 +823,7 @@ class FleetValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = self._guard_wiring_root(
                 temporary,
-                lambda t: t.replace('PLUGIN_NAME = "save-toolkit"', 'PLUGIN_NAME = "renamed"'),
+                lambda t: must_replace(t, 'PLUGIN_NAME = "save-toolkit"', 'PLUGIN_NAME = "renamed"'),
             )
             failures = validate_fleet.validate_guard_wiring(
                 root, sorted(validate_fleet.EXPECTED_AUTHORITY)
@@ -860,8 +848,8 @@ class FleetValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = self._roster_root(
                 temporary,
-                lambda t: t.replace(
-                    "| `reviewer`, `scribe`, `researcher` |",
+                lambda t: must_replace(
+                    t, "| `reviewer`, `scribe`, `researcher` |",
                     "| `reviewer`, `scribe` |",
                     1,
                 ),
@@ -878,7 +866,7 @@ class FleetValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = self._roster_root(
                 temporary,
-                lambda text: text.replace(scribe_row, phantom_row, 1),
+                lambda text: must_replace(text, scribe_row, phantom_row, 1),
             )
             failures = validate_fleet.validate_roster_graph(root)
         self.assertTrue(any("'scribe'" in f for f in failures), failures)
@@ -891,8 +879,8 @@ class FleetValidatorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = self._roster_root(
                 temporary,
-                lambda text: text.replace(
-                    software_engineer_row,
+                lambda text: must_replace(
+                    text, software_engineer_row,
                     f"{software_engineer_row}\n{software_engineer_row}",
                     1,
                 ),
@@ -920,8 +908,8 @@ class NonDelegatingHandoffTests(unittest.TestCase):
 
     def test_delegating_imperative_in_a_toolless_lane_is_flagged(self) -> None:
         failures = _agent_failures_after_edit(
-            "scribe.md", lambda text: text.replace(
-                "Recommend exactly one next owner. This role cannot invoke that owner",
+            "scribe.md", lambda text: must_replace(
+                text, "Recommend exactly one next owner. This role cannot invoke that owner",
                 "Hand to exactly one agent. If two are needed, sequence them",
             ),
         )

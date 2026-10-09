@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import ast
-import importlib.util
 import re
 import subprocess
 import sys
@@ -13,6 +12,8 @@ from pathlib import Path
 from unittest import mock
 
 import yaml
+
+from testkit import load_path
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,9 +51,7 @@ class ValidateWorkflowTests(unittest.TestCase):
 
     def test_deploy_oracle_action_policy(self) -> None:
         path = ROOT / "evals/oracles/pcf-deploy-job/probe_ci_workflow.py"
-        spec = importlib.util.spec_from_file_location("ci_oracle", path)
-        oracle = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(oracle)
+        oracle = load_path(path, "ci_oracle")
         cases = [
             ("actions/checkout@v7", True, True),
             ("actions/upload-artifact@v7", True, True),

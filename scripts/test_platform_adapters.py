@@ -17,6 +17,7 @@ from unittest import mock
 
 import fleet_frontmatter
 import generate_platform_adapters as adapters
+from testkit import find_shell, frontmatter_block
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,7 +48,7 @@ class PlatformAdapterTests(unittest.TestCase):
     @staticmethod
     def _copilot_tools(name: str) -> list[str]:
         rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
-        frontmatter = rendered.split("---", 2)[1]
+        frontmatter = frontmatter_block(rendered)
         return json.loads(
             next(line for line in frontmatter.splitlines() if line.startswith("tools: "))[7:]
         )
@@ -55,7 +56,7 @@ class PlatformAdapterTests(unittest.TestCase):
     @staticmethod
     def _copilot_agents(name: str) -> list[str] | None:
         rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
-        frontmatter = rendered.split("---", 2)[1]
+        frontmatter = frontmatter_block(rendered)
         value = next(
             (line[8:] for line in frontmatter.splitlines() if line.startswith("agents: ")),
             None,
@@ -65,7 +66,7 @@ class PlatformAdapterTests(unittest.TestCase):
     @staticmethod
     def _copilot_handoffs(name: str) -> list[dict[str, object]] | None:
         rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md")
-        frontmatter = rendered.split("---", 2)[1]
+        frontmatter = frontmatter_block(rendered)
         value = next(
             (line[10:] for line in frontmatter.splitlines() if line.startswith("handoffs: ")),
             None,
@@ -104,13 +105,13 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertNotIn("execute/runInTerminal", self._copilot_tools(name), name)
             rendered = adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md", command_preview=True)
             self.assertIn("execute/runInTerminal", rendered)
-            self.assertNotIn('"execute"', rendered.split("---", 2)[1])
+            self.assertNotIn('"execute"', frontmatter_block(rendered))
             self.assertIn("target: vscode", rendered)
             self.assertIn("readonly-guard-copilot-hook.sh", rendered)
             self.assertIn("readonly-guard-hook.ps1", rendered)
             self.assertIn('"PreToolUse"', rendered)
-            self.assertNotIn("${CLAUDE_PLUGIN_ROOT}", rendered.split("---", 2)[1])
-            self.assertIn((ROOT / "scripts").as_posix(), rendered.split("---", 2)[1])
+            self.assertNotIn("${CLAUDE_PLUGIN_ROOT}", frontmatter_block(rendered))
+            self.assertIn((ROOT / "scripts").as_posix(), frontmatter_block(rendered))
 
     def test_only_sre_gets_selected_browser_tools(self) -> None:
         expected = {"microsoft/playwright-mcp/" + name for name in (
@@ -133,7 +134,7 @@ class PlatformAdapterTests(unittest.TestCase):
             original = (ROOT / "agents/sre-assistant.md").read_text(encoding="utf-8")
             source.write_text(re.sub(r", mcp__microsoft_playwright_mcp__\w+", "", original), encoding="utf-8")
             rendered = adapters.render_copilot_agent(source)
-            frontmatter = rendered.split("---", 2)[1]
+            frontmatter = frontmatter_block(rendered)
             tools = json.loads(next(line[7:] for line in frontmatter.splitlines() if line.startswith("tools: ")))
             self.assertEqual(["read", "search", "agent"], tools)
 
@@ -151,10 +152,7 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_exported_hook_runs_from_neutral_directory_without_plugin_environment(self) -> None:
         """Exercise the exported command, not just the launcher, with an install path containing spaces."""
-        shell = shutil.which("sh")
-        if shell is None and os.name == "nt":
-            candidate = Path("C:/Program Files/Git/bin/sh.exe")
-            shell = str(candidate) if candidate.is_file() else None
+        shell = find_shell("sh")
         with tempfile.TemporaryDirectory(prefix="SRE install spaces ") as directory:
             root = Path(directory)
             (root / "agents").mkdir()
@@ -354,7 +352,7 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_generated_agent_descriptions_use_host_native_names(self) -> None:
         for source in sorted((ROOT / "agents").glob("*.md")):
             copilot = adapters.render_copilot_agent(source)
-            frontmatter = copilot.split("---", 2)[1]
+            frontmatter = frontmatter_block(copilot)
             description = json.loads(
                 next(line for line in frontmatter.splitlines() if line.startswith("description: "))[13:]
             )
@@ -505,7 +503,7 @@ class PlatformAdapterTests(unittest.TestCase):
             self.assertIn("exclusive create-new operation", adr)
             self.assertIn("symlink, junction, or reparse point", adr)
             self.assertIn("disable-model-invocation: true", adr)
-            self.assertNotRegex(adr.split("---", 2)[1], r"(?m)^(?:agent|tools|allowed-tools):")
+            self.assertNotRegex(frontmatter_block(adr), r"(?m)^(?:agent|tools|allowed-tools):")
             self.assertLess(adr.index("selected-agent preflight"), adr.index("Accepted argument grammar"))
 
     def test_missing_packaged_command_is_detected(self) -> None:

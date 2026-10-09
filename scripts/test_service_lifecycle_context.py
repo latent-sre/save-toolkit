@@ -18,6 +18,8 @@ import unittest
 
 import yaml
 
+from testkit import must_replace
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skills/service-lifecycle"
@@ -158,7 +160,8 @@ class LifecycleProducerTests(unittest.TestCase):
         original = self.deployment.read_text(encoding="utf-8")
         for field in ("approval", "credential"):
             with self.subTest(field=field):
-                self.deployment.write_text(original.replace("spec:\n", f"spec:\n  {field}: synthetic-denied\n", 1), encoding="utf-8")
+                self.deployment.write_text(
+                    must_replace(original, "spec:\n", f"spec:\n  {field}: synthetic-denied\n"), encoding="utf-8")
                 result = self.resolve()
                 self.assertEqual(result.returncode, 3, result.stderr)
                 self.assertEqual(result.stdout, "")
