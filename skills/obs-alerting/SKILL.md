@@ -54,6 +54,11 @@ For a backup, sync, or scheduled-job alert, use freshness rather than a request 
 period. Define no-data behavior: a missing timestamp is silence, never an all-clear. A job that never
 runs emits no errors. Freshness complements request-driven SLIs; it does not replace them.
 
+Trace shared dependencies of the job, signal store, evaluator and notification path. If the signal
+store fails, an age query cannot evaluate: specify query-error notification or an independent
+detection path, and test it separately from missing data through the contact point. Name evaluator
+and receiver outages that the same failed component cannot report.
+
 ## Verify before calling it done
 
 To claim an alert implementation verified, supply actual evidence for these checks. A design or

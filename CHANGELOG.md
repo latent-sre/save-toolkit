@@ -8,6 +8,31 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- PRINCIPAL-001's alerting prerequisite now follows the service requirements and makes relevant
+  guidance a design-readiness condition. Two matched principal/software-engineer semantic cases
+  return complete design records for the existing rubric judge, with twelve proposed calibration
+  examples covering compatibility, evidence feasibility, endpoint lifecycle, monitoring failures
+  and history recovery. The owner's bar requires better judgment as well as usable records;
+  the approved twelve-attempt diagnostic loaded alert guidance 3/3 and strengthened record
+  consistency, but document review still found material design and source-grounding errors.
+  The campaign cost USD 2.351204 and preserved one OAuth-interrupted trial; acceptance remains
+  open and no model judge was used. The approved follow-up now requires checking named inputs,
+  separating live membership from retained history, testing query-error notifications and gating
+  destructive stages on preservation evidence. Four further proposed calibration examples cover
+  false file-absence claims and unconfirmed recovery. A second approved twelve-trial comparison
+  completed for USD 2.306003 without interruptions: all six principal structural trials passed,
+  and author-aware review found all three tracker records address the four repair targets.
+  Contract migration remains broadly comparable; residual errors, independent human review and
+  held-out evidence keep acceptance open. A separate AI reviewer confirms the bounded split;
+  both passes are preserved verbatim and an unsupported execution-claim accusation is withdrawn.
+  The separately approved six-trial held-out cutover comparison completed for USD 1.905009;
+  a principal fence/abort contradiction and cross-arm replay concerns keep acceptance open.
+  Its independent AI first pass, prompted addendum and trace/unmasking review are preserved
+  verbatim: held-out design quality is tied, while principal method/boundary consistency is
+  stronger. One targeted advantage and two case ties do not establish general superiority.
+  Acceptance remains open; the bounded follow-up is proposed and lane sources remain frozen.
+  No model judge was used. See the
+  [acceptance candidate](docs/reviews/2026-10-07-principal-judgment-acceptance.md).
 - A judge calibration receipt summed a live judge call the CLI reported no cost for as zero,
   against the threat-model ADR's rule that an unknown cost stays unknown. The receipt's `cost_usd`
   is now null when any live call is unpriced, with `known_cost_usd` and `unknown_cost_calls` beside

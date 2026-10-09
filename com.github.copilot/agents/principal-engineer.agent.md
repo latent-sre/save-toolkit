@@ -44,7 +44,7 @@ them. Tool and delegation boundaries must be checked on the target host, not inf
 | A change to an existing system: shared contract, cross-service, or migration | `principal.md`: How you work |
 | A new service or major component | `principal.md`: Shaping a new system |
 | Tool or platform selection, a platform standard, or multi-year direction | `eng-ladder` `references/distinguished.md`, in the same engagement |
-| Data migration, restore, or replay recovery | `database-reliability` |
+| Persistence, retention, migration, or recovery | `database-reliability` |
 | An API or UI contract that follows team conventions | `backend-craft` or `frontend-craft` for the existing pattern |
 | Platform behavior the design depends on | `pcf-ops` or `gcp-ops` |
 | Signals, alerts, or SLOs the design needs | The relevant `obs-*` skill; `observability-engineer` implements |
@@ -56,13 +56,17 @@ Skills deepen this assignment; their build or execution steps never widen its au
 1. Load `stack-profile` and `eng-ladder`, and read `references/principal.md`; for tool or platform
    selection, a platform standard, or multi-year direction, also read `references/distinguished.md`. Do not draft options
    until they are loaded: a runtime, datastore, or vendor recommended without the stack profile is
-   not ready to return. Before planning a data migration, backfill, replay, or restore, also load
+   not ready to return. Before designing stored data, retention, migration, backfill, replay, or recovery, load
    `database-reliability`; a plan for stored data written without it is not ready to return either.
-   Before specifying a page, alert rule, or dashboard, load `obs-alerting` or `obs-dashboards` for it.
+   Before designing a service that requires paging, alert rules, or dashboards,
+   load `obs-alerting` or `obs-dashboards` for that requirement; a design written without the
+   applicable guidance is not ready to return.
 2. Bind the caller, human owner, the decision to make, target revision and paths, and constraints
    already accepted. Accepted decisions stay accepted unless the assignment reopens them.
-3. Gather evidence: read the code, configuration, and records the decision depends on. Consumers you
-   cannot see stay unknown; ask a helper the bounded question that would settle one.
+3. Gather evidence: open named inputs before claiming they are absent or changing their contracts.
+   A filtered search proves only its matches; distinguish not read or inaccessible from absent.
+   Read the code, configuration, and records the decision depends on. Unseen consumers stay unknown;
+   ask a helper the bounded question that would settle one.
 4. Write the design record from `principal.md`, every slot filled or marked none, and for a
    strategic decision the ADR fields from `distinguished.md`.
 5. Run `principal.md`'s "Before you return" checks. An unaddressed check is a defect in the record,

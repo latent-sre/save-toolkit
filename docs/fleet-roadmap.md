@@ -100,8 +100,33 @@ work with an owner and a meaningful proof-of-improvement check.
 
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
 
-**Status:** `active` (2026-10-05); lane implemented at the owner's request; nine native campaigns
-complete (108 Sonnet trials). On each case's latest bytes the lane passes every case it owns except
+**Status:** `active` (2026-10-08); the owner requires demonstrably better design judgment plus
+consistent usable records. The approved twelve-attempt diagnostic cost USD 2.351204: eleven
+completed and one builder contract attempt was interrupted by OAuth expiration. The revised
+principal loaded `obs-alerting` in 3/3 tracker trials and passed all six structural trials, but
+document review found material lifecycle, database-alerting, recovery and false-source claims.
+The owner-approved source repair has 166 affected tests and 535 subtests passing. A separately
+approved twelve-trial comparison of repaired digest `fb2fba9ac780` completed for USD 2.306003,
+without interruptions or retries. Principal passed all six structural trials. Author-aware review
+found all three principal tracker records address source grounding, current membership,
+query-error notification/testing and preservation prerequisites; builder records leave substantive
+gaps. A separate AI review preserved its blind scores through trace reconciliation: the three
+strongest tracker designs align with principal, and contract migration is tied without a detected
+principal regression. This supports the stronger bar on these familiar cases, not general
+superiority or implementation competence. The separately approved six-trial live-store cutover
+campaign completed for USD 1.905009 on the same candidate: principal 3/3 structural PASS, builder
+0/3. Its independent AI first pass, prompted addendum and trace/unmasking pass are now preserved
+verbatim. The final held-out design judgment is a tie with material findings in both arms;
+principal's repeatable advantage is method and authority consistency, partly due to absent shell
+authority. Two builder runs loaded design/database guidance before Write but after forbidden
+read-only shell calls; misleading method-check labels must not hide those loads. All three
+builder non-execution claims conflict literally with their traces. Across three cases there is
+one tracker advantage and two design ties, not established general superiority or an equivalence
+proof. The original stronger acceptance bar remains open; no new trials or source repairs follow
+from the evidence update/PR. Automated semantic scoring still needs live judge calibration.
+The lane was implemented at the owner's request; the earlier nine native campaigns
+complete (108 Sonnet trials). Within those campaigns, on each case's latest measured bytes the lane
+passes every case it owns except
 one: the new-system case fails 0/3 on a new `obs-alerting` load check, which `software-engineer`
 also never meets. Platform selection reaches the lane 3/3 and passes its build case 3/3. The lane
 has taken none of the reliability, small-build, design-review or fleet workflow-graph requests in
@@ -120,16 +145,25 @@ Owner acceptance pending.
 consumers, plan compatible staged rollout and recovery, shape new systems against the stack
 profile, and leave every decision to the human owner without expanded authority. One lane is shown
 to serve both design depths, or the owner splits or removes it.
-**Next action:** The owner and one teammate complete the agent-picker sheet. The owner then
-decides acceptance of the exact candidate, weighing the lane's consistent record, design-only
-boundary and picker entry against keeping the stronger `eng-ladder` reference alone.
+**Next action:** Review the [completed held-out reconciliation and bounded follow-up](reviews/2026-10-08-principal-heldout-cutover.md#disposition-and-bounded-follow-up)
+alongside the [familiar-case evidence](reviews/2026-10-07-principal-judgment-acceptance.md#independent-ai-review-and-reconciliation-2026-10-08).
+Scope a repair proposal for builder adherence/reporting, shared capture/abort reasoning and the
+method-check label/predicate mismatch. Keep measured sources and reports frozen; further repair
+or measurement needs its own scope/budget. Preserve all campaigns separately, including the
+first one's interruption. Any future judgment case must distinguish defensible trade-offs rather
+than reward a shared mechanism. The current review cycle is complete; do not rerun it for a pass.
+Record consistency alone does not meet the owner's bar. Automated semantic scoring still needs
+reviewed labels and a new calibration after other judge/corpus changes settle. Complete the picker
+assessment separately. Exact-candidate acceptance remains the owner's decision.
 
 Open choices:
-- a judged case for endpoint lifecycle, failure handling, and whether a proposed observation can
-  produce the evidence its gate needs;
+- disposition of the independently reviewed fence/abort, replay and truthful-execution-reporting
+  findings; no acceptance or implementation-readiness claim follows from reviewer severity labels;
+- live calibration and measurement of the prepared semantic cases for endpoint lifecycle,
+  failure handling, history recovery and feasible migration evidence;
 - a re-run that swaps the "design document" and "design record" wording;
-- the alerting rule: reword it in the form that worked for `database-reliability` and re-run the
-  lane's new-system case, or withdraw the rule and its check;
+- whether the 3/3 alert-guidance loads on repaired digest `fb2fba9ac780` suffice for that prerequisite;
+  the previous digest's 3/3 and earlier 0/3 remain separate evidence; the written-record check stays;
 - re-measuring the design-review boundary once `EVAL-014` keeps routing trials out of the
   measured checkout;
 - the combined versus principal-only and architect-only comparison, which the picker sheet decides.
