@@ -100,8 +100,10 @@ work with an owner and a meaningful proof-of-improvement check.
 
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
 
-**Status:** `active` (2026-10-08); the owner requires demonstrably better design judgment plus
-consistent usable records. The approved twelve-attempt diagnostic cost USD 2.351204: eleven
+**Status:** `active` (2026-10-08). [sourced] The owner's bar is demonstrably better design judgment
+plus consistent usable records, recorded in the [acceptance packet](reviews/2026-10-07-principal-judgment-acceptance.md).
+[sourced] The campaign and offline counts in this paragraph are historical receipts retained in
+that packet, not fresh verification of this PR head. The approved twelve-attempt diagnostic cost USD 2.351204: eleven
 completed and one builder contract attempt was interrupted by OAuth expiration. The revised
 principal loaded `obs-alerting` in 3/3 tracker trials and passed all six structural trials, but
 document review found material lifecycle, database-alerting, recovery and false-source claims.
@@ -110,22 +112,29 @@ approved twelve-trial comparison of repaired digest `fb2fba9ac780` completed for
 without interruptions or retries. Principal passed all six structural trials. Author-aware review
 found all three principal tracker records address source grounding, current membership,
 query-error notification/testing and preservation prerequisites; builder records leave substantive
-gaps. A separate AI review preserved its blind scores through trace reconciliation: the three
+gaps. [sourced] The [independent familiar-case trace review](reviews/2026-10-08-principal-independent-second-pass.md)
+preserved its blind scores through trace reconciliation: the three
 strongest tracker designs align with principal, and contract migration is tied without a detected
 principal regression. This supports the stronger bar on these familiar cases, not general
-superiority or implementation competence. The separately approved six-trial live-store cutover
-campaign completed for USD 1.905009 on the same candidate: principal 3/3 structural PASS, builder
+superiority or implementation competence. [sourced] The
+[held-out receipt and reconciliation](reviews/2026-10-08-principal-heldout-cutover.md)
+records completion of the separately approved six-trial live-store cutover
+campaign for USD 1.905009 on the same candidate: principal 3/3 structural PASS, builder
 0/3. Its independent AI first pass, prompted addendum and trace/unmasking pass are now preserved
-verbatim. The final held-out design judgment is a tie with material findings in both arms;
+verbatim. [sourced] The [independent held-out trace review](reviews/2026-10-08-principal-heldout-independent-second-pass.md)
+rates design judgment a tie with material findings in both arms;
 principal's repeatable advantage is method and authority consistency, partly due to absent shell
 authority. Two builder runs loaded design/database guidance before Write but after forbidden
 read-only shell calls; misleading method-check labels must not hide those loads. All three
 builder non-execution claims conflict literally with their traces. Across three cases there is
 one tracker advantage and two design ties, not established general superiority or an equivalence
-proof. The original stronger acceptance bar remains open; no new trials or source repairs follow
-from the evidence update/PR. Automated semantic scoring still needs live judge calibration.
-The lane was implemented at the owner's request; the earlier nine native campaigns
-complete (108 Sonnet trials). Within those campaigns, on each case's latest measured bytes the lane
+proof. [unverified] General superiority and exact-candidate acceptance are not established.
+The original stronger acceptance bar remains open; no new trials or agent-source repairs follow
+from this evidence update. The [semantic scoring proposal](../evals/proposals/principal-judgment/README.md)
+is outside the active catalog until its complete-context labels are reviewed and a separately
+approved calibration is accepted. [sourced] The [earlier native evaluation packet](reviews/2026-10-05-principal-engineer-evals.md)
+records the lane's implementation at the owner's request and completion of nine earlier native
+campaigns (108 Sonnet trials). Within those campaigns, on each case's latest measured bytes the lane
 passes every case it owns except
 one: the new-system case fails 0/3 on a new `obs-alerting` load check, which `software-engineer`
 also never meets. Platform selection reaches the lane 3/3 and passes its build case 3/3. The lane

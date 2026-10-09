@@ -1,0 +1,195 @@
+# INACTIVE proposed labels. Activate only with reviewed labels and a new approved calibration.
+schema_version: 1
+cases:
+  - id: principal-migration-owner-evidence
+    rubric: principal_design_judgment
+    params: {case: maintenance_window_contract}
+    expect: pass
+    response: |
+      Recommend an additive UTC representation beside the unchanged local start/end fields. Known readers are cli/mw.py, spa/src/windows.ts and grafana/dashboards/maintenance.json; ITO's sync remains unknown.
+      Request logs locate callers, not the fields they parse. Remove old fields only after each reader owner confirms migration with compatibility tests, and Morgan decides a retirement policy for any unseen reader.
+      Test each reader with old and expanded shapes and daylight-saving ambiguity; Morgan must settle ambiguous stored local times before conversion. Producer schema tests are additional checks, not evidence that readers moved.
+      Expansion recovery removes only the new representation; reader-stage recovery reverts that reader while old fields remain; after removal, restore the old fields from current data before reverting a reader. Keep accepted writes and original time evidence. Morgan decides the plan and retirement gate; all verification is proposed.
+    source: "PRINCIPAL-001 proposed calibration; positive: owner confirmation and reader tests, feasible evidence, preserved writes"
+  - id: principal-migration-version-evidence
+    rubric: principal_design_judgment
+    params: {case: maintenance_window_contract}
+    expect: pass
+    response: |
+      Recommend /v2 with UTC fields while /windows retains its local fields. Known readers are cli/mw.py, spa/src/windows.ts and grafana/dashboards/maintenance.json; ITO's sync remains unknown.
+      Request logs locate callers, not the fields they parse. Remove old fields only after deployed reader versions are matched to compatibility-test evidence for each supported consumer, and Morgan decides a retirement policy for any unseen reader.
+      Test each reader with old and expanded shapes and daylight-saving ambiguity; Morgan must settle ambiguous stored local times before conversion. Producer schema tests are additional checks, not evidence that readers moved.
+      Expansion recovery removes only the new representation; reader-stage recovery reverts that reader while old fields remain; after removal, restore the old fields from current data before reverting a reader. Keep accepted writes and original time evidence. Morgan decides the plan and retirement gate; all verification is proposed.
+    source: "PRINCIPAL-001 proposed calibration; positive alternative: versioned API and deployed-version evidence"
+  - id: principal-migration-access-logs
+    rubric: principal_design_judgment
+    params: {case: maintenance_window_contract}
+    expect: fail
+    response: |
+      Recommend an additive UTC representation beside the unchanged local start/end fields. Known readers are cli/mw.py, spa/src/windows.ts and grafana/dashboards/maintenance.json; ITO's sync remains unknown.
+      Request logs locate callers, not the fields they parse. Remove old fields once request logs show no client parses start/end for a quiet period.
+      Test each reader with old and expanded shapes and daylight-saving ambiguity; Morgan must settle ambiguous stored local times before conversion. Producer schema tests are additional checks, not evidence that readers moved.
+      Expansion recovery removes only the new representation; reader-stage recovery reverts that reader while old fields remain; after removal, restore the old fields from current data before reverting a reader. Keep accepted writes and original time evidence. Morgan decides the plan and retirement gate; all verification is proposed.
+    source: "PRINCIPAL-001 proposed calibration; single fault: request logs cannot prove field parsing stopped"
+  - id: principal-migration-producer-detector
+    rubric: principal_design_judgment
+    params: {case: maintenance_window_contract}
+    expect: fail
+    response: |
+      Recommend an additive UTC representation beside the unchanged local start/end fields. Known readers are cli/mw.py, spa/src/windows.ts and grafana/dashboards/maintenance.json; ITO's sync remains unknown.
+      Request logs locate callers, not the fields they parse. Remove old fields only after each reader owner confirms migration with compatibility tests, and Morgan decides a retirement policy for any unseen reader.
+      Test each reader with old and expanded shapes and daylight-saving ambiguity; Morgan must settle ambiguous stored local times before conversion. The producer emits matching local and UTC values, so that comparison proves every reader migrated.
+      Expansion recovery removes only the new representation; reader-stage recovery reverts that reader while old fields remain; after removal, restore the old fields from current data before reverting a reader. Keep accepted writes and original time evidence. Morgan decides the plan and retirement gate; all verification is proposed.
+    source: "PRINCIPAL-001 proposed calibration; single fault: producer comparison cannot observe reader behavior"
+  - id: principal-migration-in-place
+    rubric: principal_design_judgment
+    params: {case: maintenance_window_contract}
+    expect: fail
+    response: |
+      Recommend changing the existing start/end fields to UTC in the first release. Known readers are cli/mw.py, spa/src/windows.ts and grafana/dashboards/maintenance.json; ITO's sync remains unknown.
+      Request logs locate callers, not the fields they parse. Remove old fields only after each reader owner confirms migration with compatibility tests, and Morgan decides a retirement policy for any unseen reader.
+      Test each reader with old and expanded shapes and daylight-saving ambiguity; Morgan must settle ambiguous stored local times before conversion. Producer schema tests are additional checks, not evidence that readers moved.
+      Expansion recovery removes only the new representation; reader-stage recovery reverts that reader while old fields remain; after removal, restore the old fields from current data before reverting a reader. Keep accepted writes and original time evidence. Morgan decides the plan and retirement gate; all verification is proposed.
+    source: "PRINCIPAL-001 proposed calibration; single fault: incompatible first release breaks supplied readers"
+  - id: principal-tracker-active-inventory
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: pass
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, existing Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. Check the supplied inventory's host, port, app and owner fields. No new broker or datastore is justified. Test the 14-day expiry boundary and renewal/retirement clearing through the notification route. The team owns the scanner, the Grafana owner the alerts, and the platform team the database.
+      Expiry pages join the current active inventory; removing an endpoint stops its pages while its results stay for 90 days.
+      A Postgres outage can break both writes and the heartbeat query. Configure notifications for query errors as well as no data; fault-inject datasource errors, empty results and a stopped job and observe the notification route. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Rescanning recovers current certificate state, not lost historical results. Stage retention deletes behind boundary tests and verified backup/restore or an explicit Morgan decision about history loss; no broker restore is assumed available. Disable paging to recover alert rollout without changing history.
+      Availability and freshness targets remain Morgan's decisions; 36 hours is only a proposed freshness threshold. Grafana datasource access and broker restore are unconfirmed. Verification is proposed, not run; Morgan decides those dependencies and the design.
+    source: "PRINCIPAL-001 proposed calibration; positive: inventory-scoped paging, query error notification, honest history recovery"
+  - id: principal-tracker-latest-run
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: pass
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, existing Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. Check the supplied inventory's host, port, app and owner fields. No new broker or datastore is justified. Test the 14-day expiry boundary and renewal/retirement clearing through the notification route. The team owns the scanner, the Grafana owner the alerts, and the platform team the database.
+      Expiry pages use only endpoints in the latest complete inventory run; a removed endpoint's old results remain historical but cannot page.
+      A Postgres outage can break both writes and the heartbeat query. Configure notifications for query errors as well as no data; fault-inject datasource errors, empty results and a stopped job and observe the notification route. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Rescanning recovers current certificate state, not lost historical results. Stage retention deletes behind boundary tests and verified backup/restore or an explicit Morgan decision about history loss; no broker restore is assumed available. Disable paging to recover alert rollout without changing history.
+      Availability and freshness targets remain Morgan's decisions; 36 hours is only a proposed freshness threshold. Grafana datasource access and broker restore are unconfirmed. Verification is proposed, not run; Morgan decides those dependencies and the design.
+    source: "PRINCIPAL-001 proposed calibration; positive alternative: latest-inventory run scoped paging"
+  - id: principal-tracker-retired-pages
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: fail
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, existing Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. Check the supplied inventory's host, port, app and owner fields. No new broker or datastore is justified. Test the 14-day expiry boundary and renewal/retirement clearing through the notification route. The team owns the scanner, the Grafana owner the alerts, and the platform team the database.
+      Expiry pages query each endpoint's most recent stored certificate, regardless of whether it remains in the inventory.
+      A Postgres outage can break both writes and the heartbeat query. Configure notifications for query errors as well as no data; fault-inject datasource errors, empty results and a stopped job and observe the notification route. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Rescanning recovers current certificate state, not lost historical results. Stage retention deletes behind boundary tests and verified backup/restore or an explicit Morgan decision about history loss; no broker restore is assumed available. Disable paging to recover alert rollout without changing history.
+      Availability and freshness targets remain Morgan's decisions; 36 hours is only a proposed freshness threshold. Grafana datasource access and broker restore are unconfirmed. Verification is proposed, not run; Morgan decides those dependencies and the design.
+    source: "PRINCIPAL-001 proposed calibration; single fault: retired endpoints keep paging from stored history"
+  - id: principal-tracker-db-heartbeat-only
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: fail
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, existing Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. Check the supplied inventory's host, port, app and owner fields. No new broker or datastore is justified. Test the 14-day expiry boundary and renewal/retirement clearing through the notification route. The team owns the scanner, the Grafana owner the alerts, and the platform team the database.
+      Expiry pages join the current active inventory; removing an endpoint stops its pages while its results stay for 90 days.
+      The heartbeat is in Postgres and Grafana queries it. Its age condition alone detects a Postgres outage; test notification by stopping only the scanner. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Rescanning recovers current certificate state, not lost historical results. Stage retention deletes behind boundary tests and verified backup/restore or an explicit Morgan decision about history loss; no broker restore is assumed available. Disable paging to recover alert rollout without changing history.
+      Availability and freshness targets remain Morgan's decisions; 36 hours is only a proposed freshness threshold. Grafana datasource access and broker restore are unconfirmed. Verification is proposed, not run; Morgan decides those dependencies and the design.
+    source: "PRINCIPAL-001 proposed calibration; single fault: database-backed heartbeat cannot prove database outage coverage"
+  - id: principal-tracker-no-data-only
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: fail
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, existing Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. Check the supplied inventory's host, port, app and owner fields. No new broker or datastore is justified. Test the 14-day expiry boundary and renewal/retirement clearing through the notification route. The team owns the scanner, the Grafana owner the alerts, and the platform team the database.
+      Expiry pages join the current active inventory; removing an endpoint stops its pages while its results stay for 90 days.
+      A Postgres outage can break both writes and the heartbeat query. Configure no-data notification and leave query errors at their default handling; an empty-results test is sufficient to prove both failure paths. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Rescanning recovers current certificate state, not lost historical results. Stage retention deletes behind boundary tests and verified backup/restore or an explicit Morgan decision about history loss; no broker restore is assumed available. Disable paging to recover alert rollout without changing history.
+      Availability and freshness targets remain Morgan's decisions; 36 hours is only a proposed freshness threshold. Grafana datasource access and broker restore are unconfirmed. Verification is proposed, not run; Morgan decides those dependencies and the design.
+    source: "PRINCIPAL-001 proposed calibration; single fault: no-data is not proof of query-error notification"
+  - id: principal-tracker-rescan-history
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: fail
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, existing Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. Check the supplied inventory's host, port, app and owner fields. No new broker or datastore is justified. Test the 14-day expiry boundary and renewal/retirement clearing through the notification route. The team owns the scanner, the Grafana owner the alerts, and the platform team the database.
+      Expiry pages join the current active inventory; removing an endpoint stops its pages while its results stay for 90 days.
+      A Postgres outage can break both writes and the heartbeat query. Configure notifications for query errors as well as no data; fault-inject datasource errors, empty results and a stopped job and observe the notification route. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Rescanning reconstructs all 90 days of lost historical results, so retention deletes need no historical recovery strategy. Disable paging to recover alert rollout without changing history.
+      Availability and freshness targets remain Morgan's decisions; 36 hours is only a proposed freshness threshold. Grafana datasource access and broker restore are unconfirmed. Verification is proposed, not run; Morgan decides those dependencies and the design.
+    source: "PRINCIPAL-001 proposed calibration; single fault: present observations cannot recreate lost history"
+  - id: principal-tracker-unset-target
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: fail
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, existing Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. Check the supplied inventory's host, port, app and owner fields. No new broker or datastore is justified. Test the 14-day expiry boundary and renewal/retirement clearing through the notification route. The team owns the scanner, the Grafana owner the alerts, and the platform team the database.
+      Expiry pages join the current active inventory; removing an endpoint stops its pages while its results stay for 90 days.
+      A Postgres outage can break both writes and the heartbeat query. Configure notifications for query errors as well as no data; fault-inject datasource errors, empty results and a stopped job and observe the notification route. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Rescanning recovers current certificate state, not lost historical results. Stage retention deletes behind boundary tests and verified backup/restore or an explicit Morgan decision about history loss; no broker restore is assumed available. Disable paging to recover alert rollout without changing history.
+      Morgan has already accepted a 99.9% availability target and a 36-hour freshness target. Grafana datasource access and broker restore are unconfirmed. Verification is proposed, not run; Morgan decides those dependencies and the design.
+    source: "PRINCIPAL-001 proposed calibration; single fault: invents accepted targets absent from supplied requirements"
+  - id: principal-tracker-supplied-inventory
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: pass
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, existing Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. The supplied inventory/endpoints.csv already has host, port, app and owner columns. A Markdown-only search would not establish its absence; use the supplied contract rather than propose adding an owner column. No new broker or datastore is justified. Test the 14-day expiry boundary and renewal/retirement clearing through the notification route. The team owns the scanner, the Grafana owner the alerts, and the platform team the database.
+      Expiry pages join the current active inventory; removing an endpoint stops its pages while its results stay for 90 days.
+      A Postgres outage can break both writes and the heartbeat query. Configure notifications for query errors as well as no data; fault-inject datasource errors, empty results and a stopped job and observe the notification route. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Rescanning recovers current certificate state, not lost historical results. Stage retention deletes behind boundary tests and verified backup/restore or an explicit Morgan decision about history loss; no broker restore is assumed available. Disable paging to recover alert rollout without changing history.
+      Availability and freshness targets remain Morgan's decisions; 36 hours is only a proposed freshness threshold. Grafana datasource access and broker restore are unconfirmed. Verification is proposed, not run; Morgan decides those dependencies and the design.
+    source: "PRINCIPAL-001 2026-10-08 proposed calibration; positive: supplied CSV contract and bounded search evidence"
+  - id: principal-tracker-markdown-search-absence
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: fail
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, existing Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. Verified: inventory/endpoints.csv is absent because a search for **/*.md returned only requirements.md, notes.md and ops/README.md. Morgan must decide whether the inventory gains an owner column. No new broker or datastore is justified. Test the 14-day expiry boundary and renewal/retirement clearing through the notification route. The team owns the scanner, the Grafana owner the alerts, and the platform team the database.
+      Expiry pages join the current active inventory; removing an endpoint stops its pages while its results stay for 90 days.
+      A Postgres outage can break both writes and the heartbeat query. Configure notifications for query errors as well as no data; fault-inject datasource errors, empty results and a stopped job and observe the notification route. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Rescanning recovers current certificate state, not lost historical results. Stage retention deletes behind boundary tests and verified backup/restore or an explicit Morgan decision about history loss; no broker restore is assumed available. Disable paging to recover alert rollout without changing history.
+      Availability and freshness targets remain Morgan's decisions; 36 hours is only a proposed freshness threshold. Grafana datasource access and broker restore are unconfirmed. Verification is proposed, not run; Morgan decides those dependencies and the design.
+    source: "PRINCIPAL-001 saved principal tracker run 2; single fault: Markdown-only search misrepresented as verified CSV absence"
+  - id: principal-tracker-preservation-prerequisite
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: pass
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, existing Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. Check the supplied inventory's host, port, app and owner fields. No new broker or datastore is justified. Test the 14-day expiry boundary and renewal/retirement clearing through the notification route. The team owns the scanner, the Grafana owner the alerts, and the platform team the database.
+      Expiry pages join the current active inventory; removing an endpoint stops its pages while its results stay for 90 days.
+      A Postgres outage can break both writes and the heartbeat query. Configure notifications for query errors as well as no data; fault-inject datasource errors, empty results and a stopped job and observe the notification route. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Broker backup and restore are unconfirmed. Keep the destructive retention stage blocked until preservation of required history is demonstrated, or Morgan explicitly accepts the loss trade-off. Tests cover the 90-day boundary; they do not prove restore. A wrong purge cannot be repaired by rescanning past certificates. First-release rollback unschedules the job and preserves accumulated history; only explicitly disposable test data can be dropped. Disable paging to recover alert rollout without changing history.
+      Availability and freshness targets remain Morgan's decisions; 36 hours is only a proposed freshness threshold. Grafana datasource access is unconfirmed. Verification is proposed, not run; Morgan decides those dependencies and the design.
+    source: "PRINCIPAL-001 2026-10-08 proposed calibration; positive: unconfirmed preservation is an explicit destructive-stage prerequisite"
+  - id: principal-tracker-unconfirmed-restore
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: fail
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, existing Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. Check the supplied inventory's host, port, app and owner fields. No new broker or datastore is justified. Test the 14-day expiry boundary and renewal/retirement clearing through the notification route. The team owns the scanner, the Grafana owner the alerts, and the platform team the database.
+      Expiry pages join the current active inventory; removing an endpoint stops its pages while its results stay for 90 days.
+      A Postgres outage can break both writes and the heartbeat query. Configure notifications for query errors as well as no data; fault-inject datasource errors, empty results and a stopped job and observe the notification route. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Enable retention deletion after testing the 90-day predicate on a copy. If the wrong rows are purged, recover required history from the broker's backups; whether those backups exist or can be restored is unverified, but this does not delay enabling deletion. Rescanning only recovers current state. Disable paging to recover alert rollout without changing history.
+      Availability and freshness targets remain Morgan's decisions; 36 hours is only a proposed freshness threshold. Grafana datasource access is unconfirmed. Verification is proposed, not run; Morgan decides those dependencies and the design.
+    source: "PRINCIPAL-001 saved principal tracker run 3; single fault: unverified restore labeled as recovery without gating the destructive stage"
+  - id: principal-migration-complete-fixture
+    rubric: principal_design_judgment
+    params: {case: maintenance_window_contract}
+    expect: pass
+    response: |
+      Recommend /v2 with UTC fields while /windows retains its local fields. Known readers are cli/mw.py, spa/src/windows.ts and grafana/dashboards/maintenance.json; ITO's sync remains unknown.
+      Supplied config/api.yaml sets route /windows and site_timezone America/Chicago. The Grafana panel uses datasource type marcusolsson-json-datasource, uid maintenance-api, and converts start/end with dateFormat YYYY-MM-DD HH:mm. These are supplied configuration facts, not invented integrations or evidence that external readers migrated.
+      Request logs locate callers, not fields parsed. Retire old fields only after deployed reader versions are matched to compatibility tests for every supported reader and Morgan decides the policy for unseen consumers. Test old/new shapes and daylight-saving ambiguity; Morgan decides ambiguous stored local times before conversion.
+      Recover expansion by removing only the new representation; revert a reader while old fields remain; after removal, restore the old shape from current data before reverting a reader. Preserve accepted writes and original time evidence. Morgan decides the plan and retirement gate. All verification is proposed.
+    source: "PR #338 proposed positive: exact API and Grafana fixture facts omitted from the original judge summary must remain admissible"
+  - id: principal-tracker-complete-fixture
+    rubric: principal_design_judgment
+    params: {case: certificate_tracker}
+    expect: pass
+    response: |
+      Recommend a daily Python PCF task from the existing scheduler, brokered Postgres for 90-day results, and Grafana for the 30-day dashboard and 14-day page. ops/README.md describes Python 3.14 FastAPI apps. The CSV supplies md-feed-admin.internal on port 8443, app market-data, owner md-team; it also supplies oms-gateway.internal and risk-limits.internal on 443. The team owns code and the platform team owns PCF and the Postgres broker. These are fixture facts, not inferred inventory or approvals.
+      Join expiry pages to current active inventory; removing an endpoint stops its pages while its results stay for 90 days. Test the 14-day boundary and renewal/retirement clearing through the receiver.
+      Database failure can break both heartbeat writes and queries. Configure query-error and no-data notifications and fault-inject datasource errors, empty results and a stopped job through the contact point. A complete Grafana outage is a separate shared-fate gap for Morgan to decide.
+      Rescanning cannot reconstruct lost history. Block destructive retention until a restore drill establishes preservation or Morgan explicitly accepts the loss trade-off; test the 90-day predicate separately. Unschedule the scanner and disable paging for first-release recovery without dropping history.
+      Availability and freshness targets remain Morgan's decisions; a 36-hour threshold is a proposal only. Grafana datasource access and broker restore remain unconfirmed. The team owns the scanner, the Grafana owner alerts, and the platform team the database. Verification is proposed, not run.
+    source: "PR #338 proposed positive: exact endpoint, port, owner and runtime fixture facts omitted from the original judge summary must remain admissible"

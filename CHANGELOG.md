@@ -31,6 +31,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   verbatim: held-out design quality is tied, while principal method/boundary consistency is
   stronger. One targeted advantage and two case ties do not establish general superiority.
   Acceptance remains open; the bounded follow-up is proposed and campaign snapshots remain frozen.
+  PR review keeps the uncalibrated rubric, eighteen proposed labels and four semantic scenarios
+  outside the active catalog so unrelated calibration receipts are not invalidated. The proposed
+  judge now includes complete case prompts/fixtures, with two additional fixture-fact positives;
+  the roadmap explicitly labels receipt-backed and review-reported claims. No live calibration ran.
   No model judge was used. See the
   [acceptance candidate](docs/reviews/2026-10-07-principal-judgment-acceptance.md).
 - A trial ran in an empty repository, but `--plugin-dir` and `--add-dir` named the checkout, so a

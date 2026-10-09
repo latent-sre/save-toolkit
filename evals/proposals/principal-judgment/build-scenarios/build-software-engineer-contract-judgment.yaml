@@ -1,5 +1,6 @@
 id: build-software-engineer-contract-judgment
 agent: software-engineer
+# INACTIVE proposal: excluded from the runner's default catalog pending approved calibration.
 # Both arms receive identical prompt, fixture and checks. The full response is the semantic
 # judge's input; written-record/JSON format cases remain separate measurements.
 prompt: |

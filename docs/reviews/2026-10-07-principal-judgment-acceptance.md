@@ -37,23 +37,27 @@ Preserve those failures and their exact revisions.
   requirements, with the same "not ready to return" consequence as the data-plan prerequisite.
   The existing written-record alert-load checks remain unchanged. Offline wording verification
   cannot prove the model will load the skill.
-- [`principal_design_judgment`](../../evals/rubrics.yaml) judges substantive design reasoning
-  for two bounded cases. It does not grade headings, label counts, skill loading or agent identity.
+- The inactive [`principal_design_judgment` proposal](../../evals/proposals/principal-judgment/rubrics.yaml)
+  specifies substantive design reasoning for two bounded cases. It does not grade headings, label counts, skill loading or agent identity.
   Its supplied facts distinguish each case; missing approval, integration and target evidence
   stays unknown. Alternative mechanisms and proposed thresholds are allowed when justified.
-- Four new build scenarios form principal/software-engineer pairs for contract migration and
+- Four [proposed build scenarios](../../evals/proposals/principal-judgment/README.md) form principal/software-engineer pairs for contract migration and
   certificate-tracker design. Both arms receive identical prompts, original fixtures and checks.
   They return the complete record as their final response, which the existing rubric grader
   actually reads. Existing written-document/JSON cases remain separate format/method evidence.
-  No runner or judge implementation is changed.
-- Sixteen proposed calibration examples comprise six positives and ten single-fault negatives.
+  They are excluded from the default catalog until activation and accepted calibration are
+  approved. No runner or judge implementation is changed.
+- Eighteen inactive proposed calibration examples comprise eight positives and ten single-fault negatives.
   Positive controls include additive/versioned API migration and active-inventory/latest-run
   paging. Negatives cover request-log and producer-only migration proof, an incompatible first
   release, retired-endpoint pages, database-only heartbeat, no-data-only error handling,
   rescanning lost history and invented accepted targets. The 2026-10-08 additions contrast a
   supplied CSV with a false absence claim, and a preservation prerequisite with destructive
   rollout relying on an unconfirmed restore. These are proposed human labels;
-  offline parsing and tests do not calibrate a live judge.
+  offline parsing and tests do not calibrate a live judge. The two PR-review additions cite exact
+  fixture facts omitted from the former summary. The proposal now embeds each full scenario
+  prompt and every fixture file, with a round-trip binding test; summaries do not restrict which
+  supplied facts a record may correctly cite.
 
 ## Acceptance observations
 
@@ -87,9 +91,11 @@ new measurements, not replacement trials or pooled results.
 
 If reusable automated semantic scoring is wanted, first review the proposed gold labels and settle
 other EVAL-010 corpus/judge changes. Freeze the candidate and scoring inputs, then obtain a new
-receipt under the everyday account. The proposed cold corpus had 181 calls at preparation; the
-publication integration with main brings it to 197 cases, plus any separately selected identity
-probe. That calibration is a future campaign, not part of this approval.
+receipt under the everyday account. The original publication temporarily expanded the active
+corpus to 197 cases. PR review exposed that this would invalidate unrelated calibration receipts:
+the active corpus is now restored to main's 181 cases, with eighteen principal controls retained
+outside it. Any future activation must calibrate the exact combined contract under a separate
+scope/budget; no calibration is part of this approval.
 
 EVAL-014 still gates affected routing comparisons. Picker usability, final-byte coverage of the
 other cases, helper return/resume, other hosts/models and installed Copilot behavior remain outside
@@ -495,6 +501,36 @@ Fresh checks with the verified Python 3.14.7 environment:
 
 The suite's four warnings are the dependency's deprecated AnyIO BlockingPortal alias, repeated
 across workers. Skipped checks are not passes. The push-boundary Gate A result is recorded in the
-PR. The now-197-case live judge calibration is deliberately not run without its own approval;
+PR. At that publication head the 197-case live judge calibration was deliberately not run without its own approval;
 there are no new native/model receipts. These checks verify publication integrity and offline
 contracts, not design superiority, successful operation of a proposed system or human acceptance.
+
+## PR review remediation (2026-10-08)
+
+The owner requested fixes for PR #338's three review findings after the normal merge of main
+`2b3b28b8`. The original model archives, five verbatim AI reports, measured principal guidance,
+and held-out structural scenarios remain unchanged.
+
+- [Global calibration activation](https://github.com/latent-sre/save-toolkit/pull/338#discussion_r4226044923):
+  `load_binding()` binds the entire canonical rubric/corpus maps, not only the requested rubric.
+  The proposed rubric, controls and four unmeasured semantic scenarios now live under
+  [the inactive proposal](../../evals/proposals/principal-judgment/README.md). Both active YAML
+  contracts match main byte for byte; keeping this proposal no longer changes their digests.
+  Existing receipts still need to satisfy all other runner/judge identity requirements.
+- [Complete fixture context](https://github.com/latent-sre/save-toolkit/pull/338#discussion_r4226044932):
+  the proposed rubric now contains each complete prompt and all fixture file contents, keyed by
+  case and including untrusted notes as evidence only. A rendered JSON round-trip check binds
+  them to the paired scenarios. Two proposed positive controls cite the exact endpoint/port/owner
+  and API/Grafana configuration facts that the former summaries omitted. This verifies context
+  delivery, not a model's semantic verdict; live calibration remains unperformed.
+- [Evidence provenance](https://github.com/latent-sre/save-toolkit/pull/338#discussion_r4226044941):
+  the live PRINCIPAL-001 status now explicitly marks retained receipt observations and independent
+  review conclusions `[sourced]`, links their reports, and labels general superiority and
+  acceptance `[unverified]`. Historical results are not described as fresh PR-head verification.
+
+[verified] Before the changes, the new exclusion test failed because the proposal was active,
+and both full-context subtests failed because the judge had only the hand-written summaries.
+Afterward the focused proposal suite passed; it also checks inactive-rubric refusal, refusal
+without calibration under explicit offline proposal loading, and mocked prompt construction.
+Fresh final verification is recorded with the remediation commit in the PR. No model call,
+receipt bypass, acceptance decision or historical rescore is part of these repairs.

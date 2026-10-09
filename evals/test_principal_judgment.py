@@ -1,5 +1,6 @@
 """Offline contract checks for PRINCIPAL-001's semantic comparison; never call a model."""
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,6 +11,7 @@ import judge
 from probe import catalog
 
 ROOT = Path(__file__).resolve().parent
+PROPOSAL = ROOT / "proposals" / "principal-judgment"
 RUBRIC = "principal_design_judgment"
 PAIRS = {
     "maintenance_window_contract": "contract-judgment",
@@ -17,7 +19,37 @@ PAIRS = {
 }
 
 
+def proposed_scenario(agent, suffix):
+    rubrics = judge.load_rubrics(PROPOSAL / "rubrics.yaml")
+    with mock.patch.object(judge, "load_rubrics", return_value=rubrics):
+        return catalog.load_scenario(PROPOSAL / "build-scenarios" / f"build-{agent}-{suffix}.yaml")
+
+
+def context_from_prompt(prompt):
+    return json.loads(prompt.split("<case-material-json>\n", 1)[1]
+                      .split("\n</case-material-json>", 1)[0])
+
+
 class PrincipalJudgmentTests(unittest.TestCase):
+    def test_unapproved_proposal_is_not_in_the_active_catalog(self):
+        self.assertNotIn(RUBRIC, judge.load_rubrics())
+        self.assertFalse(any(case["rubric"] == RUBRIC
+                             for case in judge._load_calibration(judge.DEFAULT_CALIBRATION_PATH)))
+        active_ids = {spec["id"] for spec in catalog.load_all_scenarios()}
+        for agent in ("principal-engineer", "software-engineer"):
+            for suffix in PAIRS.values():
+                self.assertNotIn(f"build-{agent}-{suffix}", active_ids)
+
+    def test_judged_context_contains_complete_prompt_and_every_fixture_file(self):
+        rubrics = judge.load_rubrics(PROPOSAL / "rubrics.yaml")
+        for case, suffix in PAIRS.items():
+            with self.subTest(case=case):
+                spec = proposed_scenario("principal-engineer", suffix)
+                _, fail_if, _ = judge.prepare(RUBRIC, {"case": case}, "a design", "sonnet", rubrics)
+                self.assertIn("<case-material-json>", fail_if)
+                material = context_from_prompt(fail_if)
+                self.assertEqual({"prompt": spec["prompt"], "files": spec["fixture"]["files"]}, material[case])
+
     def test_alerting_requirement_is_a_design_readiness_condition(self):
         body = (ROOT.parent / "agents/principal-engineer.md").read_text(encoding="utf-8")
         self.assertIn("Before designing a service that requires", body)
@@ -33,8 +65,8 @@ class PrincipalJudgmentTests(unittest.TestCase):
         }
         for case, suffix in PAIRS.items():
             with self.subTest(case=case):
-                principal = catalog.load_scenario(ROOT / f"build-scenarios/build-principal-engineer-{suffix}.yaml")
-                builder = catalog.load_scenario(ROOT / f"build-scenarios/build-software-engineer-{suffix}.yaml")
+                principal = proposed_scenario("principal-engineer", suffix)
+                builder = proposed_scenario("software-engineer", suffix)
                 original = catalog.load_scenario(ROOT / f"build-scenarios/{originals[case]}.yaml")
                 self.assertEqual("principal-engineer", principal["agent"])
                 self.assertEqual("software-engineer", builder["agent"])
@@ -68,9 +100,13 @@ class PrincipalJudgmentTests(unittest.TestCase):
                     self.assertRaisesRegex(AssertionError, "prompt captured"),
                 ):
                     judge.judge("complete design record", RUBRIC, {"case": case},
-                                model="sonnet", cache_dir=Path(directory))
+                                model="sonnet", cache_dir=Path(directory),
+                                rubrics=judge.load_rubrics(PROPOSAL / "rubrics.yaml"))
                 spawn.assert_called_once()
                 prompt = str(spawn.call_args.args[0])
+                spec = proposed_scenario("principal-engineer", PAIRS[case])
+                self.assertEqual({"prompt": spec["prompt"], "files": spec["fixture"]["files"]},
+                                 context_from_prompt(prompt)[case])
                 self.assertIn("complete design record", prompt)
                 self.assertIn("request logs", prompt)
                 self.assertIn("90 days", prompt)
@@ -80,7 +116,7 @@ class PrincipalJudgmentTests(unittest.TestCase):
                 self.assertIn("inventory/endpoints.csv", prompt)
 
     def test_corpus_has_reviewable_positive_controls_and_single_fault_counterexamples(self):
-        cases = [c for c in judge._load_calibration(judge.DEFAULT_CALIBRATION_PATH) if c["rubric"] == RUBRIC]
+        cases = judge._load_calibration(PROPOSAL / "rubrics-calibration.yaml")
         by_id = {c["id"]: c for c in cases}
         required = {
             "principal-migration-owner-evidence": "pass",
@@ -99,6 +135,8 @@ class PrincipalJudgmentTests(unittest.TestCase):
             "principal-tracker-markdown-search-absence": "fail",
             "principal-tracker-preservation-prerequisite": "pass",
             "principal-tracker-unconfirmed-restore": "fail",
+            "principal-migration-complete-fixture": "pass",
+            "principal-tracker-complete-fixture": "pass",
         }
         self.assertEqual(len(cases), len(by_id), "calibration IDs must be unique")
         self.assertEqual(set(required), set(by_id))
@@ -112,10 +150,36 @@ class PrincipalJudgmentTests(unittest.TestCase):
         for case_name in PAIRS:
             self.assertEqual({"pass", "fail"}, {c["expect"] for c in cases if c["params"]["case"] == case_name})
 
+    def test_complete_fixture_positive_controls_cite_supplied_details(self):
+        cases = {case["id"]: case for case in judge._load_calibration(PROPOSAL / "rubrics-calibration.yaml")}
+        controls = {
+            "principal-migration-complete-fixture": (
+                "contract-judgment", "grafana/dashboards/maintenance.json",
+                ("marcusolsson-json-datasource", "maintenance-api", "YYYY-MM-DD HH:mm")),
+            "principal-tracker-complete-fixture": (
+                "new-system-judgment", "inventory/endpoints.csv",
+                ("md-feed-admin.internal", "8443", "market-data", "md-team")),
+        }
+        for identity, (suffix, path, facts) in controls.items():
+            with self.subTest(identity=identity):
+                self.assertEqual("pass", cases[identity]["expect"])
+                source = proposed_scenario("principal-engineer", suffix)["fixture"]["files"][path]
+                for fact in facts:
+                    self.assertIn(fact, source)
+                    self.assertIn(fact, cases[identity]["response"])
+
     def test_semantic_grading_without_calibration_refuses_before_a_model_call(self):
         spec = {"type": "rubric", "name": RUBRIC, "params": {"case": "certificate_tracker"}}
-        with (mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("no model call")),
+        proposal = judge.load_rubrics(PROPOSAL / "rubrics.yaml")
+        with (mock.patch.object(judge, "load_rubrics", return_value=proposal),
+              mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("no model call")),
               self.assertRaisesRegex(judge.JudgeUnavailable, "calibration")):
+            graders.run_grader(spec, "a proposed design")
+
+    def test_inactive_rubric_is_refused_before_a_model_call(self):
+        spec = {"type": "rubric", "name": RUBRIC, "params": {"case": "certificate_tracker"}}
+        with (mock.patch.object(judge, "_run_judge_process", side_effect=AssertionError("no model call")),
+              self.assertRaisesRegex(ValueError, "unknown rubric")):
             graders.run_grader(spec, "a proposed design")
 
 
