@@ -88,13 +88,17 @@ frozen runner, not a candidate; case outcomes are observations, not acceptance e
    stays false. Fifteen such files were removed before this run.
 8. **Calibration receipt.** Precondition 5 asks for a passing cold calibration. The cold run agreed
    180/181; the bound receipt is warm, with one live call after the case was reworded. The two rubrics
-   this run used agreed fully in the cold run. This needs the owner's decision.
+   this run used agreed fully in the cold run. The owner accepted the warm receipt on 2026-10-09,
+   which completes WP-02.
 9. **Batch cap (AC-18).** The cap and unknown-cost paths were enforced by the launcher, not exercised
    in the runner; no cost was unknown.
 10. **Argv and host (AC-03).** The argv is kept only for two-turn follow-ups, and the host identity is
     platform-only, so it cannot show the everyday, unelevated account.
 11. **Residue (AC-22).** `F:\eval-tmp\wp02` holds three `tmp.*` folders the operator-CLI trials made
     and seven empty CLI task outputs: candidate and CLI writes, not runner writes.
+
+On 2026-10-09 the owner selected the first repairs, in order: gaps 1, 2, 5 and 3. `EVAL-011` tracks
+them.
 
 Raw records stay private under `.eval-runs/wp02-native-readiness-20261008/` and
 `.eval-runs/wp02-attribution-20261008/`; the reviewer's scratch is under `F:/iso-tmp/wp02-review/`.

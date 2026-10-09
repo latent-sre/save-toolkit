@@ -4,7 +4,8 @@
   with a USD 20 cap (DEC-04). The run starts only when every precondition below holds; a change to
   the cases, trial count or cap needs a new approval. Ran 2026-10-08: 18 trials, USD 4.60, every
   trace reviewed; the [run record](../reviews/2026-10-08-wp02-native-readiness.md) holds the results
-  and the remaining native gaps.
+  and the remaining native gaps. On 2026-10-09 the owner accepted the warm calibration receipt as
+  meeting precondition 5, which completes WP-02 and lifts the runner freeze.
 - **Run owner:** the human owner starts the run; `agent-engineer` prepares it; `reviewer` checks the
   traces.
 - **Purpose:** show that the frozen native runner measures what the accepted

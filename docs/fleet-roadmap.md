@@ -426,8 +426,8 @@ on the recorded frozen runner identity below, and its
   skills leak into trials unrecorded, the guarded-triage case never exercises a denial, and the
   operator-CLI oracle has no distinct failure code.
 
-The owner decides whether the warm calibration receipt meets precondition 5, then selects which gaps
-to repair; runner repairs fall under EVAL-011. WP-12's GCP case design can proceed alongside. The
+On 2026-10-09 the owner accepted the warm calibration receipt as meeting precondition 5, which
+completes WP-02, and selected the first repairs, which EVAL-011 tracks. WP-12's GCP case design can proceed alongside. The
 [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
 account read access to the older run folders on 2026-10-06; all 1,562 now open from it. EVAL-015
 holds the deferred judge-replacement comparison and EVAL-011 the native measurement contract. This planning item
@@ -450,8 +450,10 @@ runner repairs with independent review.
 including its result rules. Measurement failures are inconclusive and never hide a supported failure,
 and results record the runner revision, CLI version and host platform. Every in-scope defect from the
 2026-10-03 inventory of `evals/build_probe.py` is fixed or has an owner disposition.
-**Next action:** Keep the runner frozen through WP-02; run its remaining preconditions and native
-checks under the approved run plan. [verified] Re-frozen on 2026-10-08 with the EVAL-013 and
+**Next action:** WP-02 is complete (2026-10-09), so the freeze below is lifted. Repair the WP-02
+gaps the owner selected, in order: record and isolate account skills, add a guard-denial check to
+guarded triage, align its label checks with the lane's contract, and give the operator-CLI oracle a
+distinct failure code. Each runner edit keeps the rescore/diff gate. [verified] Re-frozen on 2026-10-08 with the EVAL-013 and
 EVAL-014 runner changes, which the owner approved landing during the freeze, on top of the judge
 framing fix; latest commit touching runner identity inputs:
 `164eccb14f75d65648f160e23a4e04c197b3a803` (reachable from `main` when its PR merges with a merge commit). The

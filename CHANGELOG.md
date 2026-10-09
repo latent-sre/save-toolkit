@@ -17,7 +17,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   [run record](docs/reviews/2026-10-08-wp02-native-readiness.md). An attribution run cleared the
   served plugin image as the cause of the platform-selection drop, and a probe showed the read-only
   guard denies `mkdir` when `sre-assistant` runs as the main loop on CLI 2.1.295. The record names
-  eleven remaining gaps for the owner to select repairs from.
+  eleven remaining gaps. On 2026-10-09 the owner accepted the warm calibration receipt, which
+  completes WP-02 and lifts the runner freeze, and selected four repairs that `EVAL-011` tracks.
 
 - The two routing negatives whose alternative is `reviewer` asked about material their empty
   workspace lacked, so every session searched, found nothing and answered inline. Change review now
