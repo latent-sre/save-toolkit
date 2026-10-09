@@ -6,6 +6,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+## [0.51.1] - 2026-10-09
+
 ### Added
 
 - The Grafana read helper gains `render`: it confirms a Classic panel exists in the dashboard model,

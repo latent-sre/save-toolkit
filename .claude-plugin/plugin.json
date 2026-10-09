@@ -3,7 +3,7 @@
   "name": "save-toolkit",
   "displayName": "Save Toolkit",
   "description": "Application-engineering and site-reliability agents and reusable skills.",
-  "version": "0.51.0",
+  "version": "0.51.1",
   "author": {
     "name": "latent-sre",
     "url": "https://github.com/latent-sre"
