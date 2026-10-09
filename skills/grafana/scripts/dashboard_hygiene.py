@@ -60,9 +60,8 @@ def require_shape(value, expected, where, *, nullable=False):
     if nullable and value is None:
         return
     if not isinstance(value, expected):
-        kind = {dict: "object", list: "array", str: "string"}[expected]
-        raise InputShapeError(f"{where} must be an {kind}" if kind in {"object", "array"}
-                              else f"{where} must be a {kind}")
+        kind = {dict: "an object", list: "an array", str: "a string"}[expected]
+        raise InputShapeError(f"{where} must be {kind}")
 
 
 def walk_panels(items, where):
