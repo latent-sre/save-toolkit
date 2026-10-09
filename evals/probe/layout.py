@@ -1,4 +1,5 @@
-"""Where an iteration keeps its saved runs, how a folder's number reads back, and how a saved file does.
+"""Where an iteration keeps its saved runs, how a folder's number reads back, and how a saved JSON file is
+read and written.
 
     <iteration>/eval-<scenario>/<label>/run-N/                  slot N's published attempt
     <iteration>/eval-<scenario>/<label>/attempts/run-N/<k>/     attempt k of slot N, superseded or incomplete
@@ -10,6 +11,10 @@ The runner writes every number as a plain decimal from 1 (`run-1`, never `run-01
 reads one back only in that spelling, so two folders cannot claim one slot, and an operator's copy
 such as `run-1-old` is never a run. The runner, the regrade and rescore, the run comparison, the
 turn-count summary and the spend cap all find runs through this module, so they agree on what a run is.
+The readers to which a missing or malformed JSON file is an unknown (the v1 record, the spend cap, a
+run's attempt number, the comparison's legacy runs and the turn-count summary) read it through
+`read_object`; the regrade and rescore still refuse a malformed grade or summary. The runner writes each
+saved JSON file through `write_json`.
 """
 
 from __future__ import annotations
