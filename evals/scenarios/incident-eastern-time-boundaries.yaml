@@ -1,4 +1,5 @@
 id: incident-eastern-time-boundaries
+max_turns: 16
 split: regression
 skill: incident-investigation
 tools: [Skill, Read]

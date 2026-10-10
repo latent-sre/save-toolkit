@@ -118,9 +118,9 @@ def main():
     try:
         {"postmortem": check_postmortem, "closeout": check_closeout,
          "alert-closeout": check_alert_closeout}[sys.argv[1]](Path.cwd())
-    except (AssertionError, KeyError, OSError, yaml.YAMLError) as exc:
+    except (AssertionError, OSError, yaml.YAMLError) as exc:
         print(f"FAIL: {exc}")
-        return 1
+        return 10
     print("PASS: bounded artifact fields; free-form quality and live behavior remain unverified")
     return 0
 

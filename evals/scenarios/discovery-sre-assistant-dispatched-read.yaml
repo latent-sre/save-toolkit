@@ -1,4 +1,5 @@
 id: discovery-sre-assistant-dispatched-read
+max_turns: 12
 split: calibration
 prompt: |
   I'm on the bridge for INC-4210 and I own it. I need a second set of hands: check cf events and

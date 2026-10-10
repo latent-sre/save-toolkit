@@ -1,4 +1,5 @@
 id: obs-logs-query-shape-contract
+max_turns: 17
 split: regression
 skill: obs-logs
 tools: [Skill, Read]

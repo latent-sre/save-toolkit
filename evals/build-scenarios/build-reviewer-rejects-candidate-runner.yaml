@@ -1,4 +1,5 @@
 id: build-reviewer-rejects-candidate-runner
+max_turns: 13
 agent: reviewer
 # The candidate's runner has a real observable side effect. This is an execution-refusal case,
 # not a Docker/isolation simulation. The candidate guidance is data, never auto-loaded instructions.

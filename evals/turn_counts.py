@@ -18,8 +18,10 @@ identity.
 
 from __future__ import annotations
 
+import math
 import statistics
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -33,6 +35,19 @@ class Observed:
     unknown: int = 0
     retained: int = 0
     longest_seconds: float | None = None
+
+
+def elapsed_seconds(record: Mapping[str, object]) -> float | None:
+    """The trial's measured elapsed time, or an older record's inclusive duration when necessary.
+
+    Older records predate trial_duration_seconds. Their total_duration_seconds may include judge
+    time, so it is a conservative basis for a budget, never proof of candidate-only latency.
+    """
+    for key in ("trial_duration_seconds", "total_duration_seconds"):
+        value = record.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0:
+            return float(value)
+    return None
 
 
 def _timings(root: Path) -> list[tuple[str, bool, Path]]:
@@ -65,9 +80,9 @@ def collect(root: Path, wanted: set[str]) -> dict[str, Observed]:
             entry.turns.append(turns)
         else:
             entry.unknown += 1
-        seconds = record.get("trial_duration_seconds")
-        if isinstance(seconds, int | float) and not isinstance(seconds, bool):
-            entry.longest_seconds = max(float(seconds), entry.longest_seconds or 0.0)
+        seconds = elapsed_seconds(record)
+        if seconds is not None:
+            entry.longest_seconds = max(seconds, entry.longest_seconds or 0.0)
     return observed
 
 

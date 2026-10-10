@@ -1,4 +1,5 @@
 id: agent-direct-software-engineer-stale-finding-requires-rereview
+max_turns: 11
 split: regression
 agent: software-engineer
 prompt: |

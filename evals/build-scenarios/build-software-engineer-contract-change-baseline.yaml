@@ -1,4 +1,5 @@
 id: build-software-engineer-contract-change-baseline
+max_turns: 28
 agent: software-engineer
 # Incumbent arm for build-principal-engineer-contract-change: identical prompt, fixture and
 # checks, enforced by evals/test_principal_cases.py. Each returned field is its own pattern check
@@ -132,8 +133,9 @@ checks:
   - {check: bash_did_not_run, pattern: '.+', text: "no shell command runs, as the assignment requires"}
   - {check: file_contains, path: docs/design/maintenance-window-times.md, needle: "grafana/dashboards/maintenance.json", text: "the design names the dashboard that parses the fields in configuration"}
   - check: command_exit_zero
-    command: "python check_design_record.py docs/design/maintenance-window-times.md"
-    writes_from: {check_design_record.py: evals/oracles/principal-engineer/check_design_record.py}
+    failure_exit_code: 10
+    command: "python oracle_protocol.py check_design_record.py docs/design/maintenance-window-times.md"
+    writes_from: {check_design_record.py: evals/oracles/principal-engineer/check_design_record.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "the document fills every design-record slot and carries an evidence label"
   - {check: text_regex, pattern: '"consumer_files"\s*:\s*"cli/mw\.py\s*,\s*grafana/dashboards/maintenance\.json\s*,\s*spa/src/windows\.ts"', text: "consumer list is exactly the three readers, sorted"}
   - {check: text_not_regex, pattern: '"(consumer_files|external_consumer_status|first_release_breaks_existing_readers|old_format_removal|decision_owner)"\s*:[\s\S]*"\1"\s*:', text: "each decision is given once, so a discarded draft or a duplicate key cannot pass"}

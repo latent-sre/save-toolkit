@@ -177,7 +177,7 @@ def main():
     text = open(sys.argv[1], "rb").read().decode("utf-8", "replace")
     ok, reason = check(text, sys.argv[2])
     print(("ok: " if ok else "FAIL: ") + reason)
-    return 0 if ok else 1
+    return 0 if ok else 10
 
 
 if __name__ == "__main__":

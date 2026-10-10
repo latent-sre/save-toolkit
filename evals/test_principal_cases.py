@@ -283,7 +283,7 @@ class PrincipalCaseTests(unittest.TestCase):
                               + "\n\n".join(f"## {s}\n\n**Recovery**: text" for s in SLOT_HEADINGS)),
                              ("empty", "")):
             with self.subTest(case=name):
-                self.assertEqual(1, _oracle(record))
+                self.assertEqual(10, _oracle(record))
 
     def test_record_oracle_rejects_each_slot_left_empty_in_every_format(self):
         # Neither the rest of a slot's own label ("and context", "/ non-goals") nor a repeated label
@@ -304,7 +304,7 @@ class PrincipalCaseTests(unittest.TestCase):
                 record = prefix + "".join(line(slot, "" if slot == empty else "text [verified]")
                                           for slot in SLOT_HEADINGS)
                 with self.subTest(shape=shape, empty=empty):
-                    self.assertEqual(1, _oracle(record))
+                    self.assertEqual(10, _oracle(record))
 
 
 class DesignReviewCaseTests(unittest.TestCase):

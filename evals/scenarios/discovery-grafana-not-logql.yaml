@@ -1,4 +1,5 @@
 id: discovery-grafana-not-logql
+max_turns: 16
 split: regression
 prompt: |
   Write a LogQL query for the per-service rate of HTTP 500 responses in the last five minutes.

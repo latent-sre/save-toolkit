@@ -57,6 +57,7 @@ Gate A rejects uncited review packets; citation alone does not establish that a 
 | Agent, skill, command, or bundled reference | The matching asset or contract test |
 | Routing description | The overlapping clean-room scenarios; pure wording changes need no live eval |
 | Eval harness or scenario | The affected `evals/test_*.py`; `python evals/build_probe.py validate` for parsing or targeting changes; `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`), `evals/compare_runs.py`, `evals/graders.py`, `evals/inspect_pilot.py` or an `evals/test_*.py`; `python evals/judge.py --calibrate` after a rubric edit |
+| Judge, clean room or oracle Python | The affected behavioral tests and `python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles`; preserve byte-bound formatting and incremental typing unless a broader migration has a measured benefit |
 | Read-only guard or hook wiring | `python -m pytest scripts/test_readonly_guard.py scripts/test_hook_wiring.py`; exit codes stay 42 allow, 43 deny, 44 indeterminate |
 | Large agent, skill, or reference growth | State the byte delta and why the task needs it in the PR; no mechanical ceiling remains, so reviewers own the context-cost judgment |
 
@@ -67,6 +68,11 @@ than against a substitute or missing host binary, under
 Live evals run from `evals/build_probe.py` in a manual clean room, not CI. Raw traces and the batch
 summary stay private under `.eval-runs/`; quote the numbers you rely on into the PR or review that
 uses them.
+Every active scenario declares `max_turns`; missing or invalid limits are refused before calls.
+Use saved counts and timing evidence to size a change, retain its rationale, and distinguish an
+offline budget choice from measured live completion. Runner edits retain the saved-run rescore/diff
+comparison and an explanation of every changed verdict. Oracle changes also exercise the supervised
+completion path, including candidate failure and early exit, unavailable measurement and oracle crash.
 
 Before pushing, run the structural gate once:
 

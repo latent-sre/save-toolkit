@@ -100,6 +100,10 @@ ENV_DUMP = re.compile(r"(?:^|[\s;&|(`])(?:printenv|env|set|export\s+-p)\s*(?:$|[
 PASSWORD_REF = re.compile(r"\$\{?CF_PASSWORD\b|\$env:CF_PASSWORD\b|%CF_PASSWORD%|\bCF_PASSWORD=")
 
 
+class WorkflowInvalid(ValueError):
+    """A candidate workflow violates the inspected schema or parser contract."""
+
+
 def workflow_files() -> list[str]:
     return sorted(glob.glob(os.path.join(WORKFLOW_DIR, "*.yml")) + glob.glob(os.path.join(WORKFLOW_DIR, "*.yaml")))
 
@@ -107,8 +111,20 @@ def workflow_files() -> list[str]:
 def load(path: str) -> dict:
     import yaml
     with open(path, encoding="utf-8") as fh:
-        doc = yaml.safe_load(fh)
-    return doc if isinstance(doc, dict) else {}
+        try:
+            doc = yaml.safe_load(fh)
+        except yaml.YAMLError as exc:
+            raise WorkflowInvalid(str(exc)) from exc
+    if not isinstance(doc, dict):
+        raise WorkflowInvalid("workflow must be an object")
+    if "jobs" in doc and not isinstance(doc["jobs"], dict):
+        raise WorkflowInvalid("workflow jobs must be an object")
+    for job in doc.get("jobs", {}).values():
+        if not isinstance(job, dict) or not isinstance(job.get("steps", []), list):
+            raise WorkflowInvalid("workflow jobs must be objects with a steps array")
+        if any(not isinstance(step, dict) for step in job.get("steps", [])):
+            raise WorkflowInvalid("workflow steps must be objects")
+    return doc
 
 
 def steps(job: dict) -> list[dict]:
@@ -161,6 +177,8 @@ def case_lint() -> str | None:
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=600, env=env)
     if result.returncode == 0:
         return None
+    if result.returncode != 1:
+        raise RuntimeError("actionlint could not measure workflow: " + result.stderr[-500:])
     return "actionlint failed: " + (result.stdout + result.stderr).strip()[-500:]
 
 
@@ -303,7 +321,7 @@ def _promotion_expression(text: str, env: dict) -> str:
         name = match.group(1).strip()
         value = WORKSPACE if name == "github.workspace" else env.get(name[4:]) if name.startswith("env.") else None
         if not isinstance(value, str):
-            raise ValueError("unsupported or unresolved workflow expression in promotion path/script")
+            raise WorkflowInvalid("unsupported or unresolved workflow expression in promotion path/script")
         return value
 
     return re.sub(r"\$\{\{(.*?)\}\}", replace, text)
@@ -316,29 +334,29 @@ def _promotion_word(word: str, env: dict) -> str:
     quote = word[0] if quoted else ""
     if quoted:
         if len(word) < 2 or word[-1] != quote:
-            raise ValueError("unsupported quoting in promotion command")
+            raise WorkflowInvalid("unsupported quoting in promotion command")
         word = word[1:-1]
     if any(char in word for char in "'\"\\`\n\r") or "$(" in word:
-        raise ValueError("unsupported quoting, escaping, or substitution in promotion command")
+        raise WorkflowInvalid("unsupported quoting, escaping, or substitution in promotion command")
     if quote != "'":
         def replace(match):
             name = match.group(1) or match.group(2)
             value = WORKSPACE if name == "GITHUB_WORKSPACE" else env.get(name)
             if not isinstance(value, str) or (not quoted and re.search(r"\s", value)):
-                raise ValueError("unsupported or unresolved environment variable in promotion argument")
+                raise WorkflowInvalid("unsupported or unresolved environment variable in promotion argument")
             return value
         word = re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)", replace, word)
     if not quoted and (not word or re.search(r"[\s*?\[\]{}~]", word)):
-        raise ValueError("unsupported unquoted shell word; expansion may remove or split arguments")
+        raise WorkflowInvalid("unsupported unquoted shell word; expansion may remove or split arguments")
     return word
 
 
 def _promotion_path(value, cwd: str, env: dict, *, shell: bool = False) -> str:
     if not isinstance(value, str) or not value:
-        raise ValueError("unsupported or empty promotion path")
+        raise WorkflowInvalid("unsupported or empty promotion path")
     value = _promotion_word(value, env) if shell else _promotion_expression(value, env)
     if not re.fullmatch(r"[A-Za-z0-9_./ -]+", value):
-        raise ValueError("unsupported or unresolved promotion path; use a literal path or literal env value")
+        raise WorkflowInvalid("unsupported or unresolved promotion path; use a literal path or literal env value")
     return posixpath.normpath(posixpath.join(cwd, value))
 
 
@@ -366,7 +384,7 @@ def _promotion_commands(text: str, env: dict) -> list[list[str]]:
             commands.append(current)
             current = []
     if current:
-        raise ValueError("unsupported incomplete line continuation in promotion command")
+        raise WorkflowInvalid("unsupported incomplete line continuation in promotion command")
     return commands
 
 
@@ -380,30 +398,30 @@ def _promotion_push(command: list[str], cwd: str, env: dict, manifest: str | Non
         if word in ("-p", "-f", "--strategy", "-b", "-m", "-i", "-k", "-t", "-c"):
             value = inline if equals else next(args, None)
             if value is None or word in options:
-                raise ValueError("missing or repeated cf push option in promotion command")
+                raise WorkflowInvalid("missing or repeated cf push option in promotion command")
             # Even flags unrelated to paths can inject -p/-f through shell word splitting.
             _promotion_word(value, env)
             options[word] = value
         elif word in ("--no-start", "--no-route", "--random-route", "--no-wait"):
             if equals and _promotion_word(inline, env) not in ("true", "false"):
-                raise ValueError("unsupported boolean cf push option value")
+                raise WorkflowInvalid("unsupported boolean cf push option value")
             continue
         elif word.startswith("-"):
-            raise ValueError("unsupported cf push option; promotion requires the reviewed manifest and ZIP payload")
+            raise WorkflowInvalid("unsupported cf push option; promotion requires the reviewed manifest and ZIP payload")
         else:
             names.append(_promotion_word(argument, env))
     if names not in ([], ["checkout"]):
-        raise ValueError("cf push does not select the reviewed checkout application")
+        raise WorkflowInvalid("cf push does not select the reviewed checkout application")
     selected_manifest = _promotion_path(options.get("-f", "manifest.yml"), cwd, env, shell=True)
     if manifest and selected_manifest == posixpath.dirname(manifest) and "-f" in options:
         selected_manifest = manifest  # cf also accepts the directory containing manifest.yml
     if manifest is None or selected_manifest != manifest:
-        raise ValueError("cf push does not use manifest.yml from the reviewed checkout")
+        raise WorkflowInvalid("cf push does not use manifest.yml from the reviewed checkout")
     # CF resolves -p against the shell cwd; a manifest's path is relative to the manifest itself.
     payload = (_promotion_path(options["-p"], cwd, env, shell=True) if "-p" in options
                else posixpath.join(posixpath.dirname(manifest), "dist/checkout.zip"))
     if payload not in downloaded:
-        raise ValueError("cf push payload is not the downloaded checkout-build/checkout.zip")
+        raise WorkflowInvalid("cf push payload is not the downloaded checkout-build/checkout.zip")
 
 
 def _artifact_promoted(job: dict, wf: dict) -> str | None:
@@ -430,37 +448,37 @@ def _artifact_promoted(job: dict, wf: dict) -> str | None:
         for step in job_steps:
             env = {**as_dict(wf.get("env")), **as_dict(job.get("env")), **as_dict(step.get("env"))}
             if any(name in env for name in ("BASH_ENV", "ENV", "CDPATH")):
-                raise ValueError("unsupported shell startup or directory environment override")
+                raise WorkflowInvalid("unsupported shell startup or directory environment override")
             if step.get("if") not in (None, True, "true", "${{ true }}", "success()", "${{ success() }}"):
-                raise ValueError("unsupported conditional step before push; artifact provenance is unresolved")
+                raise WorkflowInvalid("unsupported conditional step before push; artifact provenance is unresolved")
             if step.get("continue-on-error", False) not in (False, "false"):
-                raise ValueError("a prerequisite may fail and continue before cf push")
+                raise WorkflowInvalid("a prerequisite may fail and continue before cf push")
             reference = str(step.get("uses", ""))
             inputs = as_dict(step.get("with"))
             if reference.startswith("actions/checkout@"):
                 if downloaded:
-                    raise ValueError("intervening checkout may replace the downloaded payload")
+                    raise WorkflowInvalid("intervening checkout may replace the downloaded payload")
                 if inputs.get("clean", True) not in (True, "true") or "sparse-checkout" in inputs:
-                    raise ValueError("checkout may retain or omit the reviewed manifest")
+                    raise WorkflowInvalid("checkout may retain or omit the reviewed manifest")
                 if inputs.get("ref", "") not in ("", "${{ github.sha }}") or inputs.get("repository", "") not in ("", "${{ github.repository }}"):
-                    raise ValueError("checkout does not establish the reviewed source revision")
+                    raise WorkflowInvalid("checkout does not establish the reviewed source revision")
                 checkout = _promotion_path(inputs.get("path", "."), WORKSPACE, env)
                 if checkout != WORKSPACE and not checkout.startswith(WORKSPACE + "/"):
-                    raise ValueError("unsupported checkout path outside the workspace")
+                    raise WorkflowInvalid("unsupported checkout path outside the workspace")
                 manifest = posixpath.join(checkout, "manifest.yml")
                 continue
             if reference.startswith("actions/download-artifact@"):
                 if inputs.get("name") != ARTIFACT or any(key in inputs for key in ("run-id", "repository", "artifact-ids", "skip-decompress")):
-                    raise ValueError("download does not establish this run's checkout-build payload")
+                    raise WorkflowInvalid("download does not establish this run's checkout-build payload")
                 destination = _promotion_path(inputs.get("path", "."), WORKSPACE, env)
                 downloaded.add(posixpath.join(destination, "checkout.zip"))
                 continue
             if reference:
-                raise ValueError("unsupported action before push; it may replace the reviewed files")
+                raise WorkflowInvalid("unsupported action before push; it may replace the reviewed files")
             if not isinstance(step.get("run"), str):
                 continue
             if step.get("shell", defaults.get("shell", "bash")) not in ("bash", "sh"):
-                raise ValueError("unsupported promotion shell; only straight-line bash/sh is checked")
+                raise WorkflowInvalid("unsupported promotion shell; only straight-line bash/sh is checked")
             cwd = _promotion_path(step.get("working-directory", defaults.get("working-directory", ".")), WORKSPACE, env)
             commands = _promotion_commands(step["run"], env)
             for command in commands:
@@ -468,7 +486,7 @@ def _artifact_promoted(job: dict, wf: dict) -> str | None:
                        or (not token.startswith("'") and ("`" in token or "$" in re.sub(
                            r"\$\{[A-Za-z_][A-Za-z0-9_]*\}|\$[A-Za-z_][A-Za-z0-9_]*", "", token)))
                        for token in command):
-                    raise ValueError("unsupported shell operator or substitution before push; files may be replaced")
+                    raise WorkflowInvalid("unsupported shell operator or substitution before push; files may be replaced")
                 if command[:2] == ["cf", "push"]:
                     _promotion_push(command, cwd, env, manifest, downloaded)
                     pushes += 1
@@ -483,7 +501,7 @@ def _artifact_promoted(job: dict, wf: dict) -> str | None:
                 elif command[0] == "umask" and len(command) == 2 and re.fullmatch(r"[0-7]{3,4}", command[1]):
                     continue
                 else:
-                    raise ValueError("unsupported command before push; cannot exclude replacement or rebuild")
+                    raise WorkflowInvalid("unsupported command before push; cannot exclude replacement or rebuild")
     except ValueError as error:
         return str(error)
     return None if pushes else "no supported cf push command"
@@ -591,10 +609,10 @@ def main() -> int:
         return 2
     try:
         reason = CASES[sys.argv[1]]()
-    except Exception as exc:  # a workflow that cannot be parsed fails the case with the parser's words
+    except WorkflowInvalid as exc:
         reason = f"{type(exc).__name__}: {exc}"
     print(f"{sys.argv[1]}: {'ok' if reason is None else reason}")
-    return 0 if reason is None else 1
+    return 0 if reason is None else 10
 
 
 if __name__ == "__main__":

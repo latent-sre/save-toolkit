@@ -4,6 +4,7 @@
 # mentions review; the skips-review-below-three-files, skips-review-for-code-nit and
 # skips-review-for-trivial-fix scenarios are the over-trigger controls.
 id: build-software-engineer-reviews-nontrivial-change
+max_turns: 24
 agent: software-engineer
 prompt: |
   Add CSV output for the end-of-day reconciliation upload. Put it in a new module export.py with

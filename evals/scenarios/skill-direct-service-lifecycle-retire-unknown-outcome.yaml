@@ -1,4 +1,5 @@
 id: skill-direct-service-lifecycle-retire-unknown-outcome
+max_turns: 20
 split: regression
 prompt: |
   The approved production retirement reached credential revocation, but the executor timed out

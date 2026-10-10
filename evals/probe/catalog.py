@@ -478,10 +478,9 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
 
 def _budget_problems(spec: Spec, where: str) -> list[str]:
     problems = []
-    if "max_turns" in spec:
-        turns = spec["max_turns"]
-        if isinstance(turns, bool) or not isinstance(turns, int) or not 1 <= turns <= 500:
-            problems.append(f"{where}: max_turns must be an integer from 1 to 500")
+    turns = spec.get("max_turns")
+    if isinstance(turns, bool) or not isinstance(turns, int) or not 1 <= turns <= 500:
+        problems.append(f"{where}: max_turns must be an integer from 1 to 500")
     threshold = spec.get("threshold")
     if threshold is not None:
         if isinstance(threshold, bool) or not isinstance(threshold, (int, float)) or not 0 < threshold <= 1:

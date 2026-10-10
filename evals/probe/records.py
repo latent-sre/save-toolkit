@@ -109,9 +109,20 @@ class Runner(_Section):
     runner_source_sha256: str | None
 
 
+class HostIdentity(_Section):
+    hostname: str | None
+    account_id: str | None
+    elevated: bool | None
+    identity_source: Literal["windows_process_token", "posix_effective_uid"]
+    problem: str | None = None
+
+
 class Runtime(_Section):
     cli_version: str | None
     host_platform: dict[str, str]
+    host_identity: HostIdentity | None = Field(
+        default=None, description="Observed host, effective account and privilege; absent in legacy records."
+    )
 
 
 class Conditions(_Section):
@@ -344,6 +355,9 @@ def write_record(
                 "grading.json",
                 "timing.json",
                 "provenance.json",
+                "invocation.json",
+                "followup/invocation.json",
+                "cleanup.json",
             )
             if (run_dir / name).is_file()
         },

@@ -1,4 +1,5 @@
 id: discovery-principal-engineer-defers-agent-workflow
+max_turns: 3
 split: regression
 # Architecture words for the fleet's own agent machinery, which agent-engineer owns. Read the trace
 # for which agent fired before attributing a red.

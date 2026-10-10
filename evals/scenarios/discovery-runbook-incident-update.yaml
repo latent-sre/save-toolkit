@@ -1,4 +1,5 @@
 id: discovery-runbook-incident-update
+max_turns: 14
 split: regression
 prompt: |
   The standard operating-guide structure is already selected. A resolved incident showed that one

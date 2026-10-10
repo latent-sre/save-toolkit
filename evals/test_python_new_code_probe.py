@@ -101,7 +101,8 @@ class NewCodeProbeTests(unittest.TestCase):
             (work / "tests/__init__.py").write_text("", encoding="utf-8")
             (work / "tests/test_outcome_counts.py").write_text(tests, encoding="utf-8")
             (work / "_python_new_oracle.py").write_bytes(ORACLE.read_bytes())
-            return run_python(["-B", "_python_new_oracle.py"], cwd=work, isolated=True, encoding="utf-8", timeout=45)
+            (work / "oracle_protocol.py").write_bytes((ROOT / "oracles/oracle_protocol.py").read_bytes())
+            return run_python(["-B", "oracle_protocol.py", "_python_new_oracle.py"], cwd=work, isolated=True, encoding="utf-8", timeout=45)
 
     def assert_passes(self, source):
         result = self.run_artifact(source)
@@ -133,7 +134,7 @@ class NewCodeProbeTests(unittest.TestCase):
             ):
                 with self.subTest(phase=phase, code=code):
                     result = self.run_artifact(source)
-                    self.assertEqual(result.returncode, 1, result.stdout)
+                    self.assertEqual(result.returncode, 10, result.stdout)
                     self.assertIn("candidate exited before contract checks completed", result.stderr)
 
     def test_retained_open_aliases_and_path_open_pass(self):
@@ -277,8 +278,8 @@ def parsed_inner(source):
         checks = spec["checks"]
         outcome = [c for c in checks if "writes_from" in c]
         self.assertEqual(len(outcome), 1)
-        self.assertEqual(outcome[0]["command"], "python -I -B _python_new_oracle.py")
-        self.assertEqual(outcome[0]["writes_from"], {"_python_new_oracle.py": "evals/oracles/python-craft/check_new_code.py"})
+        self.assertEqual(outcome[0]["command"], "python -I -B oracle_protocol.py _python_new_oracle.py")
+        self.assertEqual(outcome[0]["writes_from"], {"_python_new_oracle.py": "evals/oracles/python-craft/check_new_code.py", "oracle_protocol.py": "evals/oracles/oracle_protocol.py"})
         self.assertEqual(next(c for c in checks if c["check"] == "changes_within")["allowed"], ["outcome_counts.py", "tests/"])
         self.assertTrue(any(c["check"] == "no_new_commits" for c in checks))
         self.assertTrue(any(c["check"] == "skill_loaded" and c["skill"] == "python-craft" for c in checks))

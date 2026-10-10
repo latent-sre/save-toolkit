@@ -1,4 +1,5 @@
 id: discovery-sre-assistant-staging-runbook-read
+max_turns: 12
 split: calibration
 # Agent-target routing probe: calibration-only evidence of model/host propensity (evals/README.md).
 prompt: |

@@ -2,6 +2,10 @@
 import json
 import os
 import sys
+from pathlib import Path
+import importlib
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from oracle_protocol import candidate_call
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -39,15 +43,29 @@ def start_vendor(delay):
 def make_client(delay):
     os.environ["PAGING_BASE_URL"] = start_vendor(delay)
     from fastapi.testclient import TestClient
-    from app.main import create_app
-    client = TestClient(create_app(), raise_server_exceptions=False)
-    client.__enter__()
+    try:
+        create_app = candidate_call(importlib.import_module, "app.main").create_app
+        app = candidate_call(create_app)
+    except (Exception, SystemExit) as exc:
+        fail("candidate app could not start: %r" % exc)
+    client = TestClient(app, raise_server_exceptions=False)
+    candidate_call(client.__enter__)
     return client
 
 
 def fail(msg):
     print("FAIL: " + msg)
-    sys.exit(1)
+    sys.exit(10)
+
+
+def response_json(response):
+    try:
+        body = response.json()
+    except ValueError as exc:
+        fail("candidate response is not JSON: %s" % exc)
+    if not isinstance(body, dict):
+        fail("candidate response must be a JSON object")
+    return body
 
 
 def ok(msg):
@@ -88,9 +106,11 @@ def is_problem(resp):
 
 
 def cursor_page(resp):
-    body = resp.json()
+    body = response_json(resp)
     if not isinstance(body, dict) or not isinstance(body.get("data"), list):
         fail("list body must be an object with a data array")
+    if any(not isinstance(row, dict) or not isinstance(row.get("id"), str) or not row["id"] for row in body["data"]):
+        fail("list entries must be objects with nonempty string incident ids")
     if "next_cursor" not in body:
         fail("list body is missing next_cursor")
     cursor = body["next_cursor"]
@@ -100,13 +120,13 @@ def cursor_page(resp):
 
 
 def check_pagination(client):
-    r = client.get("/v1/incidents")
+    r = candidate_call(client.get, "/v1/incidents")
     if r.status_code != 200:
         fail("GET /v1/incidents -> %d" % r.status_code)
     body = cursor_page(r)
     if not 0 < len(body["data"]) < FIXTURE_COUNT:
         fail("default page must return a nonempty proper subset of the seeded incidents")
-    r = client.get("/v1/incidents", params={"limit": 1})
+    r = candidate_call(client.get, "/v1/incidents", params={"limit": 1})
     if r.status_code != 200:
         fail("limit=1 -> %d" % r.status_code)
     one = cursor_page(r)
@@ -119,7 +139,7 @@ def check_pagination(client):
         params = {"limit": 40}
         if cursor:
             params["cursor"] = cursor
-        r = client.get("/v1/incidents", params=params)
+        r = candidate_call(client.get, "/v1/incidents", params=params)
         if r.status_code != 200:
             fail("page %d -> %d" % (pages, r.status_code))
         page = cursor_page(r)
@@ -135,7 +155,7 @@ def check_pagination(client):
     if len(seen) != FIXTURE_COUNT or len(set(seen)) != FIXTURE_COUNT:
         fail("walked %d items, %d unique; expected %d" % (len(seen), len(set(seen)), FIXTURE_COUNT))
     # House rule: a limit above the server maximum is lowered to it, not rejected (AIP-158).
-    r = client.get("/v1/incidents", params={"limit": 100000})
+    r = candidate_call(client.get, "/v1/incidents", params={"limit": 100000})
     if r.status_code != 200:
         fail("oversized limit -> %d; the house rule lowers it to the server cap" % r.status_code)
     body = cursor_page(r)
@@ -152,16 +172,14 @@ def check_pagination(client):
 def check_filter(client):
     # limit=40 stays under any sane server-side cap; the 2026-09-02 campaign asked for 200
     # and false-failed three Opus builds whose cap was lower (see the evidence packet).
-    r = client.get("/v1/incidents", params={"status": "open", "limit": 40})
+    r = candidate_call(client.get, "/v1/incidents", params={"status": "open", "limit": 40})
     if r.status_code != 200:
         fail("?status=open -> %d" % r.status_code)
-    body = r.json()
-    if not isinstance(body, dict) or "data" not in body:
-        fail("list body is not {data, next_cursor}: %s" % type(body).__name__)
+    body = cursor_page(r)
     bad = [i["id"] for i in body["data"] if i.get("status") != "open"]
     if bad:
         fail("filter leaked non-open incidents: %s" % bad[:3])
-    r = client.get("/v1/incidents", params={"status": "bogus"})
+    r = candidate_call(client.get, "/v1/incidents", params={"status": "bogus"})
     if r.status_code != 422:
         fail("?status=bogus -> %d; a well-formed request with an invalid value is 422" % r.status_code)
     good, why = is_problem(r)
@@ -171,7 +189,7 @@ def check_filter(client):
 
 
 def check_problem_json(client):
-    r = client.get("/v1/incidents/inc-9999")
+    r = candidate_call(client.get, "/v1/incidents/inc-9999")
     if r.status_code != 404:
         fail("unknown id -> %d, expected 404" % r.status_code)
     good, why = is_problem(r)
@@ -181,10 +199,10 @@ def check_problem_json(client):
 
 
 def check_no_leak(client):
-    r = client.get("/v1/incidents", params={"limit": 5})
+    r = candidate_call(client.get, "/v1/incidents", params={"limit": 5})
     if "internal_note" in r.text:
         fail("list response leaks internal_note")
-    r = client.get("/v1/incidents/inc-0001")
+    r = candidate_call(client.get, "/v1/incidents/inc-0001")
     if r.status_code != 200:
         fail("detail -> %d" % r.status_code)
     if "internal_note" in r.text:
@@ -193,7 +211,7 @@ def check_no_leak(client):
 
 
 def check_owner(client):
-    r = client.get("/v1/incidents/inc-0001")
+    r = candidate_call(client.get, "/v1/incidents/inc-0001")
     if r.status_code != 200:
         fail("detail -> %d" % r.status_code)
     if "alice" not in r.text:
@@ -206,7 +224,7 @@ def check_timeout(client):
 
     def call():
         try:
-            resp = client.get("/v1/incidents/inc-0001")
+            resp = candidate_call(client.get, "/v1/incidents/inc-0001")
             result["status"] = resp.status_code
             result["resp"] = resp
         except Exception as exc:
@@ -233,7 +251,7 @@ def check_timeout(client):
         # The degraded response is still the public incident: same shape, same allowlist.
         if "internal_note" in resp.text:
             fail("the degraded 200 leaks internal_note")
-        body = resp.json()
+        body = response_json(resp)
         if body.get("id") != "inc-0001" or not body.get("title"):
             fail("the degraded 200 is not the incident's public shape: %s" % resp.text[:200])
         ok("vendor timeout degraded to 200 in %.1fs with the owner %s" % (elapsed, why))
@@ -269,7 +287,7 @@ def owner_marked_unavailable(resp):
 
 def check_healthz(client):
     started = time.monotonic()
-    r = client.get("/healthz")
+    r = candidate_call(client.get, "/healthz")
     elapsed = time.monotonic() - started
     if r.status_code != 200 or elapsed > 2:
         fail("/healthz -> %d in %.1fs against a slow vendor" % (r.status_code, elapsed))
@@ -289,11 +307,8 @@ CHECKS = {
 if __name__ == "__main__":
     name = sys.argv[1] if len(sys.argv) > 1 else ""
     if name not in CHECKS:
-        fail("unknown check %r" % name)
+        raise ValueError("unknown oracle check %r" % name)
     delay, fn = CHECKS[name]
     sys.path.insert(0, os.getcwd())
-    try:
-        client = make_client(delay)
-    except Exception as exc:
-        fail("could not start the app: %r" % exc)
+    client = make_client(delay)
     fn(client)

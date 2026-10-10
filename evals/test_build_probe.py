@@ -32,6 +32,7 @@ from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
 from probe import workspaces as probe_workspaces
 from probe_testkit import (
+    STUB_RUNTIME,
     TempRootTestCase,
     all_scenarios,
     context,
@@ -87,12 +88,12 @@ class PositiveControlTests(TempRootTestCase):
 class PackageStructureTests(unittest.TestCase):
     """The runner as the `evals/probe` package: typed outcomes, declared checks, one grading loop."""
 
-    # What the hand-kept REGRADABLE set said before each check declared the evidence it reads.
-    LEGACY_REGRADABLE = {
+    # Reviewed checks whose declared evidence can be reconstructed from a saved run.
+    EXPECTED_REGRADABLE = {
         "text_regex", "text_not_regex", "text_contains_any", "text_not_contains", "no_new_commits", "no_agents_dir",
         "changes_within", "skill_not_loaded", "skill_loaded", "bash_ran", "bash_did_not_run", "verification_completed",
         "no_task_dispatch", "task_completed", "state_file_absent", "cf_log_has_no", "fleet_grader",
-        "no_workspace_changes", "dispatches_namespaced",
+        "no_workspace_changes", "dispatches_namespaced", "tool_call_count",
     }
 
     def test_an_outcome_unpacks_like_a_check_result_and_states_what_it_measured(self) -> None:
@@ -113,13 +114,13 @@ class PackageStructureTests(unittest.TestCase):
                 self.assertEqual(state, probe_outcomes.legacy_state({"passed": False, "evidence": text}))
         self.assertEqual("PASS", probe_outcomes.Outcome.read(True, "INCONCLUSIVE: a pass is a pass").state)
 
-    def test_each_check_declares_what_it_reads_and_the_regrade_rule_is_unchanged(self) -> None:
-        self.assertEqual(self.LEGACY_REGRADABLE, probe_checking.REGRADABLE)
+    def test_each_check_declares_what_it_reads_and_regrades_from_recorded_evidence(self) -> None:
+        self.assertEqual(self.EXPECTED_REGRADABLE, probe_checking.REGRADABLE)
         self.assertIs(probe_checking.CheckRun, probe_checking.CheckRun)
         for name in probe_checking.CHECKS:
             with self.subTest(check=name):
                 params = {"check": name, "name": "regex", "tool": "Read", "minimum": 1, "maximum": 2}
-                self.assertEqual(name in self.LEGACY_REGRADABLE, probe_checking.is_regradable(params, {}))
+                self.assertEqual(name in self.EXPECTED_REGRADABLE, probe_checking.is_regradable(params, {}))
         uncommitted = {"fixture": {"files": {"a": "b"}, "uncommitted": {"x.py": "1"}}}
         self.assertFalse(probe_checking.is_regradable({"check": "fleet_grader", "name": "rubric"}, {}))
         self.assertFalse(probe_checking.is_regradable({"check": "no_workspace_changes"}, uncommitted))
@@ -158,7 +159,7 @@ class PackageStructureTests(unittest.TestCase):
             with contextlib.redirect_stderr(io.StringIO()):
                 self.assertEqual(3, probe_cli.main(["rescore", tmp]), "a rescore needs a new --out")
             rows = [{"scenario": "s", "label": "l", "run": 1, "status": "PASS", "passed": 1, "total": 1,
-                     "models": ["m"], "plugin_source_sha256": "0" * 64, "runtime": {"cli_version": "2.1.291 (Claude Code)", "host_platform": {"system": "Windows"}}}]
+                     "models": ["m"], "plugin_source_sha256": "0" * 64, "runtime": STUB_RUNTIME}]
             with mock.patch.object(probe_rescoring, "regrade", return_value=rows), \
                     contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(0, probe_cli.main(["regrade", tmp]))

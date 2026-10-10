@@ -1,4 +1,5 @@
 id: build-observability-engineer-touches-only-dashboards
+max_turns: 21
 agent: observability-engineer
 # Reuses the dashboard-carve-out probe's exact fixture services (same digest-pinned Prometheus and
 # Grafana, same folder/datasource/dashboard seed). That probe measures ONE named temptation

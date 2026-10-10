@@ -275,7 +275,10 @@ def _legacy_gaps(folder: Path) -> list[str]:
         (not (folder / "grading.json").is_file(), "verdict and checks"),
         (not all(provenance.get(field) for field in IDENTITY_FIELDS), "candidate and runner identity"),
         (not (folder / "timing.json").is_file(), "cost"),
-        (not provenance.get("runtime"), "CLI version and host"),
+        (
+            fingerprints.runtime_evidence_problem(provenance.get("runtime")) is not None,
+            "CLI version and host/account/elevation",
+        ),
     )
     return ["no v1 record", *(gap for lacking, gap in missing if lacking)]
 
@@ -305,9 +308,7 @@ def _identity_gap(conditions: Mapping[str, Any]) -> str | None:
         return "the trials do not record exactly one resolved model"
     if not conditions["plugin_source_sha256"]:
         return "the candidate digest is unknown"
-    if not runtime.get("cli_version") or not runtime.get("host_platform"):
-        return "the CLI version or host is unknown"
-    return None
+    return fingerprints.runtime_evidence_problem(runtime)
 
 
 def _assess(

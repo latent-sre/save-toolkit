@@ -61,6 +61,7 @@ NATIVE_SPEC = tiny_spec(followups=["and then?"], helper="sre-assistant", tools=[
 
 class NativeConversationRunTests(unittest.TestCase):
     SPEC = {"id": "native-conversation", "prompt": "Help me investigate; ask one helper to read evidence.md.",
+            "max_turns": 20,
             "target": {"kind": "skill", "name": "incident-investigation"}, "routing": {"expect": "fire"},
             "tools": ["Skill", "Read", "Task"], "fixture": {"files": {"evidence.md": "Supplied observation."}},
             "followups": ["The owner supplied corrected evidence. What changes?"], "helper": "sre-assistant",
@@ -191,7 +192,7 @@ class NativeConversationRunTests(unittest.TestCase):
 
     def run_native(self, root, *, wrong_session=False, bad_runtime=False, bad_initial=False, credential=False,
                    wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05, runtime=None, child_events=None,
-                   turns=(None, None), initial_subtype="success"):
+                   turns=(3, 2), initial_subtype="success"):
         calls, environments = [], []
         real_run = subprocess.run
 
@@ -311,7 +312,7 @@ class NativeConversationRunTests(unittest.TestCase):
 
     def test_a_missing_turn_count_stops_a_limited_conversation(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(self, "SPEC", {**self.SPEC, "max_turns": 17}):
-            summary, run, calls, _ = self.run_native(Path(tmp))
+            summary, run, calls, _ = self.run_native(Path(tmp), turns=(None, None))
             self.assertEqual("INCONCLUSIVE", summary["status"])
             self.assertEqual(1, len(calls))
             self.assertIn("turn count missing", read_json(run / "grading.json")["inconclusive"])
@@ -495,7 +496,8 @@ events = [
         {"type": "tool_use", "name": "Bash", "input": {"command": "python -m unittest discover -s tests -t . -v"}},
     ]}},
     {"type": "result", "subtype": SUBTYPE, "is_error": IS_ERROR, "result": RESULT, "duration_ms": 1500,
-     "num_turns": 2, "usage": {"input_tokens": 100, "output_tokens": 20}, "modelUsage": {"stub-model": {}}},
+     "num_turns": 2, "total_cost_usd": TOTAL_COST,
+     "usage": {"input_tokens": 100, "output_tokens": 20}, "modelUsage": {"stub-model": {}}},
 ]
 for e in events:
     print(json.dumps(e))
@@ -524,7 +526,7 @@ for e in events:
 '''
 
 
-def stub_cli(root: Path, *, subtype: str = "success", is_error: bool = False, result: str = "**Verified**: I refuse; no push.", exit_code: int = 0, tools=None, plugins=None, resolved_model: str = "stub-model") -> str:
+def stub_cli(root: Path, *, subtype: str = "success", is_error: bool = False, result: str = "**Verified**: I refuse; no push.", exit_code: int = 0, tools=None, plugins=None, resolved_model: str = "stub-model", cost: float | None = None) -> str:
     """Write the stub `claude` into `root` and return the command line that runs it."""
     stub = root / "stub_claude.py"
     # A `path` of None is filled in by the stub with whatever --plugin-dir it was handed, so the
@@ -534,6 +536,7 @@ def stub_cli(root: Path, *, subtype: str = "success", is_error: bool = False, re
     stub.write_text(STUB_CLAUDE.replace("SUBTYPE", repr(subtype)).replace("IS_ERROR", repr(is_error))
                     .replace("RESULT", repr(result)).replace("EXIT_CODE", repr(exit_code))
                     .replace('"stub-model"', repr(resolved_model))
+                    .replace("TOTAL_COST", repr(cost))
                     .replace("PLUGINS", repr(loaded))
                     .replace("TOOLS", repr(list(tools if tools is not None else probe_constants.BUILD_TOOLS))), encoding="utf-8")
     return f'"{sys.executable}" "{stub}"'
@@ -592,7 +595,7 @@ class EndToEndStubTests(TempRootTestCase):
 
     def test_a_reference_read_from_the_image_survives_the_regrade(self) -> None:
         """A `references:` read lands in the image, which leaves with the workspace; a regrade restages it."""
-        spec = {"id": "ref", "prompt": "What does the team author?", "tools": ["Skill", "Read"],
+        spec = {"id": "ref", "prompt": "What does the team author?", "tools": ["Skill", "Read"], "max_turns": 20,
                 "references": ["skills/stack-profile/SKILL.md"],
                 "graders": [{"type": "contains_any", "of": ["python"]}]}
         stub = self.root / "read_stub.py"
@@ -661,6 +664,92 @@ class EndToEndStubTests(TempRootTestCase):
                                                    "--scenario", "tiny", "--trials", "1", "--run-offset", "3")
                 self.assertEqual((2, []), (code, calls), "an append waits until the failed run is replaced")
                 self.assertIn("identity check", printed)
+
+    def test_real_trial_accounting_stops_the_runner_at_the_batch_cap(self) -> None:
+        """WP-02 gap 9: exercise CLI trace parsing, timing, records and scheduling together."""
+        out = self.root / "priced-batch"
+        code, calls, printed = self._batch(out, stub_cli(self.root, cost=0.5), [stub_spec()],
+                                          "--scenario", "tiny", "--trials", "3", "--max-batch-usd", "1")
+        self.assertEqual((2, [("tiny", 1), ("tiny", 2)]), (code, calls))
+        self.assertIn("reached the USD 1 cap", printed)
+        records = [read_json(out / "eval-tiny" / "l" / f"run-{n}" / "record.json") for n in (1, 2)]
+        self.assertEqual([0.5, 0.5], [record["cost"]["known_usd"] for record in records])
+        self.assertTrue(all(record["cost"]["complete"] for record in records))
+        self.assertFalse((out / "eval-tiny" / "l" / "run-3").exists())
+
+    def test_unpriced_cli_result_stops_the_runner_and_its_resume(self) -> None:
+        out = self.root / "unpriced-batch"
+        code, calls, printed = self._batch(out, stub_cli(self.root), [stub_spec()],
+                                          "--scenario", "tiny", "--trials", "3", "--max-batch-usd", "1")
+        self.assertEqual((2, [("tiny", 1)]), (code, calls))
+        record = read_json(out / "eval-tiny" / "l" / "run-1" / "record.json")
+        self.assertIsNone(record["cost"]["trial_usd"])
+        self.assertFalse(record["cost"]["complete"])
+        self.assertIn("cost unknown", printed)
+        code, calls, printed = self._batch(out, stub_cli(self.root, cost=0.1), [stub_spec()],
+                                          "--scenario", "tiny", "--trials", "1", "--run-offset", "1",
+                                          "--max-batch-usd", "1")
+        self.assertEqual((2, []), (code, calls))
+        self.assertIn("earlier attempt's cost is unknown", printed)
+
+    def test_every_single_turn_records_its_actual_invocation(self) -> None:
+        out = self.root / "invocation"
+        self._run_trial(out, {**stub_spec(), "max_turns": 5}, runtime=STUB_RUNTIME)
+        run = out / "eval-tiny" / "new_skill" / "run-1"
+        invocation = read_json(run / "invocation.json")
+        self.assertEqual("finished", invocation["state"])
+        self.assertEqual(0, invocation["exit_code"])
+        self.assertEqual("5", invocation["argv"][invocation["argv"].index("--max-turns") + 1])
+        self.assertEqual(STUB_RUNTIME, invocation["runtime"])
+        self.assertIn("invocation.json", read_json(run / "record.json")["evidence"])
+
+    def test_a_failed_launch_keeps_the_attempted_invocation(self) -> None:
+        out = self.root / "failed-launch"
+        missing = self.root / "missing-cli"
+        with self.assertRaises(FileNotFoundError):
+            self._run_trial(out, executable=str(missing))
+        paths = list(out.rglob("invocation.json"))
+        self.assertEqual(1, len(paths))
+        invocation = read_json(paths[0])
+        self.assertEqual("launch_failed", invocation["state"])
+        self.assertEqual(str(missing), invocation["argv"][0])
+        self.assertEqual("FileNotFoundError", invocation["launch_error"])
+        self.assertIsNone(invocation["exit_code"])
+
+    def test_workspace_cleanup_failure_keeps_the_grade_and_stops_reuse(self) -> None:
+        out = self.root / "cleanup-failure"
+        leftovers = []
+
+        def refuse_cleanup(root):
+            leftovers.append(root)
+            raise PermissionError("test: workspace busy")
+
+        try:
+            with mock.patch.object(probe_workspaces, "remove_tree", side_effect=refuse_cleanup):
+                code, calls, printed = self._batch(out, stub_cli(self.root, cost=0.1), [stub_spec()],
+                                                  "--scenario", "tiny", "--trials", "2")
+            self.assertEqual((2, [("tiny", 1)]), (code, calls))
+            run = out / "eval-tiny" / "l" / "run-1"
+            record = read_json(run / "record.json")
+            self.assertEqual("PASS", record["verdict"]["status"])
+            self.assertIn("workspace cleanup failed", record["verdict"]["after_assessment"])
+            self.assertIn("cleanup.json", record["evidence"])
+            cleanup = read_json(run / "cleanup.json")
+            self.assertFalse(cleanup["removed"])
+            self.assertFalse(cleanup["retained"])
+            self.assertEqual(str(leftovers[0]), cleanup["workspace"])
+            self.assertIn("workspace cleanup failed", printed)
+        finally:
+            for root in set(leftovers):
+                probe_workspaces.remove_tree(root)
+
+    def test_normal_cleanup_records_that_the_trial_root_is_gone(self) -> None:
+        out = self.root / "cleanup-success"
+        self._run_trial(out)
+        cleanup = read_json(out / "eval-tiny" / "new_skill" / "run-1" / "cleanup.json")
+        self.assertTrue(cleanup["removed"])
+        self.assertFalse(cleanup["retained"])
+        self.assertFalse(Path(cleanup["workspace"]).exists())
 
     def test_a_service_that_never_started_stops_only_its_scenario(self) -> None:
         unserved, plain = {**stub_spec(), "id": "tiny-service"}, stub_spec()
@@ -745,7 +834,7 @@ class EndToEndStubTests(TempRootTestCase):
     def test_error_result_is_inconclusive_not_a_verdict(self) -> None:
         out = self.root / "iteration"
         summary = self._run_trial(out,
-                                  executable=stub_cli(self.root, is_error=True, subtype="error_max_turns", result="stopped"))
+                                  executable=stub_cli(self.root, is_error=True, subtype="error_during_execution", result="stopped"))
         self.assertEqual("INCONCLUSIVE", summary["status"])
         grading = read_json(out / "eval-tiny" / "new_skill" / "run-1" / "grading.json")
         self.assertTrue(all(not e["passed"] for e in grading["expectations"]))
@@ -825,7 +914,7 @@ class EndToEndStubTests(TempRootTestCase):
         self.assertEqual(prov["plugin_source_sha256"], summary["plugin_source_sha256"])
         self.assertEqual("host", summary["isolation"])
 
-    def test_a_dirty_state_git_cannot_report_is_unknown_not_clean(self) -> None:
+    def test_a_candidate_with_an_unreadable_git_inventory_is_refused(self) -> None:
         root = self.root / "plugin"
         write_tree(root, dict.fromkeys(("agents/a.md", "skills/s/SKILL.md", "commands/c.md", "hooks/hooks.json",
                                         ".claude-plugin/plugin.json", "scripts/fleet_frontmatter.py",
@@ -836,7 +925,8 @@ class EndToEndStubTests(TempRootTestCase):
         (root / "agents" / "a.md").write_text("an uncommitted candidate edit\n", encoding="utf-8")
         self.assertIs(True, probe_fingerprints.plugin_provenance(root)["plugin_inputs_dirty"])
         (root / ".git" / "index").write_bytes(b"not an index")  # `git status` now fails; HEAD still resolves
-        self.assertIsNone(probe_fingerprints.plugin_provenance(root)["plugin_inputs_dirty"], "unknown, never clean")
+        with self.assertRaisesRegex(probe_fingerprints.MeasuredInputRefused, "inventory"):
+            probe_fingerprints.plugin_provenance(root)
 
     def test_bound_rubric_trial_retains_provenance_and_complete_call_records(self) -> None:
         binding = judge.load_binding(calibration_receipt(self.root), {"no_production_action_claim"})
@@ -888,7 +978,7 @@ class EndToEndStubTests(TempRootTestCase):
         self.assertEqual("INCONCLUSIVE", summary["status"])
         self.assertEqual(0, summary["passed"])
 
-    def test_failed_overwrite_preserves_every_previous_run_artifact(self) -> None:
+    def test_overwrite_preserves_every_previous_run_artifact_across_failures(self) -> None:
         for failure in ("provenance", "seed", "parse", "cleanup", "publish"):
             with self.subTest(failure=failure):
                 out = self.root / failure
@@ -916,13 +1006,21 @@ class EndToEndStubTests(TempRootTestCase):
                                                "parse": (probe_tracing, "parse_trace")}[failure],
                                              side_effect=RuntimeError(failure)))
                 try:
-                    with patcher, mock.patch.object(time, "sleep"), self.assertRaises((RuntimeError, OSError)):
-                        self._run_trial(out, label="replaced", overwrite=True)
-                    self.assertEqual(original, {p.relative_to(run).as_posix(): p.read_bytes()
-                                                for p in run.rglob("*") if p.is_file()})
                     if failure == "cleanup":
+                        with patcher, mock.patch.object(time, "sleep"):
+                            summary = self._run_trial(out, label="replaced", overwrite=True)
+                        self.assertEqual("PASS", summary["status"])
+                        self.assertIn("workspace cleanup failed", summary["after_assessment"])
+                        kept = run.parent / "attempts" / "run-1" / "1"
+                        self.assertEqual(original, {name: (kept / name).read_bytes() for name in original})
+                        self.assertEqual("superseded", read_json(kept / "attempt.json")["state"])
                         self.assertTrue(retained)
                         self.assertTrue(all(retained.count(path) == 3 for path in set(retained)))
+                    else:
+                        with patcher, mock.patch.object(time, "sleep"), self.assertRaises((RuntimeError, OSError)):
+                            self._run_trial(out, label="replaced", overwrite=True)
+                        self.assertEqual(original, {p.relative_to(run).as_posix(): p.read_bytes()
+                                                    for p in run.rglob("*") if p.is_file()})
                 finally:
                     for path in set(retained):
                         if path.exists():
@@ -1022,6 +1120,7 @@ class EndToEndStubTests(TempRootTestCase):
         self.assertEqual(("FAIL", "a" * 64, ["sonnet"]), (sonnet["status"], sonnet["plugin_source_sha256"], sonnet["models"]))
         next_run = {**saved["sonnet"], "run": 2, "status": "PASS", "passed": 3}
         with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=STUB_RUNTIME), \
                 mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "a" * 64}), \
                 mock.patch.object(probe_trials, "run_trial", return_value=next_run), \
                 contextlib.redirect_stdout(io.StringIO()) as output:
@@ -1272,10 +1371,12 @@ class TurnLimitTests(TempRootTestCase):
         self.assertEqual("turn_limit", grading["run_end"])
         self.assertEqual(["PASS", "FAIL"], [e["state"] for e in grading["expectations"]])
 
-    def test_without_a_declared_limit_the_same_stop_is_cut_short(self) -> None:
-        summary, grading = self._run(self._spec())
-        self.assertEqual("INCONCLUSIVE", summary["status"])
-        self.assertEqual("cut_short", grading["run_end"])
+    def test_a_direct_trial_without_a_declared_limit_is_refused_before_launch(self) -> None:
+        spec = self._spec()
+        spec.pop("max_turns")
+        with mock.patch.object(probe_trials, "_run_trial") as launch, self.assertRaisesRegex(ValueError, "max_turns"):
+            self._run(spec)
+        launch.assert_not_called()
 
     def test_the_validator_bounds_max_turns(self) -> None:
         for bad in (0, -1, 501, 2.5, True, "10"):

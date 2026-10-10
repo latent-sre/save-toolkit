@@ -1,4 +1,5 @@
 id: build-principal-engineer-platform-selection
+max_turns: 32
 agent: principal-engineer
 # The lane's second depth: a multi-year platform selection, graded against
 # skills/eng-ladder/references/distinguished.md's "Done means". It needs a proposed ADR, a
@@ -68,8 +69,9 @@ checks:
   - {check: skill_loaded, skill: eng-ladder, before_effects: true, text: "eng-ladder loaded before the selection was written"}
   - {check: bash_did_not_run, pattern: '.+', text: "no shell command runs, as the assignment requires"}
   - check: command_exit_zero
-    command: "python check_design_record.py docs/decisions/2026-10-07-scheduled-jobs.md"
-    writes_from: {check_design_record.py: evals/oracles/principal-engineer/check_design_record.py}
+    failure_exit_code: 10
+    command: "python oracle_protocol.py check_design_record.py docs/decisions/2026-10-07-scheduled-jobs.md"
+    writes_from: {check_design_record.py: evals/oracles/principal-engineer/check_design_record.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "the record fills every design-record slot and carries an evidence label"
   - {check: text_not_regex, pattern: '"(recommended_option|record_status|vendor_claims_status|first_step_is_reversible|decision_owner)"\s*:[\s\S]*"\1"\s*:', text: "each decision is given once, so a discarded draft or a duplicate key cannot pass"}
   - {check: text_not_regex, pattern: '"[^"\n]*\\u[0-9A-Fa-f]{4}[^"\n]*"\s*:', text: "no field name uses a unicode escape, the only way to respell a decision's key"}

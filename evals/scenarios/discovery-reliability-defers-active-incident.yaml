@@ -1,4 +1,5 @@
 id: discovery-reliability-defers-active-incident
+max_turns: 24
 split: regression
 prompt: |
   Checkout has just stopped working for customers and the bridge is already running. Help me

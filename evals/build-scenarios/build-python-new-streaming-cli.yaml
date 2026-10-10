@@ -1,4 +1,5 @@
 id: build-python-new-streaming-cli
+max_turns: 20
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
@@ -37,6 +38,7 @@ checks:
   # A later shell call conservatively makes this ordering evidence INCONCLUSIVE.
   - {check: verification_completed, runner: unittest, text: "the agent completed foreground unittest verification after final edits"}
   - check: command_exit_zero
-    command: "python -I -B _python_new_oracle.py"
-    writes_from: {_python_new_oracle.py: evals/oracles/python-craft/check_new_code.py}
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _python_new_oracle.py"
+    writes_from: {_python_new_oracle.py: evals/oracles/python-craft/check_new_code.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "independent API, CLI, streaming, resource, shared-policy, import, and runnable-test outcomes"

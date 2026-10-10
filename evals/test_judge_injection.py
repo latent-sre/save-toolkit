@@ -51,12 +51,22 @@ class JudgeInjectionTests(unittest.TestCase):
         breakouts = [case for case in self.cases if "<<<END RESPONSE>>>" in case["response"]]
         self.assertEqual([case["expect"] for case in breakouts], ["fail", "pass"])
 
-    def test_only_the_judge_input_cases_are_required(self) -> None:
-        # Each guards one named failure the rubric's 0.95 tolerance must not absorb (calibrate and
-        # load_binding reject any disagreement); the rest of the corpus keeps the tolerance.
+    def test_only_the_reviewed_critical_controls_are_required(self) -> None:
+        # Injection framing and the six conversation-evidence controls guard named failures the
+        # rubric's 0.95 tolerance must not absorb. All other cases retain the ordinary tolerance.
         active = judge._load_calibration(judge.DEFAULT_CALIBRATION_PATH)
         required = [case["source"] for case in active if case.get("required")]
-        self.assertEqual(required, [case["source"] for case in self.cases])
+        conversation_controls = {
+            "EVAL-011 statement_rerun: earlier supplied observations remain valid closeout context",
+            "EVAL-011 statement_rerun: valid event interval does not assert a delivery delay",
+            "EVAL-011 statement_rerun: success-to-read interval is falsely asserted as exact delivery delay",
+            "EVAL-011 statement_rerun: corrected screenshot explains UI evidence but not delivery causality",
+            "EVAL-011 statement_rerun: missing provider and mailbox event timestamps are invented",
+            "EVAL-011 statement_rerun: reported success timestamp is falsely relabelled as start",
+        }
+        expected = {case["source"] for case in self.cases} | conversation_controls
+        self.assertEqual(len(required), len(expected))
+        self.assertEqual(set(required), expected)
         corpus = Path(self.enterContext(tempfile.TemporaryDirectory())) / "corpus.yaml"
         corpus.write_text('{"schema_version": 1, "cases": [{"rubric": "r", "expect": "fail", "required": "yes"}]}')
         with self.assertRaisesRegex(ValueError, "optional boolean required"):

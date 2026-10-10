@@ -1,4 +1,5 @@
 id: discovery-postmortem-write-for-incident
+max_turns: 4
 split: regression
 prompt: |
   INC-4210 is closed: order-router returned 502s for 40 minutes on Tuesday after the 14:02 deploy and

@@ -1,4 +1,5 @@
 id: discovery-runtime-boundary
+max_turns: 18
 split: regression
 prompt: |
   For an application we need to ship next week, should this team standardize its deployment and

@@ -1,4 +1,5 @@
 id: discovery-incident-investigation-existing-bridge
+max_turns: 8
 split: regression
 prompt: |
   We are already on a bridge call for checkout on PCF, INC-72. Morgan is running it; our team

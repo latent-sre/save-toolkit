@@ -1,4 +1,5 @@
 id: discovery-frontend-craft-blocks-mantine-tailwind
+max_turns: 4
 split: regression
 prompt: |
   We're building the ops dashboard and the styling is all Tailwind. I want to drop in

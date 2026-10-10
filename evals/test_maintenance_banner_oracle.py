@@ -25,10 +25,11 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
         """A fresh workspace holding the fixture with `source` as its app, and the oracle beside it."""
         root = write_tree(Path(self.enterContext(tempfile.TemporaryDirectory())), {**FIXTURE, APP: source})
         (root / "_banner_oracle.py").write_bytes(ORACLE.read_bytes())
+        (root / "oracle_protocol.py").write_bytes((ORACLE.parent.parent / "oracle_protocol.py").read_bytes())
         return root
 
     def run_oracle(self, root, case):
-        return run_python(["_banner_oracle.py", case], cwd=root, encoding="utf-8", timeout=10)
+        return run_python(["oracle_protocol.py", "_banner_oracle.py", case], cwd=root, encoding="utf-8", timeout=10)
 
     def test_old_comment_only_anchor_and_green_seed_suite_do_not_prove_banner(self):
         source = FIXTURE[APP] + "\n# MAINTENANCE_BANNER\n"
@@ -53,6 +54,68 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
                     result = self.run_oracle(root, case)
                     self.assertEqual(0, result.returncode, result.stdout + result.stderr)
                     self.assertIn(f"OK: {case}:", result.stdout)
+
+    def test_correct_lazy_response_passes_all_cases(self):
+        source = CORRECT.replace("def application(", "def eager_application(") + (
+            "\ndef application(environ, start_response):\n"
+            "    yield from eager_application(environ, start_response)\n"
+        )
+        root = self.seeded(source)
+        for case in ("enabled", "unset", "empty", "escaped"):
+            with self.subTest(case=case):
+                result = self.run_oracle(root, case)
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_malformed_response_metadata_fails_for_the_named_contract(self):
+        original = 'start_response("200 OK", [("Content-Type", "text/html; charset=utf-8")])'
+        cases = [
+            ("missing callback", "pass", "did not call start_response"),
+            ("missing content type", 'start_response("200 OK", [])', "missing Content-Type"),
+            ("no headers", 'start_response("200 OK", None)', "key/value pairs"),
+            ("noniterable headers", 'start_response("200 OK", 42)', "key/value pairs"),
+            ("non-pair entry", 'start_response("200 OK", [42])', "key/value pairs"),
+            ("short pair", 'start_response("200 OK", [("Content-Type",)])', "key/value pairs"),
+            ("long pair", 'start_response("200 OK", [("Content-Type", "text/html", "extra")])', "key/value pairs"),
+            ("nontext name", 'start_response("200 OK", [(42, "text/html")])', "names and values must be text"),
+            ("nontext value", 'start_response("200 OK", [("Content-Type", ["text/html"])])', "names and values must be text"),
+            ("nontext status", 'start_response(200, [("Content-Type", "text/html")])', "status must be text"),
+        ]
+        for name, replacement, diagnostic in cases:
+            with self.subTest(case=name):
+                source = CORRECT.replace(original, replacement)
+                self.assertNotEqual(source, CORRECT)
+                result = self.run_oracle(self.seeded(source), "enabled")
+                self.assertEqual(10, result.returncode, result.stdout + result.stderr)
+                self.assertIn(diagnostic, result.stderr)
+
+    def test_valid_mapping_and_iterable_headers_pass(self):
+        sequence = ("\nclass HeaderPairs:\n"
+                    "    def __init__(self, pairs): self.pairs = pairs\n"
+                    "    def __getitem__(self, index): return self.pairs[index]\n")
+        for expression in ('{"Content-Type": %s}', '(("Content-Type", %s),)',
+                           '((name, value) for name, value in [("Content-Type", %s)])',
+                           'HeaderPairs([("Content-Type", %s)])'):
+            source = CORRECT + sequence
+            for media_type in ('application/json', 'text/html; charset=utf-8'):
+                source = source.replace(f'[("Content-Type", "{media_type}")]', expression % repr(media_type))
+            root = self.seeded(source)
+            for case in ("enabled", "unset", "empty", "escaped"):
+                with self.subTest(headers=expression, case=case):
+                    result = self.run_oracle(root, case)
+                    self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_oracle_callback_defects_outside_metadata_conversion_stay_unavailable(self):
+        for exception in ("TypeError", "RuntimeError", "KeyboardInterrupt", "GeneratorExit"):
+            with self.subTest(exception=exception):
+                root = self.seeded(CORRECT)
+                oracle = (root / "_banner_oracle.py").read_text(encoding="utf-8")
+                oracle = oracle.replace("def start_response(status, headers, exc_info=None):",
+                                        "def start_response(status, headers, exc_info=None):\n"
+                                        f"        raise {exception}('oracle callback defect')")
+                (root / "_banner_oracle.py").write_text(oracle, encoding="utf-8")
+                result = self.run_oracle(root, "enabled")
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("oracle callback defect", result.stderr)
 
     def test_meaningful_broken_artifacts_fail_for_the_named_contract(self):
         broken = [
@@ -82,12 +145,13 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
         checks = scenario_file(SCENARIO)["checks"]
         oracle_checks = [check for check in checks if "_banner_oracle.py" in check.get("command", "")]
         self.assertEqual(
-            {f"python _banner_oracle.py {case}" for case in ("enabled", "unset", "empty", "escaped")},
+            {f"python oracle_protocol.py _banner_oracle.py {case}" for case in ("enabled", "unset", "empty", "escaped")},
             {check["command"] for check in oracle_checks},
         )
         self.assertTrue(all(check["check"] == "command_exit_zero" for check in oracle_checks))
         self.assertTrue(all(check["writes_from"] == {
             "_banner_oracle.py": "evals/oracles/maintenance-banner/probe_banner.py",
+                    "oracle_protocol.py": "evals/oracles/oracle_protocol.py",
         } for check in oracle_checks))
 
 

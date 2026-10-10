@@ -300,7 +300,7 @@ class WorkspaceAndCheckTests(TempRootTestCase):
         scenario = scenario_file(
             probe_constants.SCENARIO_DIR / "build-python-indexed-membership.yaml")
         outcome = next(c for c in scenario["checks"] if c["check"] == "command_exit_zero")
-        check = {**outcome, "command": f'"{sys.executable}" -I -B _python_index_oracle.py'}
+        check = {**outcome, "command": f'"{sys.executable}"' + outcome["command"].removeprefix("python")}
         spec = tiny_spec(checks=[check])
         for code in (0, 3):
             for phase in ("import", "iteration"):

@@ -1,4 +1,5 @@
 id: discovery-gcp-ops-cloud-run-503
+max_turns: 4
 split: regression
 prompt: |
   In staging, our order-router Cloud Run service has returned 503 on about 5% of requests since

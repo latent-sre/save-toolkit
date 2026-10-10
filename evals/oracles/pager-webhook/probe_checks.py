@@ -30,7 +30,17 @@ _PROCS = []
 
 def fail(msg):
     print("FAIL: " + msg)
-    sys.exit(1)
+    sys.exit(10)
+
+
+def response_json(response):
+    try:
+        body = response.json()
+    except ValueError as exc:
+        fail("candidate response is not JSON: %s" % exc)
+    if not isinstance(body, dict):
+        fail("candidate response must be a JSON object")
+    return body
 
 
 def ok(msg):
@@ -98,7 +108,7 @@ def new_event(summary=None):
             "summary": summary or "Checkout 5xx above 2%% (%s)" % event_id[-6:]}
 
 
-def deliver(base, event, signature="valid"):
+def deliver(proc, base, event, signature="valid"):
     body = json.dumps(event).encode("utf-8")
     headers = {"Content-Type": "application/json"}
     if signature == "valid":
@@ -106,7 +116,16 @@ def deliver(base, event, signature="valid"):
     elif signature == "forged":
         headers["X-Pager-Signature"] = "sha256=" + hmac.new(b"wrong-secret", body, hashlib.sha256).hexdigest()
     started = time.monotonic()
-    response = httpx.post(base + "/v1/webhooks/pager", content=body, headers=headers, timeout=30)
+    try:
+        response = httpx.post(base + "/v1/webhooks/pager", content=body, headers=headers, timeout=30)
+    except httpx.TransportError as exc:
+        # A closed socket may become visible just before the app's exit. Attribute only an
+        # observed child death; transport trouble while it remains alive is still unmeasured.
+        try:
+            code = proc.wait(timeout=0.25)
+        except subprocess.TimeoutExpired:
+            raise exc from None
+        fail("the app exited during webhook delivery (exit %s)" % code)
     return response, time.monotonic() - started
 
 
@@ -185,7 +204,7 @@ def check_signature(proc, base, db):
     for mode in ("forged", "missing"):
         event = new_event()
         refused.append((mode, event))
-        resp, _ = deliver(base, event, signature=mode)
+        resp, _ = deliver(proc, base, event, signature=mode)
         if resp.status_code not in (401, 403):
             fail("%s signature -> %d; expected 401 or 403" % (mode, resp.status_code))
         good, why = is_problem(resp)
@@ -202,7 +221,7 @@ def check_signature(proc, base, db):
 
 
 def check_fast_ack(proc, base, db):
-    resp, elapsed = deliver(base, new_event())
+    resp, elapsed = deliver(proc, base, new_event())
     if not 200 <= resp.status_code < 300 or elapsed >= ACK_WINDOW_S:
         fail("valid event -> %d after %.1fs; the vendor needs a 2xx within %.0fs while the runbook "
              "lookup takes %.0fs" % (resp.status_code, elapsed, ACK_WINDOW_S, RUNBOOK_DELAY))
@@ -210,7 +229,7 @@ def check_fast_ack(proc, base, db):
 
 
 def check_accepted(proc, base, db):
-    resp, _ = deliver(base, new_event())
+    resp, _ = deliver(proc, base, new_event())
     if resp.status_code != 202:
         fail("valid event -> %d; a new asynchronous receiver answers 202 Accepted" % resp.status_code)
     ok("valid event -> 202 Accepted")
@@ -219,7 +238,7 @@ def check_accepted(proc, base, db):
 def check_completes(proc, base, db):
     # An incident may be created first and enriched later; poll until the link arrives.
     event = new_event()
-    resp, _ = deliver(base, event)
+    resp, _ = deliver(proc, base, event)
     if not 200 <= resp.status_code < 300:
         fail("valid event -> %d" % resp.status_code)
     budget = RUNBOOK_DELAY + PROCESSING_ALLOWANCE_S
@@ -239,12 +258,12 @@ def check_redelivery(proc, base, db):
     event = new_event()
     sibling = dict(new_event(summary=event["summary"]))
     for attempt in range(3):
-        resp, _ = deliver(base, event)
+        resp, _ = deliver(proc, base, event)
         if not 200 <= resp.status_code < 300:
             fail("delivery %d of one event -> %d; a redelivery is acknowledged too"
                  % (attempt + 1, resp.status_code))
         time.sleep(1.0)
-    resp, _ = deliver(base, sibling)
+    resp, _ = deliver(proc, base, sibling)
     if not 200 <= resp.status_code < 300:
         fail("a second event with the same summary -> %d" % resp.status_code)
     if not wait_for_incident(db, event["summary"]):
@@ -259,7 +278,7 @@ def check_redelivery(proc, base, db):
 
 def check_durable(proc, base, db):
     event = new_event()
-    resp, elapsed = deliver(base, event)
+    resp, elapsed = deliver(proc, base, event)
     proc.kill()
     proc.wait(10)
     if not 200 <= resp.status_code < 300:
@@ -291,5 +310,5 @@ CHECKS = {
 if __name__ == "__main__":
     name = sys.argv[1] if len(sys.argv) > 1 else ""
     if name not in CHECKS:
-        fail("unknown check %r" % name)
+        raise ValueError("unknown oracle check %r" % name)
     CHECKS[name](*start())

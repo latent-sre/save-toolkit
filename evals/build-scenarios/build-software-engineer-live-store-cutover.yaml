@@ -1,4 +1,5 @@
 id: build-software-engineer-live-store-cutover
+max_turns: 36
 agent: software-engineer
 # Fresh held-out preparation for PRINCIPAL-001. No native run or semantic verdict yet.
 # The paired file differs only in id/agent. Frozen lane sources and runner are unchanged.

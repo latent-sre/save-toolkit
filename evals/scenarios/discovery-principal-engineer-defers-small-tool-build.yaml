@@ -1,4 +1,5 @@
 id: discovery-principal-engineer-defers-small-tool-build
+max_turns: 18
 split: regression
 # Adapted from discovery-software-engineer-build-cli-with-tests without its "not a design question"
 # sentence, which would tell the session the answer this case measures.

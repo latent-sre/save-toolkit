@@ -1,4 +1,5 @@
 id: discovery-ci-actions-harden-workflow
+max_turns: 14
 split: regression
 prompt: |
   Can you tell me what's wrong with this before I merge it? Don't edit the file — just tell me.

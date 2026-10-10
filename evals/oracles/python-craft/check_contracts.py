@@ -4,15 +4,19 @@ These inspect candidate modules in a disposable fixture, not arbitrary repositor
 They are public regression oracles, not hidden evaluations or a sandbox.
 """
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from oracle_protocol import candidate_call, supervise
+
 import ast
+from collections.abc import Mapping
 import importlib.util
 import io
 import ipaddress
 from itertools import product
-from pathlib import Path
 import re
 import subprocess
-import sys
 import tempfile
 from unittest import TestCase, mock
 
@@ -24,7 +28,7 @@ def load(filename):
     spec = importlib.util.spec_from_file_location("candidate", Path(filename).resolve())
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    candidate_call(spec.loader.exec_module, module)
     return module
 
 
@@ -35,28 +39,28 @@ def refactor():
         (2, [0, 4], [0, 2]), (10, [0, 4, 6], [0, 2, 3]),
     ]:
         values, emitted = [None, -1, 0, 2, 3], []
-        actual = process(values, limit=limit, emit=emitted.append)
+        actual = candidate_call(process, values, limit=limit, emit=emitted.append)
         CHECK.assertIs(type(actual), list)
         CHECK.assertTrue(all(type(value) is int for value in actual), "integer result type changed")
         CHECK.assertEqual(actual, result)
         CHECK.assertEqual(emitted, effects)
         CHECK.assertEqual(values, [None, -1, 0, 2, 3])
     values, emitted = [3, None, -1, 0, 3, 2], []
-    CHECK.assertEqual(process(values, emit=emitted.append), [6, 0, 6, 4])
+    CHECK.assertEqual(candidate_call(process, values, emit=emitted.append), [6, 0, 6, 4])
     CHECK.assertEqual(emitted, [3, 0, 3, 2])
     CHECK.assertEqual(values, [3, None, -1, 0, 3, 2])
     emitted = []
     with CHECK.assertRaisesRegex(ValueError, "^negative limit$"):
-        process([1], limit=-1, emit=emitted.append)
+        candidate_call(process, [1], limit=-1, emit=emitted.append)
     CHECK.assertEqual(emitted, [])
-    CHECK.assertEqual(process([], emit=emitted.append), [])
-    CHECK.assertEqual(process([None, -5], emit=emitted.append), [])
+    CHECK.assertEqual(candidate_call(process, [], emit=emitted.append), [])
+    CHECK.assertEqual(candidate_call(process, [None, -5], emit=emitted.append), [])
     CHECK.assertEqual(emitted, [])
 
     with CHECK.assertRaises(TypeError):
-        process([1], None, emit=emitted.append)
+        candidate_call(process, [1], None, emit=emitted.append)
     with CHECK.assertRaises(TypeError):
-        process([1], emitted.append, limit=None)
+        candidate_call(process, [1], emitted.append, limit=None)
     CHECK.assertEqual(emitted, [])
     failure = RuntimeError("callback failed")
 
@@ -67,7 +71,7 @@ def refactor():
 
     values = [0, 2, 3]
     with CHECK.assertRaisesRegex(RuntimeError, "^callback failed$") as raised:
-        process(values, emit=fail)
+        candidate_call(process, values, emit=fail)
     CHECK.assertIs(raised.exception, failure, "callback exception replaced")
     CHECK.assertEqual(emitted, [0, 2])
     CHECK.assertEqual(values, [0, 2, 3], "input mutated after callback failure")
@@ -80,11 +84,11 @@ def refactor():
                 values, effects = list(items), []
                 if limit == -1:
                     with CHECK.assertRaisesRegex(ValueError, "^negative limit$"):
-                        process(values, limit=limit, emit=effects.append)
+                        candidate_call(process, values, limit=limit, emit=effects.append)
                     expected = []
                 else:
                     expected = accepted if limit is None else accepted[:limit]
-                    actual = process(values, limit=limit, emit=effects.append)
+                    actual = candidate_call(process, values, limit=limit, emit=effects.append)
                     CHECK.assertIs(type(actual), list)
                     CHECK.assertTrue(all(type(value) is int for value in actual))
                     CHECK.assertEqual(actual, [value * 2 for value in expected])
@@ -155,34 +159,35 @@ def generator():
 
         with mock.patch("builtins.open", tracked_open), mock.patch("io.open", tracked_open):
             read = load("records.py").iter_records
-            records = read(path)
-            CHECK.assertIs(iter(records), records)
-            CHECK.assertEqual(next(records), "one")
+            records = candidate_call(read, path)
+            CHECK.assertIs(candidate_call(iter, records), records)
+            CHECK.assertTrue(callable(getattr(records, "close", None)), "record iterator must support close")
+            CHECK.assertEqual(candidate_call(next, records), "one")
             CHECK.assertTrue(handles, "the file was not opened")
             CHECK.assertTrue(any(not handle.closed for handle in handles))
-            records.close()
+            candidate_call(records.close)
             CHECK.assertTrue(all(handle.closed for handle in handles))
             handles.clear()
-            CHECK.assertEqual(list(read(path)), ["one", "", "two"])
+            CHECK.assertEqual(candidate_call(list, candidate_call(read, path)), ["one", "", "two"])
             CHECK.assertTrue(handles and all(handle.closed for handle in handles))
         # Tiny files may fit within one bounded read. Measure first-yield progress separately
         # on a source larger than the calibrated 4-, 64-, and 8192-character buffers.
         path.write_text(" one \n" + " tail \n" * 8192, encoding="utf-8")
         handles.clear()
         with mock.patch("builtins.open", tracked_open), mock.patch("io.open", tracked_open):
-            records = read(path)
-            CHECK.assertEqual(next(records), "one")
+            records = candidate_call(read, path)
+            CHECK.assertEqual(candidate_call(next, records), "one")
             CHECK.assertTrue(handles, "the file was not opened")
             CHECK.assertFalse(any(handle.eager or handle.eof for handle in handles),
                               "source consumed eagerly before first yield")
             CHECK.assertTrue(any(not handle.closed for handle in handles))
-            records.close()
+            candidate_call(records.close)
             CHECK.assertTrue(all(handle.closed for handle in handles))
         path.write_bytes(b"\xff")
         handles.clear()
         with mock.patch("builtins.open", tracked_open), mock.patch("io.open", tracked_open):
             with CHECK.assertRaises(UnicodeDecodeError):
-                list(read(path))
+                candidate_call(list, candidate_call(read, path))
             CHECK.assertTrue(handles and all(handle.closed for handle in handles))
 
 
@@ -191,19 +196,19 @@ def migration():
     with mock.patch.object(ipaddress, "IPv4Address", wraps=real_address) as validator:
         parse = load("addresses.py").parse_address
         for value in ["0.0.0.0", "127.0.0.1", "192.0.2.1", "255.255.255.255"]:
-            CHECK.assertEqual(parse(value), value)
+            CHECK.assertEqual(candidate_call(parse, value), value)
         CHECK.assertGreaterEqual(validator.call_count, 4, "stdlib validator was not used")
         for value in [None, True, 1, b"\x7f\x00\x00\x01", "", "::1", "1.2.3",
                       "1.2.3.4.5", "256.0.0.1", "-1.0.0.0", "01.2.3.4",
                       "1.2.3.4 ", " 1.2.3.4", "١.2.3.4", "1.2.3.+4"]:
             with CHECK.assertRaisesRegex(ValueError, "^invalid address$"):
-                parse(value)
+                candidate_call(parse, value)
 
 
 def unchanged():
     predicate = load("predicates.py").is_nonnegative
     for value, expected in [(-10**100, False), (-1, False), (0, True), (1, True), (10**100, True)]:
-        CHECK.assertIs(predicate(value), expected)
+        CHECK.assertIs(candidate_call(predicate, value), expected)
 
 
 SCOPED_UNTOUCHED = {
@@ -225,7 +230,7 @@ SCOPED_UNTOUCHED = {
 def scoped():
     source = Path("fills.py").read_text(encoding="utf-8")
     defined = {node.name: ast.get_source_segment(source, node)
-               for node in ast.parse(source).body if isinstance(node, ast.FunctionDef)}
+               for node in ast.parse(source, filename="fills.py").body if isinstance(node, ast.FunctionDef)}
     for name, original in SCOPED_UNTOUCHED.items():
         CHECK.assertEqual(defined.get(name), original, f"{name} changed although the fix did not need it")
     latest = load("fills.py").latest_fills
@@ -233,9 +238,9 @@ def scoped():
     before = [dict(fill) for fill in fills]
     for count, expected in [(0, []), (1, ["c"]), (2, ["b2", "c"]), (4, ["a", "b", "b2", "c"]),
                             (5, ["a", "b", "b2", "c"]), (9, ["a", "b", "b2", "c"])]:
-        CHECK.assertEqual([fill["id"] for fill in latest(fills, count)], expected, f"latest_fills(fills, {count})")
+        CHECK.assertEqual([fill["id"] for fill in candidate_call(latest, fills, count)], expected, f"latest_fills(fills, {count})")
     for count in (0, 3):
-        CHECK.assertEqual(list(latest([], count)), [], f"latest_fills([], {count})")
+        CHECK.assertEqual(candidate_call(list, candidate_call(latest, [], count)), [], f"latest_fills([], {count})")
     CHECK.assertEqual(fills, before, "input mutated")
 
 
@@ -247,11 +252,11 @@ def calculation():
                          "missing in-memory calculation boundary")
         for lines, expected in [([], 0), (["\n", " \t"], 0), (["+4\n", "-4"], 0),
                                 ([" 2 ", "", "3", "3"], 8)]:
-            actual = module.total_from_lines(iter(lines))
+            actual = candidate_call(module.total_from_lines, iter(lines))
             CHECK.assertIs(type(actual), int, "integer result type changed")
             CHECK.assertEqual(actual, expected)
         with CHECK.assertRaises(ValueError):
-            module.total_from_lines(iter(["2", "invalid", "3"]))
+            candidate_call(module.total_from_lines, iter(["2", "invalid", "3"]))
 
     real_open = io.open
     with tempfile.TemporaryDirectory() as tmp:
@@ -275,27 +280,27 @@ def calculation():
 
                     def observe_parse(lines):
                         try:
-                            return calculate(lines)
+                            return candidate_call(calculate, lines)
                         except ValueError as exc:
                             parse_failures.append(exc)
                             raise
 
                     with mock.patch.object(module, "total_from_lines", side_effect=observe_parse):
                         with CHECK.assertRaises(ValueError) as raised:
-                            module.total_from_file(path)
+                            candidate_call(module.total_from_file, path)
                     CHECK.assertTrue(parse_failures, "file entrypoint bypassed shared calculation")
                     CHECK.assertIs(raised.exception, parse_failures[0], "parse exception replaced")
                 else:
-                    actual = module.total_from_file(path)
+                    actual = candidate_call(module.total_from_file, path)
                     CHECK.assertIs(type(actual), int, "integer result type changed")
                     CHECK.assertEqual(actual, expected)
             CHECK.assertTrue(handles and all(handle.closed for handle in handles), "file handle leaked")
         # The specified extension boundary must reach the unchanged file entrypoint.
         path.write_text("3\n", encoding="utf-8")
-        CHECK.assertEqual(module.total_from_file(path=str(path)), 3)
+        CHECK.assertEqual(candidate_call(module.total_from_file, path=str(path)), 3)
         path.write_text("accepted by replacement policy\n", encoding="utf-8")
         with mock.patch.object(module, "total_from_lines", return_value=73) as core:
-            CHECK.assertEqual(module.total_from_file(path), 73,
+            CHECK.assertEqual(candidate_call(module.total_from_file, path), 73,
                               "file entrypoint bypassed shared calculation")
             core.assert_called_once()
         failure = RuntimeError("calculation failed")
@@ -303,44 +308,45 @@ def calculation():
         with (mock.patch.object(module, "total_from_lines", side_effect=failure),
               mock.patch("builtins.open", tracked_open), mock.patch("io.open", tracked_open)):
             with CHECK.assertRaises(RuntimeError) as raised:
-                module.total_from_file(path)
+                candidate_call(module.total_from_file, path)
             CHECK.assertIs(raised.exception, failure, "calculation exception replaced")
         CHECK.assertTrue(handles and all(handle.closed for handle in handles), "file handle leaked")
         with CHECK.assertRaises(FileNotFoundError):
-            module.total_from_file(Path(tmp) / "missing.txt")
+            candidate_call(module.total_from_file, Path(tmp) / "missing.txt")
 
 
 def modules():
     # Import caches cannot make a broken import order appear valid.
     if len(sys.argv) == 2:
         for first in ("reports", "formatting"):
-            subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "modules", first],
-                           check=True, timeout=10)
+            code = supervise([str(Path(__file__).resolve()), "modules", first])
+            if code:
+                raise SystemExit(code)
         return
     sys.path.insert(0, str(Path.cwd()))
-    importlib.import_module(sys.argv[2])
-    formatting = importlib.import_module("formatting")
-    reports = importlib.import_module("reports")
-    client = importlib.import_module("client")
+    candidate_call(importlib.import_module, sys.argv[2])
+    formatting = candidate_call(importlib.import_module, "formatting")
+    reports = candidate_call(importlib.import_module, "reports")
+    client = candidate_call(importlib.import_module, "client")
     CHECK.assertEqual(formatting.format_label.__module__, "formatting", "implementation was not moved")
     CHECK.assertEqual(client.FORMATTERS.get(formatting.format_label), "default",
                       "new callable lost the existing alias registry")
     for formatter in (formatting.format_label, reports.format_label, client.label_alias, client.configured_label):
-        CHECK.assertEqual(formatter(" ada ", prefix="Dr. "), "Dr. ADA")
-        CHECK.assertEqual(formatter("bob"), "BOB")
+        CHECK.assertEqual(candidate_call(formatter, " ada ", prefix="Dr. "), "Dr. ADA")
+        CHECK.assertEqual(candidate_call(formatter, "bob"), "BOB")
         with CHECK.assertRaises(TypeError):
-            formatter("ada", "Dr. ")
+            candidate_call(formatter, "ada", "Dr. ")
         with CHECK.assertRaisesRegex(TypeError, "^name must be text$"):
-            formatter(None)
+            candidate_call(formatter, None)
         with CHECK.assertRaisesRegex(ValueError, "^empty name$"):
-            formatter("  ")
+            candidate_call(formatter, "  ")
     names = [" bob ", "ada", "bob"]
-    CHECK.assertEqual(reports.render(names, prefix="!"), ["!BOB", "!ADA", "!BOB"])
+    CHECK.assertEqual(candidate_call(reports.render, names, prefix="!"), ["!BOB", "!ADA", "!BOB"])
     with CHECK.assertRaises(TypeError):
-        reports.render(names, "!")
+        candidate_call(reports.render, names, "!")
     CHECK.assertEqual(names, [" bob ", "ada", "bob"])
     with mock.patch.object(reports, "format_label", side_effect=lambda name, **kw: "patched:" + name):
-        CHECK.assertEqual(reports.render(["a", "b"]), ["patched:a", "patched:b"])
+        CHECK.assertEqual(candidate_call(reports.render, ["a", "b"]), ["patched:a", "patched:b"])
 
 
 def policy():
@@ -348,8 +354,9 @@ def policy():
     # fixture's own suite must stay green on the candidate without losing its assertions.
     if len(sys.argv) == 2:
         for first in ("policy", "api", "cli", "batch", "legacy", "registry"):
-            subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "policy", first],
-                           check=True, timeout=10)
+            code = supervise([str(Path(__file__).resolve()), "policy", first])
+            if code:
+                raise SystemExit(code)
         suite = subprocess.run([sys.executable, "-I", "-B", "-m", "unittest", "discover", "-s", "tests", "-t", "."],
                                capture_output=True, text=True, timeout=60)
         CHECK.assertEqual(suite.returncode, 0, "fixture test suite failed: " + suite.stderr[-600:])
@@ -357,16 +364,16 @@ def policy():
         CHECK.assertTrue(ran and int(ran.group(1)) >= 10, "fixture tests were removed: " + suite.stderr[-200:])
         return
     sys.path.insert(0, str(Path.cwd()))
-    importlib.import_module(sys.argv[2])
-    owner = importlib.import_module("policy")
-    api, cli, batch = (importlib.import_module(name) for name in ("api", "cli", "batch"))
-    legacy, registry, client = (importlib.import_module(name) for name in ("legacy", "registry", "client"))
+    candidate_call(importlib.import_module, sys.argv[2])
+    owner = candidate_call(importlib.import_module, "policy")
+    api, cli, batch = (candidate_call(importlib.import_module, name) for name in ("api", "cli", "batch"))
+    legacy, registry, client = (candidate_call(importlib.import_module, name) for name in ("legacy", "registry", "client"))
     CHECK.assertEqual(owner.normalize_order.__module__, "policy", "policy owner is not policy.py")
     CHECK.assertEqual((owner.MAX_QUANTITY, legacy.MAX_QUANTITY), (999, 999), "quantity limit drifted")
     CHECK.assertIs(legacy.submit_order, api.submit, "legacy name rebound")
     CHECK.assertEqual(registry.INTAKES, {"api": api.submit, "cli": cli.run, "batch": batch.load},
                       "registry callables changed")
-    CHECK.assertIs(client.configured_intake(), api.submit, "configured lookup changed")
+    CHECK.assertIs(candidate_call(client.configured_intake), api.submit, "configured lookup changed")
 
     def expected(sku, quantity, unit_cents):
         if not isinstance(sku, str) or not re.fullmatch(r"[A-Z]{3}-\d{4}", sku.strip().upper()):
@@ -387,49 +394,60 @@ def policy():
     skus = [" abc-1234 ", "ABC-1234", "abc-12345", "ab-1234", "", None, 7]
     quantities = [0, 1, 99, 100, 999, 1000, True, "3", None]
     prices = [0, 250, -1, True, None]
+
+    def first_batch(record):
+        result = candidate_call(batch.load, iter([dict(record)]))
+        CHECK.assertIsInstance(result, list, "batch result must be a list")
+        CHECK.assertEqual(len(result), 1, "one input must produce one batch result")
+        return result[0]
+
     for sku, quantity, unit_cents in product(skus, quantities, prices):
         record = {"sku": sku, "quantity": quantity, "unit_cents": unit_cents}
         want = expected(sku, quantity, unit_cents)
-        for name, call in (("api.submit", lambda: api.submit(dict(record))),
-                           ("batch.load", lambda: batch.load(iter([dict(record)]))[0]),
-                           ("legacy.submit_order", lambda: legacy.submit_order(dict(record)))):
+        for name, call in (("api.submit", lambda: candidate_call(api.submit, dict(record))),
+                           ("batch.load", lambda: first_batch(record)),
+                           ("legacy.submit_order", lambda: candidate_call(legacy.submit_order, dict(record)))):
             CHECK.assertEqual(observe(call), want, f"{name} disagrees with the specification for {record!r}")
         if isinstance(sku, str) and all(type(value) is int for value in (quantity, unit_cents)):
-            CHECK.assertEqual(observe(lambda: cli.run(f"{sku},{quantity},{unit_cents}\n")), want,
+            CHECK.assertEqual(observe(lambda: candidate_call(cli.run, f"{sku},{quantity},{unit_cents}\n")), want,
                               f"cli.run disagrees with the specification for {record!r}")
 
     payload = {"sku": " abc-1234 ", "quantity": 2, "unit_cents": 5}
     snapshot = dict(payload)
-    result = api.submit(payload)
+    result = candidate_call(api.submit, payload)
     CHECK.assertEqual(payload, snapshot, "input mutated")
     CHECK.assertIsNot(result, payload, "result aliases the input")
     rows = [dict(payload), {"sku": "XYZ-0001", "quantity": 999, "unit_cents": 0}]
     snapshot_rows = [dict(row) for row in rows]
-    CHECK.assertEqual([record["sku"] for record in batch.load(iter(rows))], ["ABC-1234", "XYZ-0001"])
+    loaded = candidate_call(batch.load, iter(rows))
+    CHECK.assertIsInstance(loaded, list, "batch result must be a list")
+    CHECK.assertTrue(all(isinstance(record, Mapping) and "sku" in record for record in loaded),
+                     "batch results must be mappings with sku fields")
+    CHECK.assertEqual([record["sku"] for record in loaded], ["ABC-1234", "XYZ-0001"])
     CHECK.assertEqual(rows, snapshot_rows, "input mutated")
-    CHECK.assertEqual(batch.load(iter([])), [])
+    CHECK.assertEqual(candidate_call(batch.load, iter([])), [])
 
     # One owner: a replacement policy must reach every entrypoint, so a record the old rules
     # reject must pass once the shared policy accepts it; the CLI keeps only its text parsing.
     marker = {"sku": "ZZZ-0000", "quantity": 5000, "unit_cents": 1}
     rejected = {"sku": "bad", "quantity": 5000, "unit_cents": -1}
     with mock.patch.object(owner, "normalize_order", return_value=marker) as shared:
-        CHECK.assertEqual(observe(lambda: api.submit(dict(rejected))), ("returned", marker),
+        CHECK.assertEqual(observe(lambda: candidate_call(api.submit, dict(rejected))), ("returned", marker),
                           "api.submit bypassed the shared policy or kept its own rules")
-        CHECK.assertEqual(observe(lambda: cli.run("zzz-0000,5000,-1")), ("returned", marker),
+        CHECK.assertEqual(observe(lambda: candidate_call(cli.run, "zzz-0000,5000,-1")), ("returned", marker),
                           "cli.run bypassed the shared policy or kept its own rules")
-        CHECK.assertEqual(observe(lambda: batch.load(iter([dict(rejected), dict(rejected)]))),
+        CHECK.assertEqual(observe(lambda: candidate_call(batch.load, iter([dict(rejected), dict(rejected)]))),
                           ("returned", [marker, marker]),
                           "batch.load bypassed the shared policy or kept its own rules")
         CHECK.assertEqual(shared.call_count, 4, "shared policy call count")
         with CHECK.assertRaisesRegex(ValueError, "^expected integer quantity and unit_cents$"):
-            cli.run("abc-1234,three,1")
+            candidate_call(cli.run, "abc-1234,three,1")
         with CHECK.assertRaisesRegex(ValueError, "^expected sku,quantity,unit_cents$"):
-            cli.run("abc-1234,1")
+            candidate_call(cli.run, "abc-1234,1")
     failure = ValueError("policy failed")
     with mock.patch.object(owner, "normalize_order", side_effect=failure):
-        for call in (lambda: api.submit(dict(payload)), lambda: cli.run("abc-1234,1,1"),
-                     lambda: batch.load(iter([dict(payload)])), lambda: legacy.submit_order(dict(payload))):
+        for call in (lambda: candidate_call(api.submit, dict(payload)), lambda: candidate_call(cli.run, "abc-1234,1,1"),
+                     lambda: candidate_call(batch.load, iter([dict(payload)])), lambda: candidate_call(legacy.submit_order, dict(payload))):
             with CHECK.assertRaises(ValueError) as raised:
                 call()
             CHECK.assertIs(raised.exception, failure, "policy exception replaced")
@@ -442,5 +460,7 @@ if __name__ == "__main__":
     try:
         checks[sys.argv[1]]()
     except SystemExit as exc:
+        if sys.argv[1] in ("modules", "policy") and len(sys.argv) == 2:
+            raise
         raise AssertionError("candidate exited before contract checks completed") from exc
     print("contract passed:", sys.argv[1])

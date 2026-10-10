@@ -1,4 +1,5 @@
 id: discovery-obs-dashboards-defers-app-ui-dashboard
+max_turns: 4
 split: regression
 prompt: |
   Design a dashboard page inside our settlements ops portal (a React app) that lists pending

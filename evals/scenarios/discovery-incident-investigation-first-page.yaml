@@ -1,4 +1,5 @@
 id: discovery-incident-investigation-first-page
+max_turns: 8
 split: regression
 prompt: |
   I just got paged for the first time. The alert is CheckoutApiSloBurnRateFast for checkout-api

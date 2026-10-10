@@ -42,7 +42,18 @@ def _unreadable_root(plugin_root: Path, exc: Exception) -> str:
     return f"plugin root {plugin_root} could not be read ({type(exc).__name__}); restore it to regrade the run"
 
 
-def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str | None:
+def _saved_tool_counts(value: object) -> dict[str, int] | None:
+    """A recorded complete count map, including {}, or None for missing/malformed evidence."""
+    if not isinstance(value, dict) or not all(
+        isinstance(name, str) and name.strip() and type(count) is int and count >= 0 for name, count in value.items()
+    ):
+        return None
+    return dict(value)
+
+
+def native_regrade_problem(
+    run_dir: Path, spec: Spec, plugin_root: Path, *, recorded_plugin_sha: str | None = None
+) -> str | None:
     """Replay each invocation's boundary checks using its saved cwd after the workspace is gone.
 
     Saved evidence that is missing or malformed, or a plugin root the regrade cannot read, leaves the
@@ -65,7 +76,12 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
             trace = tracing.parse_trace(trace_path)
         except (OSError, ValueError):
             return _INVALID_NATIVE_EVIDENCE
-        saved_cut = isinstance(metadata, dict) and metadata.get("cut_short") is True
+        legacy_timeout = (
+            isinstance(metadata, dict)
+            and "cut_short" not in metadata
+            and _SAVED_TIMEOUT.fullmatch(str(metadata.get("inconclusive") or "")) is not None
+        )
+        saved_cut = isinstance(metadata, dict) and (metadata.get("cut_short") is True or legacy_timeout)
         if (
             not isinstance(metadata, dict)
             or not tracing.is_rooted(metadata.get("workspace"))
@@ -92,9 +108,20 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
         if invocation.credential_markers(trace.result_text, trace_path):
             return "native credential marker detected; re-run the trial"
         try:
-            problem = invocation.invocation_problem(
-                trace, metadata["exit_code"], spec, plugin_root, recorded_workspace, resume
-            )
+            if legacy_timeout:
+                if not recorded_plugin_sha:
+                    return "native timeout plugin digest evidence missing; re-run the trial"
+                # Before cut_short was recorded a timeout bypassed the live boundary checks. Recover
+                # it only from unchanged inputs and the partial trace's actual profile and session.
+                problem = (
+                    fingerprints.plugin_drift_problem(plugin_root, recorded_plugin_sha)
+                    or invocation.profile_problem(trace, spec, plugin_root, recorded_workspace)
+                    or invocation.native_identity_problem(trace, spec, resume, complete=False)
+                )
+            else:
+                problem = invocation.invocation_problem(
+                    trace, metadata["exit_code"], spec, plugin_root, recorded_workspace, resume
+                )
         except (OSError, json.JSONDecodeError) as exc:
             return _unreadable_root(plugin_root, exc)
         except clean_room.AuthUnavailable:
@@ -111,7 +138,8 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
             # The partial trace still shows the declared identity; the saved stop stays a cut, so
             # a forbidding check it already failed survives the regrade. No follow-up started.
             try:
-                return CutShort(str(metadata["inconclusive"]), metadata.get("run_stop") or Stop.UNRECORDED)
+                stop = Stop.WALL_CLOCK if legacy_timeout else metadata.get("run_stop") or Stop.UNRECORDED
+                return CutShort(str(metadata["inconclusive"]), stop)
             except ValueError:  # a saved stop this runner does not know
                 return _INVALID_NATIVE_EVIDENCE
         resume, workspace = trace.session_id, recorded_workspace
@@ -187,7 +215,16 @@ def _regrade_run(
     relaxed = relax_identity and not identity_matches
     kept_prefix = live_grade.get("scenario_sha256") if relaxed else identity
     text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
-    native_problem = native_regrade_problem(run_dir, spec, plugin_root) if spec.get("followups") else None
+    native_problem = (
+        native_regrade_problem(
+            run_dir,
+            spec,
+            plugin_root,
+            recorded_plugin_sha=(summary.get("plugin") or {}).get("plugin_source_sha256") if has_plugin_root else None,
+        )
+        if spec.get("followups")
+        else None
+    )
     native_cut = native_problem if isinstance(native_problem, CutShort) else None
     saved_workspace = summary.get("workspace")
     if spec.get("followups") and (native_problem is None or native_cut):
@@ -196,18 +233,19 @@ def _regrade_run(
     recorded_workspace = (
         Path(saved_workspace) if isinstance(saved_workspace, str) and tracing.is_rooted(saved_workspace) else None
     )
-    # The raw trace is the truth: a saved summary carries whatever the parser of the day recorded,
-    # so re-parse it with the live path's own parser and fall back only when the trace is absent.
+    # Re-parse the raw evidence with the live parser. An incomplete stream preserves positive
+    # observations but cannot establish an absent call; validated summary counts can fill that gap.
     stdout_path = run_dir / "stdout.jsonl"
     reparsed = (
         tracing.parse_trial_trace(run_dir) if stdout_path.is_file() and (not native_problem or native_cut) else None
     )
+    saved_counts = _saved_tool_counts(summary.get("tool_counts"))
     if reparsed is not None:
         trace = reparsed
         if not trace.result_text:  # a truncated trace must not silently blank every text check
             trace.result_text = text
     else:
-        trace = tracing.from_saved(summary, text)
+        trace = tracing.from_saved({**summary, "tool_counts": saved_counts or {}}, text)
     before, after = summary.get("commits_before_after") or [0, 0]
     git = GitFacts(
         int(after),
@@ -232,7 +270,14 @@ def _regrade_run(
         )
         if summary.get("agents_dir"):
             (ws.repo / ".agents").mkdir(parents=True)
-        ctx = Context(dict(spec), ws, trace, git, plugin_root=plugin_root)
+        ctx = Context(
+            dict(spec),
+            ws,
+            trace,
+            git,
+            plugin_root=plugin_root,
+            tool_counts_recorded=False,
+        )
         judge_problem = _saved_judge_problem(spec, saved_binding)
         inconclusive = _run_level_reason(
             spec,
@@ -251,6 +296,22 @@ def _regrade_run(
             inconclusive = "saved scenario identity is missing or changed; re-run the trial"
         elif len(old_by_id) != len(live_grade.get("expectations", [])):
             inconclusive = "saved assertion identities are duplicated; re-run the trial"
+        raw_counts_complete = reparsed is not None and trace.tool_counts_complete
+        raw_counts_cut = (
+            reparsed is not None and isinstance(inconclusive, CutShort) and (trace.saw_init or bool(trace.tool_counts))
+        )
+        ctx.tool_counts_recorded = raw_counts_complete or raw_counts_cut
+        if not raw_counts_complete and saved_counts is not None:
+            # A trusted summary fills missing raw coverage. If the surviving stream already shows
+            # more calls, that summary cannot establish a total; retain the stronger lower bound so
+            # its supported forbidden actions still fail, without inventing absence elsewhere.
+            ctx.tool_counts_recorded = raw_counts_cut or all(
+                count <= saved_counts.get(name, 0) for name, count in trace.tool_counts.items()
+            )
+            trace.tool_counts = {
+                name: max(trace.tool_counts.get(name, 0), saved_counts.get(name, 0))
+                for name in trace.tool_counts.keys() | saved_counts.keys()
+            }
         # Routing, pinned-skill, reference, and non-rubric grader verdicts all come from the saved
         # trace, so a routing or contract run regrades like a build run. A rubric grader would spend
         # a live judge call, so it keeps the verdict the live batch paid for.

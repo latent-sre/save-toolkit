@@ -1,8 +1,12 @@
 """Probe the seeded checkout WSGI contract; run each environment case in a fresh process."""
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from oracle_protocol import candidate_call
+
 from html.parser import HTMLParser
 import os
-import sys
 from wsgiref.util import setup_testing_defaults
 
 
@@ -49,16 +53,26 @@ def call(application, path):
     captured = {}
 
     def start_response(status, headers, exc_info=None):
-        captured["status"], captured["headers"] = status, dict(headers)
+        assert isinstance(status, str), f"{path}: response status must be text"
+        try:
+            captured["status"], captured["headers"] = status, dict(headers)
+        except (TypeError, ValueError) as exc:
+            raise AssertionError(f"{path}: response headers must contain key/value pairs") from exc
+        assert all(isinstance(name, str) and isinstance(value, str)
+                   for name, value in captured["headers"].items()), f"{path}: header names and values must be text"
 
-    response = application(environ, start_response)
+    response = candidate_call(application, environ, start_response)
     try:
-        body = b"".join(response)
+        body = candidate_call(b"".join, response)
     finally:
-        if hasattr(response, "close"):
-            response.close()
+        missing = object()
+        close = candidate_call(getattr, response, "close", missing)
+        if close is not missing:
+            candidate_call(close)
+    assert "status" in captured, f"{path}: application did not call start_response"
     assert captured["status"] == "200 OK", f"{path}: status changed"
     headers = {key.lower(): value for key, value in captured["headers"].items()}
+    assert "content-type" in headers, f"{path}: response is missing Content-Type"
     return headers, body
 
 
@@ -69,7 +83,8 @@ def check(case):
     else:
         os.environ["MAINTENANCE_BANNER"] = banner
     # Set configuration before import so startup-bound configuration is supported too.
-    from services.checkout.app import application
+    import importlib
+    application = candidate_call(importlib.import_module, "services.checkout.app").application
 
     for path in ("/", "/orders"):
         headers, body = call(application, path)

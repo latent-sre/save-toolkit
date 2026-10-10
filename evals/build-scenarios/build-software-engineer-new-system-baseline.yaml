@@ -1,4 +1,5 @@
 id: build-software-engineer-new-system-baseline
+max_turns: 26
 agent: software-engineer
 # Incumbent arm for build-principal-engineer-new-system: identical prompt, fixture and checks,
 # enforced by evals/test_principal_cases.py. The record oracle checks every design-record slot is
@@ -65,8 +66,9 @@ checks:
   - {check: skill_loaded, skill: obs-alerting, before_effects: true, text: "obs-alerting loaded before the 14-day paging rule was designed"}
   - {check: bash_did_not_run, pattern: '.+', text: "no shell command runs, as the assignment requires"}
   - check: command_exit_zero
-    command: "python check_design_record.py docs/design/cert-expiry-tracker.md"
-    writes_from: {check_design_record.py: evals/oracles/principal-engineer/check_design_record.py}
+    failure_exit_code: 10
+    command: "python oracle_protocol.py check_design_record.py docs/design/cert-expiry-tracker.md"
+    writes_from: {check_design_record.py: evals/oracles/principal-engineer/check_design_record.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "the record fills every design-record slot and carries an evidence label"
   - {check: text_regex, pattern: '"runtime_outside_team_stack"\s*:\s*"no"', text: "the service stays in a runtime the team already uses"}
   - {check: text_regex, pattern: '"introduces_new_infrastructure"\s*:\s*"no"', text: "the design adds no datastore, broker, or runtime the team does not run"}

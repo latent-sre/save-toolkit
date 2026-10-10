@@ -1,4 +1,5 @@
 id: discovery-reliability-defers-observability
+max_turns: 24
 split: regression
 prompt: |
   Create a Grafana dashboard and burn-rate alerts for the checkout SLO we already agreed on.

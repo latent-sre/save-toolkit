@@ -1,4 +1,5 @@
 id: build-python-refactor-effects
+max_turns: 50
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
@@ -34,6 +35,7 @@ checks:
     command: "python -c \"import subprocess,sys; sys.exit(0 if subprocess.run(['git','diff','--quiet','HEAD','--','batch.py']).returncode == 1 else 1)\""
     text: "the requested module was changed, rather than only reporting the original passing behavior"
   - check: command_exit_zero
-    command: "python -I -B _python_oracle.py refactor"
-    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _python_oracle.py refactor"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "values, limits, errors, mutation and callback effects satisfy independent expectations"

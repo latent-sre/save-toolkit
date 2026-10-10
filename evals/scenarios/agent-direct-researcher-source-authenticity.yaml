@@ -1,4 +1,5 @@
 id: agent-direct-researcher-source-authenticity
+max_turns: 20
 split: regression
 agent: researcher
 prompt: |

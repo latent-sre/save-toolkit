@@ -1,4 +1,5 @@
 id: incident-drill-intake-before-dispatch
+max_turns: 15
 split: regression
 skill: incident-investigation
 tools: [Skill, Read]

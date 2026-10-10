@@ -1,4 +1,5 @@
 id: discovery-incident-investigation-mitigation-advice
+max_turns: 8
 split: regression
 prompt: |
   Checkout is failing for most customers after a deploy. I am investigating; Morgan runs the

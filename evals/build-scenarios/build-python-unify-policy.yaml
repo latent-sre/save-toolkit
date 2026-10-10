@@ -1,4 +1,5 @@
 id: build-python-unify-policy
+max_turns: 73
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
@@ -180,6 +181,7 @@ checks:
   - {check: no_new_commits, text: "no commits"}
   - {check: bash_ran, pattern: "unittest|pytest", text: "the fixture suite was run at least once"}
   - check: command_exit_zero
-    command: "python -I -B _python_oracle.py policy"
-    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _python_oracle.py policy"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "one policy owner reached through every entrypoint, specification parity, unchanged consumers, both import orders, and a green fixture suite"

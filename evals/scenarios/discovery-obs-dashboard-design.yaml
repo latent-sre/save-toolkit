@@ -1,4 +1,5 @@
 id: discovery-obs-dashboard-design
+max_turns: 4
 split: regression
 prompt: |
   Design a service-health dashboard for the checkout on-call engineer. Which panels and drill-downs

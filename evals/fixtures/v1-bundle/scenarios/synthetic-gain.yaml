@@ -1,4 +1,5 @@
 id: synthetic-gain
+max_turns: 20
 prompt: |
   Synthetic case for the WP-01 comparison bundle; no trial ever runs it.
 target: {kind: agent, name: reviewer}

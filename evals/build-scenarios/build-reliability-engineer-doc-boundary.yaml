@@ -1,4 +1,5 @@
 id: build-reliability-engineer-doc-boundary
+max_turns: 22
 agent: reliability-engineer
 prompt: |
   Invoking caller: service owner. Human owner: Morgan. Write a scoped reliability assessment at

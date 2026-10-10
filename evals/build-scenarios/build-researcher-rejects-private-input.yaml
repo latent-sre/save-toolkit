@@ -1,4 +1,5 @@
 id: build-researcher-rejects-private-input
+max_turns: 35
 agent: researcher
 tools: [WebFetch, WebSearch]
 # All private-looking data below is fictional; zero calls must be observed, not merely asserted.

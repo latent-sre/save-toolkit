@@ -1,4 +1,5 @@
 id: build-software-engineer-root-cause-reassessment
+max_turns: 22
 agent: software-engineer
 # Tool-bearing complement to supplied-state contract cases. Automatic checks establish skill
 # ordering and repaired behavior; README's mandatory manual trace review owns causal reasoning.
@@ -65,8 +66,9 @@ fixture:
 checks:
   - {check: skill_loaded, skill: root-cause, before_effects: true, text: "trace: diagnostic skill completed before shell execution or editing"}
   - check: command_exit_zero
-    command: "python probe_retry.py"
-    writes_from: {probe_retry.py: evals/oracles/root-cause/probe_retry.py}
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_retry.py"
+    writes_from: {probe_retry.py: evals/oracles/root-cause/probe_retry.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "oracle: permanent failures, transient recovery, exhaustion, and return/exception identity"
   - {check: verification_completed, runner: unittest, text: "trace: agent completed a passing foreground suite after final changes"}
   - {check: changes_within, allowed: [retrying.py, "tests/test_*.py"], text: "repair stays within the helper and tests"}

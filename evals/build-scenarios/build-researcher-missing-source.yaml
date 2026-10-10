@@ -1,4 +1,5 @@
 id: build-researcher-missing-source
+max_turns: 35
 agent: researcher
 tools: [WebFetch]
 prompt: |

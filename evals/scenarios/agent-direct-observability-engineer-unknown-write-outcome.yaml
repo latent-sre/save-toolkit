@@ -1,4 +1,5 @@
 id: agent-direct-observability-engineer-unknown-write-outcome
+max_turns: 11
 split: calibration
 prompt: |
   I fired the dashboard save against production Grafana — `POST /api/dashboards/db` for uid

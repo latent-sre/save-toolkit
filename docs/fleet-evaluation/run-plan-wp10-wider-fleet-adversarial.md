@@ -17,41 +17,47 @@
 
 All of these hold before the first paid call:
 
-1. WP-02 is complete on this host, with its record, and the runner identity still matches the
-   [frozen runner record](run-plan-wp02-native-readiness.md#frozen-runner-record), or a mismatch
-   has been reconciled.
+1. WP-02 is complete on this host, with its record. The run pins the reconciled runner revision and
+   digest from the [EVAL-011 closeout](../reviews/2026-10-10-eval-011-closeout.md), rechecked at the
+   run revision. WP-02's [historical freeze](run-plan-wp02-native-readiness.md#historical-frozen-runner-record)
+   identifies its original trials, not the repaired runner.
 2. A human reviewer has accepted each case below at an exact scenario digest: the task is possible
    with the supplied evidence and tools, the expected result follows, valid alternatives are
    recognized, and the checks separate known good, bad and unavailable outcomes. The rationale is
    kept with the case revision.
-3. Every case declares a turn limit, set from WP-02's observed turn counts. Adding it changes the
-   case identity, so it lands before acceptance in item 2.
+3. Every case declares a turn limit. EVAL-011 has supplied all 27 limits below using saved counts
+   and timing with same-profile fallbacks. They are provisional offline sizing choices, not live
+   performance evidence; acceptance in item 2 applies to the resulting scenario digests.
 4. The model-free controls below pass at the accepted revision on the run host. The fake `cf`
    wrapper tests skip without a POSIX `sh`; a skip there is not a pass.
 5. The independent review of the cases (PR #334) is closed. Its findings 1 to 4 are fixed with
-   regression tests. Finding 5, that candidate code can exit an oracle early with status 0, needs
-   the owner's disposition: the recommendation is no change for WP-10, because only a candidate
-   deliberately gaming the grader triggers it and 110 existing `command_exit_zero` checks share the
-   pattern, so any repair belongs to the runner's checks as a whole. The ADR keeps incorrect grading
-   from untrusted generated code in scope, so this is a deferral, not an exclusion.
+   regression tests. EVAL-011 also repairs finding 5: a candidate's early exit 0 cannot establish
+   oracle completion. The executable checks use supervised completion and distinguish candidate
+   failure from unavailable assessment; the closeout records the regressions and scope.
 
-### Readiness on 2026-10-09
+### Readiness after the EVAL-011 repairs
 
 | Precondition | State | Evidence |
 |---|---|---|
-| 1. Runner identity | Reconciled; recheck at the run revision | The frozen record's digest `55138c00…` reproduces from its input `164eccb1`. This branch's runner digest is `c7ed751a95bcdb2ed5cbc4cde20b264fa98e220dac215262d71fcb2daf25f6ab`. [verified] Rescoring all 92 saved iterations (1,401 runs) with the frozen runner and with this one gives 80 differences, every one from three owner-approved scenario changes: guarded-triage's labelled headings (`3cfcca8a`, 73), EVAL-016's disposition (`074cbcd3`, 6) and the new guard canary (`0b11ec58`, 1). No runner code change since the freeze (#342, #346, EVAL-011 D6) changes a saved verdict |
-| 2. Human case acceptance | Owner; after item 3, since a limit changes each case's digest | — |
-| 3. Turn limits | Owner decision for 25 cases | Only the reviewer pair has saved trials, so only it gets a limit by the WP-02 rule (twice the highest count, or that count plus 10): `build-reviewer-accepts-compatible-refactor` 13 (highest 3 of 36 trials, longest 48 s) and `build-reviewer-follows-unchanged-caller` 14 (highest 4 of 39, longest 31 s). The proposed values below apply the same rule to the highest count among the same lane's measured cases of the same kind |
-| 4. Model-free controls | Pass on this host | [verified] `validate`: 240 specs OK. The five control files: 106 passed, 647 subtests, none skipped, once the fake-wrapper tests put their shell's folder on PATH (`d7bebd14`); before it, both log-case resisting controls failed on Windows with `cat: command not found` |
-| 5. Review of PR #334 | Finding 5 awaits the owner | Findings 1 to 4 are fixed with regression tests (CHANGELOG) |
+| 1. Runner identity | Repaired; final evidence in EVAL-011 closeout, then recheck at the run revision | The historical freeze has lifted; current runner changes and their saved-run comparison belong to the closeout record |
+| 2. Human case acceptance | Pending at the exact resulting scenario digests | Adding limits and supervised oracle inputs changes case identities; no live case is accepted by this readiness update |
+| 3. Turn limits | Implemented for all 27 cases | [verified] Limits below are present in the current YAML. The reviewer pair uses its own saved counts; unmeasured cases use profile evidence and bounded timing estimates |
+| 4. Model-free controls | Original controls passed; recheck at the accepted revision | [verified] Current `validate`: 242 specs and 1,050 expectations. The original five control files passed 106 tests and 647 subtests without skips after the fake-wrapper shell fix; consolidated post-repair checks are recorded in the closeout |
+| 5. Review of PR #334 | Finding 5 repaired under EVAL-011 | [verified] Supervised completion prevents an early candidate exit from passing an unfinished assessment; findings 1 to 4 retain their regression coverage |
 
-| Cases without saved trials | Lane evidence (highest measured count) | Proposed limit |
+| Cases | Sizing basis | Declared limit |
 |---|---|---|
-| 10 `sre-assistant` build cases: the structured log, log-role, helper and helper-relayed-owner pairs and the natural log pair | 21, `build-sre-assistant-active-incident-guarded-triage` (28 trials) | 42 |
-| 8 `software-engineer` build cases: the structured repository and repository-policy pairs and the natural repository and helper pairs | 72, a full UI build in 7 trials; the lane's median highest is 14 | 144 by the rule, which leaves the wall clock in control; 28 from the median |
-| `build-reliability-engineer-proportionate-options` | 11, `build-reliability-engineer-doc-boundary` (2 trials) | 22 |
-| The two `build-repository-investigator-*` cases | 1, the denied-shell canary, which declares 15 | 15 |
-| The four `agent-direct-*` contract cases, which get only `Skill` and `Task` | 1 in these lanes; 10 across all lanes' contract cases | 20 |
+| 10 `sre-assistant` build cases: structured log, log-role, helper and helper-relayed-owner pairs and the natural log pair | Same-kind/lane evidence, capped by elapsed-time sizing | 24 |
+| 8 `software-engineer` build cases: structured repository and repository-policy pairs and natural repository and helper pairs | Same-kind/lane evidence, capped by elapsed-time sizing | 36 |
+| `build-reliability-engineer-proportionate-options` | Same-kind/lane observations | 22 |
+| The two `build-repository-investigator-*` cases | Same-kind/lane observations | 11 |
+| `agent-direct-observability-evidence-layers` | Same-kind/lane contract observations | 11 |
+| The other three `agent-direct-*` contract cases | Same-kind/tool-profile contract observations | 20 |
+| Reviewer compatible-refactor / unchanged-caller pair | Own measured maxima of 3 / 4 turns, plus 10 | 13 / 14 |
+
+The private sizing manifest and its rationale are referenced by the closeout. These choices target
+roughly 450 seconds within the 900-second guard under observed throughput; a slow individual tool
+or helper can still reach the wall clock. No WP-10 live result follows from declaring these limits.
 
 ## Model-free controls
 
@@ -77,14 +83,17 @@ None of these cases uses the rubric judge, so they do not wait for the judge rec
 The judge-input surface is not run here. Its six cases are in the judge's calibration corpus
 (`evals/rubrics-calibration.yaml`, sources starting "AC-27 judge-input calibration"), beside the
 response-marker fix, and each must agree for a calibration to be accepted. AC-27 needs all four
-surfaces, so WP-10 does not complete until the cold recalibration of the changed judge passes
-(WP-02 precondition 5).
+surfaces. [verified] The current accepted calibration receipt
+`.eval-runs/judge-calibration/20261010T105741Z/identity.json` agrees on 187/187 cases, including those
+required judge-input controls, with 27 fresh judgments and 160 applicable cache hits. This supplies
+the current judge calibration evidence; it does not execute or complete WP-10's agent-side cases.
 
 ## Conditions
 
 - **Candidate:** the plugin at one clean `main` revision, recorded with its digest; one arm.
 - **Host:** the Windows machine under the owner's everyday account, unelevated (DEC-23); each trial
-  records its CLI version and host.
+  records its CLI version, platform and observed host/account/elevation identity. Missing or elevated
+  runtime evidence is refused before calls.
 - **Model:** the `sonnet` alias (DEC-17), with the resolved model recorded; trials on another model
   do not pool.
 - **Trials:** three per case (DEC-10), serial. Cases are interleaved, and the two arms of a pair run

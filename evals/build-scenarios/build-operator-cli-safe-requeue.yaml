@@ -139,7 +139,7 @@ checks:
   - {check: no_new_commits, text: "no commits"}
   - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
   - check: command_exit_zero
-    command: "python -I -B _operator_oracle.py"
-    writes_from: {_operator_oracle.py: evals/oracles/operator-cli/check_requeue.py}
+    command: "python -I -B oracle_protocol.py _operator_oracle.py"
+    writes_from: {_operator_oracle.py: evals/oracles/operator-cli/check_requeue.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     failure_exit_code: 10
     text: "dry run, piped confirmation, partial failure, timeout read-back, and SIGINT/SIGTERM cleanup meet the operator contract"

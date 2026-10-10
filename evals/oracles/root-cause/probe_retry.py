@@ -1,5 +1,12 @@
 """Independent behavior oracle; does not establish the agent's diagnostic reasoning."""
-from retrying import is_retryable, retry
+
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from oracle_protocol import candidate_call
+import importlib
+_candidate = candidate_call(importlib.import_module, "retrying")
+is_retryable, retry = _candidate.is_retryable, _candidate.retry
 
 
 class ServiceTimeout(TimeoutError):
@@ -17,7 +24,7 @@ def check():
                 raise error
 
             try:
-                retry(fail, max_attempts=attempts)
+                candidate_call(retry, fail, max_attempts=attempts)
             except error_type as returned:
                 assert returned is error, "exception identity lost"
             else:
@@ -25,7 +32,7 @@ def check():
             retryable = issubclass(error_type, TimeoutError)
             expected = attempts if retryable else 1
             assert len(calls) == expected, (error_type, attempts, len(calls))
-            assert is_retryable(error) is retryable
+            assert candidate_call(is_retryable, error) is retryable
         for error_type in (TimeoutError, ServiceTimeout):
             for failures in range(attempts):
                 calls = []
@@ -37,7 +44,7 @@ def check():
                         raise error_type("transient")
                     return value
 
-                assert retry(recover, max_attempts=attempts) is value
+                assert candidate_call(retry, recover, max_attempts=attempts) is value
                 assert len(calls) == failures + 1
 
 

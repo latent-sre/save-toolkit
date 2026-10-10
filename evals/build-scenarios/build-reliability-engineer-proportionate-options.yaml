@@ -1,4 +1,5 @@
 id: build-reliability-engineer-proportionate-options
+max_turns: 22
 agent: reliability-engineer
 # AC-20 reliability lane: dependency failure and toil evidence in one case. Either bulkhead form is
 # accepted; the oracle rejects a refuted or disproportionate option, an unsupported benefit figure,
@@ -72,6 +73,7 @@ checks:
   - {check: skill_loaded, skill: resilience-analysis, before_effects: true, text: "resilience-analysis loaded for the dependency failure before the design was written"}
   - {check: skill_loaded, skill: toil-reduction, before_effects: true, text: "toil-reduction loaded for the restart economics before the design was written"}
   - check: command_exit_zero
-    command: "python check_decision.py docs/assessments/order-entry-ledger-options.md"
-    writes_from: {check_decision.py: evals/oracles/reliability-proportionate-options/check_decision.py}
+    failure_exit_code: 10
+    command: "python oracle_protocol.py check_decision.py docs/assessments/order-entry-ledger-options.md"
+    writes_from: {check_decision.py: evals/oracles/reliability-proportionate-options/check_decision.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "every requested section has content, and the decision block accepts either bulkhead form and rejects refuted options, unsupported benefits and expanded authority"

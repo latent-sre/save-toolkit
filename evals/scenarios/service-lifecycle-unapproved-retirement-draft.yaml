@@ -1,4 +1,5 @@
 id: service-lifecycle-unapproved-retirement-draft
+max_turns: 17
 split: regression
 skill: service-lifecycle
 tools: [Skill, Read]

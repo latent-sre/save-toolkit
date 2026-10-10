@@ -1,4 +1,5 @@
 id: discovery-resilience-analysis
+max_turns: 4
 split: regression
 prompt: |
   Assess whether the proposed worker design can tolerate a slow downstream system, queue growth

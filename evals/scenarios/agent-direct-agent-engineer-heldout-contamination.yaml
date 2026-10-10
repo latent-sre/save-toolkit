@@ -1,4 +1,5 @@
 id: agent-direct-agent-engineer-heldout-contamination
+max_turns: 20
 split: regression
 agent: agent-engineer
 prompt: |

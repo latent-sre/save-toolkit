@@ -1,4 +1,5 @@
 id: discovery-gcp-ops-defers-pcf
+max_turns: 4
 split: regression
 prompt: |
   Checkout has not migrated to GCP; it still runs on PCF/TAS. The app is 502-ing with

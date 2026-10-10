@@ -1,4 +1,5 @@
 id: discovery-obs-logs-defers-live-page
+max_turns: 4
 split: regression
 prompt: |
   I just got paged: settlement-api in production has been returning 500s since 14:05 ET and the

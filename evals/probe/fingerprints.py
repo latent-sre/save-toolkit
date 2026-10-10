@@ -12,6 +12,7 @@ import os
 import platform
 import shlex
 import shutil
+import socket
 import stat
 import subprocess
 import sys
@@ -197,6 +198,11 @@ def _files_under(*relative_roots: str, root: Path) -> list[Path]:
         path = root / relative
         if not os.path.lexists(path):
             raise MeasuredInputRefused(f"required measured input is missing: {path}")
+        for parent in path.parents:
+            if parent == root:
+                break
+            if _is_reparse_point(parent):
+                raise MeasuredInputRefused(f"refusing linked/reparse measured input: {parent}")
         if _is_reparse_point(path):  # a link is refused even when its target is gone
             raise MeasuredInputRefused(f"refusing linked/reparse measured input: {path}")
         if path.is_file():
@@ -210,6 +216,36 @@ def _files_under(*relative_roots: str, root: Path) -> list[Path]:
     return files
 
 
+def _plugin_files(root: Path) -> list[Path]:
+    """Tracked and non-ignored candidate files; a served image has no Git filtering.
+
+    Validate the entire measured tree before filtering, so ignore rules cannot hide a link. Git's
+    inventory keeps force-tracked ignored files and ordinary untracked candidate edits, while local
+    ignored bytecode and private files enter neither the digest nor the served image. A corrupt
+    inventory fails closed. Named runtime inputs may not disappear merely because they are ignored.
+    """
+    inputs = _measured_inputs(root)
+    files = _files_under(*inputs, root=root)
+    if not os.path.lexists(root / ".git"):
+        return files
+    inventory = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", *inputs],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="surrogateescape",
+    )
+    if inventory.returncode:
+        raise MeasuredInputRefused(f"could not enumerate plugin Git inventory at {root}")
+    included = {root / relative for relative in inventory.stdout.split("\0") if relative}
+    for relative in inputs:
+        path = root / relative
+        if path.is_file() and path not in included:
+            raise MeasuredInputRefused(f"named plugin input is ignored and untracked; add it to Git: {path}")
+    return [path for path in files if path in included]
+
+
 def plugin_digest(root: Path = ROOT) -> str:
     """One digest over every measured plugin input, path-bound so a rename is not invisible.
 
@@ -217,7 +253,7 @@ def plugin_digest(root: Path = ROOT) -> str:
     with autocrlf holds CRLF for whatever git wrote and LF for whatever a tool rewrote, and a raw
     digest therefore named the host, not the bytes (2026-09-03: three values for one commit).
     """
-    files = _files_under(*_measured_inputs(root), root=root)
+    files = _plugin_files(root)
     return _files_digest(sorted((p for p in files if p.is_file()), key=lambda p: p.as_posix()), root)
 
 
@@ -228,11 +264,14 @@ def stage_plugin(source: Path, target: Path) -> Path:
     evals, docs and history, which teach a routing answer (EVAL-014). The image holds nothing else,
     so nothing else is granted. A copy that does not hash as its source is refused.
     """
+    if os.path.lexists(target):
+        raise MeasuredInputRefused(f"plugin image target already exists: {target}")
     inputs = _measured_inputs(source)
+    files = _plugin_files(source)
     for relative in inputs:
         if (source / relative).is_dir():  # a directory input with no files is still a measured input
             (target / relative).mkdir(parents=True, exist_ok=True)
-    for path in _files_under(*inputs, root=source):
+    for path in files:
         destination = target / path.relative_to(source)
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, destination)
@@ -256,6 +295,9 @@ def plugin_provenance(plugin_root: Path) -> dict[str, Any]:
     commit = _git_text(plugin_root, "rev-parse", "HEAD")
     if commit is None:
         raise MeasuredInputRefused(f"plugin root {plugin_root} is not a git checkout; provenance cannot be recorded")
+    top = _git_text(plugin_root, "rev-parse", "--show-toplevel")
+    if top is None or Path(top).resolve() != plugin_root.resolve():
+        raise MeasuredInputRefused(f"plugin root must be its own Git checkout root: {plugin_root}")
     dirty = _git_text(
         plugin_root,
         "status",
@@ -300,6 +342,97 @@ def executable_argv(executable: str) -> list[str]:
     return [t.strip('"') for t in shlex.split(executable, posix=False)] if " " in executable else [executable]
 
 
+def _windows_host_account() -> tuple[str, bool]:
+    """The process token's SID and TokenElevation, independent of username/environment claims.
+
+    TokenElevation reports the token used by children, rather than membership in Administrators
+    (which a normal UAC-limited process may still hold). Query only; never request elevation.
+    """
+    if sys.platform != "win32":
+        raise OSError("Windows process tokens are unavailable on this host")
+    import ctypes  # noqa: PLC0415 -- this binding is used only on Windows
+    from ctypes import wintypes  # noqa: PLC0415
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    security = ctypes.WinDLL("advapi32", use_last_error=True)
+    kernel.GetCurrentProcess.argtypes = []
+    kernel.GetCurrentProcess.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    kernel.LocalFree.argtypes = [wintypes.HLOCAL]
+    kernel.LocalFree.restype = wintypes.HLOCAL
+    security.OpenProcessToken.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE)]
+    security.OpenProcessToken.restype = wintypes.BOOL
+    security.GetTokenInformation.argtypes = [
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    security.GetTokenInformation.restype = wintypes.BOOL
+    security.ConvertSidToStringSidW.argtypes = [wintypes.LPVOID, ctypes.POINTER(wintypes.LPWSTR)]
+    security.ConvertSidToStringSidW.restype = wintypes.BOOL
+    token = wintypes.HANDLE()
+    if not security.OpenProcessToken(kernel.GetCurrentProcess(), 0x0008, ctypes.byref(token)):  # TOKEN_QUERY
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        size = wintypes.DWORD()
+        security.GetTokenInformation(token, 1, None, 0, ctypes.byref(size))  # TokenUser: variable size
+        if not size.value:
+            raise ctypes.WinError(ctypes.get_last_error())
+        user = ctypes.create_string_buffer(size.value)
+        if not security.GetTokenInformation(token, 1, user, size, ctypes.byref(size)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        # TOKEN_USER starts with SID_AND_ATTRIBUTES, whose first member is the SID pointer.
+        sid = ctypes.cast(user, ctypes.POINTER(wintypes.LPVOID)).contents.value
+        text = wintypes.LPWSTR()
+        if not security.ConvertSidToStringSidW(sid, ctypes.byref(text)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            account_id = text.value
+        finally:
+            kernel.LocalFree(text)
+        if not account_id:
+            raise OSError("process token returned no account SID")
+        elevation = wintypes.DWORD()
+        if not security.GetTokenInformation(
+            token,
+            20,
+            ctypes.byref(elevation),
+            ctypes.sizeof(elevation),
+            ctypes.byref(size),  # TokenElevation
+        ):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return account_id, bool(elevation.value)
+    finally:
+        kernel.CloseHandle(token)
+
+
+def host_identity() -> dict[str, Any]:
+    """Observed host/account/privilege identity; missing evidence stays unknown.
+
+    On POSIX, `elevated` records effective UID 0, not ambient capabilities or sudo eligibility.
+    A SID or effective UID identifies the account without trusting USERNAME, USER or HOME.
+    """
+    identity: dict[str, Any] = {
+        "hostname": None,
+        "account_id": None,
+        "elevated": None,
+        "identity_source": "windows_process_token" if os.name == "nt" else "posix_effective_uid",
+    }
+    try:
+        identity["hostname"] = socket.gethostname() or None
+        if sys.platform == "win32":
+            identity["account_id"], identity["elevated"] = _windows_host_account()
+        else:
+            uid = os.geteuid()
+            identity.update(account_id=f"uid:{uid}", elevated=uid == 0)
+    except (OSError, AttributeError) as exc:
+        identity["problem"] = f"host identity could not be fully observed: {exc}"
+    return identity
+
+
 def runtime_identity(executable: str) -> dict[str, Any]:
     """The CLI version and host platform a batch measured; a version the CLI cannot report is null."""
     try:
@@ -322,7 +455,41 @@ def runtime_identity(executable: str) -> dict[str, Any]:
     return {
         "cli_version": version,
         "host_platform": {"system": platform.system(), "release": platform.release(), "machine": platform.machine()},
+        "host_identity": host_identity(),
     }
+
+
+def runtime_evidence_problem(runtime: object, *, require_unelevated: bool = False) -> str | None:
+    """Why a runtime cannot establish one measurement, or cannot admit a new unelevated trial.
+
+    Old records stay readable, but matching unknown account fields does not establish matching
+    hosts. Historical known elevation remains observable evidence; only new admission requires
+    the ordinary unelevated account mandated by the native execution contract.
+    """
+    if not isinstance(runtime, Mapping):
+        return "CLI version and host/account/elevation evidence is missing"
+    version = runtime.get("cli_version")
+    if not isinstance(version, str) or not version.strip():
+        return "the CLI did not report its version, so no result would identify it; fix --executable first"
+    platform_evidence = runtime.get("host_platform")
+    if not isinstance(platform_evidence, Mapping) or not platform_evidence:
+        return "host platform evidence is missing"
+    identity = runtime.get("host_identity")
+    if not isinstance(identity, Mapping):
+        return "host/account/elevation evidence is missing; legacy platform metadata does not identify the account"
+    for field in ("hostname", "account_id"):
+        value = identity.get(field)
+        if not isinstance(value, str) or not value.strip():
+            return f"host/account/elevation evidence is incomplete: {field} is unknown"
+    if type(identity.get("elevated")) is not bool:
+        return "host/account/elevation evidence is incomplete: elevated is unknown"
+    if identity.get("identity_source") not in ("windows_process_token", "posix_effective_uid"):
+        return "host/account/elevation evidence has no supported OS identity source"
+    if identity.get("problem"):
+        return "host/account/elevation observation reported a problem; inspect the recorded identity evidence"
+    if require_unelevated and identity["elevated"]:
+        return "native trials require an unelevated account; this process is elevated"
+    return None
 
 
 def plugin_drift_problem(plugin_root: Path, expected: str) -> str | None:

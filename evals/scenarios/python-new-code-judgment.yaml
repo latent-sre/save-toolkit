@@ -1,4 +1,5 @@
 id: python-new-code-judgment
+max_turns: 17
 split: regression
 skill: python-craft
 tools: [Skill, Read]

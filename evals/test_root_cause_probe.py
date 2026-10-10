@@ -78,8 +78,9 @@ class RootCauseProbeTests(unittest.TestCase):
         oracle = (ROOT / "oracles/root-cause/probe_retry.py").read_text(encoding="utf-8")
         for name, (candidate, expected) in variants.items():
             with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
-                folder = write_tree(Path(tmp), {"retrying.py": candidate, "probe_retry.py": oracle})
-                run = run_python(["probe_retry.py"], cwd=folder, timeout=15)
+                folder = write_tree(Path(tmp), {"retrying.py": candidate, "probe_retry.py": oracle,
+                    "oracle_protocol.py": (ROOT / "oracles/oracle_protocol.py").read_text(encoding="utf-8")})
+                run = run_python(["oracle_protocol.py", "probe_retry.py"], cwd=folder, timeout=15)
                 self.assertEqual(expected, run.returncode == 0, run.stderr)
                 if not expected:
                     self.assertIn("AssertionError", run.stderr)

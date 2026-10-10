@@ -1,4 +1,5 @@
 id: discovery-researcher-extended-public-comparison
+max_turns: 4
 split: calibration
 prompt: |
   Compare HTTPX 0.27 and 0.28 across official migration notes, upstream tests and release

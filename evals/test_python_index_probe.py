@@ -104,7 +104,7 @@ class IndexedMembershipTests(unittest.TestCase):
                                   ('iteration', SET.replace('index = set(allowed_ids)',
                                                            f'raise SystemExit({code})'))]:
                 with self.subTest(code=code, phase=phase):
-                    self.assert_fails(source, 'candidate raised SystemExit', code=1)
+                    self.assert_fails(source, 'candidate raised SystemExit', code=10)
 
     def test_seed_or_cosmetic_test_extensions_do_not_establish_cost_coverage(self):
         for tests in (SEED_TESTS, SEED_TESTS + '\n# Tests reviewed.\n', SEED_TESTS + '''
@@ -113,12 +113,12 @@ class CosmeticTests(unittest.TestCase):
         self.assertTrue(True)
 '''):
             with self.subTest(tests=tests):
-                self.assert_fails(SET, 'candidate tests did not reject repeated linear search', tests, code=1)
+                self.assert_fails(SET, 'candidate tests did not reject repeated linear search', tests, code=10)
 
     def test_nondict_mappings_are_covered(self):
         source = SET.replace("if row['id'] in index:",
                              "if not isinstance(row, dict):\n            raise TypeError('dict required')\n        if row['id'] in index:")
-        self.assert_fails(source, 'dict required', code=1)
+        self.assert_fails(source, 'dict required', code=10)
 
     def test_replays_preserve_candidate_helpers_imported_by_tests(self):
         source = SET + '\ndef supported_helper():\n    return 42\n'
@@ -132,14 +132,14 @@ class HelperTests(unittest.TestCase):
 
     def test_tests_must_cover_index_construction_too(self):
         tests = SEED_TESTS + FOCUSED_TESTS.replace('self.assertLessEqual(build, 4096)', 'pass')
-        self.assert_fails(SET, 'candidate tests did not reject quadratic index construction', tests, code=1)
+        self.assert_fails(SET, 'candidate tests did not reject quadratic index construction', tests, code=10)
 
     def test_errors_or_skips_do_not_establish_cost_coverage(self):
         for replacement in ("if Key.operations - build > 8192: raise RuntimeError('over budget')",
                             "if Key.operations - build > 8192: self.skipTest('over budget')"):
             with self.subTest(replacement=replacement):
                 tests = SEED_TESTS + FOCUSED_TESTS.replace('self.assertLessEqual(Key.operations - build, 8192)', replacement)
-                self.assert_fails(SET, 'candidate tests did not reject repeated linear search', tests, code=1)
+                self.assert_fails(SET, 'candidate tests did not reject repeated linear search', tests, code=10)
 
     def test_distinct_index_implementations_pass(self):
         repeated_lookup = SET.replace("if row['id'] in index:",
@@ -256,10 +256,11 @@ class HelperTests(unittest.TestCase):
         checks = SPEC['checks']
         outcome = [c for c in checks if c['check'] == 'command_exit_zero']
         self.assertEqual(len(outcome), 1)
-        self.assertEqual(outcome[0]['command'], 'python -I -B _python_index_oracle.py')
+        self.assertEqual(outcome[0]['command'], 'python -I -B oracle_protocol.py _python_index_oracle.py')
         self.assertEqual(outcome[0]['inconclusive_exit_code'], 3)
         self.assertEqual(outcome[0]['writes_from'], {
-            '_python_index_oracle.py': 'evals/oracles/python-craft/check_indexed_membership.py'})
+            '_python_index_oracle.py': 'evals/oracles/python-craft/check_indexed_membership.py',
+            'oracle_protocol.py': 'evals/oracles/oracle_protocol.py'})
         self.assertEqual(next(c['allowed'] for c in checks if c['check'] == 'changes_within'),
                          ['selection.py', 'tests/test_selection.py'])
         self.assertTrue(any(c['check'] == 'skill_loaded' and c['skill'] == 'python-craft' for c in checks))

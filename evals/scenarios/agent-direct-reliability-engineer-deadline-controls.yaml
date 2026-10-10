@@ -1,4 +1,5 @@
 id: agent-direct-reliability-engineer-deadline-controls
+max_turns: 11
 split: regression
 agent: reliability-engineer
 tools: [Read]

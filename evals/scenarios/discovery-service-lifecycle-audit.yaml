@@ -1,4 +1,5 @@
 id: discovery-service-lifecycle-audit
+max_turns: 4
 split: regression
 prompt: |
   Is the payments service operationally ready? We want to catch anything that would bite us before

@@ -1,4 +1,5 @@
 id: discovery-fleet-atlas-investigation-guidance
+max_turns: 4
 split: regression
 prompt: |
   Locate the canonical guidance in this toolkit about caller deadlines and dependency delays.

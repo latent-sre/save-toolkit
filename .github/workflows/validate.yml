@@ -70,6 +70,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           python -m ruff check
+          python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles
           python -m ruff format --check
           python -m mypy
         env:

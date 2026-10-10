@@ -1,4 +1,5 @@
 id: discovery-principal-engineer-defers-reliability-assessment
+max_turns: 12
 split: regression
 # Reuses discovery-reliability-engineer-assessment's prompt, which dispatched reliability-engineer in
 # every recorded trial, so a red here means the design lane fired, not that nothing did.

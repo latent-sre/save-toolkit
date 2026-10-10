@@ -76,6 +76,8 @@ class Context:
     services: list[Service] = field(default_factory=list)
     plugin_root: Path = ROOT
     judge_binding: rubric_judge.JudgeBinding | None = None
+    service_problem: str | None = None
+    tool_counts_recorded: bool = True
 
 
 class Need(enum.StrEnum):
@@ -266,6 +268,7 @@ def grading_env(ctx: Context) -> dict[str, str]:
     env["HARNESS_STATE_DIR"] = str(ctx.ws.state_dir)
     for key, value in workspaces.declared_env(ctx.spec).items():
         env[str(key)] = workspaces.service_value(workspaces.fixture_value(str(value), ctx.ws), ctx.services)
+    workspaces.set_trial_temp(env, ctx.ws)
     return env
 
 
@@ -484,6 +487,8 @@ def _post_run_get(service: Service, path: str) -> tuple[int, object]:
 
 
 def _service(ctx: Context, name: str | None) -> Service:
+    if ctx.service_problem:
+        raise ServiceUnavailable(ctx.service_problem)
     services = {s.name: s for s in ctx.services}
     if name:
         if name not in services:
@@ -492,6 +497,17 @@ def _service(ctx: Context, name: str | None) -> Service:
     if len(services) != 1:
         raise KeyError(f"check must name a service; declared: {sorted(services)}")
     return next(iter(services.values()))
+
+
+def _json_equal(left: object, right: object) -> bool:
+    """Compare JSON values recursively: booleans are distinct from numbers; 3 and 3.0 are equal."""
+    if isinstance(left, bool) or isinstance(right, bool):
+        return type(left) is type(right) and left == right
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(_json_equal(a, b) for a, b in zip(left, right, strict=True))
+    if isinstance(left, dict) and isinstance(right, dict):
+        return left.keys() == right.keys() and all(_json_equal(value, right[key]) for key, value in left.items())
+    return left == right
 
 
 @declare(
@@ -519,7 +535,7 @@ def check_service_get(ctx: Context, p: Params) -> Outcome:
             return verdict(False, detail + f"; PRESENT {needle!r}")
     if "pointer" in p:
         found = backing.json_pointer(payload, str(p["pointer"]))
-        if "equals" in p and found != p["equals"]:
+        if "equals" in p and not _json_equal(found, p["equals"]):
             return verdict(False, detail + f"; {p['pointer']} = {found!r}, expected {p['equals']!r}")
         if "equals" not in p and found is None:
             return verdict(False, detail + f"; {p['pointer']} absent")
@@ -550,7 +566,7 @@ def check_service_array_item(ctx: Context, p: Params) -> Outcome:
     def matches(item: object) -> bool:
         for assertion in p.get("matches") or []:
             found = backing.json_pointer(item, str(assertion["pointer"]))
-            if "equals" in assertion and found != assertion["equals"]:
+            if "equals" in assertion and not _json_equal(found, assertion["equals"]):
                 return False
             if "regex" in assertion and not re.search(str(assertion["regex"]), str(found or "")):
                 return False
@@ -1253,14 +1269,17 @@ def check_bash_did_not_run(ctx: Context, p: Params) -> Outcome:
     _floor_and_ceiling,
     needs={Need.TRACE},
     on_cut=_tool_calls_on_cut,
-    regradable=False,
     required=("tool", "minimum", "maximum"),
 )
 def check_tool_call_count(ctx: Context, p: Params) -> Outcome:
     """Count attempts, including failed calls; a positive count does not establish retrieval success."""
     count = ctx.trace.tool_counts.get(p["tool"], 0)
     evidence = f"{p['tool']}: {count} attempted call(s)"
-    return violation(evidence) if count > p["maximum"] else verdict(p["minimum"] <= count, evidence)
+    if count > p["maximum"]:
+        return violation(evidence)
+    if not ctx.tool_counts_recorded:
+        return unmeasured("saved tool-call count evidence is missing or incomplete; re-run the trial")
+    return verdict(p["minimum"] <= count, evidence)
 
 
 @declare("no_task_dispatch", Polarity.FORBIDS, needs={Need.TRACE}, required=("target",))

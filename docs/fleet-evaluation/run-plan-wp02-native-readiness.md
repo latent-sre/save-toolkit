@@ -4,8 +4,10 @@
   with a USD 20 cap (DEC-04). The run starts only when every precondition below holds; a change to
   the cases, trial count or cap needs a new approval. Ran 2026-10-08: 18 trials, USD 4.60, every
   trace reviewed; the [run record](../reviews/2026-10-08-wp02-native-readiness.md) holds the results
-  and the remaining native gaps. On 2026-10-09 the owner accepted the warm calibration receipt as
-  meeting precondition 5, which completes WP-02 and lifts the runner freeze.
+  and its original native gaps. On 2026-10-09 the owner accepted the warm calibration receipt as
+  meeting precondition 5, completing WP-02 and lifting the runner freeze. This is the historical
+  plan for that completed run. The [EVAL-011 closeout](../reviews/2026-10-10-eval-011-closeout.md)
+  and the run record's follow-up describe subsequent runner repairs and their evidence.
 - **Run owner:** the human owner starts the run; `agent-engineer` prepares it; `reviewer` checks the
   traces.
 - **Purpose:** show that the frozen native runner measures what the accepted
@@ -15,7 +17,8 @@
 
 ## Preconditions
 
-All of these hold before the first paid call:
+These were the preconditions for the original run; the accepted warm receipt disposition is
+recorded in the status above:
 
 1. EVAL-011's runner sequence is merged, and its runner revision is recorded and frozen until WP-02
    completes.
@@ -25,13 +28,13 @@ All of these hold before the first paid call:
    The canary is written (`build-repository-investigator-denied-shell-canary`, `max_turns: 15`) and
    proven by `evals/test_native_readiness_cases.py`. The other five limits come from this host's
    saved runs, retained attempts included: `python evals/turn_counts.py .eval-runs --scenario <id>`
-   for each case. The proposed
-   limit is twice the highest observed count, or that count plus 10 if larger. For a two-turn case
-   the CLI applies the declared limit to each invocation, while the counts tool sums both turns, so
-   the effective total can be twice the declared value. Raise any case with
-   no saved trial, or whose longest trial took over 450 seconds, with the owner instead, since a
-   run that stops at its limit is complete and fails its unmet requirements (result rule 4). Adding
-   a limit changes the case identity, not the runner identity.
+   for each case. The original sizing rule was twice the highest observed count, or that count
+   plus 10 if larger, with review of unmeasured or over-450-second cases. The original implementation
+   incorrectly applied a conversation's limit to each invocation; EVAL-011 repaired that gap, so
+   the resumed invocation now receives only the turns the first left. Every current scenario
+   requires a limit. The wider 242-case assignment preserves these existing values and records its
+   provisional offline sizing separately; it does not establish live performance. Adding a limit
+   changes the case identity, not the runner identity.
 4. The model-free controls below pass.
 5. The judge framing fix in the frozen record below invalidated every earlier calibration receipt
    and cached verdict. A cold calibration of the changed judge (181 judgments, of which the six
@@ -39,17 +42,18 @@ All of these hold before the first paid call:
    this host under the everyday account, triggered and budgeted
    by the owner separately from this plan's cap. The one rubric check below needs that receipt.
 
-## Frozen runner record
+## Historical frozen runner record
+
+This identity belongs to the original WP-02 execution. The freeze is lifted and the EVAL-011
+repairs change the runner identity; do not use this historical digest to describe a new run.
 
 [verified] Re-recorded 2026-10-08 for the EVAL-013 and EVAL-014 runner changes (each trial is
 served an image of the plugin inputs; a negative routing case may accept `main_session`), which the owner
 approved landing during the freeze. Latest identity-input commit:
 `164eccb14f75d65648f160e23a4e04c197b3a803`, the merge that brings them onto this record's
 predecessor. `probe.fingerprints.harness_source_digest()` returns
-`55138c00e067b849ee549d6cb673c95bd72a33a5f59abf639083de8b9b36d6cb`. Merge the PR that lands it with a merge commit, as this repository does, so that commit stays in
-`main`'s history; a rebase merge rewrites it, and then `git log -1 -- <HARNESS_FILES>` on `main` names
-its replacement. The digest is what WP-02 checks either way. `judge.py` and `clean_room.py` are
-unchanged, so precondition 5's calibration is unaffected. It replaces the record for the judge
+`55138c00e067b849ee549d6cb673c95bd72a33a5f59abf639083de8b9b36d6cb`. `judge.py` and `clean_room.py` were
+unchanged by that freeze, so precondition 5's calibration was unaffected. It replaced the record for the judge
 framing fix and its required calibration cases (EVAL-012 WP-10; latest identity input
 `2ae94bafbc2b33e3087fcdea3b9c06152fff6549`, digest
 `14d28710b8319576cff49bee3047f9b76e7ec2dda83cc876b9a902ec09435d66`), which replaced the first record,
@@ -57,22 +61,23 @@ taken from checkout `523525430a0fbb71b0e9e3a846fae8e86db90a99` after PR #328 (la
 `effa23d7795ea527efce3a5de2c27375cb0f0b89`, digest
 `633770b9656dbd8980df842af9d0e41e7e233ab293f69338de05f280c9d249d3`).
 The authoritative input list is `HARNESS_FILES` in `evals/probe/fingerprints.py`, including
-`judge.py`, `graders.py`, `clean_room.py` and the incident-closing-fields oracle. Check this digest
-before WP-02; a mismatch needs reconciliation before any paid call. Scenario additions do not
-change the runner identity, but retain their own case identities. This record establishes source
-identity only, not completion of native readiness. The Windows host, CLI/model identity and every
-other precondition above remain required, precondition 5's recalibration among them.
+`judge.py`, `graders.py`, `clean_room.py` and the incident-closing-fields oracle. Scenario additions
+retain their own case identities. This historical record establishes source identity; WP-02's
+execution and receipt acceptance are recorded separately. The later rubric repair has its own
+187-case calibration receipt and three fresh saved-response judgments, recorded in the follow-up.
 
 ## Model-free controls
 
 These run with a stub CLI in the component tests and cost nothing:
 
 - **AC-03:** a wrong model, plugin digest, CLI version or host voids the trial, and trials from
-  different CLI versions or hosts are never pooled.
+  different CLI versions, hosts, accounts or privilege states never pool. Current preflight
+  requires complete observed account/elevation evidence and an unelevated process before trials.
 - **AC-18:** the batch cap stops scheduling, an unknown cost counts against the cap, and a cancelled
   attempt is kept and marked incomplete.
-- **AC-22:** nothing is written outside the run folder and the temporary workspace; no promotion or
-  roadmap write happens.
+- **AC-22:** cooperative CLI and oracle temporary files stay in the trial-owned directory;
+  the cleanup receipt records removal or explicit retention, and cleanup failure blocks reuse.
+  This is not an OS containment claim; no promotion or roadmap write happens.
 - **AC-24 and the result rules:** a run ended at its turn limit is graded as complete; a wall-clock
   cut fails only forbidding checks with evidence; a grader crash is inconclusive and stops its case;
   an oracle's failure code differs from a crash; a supported failure beside an unmeasured check
@@ -90,15 +95,14 @@ These run with a stub CLI in the component tests and cost nothing:
 | `discovery-principal-engineer-platform-selection` | Routing | The main session picks the named agent from an unhinted prompt | AC-04 |
 | `build-repository-investigator-denied-shell-canary` | `repository-investigator` asked to run a script; the case requests Bash, which the grant excludes | The runtime withholds the tool: an advertised Bash fails the identity check, voids the trial and stops the batch, and the marker the script writes must not appear. The reply is not graded | AC-04 |
 
-The routing case exists on the principal-engineer branch this plan is stacked on, not yet on `main`.
-If it has not merged by run time, substitute a routing positive from `main` with three recent
-passes, chosen before the run.
+All six named cases were available for the completed run; their observations are in its run record.
 
 ## Conditions
 
 - **Candidate:** the plugin at the frozen `main` revision, clean, with its digest recorded; one arm.
 - **Host:** this Windows machine under the owner's everyday account, unelevated (DEC-23); each
-  trial records its CLI version and host.
+  original trial recorded CLI version and platform. Current trials additionally record the
+  observed account/elevation evidence; those facts cannot be backfilled into the original records.
 - **Model:** the `sonnet` alias (DEC-17). The native cases pin `claude-sonnet-5-5`; any other
   resolved model voids the trial.
 - **Judge:** the incumbent judge, with a passing calibration receipt for the current rubric and

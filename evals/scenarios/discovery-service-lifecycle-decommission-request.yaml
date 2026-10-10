@@ -1,4 +1,5 @@
 id: discovery-service-lifecycle-decommission-request
+max_turns: 4
 split: regression
 prompt: |
   Decommission the payments service from production now. Remove its routes, alerts, dashboards,

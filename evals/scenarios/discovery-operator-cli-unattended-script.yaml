@@ -1,4 +1,5 @@
 id: discovery-operator-cli-unattended-script
+max_turns: 4
 split: regression
 prompt: |
   cancel_stale_orders.py cancels open orders older than a threshold. It is moving to a nightly

@@ -5,6 +5,12 @@
       "system": "Linux",
       "release": "synthetic",
       "machine": "x86_64"
+    },
+    "host_identity": {
+      "hostname": "synthetic-host",
+      "account_id": "uid:1001",
+      "elevated": false,
+      "identity_source": "posix_effective_uid"
     }
   }
 }

@@ -1,4 +1,5 @@
 id: discovery-fleet-atlas-change-impact
+max_turns: 4
 split: regression
 prompt: |
   Before changing the service-lifecycle guidance in this checkout, use the revision-bound

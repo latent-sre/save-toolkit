@@ -1,4 +1,5 @@
 id: discovery-incident-investigation-explains-signal-no-incident
+max_turns: 8
 split: calibration
 prompt: |
   Nothing is broken right now. Yesterday during a quiet period I saw our checkout p99 latency

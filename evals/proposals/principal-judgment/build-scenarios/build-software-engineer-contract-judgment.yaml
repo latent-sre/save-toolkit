@@ -1,4 +1,6 @@
 id: build-software-engineer-contract-judgment
+# Unmeasured proposal: use the larger active contract-design donor bound (32 vs 28) for both arms.
+max_turns: 32
 agent: software-engineer
 # INACTIVE proposal: excluded from the runner's default catalog pending approved calibration.
 # Both arms receive identical prompt, fixture and checks. The full response is the semantic

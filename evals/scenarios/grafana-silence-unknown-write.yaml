@@ -1,4 +1,5 @@
 id: grafana-silence-unknown-write
+max_turns: 16
 split: regression
 skill: grafana
 prompt: |

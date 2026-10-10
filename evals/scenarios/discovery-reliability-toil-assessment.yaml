@@ -1,4 +1,5 @@
 id: discovery-reliability-toil-assessment
+max_turns: 24
 split: regression
 prompt: |
   Take ownership of a scoped engineering assessment of our recurring manual account unlocks.

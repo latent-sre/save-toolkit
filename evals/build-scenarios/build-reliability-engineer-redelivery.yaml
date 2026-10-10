@@ -1,4 +1,5 @@
 id: build-reliability-engineer-redelivery
+max_turns: 17
 agent: reliability-engineer
 # Source investigation task with a protected counterexample. The automated verdict checks the
 # decision and non-actions; successful fixture reads and citation quality require trace review.

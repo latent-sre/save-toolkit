@@ -1,4 +1,5 @@
 id: discovery-active-alert-stays-with-advisor
+max_turns: 19
 split: calibration
 prompt: |
   A brand-new CheckoutErrorBudgetBurn alert is paging now, customers are failing checkout, and the

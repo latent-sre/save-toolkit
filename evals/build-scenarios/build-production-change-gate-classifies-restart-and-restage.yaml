@@ -1,4 +1,5 @@
 id: build-production-change-gate-classifies-restart-and-restage
+max_turns: 37
 split: regression
 agent: software-engineer
 tools: [Skill, Read]

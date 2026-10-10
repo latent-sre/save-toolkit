@@ -57,10 +57,9 @@ class BatchSettings:
 
 def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettings) -> dict[str, Any]:
     """Publish a complete attempt; a failed overwrite leaves the previous run intact."""
-    if "followups" in spec:
-        problems = catalog.validate_scenario(spec)
-        if problems:
-            raise ValueError("; ".join(problems))
+    problems = catalog.validate_scenario(spec) if "followups" in spec else catalog._budget_problems(spec, "scenario")
+    if problems:
+        raise ValueError("; ".join(problems))
     rubric_judge.validate_binding(settings.judge_binding, fingerprints.required_rubrics(spec))
     target = layout.run_dir(settings.out_dir, spec["id"], settings.label, run_number)
     if target.exists() and not settings.overwrite:
@@ -285,6 +284,18 @@ def _invoke_turns(
             max_turns=left,
         )
         returncode, timed_out = None, None
+        invocation_record: dict[str, Any] = {
+            "argv": command,
+            "workspace": str(ws.repo.resolve()),
+            "runtime": settings.runtime,
+            "expected_model": spec.get("expected_model"),
+            "resume": resume,
+            "started_at": records.utc_now(),
+            "state": "prepared",
+            "exit_code": None,
+        }
+        invocation_path = turn_out / "invocation.json"
+        layout.write_json(invocation_path, invocation_record, ascii_only=True)
         with (
             (turn_out / "stdout.jsonl").open("w", encoding="utf-8") as out,
             (turn_out / "stderr.txt").open("w", encoding="utf-8") as err,
@@ -295,6 +306,14 @@ def _invoke_turns(
                 ).returncode
             except subprocess.TimeoutExpired:
                 timed_out = CutShort(f"timed out after {settings.timeout}s", Stop.WALL_CLOCK)
+            except BaseException as exc:
+                invocation_record.update(state="launch_failed", launch_error=type(exc).__name__)
+                raise
+            finally:
+                invocation_record.update(exit_code=returncode, ended_at=records.utc_now())
+                if invocation_record["state"] == "prepared":
+                    invocation_record["state"] = "timed_out" if timed_out else "finished"
+                layout.write_json(invocation_path, invocation_record, ascii_only=True)
         current = tracing.parse_trace(turn_out / "stdout.jsonl")
         reason, failed = invocation.turn_reason(
             current,
@@ -309,24 +328,16 @@ def _invoke_turns(
         )
         identity_failure = identity_failure or failed
         inconclusive = inconclusive or reason
+        invocation_record.update(
+            session_id=current.session_id,
+            main_models=current.main_models,
+            init_session_ids=current.init_session_ids,
+            inconclusive=inconclusive,
+            cut_short=isinstance(inconclusive, CutShort),
+            run_stop=inconclusive.kind if isinstance(inconclusive, CutShort) else None,
+        )
+        layout.write_json(invocation_path, invocation_record, ascii_only=True)
         if spec.get("followups"):
-            layout.write_json(
-                turn_out / "invocation.json",
-                {
-                    "argv": command,
-                    "session_id": current.session_id,
-                    "workspace": str(ws.repo.resolve()),
-                    "exit_code": returncode,
-                    "expected_model": spec.get("expected_model"),
-                    "main_models": current.main_models,
-                    "init_session_ids": current.init_session_ids,
-                    "resume": resume,
-                    "inconclusive": inconclusive,
-                    "cut_short": isinstance(inconclusive, CutShort),
-                    "run_stop": inconclusive.kind if isinstance(inconclusive, CutShort) else None,
-                },
-                ascii_only=True,
-            )
             (turn_out / "response.md").write_text(current.result_text, encoding="utf-8")
         if inconclusive:
             break
@@ -406,6 +417,54 @@ def _timing(
     }
 
 
+def _finish_trial(
+    root: Path,
+    run_out: Path,
+    settings: BatchSettings,
+    services: list[Service],
+    summary: dict[str, Any] | None,
+    active_error: BaseException | None,
+) -> None:
+    """Record cleanup without changing an already measured verdict (result rule 6)."""
+    problems = []
+    try:
+        backing.stop_services(services, settings.docker)
+    except ServiceUnavailable as exc:
+        problems.append(f"backing service cleanup failed: {exc}")
+    if settings.keep_workspace:
+        print(f"workspace kept at {root}", flush=True)
+    else:
+        try:
+            workspaces.remove_tree(root)
+        except OSError as exc:
+            problems.append(f"workspace cleanup failed: {exc}")
+    layout.write_json(
+        run_out / "cleanup.json",
+        {
+            "workspace": str(root),
+            "retained": settings.keep_workspace,
+            "removed": not root.exists(),
+            "problems": problems,
+        },
+    )
+    if not problems:
+        return
+    detail = "; ".join(problems)
+    if summary is not None:
+        previous = summary.get("after_assessment")
+        detail = f"{previous}; {detail}" if previous else detail
+        summary["after_assessment"] = detail
+        for name in ("grading.json", "outputs/trace-summary.json"):
+            saved = layout.read_object(run_out / name)
+            if saved is not None:
+                saved["after_assessment"] = detail
+                layout.write_json(run_out / name, saved)
+    elif active_error is None:
+        raise OSError(detail)
+    else:
+        print(f"warning: {detail} after primary failure: {type(active_error).__name__}", file=sys.stderr, flush=True)
+
+
 def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings: BatchSettings) -> dict[str, Any]:
     eval_name = spec["id"]
     (run_out / "outputs").mkdir(parents=True, exist_ok=True)
@@ -434,6 +493,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
     service_error: str | None = None
     trace = TraceSummary()
     services: list[Service] = []
+    summary: dict[str, Any] | None = None
     try:
         if root.resolve().is_relative_to(ROOT.resolve()):
             raise RuntimeError(f"temp workspace {root} is inside the repository")
@@ -496,6 +556,11 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             inconclusive = void_over_cut(inconclusive, drift)
         trace = tracing.parse_trial_trace(run_out) if trace_path.exists() else TraceSummary()
         git = workspaces.collect_git_facts(ws)
+        try:
+            backing.stop_proxies(services)
+        except ServiceUnavailable as exc:
+            # Only service evidence is unsettled. Trace-supported forbidden actions still fail.
+            service_error = str(exc)
         ctx = Context(
             spec,
             ws,
@@ -504,6 +569,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             services=services,
             plugin_root=served,
             judge_binding=settings.judge_binding,
+            service_problem=service_error,
         )
         grading = assessment.grade(ctx, inconclusive=inconclusive, expected_scenario_digest=scenario_identity)
         after_assessment = None
@@ -533,7 +599,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         judge = records.judge_spend()
         cost = records.trial_cost(trace.total_cost_usd, judge)
         layout.write_json(run_out / "timing.json", _timing(trace, elapsed, judge, cost, settings), ascii_only=True)
-        return {
+        summary = {
             "scenario": spec["id"],
             "label": settings.label,
             "run": run_number,
@@ -558,15 +624,6 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             **({"identity_failure": identity_failure} if identity_failure else {}),
             **({"service_error": service_error} if service_error else {}),
         }
+        return summary
     finally:
-        active_error = sys.exc_info()[1]
-        try:
-            backing.stop_services(services, settings.docker)
-        except ServiceUnavailable as cleanup_error:
-            if active_error is None:
-                raise
-            print(f"warning: {cleanup_error} after primary failure: {active_error}", file=sys.stderr, flush=True)
-        if settings.keep_workspace:
-            print(f"workspace kept at {root}", flush=True)
-        else:
-            workspaces.remove_tree(root)
+        _finish_trial(root, run_out, settings, services, summary, sys.exc_info()[1])

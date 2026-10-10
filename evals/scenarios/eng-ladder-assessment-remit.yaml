@@ -1,4 +1,5 @@
 id: eng-ladder-assessment-remit
+max_turns: 15
 split: regression
 skill: eng-ladder
 tools:

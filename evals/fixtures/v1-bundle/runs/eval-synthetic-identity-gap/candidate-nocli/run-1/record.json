@@ -5,7 +5,7 @@
   },
   "case": {
     "id": "synthetic-identity-gap",
-    "case_sha256": "534d0ed7b510045f5cc6279afed307ad6a92b3462143eced6726e5328196053d",
+    "case_sha256": "3312011f3d77f7444ae90a3089e7bdf14fc9b41b15dd7b04be5d6b3cdbce3d6c",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
@@ -30,9 +30,15 @@
         "system": "Linux",
         "release": "synthetic",
         "machine": "x86_64"
+      },
+      "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id": "uid:1001",
+        "elevated": false,
+        "identity_source": "posix_effective_uid"
       }
     },
-    "turn_limit": null,
+    "turn_limit": 20,
     "wall_clock_seconds": 600
   },
   "attempt": {

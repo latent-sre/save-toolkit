@@ -1,4 +1,5 @@
 id: discovery-obs-metrics-cloud-monitoring
+max_turns: 4
 split: regression
 prompt: |
   Our Cloud Run checkout service already exports request metrics to Cloud Monitoring. Write concrete

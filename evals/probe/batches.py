@@ -35,8 +35,8 @@ def batch_identity_problem(
 
     A trial recorded before the CLI and host were recorded never pools with one that has them.
     """
-    if not runtime.get("cli_version"):
-        return "the CLI did not report its version, so no result would identify it; fix --executable first"
+    if problem := fingerprints.runtime_evidence_problem(runtime):
+        return problem
     expected = {
         spec["id"]: fingerprints.scenario_digest(spec, fingerprints.binding_for(spec, judge_binding))
         for spec in scenarios
@@ -85,9 +85,7 @@ def pool_identity(entry: dict[str, Any]) -> str | None:
     if (
         len(models) != 1
         or not entry.get("plugin_source_sha256")
-        or not isinstance(runtime, dict)
-        or not runtime.get("cli_version")
-        or not runtime.get("host_platform")
+        or fingerprints.runtime_evidence_problem(runtime) is not None
     ):
         return None
     return json.dumps([models, entry["plugin_source_sha256"], runtime, entry.get("scenario_sha256")], sort_keys=True)

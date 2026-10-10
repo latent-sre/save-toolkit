@@ -5,7 +5,7 @@
   },
   "case": {
     "id": "synthetic-regraded",
-    "case_sha256": "2563d0f327438f1ce62773cf3d84ec24bd17d93c751bf78deef71024475c5034",
+    "case_sha256": "ca59c9eb9c471a13d9879d2ec5783d622768fefffd778a75fcc1050f8f09fb87",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
@@ -30,9 +30,15 @@
         "system": "Linux",
         "release": "synthetic",
         "machine": "x86_64"
+      },
+      "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id": "uid:1001",
+        "elevated": false,
+        "identity_source": "posix_effective_uid"
       }
     },
-    "turn_limit": null,
+    "turn_limit": 20,
     "wall_clock_seconds": 600
   },
   "attempt": {

@@ -5,7 +5,7 @@
   },
   "case": {
     "id": "synthetic-regression",
-    "case_sha256": "40b0ea7919039928453d52e01b7b992c7da7dde71f0229d716e9ec5f77401a21",
+    "case_sha256": "6c1888c62e3f09ec57e9da68f9ad44faadacdf2b55bd2b8085350f71f9a32a97",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
@@ -30,9 +30,15 @@
         "system": "Linux",
         "release": "synthetic",
         "machine": "x86_64"
+      },
+      "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id": "uid:1001",
+        "elevated": false,
+        "identity_source": "posix_effective_uid"
       }
     },
-    "turn_limit": null,
+    "turn_limit": 20,
     "wall_clock_seconds": 600
   },
   "attempt": {

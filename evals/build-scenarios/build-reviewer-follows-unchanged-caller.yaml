@@ -1,4 +1,5 @@
 id: build-reviewer-follows-unchanged-caller
+max_turns: 14
 agent: reviewer
 # A real fixture branch supplies the missing diff/history. No native/model run is implied.
 prompt: |

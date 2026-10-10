@@ -1,4 +1,5 @@
 id: discovery-principal-engineer-defers-design-review
+max_turns: 20
 split: regression
 # The work is a design document, the design lane's own vocabulary, but the request is an
 # independent merge judgment. The document is inline; the checkout holds the two consumers it names,

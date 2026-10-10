@@ -5,7 +5,7 @@
   },
   "case": {
     "id": "synthetic-recordless",
-    "case_sha256": "59f5625f7cf13f3f94653fe39d9146bf76d1f2855727dcf9f7dac0164ed0724b",
+    "case_sha256": "57ec824e2048454e1604c3c707ab1d01bd4ae8d75d0a7c1332744be399b84275",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
@@ -30,9 +30,15 @@
         "system": "Linux",
         "release": "synthetic",
         "machine": "x86_64"
+      },
+      "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id": "uid:1001",
+        "elevated": false,
+        "identity_source": "posix_effective_uid"
       }
     },
-    "turn_limit": null,
+    "turn_limit": 20,
     "wall_clock_seconds": 600
   },
   "attempt": {

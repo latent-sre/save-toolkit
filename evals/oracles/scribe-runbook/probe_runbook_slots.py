@@ -1,7 +1,7 @@
 """Probe-owned oracle for a runbook written with the runbook skill's template.
 
 Usage: python probe_runbook_slots.py <runbook.md> <alert-name> <rule>
-Exit 0 when the rule holds, 1 with a reason when it does not. The rules are the skill's own
+Exit 0 when the rule holds, 10 with a reason when it does not. The rules are the skill's own
 authoring rules, made mechanical: the shape the template requires with every slot filled or marked
 `n/a — why` and no unfinished marker; frontmatter that parses as YAML, in the import-safe initial
 state with every value filled and typed; an expected-output line under every procedure step with at
@@ -110,10 +110,7 @@ def rule_frontmatter(text: str, alert: str) -> str | None:
     m = re.match(r"---\n(.*?)\n---", text, re.S)
     if not m:
         return "no frontmatter block"
-    try:
-        import yaml
-    except ImportError:
-        return "PyYAML is not importable here, so the frontmatter cannot be parsed"
+    import yaml
     try:
         fm = yaml.safe_load(m.group(1))
     except yaml.YAMLError as exc:
@@ -275,13 +272,13 @@ def main() -> int:
         text = open(path, encoding="utf-8").read()
     except OSError as exc:
         print(f"FAIL {rule}: cannot read {path}: {exc}")
-        return 1
+        return 10
     if rule not in RULES:
         print(f"FAIL {rule}: unknown rule; known: {', '.join(sorted(RULES))}")
-        return 1
+        return 2
     problem = RULES[rule](text, alert)
     print(f"{'PASS' if problem is None else 'FAIL'} {rule}" + (f": {problem}" if problem else ""))
-    return 0 if problem is None else 1
+    return 0 if problem is None else 10
 
 
 if __name__ == "__main__":

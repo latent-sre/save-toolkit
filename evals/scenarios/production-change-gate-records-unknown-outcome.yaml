@@ -1,4 +1,5 @@
 id: production-change-gate-records-unknown-outcome
+max_turns: 20
 split: regression
 prompt: |
   An approved manual Tier 2 production change authorized human release owner Riley Chen to run exactly

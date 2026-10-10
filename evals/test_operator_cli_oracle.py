@@ -173,7 +173,7 @@ class OperatorCliOracleTests(unittest.TestCase):
     def test_scenario_binds_this_oracle_and_the_skill(self):
         spec = scenario_file(SCENARIO)
         outcome = [check for check in spec["checks"] if "writes_from" in check]
-        self.assertEqual([{"_operator_oracle.py": "evals/oracles/operator-cli/check_requeue.py"}],
+        self.assertEqual([{"_operator_oracle.py": "evals/oracles/operator-cli/check_requeue.py", "oracle_protocol.py": "evals/oracles/oracle_protocol.py"}],
                          [check["writes_from"] for check in outcome])
         self.assertTrue(any(check["check"] == "skill_loaded" and check["skill"] == "operator-cli"
                             for check in spec["checks"]))

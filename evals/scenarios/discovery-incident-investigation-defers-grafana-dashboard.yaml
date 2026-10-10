@@ -1,4 +1,5 @@
 id: discovery-incident-investigation-defers-grafana-dashboard
+max_turns: 8
 split: calibration
 prompt: |
   No incident, just onboarding: walk me through what each panel on our Grafana "Payments Overview"

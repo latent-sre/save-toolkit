@@ -1,4 +1,5 @@
 id: production-change-gate-release-preserves-recovery
+max_turns: 17
 split: regression
 skill: production-change-gate
 tools: [Skill, Read]

@@ -41,7 +41,9 @@ host mechanism; the plan contains a reference or authentication class, never a c
 
 Pin the candidate by content and revision. Record dirty inputs if measuring them; do not describe a
 dirty candidate using only its commit. Record runner source/revision, mapping version, package and
-CLI versions, host/architecture, image digests, input digests and declared versus observed tools.
+CLI versions, host/architecture, OS-observed hostname, account ID and elevation, image digests,
+input digests and declared versus observed tools. Native admission requires complete runtime
+identity evidence and an unelevated account; missing or elevated identity is refused before calls.
 Changing any load-bearing input starts a new run identity. Preflight catches incompatibility before
 a model call or fault injection.
 
@@ -79,6 +81,20 @@ artifacts or other invalidated evidence require reassessment. A timeout code or 
 does not identify the cause. Confirm that the candidate had the declared opportunity to complete
 and that artifact collection worked before attributing a missing submission to it.
 
+Every native scenario declares a positive integer `max_turns` no greater than 500. The CLI enforces
+the limit, shared across both invocations of a native conversation. Offline sizing from historical
+counts and timing is provisional: neither a selected limit nor a passing stub test proves live
+completion within the wall-clock guard. A single slow tool/helper may still reach that guard.
+Current coverage and sizing choices are recorded in the
+[EVAL-011 closeout](../reviews/2026-10-10-eval-011-closeout.md).
+
+Executable oracle checks require supervised completion evidence, with exit 10 for a supported
+contract/candidate failure and exit 1 for oracle failure or missing assessment evidence. Semantic
+placeholders remain unavailable measurements. Audit proxies settle before service grading while
+backing services remain readable. CLI and oracle temporary files belong to the disposable workspace;
+cleanup records retention/removal and problems separately from assessment. A cleanup failure keeps
+the supported verdict and blocks reuse.
+
 Do not remove genuine budget-exhaustion or missing-submission failures from the task denominator.
 AC-24 contrasts a nonterminating candidate and an omitted patch with provider/runner outage and lost
 artifacts. Imports preserve original native statuses; new mappings and any rescoring are separate
@@ -107,16 +123,19 @@ which validates every record before it is written.
 | Format | Format name and major version; readers reject an unsupported major version |
 | Case | Case ID and a case digest over the scenario, its oracles and rubric material only, not the runner, Python or library versions |
 | Candidate and runner | Plugin commit, source digest and dirty state; runner revision and source digest |
-| Run conditions | Requested model, observed models, CLI version, host OS, release and architecture, declared turn limit and wall-clock timeout |
+| Run conditions | Requested model, observed models, CLI version, host OS/release/architecture and observed hostname/account/elevation/source, declared turn limit and wall-clock timeout |
 | Attempt | Arm label, trial slot, attempt number, final, superseded or incomplete state, the reason for any replacement, and UTC start and end times |
 | Run end | How execution ended, independent of what the checks found: completed, turn limit, cut short with its stop (wall clock, spend guard, no result, error result or nonzero exit), void (wrong profile or identity), or incomplete (an attempt that raised, such as an authentication failure or interrupt) |
 | Checks | For each: ID, text, forbids, requires or both (a floor and a ceiling), PASS, FAIL or INCONCLUSIVE, an evidence excerpt with a truncation flag, and the reason |
 | Verdict | Trial verdict and reason, assessment revision 0, and any problem recorded after assessment; each later regrade is listed under `assessments` with its revision, verdict and grading path, never written over this one |
 | Cost | Trial and judge USD as the CLI's list-price estimate, each `null` when unknown; known total; a complete flag; live and cached judge calls |
-| Evidence | Paths, relative to the bundle, of the response, trace, patch and grading detail |
+| Evidence | Paths, relative to the bundle, of the response, trace, patch, grading detail, each invocation's argv/boundary metadata and cleanup receipt |
 
 An unknown value is `null`, never zero and never filled from the computer reading the record. Older
-runs have no v1 record; WP-01 lists them as legacy with the gaps their files leave.
+runs may have no v1 record, or a v1 record that predates host/account evidence. Both remain readable
+at their supported format: WP-01 names the gaps, preserves recorded verdicts, and refuses to pool
+unknown host/account identities as though they matched. Known differences in account or privilege
+are different runtime conditions. The importing computer never supplies missing historical facts.
 
 ## Report records
 

@@ -1,4 +1,5 @@
 id: discovery-obs-alerting-splunk-saved-search
+max_turns: 4
 split: regression
 prompt: |
   Design a Splunk saved-search paging alert for sustained checkout 5xx errors. Give a concrete

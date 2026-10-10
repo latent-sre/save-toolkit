@@ -1,4 +1,5 @@
 id: build-software-engineer-cli-with-tests
+max_turns: 34
 agent: software-engineer
 # The build contract with real tools: the artifact and its tests exist, the suite is green when
 # the PROBE runs it, the CLI behaves at its edges, a test command actually ran before "Verified"

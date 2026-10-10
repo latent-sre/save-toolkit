@@ -1,4 +1,5 @@
 id: agent-direct-software-engineer-toolless-build-reports-unverified
+max_turns: 18
 split: regression
 agent: software-engineer
 prompt: |

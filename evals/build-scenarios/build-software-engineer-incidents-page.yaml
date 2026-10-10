@@ -1,4 +1,5 @@
 id: build-software-engineer-incidents-page
+max_turns: 62
 agent: software-engineer
 # The frontend bar with real tools. The prompt asks only for a page, a table, and a status filter;
 # it never says "loading state", "empty state", "labelled control", "the URL is state", or
@@ -285,16 +286,17 @@ checks:
   # over a dependency tree the agent may have edited. No package's lifecycle script executes in
   # the grading step; a package that needs one is a scenario the fixture must pin, not run.
   - check: command_exit_zero
-    command: "npm install --ignore-scripts --no-audit --no-fund && npx vitest run probe_ui.test.tsx -t bar1"
+    command: "npm install --ignore-scripts --no-audit --no-fund && python check_ui.py bar1"
     timeout: 600
     text: "oracle: a loading state is visible while GET /api/incidents is in flight"
-    writes_from: {probe_ui.test.tsx: evals/oracles/incidents-page/probe_ui.test.tsx}
-  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar2", timeout: 300, text: "oracle: a 500 from the API is an inline error beside a heading, not a white page"}
-  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar3", timeout: 300, text: "oracle: an empty list is a designed empty state, not a blank table"}
-  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar4", timeout: 300, text: "oracle: every control carries an accessible name"}
-  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar5", timeout: 300, text: "oracle: the status filter round-trips through the URL"}
-  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar6", timeout: 300, text: "oracle: axe reports no violations on the loaded page"}
-  - {check: command_exit_zero, command: "npx vitest run probe_ui.test.tsx -t bar7", timeout: 300, text: "oracle: status is readable text in every row, never colour alone"}
+    failure_exit_code: 10
+    writes_from: {probe_ui.test.tsx: evals/oracles/incidents-page/probe_ui.test.tsx, check_ui.py: evals/oracles/incidents-page/check_ui.py}
+  - {check: command_exit_zero, command: "python check_ui.py bar2", failure_exit_code: 10, timeout: 300, text: "oracle: a 500 from the API is an inline error beside a heading, not a white page"}
+  - {check: command_exit_zero, command: "python check_ui.py bar3", failure_exit_code: 10, timeout: 300, text: "oracle: an empty list is a designed empty state, not a blank table"}
+  - {check: command_exit_zero, command: "python check_ui.py bar4", failure_exit_code: 10, timeout: 300, text: "oracle: every control carries an accessible name"}
+  - {check: command_exit_zero, command: "python check_ui.py bar5", failure_exit_code: 10, timeout: 300, text: "oracle: the status filter round-trips through the URL"}
+  - {check: command_exit_zero, command: "python check_ui.py bar6", failure_exit_code: 10, timeout: 300, text: "oracle: axe reports no violations on the loaded page"}
+  - {check: command_exit_zero, command: "python check_ui.py bar7", failure_exit_code: 10, timeout: 300, text: "oracle: status is readable text in every row, never colour alone"}
   - {check: command_exit_zero, command: "npm run typecheck", timeout: 300, text: "tsc --noEmit is clean under the repo's strict config"}
   - {check: command_exit_zero, command: "npx vitest run src", timeout: 300, text: "the agent's own suite is green when the probe runs it (src/ only, so the oracle is excluded)"}
   - {check: command_exit_zero, command: "npx vitest run src --reporter=json --outputFile=probe_suite.json && node -e \"const r=require('./probe_suite.json');const t=r.testResults.flatMap(f=>f.assertionResults);const hit=t.filter(a=>/incident/i.test(a.fullName+a.title)&&a.status==='passed');process.exit(hit.length?0:1)\"", timeout: 300, text: "an incidents test case the agent wrote actually executed and passed"}

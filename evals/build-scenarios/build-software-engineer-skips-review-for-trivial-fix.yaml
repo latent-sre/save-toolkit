@@ -4,6 +4,7 @@
 # size threshold, explains a skip. Over-trigger control for
 # build-software-engineer-reviews-nontrivial-change.
 id: build-software-engineer-skips-review-for-trivial-fix
+max_turns: 14
 agent: software-engineer
 prompt: |
   "recieve" is misspelled for "receive" in README.md, in report.py and in test_report.py. Fix the

@@ -1,4 +1,5 @@
 id: build-software-engineer-adds-pcf-deploy-job
+max_turns: 35
 agent: software-engineer
 # The ci-actions skill's always-on contract, graded by what the authored workflow is rather than
 # what the agent says about it: the pinned actionlint accepts it, and a probe-owned oracle written
@@ -195,63 +196,78 @@ checks:
   # with the password in argv, a hosted runner, no environment, no permissions, no rollback), and
   # red on the targeted case for each of thirty-two files built to dodge one finding.
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py lint"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py lint"
     timeout: 600
     text: "the pinned actionlint accepts every workflow file: syntax, expressions, and untrusted-expression use"
-    writes_from: {probe_ci_workflow.py: evals/oracles/pcf-deploy-job/probe_ci_workflow.py}
+    writes_from: {probe_ci_workflow.py: evals/oracles/pcf-deploy-job/probe_ci_workflow.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py deploy-job"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py deploy-job"
     timeout: 600
     text: "a job runs cf push"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py runner"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py runner"
     timeout: 600
     text: "every deploy job runs on a runner labelled self-hosted and pcf, the only place the foundation is reachable from"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py environment"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py environment"
     timeout: 600
     text: "every deploy job names the production environment, where the reviewers and the secrets are"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py concurrency"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py concurrency"
     timeout: 600
     text: "every deploy job's concurrency group is stable, varying at most by workflow, repository, or job name, and cancel-in-progress is not true"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py permissions"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py permissions"
     timeout: 600
     text: "every deploy job's permissions are an explicit mapping with contents read and no write scope at all"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py pins"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py pins"
     timeout: 600
     text: "every remote action follows the fixture's approved major-tag policy; docker actions retain manifest digests"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py reviewed-pins"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py reviewed-pins"
     timeout: 600
     text: "every full action reference is on the approved list as seeded, not as the agent may have edited it"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py no-injection"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py no-injection"
     timeout: 600
     text: "no run step interpolates github.event.* directly"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py artifact-promoted"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py artifact-promoted"
     timeout: 600
     text: "each cf push in a discovered deploy job binds to the downloaded checkout.zip and reviewed manifest; unsupported path or shell forms receive no promotion credit"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py cf-auth-env"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py cf-auth-env"
     timeout: 600
     text: "cf auth takes CF_USERNAME and CF_PASSWORD from a step env mapped from secrets, never argv, and cf login is absent"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py cf-target"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py cf-target"
     timeout: 600
     text: "cf api and cf target -o/-s both run before the first cf push, so a persistent runner cannot deploy to a stale target"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py secrets-via-env"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py secrets-via-env"
     timeout: 600
     text: "no secrets.* inside a run step, no shell tracing, no CF_PASSWORD reference, and no environment dump in a deploy job"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py rollback"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py rollback"
     timeout: 600
     text: "the deploy workflow carries a rollback command: a cf rollback step, or a job named for rollback with run steps"
   - check: command_exit_zero
-    command: "python probe_ci_workflow.py build-job-unchanged"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_ci_workflow.py build-job-unchanged"
     timeout: 600
     text: "the build-test job is exactly what the repository had"

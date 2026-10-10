@@ -1,4 +1,5 @@
 id: discovery-obs-traces-cloud-trace
+max_turns: 4
 split: regression
 prompt: |
   A single checkout request on Cloud Run is slow and I have its Cloud Trace trace ID. Show how to
