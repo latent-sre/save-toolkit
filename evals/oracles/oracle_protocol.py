@@ -119,7 +119,7 @@ def supervise(argv):
             result = subprocess.run(command)
             candidate_active = phase[0] == 1
         if not receipt.is_file():
-            if result.returncode == 0 and candidate_active:
+            if candidate_active and 0 <= result.returncode <= 255:
                 print("FAIL: candidate exited before oracle completion", file=sys.stderr)
                 return FAILURE
             print("INCONCLUSIVE: oracle process stopped without assessment", file=sys.stderr)

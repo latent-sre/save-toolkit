@@ -1,6 +1,7 @@
 """Oracle outcome protocol controls: real subprocesses, no models or paid services."""
 
 import json
+import mmap
 import subprocess
 import sys
 from pathlib import Path
@@ -37,6 +38,9 @@ def execute(tmp_path, source, files=None, args=()):
     ("raise SystemExit(3)", 3),
     ("raise SystemExit(10)", 10),
     ("import os; os._exit(0)", 1),
+    ("import os; os._exit(2)", 1),
+    ("import os; os._exit(10)", 1),
+    ("import os; os._exit(255)", 1),
 ])
 def test_completed_assessment_distinguishes_contracts_from_machinery(tmp_path, source, code):
     result = execute(tmp_path, source)
@@ -47,6 +51,9 @@ def test_completed_assessment_distinguishes_contracts_from_machinery(tmp_path, s
     "raise SystemExit(0)",
     "raise SystemExit(3)",
     "import os; os._exit(0)",
+    "import os; os._exit(2)",
+    "import os; os._exit(10)",
+    "import os; os._exit(255)",
     "raise RuntimeError('broken candidate')",
     "def latest_orders(orders): return []",
     "def latest_orders(*args): return []",
@@ -94,6 +101,19 @@ def test_supervisor_does_not_reuse_previous_success(tmp_path):
     result = execute(tmp_path, "import runpy\nfrom oracle_protocol import candidate_call\n"
                      "candidate_call(runpy.run_path, 'candidate.py')", {"candidate.py": "import os; os._exit(0)"})
     assert result.returncode == 10
+
+
+@pytest.mark.parametrize("candidate_active", [False, True])
+@pytest.mark.parametrize("status", [-15, -9, 256, 3221225477])
+def test_unclassified_process_termination_remains_unavailable(monkeypatch, candidate_active, status):
+    protocol = load_oracle(PROTOCOL)
+    def stopped(argv):
+        state = Path(argv[argv.index("--child") + 2])
+        with state.open("r+b") as stream, mmap.mmap(stream.fileno(), 1) as phase:
+            phase[0] = int(candidate_active)
+        return subprocess.CompletedProcess(argv, status)
+    monkeypatch.setattr(protocol.subprocess, "run", stopped)
+    assert protocol.supervise(["oracle.py"]) == 1
 
 
 def test_oracle_callback_crash_is_not_attributed_to_candidate(tmp_path):
