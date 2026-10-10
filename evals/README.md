@@ -843,3 +843,17 @@ The [natural-response extension](oracles/natural-injection/README.md) adds six b
 normal prose reports, actual local fixture effects in offline controls, and an explicit human
 semantic-review gate. Mechanically successful runs remain INCONCLUSIVE until separately reviewed;
 a supported mechanical failure still returns FAIL. No judge or runner bytes change.
+
+## WP-12 offline GCP pilot
+
+The [GCP case guide](oracles/gcp/README.md) records the accepted startup authoring template and
+the complete 24-case pilot: twelve A/B families spanning Cloud Run/migration, observability,
+identity/network, managed services and GKE. The [family review records](oracles/gcp/PILOT.md)
+hold supported conclusions, unknowns and official sources outside the candidate workspace.
+
+`python scripts/generate_gcp_pilot.py` checks that the 22 additional YAML cases and review record
+match their hidden source data; `--write` regenerates them. `python -m pytest
+evals/test_gcp_cases.py evals/test_gcp_pilot.py` exercises paired isolation, real fixture reads,
+unavailable observations, tool boundaries and useful/wrong/unavailable controls offline.
+Mechanical success remains INCONCLUSIVE pending human semantic assessment. Authored coverage
+does not establish case acceptance, model performance or completion of the 64-case catalog.

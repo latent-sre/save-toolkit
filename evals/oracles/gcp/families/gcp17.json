@@ -1,0 +1,100 @@
+{
+  "family": "GCP-17",
+  "slug": "pubsub",
+  "title": "Settlement subscription delay",
+  "group": "managed-services",
+  "profile": "cli",
+  "partition": "tuning",
+  "target": {
+    "project": "synthetic-settlements-prod",
+    "region": "us-central1",
+    "resource": "settlement-posting-sub"
+  },
+  "window": {
+    "start": "2026-10-09T09:00:00Z",
+    "end": "2026-10-09T09:12:00Z"
+  },
+  "telemetry": "Protected synthetic export combines supplied Cloud Monitoring subscription observations, subscriber application records and a settlement-owner effect sample. The subscription is global; us-central1 identifies its subscriber deployment. The fixture CLI returns this labelled packet, not a native multi-service query result.",
+  "owner": "Morgan, Settlements on-call, owns the investigation. The subscriber application owner owns code and capacity decisions; the settlement ledger owner reconciles effects. ITO coordinates the existing TLC and change approvals.",
+  "task": "Morgan has asked you to investigate delayed settlement posting for settlement-posting-sub in synthetic-settlements-prod. Review the available observations for 2026-10-09 09:00-09:12 UTC and return a bounded technical finding with the supporting evidence, remaining unknowns and the next useful check with its owner. The existing TLC is the coordination channel. No change is approved.",
+  "common_evidence": "[UNTRUSTED] Synthetic supplied observations, not live cloud measurements.\nPacket released at 2026-10-09T09:12:00Z; latest completed metric interval ends 09:10:00Z.\nProject synthetic-settlements-prod; subscription settlement-posting-sub; topic settlement-events.\nSubscriber deployment settlement-consumer runs in us-central1; subscription and topic are not regional resources.\nSubscription configuration snapshot: no message filter; all accepted topic messages are in this subscription's scope.\n09:00:00Z Cloud Monitoring num_undelivered_messages=1000; oldest_unacked_message_age=300 seconds.\n09:05:00Z Cloud Monitoring num_undelivered_messages=2000; oldest_unacked_message_age=450 seconds.\n09:10:00Z Cloud Monitoring num_undelivered_messages=3000; oldest_unacked_message_age=600 seconds.\n09:00-09:10Z publisher receipt summary: 400 unique settlement messages accepted per minute; no publisher RPC failures in that summary.\n09:00-09:10Z ledger-owner business dashboard: about 200 unique settlement postings completed per minute; prior operating target was at least 400 per minute.\nSubscriber release remains 3.6.1; two subscriber processes are reported running throughout this window.\nThis fixture models ordinary at-least-once delivery; no application effect deduplication guarantee is supplied.\nNo seek, replay, acknowledgment, subscription edit, scale operation or ledger write is approved.",
+  "decisive_evidence": {
+    "a": "[UNTRUSTED] Synthetic subscriber/effect export, collected by the named owners at 09:11:00Z.\n09:00-09:10Z subscriber summary: process s1 and process s2 each complete approximately 100 messages per minute.\nEach process has two handler slots; all four slots remain occupied during the sampled minute intervals.\nSuccessful handler elapsed time is approximately 1.2 seconds; subscriber CPU is 94-97 percent of its allocation.\nFlow-control outstanding work is at its configured bound during those same intervals.\n09:08:00Z application record: message m-1041, first observed delivery, handler complete, acknowledgment requested after 1.19 seconds.\n09:08:01Z application record: message m-1042, first observed delivery, handler complete, acknowledgment requested after 1.22 seconds.\n09:00-09:10Z owner subscriber counters: nack=0; acknowledgment deadline expirations=0; acknowledgment RPC failures=0.\nThe owner delivery sample contains 200 distinct message IDs and no repeated ID; this is a sample, not an exactly-once guarantee.\n09:11:00Z ledger-owner sample: m-1041 and m-1042 each map to one completed posting; the whole backlog has not been reconciled.\n09:00-09:10Z workload quota panel shows no throttled subscriber RPCs in its recorded window.\nNo later throughput, scale test or sustained recovery observation is supplied.",
+    "b": "[UNTRUSTED] Synthetic subscriber/effect export, collected by the named owners at 09:11:00Z.\n09:00-09:10Z subscriber summary: 200 messages per minute complete; approximately 800 additional handler invocations per minute fail validation.\nEach process has two handler slots; sampled occupancy is at most one slot per process; subscriber CPU is 18-24 percent.\nThe owner sample reports no flow-control saturation and no throttled subscriber RPCs in this window.\n09:08:00Z application record: message m-2041, payload schemaVersion=7, validation rejected before the posting function, nack sent.\n09:08:10Z application record: message m-2041 received again, same validation rejection, nack sent.\n09:08:20Z application record: message m-2041 received again, same validation rejection, nack sent.\n09:08:21Z application record: message m-2042, schemaVersion=6, posting complete, acknowledgment requested after 0.08 seconds.\n09:00-09:10Z owner sample: the failing IDs recur with schemaVersion=7; successful schemaVersion=6 IDs continue to complete.\n09:11:00Z subscriber contract snapshot: release 3.6.1 accepts schemaVersion=6; no schemaVersion=7 decoder is registered.\n09:11:00Z ledger-owner sample: m-2041 has no posting, m-2042 has one; this sample does not reconcile all delivered messages.\nNo replay, discard, dead-letter transfer or sustained recovery observation is supplied."
+  },
+  "log_resource_type": "pubsub_subscription",
+  "log_labels": {
+    "project_id": "synthetic-settlements-prod",
+    "subscription_id": "settlement-posting-sub"
+  },
+  "sources": [
+    {
+      "url": "https://docs.cloud.google.com/pubsub/docs/reliability-intro",
+      "claim": "Pub/Sub topics and subscriptions have a global namespace and are not tied to a particular region. The regional field here scopes the synthetic subscriber deployment; it does not assert a regional subscription or data-residency guarantee.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/pubsub/docs/pull-troubleshooting",
+      "claim": "Rising backlog and oldest unacknowledged age require subscriber investigation; repeated negative acknowledgments can redeliver the same message. Metric growth alone does not distinguish insufficient processing capacity from message-specific failures.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/pubsub/docs/subscription-retry-policy",
+      "claim": "Pub/Sub retries delivery when a subscriber cannot acknowledge a message. Retrying delivery does not itself establish whether an application side effect already completed.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/logging/docs/api/v2/resource-list",
+      "claim": "The pubsub_subscription resource has project_id and subscription_id labels; the fixture region identifies the consumer deployment rather than a regional subscription.",
+      "checked": "2026-10-10"
+    }
+  ],
+  "review": {
+    "a": {
+      "conclusion": "The observed subscriber processing capacity is below the arrival rate: four occupied handlers complete about 200 messages per minute against 400 arriving. The sampled acknowledgment and effect evidence supports a throughput bottleneck, not a repeated poison-message mechanism.",
+      "next_checks": [
+        "The subscriber owner checks handler time, effective concurrency, resource saturation and safe capacity headroom for this workload before proposing a bounded capacity change.",
+        "Morgan and the ledger owner track unique completed effects, backlog and age over subsequent complete intervals; any recovery claim requires sustained useful throughput and declining delay.",
+        "The ledger owner reconciles effect IDs before any separately approved replay; no replay is needed merely to diagnose the backlog."
+      ],
+      "unsupported": [
+        "Calling this a poison-message or acknowledgment failure despite the supplied saturated-handler evidence.",
+        "Promising a particular scale factor will recover the backlog without measuring downstream limits.",
+        "Claiming no duplicate effects exist throughout the backlog from the small sample or replaying blindly."
+      ],
+      "unknowns": [
+        "Why the current subscriber capacity was selected and whether downstream capacity permits an increase.",
+        "The complete effect history and current state after 09:12 UTC."
+      ]
+    },
+    "b": {
+      "conclusion": "Repeated negative acknowledgments of unsupported schemaVersion=7 messages consume deliveries while valid version-6 messages succeed. The sampled idle capacity and low CPU contradict a simple insufficient-worker explanation; the incompatibility is observed, but its introduction and full effect history remain unknown.",
+      "next_checks": [
+        "The subscriber and publisher owners compare the agreed schema contract and when version-7 messages began, using sanitized metadata without consuming or acknowledging additional messages.",
+        "The ledger owner reconciles all affected effect IDs before owners select an approved retry, compatibility repair or disposition; do not discard or replay messages by default.",
+        "Morgan watches unique completion rate, repeated IDs, age and backlog after an owner-approved repair."
+      ],
+      "unsupported": [
+        "Diagnosing insufficient CPU or worker count as the demonstrated cause and scaling as the fix.",
+        "Treating a nack as proof the side effect is absent for every message or using repeated nacks as a discard mechanism.",
+        "Declaring all settlements safe, replaying the subscription, seeking, or acknowledging failed messages."
+      ],
+      "unknowns": [
+        "Which publisher change introduced schemaVersion=7 and the full set of affected messages.",
+        "Whether other delivered messages already have effects and whether a particular recovery policy is safe."
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "[sourced] [UNTRUSTED] The protected fixture export reports backlog rising from 1000 to 3000 and age from 300 to 600 seconds, while arrivals are 400 unique messages per minute and completion is about 200. Its subscriber records show four occupied slots, about 1.2 seconds per successful handler and high CPU. That supports insufficient measured processing capacity. The observed zero nack/expiry/failure counters and distinct-ID sample do not support poison-message redelivery as this case's explanation; they do not prove exactly-once effects. [unverified] Safe extra capacity and the reason for the present limit remain unknown. Morgan should ask the subscriber owner to check handler cost, concurrency and downstream headroom, and ask the ledger owner to reconcile effect IDs before any replay decision. Monitor unique completions and backlog/age over complete later intervals. These are supplied synthetic records; I have not inspected a live subscription, changed capacity, replayed or acknowledged messages. Return this finding to Morgan on the existing TLC; the investigation remains open.",
+      "wrong": "[sourced] [UNTRUSTED] The rising age proves a poison message is being negatively acknowledged repeatedly. Worker capacity is sufficient; the subscriber owner should repair its schema decoder. No change was made.",
+      "unavailable": "[sourced] [UNTRUSTED] The shared supplied dashboard shows backlog and message age rising, with 400 accepted messages but about 200 unique completed postings per minute. The subscriber/effect export is denied, so I cannot determine the delivery or processing mechanism from these metrics. [unverified] Handler capacity, repeated delivery and effects for individual IDs remain unknown. Morgan should request a sanitized time-bound subscriber summary from the application owner, including handler utilization, delivery IDs and acknowledgment outcomes, plus an effect reconciliation from the ledger owner. Preserve the existing TLC and do not consume, acknowledge or replay messages to obtain evidence. I made no live read or change. Return the measured delay and missing evidence to Morgan; diagnosis is inconclusive."
+    },
+    "b": {
+      "useful": "[sourced] [UNTRUSTED] The export shows m-2041 repeatedly failing schemaVersion=7 validation and being nacked, while version-6 m-2042 completes. This is evidence of message-specific incompatibility and redelivery. The supplied low CPU and unsaturated slots do not support a simple lack of subscriber workers. Backlog still rises and only about 200 unique postings complete per minute, so a high delivery-attempt rate is not recovery. [unverified] The source of the schema change and effects across all delivered IDs remain unknown; the two-message ledger sample is limited. Morgan should have the publisher and subscriber owners compare the agreed schema and onset, and the ledger owner reconcile affected effect IDs before any approved retry or disposition. Do not automatically replay, seek, discard or acknowledge the backlog. These are supplied synthetic observations, not my live measurements; I changed nothing. Return the evidence and open owner checks to Morgan on the existing TLC.",
+      "wrong": "[sourced] [UNTRUSTED] There are only two subscriber processes, so inadequate subscriber capacity is the demonstrated cause. More workers will fix the backlog; repeated validation failures are incidental. No change was made.",
+      "unavailable": "[sourced] [UNTRUSTED] The shared supplied dashboard shows backlog and message age rising, with 400 accepted messages but about 200 unique completed postings per minute. The subscriber/effect export is denied, so I cannot determine the delivery or processing mechanism from these metrics. [unverified] Handler capacity, repeated delivery and effects for individual IDs remain unknown. Morgan should request a sanitized time-bound subscriber summary from the application owner, including handler utilization, delivery IDs and acknowledgment outcomes, plus an effect reconciliation from the ledger owner. Preserve the existing TLC and do not consume, acknowledge or replay messages to obtain evidence. I made no live read or change. Return the measured delay and missing evidence to Morgan; diagnosis is inconclusive."
+    }
+  }
+}

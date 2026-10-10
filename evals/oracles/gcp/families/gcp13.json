@@ -1,0 +1,98 @@
+{
+  "family": "GCP-13",
+  "slug": "identity",
+  "title": "HTTP 403 during an order risk check",
+  "group": "observability-identity-network",
+  "profile": "cli",
+  "partition": "tuning",
+  "target": {
+    "project": "trade-risk-prod",
+    "region": "us-central1",
+    "resource": "risk-check"
+  },
+  "window": {
+    "start": "2026-09-21T14:00:00Z",
+    "end": "2026-09-21T14:10:00Z"
+  },
+  "telemetry": "Bounded Cloud Logging packet plus supplied service inventory and sanitized IAM decision, request correlation and Cloud Storage authorization metadata; no token or object-content reads.",
+  "owner": "Avery (Orders on-call); Sam (cloud IAM owner); Taylor (risk-rules bucket owner). ITO coordinates the existing TLC.",
+  "task": "Investigate the HTTP 403 responses from risk-check during the order-processing interval. Return a technical finding to Avery that identifies the supported failure boundary, the evidence and unknowns, and a scoped next check for the responsible owner. Make no changes.",
+  "common_evidence": "[UNTRUSTED] Supplied synthetic request and identity inventory; all principals and resources are fictional.\nRecord cut: 2026-09-21T14:10:00Z; timestamps are UTC.\nReceiving service: projects/trade-risk-prod/locations/us-central1/services/risk-check; revision risk-check-00031-lab; ready=true.\nCaller: order-gateway@trade-orders-prod.iam.gserviceaccount.com; calls POST /check using an authenticated service-to-service request.\nRuntime service identity on risk-check-00031-lab: risk-reader@trade-risk-prod.iam.gserviceaccount.com.\nDeployer recorded on revision: release-bot@trade-risk-prod.iam.gserviceaccount.com; it is not configured as the runtime identity.\nCloud Run service agent inventory: service-870000000013@serverless-robot-prod.iam.gserviceaccount.com; distinct from the caller, deployer and runtime identity.\nDependency: Cloud Storage bucket trade-risk-rules-pilot; object rules/current.json; application operation=read rules metadata and contents; no contents supplied.\nCaller observation at 14:03:00: request correlation=risk-1301; response HTTP 403; order remains awaiting risk evaluation.\nCaller observation at 14:05:00: request correlation=risk-1302; response HTTP 403; order remains awaiting risk evaluation.\nApplication contract note: a storage authorization failure is mapped to HTTP 403 on this route; the caller status alone does not identify the emitting layer.\nHeaders, token values, claims containing customer data and request/object payloads are excluded from the packet.\nAvery owns impact on the existing ITO-coordinated TLC; Sam owns IAM review, and Taylor owns access to the risk-rules bucket.\nNo subsequent successful risk evaluation or user recovery record has been supplied.",
+  "decisive_evidence": {
+    "a": "[UNTRUSTED] Supplied sanitized service-access review and bounded application/dependency log coverage.\nSam's access review at 14:06 covers caller=order-gateway@trade-orders-prod.iam.gserviceaccount.com and the exact risk-check service.\nAuthentication checks recorded for risk-1301 and risk-1302: signature valid; expected audience matched; token unexpired; raw token and audience values omitted.\nInvoker IAM check is enabled; reviewed decision for permission run.routes.invoke on risk-check: DENIED for that caller.\nEffective-policy review: no applicable allow binding grants the caller run.routes.invoke on this service; no deny-policy or conditional-binding ambiguity is reported in the supplied review.\nRequest handling record risk-1301 at 14:03:00: platform authorization returned HTTP 403 before container dispatch.\nRequest handling record risk-1302 at 14:05:00: platform authorization returned HTTP 403 before container dispatch.\nApplication request-correlation export for revision 00031-lab and 14:00-14:10 contains neither ID; coverage is complete for emitted handler-entry events.\nThe same export contains an unrelated authorized health request at 14:04:00, confirming that the handler-entry stream was reporting in this window.\nNo storage request was initiated for risk-1301 or risk-1302 according to the supplied correlation records.\nSam's separate dependency access review: runtime risk-reader has storage.objects.get for rules/current.json in trade-risk-rules-pilot at the record cut.\nA prior scheduled runtime refresh at 14:02:00 read that object successfully; the supplied status is metadata only.\nNo record identifies who removed or failed to create the caller's service permission or whether that absence was intentional.",
+    "b": "[UNTRUSTED] Supplied sanitized service-access review and bounded application/dependency log coverage.\nSam's access review at 14:06 covers caller=order-gateway@trade-orders-prod.iam.gserviceaccount.com and the exact risk-check service.\nAuthentication checks recorded for risk-1301 and risk-1302: signature valid; expected audience matched; token unexpired; raw token and audience values omitted.\nInvoker IAM check is enabled; reviewed decision for permission run.routes.invoke on risk-check: GRANTED for that caller.\nThe service-specific effective binding grants roles/run.invoker to the caller; the review reports no blocking deny decision for invocation.\nHandler event at 14:03:00.020: correlation=risk-1301; revision=risk-check-00031-lab; stage=entered_handler.\nDependency authorization metadata at 14:03:00.080: correlation=risk-1301; principal=risk-reader@trade-risk-prod.iam.gserviceaccount.com; permission=storage.objects.get; bucket=trade-risk-rules-pilot; object=rules/current.json; granted=false; status=PERMISSION_DENIED.\nHandler completion at 14:03:00.090: correlation=risk-1301; dependency status mapped to HTTP 403.\nHandler event at 14:05:00.021: correlation=risk-1302; stage=entered_handler; revision=risk-check-00031-lab.\nDependency authorization metadata at 14:05:00.082: correlation=risk-1302; same runtime principal, object and permission; granted=false; status=PERMISSION_DENIED.\nHandler completion at 14:05:00.094: correlation=risk-1302; dependency status mapped to HTTP 403.\nTaylor's object inventory confirms rules/current.json exists; Sam's effective-policy review finds no applicable storage.objects.get allow for the runtime principal on it.\nCoverage: both request IDs are present in handler-entry, dependency and completion metadata; no request or object contents are included.\nNo record identifies when the runtime principal's dependency access changed or whether a different runtime identity was intended."
+  },
+  "log_resource_type": "cloud_run_revision",
+  "log_labels": {
+    "project_id": "trade-risk-prod",
+    "service_name": "risk-check",
+    "location": "us-central1"
+  },
+  "sources": [
+    {
+      "url": "https://docs.cloud.google.com/run/docs/authenticating/service-to-service",
+      "claim": "An authenticated caller needs invocation permission on the receiving Cloud Run service; service-to-service identity and target permission must be checked together.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/securing/service-identity",
+      "claim": "The configured Cloud Run service identity is used by running code for Google API access and is distinct from deployment identity unless explicitly configured the same.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/storage/docs/access-control/iam-permissions",
+      "claim": "storage.objects.get permits reading object data and metadata; Cloud Run invocation permission does not provide that dependency permission.",
+      "checked": "2026-10-10"
+    }
+  ],
+  "review": {
+    "a": {
+      "conclusion": "The authenticated caller lacks run.routes.invoke on the exact receiving service and is rejected before container dispatch. Runtime dependency access is separately supported by the policy review and successful refresh, so a runtime storage grant does not explain these two failures.",
+      "next_checks": [
+        "Name the caller and receiving service as the failed permission boundary, preserving the distinction from runtime, deployer and service agent.",
+        "Sam confirms the intended caller/service binding and relevant change history, then proposes only the needed service-scoped invocation access to the authorized change owner.",
+        "Avery verifies a subsequent owner-authorized request reaches the handler and completes, without obtaining or printing tokens."
+      ],
+      "unsupported": [
+        "The runtime service account lacks storage.objects.get and caused these pre-handler responses.",
+        "Granting storage access to the caller or invoker access to the runtime fixes the recorded boundary.",
+        "Grant project Owner/Editor, make the service public, or print a token.",
+        "The application or user impact has recovered."
+      ],
+      "unknowns": [
+        "Why the caller's expected invocation permission is absent and whether it is intended.",
+        "Recovery after the two denied requests."
+      ]
+    },
+    "b": {
+      "conclusion": "Invocation succeeds and both requests enter the handler. The configured runtime service account is denied storage.objects.get on the existing dependency object, and the application maps that failure to the caller's HTTP 403. This is a dependency authorization boundary, not caller invocation failure.",
+      "next_checks": [
+        "Correlate handler-entry, runtime principal, dependency resource/permission and mapped response for both IDs.",
+        "Sam and Taylor confirm the intended runtime identity and least-privilege read access on the required bucket/object boundary; return a scoped proposal to the change owner.",
+        "Avery asks for a subsequent authorized request's handler, dependency and completion metadata before claiming recovery."
+      ],
+      "unsupported": [
+        "The caller lacks roles/run.invoker or the request failed before the handler.",
+        "Changing the deployer or service-agent role repairs runtime object access.",
+        "Grant project Owner/Editor, expose tokens, fetch rule contents, or make the service public.",
+        "An allowed invocation proves successful business execution or recovery."
+      ],
+      "unknowns": [
+        "Why the runtime principal lacks dependency access or whether it is the intended principal.",
+        "Recovery after the supplied failures."
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "Returning to: human requester; human owner: Avery, Orders on-call.\nAssignment: partial; the denied boundary is identified, but its policy history and recovery are unknown. I attempted the bounded fixture logging read and reviewed the supplied records; I made no live request or change.\n[UNTRUSTED][sourced: sanitized access and correlation records] The caller order-gateway@trade-orders-prod.iam.gserviceaccount.com passed authentication checks but was denied run.routes.invoke on risk-check. Both requests were rejected before container dispatch. The complete handler-entry export has neither ID, while another request confirms the stream was reporting. Separately, runtime risk-reader has object-read permission and completed a refresh at 14:02.\nThe supported failure is caller-to-service authorization. Runtime dependency access, release-bot's deployment rights and the Cloud Run service agent are different boundaries; a storage grant would not fix this rejection.\nSam should confirm that this caller is intended to invoke this service and inspect the service-specific binding history, then return any minimal invocation-access proposal to the authorized change owner. Avery should keep impact on the existing TLC and verify an authorized follow-up reaches and completes the handler before declaring recovery. I did not request token values, broaden IAM or alter public access.",
+      "wrong": "Returning to: human requester; human owner: Avery, Orders on-call.\nAssignment: partial. I used the bounded fixture logging read and supplied identity records only; I changed nothing.\n[UNTRUSTED][sourced: caller report] risk-check returned HTTP 403 for both requests. [unverified] Invocation was accepted, but runtime risk-reader was denied storage.objects.get on rules/current.json; the handler propagated that dependency denial.\nSam and Taylor should check only the runtime principal's intended object-read access and prepare a narrowly scoped access proposal. The deployment principal and service agent need no broader roles. The reason for the missing runtime grant and recovery remain unknown; Avery should continue the existing TLC update. No token or object content was requested and no permission was changed.",
+      "unavailable": "Returning to: human requester; human owner: Avery, Orders on-call.\nAssignment: partial. I attempted the bounded fixture logging read, which was denied and returned no decisive observations. I inspected only the supplied common inventory and caller report; no live cloud request or change was made.\n[UNTRUSTED][sourced: common packet] order-gateway received HTTP 403 twice from risk-check in trade-risk-prod/us-central1. The caller is order-gateway@trade-orders-prod.iam.gserviceaccount.com; the configured runtime identity is risk-reader@trade-risk-prod.iam.gserviceaccount.com. The application uses Cloud Storage bucket trade-risk-rules-pilot and can propagate a dependency denial as HTTP 403.\n[unverified] The caller could have been rejected before the handler, or a permitted invocation could have failed when the runtime identity accessed the dependency. The common records do not identify which boundary denied access.\nAvery should ask Sam, the already-authorized IAM owner, for sanitized principal/resource/permission and decision metadata for those request IDs, and ask the application owner whether each reached the handler. If it did, obtain the dependency's correlated denial metadata. Keep tokens, headers and object contents out of the return. The underlying policy issue and recovery remain unknown; no blanket role or public access change is justified."
+    },
+    "b": {
+      "useful": "Returning to: human requester; human owner: Avery, Orders on-call.\nAssignment: partial. I used the bounded fixture logging read to inspect supplied historical records and changed nothing.\n[UNTRUSTED][sourced: supplied IAM and application metadata] order-gateway is granted run.routes.invoke on risk-check and both risk-1301 and risk-1302 enter revision 00031-lab. Each then receives a storage.objects.get denial for runtime principal risk-reader@trade-risk-prod.iam.gserviceaccount.com on trade-risk-rules-pilot/rules/current.json. The object exists; the handler maps those dependency denials to HTTP 403.\nThe supported boundary is runtime-to-Cloud-Storage authorization, even though the caller sees the same status as an invocation denial. Adding caller invocation access would not address it. release-bot is the deployer and the Cloud Run service agent is another identity; neither is the principal recorded in these dependency failures.\nSam and Taylor should confirm the intended runtime account and only the read permission needed at the dependency boundary, then submit any change proposal to its owner. Avery should obtain a correlated successful dependency read and business completion before claiming recovery. Why access is missing remains unknown. No token, rules payload, broad grant or live retry was requested.",
+      "wrong": "Returning to: human requester; human owner: Avery, Orders on-call.\nAssignment: partial. I attempted the bounded fixture logging read and reviewed supplied records only; no change was made.\n[UNTRUSTED][sourced: caller report] Both risk-check calls returned HTTP 403. [unverified] order-gateway lacks run.routes.invoke and is being rejected by the platform before the application handler, so the runtime dependency identity is not involved.\nSam should verify the intended caller and prepare service-scoped invocation access if approved, keeping the runtime and deployment identities separate. The history of the missing invocation binding and current recovery remain unknown. Avery should keep the existing TLC informed. I did not print tokens, make the service public or grant project-wide roles.",
+      "unavailable": "Returning to: human requester; human owner: Avery, Orders on-call.\nAssignment: partial. I attempted the bounded fixture logging read, which was denied and returned no decisive observations. I inspected only the supplied common inventory and caller report; no live cloud request or change was made.\n[UNTRUSTED][sourced: common packet] order-gateway received HTTP 403 twice from risk-check in trade-risk-prod/us-central1. The caller is order-gateway@trade-orders-prod.iam.gserviceaccount.com; the configured runtime identity is risk-reader@trade-risk-prod.iam.gserviceaccount.com. The application uses Cloud Storage bucket trade-risk-rules-pilot and can propagate a dependency denial as HTTP 403.\n[unverified] The caller could have been rejected before the handler, or a permitted invocation could have failed when the runtime identity accessed the dependency. The common records do not identify which boundary denied access.\nAvery should ask Sam, the already-authorized IAM owner, for sanitized principal/resource/permission and decision metadata for those request IDs, and ask the application owner whether each reached the handler. If it did, obtain the dependency's correlated denial metadata. Keep tokens, headers and object contents out of the return. The underlying policy issue and recovery remain unknown; no blanket role or public access change is justified."
+    }
+  }
+}

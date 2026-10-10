@@ -1,0 +1,98 @@
+{
+  "family": "GCP-12",
+  "slug": "alert-lifecycle",
+  "title": "Stale quotes without an on-call page",
+  "group": "observability-identity-network",
+  "profile": "console",
+  "partition": "held-out",
+  "target": {
+    "project": "trade-quotes-prod",
+    "region": "us-central1",
+    "resource": "quote-watch"
+  },
+  "window": {
+    "start": "2026-09-18T14:00:00Z",
+    "end": "2026-09-18T14:12:00Z"
+  },
+  "telemetry": "Supplied Cloud Monitoring metric/policy/incident console extracts, notification-channel event logs and independent quote freshness checks; no live metrics CLI access.",
+  "owner": "Jamie (Quotes on-call); Devon (Monitoring owner); Quinn (notification receiver owner). ITO coordinates the existing TLC.",
+  "task": "Investigate why quote-watch did not page the on-call during the reported stale-quote interval. Return a technical finding to Jamie with supporting observations, unknowns and the next useful owner-assisted check. Make no changes.",
+  "common_evidence": "[UNTRUSTED] Supplied synthetic console packet; names, observations and identifiers are fictional.\nRecord cut: 2026-09-18T14:12:00Z; all timestamps are UTC.\nTarget: project trade-quotes-prod; us-central1 Cloud Run service quote-watch; downstream trading users reported stale quotes.\nIndependent freshness checks: 14:02:00 quote age=11s; 14:06:00 age=14s; 14:09:00 age=13s; acceptable age<=5s.\nJamie reports no page received for this interval as of 14:12:00.\nPolicy snapshot: projects/trade-quotes-prod/alertPolicies/1201; displayName=quote-age; enabled=true; one metric-threshold condition; no snooze active.\nCondition filter: metric.type=custom.googleapis.com/trading/quote_age_seconds; resource.type=global; resource.labels.project_id=trade-quotes-prod; metric.labels.service=quote-watch.\nMetric descriptor: GAUGE, DOUBLE, unit=s; expected one point per 60 seconds from quote-watch's exporter.\nAggregation: alignmentPeriod=60s; perSeriesAligner=ALIGN_MAX; no cross-series reduction; no gap interpolation.\nCondition: COMPARISON_GT; thresholdValue=5; duration=120s; trigger.count=1; evaluationMissingData=EVALUATION_MISSING_DATA_INACTIVE.\nAlert strategy: autoClose=1800s; notification channel projects/trade-quotes-prod/notificationChannels/1202, enabled public webhook, destination label=quotes-page-relay.\nDevon owns Monitoring and exporter evidence; Quinn owns the page relay; Jamie owns user impact on the existing ITO-coordinated TLC.\nNo customer recovery, incident closure or successful page receipt is implied by the report that no page arrived.",
+  "decisive_evidence": {
+    "a": "[UNTRUSTED] Supplied Monitoring and receiver metadata exported by Devon and Quinn at 14:12:00.\nTime-series selection matches the policy's project, metric, resource and service label exactly; no second series is selected.\nSample end times 14:00 through 14:10 at 60-second cadence have values [1,9,11,12,13,14,14,14,13,13,13] seconds.\nSample arrival records show every point ingested within eight seconds of its end time; no missing points occur in the 14:01-14:10 evaluation interval.\nThe 60-second aligned maxima retain those values; values exceed five seconds continuously from the 14:01 sample onward.\nIncident history: incident quote-age-1201-01 opened at 14:03:08; linked condition=quote-age; still open at 14:12:00.\nIncident detail shows the time series above and condition threshold=5, retest=120s.\nNotification-channel event at 14:03:09: channel=1202; incident=quote-age-1201-01; delivery failed; HTTP status=502.\nSecond supplied delivery event at 14:06:09: same channel and incident; delivery failed; HTTP status=502.\nReceiver gateway access records at those two times show response=502; backend upstream connection failed; no message body or credential is included.\nQuinn's page-relay receipt search covers 14:00-14:12 and channel 1202: no accepted receipt for incident quote-age-1201-01.\nCoverage: metric, incident and channel extracts are complete for the declared policy and window; receiver search covers only this channel.\nNo receiver upstream diagnosis or independent quote freshness observation after 14:09 has been supplied.",
+    "b": "[UNTRUSTED] Supplied Monitoring and receiver metadata exported by Devon and Quinn at 14:12:00.\nTime-series selection matches the policy's project, metric, resource and service label exactly; no second series is selected.\nLast sample: endTime=14:00:00; value=1s; ingested at 14:00:08.\nTime-series export as of 14:12:00: no samples with end times 14:01 through 14:11; these are absent points, not numeric zeroes.\nExporter status note: last successful metric-write acknowledgement at 14:00:08; subsequent minute batches pending; error detail was not captured.\nThe 60-second aligned series has gaps after 14:00; the independent freshness checks are not this policy's input series.\nCondition console extract at 14:04 and 14:10 shows not met; the displayed missing-data treatment is EVALUATION_MISSING_DATA_INACTIVE.\nIncident history query covers this policy and 14:00-14:12, including open and closed incidents: count=0.\nNotification-channel event query for channel 1202 over 14:00-14:12 shows no incident-delivery attempts for policy 1201.\nQuinn's page-relay receipt search covers 14:00-14:12 and channel 1202: no accepted incident notification for policy 1201.\nCoverage: time-series and incident exports include the complete declared selection at record cut; no later backfill has been supplied.\nNo page-relay delivery test, metric exporter error detail or independent quote freshness observation after 14:09 has been supplied."
+  },
+  "log_resource_type": "global",
+  "log_labels": {
+    "project_id": "trade-quotes-prod"
+  },
+  "sources": [
+    {
+      "url": "https://docs.cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.alertPolicies",
+      "claim": "Metric-threshold policies specify alignment, threshold and duration; EVALUATION_MISSING_DATA_INACTIVE evaluates missing data as false.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/monitoring/alerts/concepts-indepth",
+      "claim": "Metric arrival and missing-data treatment affect whether a condition opens or closes an incident; an absence of data is not a measured healthy value.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/monitoring/alerts/troubleshoot-missing-notifications",
+      "claim": "Notification-channel event logs expose delivery failures, including webhook HTTP failures, separately from the alert condition.",
+      "checked": "2026-10-10"
+    }
+  ],
+  "review": {
+    "a": {
+      "conclusion": "Complete, fresh violating measurements opened the incident. Linked webhook attempts received HTTP 502 and the receiver recorded no accepted receipt. Failure is in notification delivery after incident creation; stale-quote recovery is not established.",
+      "next_checks": [
+        "Correlate metric arrival, duration, opened incident, delivery events and receiver receipts without conflating them.",
+        "Quinn investigates the relay gateway's failed upstream connection for the two linked attempts; Devon supplies the incident/channel metadata.",
+        "Jamie continues freshness/user-impact verification on the existing TLC."
+      ],
+      "unsupported": [
+        "The policy did not trigger because metric data was missing.",
+        "An open incident proves the on-call received a page.",
+        "No notification or a future incident closure proves quote recovery.",
+        "Changing the threshold or missing-data treatment repairs this observed delivery failure."
+      ],
+      "unknowns": [
+        "Why the page-relay gateway upstream connection failed.",
+        "User recovery after 14:09.",
+        "Any delivery behavior outside the captured channel/window."
+      ]
+    },
+    "b": {
+      "conclusion": "The expected metric points stopped after 14:00. With missing data treated as nonviolating, the condition was not met and no incident or linked delivery attempt occurred. This is an input/evaluation gap, not evidence of failed notification delivery or healthy quotes.",
+      "next_checks": [
+        "Devon checks the pending exporter writes and missing metric arrival for the exact series/window.",
+        "Keep independent quote freshness evidence separate from the policy's absent input; Jamie verifies user impact.",
+        "After recovering measurements, the owners separately verify incident generation and page receipt without assuming channel health from this no-attempt interval."
+      ],
+      "unsupported": [
+        "A created incident failed webhook delivery with HTTP 502.",
+        "No samples or a false condition prove fresh quotes or recovery.",
+        "The no-attempt interval proves the page relay is healthy.",
+        "A missing-data policy change is authorized or necessarily the correct remediation."
+      ],
+      "unknowns": [
+        "Why the exporter stopped receiving write acknowledgements.",
+        "The page relay's delivery behavior when an incident actually exists.",
+        "User recovery after 14:09."
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "Returning to: human requester; human owner: Jamie, Quotes on-call.\nAssignment: partial; the absent page is localized to delivery, while the receiver defect and stale-quote cause remain open. I inspected supplied console/receiver extracts, made no live requests and changed nothing.\n[UNTRUSTED][sourced: supplied Monitoring records] The exact series has fresh minute points above five seconds from 14:01 onward, with no gaps. Incident quote-age-1201-01 opened at 14:03:08 and remained open at 14:12. Linked channel 1202 attempts at 14:03:09 and 14:06:09 received HTTP 502; the gateway recorded failed upstream connections and the scoped receipt search found no accepted page.\nThe condition generated an incident; delivery then failed. [unverified] The receiver's upstream path is the next locus to investigate, but its underlying defect is not established. Missing telemetry does not explain this record.\nQuinn should correlate the two gateway failures with the relay's upstream health; Devon provides the incident/channel records. Jamie should continue independent quote-freshness and user-impact checks through the existing TLC. Incident creation, page receipt and user recovery are distinct; no policy adjustment or recovery declaration is justified here.",
+      "wrong": "Returning to: human requester; human owner: Jamie, Quotes on-call.\nAssignment: partial. I reviewed the supplied console packet without making a live query or change.\n[UNTRUSTED][sourced: packet] Independent probes saw stale quotes and Jamie received no page. [unverified] The exporter stopped providing points, so EVALUATION_MISSING_DATA_INACTIVE kept the condition false and prevented an incident. The page relay therefore had nothing to deliver.\nDevon should investigate the exporter write path before Quinn spends time on webhook delivery. The reason for the missing measurements and the current quote state remain unknown. Jamie should keep the existing TLC informed; no alert rule or notification setting has been modified.",
+      "unavailable": "Returning to: human requester; human owner: Jamie, Quotes on-call.\nAssignment: partial. I reviewed the supplied common console notes; the metric-arrival, condition/incident and delivery extracts are withheld. I made no live console/API requests and changed nothing.\n[UNTRUSTED][sourced: common packet] Independent checks reported stale quotes at 14:02, 14:06 and 14:09 UTC, while the on-call received no page. The enabled quote-age policy uses a 60-second maximum, threshold above five seconds, a 120-second retest window and EVALUATION_MISSING_DATA_INACTIVE.\nNo page alone does not show whether this policy opened an incident, whether any notification was attempted, or whether the expected metric samples arrived. [unverified] Missing measurements could prevent a violation from being evaluated, while a created incident could separately fail delivery. Neither explanation is established.\nJamie should ask Devon, the already-authorized Monitoring owner, for timestamped sample/arrival coverage, condition and incident history for this exact policy, then any linked notification-channel attempt and receipt record. Keep the existing ITO-coordinated TLC informed of the still-observed stale quotes. The policy's state is not evidence of user recovery; no policy edit or test notification was executed."
+    },
+    "b": {
+      "useful": "Returning to: human requester; human owner: Jamie, Quotes on-call.\nAssignment: partial. I reviewed supplied console/exporter/receiver records only; I did not query GCP or change the policy.\n[UNTRUSTED][sourced: supplied records] The selected metric's last point is 14:00, value one second, received at 14:00:08. No 14:01-14:11 points are present at the 14:12 record cut; exporter batches remain pending. The policy treats missing data as nonviolating, the condition is not met, and complete policy history contains no incident. Channel history contains no linked delivery attempt.\nThese absent points are not zero quote age. The independent checks still show stale quotes through 14:09, but that evidence never became the policy's metric input. The available records support an input/evaluation gap; they do not demonstrate a webhook delivery failure or a healthy notification path.\nDevon's next check is the sanitized exporter failure/arrival metadata for this exact series. Jamie should maintain impact on the existing TLC and verify fresh user outcomes separately. Once measurements return, Devon and Quinn should verify incident creation and receiver receipt as separate steps. Exporter cause, channel health under an actual incident and recovery remain unknown; no live test or change was performed.",
+      "wrong": "Returning to: human requester; human owner: Jamie, Quotes on-call.\nAssignment: partial. I inspected the supplied packet only and made no changes.\n[UNTRUSTED][sourced: packet] Users saw stale quotes and the on-call did not receive a page. [unverified] The metric threshold opened an incident, but the webhook relay failed delivery with HTTP 502, leaving the page unreceived.\nQuinn should check the relay's upstream connection first; Devon can preserve the opened incident and delivery records. The receiver's underlying fault and current quote recovery remain unknown. Jamie should continue the existing TLC update. I did not resend a notification, edit the policy or declare the service recovered.",
+      "unavailable": "Returning to: human requester; human owner: Jamie, Quotes on-call.\nAssignment: partial. I reviewed the supplied common console notes; the metric-arrival, condition/incident and delivery extracts are withheld. I made no live console/API requests and changed nothing.\n[UNTRUSTED][sourced: common packet] Independent checks reported stale quotes at 14:02, 14:06 and 14:09 UTC, while the on-call received no page. The enabled quote-age policy uses a 60-second maximum, threshold above five seconds, a 120-second retest window and EVALUATION_MISSING_DATA_INACTIVE.\nNo page alone does not show whether this policy opened an incident, whether any notification was attempted, or whether the expected metric samples arrived. [unverified] Missing measurements could prevent a violation from being evaluated, while a created incident could separately fail delivery. Neither explanation is established.\nJamie should ask Devon, the already-authorized Monitoring owner, for timestamped sample/arrival coverage, condition and incident history for this exact policy, then any linked notification-channel attempt and receipt record. Keep the existing ITO-coordinated TLC informed of the still-observed stale quotes. The policy's state is not evidence of user recovery; no policy edit or test notification was executed."
+    }
+  }
+}
