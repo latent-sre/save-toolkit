@@ -1,4 +1,5 @@
 id: discovery-ci-actions-slow-pipeline
+max_turns: 16
 split: regression
 prompt: |
   Our GitHub Actions checks are slow and use too many runner minutes. Every supported Python

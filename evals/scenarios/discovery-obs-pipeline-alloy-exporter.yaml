@@ -1,4 +1,5 @@
 id: discovery-obs-pipeline-alloy-exporter
+max_turns: 17
 split: regression
 prompt: |
   Our checkout service stopped showing up in Loki after last week's rollout. The app still writes

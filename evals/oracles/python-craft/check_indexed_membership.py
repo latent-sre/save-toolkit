@@ -6,13 +6,16 @@ cannot certify an unmeasured implementation. This is not adversarial attestation
 String comparison/hash overrides only count calls and retain normal string semantics.
 """
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from oracle_protocol import candidate_call
+
 import gc
 import importlib.util
 import inspect
 import json
-from pathlib import Path
 import subprocess
-import sys
 import tempfile
 from collections import UserDict
 from collections.abc import Mapping
@@ -124,7 +127,7 @@ def load(name):
     spec = importlib.util.spec_from_file_location(name, Path(name + '.py').resolve())
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
-    spec.loader.exec_module(module)
+    candidate_call(spec.loader.exec_module, module)
     return module
 
 
@@ -137,16 +140,18 @@ def cost_contract(select):
     CountedString.operations = 0
     CountedString.observed_queries.clear()
     CountedString.observed_objects.clear()
-    output = select(rows, allowed)
-    CHECK.assertIs(iter(output), output, 'output must be an iterator')
-    first = next(output)
+    output = candidate_call(select, rows, allowed)
+    CHECK.assertIs(candidate_call(iter, output), output, 'output must be an iterator')
+    first = candidate_call(next, output)
+    CHECK.assertIsInstance(first, Mapping, 'selected row must remain a mapping')
+    CHECK.assertIn('id', first, 'selected row lost its id')
     CHECK.assertEqual(str(first['id']), 'allowed-000')
     build_cost = CountedString.operations
     # Equal query strings are distinct objects and cannot impersonate the
     # supplied allowed values when checking construction observability.
     build_available = all(id(value) in CountedString.observed_objects for value in allowed)
     CHECK.assertLessEqual(build_cost, 4096, 'index construction cost exceeds bounded budget')
-    CHECK.assertEqual(list(output), [])
+    CHECK.assertEqual(candidate_call(list, output), [])
     lookup_cost = CountedString.operations - build_cost
     CHECK.assertLessEqual(lookup_cost, 8192, 'repeated search cost exceeds indexed budget')
     CHECK.assertEqual([str(value) for value in allowed], [f'allowed-{i:03}' for i in range(128)],
@@ -160,17 +165,17 @@ def row_contract(select, allowed):
     original = [a, miss, b, b, bad, tail]
     snapshots = [dict(row) for row in original]
     rows = OnePass(original)
-    output = select(rows, allowed)
-    CHECK.assertIs(iter(output), output, 'output must be an iterator')
+    output = candidate_call(select, rows, allowed)
+    CHECK.assertIs(candidate_call(iter, output), output, 'output must be an iterator')
     CHECK.assertEqual(rows.pulls, 0, 'rows consumed before output advancement')
     CHECK.assertTrue(all(not row.accesses for row in original), 'rows accessed eagerly')
     for expected, frontier in ((a, 1), (b, 3), (b, 4)):
-        CHECK.assertIs(next(output), expected, 'row order, duplicates or identity changed')
+        CHECK.assertIs(candidate_call(next, output), expected, 'row order, duplicates or identity changed')
         CHECK.assertEqual(rows.pulls, frontier, 'rows read ahead of the next matching row')
         CHECK.assertFalse(bad.accesses, 'missing-key access was not deferred')
         CHECK.assertFalse(tail.accesses, 'tail accessed ahead of its turn')
     with CHECK.assertRaises(KeyError) as raised:
-        next(output)
+        candidate_call(next, output)
     CHECK.assertIs(raised.exception, bad.missing, 'missing-key exception replaced')
     CHECK.assertEqual(rows.pulls, 5, 'error consumed later rows')
     CHECK.assertFalse(tail.accesses, 'tail accessed after error')
@@ -185,7 +190,7 @@ def values_contract(select):
     a, b, miss = Row(id='b'), Row(id='a'), Row(id='x')
     rows, allowed = [a, miss, b, a, b], ['a', 'b', 'a']
     snapshots = [dict(row) for row in rows]
-    actual = list(select(rows, allowed))
+    actual = candidate_call(list, candidate_call(select, rows, allowed))
     CHECK.assertEqual(len(actual), 4, 'output duplicates lost')
     for result, expected in zip(actual, [a, b, a, b]):
         CHECK.assertIs(result, expected, 'row order, duplicates or identity changed')
@@ -196,7 +201,7 @@ def values_contract(select):
 def supplied_string_contract(select):
     for key, allowed_key in ((DisplayString('a'), 'a'), ('a', DisplayString('a'))):
         row = Row(id=key)
-        actual = list(select(OnePass([row]), OnePass([allowed_key])))
+        actual = candidate_call(list, candidate_call(select, OnePass([row]), OnePass([allowed_key])))
         CHECK.assertEqual(len(actual), 1, 'supplied string membership semantics changed')
         CHECK.assertIs(actual[0], row, 'supplied string match copied the row')
 
@@ -204,7 +209,7 @@ def supplied_string_contract(select):
 def mapping_contract(select):
     for wrap in (MappingProxyType, UserDict, MappingRow):
         a, b, miss = wrap({'id': 'a'}), wrap({'id': 'b'}), wrap({'id': 'x'})
-        actual = list(select(OnePass([a, miss, b, a]), OnePass(['a', 'b'])))
+        actual = candidate_call(list, candidate_call(select, OnePass([a, miss, b, a]), OnePass(['a', 'b'])))
         CHECK.assertEqual(len(actual), 3)
         for result, expected in zip(actual, [a, b, a]):
             CHECK.assertIs(result, expected, 'mapping order, duplicates or identity changed')
@@ -213,12 +218,12 @@ def mapping_contract(select):
         for allowed in ([], ['a']):
             bad, tail = wrap({}), wrap({'id': 'later'})
             rows = OnePass([a, bad, tail])
-            output = select(rows, allowed)
+            output = candidate_call(select, rows, allowed)
             CHECK.assertEqual(rows.pulls, 0, 'mapping accessed before iteration')
             if allowed:
-                CHECK.assertIs(next(output), a)
+                CHECK.assertIs(candidate_call(next, output), a)
             with CHECK.assertRaises(KeyError) as raised:
-                next(output)
+                candidate_call(next, output)
             if isinstance(bad, MappingRow):
                 CHECK.assertIs(raised.exception, bad.missing, 'mapping KeyError replaced')
             CHECK.assertEqual(rows.pulls, 2, 'mapping error consumed later rows')
@@ -241,11 +246,14 @@ def storage_contract(select):
             references.append(weakref.ref(row))
             yield row
 
-        output = select(OnePass(fresh_rows()), ['selected'])
+        output = candidate_call(select, OnePass(fresh_rows()), ['selected'])
         if matching:
             for _ in range(width):
-                next(output)  # The caller discards each selected row immediately.
-        CHECK.assertEqual(next(output)['id'], 'selected')
+                candidate_call(next, output)  # The caller discards each selected row immediately.
+        selected = candidate_call(next, output)
+        CHECK.assertIsInstance(selected, Mapping, 'selected row must remain a mapping')
+        CHECK.assertIn('id', selected, 'selected row lost its id')
+        CHECK.assertEqual(selected['id'], 'selected')
         gc.collect()
         return sum(reference() is not None for reference in references)
 
@@ -261,10 +269,10 @@ def empty_and_closure_contract(select):
     for allowed_values in ([], ['absent']):
         valid, bad, tail = Row(id='x'), Row(), Row(id='tail')
         rows, allowed = OnePass([valid, bad, tail]), OnePass(allowed_values)
-        output = select(rows, allowed)
+        output = candidate_call(select, rows, allowed)
         CHECK.assertEqual(rows.pulls, 0, 'empty index consumed rows eagerly')
         try:
-            next(output)
+            candidate_call(next, output)
         except KeyError as exc:
             CHECK.assertIs(exc, bad.missing, 'empty/nonmatching index skipped row validation')
         except StopIteration:
@@ -275,17 +283,17 @@ def empty_and_closure_contract(select):
         CHECK.assertEqual(rows.pulls, 2)
         CHECK.assertFalse(rows.closed or allowed.closed, 'caller iterator closed on error')
     rows, allowed = OnePass([Row(id='a'), Row(id='a')]), OnePass(['a'])
-    output = select(rows, allowed)
-    next(output)
+    output = candidate_call(select, rows, allowed)
+    candidate_call(next, output)
     close = getattr(output, 'close', None)
     if close is not None:
         close()
     CHECK.assertFalse(rows.closed or allowed.closed, 'output closure closed caller iterators')
     CHECK.assertEqual(rows.pulls, 1, 'output closure consumed remaining rows')
     rows, allowed = OnePass([Row(id='a')]), OnePass(['a'])
-    CHECK.assertEqual(len(list(select(rows, allowed))), 1)
+    CHECK.assertEqual(len(candidate_call(list, candidate_call(select, rows, allowed))), 1)
     CHECK.assertFalse(rows.closed or allowed.closed, 'exhaustion closed caller iterators')
-    CHECK.assertEqual(list(select(OnePass([]), OnePass(['a']))), [])
+    CHECK.assertEqual(candidate_call(list, candidate_call(select, OnePass([]), OnePass(['a']))), [])
 
 
 INDEXED = """\

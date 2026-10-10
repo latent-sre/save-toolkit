@@ -1,4 +1,5 @@
 id: discovery-obs-logs-cloud-logging
+max_turns: 4
 split: regression
 prompt: |
   The checkout service runs on Cloud Run. Return a bounded `gcloud logging read` command that finds

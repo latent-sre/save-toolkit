@@ -1,4 +1,5 @@
 id: build-python-module-move
+max_turns: 50
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
@@ -44,6 +45,7 @@ checks:
   - {check: changes_within, allowed: [reports.py, formatting.py, tests/test_reports.py], text: "existing consumers and configuration stay unchanged"}
   - {check: no_new_commits, text: "no commits"}
   - check: command_exit_zero
-    command: "python -I -B _python_oracle.py modules"
-    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _python_oracle.py modules"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "moved implementation, public imports, configured lookup, patch behavior and both fresh import orders work"

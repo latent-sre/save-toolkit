@@ -1,4 +1,5 @@
 id: discovery-python-explanation
+max_turns: 11
 split: regression
 prompt: |
   I'm learning Python. Explain what this function does and why it uses yield rather than return:

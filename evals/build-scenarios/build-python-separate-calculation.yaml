@@ -1,4 +1,5 @@
 id: build-python-separate-calculation
+max_turns: 50
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
@@ -30,6 +31,7 @@ checks:
   - {check: changes_within, allowed: [totals.py, tests/test_totals.py], text: "changes stay within the authorized calculation seam"}
   - {check: no_new_commits, text: "no commits"}
   - check: command_exit_zero
-    command: "python -I -B _python_oracle.py calculation"
-    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _python_oracle.py calculation"
+    writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "calculation works without file I/O and existing callers use the same policy with preserved results and cleanup"

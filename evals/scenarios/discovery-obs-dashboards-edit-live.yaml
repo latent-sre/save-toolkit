@@ -1,4 +1,5 @@
 id: discovery-obs-dashboards-edit-live
+max_turns: 4
 split: regression
 prompt: |
   Prepare the exact execution procedure for adding a p99 request-latency panel to the existing

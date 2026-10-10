@@ -1,4 +1,5 @@
 id: discovery-incident-investigation-walk-me-through
+max_turns: 8
 split: regression
 prompt: |
   I'm on call and just got paged for checkout-api in production. The p99 latency alert fired at

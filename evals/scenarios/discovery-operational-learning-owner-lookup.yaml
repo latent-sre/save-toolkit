@@ -1,4 +1,5 @@
 id: discovery-operational-learning-owner-lookup
+max_turns: 4
 split: regression
 prompt: |
   Which team owns the payments service, and how do I page them? Nothing is broken right now; I

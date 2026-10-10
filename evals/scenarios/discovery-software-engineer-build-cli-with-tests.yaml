@@ -1,4 +1,5 @@
 id: discovery-software-engineer-build-cli-with-tests
+max_turns: 11
 split: calibration
 # Agent-target routing probe: calibration-only evidence of model/host propensity (evals/README.md).
 prompt: |

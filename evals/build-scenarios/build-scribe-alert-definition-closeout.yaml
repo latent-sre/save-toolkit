@@ -1,4 +1,5 @@
 id: build-scribe-alert-definition-closeout
+max_turns: 36
 agent: software-engineer
 prompt: |
   I am Morgan, approving a documentation-only correction of the two alert cards and their
@@ -74,6 +75,7 @@ checks:
   - {check: changes_within, allowed: [docs/operations/alerts/queue-lag.md, docs/operations/alerts/queue-depth.md, docs/operations/index.md], text: "only the approved definition metadata and links changed"}
   - {check: no_new_commits, text: "nothing committed"}
   - check: command_exit_zero
-    command: python probe_documents.py alert-closeout
-    writes_from: {probe_documents.py: evals/oracles/researcher-scribe/probe_documents.py}
+    failure_exit_code: 10
+    command: python oracle_protocol.py probe_documents.py alert-closeout
+    writes_from: {probe_documents.py: evals/oracles/researcher-scribe/probe_documents.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "each definition follows its provisioning owner and absent API version remains unknown"

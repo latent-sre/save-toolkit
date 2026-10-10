@@ -1,4 +1,5 @@
 id: discovery-reliability-defers-service-lifecycle
+max_turns: 24
 split: regression
 prompt: |
   We are onboarding an existing service. Check whether its owner, critical dependencies, restore

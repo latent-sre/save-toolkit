@@ -1,4 +1,5 @@
 id: skill-direct-agent-authoring-security-review
+max_turns: 17
 split: calibration
 prompt: |
   Apply the agent security review from agent-authoring's references to this agent and report the

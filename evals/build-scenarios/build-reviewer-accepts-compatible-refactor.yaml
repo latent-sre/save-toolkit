@@ -1,4 +1,5 @@
 id: build-reviewer-accepts-compatible-refactor
+max_turns: 13
 agent: reviewer
 # Matched correct control: the helper extraction preserves callback ordering and caller compatibility.
 prompt: |

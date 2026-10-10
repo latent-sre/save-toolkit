@@ -2,6 +2,7 @@
 # monitor never alerts; the timeout change is unrequested scope. The candidate's suite passes, so
 # only an independent reproduction proves the defect; it must run outside the source checkout.
 id: build-reviewer-reproduces-in-scratch
+max_turns: 17
 agent: reviewer
 prompt: |
   Please review our team's branch feature/retry-backoff against main before we merge it. It should

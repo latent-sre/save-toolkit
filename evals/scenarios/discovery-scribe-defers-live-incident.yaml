@@ -1,4 +1,5 @@
 id: discovery-scribe-defers-live-incident
+max_turns: 17
 split: calibration
 prompt: |
   Write the postmortem now for checkout returning 503s in production. The incident is still active,

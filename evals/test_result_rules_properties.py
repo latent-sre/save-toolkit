@@ -460,12 +460,12 @@ class GradingHelperProperties(unittest.TestCase):
         self.assertIsNone(probe_backing.json_pointer(payload, "/".join([*parts, "zz"])))
 
 
-BUILD = {"id": "case", "agent": "software-engineer", "prompt": "do the thing",
+BUILD = {"id": "case", "agent": "software-engineer", "prompt": "do the thing", "max_turns": 20,
          "fixture": {"files": {"README.md": "# tiny\n"}}, "checks": [{"check": "no_new_commits"}]}
-CONTRACT = {"id": "case", "agent": "sre-assistant", "prompt": "p", "graders": [{"type": "contains_any", "of": ["x"]}]}
-ROUTING = {"id": "case", "prompt": "Latency tripled on checkout.", "target": {"kind": "skill", "name": "runbook"},
+CONTRACT = {"id": "case", "agent": "sre-assistant", "prompt": "p", "max_turns": 20, "graders": [{"type": "contains_any", "of": ["x"]}]}
+ROUTING = {"id": "case", "prompt": "Latency tripled on checkout.", "max_turns": 20, "target": {"kind": "skill", "name": "runbook"},
            "routing": {"expect": "fire"}}
-NATIVE = {"id": "case", "agent": "reliability-engineer", "prompt": "Help me investigate.",
+NATIVE = {"id": "case", "agent": "reliability-engineer", "prompt": "Help me investigate.", "max_turns": 20,
           "tools": ["Skill", "Read", "Task"], "fixture": {"files": {"evidence.md": "x"}},
           "followups": ["What changes?"], "helper": "sre-assistant", "expected_model": "stub-model"}
 GRAFANA = "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb"
@@ -605,7 +605,8 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
       "case: split must be one of ['calibration', 'regression']", "case: max_turns must be an integer from 1 to 500",
       "case: threshold must be > 0 and <= 1"]),
     ("contract without graders or a pin", {"id": "case", "prompt": "p"},
-     ["case: a contract scenario needs `graders`", "case: a contract scenario must pin `agent` or `skill`"]),
+     ["case: a contract scenario needs `graders`", "case: a contract scenario must pin `agent` or `skill`",
+      "case: max_turns must be an integer from 1 to 500"]),
     ("unknown grader type", _changed(CONTRACT, graders=[{"type": "nope"}]),
      ["case: graders[0] names an unknown grader type 'nope'"]),
     ("grader type as a list", _changed(CONTRACT, graders=[{"type": ["regex"]}]),

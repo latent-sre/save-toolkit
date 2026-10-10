@@ -1,4 +1,5 @@
 id: incident-companion-uses-service-card
+max_turns: 16
 split: regression
 skill: incident-investigation
 tools: [Skill, Read]

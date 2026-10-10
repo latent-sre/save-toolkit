@@ -1,4 +1,5 @@
 id: discovery-toil-reduction
+max_turns: 4
 split: regression
 prompt: |
   Our team repeatedly handles the same operational tickets. Compare removing the task, simplifying

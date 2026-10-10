@@ -5,6 +5,11 @@ The traced-storage growth allowance detects calibrated compact retention across 
 workloads; it is neither a universal bounded-memory proof nor a benchmark.
 """
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from oracle_protocol import candidate_call
+
 from collections.abc import Mapping
 import builtins
 import contextlib
@@ -12,9 +17,7 @@ import copy
 import importlib.util
 import io
 import json
-from pathlib import Path
 import subprocess
-import sys
 import tempfile
 import tracemalloc
 from types import MappingProxyType
@@ -168,7 +171,7 @@ def invoke(module, argv, stdin=None):
     out, err = io.StringIO(), io.StringIO()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         with mock.patch.object(sys, "stdin", stdin if stdin is not None else io.StringIO()):
-            code = module.main() if argv is None else module.main(argv)
+            code = candidate_call(module.main) if argv is None else candidate_call(module.main, argv)
     CHECK.assertIs(type(code), int, "main must return an integer, not exit")
     return code, out.getvalue(), err.getvalue()
 
@@ -196,7 +199,7 @@ def load():
     files = FileAccess()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         with files.patched(), mock.patch.object(sys, "stdin", ImportInput()):
-            spec.loader.exec_module(module)
+            candidate_call(spec.loader.exec_module, module)
     files.importing = False
     CHECK.assertEqual(out.getvalue() + err.getvalue(), "", "import wrote output")
     CHECK.assertEqual({str(p) for p in Path.cwd().rglob("*")}, before, "import created files")
@@ -204,15 +207,15 @@ def load():
 
 
 def api(module):
-    counts(module.summarize(iter(())), ZERO)
+    counts(candidate_call(module.summarize, iter(())), ZERO)
     rows = [{"status": "success", "note": "雪"}, {"status": "success", "note": "雪"},
             {"status": "skipped"}, {"status": "failure"}]
     before = copy.deepcopy(rows)
     source = Borrowed(rows)
-    counts(module.summarize(source), {"success": 2, "failure": 1, "skipped": 1})
+    counts(candidate_call(module.summarize, source), {"success": 2, "failure": 1, "skipped": 1})
     CHECK.assertEqual(rows, before, "input rows mutated")
     CHECK.assertFalse(source.closed, "borrowed input closed")
-    counts(module.summarize([MappingProxyType({"status": "success"})]), {**ZERO, "success": 1})
+    counts(candidate_call(module.summarize, [MappingProxyType({"status": "success"})]), {**ZERO, "success": 1})
     for invalid in (None, [], "success", {}, {"status": None}, {"status": True},
                     {"status": 1}, {"status": []}, {"status": "SUCCESS"}, {"status": "unknown"}):
         for index in (1, 2, 4):
@@ -220,7 +223,7 @@ def api(module):
             before = copy.deepcopy(rows)
             source = Borrowed(rows)
             with CHECK.assertRaisesRegex(ValueError, rf"\b{index}\b", msg="invalid row or record index ignored"):
-                module.summarize(source)
+                candidate_call(module.summarize, source)
             CHECK.assertEqual(rows, before, "input mutated on failure")
             CHECK.assertFalse(source.closed, "borrowed input closed on failure")
 
@@ -232,7 +235,7 @@ def api(module):
 
     source = Borrowed(failing_rows())
     with CHECK.assertRaisesRegex(OSError, "borrowed iterator failed") as raised:
-        module.summarize(source)
+        candidate_call(module.summarize, source)
     CHECK.assertIs(raised.exception, source_error, "source iteration exception replaced")
     CHECK.assertFalse(source.closed, "borrowed input closed on iterator failure")
 
@@ -240,7 +243,7 @@ def api(module):
         for n in range(size):
             yield {"status": "success", "unused": str(n) + "x" * 128}
 
-    peaks = [measured(lambda: counts(module.summarize(generated(size)), {**ZERO, "success": size}))
+    peaks = [measured(lambda: counts(candidate_call(module.summarize, generated(size)), {**ZERO, "success": size}))
              for size in (4_000, 80_000)]
     # Fresh per-row mappings prevent a repeated single object from hiding retention.
     # Compare growth rather than rejecting a large constant buffer or interpreter overhead.

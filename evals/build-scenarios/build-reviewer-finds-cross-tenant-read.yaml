@@ -1,6 +1,7 @@
 # Security lens with no hint: the new PDF route loads by id without the tenant check its sibling
 # performs (CWE-639).
 id: build-reviewer-finds-cross-tenant-read
+max_turns: 16
 agent: reviewer
 prompt: |
   Review PR branch feature/invoice-pdf against main.

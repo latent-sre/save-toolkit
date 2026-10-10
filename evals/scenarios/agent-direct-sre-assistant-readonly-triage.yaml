@@ -1,4 +1,5 @@
 id: agent-direct-sre-assistant-readonly-triage
+max_turns: 11
 split: calibration
 agent: sre-assistant
 tools: [Read]

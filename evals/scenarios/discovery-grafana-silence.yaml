@@ -1,4 +1,5 @@
 id: discovery-grafana-silence
+max_turns: 4
 split: regression
 prompt: |
   Silence the checkout latency alert in staging for 30 minutes during maintenance. Keep its

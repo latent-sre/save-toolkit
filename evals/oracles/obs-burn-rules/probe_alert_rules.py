@@ -88,10 +88,18 @@ CASES = {
 def load_rules(path: str) -> list[dict]:
     import yaml
     with open(path, encoding="utf-8") as fh:
-        doc = yaml.safe_load(fh) or {}
+        try:
+            doc = yaml.safe_load(fh) or {}
+        except yaml.YAMLError as exc:
+            raise AssertionError("candidate rules are not YAML: " + str(exc)) from exc
+    assert isinstance(doc, dict), "rules must be an object"
+    assert isinstance(doc.get("groups", []), list), "groups must be an array"
     rules = []
     for group in doc.get("groups") or []:
+        assert isinstance(group, dict), "rule groups must be objects"
+        assert isinstance(group.get("rules", []), list), "group rules must be an array"
         for rule in group.get("rules") or []:
+            assert isinstance(rule, dict), "rules must be objects"
             if "alert" in rule:
                 rules.append(rule)
     return rules
@@ -106,6 +114,8 @@ def promtool(args: list[str], workspace: str) -> subprocess.CompletedProcess:
 
 def case_check(rules_path: str) -> str | None:
     result = promtool(["check", "rules", "/work/" + rules_path.replace(os.sep, "/")], ".")
+    if result.returncode not in (0, 1):
+        raise RuntimeError("promtool could not run: " + result.stderr[-400:])
     return None if result.returncode == 0 else "promtool check rules failed: " + (result.stdout + result.stderr).strip()[-400:]
 
 
@@ -132,7 +142,7 @@ def fired(rules_path: str, values: dict[str, str], eval_time: str, alert_names: 
         got_text = chunk.split("got:", 1)[1] if "got:" in chunk else ""
         got[name] = re.findall(r'severity="([a-z]+)"', got_text)
     if result.returncode != 0 and not got:
-        return {}, "promtool test rules failed without a readable report: " + out.strip()[-400:]
+        raise RuntimeError("promtool test rules failed without a readable report: " + out.strip()[-400:])
     return got, ""
 
 
@@ -166,6 +176,7 @@ def case_shape(rules_path: str) -> str | None:
     for rule in rules:
         labels = rule.get("labels") or {}
         annotations = rule.get("annotations") or {}
+        assert isinstance(labels, dict) and isinstance(annotations, dict), "labels and annotations must be objects"
         name = rule.get("alert")
         if labels.get("severity") not in ("page", "ticket"):
             problems.append(f"{name}: severity is {labels.get('severity')!r}, not page or ticket")
@@ -185,7 +196,7 @@ def main() -> int:
     rules_path, case = sys.argv[1], sys.argv[2]
     if not os.path.isfile(rules_path):
         print(f"FAIL {case}: {rules_path} does not exist")
-        return 1
+        return 10
     if case == "check":
         problem = case_check(rules_path)
     elif case == "shape":
@@ -194,9 +205,9 @@ def main() -> int:
         problem = case_behaviour(rules_path, case)
     else:
         print(f"FAIL {case}: unknown case; known: check, shape, {', '.join(CASES)}")
-        return 1
+        return 2
     print(f"{'PASS' if problem is None else 'FAIL'} {case}" + (f": {problem}" if problem else ""))
-    return 0 if problem is None else 1
+    return 0 if problem is None else 10
 
 
 if __name__ == "__main__":

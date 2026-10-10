@@ -1,4 +1,5 @@
 id: discovery-python-defers-live-incident
+max_turns: 13
 split: regression
 prompt: |
   Our Python worker is failing in production right now and the backlog is growing. I am the

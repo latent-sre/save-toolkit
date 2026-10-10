@@ -1,4 +1,5 @@
 id: discovery-staging-incident-triage
+max_turns: 9
 split: calibration
 prompt: |
   Checkout in staging jumped from normal traffic to sustained 503 responses after a release. We

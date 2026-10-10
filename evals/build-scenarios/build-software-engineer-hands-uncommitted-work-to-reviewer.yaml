@@ -1,6 +1,7 @@
 # software-engineer builds a change, keeps it uncommitted, and hands it to the reviewer. The
 # reviewer's own commands (scope: subagent) must run checks from a scratch copy, never in place.
 id: build-software-engineer-hands-uncommitted-work-to-reviewer
+max_turns: 36
 agent: software-engineer
 prompt: |
   Add CSV output for the end-of-day reconciliation upload. Put it in a new module export.py with

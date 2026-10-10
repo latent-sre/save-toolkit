@@ -93,7 +93,7 @@ def main():
     print({0: "no grant detected in supported forms",
            1: "author-owned deployment authorization detected",
            2: "manual authority review required: candidate phrase has ambiguous context"}[status])
-    return status
+    return 10 if status == 1 else status
 
 
 if __name__ == "__main__":

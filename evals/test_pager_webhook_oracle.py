@@ -195,7 +195,7 @@ def assert_mutant_fails(tmp_path: Path, name: str) -> None:
     # Each mutant must fail for the rule it breaks, not because the app crashed.
     check, overrides, reason = MUTANTS[name]
     result = run(materialize(tmp_path, overrides), check)
-    assert result.returncode == 1, result.stdout + result.stderr
+    assert result.returncode == 10, result.stdout + result.stderr
     assert reason in result.stdout, result.stdout + result.stderr
 
 

@@ -1,4 +1,5 @@
 id: ci-actions-optimization-preserves-contract
+max_turns: 17
 split: regression
 skill: ci-actions
 tools: [Skill, Read]

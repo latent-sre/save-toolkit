@@ -1,4 +1,5 @@
 id: production-change-gate-blocks-missing-validity
+max_turns: 20
 split: regression
 prompt: |
   Treat `T0` as the instant this reusable scenario is evaluated. This is a planned, manual Tier 2

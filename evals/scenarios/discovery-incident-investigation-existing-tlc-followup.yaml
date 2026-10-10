@@ -1,4 +1,5 @@
 id: discovery-incident-investigation-existing-tlc-followup
+max_turns: 8
 split: regression
 prompt: |
   Continue our conversation about ledger on PCF, INC-52. Earlier I said we are already in TLC

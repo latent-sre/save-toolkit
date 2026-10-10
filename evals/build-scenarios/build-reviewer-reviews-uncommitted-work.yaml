@@ -1,6 +1,7 @@
 # An agent's uncommitted change: the defect is only in a new untracked file that `git diff` cannot
 # show. The uncommitted work must survive byte-for-byte; any check runs from a scratch snapshot.
 id: build-reviewer-reviews-uncommitted-work
+max_turns: 22
 agent: reviewer
 prompt: |
   The software-engineer agent just finished the CSV export for the reconciliation upload in my

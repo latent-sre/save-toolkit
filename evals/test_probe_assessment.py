@@ -173,7 +173,7 @@ class ReferenceReadTests(unittest.TestCase):
     """Codex review of PR #222: a scenario whose skill contract requires a reference read proves it."""
 
     SPEC = {
-        "id": "ref-contract", "prompt": "p", "skill": "agent-authoring",
+        "id": "ref-contract", "prompt": "p", "skill": "agent-authoring", "max_turns": 20,
         "tools": ["Skill", "Task", "Read"],
         "references": ["skills/agent-authoring/references/agent-security.md"],
         "graders": [{"type": "contains_any", "of": ["x"]}],
@@ -483,8 +483,9 @@ class GradingLoopTests(unittest.TestCase):
         fail = probe_outcomes.Outcome(probe_outcomes.State.FAIL, "x")
         self.assertNotEqual(probe_outcomes.Outcome(probe_outcomes.State.INCONCLUSIVE, "x"), fail)
         self.assertNotEqual(probe_outcomes.violation("x"), fail)
-        self.assertEqual((False, "x"), fail)  # a plain pair still compares as a pair
-        self.assertEqual(hash((False, "x")), hash(fail))
+        self.assertNotEqual((False, "x"), fail)  # a pair has no measurement state
+        self.assertEqual((False, "x"), tuple(fail))  # the explicit pair-reading adapter remains
+        self.assertEqual(hash(probe_outcomes.Outcome(probe_outcomes.State.FAIL, "x")), hash(fail))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 id: build-software-engineer-pager-webhook
+max_turns: 46
 agent: software-engineer
 # backend-craft's background-work rules with real tools. The prompt asks only for a webhook that
 # turns pager events into incidents; the README states the vendor's contract (an HMAC signature,
@@ -257,15 +258,16 @@ checks:
   # between checks). Each check starts the app as a uvicorn subprocess with a fresh SQLite file and
   # a runbook stub that answers in 8 s, and reads the incidents table directly.
   - check: command_exit_zero
-    command: "python probe_checks.py signature"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_checks.py signature"
     timeout: 120
     text: "oracle: a forged or missing signature is refused as a problem; nothing is stored or processed"
-    writes_from: {probe_checks.py: evals/oracles/pager-webhook/probe_checks.py}
-  - {check: command_exit_zero, command: "python probe_checks.py fast_ack", timeout: 120, text: "oracle: a valid event is acknowledged with a 2xx within 3 s while the runbook lookup takes 8 s"}
-  - {check: command_exit_zero, command: "python probe_checks.py accepted", timeout: 120, text: "oracle: the acknowledgement is 202 Accepted"}
-  - {check: command_exit_zero, command: "python probe_checks.py completes", timeout: 120, text: "oracle: an open incident appears with the summary as title and the runbook link"}
-  - {check: command_exit_zero, command: "python probe_checks.py redelivery", timeout: 120, text: "oracle: three deliveries of one event make one incident; a different event id with the same summary makes its own"}
-  - {check: command_exit_zero, command: "python probe_checks.py durable", timeout: 180, text: "oracle: killed right after acknowledging, the event is already stored and a restarted app finishes it with its runbook link"}
+    writes_from: {probe_checks.py: evals/oracles/pager-webhook/probe_checks.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py fast_ack", timeout: 120, text: "oracle: a valid event is acknowledged with a 2xx within 3 s while the runbook lookup takes 8 s", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py accepted", timeout: 120, text: "oracle: the acknowledgement is 202 Accepted", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py completes", timeout: 120, text: "oracle: an open incident appears with the summary as title and the runbook link", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py redelivery", timeout: 120, text: "oracle: three deliveries of one event make one incident; a different event id with the same summary makes its own", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py durable", timeout: 180, text: "oracle: killed right after acknowledging, the event is already stored and a restarted app finishes it with its runbook link", failure_exit_code: 10}
   - {check: command_exit_zero, command: "python -m pytest -q", timeout: 300, text: "suite is green when the probe runs it"}
   - {check: verification_completed, runner: pytest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}

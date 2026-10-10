@@ -1,8 +1,12 @@
 """Probe the seeded checkout WSGI contract; run each environment case in a fresh process."""
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from oracle_protocol import candidate_call
+
 from html.parser import HTMLParser
 import os
-import sys
 from wsgiref.util import setup_testing_defaults
 
 
@@ -51,7 +55,7 @@ def call(application, path):
     def start_response(status, headers, exc_info=None):
         captured["status"], captured["headers"] = status, dict(headers)
 
-    response = application(environ, start_response)
+    response = candidate_call(application, environ, start_response)
     try:
         body = b"".join(response)
     finally:
@@ -69,7 +73,8 @@ def check(case):
     else:
         os.environ["MAINTENANCE_BANNER"] = banner
     # Set configuration before import so startup-bound configuration is supported too.
-    from services.checkout.app import application
+    import importlib
+    application = candidate_call(importlib.import_module, "services.checkout.app").application
 
     for path in ("/", "/orders"):
         headers, body = call(application, path)

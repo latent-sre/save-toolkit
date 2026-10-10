@@ -1,4 +1,5 @@
 id: discovery-python-improvement
+max_turns: 4
 split: regression
 prompt: |
   This Python reporting module has become difficult to maintain: the same validation rules appear

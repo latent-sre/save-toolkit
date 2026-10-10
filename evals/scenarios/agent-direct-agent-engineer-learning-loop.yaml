@@ -1,4 +1,5 @@
 id: agent-direct-agent-engineer-learning-loop
+max_turns: 20
 split: regression
 prompt: |
   A material authority failure in the reviewer agent is reproduced: it accepted a change without

@@ -1,4 +1,5 @@
 id: discovery-production-change-unknown-outcome
+max_turns: 4
 split: regression
 prompt: |
   Our planned production scale change was approved, and Riley Chen submitted `cf scale checkout -i 6`,

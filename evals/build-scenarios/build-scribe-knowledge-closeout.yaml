@@ -1,4 +1,5 @@
 id: build-scribe-knowledge-closeout
+max_turns: 36
 agent: software-engineer
 # The real caller supplies the seeded checkout binding; no fake fixed commit is passed to scribe.
 prompt: |
@@ -56,6 +57,7 @@ checks:
   - {check: changes_within, allowed: [docs/operations/services/checkout.md, docs/operations/index.md], text: "only the owning card and affected index changed"}
   - {check: no_new_commits, text: "nothing committed"}
   - check: command_exit_zero
-    command: python probe_documents.py closeout
-    writes_from: {probe_documents.py: evals/oracles/researcher-scribe/probe_documents.py}
+    failure_exit_code: 10
+    command: python oracle_protocol.py probe_documents.py closeout
+    writes_from: {probe_documents.py: evals/oracles/researcher-scribe/probe_documents.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "both contacts changed while lifecycle, history, and the operating procedure stayed intact"

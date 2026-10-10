@@ -1,4 +1,5 @@
 id: discovery-reliability-engineer-assessment
+max_turns: 14
 split: regression
 prompt: |
   Give me a dedicated engineering assessment of why this service is fragile under dependency

@@ -42,7 +42,9 @@ def _unreadable_root(plugin_root: Path, exc: Exception) -> str:
     return f"plugin root {plugin_root} could not be read ({type(exc).__name__}); restore it to regrade the run"
 
 
-def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str | None:
+def native_regrade_problem(
+    run_dir: Path, spec: Spec, plugin_root: Path, *, recorded_plugin_sha: str | None = None
+) -> str | None:
     """Replay each invocation's boundary checks using its saved cwd after the workspace is gone.
 
     Saved evidence that is missing or malformed, or a plugin root the regrade cannot read, leaves the
@@ -65,7 +67,12 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
             trace = tracing.parse_trace(trace_path)
         except (OSError, ValueError):
             return _INVALID_NATIVE_EVIDENCE
-        saved_cut = isinstance(metadata, dict) and metadata.get("cut_short") is True
+        legacy_timeout = (
+            isinstance(metadata, dict)
+            and "cut_short" not in metadata
+            and _SAVED_TIMEOUT.fullmatch(str(metadata.get("inconclusive") or "")) is not None
+        )
+        saved_cut = isinstance(metadata, dict) and (metadata.get("cut_short") is True or legacy_timeout)
         if (
             not isinstance(metadata, dict)
             or not tracing.is_rooted(metadata.get("workspace"))
@@ -92,9 +99,20 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
         if invocation.credential_markers(trace.result_text, trace_path):
             return "native credential marker detected; re-run the trial"
         try:
-            problem = invocation.invocation_problem(
-                trace, metadata["exit_code"], spec, plugin_root, recorded_workspace, resume
-            )
+            if legacy_timeout:
+                if not recorded_plugin_sha:
+                    return "native timeout plugin digest evidence missing; re-run the trial"
+                # Before cut_short was recorded a timeout bypassed the live boundary checks. Recover
+                # it only from unchanged inputs and the partial trace's actual profile and session.
+                problem = (
+                    fingerprints.plugin_drift_problem(plugin_root, recorded_plugin_sha)
+                    or invocation.profile_problem(trace, spec, plugin_root, recorded_workspace)
+                    or invocation.native_identity_problem(trace, spec, resume, complete=False)
+                )
+            else:
+                problem = invocation.invocation_problem(
+                    trace, metadata["exit_code"], spec, plugin_root, recorded_workspace, resume
+                )
         except (OSError, json.JSONDecodeError) as exc:
             return _unreadable_root(plugin_root, exc)
         except clean_room.AuthUnavailable:
@@ -111,7 +129,8 @@ def native_regrade_problem(run_dir: Path, spec: Spec, plugin_root: Path) -> str 
             # The partial trace still shows the declared identity; the saved stop stays a cut, so
             # a forbidding check it already failed survives the regrade. No follow-up started.
             try:
-                return CutShort(str(metadata["inconclusive"]), metadata.get("run_stop") or Stop.UNRECORDED)
+                stop = Stop.WALL_CLOCK if legacy_timeout else metadata.get("run_stop") or Stop.UNRECORDED
+                return CutShort(str(metadata["inconclusive"]), stop)
             except ValueError:  # a saved stop this runner does not know
                 return _INVALID_NATIVE_EVIDENCE
         resume, workspace = trace.session_id, recorded_workspace
@@ -187,7 +206,16 @@ def _regrade_run(
     relaxed = relax_identity and not identity_matches
     kept_prefix = live_grade.get("scenario_sha256") if relaxed else identity
     text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
-    native_problem = native_regrade_problem(run_dir, spec, plugin_root) if spec.get("followups") else None
+    native_problem = (
+        native_regrade_problem(
+            run_dir,
+            spec,
+            plugin_root,
+            recorded_plugin_sha=(summary.get("plugin") or {}).get("plugin_source_sha256") if has_plugin_root else None,
+        )
+        if spec.get("followups")
+        else None
+    )
     native_cut = native_problem if isinstance(native_problem, CutShort) else None
     saved_workspace = summary.get("workspace")
     if spec.get("followups") and (native_problem is None or native_cut):
@@ -232,7 +260,14 @@ def _regrade_run(
         )
         if summary.get("agents_dir"):
             (ws.repo / ".agents").mkdir(parents=True)
-        ctx = Context(dict(spec), ws, trace, git, plugin_root=plugin_root)
+        ctx = Context(
+            dict(spec),
+            ws,
+            trace,
+            git,
+            plugin_root=plugin_root,
+            tool_counts_recorded=reparsed is not None or isinstance(summary.get("tool_counts"), dict),
+        )
         judge_problem = _saved_judge_problem(spec, saved_binding)
         inconclusive = _run_level_reason(
             spec,

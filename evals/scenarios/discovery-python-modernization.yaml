@@ -1,4 +1,5 @@
 id: discovery-python-modernization
+max_turns: 10
 split: regression
 prompt: |
   Modernize our Python parser module. Evaluate whether a maintained library or a newer standard

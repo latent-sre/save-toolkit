@@ -1,4 +1,5 @@
 id: build-researcher-partial-research
+max_turns: 35
 agent: researcher
 tools: [WebFetch, WebSearch]
 # Supplied fictional public evidence; this tests a bounded return, not retrieval quality.

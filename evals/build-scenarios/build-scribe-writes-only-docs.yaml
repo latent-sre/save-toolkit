@@ -1,4 +1,5 @@
 id: build-scribe-writes-only-docs
+max_turns: 40
 agent: scribe
 # scribe's own tool posture already excludes Bash (Read, Grep, Glob, Edit, Write, Skill), so the
 # decisive facts are where the write landed and that nothing else in the fixture repo moved: the
@@ -68,36 +69,47 @@ checks:
   # The checker is probe-owned and written after the agent has finished, so the change checks
   # above never see it; each rule is proven red on a thin runbook and green on a complete one.
   - check: command_exit_zero
-    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck frontmatter"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck frontmatter"
     text: "frontmatter parses as YAML with the template's typed key set, status draft, both dates null, and names the alert"
-    writes_from: {probe_runbook_slots.py: evals/oracles/scribe-runbook/probe_runbook_slots.py}
+    writes_from: {probe_runbook_slots.py: evals/oracles/scribe-runbook/probe_runbook_slots.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
   - check: command_exit_zero
-    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck slots"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck slots"
     text: "every template section is present with a body or an n/a reason, none left TBD"
   - check: command_exit_zero
-    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck expected-per-step"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck expected-per-step"
     text: "every procedure step has an Expected line"
   - check: command_exit_zero
-    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck expected-distinguishes"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck expected-distinguishes"
     text: "every Expected line is followed by at least two routed outcome branches"
   - check: command_exit_zero
-    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck placeholders-sourced"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck placeholders-sourced"
     text: "every placeholder in triage or procedure is sourced in a sentence that mentions it"
   - check: command_exit_zero
-    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck stop-conditions"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck stop-conditions"
     text: "every fallible step's outcome lines carry a bound and a route"
   - check: command_exit_zero
-    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck rollback-per-change"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck rollback-per-change"
     text: "each state change has a rollback entry naming its step with an undo or a disposition, plus a safe-abort"
   - check: command_exit_zero
-    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck escalation-reachable"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck escalation-reachable"
     text: "one escalation row is both time-boxed and names a pager or channel"
   - check: command_exit_zero
-    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck triage-routes"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck triage-routes"
     text: "triage has at least two conditional branches that route"
   - check: command_exit_zero
-    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck evidence-labels"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck evidence-labels"
     text: "command steps carry evidence labels without inventing verified execution absent from this fixture"
   - check: command_exit_zero
-    command: "python probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck no-template-literals"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck no-template-literals"
     text: "no template placeholder was left in"

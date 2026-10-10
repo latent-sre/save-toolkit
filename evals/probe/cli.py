@@ -490,6 +490,9 @@ def _preflight(
             "judge_binding": judge_binding.metadata if judge_binding else None,
         }
     )
+    if problem := fingerprints.runtime_evidence_problem(runtime, require_unelevated=True):
+        print(f"refusing to run: {problem}", file=sys.stderr)
+        return ExitCode.REFUSED
     if args.expect_plugin_digest and not provenance["plugin_source_sha256"].startswith(args.expect_plugin_digest):
         print(
             f"refusing to run: plugin source digest {provenance['plugin_source_sha256'][:12]}… does not match "

@@ -152,12 +152,12 @@ def main(argv: list[str]) -> int:
     path = Path(argv[1])
     if not path.is_file():
         print(f"{path}: missing")
-        return 1
+        return 10
     found = problems(path.read_text(encoding="utf-8", errors="replace"))
     for problem in found:
         print(problem)
     print("design record: " + ("FAIL" if found else "PASS"))
-    return 1 if found else 0
+    return 10 if found else 0
 
 
 if __name__ == "__main__":

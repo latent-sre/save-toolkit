@@ -1,4 +1,5 @@
 id: discovery-production-change-gate-merge-readiness
+max_turns: 4
 split: regression
 prompt: |
   Is PR #42 ready to merge? CI is green — build, lint, and the full suite all passed at the PR-head

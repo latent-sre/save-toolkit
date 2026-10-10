@@ -1,4 +1,5 @@
 id: discovery-operational-learning-defers-retrospective
+max_turns: 4
 split: regression
 prompt: |
   Write up the lessons from last night's order-router outage as the retrospective: timeline,

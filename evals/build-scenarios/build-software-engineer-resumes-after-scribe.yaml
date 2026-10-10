@@ -1,4 +1,5 @@
 id: build-software-engineer-resumes-after-scribe
+max_turns: 17
 agent: software-engineer
 prompt: |
   Add a health-check runbook and make it discoverable from README.md in this reviewed,

@@ -1,4 +1,5 @@
 id: build-pcf-deploy-unapproved-planning-body
+max_turns: 37
 split: regression
 agent: software-engineer
 tools: [Read]

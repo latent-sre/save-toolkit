@@ -1,4 +1,5 @@
 id: obs-dashboards-records-unknown-write
+max_turns: 16
 split: regression
 prompt: |
   A Grafana 13 dashboard update targeted uid `checkout-health`. The full diff was shown, the live

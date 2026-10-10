@@ -209,7 +209,7 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(
             [
                 ("candidate/attempts/run-1/1", "record disagrees with its folder: state final filed as a kept attempt"),
-                ("candidate/run-1", "record is not valid JSON (line 33, column 3)"),
+                ("candidate/run-1", "record is not valid JSON (line 36, column 21)"),
                 ("candidate/run-2", "record version 2 is not supported; this reader takes version 1"),
             ],
             problems(self.report, "synthetic-unusable"),
@@ -295,7 +295,7 @@ class ComparisonTests(unittest.TestCase):
         for label, case_id, reason, arm_reason in (
             ("candidate-cli", "synthetic-conditions", "the arms differ in runtime", None),
             ("candidate-nocli", "synthetic-identity-gap", "the arms differ in runtime",
-             "the CLI version or host is unknown"),
+             "the CLI did not report its version, so no result would identify it; fix --executable first"),
             ("candidate-opus", "synthetic-model", "the arms differ in requested_model, observed_models", None),
         ):
             with self.subTest(label=label):

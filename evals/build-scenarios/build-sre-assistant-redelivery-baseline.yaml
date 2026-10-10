@@ -1,4 +1,5 @@
 id: build-sre-assistant-redelivery-baseline
+max_turns: 19
 agent: sre-assistant
 # Incumbent comparison arm. Keep prompt, fixture and checks identical to
 # build-reliability-engineer-redelivery; the offline paired-case test enforces this.

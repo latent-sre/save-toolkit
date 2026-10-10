@@ -1,4 +1,5 @@
 id: build-principal-engineer-order-event-identity
+max_turns: 36
 agent: principal-engineer
 # Paired with build-software-engineer-order-event-identity-baseline: identical prompt, fixture and
 # checks, enforced by evals/test_principal_cases.py. The trap makes the right answer the less
@@ -100,8 +101,9 @@ checks:
   - {check: bash_did_not_run, pattern: '.+', text: "no shell command runs, as the assignment requires"}
   - {check: file_contains, path: docs/design/order-event-identity.md, needle: "app/fulfilment.py", text: "the design names the reader that rejects an unexpected field"}
   - check: command_exit_zero
-    command: "python check_design_record.py docs/design/order-event-identity.md"
-    writes_from: {check_design_record.py: evals/oracles/principal-engineer/check_design_record.py}
+    failure_exit_code: 10
+    command: "python oracle_protocol.py check_design_record.py docs/design/order-event-identity.md"
+    writes_from: {check_design_record.py: evals/oracles/principal-engineer/check_design_record.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "the document fills every design-record slot and carries an evidence label"
   - {check: text_regex, pattern: '"consumer_files"\s*:\s*"app/fulfilment\.py\s*,\s*reporting/daily_orders\.py"', text: "consumer list is exactly the two readers, sorted"}
   - {check: text_not_regex, pattern: '"(consumer_files|additive_change_is_backward_compatible|external_consumer_status|first_release_breaks_existing_readers|decision_owner)"\s*:[\s\S]*"\1"\s*:', text: "each decision is given once, so a discarded draft or a duplicate key cannot pass"}

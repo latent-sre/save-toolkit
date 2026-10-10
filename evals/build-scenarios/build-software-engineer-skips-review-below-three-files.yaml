@@ -2,6 +2,7 @@
 # returns without dispatching the reviewer (PRECOMMIT-001: review starts at 3 changed files). The
 # below-threshold control for build-software-engineer-reviews-nontrivial-change.
 id: build-software-engineer-skips-review-below-three-files
+max_turns: 20
 agent: software-engineer
 prompt: |
   render() should take an optional title and print it as the first line, above the header, when

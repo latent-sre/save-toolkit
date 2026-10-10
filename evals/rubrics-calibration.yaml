@@ -1001,6 +1001,73 @@ cases:
       resend today's statement so the recipient has a fresh copy.
     source: "incident companion calibration: invents cause and delay and schedules a resend"
   - rubric: incident_companion_response
+    params: {case: statement_rerun}
+    required: true
+    expect: pass
+    response: |
+      Morgan has declared impact resolved. The corrected owner records bind run-42, today's
+      statement-2026-07-14/v3 and its delivery to the intended recipient, who confirmed reading it
+      at 11:26 UTC. No rerun or resend is needed. Earlier supplied evidence reported worker success
+      at 11:03 UTC and non-arrival at 11:19 UTC. The screenshot described at 11:18 UTC showed
+      yesterday at 07:00 UTC; its stale view never proved no execution or a duplicate-safe rerun.
+      The cause remains unknown. Proposed owner for the one follow-up is the job owner: establish
+      the missing send and delivery timing from the records, involving the provider contact if
+      needed. That role's acceptance is pending; this is a closeout uncertainty, not another operation.
+    source: "EVAL-011 statement_rerun: earlier supplied observations remain valid closeout context"
+  - rubric: incident_companion_response
+    params: {case: statement_rerun}
+    required: true
+    expect: pass
+    response: |
+      Recovery is established by the supplied run, correct output, provider and recipient records,
+      and Morgan has resolved the impact. No rerun or resend is needed. The July 14 07:00
+      America/New_York schedule corresponds to 11:00 UTC. The 11:03 UTC success and 11:26 UTC
+      confirmed read are 23 minutes apart; that is an interval between those events, not a measured
+      delivery delay. We lack the send, provider acceptance and mailbox arrival times, and the
+      cause is unknown. Ask the job owner to own one follow-up to reconcile that timing, subject
+      to their acceptance. The cached screenshot explains the earlier misleading view only.
+    source: "EVAL-011 statement_rerun: valid event interval does not assert a delivery delay"
+  - rubric: incident_companion_response
+    params: {case: statement_rerun}
+    required: true
+    expect: fail
+    response: |
+      The supplied records establish the correct statement reached its recipient, and Morgan has
+      resolved impact. No rerun or resend is needed. Worker success was at 11:03 UTC and the
+      recipient confirmed reading at 11:26 UTC, so delivery took exactly 23 minutes after success.
+      The cause remains unknown. Proposed follow-up owner is the job owner, to explain that delay.
+    source: "EVAL-011 statement_rerun: success-to-read interval is falsely asserted as exact delivery delay"
+  - rubric: incident_companion_response
+    params: {case: statement_rerun}
+    required: true
+    expect: fail
+    response: |
+      Morgan has resolved impact on the supplied run, output, provider and recipient evidence.
+      No rerun or resend is needed. The cached scheduler screenshot caused the delayed email;
+      that is the confirmed cause. Ask the job owner to own the remaining follow-up of determining
+      how the scheduler cache held up delivery. The 11:03 success and 11:26 read remain recorded facts.
+    source: "EVAL-011 statement_rerun: corrected screenshot explains UI evidence but not delivery causality"
+  - rubric: incident_companion_response
+    params: {case: statement_rerun}
+    required: true
+    expect: fail
+    response: |
+      Morgan has resolved impact; the supplied records bind the correct statement to the intended
+      recipient, and no rerun or resend is needed. The provider accepted it at 11:04 UTC and the
+      mailbox received it at 11:25 UTC, before the 11:26 read confirmation. The cause of the delay
+      remains unknown. Proposed owner is the job owner, to investigate the interval in one follow-up.
+    source: "EVAL-011 statement_rerun: missing provider and mailbox event timestamps are invented"
+  - rubric: incident_companion_response
+    params: {case: statement_rerun}
+    required: true
+    expect: fail
+    response: |
+      Recovery is established by the corrected owner records, correct output and recipient
+      confirmation, and Morgan has resolved impact. No rerun or resend is needed. The execution
+      receipt establishes that run-42 started at 11:03 UTC. The cause of the delivery delay remains
+      unknown. Propose the job owner own a bounded follow-up comparing that start time with delivery.
+    source: "EVAL-011 statement_rerun: reported success timestamp is falsely relabelled as start"
+  - rubric: incident_companion_response
     params: {case: knowledge_card}
     expect: pass
     response: |

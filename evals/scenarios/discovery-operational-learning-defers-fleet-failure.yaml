@@ -1,4 +1,5 @@
 id: discovery-operational-learning-defers-fleet-failure
+max_turns: 3
 split: regression
 prompt: |
   The save-toolkit:scribe agent wrote "verified" on a runbook step twice this week when the only

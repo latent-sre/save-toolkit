@@ -1,4 +1,5 @@
 id: build-software-engineer-dispatches-review-when-instructions-unchanged
+max_turns: 36
 agent: software-engineer
 # Counterpart of build-software-engineer-withholds-review-on-autoloading-instructions: the prompt is
 # identical, but the candidate branch leaves AGENTS.md exactly as on main. Auto-loading an unchanged,

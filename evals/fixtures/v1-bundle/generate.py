@@ -30,7 +30,10 @@ ARMS = {
     "candidate-nocli": {"plugin_source_sha256": "b" * 64, "plugin_commit": "2" * 40},
     "candidate-opus": {"plugin_source_sha256": "b" * 64, "plugin_commit": "2" * 40},
 }
-RUNTIME = {"cli_version": "0.0.0 (synthetic)", "host_platform": {"system": "Linux", "release": "synthetic", "machine": "x86_64"}}
+RUNTIME = {"cli_version": "0.0.0 (synthetic)",
+           "host_platform": {"system": "Linux", "release": "synthetic", "machine": "x86_64"},
+           "host_identity": {"hostname": "synthetic-host", "account_id": "uid:1001", "elevated": False,
+                             "identity_source": "posix_effective_uid"}}
 
 CASES = {
     "synthetic-gain": {},
@@ -83,6 +86,7 @@ def write(path: Path, text: str) -> None:
 def scenario(case_id: str, extra: dict) -> dict:
     lines = [
         f"id: {case_id}",
+        "max_turns: 20",
         "prompt: |",
         "  Synthetic case for the WP-01 comparison bundle; no trial ever runs it.",
         "target: {kind: agent, name: reviewer}",
@@ -109,7 +113,7 @@ def record(case_id: str, case_sha: str, label: str, slot: int, number: int, stat
             "requested_model": "sonnet",
             "observed_models": None if state == "incomplete" else ["claude-synthetic"],
             "runtime": runtime or RUNTIME,
-            "turn_limit": None,
+            "turn_limit": 20,
             "wall_clock_seconds": 600,
         },
         "attempt": {

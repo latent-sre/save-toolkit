@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import enum
 import re
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass
 from typing import Any, Final
 
 import judge as rubric_judge
@@ -72,7 +73,8 @@ class Ending(enum.StrEnum):
     INCOMPLETE = "incomplete"  # the attempt raised before it was graded
 
 
-class Outcome(tuple[bool, str]):
+@dataclass(frozen=True)
+class Outcome:
     """One check's verdict and evidence.
 
     It unpacks as the `(passed, evidence)` pair checks have always returned, so a caller that reads a
@@ -81,42 +83,25 @@ class Outcome(tuple[bool, str]):
     stops its scenario (result rule 5); `forbidden` marks a failure that is itself evidence of a
     forbidden action, which a run cut short still counts (result rule 2). Grading sets it on every
     failure of a forbidding expectation; a check with a floor and a ceiling sets it when the ceiling
-    broke. Two outcomes are equal only when their states and flags are; a plain pair compares as a pair.
+    broke. Equality and hashing include the state and both flags. A boolean pair is not an outcome:
+    it cannot make a supported failure equal to an unmeasured result through tuple equality.
     """
 
     state: State
-    machinery: bool
-    forbidden: bool
-
-    def __new__(cls, state: State, evidence: str, *, machinery: bool = False, forbidden: bool = False) -> Outcome:
-        outcome = super().__new__(cls, (state is State.PASS, evidence))
-        outcome.state = state
-        outcome.machinery = machinery
-        outcome.forbidden = forbidden
-        return outcome
-
-    def __getnewargs_ex__(self) -> tuple[tuple[State, str], dict[str, bool]]:
-        return (self.state, self.evidence), {"machinery": self.machinery, "forbidden": self.forbidden}
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, Outcome):
-            flags = (self.state, self.machinery, self.forbidden) == (other.state, other.machinery, other.forbidden)
-            return flags and tuple.__eq__(self, other)
-        return tuple.__eq__(self, other)
-
-    def __ne__(self, other: object) -> bool:
-        return not self == other
-
-    def __hash__(self) -> int:
-        return tuple.__hash__(self)
+    evidence: str
+    machinery: bool = False
+    forbidden: bool = False
 
     @property
     def passed(self) -> bool:
-        return self[0]
+        return self.state is State.PASS
 
-    @property
-    def evidence(self) -> str:
-        return self[1]
+    def __iter__(self) -> Iterator[bool | str]:
+        """The existing pair-reading API; comparisons still use the complete outcome."""
+        return iter((self.passed, self.evidence))
+
+    def __getitem__(self, index: int) -> bool | str:
+        return (self.passed, self.evidence)[index]
 
     @property
     def reason(self) -> str:
@@ -174,7 +159,7 @@ def grader_error(exc: BaseException) -> Outcome:
     return Outcome(State.INCONCLUSIVE, f"{GRADER_ERROR}{exc!r}", machinery=True)
 
 
-def coerce(result: tuple[object, object]) -> Outcome:
+def coerce(result: Outcome | tuple[object, object]) -> Outcome:
     """A check's result as an Outcome; a grader's plain `(passed, detail)` pair is read as text."""
     if isinstance(result, Outcome):
         return result

@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from probe_testkit import materialize_reference, run_fixture_suite, run_oracle_check
+from probe_testkit import materialize_reference, run_fixture_suite, run_python
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-incident-writes.yaml"
@@ -140,7 +140,8 @@ def materialize(tmp_path: Path, overrides: dict[str, str], defer_commit: bool = 
 
 
 def run(workspace: Path, check: str) -> subprocess.CompletedProcess:
-    return run_oracle_check(workspace, check, timeout=120)
+    (workspace / "oracle_protocol.py").write_bytes((ROOT / "evals/oracles/oracle_protocol.py").read_bytes())
+    return run_python(["-B", "oracle_protocol.py", "probe_checks.py", check], cwd=workspace, timeout=120)
 
 
 @pytest.mark.parametrize("check", CHECKS)
@@ -165,7 +166,7 @@ def test_correct_designs_pass_the_concurrency_check_by_their_own_route(tmp_path,
 def test_mutant_fails_its_check(tmp_path, name):
     check, overrides, reason, store = MUTANTS[name]
     result = run(materialize(tmp_path, overrides, store.get("defer_commit", True), store.get("status", "open")), check)
-    assert result.returncode == 1, result.stdout + result.stderr
+    assert result.returncode == 10, result.stdout + result.stderr
     assert reason in result.stdout, result.stdout + result.stderr
 
 

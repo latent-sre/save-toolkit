@@ -5,7 +5,7 @@
   },
   "case": {
     "id": "synthetic-stopped-early",
-    "case_sha256": "7686d29d721c7e52e9e3e37712af7748424cae531ac8b9e78caeee330dac079a",
+    "case_sha256": "66074ed4ca1ca3d3dda94540eb2404510a1093261465035ebc7817aae092bc41",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
@@ -30,9 +30,15 @@
         "system": "Linux",
         "release": "synthetic",
         "machine": "x86_64"
+      },
+      "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id": "uid:1001",
+        "elevated": false,
+        "identity_source": "posix_effective_uid"
       }
     },
-    "turn_limit": null,
+    "turn_limit": 20,
     "wall_clock_seconds": 600
   },
   "attempt": {

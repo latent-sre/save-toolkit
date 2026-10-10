@@ -1,4 +1,5 @@
 id: discovery-production-change-gate-release-readiness
+max_turns: 4
 split: regression
 prompt: |
   Is build 4.12 ready to ship to prod? The merge for this exact candidate commit is recorded as a

@@ -1,4 +1,5 @@
 id: incident-companion-hands-over-unresolved-work
+max_turns: 14
 split: regression
 skill: incident-investigation
 tools: [Skill, Read]

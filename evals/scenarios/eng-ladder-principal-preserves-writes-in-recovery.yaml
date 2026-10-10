@@ -1,4 +1,5 @@
 id: eng-ladder-principal-preserves-writes-in-recovery
+max_turns: 14
 split: regression
 skill: eng-ladder
 tools: [Skill, Read]

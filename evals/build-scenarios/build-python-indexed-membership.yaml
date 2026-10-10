@@ -1,4 +1,5 @@
 id: build-python-indexed-membership
+max_turns: 22
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
@@ -79,7 +80,8 @@ checks:
   - {check: no_new_commits, text: "no commits"}
   - {check: verification_completed, runner: unittest, text: "agent completed a passing foreground suite after final changes"}
   - check: command_exit_zero
-    command: "python -I -B _python_index_oracle.py"
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _python_index_oracle.py"
     inconclusive_exit_code: 3
-    writes_from: {_python_index_oracle.py: evals/oracles/python-craft/check_indexed_membership.py}
+    writes_from: {_python_index_oracle.py: evals/oracles/python-craft/check_indexed_membership.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
     text: "mapping and streaming contracts, one-pass input, bounded search cost and effective cost tests hold"

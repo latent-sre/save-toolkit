@@ -1,4 +1,5 @@
 id: discovery-frontend-craft-defers-observability-dashboard
+max_turns: 4
 split: regression
 prompt: |
   Make a dashboard page for the fx-quotes service so on-call can see its health at a glance:

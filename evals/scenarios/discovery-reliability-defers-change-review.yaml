@@ -1,4 +1,5 @@
 id: discovery-reliability-defers-change-review
+max_turns: 18
 split: regression
 # The checkout holds the pull request the prompt names: a refunds service on main and a candidate
 # branch that widens who may refund and loosens the amount check, with the tests that would catch

@@ -1,4 +1,5 @@
 id: discovery-agent-authoring-loop-engineering
+max_turns: 4
 split: regression
 prompt: |
   Design a bounded Loop Engineering contract for improving an LLM-facing artifact. Name the entry

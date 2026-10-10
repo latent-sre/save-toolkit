@@ -8,9 +8,10 @@
 # are fully typed: the read-only guard and its session preflight, the Gate A path, the fleet atlas
 # with its CI check and dashboard export, and the scripts/ test helpers. CI runs all three in the
 # component-tests job.
-# evals/judge.py, evals/clean_room.py and evals/oracles/ stay outside all three: the judge
-# calibration receipt binds the first two byte for byte and each case's identity binds the oracles,
-# so even a formatting change would reject the receipt or orphan the saved runs.
+# judge.py, clean_room.py and oracles/ keep their byte-bound layouts and incremental typing:
+# CI separately runs Ruff's syntax, invalid-control-flow and undefined-name rules on them.
+# A global format/type migration needs a measured benefit; it would replace calibration and case
+# identities without changing evaluation behavior. Their behavioral tests remain required.
 
 [tool.ruff]
 target-version = "py312"  # the runner's compatibility floor (evals/README.md)

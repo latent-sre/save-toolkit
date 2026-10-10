@@ -1,4 +1,5 @@
 id: discovery-obs-traces-defers-correlation-id
+max_turns: 4
 split: regression
 prompt: |
   Follow correlation id 7f3c9a2e-51d4-4b8e-9c0a-2d6f1e8b4a17 through checkout and payments and

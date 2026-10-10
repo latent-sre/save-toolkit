@@ -1,6 +1,7 @@
 # Free-form counterpart of build-reviewer-accepts-compatible-refactor: the correct refactor gets an
 # approval without invented P0-P2 findings.
 id: build-reviewer-approves-clean-change
+max_turns: 16
 agent: reviewer
 prompt: |
   Review candidate/refactor against main. It's meant to be a behavior-preserving cleanup of batch.py.

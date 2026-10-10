@@ -1,4 +1,5 @@
 id: discovery-ci-actions-defers-live-incident
+max_turns: 15
 split: regression
 prompt: |
   Our Python service deployed successfully, but production latency is rising and requests are

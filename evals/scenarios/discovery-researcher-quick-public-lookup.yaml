@@ -1,4 +1,5 @@
 id: discovery-researcher-quick-public-lookup
+max_turns: 4
 split: calibration
 prompt: |
   Does HTTPX document disabling all request timeouts? This is a quick public lookup;

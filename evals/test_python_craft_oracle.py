@@ -562,9 +562,10 @@ def rejected_notional(fills):
             with self.subTest(mode=mode):
                 outcome = [check for check in spec["checks"] if "writes_from" in check]
                 self.assertEqual(len(outcome), 1)
-                self.assertEqual(outcome[0]["command"], "python -I -B _python_oracle.py " + mode)
+                self.assertEqual(outcome[0]["command"], "python -I -B oracle_protocol.py _python_oracle.py " + mode)
                 self.assertEqual(outcome[0]["writes_from"], {
                     "_python_oracle.py": "evals/oracles/python-craft/check_contracts.py",
+                    "oracle_protocol.py": "evals/oracles/oracle_protocol.py",
                 })
                 self.assertTrue(any(check["check"] == "skill_loaded" and check["skill"] == "python-craft"
                                     for check in spec["checks"]))

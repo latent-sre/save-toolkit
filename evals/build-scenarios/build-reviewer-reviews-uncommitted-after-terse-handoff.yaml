@@ -1,6 +1,7 @@
 # A software-engineer brief names only the branch. The committed branch is correct; the defect is an
 # uncommitted edit, and an untracked helper also exists.
 id: build-reviewer-reviews-uncommitted-after-terse-handoff
+max_turns: 16
 agent: reviewer
 prompt: |
   From software-engineer (invoking caller), for the SRE who asked for the CSV export: please review

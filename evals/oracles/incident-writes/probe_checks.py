@@ -3,6 +3,10 @@ import os
 import socket
 import sqlite3
 import sys
+from pathlib import Path
+import importlib
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from oracle_protocol import candidate_call
 import tempfile
 import threading
 import time
@@ -16,7 +20,17 @@ OTHER = {"title": "Search latency above 800 ms", "service": "search"}
 
 def fail(msg):
     print("FAIL: " + msg)
-    sys.exit(1)
+    sys.exit(10)
+
+
+def response_json(response):
+    try:
+        body = response.json()
+    except ValueError as exc:
+        fail("candidate response is not JSON: %s" % exc)
+    if not isinstance(body, dict):
+        fail("candidate response must be a JSON object")
+    return body
 
 
 def ok(msg):
@@ -34,7 +48,7 @@ GATE = {"armed": False, "inside": 0, "max_inside": 0, "first_in": threading.Even
 def instrument_store():
     """Wrap the fixture's store.create_incident before the app imports it."""
     try:
-        import app.store as store
+        store = candidate_call(importlib.import_module, "app.store")
     except Exception:
         return
     original = getattr(store, "create_incident", None)
@@ -69,12 +83,16 @@ def start_app():
     sys.path.insert(0, os.getcwd())
     import uvicorn
     instrument_store()
-    from app.main import create_app
+    try:
+        create_app = candidate_call(importlib.import_module, "app.main").create_app
+        app = candidate_call(create_app)
+    except (Exception, SystemExit) as exc:
+        fail("candidate app could not start: %r" % exc)
 
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
-    server = uvicorn.Server(uvicorn.Config(create_app(), host="127.0.0.1", port=port, log_level="warning"))
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
     threading.Thread(target=server.run, daemon=True).start()
     deadline = time.monotonic() + 20
     while not server.started:
@@ -91,7 +109,7 @@ def rows(db):
 
 def post(base, body, key):
     headers = {"Idempotency-Key": key} if key else {}
-    return httpx.post(base + "/v1/incidents", json=body, headers=headers, timeout=20)
+    return candidate_call(httpx.post, base + "/v1/incidents", json=body, headers=headers, timeout=20)
 
 
 def is_problem(resp):
@@ -129,8 +147,8 @@ def is_problem(resp):
 def created(resp, what):
     if resp.status_code != 201:
         fail("%s -> %d, expected 201: %s" % (what, resp.status_code, resp.text[:200]))
-    body = resp.json()
-    if not isinstance(body, dict) or not body.get("id"):
+    body = response_json(resp)
+    if not isinstance(body.get("id"), str) or not body["id"]:
         fail("%s returned no incident id: %s" % (what, resp.text[:200]))
     return body
 
@@ -141,8 +159,8 @@ def check_create(base, db):
         fail("create echoed the wrong incident: %s" % body)
     if body.get("status") != "open":
         fail("a new incident must start open; the response says %r" % body.get("status"))
-    r = httpx.get(base + "/v1/incidents/" + body["id"], timeout=10)
-    if r.status_code != 200 or r.json().get("title") != BODY["title"]:
+    r = candidate_call(httpx.get, base + "/v1/incidents/" + body["id"], timeout=10)
+    if r.status_code != 200 or response_json(r).get("title") != BODY["title"]:
         fail("created incident is not readable by id: %d %s" % (r.status_code, r.text[:200]))
     stored = rows(db)
     if len(stored) != 1:
@@ -156,7 +174,7 @@ def check_replay(base, db):
     key = str(uuid.uuid4())
     first = created(post(base, BODY, key), "first request")
     second = post(base, BODY, key)
-    if second.status_code != 201 or second.json() != first:
+    if second.status_code != 201 or response_json(second) != first:
         fail("resend -> %d %s; expected the first result exactly (201, %s)"
              % (second.status_code, second.text[:200], first))
     if len(rows(db)) != 1:
@@ -188,7 +206,7 @@ def check_conflict(base, db):
     if len(stored) != 1 or stored[0][1] != BODY["title"]:
         fail("a refused payload changed the incidents: %s" % stored)
     again = post(base, BODY, key)
-    if again.status_code != 201 or again.json().get("id") != first["id"]:
+    if again.status_code != 201 or response_json(again).get("id") != first["id"]:
         fail("after the refusal, the original payload no longer replays: %d" % again.status_code)
     ok("reused key with a different payload -> 422 problem; nothing changed")
 
@@ -299,11 +317,6 @@ CHECKS = {
 if __name__ == "__main__":
     name = sys.argv[1] if len(sys.argv) > 1 else ""
     if name not in CHECKS:
-        fail("unknown check %r" % name)
-    try:
-        base, db = start_app()
-    except SystemExit:
-        raise
-    except Exception as exc:
-        fail("could not start the app: %r" % exc)
+        raise ValueError("unknown oracle check %r" % name)
+    base, db = start_app()
     CHECKS[name](base, db)

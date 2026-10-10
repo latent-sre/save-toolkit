@@ -1,4 +1,5 @@
 id: discovery-principal-engineer-returned-fork
+max_turns: 12
 split: regression
 prompt: |
   Our builder stopped mid-change and handed back one undecided choice: the shared retry policy for

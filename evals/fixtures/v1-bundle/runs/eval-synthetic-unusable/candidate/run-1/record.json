@@ -5,7 +5,7 @@
   },
   "case": {
     "id": "synthetic-unusable",
-    "case_sha256": "dbeb6efb0cf460b542150fcd604fcfe7cefd476e73c5aaa84b57a28e279a48cd",
+    "case_sha256": "8f52136ee7726ad0e790d3af5b1c42bb4ec0e5223471ffa8e9bc046576a7a8ab",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
@@ -30,4 +30,7 @@
         "system": "Linux",
         "release": "synthetic",
         "machine": "x86_64"
-  
+      },
+      "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id"

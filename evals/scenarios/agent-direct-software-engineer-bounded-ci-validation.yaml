@@ -1,4 +1,5 @@
 id: agent-direct-software-engineer-bounded-ci-validation
+max_turns: 17
 split: regression
 agent: software-engineer
 tools: [Skill, Read]

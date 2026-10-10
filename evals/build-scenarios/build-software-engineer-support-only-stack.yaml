@@ -1,4 +1,5 @@
 id: build-software-engineer-support-only-stack
+max_turns: 30
 agent: software-engineer
 # stack-profile's authoring/support boundary on an ordinary bug fix: the fixture is a Spring Boot
 # service, a stack the team operates but does not write, so the source change goes to the

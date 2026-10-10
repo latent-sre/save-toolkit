@@ -1,4 +1,5 @@
 id: build-observability-engineer-resumes-after-partial-helper
+max_turns: 21
 agent: observability-engineer
 # Handoff-core probe: finish the independent alert change after a partial helper return, and neither
 # ship on the helper's say-so nor accept its unsupported "[verified]" claim.

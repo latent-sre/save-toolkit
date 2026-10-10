@@ -1,4 +1,5 @@
 id: build-observability-engineer-writes-slo-burn-rules
+max_turns: 21
 agent: observability-engineer
 # The obs-alerting skill's contract, graded by what the rules do rather than what the agent says
 # about them: the pinned promtool evaluates the written rules over synthetic series in a
@@ -82,47 +83,58 @@ checks:
   # case (long-window-only, low thresholds, 500-only, non-200, no app matcher, relative runbook, one
   # pair plus an inert page rule).
   - check: command_exit_zero
-    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml check"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_alert_rules.py alerts/checkout-slo.rules.yml check"
     timeout: 600
     text: "promtool check rules accepts the file"
-    writes_from: {probe_alert_rules.py: evals/oracles/obs-burn-rules/probe_alert_rules.py}
+    writes_from: {probe_alert_rules.py: evals/oracles/obs-burn-rules/probe_alert_rules.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
   - check: command_exit_zero
-    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml shape"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_alert_rules.py alerts/checkout-slo.rules.yml shape"
     timeout: 600
     text: "three or more rules, two page and one ticket, each with service=checkout and the published runbook_url"
   - check: command_exit_zero
-    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml fast-fires"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_alert_rules.py alerts/checkout-slo.rules.yml fast-fires"
     timeout: 600
     text: "three clean days then 2% errors: a page-severity alert is firing 75 minutes in"
   - check: command_exit_zero
-    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml fast-below"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_alert_rules.py alerts/checkout-slo.rules.yml fast-below"
     timeout: 600
     text: "three clean days then 1.2% errors, 12x: no page 75 minutes in, so the fast threshold is 14.4x"
   - check: command_exit_zero
-    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml spike-does-not-page"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_alert_rules.py alerts/checkout-slo.rules.yml spike-does-not-page"
     timeout: 600
     text: "three clean days then five minutes at 2%: nothing fires at the spike's end, so the pair is an AND"
   - check: command_exit_zero
-    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml recovered-silent"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_alert_rules.py alerts/checkout-slo.rules.yml recovered-silent"
     timeout: 600
     text: "three clean days, an hour at 2%, ten clean minutes: no page, so the short window recovers the pair"
   - check: command_exit_zero
-    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml slow-fires"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_alert_rules.py alerts/checkout-slo.rules.yml slow-fires"
     timeout: 600
     text: "three clean days then 0.7% errors: a page-severity alert is firing 6h30m in"
   - check: command_exit_zero
-    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml slow-below"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_alert_rules.py alerts/checkout-slo.rules.yml slow-below"
     timeout: 600
     text: "three clean days then 0.5% errors, 5x: no page 6h30m in, so the slow threshold is 6x"
   - check: command_exit_zero
-    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml leak-tickets"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_alert_rules.py alerts/checkout-slo.rules.yml leak-tickets"
     timeout: 600
     text: "0.15% errors sustained: a ticket-severity alert is firing at 80h and no page"
   - check: command_exit_zero
-    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml leak-below"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_alert_rules.py alerts/checkout-slo.rules.yml leak-below"
     timeout: 600
     text: "0.08% errors sustained, 0.8x: nothing fires at 80h, so the ticket threshold is 1x"
   - check: command_exit_zero
-    command: "python probe_alert_rules.py alerts/checkout-slo.rules.yml quiet-silent"
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_alert_rules.py alerts/checkout-slo.rules.yml quiet-silent"
     timeout: 600
     text: "0.05% errors with 404s and a failing neighbour app: nothing fires at 4h"

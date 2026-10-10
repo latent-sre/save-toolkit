@@ -1,4 +1,5 @@
 id: eng-ladder-design-only-authority
+max_turns: 15
 split: regression
 skill: eng-ladder
 tools:

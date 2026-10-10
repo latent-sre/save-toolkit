@@ -69,7 +69,10 @@ frozen runner, not a candidate; case outcomes are observations, not acceptance e
   Bash pre-approved, on CLI 2.1.295. Its `mkdir` was denied with the guard's allowlist reason, and no
   directory was created.
 
-## Remaining native gaps
+## Native gaps found in the original run
+
+These observations describe the runner and evidence on 2026-10-08. The repair records below
+distinguish the original gaps from current implementation; they do not rewrite the original trials.
 
 1. **Account skills leak.** [verified] Sixteen account-level `anthropic-skills:*` skills were
    advertised in 5 of 18 trials, including all three routing trials. The runner neither records the
@@ -118,3 +121,49 @@ The owner then selected gap 4, answering Codex's P1 on PR #340, and it is implem
 
 Raw records stay private under `.eval-runs/wp02-native-readiness-20261008/` and
 `.eval-runs/wp02-attribution-20261008/`; the reviewer's scratch is under `F:/iso-tmp/wp02-review/`.
+
+## EVAL-011 follow-up, 2026-10-10
+
+The owner delegated the remaining routine repair and disposition decisions to finish EVAL-011.
+The [closeout record](2026-10-10-eval-011-closeout.md) holds consolidated verification and saved-run
+comparison evidence. This update records the completed targeted work without claiming a new native
+candidate comparison or replacing the original WP-02 observations.
+
+- **Gap 6, rubric evidence.** [verified] `statement_rerun` now includes the earlier turn's facts,
+  with six additional calibration controls. Receipt
+  `.eval-runs/judge-calibration/20261010T105741Z/identity.json` agrees on **187/187** cases:
+  27 new judgments and 160 applicable cache hits, with no inconclusive calibration case. The three
+  original saved final replies were then judged afresh under that binding. Runs 1 and 2 change
+  from rubric FAIL to PASS; run 3 changes from PASS to FAIL because it treats a success receipt as
+  the run's start and asserts an email arrival time the records do not establish. This is a
+  supported semantic failure under the repaired evidence, not an instrumentation failure.
+  Calibration and these rejudgments used **30 live calls, USD 0.902976** in total. Original replies,
+  timing and grades remain unchanged; separate records live under
+  `.eval-runs/wp02-native-readiness-eval011-rubric-rejudgments-20261010T110051Z/`. The original
+  incident cases' independent structural failures still stand.
+- **Gap 7, ignored inputs.** [verified] Hashing and staging use the same Git inventory. Ignored
+  untracked residue enters neither the digest nor the served image; tracked files remain measured,
+  and non-ignored untracked inputs remain
+  measured and dirty. Unreadable inventories and explicitly named ignored hooks are refused.
+- **Gap 9, batch spending controls.** [verified] Tests invoke the actual batch runner with a stub
+  CLI and exercise the cap stopping further trials and an unknown cost stopping capped scheduling.
+  This supplies the runner-path evidence the original launcher's enforcement did not provide;
+  it adds no model-behavior or pricing claim.
+- **Gap 10, invocation and account evidence.** [verified] Every attempted CLI call writes argv,
+  workspace and launch state before execution, then exit and boundary evidence afterward. Runtime
+  records include OS-observed hostname, account ID, elevation and observation source. New CLI
+  batches reject incomplete identity or elevation before trials. Older v1 records remain readable;
+  unknown host/account identity does not pool or establish matched comparison conditions.
+- **Gap 11, residue.** [verified] Both CLI children and grading/oracle commands use workspace-owned
+  temporary directories. A cleanup receipt records removal, intentional retention and problems;
+  failed cleanup preserves the measured verdict and blocks batch reuse. The original ten files
+  were moved from `F:/eval-tmp/wp02` to
+  `.eval-runs/wp02-native-readiness-20261008/residue-archive-20261010/`; its manifest records their
+  relative paths, sizes and SHA-256 digests. The source tree contains no remaining files.
+
+[verified] Beyond these WP-02 gaps, supervised completion now covers 100 executable oracle
+commands across 40 cases (93 Python, seven UI), with FAIL exit 10 distinct from INCONCLUSIVE exit 1;
+eight semantic placeholders remain explicit unavailable measurements. All 242 active cases declare
+turn limits: 235 newly sized offline, seven preserved. [unverified] These provisional limits do not
+prove live completion time or candidate uplift. The original WP-02 run also remains without live
+PowerShell guard-path evidence; its later live guard canary exercised Bash.

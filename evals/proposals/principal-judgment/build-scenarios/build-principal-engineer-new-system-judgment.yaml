@@ -1,4 +1,6 @@
 id: build-principal-engineer-new-system-judgment
+# Unmeasured proposal: use the active new-system design donor bound, identical for both arms.
+max_turns: 26
 agent: principal-engineer
 # INACTIVE proposal: excluded from the runner's default catalog pending approved calibration.
 # Both arms receive identical prompt, fixture and checks. The full response is the semantic

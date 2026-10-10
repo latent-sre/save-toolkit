@@ -1,4 +1,5 @@
 id: discovery-fleet-atlas-defers-code-imports
+max_turns: 4
 split: regression
 prompt: |
   Here is the entire example: module a imports module b, and module b imports module c.

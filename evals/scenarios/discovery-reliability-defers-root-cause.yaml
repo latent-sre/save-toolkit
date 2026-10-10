@@ -1,4 +1,5 @@
 id: discovery-reliability-defers-root-cause
+max_turns: 24
 split: regression
 prompt: |
   Last night's batch wrote two duplicate settlement records. Reproduce the failure from the

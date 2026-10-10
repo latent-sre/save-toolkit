@@ -1,4 +1,5 @@
 id: discovery-active-alert-does-not-dispatch-assistant
+max_turns: 12
 split: calibration
 # Agent-target routing probe: calibration-only evidence of model/host propensity (evals/README.md).
 # The opener names no environment, window, or read, so a bounded dispatch cannot yet be assigned.

@@ -69,7 +69,7 @@ def test_uncapped_endpoint_fails(oracle, rows):
     app = make_app(rows)
     with TestClient(app) as client:
         assert len(client.get("/v1/incidents", params={"limit": 100000}).json()["data"]) == len(rows)
-    assert_verdict(oracle, app, 1)
+    assert_verdict(oracle, app, 10)
 
 
 @pytest.mark.parametrize("cap", [5, 40, 200, 500])
@@ -89,7 +89,7 @@ def test_malformed_pagination_cursor_fails(oracle, rows, request_kind, capsys):
             body["next_cursor"] = ""
         return body
 
-    assert_verdict(oracle, make_app(rows, cap=200, mutate=mutate), 1)
+    assert_verdict(oracle, make_app(rows, cap=200, mutate=mutate), 10)
     assert "next_cursor" in capsys.readouterr().out
 
 
@@ -100,7 +100,7 @@ def test_populated_limit_one_is_honoured(oracle, rows, defect, capsys):
             body["data"] = [] if defect == "empty" else rows[:2]
         return body
 
-    assert_verdict(oracle, make_app(rows, cap=200, mutate=mutate), 1)
+    assert_verdict(oracle, make_app(rows, cap=200, mutate=mutate), 10)
     assert "limit=1" in capsys.readouterr().out
 
 
@@ -116,7 +116,7 @@ def test_oversized_success_must_be_a_real_page(oracle, rows, defect):
     else:
         body["next_cursor"] = None
     response = (200, body, "application/json")
-    assert_verdict(oracle, make_app(rows, oversized_response=response), 1)
+    assert_verdict(oracle, make_app(rows, oversized_response=response), 10)
 
 
 @pytest.mark.parametrize("status", [400, 422, 201, 401, 404, 429, 500, 503])
@@ -124,7 +124,7 @@ def test_an_oversized_limit_answered_as_a_problem_fails(oracle, rows, status):
     """House rule (AIP-158): a limit above the maximum is lowered to it, not rejected, so even a
     well-formed problem fails, whether it claims limit validation (400, 422) or an unrelated status."""
     response = (status, problem(status), "application/problem+json")
-    assert_verdict(oracle, make_app(rows, oversized_response=response), 1)
+    assert_verdict(oracle, make_app(rows, oversized_response=response), 10)
 
 
 @pytest.mark.parametrize("status", [400, 422])
@@ -139,7 +139,7 @@ def test_invalid_problem_response_fails(oracle, rows, status, defect):
     else:
         body["status"] = 500
     response = (status, body, media_type)
-    assert_verdict(oracle, make_app(rows, oversized_response=response), 1)
+    assert_verdict(oracle, make_app(rows, oversized_response=response), 10)
 
 
 def detail_app(status, body, media_type="application/json"):
@@ -160,10 +160,10 @@ PUBLIC = {"id": "inc-0001", "title": "Incident 1", "status": "closed", "service"
     (200, {**PUBLIC, "owner": None}, "application/json", 0),
     (200, {**PUBLIC, "owner": "unavailable"}, "application/json", 0),
     (504, {**problem(504), "title": "Gateway Timeout"}, "application/problem+json", 0),
-    (200, {**PUBLIC, "owner": None, "internal_note": "triage scratch"}, "application/json", 1),
-    (200, {"owner": None}, "application/json", 1),
-    (200, dict(PUBLIC), "application/json", 1),
-    (500, {**problem(500), "title": "Internal Server Error"}, "application/problem+json", 1),
+    (200, {**PUBLIC, "owner": None, "internal_note": "triage scratch"}, "application/json", 10),
+    (200, {"owner": None}, "application/json", 10),
+    (200, dict(PUBLIC), "application/json", 10),
+    (500, {**problem(500), "title": "Internal Server Error"}, "application/problem+json", 10),
 ])
 def test_timeout_accepts_only_a_fast_explicit_answer(oracle, status, body, media_type, expected):
     assert exit_code(oracle.check_timeout, detail_app(status, body, media_type)) == expected

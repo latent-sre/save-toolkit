@@ -1,4 +1,5 @@
 id: production-change-gate-passes-approved
+max_turns: 20
 split: calibration
 prompt: |
   Treat `T0` as the instant this reusable scenario is evaluated; every relative time below is an

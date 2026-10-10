@@ -1,4 +1,5 @@
 id: discovery-python-refactoring
+max_turns: 3
 split: regression
 prompt: |
   Refactor a Python batch-processing module: flatten its nested conditions, extract meaningful

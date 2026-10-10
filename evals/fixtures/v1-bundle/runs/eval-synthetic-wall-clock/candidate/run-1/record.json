@@ -5,7 +5,7 @@
   },
   "case": {
     "id": "synthetic-wall-clock",
-    "case_sha256": "886c73d12e2916a63a575736f22becd6b926b4573ddd625826e1ebc2906c58a1",
+    "case_sha256": "2c6116993fd21b523131ab40e6ea7be9820b51b371d411173eff2884021236c5",
     "scenario_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
   },
   "candidate": {
@@ -30,9 +30,15 @@
         "system": "Linux",
         "release": "synthetic",
         "machine": "x86_64"
+      },
+      "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id": "uid:1001",
+        "elevated": false,
+        "identity_source": "posix_effective_uid"
       }
     },
-    "turn_limit": null,
+    "turn_limit": 20,
     "wall_clock_seconds": 300
   },
   "attempt": {

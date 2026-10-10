@@ -25,10 +25,11 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
         """A fresh workspace holding the fixture with `source` as its app, and the oracle beside it."""
         root = write_tree(Path(self.enterContext(tempfile.TemporaryDirectory())), {**FIXTURE, APP: source})
         (root / "_banner_oracle.py").write_bytes(ORACLE.read_bytes())
+        (root / "oracle_protocol.py").write_bytes((ORACLE.parent.parent / "oracle_protocol.py").read_bytes())
         return root
 
     def run_oracle(self, root, case):
-        return run_python(["_banner_oracle.py", case], cwd=root, encoding="utf-8", timeout=10)
+        return run_python(["oracle_protocol.py", "_banner_oracle.py", case], cwd=root, encoding="utf-8", timeout=10)
 
     def test_old_comment_only_anchor_and_green_seed_suite_do_not_prove_banner(self):
         source = FIXTURE[APP] + "\n# MAINTENANCE_BANNER\n"
@@ -82,12 +83,13 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
         checks = scenario_file(SCENARIO)["checks"]
         oracle_checks = [check for check in checks if "_banner_oracle.py" in check.get("command", "")]
         self.assertEqual(
-            {f"python _banner_oracle.py {case}" for case in ("enabled", "unset", "empty", "escaped")},
+            {f"python oracle_protocol.py _banner_oracle.py {case}" for case in ("enabled", "unset", "empty", "escaped")},
             {check["command"] for check in oracle_checks},
         )
         self.assertTrue(all(check["check"] == "command_exit_zero" for check in oracle_checks))
         self.assertTrue(all(check["writes_from"] == {
             "_banner_oracle.py": "evals/oracles/maintenance-banner/probe_banner.py",
+                    "oracle_protocol.py": "evals/oracles/oracle_protocol.py",
         } for check in oracle_checks))
 
 

@@ -149,7 +149,20 @@ def child_env(
     # No harness-named variable reaches the agent; fixtures point innocuous names at ${STATE_DIR}.
     for key, value in declared_env(spec).items():
         env[str(key)] = service_value(fixture_value(str(value), ws), services, for_agent=True)
+    set_trial_temp(env, ws)
     return env
+
+
+def set_trial_temp(env: dict[str, str], ws: Workspace) -> None:
+    """Candidate, CLI and oracle temporary files belong to the disposable trial root."""
+    # Forward slashes work for native Windows tools and Git Bash; /c/... breaks native Python.
+    temporary = ws.root / "tmp"
+    temporary.mkdir(exist_ok=True)
+    for key in ("TMP", "TEMP", "TMPDIR"):
+        env[key] = temporary.as_posix()
+    # The served plugin is an immutable input. Normal Python imports must not write executable
+    # cache files into it and cause false candidate drift; unexpected new image bytes still fail.
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
 
 
 def service_value(value: str, services: Sequence[Service] | None, *, for_agent: bool = False) -> str:

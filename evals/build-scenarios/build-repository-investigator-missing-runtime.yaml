@@ -1,4 +1,5 @@
 id: build-repository-investigator-missing-runtime
+max_turns: 11
 agent: repository-investigator
 tools:
 - Read

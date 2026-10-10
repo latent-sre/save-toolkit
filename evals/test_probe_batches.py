@@ -58,7 +58,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
         for states, expected in (((), 2), (("PASS",), 0), (("PASS", "INCONCLUSIVE", "FAIL"), 1),
                                  (("PASS", "INCONCLUSIVE"), 2)):
             rows = [{"scenario": "s", "label": "l", "run": n, "status": state, "passed": 0, "total": 1,
-                     "models": ["m"], "plugin_source_sha256": "0" * 64, "runtime": {"cli_version": "2.1.291 (Claude Code)", "host_platform": {"system": "Windows"}}}
+                     "models": ["m"], "plugin_source_sha256": "0" * 64, "runtime": STUB_RUNTIME}
                     for n, state in enumerate(states, 1)]
             with self.subTest(states=states), mock.patch.object(probe_rescoring, "regrade", return_value=rows):
                 self.assertEqual(expected, probe_cli.main(["--regrade", str(self.root)]))
@@ -69,7 +69,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
         def row(label, n, state, model="claude-sonnet-5"):
             return {
             "scenario": scenario, "label": label, "run": n, "status": state, "passed": 0, "total": 1,
-            "models": [model], "plugin_source_sha256": "0" * 64, "runtime": {"cli_version": "2.1.291 (Claude Code)", "host_platform": {"system": "Windows"}}}
+            "models": [model], "plugin_source_sha256": "0" * 64, "runtime": STUB_RUNTIME}
         for rows, expected in (
             ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL")], 0),
             ([row("good", n, "PASS") for n in (1, 2, 3)] + [row("bad", n, "FAIL") for n in (1, 2, 3)], 1),
@@ -85,6 +85,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
         out = self.root / "it"
         with mock.patch.object(probe_trials, "run_trial", side_effect=[finished, RuntimeError("harness defect")]), \
                 mock.patch.object(probe_batches, "batch_identity_problem", return_value=None), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=STUB_RUNTIME), \
                 contextlib.redirect_stdout(io.StringIO()), self.assertRaisesRegex(RuntimeError, "harness defect"):
             probe_cli.main(["--scenario", "build-operator-cli-safe-requeue", "--label", "l", "--trials", "2",
                               "--out", str(out), "--executable", sys.executable])
@@ -136,7 +137,7 @@ class ThresholdAggregationTests(unittest.TestCase):
 class BatchAggregationTests(TempRootTestCase):
     """Codex review of PR #222: the batch verdict must cover the batch, and one model identity."""
 
-    SPEC = {"id": "batch-contract", "agent": "sre-assistant", "prompt": "p",
+    SPEC = {"id": "batch-contract", "agent": "sre-assistant", "prompt": "p", "max_turns": 20,
             "graders": [{"type": "contains_any", "of": ["x"]}]}
 
     TEMP_PREFIX = "build-probe-batch-"
@@ -146,8 +147,7 @@ class BatchAggregationTests(TempRootTestCase):
         self.out = self.root / "iteration"
 
     # One measured CLI and host, as a real batch records once; pooling needs it to match (EVAL-011).
-    RUNTIME = {"cli_version": "2.1.291 (Claude Code)",
-               "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+    RUNTIME = {**STUB_RUNTIME, "cli_version": "2.1.291 (Claude Code)"}
 
     def _trial(self, run: int, status: str, model: str = "claude-sonnet-4-5") -> dict:
         return {"scenario": self.SPEC["id"], "label": "cand", "run": run, "status": status,
@@ -248,7 +248,8 @@ class BatchAggregationTests(TempRootTestCase):
                            "trials": 2, "threshold": 1.0}], verdict)
 
     def test_main_measures_the_runtime_once_and_passes_it_to_every_trial(self) -> None:
-        runtime = {"cli_version": "9.9.9 (Claude Code)", "host_platform": {"system": "X", "release": "1", "machine": "y"}}
+        runtime = {**STUB_RUNTIME, "cli_version": "9.9.9 (Claude Code)",
+                   "host_platform": {"system": "X", "release": "1", "machine": "y"}}
         trials = [self._trial(1, "PASS"), self._trial(2, "PASS")]
         buffer = io.StringIO()
         with mock.patch.object(probe_fingerprints, "runtime_identity", return_value=runtime) as probe, \
@@ -379,7 +380,7 @@ class JudgeSpendAccountingTests(unittest.TestCase):
 class RunnerIdentityTests(unittest.TestCase):
     """EVAL-011 identity: results name the runner, never pool CLI versions or hosts, and measure every hook."""
 
-    RUNTIME = {"cli_version": "2.1.291", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+    RUNTIME = {**STUB_RUNTIME, "cli_version": "2.1.291"}
 
     def test_runner_provenance_names_this_checkout_and_its_source_digest(self) -> None:
         runner = probe_fingerprints.runner_provenance()

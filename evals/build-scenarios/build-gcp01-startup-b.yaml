@@ -1,4 +1,5 @@
 id: build-gcp01-startup-b
+max_turns: 24
 agent: sre-assistant
 prompt: |
   Invoking caller and return recipient: human requester. Human owner: Riley, Quotes on-call.

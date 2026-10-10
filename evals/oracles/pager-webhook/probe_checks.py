@@ -30,7 +30,17 @@ _PROCS = []
 
 def fail(msg):
     print("FAIL: " + msg)
-    sys.exit(1)
+    sys.exit(10)
+
+
+def response_json(response):
+    try:
+        body = response.json()
+    except ValueError as exc:
+        fail("candidate response is not JSON: %s" % exc)
+    if not isinstance(body, dict):
+        fail("candidate response must be a JSON object")
+    return body
 
 
 def ok(msg):
@@ -291,5 +301,5 @@ CHECKS = {
 if __name__ == "__main__":
     name = sys.argv[1] if len(sys.argv) > 1 else ""
     if name not in CHECKS:
-        fail("unknown check %r" % name)
+        raise ValueError("unknown oracle check %r" % name)
     CHECKS[name](*start())

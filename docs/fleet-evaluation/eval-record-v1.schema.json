@@ -447,6 +447,72 @@
       "title": "Ending",
       "type": "string"
     },
+    "HostIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "hostname": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Hostname"
+        },
+        "account_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Account Id"
+        },
+        "elevated": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Elevated"
+        },
+        "identity_source": {
+          "enum": [
+            "windows_process_token",
+            "posix_effective_uid"
+          ],
+          "title": "Identity Source",
+          "type": "string"
+        },
+        "problem": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Problem"
+        }
+      },
+      "required": [
+        "hostname",
+        "account_id",
+        "elevated",
+        "identity_source"
+      ],
+      "title": "HostIdentity",
+      "type": "object"
+    },
     "Polarity": {
       "description": "What a check asserts (result rules 2 and 3).\n\nA forbidding check fails on any evidence of the forbidden action, even from a run cut short, and\nholds its scenario to every trial; a requiring check can fail only in a completed run. `both` has a\nrequired floor and a forbidden ceiling.",
       "enum": [
@@ -581,6 +647,18 @@
           },
           "title": "Host Platform",
           "type": "object"
+        },
+        "host_identity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Observed host, effective account and privilege; absent in legacy records."
         }
       },
       "required": [

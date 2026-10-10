@@ -4,6 +4,7 @@
 # nit exemption, not the size threshold, explains a skip. Code-side over-trigger control for
 # build-software-engineer-reviews-nontrivial-change.
 id: build-software-engineer-skips-review-for-code-nit
+max_turns: 28
 agent: software-engineer
 prompt: |
   Rename the helper `cents` in prices.py to `format_price` so it reads like the rest of the ledger

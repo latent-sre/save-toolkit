@@ -301,7 +301,7 @@ class ArtifactPromotionOracleTests(unittest.TestCase):
     def assert_rejected(self, steps, reason, **options):
         """The probe fails the artifact-promoted case and its report names `reason`."""
         result = self.probe(steps, **options)
-        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertEqual(10, result.returncode, result.stdout + result.stderr)
         self.assertIn(reason, result.stdout)
 
     @staticmethod

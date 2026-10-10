@@ -1,4 +1,5 @@
 id: agent-direct-scribe-contradictory-record
+max_turns: 20
 split: regression
 agent: scribe
 prompt: |

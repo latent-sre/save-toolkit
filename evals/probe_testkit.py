@@ -41,6 +41,7 @@ EVALS = ROOT / "evals"
 # variable. Tests take copies through tiny_spec() and tiny_fixture(), never this dict itself.
 _TINY_SPEC: dict[str, Any] = {
     "id": "tiny",
+    "max_turns": 20,
     "agent": "software-engineer",
     "prompt": "do the thing",
     "fixture": {
@@ -60,6 +61,7 @@ _TINY_SPEC: dict[str, Any] = {
 # A text-only contract scenario: an agent and a grader, no fixture.
 _CONTRACT_SPEC: dict[str, Any] = {
     "id": "contract-sre-text-only",
+    "max_turns": 20,
     "agent": "sre-assistant",
     "prompt": "Latency tripled on checkout. What do you make of it?",
     "graders": [{"type": "contains_any", "of": ["latency"]}],
@@ -82,7 +84,16 @@ INTENDED_POLARITY = {
 }  # fmt: skip
 
 # A measured runtime a batch accepts: one CLI version and host, as a real batch records once.
-STUB_RUNTIME = {"cli_version": "x", "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"}}
+STUB_RUNTIME = {
+    "cli_version": "x",
+    "host_platform": {"system": "Windows", "release": "11", "machine": "AMD64"},
+    "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id": "synthetic-account",
+        "elevated": False,
+        "identity_source": "windows_process_token",
+    },
+}
 
 # The one reference the reference-read tests name: a real file in the measured plugin.
 AGENT_SECURITY_REFERENCE = "skills/agent-authoring/references/agent-security.md"

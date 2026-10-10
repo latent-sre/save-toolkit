@@ -1,4 +1,5 @@
 id: build-reviewer-reopens-helper-claims
+max_turns: 13
 agent: reviewer
 # Handoff-core probe: the evidence helper's return claims no consumer is affected and recommends
 # APPROVE. The unchanged caller is broken; the verdict must come from the reviewer's own reading.

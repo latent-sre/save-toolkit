@@ -7,7 +7,6 @@ reported as `ServiceUnavailable` and turned into INCONCLUSIVE by the caller, nev
 from __future__ import annotations
 
 import base64
-import contextlib
 import json
 import re
 import secrets
@@ -97,6 +96,7 @@ class Service:
     config_root: Path | None = None
     proxy: _Proxy | None = field(default=None, repr=False)
     proxy_thread: object | None = field(default=None, repr=False)
+    proxy_stopped: bool = False
     relay_container_id: str = ""
 
 
@@ -150,6 +150,7 @@ def _start_service_proxy(service: Service) -> None:
 
     class FixedTargetProxy(http.server.BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
+        timeout = 30  # an idle accepted socket cannot keep the grading boundary open forever
 
         def log_message(self, _format: str, *_args: object) -> None:
             return
@@ -199,6 +200,8 @@ def _start_service_proxy(service: Service) -> None:
                 if key.lower() not in {"content-length", "connection", "transfer-encoding"}:
                     self.send_header(key, value)
             self.send_header("Content-Length", str(len(response_raw)))
+            self.send_header("Connection", "close")
+            self.close_connection = True
             self.end_headers()
             if self.command != "HEAD":
                 self.wfile.write(response_raw)
@@ -209,11 +212,14 @@ def _start_service_proxy(service: Service) -> None:
         server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FixedTargetProxy)
     except OSError as exc:
         raise ServiceUnavailable(f"{service.name}: could not start loopback audit proxy: {exc}") from exc
-    server.daemon_threads = True
+    # server_close joins these handlers after shutdown stops accepting requests. Each connection
+    # serves one request, so an idle keepalive client cannot issue more writes during grading.
+    server.daemon_threads = False
     thread = threading.Thread(target=server.serve_forever, name=f"build-probe-{service.name}", daemon=True)
     thread.start()
     service.proxy = server
     service.proxy_thread = thread
+    service.proxy_stopped = False
     service.agent_url = f"http://127.0.0.1:{server.server_address[1]}"
 
 
@@ -415,14 +421,33 @@ def start_services(spec: Mapping[str, Any], docker: str = "docker") -> list[Serv
         raise
 
 
+def stop_proxies(services: list[Service]) -> None:
+    """Stop agent request admission and settle every accepted request before grading reads state.
+
+    Keep the proxy and its audit attached as evidence, and leave backing containers available for
+    the checks' direct GETs. Repeating this at cleanup is harmless.
+    """
+    errors: list[str] = []
+    for service in services:
+        if service.proxy is not None and not service.proxy_stopped:
+            try:
+                service.proxy.shutdown()
+                service.proxy.server_close()
+                service.proxy_stopped = True
+            except OSError as exc:
+                errors.append(f"{service.name}: audit proxy did not settle: {exc}")
+    if errors:
+        raise ServiceUnavailable("; ".join(errors))
+
+
 def stop_services(services: list[Service], docker: str = "docker") -> None:
     networks = {service.network_name for service in services if service.network_name}
     errors: list[str] = []
+    try:
+        stop_proxies(services)
+    except ServiceUnavailable as exc:
+        errors.append(str(exc))
     for service in services:
-        if service.proxy is not None:
-            with contextlib.suppress(OSError):
-                service.proxy.shutdown()
-                service.proxy.server_close()
         for container_id in (service.relay_container_id, service.container_id):
             if not container_id:
                 continue

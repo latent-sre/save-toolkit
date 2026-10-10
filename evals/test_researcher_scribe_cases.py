@@ -7,6 +7,7 @@ import graders as fleet_graders
 import pytest
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
+from probe_testkit import context as check_context
 from probe_testkit import load_oracle, parse_events, scenario, write_tree
 
 ROOT = Path(__file__).resolve().parent
@@ -55,7 +56,7 @@ def test_runbook_fixture_rejects_verified_claims_outside_numbered_steps(artifact
 
 
 def test_external_call_count_uses_attempted_trace_events_including_failures():
-    context = SimpleNamespace(trace=parse_events([
+    context = check_context(scenario("build-researcher-public-source"), trace=parse_events([
         {"type": "assistant", "message": {"content": [
             {"type": "tool_use", "id": "fetch-1", "name": "WebFetch", "input": {"url": "https://example.com"}}]}},
         {"type": "user", "message": {"content": [
@@ -151,7 +152,7 @@ def test_partial_research_rejects_promotion_scope_mismatch_and_missing_coverage(
 
 @pytest.mark.parametrize("tool", [None, "WebFetch", "WebSearch"])
 def test_partial_research_zero_allowance_rejects_attempted_retrieval(tool):
-    context = SimpleNamespace(trace=parse_events([] if tool is None else [
+    context = check_context(scenario("build-researcher-partial-research"), trace=parse_events([] if tool is None else [
         {"type": "assistant", "message": {"content": [
             {"type": "tool_use", "id": "extra-call", "name": tool, "input": {}}]}},
         {"type": "user", "message": {"content": [

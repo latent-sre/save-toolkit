@@ -1,4 +1,5 @@
 id: discovery-reliability-defers-accepted-implementation
+max_turns: 24
 split: regression
 # The main session treats implementation as its own job: it keeps the work, or hands it to the
 # builder once a trial refuses it write tools. Either is correct; the design lanes taking accepted
