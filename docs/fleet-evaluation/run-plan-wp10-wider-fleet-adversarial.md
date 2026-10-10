@@ -126,7 +126,7 @@ precondition 6. The structured pairs follow after those traces are read, under t
 
 | Item | Estimate | Basis |
 |---|---|---|
-| Task spend | First step USD 7 to 18; all 81 trials USD 12 to 33 | USD 0.15 to 0.40 a trial. Recent single-agent trials cost about USD 0.14 to 0.24 each (PRECOMMIT-001: 12 trials, USD 1.65, commit `735bf750`; RELIABILITY-001: 14 trials, USD 2.06; PRINCIPAL-001: 108 trials, USD 26.31); the upper bound allows for build cases that run local tests |
+| Task spend | First step USD 7 to 20 for its 49 trials (45 plus the four lane-admission smokes); all 85 trials USD 13 to 34 | USD 0.15 to 0.40 a trial. Recent single-agent trials cost about USD 0.14 to 0.24 each (PRECOMMIT-001: 12 trials, USD 1.65, commit `735bf750`; RELIABILITY-001: 14 trials, USD 2.06; PRINCIPAL-001: 108 trials, USD 26.31); the upper bound allows for build cases that run local tests |
 | Judge spend | None | No case uses a rubric check |
 | Human review | First step about 5 hours; all about 8 | Semantic review of 18 natural-pair traces, about 15 minutes each, plus reviewer checks of the rest |
 | Cap | USD 20 task spend for the first step | Owner, 2026-10-10; scheduling stops at the cap. The structured pairs need their own cap |
