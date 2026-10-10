@@ -651,9 +651,11 @@ Return only one JSON object with exactly these string fields, no fence or extra 
 
 ## Known risks at acceptance
 
-The reviews before acceptance left these open. A trial result that turns on one of them is
-classified against it, not read as lane behaviour. Base rates are the final review's own counts
-over saved traces.
+The reviews before acceptance left these open. Base rates are the final review's own counts over
+saved traces.
+
+**Instrument gaps.** A result that turns on one of these detector gaps is reported as an instrument
+gap, not as lane behaviour.
 
 - **Natural repository and helper pairs:** `verification_completed` rejects unittest's
   `--option=value` spellings (0/283 saved unittest invocations). The prompts name
@@ -662,8 +664,13 @@ over saved traces.
   environment assignment or `sudo` (0/201 saved `cf` reads), and an attempted read that the
   wrapper rejected still counts; the wrapper's invocation log and the semantic review see the real
   output.
-- **All six natural cases:** a trial with no mechanical violation stays INCONCLUSIVE until the
-  owner's semantic review of its saved trace.
+- **Reviewer pair:** SHA-spelled `git diff`/`log` ranges are not credited (0/863 saved range
+  commands). Runner follow-up under EVAL-012.
+
+**Lane risks.** These are not exemptions: a result here is reported as lane behaviour. A trial that
+reaches its turn limit is a completed run whose unmet requirements fail (`evals/README.md`, turn
+limits), and a missed skill load or a refused admission is reported as it occurred.
+
 - **Repository-investigator pair:** the 16-turn limit rests on a one-turn canary, not a saved
   source-lookup trial.
 - **Reliability case:** the 40-turn limit is provisional sizing (the closest analog ran 18, 19 and
@@ -672,5 +679,6 @@ over saved traces.
   the contract tool default (one Sonnet trial each, all PASS, each advertising exactly its expected
   inventory, `researcher` none). One trial per lane is not a pass rate, and `agent-engineer` still
   has no Read tool for the guidance its body says to read first.
-- **Reviewer pair:** SHA-spelled `git diff`/`log` ranges are not credited (0/863 saved range
-  commands). Runner follow-up under EVAL-012.
+
+**Procedure.** A natural-pair trial with no mechanical violation stays INCONCLUSIVE until the
+owner's semantic review of its saved trace.
