@@ -9,6 +9,7 @@ left to the human review that `evals/oracles/gcp/README.md` specifies.
 import copy
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -54,8 +55,10 @@ def exercise(case_id, output):
         # An authored unavailable-observation control, applied before the workspace is seeded.
         script = spec['fixture']['fake_bin']['gcloud']
         assert script.count('print_logs() {') == 1
-        spec['fixture']['fake_bin']['gcloud'] = script.replace('print_logs() {',
-            "print_logs() {\n  printf '%s\\n' 'Fixture observation unavailable: logging read permission denied.' >&2\n  return 1")
+        denied = "print_logs() {\n  printf '%s\\n' 'Fixture observation unavailable: logging read permission denied.' >&2\n  return 1\n}"
+        script, replacements = re.subn(r'(?ms)^print_logs\(\) \{.*?^}', lambda _: denied, script)
+        assert replacements == 1 and '  stdout  ' not in script
+        spec['fixture']['fake_bin']['gcloud'] = script
     with tempfile.TemporaryDirectory(prefix='gcp-case-') as directory:
         ws = workspaces.seed_workspace(spec, Path(directory))
         # The wrapper's shell brings its own utilities; Windows' os.defpath has no `cat`.

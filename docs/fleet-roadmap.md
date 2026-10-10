@@ -395,8 +395,14 @@ authorizes no model spend, lab provisioning or production changes.
   Template review on 2026-10-10 repaired wrong-region/service fixture responses, added a genuine
   denied-log control, and narrowed the B reference answer to supported claims. [verified] The
   28 offline controls pass; the [template record and continuation queue](../evals/oracles/gcp/README.md#template-review-and-pilot-continuation)
-  identify the remaining 11 families (22 variants). Next: the owner accepts the reviewed template,
-  then those families follow its shape. Template acceptance does not accept unreviewed live cases.
+  identify the additional 11 families (22 variants). The owner accepted template revision
+  `c2924cc672ff28770d7784c10f1b6ea27e00a306` on 2026-10-10 for their offline authoring.
+  Template acceptance does not accept unreviewed live cases.
+  The full 24-case pilot is now authored with hidden source-bound review records and offline
+  useful/wrong/unavailable controls. Each catalog group has console and protected-CLI profiles;
+  new tool inventories narrow access to the declared interface. The 64-case catalog, human case
+  acceptance and WP-13's native pilot remain separate work. Next: review the
+  [pilot family records](../evals/oracles/gcp/PILOT.md) at the resulting case identities.
 
 2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases (15
 cases, 45 trials) under a USD 20 cap, and the sre-assistant, software-engineer and

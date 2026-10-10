@@ -8,8 +8,8 @@ synthetic. No case here has passed human case acceptance or produced a model res
 
 ## GCP-01 startup: `build-gcp01-startup-{a,b}`
 
-GCP-01 is the template for the 24-case pilot, written for one review round before the other
-pilot families follow its shape.
+GCP-01 is the accepted authoring template for the 24-case pilot. The remaining eleven families
+follow its paired-evidence and human semantic-review contract.
 
 | Field | Value |
 |---|---|
@@ -120,15 +120,18 @@ still differ in only five decisive application-log lines. Scenario validation (2
 expectations), Ruff, formatting and strict mypy pass. These checks establish fixture behavior;
 human semantic assessment and native model behavior remain unmeasured.
 
-Owner acceptance of this reviewed template precedes authoring the other eleven pilot families,
-as recorded in the [live roadmap](../../../docs/fleet-roadmap.md#eval-012--plan-incident-and-coding-evaluations-for-the-fleet).
-Acceptance here selects the authoring template. Each completed case still needs its own
+The owner accepted template revision `c2924cc672ff28770d7784c10f1b6ea27e00a306` on 2026-10-10
+for offline authoring of the other eleven pilot families, as recorded in the
+[live roadmap](../../../docs/fleet-roadmap.md#eval-012--plan-incident-and-coding-evaluations-for-the-fleet).
+This acceptance selects the authoring template. Each completed case still needs its own
 [case acceptance](../../../docs/fleet-evaluation/scenarios.md#case-acceptance-before-model-execution)
-before native execution. No owner acceptance is recorded yet.
+before native execution.
 
-The following preparation queue comes from the accepted pilot membership in the
-[GCP specification](../../../docs/fleet-evaluation/gcp.md#outcomes-and-delivery). It is a design
-inventory for the remaining 22 variants, not implemented fixtures or evaluated behavior.
+The following eleven families are now authored as 22 variants, completing the 24-case pilot
+membership in the [GCP specification](../../../docs/fleet-evaluation/gcp.md#outcomes-and-delivery).
+Their hidden [family review records](PILOT.md) contain source links, supported conclusions,
+alternatives and unknowns. This is authored offline coverage, not evaluated fleet behavior or
+completion of the full 64-case catalog.
 
 | Family | Decisive A/B separation | Required unavailable/negative control |
 |---|---|---|
@@ -144,10 +147,48 @@ inventory for the remaining 22 variants, not implemented fixtures or evaluated b
 | GCP-25 Container lifecycle | Application repeatedly crashes / image pull fails | Missing termination/event evidence; status names alone do not prove cause |
 | GCP-29 Workload identity | Kubernetes identity mapping wrong / mapping correct but resource access denied | Missing IAM observation; no token request or RBAC/IAM conflation |
 
-Each authored family will retain paired prompts and common symptoms, a named UTC observation
+Each authored family retains a paired task and common symptoms, a named UTC incident/event
 window and synthetic target, explicit ownership, hidden source-bound outcomes, useful/wrong/
-unavailable controls, and one family partition for both variants. Each catalog group needs both
-console-observation and admitted-CLI profiles. GKE cases declare mode and version and do not assume
-node access. The startup wrapper's unfiltered export cannot be reused as proof of query semantics;
-the log-scope family needs independently checked query results or labelled supplied observations.
-Source verification, interface allocation and partition selection precede freezing each family.
+unavailable controls, and one family partition for both variants. Observation capture times,
+historical baselines and coverage cutoffs remain separate in the packets.
+
+| Catalog group | Protected CLI export, tuning | Supplied console observations, held-out unless noted |
+|---|---|---|
+| Cloud Run/migration | GCP-01, GCP-05 | GCP-02 (tuning), GCP-08 |
+| Observability/identity/network | GCP-09, GCP-13 | GCP-12, GCP-15 |
+| Managed services | GCP-17 | GCP-18 |
+| GKE | GCP-25 | GCP-29 |
+
+GKE cases declare mode and illustrative version snapshots; they neither assert current version
+support nor assume node or kubectl access. Pub/Sub's region identifies its consumer deployment,
+not a regional subscription service. Additional services remain evaluation subjects rather than
+claims about the team's installed stack.
+
+The five new CLI families use an explicitly declared exact query to retrieve a compiled synthetic
+packet. An unsupported query or target returns no observations; each declared command is checked
+against the existing read-only guard. The packets include labelled owner observations such as
+effect ledgers or Pod events, and are not native Cloud Logging API responses. This transport does
+not validate arbitrary query semantics, IAM enforcement or a live cloud read. GCP-09's independently
+specified saved-query/results explain scope versus delayed arrival; they do not create a general
+query emulator. Console cases receive their evidence directly and declare a shell-free tool list.
+
+## Authoring and verification
+
+The eleven files under `families/` are the source data for the added cases. Keep task/common
+evidence, decisive observations, hidden review criteria, control responses and public sources in
+their separate fields. `scripts/generate_gcp_pilot.py --write` projects only the explicit candidate
+fields into 22 scenario YAMLs and renders `PILOT.md`. Running the script without `--write` checks
+for drift. GCP-01 remains the separately accepted hand-authored pair.
+
+Each new case inherits the accepted startup template's 24-turn limit as a conservative offline
+authoring bound, not a measured completion claim. Adjustments before native execution change case
+identity and need the resulting case revision reviewed. No agent prompts, tools policy or runtime
+permissions are broadened by this authoring work.
+
+`evals/test_gcp_pilot.py` exercises the real wrappers and existing runner checks. Useful and
+plausible-wrong answers both stay INCONCLUSIVE until independent semantic assessment; the hidden
+control labels are authored expectations. Unavailable conditions remove the decisive observations
+from candidate prompts and wrapper source entirely. Attempted edits and recognized forbidden
+commands fail mechanically; console refusals remain for semantic assessment while CLI refusals
+also fail the required read check. Neither result is PASS. A case's good/bad/unavailable controls
+must still receive human semantic review before a live case is accepted.
