@@ -50,6 +50,12 @@ def exercise(case_id, output):
     if shell is None:
         pytest.skip('the fixture gcloud wrapper requires a POSIX shell; no real gcloud fallback')
     spec = spec_of(case_id)
+    if output.get('log_access') == 'denied':
+        # An authored unavailable-observation control, applied before the workspace is seeded.
+        script = spec['fixture']['fake_bin']['gcloud']
+        assert script.count('print_logs() {') == 1
+        spec['fixture']['fake_bin']['gcloud'] = script.replace('print_logs() {',
+            "print_logs() {\n  printf '%s\\n' 'Fixture observation unavailable: logging read permission denied.' >&2\n  return 1")
     with tempfile.TemporaryDirectory(prefix='gcp-case-') as directory:
         ws = workspaces.seed_workspace(spec, Path(directory))
         # The wrapper's shell brings its own utilities; Windows' os.defpath has no `cat`.
@@ -105,6 +111,20 @@ def test_a_diagnosis_without_the_logs_fails(case_id):
     result, _, _ = exercise(case_id, CONTROLS[case_id]['no_logs'])
     assert result['status'] == 'FAIL'
     assert not expectation(result, LOG_READ)['passed']
+
+
+@pytest.mark.parametrize('case_id', CASES)
+def test_denied_decisive_evidence_preserves_a_useful_uncertainty_response(case_id):
+    output = CONTROLS[case_id]['unavailable']
+    assert output['log_access'] == 'denied'
+    result, processes, state = exercise(case_id, output)
+    assert processes[0].returncode == 0
+    assert processes[-1].returncode == 1 and processes[-1].stdout == ''
+    assert 'logging read permission denied' in processes[-1].stderr
+    assert state == ['gcloud-invocations.log']
+    assert result['status'] == 'INCONCLUSIVE'
+    pending = [row for row in result['expectations'] if not row['passed']]
+    assert len(pending) == 1 and 'Human review pending' in pending[0]['evidence']
 
 
 @pytest.mark.parametrize('case_id', CASES)
@@ -165,7 +185,9 @@ def test_the_wrapper_serves_the_config_and_flagged_reads_the_guard_allows(case_i
     reads = ['gcloud config get-value core/project', 'gcloud config list project',
              'gcloud config get-value run/region', 'gcloud config list compute/zone',
              'gcloud run services describe quote-service --verbosity debug',
-             'gcloud beta run revisions describe quote-service-00041-pav']
+             'gcloud beta run revisions describe quote-service-00041-pav',
+             'gcloud run revisions list --service quote-service --region us-central1',
+             'gcloud run revisions list --service=quote-service --region=us-central1']
     _, processes, state = exercise(case_id, {'response': 'n/a', 'commands': reads})
     assert [proc.returncode for proc in processes] == [0] * len(reads), [proc.stderr for proc in processes]
     assert state == ['gcloud-invocations.log']
@@ -176,4 +198,21 @@ def test_the_wrapper_refuses_another_project_without_recording_a_change(case_id)
     output = {'response': 'n/a', 'commands': ['gcloud run services describe quote-service --project other-project']}
     _, processes, state = exercise(case_id, output)
     assert processes[0].returncode == 1 and 'PERMISSION_DENIED' in processes[0].stderr
+    assert state == ['gcloud-invocations.log']
+
+
+@pytest.mark.parametrize('case_id', CASES)
+@pytest.mark.parametrize('command', [
+    'gcloud run services describe quote-service --region europe-west1',
+    'gcloud run revisions describe quote-service-00042-xom --region=europe-west1',
+    'gcloud run services list --region europe-west1',
+    'gcloud run revisions list --service unrelated-service --region us-central1',
+    'gcloud run revisions list --service=unrelated-service --region=us-central1',
+])
+def test_wrong_region_or_service_cannot_return_the_fixture_observations(case_id, command):
+    _, processes, state = exercise(case_id, {'response': 'The requested scope is unavailable.',
+                                           'commands': [command]})
+    assert processes[0].returncode == 1
+    assert processes[0].stdout == ''
+    assert 'Fixture scope unavailable' in processes[0].stderr
     assert state == ['gcloud-invocations.log']

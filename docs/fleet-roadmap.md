@@ -392,7 +392,11 @@ authorizes no model spend, lab provisioning or production changes.
   useful and a plausible-wrong answer both end INCONCLUSIVE pending human review, while a missing log
   read, a change or credential request (including forms the guard denies before the wrapper sees
   them), and a refusal FAIL; each control test fails on its mutant.
-  Next: the owner reviews the template, then the other 11 pilot families follow its shape.
+  Template review on 2026-10-10 repaired wrong-region/service fixture responses, added a genuine
+  denied-log control, and narrowed the B reference answer to supported claims. [verified] The
+  28 offline controls pass; the [template record and continuation queue](../evals/oracles/gcp/README.md#template-review-and-pilot-continuation)
+  identify the remaining 11 families (22 variants). Next: the owner accepts the reviewed template,
+  then those families follow its shape. Template acceptance does not accept unreviewed live cases.
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
 2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
