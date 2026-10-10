@@ -16,8 +16,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 - Eval oracles: `build-software-engineer-resumes-after-partial-helper` graded its backoff repair
   with an inline `python -c` program that imported candidate code outside EVAL-011's supervision, so
   candidate code exiting 0 at import passed. It now runs a supervised oracle file. [verified] The
-  early exit passed on `0a15e336` and fails now; a correct repair passes and a wrong one fails; a new
-  test keeps every inline `python -c` check to the standard library and PyYAML.
+  early exit passed on `0a15e336` and fails now; a correct repair passes and a wrong one fails,
+  including an integer too large for a float; a new test keeps every inline `python -c` check's
+  import statements to the standard library and PyYAML.
 - `EVAL-016` closes with the owner's 2026-10-08 disposition. [verified] With their material
   seeded, every session reviewed the change or document itself and found the planted defect (six
   replies, each naming the defect with a do-not-merge verdict; `.eval-runs/eval-016-20261008/`).

@@ -22,13 +22,14 @@ All of these hold before the first paid call:
    digest from the [EVAL-011 closeout](../reviews/2026-10-10-eval-011-closeout.md), rechecked at the
    run revision. WP-02's [historical freeze](run-plan-wp02-native-readiness.md#historical-frozen-runner-record)
    identifies its original trials, not the repaired runner.
-2. A human reviewer has accepted each case below at an exact scenario digest: the task is possible
+2. A human reviewer has accepted each case below at its exact case digest (`fingerprints.case_digest`:
+   the scenario and its oracle bytes; the runner is pinned by item 1): the task is possible
    with the supplied evidence and tools, the expected result follows, valid alternatives are
    recognized, and the checks separate known good, bad and unavailable outcomes. The rationale is
    kept with the case revision.
 3. Every case declares a turn limit. EVAL-011 has supplied all 27 limits below using saved counts
    and timing with same-profile fallbacks. They are provisional offline sizing choices, not live
-   performance evidence; acceptance in item 2 applies to the resulting scenario digests. On
+   performance evidence; acceptance in item 2 applies to the resulting case digests. On
    2026-10-10 the owner raised the sre-assistant, software-engineer and repository-investigator
    limits (below); the others keep EVAL-011's sizing.
 4. The model-free controls below pass at the accepted revision on the run host. The fake `cf`
@@ -43,7 +44,7 @@ All of these hold before the first paid call:
 | Precondition | State | Evidence |
 |---|---|---|
 | 1. Runner identity | Repaired; final evidence in EVAL-011 closeout, then recheck at the run revision | The historical freeze has lifted; current runner changes and their saved-run comparison belong to the closeout record |
-| 2. Human case acceptance | Pending at the exact resulting scenario digests | The [acceptance sheet](../reviews/2026-10-10-wp10-case-acceptance.md) binds each first-step case to its case digest, with its task, checks and model-free controls, for the owner's verdict |
+| 2. Human case acceptance | Pending at the exact resulting case digests | The [acceptance sheet](../reviews/2026-10-10-wp10-case-acceptance.md) binds each first-step case to its case digest, with its task, checks and model-free controls, for the owner's verdict |
 | 3. Turn limits | Implemented for all 27 cases | [verified] Limits below are present in the current YAML, and `evals/test_eval011_turn_limits.py` pins the 20 the owner set. The reviewer pair uses its own saved counts; the other unmeasured cases use profile evidence and bounded timing estimates |
 | 4. Model-free controls | Original controls passed; recheck at the accepted revision | [verified] Current `validate`: 242 specs and 1,050 expectations. The original five control files passed 106 tests and 647 subtests without skips after the fake-wrapper shell fix; consolidated post-repair checks are recorded in the closeout |
 | 5. Review of PR #334 | Finding 5 repaired under EVAL-011 | [verified] Supervised completion prevents an early candidate exit from passing an unfinished assessment; findings 1 to 4 retain their regression coverage |
@@ -62,9 +63,11 @@ The private sizing manifest and its rationale are referenced by the closeout. Th
 roughly 450 seconds within the 900-second guard under observed throughput; a slow individual tool
 or helper can still reach the wall clock. The owner's higher limits leave more room before a run
 ends at its limit, which counts as complete and fails unmet requirements. [sourced: saved trials,
-2026-10-10] At the 90th-percentile pace of saved build trials, 64 software-engineer turns take about
-610 seconds and 42 sre-assistant turns about 260, both inside the guard; comparable small
-software-engineer repairs peaked at 26 turns. No WP-10 live result follows from declaring these limits.
+2026-10-10] At the 90th-percentile pace of saved build trials of more than two turns, 64
+software-engineer turns take about 610 seconds and 42 sre-assistant turns about 260. Counting the
+slow single-turn sre-assistant trials raises that lane's pace to about 17.5 seconds a turn, or about
+735 seconds for 42 turns: still inside the guard. Comparable small software-engineer repairs peaked
+at 26 turns. No WP-10 live result follows from declaring these limits.
 
 ## Model-free controls
 

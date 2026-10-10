@@ -402,7 +402,7 @@ digest. Next: the owner accepts or rejects those 15 cases; the first-step run st
 accepted. Separately, the inline backoff oracle in `build-software-engineer-resumes-after-partial-helper`,
 which EVAL-011's supervision did not reach, now runs as a supervised oracle file. [verified] On
 `0a15e336` it passed candidate code that exits 0 at import; now it fails it, and a test keeps inline
-`python -c` checks from importing candidate code.
+`python -c` checks to standard-library or PyYAML imports by name (dynamic imports need review).
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
 2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what

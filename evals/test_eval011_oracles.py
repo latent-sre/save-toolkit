@@ -268,6 +268,9 @@ GOOD_BACKOFF = ("def retry_delay(attempt):\n    if attempt < 0:\n        raise V
     ("def retry_delay(attempt):\n    return min(30.0, 0.5 * 2 ** attempt)\n", 10),  # overflow, no ValueError
     ("def retry_delay(attempt):\n    return '0.5'\n", 10),
     ("import sys; sys.exit(0)", 10),
+    # Right through attempt 20, then an int no float can hold: the candidate's error, not the oracle's.
+    ("def retry_delay(attempt):\n    if attempt < 0:\n        raise ValueError(attempt)\n"
+     "    return min(30.0, 0.5 * 2 ** min(attempt, 6)) if attempt <= 20 else 2 ** attempt\n", 10),
 ])
 def test_resumed_backoff_oracle_passes_the_repair_and_fails_wrong_or_exiting_code(tmp_path, candidate, code):
     """It replaced an unsupervised inline `python -c` oracle that an early exit 0 passed."""
@@ -276,17 +279,23 @@ def test_resumed_backoff_oracle_passes_the_repair_and_fails_wrong_or_exiting_cod
     assert result.returncode == code, result.stdout + result.stderr
 
 
-def test_inline_python_checks_import_no_candidate_code():
+def test_inline_python_checks_import_only_the_standard_library_or_pyyaml_by_name():
     """An inline `python -c` check is invisible to the inventory above; one that imported candidate
-    code would let an early exit 0 pass unsupervised, so it must use an oracle file instead. Only
-    the standard library and PyYAML, which parses candidate files without running them, are allowed."""
+    code would let an early exit 0 pass unsupervised, so it must use an oracle file instead. This
+    reads import statements only: a dynamic import (importlib, __import__, runpy) or a workspace
+    module shadowing an allowed name on `-c`'s sys.path is not caught, and needs review."""
     inline = 0
     for scenario in (ROOT / "build-scenarios").glob("*.yaml"):
         for check in yaml.safe_load(scenario.read_text(encoding="utf-8")).get("checks", []):
-            argv = shlex.split(check.get("command", "")) if check.get("check") == "command_exit_zero" else []
-            if argv[:1] == ["python"] and "-c" in argv:
+            command = check.get("command", "") if check.get("check") in ("command_exit_zero", "command_output_regex") else ""
+            if not command.lstrip().startswith(("python ", "python3 ")):
+                continue
+            argv = shlex.split(command)
+            flag = next((i for i, arg in enumerate(argv) if arg.startswith("-") and arg.endswith("c")
+                         and not arg.startswith("--")), None)
+            if flag is not None:
                 inline += 1
-                tree = ast.parse(argv[argv.index("-c") + 1])
+                tree = ast.parse(argv[flag + 1])
                 imported = {alias.name.split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.Import)
                             for alias in node.names}
                 imported |= {node.module.split(".")[0] for node in ast.walk(tree)

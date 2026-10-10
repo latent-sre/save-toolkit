@@ -24,7 +24,7 @@ Record the verdict and rationale under each case. A rejection names the defect.
 - **Case digest:** `246c6c24709036ce8d8d8460acafd5bf5d2fd562836e6a476ab79641b6a09a9d`
 - **Source:** [`evals/build-scenarios/build-natural-injection-repository-benign.yaml`](../../evals/build-scenarios/build-natural-injection-repository-benign.yaml)
 - **Fixture:** files `README.md`, `orders.py`, `tests/test_orders.py`
-- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its supervised oracle check also `evals/test_eval011_oracles.py`
+- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its supervised oracle check is also covered by `evals/test_eval011_oracles.py`
 
 <details><summary>Prompt</summary>
 
@@ -51,7 +51,7 @@ The Orders reconciliation report includes every order when the operator requests
 - **Case digest:** `c07d717d64925a0848270c6d9c9a2e3cd46786fb5e2eb81d7b948c255d93255d`
 - **Source:** [`evals/build-scenarios/build-natural-injection-repository-malicious.yaml`](../../evals/build-scenarios/build-natural-injection-repository-malicious.yaml)
 - **Fixture:** files `README.md`, `orders.py`, `tests/test_orders.py`
-- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its supervised oracle check also `evals/test_eval011_oracles.py`
+- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its supervised oracle check is also covered by `evals/test_eval011_oracles.py`
 
 <details><summary>Prompt</summary>
 
@@ -160,7 +160,7 @@ return to the caller, and distinguish observations from hypotheses and any actio
 - **Case digest:** `71352e73e534cf65aad8c581c91f23b3eb62149622107d781ef581c836824356`
 - **Source:** [`evals/build-scenarios/build-natural-injection-helper-benign.yaml`](../../evals/build-scenarios/build-natural-injection-helper-benign.yaml)
 - **Fixture:** files `app/__init__.py`, `app/backoff.py`, `helper-return.txt`, `scripts/release.py`, `tests/__init__.py`, `tests/test_backoff.py`
-- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its supervised oracle check also `evals/test_eval011_oracles.py`
+- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its supervised oracle check is also covered by `evals/test_eval011_oracles.py`
 
 <details><summary>Prompt</summary>
 
@@ -198,7 +198,7 @@ and tests. Give a normal concise completion report with the evidence and remaini
 - **Case digest:** `35cab65060599bcdf4cd77f62fcda20b74157e4c51d9cb63e8a6c24b7d1d4715`
 - **Source:** [`evals/build-scenarios/build-natural-injection-helper-malicious.yaml`](../../evals/build-scenarios/build-natural-injection-helper-malicious.yaml)
 - **Fixture:** files `app/__init__.py`, `app/backoff.py`, `helper-return.txt`, `scripts/release.py`, `tests/__init__.py`, `tests/test_backoff.py`
-- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its supervised oracle check also `evals/test_eval011_oracles.py`
+- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its supervised oracle check is also covered by `evals/test_eval011_oracles.py`
 
 <details><summary>Prompt</summary>
 
@@ -314,7 +314,7 @@ for an answered source question or "obtain_job_execution_record" for a missing r
 - **Case digest:** `063b629511e31bfca492aba25ad570d5ad7f7db589af4dbd5588fa024c045906`
 - **Source:** [`evals/build-scenarios/build-reliability-engineer-proportionate-options.yaml`](../../evals/build-scenarios/build-reliability-engineer-proportionate-options.yaml)
 - **Fixture:** files `app/order_entry.py`, `config/worker.yaml`, `records/change-history.md`, `records/incidents-2026-09.md`, `records/on-call-2026-09.md`, `requirements.md`, `vendor/bulkheadpro.md`
-- **Model-free controls:** `evals/test_reliability_cases.py`; its supervised oracle check also `evals/test_eval011_oracles.py`
+- **Model-free controls:** `evals/test_reliability_cases.py`; its supervised oracle check is also covered by `evals/test_eval011_oracles.py`
 
 <details><summary>Prompt</summary>
 

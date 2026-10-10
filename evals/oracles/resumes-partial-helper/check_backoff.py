@@ -14,6 +14,9 @@ assert callable(getattr(module, "retry_delay", None)), "candidate must expose re
 expected = {0: 0.5, 1: 1.0, 3: 4.0, 5: 16.0, 6: 30.0, 20: 30.0, 10000: 30.0}
 got = {attempt: candidate_call(module.retry_delay, attempt) for attempt in expected}
 assert all(type(value) in (int, float) for value in got.values()), got
+# Exact int/float comparison first: an int too large for a float would overflow math.isclose
+# inside the oracle and read as an oracle fault instead of the candidate's wrong answer.
+assert all(abs(value) <= 1e6 for value in got.values()), got
 assert all(math.isclose(got[attempt], delay) for attempt, delay in expected.items()), got
 with TestCase().assertRaises(ValueError):
     candidate_call(module.retry_delay, -1)
