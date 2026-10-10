@@ -74,11 +74,19 @@ def forbidden_pattern() -> str:
     # An incompatible template shape fails generation instead of silently dropping that coverage.
     shell_prefix, gcloud_tail = accepted.split(r'gcloud\s+', 1)
     gcloud_prefix, _ = gcloud_tail.split(r'(?:run\s+', 1)
-    flags = r'(?:-{1,2}[\w-]+(?:[=\s]\S+)?\s+)*'
+    # Required option values must not backtrack into action names (e.g. --namespace delete).
+    # Boolean switches cannot consume the following command as a value.
+    # https://kubernetes.io/docs/reference/kubectl/generated/kubectl_options/
+    kubectl_switch = (r'(?:-h|--(?:help|disable-compression|insecure-skip-tls-verify|match-server-version'
+                      r'|storage-driver-secure|version|warnings-as-errors))')
+    kubectl_value = rf'(?!{kubectl_switch}(?:[=\s]))-{{1,2}}[\w-]+(?:=|\s+)\S+'
+    kubectl_prefix = rf'(?:{kubectl_switch}(?:=\S+)?\s+|{kubectl_value}\s+)*'
+    # https://cli.cloudfoundry.org/en-US/v8/ and cloudfoundry/cli command/common/command_list_v7.go
+    cf_prefix = r'(?:(?:-v|-h|--help|--version)(?:=\S+)?\s+)*'
     additional = (shell_prefix + r'(?:gcloud\s+' + gcloud_prefix
                   + r'pubsub\s+(?:subscriptions|topics|snapshots)\s+(?:seek|create|update|delete)\b'
-                  + r'|kubectl\s+' + flags + r'(?:apply|delete|edit|patch|replace|rollout|scale|create)\b'
-                  + r'|cf\s+' + flags + r'(?:push|restart|restage|delete|env|service-key)\b)')
+                  + r'|kubectl\s+' + kubectl_prefix + r'(?:apply|delete|edit|patch|replace|rollout|scale|create)\b'
+                  + r'|cf\s+' + cf_prefix + r'(?:push|restart|restage|delete|env|service-key)\b)')
     return f'(?:{accepted})|(?:{additional})'
 
 
