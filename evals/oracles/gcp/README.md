@@ -192,3 +192,29 @@ from candidate prompts and wrapper source entirely. Attempted edits and recogniz
 commands fail mechanically; console refusals remain for semantic assessment while CLI refusals
 also fail the required read check. Neither result is PASS. A case's good/bad/unavailable controls
 must still receive human semantic review before a live case is accepted.
+
+### Offline completion receipt — 2026-10-10
+
+[verified] Implementation revision `3c5ae9f6a9599ac952e989ca53a02c8a7cbb5116`, reviewed against
+`57186ec7d7f01d78e2565d5f87143842882bd84f`, received independent source-review approval with no
+outstanding material findings. Review covered all eleven family records and the complete 40-file
+diff. It closed the console tool-inventory and forbidden-command coverage findings; unavailable
+exports also omit the withheld observations from readable wrapper source. The accepted startup
+scenario YAMLs and scripted responses remain unchanged.
+
+[verified] On Python 3.14.7, `python -m pytest -q -n 4 --dist loadfile` passed 2,699 tests and
+5,011 subtests in 386.67 seconds. All 228 GCP checks passed (28 startup, 200 additional-pilot), with
+no GCP skips. The full suite skipped 42 checks: five platform/symlink checks, 22 opt-in incidents-page
+checks, eleven external producer CLI checks, one CI-only shell requirement and three opt-in Docker
+checks. Four third-party deprecation warnings were reported. These skipped interfaces remain
+unverified by this run. Private execution receipts are `gcp-pilot-final.log` and
+`gcp-pilot-final.xml` under the main checkout's `.tmp/`.
+
+[verified] Ruff, formatting (24 files), strict mypy (43 source files), generated-output comparison,
+relative links, `git diff --check` and Gate A (2/2 structural steps) passed. Scenario validation
+accepted 264 scenarios with 1,258 graded expectations. The final receipt commit changes documentation
+only; the implementation and case bytes remain those tested and reviewed above.
+
+[unverified] Human semantic case acceptance, native model behavior, live GCP/GKE interfaces and
+completion within the authored turn limit remain pending. This receipt makes no performance or
+operational-readiness claim and does not complete WP-12's 64-case catalog or WP-13's native pilot.
