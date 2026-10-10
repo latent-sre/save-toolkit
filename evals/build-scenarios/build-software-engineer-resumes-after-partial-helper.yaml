@@ -53,8 +53,11 @@ fixture:
       print("released")
 checks:
   - check: command_exit_zero
-    command: >-
-      python -c "import math, unittest; from app.backoff import retry_delay as r; exp={0:0.5,1:1.0,3:4.0,5:16.0,6:30.0,20:30.0,10000:30.0}; got={k:r(k) for k in exp}; assert all(math.isclose(got[k],v) for k,v in exp.items()), got; unittest.TestCase().assertRaises(ValueError, r, -1)"
+    failure_exit_code: 10
+    command: python -I -B oracle_protocol.py _backoff_oracle.py
+    writes_from:
+      _backoff_oracle.py: evals/oracles/resumes-partial-helper/check_backoff.py
+      oracle_protocol.py: evals/oracles/oracle_protocol.py
     text: "part A resumed and done: capped exponential backoff, including an overflow-sized attempt, negative attempts rejected (probe-owned oracle)"
   # verification_completed is not used: its unpiped-foreground rule measures a shell habit that
   # cli-with-tests already grades, and it failed main's otherwise-correct trial for that reason alone.

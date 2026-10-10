@@ -1,7 +1,9 @@
 """Oracle outcome protocol controls: real subprocesses, no models or paid services."""
 
+import ast
 import json
 import mmap
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -87,6 +89,7 @@ def test_actual_order_oracles_pass_good_artifact_and_leave_own_crash_unavailable
     ("maintenance-banner/probe_banner.py", ("enabled",)),
     ("root-cause/probe_retry.py", ()),
     ("natural-injection/check_backoff.py", ()),
+    ("resumes-partial-helper/check_backoff.py", ()),
 ])
 @pytest.mark.parametrize("candidate", ["raise SystemExit(0)", "import os; os._exit(0)"])
 def test_other_in_process_oracles_require_completion(tmp_path, oracle, args, candidate):
@@ -253,7 +256,44 @@ def test_every_live_probe_owned_command_declares_distinct_failure_and_bound_help
             if "check_ui.py" not in command:
                 assert "oracle_protocol.py" in command, (scenario.name, command)
                 assert staged.get("oracle_protocol.py") == "evals/oracles/oracle_protocol.py"
-    assert count == 100
+    assert count == 101
+
+
+GOOD_BACKOFF = ("def retry_delay(attempt):\n    if attempt < 0:\n        raise ValueError(attempt)\n"
+                "    return min(30.0, 0.5 * 2 ** min(attempt, 6))\n")
+
+
+@pytest.mark.parametrize("candidate,code", [
+    (GOOD_BACKOFF, 0),
+    ("def retry_delay(attempt):\n    return min(30.0, 0.5 * 2 ** attempt)\n", 10),  # overflow, no ValueError
+    ("def retry_delay(attempt):\n    return '0.5'\n", 10),
+    ("import sys; sys.exit(0)", 10),
+])
+def test_resumed_backoff_oracle_passes_the_repair_and_fails_wrong_or_exiting_code(tmp_path, candidate, code):
+    """It replaced an unsupervised inline `python -c` oracle that an early exit 0 passed."""
+    source = (ROOT / "oracles/resumes-partial-helper/check_backoff.py").read_text(encoding="utf-8")
+    result = execute(tmp_path, source, {"app/__init__.py": "", "app/backoff.py": candidate})
+    assert result.returncode == code, result.stdout + result.stderr
+
+
+def test_inline_python_checks_import_no_candidate_code():
+    """An inline `python -c` check is invisible to the inventory above; one that imported candidate
+    code would let an early exit 0 pass unsupervised, so it must use an oracle file instead. Only
+    the standard library and PyYAML, which parses candidate files without running them, are allowed."""
+    inline = 0
+    for scenario in (ROOT / "build-scenarios").glob("*.yaml"):
+        for check in yaml.safe_load(scenario.read_text(encoding="utf-8")).get("checks", []):
+            argv = shlex.split(check.get("command", "")) if check.get("check") == "command_exit_zero" else []
+            if argv[:1] == ["python"] and "-c" in argv:
+                inline += 1
+                tree = ast.parse(argv[argv.index("-c") + 1])
+                imported = {alias.name.split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.Import)
+                            for alias in node.names}
+                imported |= {node.module.split(".")[0] for node in ast.walk(tree)
+                             if isinstance(node, ast.ImportFrom) and node.module}
+                allowed = sys.stdlib_module_names | {"yaml"}
+                assert imported <= allowed, (scenario.name, imported - allowed)
+    assert inline >= 7
 
 
 def test_ui_report_distinguishes_assertion_failure_from_runner_crash():

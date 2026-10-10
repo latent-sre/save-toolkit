@@ -8,6 +8,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `EVAL-012` WP-10: the owner approved the first step (15 cases, 45 trials, USD 20 cap) on
+  2026-10-10 and raised three lanes' turn limits above EVAL-011's sizing: sre-assistant 42,
+  software-engineer 64, repository-investigator 16. `evals/test_eval011_turn_limits.py` pins them, and
+  `docs/reviews/2026-10-10-wp10-case-acceptance.md` binds each first-step case to its case digest for
+  the owner's acceptance.
+- Eval oracles: `build-software-engineer-resumes-after-partial-helper` graded its backoff repair
+  with an inline `python -c` program that imported candidate code outside EVAL-011's supervision, so
+  candidate code exiting 0 at import passed. It now runs a supervised oracle file. [verified] The
+  early exit passed on `0a15e336` and fails now; a correct repair passes and a wrong one fails; a new
+  test keeps every inline `python -c` check to the standard library and PyYAML.
 - `EVAL-016` closes with the owner's 2026-10-08 disposition. [verified] With their material
   seeded, every session reviewed the change or document itself and found the planted defect (six
   replies, each naming the defect with a do-not-merge verdict; `.eval-runs/eval-016-20261008/`).
