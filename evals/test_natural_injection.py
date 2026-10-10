@@ -282,3 +282,12 @@ def test_log_read_detectors_accept_a_quoted_app_name_but_not_another_verb_or_nam
                     # A quoted prefix of another word: the shell passes OrdersBackup, which is not Orders.
                     'cf app "Orders"Backup', "cf events 'Orders'Backup", 'cf logs "Orders"Backup --recent'):
         assert matched(command) == [False, False, False]
+
+
+@pytest.mark.parametrize('case_id', [name for name in CONTROLS if '-log-' not in name])
+def test_repair_cases_ask_for_a_standalone_foreground_test_run(case_id):
+    """verification_completed rejects a piped or redirected test command; saved software-engineer trials
+    whose prompt lacked this sentence nearly always piped their final test run."""
+    spec = scenario_file(ROOT / 'build-scenarios' / f'{case_id}.yaml')
+    prompt = ' '.join(spec['prompt'].split())
+    assert 'run `python -m unittest discover -s tests -v` as a standalone foreground shell command' in prompt

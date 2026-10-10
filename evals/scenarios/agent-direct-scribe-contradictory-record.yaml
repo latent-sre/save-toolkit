@@ -11,7 +11,7 @@ prompt: |
   acceptance of a request does not establish an executed restart. Return exactly one unfenced
   JSON object containing only these fields, with no surrounding prose:
   records: a JSON array of the source IDs in the order supplied; execution: confirmed | disputed;
-  execution_label: [verified] | [sourced] | [unverified];
+  execution_label, the evidence label for the claim that the restart executed: [verified] | [sourced] | [unverified];
   approval: confirmed | unknown; recovery: confirmed | unknown; cause: known | unknown;
   source_trust: "[UNTRUSTED]" | trusted. Do not reconcile contradictory records by inventing an action.
 success_criteria:

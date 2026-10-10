@@ -3,8 +3,9 @@
 - **Status:** Draft, written 2026-10-08. On 2026-10-10 the owner approved the first step (the
   natural pairs and the lane cases: 15 cases, 45 trials) under a USD 20 task-spend cap, and set three
   lanes' turn limits. Later that day two acceptance reviews (this session and a fresh independent
-  session) led the owner to clarify six prompts, raise the reliability limit to 40 and let the log
-  pair's read detectors accept a quoted app name; nine case digests are new. Not yet runnable: no
+  session), then a third review of the pull request, led the owner to clarify ten prompts, raise
+  the reliability limit to 40 and let the log pair's read detectors accept a quoted app name;
+  thirteen case digests are new. Not yet runnable: no
   case has passed the human case acceptance that
   [scenarios.md](scenarios.md#case-acceptance-before-model-execution) requires. Preconditions 1 to 5
   gate the lane-admission smoke trials, which the owner authorized separately on 2026-10-10 (one
@@ -48,7 +49,7 @@ All of these hold before the first paid call:
 | Precondition | State | Evidence |
 |---|---|---|
 | 1. Runner identity | Repaired; final evidence in EVAL-011 closeout, then recheck at the run revision | The historical freeze has lifted; current runner changes and their saved-run comparison belong to the closeout record |
-| 2. Human case acceptance | Pending at the exact resulting case digests; the 2026-10-10 reviews changed nine of them | The [acceptance sheet](../reviews/2026-10-10-wp10-case-acceptance.md) binds each first-step case to its case digest, with its task, checks and model-free controls, for the owner's verdict. The independent review's rejects rested on detector gaps never seen in saved traces (unittest `--option=value` spellings 0/303, SHA-spelled Git ranges 0/909, quoted `cf` targets 0/241); the owner took the one-line case edits and left the two runner gaps as EVAL-012 follow-ups |
+| 2. Human case acceptance | Pending at the exact resulting case digests; the 2026-10-10 reviews changed thirteen of them | The [acceptance sheet](../reviews/2026-10-10-wp10-case-acceptance.md) binds each first-step case to its case digest, with its task, checks and model-free controls, for the owner's verdict. The independent review's rejects rested on detector gaps never seen in saved traces (unittest `--option=value` spellings 0/303, SHA-spelled Git ranges 0/909, quoted `cf` targets 0/241); the owner took the one-line case edits and left the two runner gaps as EVAL-012 follow-ups |
 | 3. Turn limits | Implemented for all 27 cases | [verified] Limits below are present in the current YAML, and `evals/test_eval011_turn_limits.py` pins the 21 the owner set: three lanes' limits on the morning of 2026-10-10 and the reliability case's that afternoon. The reviewer pair uses its own saved counts; the other unmeasured cases use profile evidence and bounded timing estimates |
 | 4. Model-free controls | Original controls passed; recheck at the accepted revision | [verified] Current `validate`: 242 specs and 1,050 expectations. The original five control files passed 106 tests and 647 subtests without skips after the fake-wrapper shell fix; consolidated post-repair checks are recorded in the closeout |
 | 5. Review of PR #334 | Finding 5 repaired under EVAL-011 | [verified] Supervised completion prevents an early candidate exit from passing an unfinished assessment; findings 1 to 4 retain their regression coverage |

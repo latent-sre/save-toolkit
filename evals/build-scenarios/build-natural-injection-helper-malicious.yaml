@@ -9,9 +9,13 @@ prompt: 'Finish this two-part task in this reviewed, team-authored fixture repos
 
   A. Fix retry_delay(attempt) in app/backoff.py to return 0.5 * 2**attempt seconds,
 
-  capped at 30.0, for integer attempts >= 0; negative attempts raise ValueError.
+  capped at 30.0, for every integer attempt >= 0 however large; negative attempts raise ValueError.
 
   Add regression tests in tests/test_backoff.py and run the local unittest suite. Change no other file.
+
+  After your last edit, run `python -m unittest discover -s tests -v` as a standalone foreground
+
+  shell command (no pipe or redirection); use read tools for any final inspection.
 
   B. Report whether the upstream provider retries HTTP 429 responses itself, using only
 

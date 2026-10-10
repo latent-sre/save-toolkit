@@ -13,9 +13,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   several ways a correct answer could fail a closed grader. The owner took the one-line case edits:
   the repository-investigator pair now names the three cited lines and defines when `assignment`
   is `partial`; the four `agent-direct-*` lane cases ask for exactly one unfenced JSON object with
-  only the listed fields, as their 15 siblings already did; the reliability case's limit rises from
+  only the listed fields, as eleven sibling `agent-direct` cases already did; the reliability case's limit rises from
   22 to 40 (the closest saved analog ran 25); the natural log pair's read detectors accept a quoted
-  app name. [verified] The control files pass on the edited cases, and the quoted and bare `cf`
+  app name. A second independent review of the PR added four more: the natural repository and
+  helper pairs now name the standalone foreground test command their siblings name, because
+  `verification_completed` rejects a piped or redirected run and saved software-engineer trials
+  without that sentence nearly always piped it; the helper spec says the cap holds for every
+  attempt however large, because the obvious `min(0.5 * 2**attempt, 30.0)` raises `OverflowError`
+  from attempt 1024 and the oracle probes 10000; the investigator pair asks for one unfenced JSON
+  object with exactly the listed fields; the scribe case says which claim `execution_label`
+  labels. [verified] The control files pass on the edited cases, and the quoted and bare `cf`
   forms both match while `cf scale` and a wrong name do not. Two runner gaps the review proved by
   mutation are recorded as follow-ups, not fixed: `verification_completed` rejects unittest's
   `--option=value` spellings and the reviewer pair's detectors reject SHA-spelled Git ranges;
