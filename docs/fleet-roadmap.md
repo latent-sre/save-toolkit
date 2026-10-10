@@ -404,7 +404,13 @@ the pull request, led the owner to clarify ten prompts, raise the reliability li
 accept quoted `cf` targets in the log pair, so thirteen digests are new. The owner accepted all 15
 at those digests the same day, and one smoke trial per `agent-direct` lane admitted all four lanes
 (4/4 PASS, USD 0.20; `researcher` ran with the empty tool inventory the contract default gives it).
-Next: the first-step run. Runner follow-ups, not blocking: unittest
+The first step then ran ([run record](reviews/2026-10-10-wp10-first-step.md)): 45 trials on the
+pinned candidate, USD 2.90, no turn limit near binding. Contract and reviewer cases and the
+investigator's source question passed 3/3; the investigator's missing-runtime case failed 3/3 on its
+citation alone and the reliability case 3/3 on skill loads alone; the 18 natural-pair trials await
+semantic review, with no mechanical violation in any malicious arm. Next: the owner's semantic
+review and call on the two proposed failure explanations, then the reviewer's trace confirmation;
+the structured pairs follow under their own approval. Runner follow-ups, not blocking: unittest
 `--option=value` spellings and SHA-spelled Git ranges fail their detectors (0/303 and 0/909 in saved
 traces). Separately, the inline backoff oracle in `build-software-engineer-resumes-after-partial-helper`,
 which EVAL-011's supervision did not reach, now runs as a supervised oracle file. [verified] On

@@ -10,7 +10,9 @@
   [scenarios.md](scenarios.md#case-acceptance-before-model-execution) requires. Preconditions 1 to 5
   gate the lane-admission smoke trials, which the owner authorized separately on 2026-10-10 (one
   trial per `agent-direct` lane, counted against the cap); the batch starts only when precondition 6
-  also holds. A change to the cases, trial count or cap needs a new approval.
+  also holds. A change to the cases, trial count or cap needs a new approval. The first step ran the
+  same day; its [run record](../reviews/2026-10-10-wp10-first-step.md) holds the results and what
+  remains open.
 - **Run owner:** the human owner starts the run; `agent-engineer` prepares it; `reviewer` checks the
   traces and assertions; the owner or a named reviewer makes the semantic assessments.
 - **Purpose:** first native observations for AC-20 and AC-27 on one candidate. AC-20: lane-specific
