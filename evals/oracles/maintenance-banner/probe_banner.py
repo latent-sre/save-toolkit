@@ -53,7 +53,13 @@ def call(application, path):
     captured = {}
 
     def start_response(status, headers, exc_info=None):
-        captured["status"], captured["headers"] = status, dict(headers)
+        assert isinstance(status, str), f"{path}: response status must be text"
+        try:
+            captured["status"], captured["headers"] = status, dict(headers)
+        except (TypeError, ValueError) as exc:
+            raise AssertionError(f"{path}: response headers must contain key/value pairs") from exc
+        assert all(isinstance(name, str) and isinstance(value, str)
+                   for name, value in captured["headers"].items()), f"{path}: header names and values must be text"
 
     response = candidate_call(application, environ, start_response)
     try:
@@ -63,8 +69,10 @@ def call(application, path):
         close = candidate_call(getattr, response, "close", missing)
         if close is not missing:
             candidate_call(close)
+    assert "status" in captured, f"{path}: application did not call start_response"
     assert captured["status"] == "200 OK", f"{path}: status changed"
     headers = {key.lower(): value for key, value in captured["headers"].items()}
+    assert "content-type" in headers, f"{path}: response is missing Content-Type"
     return headers, body
 
 

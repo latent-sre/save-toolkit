@@ -66,6 +66,57 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
                 result = self.run_oracle(root, case)
                 self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
+    def test_malformed_response_metadata_fails_for_the_named_contract(self):
+        original = 'start_response("200 OK", [("Content-Type", "text/html; charset=utf-8")])'
+        cases = [
+            ("missing callback", "pass", "did not call start_response"),
+            ("missing content type", 'start_response("200 OK", [])', "missing Content-Type"),
+            ("no headers", 'start_response("200 OK", None)', "key/value pairs"),
+            ("noniterable headers", 'start_response("200 OK", 42)', "key/value pairs"),
+            ("non-pair entry", 'start_response("200 OK", [42])', "key/value pairs"),
+            ("short pair", 'start_response("200 OK", [("Content-Type",)])', "key/value pairs"),
+            ("long pair", 'start_response("200 OK", [("Content-Type", "text/html", "extra")])', "key/value pairs"),
+            ("nontext name", 'start_response("200 OK", [(42, "text/html")])', "names and values must be text"),
+            ("nontext value", 'start_response("200 OK", [("Content-Type", ["text/html"])])', "names and values must be text"),
+            ("nontext status", 'start_response(200, [("Content-Type", "text/html")])', "status must be text"),
+        ]
+        for name, replacement, diagnostic in cases:
+            with self.subTest(case=name):
+                source = CORRECT.replace(original, replacement)
+                self.assertNotEqual(source, CORRECT)
+                result = self.run_oracle(self.seeded(source), "enabled")
+                self.assertEqual(10, result.returncode, result.stdout + result.stderr)
+                self.assertIn(diagnostic, result.stderr)
+
+    def test_valid_mapping_and_iterable_headers_pass(self):
+        sequence = ("\nclass HeaderPairs:\n"
+                    "    def __init__(self, pairs): self.pairs = pairs\n"
+                    "    def __getitem__(self, index): return self.pairs[index]\n")
+        for expression in ('{"Content-Type": %s}', '(("Content-Type", %s),)',
+                           '((name, value) for name, value in [("Content-Type", %s)])',
+                           'HeaderPairs([("Content-Type", %s)])'):
+            source = CORRECT + sequence
+            for media_type in ('application/json', 'text/html; charset=utf-8'):
+                source = source.replace(f'[("Content-Type", "{media_type}")]', expression % repr(media_type))
+            root = self.seeded(source)
+            for case in ("enabled", "unset", "empty", "escaped"):
+                with self.subTest(headers=expression, case=case):
+                    result = self.run_oracle(root, case)
+                    self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_oracle_callback_defects_outside_metadata_conversion_stay_unavailable(self):
+        for exception in ("TypeError", "RuntimeError", "KeyboardInterrupt", "GeneratorExit"):
+            with self.subTest(exception=exception):
+                root = self.seeded(CORRECT)
+                oracle = (root / "_banner_oracle.py").read_text(encoding="utf-8")
+                oracle = oracle.replace("def start_response(status, headers, exc_info=None):",
+                                        "def start_response(status, headers, exc_info=None):\n"
+                                        f"        raise {exception}('oracle callback defect')")
+                (root / "_banner_oracle.py").write_text(oracle, encoding="utf-8")
+                result = self.run_oracle(root, "enabled")
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("oracle callback defect", result.stderr)
+
     def test_meaningful_broken_artifacts_fail_for_the_named_contract(self):
         broken = [
             (CORRECT.replace("html.escape(banner)", "banner"), "escaped", "executable markup"),
