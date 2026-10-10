@@ -65,6 +65,7 @@ fixture:
 checks:
   - {check: skill_loaded, skill: root-cause, before_effects: true, text: "trace: diagnostic skill completed before shell execution or editing"}
   - check: command_exit_zero
+    completion: true
     command: "python probe_retry.py"
     writes_from: {probe_retry.py: evals/oracles/root-cause/probe_retry.py}
     text: "oracle: permanent failures, transient recovery, exhaustion, and return/exception identity"

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from probe_testkit import run_python, scenario_file, write_tree
+from probe_testkit import assert_completion, completion_env, run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/python-craft/check_new_code.py"
@@ -101,7 +101,8 @@ class NewCodeProbeTests(unittest.TestCase):
             (work / "tests/__init__.py").write_text("", encoding="utf-8")
             (work / "tests/test_outcome_counts.py").write_text(tests, encoding="utf-8")
             (work / "_python_new_oracle.py").write_bytes(ORACLE.read_bytes())
-            return run_python(["-B", "_python_new_oracle.py"], cwd=work, isolated=True, encoding="utf-8", timeout=45)
+            return assert_completion(run_python(["-B", "_python_new_oracle.py"], cwd=work, isolated=True,
+                                                env=completion_env(), encoding="utf-8", timeout=45))
 
     def assert_passes(self, source):
         result = self.run_artifact(source)

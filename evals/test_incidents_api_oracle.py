@@ -1,13 +1,15 @@
 """No-model pagination regressions against the shipped fixture and in-process HTTP apps."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
-from probe_testkit import load_oracle, scenario_file
+from probe import checking as probe_checking
+from probe_testkit import COMPLETION_TOKEN, load_oracle, scenario_file
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-incidents-api.yaml"
@@ -75,6 +77,17 @@ def test_uncapped_endpoint_fails(oracle, rows):
 @pytest.mark.parametrize("cap", [5, 40, 200, 500])
 def test_capped_endpoint_passes(oracle, rows, cap):
     assert_verdict(oracle, make_app(rows, cap=cap), 0)
+
+
+def test_a_pass_prints_the_completion_token_last_and_a_failure_never(rows, monkeypatch, capsys):
+    """command_exit_zero's `completion`: the token leaves the environment before candidate code runs."""
+    monkeypatch.setenv(probe_checking.COMPLETION_ENV, COMPLETION_TOKEN)
+    loaded = load_oracle(ORACLE)
+    assert probe_checking.COMPLETION_ENV not in os.environ
+    assert_verdict(loaded, make_app(rows, cap=40), 0)
+    assert capsys.readouterr().out.strip().splitlines()[-1] == COMPLETION_TOKEN
+    assert_verdict(loaded, make_app(rows), 1)
+    assert COMPLETION_TOKEN not in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("request_kind", ["default", "limited", "walk", "oversized", "last"])

@@ -434,6 +434,11 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
                     "and a value other than inconclusive_exit_code",
                 ),
                 (
+                    "completion" in check
+                    and (check["check"] != "command_exit_zero" or check["completion"] is not True),
+                    "completion needs command_exit_zero and the value true",
+                ),
+                (
                     check["check"] == "skill_loaded"
                     and "before_effects" in check
                     and not isinstance(check["before_effects"], bool),

@@ -3,6 +3,11 @@
 These inspect candidate modules in a disposable fixture, not arbitrary repositories.
 They are public regression oracles, not hidden evaluations or a sandbox.
 """
+import os
+
+# Removed before candidate code runs and printed last once every assertion holds, so candidate
+# code that exits early with status 0 cannot pass (command_exit_zero `completion: true`).
+COMPLETION = os.environ.pop("ORACLE_COMPLETION_TOKEN", "")
 
 import ast
 import importlib.util
@@ -444,3 +449,5 @@ if __name__ == "__main__":
     except SystemExit as exc:
         raise AssertionError("candidate exited before contract checks completed") from exc
     print("contract passed:", sys.argv[1])
+    if COMPLETION:
+        print(COMPLETION)

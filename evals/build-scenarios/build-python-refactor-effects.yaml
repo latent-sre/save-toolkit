@@ -34,6 +34,7 @@ checks:
     command: "python -c \"import subprocess,sys; sys.exit(0 if subprocess.run(['git','diff','--quiet','HEAD','--','batch.py']).returncode == 1 else 1)\""
     text: "the requested module was changed, rather than only reporting the original passing behavior"
   - check: command_exit_zero
+    completion: true
     command: "python -I -B _python_oracle.py refactor"
     writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
     text: "values, limits, errors, mutation and callback effects satisfy independent expectations"

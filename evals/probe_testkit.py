@@ -19,6 +19,7 @@ import functools
 import importlib.util
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -202,6 +203,25 @@ def materialize_reference(
     (workspace / "app/main.py").write_text(code, encoding="utf-8")
     (workspace / "probe_checks.py").write_text(oracle.read_text(encoding="utf-8"), encoding="utf-8")
     return workspace
+
+
+COMPLETION_TOKEN = "oracle-completion-test-token"
+
+
+def completion_env() -> dict[str, str]:
+    """The environment for an oracle run that carries a known completion token."""
+    return {**os.environ, checking.COMPLETION_ENV: COMPLETION_TOKEN}
+
+
+def assert_completion(result: subprocess.CompletedProcess[Any]) -> subprocess.CompletedProcess[Any]:
+    """An oracle run with `completion_env()` prints the token as its last line when it passes, and
+    nowhere when it does not, so command_exit_zero's `completion` reads it as the runner would."""
+    if result.returncode == 0:
+        last = result.stdout.strip().splitlines()[-1:]
+        assert last == [COMPLETION_TOKEN], f"passed without the completion token last: {result.stdout[-300:]!r}"
+    else:
+        assert COMPLETION_TOKEN not in result.stdout, f"exit {result.returncode} printed the completion token"
+    return result
 
 
 def run_oracle_check(

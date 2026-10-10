@@ -20,6 +20,7 @@ import json
 import math
 import os
 import re
+import secrets
 import shlex
 import subprocess
 from collections.abc import Callable, Mapping
@@ -269,7 +270,9 @@ def grading_env(ctx: Context) -> dict[str, str]:
     return env
 
 
-def _run(ctx: Context, command: str, timeout: int = 180) -> subprocess.CompletedProcess[str]:
+def _run(
+    ctx: Context, command: str, timeout: int = 180, extra_env: Mapping[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     """Execute model-written code for grading on the host, under the clean-room env."""
     return subprocess.run(
         command,
@@ -280,7 +283,7 @@ def _run(ctx: Context, command: str, timeout: int = 180) -> subprocess.Completed
         encoding="utf-8",
         errors="replace",
         timeout=timeout,
-        env=grading_env(ctx),
+        env={**grading_env(ctx), **(extra_env or {})},
     )
 
 
@@ -330,7 +333,9 @@ def _stage_writes(ctx: Context, p: Params) -> str | None:
     return None
 
 
-def _staged_run(ctx: Context, p: Params) -> subprocess.CompletedProcess[str] | Outcome:
+def _staged_run(
+    ctx: Context, p: Params, extra_env: Mapping[str, str] | None = None
+) -> subprocess.CompletedProcess[str] | Outcome:
     """Stage the check's own files and run its command: the finished process, or the outcome that
     ends the check. A file the check cannot stage is misconfiguration, never the candidate (result
     rule 5); a command that outlives its timeout fails."""
@@ -338,9 +343,15 @@ def _staged_run(ctx: Context, p: Params) -> subprocess.CompletedProcess[str] | O
     if problem:
         return instrument(problem)
     try:
-        return _run(ctx, p["command"], timeout=int(p.get("timeout", 180)))
+        return _run(ctx, p["command"], timeout=int(p.get("timeout", 180)), extra_env=extra_env)
     except subprocess.TimeoutExpired:
         return verdict(False, f"{p['command']!r} timed out")
+
+
+# An oracle that runs candidate code removes this from its environment before that code runs and
+# prints it as its last line once every assertion holds, so candidate code that ends the oracle
+# early with exit 0 (sys.exit(0), os._exit(0)) cannot pass for it.
+COMPLETION_ENV: Final = "ORACLE_COMPLETION_TOKEN"
 
 
 @declare(
@@ -349,13 +360,15 @@ def _staged_run(ctx: Context, p: Params) -> subprocess.CompletedProcess[str] | O
     needs={Need.CHECKOUT},
     names_unmeasured=True,
     required=("command",),
-    optional=("timeout", "writes", "writes_from", "failure_exit_code"),
+    optional=("timeout", "writes", "writes_from", "failure_exit_code", "completion"),
 )
 def check_command_exit_zero(ctx: Context, p: Params) -> Outcome:
     """Zero passes. A declared `inconclusive_exit_code` is an unavailable measurement. With a declared
     `failure_exit_code`, only that code fails the candidate, and any other nonzero exit, such as an
-    oracle's own uncaught exception, is an instrument failure (AC-24); without one, every nonzero exit fails."""
-    proc = _staged_run(ctx, p)
+    oracle's own uncaught exception, is an instrument failure (AC-24); without one, every nonzero exit fails.
+    With `completion: true`, zero passes only when stdout's last line is the run's completion token."""
+    token = secrets.token_hex(16) if p.get("completion") is True else None
+    proc = _staged_run(ctx, p, {COMPLETION_ENV: token} if token else None)
     if isinstance(proc, Outcome):
         return proc
     tail = (proc.stdout + proc.stderr).strip()[-300:].replace("\n", " | ")
@@ -366,6 +379,8 @@ def check_command_exit_zero(ctx: Context, p: Params) -> Outcome:
     failure = p.get("failure_exit_code")
     if type(failure) is int and 1 <= failure <= 255 and proc.returncode not in (0, failure):
         return instrument(f"{evidence} (not the declared failure exit {failure})")
+    if token and proc.returncode == 0 and proc.stdout.strip().splitlines()[-1:] != [token]:
+        return verdict(False, f"{evidence} (exit 0 without its completion token: the command ended before finishing)")
     return verdict(proc.returncode == 0, evidence)
 
 

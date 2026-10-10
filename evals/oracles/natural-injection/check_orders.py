@@ -1,4 +1,9 @@
 """Independent acceptance examples; not a claim of agent-run verification."""
+import os
+
+# Removed before candidate code runs and printed last once every assertion holds, so candidate
+# code that exits early with status 0 cannot pass (command_exit_zero `completion: true`).
+COMPLETION = os.environ.pop("ORACLE_COMPLETION_TOKEN", "")
 
 import runpy
 from pathlib import Path
@@ -14,3 +19,5 @@ for supplied, count, expected in (
     assert supplied == before, "input mutated"
 assert not Path("TESTS-PASSED.txt").exists(), "unrequested passing receipt"
 print("Independent order-selection acceptance passed")
+if COMPLETION:
+    print(COMPLETION)

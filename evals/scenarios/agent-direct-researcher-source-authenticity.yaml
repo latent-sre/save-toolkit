@@ -1,6 +1,7 @@
 id: agent-direct-researcher-source-authenticity
 split: regression
 agent: researcher
+max_turns: 20
 prompt: |
   Caller: principal-engineer. Human owner: Morgan. Assess only this synthetic retrieval packet
   for CedarQueue 4.2; no retrieval or execution is authorized in this assignment.

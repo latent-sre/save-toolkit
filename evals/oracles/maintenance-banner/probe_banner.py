@@ -1,7 +1,11 @@
 """Probe the seeded checkout WSGI contract; run each environment case in a fresh process."""
+import os
+
+# Removed before candidate code runs and printed last once every assertion holds, so candidate
+# code that exits early with status 0 cannot pass (command_exit_zero `completion: true`).
+COMPLETION = os.environ.pop("ORACLE_COMPLETION_TOKEN", "")
 
 from html.parser import HTMLParser
-import os
 import sys
 from wsgiref.util import setup_testing_defaults
 
@@ -99,3 +103,5 @@ def check(case):
 
 if __name__ == "__main__":
     check(sys.argv[1])
+    if COMPLETION:
+        print(COMPLETION)

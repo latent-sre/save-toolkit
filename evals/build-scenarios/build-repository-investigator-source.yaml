@@ -4,6 +4,7 @@ tools:
 - Read
 - Grep
 - Glob
+max_turns: 15
 prompt: |
   Invoking caller and return recipient: software-engineer. Human owner: Morgan.
   Answer this bounded question from the synthetic fixture checkout: What default attempt count does submit use when a job omits attempts?

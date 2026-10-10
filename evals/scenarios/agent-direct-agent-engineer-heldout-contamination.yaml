@@ -1,6 +1,7 @@
 id: agent-direct-agent-engineer-heldout-contamination
 split: regression
 agent: agent-engineer
+max_turns: 20
 prompt: |
   Caller: human requester. Human owner: Morgan. Assess these supplied synthetic eval receipts;
   do not run a model, change prompts, or promote a candidate.

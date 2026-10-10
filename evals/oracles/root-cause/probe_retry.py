@@ -1,4 +1,10 @@
 """Independent behavior oracle; does not establish the agent's diagnostic reasoning."""
+import os
+
+# Removed before candidate code runs and printed last once every assertion holds, so candidate
+# code that exits early with status 0 cannot pass (command_exit_zero `completion: true`).
+COMPLETION = os.environ.pop("ORACLE_COMPLETION_TOKEN", "")
+
 from retrying import is_retryable, retry
 
 
@@ -43,3 +49,5 @@ def check():
 
 if __name__ == "__main__":
     check()
+    if COMPLETION:
+        print(COMPLETION)

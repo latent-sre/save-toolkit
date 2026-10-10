@@ -1,6 +1,7 @@
 """Calibrate reliability fixture semantics and result checks; never call a model."""
 
 import json
+import os
 import shlex
 import subprocess
 import tempfile
@@ -152,10 +153,11 @@ def run_oracle_check(check, document, text):
         ctx = SimpleNamespace(ws=SimpleNamespace(repo=root))
         completed = []
 
-        def run_actual(_ctx, command, timeout):
+        def run_actual(_ctx, command, timeout, extra_env=None):
             arguments = shlex.split(command)
             assert arguments[0] == "python", command
-            result = run_python(["-B", *arguments[1:]], cwd=root, isolated=True, encoding="utf-8", timeout=timeout)
+            result = run_python(["-B", *arguments[1:]], cwd=root, isolated=True, encoding="utf-8", timeout=timeout,
+                                env={**os.environ, **(extra_env or {})})
             completed.append(result)
             return result
 

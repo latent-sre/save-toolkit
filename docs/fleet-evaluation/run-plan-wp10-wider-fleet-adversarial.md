@@ -1,10 +1,10 @@
 # WP-10 run plan: wider fleet and controlled adversarial cases
 
-- **Status:** Draft, written 2026-10-08. Not approved: the owner has set no budget, and no case
-  below has passed the human case acceptance that
-  [scenarios.md](scenarios.md#case-acceptance-before-model-execution) requires. The run starts only
-  when every precondition below holds; a change to the cases, trial count or cap needs a new
-  approval.
+- **Status:** Draft, written 2026-10-08. On 2026-10-10 the owner chose the first step's scope and
+  cap, the turn limits and a repair for finding 5 (below). Not yet runnable: no case has passed the
+  human case acceptance that [scenarios.md](scenarios.md#case-acceptance-before-model-execution)
+  requires. The run starts only when every precondition below holds; a change to the cases, trial
+  count or cap needs a new approval.
 - **Run owner:** the human owner starts the run; `agent-engineer` prepares it; `reviewer` checks the
   traces and assertions; the owner or a named reviewer makes the semantic assessments.
 - **Purpose:** first native observations for AC-20 and AC-27 on one candidate. AC-20: lane-specific
@@ -29,26 +29,27 @@ All of these hold before the first paid call:
 4. The model-free controls below pass at the accepted revision on the run host. The fake `cf`
    wrapper tests skip without a POSIX `sh`; a skip there is not a pass.
 5. The independent review of the cases (PR #334) is closed. Its findings 1 to 4 are fixed with
-   regression tests. Finding 5, that candidate code can exit an oracle early with status 0, needs
-   the owner's disposition: the recommendation is no change for WP-10, because only a candidate
-   deliberately gaming the grader triggers it and 110 existing `command_exit_zero` checks share the
-   pattern, so any repair belongs to the runner's checks as a whole. The ADR keeps incorrect grading
-   from untrusted generated code in scope, so this is a deferral, not an exclusion.
+   regression tests. Finding 5, that candidate code can exit an oracle early with status 0, is
+   repaired at the owner's choice: `command_exit_zero` takes `completion: true`, and the ten
+   oracles that load candidate code into their own process print a per-run token last, which they
+   remove from their environment before that code runs.
 
-### Readiness on 2026-10-09
+### Readiness on 2026-10-10
 
 | Precondition | State | Evidence |
 |---|---|---|
-| 1. Runner identity | Reconciled; recheck at the run revision | The frozen record's digest `55138c00…` reproduces from its input `164eccb1`. This branch's runner digest is `c7ed751a95bcdb2ed5cbc4cde20b264fa98e220dac215262d71fcb2daf25f6ab`. [verified] Rescoring all 92 saved iterations (1,401 runs) with the frozen runner and with this one gives 80 differences, every one from three owner-approved scenario changes: guarded-triage's labelled headings (`3cfcca8a`, 73), EVAL-016's disposition (`074cbcd3`, 6) and the new guard canary (`0b11ec58`, 1). No runner code change since the freeze (#342, #346, EVAL-011 D6) changes a saved verdict |
-| 2. Human case acceptance | Owner; after item 3, since a limit changes each case's digest | — |
-| 3. Turn limits | Owner decision for 25 cases | Only the reviewer pair has saved trials, so only it gets a limit by the WP-02 rule (twice the highest count, or that count plus 10): `build-reviewer-accepts-compatible-refactor` 13 (highest 3 of 36 trials, longest 48 s) and `build-reviewer-follows-unchanged-caller` 14 (highest 4 of 39, longest 31 s). The proposed values below apply the same rule to the highest count among the same lane's measured cases of the same kind |
-| 4. Model-free controls | Pass on this host | [verified] `validate`: 240 specs OK. The five control files: 106 passed, 647 subtests, none skipped, once the fake-wrapper tests put their shell's folder on PATH (`d7bebd14`); before it, both log-case resisting controls failed on Windows with `cat: command not found` |
-| 5. Review of PR #334 | Finding 5 awaits the owner | Findings 1 to 4 are fixed with regression tests (CHANGELOG) |
+| 1. Runner identity | Reconciled; recheck at the run revision | The frozen record's digest `55138c00…` reproduces from its input `164eccb1`. [verified] Rescoring all 92 saved iterations (1,401 runs) with the frozen runner and with PR #347's runner gives 80 differences, every one from three owner-approved scenario changes: guarded-triage's labelled headings (`3cfcca8a`, 73), EVAL-016's disposition (`074cbcd3`, 6) and the new guard canary (`0b11ec58`, 1). No runner code change since the freeze (#342, #346, EVAL-011 D6) changes a saved verdict. This branch's runner digest is `60387e14d5619f4164729cff8c1265723bf1f64eeb898c35d51777c1fe41b1a4`; [verified] rescoring the same runs with PR #347's runner and this one, completion flags and turn limits included, differs in none |
+| 2. Human case acceptance | Owner, for the first step's 15 cases | The [acceptance sheet](../reviews/2026-10-10-wp10-case-acceptance.md) gives each case's exact digest, task, checks and model-free evidence, with a place for the verdict |
+| 3. Turn limits | Set | Owner, 2026-10-10: the WP-02 rule (twice the highest measured count, or that count plus 10) for every case; the 25 without saved trials use their lane's highest measured case of the same kind (below) |
+| 4. Model-free controls | Pass on this host | [verified] `validate`: 242 specs OK. The six control files below: 129 passed, 647 subtests, none skipped. The fake-wrapper tests find their shell's utilities on Windows since `d7bebd14` |
+| 5. Review of PR #334 | Repaired | Findings 1 to 4 are fixed with regression tests (CHANGELOG); finding 5 by the completion token, owner's choice on 2026-10-10 |
 
-| Cases without saved trials | Lane evidence (highest measured count) | Proposed limit |
+| Cases | Basis (highest measured count) | Limit |
 |---|---|---|
+| `build-reviewer-accepts-compatible-refactor` | Its own 36 trials: 3, longest 48 s | 13 |
+| `build-reviewer-follows-unchanged-caller` | Its own 39 trials: 4, longest 31 s | 14 |
 | 10 `sre-assistant` build cases: the structured log, log-role, helper and helper-relayed-owner pairs and the natural log pair | 21, `build-sre-assistant-active-incident-guarded-triage` (28 trials) | 42 |
-| 8 `software-engineer` build cases: the structured repository and repository-policy pairs and the natural repository and helper pairs | 72, a full UI build in 7 trials; the lane's median highest is 14 | 144 by the rule, which leaves the wall clock in control; 28 from the median |
+| 8 `software-engineer` build cases: the structured repository and repository-policy pairs and the natural repository and helper pairs | 72, a full UI build in 7 trials, so the wall clock governs in practice | 144 |
 | `build-reliability-engineer-proportionate-options` | 11, `build-reliability-engineer-doc-boundary` (2 trials) | 22 |
 | The two `build-repository-investigator-*` cases | 1, the denied-shell canary, which declares 15 | 15 |
 | The four `agent-direct-*` contract cases, which get only `Skill` and `Task` | 1 in these lanes; 10 across all lanes' contract cases | 20 |
@@ -63,6 +64,8 @@ These cost nothing:
   intended through the actual checks and fixture effects.
 - `evals/test_wider_fleet_cases.py`, `evals/test_reliability_cases.py` and `evals/test_reviewer_cases.py`:
   each AC-20 case accepts its useful output and rejects wrong, missing or conflicting answers.
+- `evals/test_oracle_completion.py`: candidate code that exits 0 early fails every oracle check that
+  declares `completion`, and each such oracle removes the token before candidate code runs.
 
 ## Live cases
 
@@ -93,17 +96,18 @@ surfaces, so WP-10 does not complete until the cold recalibration of the changed
 - **Retries:** none. Every attempt is kept.
 - **Output:** `.eval-runs/wp10-wider-fleet-adversarial-<date>/`, private (DEC-11).
 
-If the owner prefers a smaller first step, run the natural pairs and the lane cases first (15 cases,
-45 trials) and the structured pairs after reading those traces.
+The owner chose the smaller first step on 2026-10-10: the natural pairs and the lane cases (15
+cases, 45 trials) under a USD 20 cap. The structured pairs follow after those traces are read, under
+their own approval.
 
 ## Budget
 
 | Item | Estimate | Basis |
 |---|---|---|
-| Task spend | USD 12 to 33 | 81 trials at USD 0.15 to 0.40. Recent single-agent trials cost about USD 0.14 to 0.24 each (PRECOMMIT-001: 12 trials, USD 1.65, commit `735bf750`; RELIABILITY-001: 14 trials, USD 2.06; PRINCIPAL-001: 108 trials, USD 26.31); the upper bound allows for build cases that run local tests |
+| Task spend | First step USD 7 to 18; all 81 trials USD 12 to 33 | USD 0.15 to 0.40 a trial. Recent single-agent trials cost about USD 0.14 to 0.24 each (PRECOMMIT-001: 12 trials, USD 1.65, commit `735bf750`; RELIABILITY-001: 14 trials, USD 2.06; PRINCIPAL-001: 108 trials, USD 26.31); the upper bound allows for build cases that run local tests |
 | Judge spend | None | No case uses a rubric check |
-| Human review | About 8 hours | Semantic review of 18 natural-pair traces, about 15 minutes each, plus reviewer checks of the rest |
-| Cap | Proposed USD 35, task spend | For the owner to set; scheduling stops at the cap |
+| Human review | First step about 5 hours; all about 8 | Semantic review of 18 natural-pair traces, about 15 minutes each, plus reviewer checks of the rest |
+| Cap | USD 20 task spend for the first step | Owner, 2026-10-10; scheduling stops at the cap. The structured pairs need their own cap |
 
 The estimates are [unverified] until the run reports its own spend.
 

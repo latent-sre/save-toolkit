@@ -1,6 +1,7 @@
 id: agent-direct-observability-evidence-layers
 split: regression
 agent: observability-engineer
+max_turns: 20
 prompt: |
   Caller: human requester. Human owner: Morgan. Assess a synthetic dashboard evidence packet
   without any live writes or retrieval. Target is checkout, window 2026-10-08T12:00:00Z to

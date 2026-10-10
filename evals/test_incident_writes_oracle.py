@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from probe_testkit import materialize_reference, run_fixture_suite, run_oracle_check
+from probe_testkit import assert_completion, completion_env, materialize_reference, run_fixture_suite, run_oracle_check
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "evals/build-scenarios/build-software-engineer-incident-writes.yaml"
@@ -140,7 +140,7 @@ def materialize(tmp_path: Path, overrides: dict[str, str], defer_commit: bool = 
 
 
 def run(workspace: Path, check: str) -> subprocess.CompletedProcess:
-    return run_oracle_check(workspace, check, timeout=120)
+    return assert_completion(run_oracle_check(workspace, check, timeout=120, env=completion_env()))
 
 
 @pytest.mark.parametrize("check", CHECKS)

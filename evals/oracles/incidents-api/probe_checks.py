@@ -1,6 +1,11 @@
 """Probe-owned oracle for the incidents API. Usage: python probe_checks.py <check>."""
-import json
 import os
+
+# Removed before candidate code runs and printed last once every assertion holds, so candidate
+# code that exits early with status 0 cannot pass (command_exit_zero `completion: true`).
+COMPLETION = os.environ.pop("ORACLE_COMPLETION_TOKEN", "")
+
+import json
 import sys
 import threading
 import time
@@ -52,6 +57,8 @@ def fail(msg):
 
 def ok(msg):
     print("OK: " + msg)
+    if COMPLETION:
+        print(COMPLETION)
     sys.exit(0)
 
 

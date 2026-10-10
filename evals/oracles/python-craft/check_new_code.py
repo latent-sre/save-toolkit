@@ -4,6 +4,11 @@ Staged only after the model turn. Standard library only; not an OS sandbox.
 The traced-storage growth allowance detects calibrated compact retention across two
 workloads; it is neither a universal bounded-memory proof nor a benchmark.
 """
+import os
+
+# Removed before candidate code runs and printed last once every assertion holds, so candidate
+# code that exits early with status 0 cannot pass (command_exit_zero `completion: true`).
+COMPLETION = os.environ.pop("ORACLE_COMPLETION_TOKEN", "")
 
 from collections.abc import Mapping
 import builtins
@@ -379,3 +384,5 @@ if __name__ == "__main__":
     except SystemExit as exc:
         raise AssertionError("candidate exited before contract checks completed") from exc
     print("greenfield Python public contracts passed")
+    if COMPLETION:
+        print(COMPLETION)

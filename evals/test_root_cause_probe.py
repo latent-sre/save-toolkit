@@ -7,7 +7,15 @@ from pathlib import Path
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import tracing as probe_tracing
-from probe_testkit import context, parse_events, run_python, scenario_file, write_tree
+from probe_testkit import (
+    assert_completion,
+    completion_env,
+    context,
+    parse_events,
+    run_python,
+    scenario_file,
+    write_tree,
+)
 
 ROOT = Path(__file__).resolve().parent
 SPEC = scenario_file(ROOT / "build-scenarios/build-software-engineer-root-cause-reassessment.yaml")
@@ -79,7 +87,7 @@ class RootCauseProbeTests(unittest.TestCase):
         for name, (candidate, expected) in variants.items():
             with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
                 folder = write_tree(Path(tmp), {"retrying.py": candidate, "probe_retry.py": oracle})
-                run = run_python(["probe_retry.py"], cwd=folder, timeout=15)
+                run = assert_completion(run_python(["probe_retry.py"], cwd=folder, env=completion_env(), timeout=15))
                 self.assertEqual(expected, run.returncode == 0, run.stderr)
                 if not expected:
                     self.assertIn("AssertionError", run.stderr)

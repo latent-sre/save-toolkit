@@ -198,16 +198,17 @@ checks:
   # between checks). It starts a stub vendor on loopback, points PAGING_BASE_URL at it, and drives
   # the real app through TestClient.
   - check: command_exit_zero
+    completion: true
     command: "python probe_checks.py pagination"
     timeout: 120
     text: "oracle: cursor pagination walks 501 unique incidents, default page is bounded, oversized limit is lowered to the cap"
     writes_from: {probe_checks.py: evals/oracles/incidents-api/probe_checks.py}
-  - {check: command_exit_zero, command: "python probe_checks.py filter", timeout: 120, text: "oracle: ?status= filters, and an invalid value is a 422 problem+json"}
-  - {check: command_exit_zero, command: "python probe_checks.py problem_json", timeout: 120, text: "oracle: unknown id is a 404 in the one RFC 9457 shape"}
-  - {check: command_exit_zero, command: "python probe_checks.py no_leak", timeout: 120, text: "oracle: the store's internal_note never crosses the API boundary (response model as allowlist)"}
-  - {check: command_exit_zero, command: "python probe_checks.py owner", timeout: 120, text: "oracle: the detail endpoint carries the on-call owner fetched from the vendor"}
-  - {check: command_exit_zero, command: "python probe_checks.py timeout", timeout: 120, text: "oracle: a vendor that sleeps 20 s is answered fast: a 502/504 problem+json, or a leak-free 200 with the owner explicitly unavailable"}
-  - {check: command_exit_zero, command: "python probe_checks.py healthz", timeout: 120, text: "oracle: /healthz answers in under 2 s while the vendor is hung"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py filter", timeout: 120, text: "oracle: ?status= filters, and an invalid value is a 422 problem+json"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py problem_json", timeout: 120, text: "oracle: unknown id is a 404 in the one RFC 9457 shape"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py no_leak", timeout: 120, text: "oracle: the store's internal_note never crosses the API boundary (response model as allowlist)"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py owner", timeout: 120, text: "oracle: the detail endpoint carries the on-call owner fetched from the vendor"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py timeout", timeout: 120, text: "oracle: a vendor that sleeps 20 s is answered fast: a 502/504 problem+json, or a leak-free 200 with the owner explicitly unavailable"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py healthz", timeout: 120, text: "oracle: /healthz answers in under 2 s while the vendor is hung"}
   - {check: command_exit_zero, command: "python -m pytest -q", timeout: 300, text: "suite is green when the probe runs it"}
   - {check: command_exit_zero, command: "python -c \"import subprocess,sys; r=subprocess.run([sys.executable,'-m','pytest','-v'],capture_output=True,text=True); out=(r.stdout+r.stderr).lower(); sys.exit(0 if r.returncode==0 and 'incident' in out and ' passed' in out else 1)\"", timeout: 300, text: "an incidents test case actually executed and passed"}
   - {check: verification_completed, runner: pytest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}

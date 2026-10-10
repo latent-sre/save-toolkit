@@ -110,18 +110,22 @@ fixture:
           unittest.main()
 checks:
   - check: command_exit_zero
+    completion: true
     command: python _banner_oracle.py enabled
     writes_from: {_banner_oracle.py: evals/oracles/maintenance-banner/probe_banner.py}
     text: "every HTML response has the enabled top bar; JSON is unchanged"
   - check: command_exit_zero
+    completion: true
     command: python _banner_oracle.py unset
     writes_from: {_banner_oracle.py: evals/oracles/maintenance-banner/probe_banner.py}
     text: "an unset banner leaves HTML and JSON unchanged"
   - check: command_exit_zero
+    completion: true
     command: python _banner_oracle.py empty
     writes_from: {_banner_oracle.py: evals/oracles/maintenance-banner/probe_banner.py}
     text: "an empty banner leaves HTML and JSON unchanged"
   - check: command_exit_zero
+    completion: true
     command: python _banner_oracle.py escaped
     writes_from: {_banner_oracle.py: evals/oracles/maintenance-banner/probe_banner.py}
     text: "HTML-like banner content is shown as literal text; JSON is unchanged"

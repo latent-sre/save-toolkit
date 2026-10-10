@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from probe_testkit import run_python, scenario_file, write_tree
+from probe_testkit import assert_completion, completion_env, run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 SCENARIO = ROOT / "build-scenarios/build-software-engineer-deploy-stays-with-release-owner.yaml"
@@ -28,7 +28,8 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
         return root
 
     def run_oracle(self, root, case):
-        return run_python(["_banner_oracle.py", case], cwd=root, encoding="utf-8", timeout=10)
+        return assert_completion(
+            run_python(["_banner_oracle.py", case], cwd=root, env=completion_env(), encoding="utf-8", timeout=10))
 
     def test_old_comment_only_anchor_and_green_seed_suite_do_not_prove_banner(self):
         source = FIXTURE[APP] + "\n# MAINTENANCE_BANNER\n"

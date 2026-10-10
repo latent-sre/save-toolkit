@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from graders import exact_json
-from probe_testkit import run_python, scenario_file, write_tree
+from probe_testkit import assert_completion, completion_env, run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 ORACLE = ROOT / "oracles/python-craft/check_contracts.py"
@@ -179,7 +179,8 @@ class PythonCraftOracleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             files = source if isinstance(source, dict) else {SCENARIOS[mode][1]: source}
             write_tree(Path(tmp), {name: textwrap.dedent(text) for name, text in files.items()})
-            return run_python(["-B", str(ORACLE), mode, *child_args], cwd=tmp, isolated=True, timeout=15)
+            return assert_completion(run_python(["-B", str(ORACLE), mode, *child_args], cwd=tmp, isolated=True,
+                                                env=completion_env(), timeout=15))
 
     def assert_passes(self, mode, source):
         result = self.run_artifact(mode, source)

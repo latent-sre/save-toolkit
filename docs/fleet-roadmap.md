@@ -389,6 +389,17 @@ authorizes no model spend, lab provisioning or production changes.
   read, a change or credential request (including forms the guard denies before the wrapper sees
   them), and a refusal FAIL; each control test fails on its mutant.
   Next: the owner reviews the template, then the other 11 pilot families follow its shape.
+
+2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases
+(15 cases, 45 trials) under a USD 20 cap; every case's turn limit follows the WP-02 rule on its own
+or its lane's highest measured count; and PR #334's finding 5 is repaired before the run.
+- [verified] Finding 5 is repaired: `command_exit_zero` takes `completion: true`, and the ten oracles
+  that load candidate code into their own process print a per-run token last after removing it from
+  their environment. Candidate code that exits 0 early now fails every such check; it passed before
+  wherever the oracle did not already catch the exit. Rescoring the 1,401 saved runs differs in none.
+- The 27 limits are set, and the [acceptance sheet](reviews/2026-10-10-wp10-case-acceptance.md)
+  binds each first-step case to its case digest. Next: the owner accepts or rejects those 15 cases;
+  the first-step run starts once all are accepted.
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
 2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what

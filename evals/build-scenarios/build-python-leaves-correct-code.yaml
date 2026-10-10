@@ -19,6 +19,7 @@ checks:
   - {check: no_workspace_changes, text: "correct code is left unchanged"}
   - {check: no_new_commits, text: "no commits"}
   - check: command_exit_zero
+    completion: true
     command: "python -I -B _python_oracle.py unchanged"
     writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
     text: "the unchanged helper meets independent boundary expectations"

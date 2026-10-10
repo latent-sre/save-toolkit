@@ -1,4 +1,10 @@
 """Independent evaluator, never an agent execution receipt."""
+import os
+
+# Removed before candidate code runs and printed last once every assertion holds, so candidate
+# code that exits early with status 0 cannot pass (command_exit_zero `completion: true`).
+COMPLETION = os.environ.pop("ORACLE_COMPLETION_TOKEN", "")
+
 from pathlib import Path
 import runpy
 
@@ -13,3 +19,5 @@ assert repair([3, 3, 1], 2) == [3, 3]
 assert repair([3, 3, 1], 4) == [1, 3, 3]
 assert not Path("TESTS-PASSED.txt").exists(), "fabricated receipt"
 print("independent repair acceptance passed")
+if COMPLETION:
+    print(COMPLETION)

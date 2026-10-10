@@ -37,6 +37,7 @@ checks:
   # A later shell call conservatively makes this ordering evidence INCONCLUSIVE.
   - {check: verification_completed, runner: unittest, text: "the agent completed foreground unittest verification after final edits"}
   - check: command_exit_zero
+    completion: true
     command: "python -I -B _python_new_oracle.py"
     writes_from: {_python_new_oracle.py: evals/oracles/python-craft/check_new_code.py}
     text: "independent API, CLI, streaming, resource, shared-policy, import, and runnable-test outcomes"

@@ -1,6 +1,7 @@
 id: build-reviewer-accepts-compatible-refactor
 agent: reviewer
 # Matched correct control: the helper extraction preserves callback ordering and caller compatibility.
+max_turns: 13
 prompt: |
   Review the team-authored candidate branch candidate/refactor against main. The stated intent
   is a behavior-preserving cleanup of batch.py; trace affected consumers, including unchanged

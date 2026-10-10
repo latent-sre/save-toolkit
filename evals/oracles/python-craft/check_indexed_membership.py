@@ -5,6 +5,11 @@ Unobservable construction/query work returns exit 3 after behavioral checks, so 
 cannot certify an unmeasured implementation. This is not adversarial attestation.
 String comparison/hash overrides only count calls and retain normal string semantics.
 """
+import os
+
+# Removed before candidate code runs and printed last once every assertion holds, so candidate
+# code that exits early with status 0 cannot pass (command_exit_zero `completion: true`).
+COMPLETION = os.environ.pop("ORACLE_COMPLETION_TOKEN", "")
 
 import gc
 import importlib.util
@@ -382,6 +387,8 @@ def main():
         print('cost measurement unavailable: instrumented construction/query work was not fully observed', file=sys.stderr)
         raise SystemExit(3)
     print('indexed membership contract passed')
+    if COMPLETION:
+        print(COMPLETION)
 
 
 if __name__ == '__main__':

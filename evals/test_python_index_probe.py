@@ -5,7 +5,7 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from probe_testkit import run_python, scenario_file, write_tree
+from probe_testkit import assert_completion, completion_env, run_python, scenario_file, write_tree
 
 ROOT = Path(__file__).resolve().parent
 SPEC = scenario_file(ROOT / 'build-scenarios/build-python-indexed-membership.yaml')
@@ -81,7 +81,8 @@ class IndexedMembershipTests(unittest.TestCase):
             for name, oracle in check['writes_from'].items():
                 (Path(tmp) / name).write_bytes((ROOT.parent / oracle).read_bytes())
             # Execute precisely the staged scenario command with the verified interpreter.
-            return run_python([*check['command'].split()[1:]], cwd=tmp, timeout=15)
+            return assert_completion(run_python([*check['command'].split()[1:]], cwd=tmp, env=completion_env(),
+                                                timeout=15))
 
     def assert_passes(self, source, tests=CANDIDATE_TESTS):
         result = self.run_artifact(source, tests)

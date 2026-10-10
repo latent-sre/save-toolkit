@@ -180,6 +180,7 @@ checks:
   - {check: no_new_commits, text: "no commits"}
   - {check: bash_ran, pattern: "unittest|pytest", text: "the fixture suite was run at least once"}
   - check: command_exit_zero
+    completion: true
     command: "python -I -B _python_oracle.py policy"
     writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
     text: "one policy owner reached through every entrypoint, specification parity, unchanged consumers, both import orders, and a green fixture suite"

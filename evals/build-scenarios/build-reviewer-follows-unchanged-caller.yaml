@@ -1,6 +1,7 @@
 id: build-reviewer-follows-unchanged-caller
 agent: reviewer
 # A real fixture branch supplies the missing diff/history. No native/model run is implied.
+max_turns: 14
 prompt: |
   Review the team-authored candidate branch candidate/refactor against main. The stated intent
   is a behavior-preserving cleanup of batch.py; trace affected consumers, including unchanged

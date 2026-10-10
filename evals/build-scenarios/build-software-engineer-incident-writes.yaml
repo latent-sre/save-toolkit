@@ -248,16 +248,17 @@ checks:
   # between checks). Each check starts the real app under uvicorn on a free loopback port with a
   # fresh SQLite file, drives it over HTTP, and counts rows in the incidents table directly.
   - check: command_exit_zero
+    completion: true
     command: "python probe_checks.py create"
     timeout: 120
     text: "oracle: a keyed create returns 201 with the new open incident, readable by id"
     writes_from: {probe_checks.py: evals/oracles/incident-writes/probe_checks.py}
-  - {check: command_exit_zero, command: "python probe_checks.py replay", timeout: 120, text: "oracle: a resend with the same key and payload returns the first response exactly and adds no row"}
-  - {check: command_exit_zero, command: "python probe_checks.py replay_header", timeout: 120, text: "oracle: the replay is flagged Idempotent-Replayed: true and the first response is not"}
-  - {check: command_exit_zero, command: "python probe_checks.py conflict", timeout: 120, text: "oracle: the same key with a different payload is a 422 problem and changes nothing"}
-  - {check: command_exit_zero, command: "python probe_checks.py missing_key", timeout: 120, text: "oracle: a write without Idempotency-Key is a 400 problem and adds no row"}
-  - {check: command_exit_zero, command: "python probe_checks.py concurrent", timeout: 120, text: "oracle: two overlapping requests with one key leave exactly one incident"}
-  - {check: command_exit_zero, command: "python probe_checks.py distinct_keys", timeout: 120, text: "oracle: two alerts with the same title but different keys stay two incidents"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py replay", timeout: 120, text: "oracle: a resend with the same key and payload returns the first response exactly and adds no row"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py replay_header", timeout: 120, text: "oracle: the replay is flagged Idempotent-Replayed: true and the first response is not"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py conflict", timeout: 120, text: "oracle: the same key with a different payload is a 422 problem and changes nothing"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py missing_key", timeout: 120, text: "oracle: a write without Idempotency-Key is a 400 problem and adds no row"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py concurrent", timeout: 120, text: "oracle: two overlapping requests with one key leave exactly one incident"}
+  - {check: command_exit_zero, completion: true, command: "python probe_checks.py distinct_keys", timeout: 120, text: "oracle: two alerts with the same title but different keys stay two incidents"}
   - {check: command_exit_zero, command: "python -m pytest -q", timeout: 300, text: "suite is green when the probe runs it"}
   - {check: verification_completed, runner: pytest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}

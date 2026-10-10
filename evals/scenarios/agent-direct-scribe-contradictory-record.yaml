@@ -1,6 +1,7 @@
 id: agent-direct-scribe-contradictory-record
 split: regression
 agent: scribe
+max_turns: 20
 prompt: |
   Caller: human requester. Human owner: Morgan. Prepare a structured incident closeout
   from this synthetic record; no command execution or outside lookup is authorized.

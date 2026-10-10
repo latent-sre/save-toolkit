@@ -3,6 +3,7 @@ agent: reliability-engineer
 # AC-20 reliability lane: dependency failure and toil evidence in one case. Either bulkhead form is
 # accepted; the oracle rejects a refuted or disproportionate option, an unsupported benefit figure,
 # a saving beyond the recorded toil, and any authority the lane does not hold.
+max_turns: 22
 prompt: |
   Invoking caller: service owner. Human owner: Morgan. This is a synthetic evaluation fixture: the
   service, its records and the vendor sheet are invented, not production evidence. Write a

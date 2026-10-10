@@ -30,6 +30,7 @@ checks:
   - {check: changes_within, allowed: [totals.py, tests/test_totals.py], text: "changes stay within the authorized calculation seam"}
   - {check: no_new_commits, text: "no commits"}
   - check: command_exit_zero
+    completion: true
     command: "python -I -B _python_oracle.py calculation"
     writes_from: {_python_oracle.py: evals/oracles/python-craft/check_contracts.py}
     text: "calculation works without file I/O and existing callers use the same policy with preserved results and cleanup"
