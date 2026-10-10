@@ -378,7 +378,7 @@ define the repaired native measurement contract. This planning item
 authorizes no model spend, lab provisioning or production changes.
 
 2026-10-09, model-free work toward WP-10 and WP-12:
-- WP-10's [readiness record](fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md#readiness-on-2026-10-09)
+- WP-10's [readiness record](fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md#readiness-after-the-eval-011-repairs)
   meets preconditions 1 and 4. [verified] Rescoring all 1,401 saved runs with the frozen runner and
   with this branch's runner differs only where three owner-approved scenario changes landed after the
   freeze, and the model-free controls pass on this host once the fake-wrapper tests find their shell's
@@ -397,6 +397,16 @@ authorizes no model spend, lab provisioning or production changes.
   28 offline controls pass; the [template record and continuation queue](../evals/oracles/gcp/README.md#template-review-and-pilot-continuation)
   identify the remaining 11 families (22 variants). Next: the owner accepts the reviewed template,
   then those families follow its shape. Template acceptance does not accept unreviewed live cases.
+
+2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases (15
+cases, 45 trials) under a USD 20 cap, and the sre-assistant, software-engineer and
+repository-investigator limits rise to 42, 64 and 16 above EVAL-011's sizing. The
+[acceptance sheet](reviews/2026-10-10-wp10-case-acceptance.md) binds each first-step case to its case
+digest. Next: the owner accepts or rejects those 15 cases; the first-step run starts once all are
+accepted. Separately, the inline backoff oracle in `build-software-engineer-resumes-after-partial-helper`,
+which EVAL-011's supervision did not reach, now runs as a supervised oracle file. [verified] On
+`0a15e336` it passed candidate code that exits 0 at import; now it fails it, and a test keeps inline
+`python -c` checks to standard-library or PyYAML imports by name (dynamic imports need review).
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
 2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what

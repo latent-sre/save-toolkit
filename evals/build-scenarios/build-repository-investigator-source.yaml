@@ -1,5 +1,5 @@
 id: build-repository-investigator-source
-max_turns: 11
+max_turns: 16
 agent: repository-investigator
 tools:
 - Read
