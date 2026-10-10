@@ -593,8 +593,10 @@ recorded, a reason every saved check carries. One check's own INCONCLUSIVE leave
 measured, so a supported FAIL beside it stands (result rules 1 and 3). Without the raw trace, a regrade re-measures
 only what the trace summary records; an expectation that reads what only the raw trace held
 (completion order, completed returns, reads, the plugin namespace) is INCONCLUSIVE on its own.
-Tool-call counts regrade from the raw trace or recorded summary counts; an absent count field is
-unknown rather than zero. A legacy native timeout can recover as cut short only when its recorded
+Tool-call counts regrade from a complete raw trace or validated recorded summary counts. Empty,
+truncated or malformed traces cannot establish zero calls; missing or invalid summary counts stay
+unknown. Observed calls can still establish a ceiling violation when the total is incomplete.
+A legacy native timeout can recover as cut short only when its recorded
 plugin root and digest still match and its raw invocation evidence establishes the profile and
 session. The resulting forbidden-action failures remain visible.
 

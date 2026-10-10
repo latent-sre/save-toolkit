@@ -9,17 +9,18 @@ dispositions needed by EVAL-012; it does not accept a fleet candidate or complet
 
 ## Result
 
-[verified] The remaining runner repairs are implemented. Both independent oracle findings were
-reproduced and repaired, and grading subprocesses now share the trial's disposable temporary root.
-The final production source is `d830d557348535d4519c78d24262a4a9e066a79b`, approved by independent
-source review with no outstanding findings. EVAL-011 leaves the live backlog with this PR's merge;
+[verified] The remaining runner repairs are implemented. Independent and automatic review findings
+were reproduced and repaired, and grading subprocesses share the trial's disposable temporary root.
+The final production revision is `038298bdd9a7c18cc6a8b0258a1f154d4cd5e822`; its independent
+review and verification are recorded below.
+EVAL-011 leaves the live backlog with this PR's merge;
 EVAL-012 retains this record for its runner and case-identity baseline.
 
 ## Remaining findings and their resolution
 
 | Finding | Resolution and regression evidence |
 |---|---|
-| R10: `tool_call_count` kept a live verdict instead of remeasuring trace evidence | It declares trace dependence without the override. Rescoring counts recorded calls; absent counts stay INCONCLUSIVE. Completed and cut-short cases cover the floor and ceiling in `test_eval011_grading.py`. |
+| R10: `tool_call_count` kept a live verdict instead of remeasuring trace evidence | It declares trace dependence without the override. Rescoring uses complete raw traces or validated summary counts; empty, truncated and malformed traces cannot invent zero calls. Partial observed calls still establish a ceiling violation. Completed and cut-short cases cover the floor and ceiling in `test_eval011_grading.py`. |
 | R6: audit proxy still accepted requests during grading | Stop admission, drain admitted handlers, and close keep-alive connections before assessment; keep the backing service available for direct read-back. A settlement failure invalidates affected service evidence while retaining a supported forbidden action. |
 | D6: legacy native timeout lacks `cut_short` | Recover a cut-short end only when saved raw evidence proves the declared runtime profile and unchanged plugin digest. Cover both initial and resumed invocations; missing identity evidence remains void. |
 | JSON equality treated `true` as `1` | Recursive JSON equality separates booleans from numbers, including nested arrays/objects, while preserving numeric `3 == 3.0`. This repairs the demonstrated defect without inventing a numeric-type distinction. |
@@ -75,7 +76,7 @@ completion behavior; this closeout does not truncate old traces and present them
 [verified] The model-free saved-run gate compared 91 campaign folders and 1,425 runs against the
 base runner: zero errors, zero changed run verdicts, zero changed check states and no missing runs.
 All 10,313 saved JSON, JSONL and Markdown evidence files retain their SHA-256 hashes. Private
-records: `.tmp/eval011-baseline-v2`, `.tmp/eval011-candidate-v3/comparison.json` and their input
+records: `.tmp/eval011-baseline-v2`, `.tmp/eval011-candidate-v5/comparison.json` and their input
 manifests. Rescoring retains workspace-dependent historical verdicts; it cannot prove newly
 supervised oracle execution, which is exercised by the controls below.
 
@@ -103,33 +104,48 @@ Receipt: `.eval-runs/judge-calibration/20261010T105741Z/identity.json`; separate
 to `.eval-runs/wp02-native-readiness-20261008/residue-archive-20261010`. Its private manifest preserves
 source paths, sizes and hashes; the original temporary directory is empty.
 
-[verified] Final Windows replay of `d830d557`, Python 3.14.7, four workers: **2,410 tests and
-4,933 subtests passed**, 42 skipped. Private log/XML: `.tmp/eval011-d830-suite.{log,xml}`.
+[verified] Final Windows replay of `038298bd`, Python 3.14.7, four workers: **2,479 tests and
+4,967 subtests passed**, 42 skipped. Private log/XML: `.tmp/eval011-0382-suite.{log,xml}`.
 Skipped checks cover platform-specific permissions/links, the opt-in UI suite, external producer
 acceptance and Docker/download smoke checks; the actual pinned UI protocol controls above ran
 separately. Gate A, Ruff, formatting, strict mypy (43 source files), scenario validation and link
-checks pass. Independent review approves `d830d557`; all original findings and the final nonzero
-candidate-exit finding are closed.
+checks pass. The preceding revision `6019a462` also passed Linux CI: **2,465 tests and 4,935 subtests**,
+53 skipped:
+[run 38050287754](https://github.com/latent-sre/save-toolkit/actions/runs/38050287754).
 
-[verified] The final protocol has 96 passing controls. Fourteen actual Windows termination controls
+[verified] Fourteen actual Windows termination controls
 show candidate `os._exit(2/10/255)` fails, oracle termination stays unavailable, and nonordinary OS
 statuses stay unavailable. Simulated negative POSIX signal statuses also stay unavailable. This
 uses execution phase and observable status, without claiming which OS actor terminated the process.
 The repaired line and its controls follow the reproduced red result.
 
+[verified] Four automatic review findings were repaired in `6019a462`: candidate-origin
+`KeyboardInterrupt`/`GeneratorExit` now fail while oracle-origin exceptions stay unavailable;
+lazy WSGI response iteration and close hooks retain candidate attribution; observed pager-child
+death during delivery fails while transport failure with a live child stays unavailable; and
+incomplete raw traces no longer replace unknown tool counts with zero. Focused checks pass:
+122 protocol/banner tests and 21 subtests, four actual pager subprocess controls, and 217
+grading/tracing/rescoring/assessment tests with 161 subtests. The controls reproduced the reported
+failures before repair. An additional review found malformed WSGI response metadata needed explicit
+validation. Revision `038298bd` makes missing `start_response`, missing `Content-Type`, malformed
+header collections and nontext metadata explicit candidate failures. Its 19 focused tests and 51
+subtests pass, including valid mappings, iterable headers and lazy responses; injected oracle
+callback defects still return INCONCLUSIVE. Independent source review approves committed revision
+`038298bdd9a7c18cc6a8b0258a1f154d4cd5e822`, with the last P2 closed and no outstanding source findings.
+
 The first Linux CI run exposed one test's accidental dependence on the operator's installed Claude
-CLI. Its explicit runtime fixture now passes the focused check; no production source changed.
-The final PR head carries the full Linux suite and required checks. Their passing state and merge
-are the publication gate; the [PR](https://github.com/latent-sre/save-toolkit/pull/348) retains those
-exact-revision results and the final documentation review.
+CLI. Its explicit runtime fixture fixes that test without changing production behavior. Publication
+requires final-head Linux CI and documentation review; the
+[PR](https://github.com/latent-sre/save-toolkit/pull/348) retains those exact-revision results.
 
 ## Code growth and retention
 
-[verified] Against the base, the 19 runner files grow from 7,479 to 7,792 lines (+313, 4.19%),
-341,120 to 355,848 LF-normalized bytes (+14,728, 4.32%), 3,728 to 3,903 docstring-free AST statements
-(+175, 4.69%), and 49,373 to 51,271 code tokens (+1,898, 3.84%). Oracle/helper Python grows by
-16,852 bytes across 22 to 24 files; seven new test files add 53,835 bytes and existing tests add
-8,115 net bytes. The private measurement is `.tmp/eval011-closeout-metrics.json`.
+[verified] Against the base, the 19 runner files grow from 7,479 to 7,833 lines (+354, 4.73%),
+341,120 to 358,020 LF-normalized bytes (+16,900, 4.95%), 3,728 to 3,927 docstring-free AST statements
+(+199, 5.34%), and 49,373 to 51,571 code tokens (+2,198, 4.45%). Oracle/helper Python grows by
+18,048 bytes across 22 to 24 files; eight new test files add 64,112 bytes and existing tests add
+12,282 net bytes. These measurements bind committed revision `038298bd`; the private measurement is
+`.tmp/eval011-closeout-metrics.json`.
 
 The growth pays for observed OS identity, complete invocation/cleanup evidence, aligned file
 inventory, drained audit streams and supervised completion. Each mechanism has a reproduced
