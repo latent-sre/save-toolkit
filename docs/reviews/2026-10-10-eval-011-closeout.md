@@ -1,7 +1,7 @@
 # EVAL-011 runner closeout
 
 Date: 2026-10-10. Base: `f1ae05c8f3c40d21efb597f3f26fe8e918ba855f`.
-Scope: [EVAL-011](../fleet-roadmap.md#eval-011--bring-the-eval-runner-into-line-with-the-accepted-threat-model)
+Scope: EVAL-011, delivered in [PR #348](https://github.com/latent-sre/save-toolkit/pull/348),
 and the remaining runner gaps from [WP-02](2026-10-08-wp02-native-readiness.md), under the accepted
 [threat model](../decisions/2026-10-03-eval-harness-threat-model.md).
 The owner delegated routine closure decisions on 2026-10-10. This report retains the evidence and
@@ -11,7 +11,9 @@ dispositions needed by EVAL-012; it does not accept a fleet candidate or complet
 
 [verified] The remaining runner repairs are implemented. Both independent oracle findings were
 reproduced and repaired, and grading subprocesses now share the trial's disposable temporary root.
-Final integrated verification and exact-revision review are being completed before closure.
+The final production source is `d830d557348535d4519c78d24262a4a9e066a79b`, approved by independent
+source review with no outstanding findings. EVAL-011 leaves the live backlog with this PR's merge;
+EVAL-012 retains this record for its runner and case-identity baseline.
 
 ## Remaining findings and their resolution
 
@@ -73,7 +75,7 @@ completion behavior; this closeout does not truncate old traces and present them
 [verified] The model-free saved-run gate compared 91 campaign folders and 1,425 runs against the
 base runner: zero errors, zero changed run verdicts, zero changed check states and no missing runs.
 All 10,313 saved JSON, JSONL and Markdown evidence files retain their SHA-256 hashes. Private
-records: `.tmp/eval011-baseline-v2`, `.tmp/eval011-candidate-v2/comparison.json` and their input
+records: `.tmp/eval011-baseline-v2`, `.tmp/eval011-candidate-v3/comparison.json` and their input
 manifests. Rescoring retains workspace-dependent historical verdicts; it cannot prove newly
 supervised oracle execution, which is exercised by the controls below.
 
@@ -101,16 +103,33 @@ Receipt: `.eval-runs/judge-calibration/20261010T105741Z/identity.json`; separate
 to `.eval-runs/wp02-native-readiness-20261008/residue-archive-20261010`. Its private manifest preserves
 source paths, sizes and hashes; the original temporary directory is empty.
 
-Final suite, structural gate and committed review verdict are recorded here after the frozen
-integration checks finish.
+[verified] Final Windows replay of `d830d557`, Python 3.14.7, four workers: **2,410 tests and
+4,933 subtests passed**, 42 skipped. Private log/XML: `.tmp/eval011-d830-suite.{log,xml}`.
+Skipped checks cover platform-specific permissions/links, the opt-in UI suite, external producer
+acceptance and Docker/download smoke checks; the actual pinned UI protocol controls above ran
+separately. Gate A, Ruff, formatting, strict mypy (43 source files), scenario validation and link
+checks pass. Independent review approves `d830d557`; all original findings and the final nonzero
+candidate-exit finding are closed.
+
+[verified] The final protocol has 96 passing controls. Fourteen actual Windows termination controls
+show candidate `os._exit(2/10/255)` fails, oracle termination stays unavailable, and nonordinary OS
+statuses stay unavailable. Simulated negative POSIX signal statuses also stay unavailable. This
+uses execution phase and observable status, without claiming which OS actor terminated the process.
+The repaired line and its controls follow the reproduced red result.
+
+The first Linux CI run exposed one test's accidental dependence on the operator's installed Claude
+CLI. Its explicit runtime fixture now passes the focused check; no production source changed.
+The final PR head carries the full Linux suite and required checks. Their passing state and merge
+are the publication gate; the [PR](https://github.com/latent-sre/save-toolkit/pull/348) retains those
+exact-revision results and the final documentation review.
 
 ## Code growth and retention
 
 [verified] Against the base, the 19 runner files grow from 7,479 to 7,792 lines (+313, 4.19%),
 341,120 to 355,848 LF-normalized bytes (+14,728, 4.32%), 3,728 to 3,903 docstring-free AST statements
 (+175, 4.69%), and 49,373 to 51,271 code tokens (+1,898, 3.84%). Oracle/helper Python grows by
-16,845 bytes across 22 to 24 files; seven new test files add 52,986 bytes and existing tests add
-8,011 net bytes. The private measurement is `.tmp/eval011-closeout-metrics.json`.
+16,852 bytes across 22 to 24 files; seven new test files add 53,835 bytes and existing tests add
+8,115 net bytes. The private measurement is `.tmp/eval011-closeout-metrics.json`.
 
 The growth pays for observed OS identity, complete invocation/cleanup evidence, aligned file
 inventory, drained audit streams and supervised completion. Each mechanism has a reproduced

@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; working update 2026-10-09, integrated with `34634c25`.** This is the only backlog.
+> **Status: live; working update 2026-10-10, EVAL-011 closeout in PR #348.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -363,15 +363,18 @@ on the recorded frozen runner identity below, and its
   operator CLI and canary passed 3/3; platform selection passed 1/3, a drop that follows the CLI
   change, not the runner. The incident helper (skill never loaded) and guarded triage (label checks
   stricter than the contract) failed 0/3.
-- [sourced: independent trace review] The record names eleven remaining gaps. The largest: account
-  skills leak into trials unrecorded, the guarded-triage case never exercises a denial, and the
-  operator-CLI oracle has no distinct failure code.
+- [sourced: independent trace review] The original record named eleven gaps. Its dated repair
+  sections and the [EVAL-011 closeout](reviews/2026-10-10-eval-011-closeout.md) distinguish the
+  repaired measurement gaps from the original observations and remaining host-coverage limits.
 
 On 2026-10-09 the owner accepted the warm calibration receipt as meeting precondition 5, which
-completes WP-02, and selected the first repairs, which EVAL-011 tracks. WP-12's GCP case design can proceed alongside. The
+completes WP-02. EVAL-011's runner repairs are complete; its
+[closeout evidence](reviews/2026-10-10-eval-011-closeout.md) binds the implementation, 1,425-run
+comparison and 187-case rubric calibration. WP-12's GCP case design can proceed alongside. The
 [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
 account read access to the older run folders on 2026-10-06; all 1,562 now open from it. EVAL-015
-holds the deferred judge-replacement comparison and EVAL-011 the native measurement contract. This planning item
+holds the deferred judge-replacement comparison. The accepted threat model and EVAL-011 closeout
+define the repaired native measurement contract. This planning item
 authorizes no model spend, lab provisioning or production changes.
 
 2026-10-09, model-free work toward WP-10 and WP-12:
@@ -394,41 +397,6 @@ authorizes no model spend, lab provisioning or production changes.
 2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
 improved or regressed, and distinguish failed behavior from an instrument that could not measure.
-
-### EVAL-011 — bring the eval runner into line with the accepted threat model
-
-**Status:** `active` (2026-10-10); the remaining repairs are implemented on
-`work/eval-011-closeout`, with final integrated verification and committed review in progress.
-**Owner:** Save Toolkit maintainers; the owner delegated routine closure decisions on 2026-10-10.
-**Outcome:** The runner follows the accepted
-[threat-model ADR](decisions/2026-10-03-eval-harness-threat-model.md): supported failures remain
-visible, missing measurements stay inconclusive, attempts and unknown costs are preserved, and
-execution identity names what was measured.
-**Remaining:** Finish the full suite, final exact-revision review and PR checks. Implementation,
-regression evidence and explicit compatibility/quality dispositions are consolidated in the
-[closeout record](reviews/2026-10-10-eval-011-closeout.md).
-
-[verified] This closes the implementation gaps left after WP-02: conversation rubric context,
-aligned plugin inventory and staging, actual-runner batch-cap controls, invocation/account/elevation
-records, and CLI/oracle temporary cleanup. R10 remeasures trace counts; the audit proxy settles
-before grading; legacy native timeouts recover only with sufficient identity evidence; JSON
-comparison separates booleans from numbers; supervised oracles distinguish candidate failures from
-machinery failures; and all 242 scenarios declare turn limits. The flat CLI flags remain supported,
-`Outcome` retains pair reading with complete value equality, and previously uncovered evaluator
-files gain a scoped Ruff gate.
-
-[verified] The saved-run comparison covers 1,425 runs with no changed verdicts or check states;
-10,313 original evidence files are unchanged. Rubric calibration passes 187/187 cases. Separate
-judgments of the three unchanged WP-02 replies correct two false failures and identify one supported
-failure. These are runner and rubric results; they do not accept a fleet candidate or complete
-EVAL-012's live comparisons. Historical turn-count sizing is not new timing evidence.
-
-**Evidence:** [Closeout record](reviews/2026-10-10-eval-011-closeout.md) and
-[WP-02 record](reviews/2026-10-08-wp02-native-readiness.md). Earlier runner repairs and dispositions
-remain in Git history. The closeout record supersedes the completed code-growth and refactoring
-review reports while preserving the decisions EVAL-012 needs.
-**SRE task:** Read an eval INCONCLUSIVE as "the instrument could not measure", trust that it never
-hides a recorded failure, and know which host, account and CLI measured a PASS or FAIL.
 
 ### PRECOMMIT-001 — software-engineer reviews a 3-file change before committing, unasked
 

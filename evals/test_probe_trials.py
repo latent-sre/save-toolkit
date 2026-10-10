@@ -1120,6 +1120,7 @@ class EndToEndStubTests(TempRootTestCase):
         self.assertEqual(("FAIL", "a" * 64, ["sonnet"]), (sonnet["status"], sonnet["plugin_source_sha256"], sonnet["models"]))
         next_run = {**saved["sonnet"], "run": 2, "status": "PASS", "passed": 3}
         with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=STUB_RUNTIME), \
                 mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "a" * 64}), \
                 mock.patch.object(probe_trials, "run_trial", return_value=next_run), \
                 contextlib.redirect_stdout(io.StringIO()) as output:

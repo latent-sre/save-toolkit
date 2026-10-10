@@ -1,8 +1,9 @@
 # Delivery plan and decisions
 
 This is the proposed implementation sequence. Live status belongs to EVAL-012 in the
-[fleet roadmap](../fleet-roadmap.md). EVAL-015 holds the deferred judge-replacement comparison; EVAL-011 owns repairs to the
-native measurement contract. No dates or spend are promised before task/environment measurements.
+[fleet roadmap](../fleet-roadmap.md). EVAL-015 holds the deferred judge-replacement comparison; the
+[EVAL-011 closeout](../reviews/2026-10-10-eval-011-closeout.md) records the repaired native measurement
+contract. No dates or spend are promised before task/environment measurements.
 
 ## Work packages
 
@@ -133,7 +134,7 @@ settled choice without new information. No decision grants the evaluated agent a
 | Framework signals are mistaken for useful work | Skill activation or a recorded command passes despite a wrong investigation | Independent outcome controls and maintainer disposition under AC-36/37; CLI stubs do not establish Workbench implementation or live GCP behavior |
 | Reference tests miss a regression | Patch looks correct but is incomplete | Preserve benchmark scope, add targeted independent controls, retain human review |
 | Costs are unavailable or exceed estimates | Unbounded campaign | Small measured preflight, scheduling limits and explicit unknown spend |
-| Existing harness work changes during implementation | Conflicts or stale assumptions | Refresh EVAL-011, the judge's calibration receipt and source identities at each package boundary |
+| Existing harness work changes during implementation | Conflicts or stale assumptions | Refresh the EVAL-011 closeout, the judge's calibration receipt and source identities at each package boundary |
 
 ## Rollback and handoff
 
