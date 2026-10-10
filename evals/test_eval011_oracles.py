@@ -41,6 +41,7 @@ def execute(tmp_path, source, files=None, args=()):
     ("import os; os._exit(2)", 1),
     ("import os; os._exit(10)", 1),
     ("import os; os._exit(255)", 1),
+    ("import signal; signal.raise_signal(signal.SIGINT)", 1),
 ])
 def test_completed_assessment_distinguishes_contracts_from_machinery(tmp_path, source, code):
     result = execute(tmp_path, source)
@@ -123,6 +124,57 @@ def test_oracle_callback_crash_is_not_attributed_to_candidate(tmp_path):
               "candidate_call(candidate, instrument)\n")
     result = execute(tmp_path, source, {"candidate.py": "def run(callback): callback()\n"})
     assert result.returncode == 1, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("exception", ["KeyboardInterrupt", "GeneratorExit", "BaseException"])
+@pytest.mark.parametrize("phase", ["import", "call"])
+def test_candidate_base_exceptions_are_failures(tmp_path, exception, phase):
+    source = (ROOT / "oracles/agent-injection/check_repair.py").read_text(encoding="utf-8")
+    candidate = (f"raise {exception}('candidate error')\n" if phase == "import" else
+                 f"def latest_orders(orders, count):\n    raise {exception}('candidate error')\n")
+    result = execute(tmp_path, source, {"orders.py": candidate})
+    assert result.returncode == 10, result.stdout + result.stderr
+    assert "candidate error" in result.stderr
+
+
+@pytest.mark.parametrize("exception", ["KeyboardInterrupt", "GeneratorExit", "BaseException"])
+def test_oracle_base_exceptions_remain_unavailable(tmp_path, exception):
+    result = execute(tmp_path, f"raise {exception}('oracle interrupted')\n")
+    assert result.returncode == 1, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("phase", ["iteration", "close"])
+@pytest.mark.parametrize("error", ["os._exit(0)", "os._exit(2)", "raise KeyboardInterrupt()", "raise GeneratorExit()"])
+def test_wsgi_lazy_response_errors_are_candidate_failures(tmp_path, phase, error):
+    source = (ROOT / "oracles/maintenance-banner/probe_banner.py").read_text(encoding="utf-8")
+    candidate = (
+        "import os\nclass Response:\n"
+        "    def __iter__(self):\n"
+        f"        {error if phase == 'iteration' else 'pass'}\n"
+        "        yield b'<html><body>candidate response</body></html>'\n"
+        "    def close(self):\n"
+        f"        {error if phase == 'close' else 'pass'}\n"
+        "def application(environ, start_response):\n"
+        "    start_response('200 OK', [('Content-Type', 'text/html')])\n"
+        "    return Response()\n"
+    )
+    result = execute(tmp_path, source, {"services/checkout/app.py": candidate}, ("enabled",))
+    assert result.returncode == 10, result.stdout + result.stderr
+    diagnostic = "candidate exited before oracle completion" if error.startswith("os.") else error.split()[1][:-2]
+    assert diagnostic in result.stderr
+
+
+@pytest.mark.parametrize("exception", ["RuntimeError", "KeyboardInterrupt", "GeneratorExit"])
+def test_wsgi_oracle_callback_defects_remain_unavailable(tmp_path, exception):
+    source = (ROOT / "oracles/maintenance-banner/probe_banner.py").read_text(encoding="utf-8")
+    source = source.replace('captured["status"], captured["headers"] = status, dict(headers)',
+                            f"raise {exception}('oracle callback defect')")
+    candidate = ("def application(environ, start_response):\n"
+                 "    start_response('200 OK', [('Content-Type', 'text/html')])\n"
+                 "    yield b'candidate response'\n")
+    result = execute(tmp_path, source, {"services/checkout/app.py": candidate}, ("enabled",))
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "oracle callback defect" in result.stderr
 
 
 def test_candidate_generator_exit_is_attributed_during_iteration(tmp_path):

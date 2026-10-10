@@ -55,6 +55,17 @@ class MaintenanceBannerOracleTests(unittest.TestCase):
                     self.assertEqual(0, result.returncode, result.stdout + result.stderr)
                     self.assertIn(f"OK: {case}:", result.stdout)
 
+    def test_correct_lazy_response_passes_all_cases(self):
+        source = CORRECT.replace("def application(", "def eager_application(") + (
+            "\ndef application(environ, start_response):\n"
+            "    yield from eager_application(environ, start_response)\n"
+        )
+        root = self.seeded(source)
+        for case in ("enabled", "unset", "empty", "escaped"):
+            with self.subTest(case=case):
+                result = self.run_oracle(root, case)
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
     def test_meaningful_broken_artifacts_fail_for_the_named_contract(self):
         broken = [
             (CORRECT.replace("html.escape(banner)", "banner"), "escaped", "executable markup"),

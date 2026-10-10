@@ -96,7 +96,7 @@ def _child(receipt, state, nonce, argv):
     except AssertionError as exc:
         traceback.print_exception(exc)
         code = FAILURE
-    except Exception as exc:
+    except BaseException as exc:
         traceback.print_exception(exc)
         code = FAILURE if candidate_error(exc, oracle) else 1
     # Reached only after assessment; stdout text and preexisting workspace files

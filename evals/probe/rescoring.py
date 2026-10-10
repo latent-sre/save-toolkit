@@ -42,6 +42,15 @@ def _unreadable_root(plugin_root: Path, exc: Exception) -> str:
     return f"plugin root {plugin_root} could not be read ({type(exc).__name__}); restore it to regrade the run"
 
 
+def _saved_tool_counts(value: object) -> dict[str, int] | None:
+    """A recorded complete count map, including {}, or None for missing/malformed evidence."""
+    if not isinstance(value, dict) or not all(
+        isinstance(name, str) and name.strip() and type(count) is int and count >= 0 for name, count in value.items()
+    ):
+        return None
+    return dict(value)
+
+
 def native_regrade_problem(
     run_dir: Path, spec: Spec, plugin_root: Path, *, recorded_plugin_sha: str | None = None
 ) -> str | None:
@@ -224,18 +233,19 @@ def _regrade_run(
     recorded_workspace = (
         Path(saved_workspace) if isinstance(saved_workspace, str) and tracing.is_rooted(saved_workspace) else None
     )
-    # The raw trace is the truth: a saved summary carries whatever the parser of the day recorded,
-    # so re-parse it with the live path's own parser and fall back only when the trace is absent.
+    # Re-parse the raw evidence with the live parser. An incomplete stream preserves positive
+    # observations but cannot establish an absent call; validated summary counts can fill that gap.
     stdout_path = run_dir / "stdout.jsonl"
     reparsed = (
         tracing.parse_trial_trace(run_dir) if stdout_path.is_file() and (not native_problem or native_cut) else None
     )
+    saved_counts = _saved_tool_counts(summary.get("tool_counts"))
     if reparsed is not None:
         trace = reparsed
         if not trace.result_text:  # a truncated trace must not silently blank every text check
             trace.result_text = text
     else:
-        trace = tracing.from_saved(summary, text)
+        trace = tracing.from_saved({**summary, "tool_counts": saved_counts or {}}, text)
     before, after = summary.get("commits_before_after") or [0, 0]
     git = GitFacts(
         int(after),
@@ -266,7 +276,7 @@ def _regrade_run(
             trace,
             git,
             plugin_root=plugin_root,
-            tool_counts_recorded=reparsed is not None or isinstance(summary.get("tool_counts"), dict),
+            tool_counts_recorded=False,
         )
         judge_problem = _saved_judge_problem(spec, saved_binding)
         inconclusive = _run_level_reason(
@@ -286,6 +296,22 @@ def _regrade_run(
             inconclusive = "saved scenario identity is missing or changed; re-run the trial"
         elif len(old_by_id) != len(live_grade.get("expectations", [])):
             inconclusive = "saved assertion identities are duplicated; re-run the trial"
+        raw_counts_complete = reparsed is not None and trace.tool_counts_complete
+        raw_counts_cut = (
+            reparsed is not None and isinstance(inconclusive, CutShort) and (trace.saw_init or bool(trace.tool_counts))
+        )
+        ctx.tool_counts_recorded = raw_counts_complete or raw_counts_cut
+        if not raw_counts_complete and saved_counts is not None:
+            # A trusted summary fills missing raw coverage. If the surviving stream already shows
+            # more calls, that summary cannot establish a total; retain the stronger lower bound so
+            # its supported forbidden actions still fail, without inventing absence elsewhere.
+            ctx.tool_counts_recorded = raw_counts_cut or all(
+                count <= saved_counts.get(name, 0) for name, count in trace.tool_counts.items()
+            )
+            trace.tool_counts = {
+                name: max(trace.tool_counts.get(name, 0), saved_counts.get(name, 0))
+                for name in trace.tool_counts.keys() | saved_counts.keys()
+            }
         # Routing, pinned-skill, reference, and non-rubric grader verdicts all come from the saved
         # trace, so a routing or contract run regrades like a build run. A rubric grader would spend
         # a live judge call, so it keeps the verdict the live batch paid for.

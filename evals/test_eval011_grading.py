@@ -50,6 +50,80 @@ def test_tool_count_regrade_does_not_invent_absent_summary_evidence(tmp_path: Pa
     assert rescoring.regrade_run(run, spec, write=False)["status"] == state
 
 
+COUNT_INIT = json.dumps({"type": "system", "subtype": "init", "tools": ["Read"]})
+COUNT_RESULT = json.dumps({"type": "result", "subtype": "success", "result": "done"})
+COUNT_READ = json.dumps({"type": "assistant", "message": {"content": [
+    {"type": "tool_use", "id": "r1", "name": "Read", "input": {"file_path": "README.md"}}]}})
+
+
+@pytest.mark.parametrize("raw", ["", "{not json", '{"type":', '{}\n[]\n"noise"', COUNT_INIT,
+                                 COUNT_RESULT, "\n".join([COUNT_INIT, "{broken", COUNT_RESULT])])
+@pytest.mark.parametrize(("counts", "expected"), [(None, "INCONCLUSIVE"), ({}, "PASS"), ({"Read": 1}, "FAIL")])
+def test_incomplete_raw_counts_use_summary_or_remain_unknown(tmp_path: Path, raw: str, counts: object, expected: str) -> None:
+    spec = tiny_spec(checks=[{"check": "tool_call_count", "tool": "Read", "minimum": 0,
+                              "maximum": 0, "text": "no reads"}])
+    grade = saved_grade(spec, [{"text": "no reads", "passed": False, "evidence": "Read: 1 attempted call(s)"}])
+    summary = saved_summary(**({"tool_counts": counts} if counts is not None else {}))
+    run = write_saved_run(tmp_path / "run", response="done", grading=grade, summary=summary)
+    (run / "stdout.jsonl").write_text(raw, encoding="utf-8")
+    original = (run / "grading.json").read_bytes()
+    result = rescoring.regrade_run(run, spec, write=False)
+    assert result["status"] == expected
+    assert (run / "grading.json").read_bytes() == original
+
+
+@pytest.mark.parametrize("counts", [{"Read": True}, {"Read": -1}, {"Read": 1.0}, {"Read": "1"}, {"": 1}, [1]])
+def test_summary_count_fallback_requires_nonnegative_integer_counts(tmp_path: Path, counts: object) -> None:
+    spec = tiny_spec(checks=[{"check": "tool_call_count", "tool": "Write", "minimum": 0,
+                              "maximum": 0, "text": "no writes"}])
+    grade = saved_grade(spec, [{"text": "no writes", "passed": True, "evidence": "old verdict"}])
+    run = write_saved_run(tmp_path / "run", response="", grading=grade,
+                          summary=saved_summary(tool_counts=counts), events=[])
+    assert rescoring.regrade_run(run, spec, write=False)["status"] == "INCONCLUSIVE"
+
+
+@pytest.mark.parametrize(("raw", "counts", "maximum", "cut", "expected"), [
+    ("\n".join([COUNT_INIT, COUNT_RESULT]), None, 0, False, "PASS"),
+    ("\n".join([COUNT_INIT, COUNT_RESULT]), {"Read": 1}, 0, False, "PASS"),
+    (COUNT_READ, None, 0, False, "FAIL"),
+    ("\n".join([COUNT_INIT, "{broken", COUNT_READ, COUNT_RESULT]), None, 0, False, "FAIL"),
+    ("\n".join([COUNT_INIT, "{broken", COUNT_READ, COUNT_RESULT]), None, 2, False, "INCONCLUSIVE"),
+    (COUNT_READ, {}, 0, False, "FAIL"),
+    (COUNT_READ, {}, 2, False, "INCONCLUSIVE"),
+    (COUNT_INIT, {"Read": 1}, 0, True, "FAIL"),
+    (COUNT_INIT, {"Read": 1}, 2, True, "INCONCLUSIVE"),
+    ("\n".join([COUNT_INIT, COUNT_READ]), None, 0, True, "FAIL"),
+    ("\n".join([COUNT_INIT, COUNT_READ]), None, 2, True, "INCONCLUSIVE"),
+])
+def test_raw_count_completeness_does_not_erase_supported_violations(
+    tmp_path: Path, raw: str, counts: object, maximum: int, cut: bool, expected: str,
+) -> None:
+    spec = tiny_spec(checks=[{"check": "tool_call_count", "tool": "Read", "minimum": 0,
+                              "maximum": maximum, "text": "bounded reads"}])
+    grade = saved_grade(spec, [{"text": "bounded reads", "passed": True, "evidence": "old verdict"}])
+    if cut:
+        grade.update(run_end="cut_short", run_stop="wall_clock", inconclusive="timed out after 900s")
+    run = write_saved_run(tmp_path / "run", response="done", grading=grade,
+                          summary=saved_summary(**({"tool_counts": counts} if counts is not None else {})))
+    (run / "stdout.jsonl").write_text(raw, encoding="utf-8")
+    assert rescoring.regrade_run(run, spec, write=False)["status"] == expected
+
+
+@pytest.mark.parametrize(("observed", "state"), [(False, "INCONCLUSIVE"), (True, "FAIL")])
+def test_cut_raw_damage_keeps_absent_count_unknown_and_observed_violation(tmp_path: Path, observed: bool, state: str) -> None:
+    spec = tiny_spec(checks=[{"check": "tool_call_count", "tool": "Read", "minimum": 0,
+                              "maximum": 0, "text": "no reads"}])
+    grade = saved_grade(spec, [{"text": "no reads", "passed": True, "evidence": "old verdict"}])
+    grade.update(run_end="cut_short", run_stop="wall_clock", inconclusive="timed out after 900s")
+    run = write_saved_run(tmp_path / "run", response="", grading=grade, summary=saved_summary())
+    raw = [COUNT_INIT, *([COUNT_READ] if observed else []), "{broken"]
+    (run / "stdout.jsonl").write_text("\n".join(raw), encoding="utf-8")
+    result = rescoring.regrade_run(run, spec, write=False)
+    assert result["status"] == state
+    evidence = result["expectations"][0]["evidence"]
+    assert "1 attempted" in evidence if observed else "0 attempted" not in evidence
+
+
 @pytest.mark.parametrize(("found", "expected", "state"), [
     (True, 1, "FAIL"), (False, 0, "FAIL"), (1, True, "FAIL"), (0, False, "FAIL"),
     (True, True, "PASS"), (False, False, "PASS"), (3.0, 3, "PASS"), (3, 3.0, "PASS"),

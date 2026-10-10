@@ -57,10 +57,12 @@ def call(application, path):
 
     response = candidate_call(application, environ, start_response)
     try:
-        body = b"".join(response)
+        body = candidate_call(b"".join, response)
     finally:
-        if hasattr(response, "close"):
-            response.close()
+        missing = object()
+        close = candidate_call(getattr, response, "close", missing)
+        if close is not missing:
+            candidate_call(close)
     assert captured["status"] == "200 OK", f"{path}: status changed"
     headers = {key.lower(): value for key, value in captured["headers"].items()}
     return headers, body

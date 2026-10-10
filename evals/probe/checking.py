@@ -1273,11 +1273,13 @@ def check_bash_did_not_run(ctx: Context, p: Params) -> Outcome:
 )
 def check_tool_call_count(ctx: Context, p: Params) -> Outcome:
     """Count attempts, including failed calls; a positive count does not establish retrieval success."""
-    if not ctx.tool_counts_recorded:
-        return unmeasured("saved tool-call count evidence is missing; re-run the trial")
     count = ctx.trace.tool_counts.get(p["tool"], 0)
     evidence = f"{p['tool']}: {count} attempted call(s)"
-    return violation(evidence) if count > p["maximum"] else verdict(p["minimum"] <= count, evidence)
+    if count > p["maximum"]:
+        return violation(evidence)
+    if not ctx.tool_counts_recorded:
+        return unmeasured("saved tool-call count evidence is missing or incomplete; re-run the trial")
+    return verdict(p["minimum"] <= count, evidence)
 
 
 @declare("no_task_dispatch", Polarity.FORBIDS, needs={Need.TRACE}, required=("target",))

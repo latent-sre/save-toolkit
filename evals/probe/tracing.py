@@ -86,6 +86,9 @@ class TraceSummary:
     # {tool, path, outcome} per Read/Grep/Glob call, for the read-path boundary check.
     read_attempts: list[ReadAttempt] = field(default_factory=list)
     tool_counts: dict[str, int] = field(default_factory=dict)
+    # Zero is supported only by an intact stream with both init and result boundaries. Partial
+    # streams still retain every observed call, which can independently prove a ceiling violation.
+    tool_counts_complete: bool = False
     denials: list[str] = field(default_factory=list)
     duration_ms: int = 0
     total_tokens: int = 0
@@ -150,13 +153,22 @@ TEST_RUNNERS = ("unittest", "pytest", "vitest")  # the runners whose summaries a
 
 def parse_trace(path: Path) -> TraceSummary:
     reader = _Reader()
+    intact = True
+    supported_result = False
     for position, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines()):
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
+            intact = False
             continue
+        if not isinstance(event, dict):
+            intact = False
+        elif event.get("type") == "result":
+            supported_result = isinstance(event.get("result"), str)
         reader.event(event, position)
-    return reader.finish()
+    summary = reader.finish()
+    summary.tool_counts_complete = intact and summary.saw_init and summary.has_result and supported_result
+    return summary
 
 
 @dataclass
@@ -542,7 +554,7 @@ MERGED_FROM_LAST = (
     "runtime_plugins",
     "effect_calls",
 )
-MERGED_SPECIALLY = ("tool_counts", "conversation_sessions")  # summed per tool; one session per invocation
+MERGED_SPECIALLY = ("tool_counts", "tool_counts_complete", "conversation_sessions")
 
 
 def parse_trial_trace(run_dir: Path) -> TraceSummary:
@@ -562,6 +574,7 @@ def parse_trial_trace(run_dir: Path) -> TraceSummary:
         name: sum(trace.tool_counts.get(name, 0) for trace in traces)
         for name in {name for trace in traces for name in trace.tool_counts}
     }
+    merged.tool_counts_complete = all(trace.tool_counts_complete for trace in traces)
     for name in MERGED_AS_SUM:
         values = [getattr(trace, name) for trace in traces]
         setattr(merged, name, sum(values) if all(value is not None for value in values) else None)
