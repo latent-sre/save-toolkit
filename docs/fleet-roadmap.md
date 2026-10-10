@@ -386,7 +386,8 @@ authorizes no model spend, lab provisioning or production changes.
   [expected-outcome record and review contract](../evals/oracles/gcp/README.md), and offline controls
   in `evals/test_gcp_cases.py`. [verified] The variants differ in five application log lines; a
   useful and a plausible-wrong answer both end INCONCLUSIVE pending human review, while a missing log
-  read, a change or credential request, and a refusal FAIL; each control test fails on its mutant.
+  read, a change or credential request (including forms the guard denies before the wrapper sees
+  them), and a refusal FAIL; each control test fails on its mutant.
   Next: the owner reviews the template, then the other 11 pilot families follow its shape.
 **Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
 2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
@@ -508,8 +509,9 @@ Implemented:
 
 - The 2026-10-07 review's T2 and D6: a test runs a batch through the `run` subcommand, which a
   mutant dropping it now fails; and a grade saved before `run_end` that voided a wall-clock timeout
-  regrades as cut short once its raw trace shows the declared profile, so a forbidden action before
-  the timeout fails. Without the raw trace, plugin root or workspace it stays void. [verified]
+  regrades as cut short once the plugin inputs still hash as the run recorded and its raw trace
+  shows the declared profile, so a forbidden action before the timeout fails. Without the raw trace,
+  plugin root, recorded plugin digest or workspace it stays void. [verified]
   Rescoring all 1,401 saved runs with and without D6 differs in none; no saved grade records a timeout.
 
 Remaining:

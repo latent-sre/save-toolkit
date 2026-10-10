@@ -23,18 +23,19 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   case and the pilot template. A fixture `gcloud` read wrapper serves one synthetic Cloud Run service;
   only five application log lines separate a loopback bind (A) from a listener waiting on a slow
   dependency (B). `evals/oracles/gcp/README.md` holds the hidden expected outcomes and the human
-  review contract; `evals/test_gcp_cases.py` replays useful, plausible-wrong, no-log, change and
-  refusal controls through the runner's checks. [verified] 12 tests pass, and each fails on its
-  mutant. No model run or case acceptance yet.
+  review contract; `evals/test_gcp_cases.py` replays useful, plausible-wrong, no-log, change,
+  credential and refusal controls through the runner's checks. [verified] 16 tests pass, and each
+  fails on its mutant. No model run or case acceptance yet.
 - `EVAL-012` WP-10: the run plan records readiness on 2026-10-09. [verified] Preconditions 1
   (runner identity reconciled by a full rescore against the frozen runner) and 4 (model-free
   controls on this host) hold; turn limits, case acceptance, finding 5 and the cap are the owner's.
   The natural-injection controls failed on Windows because the fake `cf` wrapper's clean PATH had no
   `cat`; the test now adds its shell's folder.
 - Eval runner (`EVAL-011`, the 2026-10-07 review's T2 and D6): a regrade of a grade saved before
-  `run_end` existed no longer voids a wall-clock timeout when the raw trace, plugin root and
-  workspace survive. The partial trace must pass the profile check the live path applies, and then
-  the run is cut short, so a forbidden action before the timeout fails. A new test runs a batch
+  `run_end` existed no longer voids a wall-clock timeout when the raw trace, plugin root, recorded
+  plugin digest and workspace survive. In the live path's order, the plugin inputs must still hash as
+  the run recorded and the partial trace must pass the profile check; then the run is cut short, so
+  a forbidden action before the timeout fails. A new test runs a batch
   through the `run` subcommand; the old tests passed with `run` removed. [verified] Each new test
   fails on its mutant; rescoring all 1,401 saved runs with and without the change differs in none.
 - `SKILL-001` closes with the owner's 2026-10-09 disposition, without further slices. Its last

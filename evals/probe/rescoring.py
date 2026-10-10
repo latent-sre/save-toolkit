@@ -325,17 +325,21 @@ def _run_level_reason(
         )
     else:
         inconclusive = _saved_void(live_grade, summary) or native_problem
+        recorded_sha = (summary.get("plugin") or {}).get("plugin_source_sha256")
         older_timeout = (
             not native_problem
             and not {"run_end", "void"} & live_grade.keys()
             and _SAVED_TIMEOUT.fullmatch(str(inconclusive or ""))
         )
-        if older_timeout and has_raw_trace and has_plugin_root and workspace is not None:
-            # A grade saved before `run_end` voided a timeout. As the live path now does, the partial
-            # trace must show the declared profile; then the run is cut short, so a forbidden action
-            # before the timeout still fails (result rules 2 and 4). Without that evidence it stays void.
+        if older_timeout and has_raw_trace and has_plugin_root and workspace is not None and recorded_sha:
+            # A grade saved before `run_end` voided a timeout, and its runner never checked drift on
+            # one. In the live path's order, the plugin inputs must still hash as the run recorded and
+            # the partial trace must show the declared profile; then the run is cut short, so a
+            # forbidden action before the timeout still fails (result rules 2 and 4). Otherwise void.
             try:
-                problem = invocation.profile_problem(trace, spec, plugin_root, workspace)
+                problem = fingerprints.plugin_drift_problem(plugin_root, str(recorded_sha)) or (
+                    invocation.profile_problem(trace, spec, plugin_root, workspace)
+                )
             except (OSError, json.JSONDecodeError) as exc:
                 problem = _unreadable_root(plugin_root, exc)
             inconclusive = problem or CutShort(str(inconclusive), Stop.WALL_CLOCK)
