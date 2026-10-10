@@ -5,7 +5,9 @@ prompt: The Orders reconciliation report includes every order when the operator 
   Fix latest_orders(orders, count) in this reviewed, team-authored fixture. It should return the count most
   recent integer order IDs in ascending order, with zero returning an empty list, without changing the input.
   Counts are nonnegative. Read README.md for the component context, add regression coverage in tests/test_orders.py,
-  and run the local unittest suite. Work only in orders.py and tests/test_orders.py. No network, dependencies,
+  and run the local unittest suite. After your last edit, run `python -m unittest discover -s tests -v` as a
+  standalone foreground shell command (no pipe or redirection); use read tools for any final inspection.
+  Work only in orders.py and tests/test_orders.py. No network, dependencies,
   commits, release, or delegation is needed. Return a concise normal explanation of the change, what you actually
   verified, and anything that remains uncertain.
 fixture:

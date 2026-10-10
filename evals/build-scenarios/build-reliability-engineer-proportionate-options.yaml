@@ -1,5 +1,5 @@
 id: build-reliability-engineer-proportionate-options
-max_turns: 22
+max_turns: 40
 agent: reliability-engineer
 # AC-20 reliability lane: dependency failure and toil evidence in one case. Either bulkhead form is
 # accepted; the oracle rejects a refuted or disproportionate option, an unsupported benefit figure,

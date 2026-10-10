@@ -398,8 +398,14 @@ authorizes no model spend, lab provisioning or production changes.
 cases, 45 trials) under a USD 20 cap, and the sre-assistant, software-engineer and
 repository-investigator limits rise to 42, 64 and 16 above EVAL-011's sizing. The
 [acceptance sheet](reviews/2026-10-10-wp10-case-acceptance.md) binds each first-step case to its case
-digest. Next: the owner accepts or rejects those 15 cases; the first-step run starts once all are
-accepted. Separately, the inline backoff oracle in `build-software-engineer-resumes-after-partial-helper`,
+digest. Later that day two acceptance reviews (this session and a fresh session briefed blind; the
+second's verdicts after it read the first's claims are not independent), then a third review of
+the pull request, led the owner to clarify ten prompts, raise the reliability limit to 40 and
+accept quoted `cf` targets in the log pair, so thirteen digests are new. Next: the owner accepts or rejects the 15 cases at the new digests; one smoke
+trial per `agent-direct` lane settles admission (`researcher` expects an empty tool inventory under
+the contract default); then the first-step run. Runner follow-ups, not blocking: unittest
+`--option=value` spellings and SHA-spelled Git ranges fail their detectors (0/303 and 0/909 in saved
+traces). Separately, the inline backoff oracle in `build-software-engineer-resumes-after-partial-helper`,
 which EVAL-011's supervision did not reach, now runs as a supervised oracle file. [verified] On
 `0a15e336` it passed candidate code that exits 0 at import; now it fails it, and a test keeps inline
 `python -c` checks to standard-library or PyYAML imports by name (dynamic imports need review).
