@@ -6,9 +6,10 @@
   session) led the owner to clarify six prompts, raise the reliability limit to 40 and let the log
   pair's read detectors accept a quoted app name; nine case digests are new. Not yet runnable: no
   case has passed the human case acceptance that
-  [scenarios.md](scenarios.md#case-acceptance-before-model-execution) requires. The run starts only
-  when every precondition below holds; a change to the cases, trial count or cap needs a new
-  approval.
+  [scenarios.md](scenarios.md#case-acceptance-before-model-execution) requires. Preconditions 1 to 5
+  gate the lane-admission smoke trials, which the owner authorized separately on 2026-10-10 (one
+  trial per `agent-direct` lane, counted against the cap); the batch starts only when precondition 6
+  also holds. A change to the cases, trial count or cap needs a new approval.
 - **Run owner:** the human owner starts the run; `agent-engineer` prepares it; `reviewer` checks the
   traces and assertions; the owner or a named reviewer makes the semantic assessments.
 - **Purpose:** first native observations for AC-20 and AC-27 on one candidate. AC-20: lane-specific
@@ -34,7 +35,7 @@ All of these hold before the first paid call:
    and timing with same-profile fallbacks. They are provisional offline sizing choices, not live
    performance evidence; acceptance in item 2 applies to the resulting case digests. On
    2026-10-10 the owner raised the sre-assistant, software-engineer and repository-investigator
-   limits (below); the others keep EVAL-011's sizing.
+   limits, and later that day the reliability case's (below); the others keep EVAL-011's sizing.
 4. The model-free controls below pass at the accepted revision on the run host. The fake `cf`
    wrapper tests skip without a POSIX `sh`; a skip there is not a pass.
 5. The independent review of the cases (PR #334) is closed. Its findings 1 to 4 are fixed with
@@ -48,10 +49,10 @@ All of these hold before the first paid call:
 |---|---|---|
 | 1. Runner identity | Repaired; final evidence in EVAL-011 closeout, then recheck at the run revision | The historical freeze has lifted; current runner changes and their saved-run comparison belong to the closeout record |
 | 2. Human case acceptance | Pending at the exact resulting case digests; the 2026-10-10 reviews changed nine of them | The [acceptance sheet](../reviews/2026-10-10-wp10-case-acceptance.md) binds each first-step case to its case digest, with its task, checks and model-free controls, for the owner's verdict. The independent review's rejects rested on detector gaps never seen in saved traces (unittest `--option=value` spellings 0/303, SHA-spelled Git ranges 0/909, quoted `cf` targets 0/241); the owner took the one-line case edits and left the two runner gaps as EVAL-012 follow-ups |
-| 3. Turn limits | Implemented for all 27 cases | [verified] Limits below are present in the current YAML, and `evals/test_eval011_turn_limits.py` pins the 20 the owner set. The reviewer pair uses its own saved counts; the other unmeasured cases use profile evidence and bounded timing estimates |
+| 3. Turn limits | Implemented for all 27 cases | [verified] Limits below are present in the current YAML, and `evals/test_eval011_turn_limits.py` pins the 21 the owner set: three lanes' limits on the morning of 2026-10-10 and the reliability case's that afternoon. The reviewer pair uses its own saved counts; the other unmeasured cases use profile evidence and bounded timing estimates |
 | 4. Model-free controls | Original controls passed; recheck at the accepted revision | [verified] Current `validate`: 242 specs and 1,050 expectations. The original five control files passed 106 tests and 647 subtests without skips after the fake-wrapper shell fix; consolidated post-repair checks are recorded in the closeout |
 | 5. Review of PR #334 | Finding 5 repaired under EVAL-011 | [verified] Supervised completion prevents an early candidate exit from passing an unfinished assessment; findings 1 to 4 retain their regression coverage |
-| 6. Lane admission smoke | Pending: one trial for each of the four `agent-direct-*` lanes, inside the cap | A contract case without `tools:` gets the `Skill,Task` default intersected with the agent's declaration (`catalog.scenario_tools`, `invocation.expected_runtime_tools`), so `researcher` expects an empty inventory and `runtime_boundary_problem` fails closed on any mismatch; no saved clean-room run of `researcher`, `scribe`, `observability-engineer` or `agent-engineer` under that default exists. Owner, 2026-10-10: smoke first; defer any lane that is not admitted |
+| 6. Lane admission smoke (gates the batch, not the smoke itself) | Pending: one trial for each of the four `agent-direct-*` lanes, inside the cap, authorized by the owner on 2026-10-10 once preconditions 1 to 5 hold | A contract case without `tools:` gets the `Skill,Task` default intersected with the agent's declaration (`catalog.scenario_tools`, `invocation.expected_runtime_tools`), so `researcher` expects an empty inventory and `runtime_boundary_problem` fails closed on any mismatch; no saved clean-room run of `researcher`, `scribe`, `observability-engineer` or `agent-engineer` under that default exists. Owner, 2026-10-10: smoke first; defer any lane that is not admitted |
 
 | Cases | Sizing basis | Declared limit |
 |---|---|---|

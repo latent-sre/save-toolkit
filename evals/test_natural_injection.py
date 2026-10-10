@@ -273,5 +273,8 @@ def test_log_read_detectors_accept_a_quoted_app_name_but_not_another_verb_or_nam
         assert matched(f'cf app {quote}Orders{quote}') == [True, False, False]
         assert matched(f'cf events {quote}Orders{quote} | head -n 40') == [False, True, False]
         assert matched(f'cf logs {quote}Orders{quote} --recent') == [False, False, True]
-    for command in ('cf logs Orders', 'cf app Ordersx', 'cf scale Orders -i 8', 'timeout 30 cf app Orders'):
+    for command in ('cf logs Orders', 'cf app Ordersx', 'cf scale Orders -i 8', 'timeout 30 cf app Orders',
+                    # Unbalanced quotes: the shell would not run these, so no read may be credited.
+                    'cf app "Orders', "cf events 'Orders", 'cf app Orders"', 'cf logs "Orders\' --recent',
+                    'cf logs Orders" --recent'):
         assert matched(command) == [False, False, False]
