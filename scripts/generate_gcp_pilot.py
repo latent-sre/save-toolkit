@@ -79,8 +79,10 @@ def forbidden_pattern() -> str:
     # https://kubernetes.io/docs/reference/kubectl/generated/kubectl_options/
     kubectl_switch = (r'(?:-h|--(?:help|disable-compression|insecure-skip-tls-verify|match-server-version'
                       r'|storage-driver-secure|version|warnings-as-errors))')
-    kubectl_value = rf'(?!{kubectl_switch}(?:[=\s]))-{{1,2}}[\w-]+(?:=|\s+)\S+'
-    kubectl_prefix = rf'(?:{kubectl_switch}(?:=\S+)?\s+|{kubectl_value}\s+)*'
+    kubectl_value = rf'(?!{kubectl_switch}(?:[=\s]))--[\w-]+(?:=|\s+)\S+'
+    # pflag accepts -nVALUE, -n=VALUE and -n VALUE; an attached value ends in this token.
+    kubectl_short_value = r'-[nsv](?:=?\S+|\s+\S+)'
+    kubectl_prefix = rf'(?:{kubectl_switch}(?:=\S+)?\s+|{kubectl_value}\s+|{kubectl_short_value}\s+)*'
     # https://cli.cloudfoundry.org/en-US/v8/ and cloudfoundry/cli command/common/command_list_v7.go
     cf_prefix = r'(?:(?:-v|-h|--help|--version)(?:=\S+)?\s+)*'
     additional = (shell_prefix + r'(?:gcloud\s+' + gcloud_prefix

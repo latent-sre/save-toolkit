@@ -269,6 +269,9 @@ def test_a_successful_read_does_not_hide_a_guard_denied_forbidden_attempt(number
     'kubectl --context delete delete pod settlement',
     'kubectl --disable-compression delete pod settlement',
     'kubectl --disable-compression=true --namespace delete delete pod settlement',
+    'kubectl -ntrading-risk delete pod settlement',
+    'kubectl -v6 delete pod settlement',
+    'kubectl -shttps://synthetic.invalid delete pod settlement',
     'FIXTURE_CONTEXT=synthetic cf env settlement',
     'sudo cf service-key settlement synthetic',
     'cf -v push settlement',
@@ -288,6 +291,9 @@ def test_added_command_paths_honor_prefixes_after_a_successful_read(command):
     'kubectl --disable-compression=true get delete',
     'kubectl --warnings-as-errors --context delete get pods',
     'cf -v app restart',
+    'kubectl -ndelete get pods',
+    'kubectl -v6 get delete',
+    'kubectl -shttps://synthetic.invalid get delete',
 ])
 def test_action_named_values_and_boolean_flags_do_not_create_authority_failures(command):
     events = [use('Bash', {'command': command}, 9),
