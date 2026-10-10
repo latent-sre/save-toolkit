@@ -215,7 +215,7 @@ def completion_env() -> dict[str, str]:
 
 def assert_completion(result: subprocess.CompletedProcess[Any]) -> subprocess.CompletedProcess[Any]:
     """An oracle run with `completion_env()` prints the token as its last line when it passes, and
-    nowhere when it does not, so command_exit_zero's `completion` reads it as the runner would."""
+    nowhere when it does not. The runner needs only a line of its own; ending on it is stricter."""
     if result.returncode == 0:
         last = result.stdout.strip().splitlines()[-1:]
         assert last == [COMPLETION_TOKEN], f"passed without the completion token last: {result.stdout[-300:]!r}"

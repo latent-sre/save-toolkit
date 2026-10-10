@@ -391,12 +391,14 @@ authorizes no model spend, lab provisioning or production changes.
   Next: the owner reviews the template, then the other 11 pilot families follow its shape.
 
 2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases
-(15 cases, 45 trials) under a USD 20 cap; every case's turn limit follows the WP-02 rule on its own
-or its lane's highest measured count; and PR #334's finding 5 is repaired before the run.
-- [verified] Finding 5 is repaired: `command_exit_zero` takes `completion: true`, and the ten oracles
-  that load candidate code into their own process print a per-run token last after removing it from
-  their environment. Candidate code that exits 0 early now fails every such check; it passed before
-  wherever the oracle did not already catch the exit. Rescoring the 1,401 saved runs differs in none.
+(15 cases, 45 trials) under a USD 20 cap; turn limits as the run plan tables them; and PR #334's
+finding 5 is repaired before the run.
+- [verified] Finding 5 is repaired: `command_exit_zero` takes `completion: true`, and the ten oracle
+  files and one inline oracle that load candidate code into their own process print a per-run token
+  after their last assertion, having removed it from their environment first; python-craft's
+  self-spawning modes require each child's own token. With every candidate module exiting 0 as it
+  loads, every flagged check fails, and each oracle has a check that passed without the flag. The
+  rescore of the 1,401 saved runs keeps oracle verdicts, so it shows only that no other verdict moved.
 - The 27 limits are set, and the [acceptance sheet](reviews/2026-10-10-wp10-case-acceptance.md)
   binds each first-step case to its case digest. Next: the owner accepts or rejects those 15 cases;
   the first-step run starts once all are accepted.

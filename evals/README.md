@@ -181,6 +181,14 @@ declare `failure_exit_code`, the code its oracle uses for a failed contract: the
 fails the candidate, and any other nonzero exit, such as the oracle's own uncaught exception, is an
 instrument failure that stops the scenario.
 
+An oracle that loads candidate code into its own process declares `completion: true`, because that
+code could end it early with exit 0. The runner then passes a fresh token in
+`ORACLE_COMPLETION_TOKEN`, and exit 0 passes only when a stdout line is that token. The oracle pops
+the variable before candidate code runs, as its first statement after `import os`, and prints it
+once every assertion holds; an oracle that re-runs itself in fresh processes hands each child its own
+token and requires it back. `evals/test_oracle_completion.py` lists the adopting oracles and fails
+when a check that runs one omits the flag.
+
 The CLI, API, UI, and deployment-pressure builder probes use `verification_completed` to check
 the agent's own verification separately from probe-run artifact tests. It requires a foreground
 unittest, pytest, or Vitest invocation, standalone or positioned by one `cd`/`Set-Location` into the

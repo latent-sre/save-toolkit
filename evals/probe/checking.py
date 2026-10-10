@@ -349,8 +349,9 @@ def _staged_run(
 
 
 # An oracle that runs candidate code removes this from its environment before that code runs and
-# prints it as its last line once every assertion holds, so candidate code that ends the oracle
-# early with exit 0 (sys.exit(0), os._exit(0)) cannot pass for it.
+# prints it on a line of its own once every assertion holds, so candidate code that ends the oracle
+# early with exit 0 (sys.exit(0), os._exit(0)) cannot pass for it. Output after the token, such as
+# a process's shutdown logging, does not undo a completed check.
 COMPLETION_ENV: Final = "ORACLE_COMPLETION_TOKEN"
 
 
@@ -366,7 +367,7 @@ def check_command_exit_zero(ctx: Context, p: Params) -> Outcome:
     """Zero passes. A declared `inconclusive_exit_code` is an unavailable measurement. With a declared
     `failure_exit_code`, only that code fails the candidate, and any other nonzero exit, such as an
     oracle's own uncaught exception, is an instrument failure (AC-24); without one, every nonzero exit fails.
-    With `completion: true`, zero passes only when stdout's last line is the run's completion token."""
+    With `completion: true`, zero passes only when a stdout line is the run's completion token."""
     token = secrets.token_hex(16) if p.get("completion") is True else None
     proc = _staged_run(ctx, p, {COMPLETION_ENV: token} if token else None)
     if isinstance(proc, Outcome):
@@ -379,7 +380,7 @@ def check_command_exit_zero(ctx: Context, p: Params) -> Outcome:
     failure = p.get("failure_exit_code")
     if type(failure) is int and 1 <= failure <= 255 and proc.returncode not in (0, failure):
         return instrument(f"{evidence} (not the declared failure exit {failure})")
-    if token and proc.returncode == 0 and proc.stdout.strip().splitlines()[-1:] != [token]:
+    if token and proc.returncode == 0 and token not in (line.strip() for line in proc.stdout.splitlines()):
         return verdict(False, f"{evidence} (exit 0 without its completion token: the command ended before finishing)")
     return verdict(proc.returncode == 0, evidence)
 

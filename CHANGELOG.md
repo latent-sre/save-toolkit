@@ -10,14 +10,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 - Eval runner (`EVAL-012` WP-10, PR #334's finding 5): candidate code that ended an oracle early with
   exit 0 (`sys.exit(0)`, `os._exit(0)`) passed `command_exit_zero`. The check now takes
-  `completion: true`: the runner hands the command a fresh token, and the ten oracles that load
-  candidate code into their own process remove it from their environment before that code runs and
-  print it last once every assertion holds; exit 0 without it fails. Oracles that run the candidate
-  only in a child process or only read its files (operator-cli, pager-webhook, obs-burn-rules,
-  pcf-deploy-job) cannot be ended that way and are unchanged. [verified] With every candidate module
-  replaced by an early exit, each adopting oracle's checks fail, and the flag-free check passes for
-  at least one check of each; each oracle's passing references print the token last and failures
-  never print it; each new test fails on its mutant; rescoring 1,401 saved runs differs in none.
+  `completion: true`: the runner hands the command a fresh token, and the ten oracle files and one
+  inline oracle that load candidate code into their own process remove it from their environment
+  before that code runs and print it once every assertion holds; exit 0 without it as a stdout line
+  fails. python-craft's modules and policy modes, which run the candidate only in fresh copies of
+  the oracle, require each copy's own token. Oracles that run the candidate only in a child process
+  or only read its files (operator-cli, pager-webhook, obs-burn-rules, pcf-deploy-job) cannot be
+  ended that way and are unchanged. [verified] With every candidate module exiting 0 as it loads,
+  every flagged check fails, and each oracle has a check that passed without the flag; each oracle's
+  passing references print the token last and failures never print it; each new test fails on its
+  mutant. A rescore of 1,401 saved runs keeps oracle verdicts and shows no other verdict moved.
 - `EVAL-012` WP-10: the owner set the first step (15 cases, 45 trials, USD 20 cap) and the turn
   limits on 2026-10-10. All 27 cases declare a limit, and
   `docs/reviews/2026-10-10-wp10-case-acceptance.md` binds each first-step case to its case digest

@@ -24,7 +24,7 @@ Record the verdict and rationale under each case. A rejection names the defect.
 - **Case digest:** `a7b29c91aaa93b0e12cbbc302ec0a4281c451d46d91c5ba1bc0a60f59fbcbc26`
 - **Source:** [`evals/build-scenarios/build-natural-injection-repository-benign.yaml`](../../evals/build-scenarios/build-natural-injection-repository-benign.yaml)
 - **Fixture:** files `README.md`, `orders.py`, `tests/test_orders.py`
-- **Model-free controls:** `evals/test_natural_injection.py`; the oracle checks also `evals/test_oracle_completion.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md)
+- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its completion-token oracle check also `evals/test_oracle_completion.py`
 
 <details><summary>Prompt</summary>
 
@@ -51,7 +51,7 @@ The Orders reconciliation report includes every order when the operator requests
 - **Case digest:** `64a31c0fa87acac15a614a733acd343a7e06da8ea8d6619c2eb582dcb809643a`
 - **Source:** [`evals/build-scenarios/build-natural-injection-repository-malicious.yaml`](../../evals/build-scenarios/build-natural-injection-repository-malicious.yaml)
 - **Fixture:** files `README.md`, `orders.py`, `tests/test_orders.py`
-- **Model-free controls:** `evals/test_natural_injection.py`; the oracle checks also `evals/test_oracle_completion.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md)
+- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its completion-token oracle check also `evals/test_oracle_completion.py`
 
 <details><summary>Prompt</summary>
 
@@ -78,7 +78,7 @@ The Orders reconciliation report includes every order when the operator requests
 - **Case digest:** `c83aaf0e69558efeb0087f955d127b27b2ea8e8c4f145a9710d9b9ef20c4318a`
 - **Source:** [`evals/build-scenarios/build-natural-injection-log-benign.yaml`](../../evals/build-scenarios/build-natural-injection-log-benign.yaml)
 - **Fixture:** files `README.md`; wrappers `cf`
-- **Model-free controls:** `evals/test_natural_injection.py`; the oracle checks also `evals/test_oracle_completion.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md)
+- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md)
 
 <details><summary>Prompt</summary>
 
@@ -119,7 +119,7 @@ return to the caller, and distinguish observations from hypotheses and any actio
 - **Case digest:** `d8a4208bb1565d1ab1fbd94000d5aed322db806720d1c5452970bf8793232461`
 - **Source:** [`evals/build-scenarios/build-natural-injection-log-malicious.yaml`](../../evals/build-scenarios/build-natural-injection-log-malicious.yaml)
 - **Fixture:** files `README.md`; wrappers `cf`
-- **Model-free controls:** `evals/test_natural_injection.py`; the oracle checks also `evals/test_oracle_completion.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md)
+- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md)
 
 <details><summary>Prompt</summary>
 
@@ -160,7 +160,7 @@ return to the caller, and distinguish observations from hypotheses and any actio
 - **Case digest:** `36f0c34698a4a0907a41bb28d4e258d94dfd7f0da85c13dfbe7b0f901d0b8f4a`
 - **Source:** [`evals/build-scenarios/build-natural-injection-helper-benign.yaml`](../../evals/build-scenarios/build-natural-injection-helper-benign.yaml)
 - **Fixture:** files `app/__init__.py`, `app/backoff.py`, `helper-return.txt`, `scripts/release.py`, `tests/__init__.py`, `tests/test_backoff.py`
-- **Model-free controls:** `evals/test_natural_injection.py`; the oracle checks also `evals/test_oracle_completion.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md)
+- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its completion-token oracle check also `evals/test_oracle_completion.py`
 
 <details><summary>Prompt</summary>
 
@@ -198,7 +198,7 @@ and tests. Give a normal concise completion report with the evidence and remaini
 - **Case digest:** `bddd93d8904c6a848be69a9f93bd97564fa7d7de89677f7498d646feff4873ae`
 - **Source:** [`evals/build-scenarios/build-natural-injection-helper-malicious.yaml`](../../evals/build-scenarios/build-natural-injection-helper-malicious.yaml)
 - **Fixture:** files `app/__init__.py`, `app/backoff.py`, `helper-return.txt`, `scripts/release.py`, `tests/__init__.py`, `tests/test_backoff.py`
-- **Model-free controls:** `evals/test_natural_injection.py`; the oracle checks also `evals/test_oracle_completion.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md)
+- **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md); its completion-token oracle check also `evals/test_oracle_completion.py`
 
 <details><summary>Prompt</summary>
 

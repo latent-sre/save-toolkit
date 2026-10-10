@@ -31,16 +31,17 @@ All of these hold before the first paid call:
 5. The independent review of the cases (PR #334) is closed. Its findings 1 to 4 are fixed with
    regression tests. Finding 5, that candidate code can exit an oracle early with status 0, is
    repaired at the owner's choice: `command_exit_zero` takes `completion: true`, and the ten
-   oracles that load candidate code into their own process print a per-run token last, which they
-   remove from their environment before that code runs.
+   oracle files and one inline oracle that load candidate code into their own process print a
+   per-run token once every assertion holds, after removing it from their environment before that
+   code runs. An oracle that re-runs itself in fresh processes requires each child's own token.
 
 ### Readiness on 2026-10-10
 
 | Precondition | State | Evidence |
 |---|---|---|
-| 1. Runner identity | Reconciled; recheck at the run revision | The frozen record's digest `55138c00…` reproduces from its input `164eccb1`. [verified] Rescoring all 92 saved iterations (1,401 runs) with the frozen runner and with PR #347's runner gives 80 differences, every one from three owner-approved scenario changes: guarded-triage's labelled headings (`3cfcca8a`, 73), EVAL-016's disposition (`074cbcd3`, 6) and the new guard canary (`0b11ec58`, 1). No runner code change since the freeze (#342, #346, EVAL-011 D6) changes a saved verdict. This branch's runner digest is `60387e14d5619f4164729cff8c1265723bf1f64eeb898c35d51777c1fe41b1a4`; [verified] rescoring the same runs with PR #347's runner and this one, completion flags and turn limits included, differs in none |
+| 1. Runner identity | Reconciled; recheck at the run revision | The frozen record's digest `55138c00…` reproduces from its input `164eccb1`. [verified] Rescoring all 92 saved iterations (1,401 runs) with the frozen runner and with PR #347's runner gives 80 differences, every one from three owner-approved scenario changes: guarded-triage's labelled headings (`3cfcca8a`, 73), EVAL-016's disposition (`074cbcd3`, 6) and the new guard canary (`0b11ec58`, 1). No runner code change since the freeze (#342, #346, EVAL-011 D6) changes a saved verdict. This branch's runner digest is `200b9e110e514aaab936bbacce5748d5b407f88e6450628413212a865b8d5cd0`; [verified] rescoring the same runs with PR #347's runner and this one differs in none. A rescore keeps each oracle check's live verdict, so it shows that the edits change no other saved verdict, not how the token behaves; `evals/test_oracle_completion.py` shows that |
 | 2. Human case acceptance | Owner, for the first step's 15 cases | The [acceptance sheet](../reviews/2026-10-10-wp10-case-acceptance.md) gives each case's exact digest, task, checks and model-free evidence, with a place for the verdict |
-| 3. Turn limits | Set | Owner, 2026-10-10: the WP-02 rule (twice the highest measured count, or that count plus 10) for every case; the 25 without saved trials use their lane's highest measured case of the same kind (below) |
+| 3. Turn limits | Set | Owner, 2026-10-10, as tabled below: the WP-02 rule (twice the highest measured count, or that count plus 10) on each case's own count or, for the 25 without saved trials, its lane's highest measured case of the same kind; except that the repository-investigator pair takes the denied-shell canary's declared 15 and the contract cases apply the rule to the highest contract count across lanes |
 | 4. Model-free controls | Pass on this host | [verified] `validate`: 242 specs OK. The six control files below: 129 passed, 647 subtests, none skipped. The fake-wrapper tests find their shell's utilities on Windows since `d7bebd14` |
 | 5. Review of PR #334 | Repaired | Findings 1 to 4 are fixed with regression tests (CHANGELOG); finding 5 by the completion token, owner's choice on 2026-10-10 |
 

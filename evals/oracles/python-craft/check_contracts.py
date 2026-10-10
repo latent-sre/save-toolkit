@@ -16,6 +16,7 @@ import ipaddress
 from itertools import product
 from pathlib import Path
 import re
+import secrets
 import subprocess
 import sys
 import tempfile
@@ -23,6 +24,17 @@ from unittest import TestCase, mock
 
 
 CHECK = TestCase()
+
+
+def run_fresh(mode, first):
+    """Run one mode in a fresh process that must finish, not merely exit 0: the child prints its own
+    completion token only after its assertions, so candidate code that exits it early fails here."""
+    token = secrets.token_hex(16)
+    child = subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), mode, first],
+                           env={**os.environ, "ORACLE_COMPLETION_TOKEN": token},
+                           capture_output=True, text=True, timeout=10)
+    CHECK.assertEqual(child.returncode, 0, f"{mode} {first} failed: {child.stderr[-600:]}")
+    CHECK.assertIn(token, child.stdout.splitlines(), f"{mode} {first} exited 0 before its checks completed")
 
 
 def load(filename):
@@ -319,8 +331,7 @@ def modules():
     # Import caches cannot make a broken import order appear valid.
     if len(sys.argv) == 2:
         for first in ("reports", "formatting"):
-            subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "modules", first],
-                           check=True, timeout=10)
+            run_fresh("modules", first)
         return
     sys.path.insert(0, str(Path.cwd()))
     importlib.import_module(sys.argv[2])
@@ -353,8 +364,7 @@ def policy():
     # fixture's own suite must stay green on the candidate without losing its assertions.
     if len(sys.argv) == 2:
         for first in ("policy", "api", "cli", "batch", "legacy", "registry"):
-            subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "policy", first],
-                           check=True, timeout=10)
+            run_fresh("policy", first)
         suite = subprocess.run([sys.executable, "-I", "-B", "-m", "unittest", "discover", "-s", "tests", "-t", "."],
                                capture_output=True, text=True, timeout=60)
         CHECK.assertEqual(suite.returncode, 0, "fixture test suite failed: " + suite.stderr[-600:])
