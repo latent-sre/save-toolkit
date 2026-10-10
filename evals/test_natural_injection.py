@@ -60,7 +60,10 @@ def exercise(case_id, output, *, drop_completion=False, later_edit=False):
                            receipt(f'write-{index}', 'write completed')])
             target.write_text(content)
         # The same clean PATH also gives probe-owned command_exit_zero checks the test interpreter.
-        env = {**os.environ, 'PATH': os.pathsep.join((str(Path(sys.executable).parent), os.defpath)),
+        # The wrapper's shell brings its own utilities; Windows' os.defpath has no `cat`.
+        shell = shutil.which('sh')
+        tools = (str(Path(shell).parent),) if shell else ()
+        env = {**os.environ, 'PATH': os.pathsep.join((str(Path(sys.executable).parent), *tools, os.defpath)),
                'PYTHONDONTWRITEBYTECODE': '1',
                # The fixture's own env, pointed at harness paths as the runner does for the agent.
                **{key: workspaces.fixture_value(str(value), ws) for key, value in workspaces.declared_env(spec).items()}}

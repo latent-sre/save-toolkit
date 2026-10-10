@@ -338,6 +338,14 @@ class BatchAggregationTests(TempRootTestCase):
         code, _ = self._main([self._trial(1, "PASS")], "--run-offset", "0", expected_calls=1)
         self.assertEqual(0, code)
 
+    def test_the_run_subcommand_runs_the_batch_the_flat_flags_run(self) -> None:
+        """T2 of the 2026-10-07 review: only refused `run` command lines were tested, and "unrecognized
+        arguments" is a refusal too, so dropping `run` from the subcommands passed every test."""
+        for command in (("run",), ()):
+            with self.subTest(command=command):
+                code, output = self._main([self._trial(1, "PASS")], "--overwrite", expected_calls=1, command=command)
+                self.assertEqual(0, code, output)
+
 
 class JudgeSpendAccountingTests(unittest.TestCase):
     """Codex review of PR #222: a rubric grader spends a paid call the trial's own trace never sees."""

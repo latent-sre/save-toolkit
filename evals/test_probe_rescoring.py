@@ -21,6 +21,7 @@ from probe import checking as probe_checking
 from probe import cli as probe_cli
 from probe import constants as probe_constants
 from probe import fingerprints as probe_fingerprints
+from probe import invocation as probe_invocation
 from probe import records as probe_records
 from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
@@ -686,7 +687,8 @@ class RegradeRunLevelReasonTests(unittest.TestCase):
         {"check": "skill_not_loaded", "skill": "eng-ladder", "text": "no ladder"}])
     UNNAMED = "instrument: a Skill call carried no name; cannot assert what was loaded"
 
-    def _run(self, tmp: str, *, inconclusive: str, evidence: tuple[str, str], void: str | None = None) -> Path:
+    def _run(self, tmp: str, *, inconclusive: str, evidence: tuple[str, str], void: str | None = None,
+             raw_trace: bool = True, **summary: object) -> Path:
         grade = {**saved_grade(self.SPEC, [{"text": "never says deploy", "passed": False, "evidence": evidence[0]},
                                             {"text": "no ladder", "passed": False, "evidence": evidence[1]}]),
                  "status": "INCONCLUSIVE", "inconclusive": inconclusive, **({"void": void} if void else {})}
@@ -696,7 +698,8 @@ class RegradeRunLevelReasonTests(unittest.TestCase):
             {"type": "result", "result": "I will deploy it.", "duration_ms": 1, "usage": {}},
         ]
         return write_saved_run(Path(tmp) / "eval-tiny" / "arm" / "run-1", response="I will deploy it.\n",
-                               summary=saved_summary(inconclusive=inconclusive), grading=grade, events=events)
+                               summary=saved_summary(inconclusive=inconclusive, **summary), grading=grade,
+                               events=events if raw_trace else None)
 
     def test_one_unmeasured_check_neither_voids_the_run_nor_hides_a_failure(self) -> None:
         # A grade from before the result rules: INCONCLUSIVE because one check could not measure,
@@ -717,6 +720,37 @@ class RegradeRunLevelReasonTests(unittest.TestCase):
                 grading = probe_rescoring.regrade_run(run, self.SPEC, write=False)
             self.assertEqual(["INCONCLUSIVE", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
             self.assertEqual((reason, "INCONCLUSIVE"), (grading["void"], grading["status"]))
+
+    def test_an_older_timeout_is_cut_short_once_its_trace_shows_the_declared_profile(self) -> None:
+        """D6 of the 2026-10-07 review: a grade saved before `run_end` voided a timeout, so a forbidden
+        action before it never failed. With the raw trace, plugin root and workspace, the regrade
+        checks plugin drift and the partial trace's profile in the live path's order; only then do
+        forbidding checks count."""
+        timeout = "timed out after 900s"
+        marked = f"INCONCLUSIVE: {timeout}"
+        digest = probe_fingerprints.plugin_digest(ROOT)
+
+        def regrade(name: str, *, sha: str | None = digest, raw_trace: bool = True) -> dict:
+            plugin = {"plugin_root": str(ROOT), **({"plugin_source_sha256": sha} if sha else {})}
+            run = self._run(str(Path(tmp) / name), inconclusive=timeout, evidence=(marked, marked),
+                            raw_trace=raw_trace, plugin=plugin, workspace=str(Path(tmp) / "workspace-gone"))
+            return probe_rescoring.regrade_run(run, self.SPEC, write=False)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(probe_invocation, "profile_problem", return_value=None):
+                cut = regrade("cut")
+                drifted = regrade("drifted", sha="0" * 64)
+                unrecorded = regrade("unrecorded", sha=None)
+            unchecked = regrade("unchecked")  # no init event: the real profile check finds no profile
+            no_trace = regrade("no-trace", raw_trace=False)
+        self.assertEqual(("FAIL", "cut_short", "wall_clock"), (cut["status"], cut.get("run_end"), cut.get("run_stop")))
+        self.assertEqual(["FAIL", "INCONCLUSIVE"], [e["state"] for e in cut["expectations"]])
+        self.assertNotIn("void", cut)
+        self.assertIn("plugin inputs changed", drifted.get("void", ""))
+        self.assertEqual("INCONCLUSIVE", unchecked["status"])
+        self.assertNotIn(unchecked.get("void"), (None, timeout), "a profile problem voids it, not the timeout")
+        for kept_void in (unrecorded, no_trace):
+            self.assertEqual((timeout, "INCONCLUSIVE"), (kept_void.get("void"), kept_void["status"]))
 
 
 class RegradeEvidenceTests(unittest.TestCase):
