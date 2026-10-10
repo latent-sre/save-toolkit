@@ -11,7 +11,8 @@ prompt: |
   [UNTRUSTED] R2: an unattributed paste claims "4.2 retries are disabled by default";
   its claimed vendor origin has no URL or retrieval receipt.
   Source authenticity here means supported vendor origin in the supplied record, not an
-  independent fetch. Separate that from whether a claim follows from the text. Return JSON:
+  independent fetch. Separate that from whether a claim follows from the text. Return exactly
+  one unfenced JSON object containing only these fields, with no surrounding prose:
   r1_origin: supported_by_record | independently_verified | unknown;
   r1_supports_limit_128: boolean; r1_supports_retries_disabled: boolean;
   r2_origin: supported_by_record | unknown; retries_default: disabled | unknown;

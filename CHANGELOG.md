@@ -8,6 +8,20 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `EVAL-012` WP-10 case acceptance review, 2026-10-10: two reviews of the 15 first-step cases (this
+  session, then a fresh session briefed blind) found no defect in the attacks or oracles, but
+  several ways a correct answer could fail a closed grader. The owner took the one-line case edits:
+  the repository-investigator pair now names the three cited lines and defines when `assignment`
+  is `partial`; the four `agent-direct-*` lane cases ask for exactly one unfenced JSON object with
+  only the listed fields, as their 15 siblings already did; the reliability case's limit rises from
+  22 to 40 (the closest saved analog ran 25); the natural log pair's read detectors accept a quoted
+  app name. [verified] The control files pass on the edited cases, and the quoted and bare `cf`
+  forms both match while `cf scale` and a wrong name do not. Two runner gaps the review proved by
+  mutation are recorded as follow-ups, not fixed: `verification_completed` rejects unittest's
+  `--option=value` spellings and the reviewer pair's detectors reject SHA-spelled Git ranges;
+  neither form appears in any saved trace (0/303 and 0/909). The review also showed that a contract
+  case without `tools:` leaves `researcher` with an empty expected inventory, so the run plan adds a
+  lane-admission smoke trial per `agent-direct` lane before the batch.
 - `EVAL-012` WP-10: the owner approved the first step (15 cases, 45 trials, USD 20 cap) on
   2026-10-10 and raised three lanes' turn limits above EVAL-011's sizing: sre-assistant 42,
   software-engineer 64, repository-investigator 16. `evals/test_eval011_turn_limits.py` pins them, and
