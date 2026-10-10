@@ -402,8 +402,9 @@ digest. Later that day two acceptance reviews (this session and a fresh session 
 second's verdicts after it read the first's claims are not independent), then a third review of
 the pull request, led the owner to clarify ten prompts, raise the reliability limit to 40 and
 accept quoted `cf` targets in the log pair, so thirteen digests are new. The owner accepted all 15
-at those digests the same day. Next: one smoke trial per `agent-direct` lane settles admission (`researcher` expects an empty tool inventory under
-the contract default); then the first-step run. Runner follow-ups, not blocking: unittest
+at those digests the same day, and one smoke trial per `agent-direct` lane admitted all four lanes
+(4/4 PASS, USD 0.20; `researcher` ran with the empty tool inventory the contract default gives it).
+Next: the first-step run. Runner follow-ups, not blocking: unittest
 `--option=value` spellings and SHA-spelled Git ranges fail their detectors (0/303 and 0/909 in saved
 traces). Separately, the inline backoff oracle in `build-software-engineer-resumes-after-partial-helper`,
 which EVAL-011's supervision did not reach, now runs as a supervised oracle file. [verified] On

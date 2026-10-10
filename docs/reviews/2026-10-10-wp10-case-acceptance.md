@@ -668,8 +668,9 @@ over saved traces.
   source-lookup trial.
 - **Reliability case:** the 40-turn limit is provisional sizing (the closest analog ran 18, 19 and
   25 turns with two skills), and no saved trial has loaded all three required skills.
-- **The four `agent-direct` cases:** admission under the contract tool default is unobserved until
-  the precondition-6 smoke trials; `researcher` expects an empty tool inventory, and
-  `agent-engineer` has no Read tool for the guidance its body says to read first.
+- **The four `agent-direct` cases:** the precondition-6 smoke trials admitted all four lanes under
+  the contract tool default (one Sonnet trial each, all PASS, each advertising exactly its expected
+  inventory, `researcher` none). One trial per lane is not a pass rate, and `agent-engineer` still
+  has no Read tool for the guidance its body says to read first.
 - **Reviewer pair:** SHA-spelled `git diff`/`log` ranges are not credited (0/863 saved range
   commands). Runner follow-up under EVAL-012.

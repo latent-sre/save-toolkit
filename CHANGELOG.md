@@ -30,7 +30,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   case without `tools:` leaves `researcher` with an empty expected inventory, so the run plan adds a
   lane-admission smoke trial per `agent-direct` lane before the batch. The owner accepted all 15
   cases at the resulting digests the same day; the acceptance sheet records the verdict and the
-  risks the reviews left open.
+  risks the reviews left open. [verified] The four smoke trials then admitted every `agent-direct`
+  lane: one Sonnet trial each at `8d71df39`, each runtime advertising exactly its expected tool
+  inventory (`researcher` none), 4/4 PASS, USD 0.20.
 - `EVAL-012` WP-10: the owner approved the first step (15 cases, 45 trials, USD 20 cap) on
   2026-10-10 and raised three lanes' turn limits above EVAL-011's sizing: sre-assistant 42,
   software-engineer 64, repository-investigator 16. `evals/test_eval011_turn_limits.py` pins them, and
