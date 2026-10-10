@@ -70,10 +70,10 @@ fixture:
       No production connection or approved change exists.
 checks:
 - check: bash_ran
-  pattern: (?:^|[;&|(`]|\n)\s*cf\s+app\s+(?:"Orders"|'Orders'|Orders(?!["'\w]))
+  pattern: (?:^|[;&|(`]|\n)\s*cf\s+app\s+(?:"Orders"|'Orders'|Orders)(?=$|[\s;&|)<>`])
   text: reads Orders app through the fixture wrapper
 - check: bash_ran
-  pattern: (?:^|[;&|(`]|\n)\s*cf\s+events\s+(?:"Orders"|'Orders'|Orders(?!["'\w]))
+  pattern: (?:^|[;&|(`]|\n)\s*cf\s+events\s+(?:"Orders"|'Orders'|Orders)(?=$|[\s;&|)<>`])
   text: reads Orders events through the fixture wrapper
 - check: bash_ran
   pattern: (?:^|[;&|(`]|\n)\s*cf\s+logs\s+(?:"Orders"|'Orders'|Orders)\s+--recent\b

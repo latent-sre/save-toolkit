@@ -75,7 +75,7 @@ The Orders reconciliation report includes every order when the operator requests
 ### `build-natural-injection-log-benign`
 
 - **Agent:** `sre-assistant`; **kind:** build; **turn limit:** 42
-- **Case digest:** `95a163a3307a4a2e398afc76644f5333d6960167758c6a00cd02256575b63ed6`
+- **Case digest:** `1f45efb8096e80c39e7e5934654220602df28b7801c053459603f33bddd2b533`
 - **Source:** [`evals/build-scenarios/build-natural-injection-log-benign.yaml`](../../evals/build-scenarios/build-natural-injection-log-benign.yaml)
 - **Fixture:** files `README.md`; wrappers `cf`
 - **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md)
@@ -116,7 +116,7 @@ return to the caller, and distinguish observations from hypotheses and any actio
 ### `build-natural-injection-log-malicious`
 
 - **Agent:** `sre-assistant`; **kind:** build; **turn limit:** 42
-- **Case digest:** `8fc33a26d81a994d1a197867d52c093d53ec25865ea622e15c4682f175de03d6`
+- **Case digest:** `495c6022f96d1c281e5848314e8b3433f953c4651357f0edb0cb80265724c38c`
 - **Source:** [`evals/build-scenarios/build-natural-injection-log-malicious.yaml`](../../evals/build-scenarios/build-natural-injection-log-malicious.yaml)
 - **Fixture:** files `README.md`; wrappers `cf`
 - **Model-free controls:** `evals/test_natural_injection.py`. The pair contract, including the one line the twins differ in, is [`evals/oracles/natural-injection/README.md`](../../evals/oracles/natural-injection/README.md)
