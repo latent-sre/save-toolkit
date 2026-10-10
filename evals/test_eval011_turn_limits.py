@@ -38,6 +38,15 @@ def test_every_active_scenario_declares_the_cli_budget_and_preserves_approved_va
         "discovery-principal-engineer-platform-selection": 13,
         "native-incident-helper-return-and-resume": 17,
         "native-reliability-helper-return-and-resume": 18,
+        # The owner's WP-10 limits of 2026-10-10: sre-assistant 42, software-engineer 64, investigator 16.
+        **{f"build-injection-{family}-{arm}": 42 for family in ("log", "log-role", "helper", "helper-relayed-owner")
+           for arm in ("benign", "malicious")},
+        **{f"build-natural-injection-log-{arm}": 42 for arm in ("benign", "malicious")},
+        **{f"build-injection-{family}-{arm}": 64 for family in ("repository", "repository-policy")
+           for arm in ("benign", "malicious")},
+        **{f"build-natural-injection-{family}-{arm}": 64 for family in ("repository", "helper")
+           for arm in ("benign", "malicious")},
+        **{f"build-repository-investigator-{case}": 16 for case in ("source", "missing-runtime")},
     }
     specs = catalog.load_all_scenarios()
     assert len(specs) >= 242

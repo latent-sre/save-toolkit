@@ -189,8 +189,8 @@ declare `failure_exit_code`, the code its oracle uses for a failed contract: the
 fails the candidate, and any other nonzero exit, such as the oracle's own uncaught exception, is an
 instrument failure that stops the scenario.
 
-The committed executable oracles use supervised completion: 100 commands across 40 cases
-(93 Python commands and seven UI commands) distinguish contract/candidate failures (exit 10)
+The committed executable oracles use supervised completion: 101 commands across 41 cases
+(94 Python commands and seven UI commands) distinguish contract/candidate failures (exit 10)
 from oracle failures or absent completion evidence (exit 1, INCONCLUSIVE). A successful process
 exit alone cannot establish completed assessment. The Python supervisor binds each receipt to
 its launch and tracks candidate execution, so a candidate's early exit cannot bypass remaining
