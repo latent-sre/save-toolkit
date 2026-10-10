@@ -1,0 +1,16 @@
+id: discovery-frontend-craft-component-library-fit
+max_turns: 4
+split: regression
+# This case grades discovery only; advice quality needs separate review.
+prompt: |
+  We're building a React ops dashboard and the styling is all Tailwind. We're considering
+  `@mantine/core` for dialogs and form controls alongside our existing components. What should
+  we consider when choosing between that and extending our current UI primitives, especially
+  accessibility, theme consistency and maintenance? Just advise; don't change anything yet.
+success_criteria:
+- Fires on an unlabelled UI dependency question that never names the skill
+target:
+  kind: skill
+  name: frontend-craft
+routing:
+  expect: fire

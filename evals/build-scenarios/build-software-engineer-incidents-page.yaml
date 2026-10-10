@@ -9,9 +9,8 @@ agent: software-engineer
 # white page, a designed empty state, an accessible name on every control, the filter reflected in
 # and restored from the URL, a clean axe pass, and status conveyed as text rather than colour alone.
 # The fixture is Vite + React 19 + TypeScript with react-router-dom, Vitest, Testing Library and
-# MSW, pinned to exact versions; the existing repository's stack wins over the skill's greenfield
-# default, so react-router rather than TanStack Router is the correct thing to extend here, and the
-# agent should add no dependency. src/pages/Services.tsx is deliberately naive — a bare fetch into
+# MSW, pinned to exact versions; extend the existing React Router setup for this scoped page.
+# Library selection is not graded here. src/pages/Services.tsx is deliberately naive — a bare fetch into
 # state, no loading/error/empty states, an unlabelled select, filter in component memory — so the
 # repository's own code does not model the bar the oracle grades. The agent runs on a host with a
 # network, so `npm install` inside the workspace is expected; the first check runs it too, so the
@@ -300,8 +299,6 @@ checks:
   - {check: command_exit_zero, command: "npm run typecheck", timeout: 300, text: "tsc --noEmit is clean under the repo's strict config"}
   - {check: command_exit_zero, command: "npx vitest run src", timeout: 300, text: "the agent's own suite is green when the probe runs it (src/ only, so the oracle is excluded)"}
   - {check: command_exit_zero, command: "npx vitest run src --reporter=json --outputFile=probe_suite.json && node -e \"const r=require('./probe_suite.json');const t=r.testResults.flatMap(f=>f.assertionResults);const hit=t.filter(a=>/incident/i.test(a.fullName+a.title)&&a.status==='passed');process.exit(hit.length?0:1)\"", timeout: 300, text: "an incidents test case the agent wrote actually executed and passed"}
-  - {check: changed_files_not_containing, glob: "package.json", needle: "@mantine/core", text: "no Mantine component library added to a Tailwind-free React app"}
-  - {check: changed_files_not_containing, glob: "src/**", needle: "@mantine/core", text: "no Mantine component imports in the page code"}
   - {check: verification_completed, runner: vitest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
