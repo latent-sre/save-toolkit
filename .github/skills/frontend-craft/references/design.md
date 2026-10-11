@@ -24,6 +24,26 @@ roles; a layout concept in one sentence and an ASCII sketch, with alignment; the
 is allowed to be bold; the motion budget. Then read the brief against the generic defaults below.
 Anything that matches one is a default, not a choice: change it and say why.
 
+Use the product's main job to choose its composition: finding an owner or guide on a team site;
+connecting evidence in an incident workspace; authoring and inspecting a workflow; or finding a
+service and understanding its relationships. These jobs do not require the same page layout or
+every available interaction. In an incident workspace, preserve the existing bridge or TLC as
+the coordination channel; the workspace supports the investigation.
+
+When the caller requests alternatives, or the brief leaves a consequential layout decision open
+(for example, a queue with an inspector versus a timeline-led workspace), show two directions
+using the same representative content and task. Change composition, navigation, density and
+interaction, not only colours. Show comparable rendered slices when possible; otherwise label
+the concepts as unrendered. Explain the tradeoff and use the caller's selection. If the caller
+delegates the choice, select and proceed. With a selected direction or a focused repair, extend
+it; otherwise state one justified direction. Keep the brief proportional to the change.
+
+Build one complete journey before expanding: entry, meaningful outcome, failure and recovery.
+Carry the selected identity into secondary routes and non-ideal states. Clearly label fixtures
+and simulations; a working mock does not establish live integration. Use long names, missing
+owners and delayed data before polishing the ideal example. Check font and image rights,
+loading cost, fallback layout and the product's asset/privacy policy when introducing them.
+
 ## The console register
 
 Start an unstyled app with no component kit from [the console theme](../assets/console-theme.css):
