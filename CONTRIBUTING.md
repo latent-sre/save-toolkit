@@ -56,7 +56,8 @@ Gate A rejects uncited review packets; citation alone does not establish that a 
 | Code, validator, or exit code | The affected tests; `python -m ruff check` for Python under `scripts/` or `skills/`, and `python -m mypy` when the file is in `pyproject.toml`'s mypy list |
 | Agent, skill, command, or bundled reference | The matching asset or contract test |
 | Routing description | The overlapping clean-room scenarios; pure wording changes need no live eval |
-| Eval harness or scenario | The affected `evals/test_*.py`; `python evals/build_probe.py validate` for parsing or targeting changes; `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`), `evals/compare_runs.py`, `evals/graders.py`, `evals/inspect_pilot.py` or an `evals/test_*.py`; `python evals/judge.py --calibrate` after a rubric edit |
+| Scenario data, prompt, target, or expected result | `python evals/build_probe.py validate` and the matching scenario/grader contract tests; execute changed fixture code or check commands through their affected behavioral tests |
+| Eval harness, grader, or runner | The affected `evals/test_*.py`; `python -m ruff check`, `python -m ruff format --check` and `python -m mypy` for a change to the runner (`evals/build_probe.py`, `evals/probe/`), `evals/compare_runs.py`, `evals/graders.py`, `evals/inspect_pilot.py` or an `evals/test_*.py`; `python evals/judge.py --calibrate` after a rubric edit |
 | Judge, clean room or oracle Python | The affected behavioral tests and `python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles`; preserve byte-bound formatting and incremental typing unless a broader migration has a measured benefit |
 | Read-only guard or hook wiring | `python -m pytest scripts/test_readonly_guard.py scripts/test_hook_wiring.py`; exit codes stay 42 allow, 43 deny, 44 indeterminate |
 | Large agent, skill, or reference growth | State the byte delta and why the task needs it in the PR; no mechanical ceiling remains, so reviewers own the context-cost judgment |
@@ -81,19 +82,46 @@ python scripts/gate_a.py
 ```
 
 Run it once, at the push boundary, and never through a pipe — a pipe masks its exit code.
-When the change reaches code, tests, or frontmatter, run the suite at that same boundary.
-In the project environment, install its constrained test dependencies first:
+Choose local verification from the changed behavior, not the directory alone:
+
+- Agent/skill/command prose, descriptive frontmatter, bundled reference text, and scenario data
+  changes need Gate A and the matching checks in the table. They do not require an unrelated full
+  suite solely because frontmatter or an `evals/` path changed. Tool grants, delegation, hooks,
+  executable examples, inline fixture code, and check commands still need their behavioral tests.
+- Executable code, tests, dependencies, or test configuration changes require the default suite
+  once at the final boundary, after focused checks. Include the heavy suite when changing the
+  evaluator, oracle, grader, runner, shared eval fixtures/helpers, or heavy-test selection. A
+  scenario-only change needs its affected heavy file when relevant, not every heavy file.
+- CI continues to run both full shards for every pull request. Report skipped or unavailable
+  checks; a narrower local run does not establish live behavior or replace required CI.
+
+Install the constrained test dependencies in the project environment. Use the
+[coordinated local runner](scripts/local_tests.py) for the final suite. Run the default command
+below, or append `--heavy` when the rule above requires it; do not run both for the same candidate:
 
 ```powershell
 uv pip install --python .venv\Scripts\python.exe -r requirements-test.txt
-.venv\Scripts\python.exe -m pytest -q
+.venv\Scripts\python.exe scripts/local_tests.py
 ```
 
-`pytest.ini` runs on four parallel workers, as CI does; a serial run takes several times as long.
-Pass `-n 0` to run in one process for a debugger or `--pdb`. Raise `-n` toward your core count only
-while it keeps getting faster — past that, workers contend and slow each test. The default run skips the heavy eval-machinery files listed in `conftest.py` (`HEAVY`): add
-`--heavy` to include them, run only them with `-m heavy`, or name one file to run it. Run them when
-you change `evals/`, an oracle, a grader, or the runner.
+One caller owns that run; helpers return their focused evidence instead of starting duplicate full suites. The runner
+refuses a second coordinated run across linked worktrees while the first owns its OS-held lease.
+The lease releases on process exit; do not delete its file or terminate another owner's job.
+Direct `pytest` commands and separate clones do not participate, so coordinate those explicitly.
+
+The runner prints a directory under the common Git directory's `local-test-runs/` containing
+`pytest.log`, `junit.xml`, and `run.json`: start/end time, elapsed seconds, command, effective worker
+and selection settings, interpreter/dependency versions, and Git revision/dirty state before and
+after. A dirty receipt is not proof of an exact committed candidate; untracked contents are not
+hashed. An interrupted run may have incomplete artifacts. Keep comparable receipts when assessing
+speed: same candidate and selection, known competing workloads, and the same interpreter.
+
+`pytest.ini` defaults to **10 local workers** with `--dist loadfile`; CI keeps its explicit
+four-worker override. Pass `-n 0` for a debugger or `--pdb`, or a smaller count on a constrained
+host. More workers are not a speed guarantee. The default skips heavy files listed in `conftest.py`
+(`HEAVY`): `--heavy` includes them, `-m heavy` selects only them, and naming a file runs it directly.
+Use `python -m pytest <affected files>` for focused work; use the coordinated runner once for the
+final suite and retain its timing evidence.
 
 On POSIX, substitute `.venv/bin/python`. Installing `requirements-test.txt` honors its
 `requirements-dev.txt` constraints; it is a selected test set, not a complete environment export

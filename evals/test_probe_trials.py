@@ -325,15 +325,21 @@ class NativeConversationRunTests(unittest.TestCase):
                     event["num_turns"] = turns
             path.write_text("\n".join(json.dumps(event) for event in events) + "\n", encoding="utf-8")
 
-        for first, followup, reason in ((17, 4, "follow-up ran past"), (10, 8, "ran past its turn limit")):
-            with self.subTest(first=first, followup=followup), tempfile.TemporaryDirectory() as tmp, \
-                    mock.patch.object(self, "SPEC", {**self.SPEC, "max_turns": 17}):
-                _, run, _, _ = self.run_native(Path(tmp), turns=(5, 4))
-                recount(run / "stdout.jsonl", first)
-                recount(run / "followup" / "stdout.jsonl", followup)
-                regraded = probe_rescoring.regrade_run(run, self.SPEC)
-                self.assertEqual("INCONCLUSIVE", regraded["status"])
-                self.assertIn(reason, regraded["inconclusive"])
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(self, "SPEC", {**self.SPEC, "max_turns": 17}):
+            summary, run, _, _ = self.run_native(Path(tmp), turns=(5, 4))
+            self.assertEqual("PASS", summary["status"])
+            original = {path: path.read_bytes() for path in (run / "stdout.jsonl", run / "followup/stdout.jsonl")}
+            for first, followup, reason in ((17, 4, "follow-up ran past"), (10, 8, "ran past its turn limit")):
+                with self.subTest(first=first, followup=followup):
+                    for path, content in original.items():
+                        path.write_bytes(content)
+                    self.assertEqual("PASS", probe_rescoring.regrade_run(run, self.SPEC, write=False)["status"])
+                    recount(run / "stdout.jsonl", first)
+                    recount(run / "followup" / "stdout.jsonl", followup)
+                    regraded = probe_rescoring.regrade_run(run, self.SPEC, write=False)
+                    self.assertEqual("INCONCLUSIVE", regraded["status"])
+                    self.assertIn(reason, regraded["inconclusive"])
 
     def test_completed_explore_before_correct_helper_stops_before_resume(self):
         events = [
@@ -384,35 +390,44 @@ class NativeConversationRunTests(unittest.TestCase):
                 self.assertEqual(1, len(calls))
 
     def test_native_regrade_rechecks_each_invocations_boundary_evidence(self):
-        for damage in ("initial-init", "init", "result", "runtime", "model", "invocation", "workspace", "exit", "credential", "cost"):
-            with self.subTest(damage=damage), tempfile.TemporaryDirectory() as tmp:
-                _, run, _, _ = self.run_native(Path(tmp))
-                path = (run if damage == "initial-init" else run / "followup") / "stdout.jsonl"
-                events = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
-                if damage in ("init", "initial-init"):
-                    events = [event for event in events if event.get("subtype") != "init"]
-                elif damage == "result":
-                    events = [event for event in events if event.get("type") != "result"]
-                elif damage == "runtime":
-                    events[0]["tools"].append("Write")
-                elif damage == "model":
-                    events[0]["model"] = "other-model"
-                elif damage == "invocation":
-                    (run / "followup/invocation.json").unlink()
-                elif damage in ("workspace", "exit"):
-                    metadata_path = path.parent / "invocation.json"
-                    metadata = read_json(metadata_path)
-                    if damage == "workspace":
-                        metadata.pop("workspace")
-                    else:
-                        metadata["exit_code"] = 1
-                    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
-                elif damage == "credential":
-                    events[-1]["result"] = probe_invocation.CREDENTIAL_MARKERS[0]
-                elif damage == "cost":
-                    events[-1].pop("total_cost_usd")
-                path.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
-                self.assertEqual("INCONCLUSIVE", probe_rescoring.regrade_run(run, self.SPEC)["status"])
+        with tempfile.TemporaryDirectory() as tmp:
+            summary, run, _, _ = self.run_native(Path(tmp))
+            self.assertEqual("PASS", summary["status"])
+            # Reuse the saved evidence at its original bound paths, not another live trial.
+            # Bytes are immutable; restore every mutable input before each independent corruption.
+            original = {path: path.read_bytes() for folder in (run, run / "followup")
+                        for path in (folder / "stdout.jsonl", folder / "invocation.json")}
+            for damage in ("initial-init", "init", "result", "runtime", "model", "invocation", "workspace", "exit", "credential", "cost"):
+                with self.subTest(damage=damage):
+                    for path, content in original.items():
+                        path.write_bytes(content)
+                    self.assertEqual("PASS", probe_rescoring.regrade_run(run, self.SPEC, write=False)["status"])
+                    path = (run if damage == "initial-init" else run / "followup") / "stdout.jsonl"
+                    events = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+                    if damage in ("init", "initial-init"):
+                        events = [event for event in events if event.get("subtype") != "init"]
+                    elif damage == "result":
+                        events = [event for event in events if event.get("type") != "result"]
+                    elif damage == "runtime":
+                        events[0]["tools"].append("Write")
+                    elif damage == "model":
+                        events[0]["model"] = "other-model"
+                    elif damage == "invocation":
+                        (run / "followup/invocation.json").unlink()
+                    elif damage in ("workspace", "exit"):
+                        metadata_path = path.parent / "invocation.json"
+                        metadata = read_json(metadata_path)
+                        if damage == "workspace":
+                            metadata.pop("workspace")
+                        else:
+                            metadata["exit_code"] = 1
+                        metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+                    elif damage == "credential":
+                        events[-1]["result"] = probe_invocation.CREDENTIAL_MARKERS[0]
+                    elif damage == "cost":
+                        events[-1].pop("total_cost_usd")
+                    path.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
+                    self.assertEqual("INCONCLUSIVE", probe_rescoring.regrade_run(run, self.SPEC, write=False)["status"])
 
     def test_a_cut_short_native_run_on_the_wrong_model_is_void(self) -> None:
         partial = probe_tracing.TraceSummary(main_models=["claude-opus-5-5"], init_session_ids=["s1"])

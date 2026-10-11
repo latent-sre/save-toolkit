@@ -831,6 +831,12 @@ researcher dispatch from the agent.
 structural and does not run them; CI runs both shards, and its required `component-tests` check
 passes only when both do.
 
+For a final local full run, use `python scripts/local_tests.py --heavy` from the repository root.
+It coordinates linked worktrees and saves logs, JUnit timings, and revision/command receipts.
+Local pytest defaults to ten workers; CI explicitly keeps four. Scenario data edits use validation
+and their matching contract/behavioral checks, while evaluator changes require broader coverage;
+the selection rule lives in [CONTRIBUTING.md](../CONTRIBUTING.md#3-verify-in-proportion-to-the-change).
+
 ## WP-10 offline adversarial preparation
 
 The [AC-20 inventory](wider-fleet-inventory.md) maps lane gaps and offline controls.
