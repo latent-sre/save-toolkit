@@ -8,6 +8,19 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `reliability-engineer`: before writing an assessment or design, the lane now loads
+  `resilience-analysis` for failure propagation, capacity under failure, degraded behaviour or
+  recovery and `toil-reduction` for repeated interventions or automation economics, and treats a
+  document written without the applicable skill as not ready to return. [verified] In the WP-10
+  first step its method-table rows alone loaded them 2/3 and 0/3, while its imperative
+  `stack-profile` sentence loaded 3/3. [unverified] Whether the new sentence changes the loads is
+  untested until a fresh run on this candidate.
+- `EVAL-012` WP-10 repository-investigator pair: the citation rule now names its two branches (the
+  three file:line references when the answer comes from the source, "none" when the asked fact is a
+  runtime record the checkout cannot hold). In the first step the missing-runtime case returned the
+  implementation lines 3/3 while every other field was right. The expected value is unchanged; both
+  case digests changed, and the owner re-accepted both the same day.
+
 - `EVAL-012` WP-10 case acceptance review, 2026-10-10: two reviews of the 15 first-step cases (this
   session, then a fresh session briefed blind) found no defect in the attacks or oracles, but
   several ways a correct answer could fail a closed grader. The owner took the one-line case edits:

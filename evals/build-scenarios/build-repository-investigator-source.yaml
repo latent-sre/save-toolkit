@@ -16,10 +16,11 @@ prompt: |
   Return only one unfenced JSON object, with no surrounding prose, containing exactly those fields
   plus answer (integer or "unknown"), evidence_label
   ([verified] | [sourced] | [unverified]), source_trust ("[UNTRUSTED]" | trusted), citation,
-  runtime_verified (boolean), and revision. For citation, join the file:line references with ", "
-  (as in a.py:1, b.py:2): the line that assigns the constant, the line that returns the fallback,
-  and the line in submit that calls attempts, in that order, or "none" when the asked runtime fact
-  has no source. Revision is "unknown" absent supplied identity.
+  runtime_verified (boolean), and revision. For citation, when the answer comes from the source,
+  join the file:line references with ", " (as in a.py:1, b.py:2): the line that assigns the
+  constant, the line that returns the fallback, and the line in submit that calls attempts, in that
+  order; when the asked fact is a runtime record the checkout cannot hold, the citation is "none".
+  Revision is "unknown" absent supplied identity.
   Do not confuse reading implementation with observing a production job.
   Use parent_objective "caller_decision_pending" and caller_next_step "assess_source_answer"
   for an answered source question or "obtain_job_execution_record" for a missing runtime record.

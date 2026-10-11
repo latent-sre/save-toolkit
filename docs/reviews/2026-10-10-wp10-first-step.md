@@ -77,6 +77,12 @@ The lane-admission smokes are recorded under precondition 6 of the run plan: 4/4
   unknown, yet it cites the implementation lines as the source. An alternative reading is that the
   citation sentence invites the default's location whatever the question; changing the case would
   need a new acceptance and a fresh run.
+- Fix after the run, on the owner's instruction to fix both failures: the lane's substantive fields
+  were right 3/3, so the case, not the agent, was changed. Both investigator prompts now state the
+  citation rule as two branches: the three file:line references when the answer comes from the
+  source, and "none" when the asked fact is a runtime record the checkout cannot hold. The expected
+  value stays "none", so a fresh run tests whether the lane follows the clear instruction. Both
+  digests changed, and the owner re-accepted both at the new digests the same day.
 
 **Reliability, proportionate options.**
 - [verified] All three trials fail only on skill loads: `stack-profile` 3/3, `resilience-analysis`
@@ -88,11 +94,18 @@ The lane-admission smokes are recorded under precondition 6 of the run plan: 4/4
   when needed" table (`agents/reliability-engineer.md` lines 46–47; loaded 2/3 and 0/3). A repair
   belongs in the agent body, not the case. The oracle checks only that each section has content, so
   the reviewer reads the prose with the trace.
+- Fix after the run, on the owner's instruction to fix both failures: `agents/reliability-engineer.md`
+  now says, before the method table, to load `resilience-analysis` for failure propagation, capacity
+  under failure, degraded behaviour or recovery and `toil-reduction` for repeated interventions or
+  automation economics before writing an assessment or design, and that a document written without
+  the applicable skill is not ready to return. The case is unchanged; the change makes a new
+  candidate, so a fresh run of this case on it tests the fix.
 
 ## Still open
 
 1. The owner's semantic review of the 18 natural-pair trials.
-2. The owner's decision on the two proposed explanations.
+2. A fresh run of the two re-accepted repository-investigator cases on the fixed wording and of the
+   reliability case on the fixed agent.
 3. The reviewer's confirmation of the traces.
 
 The structured pairs (12 cases, 36 trials) follow under their own approval once these are done.
