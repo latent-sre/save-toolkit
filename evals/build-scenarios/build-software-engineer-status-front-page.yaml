@@ -1,0 +1,418 @@
+id: build-software-engineer-status-front-page
+max_turns: 64
+agent: software-engineer
+# The site-register and design bar. The prompt asks for the front page of an internal platform
+# status site — overall health, each service's state and 30-day availability, a timeline of
+# recent incidents — and says it is a site, not an operator console, and should look chosen
+# rather than templated; it never says "design brief", "register", "hero", "status never by
+# colour alone" or "tokens". There is no rendered-page oracle: register and visual choices are
+# judged by a human in the review viewer from the shipped code and the agent's packet (the
+# design brief should appear there). The structural checks keep the comparison honest.
+# The fixture is the opsconsole app with GET /v1/status and the cursor-paginated GET
+# /v1/incidents documented in docs/openapi.yaml and implemented by MSW handlers.
+prompt: |
+  Build the front page for our internal platform status site at `/` in this React app: overall
+  health right now, the list of services with their current state and 30-day availability, and a
+  timeline of recent incidents (data from `GET /v1/status` and `GET /v1/incidents`; see
+  `docs/openapi.yaml`). This is the page people open from the wiki to check whether "the
+  platform" is OK. It's a site, not an operator console; make it look like something we chose,
+  not a template. Build it end to end in this repo and tell me what you ran to verify it.
+  Tests go next to the code as `*.test.tsx`; this repo uses Vitest, Testing Library, and MSW (see
+  the README). This is a code change, not a design question, not a review, and not an incident.
+  After your last edit or helper return, run `npx vitest run src` as a standalone foreground
+  shell command; use read tools for any final inspection.
+  Use separate Changed and Verified headings in your final response, explaining the changes and verification results.
+fixture:
+  files:
+    .gitignore: |
+      node_modules/
+      dist/
+      coverage/
+      .vite/
+    README.md: |
+      # opsconsole
+
+      The internal operations console and platform status site: a Vite + React + TypeScript
+      single-page app served behind the ops gateway. Routes live in `src/App.tsx`;
+      `src/api/client.ts` wraps `fetch` for the JSON API the gateway proxies at the same origin.
+      The API contract is `docs/openapi.yaml`; the legacy `/api/services` endpoint predates it.
+
+      Install dependencies once, then work from the repo root:
+
+          npm install
+
+      Typecheck and test:
+
+          npm run typecheck     # tsc --noEmit
+          npm test              # vitest run
+
+      Component tests sit next to the component as `*.test.tsx` and mock the API at the network
+      layer with MSW (`src/test/server.ts`); `src/test/setup.ts` starts the server for every test
+      file. `npm run dev` serves the app locally.
+    docs/openapi.yaml: |
+      openapi: 3.1.0
+      info: { title: Ops Console API, version: 1.0.0 }
+      servers:
+        - url: /
+      paths:
+        /v1/status:
+          get:
+            operationId: getPlatformStatus
+            summary: Overall platform health and each service's current state.
+            responses:
+              "200":
+                description: The platform status.
+                headers:
+                  X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+                content:
+                  application/json:
+                    schema: { $ref: "#/components/schemas/PlatformStatus" }
+              "500": { $ref: "#/components/responses/Problem" }
+        /v1/incidents:
+          get:
+            operationId: listIncidents
+            summary: List incidents, newest first (cursor-paginated).
+            parameters:
+              - { name: cursor, in: query, schema: { type: string, minLength: 1, maxLength: 2048 }, description: Opaque cursor from next_cursor; omit on the first page. }
+              - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1 } }
+              - { name: status, in: query, schema: { type: string, enum: [open, closed] } }
+            responses:
+              "200":
+                description: A page of incidents.
+                headers:
+                  X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+                content:
+                  application/json:
+                    schema: { $ref: "#/components/schemas/IncidentPage" }
+              "429": { $ref: "#/components/responses/RateLimited" }
+              "500": { $ref: "#/components/responses/Problem" }
+      components:
+        headers:
+          X-Request-ID:
+            description: Correlates this response with the request log line; equals the problem body's request_id.
+            schema: { type: string, minLength: 1 }
+        responses:
+          Problem:
+            description: RFC 9457 problem+json. `type` and codes are part of the contract.
+            headers:
+              X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+            content:
+              application/problem+json:
+                schema: { $ref: "#/components/schemas/Problem" }
+          RateLimited:
+            description: Rate limited; Retry-After is required.
+            headers:
+              Retry-After: { required: true, schema: { type: integer }, description: Seconds to wait. }
+              X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+            content:
+              application/problem+json:
+                schema: { $ref: "#/components/schemas/Problem" }
+        schemas:
+          Problem:
+            type: object
+            properties:
+              type: { type: string, format: uri }
+              title: { type: string }
+              status: { type: integer }
+              detail: { type: string }
+              instance: { type: string }
+              request_id: { type: string, minLength: 1 }
+            required: [type, title, status, request_id]
+          ServiceStatus:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              state: { type: string, enum: [ok, degraded, outage, unknown] }
+              availability_30d: { type: number, minimum: 0, maximum: 100, description: Percent of the last 30 days the service met its SLO. }
+            required: [id, name, state, availability_30d]
+          PlatformStatus:
+            type: object
+            properties:
+              overall: { type: string, enum: [ok, degraded, outage] }
+              updated_at: { type: string, format: date-time }
+              services: { type: array, items: { $ref: "#/components/schemas/ServiceStatus" } }
+            required: [overall, updated_at, services]
+          Incident:
+            type: object
+            properties:
+              id: { type: string }
+              status: { type: string, enum: [open, closed] }
+              title: { type: string }
+              service: { type: string }
+              created_at: { type: string, format: date-time }
+              resolved_at: { type: [string, "null"], format: date-time }
+            required: [id, status, title, service, created_at, resolved_at]
+          IncidentPage:
+            type: object
+            properties:
+              data: { type: array, items: { $ref: "#/components/schemas/Incident" } }
+              next_cursor: { type: [string, "null"], minLength: 1, maxLength: 2048 }
+            required: [data, next_cursor]
+    package.json: |
+      {
+        "name": "opsconsole",
+        "private": true,
+        "version": "0.1.0",
+        "type": "module",
+        "scripts": {
+          "dev": "vite",
+          "build": "tsc --noEmit && vite build",
+          "typecheck": "tsc --noEmit",
+          "test": "vitest run"
+        },
+        "dependencies": {
+          "react": "19.2.8",
+          "react-dom": "19.2.8",
+          "react-router-dom": "7.18.3"
+        },
+        "devDependencies": {
+          "@testing-library/jest-dom": "7.0.1",
+          "@testing-library/react": "16.3.3",
+          "@testing-library/user-event": "14.6.7",
+          "@types/react": "19.2.7",
+          "@types/react-dom": "19.2.4",
+          "@vitejs/plugin-react": "6.1.1",
+          "axe-core": "4.13.0",
+          "jsdom": "30.0.1",
+          "msw": "2.15.0",
+          "typescript": "5.9.3",
+          "vite": "8.2.2",
+          "vitest": "4.1.11",
+          "vitest-axe": "0.1.0"
+        }
+      }
+    index.html: |
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Platform status</title>
+        </head>
+        <body>
+          <div id="root"></div>
+          <script type="module" src="/src/main.tsx"></script>
+        </body>
+      </html>
+    vite.config.ts: |
+      import react from '@vitejs/plugin-react';
+      import { defineConfig } from 'vitest/config';
+
+      export default defineConfig({
+        plugins: [react()],
+        test: {
+          environment: 'jsdom',
+          setupFiles: ['./src/test/setup.ts'],
+        },
+      });
+    tsconfig.json: |
+      {
+        "compilerOptions": {
+          "target": "ES2022",
+          "lib": ["ES2022", "DOM", "DOM.Iterable"],
+          "module": "ESNext",
+          "moduleResolution": "bundler",
+          "jsx": "react-jsx",
+          "strict": true,
+          "noUnusedLocals": true,
+          "noUnusedParameters": true,
+          "noFallthroughCasesInSwitch": true,
+          "noEmit": true,
+          "skipLibCheck": true,
+          "esModuleInterop": true,
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "verbatimModuleSyntax": true,
+          "types": ["vite/client"]
+        },
+        "include": ["src", "vite.config.ts"]
+      }
+    src/main.tsx: |
+      import { StrictMode } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { BrowserRouter } from 'react-router-dom';
+
+      import App from './App';
+
+      createRoot(document.getElementById('root')!).render(
+        <StrictMode>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </StrictMode>,
+      );
+    src/App.tsx: |
+      import { Link, Route, Routes } from 'react-router-dom';
+
+      import Home from './pages/Home';
+      import Services from './pages/Services';
+
+      export default function App() {
+        return (
+          <div className="app">
+            <nav aria-label="Primary">
+              <ul>
+                <li>
+                  <Link to="/">Status</Link>
+                </li>
+                <li>
+                  <Link to="/services">Services</Link>
+                </li>
+              </ul>
+            </nav>
+            <main>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/services" element={<Services />} />
+              </Routes>
+            </main>
+          </div>
+        );
+      }
+    src/api/client.ts: |
+      export async function apiGet<T>(path: string): Promise<T> {
+        const response = await fetch(path, { headers: { Accept: 'application/json' } });
+        if (!response.ok) {
+          throw new Error(`GET ${path} failed with ${response.status}`);
+        }
+        return (await response.json()) as T;
+      }
+    src/pages/Home.tsx: |
+      export default function Home() {
+        return (
+          <section>
+            <h1>Platform status</h1>
+            <p>This page will show whether the platform is healthy.</p>
+          </section>
+        );
+      }
+    src/pages/Services.tsx: |
+      import { useEffect, useState } from 'react';
+
+      export type Service = {
+        name: string;
+        tier: number;
+        owner: string;
+      };
+
+      export default function Services() {
+        const [services, setServices] = useState<Service[]>([]);
+        const [tier, setTier] = useState('all');
+
+        useEffect(() => {
+          fetch('/api/services')
+            .then((response) => response.json())
+            .then((data) => setServices(data as Service[]));
+        }, []);
+
+        const rows = tier === 'all' ? services : services.filter((s) => String(s.tier) === tier);
+
+        return (
+          <section>
+            <h1>Services</h1>
+            <select value={tier} onChange={(event) => setTier(event.target.value)}>
+              <option value="all">All tiers</option>
+              <option value="1">Tier 1</option>
+              <option value="2">Tier 2</option>
+            </select>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Tier</th>
+                  <th>Owner</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((service) => (
+                  <tr key={service.name}>
+                    <td>{service.name}</td>
+                    <td>{service.tier}</td>
+                    <td>{service.owner}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        );
+      }
+    src/pages/Services.test.tsx: |
+      import { render, screen } from '@testing-library/react';
+      import { MemoryRouter } from 'react-router-dom';
+      import { expect, test } from 'vitest';
+
+      import Services from './Services';
+
+      test('renders a row for each service the API returns', async () => {
+        render(
+          <MemoryRouter>
+            <Services />
+          </MemoryRouter>,
+        );
+        expect(await screen.findByText('checkout')).toBeInTheDocument();
+      });
+    src/test/server.ts: |
+      import { http, HttpResponse } from 'msw';
+      import { setupServer } from 'msw/node';
+
+      const STATUS = {
+        overall: 'degraded',
+        updated_at: '2026-08-04T10:05:00Z',
+        services: [
+          { id: 'checkout', name: 'Checkout', state: 'ok', availability_30d: 99.97 },
+          { id: 'search', name: 'Search', state: 'degraded', availability_30d: 99.41 },
+          { id: 'settlements', name: 'Settlements', state: 'ok', availability_30d: 99.99 },
+          { id: 'ledger', name: 'Ledger', state: 'unknown', availability_30d: 99.9 },
+        ],
+      };
+
+      const INCIDENTS = [
+        { id: 'inc-0003', status: 'open', title: 'Search latency above the error budget', service: 'search', created_at: '2026-08-04T09:40:00Z', resolved_at: null },
+        { id: 'inc-0002', status: 'closed', title: 'Settlement batch retried after ledger timeout', service: 'settlements', created_at: '2026-08-02T14:40:00Z', resolved_at: '2026-08-02T15:25:00Z' },
+        { id: 'inc-0001', status: 'closed', title: 'Checkout deploy rolled back', service: 'checkout', created_at: '2026-07-29T09:15:00Z', resolved_at: '2026-07-29T09:50:00Z' },
+      ];
+
+      export const handlers = [
+        http.get('*/api/services', () =>
+          HttpResponse.json([
+            { name: 'checkout', tier: 1, owner: 'payments-team' },
+            { name: 'search', tier: 2, owner: 'discovery-team' },
+          ]),
+        ),
+        http.get('*/v1/status', () => HttpResponse.json(STATUS, { headers: { 'X-Request-ID': 'req-fixture' } })),
+        http.get('*/v1/incidents', ({ request }) => {
+          const url = new URL(request.url);
+          const status = url.searchParams.get('status');
+          const cursor = url.searchParams.get('cursor');
+          const rows = status ? INCIDENTS.filter((i) => i.status === status) : INCIDENTS;
+          const start = cursor ? Number(cursor.replace('cursor-', '')) : 0;
+          const data = rows.slice(start, start + 2);
+          const next_cursor = start + 2 < rows.length ? `cursor-${start + 2}` : null;
+          return HttpResponse.json({ data, next_cursor }, { headers: { 'X-Request-ID': 'req-fixture' } });
+        }),
+      ];
+
+      export const server = setupServer(...handlers);
+    src/test/setup.ts: |
+      import '@testing-library/jest-dom/vitest';
+      import { afterAll, afterEach, beforeAll } from 'vitest';
+
+      import { server } from './server';
+
+      beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+      afterEach(() => server.resetHandlers());
+      afterAll(() => server.close());
+checks:
+  - {check: command_exit_zero, command: "npm install --ignore-scripts --no-audit --no-fund && npm run typecheck", timeout: 600, text: "tsc --noEmit is clean under the repo's strict config"}
+  - {check: command_exit_zero, command: "python check_style.py", failure_exit_code: 10, timeout: 300, text: "the production build ships a stylesheet: the page is designed, not browser defaults", writes_from: {check_style.py: evals/oracles/frontend-style/check_style.py}}
+  - {check: command_exit_zero, command: "npx vitest run src", timeout: 300, text: "the agent's own suite is green when the probe runs it"}
+  - {check: command_exit_zero, command: "npx vitest run src --reporter=json --outputFile=probe_suite.json && node -e \"const r=require('./probe_suite.json');const t=r.testResults.flatMap(f=>f.assertionResults);const hit=t.filter(a=>/status|health|home|front/i.test(a.fullName+a.title)&&a.status==='passed');process.exit(hit.length?0:1)\"", timeout: 300, text: "a status-page test case the agent wrote actually executed and passed"}
+  - {check: verification_completed, runner: vitest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
+  - {check: changes_within, allowed: ["src", "README.md", "package.json", "package-lock.json", "index.html"], text: "surgical: only the app source, the README, the HTML shell and the dependency files changed"}
+  - {check: no_new_commits, text: "nothing committed uninvited"}
+  - {check: no_agents_dir, text: "no .agents/ progress litter"}
+  - {check: skill_loaded, skill: frontend-craft, text: "frontend-craft was loaded for UI code"}
+  - {check: skill_not_loaded, skill: eng-ladder, text: "no ladder load for a scoped change"}

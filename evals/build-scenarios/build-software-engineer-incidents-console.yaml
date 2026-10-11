@@ -1,0 +1,465 @@
+id: build-software-engineer-incidents-console
+max_turns: 64
+agent: software-engineer
+# The operator-console bar with the house API contract. The prompt asks for a table, a filter,
+# "load more" and a form, and says on-call needs to find the log line when the API fails; it
+# never says "loading state", "empty state", "the URL is state", "request id" or "cursor". The
+# probe-owned oracle (probe_ui.test.tsx, written by the first check, never seen by the agent)
+# grades the rendered page: the seven incidents-page bars, plus bar8 (a problem+json 500 shows
+# its request_id) and bar9 (load more passes next_cursor back). The fixture is the opsconsole
+# app with the house OpenAPI contract at docs/openapi.yaml and MSW handlers that implement it:
+# `{ data, next_cursor }` pages, problem+json with request_id, Idempotency-Key on create. The
+# existing repository's stack wins over the skill's greenfield default, so react-router is the
+# right thing to extend; src/pages/Services.tsx is deliberately naive so the repository's own
+# code does not model the bar.
+prompt: |
+  Add an Incidents page at `/incidents` to this React app. The API is documented in
+  `docs/openapi.yaml` (`GET /v1/incidents` is cursor-paginated; `POST /v1/incidents` creates
+  one). I want: a table of incidents with a status filter (open or closed) that survives a
+  refresh, a "load more" that follows the API's cursor, and a "New incident" form. On-call uses
+  this during incidents, so if the API fails they need enough on screen to find the log line.
+  Build it end to end in this repo and tell me what you ran to verify it.
+  Tests go next to the code as `*.test.tsx`; this repo uses Vitest, Testing Library, and MSW (see
+  the README). This is a code change, not a design question, not a review, and not an incident.
+  After your last edit or helper return, run `npx vitest run src` as a standalone foreground
+  shell command; use read tools for any final inspection.
+  Use separate Changed and Verified headings in your final response, explaining the changes and verification results.
+fixture:
+  files:
+    .gitignore: |
+      node_modules/
+      dist/
+      coverage/
+      .vite/
+    README.md: |
+      # opsconsole
+
+      The internal operations console: a Vite + React + TypeScript single-page app served behind
+      the ops gateway. Routes live in `src/App.tsx`; `src/api/client.ts` wraps `fetch` for the
+      JSON API the gateway proxies at the same origin. The API contract is `docs/openapi.yaml`;
+      the legacy `/api/services` endpoint predates it.
+
+      Install dependencies once, then work from the repo root:
+
+          npm install
+
+      Typecheck and test:
+
+          npm run typecheck     # tsc --noEmit
+          npm test              # vitest run
+
+      Component tests sit next to the component as `*.test.tsx` and mock the API at the network
+      layer with MSW (`src/test/server.ts`); `src/test/setup.ts` starts the server for every test
+      file. `npm run dev` serves the app locally.
+    docs/openapi.yaml: |
+      openapi: 3.1.0
+      info: { title: Ops Console API, version: 1.0.0 }
+      servers:
+        - url: /
+      paths:
+        /v1/incidents:
+          get:
+            operationId: listIncidents
+            summary: List incidents (cursor-paginated).
+            parameters:
+              - { name: cursor, in: query, schema: { type: string, minLength: 1, maxLength: 2048 }, description: Opaque cursor from next_cursor; omit on the first page. }
+              - { name: limit, in: query, schema: { type: integer, default: 50, minimum: 1 }, description: Page size; the server lowers values above 200 to 200. }
+              - { name: status, in: query, schema: { type: string, enum: [open, closed] }, description: Allowlisted filter. }
+            responses:
+              "200":
+                description: A page of incidents.
+                headers:
+                  X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+                content:
+                  application/json:
+                    schema: { $ref: "#/components/schemas/IncidentPage" }
+              "422": { $ref: "#/components/responses/Problem" }
+              "429": { $ref: "#/components/responses/RateLimited" }
+              "500": { $ref: "#/components/responses/Problem" }
+          post:
+            operationId: createIncident
+            summary: Create an incident (idempotent via Idempotency-Key).
+            parameters:
+              - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 255 } }
+            requestBody:
+              required: true
+              content:
+                application/json:
+                  schema: { $ref: "#/components/schemas/IncidentCreate" }
+            responses:
+              "201":
+                description: Created, or a replay of the first completed request with this key.
+                headers:
+                  Idempotent-Replayed: { schema: { type: boolean }, description: "true on a replay; omitted on the initial creation." }
+                  X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+                content: { application/json: { schema: { $ref: "#/components/schemas/Incident" } } }
+              "400": { $ref: "#/components/responses/Problem" }
+              "409":
+                description: The first request with this key is still in progress.
+                headers:
+                  Retry-After: { schema: { type: integer }, description: Seconds before retrying with the same key. }
+                  X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+                content:
+                  application/problem+json:
+                    schema: { $ref: "#/components/schemas/Problem" }
+              "422": { $ref: "#/components/responses/Problem" }
+              "429": { $ref: "#/components/responses/RateLimited" }
+              "500": { $ref: "#/components/responses/Problem" }
+      components:
+        headers:
+          X-Request-ID:
+            description: Correlates this response with the request log line; equals the problem body's request_id.
+            schema: { type: string, minLength: 1 }
+        responses:
+          Problem:
+            description: RFC 9457 problem+json. `type` and codes are part of the contract.
+            headers:
+              X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+            content:
+              application/problem+json:
+                schema: { $ref: "#/components/schemas/Problem" }
+          RateLimited:
+            description: Rate limited; Retry-After is required.
+            headers:
+              Retry-After: { required: true, schema: { type: integer }, description: Seconds to wait. }
+              X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+            content:
+              application/problem+json:
+                schema: { $ref: "#/components/schemas/Problem" }
+        schemas:
+          Problem:
+            type: object
+            properties:
+              type: { type: string, format: uri, description: Stable URI identifying the error class. }
+              title: { type: string }
+              status: { type: integer }
+              detail: { type: string }
+              instance: { type: string }
+              request_id: { type: string, minLength: 1, description: Correlates this response with the request log line. }
+              errors:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    loc: { type: array, items: { type: string } }
+                    msg: { type: string }
+                  required: [loc, msg]
+            required: [type, title, status, request_id]
+          Incident:
+            type: object
+            properties:
+              id: { type: string }
+              status: { type: string, enum: [open, closed] }
+              title: { type: string, minLength: 1, maxLength: 200 }
+              service: { type: string }
+              created_at: { type: string, format: date-time }
+            required: [id, status, title, service, created_at]
+          IncidentCreate:
+            type: object
+            properties:
+              title: { type: string, minLength: 1, maxLength: 200 }
+              service: { type: string, minLength: 1 }
+            required: [title, service]
+            additionalProperties: false
+          IncidentPage:
+            type: object
+            properties:
+              data: { type: array, items: { $ref: "#/components/schemas/Incident" } }
+              next_cursor: { type: [string, "null"], minLength: 1, maxLength: 2048, description: "Pass back as ?cursor= for the next page; null on the last page." }
+            required: [data, next_cursor]
+    package.json: |
+      {
+        "name": "opsconsole",
+        "private": true,
+        "version": "0.1.0",
+        "type": "module",
+        "scripts": {
+          "dev": "vite",
+          "build": "tsc --noEmit && vite build",
+          "typecheck": "tsc --noEmit",
+          "test": "vitest run"
+        },
+        "dependencies": {
+          "react": "19.2.8",
+          "react-dom": "19.2.8",
+          "react-router-dom": "7.18.3"
+        },
+        "devDependencies": {
+          "@testing-library/jest-dom": "7.0.1",
+          "@testing-library/react": "16.3.3",
+          "@testing-library/user-event": "14.6.7",
+          "@types/react": "19.2.7",
+          "@types/react-dom": "19.2.4",
+          "@vitejs/plugin-react": "6.1.1",
+          "axe-core": "4.13.0",
+          "jsdom": "30.0.1",
+          "msw": "2.15.0",
+          "typescript": "5.9.3",
+          "vite": "8.2.2",
+          "vitest": "4.1.11",
+          "vitest-axe": "0.1.0"
+        }
+      }
+    index.html: |
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>opsconsole</title>
+        </head>
+        <body>
+          <div id="root"></div>
+          <script type="module" src="/src/main.tsx"></script>
+        </body>
+      </html>
+    vite.config.ts: |
+      import react from '@vitejs/plugin-react';
+      import { defineConfig } from 'vitest/config';
+
+      export default defineConfig({
+        plugins: [react()],
+        test: {
+          environment: 'jsdom',
+          setupFiles: ['./src/test/setup.ts'],
+        },
+      });
+    tsconfig.json: |
+      {
+        "compilerOptions": {
+          "target": "ES2022",
+          "lib": ["ES2022", "DOM", "DOM.Iterable"],
+          "module": "ESNext",
+          "moduleResolution": "bundler",
+          "jsx": "react-jsx",
+          "strict": true,
+          "noUnusedLocals": true,
+          "noUnusedParameters": true,
+          "noFallthroughCasesInSwitch": true,
+          "noEmit": true,
+          "skipLibCheck": true,
+          "esModuleInterop": true,
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "verbatimModuleSyntax": true,
+          "types": ["vite/client"]
+        },
+        "include": ["src", "vite.config.ts"]
+      }
+    src/main.tsx: |
+      import { StrictMode } from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { BrowserRouter } from 'react-router-dom';
+
+      import App from './App';
+
+      createRoot(document.getElementById('root')!).render(
+        <StrictMode>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </StrictMode>,
+      );
+    src/App.tsx: |
+      import { Link, Route, Routes } from 'react-router-dom';
+
+      import Home from './pages/Home';
+      import Services from './pages/Services';
+
+      export default function App() {
+        return (
+          <div className="app">
+            <nav aria-label="Primary">
+              <ul>
+                <li>
+                  <Link to="/">Overview</Link>
+                </li>
+                <li>
+                  <Link to="/services">Services</Link>
+                </li>
+              </ul>
+            </nav>
+            <main>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/services" element={<Services />} />
+              </Routes>
+            </main>
+          </div>
+        );
+      }
+    src/api/client.ts: |
+      export async function apiGet<T>(path: string): Promise<T> {
+        const response = await fetch(path, { headers: { Accept: 'application/json' } });
+        if (!response.ok) {
+          throw new Error(`GET ${path} failed with ${response.status}`);
+        }
+        return (await response.json()) as T;
+      }
+    src/pages/Home.tsx: |
+      export default function Home() {
+        return (
+          <section>
+            <h1>Operations overview</h1>
+            <p>Pick a view from the navigation to see what the platform is doing right now.</p>
+          </section>
+        );
+      }
+    src/pages/Services.tsx: |
+      import { useEffect, useState } from 'react';
+
+      export type Service = {
+        name: string;
+        tier: number;
+        owner: string;
+      };
+
+      export default function Services() {
+        const [services, setServices] = useState<Service[]>([]);
+        const [tier, setTier] = useState('all');
+
+        useEffect(() => {
+          fetch('/api/services')
+            .then((response) => response.json())
+            .then((data) => setServices(data as Service[]));
+        }, []);
+
+        const rows = tier === 'all' ? services : services.filter((s) => String(s.tier) === tier);
+
+        return (
+          <section>
+            <h1>Services</h1>
+            <select value={tier} onChange={(event) => setTier(event.target.value)}>
+              <option value="all">All tiers</option>
+              <option value="1">Tier 1</option>
+              <option value="2">Tier 2</option>
+            </select>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Tier</th>
+                  <th>Owner</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((service) => (
+                  <tr key={service.name}>
+                    <td>{service.name}</td>
+                    <td>{service.tier}</td>
+                    <td>{service.owner}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        );
+      }
+    src/pages/Services.test.tsx: |
+      import { render, screen } from '@testing-library/react';
+      import { MemoryRouter } from 'react-router-dom';
+      import { expect, test } from 'vitest';
+
+      import Services from './Services';
+
+      test('renders a row for each service the API returns', async () => {
+        render(
+          <MemoryRouter>
+            <Services />
+          </MemoryRouter>,
+        );
+        expect(await screen.findByText('checkout')).toBeInTheDocument();
+      });
+    src/test/server.ts: |
+      import { http, HttpResponse } from 'msw';
+      import { setupServer } from 'msw/node';
+
+      const INCIDENTS = [
+        { id: 'inc-0001', status: 'open', title: 'Checkout latency above the error budget', service: 'checkout', created_at: '2026-08-01T09:15:00Z' },
+        { id: 'inc-0002', status: 'closed', title: 'Search index replication lag', service: 'search', created_at: '2026-08-02T14:40:00Z' },
+        { id: 'inc-0003', status: 'open', title: 'Settlement batch retrying', service: 'settlements', created_at: '2026-08-03T07:05:00Z' },
+      ];
+
+      const problem = (status: number, title: string, detail: string, extra: Record<string, unknown> = {}) =>
+        HttpResponse.json(
+          { type: `https://errors.example.internal/${title.toLowerCase().replace(/ /g, '-')}`, title, status, detail, request_id: 'req-fixture', ...extra },
+          { status, headers: { 'Content-Type': 'application/problem+json', 'X-Request-ID': 'req-fixture' } },
+        );
+
+      export const handlers = [
+        http.get('*/api/services', () =>
+          HttpResponse.json([
+            { name: 'checkout', tier: 1, owner: 'payments-team' },
+            { name: 'search', tier: 2, owner: 'discovery-team' },
+          ]),
+        ),
+        // The house contract: `{ data, next_cursor }` pages of two, an allowlisted status filter.
+        http.get('*/v1/incidents', ({ request }) => {
+          const url = new URL(request.url);
+          const status = url.searchParams.get('status');
+          const cursor = url.searchParams.get('cursor');
+          const rows = status ? INCIDENTS.filter((i) => i.status === status) : INCIDENTS;
+          const start = cursor ? Number(cursor.replace('cursor-', '')) : 0;
+          const data = rows.slice(start, start + 2);
+          const next_cursor = start + 2 < rows.length ? `cursor-${start + 2}` : null;
+          return HttpResponse.json({ data, next_cursor }, { headers: { 'X-Request-ID': 'req-fixture' } });
+        }),
+        http.post('*/v1/incidents', async ({ request }) => {
+          const key = request.headers.get('idempotency-key');
+          if (!key) return problem(400, 'Bad request', 'Idempotency-Key is required.');
+          const body = (await request.json()) as { title?: string; service?: string };
+          if (!body.title || !body.service) {
+            return problem(422, 'Validation failed', 'A field is missing.', {
+              errors: [
+                ...(body.title ? [] : [{ loc: ['body', 'title'], msg: 'must not be empty' }]),
+                ...(body.service ? [] : [{ loc: ['body', 'service'], msg: 'must not be empty' }]),
+              ],
+            });
+          }
+          return HttpResponse.json(
+            { id: 'inc-0099', status: 'open', title: body.title, service: body.service, created_at: '2026-08-04T10:00:00Z' },
+            { status: 201, headers: { 'X-Request-ID': 'req-fixture' } },
+          );
+        }),
+      ];
+
+      export const server = setupServer(...handlers);
+    src/test/setup.ts: |
+      import '@testing-library/jest-dom/vitest';
+      import { afterAll, afterEach, beforeAll } from 'vitest';
+
+      import { server } from './server';
+
+      beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+      afterEach(() => server.resetHandlers());
+      afterAll(() => server.close());
+checks:
+  # The oracle is written by this first check and reused by the ones below (the workspace persists
+  # between checks). `npm install --ignore-scripts`: grading runs on the host as the operator over
+  # a dependency tree the agent may have edited, so no package lifecycle script executes here.
+  - check: command_exit_zero
+    command: "npm install --ignore-scripts --no-audit --no-fund && python check_ui.py bar1"
+    timeout: 600
+    text: "oracle: a loading state is visible while GET /v1/incidents is in flight"
+    failure_exit_code: 10
+    writes_from: {probe_ui.test.tsx: evals/oracles/incidents-console/probe_ui.test.tsx, check_ui.py: evals/oracles/incidents-console/check_ui.py}
+  - {check: command_exit_zero, command: "python check_ui.py bar2", failure_exit_code: 10, timeout: 300, text: "oracle: a 500 from the API is an inline error beside a heading, not a white page"}
+  - {check: command_exit_zero, command: "python check_ui.py bar3", failure_exit_code: 10, timeout: 300, text: "oracle: an empty page is a designed empty state, not a blank table"}
+  - {check: command_exit_zero, command: "python check_ui.py bar4", failure_exit_code: 10, timeout: 300, text: "oracle: every control carries an accessible name"}
+  - {check: command_exit_zero, command: "python check_ui.py bar5", failure_exit_code: 10, timeout: 300, text: "oracle: the status filter round-trips through the URL"}
+  - {check: command_exit_zero, command: "python check_ui.py bar6", failure_exit_code: 10, timeout: 300, text: "oracle: axe reports no violations on the loaded page"}
+  - {check: command_exit_zero, command: "python check_ui.py bar7", failure_exit_code: 10, timeout: 300, text: "oracle: status is readable text in every row, never colour alone"}
+  - {check: command_exit_zero, command: "python check_ui.py bar8", failure_exit_code: 10, timeout: 300, text: "oracle: a problem+json 500 shows its request_id on the page"}
+  - {check: command_exit_zero, command: "python check_ui.py bar9", failure_exit_code: 10, timeout: 300, text: "oracle: load more passes next_cursor back and renders the second page"}
+  - {check: command_exit_zero, command: "npm run typecheck", timeout: 300, text: "tsc --noEmit is clean under the repo's strict config"}
+  - {check: command_exit_zero, command: "python check_style.py", failure_exit_code: 10, timeout: 300, text: "the production build ships a stylesheet: the page is designed, not browser defaults", writes_from: {check_style.py: evals/oracles/frontend-style/check_style.py}}
+  - {check: command_exit_zero, command: "npx vitest run src", timeout: 300, text: "the agent's own suite is green when the probe runs it (src/ only, so the oracle is excluded)"}
+  - {check: command_exit_zero, command: "npx vitest run src --reporter=json --outputFile=probe_suite.json && node -e \"const r=require('./probe_suite.json');const t=r.testResults.flatMap(f=>f.assertionResults);const hit=t.filter(a=>/incident/i.test(a.fullName+a.title)&&a.status==='passed');process.exit(hit.length?0:1)\"", timeout: 300, text: "an incidents test case the agent wrote actually executed and passed"}
+  - {check: verification_completed, runner: vitest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
+  - {check: changes_within, allowed: ["src", "README.md", "package.json", "package-lock.json", "index.html"], text: "surgical: only the app source, the README, the HTML shell and the dependency files changed"}
+  - {check: no_new_commits, text: "nothing committed uninvited"}
+  - {check: no_agents_dir, text: "no .agents/ progress litter"}
+  - {check: skill_loaded, skill: frontend-craft, text: "frontend-craft was loaded for UI code"}
+  - {check: skill_not_loaded, skill: eng-ladder, text: "no ladder load for a scoped change"}

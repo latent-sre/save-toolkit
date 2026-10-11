@@ -6,6 +6,46 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Changed
+
+- `frontend-craft` is rewritten from the owner's 2026-10-10 decisions; nothing survives from the
+  2026-07-14 import on inheritance. The skill now reads as the operator-UI contract — consume the
+  house API contract, show errors an operator can act on, make writes safe, build once with
+  runtime configuration, keep state where it belongs, treat content as data, stay accessible, use
+  the modern platform, add dependencies deliberately — with an owner-decisions table: React and
+  Vue both supported, one component system per app with two caller-picked React defaults
+  (shadcn/ui + Tailwind + Motion, or HeroUI + Motion) and shadcn-vue for Vue, two design
+  registers by audience, and the UI bound to `backend-craft`'s contract. The Mantine and
+  `@mantine/charts` bans are gone. Six references replace the three inherited ones: `api.md`
+  (typed client from OpenAPI, RFC 9457 problems with `request_id`, cursor pages,
+  `Idempotency-Key`, the error card), `react.md` and `vue.md` (current libraries and
+  capabilities, with licence and coexistence facts for the animated collections), `serving.md`
+  (build once, runtime config, the SPA serving contract), `sessions.md` (SSO, CSRF with Fetch
+  Metadata, multi-tab, live transport) and `design.md` (the console and site registers, the
+  design brief, the generic defaults to replace). Three dependency-free assets ship as copied
+  contracts: `serving-contract.mjs`, `problem.ts` and `problem.test.ts`. [verified]
+  `scripts/test_frontend_craft_assets.py` passes a correct server and the problem helper's six
+  cases, and fails each named serving break on its own check. Evals: the Mantine discovery case
+  is now `discovery-frontend-craft-weighs-mantine-in-tailwind-app`; the incidents-page build drops
+  its two `@mantine/core` checks; three new build scenarios cover the incidents console (with a
+  nine-bar oracle under `evals/oracles/incidents-console/`, adding a problem+json `500` that must
+  show its `request_id` and a "load more" that must follow `next_cursor`), a live log tail and a
+  status front page. The first trials rendered the console and log-tail pages in browser
+  defaults in both arms (the design reference was never loaded and no CSS was written), so the
+  skill now loads the design reference and writes a brief before any page, treats an unstyled
+  app as unbranded, and ships `assets/console-theme.css` — dark-first, light-complete tokens
+  and base element styles whose text and status contrast is tested at WCAG AA in both themes.
+  `assets/idempotent-write.ts` sends a write under one key per user intent and waits out the
+  contract's `409`; the problem helper maps `errors[].loc` to form field names. The three new
+  scenarios gain `evals/oracles/frontend-style/check_style.py`, which fails a build that ships
+  under 1.5 KB of CSS: on the six first-trial workspaces it failed the four pages the
+  screenshots show unstyled and passed the two designed ones. [verified] The console oracle passes a hand-written page on all nine bars
+  and fails the untouched fixture on bars 1, 2, 3, 8 and 9 as candidate failures (exit 10); bars
+  4–7 are verbatim from the incidents-page oracle and, as there, report a page that never renders
+  a row as an oracle error rather than a candidate failure. `software-engineer` loads the skill before any web UI code, not only
+  operator-facing UI, and `stack-profile` pins TypeScript to 6.x while TypeScript 7 ships no
+  compiler API.
+
 ### Fixed
 
 - `EVAL-012` WP-10: the owner approved the first step (15 cases, 45 trials, USD 20 cap) on

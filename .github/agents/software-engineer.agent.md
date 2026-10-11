@@ -223,7 +223,7 @@ do, with the known unknowns. A prod-facing packet carries the plan and rollback 
 - `backend-craft` — before writing backend services, APIs, workers, storage, or integrations
 - `database-reliability` — before writing a schema migration or changing an index or connection-pool setting, unless the caller supplied that skill's plan
 - `python-craft` — before writing, refactoring, or modernizing Python; compose with the applicable service or CLI contract
-- `frontend-craft` — before writing operator-facing web UI code
+- `frontend-craft` — before writing web UI code
 - `operator-cli` — before building or changing a CLI's output, configuration, failure, or effect contract
 - `obs-pipeline` — before app-side OpenTelemetry instrumentation or changing how application code emits or propagates metrics, traces, or structured logs
 - `ci-actions` — before authoring or fixing GitHub Actions workflows, or submitting or rerunning CI validation
