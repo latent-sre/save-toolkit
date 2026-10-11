@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-const newKey = () => (CASE === 'no-key' ? '' : crypto.randomUUID());
+const newKey = () => (CASE === 'no-key' ? '' : CASE === 'constant-key' ? 'fixed-key' : crypto.randomUUID());
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function NewIncident({ onCreated }) {
@@ -39,6 +39,9 @@ function NewIncident({ onCreated }) {
       }
       if (response.ok) {
         onCreated(await response.json());
+        key.current = newKey();
+        setTitle('');
+        setService('');
         return;
       }
       failed.current = true;
@@ -55,6 +58,7 @@ function NewIncident({ onCreated }) {
         setTitle('');
         setService('');
       }
+      if (CASE === 'cleared-service') setService('');
       return;
     }
   }
@@ -76,7 +80,7 @@ function NewIncident({ onCreated }) {
         <input id="new-title" value={title} onChange={edit(setTitle)} aria-describedby={described('title')} />
         {beside('title')}
       </div>
-      <div>
+      {!(CASE === 'removed-service' && errors.service) && <div hidden={CASE === 'hidden-service' && !!errors.service}>
         <label htmlFor="new-service">Service</label>
         {CASE === 'reference-service-select' ? (
           <select id="new-service" value={service} onChange={edit(setService)} aria-describedby={described('service')}>
@@ -87,7 +91,9 @@ function NewIncident({ onCreated }) {
           <input id="new-service" value={service} onChange={edit(setService)} aria-describedby={described('service')} />
         )}
         {beside('service')}
-      </div>
+      </div>}
+      {(CASE === 'removed-service' || CASE === 'hidden-service') && errors.service &&
+        <p>{errors.service}</p>}
       <button type="submit">Create incident</button>
     </form>
   );
@@ -110,7 +116,7 @@ export default function App() {
       })
       .then((page) => {
         if (active) {
-          setRows(page.data);
+          if (CASE !== 'ignored-filter-response' || !serverStatus) setRows(page.data);
           setState(page.data.length ? 'loaded' : 'empty');
         }
       })
@@ -122,6 +128,7 @@ export default function App() {
   return (
     <main>
       <h1>Incidents</h1>
+      {CASE === 'reference-title-search' && <label>Title search<input type="search" /></label>}
       <label>
         Status
         <select value={wanted} onChange={(event) =>

@@ -314,10 +314,11 @@ test('bar4 every control on the page has a non-empty accessible name', async () 
 
 test('bar5 the status filter round-trips through the URL, reaches the server and filters visible rows', async () => {
   const sent = [];
+  const filteredRows = ROWS.map((row, index) => ({ ...row, id: `inc-010${index + 1}` }));
   stubIncidents(({ request }) => {
     const wanted = new URL(request.url).searchParams.get('status');
     sent.push(wanted);
-    const rows = wanted ? ROWS.filter((r) => r.status === wanted) : ROWS;
+    const rows = wanted ? filteredRows.filter((r) => r.status === wanted) : ROWS;
     return page(rows);
   });
   const user = userEvent.setup();
@@ -331,12 +332,12 @@ test('bar5 the status filter round-trips through the URL, reaches the server and
         'choosing the "closed" status did not put status=closed in the URL: the filter ' +
           'lives only in component memory, so the link is not shareable and back does nothing',
       ).toMatch(/status=closed/i);
-      expectIncidentRows(container, 'inc-0002', 'inc-0001');
       expect(
         sent,
         'choosing "closed" never reached the server as ?status=closed: filtering only the rows ' +
           'already downloaded hides matching incidents on pages not yet loaded',
       ).toContain('closed');
+      expectIncidentRows(container, 'inc-0102', 'inc-0001');
     },
     { timeout: 4000 },
   );
@@ -349,9 +350,9 @@ test('bar5 the status filter round-trips through the URL, reaches the server and
         'loading /incidents?status=open did not restore the filter control to "open": the ' +
           'URL is not read back as state',
       ).toBe(true);
-      expectIncidentRows(deepLink.container, 'inc-0001', 'inc-0002');
       expect(sent, 'loading /incidents?status=open never asked the server for ?status=open')
         .toContain('open');
+      expectIncidentRows(deepLink.container, 'inc-0101', 'inc-0002');
     },
     { timeout: 5000 },
   );
@@ -462,14 +463,22 @@ const FIELD = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="radi
 
 const nameOf = (element) => `${element.textContent ?? ''} ${element.getAttribute('aria-label') ?? ''}`.trim();
 
-// A labelled, visible form field; one inside a <form> wins over a same-named filter box.
+function createScope() {
+  return [...document.querySelectorAll('form, [role="dialog"], dialog')].find((scope) =>
+    [/title/i, /service/i].every((label) => within(scope).queryAllByLabelText(label)
+      .some((el) => el.matches(FIELD) && isVisible(el))));
+}
+
+// Scope to the create form/dialog before considering similarly named filters.
 function formField(label) {
-  const fields = screen.queryAllByLabelText(label).filter((el) => el.matches(FIELD) && isVisible(el));
+  const scope = createScope();
+  const fields = (scope ? within(scope) : screen).queryAllByLabelText(label)
+    .filter((el) => el.matches(FIELD) && isVisible(el));
   return fields.find((el) => el.closest('form')) ?? fields[0];
 }
 
 async function openCreateForm(user) {
-  if (!formField(/title/i)) {
+  if (!createScope()) {
     const opener = [...screen.queryAllByRole('button'), ...screen.queryAllByRole('link')].find((el) =>
       /new incident|create incident|add incident|report incident|^(new|create)\b/i.test(nameOf(el)));
     expect(opener, 'the page rendered no "New incident" control, so the create form is unreachable from ' +
@@ -501,13 +510,13 @@ async function fillField(user, label, value) {
   return field;
 }
 
-async function submitNewIncident(user, container) {
+async function submitNewIncident(user, container, titleText = NEW_TITLE) {
   await waitFor(() => expect(within(pageFor(container)).queryAllByText(/inc-0001/).some(isVisible),
     'the incidents list never rendered on /incidents').toBe(true), { timeout: 5000 });
   await openCreateForm(user);
-  const title = await fillField(user, /title/i, NEW_TITLE);
+  const title = await fillField(user, /title/i, titleText);
   await fillField(user, /service/i, 'checkout');
-  const scope = title.closest('form') ?? pageFor(container);
+  const scope = title.closest('form, [role="dialog"], dialog') ?? pageFor(container);
   const buttons = within(scope).queryAllByRole('button')
     .filter((el) => isVisible(el) && !/cancel|close|reset|discard|load more/i.test(nameOf(el)));
   const submit = buttons.find((el) => /create|submit|save|add|report/i.test(nameOf(el))) ??
@@ -534,29 +543,40 @@ function writeProblem(status, title, extra = {}, headers = {}) {
 
 test('bar10 a create answered 409 with Retry-After is re-sent with the same Idempotency-Key', async () => {
   stubIncidents(() => page(ROWS));
-  const keys = [];
-  server.use(http.post('*/v1/incidents', ({ request }) => {
+  const intents = new Map();
+  server.use(http.post('*/v1/incidents', async ({ request }) => {
+    const payload = await request.json();
+    const keys = intents.get(payload.title) ?? [];
+    intents.set(payload.title, keys);
     keys.push(request.headers.get('idempotency-key'));
     if (keys.length === 1) {
       return writeProblem(409, 'Request in progress',
         { detail: 'The first request with this key is still running.' }, { 'Retry-After': '0' });
     }
     return HttpResponse.json(
-      { id: 'inc-0099', status: 'open', title: NEW_TITLE, service: 'checkout', created_at: '2026-08-04T10:00:00Z' },
+      { id: `inc-009${intents.size}`, status: 'open', title: payload.title, service: 'checkout', created_at: '2026-08-04T10:00:00Z' },
       { status: 201, headers: { 'X-Request-ID': 'req-write-201' } },
     );
   }));
   const user = userEvent.setup();
   const { container } = renderAt('/incidents');
-  await submitNewIncident(user, container);
-  await waitFor(() => {
-    expect(keys.length, 'submitting the form never sent POST /v1/incidents').toBeGreaterThan(0);
-    expect(keys[0], 'POST /v1/incidents carried no Idempotency-Key header').toBeTruthy();
-    expect(keys.length, 'the first POST was answered 409 with Retry-After: 0 (the same key is still in ' +
-      'flight) and the page never sent it again').toBeGreaterThan(1);
-  }, { timeout: 8000 });
-  expect(keys.every((key) => key === keys[0]), `the write was re-sent under a different Idempotency-Key ` +
-    `(${keys.join(', ')}): the server would run it twice`).toBe(true);
+  for (const title of [NEW_TITLE, 'A separate incident on db-04']) {
+    await submitNewIncident(user, container, title);
+    await waitFor(() => {
+      const keys = intents.get(title) ?? [];
+      expect(keys.length, 'submitting the form never sent POST /v1/incidents').toBeGreaterThan(0);
+      expect(keys[0], 'POST /v1/incidents carried no Idempotency-Key header').toBeTruthy();
+      expect(keys.length, 'the first POST was answered 409 with Retry-After: 0 (the same key is still in ' +
+        'flight) and the page never sent it again').toBeGreaterThan(1);
+    }, { timeout: 8000 });
+    const keys = intents.get(title);
+    expect(keys.every((key) => key === keys[0]), `the write was re-sent under a different Idempotency-Key ` +
+      `(${keys.join(', ')}): the server would run it twice`).toBe(true);
+    if (title !== NEW_TITLE) {
+      expect(keys[0], 'a new create reused the previous intent\'s Idempotency-Key')
+        .not.toBe(intents.get(NEW_TITLE)[0]);
+    }
+  }
 }, 30000);
 
 test('bar11 a 422 shows its message beside the named field and keeps what the user typed', async () => {
@@ -578,6 +598,8 @@ test('bar11 a 422 shows its message beside the named field and keeps what the us
   const service = formField(/service/i);
   expect(title, 'the create form disappeared after the 422, taking what the user typed with it').toBeTruthy();
   expect(title.value, 'the 422 cleared the title the user typed').toBe(NEW_TITLE);
+  expect(service, 'the service field disappeared after the 422').toBeTruthy();
+  expect(service.value, 'the 422 cleared the service the user typed').toBe('checkout');
   let described = true;
   try {
     expect(service).toHaveAccessibleDescription(/not in the catalogue/i);

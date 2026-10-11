@@ -15,11 +15,13 @@ from pathlib import Path
 
 import pytest
 import yaml
+from probe_testkit import load_oracle
 
 ROOT = Path(__file__).resolve().parent
 SCENARIO = ROOT / "build-scenarios/build-software-engineer-incidents-console.yaml"
 ORACLE = ROOT / "oracles/incidents-console/probe_ui.test.tsx"
 FIXTURES = ROOT / "fixtures/incidents-console"
+CHECKER = load_oracle(ROOT / "oracles/incidents-console/check_ui.py")
 BARS = ("bar5", "bar10", "bar11", "bar12")
 # Each named mutant varies one behavior and must fail its own bar with its own message; every
 # other bar must still pass. The reference variants vary only what a correct page may choose.
@@ -28,14 +30,34 @@ CASES = [
     ("reference-service-select", {}),
     ("reference-open-form", {}),
     ("reference-describedby", {}),
+    ("reference-title-search", {}),
     ("client-filter", {"bar5": "never reached the server"}),
+    ("ignored-filter-response", {"bar5": "inc-0102"}),
     ("no-key", {"bar10": "carried no Idempotency-Key"}),
     ("fresh-key", {"bar10": "different Idempotency-Key"}),
+    ("constant-key", {"bar10": "reused the previous intent"}),
     ("stop-on-409", {"bar10": "never sent it again"}),
     ("summary-errors", {"bar11": "not beside the service field"}),
     ("cleared-input", {"bar11": "cleared the title"}),
+    ("cleared-service", {"bar11": "cleared the service"}),
+    ("removed-service", {"bar11": "service field disappeared"}),
+    ("hidden-service", {"bar11": "service field disappeared"}),
     ("html-title", {"bar12": "rendered as HTML"}),
 ]
+
+
+def require_clean_runtime(data):
+    assert not data.get("numRuntimeErrorTestSuites", 0), data
+    assert not data.get("unhandledErrors"), data
+
+
+@pytest.mark.parametrize("runtime", [
+    {"numRuntimeErrorTestSuites": 1},
+    {"unhandledErrors": [{"message": "unhandled rejection"}]},
+])
+def test_calibration_rejects_runtime_errors_even_when_assertions_match(runtime):
+    with pytest.raises(AssertionError):
+        require_clean_runtime({"testResults": [{"assertionResults": [{"status": "passed"}]}], **runtime})
 
 
 @pytest.fixture(scope="module")
@@ -97,6 +119,7 @@ def calibration():
         assert report.is_file(), result.stdout + result.stderr
         data = json.loads(report.read_text(encoding="utf-8"))
         assert result.returncode in (0, 1), result.stdout + result.stderr
+        require_clean_runtime(data)
         assert len(data["testResults"]) == len(CASES), result.stdout + result.stderr
         yield {Path(item["name"]).parent.name: item for item in data["testResults"]}
 
@@ -116,3 +139,5 @@ def test_actual_oracle_accepts_references_and_rejects_named_mutants(calibration,
             # Confirm the rendered-behavior rejection, not an import, setup, or request failure.
             assert any("AssertionError" in message and rejected[bar] in message
                        for message in assertion["failureMessages"]), assertion
+        assert CHECKER.assessment({"testResults": [calibration[case]]}, bar,
+                                  1 if expected == "failed" else 0) == (10 if expected == "failed" else 0)
