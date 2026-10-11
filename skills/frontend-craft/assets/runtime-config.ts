@@ -38,10 +38,16 @@ export interface LoadOptions {
   fetch?: typeof fetch;
 }
 
-/** An absolute http(s) URL or a root-relative path such as "/v1". */
+const SAME_ORIGIN = "http://same-origin.invalid";
+
+/** An absolute http(s) URL, or a root-relative path such as "/v1" that stays on this origin after the browser normalises it. */
 export function isUrlLike(value: string): boolean {
-  if (value.startsWith("/")) return !value.startsWith("//");
   try {
+    if (value.startsWith("/")) {
+      // "//host/x" and "/\\host/x" both resolve to another origin once the URL parser normalises them.
+      const resolved = new URL(value, SAME_ORIGIN);
+      return resolved.origin === SAME_ORIGIN && !value.includes("\\");
+    }
     const parsed = new URL(value);
     return parsed.protocol === "http:" || parsed.protocol === "https:";
   } catch {
@@ -64,7 +70,7 @@ function problemsFor(key: string, kind: FieldKind, value: unknown): string[] {
   }
 }
 
-/** Validates a parsed document against the schema. Unknown keys are dropped, so a typo in config.json is a startup error, not silent. */
+/** Validates a parsed document against the schema. A key the schema does not name is a startup error, so a misspelled optional setting cannot silently disable itself. */
 export function validateConfig<S extends ConfigSchema>(schema: S, document: unknown): Config<S> {
   if (document === null || typeof document !== "object" || Array.isArray(document)) {
     throw new RuntimeConfigError(["the document is not a JSON object"]);
@@ -76,6 +82,9 @@ export function validateConfig<S extends ConfigSchema>(schema: S, document: unkn
     const value = raw[key];
     problems.push(...problemsFor(key, kind, value));
     if (value !== undefined && value !== null) out[key] = value;
+  }
+  for (const key of Object.keys(raw)) {
+    if (!(key in schema)) problems.push(`${key} is not a known setting (check the spelling)`);
   }
   if (problems.length) throw new RuntimeConfigError(problems);
   return Object.freeze(out) as Config<S>;

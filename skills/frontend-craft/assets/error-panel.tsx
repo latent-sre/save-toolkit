@@ -24,7 +24,7 @@ export interface ErrorCardProps {
   detail?: string;
   requestId?: string;
   status?: number;
-  /** When it happened; defaults to now. Rendered with its zone, because consoles are read across regions. */
+  /** When it happened; defaults to the moment the card first rendered, captured once. Rendered with its zone, because consoles are read across regions. */
   at?: Date;
   timeZone?: string;
   links?: ErrorLinks;
@@ -32,25 +32,35 @@ export interface ErrorCardProps {
   onRetry?: () => void;
 }
 
-// Explicit components: dateStyle/timeStyle cannot be combined with timeZoneName, and the zone must show.
-const timeFormat = (timeZone?: string) =>
-  new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    timeZone,
-    timeZoneName: "short",
-  });
+// Explicit components: dateStyle/timeStyle cannot be combined with timeZoneName, and the zone must
+// show. An unknown zone name falls back to UTC rather than throwing inside the one component that
+// must never throw: it is the boundary's own fallback.
+const TIME_PARTS: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "short",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZoneName: "short",
+};
+
+export function timeFormat(timeZone?: string): Intl.DateTimeFormat {
+  try {
+    return new Intl.DateTimeFormat(undefined, { ...TIME_PARTS, timeZone });
+  } catch {
+    return new Intl.DateTimeFormat(undefined, { ...TIME_PARTS, timeZone: "UTC" });
+  }
+}
 
 function fill(template: string, requestId: string): string {
   return template.replaceAll("{request_id}", encodeURIComponent(requestId));
 }
 
-export function ErrorCard({ title, detail, requestId, status, at = new Date(), timeZone, links, onRetry }: ErrorCardProps) {
+export function ErrorCard({ title, detail, requestId, status, at, timeZone, links, onRetry }: ErrorCardProps) {
   const [copied, setCopied] = useState(false);
+  const [firstShown] = useState(() => new Date());
+  const when = at ?? firstShown;
   const canCopy = typeof navigator !== "undefined" && !!navigator.clipboard;
   const copy = async () => {
     if (!requestId || !canCopy) return;
@@ -100,7 +110,7 @@ export function ErrorCard({ title, detail, requestId, status, at = new Date(), t
         </dd>
         <dt>When</dt>
         <dd>
-          <time dateTime={at.toISOString()}>{timeFormat(timeZone).format(at)}</time>
+          <time dateTime={when.toISOString()}>{timeFormat(timeZone).format(when)}</time>
         </dd>
       </dl>
       {onRetry ? (
@@ -128,6 +138,12 @@ interface BoundaryProps {
   title: string;
   children: ReactNode;
   links?: ErrorLinks;
+  /**
+   * Clears a shown card when it changes: pass the route's pathname (or the record id) so a failure
+   * does not follow the user to the next route through a boundary the router keeps mounted.
+   * Remounting the boundary with `key` does the same.
+   */
+  resetKey?: unknown;
   /** Called when the user chooses to try again, before the children render again: clear the cause here. */
   onReset?: () => void;
   /** Report to the browser error reporting with the release; never with sensitive values. */
@@ -163,6 +179,12 @@ export class PanelErrorBoundary extends Component<BoundaryProps, BoundaryState> 
 
   componentDidCatch(error: unknown) {
     this.props.onError?.(error);
+  }
+
+  componentDidUpdate(previous: BoundaryProps) {
+    if (this.state.failed && previous.resetKey !== this.props.resetKey) {
+      this.setState({ failed: false, requestId: undefined, detail: undefined, status: undefined });
+    }
   }
 
   // onReset runs first so the caller can clear the cause (refetch, reset a store) before the

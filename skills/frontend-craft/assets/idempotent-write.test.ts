@@ -81,6 +81,22 @@ test("when maxAttempts is spent the last in-flight 409 is returned so the UI can
   assert.equal(s.calls.length, 3);
 });
 
+test("an abort given as init.signal also ends the wait", async () => {
+  const controller = new AbortController();
+  const s = server(inFlight("30"), ok);
+  const sleep = (_ms: number, signal?: AbortSignal) =>
+    new Promise<void>((_resolve, reject) => {
+      assert.ok(signal, "the wait must receive the request's own signal");
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      controller.abort(new Error("navigated away"));
+    });
+  await assert.rejects(
+    sendIdempotent("/v1/orders", { method: "POST", signal: controller.signal }, "key-7", { fetch: s.fetch, sleep }),
+    /navigated away/,
+  );
+  assert.equal(s.calls.length, 1);
+});
+
 test("an abort during the wait rejects with the abort reason and sends nothing more", async () => {
   const controller = new AbortController();
   const s = server(inFlight("30"), ok);

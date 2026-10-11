@@ -34,6 +34,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   React is the focus. The rendered proof of the skill's defaults, with its screenshots and the seven
   defects it found and fixed, is retained in
   [docs/reviews/2026-10-11-frontend-craft-proof](docs/reviews/2026-10-11-frontend-craft-proof/README.md).
+  A Codex review of the first commit then found twelve defects in the starting code, each
+  verified and fixed with a test: the idempotent helper no longer takes a `Request` and passes
+  the request's own abort signal into its waits; runtime configuration rejects unknown keys and
+  root-relative paths that normalise to another origin; the error card survives an unknown time
+  zone, captures its time once, wraps a long request ID at 320 px, and its boundary resets on a
+  `resetKey` change; the PCF profile refuses control characters; the serving contract probes
+  root-level file paths, requires an error status from an unknown API path and an object from
+  `config.json`. [verified] The asset test passes 60 cases and the proof app's suite 10.
 - The incidents-console oracle grades writes, server-side filtering and markup. `bar10` answers
   the first create with an in-flight `409` and `Retry-After: 0` and requires the page to send it
   again under the same `Idempotency-Key`; `bar11` answers with a `422` naming the service field

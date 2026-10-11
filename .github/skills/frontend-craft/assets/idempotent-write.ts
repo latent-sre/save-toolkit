@@ -64,13 +64,14 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /**
- * Sends a state-changing request under `key`. Returns the first response that is not an in-flight
+ * Sends a state-changing request under `key`. Takes a URL and an init, never a `Request`: a
+ * Request's body is a stream that one send consumes, so it cannot be re-sent after a 409. Returns the first response that is not an in-flight
  * 409, or the last in-flight 409 once maxAttempts is spent, so the caller can say the action is still
  * running. Every other failure is returned, never retried here: a write is replayed only by the
  * user's own retry, which passes the same key.
  */
 export async function sendIdempotent(
-  input: string | URL | Request,
+  input: string | URL,
   init: RequestInit,
   key: string,
   options: SendOptions = {},
@@ -82,11 +83,13 @@ export async function sendIdempotent(
   const maxWaitMs = options.maxWaitMs ?? 30_000;
   const headers = new Headers(init.headers);
   headers.set(IDEMPOTENCY_HEADER, key);
-  const request: RequestInit = { ...init, headers, signal: options.signal ?? init.signal ?? null };
+  // One effective signal for the sends and the waits between them, whichever way it was given.
+  const signal = options.signal ?? init.signal ?? undefined;
+  const request: RequestInit = { ...init, headers, signal: signal ?? null };
 
   for (let attempt = 1; ; attempt += 1) {
     const response = await doFetch(input, request);
     if (!isInFlight(response) || attempt >= maxAttempts) return response;
-    await sleep(waitFor(response, defaultWaitMs, maxWaitMs), options.signal);
+    await sleep(waitFor(response, defaultWaitMs, maxWaitMs), signal);
   }
 }

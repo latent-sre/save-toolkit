@@ -72,9 +72,13 @@ test("the script bundle is served as JavaScript", async () => {
 test("a missing static file is a 404, not the app", async () => {
   const b = await bundlePath();
   const dir = b.slice(0, b.lastIndexOf("/") + 1);
-  const missing = await get(`${dir}${nonce}.js`);
-  assert.equal(missing.status, 404, "a missing asset must be a 404; HTML with 200 hides a broken deploy");
-  assert.ok(!isApp(missing, b), "a missing asset must not be answered with the app's HTML");
+  // A hashed chunk under the bundle directory, and file-like paths at the root (a stylesheet, an
+  // image, a font, a manifest): a stale or mistyped asset URL must never come back as HTML 200.
+  for (const path of [`${dir}${nonce}.js`, `/${nonce}.css`, `/${nonce}.png`, `/${nonce}.woff2`, `/${nonce}.webmanifest`]) {
+    const missing = await get(path);
+    assert.equal(missing.status, 404, `${path} must be a 404; HTML with 200 hides a broken deploy`);
+    assert.ok(!isApp(missing, b), `${path} must not be answered with the app's HTML`);
+  }
 });
 
 const apiCheck = API_PREFIX ? test : test.skip;
@@ -84,6 +88,7 @@ apiCheck("an unknown API path is not the app", async () => {
   const unknown = await get(`${prefix}${nonce}`);
   assert.ok(!isApp(unknown, b), `${prefix}${nonce} must reach the API, not the app's HTML`);
   assert.doesNotMatch(unknown.type, /text\/html/, `an unknown API path must not answer HTML, got "${unknown.type}"`);
+  assert.ok(unknown.status >= 400, `an unknown API path must be an error status, got ${unknown.status}: a 200 here is a catch-all masking typos`);
 });
 
 const configCheck = RUNTIME_CONFIG_PATH ? test : test.skip;
@@ -92,5 +97,7 @@ configCheck("runtime configuration is fresh JSON", async () => {
   assert.equal(config.status, 200);
   assert.match(config.type, /application\/json/, `${RUNTIME_CONFIG_PATH} must be application/json, got "${config.type}"`);
   assert.ok(revalidates(config), `${RUNTIME_CONFIG_PATH} must send Cache-Control: no-cache, got "${config.cache}"`);
-  assert.doesNotThrow(() => JSON.parse(config.body), `${RUNTIME_CONFIG_PATH} must parse as JSON`);
+  let parsed;
+  assert.doesNotThrow(() => { parsed = JSON.parse(config.body); }, `${RUNTIME_CONFIG_PATH} must parse as JSON`);
+  assert.ok(parsed !== null && typeof parsed === "object" && !Array.isArray(parsed), `${RUNTIME_CONFIG_PATH} must be a JSON object; the app refuses anything else at startup`);
 });

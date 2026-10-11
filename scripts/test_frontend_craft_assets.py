@@ -160,7 +160,7 @@ def node_version() -> tuple[int, int]:
 
 @pytest.mark.parametrize(
     ("suite", "cases"),
-    [("problem.test.ts", 8), ("idempotent-write.test.ts", 8), ("runtime-config.test.ts", 7)],
+    [("problem.test.ts", 8), ("idempotent-write.test.ts", 9), ("runtime-config.test.ts", 7)],
 )
 def test_the_typescript_helper_contracts_pass(suite: str, cases: int) -> None:
     # Type stripping runs .ts files without a build from Node 22.18; CI's runner image ships 22.23.
@@ -202,6 +202,14 @@ def test_the_pcf_profile_writes_config_json_from_the_environment(tmp_path: Path)
         timeout=30,
     )
     assert missing.returncode != 0 and "UI_ENVIRONMENT must be set" in missing.stderr
+    control = subprocess.run(
+        [bash, str(ASSETS / "pcf/profile.sh")],
+        env={**env, "UI_ENVIRONMENT": "staging\r"},
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert control.returncode != 0 and "must not contain control characters" in control.stderr
 
 
 # --- The parametric theme: OKLCH tokens evaluated for both schemes, contrast checked at every hue ---

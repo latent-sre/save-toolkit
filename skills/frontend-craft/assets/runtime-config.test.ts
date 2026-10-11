@@ -46,15 +46,20 @@ test("every missing or malformed field is named in one error", () => {
   );
 });
 
-test("unknown keys are dropped so a typo cannot pass as a value", () => {
-  const config = validateConfig(schema, { apiBaseUrl: "https://api.example.internal", environment: "prod", apiBaseURL: "/typo" });
-  assert.deepEqual(Object.keys(config), ["apiBaseUrl", "environment"]);
+test("a key the schema does not name is a startup error, so a misspelled optional flag cannot vanish", () => {
+  assert.throws(
+    () => validateConfig(schema, { apiBaseUrl: "https://api.example.internal", environment: "prod", readonly: true }),
+    (error: unknown) => error instanceof RuntimeConfigError && error.problems.join() === "readonly is not a known setting (check the spelling)",
+  );
 });
 
 test("url fields accept http(s) URLs and root-relative paths only", () => {
   assert.equal(isUrlLike("/v1"), true);
   assert.equal(isUrlLike("https://api.example.internal/v1"), true);
   assert.equal(isUrlLike("//evil.example/v1"), false);
+  assert.equal(isUrlLike("/\\\\evil.example/v1"), false);
+  assert.equal(isUrlLike("/\\evil.example/v1"), false);
+  assert.equal(isUrlLike("/v1/orders?limit=50#top"), true);
   assert.equal(isUrlLike("javascript:alert(1)"), false);
   assert.equal(isUrlLike("v1"), false);
 });

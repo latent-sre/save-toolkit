@@ -37,6 +37,15 @@ describe("ErrorCard", () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
+  it("captures the time once and survives an unknown time zone", () => {
+    const { rerender } = render(<ErrorCard title="Fills did not load" timeZone="Mars/Olympus_Mons" />);
+    const shown = screen.getByRole("alert").querySelector("time")?.getAttribute("datetime");
+    expect(shown).toBeTruthy();
+    expect(screen.getByRole("alert")).toHaveTextContent("UTC");
+    rerender(<ErrorCard title="Fills did not load" timeZone="Mars/Olympus_Mons" />);
+    expect(screen.getByRole("alert").querySelector("time")?.getAttribute("datetime")).toBe(shown);
+  });
+
   it("maps a problem to card props with the title the view chose", () => {
     const props = problemCardProps(
       { type: "about:blank", title: "Bad gateway", status: 502, detail: "Upstream timed out", request_id: "r-1" },
@@ -70,6 +79,25 @@ describe("PanelErrorBoundary", () => {
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(screen.getByText("Panel content")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    spy.mockRestore();
+  });
+
+  it("clears the card when its resetKey changes, as on navigation", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    world.fail = true;
+    const { rerender } = render(
+      <PanelErrorBoundary title="Route did not render" resetKey="/orders/1">
+        <Boom />
+      </PanelErrorBoundary>,
+    );
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    world.fail = false;
+    rerender(
+      <PanelErrorBoundary title="Route did not render" resetKey="/orders/2">
+        <Boom />
+      </PanelErrorBoundary>,
+    );
+    expect(screen.getByText("Panel content")).toBeInTheDocument();
     spy.mockRestore();
   });
 });
