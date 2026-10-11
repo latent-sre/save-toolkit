@@ -82,7 +82,15 @@ replay is proven safe. Long-running work answers `202` with a status resource: p
 backoff, show progress, and let the user leave the page. A bulk action reports each item's
 outcome, including unknown.
 
-## Retries, rate limits and freshness
+## Query keys, freshness and retries
+
+Every input that changes the response — path parameters, filters, sort, cursor, and the user or
+tenant scope — belongs in the query key. `openapi-react-query` derives the key from the request;
+a hand-written `queryOptions` must list each input, or one filter's cached rows appear under
+another. Set `staleTime` and the refetch triggers from what the view needs: TanStack Query treats
+data as stale at once and refetches on mount, window focus and reconnect, so a console refocused
+all day refetches every time; a view a stream keeps current turns those off and lets the stream
+update the cache. One source per need: never poll and stream the same data.
 
 Queries retry three times with backoff by default; honour `Retry-After` on `429` and `503`, skip
 non-retryable statuses, and keep one retry owner — the query layer — so the client wrapper never

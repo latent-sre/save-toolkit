@@ -40,6 +40,10 @@ declare the layer order) and Blueprint (built for dense desktop-style data appli
 unlayered reset, so not beside Tailwind) are full systems a repository or caller may choose
 instead. One system per app, never two.
 
+Icons come from `lucide-react`, shadcn's set, with one icon set per app. Utility hooks — debounce,
+click-outside, media queries, local storage, element size — come from `@mantine/hooks`, which ships
+no CSS and needs no provider, so it fits beside any component system.
+
 ## Data, routing and forms
 
 **TanStack Query** with `openapi-react-query` for server state; **TanStack Router** for a new

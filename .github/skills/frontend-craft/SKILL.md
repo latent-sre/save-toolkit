@@ -91,6 +91,7 @@ shell — a `cp` from there is refused or prompts.
    shipped. Every chart has a text or data-table alternative. Widget behaviour — focus traps,
    ARIA state, arrow-key navigation — comes from the component system's primitives, or in an app
    without one from a headless library (Base UI, Radix, React Aria, Reka UI), never hand-rolled.
+   Simple controls stay native elements — `<button>`, `<a>`, `<input>` — whichever kit styles them.
 8. **Looks designed and uses the modern platform.** Theme tokens, deliberate density and the
    register's look on every page — a basic UI is not the target. The saved theme applies before
    first paint through the project's CSP-compatible mechanism (an inline script allowed by hash or
