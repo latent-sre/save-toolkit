@@ -46,7 +46,8 @@ is a default, not a choice.
 3. **Palette.** The brand hue and its chroma; whether surfaces take the same hue or a second one;
    whether the app defaults to dark or light. The status set is fixed by the theme. Pick the hue
    from the subject — markets, risk, settlement, infrastructure each suggest a temperature — not
-   from habit, and two apps on the same team share a hue only when they are one product.
+   from habit. One identity per app is the owner's rule: two apps share a palette only when they
+   are one product.
 4. **Type.** One pairing with a role for each face, from the table below or a deliberate
    alternative, self-hosted through `@fontsource`. A display face is allowed for the one signature
    element. Name the scale: the theme's seven steps, or a tighter or looser one.

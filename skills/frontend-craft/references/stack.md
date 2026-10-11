@@ -32,8 +32,8 @@ addition with its licence in the packet.
   browser mode on Playwright for component tests that need layout; **Playwright** for the few
   critical journeys, only with the caller's approval; `vitest-axe` or `@axe-core/playwright` for
   the accessibility pass.
-- Package manager: the repository's; npm for a new app unless the team's neighbouring apps use
-  pnpm. One lockfile, committed.
+- Package manager: **npm**, the team's choice, with one committed lockfile; pnpm only where a
+  repository already uses it.
 
 ## Component kits
 

@@ -23,7 +23,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   2026-10-11. [verified] `scripts/test_frontend_craft_assets.py` passes 60 cases, including AA
   contrast at every 15° of brand hue in both schemes, the three helpers' node suites, the PCF
   profile script and the serving contract; `check_links` passes; the Mantine discovery case is
-  regraded for the mixing rules and `ROUTE-004` updated; `stack-profile`'s frontend line now says
+  regraded for the mixing rules and `ROUTE-004` closed on the owner's decision that it suffices;
+  `FRONTEND-001` records that the team's GUI mix is defined after the first runs; `stack-profile`'s frontend line now says
   React is the focus. The rendered proof of the skill's defaults, with its screenshots and the seven
   defects it found and fixed, is retained in
   [docs/reviews/2026-10-11-frontend-craft-proof](docs/reviews/2026-10-11-frontend-craft-proof/README.md).

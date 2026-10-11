@@ -60,6 +60,19 @@ Recorded in the skill's owner-decisions table [sourced: owner]:
 15. **The reader** is an SRE who is competent but not a frontend specialist: the skill explains
     the why and gives the commands.
 
+Recorded after the candidate's first review, on the owner's answers of 2026-10-11 [sourced: owner]:
+
+16. **One identity per app.** No shared brand or family resemblance is required across the
+    team's apps; each brief chooses its own palette, type and signature.
+17. **npm and Node 22 or 24.** npm is the package manager for a new app, with one committed
+    lockfile; pnpm only where a repository already uses it. Node 22.12 or later, 24 being the
+    active LTS line.
+18. **The GUI mix is a mix.** The team builds across the archetypes and defines the weighting
+    after a few runs rather than up front; the archetypes stay evenly weighted until then
+    (`FRONTEND-001` in the roadmap).
+19. **ROUTE-004 is closed.** The single Mantine discovery positive, regraded for the mixing rules
+    at threshold 1.0, suffices; no replacement calibration case is needed.
+
 Rejected [sourced: owner]: a house theme or register; a ban on any kit; one component system per
 app; React only; keyboard-first as the default look; a single default stack.
 
@@ -70,8 +83,8 @@ app; React only; keyboard-first as the default look; a single default stack.
   contrast at every brand hue in both schemes [verified: `scripts/test_frontend_craft_assets.py`,
   60 passed on 2026-10-11].
 - Eval wiring: the three build scenarios and their oracles grade behaviour the new skill still
-  requires and are unchanged; the Mantine discovery case is regraded for the mixing rules, which
-  changes what `ROUTE-004` measures; the asset contract test is rewritten for the new files.
+  requires and are unchanged; the Mantine discovery case is regraded for the mixing rules and the
+  owner closed `ROUTE-004` on that case; the asset contract test is rewritten for the new files.
 - Library facts in the skill were verified against registries and primary documentation on
   2026-10-11 [verified]: Vite 8, React 19.3, TypeScript 7 as the latest major with no compiler
   API (so new apps pin 6.x while typescript-eslint needs it), Tailwind 4.3, shadcn on Base UI by
