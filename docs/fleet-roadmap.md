@@ -25,14 +25,16 @@ records do not re-queue work.
 
 ### FRONTEND-001 — selectively integrate frontend craft improvements
 
-**Status:** `active` (2026-10-11); owner authorized committing the revised plan then executing it.
+**Status:** `decision-needed` (2026-10-11); repairs and guidance implemented and locally verified;
+native Codex product comparison and exact-candidate acceptance remain open.
 **Owner:** Invoking implementation session; human toolkit owner accepts the exact candidate.
 **Outcome:** Serving and both incident UI evaluators reject the demonstrated false results;
 product guidance gains tested interaction coverage without losing accepted operational contracts.
-**Next action:** Finish integrated verification of the [selective integration](frontend-craft-integration.md)
-and review the exact candidate. Serving and guidance increments are implemented; both oracle
-consumers passed their 62-check calibration. Native Codex comparison requires a compatible isolated runner
-and runnable product fixtures; the existing native harness is Claude-specific.
+**Next action:** The owner reviews the [selective integration](frontend-craft-integration.md)
+and decides the native Codex measurement scope. The full heavy suite passed 2,565 tests and
+4,986 subtests; both oracle consumers passed a separate 62-check calibration. Native Codex
+comparison requires a compatible isolated runner and runnable product fixtures; the existing
+native harness is Claude-specific. Structural/unit success does not establish product improvement.
 **Evidence:** [Plan, rule disposition and execution evidence](frontend-craft-integration.md).
 Model-based testing uses the owner's Codex gpt-6.1-sol selection with medium reasoning.
 **SRE task:** Build distinctive team sites, incident workspaces, workflow editors and catalogs

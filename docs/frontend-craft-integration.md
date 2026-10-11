@@ -204,3 +204,40 @@ CLI help, and the [official Codex configuration reference](https://learn.chatgpt
 Framing semantics were checked against [CSP3 parsing](https://www.w3.org/TR/CSP3/#parse-serialized-policy)
 and [frame-ancestors](https://www.w3.org/TR/CSP3/#directive-frame-ancestors); the repaired verifier
 deliberately rejects unsupported policy combinations rather than claiming browser equivalence.
+
+### Final local verification
+
+[verified] Implementation commits end at `b4f8af032ad677568d556cf2ea66ecfe17314eaa`.
+The independently reviewed and full-suite-tested candidate is
+`72d3ba287364386e3c26586209c6a407290af7f4` (tree
+`07a4a89313ac09ff8253de9072097dafa4eb3488`); its additional changes are evidence/roadmap text.
+Independent static review approved the code/guidance scope with no validated findings. That
+verdict does not establish product behavior or replace human candidate acceptance.
+
+| Final check | Result and limits |
+|---|---|
+| Gate A | 2/2 structural steps passed |
+| build_probe validate | 245 existing specs, 1,093 graded expectations validated; no new product trial |
+| Ruff check / format | Passed; 24 format-discovery files unchanged |
+| mypy | Passed on 44 configured source files; changed calibration test also passed its focused type check |
+| Coordinated heavy suite | `python -B scripts/local_tests.py --heavy -rs`: exit 0, 2,565 passed, 82 skipped, 4,986 subtests passed |
+| Runtime/identity | CPython 3.14.7, 10 workers/loadfile; 259.568 seconds wall time; HEAD unchanged and clean before/after |
+| Oracle calibration | Separate opt-in full MSW run: 62 passed, 300 rendered assertions and two supervised classifications |
+| Final source comparison | Generated parity and whitespace passed; remote main refreshed again and remained `7f4cd381` |
+
+Full-suite receipt: Git common directory `local-test-runs/20261011T074102Z-a36fa784/run.json`,
+with pytest.log and junit.xml beside it. Scratch red/green logs and the oracle file/dependency
+receipt are retained outside the measured worktree at the primary repository's
+`.tmp/frontend-integration-evidence-32ad1480/`. The move preserved their contents and left the
+measured checkout clean.
+
+The 82 suite skips consist of 62 opt-in UI calibration checks (executed separately above) and
+20 platform/external checks: POSIX/symlink behavior, CI-only shell requirements, external producer
+acceptance and Docker/Claude smoke checks. Ten Starlette/AnyIO deprecation warnings were reported;
+they are warnings, not passed or failed assertions. No claim is made for the unexecuted checks.
+
+The final evidence-record commit changes only this document and the roadmap after that run;
+it does not change the tested implementation. Steps 1–5 are implemented with the evidence above.
+Step 6 remains pending compatible Codex measurement and runnable product fixtures; step 7's
+local code review and verification are complete, while human acceptance remains open. No push,
+merge, deployment or donor-PR closure occurred.
