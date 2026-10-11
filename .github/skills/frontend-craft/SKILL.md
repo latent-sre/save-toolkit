@@ -137,6 +137,7 @@ is written, not verified.
 | the build, runtime configuration, or serving the UI | [Serving](./references/serving.md) |
 | any new page or view, or a visual change larger than a component | [Design](./references/design.md) |
 | live views, paused history, reconnects or linked live selection | [Live data](./references/live-data.md) |
+| large tables, linked charts, dependency exploration or bulk selection | [Dense data](./references/dense-data.md) |
 
 Load every matching row. Before recommending a hosting, runtime or platform change, also load
 `stack-profile`.
