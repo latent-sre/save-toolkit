@@ -25,7 +25,8 @@ FAILURE_REASONS = {
     "bar1": ("no visible loading state", "the loading signal never changed"),
     "bar2": ("without a new visible inline error",),
     "bar3": ("without a new visible empty-state message",),
-    "bar5": ("filtered results still show the nonmatching row",),
+    "bar5": ("filtered results still show the nonmatching row",
+             "did not restore the filter control"),
 }
 # Each named mutant varies one behavior. All other bars must still pass.
 CASES = [
@@ -39,6 +40,8 @@ CASES = [
     ("same-node", "none", "client", set()),
     ("reference-server", "text", "server", set()),
     ("reference-hidden-rows", "text", "hidden-rows", set()),
+    ("reference-portalled-button", "text", "portal-button", set()),
+    ("reference-portalled-input", "text", "portal-input", set()),
     ("hidden-loading", "text", "client", {"bar1"}),
     ("hidden-error", "text", "client", {"bar2"}),
     ("hidden-empty", "text", "client", {"bar3"}),
@@ -51,6 +54,10 @@ CASES = [
     ("outside-main", "text", "client", {"bar1", "bar2", "bar3"}),
     ("url-only", "text", "client", {"bar5"}),
     ("ignore-deep-link", "text", "client", {"bar5"}),
+    ("portal-url-only", "text", "portal-button", {"bar5"}),
+    ("portal-ignore-deep-link", "text", "portal-input", {"bar5"}),
+    ("portal-stale-control", "text", "portal-button", {"bar5"}),
+    ("portal-ambiguous-name", "text", "portal-button", {"bar5"}),
 ]
 
 
@@ -150,6 +157,14 @@ def test_actual_oracle_accepts_reference_and_rejects_named_mutants(
             + "\n".join(assertion.get("failureMessages", []))
         )
         if expected == "failed":
+            if case == "portal-ambiguous-name" and bar == "bar5":
+                # A different control with the same accessible name must not manufacture a
+                # pass. The oracle cannot disambiguate this shape; check_ui treats an Error
+                # without candidate-origin frames as INCONCLUSIVE, not a candidate defect.
+                assert any("Error: ambiguous status combobox name" in message
+                           and "AssertionError" not in message
+                           for message in assertion["failureMessages"]), assertion
+                continue
             # Confirm the rendered-behavior rejection, not an import, setup, or request failure.
             assert any("AssertionError" in message and any(
                 reason in message for reason in FAILURE_REASONS[bar]

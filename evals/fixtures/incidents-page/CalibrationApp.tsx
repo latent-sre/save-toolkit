@@ -1,7 +1,34 @@
 // Independent reference page for oracle calibration, not a candidate implementation template.
 // The runner prepends CASE, LOADING, and FILTER; only the named defect varies in each mutant.
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
+
+function PortalStatus({ value, onChange, input }) {
+  const [expanded, setExpanded] = useState(false);
+  const label = value.charAt(0).toUpperCase() + value.slice(1);
+  const trigger = {
+    role: 'combobox', 'aria-label': 'Status', 'aria-expanded': expanded,
+    'aria-controls': expanded ? 'status-options' : undefined,
+    onClick: () => setExpanded(!expanded),
+    onKeyDown: (event) => {
+      if (event.key === 'ArrowDown') setExpanded(true);
+      if (event.key === 'Escape') setExpanded(false);
+    },
+  };
+  return <>
+    {input ? <input {...trigger} value={label} readOnly />
+      : <button {...trigger} value="status-trigger">{label}</button>}
+    {expanded && createPortal(
+      <div id="status-options" role="listbox" aria-label="Status options">
+        {['all', 'open', 'closed'].map((status) =>
+          <button key={status} role="option" aria-selected={status === value}
+            onClick={() => { onChange(status); setExpanded(false); }}>
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </button>)}
+      </div>, document.body)}
+  </>;
+}
 
 export default function App() {
   const [params, setParams] = useSearchParams();
@@ -9,6 +36,11 @@ export default function App() {
   const [selectedHere, setSelectedHere] = useState(false);
   const [rows, setRows] = useState([]);
   const [state, setState] = useState('loading');
+  const defect = CASE.startsWith('portal-') ? CASE.slice('portal-'.length) : CASE;
+  const changeStatus = (value) => {
+    setSelectedHere(true);
+    setParams(value === 'all' ? {} : { status: value });
+  };
   const serverStatus = FILTER === 'server' ? wanted : 'all';
   useEffect(() => {
     let active = true;
@@ -33,7 +65,7 @@ export default function App() {
     CASE === 'remounted-permanent' || CASE === `hidden-child-${name}`;
   const loading = state === 'loading';
   const loadingMessage = loading || CASE === 'permanent-loading' || CASE === 'remounted-permanent';
-  const shouldFilter = CASE !== 'url-only' && (CASE !== 'ignore-deep-link' || selectedHere);
+  const shouldFilter = defect !== 'url-only' && (defect !== 'ignore-deep-link' || selectedHere);
   const matches = (row) => !shouldFilter || wanted === 'all' || row.status === wanted;
   const displayed = FILTER === 'hidden-rows' ? rows : rows.filter(matches);
 
@@ -53,16 +85,19 @@ export default function App() {
           <p role="alert">Monitoring unavailable</p>}
         {['permanent-empty', 'remounted-permanent'].includes(CASE) &&
           <p>No results in the monitoring sidebar</p>}
-        <label>
+        {FILTER.startsWith('portal-') ? <>
+          <PortalStatus value={['stale-control', 'ambiguous-name'].includes(defect) && !selectedHere ? 'all' : wanted}
+            onChange={changeStatus} input={FILTER === 'portal-input'} />
+          {['stale-control', 'ambiguous-name'].includes(defect) && <input role="combobox"
+            aria-label={defect === 'ambiguous-name' ? 'Status' : 'Unrelated saved view'}
+            aria-expanded="false" value="Open" readOnly />}
+        </> : <label>
           Status
-          <select value={wanted} onChange={(event) => {
-            setSelectedHere(true);
-            setParams(event.target.value === 'all' ? {} : { status: event.target.value });
-          }}>
+          <select value={wanted} onChange={(event) => changeStatus(event.target.value)}>
             <option value="all">All</option><option value="open">Open</option>
             <option value="closed">Closed</option>
           </select>
-        </label>
+        </label>}
         <section aria-label="Incident results"
           aria-busy={LOADING === 'busy' ? loading : undefined}>
           {CASE === 'hidden-child-loading' && <p role="status">

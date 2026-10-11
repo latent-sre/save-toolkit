@@ -1,0 +1,18 @@
+id: discovery-frontend-craft-service-catalog
+max_turns: 4
+split: regression
+prompt: |
+  Our Vue service catalog needs a better UI for exploring hundreds of services: a rich table with
+  saved views, service detail, linked health charts, and an interactive dependency graph. Keep Vue
+  and our selected dark visual identity. This is an improvement to an existing app, not a new
+  product or a Grafana dashboard. Plan the affected interactions and suitable frontend tools.
+success_criteria:
+- Selects frontend application work and preserves the existing Vue framework and chosen identity
+- Uses the approved direction rather than restarting a two-concept selection process
+- Chooses Vue-compatible tools without assuming React packages work in Vue
+- Describes linked exploration, data scale, and incomplete or stale data states
+target:
+  kind: skill
+  name: frontend-craft
+routing:
+  expect: fire

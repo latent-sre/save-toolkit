@@ -1,48 +1,82 @@
-# Default design language
+# Product visual direction
 
-Read only for a greenfield or unbranded UI with nothing to match — no brand, no design system, no
-established visual conventions. Any of those always wins: match it and leave this file unread. The
-invariants (theme tokens, no-flash theme, status never by color alone, designed states, composition)
-live in `../SKILL.md`; this file owns the *choices* those rules leave open.
+Read for a new product, a full redesign, or substantial visual work. Use the product brief and
+selected direction from the parent skill; preserve an existing identity for scoped changes.
 
-Before styling, record the audience, main workflow, density, theme tokens and type choices.
-Use those decisions to guide hierarchy and visual character; decoration should serve the workflow.
+## Two directions with a meaningful choice
 
-## App shell and composition
+Give the same representative content and task to both directions. Each should show the main
+composition, navigation, typography, information density, palette, and one important interaction.
+Use rendered concept screens or prototypes when available. A description of intended animation is
+not evidence that it has been implemented.
 
-- **Navigation follows the workflow and viewport.** A grouped sidebar suits many destinations;
-  tabs or a single column suit focused tasks. Keep destinations labelled and the active one clear;
-  use a drawer or another accessible compact layout when space is limited. Destination count alone
-  does not dictate the shell.
-- **Spacing grid** on a consistent 4/8px scale.
-- **Typography**: 4–5 sizes total, hierarchy through size and weight, never color alone. Inter (or
-  similar, self-hosted), tight letter-spacing on large headings, `tabular-nums` for data, big
-  confident numbers on stat tiles.
+Make the alternatives materially different. An incident workspace might explore a timeline-led
+investigation with an evidence inspector, and a service-led composition linking a dependency map
+to a working table. A team site might explore an editorial narrative and an interactive map of the
+team's capabilities. These illustrate differences in structure; derive the actual concepts from
+the current product instead of reusing these layouts by default.
 
-## Visual character
+Explain what each direction makes easier, how it handles dense or incomplete content, and its main
+tradeoff. Recommend one with a reason. Carry the user's selection forward without asking again.
 
-- **Dark-first, layered surfaces.** Dark is the designed-for theme; light stays fully supported
-  through the same tokens, with a manual light/dark/system toggle, persisted and defaulting to the
-  OS setting. A deep page background tinted from the design plan's palette, not a neutral
-  near-black; cards a step lighter, raised elements a step lighter again;
-  depth from layering plus low-alpha borders and soft shadows, not heavy lines.
-- **Accent with purpose**: derive the accent from the design plan and use it for primary actions
-  and active states. Gradients or a
-  hero treatment are optional when they help communicate the product. Status stays distinct and
-  paired with text or an icon.
-- **Categorical KPI accents**, when they help distinguish metric groups: draw a small set of hues
-  from theme tokens, keep categories distinct from status, and emphasize metrics by importance.
-- **Depth cues, spent sparingly**: use borders, elevation, or grouping when they clarify structure;
-  decorative cards and hover lifts are optional. Keep focus rings visible.
+## Build an identifiable visual system
 
-## Motion
+Choose the product's visual character deliberately: type pairing and hierarchy, spacing rhythm,
+grid, density, surface treatment, icon treatment, emphasis, and motion behavior. Record the choices
+in theme tokens and reusable components so screens belong together. Shared fleet quality does not
+require the same visual identity across products.
 
-Use motion when it clarifies feedback, continuity, or a state change. A view needs no decorative
-animation. Keep transitions brief (150–250 ms), prefer `opacity` and `transform`, and respect
-`prefers-reduced-motion`.
+Avoid interchangeable starter compositions. Repeated cards, a sidebar, a large hero, gradients,
+monospace labels, or oversized metrics can each be appropriate, but their presence does not supply
+the design idea. Let content priority, relationships, and the user's next decision shape the page.
+An untouched starter template with renamed headings does not meet the brief for a distinctive
+product. Removing a logo should still leave recognizable choices in structure and interaction.
 
-## Review the rendered result
+Typography is part of the identity; no house font or fixed count of type sizes is required. Balance
+character with sustained reading, dense data, and clear hierarchy. Use tabular numerals where
+alignment helps comparison, and make identifiers easy to distinguish and copy. Choose font loading
+and licensing that fit the project.
 
-Inspect the affected view against its audience and main task: hierarchy, legibility, consistency,
-accessibility and useful feedback in each state. Remove decoration that competes with the work;
-follow the parent skill's verification and gap-reporting rules when a browser is unavailable.
+## Dark-first, with deliberate color and depth
+
+Develop the dark theme first unless the user or existing product specifies otherwise. Choose its
+neutral or tinted surfaces, accent palette, borders, elevation, and chart colors as a system.
+Dark-first does not prescribe one background hue, card style, or radius. Keep secondary text and
+quiet controls readable; state and selected context must remain distinct.
+
+Decide whether light and system modes belong in the product brief. If shipped, design and verify
+each theme, persist the user's choice, and apply it before paint. Theme tokens must cover charts,
+graph edges, workflow nodes, tooltips, focus, and overlays as well as the page shell. Keep semantic
+status colors separate from categorical data colors and reinforce status with text or icons.
+
+## Mixed experience levels and large workspaces
+
+Make the main path visible: clear labels, meaningful grouping, useful defaults, and feedback at
+the place of action. Offer deeper controls, shortcuts, saved views, and commands without requiring
+users to discover a gesture before they can complete basic work. Explain unfamiliar terms in context.
+
+Use desktop space for useful comparisons and related information. Resizable panes, an inspector,
+linked visualizations, or a wide table may suit the task; avoid stretching a sparse layout simply
+to fill a monitor. Keep the current service, environment, time range, and selection recognizable
+where they determine the meaning of the data. Decide smaller-device workflows per product.
+
+## Expressive motion and interactive visuals
+
+Treat motion as part of the visual direction and interaction design. Use it for spatial continuity,
+selection, graph exploration, workflow execution, staged explanations, and visual character.
+Use animated illustrations, rich transitions, canvas, SVG, or other interactive treatments
+throughout the product where they support the concept.
+
+Choose timing and easing by the interaction. Immediate controls must remain responsive; an animated
+transition must not delay a command, obscure an outcome, or move a target under the pointer.
+Keep live updates from repeatedly animating the whole workspace or disrupting reading and selection.
+Provide pause or reduced-motion alternatives for continuous movement and preserve the information
+and navigation when animation is reduced. Test the actual effect at representative data volume.
+
+## Review the rendered design
+
+Compare the result with the selected concept at its intended size. Assess hierarchy, character,
+content fit, density, legibility, motion, and interaction continuity. Inspect a dense state and an
+incomplete or failed state as well as the attractive initial view. Confirm that the chosen library's
+defaults have been integrated into the product's identity. Follow the parent skill's browser,
+keyboard, performance, and gap-reporting requirements.

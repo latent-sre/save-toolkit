@@ -1,0 +1,18 @@
+id: discovery-frontend-craft-automation-builder
+max_turns: 4
+split: regression
+prompt: |
+  Build the frontend for a visual automation builder. Users with mixed technical experience need
+  to connect steps, configure them, see validation, and inspect execution status. The API already
+  exists and publishes OpenAPI; do not implement a workflow engine. Use a distinctive dark-first
+  design with expressive motion. Start by showing two design directions; library choice is open.
+success_criteria:
+- Selects the frontend lane for the workflow editor and execution interface
+- Separates editing, validation, preview, and actual execution according to API support
+- Considers usable node connections, configuration, keyboard alternatives, and meaningful motion
+- Does not replace the frontend request with backend engine implementation or a generic form page
+target:
+  kind: skill
+  name: frontend-craft
+routing:
+  expect: fire

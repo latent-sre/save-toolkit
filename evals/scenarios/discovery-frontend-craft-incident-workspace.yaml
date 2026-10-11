@@ -1,0 +1,19 @@
+id: discovery-frontend-craft-incident-workspace
+max_turns: 4
+split: regression
+prompt: |
+  Design an incident investigation workspace as a new web application. Responders need a rich
+  evidence table, linked charts and event timelines, and a dependency graph, with a command palette.
+  The existing bridge remains the coordination channel. Python and Go services expose OpenAPI.
+  We prefer dark-first and large screens, and want two distinct visual directions to choose from.
+  This is product design, not a live incident or a Grafana dashboard.
+success_criteria:
+- Selects frontend product work rather than live triage or Grafana operations
+- Connects the requested interactions through service, environment, time range, and selection
+- Uses OpenAPI as the service contract without introducing an AI product requirement
+- Develops different compositions and keeps the existing bridge as the coordination channel
+target:
+  kind: skill
+  name: frontend-craft
+routing:
+  expect: fire

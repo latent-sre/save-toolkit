@@ -1,58 +1,63 @@
-# Frontend stack selection and PCF serving
+# Open frontend stack
 
-Read for **greenfield** stack selection or serving a SPA on PCF. An existing repository's stack
-always wins; for hosting-only changes, read [Build & serve on PCF](#build--serve-on-pcf).
+Read when selecting or combining frontend technologies. Load `stack-profile` for the team's language
+tooling and deployment environment. Frontend choice is open; it does not change the hosting platform
+or authorize deployment. For an existing application, inspect its dependencies, conventions, and
+constraints before proposing a change. An authorized rebuild can replace its current choices.
 
-The universal frontend rules live in `../SKILL.md`. On any conflict, SKILL.md wins.
+## Choose for the product
 
-## Stack
+React + TypeScript + Vite is a familiar starting point for an application workspace. Vue is welcome;
+other frameworks, rendering models, and tools are eligible when they serve the task. Choose a SPA,
+static generation, server rendering, or a combination according to navigation, content, indexing,
+delivery, and interaction needs. Do not force a site into an application shell.
 
-Greenfield uses a **React + TypeScript SPA on Vite**.
-Add the dependencies below when the feature needs their capabilities. Keep UI behavior separate
-from styling, with one reset and one token system.
+Frontend library selection is unrestricted. Mantine is approved, including styled
+`@mantine/core` components, charts, hooks, and forms. HeroUI, Aceternity, Animate UI, shadcn/ui,
+Motion, React Bits, Blueprint, Tailwind, and other suitable libraries are available choices, not
+a mandatory bundle or a ceiling. Motion and interactive visual libraries may play a substantial
+role in the product.
 
-**Paint — one reset, one token system:**
-- **Tailwind** when a utility styling layer is needed.
-- **shadcn/ui pattern on Radix (or Base UI) primitives** for interactive widgets needing accessible behavior you style yourself; use semantic HTML for simpler controls.
-- **lucide-react** when icons help the workflow; **Framer Motion** only when CSS transitions aren't enough (CSS is right for hovers, fades, modals).
-- Optional, same Tailwind world: **HeroUI v3** as a styled layer only when it can share the existing reset and token system; **Aceternity / Magic UI** as a sparing garnish for hero / login / empty-state moments — named in the review packet.
+Select the combination against the actual capabilities and visual direction. A component system,
+data grid, chart library, graph/canvas library, animation tool, and styling approach solve different
+problems. Prefer a supported capability over rebuilding it merely to avoid a dependency; custom
+work is appropriate where it materially improves the product. Explain important tradeoffs such as
+interaction coverage, accessibility, integration effort, performance, license, and maintenance.
 
-**Logic — zero CSS, decoupled from the paint:**
-- **TanStack Query** when managing server state; **TanStack Router** when the app needs routes (typed routes, nested layouts, route-based code splitting, URL search-param state); **TanStack Table** when it needs data-grid behavior. Add only the parts in use.
-- **@mantine/hooks** when shared utility logic is needed (disclosure, debounce, local storage, hotkeys, click-outside, media query, element size); **@mantine/form** when form state needs a library. Both ship no CSS and need no provider.
-- Accessible *widget* behavior (focus trap, ARIA, roving tabindex) comes from **Radix / Base UI**, not from Mantine hooks.
+Check current official documentation and exact-version upstream exports/examples before relying on
+a component or configuration. Use Context7 for documented contracts and GitHits for upstream source,
+tests, and package evidence when available through the acting lane; otherwise request the supported
+research path and label unverified compatibility. Do not assume a React package has a Vue equivalent
+or that a third-party component is exported by the underlying library.
 
-The Mantine rule lives in `../SKILL.md`'s decisions table.
+## Integrate a coherent system
 
-If the user explicitly asks for plain HTML or a static page, comply. Record a different greenfield
-framework choice in the review packet; omitting an unused optional dependency needs no exception.
+Combining libraries is supported. Establish how their CSS resets, cascade layers, stylesheets,
+providers, theme variables, portals, and stacking contexts interact. Map component styling to the
+product's semantic tokens and test overlays, keyboard focus, and appearance together. For Mantine
+with Tailwind, check the installed versions' stylesheet and layer setup and verify their combined
+theme and interaction behavior.
 
-## Build & serve on PCF
+Use the design system's components and behavior where they fit; extend them deliberately. Keep one
+clear owner for each interaction and each piece of state so combined libraries do not duplicate
+focus handling, requests, animation, or conflicting selection state.
 
-Build hashed assets with the repository's production build (`vite build` for greenfield).
-Serve through the `staticfile`/`nginx` buildpack or the API app. Fall back to `index.html` for
-client routes, including deep links, only after reserving asset paths and backend routes:
-missing JS/CSS, images and other static files must return 404, never HTML with 200. Include public
-files outside the bundler's asset prefix. Co-served `/v1/*`, `/health/live` and `/health/ready` retain their
-backend handlers and status codes, including problem responses for unknown API routes.
+Modern CSS, browser APIs, SVG, canvas, WebGL, and workers are options alongside framework packages.
+Select them for layout, responsiveness, visualization, or computation the product actually needs.
+Verify browser support and a usable fallback for the target environment. Choose client/server work
+and code loading with the expected data size and interaction latency in mind.
 
-Staticfile's `pushstate: enabled` rewrites **all missing paths**; it alone does not enforce those
-boundaries. Use the buildpack's supported custom configuration, an explicit NGINX configuration,
-or the API's router to reserve them. `root: dist` selects the built directory when pushing the
-whole project. [sourced: [Staticfile options](https://docs.cloudfoundry.org/buildpacks/staticfile/index.html)
-and [rewrite implementation](https://github.com/cloudfoundry/staticfile-buildpack/blob/22b502fd325f5725e0a1d5972f9b59ca9ec6d8c2/src/staticfile/finalize/data.go#L123)]
+## Contracts and application state
 
-Revalidate HTML (`Cache-Control: no-cache`); immutable, content-hashed assets can use long cache
-lifetimes. Keep prior chunks available during rollout or use bounded, user-visible recovery for
-missing imports that protects unsaved work; avoid reload loops. Prefer an existing framework's
-solution; Vite exposes `vite:preloadError`. [sourced: [Vite deployment failures](https://vite.dev/guide/build.html#load-error-handling)
-and [HTTP caching](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching#cache_busting)]
+Python and Go services supply the backend; FastAPI is the Python framework and OpenAPI describes the
+API contract. Choose a compatible typed client generator or maintain the project's existing typed
+client, and verify it against the actual schema.
 
-Verify the production build, deep-link refreshes, asset content types/statuses and cache headers.
-When co-serving, use the project's contract tests to check API 404s and healthy health endpoints
-with the built UI mounted; testing without `dist/` misses conditional fallback wiring. Compatible
-FastAPI services can reuse backend-craft's `test_unknown_path_is_a_problem`.
-In a local or staging rollout check, keep a tab open across versions and navigate to a lazy-loaded
-view. Deployment execution belongs to the human release owner; report unperformed checks as gaps.
-Capture browser error, latency, and navigation telemetry: real-user monitoring through mPulse
-(load `akamai-edge`), trace and correlation headers through `obs-pipeline`.
+Choose routing, server-state caching, table behavior, form handling, and shared state independently
+from the visual library when useful. TanStack tools and framework-native alternatives are examples,
+not mandated dependencies. Keep authoritative server data, shareable navigation, and transient UI
+state distinct. Use a store when the workflow benefits from it.
+
+Use the relevant patterns from [advanced interactions](./interactions.md) and the request/session
+contract in [network and sessions](./network-and-sessions.md). Read [build and serving](./serving.md)
+when packaging or serving the chosen frontend.

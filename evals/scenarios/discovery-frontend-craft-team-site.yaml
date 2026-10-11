@@ -1,0 +1,18 @@
+id: discovery-frontend-craft-team-site
+max_turns: 4
+split: regression
+prompt: |
+  We need a distinctive team site for our SRE group. It should explain our capabilities and guide
+  mixed-experience readers to service ownership, runbooks, and tools. Prefer a dark design with
+  expressive motion and interactive explanations, designed for desktop first. There is no existing
+  brand. Start with visual directions before building the whole site.
+success_criteria:
+- Selects the web-product design and implementation lane
+- Proposes two materially different directions with the same representative content
+- Treats dark-first as preferred without imposing a fixed font, card shell, or library bundle
+- Keeps the task a team site rather than inventing a service dashboard or live incident
+target:
+  kind: skill
+  name: frontend-craft
+routing:
+  expect: fire

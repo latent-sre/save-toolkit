@@ -13,6 +13,18 @@ kinds of scenario, decided by the keys a spec carries rather than by a mode fiel
 Two directories because the build fixtures carry inline repos hundreds of lines long and would bury
 the short routing specs. The runner does not care which one a spec came from.
 
+The frontend discovery cases cover team sites, incident workspaces, visual automation builders,
+service catalogs, and Mantine/Tailwind selection. They measure skill invocation only; their prose
+success criteria guide semantic review and are not executable behavior grades. The incidents-page
+build case checks rendered loading/error/empty states, accessibility, URL state, and working tests
+without banning a component library. Its filter calibration covers native selects and ARIA-linked
+custom combobox/listbox controls with button or input triggers, including portalled options. An
+ambiguous control identity is inconclusive; this does not establish support for every widget
+implementation. It does not measure the new-product design process or visual quality. Review those
+separately against two materially different concepts, the selected direction,
+dark-first preference, requested advanced interactions, and realistic data. Schema validation and
+these outcome checks alone do not establish that the rebuilt skill produces better interfaces.
+
 ## Run it
 
 Use the latest **Python 3.14** patch for development and CI. The native runner's existing
