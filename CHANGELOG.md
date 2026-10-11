@@ -8,6 +8,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- A plain `pytest` now runs on four parallel workers: `pytest.ini` sets `-n 4 --dist loadfile`,
+  as CI does, so the local command no longer runs serially unless `-n 0` is passed (for a debugger
+  or `--pdb`). CI's `PYTEST_ADDOPTS` and a command-line `-n` still override it.
+  `scripts/test_heavy_selection.py`'s child collections switch from `-p no:xdist`, which now fails
+  on the configured `-n`, to `-n 0`. [verified] A plain run starts 4 workers, `-n 0` collects
+  in-process, and `PYTEST_ADDOPTS="-n 2"` starts 2.
 - The test suite splits into a fast default run and the heavy eval-machinery tests. `conftest.py`
   lists 18 files (`HEAVY`) — oracle calibration, mutant suites and the runner's native-trial tests —
   that a plain `pytest` skips; `--heavy` adds them, `-m heavy` runs only them, and naming a file
