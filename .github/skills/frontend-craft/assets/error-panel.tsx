@@ -163,14 +163,15 @@ interface BoundaryState {
 
 // Only a problem-shaped error (one carrying a request_id or status, as the API client throws)
 // contributes its detail or title, which the API wrote for people. A plain Error's message names
-// properties and internals: it goes to onError and the console, never to the card.
+// properties and internals: it goes to onError and the console, never to the card. The helper's
+// "unknown" sentinel reaches the card as no request ID, exactly as problemCardProps maps it.
 function describe(error: unknown): Omit<BoundaryState, "failed"> {
   if (error && typeof error === "object") {
     const e = error as { request_id?: unknown; status?: unknown; detail?: unknown; title?: unknown };
     const problemLike = typeof e.request_id === "string" || typeof e.status === "number";
     const text = typeof e.detail === "string" ? e.detail : typeof e.title === "string" ? e.title : undefined;
     return {
-      requestId: typeof e.request_id === "string" ? e.request_id : undefined,
+      requestId: typeof e.request_id === "string" && e.request_id !== UNKNOWN_REQUEST_ID ? e.request_id : undefined,
       status: typeof e.status === "number" ? e.status : undefined,
       detail: problemLike ? text : undefined,
     };

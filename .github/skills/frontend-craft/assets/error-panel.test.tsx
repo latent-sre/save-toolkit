@@ -111,6 +111,22 @@ describe("PanelErrorBoundary", () => {
     spy.mockRestore();
   });
 
+  it("offers no request-id action when a thrown problem carries the unknown sentinel", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    function Gateway(): never {
+      throw Object.assign(new Error("HTTP 502"), { request_id: "unknown", status: 502, title: "HTTP 502" });
+    }
+    render(
+      <PanelErrorBoundary title="Fills did not render" links={{ logSearchUrlTemplate: "https://logs.example.internal/search?q={request_id}" }}>
+        <Gateway />
+      </PanelErrorBoundary>,
+    );
+    expect(screen.getByText("unknown")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Logs" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
+    spy.mockRestore();
+  });
+
   it("clears the card when its resetKey changes, as on navigation", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     world.fail = true;

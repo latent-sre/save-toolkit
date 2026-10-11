@@ -127,8 +127,9 @@ changed. For a bug, the failing regression first.
 
 Then render it. With Playwright or the available browser tool, screenshot every changed view in
 light and dark, at a desktop width and at 320 px, and look at the screenshots: hierarchy,
-legibility, each state, the list of tells. Run axe on the loaded page. Walk the changed
-interactions by keyboard. Put the brief and the screenshot paths in the packet. Without a browser,
+legibility, each state, the list of tells. Run axe on the loaded page. When serving changed,
+render the served build under its headers with the console showing: a CSP violation is a defect.
+Walk the changed interactions by keyboard. Put the brief and the screenshot paths in the packet. Without a browser,
 component and accessibility tests stand in and the missing render is a named gap; never add
 Playwright or download browsers without the caller's approval. The production build ships the
 page's stylesheet; a page in browser defaults is not done. A UI never rendered is written, not
@@ -142,7 +143,7 @@ app; the skill's folder sits outside the workspace, so a shell copy from it is r
 | File | Where it goes | What it settles |
 |---|---|---|
 | [theme.css](./assets/theme.css) | `src/styles/theme.css`, imported before any kit stylesheet | The parametric tokens, light and dark, the Tailwind and shadcn bridges |
-| [problem.ts](./assets/problem.ts) and [its test](./assets/problem.test.ts) | Beside the API client | House problems, FastAPI's native shapes and gateway HTML all read as one `Problem` |
+| [problem.ts](./assets/problem.ts) and [its test](./assets/problem.test.ts) | Beside the API client | House problems, FastAPI's native shapes and gateway HTML all read as one `Problem`, from a response or from the body the typed client already read |
 | [idempotent-write.ts](./assets/idempotent-write.ts) and [its test](./assets/idempotent-write.test.ts) | Beside the API client | One key per intent; an in-flight `409` waited out under the same key |
 | [runtime-config.ts](./assets/runtime-config.ts) and [its test](./assets/runtime-config.test.ts) | The app's bootstrap | `config.json` validated before first render, every missing field named |
 | [error-panel.tsx](./assets/error-panel.tsx), [its stylesheet](./assets/error-panel.css) and [its test](./assets/error-panel.test.tsx) | Shared components | The per-panel boundary and the error card, drawn from the tokens |

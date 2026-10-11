@@ -78,9 +78,19 @@ Screenshots: [dark desktop](dark-desktop.png), [light desktop](light-desktop.png
 The proof app took each later change to the starting files unchanged and was re-run each time:
 after the first Codex round (commit `248b861`) `tsc -b` was clean and `vitest run` passed 10 of
 10; after the second round and the shipped `test-setup.ts` (commit `69a8d60`) 11 of 11, with the
-setup file read from the skill rather than written by hand. The screenshots are from the first
-build and were not retaken; the later changes touch the error card's wrapping, button height and
-copy, none visible in these views.
+setup file read from the skill rather than written by hand. After Copilot's final independent
+review, which found that the contrast change claimed at `2bafcd4` had not been committed, the
+corrected oracle and token were measured across all 360 integer brand hues in both schemes: no
+pair below 4.5, the lowest the light ok pill over the hover surface at 4.60. The proof app took
+the fixed `problem.ts`, `error-panel.tsx` and `theme.css`: `tsc -b` clean, `vitest run` 12 of
+12, `vite build` green. The shipped CSP was then exercised in the same headless Chromium with a
+page that inserts a `<style>` element both ways the kits do (a text node, as sonner's toaster;
+`innerHTML`, as Mantine's provider): under `style-src 'self'` both were blocked with three
+`style-src-elem` violations, and under the shipped `style-src 'self' 'unsafe-inline'` both
+applied with none. The nginx 1.24 reproduction was re-run with the fixed include: one HSTS
+header on the HTML, no cache header on a missing chunk's `404`, and the contract passed its six
+applicable checks. The screenshots are from the first build and were not retaken; the later
+changes touch the error card's wrapping, button height and copy, none visible in these views.
 
 ## Not verified
 

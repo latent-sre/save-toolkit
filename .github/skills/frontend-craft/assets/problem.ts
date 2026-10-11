@@ -39,8 +39,31 @@ function contentType(response: Response): string {
   return (response.headers.get("content-type") ?? "").trim().toLowerCase();
 }
 
-/** Reads a failed response into a Problem. Never throws: an error path that throws leaves the operator with nothing. */
+/**
+ * Reads a failed response into a Problem. Never throws: an error path that throws leaves the
+ * operator with nothing. For a response whose body another client already read (openapi-fetch
+ * returns `{ error, response }` with the body consumed), use problemFromBody with that body.
+ */
 export async function readProblem(response: Response): Promise<Problem> {
+  const type = contentType(response);
+  if (!type.startsWith("application/problem+json") && !type.startsWith("application/json")) return problemFromBody(undefined, response);
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    body = undefined;
+  }
+  return problemFromBody(body, response);
+}
+
+/**
+ * Builds a Problem from a body something else already parsed, with the response for its status,
+ * content type and X-Request-ID. openapi-fetch reads every error body before it returns
+ * `{ error, response }`, so `readProblem(response)` there sees a consumed stream and can only fall
+ * back; pass its `error` here instead. A string (an HTML gateway page), undefined (an empty body)
+ * or any non-object yields the fallback: the status, and the header's request ID or "unknown".
+ */
+export function problemFromBody(body: unknown, response: Response): Problem {
   const headerId = response.headers.get("x-request-id")?.trim();
   const fallback: Problem = {
     type: "about:blank",
@@ -48,16 +71,8 @@ export async function readProblem(response: Response): Promise<Problem> {
     status: response.status,
     request_id: headerId || UNKNOWN_REQUEST_ID,
   };
-  const type = contentType(response);
-  if (!type.startsWith("application/problem+json") && !type.startsWith("application/json")) return fallback;
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch {
-    return fallback;
-  }
   if (!isRecord(body)) return fallback;
-  return type.startsWith("application/problem+json") ? fromProblemBody(body, fallback) : fromPlainJson(body, fallback);
+  return isProblemResponse(response) ? fromProblemBody(body, fallback) : fromPlainJson(body, fallback);
 }
 
 function fromProblemBody(raw: Record<string, unknown>, fallback: Problem): Problem {

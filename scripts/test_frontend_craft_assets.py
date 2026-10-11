@@ -35,6 +35,7 @@ CORRECT = {
     "fallback_everything": False,
     "api_routed": True,
     "security_headers": True,
+    "missing_cache": None,
 }
 SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
@@ -70,7 +71,7 @@ def server_for(**breaks: object) -> type[BaseHTTPRequestHandler]:
             if path.startswith("/v1/") and settings["api_routed"]:
                 return self.reply(404, b'{"status": 404}', "application/problem+json")
             if "." in path.rsplit("/", 1)[-1] and not settings["fallback_everything"]:
-                return self.reply(404, b"Not Found", "text/plain")
+                return self.reply(404, b"Not Found", "text/plain", settings["missing_cache"])
             return self.reply(200, INDEX, "text/html; charset=utf-8", settings["index_cache"])
 
     return Handler
@@ -124,6 +125,11 @@ def test_a_correct_server_passes_every_check() -> None:
         ),
         pytest.param({"config_cache": None}, ["runtime configuration is fresh JSON"], id="config-without-no-cache"),
         pytest.param(
+            {"missing_cache": "public, max-age=31536000, immutable"},
+            ["a missing static file is a 404, not the app"],
+            id="missing-chunk-cached-for-a-year",
+        ),
+        pytest.param(
             {"security_headers": False},
             ["index.html refuses framing and content sniffing"],
             id="html-without-security-headers",
@@ -160,7 +166,7 @@ def node_version() -> tuple[int, int]:
 
 @pytest.mark.parametrize(
     ("suite", "cases"),
-    [("problem.test.ts", 8), ("idempotent-write.test.ts", 9), ("runtime-config.test.ts", 7)],
+    [("problem.test.ts", 9), ("idempotent-write.test.ts", 9), ("runtime-config.test.ts", 7)],
 )
 def test_the_typescript_helper_contracts_pass(suite: str, cases: int) -> None:
     # Type stripping runs .ts files without a build from Node 22.18; CI's runner image ships 22.23.
@@ -265,10 +271,23 @@ def contrast(a: tuple[float, float, float], b: tuple[float, float, float]) -> fl
     return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
 
 
+def encode(channel: float) -> float:
+    """Linear sRGB to the gamma-encoded value a browser composites with."""
+    return 12.92 * channel if channel <= 0.0031308 else 1.055 * channel ** (1 / 2.4) - 0.055
+
+
+def decode(channel: float) -> float:
+    return channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
+
+
 def over(
     top: tuple[float, float, float], alpha: float, bottom: tuple[float, float, float]
 ) -> tuple[float, float, float]:
-    return tuple(t * alpha + u * (1 - alpha) for t, u in zip(top, bottom, strict=True))  # type: ignore[return-value]
+    """Alpha-composite `top` over `bottom` the way a browser paints an oklch(... / alpha) background:
+    the blend happens on gamma-encoded sRGB channels, and the result is decoded back to linear for
+    luminance. Blending the linear channels over-reports a translucent pill's contrast by about 0.3."""
+    blended = (encode(t) * alpha + encode(u) * (1 - alpha) for t, u in zip(top, bottom, strict=True))
+    return tuple(decode(v) for v in blended)  # type: ignore[return-value]
 
 
 def split_top_level(text: str, separator: str) -> list[str]:

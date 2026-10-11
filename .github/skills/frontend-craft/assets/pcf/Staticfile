@@ -7,4 +7,6 @@ root: dist
 pushstate: enabled
 location_include: includes/*.conf
 force_https: true
+# HSTS comes from these options only; the include never repeats the header.
 http_strict_transport_security: true
+http_strict_transport_security_include_subdomains: true

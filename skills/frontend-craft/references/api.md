@@ -24,10 +24,13 @@ from the service's repository at a pinned ref, and generate from it:
 
 The error body is typed only where the contract declares `application/problem+json` on that
 status, so keep it declared in the service; a FastAPI service without the house error handler
-answers its native `{ detail }` shapes, and the problem helper reads both. Create the client once
-with the base URL from runtime configuration and `credentials: "same-origin"`, with a middleware
-that keeps `X-Request-ID` from every response so a failure is reportable even when the body is not
-a problem.
+answers its native `{ detail }` shapes, and the problem helper reads both. openapi-fetch reads
+every error body before it returns `{ error, response }`, so build the problem from that body:
+`if (error !== undefined || !response.ok) throw problemFromBody(error, response)`; `readProblem`
+is for a response nobody has read, a plain `fetch` or a middleware handed `response.clone()`.
+Create the client once with the base URL from runtime configuration and
+`credentials: "same-origin"`, with a middleware that keeps `X-Request-ID` from every response so a
+failure is reportable even when the body is not a problem.
 
 ## Problems
 

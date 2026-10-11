@@ -79,6 +79,7 @@ test("a missing static file is a 404, not the app", async () => {
     const missing = await get(path);
     assert.equal(missing.status, 404, `${path} must be a 404; HTML with 200 hides a broken deploy`);
     assert.ok(!isApp(missing, b), `${path} must not be answered with the app's HTML`);
+    assert.doesNotMatch(missing.cache, /\bimmutable\b|\bmax-age=[1-9]/, `${path} is a 404 and must not be cached (got "${missing.cache}"): a chunk requested mid-rollout would stay missing for as long as the header says`);
   }
 });
 

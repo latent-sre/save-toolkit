@@ -1,7 +1,7 @@
 // Contract test for problem.ts. Run: node --test problem.test.ts (Node 22.18+ or 24+, no packages).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fieldErrors, fieldName, isProblemResponse, readProblem, retryAfterMs, UNKNOWN_REQUEST_ID } from "./problem.ts";
+import { fieldErrors, fieldName, isProblemResponse, problemFromBody, readProblem, retryAfterMs, UNKNOWN_REQUEST_ID } from "./problem.ts";
 
 const reply = (body: unknown, status: number, contentType: string, headers: Record<string, string> = {}) =>
   new Response(typeof body === "string" ? body : JSON.stringify(body), {
@@ -88,6 +88,30 @@ test("an unreadable problem body still yields a problem, never a throw", async (
   assert.equal(problem.request_id, UNKNOWN_REQUEST_ID);
   const array = await readProblem(problemJson([1, 2, 3], 500));
   assert.equal(array.title, "HTTP 500");
+});
+
+test("a body the typed client already read becomes the same problem through problemFromBody", async () => {
+  const body = {
+    title: "Validation failed",
+    status: 422,
+    request_id: "req-7",
+    errors: [{ loc: ["body", "qty"], msg: "must be positive" }],
+  };
+  const response = problemJson(body, 422, { "x-request-id": "req-7" });
+  // openapi-fetch reads the body with response.text() before it returns { error, response }.
+  const error: unknown = JSON.parse(await response.text());
+  const consumed = await readProblem(response);
+  assert.equal(consumed.title, "HTTP 422", "a consumed body can only fall back");
+  assert.equal(consumed.errors, undefined);
+  const problem = problemFromBody(error, response);
+  assert.equal(problem.title, "Validation failed");
+  assert.equal(problem.request_id, "req-7");
+  assert.deepEqual(fieldErrors(problem).get("qty"), ["must be positive"]);
+  const gateway = problemFromBody("<html><body>502 Bad Gateway</body></html>", reply("", 502, "text/html"));
+  assert.deepEqual(gateway, { type: "about:blank", title: "HTTP 502", status: 502, request_id: UNKNOWN_REQUEST_ID });
+  const empty = problemFromBody(undefined, reply("", 503, "application/problem+json", { "x-request-id": "req-8" }));
+  assert.equal(empty.request_id, "req-8");
+  assert.equal(empty.status, 503);
 });
 
 test("Retry-After is read in seconds or as an HTTP date, else undefined", () => {

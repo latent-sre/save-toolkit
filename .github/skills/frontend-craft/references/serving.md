@@ -34,11 +34,13 @@ never from the source tree. The starting files:
 
 - [Staticfile](../assets/pcf/Staticfile): `root: dist`, which the buildpack requires for
   `location_include` to apply; `pushstate: enabled` for client routes; `location_include:
-  includes/*.conf`; `force_https` and HSTS.
+  includes/*.conf`; `force_https`; the HSTS options (`http_strict_transport_security` and its
+  `_include_subdomains` variant), which are the only source of that header.
 - [spa.conf](../assets/pcf/nginx/conf/includes/spa.conf): included inside nginx's `location /`,
-  it sets the HTML's headers — `Cache-Control: no-cache`, the CSP, `nosniff`, `Referrer-Policy` —
-  and nests locations for `/assets/` (immutable, and a missing file is a `404`) and `/config.json`
-  (always fresh). It exists because `pushstate` on its own rewrites every missing path to
+  it sets the HTML's headers — `Cache-Control: no-cache`, the CSP, `nosniff`, `Referrer-Policy`,
+  never HSTS, which the buildpack adds in the same location and a repeat would send twice — and
+  nests locations for `/assets/` (immutable when the file exists; a missing file is a `404` with
+  no cache header) and `/config.json` (always fresh). It exists because `pushstate` on its own rewrites every missing path to
   `index.html`, which would answer a broken deploy's missing chunk with HTML and a `200`. Whether
   the nested locations take precedence over that rewrite on the foundation's nginx is exactly what
   the contract's missing-file check proves; if it fails there, move to the nginx buildpack below.
@@ -65,15 +67,20 @@ move to the **nginx buildpack** with a complete `nginx.conf` (`{{port}}`, `{{env
 ## Security headers and the CSP
 
 `index.html` is served with `Content-Security-Policy: default-src 'self'; script-src 'self';
-style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none';
-base-uri 'self'; object-src 'none'; form-action 'self'`, plus `X-Content-Type-Options: nosniff` and
-`Referrer-Policy: strict-origin-when-cross-origin`; HSTS belongs at the TLS edge and in the
-buildpack option. A production Vite build emits no inline scripts or styles, so `'self'` is enough;
-`build.assetsInlineLimit: 0` keeps small images as files, so `data:` matters only when a kit inlines
-one. `connect-src 'self'` matches the same-origin API, and the profile script refuses an absolute
-`UI_API_BASE_URL` for that reason; an API on another origin needs that origin added to
-`connect-src`, the profile's check relaxed, and the contract run against the result. A kit that injects `<style>` elements at runtime (some toast and animation libraries) needs its
-style source added and named in the packet; `'unsafe-inline'` for scripts is never the answer. A
+style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self';
+frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'`, plus
+`X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin`; HSTS
+belongs at the TLS edge and in the buildpack option, never in the include. A production Vite
+build emits no inline scripts, so `script-src 'self'` holds and `'unsafe-inline'` for scripts is
+never the answer. Styles are different: sonner's toaster, Mantine's provider and Emotion-based
+kits such as Material UI insert `<style>` elements at runtime, a static server cannot mint the
+per-response nonce they would need, and under `style-src 'self'` those styles are silently
+dropped, so the shipped policy allows inline styles. Drop `'unsafe-inline'` only when every kit
+in the app ships stylesheet files (Tailwind-based kits do) and the served build logs no CSP
+violation. `build.assetsInlineLimit: 0` keeps small images as files, so `data:` matters only when
+a kit inlines one. `connect-src 'self'` matches the same-origin API, and the profile script
+refuses an absolute `UI_API_BASE_URL` for that reason; an API on another origin needs that origin
+added to `connect-src`, the profile's check relaxed, and the contract run against the result. A
 console whose actions run in one click never renders inside another site's frame.
 
 The one inline script an app may want is the theme boot, which applies the saved light or dark
@@ -99,7 +106,9 @@ node -e 'const s=require("fs").readFileSync("theme-boot.js","utf8");console.log(
 
 ## Caching and rollout
 
-HTML and `config.json` revalidate (`no-cache`); hashed assets are immutable for a year. Keep the
+HTML and `config.json` revalidate (`no-cache`); hashed assets are immutable for a year, and a
+missing one answers `404` with no cache header, so a chunk requested mid-rollout is retried
+rather than pinned as missing (the contract checks this). Keep the
 previous release's chunks available during a rollout, or handle Vite's `vite:preloadError` with a
 bounded, user-visible recovery that protects unsaved work; never a reload loop.
 
@@ -113,7 +122,9 @@ BASE_URL=https://orders-console.apps.example.internal API_PREFIX=/v1/ RUNTIME_CO
 ```
 
 Set `API_PREFIX` when the app co-serves an API and `RUNTIME_CONFIG_PATH` when it loads runtime
-configuration; each unset variable skips its check. In a rollout check, keep a tab open across
-versions and navigate to a lazy-loaded view. Report unperformed checks as gaps. Browser error,
+configuration; each unset variable skips its check. Then open the served build with the browser
+console showing: a CSP violation names the directive and the blocked source, and a kit whose
+styles never applied is a defect the contract cannot see. In a rollout check, keep a tab open
+across versions and navigate to a lazy-loaded view. Report unperformed checks as gaps. Browser error,
 latency and navigation telemetry: real-user monitoring through mPulse (load `akamai-edge`), trace
 and correlation headers through `obs-pipeline`.
