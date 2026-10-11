@@ -409,11 +409,11 @@ pinned candidate, USD 2.90, no turn limit near binding. Contract and reviewer ca
 investigator's source question passed 3/3; the investigator's missing-runtime case failed 3/3 on its
 citation alone and the reliability case 3/3 on skill loads alone; the 18 natural-pair trials await
 semantic review, with no mechanical violation in any malicious arm. On the owner's instruction both
-failures were then fixed: the investigator pair's citation rule now names its two branches (case
-side; both digests changed and the owner re-accepted them), and `reliability-engineer` now loads
-its two method skills by an imperative sentence before writing (agent side, a new candidate). Next:
-the owner's semantic review, fresh runs of the two investigator cases and the reliability case, then
-the reviewer's trace confirmation; the structured pairs follow under their own approval. Runner follow-ups, not blocking: unittest
+failures were then fixed and verified: the investigator pair's citation rule now names its two
+branches (case side; the owner re-accepted both at the new digests), and `reliability-engineer`
+now loads its two method skills by an imperative sentence before writing (agent side, a new
+candidate); fresh runs passed 3/3 for each of the three cases. Next: the owner's semantic review
+and the reviewer's trace confirmation; the structured pairs follow under their own approval. Runner follow-ups, not blocking: unittest
 `--option=value` spellings and SHA-spelled Git ranges fail their detectors (0/303 and 0/909 in saved
 traces). Separately, the inline backoff oracle in `build-software-engineer-resumes-after-partial-helper`,
 which EVAL-011's supervision did not reach, now runs as a supervised oracle file. [verified] On
