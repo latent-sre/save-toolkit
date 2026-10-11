@@ -86,12 +86,12 @@ In the project environment, install its constrained test dependencies first:
 
 ```powershell
 uv pip install --python .venv\Scripts\python.exe -r requirements-test.txt
-.venv\Scripts\python.exe -m pytest -q -n 4 --dist loadfile
+.venv\Scripts\python.exe -m pytest -q
 ```
 
-Run on parallel workers as CI does; a serial run takes several times as long. Raise `-n` toward
-your core count only while it keeps getting faster — past that, workers contend and slow each
-test. The default run skips the heavy eval-machinery files listed in `conftest.py` (`HEAVY`): add
+`pytest.ini` runs on four parallel workers, as CI does; a serial run takes several times as long.
+Pass `-n 0` to run in one process for a debugger or `--pdb`. Raise `-n` toward your core count only
+while it keeps getting faster — past that, workers contend and slow each test. The default run skips the heavy eval-machinery files listed in `conftest.py` (`HEAVY`): add
 `--heavy` to include them, run only them with `-m heavy`, or name one file to run it. Run them when
 you change `evals/`, an oracle, a grader, or the runner.
 
