@@ -58,6 +58,7 @@ test("a deep link serves the app and revalidates", async () => {
   const b = await bundlePath();
   const page = await get(`/${nonce}/orders/42`);
   assert.equal(page.status, 200, "a client route must fall back to index.html");
+  assert.match(page.type, /text\/html/, `a client route must be served as HTML (nosniff makes anything else unusable), got "${page.type}"`);
   assert.ok(isApp(page, b), "a client route must serve the app's HTML");
   assert.ok(revalidates(page), `a deep link must send Cache-Control: no-cache, got "${page.cache}"`);
 });

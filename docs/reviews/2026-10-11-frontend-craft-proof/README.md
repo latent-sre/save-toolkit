@@ -44,7 +44,7 @@ from `public/config.json` before first render, and the shell shows the environme
 | Check | Result |
 |---|---|
 | `tsc -b` | clean [verified] |
-| `vitest run` (the error panel's test from the skill, plus four page tests: worst-first order with status as text, the typed-confirmation rollback with Cancel focused, pause with undo, an axe pass in jsdom) | 8 of 8 passed [verified] |
+| `vitest run` (the error panel's test from the skill, plus four page tests: worst-first order with status as text, the typed-confirmation rollback with Cancel focused, pause with undo, an axe pass in jsdom) | 8 of 8 passed at the first build [verified]; 11 of 11 after the two review rounds below added three panel cases [verified] |
 | `vite build` | 63 kB of CSS, one 600 kB JS chunk (Motion, Base UI, Lucide and the kit are all in the one proof bundle; a real app lazy-loads) [verified] |
 | axe through Playwright on the built app, dark desktop, light desktop and with the rollback dialog open | 0 violations in each [verified] |
 | Layout at 320 CSS px | single column; the table scrolls in its own container; no page overflow after two fixes to the proof page [verified] |
@@ -72,6 +72,15 @@ Screenshots: [dark desktop](dark-desktop.png), [light desktop](light-desktop.png
   `Intl.DateTimeFormat` rejects; it now uses explicit components so the zone shows.
 - The boundary's retry re-rendered the children before the caller could clear the cause; it now
   calls `onReset` first.
+
+## Re-runs after review
+
+The proof app took each later change to the starting files unchanged and was re-run each time:
+after the first Codex round (commit `248b861`) `tsc -b` was clean and `vitest run` passed 10 of
+10; after the second round and the shipped `test-setup.ts` (commit `69a8d60`) 11 of 11, with the
+setup file read from the skill rather than written by hand. The screenshots are from the first
+build and were not retaken; the later changes touch the error card's wrapping, button height and
+copy, none visible in these views.
 
 ## Not verified
 

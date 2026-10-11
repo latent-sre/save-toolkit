@@ -8,7 +8,7 @@
 // React and its stylesheet, which draws it from the theme tokens. The test beside it runs in the
 // app with Vitest and Testing Library.
 import { Component, useState, type ReactNode } from "react";
-import type { Problem } from "./problem";
+import { UNKNOWN_REQUEST_ID, type Problem } from "./problem";
 import "./error-panel.css";
 
 export interface ErrorLinks {
@@ -122,12 +122,16 @@ export function ErrorCard({ title, detail, requestId, status, at, timeZone, link
   );
 }
 
-/** Builds ErrorCard props from a Problem the API client read, so every API failure renders the same way. */
+/**
+ * Builds ErrorCard props from a Problem the API client read, so every API failure renders the same
+ * way. The helper's "unknown" sentinel means the server sent no correlation ID: the card then shows
+ * "unknown" and offers no Copy, Logs or Trace action, since each would search for that word.
+ */
 export function problemCardProps(problem: Problem, title: string, links?: ErrorLinks): Omit<ErrorCardProps, "onRetry"> {
   return {
     title,
     detail: problem.detail ?? problem.title,
-    requestId: problem.request_id,
+    requestId: problem.request_id === UNKNOWN_REQUEST_ID ? undefined : problem.request_id,
     status: problem.status,
     links,
   };

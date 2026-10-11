@@ -45,7 +45,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   URL the shipped `connect-src 'self'` would block, unknown-key detection uses own properties so
   `constructor` cannot pass, the Vitest setup file ships as `test-setup.ts`, the card's buttons keep
   a 24 px floor under the compact density, and the boundary shows a plain exception's message to
-  `onError` only. [verified] The asset test passes 60 cases and the proof app's suite 11.
+  `onError` only. A Copilot review added four: the contrast oracle now composites a translucent
+  pill in gamma-encoded sRGB as browsers paint it (the linear blend over-reported by about 0.3,
+  and the light warning pill over the hover surface really read 4.48), with the light warning
+  token moved to hold AA; the card offers no Copy, Logs or Trace action for the helper's
+  `unknown` request-ID sentinel; the serving contract requires HTML on a deep link; and the proof
+  packet records its re-runs. [verified] The asset test passes 60 cases, the lowest pill contrast
+  across the sweep is now 4.57, and the proof app's suite passes 11.
 - The incidents-console oracle grades writes, server-side filtering and markup. `bar10` answers
   the first create with an in-flight `409` and `Retry-After: 0` and requires the page to send it
   again under the same `Idempotency-Key`; `bar11` answers with a `422` naming the service field

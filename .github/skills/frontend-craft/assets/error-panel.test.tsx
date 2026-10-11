@@ -52,6 +52,16 @@ describe("ErrorCard", () => {
       "Positions did not load",
     );
     expect(props).toMatchObject({ title: "Positions did not load", detail: "Upstream timed out", requestId: "r-1", status: 502 });
+    const unknown = problemCardProps(
+      { type: "about:blank", title: "HTTP 502", status: 502, request_id: "unknown" },
+      "Positions did not load",
+      { logSearchUrlTemplate: "https://logs.example.internal/search?q={request_id}" },
+    );
+    expect(unknown.requestId).toBeUndefined();
+    render(<ErrorCard {...unknown} />);
+    expect(screen.getByText("unknown")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Logs" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
   });
 });
 
