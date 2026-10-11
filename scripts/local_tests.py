@@ -39,7 +39,7 @@ def suite_lease(path: Path) -> Iterator[None]:
     # Never unlink the lock file: another process could still hold its inode open.
     with path.open("a+b") as lease:
         try:
-            if os.name == "nt":
+            if sys.platform == "win32":
                 import msvcrt  # noqa: PLC0415 -- platform-only standard library
 
                 lease.seek(0)
@@ -55,7 +55,7 @@ def suite_lease(path: Path) -> Iterator[None]:
         try:
             yield
         finally:
-            if os.name == "nt":
+            if sys.platform == "win32":
                 lease.seek(0)
                 msvcrt.locking(lease.fileno(), msvcrt.LK_UNLCK, 1)
             else:

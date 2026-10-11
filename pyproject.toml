@@ -70,7 +70,7 @@ files = [
     "scripts/fleet_atlas_v2_extract.py", "scripts/fleet_atlas_v2_format.py", "scripts/fleet_atlas_v2_artifacts.py",
     "scripts/fleet_atlas_v2_compat.py", "scripts/fleet_atlas_v2_compare.py", "scripts/fleet_atlas_v2.py",
     "scripts/check_fleet_atlas_v2.py", "scripts/fleet_atlas_dashboard.py",
-    "scripts/testkit.py", "scripts/atlas_test_support.py",
+    "scripts/testkit.py", "scripts/atlas_test_support.py", "scripts/local_tests.py",
 ]
 mypy_path = "evals,scripts"
 strict = true
