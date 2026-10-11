@@ -41,7 +41,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   zone, captures its time once, wraps a long request ID at 320 px, and its boundary resets on a
   `resetKey` change; the PCF profile refuses control characters; the serving contract probes
   root-level file paths, requires an error status from an unknown API path and an object from
-  `config.json`. [verified] The asset test passes 60 cases and the proof app's suite 10.
+  `config.json`. A second round found five more, also fixed: the profile refuses an absolute API
+  URL the shipped `connect-src 'self'` would block, unknown-key detection uses own properties so
+  `constructor` cannot pass, the Vitest setup file ships as `test-setup.ts`, the card's buttons keep
+  a 24 px floor under the compact density, and the boundary shows a plain exception's message to
+  `onError` only. [verified] The asset test passes 60 cases and the proof app's suite 11.
 - The incidents-console oracle grades writes, server-side filtering and markup. `bar10` answers
   the first create with an in-flight `409` and `Retry-After: 0` and requires the page to send it
   again under the same `Idempotency-Key`; `bar11` answers with a `422` naming the service field

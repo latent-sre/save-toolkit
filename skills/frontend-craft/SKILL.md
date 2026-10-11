@@ -146,7 +146,7 @@ app; the skill's folder sits outside the workspace, so a shell copy from it is r
 | [idempotent-write.ts](./assets/idempotent-write.ts) and [its test](./assets/idempotent-write.test.ts) | Beside the API client | One key per intent; an in-flight `409` waited out under the same key |
 | [runtime-config.ts](./assets/runtime-config.ts) and [its test](./assets/runtime-config.test.ts) | The app's bootstrap | `config.json` validated before first render, every missing field named |
 | [error-panel.tsx](./assets/error-panel.tsx), [its stylesheet](./assets/error-panel.css) and [its test](./assets/error-panel.test.tsx) | Shared components | The per-panel boundary and the error card, drawn from the tokens |
-| [vite.config.ts](./assets/vite.config.ts) | The app root | React Compiler, Tailwind, the API proxy, Vitest |
+| [vite.config.ts](./assets/vite.config.ts) and [test-setup.ts](./assets/test-setup.ts) | The app root, and `src/test/setup.ts` | React Compiler, Tailwind, the API proxy, Vitest with jest-dom matchers and cleanup |
 | [Staticfile](./assets/pcf/Staticfile), [spa.conf](./assets/pcf/nginx/conf/includes/spa.conf), [manifest.yml](./assets/pcf/manifest.yml) and [profile.sh](./assets/pcf/profile.sh) | The PCF deploy directory | Headers, caching, the SPA fallback, runtime configuration written at container start |
 | [serving-contract.mjs](./assets/serving-contract.mjs) | Beside the build configuration | The acceptance test for serving, run locally and against each environment |
 

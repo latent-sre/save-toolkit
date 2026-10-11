@@ -84,7 +84,8 @@ export function validateConfig<S extends ConfigSchema>(schema: S, document: unkn
     if (value !== undefined && value !== null) out[key] = value;
   }
   for (const key of Object.keys(raw)) {
-    if (!(key in schema)) problems.push(`${key} is not a known setting (check the spelling)`);
+    // Own properties only: "constructor" or "__proto__" in a document must not pass as known.
+    if (!Object.hasOwn(schema, key)) problems.push(`${key} is not a known setting (check the spelling)`);
   }
   if (problems.length) throw new RuntimeConfigError(problems);
   return Object.freeze(out) as Config<S>;

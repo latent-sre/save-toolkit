@@ -58,6 +58,8 @@
     text-underline-offset: 2px;
   }
   [data-error-card] button {
+    /* The compact density scales control height below 24 px; targets never go under it. */
+    min-height: 24px;
     height: calc(var(--control-height) * 0.8);
     padding: 0 var(--space-2);
     border: 1px solid var(--line-strong);

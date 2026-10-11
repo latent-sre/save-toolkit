@@ -210,6 +210,15 @@ def test_the_pcf_profile_writes_config_json_from_the_environment(tmp_path: Path)
         timeout=30,
     )
     assert control.returncode != 0 and "must not contain control characters" in control.stderr
+    for url in ("https://api.example.internal/v1", "//api.example.internal/v1"):
+        elsewhere = subprocess.run(
+            [bash, str(ASSETS / "pcf/profile.sh")],
+            env={**env, "UI_API_BASE_URL": url},
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert elsewhere.returncode != 0 and "UI_API_BASE_URL must" in elsewhere.stderr, url
 
 
 # --- The parametric theme: OKLCH tokens evaluated for both schemes, contrast checked at every hue ---

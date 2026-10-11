@@ -70,7 +70,9 @@ base-uri 'self'; object-src 'none'; form-action 'self'`, plus `X-Content-Type-Op
 `Referrer-Policy: strict-origin-when-cross-origin`; HSTS belongs at the TLS edge and in the
 buildpack option. A production Vite build emits no inline scripts or styles, so `'self'` is enough;
 `build.assetsInlineLimit: 0` keeps small images as files, so `data:` matters only when a kit inlines
-one. A kit that injects `<style>` elements at runtime (some toast and animation libraries) needs its
+one. `connect-src 'self'` matches the same-origin API, and the profile script refuses an absolute
+`UI_API_BASE_URL` for that reason; an API on another origin needs that origin added to
+`connect-src`, the profile's check relaxed, and the contract run against the result. A kit that injects `<style>` elements at runtime (some toast and animation libraries) needs its
 style source added and named in the packet; `'unsafe-inline'` for scripts is never the answer. A
 console whose actions run in one click never renders inside another site's frame.
 

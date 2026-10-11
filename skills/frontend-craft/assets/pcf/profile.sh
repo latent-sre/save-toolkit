@@ -10,7 +10,17 @@ shopt -s inherit_errexit
 
 target="${HOME}/public/config.json"
 : "${UI_ENVIRONMENT:?UI_ENVIRONMENT must be set (dev, staging, production ...)}"
-: "${UI_API_BASE_URL:?UI_API_BASE_URL must be set (/v1 or an absolute https URL)}"
+: "${UI_API_BASE_URL:?UI_API_BASE_URL must be set: a root-relative path such as /v1 on this host}"
+
+# The API is reached on this host through its context-path route, which is what the shipped
+# CSP's `connect-src 'self'` allows. An absolute URL is another origin and the browser would block
+# every request; refuse it here. For an API on another origin, add that origin to connect-src in
+# nginx/conf/includes/spa.conf, relax this check, and run the serving contract against it.
+case "$UI_API_BASE_URL" in
+  //*) echo "UI_API_BASE_URL must not start with // (that is another origin)" >&2; exit 1 ;;
+  /*) ;;
+  *) echo "UI_API_BASE_URL must be a root-relative path such as /v1: the shipped CSP allows connect-src 'self' only" >&2; exit 1 ;;
+esac
 
 # A control character (a stray carriage return from a manifest edited on Windows, say) would
 # produce invalid JSON or a broken URL; refuse it here rather than at the first user's browser.

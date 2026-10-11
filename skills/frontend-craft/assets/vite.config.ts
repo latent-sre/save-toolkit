@@ -33,6 +33,7 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // The skill's test-setup.ts, written in at this path: jest-dom matchers and cleanup.
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     css: false,

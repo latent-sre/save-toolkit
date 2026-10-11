@@ -51,6 +51,10 @@ test("a key the schema does not name is a startup error, so a misspelled optiona
     () => validateConfig(schema, { apiBaseUrl: "https://api.example.internal", environment: "prod", readonly: true }),
     (error: unknown) => error instanceof RuntimeConfigError && error.problems.join() === "readonly is not a known setting (check the spelling)",
   );
+  for (const inherited of ["constructor", "toString", "__proto__"]) {
+    const document = JSON.parse(`{"apiBaseUrl": "/v1", "environment": "prod", ${JSON.stringify(inherited)}: 1}`);
+    assert.throws(() => validateConfig(schema, document), new RegExp(`${inherited.replace("_", "\\_")} is not a known setting`));
+  }
 });
 
 test("url fields accept http(s) URLs and root-relative paths only", () => {

@@ -82,6 +82,25 @@ describe("PanelErrorBoundary", () => {
     spy.mockRestore();
   });
 
+  it("keeps a plain exception's message off the card and gives it to onError", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const onError = vi.fn();
+    function Leak(): never {
+      throw new TypeError("Cannot read properties of undefined (reading 'accountNumber')");
+    }
+    render(
+      <PanelErrorBoundary title="Ledger did not render" onError={onError}>
+        <Leak />
+      </PanelErrorBoundary>,
+    );
+    const card = screen.getByRole("alert");
+    expect(card).toHaveTextContent("Ledger did not render");
+    expect(card).toHaveTextContent("Reload this panel");
+    expect(card).not.toHaveTextContent("accountNumber");
+    expect(onError).toHaveBeenCalledWith(expect.any(TypeError));
+    spy.mockRestore();
+  });
+
   it("clears the card when its resetKey changes, as on navigation", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     world.fail = true;
