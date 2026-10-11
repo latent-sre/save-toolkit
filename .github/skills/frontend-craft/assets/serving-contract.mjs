@@ -3,13 +3,52 @@
 //   BASE_URL=http://localhost:8080 node --test serving-contract.mjs
 // Optional checks: API_PREFIX=/v1/ (an unknown API path is not the app) and
 // RUNTIME_CONFIG_PATH=/config.json (runtime configuration is fresh JSON). Needs no packages.
+// FRAME_ANCESTORS_EXPECTED defaults to 'none'; intentional embedding must name its expected
+// space-separated sources ('self' and/or explicit HTTP(S) origins).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-const { BASE_URL, API_PREFIX, RUNTIME_CONFIG_PATH } = process.env;
+const { BASE_URL, API_PREFIX, RUNTIME_CONFIG_PATH, FRAME_ANCESTORS_EXPECTED } = process.env;
 if (!BASE_URL) throw new Error("Set BASE_URL to the served build, e.g. http://localhost:4173");
 
 const missing = `serving-contract-${Date.now().toString(36)}`;
+const trimAscii = (value) => value.replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "");
+
+// A deliberately bounded policy check, not a CSP engine. Reject syntax we cannot compare
+// safely; in particular, never union policies or choose a later duplicate directive.
+function ancestorSources(value, context) {
+  const sources = trimAscii(value).split(/[\t\n\f\r ]+/);
+  const normalized = sources.map((source) => {
+    const lower = source.toLowerCase();
+    if (lower === "'none'" || lower === "'self'") return lower;
+    const origin = source.match(/^https?:\/\/([a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*)(?::[0-9]{1,5})?$/i);
+    assert.ok(origin, `${context}: unsupported frame-ancestors source "${source}"; use 'none', 'self', or explicit HTTP(S) origins without wildcards or paths`);
+    let url;
+    try {
+      url = new URL(lower);
+    } catch {
+      assert.fail(`${context}: unsupported frame-ancestors origin "${source}"`);
+    }
+    assert.equal(url.hostname, origin[1].toLowerCase(), `${context}: unsupported noncanonical frame-ancestors origin "${source}"`);
+    assert.ok(!/^[0-9.]+$/.test(url.hostname), `${context}: unsupported IP frame-ancestors origin "${source}"; use a DNS host`);
+    return url.origin;
+  });
+  assert.ok(!normalized.includes("'none'") || normalized.length === 1, `${context}: 'none' must be the only frame-ancestors source`);
+  return [...new Set(normalized)].sort();
+}
+
+const expectedAncestors = ancestorSources(FRAME_ANCESTORS_EXPECTED ?? "'none'", "FRAME_ANCESTORS_EXPECTED");
+
+function securityHeaders(page, path) {
+  assert.ok(page.csp, `${path} must send an enforced Content-Security-Policy with frame-ancestors (report-only is insufficient)`);
+  assert.ok(!page.csp.includes(","), `${path}: frame-ancestors in multiple/comma-separated CSP policies is unsupported; verify them separately without merging their sources`);
+  const directives = page.csp.split(";").map((part) => trimAscii(part).split(/[\t\n\f\r ]+/));
+  const ancestors = directives.filter(([name]) => name.toLowerCase() === "frame-ancestors");
+  assert.equal(ancestors.length, 1, `${path}: expected one frame-ancestors directive; missing or duplicate directives are unsupported`);
+  const actual = ancestorSources(ancestors[0].slice(1).join(" "), path);
+  assert.deepEqual(actual, expectedAncestors, `${path}: frame-ancestors must match FRAME_ANCESTORS_EXPECTED (${expectedAncestors.join(" ")}), got "${page.csp}"`);
+  assert.equal(page.sniff, "nosniff", `${path} must send X-Content-Type-Options: nosniff, got "${page.sniff}"`);
+}
 
 async function get(path) {
   const response = await fetch(new URL(path, BASE_URL), { redirect: "manual" });
@@ -18,7 +57,7 @@ async function get(path) {
     status: response.status,
     type: header("content-type"),
     cache: header("cache-control"),
-    csp: header("content-security-policy"),
+    csp: response.headers.get("content-security-policy") ?? "",
     sniff: header("x-content-type-options"),
     body: await response.text(),
   };
@@ -45,8 +84,7 @@ test("index.html is the app and revalidates", async () => {
 
 test("index.html refuses framing and content sniffing", async () => {
   const page = await get("/");
-  assert.match(page.csp, /\bframe-ancestors\b/, `/ must send a Content-Security-Policy with frame-ancestors, got "${page.csp}"`);
-  assert.equal(page.sniff, "nosniff", `/ must send X-Content-Type-Options: nosniff, got "${page.sniff}"`);
+  securityHeaders(page, "/");
 });
 
 test("a deep link serves the app and revalidates", async () => {
@@ -55,6 +93,7 @@ test("a deep link serves the app and revalidates", async () => {
   assert.equal(page.status, 200, "a client route must fall back to index.html");
   assert.ok(isApp(page, bundle), "a client route must serve the app's HTML");
   assert.ok(revalidates(page), `a deep link must send Cache-Control: no-cache, got "${page.cache}"`);
+  securityHeaders(page, "a deep link");
 });
 
 test("the script bundle is served as JavaScript", async () => {

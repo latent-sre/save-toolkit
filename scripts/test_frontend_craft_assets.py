@@ -53,7 +53,18 @@ def server_for(**breaks: object) -> type[BaseHTTPRequestHandler]:
                 self.send_header("Cache-Control", str(cache))
             if settings["security_headers"] and content_type.startswith("text/html"):
                 for name, value in SECURITY_HEADERS.items():
-                    self.send_header(name, value)
+                    configured: object = value
+                    if name == "Content-Security-Policy":
+                        configured = settings.get("csp", value)
+                        if self.path != "/" and "deep_csp" in settings:
+                            configured = settings["deep_csp"]
+                    elif self.path != "/" and "deep_sniff" in settings:
+                        configured = settings["deep_sniff"]
+                    if configured is not None:
+                        for header_value in configured if isinstance(configured, list) else [configured]:
+                            self.send_header(name, str(header_value))
+                if settings.get("report_only"):
+                    self.send_header("Content-Security-Policy-Report-Only", str(settings["report_only"]))
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -87,7 +98,11 @@ def serving(**breaks: object) -> Iterator[str]:
 def run_contract(**env: str) -> subprocess.CompletedProcess[str]:
     node = shutil.which("node")
     assert node, "node must be available to run the frontend serving contract"
-    environment = {k: v for k, v in os.environ.items() if k not in {"BASE_URL", "API_PREFIX", "RUNTIME_CONFIG_PATH"}}
+    environment = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in {"BASE_URL", "API_PREFIX", "RUNTIME_CONFIG_PATH", "FRAME_ANCESTORS_EXPECTED"}
+    }
     # The runner's own timeout ends the test file's process, so a hang fails fast without orphaned pipes.
     command = [node, "--test", "--test-reporter=tap", "--test-timeout=20000", str(CONTRACT)]
     return subprocess.run(
@@ -109,6 +124,123 @@ def test_a_correct_server_passes_every_check() -> None:
 @pytest.mark.parametrize(
     ("breaks", "expected"),
     [
+        (
+            {"csp": "frame-ancestors *"},
+            ["a deep link serves the app and revalidates", "index.html refuses framing and content sniffing"],
+        ),
+        ({"deep_csp": "frame-ancestors *"}, ["a deep link serves the app and revalidates"]),
+    ],
+)
+def test_permissive_framing_is_rejected(breaks: dict[str, object], expected: list[str]) -> None:
+    with serving(**breaks) as base:
+        result = run_contract(BASE_URL=base, API_PREFIX="/v1/", RUNTIME_CONFIG_PATH="/config.json")
+    assert result.returncode != 0, result.stdout
+    assert failed_checks(result) == expected, result.stdout
+
+
+@pytest.mark.parametrize(
+    "csp",
+    [
+        None,
+        "default-src 'none'",
+        "frame-ancestors https:",
+        "frame-ancestors 'self'",
+        "frame-ancestors https://embed.example",
+        "frame-ancestors",
+        "frame-ancestors 'none' https://embed.example",
+        "frame-ancestors *; frame-ancestors 'none'",
+        "frame-ancestors 'none'; frame-ancestors *",
+        "frame-ancestors 'none', frame-ancestors *",
+        ["frame-ancestors *", "frame-ancestors 'none'"],
+        ["frame-ancestors 'none'", "frame-ancestors 'none'"],
+        "frame-ancestors https://*.example",
+        "frame-ancestors https://embed.example/path",
+        "frame-ancestors 'nonce-abc'",
+        "frame-ancestors https://127.1",
+        "frame-ancestors http://127.0.0.1:8080",
+        "frame-ancestors https://embed.example:99999",
+    ],
+)
+def test_default_framing_requires_no_embedding(csp: object) -> None:
+    with serving(csp=csp) as base:
+        result = run_contract(BASE_URL=base)
+    assert result.returncode != 0, result.stdout
+    assert failed_checks(result) == [
+        "a deep link serves the app and revalidates",
+        "index.html refuses framing and content sniffing",
+    ], result.stdout
+    assert "frame-ancestors" in result.stdout, result.stdout
+
+
+def test_report_only_cannot_replace_an_enforced_policy() -> None:
+    with serving(csp=None, report_only="frame-ancestors 'none'") as base:
+        result = run_contract(BASE_URL=base)
+    assert result.returncode != 0, result.stdout
+    assert "report-only is insufficient" in result.stdout, result.stdout
+    assert len(failed_checks(result)) == 2, result.stdout
+
+
+@pytest.mark.parametrize(
+    ("csp", "expected"),
+    [
+        ("default-src 'self'; FRAME-ANCESTORS\t'NONE'; object-src 'none'", "'none'"),
+        ("frame-ancestors 'self'", "'self'"),
+        ("frame-ancestors https://embed.example", "https://embed.example"),
+        (
+            "frame-ancestors HTTPS://Embed.Example:443 'self' https://other.example:8443",
+            "https://other.example:8443 https://embed.example 'self'",
+        ),
+        ("frame-ancestors http://localhost:8080", "http://localhost:8080"),
+        ("frame-ancestors https://two--dashes.example", "https://two--dashes.example"),
+    ],
+)
+def test_supported_explicit_framing_expectations_pass(csp: str, expected: str) -> None:
+    with serving(csp=csp) as base:
+        result = run_contract(
+            BASE_URL=base, API_PREFIX="/v1/", RUNTIME_CONFIG_PATH="/config.json", FRAME_ANCESTORS_EXPECTED=expected
+        )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "# pass 7" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize(
+    "csp",
+    [
+        "frame-ancestors 'none'",
+        "frame-ancestors https://other.example",
+        "frame-ancestors https://embed.example https://other.example",
+        "frame-ancestors *",
+        ["frame-ancestors https://embed.example", "frame-ancestors https://other.example"],
+    ],
+)
+def test_explicit_embedding_must_match_on_each_html_route(csp: object) -> None:
+    with serving(csp="frame-ancestors https://embed.example", deep_csp=csp) as base:
+        result = run_contract(BASE_URL=base, FRAME_ANCESTORS_EXPECTED="https://embed.example")
+    assert result.returncode != 0, result.stdout
+    assert failed_checks(result) == ["a deep link serves the app and revalidates"], result.stdout
+
+
+@pytest.mark.parametrize(
+    "expected", ["", "*", "https:", "https://*.example", "'none' 'self'", "https://embed.example/path"]
+)
+def test_unsupported_framing_configuration_fails_clearly(expected: str) -> None:
+    with serving() as base:
+        result = run_contract(BASE_URL=base, FRAME_ANCESTORS_EXPECTED=expected)
+    assert result.returncode != 0, result.stdout
+    assert "FRAME_ANCESTORS_EXPECTED" in result.stdout + result.stderr
+
+
+def test_deep_link_content_sniffing_header_is_required() -> None:
+    with serving(deep_sniff=None) as base:
+        result = run_contract(BASE_URL=base)
+    assert result.returncode != 0, result.stdout
+    assert failed_checks(result) == ["a deep link serves the app and revalidates"], result.stdout
+    assert "X-Content-Type-Options" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize(
+    ("breaks", "expected"),
+    [
         pytest.param(
             {"fallback_everything": True, "api_routed": False},
             ["a missing static file is a 404, not the app", "an unknown API path is not the app"],
@@ -122,7 +254,7 @@ def test_a_correct_server_passes_every_check() -> None:
         pytest.param({"config_cache": None}, ["runtime configuration is fresh JSON"], id="config-without-no-cache"),
         pytest.param(
             {"security_headers": False},
-            ["index.html refuses framing and content sniffing"],
+            ["a deep link serves the app and revalidates", "index.html refuses framing and content sniffing"],
             id="html-without-security-headers",
         ),
     ],

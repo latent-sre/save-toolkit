@@ -49,7 +49,16 @@ Send them with `index.html` from whichever server serves it. A `Content-Security
 insert `<style>` elements at runtime. `X-Content-Type-Options: nosniff`, and `Referrer-Policy:
 strict-origin-when-cross-origin` or stricter; HSTS belongs at the TLS edge. A console whose
 actions run in one click never renders inside another site's frame, where the click can be
-hijacked. The contract checks `frame-ancestors` and `nosniff`.
+hijacked. The contract checks enforced `frame-ancestors` and `nosniff` on both root and deep-link
+HTML. By default it requires `frame-ancestors 'none'`. For intentional embedding, set
+`FRAME_ANCESTORS_EXPECTED` to the exact space-separated source list, for example
+`FRAME_ANCESTORS_EXPECTED="'self' https://portal.example"`; both HTML routes must match it.
+The supported sources are `'none'` alone, or `'self'` and explicit HTTP(S) origins with DNS
+hosts and optional ports. Order and host/scheme case do not matter. Wildcards, bare schemes,
+IP literals, paths, unsupported sources, duplicate `frame-ancestors` directives and multiple enforced CSP
+policies fail with a diagnostic and nonzero exit; the check never merges their sources.
+A report-only policy cannot replace an enforced one. For unsupported policies, verify their
+browser behavior separately; this bounded check does not validate the rest of CSP.
 
 ## Verify
 
