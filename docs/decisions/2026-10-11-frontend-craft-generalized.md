@@ -69,7 +69,7 @@ Recorded after the candidate's first review, on the owner's answers of 2026-10-1
     active LTS line.
 18. **The GUI mix is a mix.** The team builds across the archetypes and defines the weighting
     after a few runs rather than up front; the archetypes stay evenly weighted until then
-    (`FRONTEND-001` in the roadmap).
+    (`FRONTEND-003` in the roadmap; `FRONTEND-001` and `FRONTEND-002` are the owner's own follow-up items on the `work/frontend-backlog` branch).
 19. **ROUTE-004 is closed.** The single Mantine discovery positive, regraded for the mixing rules
     at threshold 1.0, suffices; no replacement calibration case is needed.
 

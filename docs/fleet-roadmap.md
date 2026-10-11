@@ -437,6 +437,25 @@ which EVAL-011's supervision did not reach, now runs as a supervised oracle file
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
 improved or regressed, and distinguish failed behavior from an instrument that could not measure.
 
+### FRONTEND-003 — define the team's GUI mix after the first runs of the rewritten skill
+
+**Status:** `active` (2026-10-11). The owner said on 2026-10-11 that the team's GUI work is a mix
+of the skill's five archetypes and that the mix is defined after a few runs, not up front; the
+rewritten `frontend-craft` therefore weights the archetypes evenly and defers the deep capability
+references ([decision](decisions/2026-10-11-frontend-craft-generalized.md)).
+**Owner:** The human owner decides the weighting and the first add-on; `agent-engineer` owns the
+skill's archetype table and build scenarios.
+**Outcome:** After the first few real GUI tasks, the archetype table reflects the kinds of GUI the
+team builds most, the greenfield recommendations follow that weighting, and the first deep
+capability reference (charts and grids, live data, forms, or editors) is chosen and scheduled.
+**Next action:** Whoever runs `frontend-craft` on a real task records the archetype, the kit set and
+the deploy target the caller chose, in the packet; after the first three to five, the owner reviews
+them beside the proof packet and picks the weighting and the add-on.
+**Evidence:** [Rendered proof of the skill's defaults](reviews/2026-10-11-frontend-craft-proof/README.md);
+no real-task runs yet.
+**SRE task:** An SRE building a GUI gets defaults tuned to the kind of GUI the team builds most,
+and a deep reference for the capability they reach for first.
+
 ### PRECOMMIT-001 — software-engineer reviews a 3-file change before committing, unasked
 
 **Status:** `active` (2026-10-08). The owner chose the trigger on 2026-10-07: review at 3 or more
@@ -458,25 +477,6 @@ plus the counting fix and has not been run. Earlier, on CLI 2.1.292 and the prev
 five wordings reviewed in 10 of 15 trials. Runs are private under `.eval-runs/precommit-20261008/`.
 **SRE task:** An SRE gets an independent review of agent-written changes before they are committed
 without having to ask for it each time.
-
-### FRONTEND-001 — define the team's GUI mix after the first runs of the rewritten skill
-
-**Status:** `active` (2026-10-11). The owner said on 2026-10-11 that the team's GUI work is a mix
-of the skill's five archetypes and that the mix is defined after a few runs, not up front; the
-rewritten `frontend-craft` therefore weights the archetypes evenly and defers the deep capability
-references ([decision](decisions/2026-10-11-frontend-craft-generalized.md)).
-**Owner:** The human owner decides the weighting and the first add-on; `agent-engineer` owns the
-skill's archetype table and build scenarios.
-**Outcome:** After the first few real GUI tasks, the archetype table reflects the kinds of GUI the
-team builds most, the greenfield recommendations follow that weighting, and the first deep
-capability reference (charts and grids, live data, forms, or editors) is chosen and scheduled.
-**Next action:** Whoever runs `frontend-craft` on a real task records the archetype, the kit set and
-the deploy target the caller chose, in the packet; after the first three to five, the owner reviews
-them beside the proof packet and picks the weighting and the add-on.
-**Evidence:** [Rendered proof of the skill's defaults](reviews/2026-10-11-frontend-craft-proof/README.md);
-no real-task runs yet.
-**SRE task:** An SRE building a GUI gets defaults tuned to the kind of GUI the team builds most,
-and a deep reference for the capability they reach for first.
 
 ## Deferred
 
