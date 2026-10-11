@@ -212,8 +212,9 @@ unverified by this run. Private execution receipts are `gcp-pilot-final.log` and
 
 [verified] Ruff, formatting (24 files), strict mypy (43 source files), generated-output comparison,
 relative links, `git diff --check` and Gate A (2/2 structural steps) passed. Scenario validation
-accepted 264 scenarios with 1,258 graded expectations. The final receipt commit changes documentation
-only; the implementation and case bytes remain those tested and reviewed above.
+accepted 264 scenarios with 1,258 graded expectations. This receipt covers only implementation
+revision `3c5ae9f6a9599ac952e989ca53a02c8a7cbb5116`. Later commits changed the generator, controls
+and generated case patterns; these historical results do not verify those later bytes.
 
 [unverified] Human semantic case acceptance, native model behavior, live GCP/GKE interfaces and
 completion within the authored turn limit remain pending. This receipt makes no performance or

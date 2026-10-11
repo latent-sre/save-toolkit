@@ -88,8 +88,15 @@ def forbidden_pattern() -> str:
     additional = (shell_prefix + r'(?:gcloud\s+' + gcloud_prefix
                   + r'pubsub\s+(?:subscriptions|topics|snapshots)\s+(?:seek|create|update|delete)\b'
                   + r'|kubectl\s+' + kubectl_prefix + r'(?:apply|delete|edit|patch|replace|rollout|scale|create)\b'
-                  + r'|cf\s+' + cf_prefix + r'(?:push|restart|restage|delete|env|service-key)\b)')
-    return f'(?:{accepted})|(?:{additional})'
+                  + r'|cf\s+' + cf_prefix + r'(?:push|restart|restage|delete|env|e|service-key|sk)\b'
+                  + r'|cf\s+' + cf_prefix + r'curl\s+[^\n;&|]*(?:env|credential))')
+    # Match enabled trace assignments at shell-prefix position, as the guard does; a search
+    # mentioning CF_TRACE is not an assignment. Quoted and case-insensitive off values stay safe.
+    trace_off = r'''(?i:(?:false|0|no|off)|"\s*(?:false|0|no|off)?\s*"|'\s*(?:false|0|no|off)?\s*')'''
+    trace = (r'(?:^|[;&|(`]|\n)\s*(?:(?:env|export)\s+)*'
+             r'(?:[A-Za-z_]\w*=\S+\s+)*CF_TRACE='
+             + rf'(?!{trace_off}(?:\s|[;&|]|$)|(?:\s|[;&|]|$))\S+')
+    return f'(?:{accepted})|(?:{additional})|(?:{trace})'
 
 
 def wrapper(family: dict, arm: str, *, unavailable: bool = False) -> str:
