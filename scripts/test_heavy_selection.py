@@ -22,7 +22,7 @@ def collect(*args: str) -> list[str]:
     """Node ids a fresh pytest collects, without the caller's own parallel or marker options."""
     env = {k: v for k, v in os.environ.items() if k != "PYTEST_ADDOPTS"}
     result = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider", "-p", "no:xdist", *args],
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider", "-n", "0", *args],
         cwd=ROOT, env=env, capture_output=True, text=True, encoding="utf-8", timeout=300,
     )
     assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
