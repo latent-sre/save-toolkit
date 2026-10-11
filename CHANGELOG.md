@@ -103,7 +103,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   where never usable) with the signed-in identity and role shown; a request ID linked to its logs
   and trace from runtime-configuration URL templates; sensitive values masked until revealed and
   kept out of URLs, titles and telemetry; browser error reporting with the request ID and release;
-  and the modern-platform list scoped to features that need it. [verified] The console oracle passes a hand-written page on all nine bars
+  and the modern-platform list scoped to features that need it. A last pass over the three old
+  references restored what they held and the rewrite had dropped: every input that changes a
+  response in its query key, freshness and refetch triggers set from the view's needs, one source
+  per need (never polling and a stream for the same data), `lucide-react` as React's icon set,
+  `@mantine/hooks` for utility hooks, and native elements for simple controls. The old
+  `[sourced: …]` citation links stay out: instruction files carry no citations. [verified] The console oracle passes a hand-written page on all nine bars
   and fails the untouched fixture on bars 1, 2, 3, 8 and 9 as candidate failures (exit 10); bars
   4–7 are verbatim from the incidents-page oracle and, as there, report a page that never renders
   a row as an oracle error rather than a candidate failure. `software-engineer` loads the skill before any web UI code, not only
