@@ -23,6 +23,19 @@ records do not re-queue work.
 
 ## Repository work
 
+### FRONTEND-001 — selectively integrate frontend craft improvements
+
+**Status:** `active` (2026-10-11); owner authorized committing the revised plan then executing it.
+**Owner:** Invoking implementation session; human toolkit owner accepts the exact candidate.
+**Outcome:** Serving and both incident UI evaluators reject the demonstrated false results;
+product guidance gains tested interaction coverage without losing accepted operational contracts.
+**Next action:** Implement the [selective integration plan](frontend-craft-integration.md), starting
+with independent serving and oracle repairs; calibrate measurement before bounded model comparison.
+**Evidence:** [Plan, rule disposition and execution evidence](frontend-craft-integration.md).
+Model-based testing uses the owner's Codex gpt-6.1-sol selection with medium reasoning.
+**SRE task:** Build distinctive team sites, incident workspaces, workflow editors and catalogs
+whose operational state, actions and verification can be trusted.
+
 ### AUDIT-001 — review all skills and agents and disposition the findings
 
 **Status:** `decision-needed` (2026-10-02); all 13 groups reviewed, covering 30 skills and 9 agents
