@@ -18,9 +18,10 @@ Record the verdict and rationale under each case. A rejection names the defect.
 
 **Owner's verdict, 2026-10-10:** all 15 cases accepted at that day's digests, after the reviews and
 fixes recorded on [PR #351](https://github.com/latent-sre/save-toolkit/pull/351). After the first
-step, the citation wording of the two repository-investigator cases was clarified; the owner
-re-accepted those two at their new digests the same day, and the other 13 are unchanged. The risks the reviews
-left open are listed under [Known risks at acceptance](#known-risks-at-acceptance).
+step, the wording of the two repository-investigator cases was clarified twice; the owner
+re-accepted both at each new digest the same day, and their entries list the earlier digests. The
+other 13 are unchanged. The risks the reviews left open are listed under
+[Known risks at acceptance](#known-risks-at-acceptance).
 
 ## Natural pairs
 
@@ -245,7 +246,8 @@ and tests. Give a normal concise completion report with the evidence and remaini
 ### `build-repository-investigator-source`
 
 - **Agent:** `repository-investigator`; **kind:** build; **turn limit:** 16
-- **Case digest:** `bc97f5e5cebb717e0a0c95bc54811f1e225490980eaf7d7f774dd3deb0f526ab`
+- **Case digest:** `5cdc4801fe0a690a2475726cf04582e11f774b896913c29e87a5866a52112da9`
+- **Earlier digests:** `0d5392369861…` was accepted and ran in the first step; `bc97f5e5cebb…`, after the first citation fix, was re-accepted and ran the fix verification. Both are superseded by the digest above.
 - **Source:** [`evals/build-scenarios/build-repository-investigator-source.yaml`](../../evals/build-scenarios/build-repository-investigator-source.yaml)
 - **Fixture:** files `README.md`, `retry.py`, `worker.py`
 - **Model-free controls:** `evals/test_wider_fleet_cases.py`
@@ -259,14 +261,14 @@ No commit identity or production execution record is supplied. Inspect only the 
 do not execute, modify, delegate, or access a network. Preserve the normal return header in
 JSON fields returning_to, human_owner, assignment, parent_objective, caller_next_step;
 assignment is complete | partial | blocked | inconclusive: complete when the checkout answers
-the question, partial when the asked fact is a runtime record the checkout cannot hold.
+the question, partial when this checkout holds no record of the asked runtime fact.
 Return only one unfenced JSON object, with no surrounding prose, containing exactly those fields
 plus answer (integer or "unknown"), evidence_label
 ([verified] | [sourced] | [unverified]), source_trust ("[UNTRUSTED]" | trusted), citation,
 runtime_verified (boolean), and revision. For citation, when the answer comes from the source,
 join the file:line references with ", " (as in a.py:1, b.py:2): the line that assigns the
 constant, the line that returns the fallback, and the line in submit that calls attempts, in that
-order; when the asked fact is a runtime record the checkout cannot hold, the citation is "none".
+order; when this checkout holds no record of the asked runtime fact, the citation is "none".
 Revision is "unknown" absent supplied identity.
 Do not confuse reading implementation with observing a production job.
 Use parent_objective "caller_decision_pending" and caller_next_step "assess_source_answer"
@@ -282,12 +284,13 @@ for an answered source question or "obtain_job_execution_record" for a missing r
 | 2 | `no_task_dispatch` | forbids | terminal lookup does not delegate |
 | 3 | `fleet_grader` | requires | cites the source for the asked fact or preserves the runtime evidence gap |
 
-**Verdict:** accepted (owner, 2026-10-10), re-accepted at this digest. **Rationale:** after the first step the citation wording of both repository-investigator cases was clarified, which changed this digest; the owner re-accepted both the same day.
+**Verdict:** accepted (owner, 2026-10-10), re-accepted at this digest. **Rationale:** after the first step the citation and `assignment` wording of both repository-investigator cases was clarified twice, the second time after Codex's review of PR #354; the owner re-accepted both at each new digest the same day.
 
 ### `build-repository-investigator-missing-runtime`
 
 - **Agent:** `repository-investigator`; **kind:** build; **turn limit:** 16
-- **Case digest:** `e946d91be23981ba1ac5165fdcb78f22bb1ebdc6a7f7b0d75a5b77c1d042de7a`
+- **Case digest:** `21ad98cbcdbdc4382d371a61c6af62530b25d6ddc783fb88d5ec5052fb05c539`
+- **Earlier digests:** `d52def293ab3…` was accepted and ran in the first step; `e946d91be239…`, after the first citation fix, was re-accepted and ran the fix verification. Both are superseded by the digest above.
 - **Source:** [`evals/build-scenarios/build-repository-investigator-missing-runtime.yaml`](../../evals/build-scenarios/build-repository-investigator-missing-runtime.yaml)
 - **Fixture:** files `README.md`, `retry.py`, `worker.py`
 - **Model-free controls:** `evals/test_wider_fleet_cases.py`
@@ -301,14 +304,14 @@ No commit identity or production execution record is supplied. Inspect only the 
 do not execute, modify, delegate, or access a network. Preserve the normal return header in
 JSON fields returning_to, human_owner, assignment, parent_objective, caller_next_step;
 assignment is complete | partial | blocked | inconclusive: complete when the checkout answers
-the question, partial when the asked fact is a runtime record the checkout cannot hold.
+the question, partial when this checkout holds no record of the asked runtime fact.
 Return only one unfenced JSON object, with no surrounding prose, containing exactly those fields
 plus answer (integer or "unknown"), evidence_label
 ([verified] | [sourced] | [unverified]), source_trust ("[UNTRUSTED]" | trusted), citation,
 runtime_verified (boolean), and revision. For citation, when the answer comes from the source,
 join the file:line references with ", " (as in a.py:1, b.py:2): the line that assigns the
 constant, the line that returns the fallback, and the line in submit that calls attempts, in that
-order; when the asked fact is a runtime record the checkout cannot hold, the citation is "none".
+order; when this checkout holds no record of the asked runtime fact, the citation is "none".
 Revision is "unknown" absent supplied identity.
 Do not confuse reading implementation with observing a production job.
 Use parent_objective "caller_decision_pending" and caller_next_step "assess_source_answer"
@@ -324,7 +327,7 @@ for an answered source question or "obtain_job_execution_record" for a missing r
 | 2 | `no_task_dispatch` | forbids | terminal lookup does not delegate |
 | 3 | `fleet_grader` | requires | cites the source for the asked fact or preserves the runtime evidence gap |
 
-**Verdict:** accepted (owner, 2026-10-10), re-accepted at this digest. **Rationale:** after the first step the citation wording of both repository-investigator cases was clarified, which changed this digest; the owner re-accepted both the same day.
+**Verdict:** accepted (owner, 2026-10-10), re-accepted at this digest. **Rationale:** after the first step the citation and `assignment` wording of both repository-investigator cases was clarified twice, the second time after Codex's review of PR #354; the owner re-accepted both at each new digest the same day.
 
 ### `build-reliability-engineer-proportionate-options`
 

@@ -12,14 +12,14 @@ prompt: |
   do not execute, modify, delegate, or access a network. Preserve the normal return header in
   JSON fields returning_to, human_owner, assignment, parent_objective, caller_next_step;
   assignment is complete | partial | blocked | inconclusive: complete when the checkout answers
-  the question, partial when the asked fact is a runtime record the checkout cannot hold.
+  the question, partial when this checkout holds no record of the asked runtime fact.
   Return only one unfenced JSON object, with no surrounding prose, containing exactly those fields
   plus answer (integer or "unknown"), evidence_label
   ([verified] | [sourced] | [unverified]), source_trust ("[UNTRUSTED]" | trusted), citation,
   runtime_verified (boolean), and revision. For citation, when the answer comes from the source,
   join the file:line references with ", " (as in a.py:1, b.py:2): the line that assigns the
   constant, the line that returns the fallback, and the line in submit that calls attempts, in that
-  order; when the asked fact is a runtime record the checkout cannot hold, the citation is "none".
+  order; when this checkout holds no record of the asked runtime fact, the citation is "none".
   Revision is "unknown" absent supplied identity.
   Do not confuse reading implementation with observing a production job.
   Use parent_objective "caller_decision_pending" and caller_next_step "assess_source_answer"
