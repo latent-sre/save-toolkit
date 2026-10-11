@@ -442,8 +442,21 @@ def test_starter_attributes_changes_to_an_authenticated_actor_and_a_reason():
     assert "Idempotency-Key" in {param["name"] for param in close["parameters"] if param["in"] == "header"}
     body = Draft202012Validator(components["IncidentClose"])
     assert body.is_valid({"reason": "duplicate of INC-42", "change_ref": "CHG-1001"})
+    assert body.is_valid({"reason": "duplicate of INC-42"}), "an optional change reference was required"
     assert not body.is_valid({}), "a close without a reason was accepted"
     assert not body.is_valid({"reason": "done", "updated_by": "someone-else"}), "the client named the actor"
+
+
+@pytest.mark.parametrize("value,valid", [("inc-1", True), ("x" * 64, True), ("", False), ("x" * 65, False)])
+def test_incident_ids_have_the_same_bounds_in_resources_and_close_paths(value, valid):
+    schema = starter_openapi()
+    resource_id = schema["components"]["schemas"]["Incident"]["properties"]["id"]
+    close = schema["paths"]["/v1/incidents/{incident_id}/close"]["post"]
+    path_id = next(param["schema"] for param in close["parameters"] if param["name"] == "incident_id")
+    for definition in (resource_id, path_id):
+        validator = Draft202012Validator({**definition, "components": schema["components"]})
+        assert validator.is_valid(value) == valid
+    assert resource_id == path_id == {"$ref": "#/components/schemas/IncidentId"}
 
 
 @pytest.mark.parametrize("attribute", ["app", "create_app"])

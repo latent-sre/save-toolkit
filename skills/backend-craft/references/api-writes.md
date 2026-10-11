@@ -36,12 +36,18 @@ datastore, auth and native tests.
   resource, as the starter's `POST /v1/incidents/{incident_id}/close` does, rather than a `DELETE`,
   whose body has no defined meaning, so it carries the reason and an `Idempotency-Key`.
 - Write the audit record — actor, action, target, reason, `change_ref`, request ID, time and
-  outcome — in the same transaction as the change, or durably before reporting success; a change
-  that commits without its record cannot be reconstructed. A reason is user text: bound it, store
-  it as data, and never log credentials or the full body beside it.
+  outcome — in the same transaction as a local change. Before a remote effect, commit a durable
+  pending audit intent with those fields and the operation's idempotency identity; do not call
+  the provider if that commit fails. Record the confirmed outcome afterwards. A crash or ambiguous
+  response leaves the intent unresolved (UNKNOWN), for authoritative readback or operator
+  reconciliation before retry; never report success without a durable confirmed outcome. Keep
+  the database transaction outside the network call. A reason is user text: bound it, store it as
+  data, and never log credentials or the full body beside it.
 - Test that the actor comes from authentication even when the body names someone else, that a
-  missing reason is a `422` on its field, and that the audit record commits with the change and
-  never without it.
+  missing reason is a `422` on its field, and that a local change and its audit record commit or
+  roll back together. For remote effects, test failure to persist intent, a crash before the call,
+  and a crash after provider success but before recording the outcome: pending intent must survive
+  restart and reconciliation must settle it without blindly repeating the effect.
 
 ## Atomicity and recovery
 

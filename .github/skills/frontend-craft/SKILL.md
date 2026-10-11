@@ -59,7 +59,8 @@ shell — a `cp` from there is refused or prompts.
    and offers undo; a destructive or bulk action shows the exact target, count and environment in
    a confirm with Cancel focused; an irreversible or fleet-wide one also has the user type the
    target's name. When the contract asks for a `reason`, the confirm collects it, with the
-   incident or change reference beside it, and sends both with the write; record views show who
+   incident or change reference beside it, and sends the reason with the write; omit optional
+   `change_ref` when blank. Record views show who
    last changed the record and when (`updated_by`, `updated_at`). Disable the control while the
    write is pending; report per-item outcomes,
    including unknown. The server is the validation truth; field errors land beside

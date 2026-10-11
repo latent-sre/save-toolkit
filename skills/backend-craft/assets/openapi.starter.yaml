@@ -88,7 +88,7 @@ paths:
       operationId: closeIncident
       summary: Close an incident, recording who closed it and why (idempotent via Idempotency-Key).
       parameters:
-        - { name: incident_id, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 64 } }
+        - { name: incident_id, in: path, required: true, schema: { $ref: "#/components/schemas/IncidentId" } }
         - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 255 } }
       requestBody:
         required: true
@@ -171,10 +171,14 @@ components:
               msg: { type: string }
             required: [loc, msg]
       required: [type, title, status, request_id]
+    IncidentId:
+      type: string
+      minLength: 1
+      maxLength: 64
     Incident:
       type: object
       properties:
-        id: { type: string }
+        id: { $ref: "#/components/schemas/IncidentId" }
         status: { type: string, enum: [open, closed] }
         title: { type: string, minLength: 1, maxLength: 200 }
         updated_at: { type: string, format: date-time, readOnly: true, description: When the incident last changed. }
