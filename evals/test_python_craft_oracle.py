@@ -179,7 +179,11 @@ class PythonCraftOracleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             files = source if isinstance(source, dict) else {SCENARIOS[mode][1]: source}
             write_tree(Path(tmp), {name: textwrap.dedent(text) for name, text in files.items()})
-            return run_python(["-B", str(ORACLE), mode, *child_args], cwd=tmp, isolated=True, timeout=15)
+            # Policy's aggregate command supervises six fresh import-order checks and a
+            # fixture suite with its own 60s limit. Match command_exit_zero's 180s budget;
+            # a single entrypoint still has the short bound used by the other calibrations.
+            timeout = 180 if mode == "policy" and not child_args else 15
+            return run_python(["-B", str(ORACLE), mode, *child_args], cwd=tmp, isolated=True, timeout=timeout)
 
     def assert_passes(self, mode, source):
         result = self.run_artifact(mode, source)
