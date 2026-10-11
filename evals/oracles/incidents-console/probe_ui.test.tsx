@@ -4,9 +4,10 @@
  *
  *     npx vitest run probe_ui.test.tsx -t bar8
  *
- * It renders the real App under BrowserRouter at /incidents and stubs GET /v1/incidents itself
- * (the house contract: `{ data, next_cursor }` pages, problem+json errors with a request_id), so
- * it grades the rendered page rather than the agent's own suite. This file is outside tsconfig's
+ * It renders the real App under BrowserRouter at /incidents and stubs GET and POST /v1/incidents
+ * itself (the house contract: `{ data, next_cursor }` pages, problem+json errors with a request_id,
+ * an in-flight `409` with Retry-After, a `422` with `errors[].loc`), so it grades the rendered page
+ * rather than the agent's own suite. This file is outside tsconfig's
  * `include`, so it never enters the agent's `npm run typecheck`.
  */
 import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
@@ -311,9 +312,11 @@ test('bar4 every control on the page has a non-empty accessible name', async () 
   }
 }, 20000);
 
-test('bar5 the status filter round-trips through the URL and filters visible rows', async () => {
+test('bar5 the status filter round-trips through the URL, reaches the server and filters visible rows', async () => {
+  const sent = [];
   stubIncidents(({ request }) => {
     const wanted = new URL(request.url).searchParams.get('status');
+    sent.push(wanted);
     const rows = wanted ? ROWS.filter((r) => r.status === wanted) : ROWS;
     return page(rows);
   });
@@ -329,6 +332,11 @@ test('bar5 the status filter round-trips through the URL and filters visible row
           'lives only in component memory, so the link is not shareable and back does nothing',
       ).toMatch(/status=closed/i);
       expectIncidentRows(container, 'inc-0002', 'inc-0001');
+      expect(
+        sent,
+        'choosing "closed" never reached the server as ?status=closed: filtering only the rows ' +
+          'already downloaded hides matching incidents on pages not yet loaded',
+      ).toContain('closed');
     },
     { timeout: 4000 },
   );
@@ -342,6 +350,8 @@ test('bar5 the status filter round-trips through the URL and filters visible row
           'URL is not read back as state',
       ).toBe(true);
       expectIncidentRows(deepLink.container, 'inc-0001', 'inc-0002');
+      expect(sent, 'loading /incidents?status=open never asked the server for ?status=open')
+        .toContain('open');
     },
     { timeout: 5000 },
   );
@@ -445,4 +455,157 @@ test('bar9 loading more follows next_cursor to the second page', async () => {
     },
     { timeout: 5000 },
   );
+}, 20000);
+
+const NEW_TITLE = 'Disk filling on db-03';
+const FIELD = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]), select, textarea';
+
+const nameOf = (element) => `${element.textContent ?? ''} ${element.getAttribute('aria-label') ?? ''}`.trim();
+
+// A labelled, visible form field; one inside a <form> wins over a same-named filter box.
+function formField(label) {
+  const fields = screen.queryAllByLabelText(label).filter((el) => el.matches(FIELD) && isVisible(el));
+  return fields.find((el) => el.closest('form')) ?? fields[0];
+}
+
+async function openCreateForm(user) {
+  if (!formField(/title/i)) {
+    const opener = [...screen.queryAllByRole('button'), ...screen.queryAllByRole('link')].find((el) =>
+      /new incident|create incident|add incident|report incident|^(new|create)\b/i.test(nameOf(el)));
+    expect(opener, 'the page rendered no "New incident" control, so the create form is unreachable from ' +
+      '/incidents').toBeTruthy();
+    await user.click(opener);
+  }
+  await waitFor(() => expect(formField(/title/i),
+    'the create form shows no visible field labelled "Title"').toBeTruthy(), { timeout: 5000 });
+}
+
+const optionFor = (select, value) =>
+  [...select.options].find((o) => o.value === value || o.textContent?.trim().toLowerCase() === value);
+
+async function fillField(user, label, value) {
+  let field;
+  await waitFor(() => {
+    field = formField(label);
+    expect(field, `the create form shows no visible field labelled ${label}`).toBeTruthy();
+    if (field.tagName === 'SELECT') {
+      expect(optionFor(field, value), `the ${label} select offers no "${value}" option`).toBeTruthy();
+    }
+  }, { timeout: 5000 });
+  if (field.tagName === 'SELECT') {
+    await user.selectOptions(field, optionFor(field, value).value);
+  } else {
+    await user.clear(field);
+    await user.type(field, value);
+  }
+  return field;
+}
+
+async function submitNewIncident(user, container) {
+  await waitFor(() => expect(within(pageFor(container)).queryAllByText(/inc-0001/).some(isVisible),
+    'the incidents list never rendered on /incidents').toBe(true), { timeout: 5000 });
+  await openCreateForm(user);
+  const title = await fillField(user, /title/i, NEW_TITLE);
+  await fillField(user, /service/i, 'checkout');
+  const scope = title.closest('form') ?? pageFor(container);
+  const buttons = within(scope).queryAllByRole('button')
+    .filter((el) => isVisible(el) && !/cancel|close|reset|discard|load more/i.test(nameOf(el)));
+  const submit = buttons.find((el) => /create|submit|save|add|report/i.test(nameOf(el))) ??
+    buttons.find((el) => el.closest('form') && (el.getAttribute('type') ?? 'submit') === 'submit');
+  expect(submit, 'the create form has no submit control').toBeTruthy();
+  await user.click(submit);
+}
+
+// The smallest ancestor of a message that holds any form field: the field's own group when the
+// message sits beside it, the whole form when it sits in a summary.
+function fieldGroupOf(element) {
+  let node = element.parentElement;
+  while (node && !node.querySelector(FIELD)) node = node.parentElement;
+  return node;
+}
+
+function writeProblem(status, title, extra = {}, headers = {}) {
+  return HttpResponse.json(
+    { type: `https://errors.example.internal/${title.toLowerCase().replace(/ /g, '-')}`, title, status,
+      request_id: `req-write-${status}`, ...extra },
+    { status, headers: { 'Content-Type': 'application/problem+json', 'X-Request-ID': `req-write-${status}`, ...headers } },
+  );
+}
+
+test('bar10 a create answered 409 with Retry-After is re-sent with the same Idempotency-Key', async () => {
+  stubIncidents(() => page(ROWS));
+  const keys = [];
+  server.use(http.post('*/v1/incidents', ({ request }) => {
+    keys.push(request.headers.get('idempotency-key'));
+    if (keys.length === 1) {
+      return writeProblem(409, 'Request in progress',
+        { detail: 'The first request with this key is still running.' }, { 'Retry-After': '0' });
+    }
+    return HttpResponse.json(
+      { id: 'inc-0099', status: 'open', title: NEW_TITLE, service: 'checkout', created_at: '2026-08-04T10:00:00Z' },
+      { status: 201, headers: { 'X-Request-ID': 'req-write-201' } },
+    );
+  }));
+  const user = userEvent.setup();
+  const { container } = renderAt('/incidents');
+  await submitNewIncident(user, container);
+  await waitFor(() => {
+    expect(keys.length, 'submitting the form never sent POST /v1/incidents').toBeGreaterThan(0);
+    expect(keys[0], 'POST /v1/incidents carried no Idempotency-Key header').toBeTruthy();
+    expect(keys.length, 'the first POST was answered 409 with Retry-After: 0 (the same key is still in ' +
+      'flight) and the page never sent it again').toBeGreaterThan(1);
+  }, { timeout: 8000 });
+  expect(keys.every((key) => key === keys[0]), `the write was re-sent under a different Idempotency-Key ` +
+    `(${keys.join(', ')}): the server would run it twice`).toBe(true);
+}, 30000);
+
+test('bar11 a 422 shows its message beside the named field and keeps what the user typed', async () => {
+  stubIncidents(() => page(ROWS));
+  server.use(http.post('*/v1/incidents', () => writeProblem(422, 'Validation failed', {
+    detail: 'One field is invalid.',
+    errors: [{ loc: ['body', 'service'], msg: 'service is not in the catalogue', type: 'value_error' }],
+  })));
+  const user = userEvent.setup();
+  const { container } = renderAt('/incidents');
+  await submitNewIncident(user, container);
+  let messages = [];
+  await waitFor(() => {
+    messages = screen.queryAllByText(/service is not in the catalogue/i).filter(isVisible);
+    expect(messages.length, 'the 422 named the service field with "service is not in the catalogue" and ' +
+      'the page never showed that message').toBeGreaterThan(0);
+  }, { timeout: 5000 });
+  const title = formField(/title/i);
+  const service = formField(/service/i);
+  expect(title, 'the create form disappeared after the 422, taking what the user typed with it').toBeTruthy();
+  expect(title.value, 'the 422 cleared the title the user typed').toBe(NEW_TITLE);
+  let described = true;
+  try {
+    expect(service).toHaveAccessibleDescription(/not in the catalogue/i);
+  } catch {
+    described = false;
+  }
+  const beside = messages.some((message) => {
+    const group = fieldGroupOf(message);
+    return group?.contains(service) && !group.contains(title);
+  });
+  expect(described || beside, 'the 422 message for service is not beside the service field (neither its ' +
+    'accessible description nor in its field group): a summary alone leaves the operator hunting for ' +
+    'the field').toBe(true);
+}, 30000);
+
+test('bar12 API text renders as text, never as markup', async () => {
+  const hostile = {
+    id: 'inc-0666', status: 'open', service: 'payments', created_at: '2026-08-05T08:00:00Z',
+    title: '<img src="x" onerror="globalThis.__probeXss=1"><b>Payment outage</b>',
+  };
+  stubIncidents(() => page([hostile]));
+  const { container } = renderAt('/incidents');
+  await waitFor(() => expect(within(pageFor(container)).queryAllByText(/inc-0666/).some(isVisible),
+    'the incident inc-0666 never rendered on /incidents').toBe(true), { timeout: 5000 });
+  const main = pageFor(container);
+  expect(main.querySelectorAll('img[onerror], img[src="x"]').length, 'an incident title from the API was ' +
+    'rendered as HTML: its <img onerror> became a real element').toBe(0);
+  expect(globalThis.__probeXss, 'an incident title from the API ran script').toBeUndefined();
+  expect(renderedText(main), 'the incident title was dropped or stripped instead of shown as text')
+    .toMatch(/<img src="x" onerror=/);
 }, 20000);
