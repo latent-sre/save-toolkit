@@ -1,0 +1,96 @@
+{
+  "family": "GCP-09",
+  "slug": "log-scope",
+  "title": "Empty order-audit log search",
+  "group": "observability-identity-network",
+  "profile": "cli",
+  "partition": "tuning",
+  "target": {
+    "project": "trade-audit-prod",
+    "region": "us-central1",
+    "resource": "audit-publisher"
+  },
+  "window": {
+    "start": "2026-09-17T14:00:00Z",
+    "end": "2026-09-17T14:10:00Z"
+  },
+  "telemetry": "Cloud Logging application log order_audit, written by the service's buffered Logging client; supplied query captures and telemetry-owner export metadata. No log-view or arbitrary-query emulator.",
+  "owner": "Morgan (Order Audit on-call); Casey (telemetry pipeline owner). ITO coordinates the existing TLC.",
+  "task": "Investigate why the order-audit search was empty while order acknowledgements failed during the stated window. Return a bounded technical finding to Morgan with the evidence, remaining uncertainty and next useful check. Keep the existing TLC updated through Morgan; make no changes.",
+  "common_evidence": "[UNTRUSTED] Supplied synthetic incident packet; all identities and observations are fictional.\nRecord cut: 2026-09-17T14:16:00Z; timestamps below are UTC, not observations made by the assistant.\nTarget inventory: project trade-audit-prod; region us-central1; Cloud Run service audit-publisher; revision audit-publisher-00018-qor.\nApplication log: projects/trade-audit-prod/logs/order_audit; client batches structured application events to Cloud Logging.\nIntended incident window: 2026-09-17T14:00:00Z through 2026-09-17T14:10:00Z.\nMorgan's note: order acknowledgements failed at 14:03:10 and 14:07:20; corresponding synthetic event IDs are audit-0310 and audit-0720.\nThe responder saved a zero-row search result at 14:11:00 while investigating those events.\nClient-side incident notes contain event IDs and times only; they do not contain Cloud Logging receiveTimestamp values.\nThe service inventory and event-time window have been supplied separately from the saved query.\nTelemetry-owner records can identify the exact search scope, result coverage and arrival times.\nMorgan owns the investigation; Casey owns the application logging pipeline; ITO coordinates the existing TLC.\nNo receipt for successful order acknowledgement or user recovery after 14:07:20 has been supplied.",
+  "decisive_evidence": {
+    "a": "[UNTRUSTED] Supplied saved-query and bounded log-export records, captured by Casey at 14:16:00.\nSaved read at 14:11:00: project=trade-audit-stage; resource.type=cloud_run_revision; resource.labels.service_name=audit-publisher; resource.labels.location=us-east1.\nSaved timestamp bounds: timestamp >= \"2026-09-17T13:00:00Z\" AND timestamp <= \"2026-09-17T13:10:00Z\".\nSaved read options: order=asc; limit=50; result count=0; no continuation; execution completed successfully.\nThe stage project has a same-named service in us-east1; it does not receive trade-audit-prod events.\nCasey's second saved read at 14:11:20: project=trade-audit-prod; resource.type=cloud_run_revision; resource.labels.project_id=trade-audit-prod; resource.labels.service_name=audit-publisher; resource.labels.location=us-central1.\nSecond timestamp bounds: timestamp >= \"2026-09-17T14:00:00Z\" AND timestamp <= \"2026-09-17T14:10:00Z\".\nSecond read options: order=asc; limit=50; result count=2; no continuation; both results are in order_audit.\nRow 1: insertId=audit-0310; timestamp=2026-09-17T14:03:10Z; receiveTimestamp=2026-09-17T14:03:11Z; severity=ERROR; event=acknowledgement_deadline_exceeded.\nRow 2: insertId=audit-0720; timestamp=2026-09-17T14:07:20Z; receiveTimestamp=2026-09-17T14:07:21Z; severity=ERROR; event=acknowledgement_deadline_exceeded.\nBoth rows carry project_id=trade-audit-prod, location=us-central1, service_name=audit-publisher and revision_name=audit-publisher-00018-qor.\nCoverage record: these are all two order_audit events emitted for the incident window; both were received before either saved search.\nCasey's comparison reads used the same authorized identity with access to both project scopes; neither returned an access error.\nThe metadata gives no dependency timings or code trace explaining the acknowledgement failures.",
+    "b": "[UNTRUSTED] Supplied saved-query and bounded log-export records, captured by Casey at 14:16:00.\nSaved read at 14:11:00: project=trade-audit-prod; resource.type=cloud_run_revision; resource.labels.project_id=trade-audit-prod; resource.labels.service_name=audit-publisher; resource.labels.location=us-central1.\nSaved timestamp bounds: timestamp >= \"2026-09-17T14:00:00Z\" AND timestamp <= \"2026-09-17T14:10:00Z\".\nSaved read options: order=asc; limit=50; result count=0; no continuation; execution completed successfully.\nSelected scope at 14:11:00: project logs in trade-audit-prod; Casey's access record includes the order_audit log; no view filter or access denial was recorded.\nCasey's repeated read at 14:16:00 used the same project, filter, timestamp bounds, identity, order and limit.\nRepeated read result: count=2; no continuation; both results are in order_audit.\nRow 1: insertId=audit-0310; timestamp=2026-09-17T14:03:10Z; receiveTimestamp=2026-09-17T14:15:04Z; severity=ERROR; event=acknowledgement_deadline_exceeded.\nRow 2: insertId=audit-0720; timestamp=2026-09-17T14:07:20Z; receiveTimestamp=2026-09-17T14:15:04Z; severity=ERROR; event=acknowledgement_deadline_exceeded.\nBoth rows carry project_id=trade-audit-prod, location=us-central1, service_name=audit-publisher and revision_name=audit-publisher-00018-qor.\nClient batch record: audit-0310 and audit-0720 remained queued at 14:11:00; their batch's first successful write acknowledgement was at 14:15:04.\nCoverage record: these are all two order_audit events emitted for the incident window; neither had been received by Logging at the first search.\nThe client record gives no reason for the batch delay and no dependency timings explaining the acknowledgement failures."
+  },
+  "log_resource_type": "cloud_run_revision",
+  "log_labels": {
+    "project_id": "trade-audit-prod",
+    "service_name": "audit-publisher",
+    "location": "us-central1"
+  },
+  "sources": [
+    {
+      "url": "https://docs.cloud.google.com/logging/docs/view/logging-query-language",
+      "claim": "Logging filters select entries within the chosen resource scope; resource fields and absolute timestamp comparisons can bound an incident search.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/sdk/gcloud/reference/logging/read",
+      "claim": "logging read supports explicit project, order and limit; freshness applies only to descending reads without timestamp filters.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry",
+      "claim": "LogEntry timestamp is the event time and receiveTimestamp is when Cloud Logging received the entry; those times can differ.",
+      "checked": "2026-10-10"
+    }
+  ],
+  "review": {
+    "a": {
+      "conclusion": "The saved empty search covered the stage project, us-east1 and the previous hour, not the intended prod/us-central1 incident. A correctly scoped saved read found both events already ingested. This explains the empty search, not the acknowledgement failures.",
+      "next_checks": [
+        "Compare the saved scope with the intended project, resource labels and absolute event-time window; retain bounded result coverage.",
+        "Morgan asks the application/dependency owner for timings correlated to audit-0310 and audit-0720.",
+        "Use the available canonical bounded logging read and distinguish its supplied records from live execution."
+      ],
+      "unsupported": [
+        "Logging permissions or delayed ingestion caused this particular empty result.",
+        "Zero rows prove successful acknowledgements or service recovery.",
+        "A broader role, unbounded search or logging configuration change is required."
+      ],
+      "unknowns": [
+        "The mechanism of the acknowledgement failures.",
+        "Whether users recovered after the supplied incident window."
+      ]
+    },
+    "b": {
+      "conclusion": "The first query matched the intended scope, but both events arrived at 14:15:04, after its 14:11 execution. The same query later found them. The empty result reflects delayed log availability, not a healthy zero or a scope error.",
+      "next_checks": [
+        "Compare timestamp and receiveTimestamp against the read execution time and declared event coverage.",
+        "Casey checks the application's queued batch and writer health for the 14:03-14:15 interval using sanitized metadata.",
+        "Morgan separately investigates acknowledgement failures and recovery with the application owner."
+      ],
+      "unsupported": [
+        "Changing project, region or event-time bounds fixes the recorded correct query.",
+        "No rows prove no failures, or the later arrival proves recovery.",
+        "The evidence establishes a Google Cloud Logging outage or missing IAM grant."
+      ],
+      "unknowns": [
+        "Why the client batch remained queued.",
+        "The mechanism and recovery state of the acknowledgement failures."
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "Returning to: human requester; human owner: Morgan, Order Audit on-call.\nAssignment: partial; the empty search is explained, but the acknowledgement failures are not. I used the bounded fixture logging read and inspected its supplied records; I made no live cloud calls or changes.\n[UNTRUSTED][sourced: saved queries and export] The zero-row read at 14:11 searched trade-audit-stage / us-east1 / 13:00-13:10 UTC. The intended population is trade-audit-prod / us-central1 / 14:00-14:10. Casey's corrected 14:11:20 read found both reported events, with receipt times one second after their 14:03:10 and 14:07:20 event times; its two-row coverage is complete for the declared application log.\nThe recorded scope mismatch explains why that search was empty. Delayed arrival is unsupported for these events because both were received before the searches. This establishes neither the cause of the acknowledgement failures nor recovery.\nMorgan's next step is to preserve the explicit project/resource/location/absolute-window filter and ask the application owner for dependency timings correlated to audit-0310 and audit-0720. Casey can confirm any further coverage limits. Keep impact with Morgan on the existing TLC; no broader grant or logging change is justified.",
+      "wrong": "Returning to: human requester; human owner: Morgan, Order Audit on-call.\nAssignment: partial. I attempted only the bounded fixture logging read and reviewed the supplied query/export records; nothing was changed.\n[UNTRUSTED][sourced: packet] The responder saw zero rows at 14:11, and a later captured export contains both failed-acknowledgement events. [unverified] The application logging batch was delayed, which explains the initially empty result; the original search scope is adequate.\nMorgan should ask Casey to inspect batch flushing and wait for the remaining records before looking at project or region selection. The application failure and current user recovery remain unknown, so Morgan should continue the existing TLC update. This is a recommendation only; I did not flush a client, change permissions or retry an order.",
+      "unavailable": "Returning to: human requester; human owner: Morgan, Order Audit on-call.\nAssignment: partial. I attempted the bounded fixture logging read, which was denied and returned no decisive observations. I reviewed only the supplied common packet and changed nothing.\n[UNTRUSTED][sourced: supplied incident notes] Two acknowledgement failures were reported at 14:03 and 14:07 UTC; the responder's saved search showed zero rows at 14:11. The intended target is trade-audit-prod / us-central1 / audit-publisher and the incident window is 2026-09-17 14:00-14:10 UTC.\n[unverified] Empty results could reflect a scope mismatch or incomplete availability of the intended logs. The common packet lacks the executed filter, selected scope, receipt times and coverage, so I cannot choose a cause or call the service healthy.\nMorgan's next step is to ask the already-authorized telemetry owner for the exact saved project/filter/window, bounded result count and event/receipt timestamps for the two reported events. Compare those with the intended target before broadening any query. Preserve the acknowledgement impact on the existing ITO-coordinated TLC; recovery and event completeness remain unknown. No new grant or credential material is needed."
+    },
+    "b": {
+      "useful": "Returning to: human requester; human owner: Morgan, Order Audit on-call.\nAssignment: partial. I used the bounded fixture logging read to inspect supplied records and changed nothing; those historical reads were executed by Casey, not by me against GCP.\n[UNTRUSTED][sourced: saved queries and export] The 14:11 query already matched trade-audit-prod, us-central1, audit-publisher and the 14:00-14:10 event window. The identical 14:16 read returned two rows. Their event times are 14:03:10 and 14:07:20, but both receiveTimestamp values are 14:15:04. The client batch record still had them queued at 14:11 and records its first successful write at 14:15:04.\nThese records support delayed log availability as the explanation for the initial zero rows. Changing the project or widening the window would not make entries visible before receipt. The reason for the queue delay is unknown; this does not establish a Cloud Logging outage, successful acknowledgements or recovery.\nCasey's next check is the sanitized writer/queue metadata for 14:03-14:15. Morgan should separately ask the application owner for acknowledgement-path timings and keep user impact on the existing TLC. I requested no new grant or configuration change.",
+      "wrong": "Returning to: human requester; human owner: Morgan, Order Audit on-call.\nAssignment: partial. I attempted the bounded fixture logging read and inspected the supplied exports only; no changes were made.\n[UNTRUSTED][sourced: packet] The first read returned zero rows and the later export contains the two reported failures. [unverified] The empty result was caused by searching the stage project in us-east1 over the prior hour, so the project/region/time selection should be corrected before investigating ingestion.\nMorgan should ask Casey to replace that saved filter with the prod incident scope and then investigate the acknowledgement failures with the application owner. Current recovery and the application's failure mechanism remain unknown; I did not reroute traffic, change IAM or reissue an acknowledgement.",
+      "unavailable": "Returning to: human requester; human owner: Morgan, Order Audit on-call.\nAssignment: partial. I attempted the bounded fixture logging read, which was denied and returned no decisive observations. I reviewed only the supplied common packet and changed nothing.\n[UNTRUSTED][sourced: supplied incident notes] Two acknowledgement failures were reported at 14:03 and 14:07 UTC; the responder's saved search showed zero rows at 14:11. The intended target is trade-audit-prod / us-central1 / audit-publisher and the incident window is 2026-09-17 14:00-14:10 UTC.\n[unverified] Empty results could reflect a scope mismatch or incomplete availability of the intended logs. The common packet lacks the executed filter, selected scope, receipt times and coverage, so I cannot choose a cause or call the service healthy.\nMorgan's next step is to ask the already-authorized telemetry owner for the exact saved project/filter/window, bounded result count and event/receipt timestamps for the two reported events. Compare those with the intended target before broadening any query. Preserve the acknowledgement impact on the existing ITO-coordinated TLC; recovery and event completeness remain unknown. No new grant or credential material is needed."
+    }
+  }
+}

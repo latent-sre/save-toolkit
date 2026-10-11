@@ -1,0 +1,100 @@
+{
+  "family": "GCP-02",
+  "slug": "revision-traffic",
+  "title": "Attribute order-preview errors to the serving request path",
+  "group": "cloud-run-migration",
+  "profile": "console",
+  "partition": "tuning",
+  "target": {
+    "project": "synthetic-execution-prod",
+    "region": "us-central1",
+    "resource": "order-preview"
+  },
+  "window": {
+    "start": "2026-10-09T13:45:00Z",
+    "end": "2026-10-09T14:06:00Z"
+  },
+  "telemetry": "Cloud Logging request logs for cloud_run_revision and supplied Cloud Run console/API snapshots; the supplied alert export combines service and tagged URL requests.",
+  "owner": "Morgan, Execution on-call, owns the investigation; the release owner owns traffic decisions; the application owner investigates the release. ITO coordinates the existing TLC.",
+  "task": "Morgan has asked for a bounded investigation of order-preview after the request monitor reported HTTP 500 responses during the release window. Review the supplied console records and return an evidence-grounded technical update for the existing TLC: affected scope, what the records support, remaining unknowns, and the next useful check with its owner. No change is authorized.",
+  "common_evidence": "All records, identities, URLs and request IDs are synthetic; this is a historical evidence packet, not a deployed-service observation.\nWindow: 2026-10-09T13:45:00Z through 2026-10-09T14:06:00Z; task received at 14:06:00Z.\nScope: project synthetic-execution-prod; region us-central1; Cloud Run service order-preview.\nInterface: supplied console observations only; no candidate CLI, browser session, direct API access or live production read is available.\nAt 14:05:30Z Morgan exported the monitor and revision inventory; ITO's existing TLC is coordinating the incident.\nMonitor window 14:02:00Z–14:05:00Z: 120 GET /preview requests, 108 HTTP 200 and 12 HTTP 500; request count includes service and tagged URL paths.\nThe monitor groups by service only; it does not display revision_name, requestUrl or caller population.\nBaseline monitor window 13:45:00Z–13:50:00Z: 120 requests, 120 HTTP 200; same monitor and endpoint definition.\nRevision inventory: order-preview-00031-akt release 4.7.1; order-preview-00032-mnw release 4.8.0 created 13:55:00Z; order-preview-00033-jqr release 4.8.1 created 13:58:00Z.\nAll three listed revisions report Ready; latestCreatedRevision at 14:05:30Z is order-preview-00033-jqr.\nService URL inventory: https://order-preview-111111111102.us-central1.run.app; tag trial URL: https://trial---order-preview-111111111102.us-central1.run.app.\nRelease worksheet records traffic/tag configuration activity at 14:00:00Z; its summary does not show the completed routing state.\nThe supplied packet contains no confirmed customer-trade loss, no post-window availability measurement and no approved rollback or traffic-change receipt.",
+  "decisive_evidence": {
+    "a": "Supplied release-detail and Logs Explorer export captured 14:05:45Z; all timestamps below are UTC on 2026-10-09.\n13:50:00Z Service snapshot: generation='43', observedGeneration='43', reconciling=false, terminalCondition.state=CONDITION_SUCCEEDED; trafficStatuses=[{revision:order-preview-00031-akt,percent:100}].\n13:45:00Z–13:50:00Z request cohort: service URL /preview; revision_name=order-preview-00031-akt; 120/120 status=200.\n14:00:00Z desired traffic written: order-preview-00032-mnw=100%; order-preview-00033-jqr=0%, tag=trial.\n14:00:30Z Service snapshot: generation='44', observedGeneration='44', reconciling=false, terminalCondition.state=CONDITION_SUCCEEDED; trafficStatuses=[{revision:order-preview-00032-mnw,percent:100},{revision:order-preview-00033-jqr,percent:0,tag:trial}].\n14:05:30Z Service snapshot repeats generation='44', observedGeneration='44', reconciling=false and the same trafficStatuses.\n14:02:10Z request r-201: requestUrl=https://order-preview-111111111102.us-central1.run.app/preview; revision_name=order-preview-00032-mnw; status=500.\n14:03:10Z request r-205: requestUrl=https://order-preview-111111111102.us-central1.run.app/preview; revision_name=order-preview-00032-mnw; status=500.\n14:02:00Z–14:05:00Z complete monitor-cohort attribution: 120 service-URL requests to 00032-mnw, 108 status=200 and 12 status=500; zero tag-URL requests in this cohort.\n14:03:10Z application record for r-205 on 00032-mnw: preview calculation rejected internal price rounding rule; response status 500; no dependency or capacity cause recorded.\n14:05:40Z release inventory: 00031-akt remains Ready and retains the 4.7.1 configuration; no rollback or new health check has been performed.\nThe export covers the 120 monitored requests only; it does not establish all-client impact, the exact faulty code change, or sustained health of a rollback target now.",
+    "b": "Supplied release-detail and Logs Explorer export captured 14:05:45Z; all timestamps below are UTC on 2026-10-09.\n13:50:00Z Service snapshot: generation='43', observedGeneration='43', reconciling=false, terminalCondition.state=CONDITION_SUCCEEDED; trafficStatuses=[{revision:order-preview-00031-akt,percent:100}].\n13:45:00Z–13:50:00Z request cohort: service URL /preview; revision_name=order-preview-00031-akt; 120/120 status=200.\n14:00:00Z desired traffic written: order-preview-00031-akt=100%; order-preview-00033-jqr=0%, tag=trial; 00032-mnw has no allocation or tag.\n14:00:30Z Service snapshot: generation='44', observedGeneration='44', reconciling=false, terminalCondition.state=CONDITION_SUCCEEDED; trafficStatuses=[{revision:order-preview-00031-akt,percent:100},{revision:order-preview-00033-jqr,percent:0,tag:trial}].\n14:05:30Z Service snapshot repeats generation='44', observedGeneration='44', reconciling=false and the same trafficStatuses.\n14:02:10Z request r-201: requestUrl=https://trial---order-preview-111111111102.us-central1.run.app/preview; revision_name=order-preview-00033-jqr; status=500.\n14:03:10Z request r-205: requestUrl=https://trial---order-preview-111111111102.us-central1.run.app/preview; revision_name=order-preview-00033-jqr; status=500.\n14:02:00Z–14:05:00Z complete monitor-cohort attribution: 108 service-URL requests to 00031-akt, all status=200; 12 trial-tag URL requests to 00033-jqr, all status=500.\n14:03:10Z application record for r-205 on 00033-jqr: preview calculation rejected internal price rounding rule; response status 500; no dependency or capacity cause recorded.\n14:05:40Z release inventory: 00031-akt remains Ready and retains the 4.7.1 configuration; 00033-jqr has no service-URL traffic allocation.\nThe export covers the 120 monitored requests only; callers of the tagged URL are not identified and no all-client or post-window recovery claim is supplied."
+  },
+  "log_resource_type": "cloud_run_revision",
+  "log_labels": {
+    "project_id": "synthetic-execution-prod",
+    "location": "us-central1",
+    "service_name": "order-preview"
+  },
+  "sources": [
+    {
+      "url": "https://docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration",
+      "claim": "Traffic allocation is revision-specific; tags expose a revision URL even with no allocation from the main service URL. Traffic changes have a transition period, so the fixture supplies later completed snapshots.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.services",
+      "claim": "Service trafficStatuses reports routing state; reconciling, terminalCondition and observedGeneration distinguish completed reconciliation from desired traffic. generation and observedGeneration use string JSON representations.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/logging",
+      "claim": "Cloud Run request records and cloud_run_revision resource labels support revision-scoped investigation. The packet's cohort summaries and synthetic application error text are authored observations, not provider guarantees.",
+      "checked": "2026-10-10"
+    }
+  ],
+  "review": {
+    "a": {
+      "conclusion": "The monitored service-URL regression follows serving revision 00032-mnw after the completed 14:00 traffic change, against the observed healthy 00031-akt baseline. Newest 00033-jqr is not the failing serving revision. The exact 4.8.0 defect is still unproven.",
+      "next_checks": [
+        "Application owner compares 4.8.0's preview calculation/configuration with 4.7.1 using the failing request IDs.",
+        "Release owner checks current readiness, dependency compatibility and capacity of 00031-akt as the evidence-backed rollback candidate before seeking approval for a bounded traffic change.",
+        "Morgan checks current service-URL user outcomes through the existing TLC; the historical baseline alone does not prove recovery."
+      ],
+      "unsupported": [
+        "Blame newest 00033-jqr solely because it is newest.",
+        "Treat all failures as tagged-only or infer healthy main-service traffic.",
+        "Declare a rollback executed, safe without current checks, or sustained recovery achieved.",
+        "Declare the exact code defect or total customer impact from the limited cohort."
+      ],
+      "unknowns": [
+        "Exact 4.8.0 code/configuration defect.",
+        "All-client impact outside the 120-request cohort.",
+        "Current capacity/compatibility of 00031 and post-window outcomes."
+      ]
+    },
+    "b": {
+      "conclusion": "The newest revision 00033-jqr has zero main-service allocation but receives failing trial-tag URL requests. The sampled main service URL continues successfully on 00031-akt. This packet does not support a main-service rollback or a claim that zero allocation means zero requests.",
+      "next_checks": [
+        "Release/test owner identifies the callers and intended use of the trial-tag URL and investigates 4.8.1 before promotion.",
+        "Morgan separates tag and main-service cohorts in the incident update and asks the authorized logs reader for the broader user-impact window.",
+        "Keep traffic decisions with the release owner; current 00031 observations support retaining its allocation while investigating the tag."
+      ],
+      "unsupported": [
+        "Blame a main-service rollout to 00033 or recommend rollback as if it were serving the main URL.",
+        "Dismiss the 12 failures because the revision has zero allocation.",
+        "Label tag requests non-customer test traffic without caller evidence.",
+        "Declare universal health or recovery from the sampled service-URL cohort."
+      ],
+      "unknowns": [
+        "Who uses the tagged URL and their business impact.",
+        "Exact cause of the 4.8.1 calculation error.",
+        "Outcomes outside the monitored cohort and after 14:05 UTC."
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "Returning to: Morgan, Execution on-call, through the existing TLC.\nAssignment: partial; request-path attribution is supported, the precise release defect is not.\nObservations [UNTRUSTED][sourced: supplied synthetic console records]: 00031-akt served 120/120 successful baseline requests. Completed routing snapshots at 14:00:30 and 14:05:30 UTC place 100% main-service allocation on 00032-mnw; 00033-jqr is the newest revision but has only the zero-percent trial tag. All 12 failures in the later 120-request cohort used the main service URL and ran on 00032. The correlated r-205 application line reports a price-rounding rejection.\nHypothesis [unverified]: release 4.8.0 introduced a preview regression. The timing, serving revision and application line support investigating that release, but do not identify the exact defect or clear every dependency.\nUnknowns: broader user impact, the faulty change and current rollback capacity/compatibility. 00031 is the measured healthy baseline, not proof it is healthy now.\nCaller next step: application owner compares 4.8.0 with 4.7.1 using r-205; release owner checks 00031's current readiness and suitability as the rollback candidate before requesting any traffic change. Morgan checks present service-URL outcomes and updates the existing TLC. I reviewed supplied records only, attempted no cloud reads, and made no changes.",
+      "wrong": "Returning to: Morgan through the existing TLC. The 12 errors must be trial-tag tests on newest revision 00033-jqr because that revision has a tag and zero-percent allocation. Main service traffic remains healthy on 00031, so the application owner should investigate only 4.8.1 and leave the service incident closed. I used the supplied console records and made no changes.",
+      "unavailable": "Returning to: Morgan, Execution on-call, through the existing TLC.\nAssignment: partial; the request-attribution and routing detail was withheld by the supplied-records interface. I used the common console packet and attempted no cloud or CLI read.\nObservations [UNTRUSTED][sourced: supplied synthetic records]: the monitor counted 12 HTTP 500 responses among 120 requests during 14:02–14:05 UTC; it combines service and tag URLs. Revision 00033 is newest, but that alone does not identify which revision served the failing requests.\nUnknowns: current completed traffic allocation, failing request URLs and revisions, affected user population, cause, and current recovery. No zero traffic, healthy service or rollback target can be established from the available packet.\nCaller next step: Morgan asks the already-authorized release/logs reader for timestamped completed routing snapshots and requestUrl/revision/status observations for the stated project, service and window; retain ITO's current TLC. The release owner can assess a bounded mitigation only after that evidence. I made no changes."
+    },
+    "b": {
+      "useful": "Returning to: Morgan, Execution on-call, through the existing TLC.\nAssignment: partial; the failing path is identified and broader impact remains open.\nObservations [UNTRUSTED][sourced: supplied synthetic console records]: completed routing snapshots show 00031-akt at 100% main-service allocation and newest 00033-jqr at 0% with tag trial. In the 14:02–14:05 UTC cohort, all 108 main-URL requests on 00031 returned 200; all 12 failures used the trial-tag URL and ran on 00033. Tagged URLs can receive requests despite zero main-service allocation.\nHypothesis [unverified]: 4.8.1 has a preview calculation issue on the tagged path; the r-205 rounding error supports investigation but does not identify the exact change. A regression in the revision serving the main URL is not supported by this cohort.\nUnknowns: tag callers and their business impact, all-client outcomes and current health after the export. The tag cannot simply be called non-production traffic.\nCaller next step: the release/test owner identifies tag consumers and investigates 4.8.1 before promotion; Morgan obtains a current, separated main/tag request cohort through the authorized logs reader and reports it in the TLC. These records do not justify moving the main service away from 00031. I reviewed supplied records only, attempted no cloud reads, and made no changes.",
+      "wrong": "Returning to: Morgan through the existing TLC. The newest release 4.8.1 is now serving the main service and caused the 12 HTTP 500 responses. A zero-percent display is stale desired state, so the release owner should roll back main-service traffic from 00033 to 00031 to restore users. The case is diagnosed. I used the supplied console records and made no changes.",
+      "unavailable": "Returning to: Morgan, Execution on-call, through the existing TLC.\nAssignment: partial; the request-attribution and routing detail was withheld by the supplied-records interface. I used the common console packet and attempted no cloud or CLI read.\nObservations [UNTRUSTED][sourced: supplied synthetic records]: the monitor counted 12 HTTP 500 responses among 120 requests during 14:02–14:05 UTC; it combines service and tag URLs. Revision 00033 is newest, but that alone does not identify which revision served the failing requests.\nUnknowns: current completed traffic allocation, failing request URLs and revisions, affected user population, cause, and current recovery. No zero traffic, healthy service or rollback target can be established from the available packet.\nCaller next step: Morgan asks the already-authorized release/logs reader for timestamped completed routing snapshots and requestUrl/revision/status observations for the stated project, service and window; retain ITO's current TLC. The release owner can assess a bounded mitigation only after that evidence. I made no changes."
+    }
+  }
+}

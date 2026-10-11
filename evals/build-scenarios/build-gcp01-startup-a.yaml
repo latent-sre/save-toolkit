@@ -20,18 +20,28 @@ fixture:
       # Synthetic read-only gcloud fixture for one Cloud Run service; no cloud connection.
       printf '%s\n' "$*" >> "${STATE_DIR}/gcloud-invocations.log"
       project=""
+      region=""
+      service=""
       pos=""
       want=""
       for arg in "$@"; do
         if [ -n "$want" ]; then
-          if [ "$want" = project ]; then project="$arg"; fi
+          case "$want" in
+            project) project="$arg" ;;
+            region) region="$arg" ;;
+            service) service="$arg" ;;
+          esac
           want=""
           continue
         fi
         case "$arg" in
           --project=*) project="${arg#--project=}" ;;
           --project) want=project ;;
-          --region|--format|--limit|--freshness|--order|--filter|--platform|--service|--sort-by|--page-size|--verbosity) want=skip ;;
+          --region=*) region="${arg#--region=}" ;;
+          --region) want=region ;;
+          --service=*) service="${arg#--service=}" ;;
+          --service) want=service ;;
+          --format|--limit|--freshness|--order|--filter|--platform|--sort-by|--page-size|--verbosity) want=skip ;;
           -*) ;;
           *) pos="$pos $arg" ;;
         esac
@@ -49,6 +59,11 @@ fixture:
       esac
       if [ -n "$project" ] && [ "$project" != synthetic-quotes-prod ]; then
         printf '%s\n' 'ERROR: (gcloud) PERMISSION_DENIED: this fixture serves only project synthetic-quotes-prod.' >&2
+        exit 1
+      fi
+      if { [ -n "$region" ] && [ "$region" != us-central1 ]; } ||
+         { [ -n "$service" ] && [ "$service" != quote-service ]; }; then
+        printf '%s\n' 'Fixture scope unavailable: only quote-service in us-central1 is supplied; no observation was returned.' >&2
         exit 1
       fi
       print_logs() {
@@ -108,7 +123,11 @@ fixture:
       region: us-central1
       latestCreatedRevision: quote-service-00042-xom
       latestReadyRevision: quote-service-00041-pav
+      reconciling: false
       traffic:
+        - revision: quote-service-00041-pav
+          percent: 100
+      trafficStatuses:
         - revision: quote-service-00041-pav
           percent: 100
       terminalCondition:

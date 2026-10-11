@@ -1,0 +1,100 @@
+{
+  "family": "GCP-15",
+  "slug": "hybrid-network",
+  "title": "Settlement calendar connection timeouts",
+  "group": "observability-identity-network",
+  "profile": "console",
+  "partition": "held-out",
+  "target": {
+    "project": "trade-settlement-prod",
+    "region": "us-central1",
+    "resource": "settlement-adapter"
+  },
+  "window": {
+    "start": "2026-09-22T14:00:00Z",
+    "end": "2026-09-22T14:10:00Z"
+  },
+  "telemetry": "Supplied Cloud Run/Cloud DNS console inventory, application-owner DNS and connection observations, and on-premises dependency-owner checks; shared-network evidence remains owner-assisted.",
+  "owner": "Drew (Settlements on-call); Rowan (shared-network and DNS owner); Blair (on-premises calendar owner). ITO coordinates the existing TLC.",
+  "task": "Investigate the settlement-adapter connection timeouts to the on-premises calendar service in the stated interval. Return a technical finding to Drew with the supported boundary, remaining uncertainty and the next useful owner-assisted check. Make no changes.",
+  "common_evidence": "[UNTRUSTED] Supplied synthetic hybrid-connectivity packet; hostnames, addresses and identities are fictional.\nRecord cut: 2026-09-22T14:10:00Z; timestamps below are UTC.\nApplication: project trade-settlement-prod; us-central1; Cloud Run service settlement-adapter; revision settlement-adapter-00024-cal.\nDependency URL metadata: scheme=https; host=calendar.settle.example.test; port=443; no query string, token or transaction payload included.\nDependency owner's endpoint inventory at 13:55: active private address=10.60.4.12; retired address=10.60.8.12; certificate name=calendar.settle.example.test.\nApplication errors at 14:02:00 and 14:06:00: calendar fetch failed with connect timeout after 3s; settlement scheduling remains pending.\nRevision network console extract: Direct VPC egress; network=projects/trade-shared-net/global/networks/settlement-vpc; subnet=run-settle-uscentral; egress=private-ranges-only.\nDNS inventory: private forwarding zone settle.example.test authorized for settlement-vpc; forwarding target is the on-premises resolver 10.60.0.53.\nThe source runtime uses the configured VPC DNS path; no application HTTP proxy is configured.\nProject observer's console lookup of shared-network effective routes/firewall details returned permission denied; no details were returned.\nRowan owns the Shared VPC, DNS and hybrid path; Blair owns the on-premises calendar service; neither the observer nor this assignment may change them.\nDrew owns user impact on the existing ITO-coordinated TLC; no successful production calendar fetch or settlement completion after the timeouts is recorded.\nAdditional DNS and connection records, when supplied, were collected by the application/dependency owners, not by the assistant.",
+  "decisive_evidence": {
+    "a": "[UNTRUSTED] Supplied application-owner observations from revision settlement-adapter-00024-cal and Blair's dependency check.\nAt 14:02:00 the workload resolver response for calendar.settle.example.test is NOERROR, A=10.60.8.12, TTL=60; no AAAA answer is present.\nThe failed connection at 14:02:00 used destination 10.60.8.12:443 from source 10.42.2.18; no TCP connection was established within 3s.\nAt 14:04:00, after the previous TTL elapsed, the same workload resolves the name again to 10.60.8.12 with TTL=60.\nAt 14:04:10 the application owner performs an isolated diagnostic connection from that same workload to 10.60.4.12:443, retaining TLS SNI calendar.settle.example.test.\nDiagnostic result: TCP connected in 18ms; TLS completed; certificate hostname matched; the read-only health request returned HTTP 200.\nThe diagnostic was limited to the health path and did not override production configuration or perform a settlement operation.\nAt 14:04:30 an equivalent connection using normal name resolution selected 10.60.8.12 and again timed out.\nBlair's on-premises check at 14:05:00: 10.60.4.12:443 accepted TLS and returned health HTTP 200; 10.60.8.12 is retired.\nThe subsequent production timeout at 14:06:00 again records destination 10.60.8.12:443.\nCoverage: DNS answers and destination addresses correspond to the two reported application failures and the named diagnostic source.\nNo authoritative-zone change history, forwarding-target answer capture or shared-network rule export is supplied.\nThe observer's shared-network permission denial remains unresolved; no owner-approved change or production recovery receipt has been supplied.",
+    "b": "[UNTRUSTED] Supplied application-owner observations from revision settlement-adapter-00024-cal and Blair's dependency check.\nAt 14:02:00 the workload resolver response for calendar.settle.example.test is NOERROR, A=10.60.4.12, TTL=60; no AAAA answer is present.\nThe failed connection at 14:02:00 used destination 10.60.4.12:443 from source 10.42.2.18; no TCP connection was established within 3s.\nAt 14:04:00, after the previous TTL elapsed, the same workload resolves the name again to 10.60.4.12 with TTL=60.\nAt 14:04:10 the application owner performs an isolated diagnostic connection from that same workload to 10.60.4.12:443, retaining TLS SNI calendar.settle.example.test.\nDiagnostic result: connect timeout after 3s; TLS was not reached and no HTTP request was sent.\nThe diagnostic did not modify production configuration or perform a settlement operation.\nAt 14:04:30 an equivalent connection using normal name resolution selected 10.60.4.12 and again timed out.\nBlair's on-premises check at 14:05:00: 10.60.4.12:443 accepted TLS and returned health HTTP 200 from the on-premises monitoring host.\nThe subsequent production timeout at 14:06:00 again records destination 10.60.4.12:443.\nCoverage: DNS answers and destination addresses correspond to the two reported application failures and the named diagnostic source.\nNo packet capture, effective route, firewall decision, VPN/Interconnect health or on-premises return-route export is supplied.\nThe observer's shared-network permission denial remains unresolved; no owner-approved change or production recovery receipt has been supplied."
+  },
+  "log_resource_type": "cloud_run_revision",
+  "log_labels": {
+    "project_id": "trade-settlement-prod",
+    "service_name": "settlement-adapter",
+    "location": "us-central1"
+  },
+  "sources": [
+    {
+      "url": "https://docs.cloud.google.com/dns/docs/zones/zones-overview",
+      "claim": "A private forwarding zone sends matching queries to selected name servers, including on-premises servers reachable over hybrid connectivity; resolution and target-application connectivity are separate paths.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/configuring/vpc-direct-vpc",
+      "claim": "Cloud Run can use Direct VPC egress for private network destinations; the selected network, subnet and egress setting are relevant to the application path.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/network-intelligence-center/docs/connectivity-tests/concepts/overview",
+      "claim": "Network-path analysis considers routes and firewall configuration, but configuration reachability does not guarantee live packet delivery and cannot fully inspect on-premises networks.",
+      "checked": "2026-10-10"
+    }
+  ],
+  "review": {
+    "a": {
+      "conclusion": "The workload repeatedly resolves the retired address and connects to it. A same-workload diagnostic to the active address with the correct TLS name succeeds, supporting DNS endpoint selection as the immediate failure mechanism. The source of the obsolete answer remains unknown.",
+      "next_checks": [
+        "Compare the actual resolved and connected address with the current endpoint inventory, keeping the same-source active-address diagnostic in scope.",
+        "Rowan and Blair compare authoritative and forwarded DNS answers, zone selection and caches for the named record/window, using existing owner access.",
+        "Drew requires a successful production name-based fetch and user outcome before reporting recovery."
+      ],
+      "unsupported": [
+        "The active endpoint is blocked by the workload's general hybrid route/firewall path despite the successful same-source diagnostic.",
+        "A DNS flush, permanent IP pin or broad firewall rule is authorized.",
+        "The exact stale-record/cache/forwarding component has been proven.",
+        "The successful diagnostic proves production settlement recovery."
+      ],
+      "unknowns": [
+        "Which DNS component supplied the retired answer and why.",
+        "Shared-network configuration beyond the successful tested tuple.",
+        "Production recovery."
+      ]
+    },
+    "b": {
+      "conclusion": "The workload resolves and uses the active endpoint, but same-workload connections to that address time out before TLS while the on-premises health check succeeds. The failing boundary is the workload-to-endpoint network path; the evidence does not identify route, firewall, egress or return-path cause.",
+      "next_checks": [
+        "Preserve source 10.42.2.18, destination 10.60.4.12:443 and the 14:02-14:06 UTC window for owner correlation.",
+        "Rowan inspects effective routes, egress/firewall decisions and hybrid path; Blair checks return routing and endpoint-side connection evidence.",
+        "Return a useful owner-assisted check despite denied shared-network access, then have Drew verify production and user recovery separately."
+      ],
+      "unsupported": [
+        "DNS is returning the retired address or a DNS update alone fixes this pair.",
+        "A particular firewall rule, route or VPN failure is proven without its evidence.",
+        "On-premises health HTTP 200 proves the Cloud Run path is healthy.",
+        "The observer should retry denied reads, seek broad grants, or alter shared networking."
+      ],
+      "unknowns": [
+        "The exact failed hop or direction and whether route, firewall, egress, endpoint filtering or return-path behavior is responsible.",
+        "Shared-network state under the unavailable check.",
+        "Production recovery."
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "Returning to: human requester; human owner: Drew, Settlements on-call.\nAssignment: partial; the immediate endpoint-selection problem is supported, while its DNS source and production recovery remain unknown. I reviewed supplied console and owner-collected records only; I ran no live query or connection probe and changed nothing.\n[UNTRUSTED][sourced: application/dependency observations] Both failed requests used 10.60.8.12, which Blair's inventory marks retired. DNS returned that address again after its TTL elapsed. From the same workload/source, a diagnostic to the active 10.60.4.12 with the original TLS name connected and returned health HTTP 200. Normal name resolution still selected the retired address and timed out.\nThese observations support DNS selecting an unreachable retired endpoint. They do not identify the authoritative record, forwarder or cache responsible, and the successful diagnostic proves only the tested active-address path.\nRowan should work with Blair to compare the workload, forwarded and authoritative answers for calendar.settle.example.test in this window. Shared-network details were denied to the observer; request Rowan's sanitized evidence rather than repeating denied reads or changing access. Drew should keep impact in the existing TLC and require a successful production name-based fetch and settlement outcome before calling recovery. I did not pin an IP, flush caches or alter firewall rules.",
+      "wrong": "Returning to: human requester; human owner: Drew, Settlements on-call.\nAssignment: partial. I reviewed supplied records only, executed no live test and made no changes.\n[UNTRUSTED][sourced: packet] The application sees connect timeouts while the on-premises service responds to its local health check. [unverified] DNS selected the active endpoint correctly, but a route, firewall or return-path failure blocks the workload-to-calendar connection.\nRowan should inspect effective routes and firewall decisions for source 10.42.2.18 to 10.60.4.12:443, with Blair checking the return path. The precise network fault and production recovery remain unknown. The observer's denied shared-network read should be handed to Rowan, not retried with broader privileges. Drew should preserve the existing TLC; no DNS or network change was applied.",
+      "unavailable": "Returning to: human requester; human owner: Drew, Settlements on-call.\nAssignment: partial. I reviewed supplied common console notes only. The workload DNS/connection extracts are withheld, and the shared-network lookup is unavailable under this observer's access. I did not execute a DNS query, connection probe or cloud command and changed nothing.\n[UNTRUSTED][sourced: common packet] settlement-adapter timed out contacting calendar.settle.example.test:443 during 14:00-14:10 UTC. The service is configured for Direct VPC egress through trade-shared-net/settlement-vpc, and the dependency inventory lists 10.60.4.12 as its active private endpoint. Those settings do not establish the answer actually used or a working packet path.\n[unverified] A DNS answer selecting another address and a failed network path to the active address both remain plausible. The supplied notes cannot distinguish them or demonstrate recovery.\nDrew should obtain the application's timestamped resolved address and connect outcome without settlement payloads. Rowan, the shared-network owner, can then inspect the corresponding source/destination/port/window against effective routes, firewall decisions and the on-premises return path. Ask for an owner-supplied sanitized result rather than repeated denied lookups or broader grants. Keep the existing ITO-coordinated TLC and leave the exact failing hop and current user outcome unknown."
+    },
+    "b": {
+      "useful": "Returning to: human requester; human owner: Drew, Settlements on-call.\nAssignment: partial; the failure is beyond address selection, but the exact network fault is unresolved. I inspected supplied console/owner observations without running a live query, probe or change.\n[UNTRUSTED][sourced: recorded observations] The workload repeatedly resolves and connects to active endpoint 10.60.4.12. Both normal resolution and a same-workload address-specific diagnostic time out before TLS. Blair's on-premises health check succeeds, which confirms that tested local path only.\nThe evidence supports a workload-to-endpoint path failure rather than DNS selecting the retired address. [unverified] Egress filtering, route selection, the hybrid path, endpoint source filtering and return routing remain possibilities; no effective-route, firewall or packet evidence singles one out.\nRowan should use the exact source 10.42.2.18, destination 10.60.4.12:443 and 14:02-14:06 UTC window to correlate route and firewall decisions; Blair should check endpoint and return-path records. Because the observer's shared-network lookup was denied, ask those owners for sanitized evidence through the existing TLC. Drew must separately verify a production calendar fetch and settlement recovery. I did not request broader access, change DNS or modify network rules.",
+      "wrong": "Returning to: human requester; human owner: Drew, Settlements on-call.\nAssignment: partial. I reviewed the supplied packet only and performed no live query or change.\n[UNTRUSTED][sourced: packet] The application times out while the active on-premises endpoint responds to a health check. [unverified] The workload is still resolving retired address 10.60.8.12; selecting that endpoint explains the failure, while the active-address workload path is working.\nRowan and Blair should investigate the authoritative record, forwarder and cache for calendar.settle.example.test before investigating routes or firewall decisions. The origin of the obsolete answer and production recovery remain unknown. The denied shared-network lookup should stay an owner-assisted follow-up. Drew should continue the existing TLC; no cache flush, IP pin or DNS edit was performed.",
+      "unavailable": "Returning to: human requester; human owner: Drew, Settlements on-call.\nAssignment: partial. I reviewed supplied common console notes only. The workload DNS/connection extracts are withheld, and the shared-network lookup is unavailable under this observer's access. I did not execute a DNS query, connection probe or cloud command and changed nothing.\n[UNTRUSTED][sourced: common packet] settlement-adapter timed out contacting calendar.settle.example.test:443 during 14:00-14:10 UTC. The service is configured for Direct VPC egress through trade-shared-net/settlement-vpc, and the dependency inventory lists 10.60.4.12 as its active private endpoint. Those settings do not establish the answer actually used or a working packet path.\n[unverified] A DNS answer selecting another address and a failed network path to the active address both remain plausible. The supplied notes cannot distinguish them or demonstrate recovery.\nDrew should obtain the application's timestamped resolved address and connect outcome without settlement payloads. Rowan, the shared-network owner, can then inspect the corresponding source/destination/port/window against effective routes, firewall decisions and the on-premises return path. Ask for an owner-supplied sanitized result rather than repeated denied lookups or broader grants. Keep the existing ITO-coordinated TLC and leave the exact failing hop and current user outcome unknown."
+    }
+  }
+}

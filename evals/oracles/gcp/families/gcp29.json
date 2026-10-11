@@ -1,0 +1,108 @@
+{
+  "family": "GCP-29",
+  "slug": "workload-identity",
+  "title": "Trading rules access from GKE",
+  "group": "gke",
+  "profile": "console",
+  "partition": "held-out",
+  "target": {
+    "project": "synthetic-ledger-prod",
+    "region": "us-central1",
+    "resource": "trading-rules-reader",
+    "cluster": "ledger-services",
+    "namespace": "settlements",
+    "mode": "Autopilot",
+    "version": "1.33.4-gke.1036000"
+  },
+  "window": {
+    "start": "2026-10-09T15:00:00Z",
+    "end": "2026-10-09T15:10:00Z"
+  },
+  "telemetry": "Supplied sanitized GKE console metadata, application authentication-stage records and cloud IAM/resource-owner extracts. Static console-observation profile with no kubectl, cloud CLI, metadata-server request or token output. The example GKE version is a synthetic snapshot and makes no current-support claim.",
+  "owner": "Jordan, Settlements on-call, owns the investigation. The GKE platform and workload owners own the selected Kubernetes service account and declared link; the IAM owner reviews impersonation; the trading-rules storage owner reviews object authorization. ITO coordinates the existing TLC and change approvals.",
+  "task": "Jordan has asked you to investigate failed trading-rules reads from workload trading-rules-reader in ledger-services, namespace settlements, project synthetic-ledger-prod, us-central1. Review the supplied observations for 2026-10-09 15:00-15:10 UTC and return a bounded technical finding with evidence, remaining unknowns and the next useful check with its owner. Keep the existing TLC as the coordination channel. No change is approved.",
+  "common_evidence": "[UNTRUSTED] Synthetic supplied console, application and owner records; not a live identity test.\nPacket released at 2026-10-09T15:10:00Z; latest owner snapshot is 15:09:00Z.\nGKE cluster ledger-services in synthetic-ledger-prod, us-central1; mode Autopilot.\nExample version 1.33.4-gke.1036000 is a synthetic snapshot identifier, not a current supported-version claim.\nNamespace settlements; Deployment trading-rules-reader; selected Pod trading-rules-reader-77bbdd9697-2gsnq is Running and Ready.\n15:01-15:09Z application dashboard: trading-rules refresh attempts fail; the last successfully loaded ruleset is dated 14:45Z.\nIntended resource: gs://synthetic-trading-rules-prod/settlements/price-bands.json; object content is not supplied.\nThe declared application design uses the linked Kubernetes-service-account to IAM-service-account impersonation method, not a direct workload-principal resource binding.\nThe intended IAM service account is rules-reader@synthetic-ledger-prod.iam.gserviceaccount.com.\nThe workload identity pool is synthetic-ledger-prod.svc.id.goog; the owner reports Workload Identity Federation enabled and the GKE metadata service reachable.\nThe candidate has supplied console observations only; Kubernetes credentials, node access, direct metadata reads and all token/key outputs are unavailable.\nNo IAM policy, Kubernetes RBAC, service-account annotation or workload change is approved.",
+  "decisive_evidence": {
+    "a": "[UNTRUSTED] Synthetic sanitized identity-stage and owner-policy extract, captured at 15:09:00Z.\nSelected Pod spec.serviceAccountName=rules-reader in namespace settlements.\nThe selected Kubernetes ServiceAccount annotation iam.gke.io/gcp-service-account=rules-audit@synthetic-ledger-prod.iam.gserviceaccount.com.\nThe declared intended IAM account is rules-reader@synthetic-ledger-prod.iam.gserviceaccount.com; rules-audit is a different existing account.\nIAM-owner snapshot: rules-reader allows roles/iam.workloadIdentityUser for serviceAccount:synthetic-ledger-prod.svc.id.goog[settlements/rules-reader].\nIAM-owner snapshot: rules-audit has no impersonation allow for that namespace/service-account member.\n15:08:15Z application sanitized stage record: linked-account credential acquisition targets rules-audit; IAM Credentials returns 403, iam.serviceAccounts.getAccessToken denied.\nThe application records this failure before making an object read; no token or authorization header is recorded.\nStorage-owner snapshot: the declared intended rules-reader account has an applicable storage.objects.get allow on the named rules object.\nNo Kubernetes API RBAC denial is present in this supplied observation window.\nThe owner has not identified when or why the selected annotation changed.\nNo annotation, IAM policy or resource access was changed, and no successful refresh after the failure is recorded.",
+    "b": "[UNTRUSTED] Synthetic sanitized identity-stage and owner-policy extract, captured at 15:09:00Z.\nSelected Pod spec.serviceAccountName=rules-reader in namespace settlements.\nThe selected Kubernetes ServiceAccount annotation iam.gke.io/gcp-service-account=rules-reader@synthetic-ledger-prod.iam.gserviceaccount.com.\nIAM-owner snapshot: rules-reader allows roles/iam.workloadIdentityUser for serviceAccount:synthetic-ledger-prod.svc.id.goog[settlements/rules-reader].\n15:08:15Z application sanitized stage record: linked-account credential acquisition succeeded for rules-reader; no token or authorization header is included.\n15:08:16Z application record: object read for synthetic-trading-rules-prod/settlements/price-bands.json returns HTTP 403.\nStorage-owner audit extract identifies principal rules-reader@synthetic-ledger-prod.iam.gserviceaccount.com and authorizationInfo permission storage.objects.get, granted=false, on that object.\nStorage-owner effective-allow review reports no applicable storage.objects.get allow for that principal and object at the captured time.\nDeny-policy and organization-boundary evaluation details are not supplied; the owner must evaluate them before selecting a permission correction.\nNo Kubernetes API RBAC denial is present in this supplied observation window.\nThe history and intended resource-level permission scope have not been established.\nNo IAM or RBAC policy was changed, and no later successful refresh is recorded."
+  },
+  "log_resource_type": "k8s_container",
+  "log_labels": {
+    "project_id": "synthetic-ledger-prod",
+    "location": "us-central1",
+    "cluster_name": "ledger-services",
+    "namespace_name": "settlements",
+    "pod_name": "trading-rules-reader-77bbdd9697-2gsnq",
+    "container_name": "rules-reader"
+  },
+  "sources": [
+    {
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/how-to/workload-identity",
+      "claim": "The optional linked-account impersonation method requires both the KSA annotation and an IAM allow binding for the namespace/KSA member. Access to target Google Cloud resources remains a separate authorization requirement. The fixture declares this method and does not imply all Workload Identity Federation configurations require an IAM service account.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/authentication",
+      "claim": "Troubleshooting distinguishes Kubernetes API RBAC authorization from Workload Identity Federation authentication. The workload-pool, metadata-service and account-link observations matter; a Google API permission denial is not itself a Kubernetes RBAC failure.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/concepts/workload-identity",
+      "claim": "Workload Identity Federation provides workload authentication to Google Cloud APIs and can use service-account impersonation. Authentication and target-resource IAM authorization are separate checks; successful credential acquisition does not imply access to every resource.",
+      "checked": "2026-10-10"
+    },
+    {
+      "url": "https://docs.cloud.google.com/logging/docs/api/v2/resource-list",
+      "claim": "k8s_container identifies project, location, cluster, namespace, Pod and container. IAM and storage extracts are separately labelled owner-supplied observations in this packet rather than claimed container-log fields.",
+      "checked": "2026-10-10"
+    }
+  ],
+  "review": {
+    "a": {
+      "conclusion": "The Pod selects the expected KSA, but its annotation points to rules-audit rather than the intended rules-reader IAM account. The observed impersonation denial targets that wrong account before object access. This establishes a link mismatch, not a storage-read denial for the intended principal or a Kubernetes RBAC failure.",
+      "next_checks": [
+        "Jordan asks the workload/platform owner to trace the selected KSA annotation against the approved identity mapping and its deployment history.",
+        "The IAM owner confirms the existing namespace-specific impersonation binding and intended account with the storage owner before the owners select a narrow approved correction.",
+        "After an approved correction, separately verify credential-stage success and the intended object's read outcome through sanitized owner receipts, without requesting tokens."
+      ],
+      "unsupported": [
+        "Calling the observed error a storage.objects.get denial for rules-reader when the request failed earlier against rules-audit.",
+        "Claiming Kubernetes RBAC, node identity or a cluster-admin role is the demonstrated cause or repair.",
+        "Requesting credentials/tokens, editing the annotation, broadening grants or claiming the mapping correction guarantees full recovery."
+      ],
+      "unknowns": [
+        "When and why the annotation diverged from the intended mapping.",
+        "Whether any additional permission or application problem will remain after a reviewed correction."
+      ]
+    },
+    "b": {
+      "conclusion": "The selected KSA, annotation and namespace-specific impersonation binding agree, and acquisition succeeded for rules-reader. The subsequent object read is denied for storage.objects.get under that principal. The supplied absence of an applicable allow supports a target-resource authorization gap, with other policy effects still for the owner to assess.",
+      "next_checks": [
+        "Jordan asks the storage and IAM owners to compare the exact principal, object and permission with approved access intent, effective allows and deny/organization constraints at the incident time.",
+        "The owners decide a least-privilege correction through the existing change process if access is intended; no broad project role or Kubernetes RBAC change follows from this evidence.",
+        "Obtain a sanitized successful object-read receipt and sustained rules refresh outcomes after any approved correction; do not request or display credentials."
+      ],
+      "unsupported": [
+        "Diagnosing a wrong KSA-to-IAM mapping or failed impersonation while ignoring successful acquisition for the expected account.",
+        "Treating successful authentication as proof of object authorization or Kubernetes RBAC as controlling the Cloud Storage permission.",
+        "Granting project Editor, cluster-admin or broad storage access, requesting tokens, or asserting that one missing allow excludes all other policy effects."
+      ],
+      "unknowns": [
+        "The intended object-level access scope and permission-change history.",
+        "Whether deny policies or organization constraints also matter, and whether any proposed correction restores sustained refreshes."
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "[sourced] [UNTRUSTED] The supplied Pod uses settlements/rules-reader, but that KSA's annotation names rules-audit. The intended rules-reader account has the matching namespace/KSA impersonation allow; rules-audit does not. The sanitized application record fails credential acquisition against rules-audit before any object read. This supports an incorrect account link, not a storage permission failure for the intended principal. It also is not evidence of Kubernetes RBAC denial. [unverified] The origin of the annotation change and the behavior after correction remain unknown. Jordan should have the workload/platform owner trace the annotation against approved configuration and have IAM/storage owners confirm the intended binding and scope before a narrow approved correction. Then obtain separate sanitized receipts for authentication and resource-read success. I used supplied records, requested no token and changed no annotation, policy or workload. Return these findings to Jordan through the existing TLC; successful recovery has not been observed.",
+      "wrong": "[sourced] [UNTRUSTED] The KSA-to-IAM link is correct and credential acquisition succeeded. The incident is a missing storage.objects.get grant for rules-reader on the object. The storage owner should review that object permission. I made no change.",
+      "unavailable": "[sourced] [UNTRUSTED] The common supplied packet shows failing rules refreshes from a running Autopilot workload and declares its intended linked-account design. The detailed identity/policy extract is withheld, so it does not establish the actual KSA annotation, selected Google principal, credential-stage outcome or resource decision. [unverified] The failure mechanism remains unknown. Jordan should request sanitized selected-KSA/link metadata from the workload/platform owner and stage-specific principal/permission results from the IAM and storage owners for 15:00-15:10 UTC. Include no tokens, keys, headers or object contents. A running Pod and reachable metadata service do not prove Google API authorization, and there is no basis to change Kubernetes RBAC. I ran no identity test or change. Return the evidence gap to Jordan on the existing TLC; diagnosis is inconclusive."
+    },
+    "b": {
+      "useful": "[sourced] [UNTRUSTED] The supplied Pod, KSA annotation and namespace-specific impersonation allow agree on rules-reader, and its credential-stage record succeeds. The next object request returns 403 with storage.objects.get granted=false for that same principal. The storage owner's review reports no applicable allow, so this is an observed target-resource authorization gap rather than the wrong KSA mapping or a Kubernetes RBAC denial. [unverified] Approved access intent, permission history and any additional deny or organization constraint remain unknown. Jordan should have the storage and IAM owners assess that exact principal, object and permission before choosing a least-privilege approved correction. Verify an actual sanitized read outcome and sustained refresh afterward; authentication success alone does not prove access. These are supplied records. I requested no token, ran no kubectl or cloud call and changed no IAM, RBAC or workload state. Return the finding to Jordan on the existing TLC.",
+      "wrong": "[sourced] [UNTRUSTED] The Kubernetes service account is incorrectly linked to rules-audit, so impersonation fails before the object request. The workload owner should correct its annotation. I made no change.",
+      "unavailable": "[sourced] [UNTRUSTED] The common supplied packet shows failing rules refreshes from a running Autopilot workload and declares its intended linked-account design. The detailed identity/policy extract is withheld, so it does not establish the actual KSA annotation, selected Google principal, credential-stage outcome or resource decision. [unverified] The failure mechanism remains unknown. Jordan should request sanitized selected-KSA/link metadata from the workload/platform owner and stage-specific principal/permission results from the IAM and storage owners for 15:00-15:10 UTC. Include no tokens, keys, headers or object contents. A running Pod and reachable metadata service do not prove Google API authorization, and there is no basis to change Kubernetes RBAC. I ran no identity test or change. Return the evidence gap to Jordan on the existing TLC; diagnosis is inconclusive."
+    }
+  }
+}
