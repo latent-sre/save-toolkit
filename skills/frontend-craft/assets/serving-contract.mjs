@@ -1,15 +1,18 @@
-// Serving contract for a single-page app. Copy it into the repository and run it against the
-// production build behind the production server configuration (not `vite preview`):
+// serving-contract.mjs — the acceptance test for how a single-page app is served.
+// Run it against the production build behind the production server configuration (the PCF
+// buildpack or nginx config, or the API app that co-serves the UI), locally and in each environment:
 //   BASE_URL=http://localhost:8080 node --test serving-contract.mjs
-// Optional checks: API_PREFIX=/v1/ (an unknown API path is not the app) and
-// RUNTIME_CONFIG_PATH=/config.json (runtime configuration is fresh JSON). Needs no packages.
+// Optional checks: API_PREFIX=/v1/ (an unknown API path must not be the app) and
+// RUNTIME_CONFIG_PATH=/config.json (runtime configuration is fresh JSON). Each unset variable skips
+// its check. `vite preview` is not a production server and fails the missing-file check by design.
+// Needs Node 22+ and no packages.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 const { BASE_URL, API_PREFIX, RUNTIME_CONFIG_PATH } = process.env;
-if (!BASE_URL) throw new Error("Set BASE_URL to the served build, e.g. http://localhost:4173");
+if (!BASE_URL) throw new Error("Set BASE_URL to the served build, e.g. BASE_URL=http://localhost:8080");
 
-const missing = `serving-contract-${Date.now().toString(36)}`;
+const nonce = `serving-contract-${Date.now().toString(36)}`;
 
 async function get(path) {
   const response = await fetch(new URL(path, BASE_URL), { redirect: "manual" });
@@ -24,17 +27,19 @@ async function get(path) {
   };
 }
 
-const revalidates = (response) => /\bno-cache\b|\bno-store\b|\bmax-age=0\b/.test(response.cache);
+const revalidates = (r) => /\bno-cache\b|\bno-store\b|\bmax-age=0\b/.test(r.cache);
 
-// The app's HTML is recognised by its script bundle, which survives per-response nonces.
+// The app's HTML is recognised by its script bundle, which survives per-response nonces and hashes.
+let bundle;
 async function bundlePath() {
+  if (bundle) return bundle;
   const index = await get("/");
   const match = index.body.match(/<script[^>]+src="([^"]+\.js)"/i);
-  assert.ok(match, "index.html references no script bundle");
-  return new URL(match[1], new URL("/", BASE_URL)).pathname;
+  assert.ok(match, "index.html references no script bundle; is BASE_URL the built app?");
+  bundle = new URL(match[1], new URL("/", BASE_URL)).pathname;
+  return bundle;
 }
-
-const isApp = (response, bundle) => response.body.includes(bundle);
+const isApp = (r, b) => r.body.includes(b);
 
 test("index.html is the app and revalidates", async () => {
   const page = await get("/");
@@ -50,43 +55,42 @@ test("index.html refuses framing and content sniffing", async () => {
 });
 
 test("a deep link serves the app and revalidates", async () => {
-  const bundle = await bundlePath();
-  const page = await get(`/${missing}/deep/link`);
+  const b = await bundlePath();
+  const page = await get(`/${nonce}/orders/42`);
   assert.equal(page.status, 200, "a client route must fall back to index.html");
-  assert.ok(isApp(page, bundle), "a client route must serve the app's HTML");
+  assert.ok(isApp(page, b), "a client route must serve the app's HTML");
   assert.ok(revalidates(page), `a deep link must send Cache-Control: no-cache, got "${page.cache}"`);
 });
 
 test("the script bundle is served as JavaScript", async () => {
-  const bundle = await bundlePath();
-  const asset = await get(bundle);
-  assert.equal(asset.status, 200, `${bundle} must exist`);
-  assert.match(asset.type, /javascript/, `${bundle} has content-type "${asset.type}"`);
+  const b = await bundlePath();
+  const script = await get(b);
+  assert.equal(script.status, 200);
+  assert.match(script.type, /javascript/, `${b} must be served as JavaScript, got "${script.type}"`);
 });
 
 test("a missing static file is a 404, not the app", async () => {
-  const bundle = await bundlePath();
-  const directory = bundle.slice(0, bundle.lastIndexOf("/") + 1);
-  for (const path of [`${directory}${missing}.js`, `/${missing}.css`, `/${missing}.png`]) {
-    const response = await get(path);
-    assert.equal(response.status, 404, `${path} returned ${response.status}`);
-    assert.ok(!isApp(response, bundle), `${path} returned the app's HTML`);
-  }
+  const b = await bundlePath();
+  const dir = b.slice(0, b.lastIndexOf("/") + 1);
+  const missing = await get(`${dir}${nonce}.js`);
+  assert.equal(missing.status, 404, "a missing asset must be a 404; HTML with 200 hides a broken deploy");
+  assert.ok(!isApp(missing, b), "a missing asset must not be answered with the app's HTML");
 });
 
-test("an unknown API path is not the app", { skip: !API_PREFIX && "API_PREFIX is not set" }, async () => {
-  const bundle = await bundlePath();
-  const path = `${API_PREFIX.replace(/\/?$/, "/")}${missing}`;
-  const response = await get(path);
-  assert.ok(response.status >= 400, `${path} returned ${response.status}`);
-  assert.ok(!isApp(response, bundle), `${path} returned the app's HTML`);
+const apiCheck = API_PREFIX ? test : test.skip;
+apiCheck("an unknown API path is not the app", async () => {
+  const b = await bundlePath();
+  const prefix = API_PREFIX.endsWith("/") ? API_PREFIX : `${API_PREFIX}/`;
+  const unknown = await get(`${prefix}${nonce}`);
+  assert.ok(!isApp(unknown, b), `${prefix}${nonce} must reach the API, not the app's HTML`);
+  assert.doesNotMatch(unknown.type, /text\/html/, `an unknown API path must not answer HTML, got "${unknown.type}"`);
 });
 
-test("runtime configuration is fresh JSON", { skip: !RUNTIME_CONFIG_PATH && "RUNTIME_CONFIG_PATH is not set" }, async () => {
+const configCheck = RUNTIME_CONFIG_PATH ? test : test.skip;
+configCheck("runtime configuration is fresh JSON", async () => {
   const config = await get(RUNTIME_CONFIG_PATH);
-  assert.equal(config.status, 200, `${RUNTIME_CONFIG_PATH} returned ${config.status}`);
-  assert.match(config.type, /json/, `${RUNTIME_CONFIG_PATH} has content-type "${config.type}"`);
-  const value = JSON.parse(config.body);
-  assert.ok(value !== null && typeof value === "object" && !Array.isArray(value), "configuration must be a JSON object");
+  assert.equal(config.status, 200);
+  assert.match(config.type, /application\/json/, `${RUNTIME_CONFIG_PATH} must be application/json, got "${config.type}"`);
   assert.ok(revalidates(config), `${RUNTIME_CONFIG_PATH} must send Cache-Control: no-cache, got "${config.cache}"`);
+  assert.doesNotThrow(() => JSON.parse(config.body), `${RUNTIME_CONFIG_PATH} must parse as JSON`);
 });

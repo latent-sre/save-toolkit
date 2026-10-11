@@ -1,0 +1,88 @@
+/* error-panel.css — the error card's look, from the theme tokens and nothing else. Import it once
+   beside error-panel.tsx (the component already does). It sits in the components layer, so a kit's
+   classes and Tailwind utilities can still override it; keep the data attributes either way. */
+@layer components {
+  [data-error-card] {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--status-critical);
+    border-radius: var(--radius);
+    background: var(--surface-raised);
+    color: var(--text);
+    font-size: var(--text-sm);
+    line-height: var(--leading);
+  }
+  [data-error-card] > h2 {
+    margin: 0;
+    font-size: var(--text-base);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  [data-error-card] > p {
+    margin: 0;
+    color: var(--text-muted);
+  }
+  [data-error-card] > dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--space-1) var(--space-3);
+    margin: 0;
+  }
+  [data-error-card] dt {
+    color: var(--text-muted);
+  }
+  [data-error-card] dd {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+  }
+  [data-error-card] code {
+    padding: 1px var(--space-1);
+    border: 1px solid var(--line);
+    border-radius: calc(var(--radius) * 0.66);
+    background: var(--surface-sunken);
+    font-family: var(--font-code);
+    font-size: var(--text-xs);
+    user-select: all;
+  }
+  [data-error-card] a {
+    color: var(--brand);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  [data-error-card] button {
+    height: calc(var(--control-height) * 0.8);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--line-strong);
+    border-radius: calc(var(--radius) * 0.66);
+    background: var(--surface-panel);
+    color: var(--text);
+    font: inherit;
+    font-size: var(--text-xs);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--easing-out);
+  }
+  [data-error-card] button:hover {
+    background: var(--surface-hover);
+  }
+  [data-error-card] > button {
+    justify-self: start;
+    height: var(--control-height);
+    padding: 0 var(--space-3);
+    border-color: transparent;
+    background: var(--brand);
+    color: var(--on-brand);
+    font-size: var(--text-sm);
+    font-weight: 500;
+  }
+  [data-error-card] > button:hover {
+    background: var(--brand-strong);
+  }
+  [data-error-card] time {
+    font-variant-numeric: tabular-nums;
+  }
+}

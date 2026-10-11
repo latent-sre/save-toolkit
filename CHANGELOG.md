@@ -8,6 +8,25 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `frontend-craft` is rewritten from a fresh start on the owner's 2026-10-11 interview
+  ([decision](docs/decisions/2026-10-11-frontend-craft-generalized.md)): React first with Vue
+  allowed, any approved kit and kits mixable under layer-order and token-bridge rules, no house
+  look — the design reference names the tells of the generic AI page, requires a brief, and
+  derives each app's palette from chosen OKLCH hues — a caller interview of the forks before any
+  build, visual-and-clickable interaction with keyboard parity, motion welcome and budgeted, the
+  OpenAPI binding to the team's FastAPI and Go services, and serving on localhost and PCF. Five
+  references (design, stack, api, serving, vue) replace six, and the starting code grows to a
+  parametric `theme.css`, `problem.ts` (now reading FastAPI's native shapes too),
+  `idempotent-write.ts`, `runtime-config.ts`, `error-panel.tsx`, `vite.config.ts`, the PCF deploy
+  files (`Staticfile`, `spa.conf`, `manifest.yml`, `profile.sh`) and `serving-contract.mjs`.
+  Library versions and licences were verified against registries and primary documentation on
+  2026-10-11. [verified] `scripts/test_frontend_craft_assets.py` passes 60 cases, including AA
+  contrast at every 15° of brand hue in both schemes, the three helpers' node suites, the PCF
+  profile script and the serving contract; `check_links` passes; the Mantine discovery case is
+  regraded for the mixing rules and `ROUTE-004` updated; `stack-profile`'s frontend line now says
+  React is the focus. The rendered proof of the skill's defaults, with its screenshots and the seven
+  defects it found and fixed, is retained in
+  [docs/reviews/2026-10-11-frontend-craft-proof](docs/reviews/2026-10-11-frontend-craft-proof/README.md).
 - The incidents-console oracle grades writes, server-side filtering and markup. `bar10` answers
   the first create with an in-flight `409` and `Retry-After: 0` and requires the page to send it
   again under the same `Idempotency-Key`; `bar11` answers with a `422` naming the service field

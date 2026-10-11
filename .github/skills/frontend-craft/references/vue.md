@@ -1,65 +1,46 @@
 # Vue
 
-Read for any Vue app. An existing app's libraries, router, store and conventions win; the
-choices below are for a new Vue app and for capabilities an app does not have yet. The universal
-rules live in `../SKILL.md`; on any conflict, SKILL.md wins.
+Read for any Vue app. Vue is allowed and React is the focus: an existing Vue app keeps Vue, and a
+new app is Vue when the caller or its neighbouring apps say so. The universal rules live in the
+parent file, and the [design](./design.md), [API](./api.md) and [serving](./serving.md) references
+apply unchanged; this file names the Vue equivalents of the stack.
 
 ## A new Vue app
 
-**Vue 3 + TypeScript single-page app on Vite**, scaffolded with `npm create vue@latest`
-(TypeScript, Router, Vitest, ESLint; Pinia only once a store is needed), with only the
-dependencies its features need. Use
-the stable 3.5 line; Vue 3.6 and Vapor mode are release candidates, not for production until Vue
-marks them stable. `<script setup lang="ts">` single-file components with `defineModel` for
-two-way props, `useTemplateRef` for typed refs and `onWatcherCleanup` for subscriptions. Pin
-`typescript` to 6.x: `vue-tsc` and typescript-eslint both need the compiler API TypeScript 7
-dropped. ESLint flat config with `eslint-plugin-vue` and `@vue/eslint-config-typescript`'s
-type-checked rules. Vitest, Vue Test Utils and MSW; Playwright only with the caller's approval.
-Node 22 or later. If the user explicitly asks for plain HTML or a static page, comply; record any
-other framework or library choice for a new app in the review packet.
+Vue 3.5 with TypeScript on Vite, scaffolded with `npm create vue@latest` (TypeScript, Router,
+Vitest, ESLint; Pinia only once a store is needed); Vue 3.6 and Vapor mode stay out of production
+until Vue marks them stable. `<script setup lang="ts">` single-file components with `defineModel`,
+`useTemplateRef` and `onWatcherCleanup`. `vue-tsc` needs the TypeScript compiler API, so pin
+`typescript@6` for the same reason the React stack does. ESLint flat config with
+`eslint-plugin-vue` and `@vue/eslint-config-typescript`'s type-checked rules; Vitest, Vue Test
+Utils and MSW; Node 22.12 or later.
 
-## The component system
+## Kits
 
-A new Vue app starts from **shadcn-vue** on **Reka UI** primitives (formerly Radix Vue) with
-**Tailwind v4** through `@tailwindcss/vite` and **motion-v** as the animation engine; `@lucide/vue`
-for icons (formerly `lucide-vue-next`). The Vue collections layer on that stack: **Inspira UI**
-(MIT; the Aceternity and Magic UI designs ported to Vue, sharing shadcn-vue's tokens) and
-**Vue Bits** (MIT plus Commons Clause); name the licence in the review packet. **Nuxt UI** (Reka
-UI + Tailwind, works in a plain Vite app) and **Vuetify** (its own reset; follow its Tailwind
-guide) are full systems a repository or caller may choose instead; PrimeVue 5 is no longer MIT,
-so it needs a licence decision first. One system per app, never two.
+The default base is **shadcn-vue** on **Reka UI** primitives with **Tailwind v4** and **motion-v**
+as the animation engine, all MIT; `@lucide/vue` for icons; **VueUse** for utility composables
+(`useEventSource`, `useStorage`, `useDark`). For the signature moment, **Inspira UI** (the
+Aceternity and Magic UI designs ported to Vue, sharing shadcn-vue's tokens) and **Vue Bits**. Full
+systems a repository or caller may choose instead: **Nuxt UI** (Reka UI and Tailwind, MIT, works in
+a plain Vite app) and **Vuetify** (MIT, its own reset, so follow its Tailwind guide); **PrimeVue 5**
+carries its own licence, so it needs a licence decision first. The theme file and the mixing
+rules in the [stack reference](./stack.md) apply unchanged.
 
 ## Data, routing and forms
 
-**TanStack Query** (`@tanstack/vue-query`) for server state, wrapping the typed client in
-`queryOptions` — there is no official OpenAPI wrapper for Vue, so write thin composables, or use
-`orval` or `kubb` when generated composables are wanted. **Vue Router 5** for routes, including
-typed file-based routing, with filters and views in the URL. **Pinia** only for state two distant
-components genuinely share — server data stays in the query cache, derived with `computed`, never
-copied into a store. **TanStack Table**'s Vue adapter (v9) for grids with **TanStack Virtual**.
-**VeeValidate** or **TanStack Form** with a Standard Schema (**Zod 4**) for forms, `v-model` plus
-the repository's validation layer for simple ones. **VueUse** for utility composables such as
-`useEventSource`, `useStorage` and `useDark`. **date-fns** v4 with `@date-fns/tz` for times.
-
-## Capabilities — what to reach for
-
-| Capability | Vue libraries | Platform |
-|---|---|---|
-| Live data | VueUse `useEventSource` for cookie-authenticated SSE, the `eventsource` package when headers are needed; native WebSocket with your own backoff; events land in the query cache | `BroadcastChannel` + Web Locks: one tab owns the socket |
-| Dense data | TanStack Table + Virtual; Perspective or AG Grid for streaming grids past ~100k rows | `content-visibility` on long logs; the WAI-ARIA grid keyboard model |
-| Navigation and keys | shadcn-vue's Command, VueUse `useMagicKeys`, resizable panes from the system | — |
-| Motion | motion-v for orchestrated moments; `<Transition>` for element enter/exit | `@starting-style`, `transition-behavior: allow-discrete`, `prefers-reduced-motion` |
-| Charts | ECharts through `vue-echarts` for dashboards; uPlot for streaming series | — |
-| Editing and text | CodeMirror 6 for in-app query editors; `markdown-it` + DOMPurify; `shiki`; `@xterm/xterm` 6; TanStack Virtual for log tails; `anser` for ANSI colour | `field-sizing: content` |
-| Graphs | `@vue-flow/core`; layout with `d3-force` or `elkjs` (EPL/GPL dual licence — check policy) | — |
-| Notifications | the system's toast | Web Push through a service worker; iOS needs a Home Screen install |
-| Dialogs and menus | Reka UI primitives | `<dialog>`, `popover`, `inert`; anchor positioning is not Baseline yet |
+`@tanstack/vue-query` wrapping `openapi-fetch` calls in `queryOptions` (there is no official Vue
+wrapper for the OpenAPI client; `orval` or `kubb` generate composables when they are wanted);
+**Vue Router** with filters and views in the URL; **Pinia** only for state two distant components
+genuinely share, with server data staying in the query cache; TanStack Table's Vue adapter with
+TanStack Virtual; **VeeValidate** or TanStack Form with a Zod 4 schema; date-fns 4 with
+`@date-fns/tz`; ECharts through `vue-echarts`; `@vue-flow/core` for graphs.
 
 ## Vue-specific rules
 
-- **Error boundaries:** a boundary component uses `onErrorCaptured` to render its panel's inline
-  error card and stop propagation; `app.config.errorHandler` reports what no boundary handled.
+- **Error boundaries:** a boundary component uses `onErrorCaptured` to render its panel's error
+  card and stop propagation; `app.config.errorHandler` reports what no boundary handled. The
+  React error panel's card markup ports directly.
 - **Untrusted content:** `v-html` takes only sanitized output, and a bound `:href` or `:src`
   passes the protocol allowlist before it renders.
-- **Vue 2:** a Vue 2 app is past end of life; keep its stack for a feature change and name the
-  upgrade as a separate decision.
+- **Vue 2** is past end of life: keep its stack for a feature change and name the upgrade as a
+  separate decision.

@@ -7,8 +7,8 @@ prompt: |
   week. Any reason not to? Just tell me, don't change anything yet.
 success_criteria:
 - Fires on an unlabelled UI dependency question that never names the skill
-- Applies one component system per app instead of citing a house ban on Mantine — Mantine can be this app's one system, a choice to confirm with the caller
-- Weighs Mantine's styling layer beside Tailwind without claiming they are technically incompatible, and offers a real alternative for the table and modal
+- "Says Mantine may join the Tailwind app as a second kit, with no house ban and no one-kit rule, under the mixing rules: a declared CSS layer order with Mantine's layered stylesheet, MantineProvider, the app's theme tokens bridged into Mantine's theme, and one dialog system for the app"
+- "Names the costs honestly (a second styling system and provider, bundle growth to measure, two sources of dialog behaviour) without claiming Mantine and Tailwind are technically incompatible, and offers the lighter alternative for the table and modal on the app's existing kit"
 - Answers in the reply rather than editing the project
 target:
   kind: skill

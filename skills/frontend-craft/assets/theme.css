@@ -1,0 +1,213 @@
+/* theme.css — the app's design tokens, parametric.
+   The design brief sets the knobs at the top; every surface, text, line, brand and status colour
+   derives from them in OKLCH, so one app's look differs from the next by decision, not by accident.
+   Light and dark are both complete through light-dark(); the default follows the OS and
+   <html data-theme="light|dark"> overrides it (see references/design.md for the boot script).
+   WCAG AA holds at every brand hue for the shipped lightness values: the repository test sweeps the
+   hue circle. Change a lightness value and re-run that test.
+
+   How it is used:
+   - Write this file into the app as src/styles/theme.css and import it once at the entry point,
+     before any component-kit stylesheet.
+   - Tailwind v4: the `@theme inline` block at the end exposes the tokens as utilities
+     (bg-page, text-ink-muted, border-line, bg-brand, text-ok ...). Delete that block without Tailwind.
+   - shadcn/ui: keep the `shadcn bridge` block; it feeds the names its components read, and the
+     stack reference lists what to remove from the file the shadcn CLI generates. Delete the block
+     without shadcn. Mantine and MUI read the tokens through their theme objects (stack reference).
+   - Element styles (buttons, inputs, tables) come from the component kit, not from here. */
+
+@layer theme, base, components, utilities;
+
+@layer theme {
+  :root {
+    /* ── Knobs: the brief sets these. Shipping them unchanged is a recorded choice, not a default. */
+    --brand-hue: 262;            /* 0–360. Try 20 (ember), 150 (moss), 200 (teal), 300 (orchid). */
+    --brand-chroma: 0.16;        /* 0.10 restrained … 0.20 vivid */
+    --surface-hue: var(--brand-hue); /* a second hue here gives a two-tone identity */
+    --surface-chroma: 0.012;     /* 0 pure grey … 0.03 clearly tinted surfaces */
+    --radius: 6px;               /* 0 sharp and editorial … 14px soft */
+    --density: 1;                /* 0.85 compact console … 1.15 roomy site */
+    --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;     /* REPLACE from the brief's pairing (self-hosted @fontsource) */
+    --font-code: ui-monospace, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+    --font-title: var(--font-ui);                                     /* a display face for the one bold element, if any */
+
+    color-scheme: light dark;
+
+    /* ── Surfaces: page, panel on page, raised above panel, hover. Light rises by shadow, dark by lightness. */
+    --surface-page:   light-dark(oklch(0.975 calc(var(--surface-chroma) * 0.5) var(--surface-hue)), oklch(0.17 var(--surface-chroma) var(--surface-hue)));
+    --surface-panel:  light-dark(oklch(0.995 calc(var(--surface-chroma) * 0.3) var(--surface-hue)), oklch(0.21 var(--surface-chroma) var(--surface-hue)));
+    --surface-raised: light-dark(oklch(1 0 0),                                                      oklch(0.25 var(--surface-chroma) var(--surface-hue)));
+    --surface-hover:  light-dark(oklch(0.95 calc(var(--surface-chroma) * 0.8) var(--surface-hue)),  oklch(0.28 var(--surface-chroma) var(--surface-hue)));
+    --surface-sunken: light-dark(oklch(0.955 calc(var(--surface-chroma) * 0.6) var(--surface-hue)), oklch(0.14 var(--surface-chroma) var(--surface-hue)));
+
+    /* ── Lines: low-alpha so they sit on any surface. */
+    --line:        light-dark(oklch(0.3 var(--surface-chroma) var(--surface-hue) / 0.14), oklch(0.8 var(--surface-chroma) var(--surface-hue) / 0.16));
+    --line-strong: light-dark(oklch(0.3 var(--surface-chroma) var(--surface-hue) / 0.28), oklch(0.8 var(--surface-chroma) var(--surface-hue) / 0.32));
+
+    /* ── Text: ink, muted ink and faint ink, all AA on every surface, so any of them may carry small text. */
+    --text:       light-dark(oklch(0.22 0.02 var(--surface-hue)), oklch(0.94 0.01 var(--surface-hue)));
+    --text-muted: light-dark(oklch(0.46 0.02 var(--surface-hue)), oklch(0.72 0.02 var(--surface-hue)));
+    --text-faint: light-dark(oklch(0.52 0.02 var(--surface-hue)), oklch(0.66 0.02 var(--surface-hue)));
+
+    /* ── Brand: the one accent. Buttons, links, focus, the active item. Never a status. */
+    --brand:        light-dark(oklch(0.48 var(--brand-chroma) var(--brand-hue)), oklch(0.80 var(--brand-chroma) var(--brand-hue)));
+    --brand-strong: light-dark(oklch(0.42 var(--brand-chroma) var(--brand-hue)), oklch(0.72 var(--brand-chroma) var(--brand-hue)));
+    --brand-soft:   light-dark(oklch(0.48 var(--brand-chroma) var(--brand-hue) / 0.10), oklch(0.80 var(--brand-chroma) var(--brand-hue) / 0.14));
+    --on-brand:     light-dark(oklch(0.99 0 0), oklch(0.17 0.02 var(--brand-hue)));
+    --ring:         var(--brand);
+
+    /* ── Status vocabulary: fixed hues, always paired with text or an icon where shown. */
+    --status-ok:          light-dark(oklch(0.48 0.13 150), oklch(0.85 0.14 150));
+    --status-warn:        light-dark(oklch(0.50 0.12 75),  oklch(0.86 0.13 80));
+    --status-critical:    light-dark(oklch(0.50 0.17 25),  oklch(0.85 0.12 25));
+    --status-info:        light-dark(oklch(0.48 0.13 245), oklch(0.85 0.11 245));
+    --status-unknown:     light-dark(oklch(0.48 0.02 var(--surface-hue)), oklch(0.84 0.02 var(--surface-hue)));
+    --status-ok-bg:       light-dark(oklch(0.48 0.13 150 / 0.10), oklch(0.85 0.14 150 / 0.12));
+    --status-warn-bg:     light-dark(oklch(0.50 0.12 75 / 0.12),  oklch(0.86 0.13 80 / 0.12));
+    --status-critical-bg: light-dark(oklch(0.50 0.17 25 / 0.10),  oklch(0.85 0.12 25 / 0.12));
+    --status-info-bg:     light-dark(oklch(0.48 0.13 245 / 0.10), oklch(0.85 0.11 245 / 0.12));
+    --status-unknown-bg:  light-dark(oklch(0.48 0.02 var(--surface-hue) / 0.10), oklch(0.84 0.02 var(--surface-hue) / 0.12));
+    --on-critical:        var(--on-brand);
+
+    /* ── Depth: light mode rises by shadow, dark mode by lightness, so shadows fade in the dark. */
+    --elevation-1: 0 1px 2px light-dark(oklch(0.2 0.02 var(--surface-hue) / 0.10), oklch(0 0 0 / 0.30));
+    --elevation-2: 0 6px 20px -6px light-dark(oklch(0.2 0.02 var(--surface-hue) / 0.18), oklch(0 0 0 / 0.45));
+    --elevation-3: 0 16px 48px -12px light-dark(oklch(0.2 0.02 var(--surface-hue) / 0.24), oklch(0 0 0 / 0.60));
+
+    /* ── Rhythm: a 4 px grid scaled by density; a type scale of seven steps. */
+    --space-1: calc(4px * var(--density));
+    --space-2: calc(8px * var(--density));
+    --space-3: calc(12px * var(--density));
+    --space-4: calc(16px * var(--density));
+    --space-5: calc(20px * var(--density));
+    --space-6: calc(24px * var(--density));
+    --space-8: calc(32px * var(--density));
+    --space-12: calc(48px * var(--density));
+    --row-height: calc(36px * var(--density));
+    --control-height: calc(32px * var(--density));
+    --text-xs: 0.75rem;
+    --text-sm: 0.8125rem;
+    --text-base: 0.9375rem;
+    --text-lg: 1.0625rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 2rem;
+    --leading-tight: 1.25;
+    --leading: 1.5;
+    --radius-full: 999px;
+
+    /* ── Motion: three durations, two curves. Reduced motion collapses them (base layer). */
+    --duration-fast: 120ms;
+    --duration: 180ms;
+    --duration-slow: 280ms;
+    --easing-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --easing-in-out: cubic-bezier(0.45, 0, 0.2, 1);
+  }
+
+  :root[data-theme="light"] { color-scheme: light; }
+  :root[data-theme="dark"]  { color-scheme: dark; }
+
+  /* ── shadcn bridge: the names shadcn/ui components read, fed from the tokens above.
+     Replace the :root and .dark blocks the shadcn CLI generated with this; keep its @theme inline. */
+  :root {
+    --background: var(--surface-page);
+    --foreground: var(--text);
+    --card: var(--surface-panel);
+    --card-foreground: var(--text);
+    --popover: var(--surface-raised);
+    --popover-foreground: var(--text);
+    --primary: var(--brand);
+    --primary-foreground: var(--on-brand);
+    --secondary: var(--surface-hover);
+    --secondary-foreground: var(--text);
+    --muted: var(--surface-sunken);
+    --muted-foreground: var(--text-muted);
+    --accent: var(--surface-hover);
+    --accent-foreground: var(--text);
+    --destructive: var(--status-critical);
+    --destructive-foreground: var(--on-critical);
+    --border: var(--line);
+    --input: var(--line-strong);
+    --chart-1: var(--brand);
+    --chart-2: var(--status-info);
+    --chart-3: var(--status-ok);
+    --chart-4: var(--status-warn);
+    --chart-5: var(--status-critical);
+    --sidebar: var(--surface-sunken);
+    --sidebar-foreground: var(--text);
+    --sidebar-primary: var(--brand);
+    --sidebar-primary-foreground: var(--on-brand);
+    --sidebar-accent: var(--surface-hover);
+    --sidebar-accent-foreground: var(--text);
+    --sidebar-border: var(--line);
+    --sidebar-ring: var(--ring);
+  }
+}
+
+@layer base {
+  html {
+    background: var(--surface-page);
+    color: var(--text);
+    font-family: var(--font-ui);
+    line-height: var(--leading);
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body { margin: 0; min-height: 100dvh; }
+  code, kbd, pre, samp { font-family: var(--font-code); font-size: 0.9375em; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  ::selection { background: color-mix(in oklch, var(--brand) 28%, transparent); }
+  .tabular-nums, [data-numeric] { font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ── Tailwind v4 bridge: tokens as utilities (bg-page, text-ink-muted, border-line, font-sans, shadow-2 ...).
+   The token names above deliberately differ from Tailwind's namespaces (--font-ui, not --font-sans),
+   so no variable here refers to itself. Delete this block without Tailwind. */
+@theme inline {
+  --color-page: var(--surface-page);
+  --color-panel: var(--surface-panel);
+  --color-raised: var(--surface-raised);
+  --color-hover: var(--surface-hover);
+  --color-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--text);
+  --color-ink-muted: var(--text-muted);
+  --color-ink-faint: var(--text-faint);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-ok: var(--status-ok);
+  --color-ok-soft: var(--status-ok-bg);
+  --color-warn: var(--status-warn);
+  --color-warn-soft: var(--status-warn-bg);
+  --color-critical: var(--status-critical);
+  --color-critical-soft: var(--status-critical-bg);
+  --color-info: var(--status-info);
+  --color-info-soft: var(--status-info-bg);
+  --color-unknown: var(--status-unknown);
+  --color-unknown-soft: var(--status-unknown-bg);
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-code);
+  --font-display: var(--font-title);
+  --radius-sm: calc(var(--radius) * 0.66);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) * 1.6);
+  --radius-xl: calc(var(--radius) * 2.2);
+  --shadow-1: var(--elevation-1);
+  --shadow-2: var(--elevation-2);
+  --shadow-3: var(--elevation-3);
+  --ease-out: var(--easing-out);
+  --ease-in-out: var(--easing-in-out);
+  --spacing-row: var(--row-height);
+  --spacing-control: var(--control-height);
+}

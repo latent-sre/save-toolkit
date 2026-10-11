@@ -1,0 +1,10 @@
+# Staticfile — the Cloud Foundry staticfile buildpack's options for a single-page app.
+# Push the deploy directory (dist/, this file, nginx/, .profile, manifest.yml), not the source tree.
+# `root` is required for `location_include` to apply (buildpack docs); `pushstate` rewrites every
+# missing path to index.html, so the include below reserves /assets/ and /config.json, and the
+# serving contract proves the result on the foundation.
+root: dist
+pushstate: enabled
+location_include: includes/*.conf
+force_https: true
+http_strict_transport_security: true
