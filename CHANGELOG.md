@@ -8,6 +8,20 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The incidents-console oracle grades writes, server-side filtering and markup. `bar10` answers
+  the first create with an in-flight `409` and `Retry-After: 0` and requires the page to send it
+  again under the same `Idempotency-Key`; `bar11` answers with a `422` naming the service field
+  and requires its message beside that field (its accessible description or its field group) with
+  the typed title kept; `bar12` serves a title holding `<img onerror>` and requires it as text;
+  `bar5` now also requires the status filter to reach the server as `?status=`. `check_ui.py`
+  anchors its test-name pattern, since a bare `bar1` also selected `bar10` to `bar12` and a
+  failing new bar turned `bar1`'s grade into an oracle error. `evals/test_incidents_console_oracle.py`
+  calibrates bars 5 and 10–12 against four reference pages and seven named mutants, opt-in like
+  its incidents-page sibling. [verified] With `INCIDENTS_CONSOLE_NODE_MODULES` set it passes 11 of
+  11, and 0 of 11 against the previous oracle; through `check_ui.py`, a fresh-key mutant fails
+  `bar10` (exit 10) and passes `bar1`, where the unanchored runner errored. On the three saved
+  console trial builds, both iteration-1 builds fail only `bar10` (they stop at the `409`), and
+  the iteration-2 build passes all twelve bars.
 - A plain `pytest` now runs on four parallel workers: `pytest.ini` sets `-n 4 --dist loadfile`,
   as CI does, so the local command no longer runs serially unless `-n 0` is passed (for a debugger
   or `--pdb`). CI's `PYTEST_ADDOPTS` and a command-line `-n` still override it.

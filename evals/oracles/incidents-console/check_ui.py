@@ -55,13 +55,14 @@ def assessment(report, case, exit_code, diagnostics=""):
 
 def main():
     case = sys.argv[1]
-    if case not in {"bar1", "bar2", "bar3", "bar4", "bar5", "bar6", "bar7", "bar8", "bar9"}:
+    if case not in {f"bar{n}" for n in range(1, 13)}:
         raise ValueError("unknown UI oracle case")
     with tempfile.TemporaryDirectory(prefix="ui-oracle-report-") as directory:
         report = Path(directory) / "result.json"
         junit = Path(directory) / "result.xml"
         result = subprocess.run(["node", "node_modules/vitest/vitest.mjs", "run", "probe_ui.test.tsx",
-                                 "-t", case, "--reporter=json", "--reporter=junit",
+                                 # Anchored: a bare "bar1" pattern also selects bar10 to bar12.
+                                 "-t", f"^{case} ", "--reporter=json", "--reporter=junit",
                                  "--outputFile.json=" + str(report), "--outputFile.junit=" + str(junit)])
         if not report.is_file() or not junit.is_file():
             raise RuntimeError("Vitest ended without a completed assertion report")
