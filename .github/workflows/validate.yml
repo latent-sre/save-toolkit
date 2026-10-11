@@ -58,7 +58,8 @@ jobs:
 
       # Four workers match the hosted runner's cores; loadfile keeps a test file on one worker.
       # No bytecode: the eval runner digests every file under skills/, so a .pyc written by
-      # one worker reads as plugin drift to a native trial running in another.
+      # one worker reads as plugin drift to a native trial running in another. The default run
+      # skips the heavy eval-machinery files (conftest.py HEAVY); the eval-tests job runs them.
       - name: Component tests
         run: python -m pytest -q
         env:
@@ -74,6 +75,32 @@ jobs:
           python -m ruff format --check
           python -m mypy
         env:
+          PYTHONDONTWRITEBYTECODE: '1'
+
+  eval-tests:
+    # The heavy eval-machinery tests, in parallel with component-tests, so every pull request
+    # still runs the whole suite.
+    name: eval-tests (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          check-latest: true
+
+      - name: Install pinned fleet test dependencies
+        run: python -m pip install -r requirements-test.txt
+
+      # The same parallel and no-bytecode settings as component-tests, for the same reasons.
+      - name: Eval machinery tests
+        run: python -m pytest -q -m heavy
+        env:
+          PYTEST_ADDOPTS: -n 4 --dist loadfile --durations=20
           PYTHONDONTWRITEBYTECODE: '1'
 
   claude-plugin-contract:

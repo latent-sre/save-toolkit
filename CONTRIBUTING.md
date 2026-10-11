@@ -86,16 +86,23 @@ In the project environment, install its constrained test dependencies first:
 
 ```powershell
 uv pip install --python .venv\Scripts\python.exe -r requirements-test.txt
-.venv\Scripts\python.exe -m pytest -q
+.venv\Scripts\python.exe -m pytest -q -n 4 --dist loadfile
 ```
+
+Run on parallel workers as CI does; a serial run takes several times as long. Raise `-n` toward
+your core count only while it keeps getting faster — past that, workers contend and slow each
+test. The default run skips the heavy eval-machinery files listed in `conftest.py` (`HEAVY`): add
+`--heavy` to include them, run only them with `-m heavy`, or name one file to run it. Run them when
+you change `evals/`, an oracle, a grader, or the runner.
 
 On POSIX, substitute `.venv/bin/python`. Installing `requirements-test.txt` honors its
 `requirements-dev.txt` constraints; it is a selected test set, not a complete environment export
 for `uv pip sync`. CI retains its setup-python/pip workflow in a job-owned environment.
 
-[`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs three jobs on the
-pull request: `validate` (this same gate), `component-tests` (`pytest` against
-`requirements-test.txt` on Linux), and `claude-plugin-contract`
+[`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs four jobs on the
+pull request: `validate` (this same gate), `component-tests` (the default `pytest` run against
+`requirements-test.txt` on Linux), `eval-tests` (the heavy files, in parallel), and
+`claude-plugin-contract`
 (npm's latest Claude Code release, with its resolved version recorded in the job log).
 That job validates `.claude-plugin/marketplace.json` with `--strict` and
 `.claude-plugin/plugin.json` without it: plugin errors fail the job; warnings remain visible.

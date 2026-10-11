@@ -39,7 +39,7 @@ class ValidateWorkflowTests(unittest.TestCase):
 
     def test_ci_tracks_latest_python_314(self) -> None:
         jobs = workflow_jobs()
-        for name in ("validate", "component-tests"):
+        for name in ("validate", "component-tests", "eval-tests"):
             setup = next(step for step in jobs[name]["steps"]
                          if step.get("uses", "").startswith("actions/setup-python@"))
             self.assertEqual("3.14", setup["with"]["python-version"])
@@ -252,6 +252,20 @@ class ValidateWorkflowTests(unittest.TestCase):
         environment = step.get("env", {})
         self.assertRegex(environment.get("PYTEST_ADDOPTS", ""), r"(^| )-n [0-9]+( |$)",
                          "the component tests no longer run on parallel workers")
+        self.assertIn("--dist loadfile", environment["PYTEST_ADDOPTS"])
+        self.assertEqual("1", environment.get("PYTHONDONTWRITEBYTECODE"),
+                         "parallel workers may write .pyc files under skills/ mid-trial")
+
+    def test_eval_tests_job_runs_the_heavy_files_the_default_run_skips(self) -> None:
+        """conftest.py's default run skips HEAVY; without this job no CI run would execute them."""
+        job = workflow_jobs()["eval-tests"]
+        self.assertEqual("eval-tests (ubuntu-latest)", job["name"])
+        self.assertNotIn("needs", job, "the eval tests must run alongside component-tests, not after")
+        commands = [step.get("run") for step in job["steps"]]
+        self.assertIn("python -m pip install -r requirements-test.txt", commands)
+        step = next(step for step in job["steps"] if step.get("run") == "python -m pytest -q -m heavy")
+        environment = step.get("env", {})
+        self.assertRegex(environment.get("PYTEST_ADDOPTS", ""), r"(^| )-n [0-9]+( |$)")
         self.assertIn("--dist loadfile", environment["PYTEST_ADDOPTS"])
         self.assertEqual("1", environment.get("PYTHONDONTWRITEBYTECODE"),
                          "parallel workers may write .pyc files under skills/ mid-trial")

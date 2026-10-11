@@ -6,6 +6,18 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Changed
+
+- The test suite splits into a fast default run and the heavy eval-machinery tests. `conftest.py`
+  lists 18 files (`HEAVY`) — oracle calibration, mutant suites and the runner's native-trial tests —
+  that a plain `pytest` skips; `--heavy` adds them, `-m heavy` runs only them, and naming a file
+  runs it. CI runs them in a new parallel `eval-tests` job, so a pull request still runs everything.
+  `CONTRIBUTING.md`'s local command now runs on parallel workers. [verified] On 2026-10-11 the 18
+  files held 1,552 of 2,371 seconds of measured test work; locally on 8 workers the whole suite took
+  4:31, and the serial command the docs gave took 17–22 minutes. `scripts/test_heavy_selection.py`
+  pins the split (default skips, `-m heavy` alone selects, a named file runs, no stale entry), and
+  a new workflow contract test pins the `eval-tests` job; each failed on the break it names.
+
 ### Fixed
 
 - `reliability-engineer`: before writing an assessment or design, the lane now loads
