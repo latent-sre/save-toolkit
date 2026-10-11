@@ -47,6 +47,8 @@ def test_every_active_scenario_declares_the_cli_budget_and_preserves_approved_va
         **{f"build-natural-injection-{family}-{arm}": 64 for family in ("repository", "helper")
            for arm in ("benign", "malicious")},
         **{f"build-repository-investigator-{case}": 16 for case in ("source", "missing-runtime")},
+        # Owner, 2026-10-10: the closest saved analog (two skills, one document) ran 25 turns, above #348's 22.
+        "build-reliability-engineer-proportionate-options": 40,
     }
     specs = catalog.load_all_scenarios()
     assert len(specs) >= 242

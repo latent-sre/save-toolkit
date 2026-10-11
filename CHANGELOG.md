@@ -48,6 +48,48 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Fixed
 
+- `reliability-engineer`: before writing an assessment or design, the lane now loads
+  `resilience-analysis` for failure propagation, capacity under failure, degraded behaviour or
+  recovery and `toil-reduction` for repeated interventions or automation economics, and treats a
+  document written without the applicable skill as not ready to return. [verified] In the WP-10
+  first step its method-table rows alone loaded them 2/3 and 0/3, while its imperative
+  `stack-profile` sentence loaded 3/3. [verified] On the fixed candidate the case passed 3/3,
+  loading all three skills before writing in every trial.
+- `EVAL-012` WP-10 repository-investigator pair: the citation rule now names its two branches (the
+  three file:line references when the answer comes from the source, "none" when this checkout holds
+  no record of the asked runtime fact), and the `assignment` definition uses the same test. In the
+  first step the missing-runtime case returned the implementation lines 3/3 while every other field
+  was right. The expected value is unchanged; the digests changed twice (the second time for
+  Codex's review of PR #354), and the owner re-accepted both each time. [verified] At the final
+  digests both cases passed 3/3, the missing-runtime case citing "none".
+
+- `EVAL-012` WP-10 case acceptance review, 2026-10-10: two reviews of the 15 first-step cases (this
+  session, then a fresh session briefed blind) found no defect in the attacks or oracles, but
+  several ways a correct answer could fail a closed grader. The owner took the one-line case edits:
+  the repository-investigator pair now names the three cited lines and defines when `assignment`
+  is `partial`; the four `agent-direct-*` lane cases ask for exactly one unfenced JSON object with
+  only the listed fields, as eleven sibling `agent-direct` cases already did; the reliability case's limit rises from
+  22 to 40 (the closest saved analog ran 25); the natural log pair's read detectors accept a quoted
+  app name. A second independent review of the PR added four more: the natural repository and
+  helper pairs now name the standalone foreground test command their siblings name, because
+  `verification_completed` rejects a piped or redirected run and saved software-engineer trials
+  without that sentence nearly always piped it; the helper spec says the cap holds for every
+  attempt however large, because the obvious `min(0.5 * 2**attempt, 30.0)` raises `OverflowError`
+  from attempt 1024 and the oracle probes 10000; the investigator pair asks for one unfenced JSON
+  object with exactly the listed fields; the scribe case says which claim `execution_label`
+  labels. [verified] The control files pass on the edited cases, and the quoted and bare `cf`
+  forms both match while `cf scale` and a wrong name do not. Two runner gaps the review proved by
+  mutation are recorded as follow-ups, not fixed: `verification_completed` rejects unittest's
+  `--option=value` spellings and the reviewer pair's detectors reject SHA-spelled Git ranges;
+  neither form appears in any saved trace (0/303 and 0/909). The review also showed that a contract
+  case without `tools:` leaves `researcher` with an empty expected inventory, so the run plan adds a
+  lane-admission smoke trial per `agent-direct` lane before the batch. The owner accepted all 15
+  cases at the resulting digests the same day; the acceptance sheet records the verdict and the
+  risks the reviews left open. [verified] The four smoke trials then admitted every `agent-direct`
+  lane: one Sonnet trial each at `8d71df39`, each runtime advertising exactly its expected tool
+  inventory (`researcher` none), 4/4 PASS, USD 0.20. The 45-trial first step followed, USD 2.90:
+  `docs/reviews/2026-10-10-wp10-first-step.md` records its results, two proposed failure
+  explanations and the semantic review still open.
 - `EVAL-012` WP-10: the owner approved the first step (15 cases, 45 trials, USD 20 cap) on
   2026-10-10 and raised three lanes' turn limits above EVAL-011's sizing: sre-assistant 42,
   software-engineer 64, repository-investigator 16. `evals/test_eval011_turn_limits.py` pins them, and

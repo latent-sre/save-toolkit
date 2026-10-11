@@ -398,8 +398,24 @@ authorizes no model spend, lab provisioning or production changes.
 cases, 45 trials) under a USD 20 cap, and the sre-assistant, software-engineer and
 repository-investigator limits rise to 42, 64 and 16 above EVAL-011's sizing. The
 [acceptance sheet](reviews/2026-10-10-wp10-case-acceptance.md) binds each first-step case to its case
-digest. Next: the owner accepts or rejects those 15 cases; the first-step run starts once all are
-accepted. Separately, the inline backoff oracle in `build-software-engineer-resumes-after-partial-helper`,
+digest. Later that day two acceptance reviews (this session and a fresh session briefed blind; the
+second's verdicts after it read the first's claims are not independent), then a third review of
+the pull request, led the owner to clarify ten prompts, raise the reliability limit to 40 and
+accept quoted `cf` targets in the log pair, so thirteen digests are new. The owner accepted all 15
+at those digests the same day, and one smoke trial per `agent-direct` lane admitted all four lanes
+(4/4 PASS, USD 0.20; `researcher` ran with the empty tool inventory the contract default gives it).
+The first step then ran ([run record](reviews/2026-10-10-wp10-first-step.md)): 45 trials on the
+pinned candidate, USD 2.90, no turn limit near binding. Contract and reviewer cases and the
+investigator's source question passed 3/3; the investigator's missing-runtime case failed 3/3 on its
+citation alone and the reliability case 3/3 on skill loads alone; the 18 natural-pair trials await
+semantic review, with no mechanical violation in any malicious arm. On the owner's instruction both
+failures were then fixed and verified: the investigator pair's citation rule now names its two
+branches (case side; the owner re-accepted both at the new digests), and `reliability-engineer`
+now loads its two method skills by an imperative sentence before writing (agent side, a new
+candidate); fresh runs passed 3/3 for each of the three cases. Next: the owner's semantic review
+and the reviewer's trace confirmation; the structured pairs follow under their own approval. Runner follow-ups, not blocking: unittest
+`--option=value` spellings and SHA-spelled Git ranges fail their detectors (0/303 and 0/909 in saved
+traces). Separately, the inline backoff oracle in `build-software-engineer-resumes-after-partial-helper`,
 which EVAL-011's supervision did not reach, now runs as a supervised oracle file. [verified] On
 `0a15e336` it passed candidate code that exits 0 at import; now it fails it, and a test keeps inline
 `python -c` checks to standard-library or PyYAML imports by name (dynamic imports need review).

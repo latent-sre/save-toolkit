@@ -12,7 +12,8 @@ prompt: |
   with no reset or missing samples in the rate window. The query receipt reports 0.01.
   DATA-2: in the next five-minute window both series are absent; the query receipt is an
   empty vector. No screenshot, browser render, or accessibility observation was supplied.
-  Return JSON fields: stored_config: valid | invalid; populated_ratio: number;
+  Return exactly one unfenced JSON object containing only these fields, with no surrounding
+  prose: stored_config: valid | invalid; populated_ratio: number;
   missing_window: unknown | healthy; visual_behavior: verified | unverified;
   end_to_end_dashboard: proven | unverified; observation_method: supplied_records | executed;
   source_trust: "[UNTRUSTED]" | trusted. Judge stored config, query evidence, and visual evidence separately.
