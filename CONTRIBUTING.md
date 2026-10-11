@@ -99,9 +99,10 @@ On POSIX, substitute `.venv/bin/python`. Installing `requirements-test.txt` hono
 `requirements-dev.txt` constraints; it is a selected test set, not a complete environment export
 for `uv pip sync`. CI retains its setup-python/pip workflow in a job-owned environment.
 
-[`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs four jobs on the
-pull request: `validate` (this same gate), `component-tests` (the default `pytest` run against
-`requirements-test.txt` on Linux), `eval-tests` (the heavy files, in parallel), and
+[`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs these jobs on the
+pull request: `validate` (this same gate); `fast-tests` (the default `pytest` run against
+`requirements-test.txt` on Linux) and `eval-tests` (the heavy files) in parallel;
+`component-tests`, the required check, which passes only when both test jobs passed; and
 `claude-plugin-contract`
 (npm's latest Claude Code release, with its resolved version recorded in the job log).
 That job validates `.claude-plugin/marketplace.json` with `--strict` and

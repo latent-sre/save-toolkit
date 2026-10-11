@@ -12,6 +12,7 @@ command line always runs. CI's eval-tests job runs `-m heavy`.
 
 import atexit
 import os
+import re
 import shlex
 import shutil
 import sys
@@ -55,7 +56,8 @@ def pytest_configure(config: pytest.Config) -> None:
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     root = config.rootpath.resolve()
     named = {(config.invocation_params.dir / arg.split("::", 1)[0]).resolve() for arg in config.args}
-    include = config.getoption("--heavy") or "heavy" in (config.getoption("markexpr") or "")
+    # A marker name as a whole word, so `-m "not heavyweight"` does not pull the heavy files in.
+    include = config.getoption("--heavy") or "heavy" in re.findall(r"\w+", config.getoption("markexpr") or "")
     keep, skipped = [], []
     for item in items:
         path = item.path.resolve()

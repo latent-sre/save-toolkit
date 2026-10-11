@@ -39,7 +39,7 @@ class ValidateWorkflowTests(unittest.TestCase):
 
     def test_ci_tracks_latest_python_314(self) -> None:
         jobs = workflow_jobs()
-        for name in ("validate", "component-tests", "eval-tests"):
+        for name in ("validate", "fast-tests", "eval-tests"):
             setup = next(step for step in jobs[name]["steps"]
                          if step.get("uses", "").startswith("actions/setup-python@"))
             self.assertEqual("3.14", setup["with"]["python-version"])
@@ -234,20 +234,20 @@ class ValidateWorkflowTests(unittest.TestCase):
         hook = (ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8")
         self.assertIn("-I -S", hook, "the guard's isolated invocation is what makes this binding")
 
-    def test_component_tests_install_dependencies_and_run_pytest(self) -> None:
+    def test_fast_tests_install_dependencies_and_run_pytest(self) -> None:
         jobs = workflow_jobs()
-        commands = [step.get("run") for step in jobs["component-tests"]["steps"]]
+        commands = [step.get("run") for step in jobs["fast-tests"]["steps"]]
         self.assertIn("python -m pytest -q", commands)
         self.assertIn("python -m pip install -r requirements-test.txt", commands)
 
-    def test_component_tests_run_in_parallel_without_writing_bytecode(self) -> None:
+    def test_fast_tests_run_in_parallel_without_writing_bytecode(self) -> None:
         """The eval runner digests every file under skills/, compiled caches included.
 
         A .pyc that one worker writes while another runs a native trial reads as plugin drift, so
         parallel workers are only safe while the test step writes no bytecode.
         """
         jobs = workflow_jobs()
-        step = next(step for step in jobs["component-tests"]["steps"]
+        step = next(step for step in jobs["fast-tests"]["steps"]
                     if step.get("run") == "python -m pytest -q")
         environment = step.get("env", {})
         self.assertRegex(environment.get("PYTEST_ADDOPTS", ""), r"(^| )-n [0-9]+( |$)",
@@ -256,11 +256,25 @@ class ValidateWorkflowTests(unittest.TestCase):
         self.assertEqual("1", environment.get("PYTHONDONTWRITEBYTECODE"),
                          "parallel workers may write .pyc files under skills/ mid-trial")
 
+    def test_the_required_check_passes_only_when_both_test_shards_pass(self) -> None:
+        """The ruleset requires `component-tests (ubuntu-latest)`; it must cover both shards.
+
+        A job whose `needs` failed is skipped unless it runs `always()`, and a skipped required
+        check counts as passing, so the gate both always runs and checks each shard's result.
+        """
+        job = workflow_jobs()["component-tests"]
+        self.assertEqual({"fast-tests", "eval-tests"}, set(job["needs"]))
+        self.assertEqual("${{ always() }}", job.get("if"),
+                         "a failed shard would skip the required check, which then reads as passing")
+        script = "\n".join(step.get("run", "") for step in job["steps"])
+        for shard in ("fast-tests", "eval-tests"):
+            self.assertIn(f'test "${{{{ needs.{shard}.result }}}}" = success', script)
+
     def test_eval_tests_job_runs_the_heavy_files_the_default_run_skips(self) -> None:
         """conftest.py's default run skips HEAVY; without this job no CI run would execute them."""
         job = workflow_jobs()["eval-tests"]
         self.assertEqual("eval-tests (ubuntu-latest)", job["name"])
-        self.assertNotIn("needs", job, "the eval tests must run alongside component-tests, not after")
+        self.assertNotIn("needs", job, "the eval tests must run alongside fast-tests, not after")
         commands = [step.get("run") for step in job["steps"]]
         self.assertIn("python -m pip install -r requirements-test.txt", commands)
         step = next(step for step in job["steps"] if step.get("run") == "python -m pytest -q -m heavy")

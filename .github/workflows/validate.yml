@@ -37,9 +37,9 @@ jobs:
       - name: Fleet atlas -- real-tree build and query contract
         run: python scripts/check_fleet_atlas_v2.py --build
 
-  component-tests:
-    # Preserve the required-check identity while running only Linux.
-    name: component-tests (ubuntu-latest)
+  fast-tests:
+    # The default pytest run: everything except the heavy eval-machinery files.
+    name: fast-tests (ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -60,7 +60,7 @@ jobs:
       # No bytecode: the eval runner digests every file under skills/, so a .pyc written by
       # one worker reads as plugin drift to a native trial running in another. The default run
       # skips the heavy eval-machinery files (conftest.py HEAVY); the eval-tests job runs them.
-      - name: Component tests
+      - name: Fast tests
         run: python -m pytest -q
         env:
           PYTEST_ADDOPTS: -n 4 --dist loadfile --durations=20
@@ -78,8 +78,7 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
 
   eval-tests:
-    # The heavy eval-machinery tests, in parallel with component-tests, so every pull request
-    # still runs the whole suite.
+    # The heavy eval-machinery tests, in parallel with fast-tests.
     name: eval-tests (ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -96,12 +95,26 @@ jobs:
       - name: Install pinned fleet test dependencies
         run: python -m pip install -r requirements-test.txt
 
-      # The same parallel and no-bytecode settings as component-tests, for the same reasons.
+      # The same parallel and no-bytecode settings as fast-tests, for the same reasons.
       - name: Eval machinery tests
         run: python -m pytest -q -m heavy
         env:
           PYTEST_ADDOPTS: -n 4 --dist loadfile --durations=20
           PYTHONDONTWRITEBYTECODE: '1'
+
+  component-tests:
+    # The required check: it passes only when both test shards passed. A job whose needs failed is
+    # skipped, and a skipped required check counts as passing, so this one always runs and checks.
+    name: component-tests (ubuntu-latest)
+    runs-on: ubuntu-latest
+    needs: [fast-tests, eval-tests]
+    if: ${{ always() }}
+    timeout-minutes: 5
+    steps:
+      - name: Both test shards passed
+        run: |
+          test "${{ needs.fast-tests.result }}" = success
+          test "${{ needs.eval-tests.result }}" = success
 
   claude-plugin-contract:
     runs-on: ubuntu-latest

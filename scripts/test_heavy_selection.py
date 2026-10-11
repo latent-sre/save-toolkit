@@ -51,6 +51,13 @@ def test_the_heavy_selection_runs_only_the_heavy_files(option: list[str]) -> Non
     assert files == set(heavy_files())
 
 
+@pytest.mark.parametrize("expression", ["not heavyweight", "not not_heavy"])
+def test_a_marker_name_that_only_contains_heavy_keeps_the_heavy_files_out(expression: str) -> None:
+    files = {file_of(n) for n in collect("-m", expression, "evals")}
+    assert files, "the filtered run collected nothing"
+    assert files & set(heavy_files()) == set()
+
+
 def test_a_named_heavy_file_runs_without_the_option() -> None:
     target = sorted(heavy_files())[0]
     files = {file_of(n) for n in collect(target)}
