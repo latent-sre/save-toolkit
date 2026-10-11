@@ -8,6 +8,20 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The test suite splits into a fast default run and the heavy eval-machinery tests. `conftest.py`
+  lists 18 files (`HEAVY`) — oracle calibration, mutant suites and the runner's native-trial tests —
+  that a plain `pytest` skips; `--heavy` adds them, `-m heavy` runs only them, and naming a file
+  runs it. CI runs the default run as `fast-tests` and the heavy files as `eval-tests`, in
+  parallel; the required `component-tests (ubuntu-latest)` check now waits on both and passes only
+  when both passed, so the ruleset needs no change and a red heavy test still blocks a merge.
+  `CONTRIBUTING.md`'s local command now runs on parallel workers. [verified] On 2026-10-11 the 18
+  files held 1,552 of 2,371 seconds of measured test work; locally on 8 workers the whole suite took
+  4:31, and the serial command the docs gave took 17–22 minutes. `scripts/test_heavy_selection.py`
+  pins the split (default skips, `-m heavy` alone selects, a named file runs, no stale entry), and
+  new workflow contract tests pin the `eval-tests` job and the required check's wait on both
+  shards (it must run `always()`: a skipped required check counts as passing); each failed on the
+  break it names. A marker is matched as a whole name, so `-m "not heavyweight"` keeps the heavy
+  files out, and `evals/README.md` now gives `pytest evals/ --heavy` as the full eval command.
 - `frontend-craft` is rewritten from the owner's 2026-10-10 decisions; nothing survives from the
   2026-07-14 import on inheritance. The skill now reads as the operator-UI contract — consume the
   house API contract, show errors an operator can act on, make writes safe, build once with
@@ -23,8 +37,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   capabilities, with licence and coexistence facts for the animated collections), `serving.md`
   (build once, runtime config, the SPA serving contract), `sessions.md` (SSO, CSRF with Fetch
   Metadata, multi-tab, live transport) and `design.md` (the console and site registers, the
-  design brief, the generic defaults to replace). Three dependency-free assets ship as copied
-  contracts: `serving-contract.mjs`, `problem.ts` and `problem.test.ts`. [verified]
+  design brief, the generic defaults to replace). Three dependency-free assets ship as contracts the
+  agent writes into the app: `serving-contract.mjs`, `problem.ts` and `problem.test.ts`. [verified]
   `scripts/test_frontend_craft_assets.py` passes a correct server and the problem helper's six
   cases, and fails each named serving break on its own check. Evals: the Mantine discovery case
   is now `discovery-frontend-craft-weighs-mantine-in-tailwind-app`; the incidents-page build drops
