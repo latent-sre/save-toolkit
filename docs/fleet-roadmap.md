@@ -29,8 +29,10 @@ records do not re-queue work.
 **Owner:** Invoking implementation session; human toolkit owner accepts the exact candidate.
 **Outcome:** Serving and both incident UI evaluators reject the demonstrated false results;
 product guidance gains tested interaction coverage without losing accepted operational contracts.
-**Next action:** Implement the [selective integration plan](frontend-craft-integration.md), starting
-with independent serving and oracle repairs; calibrate measurement before bounded model comparison.
+**Next action:** Finish integrated verification of the [selective integration](frontend-craft-integration.md)
+and review the exact candidate. Serving and guidance increments are implemented; both oracle
+consumers passed their 62-check calibration. Native Codex comparison requires a compatible isolated runner
+and runnable product fixtures; the existing native harness is Claude-specific.
 **Evidence:** [Plan, rule disposition and execution evidence](frontend-craft-integration.md).
 Model-based testing uses the owner's Codex gpt-6.1-sol selection with medium reasoning.
 **SRE task:** Build distinctive team sites, incident workspaces, workflow editors and catalogs
