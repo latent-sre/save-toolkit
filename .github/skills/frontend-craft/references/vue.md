@@ -7,7 +7,8 @@ rules live in `../SKILL.md`; on any conflict, SKILL.md wins.
 ## A new Vue app
 
 **Vue 3 + TypeScript single-page app on Vite**, scaffolded with `npm create vue@latest`
-(TypeScript, Router, Pinia, Vitest, ESLint), with only the dependencies its features need. Use
+(TypeScript, Router, Vitest, ESLint; Pinia only once a store is needed), with only the
+dependencies its features need. Use
 the stable 3.5 line; Vue 3.6 and Vapor mode are release candidates, not for production until Vue
 marks them stable. `<script setup lang="ts">` single-file components with `defineModel` for
 two-way props, `useTemplateRef` for typed refs and `onWatcherCleanup` for subscriptions. Pin

@@ -18,6 +18,8 @@ async function get(path) {
     status: response.status,
     type: header("content-type"),
     cache: header("cache-control"),
+    csp: header("content-security-policy"),
+    sniff: header("x-content-type-options"),
     body: await response.text(),
   };
 }
@@ -39,6 +41,12 @@ test("index.html is the app and revalidates", async () => {
   assert.equal(page.status, 200);
   assert.match(page.type, /text\/html/);
   assert.ok(revalidates(page), `/ must send Cache-Control: no-cache, got "${page.cache}"`);
+});
+
+test("index.html refuses framing and content sniffing", async () => {
+  const page = await get("/");
+  assert.match(page.csp, /\bframe-ancestors\b/, `/ must send a Content-Security-Policy with frame-ancestors, got "${page.csp}"`);
+  assert.equal(page.sniff, "nosniff", `/ must send X-Content-Type-Options: nosniff, got "${page.sniff}"`);
 });
 
 test("a deep link serves the app and revalidates", async () => {

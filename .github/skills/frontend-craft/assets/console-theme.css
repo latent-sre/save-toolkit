@@ -1,9 +1,12 @@
 /* Console theme: the operator-console register as tokens and base element styles.
-   Start an unstyled app from this file: write it into the app's styles, import it once at the
-   entry point, then design each view with these tokens. Dark-first, light-complete, following
-   the OS unless <html data-theme="light|dark"> is set. Replace the palette when the product has
-   its own; keep the token names so components stay portable. With Tailwind v4, map the tokens
-   into `@theme inline` instead of repeating values. */
+   Start an app that has no component kit from this file: write it into the app's styles, import
+   it once at the entry point, then design each view with these tokens. An app on a kit (shadcn/ui,
+   HeroUI, Mantine) sets this palette and the status set as the kit's own tokens instead and never
+   loads this file: its element rules would restyle the kit's components, and a name such as
+   --accent means something else there. Dark-first, light-complete, following the OS unless
+   <html data-theme="light|dark"> is set. Replace the palette when the product has its own; keep
+   the token names so components stay portable. With Tailwind v4 and no kit, map the tokens into
+   `@theme inline` instead of repeating values. */
 
 @layer theme, base;
 
@@ -21,6 +24,7 @@
     --text-muted: #9aa8bd;
     --accent: #8ea6ff;
     --on-accent: #0e1522;
+    --on-critical: #0e1522;
     /* Status vocabulary: always paired with text or an icon where it is shown. */
     --status-ok: #43c995;
     --status-warn: #f2b54f;
@@ -49,7 +53,6 @@
     --radius-sm: 4px;
     --radius-md: 6px;
     --row-height: 32px;
-    --focus-ring: 0 0 0 2px var(--surface-page), 0 0 0 4px var(--accent);
     --duration: 160ms;
   }
 
@@ -66,6 +69,7 @@
       --text-muted: #4b5a71;
       --accent: #3654d1;
       --on-accent: #ffffff;
+      --on-critical: #ffffff;
       --status-ok: #11744f;
       --status-warn: #8f5500;
       --status-critical: #c02626;
@@ -91,6 +95,7 @@
     --text-muted: #4b5a71;
     --accent: #3654d1;
     --on-accent: #ffffff;
+    --on-critical: #ffffff;
     --status-ok: #11744f;
     --status-warn: #8f5500;
     --status-critical: #c02626;
@@ -129,11 +134,12 @@
     border-radius: var(--radius-sm);
     background: var(--surface-raised);
   }
-  :focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-sm); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   /* Focus moved to a heading or landmark on navigation is for screen readers, not a control. */
-  [tabindex="-1"]:focus-visible { box-shadow: none; }
+  :is(h1, h2, h3, main)[tabindex="-1"]:focus-visible { outline: none; }
 
-  /* The app shell: a bare navigation list becomes a bar; the current page is marked. */
+  /* The app shell: a bare navigation list becomes a top bar, or a sidebar inside an <aside>; the
+     current page is marked. */
   nav > ul {
     display: flex;
     flex-wrap: wrap;
@@ -156,6 +162,8 @@
   }
   nav > ul a:hover { background: var(--surface-hover); color: var(--text); }
   nav > ul a[aria-current="page"] { background: var(--surface-raised); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+  aside nav > ul { flex-direction: column; flex-wrap: nowrap; padding: var(--space-2); border-bottom: 0; }
+  aside nav > ul a[aria-current="page"] { box-shadow: inset 2px 0 0 var(--accent); }
 
   /* Page gutter and panels: content sits on a panel surface, never the bare canvas. */
   main { padding: var(--space-6); }
@@ -187,11 +195,17 @@
     cursor: pointer;
     transition: background-color var(--duration);
   }
-  button:hover:not(:disabled) { background: var(--surface-hover); }
-  button[data-variant="primary"], button[type="submit"] {
+  button:not([data-variant], [type="submit"]):hover:not(:disabled) { background: var(--surface-hover); }
+  button[data-variant="primary"], button[type="submit"]:not([data-variant]) {
     border-color: transparent;
     background: var(--accent);
     color: var(--on-accent);
+    font-weight: 600;
+  }
+  button[data-variant="danger"] {
+    border-color: transparent;
+    background: var(--status-critical);
+    color: var(--on-critical);
     font-weight: 600;
   }
   button:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -243,7 +257,7 @@
     border-radius: var(--radius-md);
     background: var(--status-critical-bg);
   }
-  [role="status"] { color: var(--text-muted); font-size: var(--text-sm); }
+  [role="status"]:not([data-status]) { color: var(--text-muted); font-size: var(--text-sm); }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }

@@ -26,7 +26,17 @@ INDEX = (
     b'</head><body><div id="app"></div></body></html>'
 )
 
-CORRECT = {"index_cache": "no-cache", "config_cache": "no-cache", "fallback_everything": False, "api_routed": True}
+CORRECT = {
+    "index_cache": "no-cache",
+    "config_cache": "no-cache",
+    "fallback_everything": False,
+    "api_routed": True,
+    "security_headers": True,
+}
+SECURITY_HEADERS = {
+    "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+    "X-Content-Type-Options": "nosniff",
+}
 
 
 def server_for(**breaks: object) -> type[BaseHTTPRequestHandler]:
@@ -41,6 +51,9 @@ def server_for(**breaks: object) -> type[BaseHTTPRequestHandler]:
             self.send_header("Content-Type", content_type)
             if cache:
                 self.send_header("Cache-Control", str(cache))
+            if settings["security_headers"] and content_type.startswith("text/html"):
+                for name, value in SECURITY_HEADERS.items():
+                    self.send_header(name, value)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -90,7 +103,7 @@ def test_a_correct_server_passes_every_check() -> None:
     with serving() as base:
         result = run_contract(BASE_URL=base, API_PREFIX="/v1/", RUNTIME_CONFIG_PATH="/config.json")
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "# pass 6" in result.stdout, result.stdout
+    assert "# pass 7" in result.stdout, result.stdout
 
 
 @pytest.mark.parametrize(
@@ -107,6 +120,11 @@ def test_a_correct_server_passes_every_check() -> None:
             id="html-cached-for-an-hour",
         ),
         pytest.param({"config_cache": None}, ["runtime configuration is fresh JSON"], id="config-without-no-cache"),
+        pytest.param(
+            {"security_headers": False},
+            ["index.html refuses framing and content sniffing"],
+            id="html-without-security-headers",
+        ),
     ],
 )
 def test_each_named_break_fails_its_own_check(breaks: dict[str, object], expected: list[str]) -> None:
@@ -137,8 +155,8 @@ def node_version() -> tuple[int, int]:
     return int(major), int(minor)
 
 
-@pytest.mark.parametrize("suite", ["problem.test.ts", "idempotent-write.test.ts"])
-def test_the_typescript_helper_contracts_pass(suite: str) -> None:
+@pytest.mark.parametrize(("suite", "cases"), [("problem.test.ts", 6), ("idempotent-write.test.ts", 8)])
+def test_the_typescript_helper_contracts_pass(suite: str, cases: int) -> None:
     # Type stripping runs .ts files without a build from Node 22.18; CI's runner image ships 22.23.
     if node_version() < (22, 18):
         pytest.skip(f"{suite} needs Node 22.18+ (type stripping); older node found")
@@ -147,7 +165,7 @@ def test_the_typescript_helper_contracts_pass(suite: str) -> None:
     command = [node, "--test", "--test-reporter=tap", "--test-timeout=20000", suite]
     result = subprocess.run(command, cwd=CONTRACT.parent, capture_output=True, text=True, encoding="utf-8", timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "# pass 6" in result.stdout and "# fail 0" in result.stdout, result.stdout
+    assert f"# pass {cases}" in result.stdout and "# fail 0" in result.stdout, result.stdout
 
 
 def theme_tokens(selector: str) -> dict[str, str]:
@@ -200,9 +218,10 @@ def test_console_theme_meets_aa_contrast(theme: str) -> None:
             ratio = contrast(rgb(t[f"--status-{status}"]), pill)
             if ratio < 4.5:
                 failures.append(f"status-{status} on its pill over {surface}: {ratio:.2f}")
-    button = contrast(rgb(t["--on-accent"]), rgb(t["--accent"]))
-    if button < 4.5:
-        failures.append(f"on-accent on accent: {button:.2f}")
+    for fill, ink in (("accent", "on-accent"), ("status-critical", "on-critical")):
+        ratio = contrast(rgb(t[f"--{ink}"]), rgb(t[f"--{fill}"]))
+        if ratio < 4.5:
+            failures.append(f"{ink} on {fill}: {ratio:.2f}")
     assert not failures, f"{theme} theme below WCAG AA: " + "; ".join(failures)
 
 

@@ -64,7 +64,20 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   or data-table alternative for every chart, charts reading the theme tokens, pagination versus
   virtualization (virtualization does not reduce what is fetched), widget behaviour from the
   component system's primitives, complying with a plain-HTML request, and navigation shaped by
-  the workflow (top bar, grouped sidebar, tabs, drawer). [verified] The console oracle passes a hand-written page on all nine bars
+  the workflow (top bar, grouped sidebar, tabs, drawer). A rescan then fixed what the rewrite
+  shipped wrong: `sendIdempotent()` waits out only a `409` that carries `Retry-After` (the
+  contract's in-flight write) and returns any other `409` as a conflict, and keeps the caller's
+  abort signal; an edited payload gets a new key, since a reused key with a different payload is a
+  `422`; the console theme is for apps without a component kit (a kit takes its palette through
+  the kit's tokens), draws focus as an outline that forced-colours mode keeps, styles a sidebar
+  inside `<aside>`, keeps status-pill colours under `role="status"`, adds a `danger` button
+  variant and stops greying primary buttons on hover; the Vue scaffold drops Pinia until a store
+  is needed; and the status words match the theme's `[data-status]` values. It also added
+  missing rules: security headers on `index.html`, which the serving contract now checks
+  (`frame-ancestors` and `nosniff`); confirmation friction matched to blast radius, with undo
+  for reversible actions and the environment named in every confirm; the environment's name in
+  every environment, production most distinctly; chart units, UTC axes, gaps for missing data
+  and one shared time range; and single-key shortcuts that can be scoped or turned off. [verified] The console oracle passes a hand-written page on all nine bars
   and fails the untouched fixture on bars 1, 2, 3, 8 and 9 as candidate failures (exit 10); bars
   4–7 are verbatim from the incidents-page oracle and, as there, report a page that never renders
   a row as an oracle error rather than a candidate failure. `software-engineer` loads the skill before any web UI code, not only

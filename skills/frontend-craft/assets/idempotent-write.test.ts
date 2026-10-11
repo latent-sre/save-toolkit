@@ -7,12 +7,14 @@ type Call = { key: string | null; method: string | undefined };
 
 function fakeServer(statuses: Array<[number, Record<string, string>?]>) {
   const calls: Call[] = [];
+  const signals: Array<AbortSignal | null | undefined> = [];
   const fetch = (async (_input: string | URL, init?: RequestInit) => {
     calls.push({ key: new Headers(init?.headers).get("idempotency-key"), method: init?.method });
+    signals.push(init?.signal);
     const [status, headers] = statuses[Math.min(calls.length - 1, statuses.length - 1)];
     return new Response(status === 204 ? null : "{}", { status, headers });
   }) as typeof globalThis.fetch;
-  return { fetch, calls };
+  return { fetch, calls, signals };
 }
 
 const recordSleeps = () => {
@@ -36,11 +38,28 @@ test("a 409 waits Retry-After and resends with the same key", async () => {
   assert.deepEqual(waits, [2000, 1000]);
 });
 
-test("a 409 without Retry-After waits the default", async () => {
+test("a 409 without Retry-After is a conflict, returned at once", async () => {
   const server = fakeServer([[409], [201]]);
+  const { waits, sleep } = recordSleeps();
+  const response = await sendIdempotent("/v1/incidents", { method: "POST" }, "k", { fetch: server.fetch, sleep });
+  assert.equal(response.status, 409);
+  assert.equal(server.calls.length, 1, "a conflict was re-sent");
+  assert.deepEqual(waits, []);
+});
+
+test("an unparseable Retry-After waits the default", async () => {
+  const server = fakeServer([[409, { "retry-after": "soon" }], [201]]);
   const { waits, sleep } = recordSleeps();
   await sendIdempotent("/v1/incidents", { method: "POST" }, "k", { fetch: server.fetch, sleep, defaultWaitMs: 750 });
   assert.deepEqual(waits, [750]);
+});
+
+test("the caller's abort signal reaches every send", async () => {
+  const server = fakeServer([[409, { "retry-after": "0" }], [201]]);
+  const { sleep } = recordSleeps();
+  const controller = new AbortController();
+  await sendIdempotent("/v1/incidents", { method: "POST", signal: controller.signal }, "k", { fetch: server.fetch, sleep });
+  assert.deepEqual(server.signals, [controller.signal, controller.signal]);
 });
 
 test("the last 409 is returned once the attempts are spent", async () => {

@@ -21,8 +21,10 @@ what do I do, where is the evidence".
 
 **Before writing any page or view, load the [design reference](./references/design.md) and write
 the design brief — even when nobody asked for a look.** A page with no styling is not finished. An
-app with no styling of its own is unbranded: start it from the
-[console theme](./assets/console-theme.css), or the chosen component system's tokens.
+app with no styling of its own is unbranded. Without a component kit, start it from the
+[console theme](./assets/console-theme.css); on a kit (shadcn/ui, HeroUI, Mantine and the like),
+set the theme's palette and status colours as the kit's own tokens and keep the kit's reset and
+element styles, never loading the theme beside it.
 
 This skill's assets are starting files: read each one and write its contents into the app with
 the editor tools. The skill's folder is outside the workspace, so never copy from it with the
@@ -50,15 +52,18 @@ shell — a `cp` from there is refused or prompts.
    panel shows its own inline card: title, next step, the request ID (copyable), the time with
    its zone, and a retry only when the request is safe. Every async path ends in a rendered
    state; a handler never re-throws to the page. Status never by colour alone.
-3. **Makes writes safe.** Show the exact target and count before a destructive or bulk action
-   and require a confirm; disable the control while the write is pending; report per-item
-   outcomes, including unknown. The server is the validation truth; field errors land beside
+3. **Makes writes safe.** Friction matches the blast radius: a reversible action runs at once
+   and offers undo; a destructive or bulk action shows the exact target, count and environment in
+   a confirm with Cancel focused; an irreversible or fleet-wide one also has the user type the
+   target's name. Disable the control while the write is pending; report per-item outcomes,
+   including unknown. The server is the validation truth; field errors land beside
    their fields with the user's input intact.
 4. **Builds once for every environment.** Environment values load at startup from same-origin
    runtime configuration; `import.meta.env` and `VITE_*` hold only values identical everywhere
-   and never secrets — the bundle ships to every browser. The
-   [serving contract](./assets/serving-contract.mjs), written into the repository from this
-   skill, is the acceptance test.
+   and never secrets — the bundle ships to every browser. Every environment shows its name,
+   production most distinctly. `index.html` is served with a Content-Security-Policy that forbids
+   framing and with `nosniff`. The [serving contract](./assets/serving-contract.mjs), written into
+   the repository from this skill, is the acceptance test.
 5. **Keeps state where it belongs.** Server state in the query cache, with its age visible; UI
    state local; non-sensitive search, filters, page, sort and tabs in the URL when they should
    survive refresh or be shared; no global store until two distant components genuinely share.
@@ -75,13 +80,15 @@ shell — a `cp` from there is refused or prompts.
    saving, completion and error status reach assistive technology without stealing focus; layouts
    reflow at 320 CSS px; motion respects `prefers-reduced-motion`. AA contrast in every theme
    shipped. Every chart has a text or data-table alternative. Widget behaviour — focus traps,
-   ARIA state, arrow-key navigation — comes from the component system's primitives (Base UI,
-   Radix, React Aria, Reka UI), never hand-rolled.
+   ARIA state, arrow-key navigation — comes from the component system's primitives, or in an app
+   without one from a headless library (Base UI, Radix, React Aria, Reka UI), never hand-rolled.
 8. **Looks designed and uses the modern platform.** Theme tokens, deliberate density and the
    register's look on every page — a basic UI is not the target. The saved theme applies before
    first paint through the project's CSP-compatible mechanism (an inline script allowed by hash or
    nonce, never a weakened CSP), so a page never flashes the wrong theme; charts read the theme
-   tokens, so they follow light and dark and the status colours. View transitions for
+   tokens, so they follow light and dark and the status colours. Charts state units, put time
+   on UTC axes, draw missing data as a gap (never a zero), and share one time range across the
+   view, kept in the URL. View transitions for
    navigation and list changes; `<dialog>`, the `popover` attribute and `@starting-style` for
    modals, menus and toasts (anchor positioning is not yet Baseline — keep a JS positioner);
    container queries for panels; `BroadcastChannel` and Web Locks so tabs share one feed and one
@@ -89,8 +96,8 @@ shell — a `cp` from there is refused or prompts.
    framework references name the libraries.
 9. **Adds dependencies deliberately.** A maintained, typed library that fits the repository's
    licence and lockfile is ordinary work inside an authorized change; name each addition in the
-   review packet. Ask the caller before adding a second UI framework or component system, a
-   global store, or a test runner.
+   review packet. Ask the caller before adding a second UI framework, component system or test
+   runner, or a global store.
 
 ## Done means
 

@@ -26,21 +26,26 @@ Anything that matches one is a default, not a choice: change it and say why.
 
 ## The console register
 
-Start an unstyled app from [the console theme](../assets/console-theme.css): read it, write it
-into the app's styles with the editor tools (never a shell copy from the skill's folder), import
-it once at the entry point, and build every view from its tokens —
+Start an unstyled app with no component kit from [the console theme](../assets/console-theme.css):
+read it, write it into the app's styles with the editor tools (never a shell copy from the
+skill's folder), import it once at the entry point, and build every view from its tokens —
 `--surface-*`, `--text*`, `--accent`, the `--status-*` set, the type scale and `--row-height`.
-Its base layer already makes semantic HTML look like a console (the `nav > ul` app bar with the
-current page marked by `aria-current="page"`, a page gutter on `main`, `[data-panel]` surfaces
-with a `header` row, tables, buttons, inputs, focus, `[data-status]` pills, `[role="alert"]`
-cards); the view's own CSS adds the layout and the one memorable element. Change the palette when the product has its own, and keep the token names.
+Its base layer already makes semantic HTML look like a console (the `nav > ul` app bar, or a
+sidebar inside `<aside>`, with the current page marked by `aria-current="page"`, a page gutter on
+`main`, `[data-panel]` surfaces with a `header` row, tables, buttons with `data-variant="primary"`
+or `"danger"`, inputs, focus, `[data-status]` pills, `[role="alert"]` cards); the view's own CSS
+adds the layout and the one memorable element. Change the palette when the product has its own,
+and keep the token names. An app on a component kit takes the look through the kit's own tokens
+instead: set its background, foreground, primary, muted, border, ring and destructive colours from
+the theme's palette, add the `--status-*` set, and never load the theme beside the kit.
 
 A console page has a shape, not just a style:
 
 - **Navigation follows the workflow and the viewport**: a top bar for a few destinations (the
-  theme's `nav > ul`), a grouped sidebar for many, tabs or a single column for a focused task, and
-  a drawer or another accessible compact layout when space is tight. Destinations are labelled and
-  the active one is marked; the number of destinations alone does not dictate the shell.
+  theme's `nav > ul`), a grouped sidebar for many (`aside nav`), tabs or a single column for a
+  focused task, and a drawer or another accessible compact layout when space is tight.
+  Destinations are labelled and the active one is marked; the number of destinations alone does
+  not dictate the shell.
 - **A toolbar row** above the data: the title, the live or data-age indicator, filters and
   primary actions on one line, sticky while the content scrolls.
 - **Dense tables** with sticky headers, right-aligned numbers, status as a pill with text, row
@@ -60,12 +65,14 @@ A console page has a shape, not just a style:
   low-alpha borders, not heavy lines or shadows. Light theme through the same tokens, with a
   light/dark/system toggle that persists and defaults to the OS.
 - **Status is a vocabulary.** One colour per state, paired with text or an icon everywhere it
-  appears, with distinct tokens for ok, warning, critical, unknown and in-progress; categorical
-  accents for metric groups stay distinct from status. Lists of things with a state put the
-  worst first — outage, degraded, unknown, then ok — in both registers.
+  appears, with distinct tokens for `ok`, `warn`, `critical`, `unknown` and `progress` — the
+  theme's `[data-status]` values, whatever words the product shows; categorical accents for
+  metric groups stay distinct from status. Lists of things with a state put the worst first —
+  critical (outage), warn (degraded), unknown, then ok — in both registers.
 - **Keyboard-first.** A command palette for navigation and actions, single-key shortcuts for the
   main workflow, focus that moves with the task and is always visible, and dense tables that can
-  be navigated row by row.
+  be navigated row by row. A single-key shortcut acts only in its focused region or can be turned
+  off (WCAG 2.1.4), is ignored in text fields and editors, and never triggers a destructive action.
 - **Motion explains.** Transitions of 150–250 ms on `opacity` and `transform` when something
   opens, expands, sorts, confirms or arrives; no decorative entrance animation on page load.
 

@@ -12,7 +12,8 @@ environment-specific values as same-origin runtime configuration — a `config.j
 `index.html`, written at deploy time or served by the backend — and fetch it before the app renders.
 Validate the fields the app needs and show a startup error naming any missing field rather than a
 blank page. Serve it with `Cache-Control: no-cache`. It reaches every browser, so it never holds
-secrets. Outside production, show the environment's name in the app shell.
+secrets. Show the environment's name from it in the app shell and `document.title` in every
+environment, production most distinctly, and in every destructive confirm.
 
 ## Serve a single-page app
 
@@ -38,6 +39,17 @@ solution; Vite exposes [`vite:preloadError`](https://vite.dev/guide/build.html#l
 
 A platform other than PCF must meet the same contract. The team's next runtime is not decided:
 load `stack-profile` before choosing one, and `gcp-ops` for work on GCP.
+
+## Security headers
+
+Send them with `index.html` from whichever server serves it. A `Content-Security-Policy` with
+`frame-ancestors 'none'` (or the origins named to embed the app), `object-src 'none'`,
+`base-uri 'self'`, and `script-src 'self'` plus the hash of the first-paint theme script; add
+`style-src` sources only as the component system needs, since some toast and animation libraries
+insert `<style>` elements at runtime. `X-Content-Type-Options: nosniff`, and `Referrer-Policy:
+strict-origin-when-cross-origin` or stricter; HSTS belongs at the TLS edge. A console whose
+actions run in one click never renders inside another site's frame, where the click can be
+hijacked. The contract checks `frame-ancestors` and `nosniff`.
 
 ## Verify
 

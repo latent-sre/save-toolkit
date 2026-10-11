@@ -1,14 +1,17 @@
 // One user intent, one Idempotency-Key. Mint the key when the user starts an action (opens the
-// form, clicks "Close incident"), reuse it on every retry of that action, and mint a new one for
-// a new action. While the first request with a key is still running, the house contract answers
-// 409: wait Retry-After and send the same request with the same key again, never a fresh key.
+// form, clicks "Close incident"), reuse it on every retry of that unchanged action, and mint a new
+// one for a new action. A payload the user has edited is a new action: the house contract answers
+// a key reused with a different payload with 422. While the first request with a key is still
+// running, the contract answers 409 with Retry-After: wait that long and send the same request with
+// the same key again, never a fresh key. A 409 without Retry-After is a conflict with the current
+// state, returned at once.
 // Self-contained so it drops into an app's API layer; `node --test idempotent-write.test.ts`.
 
 export interface WriteOptions {
   fetch?: typeof fetch;
   /** Total sends, the first included. */
   maxAttempts?: number;
-  /** Wait when a 409 carries no Retry-After. */
+  /** Wait when an in-flight 409's Retry-After cannot be parsed. */
   defaultWaitMs?: number;
   sleep?: (ms: number) => Promise<void>;
   signal?: AbortSignal;
@@ -32,8 +35,8 @@ function waitFor(response: Response, fallbackMs: number): number {
   return Number.isNaN(date) ? fallbackMs : Math.max(0, date - Date.now());
 }
 
-// Sends a state-changing request under `key`. Returns the first response that is not a 409, or
-// the last 409 once maxAttempts is spent so the caller can say the action is still running.
+// Sends a state-changing request under `key`. Returns the first response that is not an in-flight
+// 409, or the last one once maxAttempts is spent so the caller can say the action is still running.
 // Any other failure is returned, not retried: a write is replayed only by the user's own retry,
 // which passes the same key.
 export async function sendIdempotent(
@@ -48,8 +51,9 @@ export async function sendIdempotent(
   const headers = new Headers(init.headers);
   headers.set("Idempotency-Key", key);
   for (let attempt = 1; ; attempt += 1) {
-    const response = await doFetch(input, { ...init, headers, signal: options.signal });
-    if (response.status !== 409 || attempt >= maxAttempts) return response;
+    const response = await doFetch(input, { ...init, headers, signal: options.signal ?? init.signal });
+    const inFlight = response.status === 409 && response.headers.has("retry-after");
+    if (!inFlight || attempt >= maxAttempts) return response;
     await sleep(waitFor(response, options.defaultWaitMs ?? 1000));
   }
 }

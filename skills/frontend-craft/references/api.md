@@ -38,7 +38,7 @@ still has something to show.
 | 401 | Hand to the auth client (sessions reference); never loop |
 | 403 | Say the action is not permitted; no retry, no hidden control |
 | 404 | The designed missing or empty state, not an error card |
-| 409 | Show the current state (a conflict) or keep waiting (an in-flight idempotent write) |
+| 409 | With `Retry-After`, an idempotent write still in flight: keep waiting. Without it, a conflict: show the current state |
 | 410 | The version is retired; the app needs an upgrade, say so |
 | 422 | Map each `errors[].loc` to its field and show `msg` beside it; keep the user's input |
 | 429, 503 | Wait `Retry-After` before any retry; show the wait |
@@ -66,9 +66,11 @@ appending a page, drop rows whose id is already shown; a row can move while you 
 ## Writes
 
 Send one `Idempotency-Key` per user intent: mint a UUID when the user starts the action, reuse
-it on every retry of that action, and mint a new one for a new intent. The contract answers
-`409` while the first request with that key is still in flight — keep waiting and poll, never
-re-send with a fresh key — and `422` when the key is reused with a different payload. Start
+it on every retry of that action, and mint a new one for a new intent. A payload the user edits —
+fixing a field after a `422` — is a new intent with a new key, because the contract answers a key
+reused with a different payload with `422`. The contract answers `409` with `Retry-After` while
+the first request with that key is still in flight — keep waiting and poll, never re-send with a
+fresh key; a `409` without `Retry-After` is a conflict to show, not to wait out. Start
 from [the idempotent-write helper](../assets/idempotent-write.ts) and
 [its test](../assets/idempotent-write.test.ts), written in with the editor tools like the
 problem helper: `newIntentKey()` when the action starts,
@@ -93,5 +95,5 @@ MSW 3 mocks the contract at the network boundary (`import { http, HttpResponse }
 Node 22 or later, ESM only). Write handlers for the statuses the contract declares, including
 problem bodies with a `request_id` and a two-page cursor sequence, and test that a `500`
 renders its request ID, a `422` lands on the right fields, `next_cursor` loads the second page,
-a filter reaches the request's query string, a retried write reuses its `Idempotency-Key`, and a
-`409` keeps the key and waits.
+a filter reaches the request's query string, a retried write reuses its `Idempotency-Key`, a
+`409` with `Retry-After` keeps the key and waits, and an edited payload sends a new key.
