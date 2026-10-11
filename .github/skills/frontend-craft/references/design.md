@@ -37,6 +37,10 @@ cards); the view's own CSS adds the layout and the one memorable element. Change
 
 A console page has a shape, not just a style:
 
+- **Navigation follows the workflow and the viewport**: a top bar for a few destinations (the
+  theme's `nav > ul`), a grouped sidebar for many, tabs or a single column for a focused task, and
+  a drawer or another accessible compact layout when space is tight. Destinations are labelled and
+  the active one is marked; the number of destinations alone does not dictate the shell.
 - **A toolbar row** above the data: the title, the live or data-age indicator, filters and
   primary actions on one line, sticky while the content scrolls.
 - **Dense tables** with sticky headers, right-aligned numbers, status as a pill with text, row

@@ -12,7 +12,9 @@ TypeScript 7 ships no compiler API, because typescript-eslint's type-checked rul
 (`no-floating-promises`, `no-misused-promises`, in ESLint flat config) need one. Turn on the React
 Compiler (`babel-plugin-react-compiler`, stable since 1.0) instead of hand-written memoization.
 Vitest, React Testing Library and MSW at the network boundary; Playwright for the few critical
-journeys only with the caller's approval. Node 22 or later.
+journeys only with the caller's approval. Node 22 or later. If the user explicitly asks for
+plain HTML or a static page, comply; record any other framework or library choice for a new app
+in the review packet.
 
 ## The component system — the caller picks one
 

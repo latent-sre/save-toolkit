@@ -62,6 +62,9 @@ shell — a `cp` from there is refused or prompts.
 5. **Keeps state where it belongs.** Server state in the query cache, with its age visible; UI
    state local; non-sensitive search, filters, page, sort and tabs in the URL when they should
    survive refresh or be shared; no global store until two distant components genuinely share.
+   Tables choose pagination or virtualization from rendered rows, interaction needs and measured
+   cost; virtualization does not reduce what is fetched, so a dataset too large to fetch pages or
+   filters on the server.
 6. **Treats content as data.** API, log and user text render as text, never through `v-html`,
    `dangerouslySetInnerHTML` or `innerHTML`; rich text passes the repository's sanitizer
    (DOMPurify if none); data-driven `href` and `src` allow only `http:`, `https:` and `mailto:`.
@@ -70,9 +73,15 @@ shell — a `cp` from there is refused or prompts.
 7. **Is accessible by construction.** Semantic HTML, labelled inputs, keyboard access, visible
    focus; focus moves to the main heading on navigation and stays put on same-view updates;
    saving, completion and error status reach assistive technology without stealing focus; layouts
-   reflow at 320 CSS px; motion respects `prefers-reduced-motion`.
+   reflow at 320 CSS px; motion respects `prefers-reduced-motion`. AA contrast in every theme
+   shipped. Every chart has a text or data-table alternative. Widget behaviour — focus traps,
+   ARIA state, arrow-key navigation — comes from the component system's primitives (Base UI,
+   Radix, React Aria, Reka UI), never hand-rolled.
 8. **Looks designed and uses the modern platform.** Theme tokens, deliberate density and the
-   register's look on every page — a basic UI is not the target. View transitions for
+   register's look on every page — a basic UI is not the target. The saved theme applies before
+   first paint through the project's CSP-compatible mechanism (an inline script allowed by hash or
+   nonce, never a weakened CSP), so a page never flashes the wrong theme; charts read the theme
+   tokens, so they follow light and dark and the status colours. View transitions for
    navigation and list changes; `<dialog>`, the `popover` attribute and `@starting-style` for
    modals, menus and toasts (anchor positioning is not yet Baseline — keep a JS positioner);
    container queries for panels; `BroadcastChannel` and Web Locks so tabs share one feed and one

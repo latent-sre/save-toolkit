@@ -44,7 +44,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   the theme also styles a bare `nav > ul` as the app bar with `aria-current` marked, gives `main`
   a gutter and `[data-panel]` a surface with a `header` row, and draws no ring on a heading that
   only received focus on navigation; and because two trials still shell-copied an asset out of
-  the plugin folder, the skill says to write assets in with the editor tools, never a `cp`. [verified] The console oracle passes a hand-written page on all nine bars
+  the plugin folder, the skill says to write assets in with the editor tools, never a `cp`. An
+  audit of every old rule against the rewrite restored eight it had dropped: the saved theme
+  applied before first paint through a CSP-compatible script, AA contrast in every theme, a text
+  or data-table alternative for every chart, charts reading the theme tokens, pagination versus
+  virtualization (virtualization does not reduce what is fetched), widget behaviour from the
+  component system's primitives, complying with a plain-HTML request, and navigation shaped by
+  the workflow (top bar, grouped sidebar, tabs, drawer). [verified] The console oracle passes a hand-written page on all nine bars
   and fails the untouched fixture on bars 1, 2, 3, 8 and 9 as candidate failures (exit 10); bars
   4–7 are verbatim from the incidents-page oracle and, as there, report a page that never renders
   a row as an oracle error rather than a candidate failure. `software-engineer` loads the skill before any web UI code, not only

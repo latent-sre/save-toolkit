@@ -14,7 +14,8 @@ two-way props, `useTemplateRef` for typed refs and `onWatcherCleanup` for subscr
 `typescript` to 6.x: `vue-tsc` and typescript-eslint both need the compiler API TypeScript 7
 dropped. ESLint flat config with `eslint-plugin-vue` and `@vue/eslint-config-typescript`'s
 type-checked rules. Vitest, Vue Test Utils and MSW; Playwright only with the caller's approval.
-Node 22 or later.
+Node 22 or later. If the user explicitly asks for plain HTML or a static page, comply; record any
+other framework or library choice for a new app in the review packet.
 
 ## The component system
 
