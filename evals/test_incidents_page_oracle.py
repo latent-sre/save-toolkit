@@ -48,6 +48,9 @@ CASES = [
     ("reference-hidden-rows", "text", "hidden-rows", set()),
     ("reference-portalled-button", "text", "portal-button", set()),
     ("reference-portalled-input", "text", "portal-input", set()),
+    ("reference-dynamic-button", "text", "portal-button", set()),
+    ("reference-dynamic-escaped", "text", "portal-button", set()),
+    ("reference-dynamic-input", "text", "portal-input", set()),
     ("reference-portalled-decoy", "text", "portal-button", set()),
     ("hidden-loading", "text", "client", {"bar1"}),
     ("hidden-error", "text", "client", {"bar2"}),
@@ -65,6 +68,11 @@ CASES = [
     ("portal-ignore-deep-link", "text", "portal-input", {"bar5"}),
     ("portal-stale-control", "text", "portal-button", {"bar5"}),
     ("portal-ambiguous-name", "text", "portal-button", {"bar5"}),
+    ("portal-replaced-control", "text", "portal-button", {"bar5"}),
+    ("portal-unsupported-name", "text", "portal-button", {"bar5"}),
+    ("portal-dynamic-stale-control", "text", "portal-button", {"bar5"}),
+    ("portal-dynamic-ambiguous-name", "text", "portal-input", {"bar5"}),
+    ("broken-cursor", "text", "client", {"bar9"}),
     ("no-request-id", "text", "client", {"bar8"}),
 ]
 
@@ -187,7 +195,7 @@ def calibration(request: pytest.FixtureRequest) -> Iterator[dict[str, Any]]:
             encoding="utf-8",
             errors="replace",
             capture_output=True,
-            timeout=240,
+            timeout=360,
         )
         assert report.is_file(), result.stdout + result.stderr
         data = json.loads(report.read_text(encoding="utf-8"))
@@ -222,12 +230,16 @@ def test_actual_oracle_accepts_reference_and_rejects_named_mutants(
             + "\n".join(assertion.get("failureMessages", []))
         )
         if expected == "failed":
-            if case == "portal-ambiguous-name" and bar == "bar5":
+            if case in {"portal-ambiguous-name", "portal-dynamic-ambiguous-name", "portal-unsupported-name", "portal-replaced-control"} and bar == "bar5":
                 # A different control with the same accessible name must not manufacture a
                 # pass. The oracle cannot disambiguate this shape; check_ui treats an Error
                 # without candidate-origin frames as INCONCLUSIVE, not a candidate defect.
+                diagnostic = {
+                    "portal-unsupported-name": "unsupported status combobox name change",
+                    "portal-replaced-control": "unsupported status combobox replacement",
+                }.get(case, "ambiguous status combobox name")
                 assert any(
-                    "Error: ambiguous status combobox name" in message and "AssertionError" not in message
+                    f"Error: {diagnostic}" in message and "AssertionError" not in message
                     for message in assertion["failureMessages"]
                 ), assertion
                 continue
@@ -246,8 +258,14 @@ def test_actual_oracle_accepts_reference_and_rejects_named_mutants(
             ), assertion
 
 
-def test_ambiguous_restored_control_is_inconclusive_through_supervised_check(calibration: dict[str, Any]) -> None:
-    root = calibration["work"] / "portal-ambiguous-name"
+@pytest.mark.parametrize("case", ["portal-ambiguous-name", "portal-dynamic-ambiguous-name", "portal-unsupported-name", "portal-replaced-control", "broken-cursor"])
+def test_oracle_classification_through_supervised_check(
+    calibration: dict[str, Any], case: str
+) -> None:
+    bar = "bar9" if case == "broken-cursor" else "bar5"
+    if bar not in calibration["bars"]:
+        pytest.skip("cursor behavior belongs to incidents-console")
+    root = calibration["work"] / case
     modules = calibration["modules"]
     entry = root / "node_modules/vitest/vitest.mjs"
     entry.parent.mkdir(parents=True)
@@ -265,12 +283,12 @@ def test_ambiguous_restored_control_is_inconclusive_through_supervised_check(cal
     (root / "vitest.config.mjs").write_text("export default " + json.dumps(config) + ";\n", encoding="utf-8")
     for source in (ROOT / "oracles/oracle_protocol.py", ROOT / "oracles" / calibration["consumer"] / "check_ui.py"):
         shutil.copyfile(source, root / source.name)
-    command = f'"{sys.executable}" -I -B oracle_protocol.py check_ui.py bar5 > supervised.stdout 2> supervised.stderr'
+    command = f'"{sys.executable}" -I -B oracle_protocol.py check_ui.py {bar} > supervised.stdout 2> supervised.stderr'
     spec = tiny_spec(
         checks=[
             {
                 "check": "command_exit_zero",
-                "text": "restore filter identity",
+                "text": "classify observed UI behavior",
                 "command": command,
                 "failure_exit_code": 10,
                 "timeout": 60,
@@ -279,9 +297,19 @@ def test_ambiguous_restored_control_is_inconclusive_through_supervised_check(cal
     )
     workspace = Workspace(root, root, root, root, 0, "calibration")
     result = probe_assessment.grade(ws_context(spec, workspace))
+    if case == "broken-cursor":
+        assert result["status"] == "FAIL", result
+        diagnostics = (root / "supervised.stdout").read_text(encoding="utf-8")
+        assert "AssertionError" in diagnostics, diagnostics
+        assert "did not pass the cursor" in diagnostics, diagnostics
+        return
     assert result["status"] == "INCONCLUSIVE", result
     assert "exit 1" in result["inconclusive"], result
     assert "not the declared failure exit 10" in result["inconclusive"], result
     diagnostics = (root / "supervised.stderr").read_text(encoding="utf-8")
-    assert "oracle assertion crashed: Error: ambiguous status combobox name" in diagnostics, diagnostics
+    diagnostic = {
+        "portal-unsupported-name": "unsupported status combobox name change",
+        "portal-replaced-control": "unsupported status combobox replacement",
+    }.get(case, "ambiguous status combobox name")
+    assert f"oracle assertion crashed: Error: {diagnostic}" in diagnostics, diagnostics
     assert "AssertionError" not in diagnostics, diagnostics

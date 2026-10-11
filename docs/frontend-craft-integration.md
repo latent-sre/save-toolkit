@@ -237,7 +237,77 @@ acceptance and Docker/Claude smoke checks. Ten Starlette/AnyIO deprecation warni
 they are warnings, not passed or failed assertions. No claim is made for the unexecuted checks.
 
 The final evidence-record commit changes only this document and the roadmap after that run;
-it does not change the tested implementation. Steps 1–5 are implemented with the evidence above.
-Step 6 remains pending compatible Codex measurement and runnable product fixtures; step 7's
-local code review and verification are complete, while human acceptance remains open. No push,
+it does not change the tested implementation. Steps 1–4 are implemented with the evidence above.
+Step 5's guidance is implemented, but its required per-capability behavioral proof remains pending;
+named prose exercises do not satisfy that requirement. Step 6 remains pending compatible Codex
+measurement and runnable product fixtures; step 7's local code review and verification cover the
+candidate identified above, while human acceptance remains open. No push,
 merge, deployment or donor-PR closure occurred.
+
+### Rescan corrections
+
+[verified] A fresh review of `fbe35e4` found a false filter failure, a remaining serving false
+acceptance inherited from main, and the step-5 completion mismatch corrected above. The owner's
+follow-up authorized fixing them. These corrections are working-tree changes after `fbe35e4`;
+the earlier clean-commit receipt does not verify the new bytes.
+
+- Both incident UI oracles now recognize an accessible name whose displayed selection changes,
+  using an escaped, anchored pattern learned from the observed selection. Fixed names retain
+  exact matching. Ambiguous, unsupported or replaced control identity is an inconclusive
+  measurement; a recognized control showing stale state remains a candidate failure.
+- Root and deep-link HTML responses now require the exact `text/html` media type. Charset
+  parameters and case differences are accepted; an HTML-looking substring in another MIME type
+  is insufficient. The HTTP negatives preserve the app body, caching and security headers.
+- Adding the missing cursor negative exposed another oracle defect: a missing second row raised
+  a lookup error before the cursor assertion, yielding INCONCLUSIVE. Console bar9 now asserts
+  cursor transmission first and checks visible second-page content with a nonthrowing query.
+  Its supervised negative requires candidate FAIL; identity-limitation cases require INCONCLUSIVE.
+- The calibration README now covers both consumers and their actual checks. Step 5 retains its
+  original behavioral-proof requirement instead of treating written exercises as execution.
+
+[verified] Baseline reproduction rejected all twelve working dynamic-name combinations: button,
+input and punctuation-bearing names, in both consumers and both transport modes. Five invalid
+MIME cases passed the old seven-check serving contract; the repaired asset suite passed 59 tests.
+The first cursor-negative calibration exposed the lookup-error classification defect and is
+retained as failed evidence. Superseded exploratory runs are not final verification results.
+
+Scratch reproduction logs and source identities are retained outside the candidate at the primary
+repository's `.tmp/frontend-rescan-fixes/`. Final verification of these working-tree changes is
+recorded below. Native browser behavior, per-capability exercises and the Codex product comparison
+remain unverified; these evaluator repairs do not establish those outcomes.
+
+[verified] Final rescan-fix verification used the selected `gpt-6.1-sol` helpers with medium
+reasoning and the existing project dependencies; no installation or native product trial occurred.
+
+| Check | Result |
+|---|---|
+| Serving assets | 59 passed; five negative MIME cases reproduced false acceptance before repair |
+| Bounded UI calibration | 85 passed, one intentional page-only cursor skip; 525.31 seconds |
+| Full MSW page calibration | 42 passed, one intentional cursor skip; 156.56 seconds |
+| Full MSW console calibration | 43 passed; 176.16 seconds; combined full result is 85 passed and one skipped |
+| Independent static review | No remaining concrete findings after the cursor-classification correction |
+| Ruff / configured format / configured mypy | Passed; 24 format-discovery files and 44 typed source files |
+| Scenario validation | 245 scenarios and 1,093 graded expectations validated |
+| Coordinated heavy suite | 2,573 passed, 106 skipped, 4,986 subtests passed; exit 0 in 324.374 seconds |
+
+Full calibration ran the two consumer selections independently with `-n 0 -k incidents-page`
+and `-n 0 -k incidents-console`; their 43 deselections each are the other consumer, not untested
+cases. Each mode covers 380 oracle checks across 38 fixtures and nine supervised classifications.
+The whole calibration-batch timeout increased from 240 to 360 seconds after observing a batch
+approach 232 seconds including startup. The successful bounded run had already loaded the old
+240-second limit; full mode exercised the final 360-second envelope. Individual assertions and
+supervised checks retain their original limits.
+
+The final heavy receipt is Git common directory
+`local-test-runs/20261011T130713Z-8e516851/run.json`. It records a dirty working tree based on
+`fbe35e4`, with unchanged HEAD, status and tracked diff hash before/after. Seven execution-file
+SHA-256 hashes are preserved in `.tmp/frontend-rescan-fixes/final-before.json` and
+`final-after.json`; the final evidence and roadmap update follows that run without changing those
+execution files. The 106 skips are 86 opt-in UI checks (85 passed and one intentionally inapplicable
+page cursor check in each separate mode above) and 20 platform/external checks. Ten Starlette/AnyIO
+deprecation warnings remain.
+
+An additional direct-file `mypy evals/test_incidents_page_oracle.py` invocation outside the
+configured target list reported three typing errors in unchanged `probe_testkit.py`. The same
+errors reproduced with an exact scratch copy of the pre-fix test file. Configured mypy passed;
+this unrelated helper-typing cleanup is not included in these fixes.

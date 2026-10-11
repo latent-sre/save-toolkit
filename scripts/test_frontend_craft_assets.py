@@ -51,7 +51,7 @@ def server_for(**breaks: object) -> type[BaseHTTPRequestHandler]:
             self.send_header("Content-Type", content_type)
             if cache:
                 self.send_header("Cache-Control", str(cache))
-            if settings["security_headers"] and content_type.startswith("text/html"):
+            if settings["security_headers"] and body == INDEX:
                 for name, value in SECURITY_HEADERS.items():
                     configured: object = value
                     if name == "Content-Security-Policy":
@@ -79,7 +79,10 @@ def server_for(**breaks: object) -> type[BaseHTTPRequestHandler]:
                 return self.reply(404, b'{"status": 404}', "application/problem+json")
             if "." in path.rsplit("/", 1)[-1] and not settings["fallback_everything"]:
                 return self.reply(404, b"Not Found", "text/plain")
-            return self.reply(200, INDEX, "text/html; charset=utf-8", settings["index_cache"])
+            content_type = settings.get("html_type", "text/html; charset=utf-8")
+            if path != "/":
+                content_type = settings.get("deep_type", content_type)
+            return self.reply(200, INDEX, str(content_type), settings["index_cache"])
 
     return Handler
 
@@ -116,6 +119,32 @@ def failed_checks(result: subprocess.CompletedProcess[str]) -> list[str]:
 
 def test_a_correct_server_passes_every_check() -> None:
     with serving() as base:
+        result = run_contract(BASE_URL=base, API_PREFIX="/v1/", RUNTIME_CONFIG_PATH="/config.json")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "# pass 7" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("content_type", ["text/plain", "text/html-not-real", "application/json", ""])
+def test_deep_link_requires_html_media_type(content_type: str) -> None:
+    # Keep the app body, cache policy, CSP and nosniff correct to isolate the MIME defect.
+    with serving(deep_type=content_type) as base:
+        result = run_contract(BASE_URL=base, API_PREFIX="/v1/", RUNTIME_CONFIG_PATH="/config.json")
+    assert result.returncode != 0, result.stdout
+    assert failed_checks(result) == ["a deep link serves the app and revalidates"], result.stdout
+    assert "content-type" in result.stdout, result.stdout
+
+
+def test_index_requires_exact_html_media_type() -> None:
+    with serving(html_type="text/html-not-real", deep_type="text/html") as base:
+        result = run_contract(BASE_URL=base, API_PREFIX="/v1/", RUNTIME_CONFIG_PATH="/config.json")
+    assert result.returncode != 0, result.stdout
+    assert failed_checks(result) == ["index.html is the app and revalidates"], result.stdout
+    assert "content-type" in result.stdout, result.stdout
+
+
+@pytest.mark.parametrize("content_type", ["text/html", "Text/HTML; charset=UTF-8", "text/html ; charset=utf-8"])
+def test_supported_html_media_types_pass(content_type: str) -> None:
+    with serving(html_type=content_type) as base:
         result = run_contract(BASE_URL=base, API_PREFIX="/v1/", RUNTIME_CONFIG_PATH="/config.json")
     assert result.returncode == 0, result.stdout + result.stderr
     assert "# pass 7" in result.stdout, result.stdout

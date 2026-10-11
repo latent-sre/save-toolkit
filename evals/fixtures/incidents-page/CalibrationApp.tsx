@@ -8,7 +8,10 @@ function PortalStatus({ value, onChange, input }) {
   const [expanded, setExpanded] = useState(false);
   const label = value.charAt(0).toUpperCase() + value.slice(1);
   const trigger = {
-    role: 'combobox', 'aria-label': 'Status', 'aria-expanded': expanded,
+    key: CASE === 'portal-replaced-control' ? value : 'stable',
+    role: 'combobox', 'aria-label': CASE.includes('dynamic') ?
+      (CASE.includes('escaped') ? `Status (primary) [${label}]` : `Status ${label}`) :
+      CASE === 'portal-unsupported-name' ? `${value === 'all' ? 'Status' : 'Saved'} ${label}` : 'Status', 'aria-expanded': expanded,
     'aria-controls': expanded ? 'status-options' : undefined,
     onClick: () => setExpanded(!expanded),
     onKeyDown: (event) => {
@@ -97,10 +100,11 @@ export default function App() {
             <div role="listbox" aria-label="Unrelated options">
               <button role="option" aria-selected="false" onClick={() => changeStatus('all')}>Closed</button>
             </div>, document.body)}
-          <PortalStatus value={['stale-control', 'ambiguous-name'].includes(defect) && !selectedHere ? 'all' : wanted}
+          <PortalStatus value={['stale-control', 'ambiguous-name', 'dynamic-stale-control', 'dynamic-ambiguous-name'].includes(defect) && !selectedHere ? 'all' : wanted}
             onChange={changeStatus} input={FILTER === 'portal-input'} />
-          {['stale-control', 'ambiguous-name'].includes(defect) && <input role="combobox"
-            aria-label={defect === 'ambiguous-name' ? 'Status' : 'Unrelated saved view'}
+          {['stale-control', 'ambiguous-name', 'dynamic-stale-control', 'dynamic-ambiguous-name'].includes(defect) && <input role="combobox"
+            aria-label={defect === 'ambiguous-name' ? 'Status' :
+              defect === 'dynamic-ambiguous-name' ? 'Status Open' : 'Unrelated saved view'}
             aria-expanded="false" value="Open" readOnly />}
         </> : <label>
           Status
@@ -158,7 +162,7 @@ export default function App() {
             </tr>)}</tbody>
           </table>}
           {CONSOLE && nextCursor && <button onClick={async () => {
-            const cursor = `?cursor=${encodeURIComponent(nextCursor)}`;
+            const cursor = CASE === 'broken-cursor' ? '' : `?cursor=${encodeURIComponent(nextCursor)}`;
             const response = await fetch(`/v1/incidents${cursor}`);
             const body = await response.json();
             setRows((previous) => [...previous, ...body.data]);

@@ -64,6 +64,7 @@ async function get(path) {
 }
 
 const revalidates = (response) => /\bno-cache\b|\bno-store\b|\bmax-age=0\b/.test(response.cache);
+const mediaType = (response) => trimAscii(response.type.split(";", 1)[0]);
 
 // The app's HTML is recognised by its script bundle, which survives per-response nonces.
 async function bundlePath() {
@@ -78,7 +79,7 @@ const isApp = (response, bundle) => response.body.includes(bundle);
 test("index.html is the app and revalidates", async () => {
   const page = await get("/");
   assert.equal(page.status, 200);
-  assert.match(page.type, /text\/html/);
+  assert.equal(mediaType(page), "text/html", `/ has content-type "${page.type}"`);
   assert.ok(revalidates(page), `/ must send Cache-Control: no-cache, got "${page.cache}"`);
 });
 
@@ -91,6 +92,7 @@ test("a deep link serves the app and revalidates", async () => {
   const bundle = await bundlePath();
   const page = await get(`/${missing}/deep/link`);
   assert.equal(page.status, 200, "a client route must fall back to index.html");
+  assert.equal(mediaType(page), "text/html", `a deep link has content-type "${page.type}"`);
   assert.ok(isApp(page, bundle), "a client route must serve the app's HTML");
   assert.ok(revalidates(page), `a deep link must send Cache-Control: no-cache, got "${page.cache}"`);
   securityHeaders(page, "a deep link");

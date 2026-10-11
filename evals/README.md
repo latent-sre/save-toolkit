@@ -390,14 +390,19 @@ None of the oracle tests makes a model call.
   each prove their oracle with a house-rule reference that passes and targeted mutants that fail with
   their expected messages.
 - [`incidents-api`](test_incidents_api_oracle.py) covers that oracle's pagination check.
-- [`incidents-page`](test_incidents_page_oracle.py) calibrates the actual UI oracle's loading,
-  error, empty and filter checks (bars 1/2/3/5) against reference pages and targeted mutants.
+- [`Incident UI calibration`](test_incidents_page_oracle.py) exercises both the incidents-page
+  and incidents-console oracles' loading, error, empty and filter checks (bars 1/2/3/5)
+  against reference pages and targeted mutants. The console also exercises request-ID display
+  and cursor pagination (bars 8/9), including an omitted-cursor mutant. The supervised completion
+  path must classify that mutant as a candidate failure and ambiguous or unsupported filter
+  identity as inconclusive. Custom-filter positives include accessible names that change with
+  the selected value; stale controls and unrelated decoys cannot manufacture a pass.
   Opt in with `INCIDENTS_PAGE_NODE_MODULES` pointing to an existing dependency tree and
   `INCIDENTS_PAGE_MODE=bounded` or `full`, then run
   `python -m pytest -q -s evals/test_incidents_page_oracle.py`. Versions are reported and nothing
   is installed. Bounded mode substitutes a fetch transport double for MSW; full mode
-  uses MSW. Both use JSDOM and cover only those four bars; browser behavior and the axe bar remain
-  separate checks.
+  uses MSW. Both use JSDOM; native browser behavior and the remaining oracle bars, including
+  axe, remain separate checks.
 
 The researcher/scribe cases add a bounded public-page lookup, private-input rejection with
 zero attempted web calls, a missing-current-version source decision, extended/quick research

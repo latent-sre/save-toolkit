@@ -196,6 +196,29 @@ function controlledListbox(combo) {
   return null;
 }
 
+function comboDisplay(combo) {
+  return combo.tagName === 'INPUT' ? combo.value
+    : combo.getAttribute('aria-valuetext') || renderedText(combo);
+}
+
+function restoredName(initial, selected, displayed, want) {
+  if (initial === selected) return initial;
+  // Learn only the observed replacement of the displayed choice in the name.
+  // Anchor and escape its surrounding text; arbitrary renaming is not identity.
+  const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const choice = new RegExp(escape(displayed), 'i');
+  const match = displayed && choice.exec(initial);
+  if (match && !choice.test(initial.slice(match.index + displayed.length))) {
+    const prefix = initial.slice(0, match.index);
+    const suffix = initial.slice(match.index + displayed.length);
+    const changed = new RegExp(`^${escape(prefix)}${escape(want)}${escape(suffix)}$`, 'i');
+    if (changed.test(selected)) {
+      return new RegExp(`^${escape(prefix)}(?:all|open|closed)${escape(suffix)}$`, 'i');
+    }
+  }
+  throw new Error('unsupported status combobox name change: cannot identify the restored control');
+}
+
 async function chooseStatus(user, want) {
   const wanted = new RegExp(want, 'i');
   const select = statusSelect(want);
@@ -212,6 +235,7 @@ async function chooseStatus(user, want) {
     return true;
   } }).filter((combo) => combo.tagName !== 'SELECT');
   for (const combo of combos) {
+    const displayed = comboDisplay(combo).trim();
     await user.click(combo);
     let listbox;
     try {
@@ -227,7 +251,18 @@ async function chooseStatus(user, want) {
     const option = within(listbox).queryAllByRole('option', { name: wanted }).find(isVisible);
     if (option) {
       await user.click(option);
-      return names.get(combo);
+      return await waitFor(() => {
+        let selectedName;
+        screen.queryAllByRole('combobox', { name: (name, element) => {
+          if (element === combo) selectedName = name;
+          return false;
+        } });
+        if (selectedName === undefined) {
+          throw new Error('unsupported status combobox replacement: cannot identify the restored control');
+        }
+        expect(comboDisplay(combo), 'choosing status did not update the filter control').toMatch(wanted);
+        return restoredName(names.get(combo), selectedName, displayed, want);
+      });
     }
     await user.keyboard('{Escape}');
   }
@@ -261,10 +296,11 @@ function showsStatus(want, comboboxName) {
       // (INCONCLUSIVE in check_ui.py), not proof of a correct or incorrect filter.
       throw new Error('ambiguous status combobox name: cannot identify the restored control');
     }
-    if (!matches.length) return false;
+    if (!matches.length) {
+      throw new Error('unsupported status combobox identity: cannot identify the restored control');
+    }
     const combo = matches[0];
-    const displayed = combo.tagName === 'INPUT' ? combo.value
-      : combo.getAttribute('aria-valuetext') || renderedText(combo);
+    const displayed = comboDisplay(combo);
     return wanted.test(displayed);
   }
   const select = statusSelect(want);
