@@ -1,0 +1,137 @@
+"""Real process/lock and pytest-exit contracts for the coordinated local runner."""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+import local_tests
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def child(code: str, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([sys.executable, "-B", "-c", code, *args], capture_output=True,
+                          text=True, encoding="utf-8", timeout=30,
+                          env={**os.environ, "PYTHONPATH": str(ROOT / "scripts")})
+
+
+def test_another_process_cannot_take_a_live_lease(tmp_path):
+    lock = tmp_path / "suite.lock"
+    code = "from pathlib import Path; from local_tests import suite_lease; " \
+           "import sys;\nwith suite_lease(Path(sys.argv[1])): print('acquired')"
+    with local_tests.suite_lease(lock):
+        result = child(code, str(lock))
+        assert result.returncode != 0
+        assert "another coordinated test run" in result.stderr
+        assert "acquired" not in result.stdout
+    assert child(code, str(lock)).returncode == 0
+
+
+def test_process_exit_releases_the_lease_without_deleting_a_stale_file(tmp_path):
+    lock = tmp_path / "suite.lock"
+    code = "from pathlib import Path; from local_tests import suite_lease; import sys;\n" \
+           "with suite_lease(Path(sys.argv[1])):\n print('locked', flush=True); sys.stdin.read()"
+    proc = subprocess.Popen([sys.executable, "-B", "-c", code, str(lock)],
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True, env={**os.environ, "PYTHONPATH": str(ROOT / "scripts")})
+    try:
+        assert proc.stdout.readline().strip() == "locked"
+        with pytest.raises(local_tests.SuiteBusy), local_tests.suite_lease(lock):
+            pytest.fail("live lease was acquired twice")
+    finally:
+        proc.kill()
+        proc.communicate(timeout=15)
+    assert lock.is_file()
+    with local_tests.suite_lease(lock):
+        pass
+
+
+@pytest.fixture
+def repository(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "scripts").mkdir()
+    shutil.copy2(ROOT / "scripts/local_tests.py", repo / "scripts/local_tests.py")
+    (repo / "pytest.ini").write_text("[pytest]\naddopts = -n 2 --dist loadfile\n", encoding="utf-8")
+    (repo / "test_sample.py").write_text("def test_sample():\n    assert True\n", encoding="utf-8")
+    for args in (("init", "-q", "-b", "main"), ("add", "."),
+                 ("-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture")):
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+    return repo
+
+
+def invoke(repo: Path, *args: str, inherited_options: str | None = None) -> subprocess.CompletedProcess[str]:
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTEST_ADDOPTS", "PYTEST_PLUGINS")}
+    env["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+    if inherited_options is not None:
+        env["PYTEST_ADDOPTS"] = inherited_options
+    return subprocess.run([sys.executable, "-B", str(repo / "scripts/local_tests.py"), "-p", "xdist.plugin", *args],
+                          cwd=repo, env=env, capture_output=True, text=True, encoding="utf-8", timeout=60)
+
+
+@pytest.mark.parametrize("source, arguments, expected", [
+    ("def test_sample():\n    assert True\n", ["-n", "0"], 0),
+    ("def test_sample():\n    assert False\n", ["-n", "0"], 1),
+    ("def test_sample(:\n", ["-n", "0"], 2),
+    ("def test_sample():\n    assert True\n", ["--invalid-local-test-option"], 4),
+])
+def test_records_actual_pytest_result_and_source_identity(repository, source, arguments, expected):
+    (repository / "test_sample.py").write_text(source, encoding="utf-8")
+    result = invoke(repository, *arguments)
+    assert result.returncode == expected, result.stdout + result.stderr
+    receipts = list((repository / ".git/local-test-runs").glob("*/run.json"))
+    assert len(receipts) == 1
+    receipt = json.loads(receipts[0].read_text())
+    assert receipt["exit_code"] == expected
+    assert receipt["elapsed_seconds"] > 0
+    assert receipt["source_before"]["head"] == subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=repository, text=True).strip()
+    assert receipt["source_after"] == receipt["source_before"]
+    assert receipt["source_before"]["dirty"] == (expected in (1, 2))
+    assert receipt["command"][:3] == [sys.executable, "-m", "pytest"]
+    assert receipt["versions"]["pytest"]
+    log = receipts[0].parent / "pytest.log"
+    assert log.is_file() and log.stat().st_size
+    if expected != 4:
+        assert (receipts[0].parent / "junit.xml").is_file()
+        assert receipt["effective"]["workers"] == 0
+    with local_tests.suite_lease(repository / ".git/local-tests.lock"):
+        pass
+
+
+def test_inherited_narrowing_and_collection_only_cannot_look_like_a_full_execution(repository):
+    (repository / "test_sample.py").write_text(
+        "def test_sample(): assert False\ndef test_excluded(): assert False\n", encoding="utf-8")
+    (repository / "test_ignored.py").write_text("def test_sample(): assert False\n", encoding="utf-8")
+    result = invoke(repository, "-n", "0", inherited_options=(
+        "-k test_sample --ignore=test_ignored.py --deselect=test_sample.py::test_excluded "
+        "--maxfail=1 --collect-only --last-failed-no-failures=none"))
+    assert result.returncode == 0, result.stdout + result.stderr
+    receipt = json.loads(next((repository / ".git/local-test-runs").glob("*/run.json")).read_text())
+    settings = receipt["effective"]
+    assert settings["keyword"] == "test_sample"
+    assert settings["collect_only"] is True
+    assert settings["ignored_paths"] == ["test_ignored.py"]
+    assert settings["deselected_nodes"] == ["test_sample.py::test_excluded"]
+    assert settings["max_failures"] == 1
+    assert settings["last_failed_no_failures"] == "none"
+    assert receipt["results"]["collected"] == 1
+
+
+def test_linked_worktrees_share_one_lease_and_busy_runs_do_not_start_pytest(repository, tmp_path):
+    linked = tmp_path / "linked"
+    subprocess.run(["git", "worktree", "add", "--detach", str(linked), "HEAD"],
+                   cwd=repository, check=True, capture_output=True)
+    assert local_tests.common_git_dir(repository) == local_tests.common_git_dir(linked)
+    with local_tests.suite_lease(repository / ".git/local-tests.lock"):
+        result = invoke(linked, "-n", "0")
+        assert result.returncode == 2
+        assert "another coordinated test run" in result.stderr
+        assert not (repository / ".git/local-test-runs").exists()
