@@ -83,6 +83,42 @@ paths:
           $ref: "#/components/responses/Problem"
         "429": { $ref: "#/components/responses/RateLimited" }
         "500": { $ref: "#/components/responses/Problem" }
+  /v1/incidents/{incident_id}/close:
+    post:
+      operationId: closeIncident
+      summary: Close an incident, recording who closed it and why (idempotent via Idempotency-Key).
+      parameters:
+        - { name: incident_id, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 64 } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 1, maxLength: 255 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IncidentClose" }
+      responses:
+        "200":              # closing a closed incident changes nothing and returns it as it is.
+          description: The incident after the close, with updated_by and updated_at from the change that closed it.
+          headers:
+            Idempotent-Replayed: { schema: { type: boolean }, description: "true on a replay of the first completed request with this key." }
+            X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+          content: { application/json: { schema: { $ref: "#/components/schemas/Incident" } } }
+        "400":              # a missing Idempotency-Key, or a body that is not valid JSON.
+          $ref: "#/components/responses/Problem"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409":              # IETF Idempotency-Key draft: the first request with this key is still in progress.
+          description: The first request with this key is still in progress.
+          headers:
+            Retry-After: { schema: { type: integer }, description: "Seconds before retrying with the same key." }
+            X-Request-ID: { $ref: "#/components/headers/X-Request-ID" }
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "422":              # a missing or blank reason (loc ["body", "reason"]), or a key reused with a different payload.
+          $ref: "#/components/responses/Problem"
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "500": { $ref: "#/components/responses/Problem" }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }   # OIDC/OAuth2 via corp SSO/UAA.
@@ -141,12 +177,21 @@ components:
         id: { type: string }
         status: { type: string, enum: [open, closed] }
         title: { type: string, minLength: 1, maxLength: 200 }
-      required: [id, status, title]
+        updated_at: { type: string, format: date-time, readOnly: true, description: When the incident last changed. }
+        updated_by: { type: string, minLength: 1, readOnly: true, description: "The authenticated actor of the last change, never a name the client sent." }
+      required: [id, status, title, updated_at, updated_by]
     IncidentCreate:
       type: object
       properties: { title: { type: string, minLength: 1, maxLength: 200 } }
       required: [title]
       additionalProperties: false   # reject unknown fields.
+    IncidentClose:
+      type: object
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 500, pattern: '\S', description: Why the incident is closed; stored in the audit record. }
+        change_ref: { type: string, minLength: 1, maxLength: 100, description: The incident or change ticket this action belongs to. }
+      required: [reason]
+      additionalProperties: false   # reject unknown fields, including a client-supplied actor.
     IncidentPage:
       type: object
       properties:

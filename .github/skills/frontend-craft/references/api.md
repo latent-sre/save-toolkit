@@ -77,7 +77,11 @@ from [the idempotent-write helper](../assets/idempotent-write.ts) and
 [its test](../assets/idempotent-write.test.ts), written in with the editor tools like the
 problem helper: `newIntentKey()` when the action starts,
 `sendIdempotent()` for every send, which waits out the `409` with the same key. Disable the
-control while the write is pending. Mutations do not retry by default; keep it that way unless
+control while the write is pending. An operation whose contract declares a `reason` — the house
+contract's destructive actions, such as `POST /v1/incidents/{incident_id}/close` — takes it from
+the confirm as a required field with the `change_ref` beside it, and a `422` on `reason` lands on
+that field. Never send an actor: the server takes it from the session and returns it as
+`updated_by`. Mutations do not retry by default; keep it that way unless
 replay is proven safe. Long-running work answers `202` with a status resource: poll it with
 backoff, show progress, and let the user leave the page. A bulk action reports each item's
 outcome, including unknown.

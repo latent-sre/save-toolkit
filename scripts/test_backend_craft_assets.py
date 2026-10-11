@@ -402,7 +402,8 @@ def test_problem_assertion_rejects_wrong_media_type_or_http_status(media_type, s
 def test_starter_urls_and_page_shape_match_the_house_contract():
     schema = starter_openapi()
     base = urlsplit(schema["servers"][0]["url"]).path.rstrip("/")
-    assert {base + path for path in schema["paths"]} == {"/health/live", "/health/ready", "/v1/incidents"}
+    assert {base + path for path in schema["paths"]} == {
+        "/health/live", "/health/ready", "/v1/incidents", "/v1/incidents/{incident_id}/close"}
     assert not any(path.endswith("z") for path in schema["paths"]), "Cloud Run reserves some paths ending in z"
     page = schema["components"]["schemas"]["IncidentPage"]
     assert set(page["required"]) == {"data", "next_cursor"}
@@ -413,6 +414,8 @@ def test_starter_urls_and_page_shape_match_the_house_contract():
     ("cursor", ["a", "x" * 2048], ["", "x" * 2049]),
     ("idempotency_key", ["a", "x" * 255], ["", "x" * 256]),
     ("title", ["a", "x" * 200], ["", "x" * 201]),
+    ("reason", ["a", "x" * 500, " ok "], ["", "   ", "x" * 501]),
+    ("change_ref", ["a", "x" * 100], ["", "x" * 101]),
 ])
 def test_starter_input_bounds(field, accepted, rejected):
     """Exercise the example's public bounds with an independent schema validator."""
@@ -421,12 +424,26 @@ def test_starter_input_bounds(field, accepted, rejected):
     inputs = {param["name"]: param["schema"] for param in collection["get"]["parameters"]}
     inputs["idempotency_key"] = collection["post"]["parameters"][0]["schema"]
     inputs["title"] = schema["components"]["schemas"]["IncidentCreate"]["properties"]["title"]
+    inputs.update(schema["components"]["schemas"]["IncidentClose"]["properties"])
     Draft202012Validator.check_schema(inputs[field])
     validator = Draft202012Validator(inputs[field])
     for value in accepted:
         assert validator.is_valid(value), f"{field}: documented boundary rejected"
     for value in rejected:
         assert not validator.is_valid(value), f"{field}: out-of-bounds input accepted"
+
+
+def test_starter_attributes_changes_to_an_authenticated_actor_and_a_reason():
+    """The close action carries a reason and a key, never an actor; the resource says who and when."""
+    schema = starter_openapi()
+    components = schema["components"]["schemas"]
+    assert {"updated_at", "updated_by"} <= set(components["Incident"]["required"])
+    close = schema["paths"]["/v1/incidents/{incident_id}/close"]["post"]
+    assert "Idempotency-Key" in {param["name"] for param in close["parameters"] if param["in"] == "header"}
+    body = Draft202012Validator(components["IncidentClose"])
+    assert body.is_valid({"reason": "duplicate of INC-42", "change_ref": "CHG-1001"})
+    assert not body.is_valid({}), "a close without a reason was accepted"
+    assert not body.is_valid({"reason": "done", "updated_by": "someone-else"}), "the client named the actor"
 
 
 @pytest.mark.parametrize("attribute", ["app", "create_app"])

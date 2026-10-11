@@ -25,6 +25,24 @@ datastore, auth and native tests.
   uniqueness with a durable business ID. Never expire unresolved work so that another attempt can
   run.
 
+## Attribution
+
+- Record the actor of every state-changing request from the authenticated identity, never from a
+  field the client sends, and expose `updated_by` and `updated_at` on the resource (the starter's
+  `Incident`), so a console can show who last changed a record and when.
+- A destructive or production-affecting operation requires a `reason` (bounded free text) and
+  accepts a `change_ref` naming the incident or change ticket, both in its request body; a missing
+  or empty reason is a `422` on `["body", "reason"]`. Model the operation as a `POST` action on the
+  resource, as the starter's `POST /v1/incidents/{incident_id}/close` does, rather than a `DELETE`,
+  whose body has no defined meaning, so it carries the reason and an `Idempotency-Key`.
+- Write the audit record — actor, action, target, reason, `change_ref`, request ID, time and
+  outcome — in the same transaction as the change, or durably before reporting success; a change
+  that commits without its record cannot be reconstructed. A reason is user text: bound it, store
+  it as data, and never log credentials or the full body beside it.
+- Test that the actor comes from authentication even when the body names someone else, that a
+  missing reason is a `422` on its field, and that the audit record commits with the change and
+  never without it.
+
 ## Atomicity and recovery
 
 - Enforce a unique, scoped claim in the database, and commit or roll back the mutation and its

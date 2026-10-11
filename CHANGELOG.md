@@ -8,6 +8,19 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Changes are attributed to an authenticated actor and, where destructive, to a reason.
+  `backend-craft`'s house contract gains an Attribution row and `api-writes.md` an Attribution
+  section: every state-changing request records its actor from authentication, never from the
+  request; resources expose `updated_by` and `updated_at`; a destructive or production-affecting
+  operation is a `POST` action that requires a `reason` (and accepts a `change_ref`) and writes its
+  audit record in the same transaction. The OpenAPI starter shows it with
+  `POST /v1/incidents/{incident_id}/close` (`IncidentClose`: a non-blank `reason` of up to 500
+  characters, an optional `change_ref`, no other fields) and `updated_by`/`updated_at` on
+  `Incident`. `frontend-craft` collects the reason in the confirm when the contract asks for one,
+  lands a `422` on that field, never sends an actor, and shows who last changed a record and when.
+  [verified] `scripts/test_backend_craft_assets.py` pins the new path, the reason and `change_ref`
+  bounds and the attribution shape; removing the blank-reason pattern or making `reason` optional
+  each turned its test red.
 - A plain `pytest` now runs on four parallel workers: `pytest.ini` sets `-n 4 --dist loadfile`,
   as CI does, so the local command no longer runs serially unless `-n 0` is passed (for a debugger
   or `--pdb`). CI's `PYTEST_ADDOPTS` and a command-line `-n` still override it.
