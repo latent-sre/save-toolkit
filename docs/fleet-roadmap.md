@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; working update 2026-10-10, EVAL-011 closeout in PR #348.** This is the only backlog.
+> **Status: live; working update 2026-10-11, frontend-craft follow-ups FRONTEND-001 and FRONTEND-002 added.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -445,6 +445,66 @@ plus the counting fix and has not been run. Earlier, on CLI 2.1.292 and the prev
 five wordings reviewed in 10 of 15 trials. Runs are private under `.eval-runs/precommit-20261008/`.
 **SRE task:** An SRE gets an independent review of agent-written changes before they are committed
 without having to ask for it each time.
+
+### FRONTEND-001 — close the frontend-craft gaps left after PR #355
+
+**Status:** `ready` (2026-10-11). Found after #355, #361 and #362 were written, by three read-only
+rescans of the rewrite and a check of the saved trial builds; the owner chose to record them and
+merge those PRs first. One question needs the owner (below).
+**Owner:** The human owner decides the status-page question; the main session or `software-engineer`
+makes the skill changes; `agent-engineer` owns any eval that checks them.
+**Outcome:** `frontend-craft` covers each gap below with a one-line rule or a fixed asset, and the
+helper tests run inside an agent-built app.
+**Next action:** One PR after #355 merges, in this order:
+1. The helper tests never reach the app. Ship the problem and idempotent-write test cases in a form
+   the app's Vitest collects, keeping a `node --test` path for this repository's asset test.
+2. The `serving-contract.mjs` and `problem.ts` headers say "Copy it into the repository"; say "write
+   it in with the editor tools", as the skill does, since copy wording caused clean-room denials.
+3. Replace the Web Push rows in `react.md` and `vue.md` with the Notification API for an open tab:
+   no service worker unless the caller asks, since one can keep serving a stale `index.html`.
+4. A `202` job can be found again after a reload: a job page or activity list, cancel where the API
+   allows it, and a timed-out end state.
+5. CSV export neutralises cells starting with `=`, `+`, `-`, `@`, tab or carriage return, and labels
+   an export of only the loaded rows "N of M".
+6. Heavy views (editors, charts, terminals) load lazily per route, and the initial bundle is
+   watched.
+7. "No data", "filtered to empty" and "partial result" look different, and the source's own as-of
+   time shows when the API provides it.
+8. Components copied from a registry (`shadcn add`) record their origin and version and are
+   reviewed like the team's own code.
+9. Small rules: a `422` whose `loc` names no field goes to a form-level alert; the serving contract
+   supports an app under a sub-path; the reduced-motion rule uses `0.01ms`, not `0ms`, so
+   `transitionend` fires; the theme's "system" choice removes `data-theme`; Vue uses `shallowRef`
+   and `markRaw` for large data; one test runs in a non-UTC zone across a daylight-saving change;
+   the repository states a browser-support target.
+
+The owner decides whether a public status page is prerendered so it does not share fate with the
+API it reports on.
+**Evidence:** Gap 1: the two new-skill console trial builds
+(`.eval-runs/frontend-craft-workspace/iteration-1` and `iteration-2`,
+`eval-build-software-engineer-incidents-console/with_skill/run-1/outputs/workspace.patch`) write
+`problem.ts`, and iteration 2 `idempotent-write.ts`, but neither test file. Gaps 2, 3 and the
+reduced-motion rule hold at #355's `8ede60a3`. The rest come from the 2026-10-11 rescans of #355 at
+`678692bf`; the runs are private.
+**SRE task:** An SRE gets a console whose helper tests actually run, whose long jobs can be found
+again after a reload, and whose exports and empty states cannot mislead during an incident.
+
+### FRONTEND-002 — grade the console behaviour the evals do not yet see
+
+**Status:** `ready` (2026-10-11), once PR #361's console bars 10–12 merge.
+**Owner:** `agent-engineer`.
+**Outcome:** The live-log-tail and status-front-page scenarios grade rendered behaviour, one Vue
+build scenario exists, and the console oracle checks the remaining high-value rules, each bar
+calibrated against named mutants the way #361's console calibration is.
+**Next action:** In order: timestamps show their zone (row status and the error card); data age is
+visible and a failed refetch shows stale; a destructive action confirms with its target and count
+before any request; focus moves to the heading on navigation; a status-front-page oracle (status as
+text, worst first, availability as text); a live-log-tail oracle (the level filter reaches the
+server, the stream state shows); then one Vue build scenario.
+**Evidence:** The 2026-10-11 coverage rescan of #355 at `678692bf`: of about 169 rules, about 25 are
+checked against what the agent builds, and none covers writes; #361 adds four. The run is private.
+**SRE task:** An SRE can trust that an agent-built console shows times, staleness and destructive
+confirmations correctly, because a regression fails an eval before it reaches an incident.
 
 ## Deferred
 
