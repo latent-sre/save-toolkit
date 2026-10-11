@@ -6,7 +6,39 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Changed
+
+- The test suite splits into a fast default run and the heavy eval-machinery tests. `conftest.py`
+  lists 18 files (`HEAVY`) — oracle calibration, mutant suites and the runner's native-trial tests —
+  that a plain `pytest` skips; `--heavy` adds them, `-m heavy` runs only them, and naming a file
+  runs it. CI runs the default run as `fast-tests` and the heavy files as `eval-tests`, in
+  parallel; the required `component-tests (ubuntu-latest)` check now waits on both and passes only
+  when both passed, so the ruleset needs no change and a red heavy test still blocks a merge.
+  `CONTRIBUTING.md`'s local command now runs on parallel workers. [verified] On 2026-10-11 the 18
+  files held 1,552 of 2,371 seconds of measured test work; locally on 8 workers the whole suite took
+  4:31, and the serial command the docs gave took 17–22 minutes. `scripts/test_heavy_selection.py`
+  pins the split (default skips, `-m heavy` alone selects, a named file runs, no stale entry), and
+  new workflow contract tests pin the `eval-tests` job and the required check's wait on both
+  shards (it must run `always()`: a skipped required check counts as passing); each failed on the
+  break it names. A marker is matched as a whole name, so `-m "not heavyweight"` keeps the heavy
+  files out, and `evals/README.md` now gives `pytest evals/ --heavy` as the full eval command.
+
 ### Fixed
+
+- `reliability-engineer`: before writing an assessment or design, the lane now loads
+  `resilience-analysis` for failure propagation, capacity under failure, degraded behaviour or
+  recovery and `toil-reduction` for repeated interventions or automation economics, and treats a
+  document written without the applicable skill as not ready to return. [verified] In the WP-10
+  first step its method-table rows alone loaded them 2/3 and 0/3, while its imperative
+  `stack-profile` sentence loaded 3/3. [verified] On the fixed candidate the case passed 3/3,
+  loading all three skills before writing in every trial.
+- `EVAL-012` WP-10 repository-investigator pair: the citation rule now names its two branches (the
+  three file:line references when the answer comes from the source, "none" when this checkout holds
+  no record of the asked runtime fact), and the `assignment` definition uses the same test. In the
+  first step the missing-runtime case returned the implementation lines 3/3 while every other field
+  was right. The expected value is unchanged; the digests changed twice (the second time for
+  Codex's review of PR #354), and the owner re-accepted both each time. [verified] At the final
+  digests both cases passed 3/3, the missing-runtime case citing "none".
 
 - `EVAL-012` WP-10 case acceptance review, 2026-10-10: two reviews of the 15 first-step cases (this
   session, then a fresh session briefed blind) found no defect in the attacks or oracles, but
@@ -28,7 +60,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `--option=value` spellings and the reviewer pair's detectors reject SHA-spelled Git ranges;
   neither form appears in any saved trace (0/303 and 0/909). The review also showed that a contract
   case without `tools:` leaves `researcher` with an empty expected inventory, so the run plan adds a
-  lane-admission smoke trial per `agent-direct` lane before the batch.
+  lane-admission smoke trial per `agent-direct` lane before the batch. The owner accepted all 15
+  cases at the resulting digests the same day; the acceptance sheet records the verdict and the
+  risks the reviews left open. [verified] The four smoke trials then admitted every `agent-direct`
+  lane: one Sonnet trial each at `8d71df39`, each runtime advertising exactly its expected tool
+  inventory (`researcher` none), 4/4 PASS, USD 0.20. The 45-trial first step followed, USD 2.90:
+  `docs/reviews/2026-10-10-wp10-first-step.md` records its results, two proposed failure
+  explanations and the semantic review still open.
 - `EVAL-012` WP-10: the owner approved the first step (15 cases, 45 trials, USD 20 cap) on
   2026-10-10 and raised three lanes' turn limits above EVAL-011's sizing: sre-assistant 42,
   software-engineer 64, repository-investigator 16. `evals/test_eval011_turn_limits.py` pins them, and
