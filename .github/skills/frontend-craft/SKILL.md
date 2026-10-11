@@ -139,6 +139,7 @@ is written, not verified.
 | live views, paused history, reconnects or linked live selection | [Live data](./references/live-data.md) |
 | large tables, linked charts, dependency exploration or bulk selection | [Dense data](./references/dense-data.md) |
 | animated transitions, orchestrated effects or moving visualizations | [Motion](./references/motion.md) |
+| workflow canvases, structured editors, undo or draft persistence | [Rich editing](./references/rich-editing.md) |
 
 Load every matching row. Before recommending a hosting, runtime or platform change, also load
 `stack-profile`.
