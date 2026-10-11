@@ -174,11 +174,25 @@ function expectIncidentRows(container, included, excluded) {
 function statusSelect(want) {
   const wanted = new RegExp(want, 'i');
   for (const combo of screen.queryAllByRole('combobox')) {
+    if (combo.tagName !== 'SELECT') continue;
     const options = within(combo).queryAllByRole('option');
     const option = options.find(
       (o) => wanted.test(o.value ?? '') || wanted.test(o.textContent ?? ''),
     );
     if (option) return { combo, option };
+  }
+  return null;
+}
+
+function controlledListbox(combo) {
+  const ids = [combo.getAttribute('aria-controls'), combo.getAttribute('aria-owns')]
+    .filter(Boolean).join(' ').split(/\s+/);
+  for (const id of ids) {
+    const target = document.getElementById(id);
+    if (!target) continue;
+    const listbox = target.getAttribute('role') === 'listbox'
+      ? target : within(target).queryByRole('listbox');
+    if (listbox && isVisible(listbox)) return listbox;
   }
   return null;
 }
@@ -189,6 +203,34 @@ async function chooseStatus(user, want) {
   if (select) {
     await user.selectOptions(select.combo, select.option.value);
     return;
+  }
+  // Custom selects may render their options in a portal. Follow the trigger's ARIA
+  // relationship rather than treating a combobox as a native select or clicking a
+  // matching option from an unrelated control elsewhere in the document.
+  const names = new Map();
+  const combos = screen.queryAllByRole('combobox', { name: (name, element) => {
+    names.set(element, name);
+    return true;
+  } }).filter((combo) => combo.tagName !== 'SELECT');
+  for (const combo of combos) {
+    await user.click(combo);
+    let listbox;
+    try {
+      listbox = await waitFor(() => {
+        const current = controlledListbox(combo);
+        if (!current) throw new Error('combobox has no visible associated listbox');
+        return current;
+      });
+    } catch {
+      await user.keyboard('{Escape}');
+      continue;
+    }
+    const option = within(listbox).queryAllByRole('option', { name: wanted }).find(isVisible);
+    if (option) {
+      await user.click(option);
+      return names.get(combo);
+    }
+    await user.keyboard('{Escape}');
   }
   const clickable = [
     ...screen.queryAllByRole('radio'),
@@ -204,15 +246,28 @@ async function chooseStatus(user, want) {
   );
   if (!clickable) {
     throw new Error(
-      `no status filter control offering "${want}": no select option, radio, tab, button, ` +
-        'or link with that name was rendered on /incidents',
+      `no status filter control offering "${want}": no native select option, associated ` +
+        'combobox/listbox option, radio, tab, button, checkbox, or link was available on /incidents',
     );
   }
   await user.click(clickable);
 }
 
-function showsStatus(want) {
+function showsStatus(want, comboboxName) {
   const wanted = new RegExp(want, 'i');
+  if (comboboxName !== undefined) {
+    const matches = screen.queryAllByRole('combobox', { name: comboboxName }).filter(isVisible);
+    if (matches.length > 1) {
+      // A name is not a unique identity. Unsupported ambiguity is an oracle error
+      // (INCONCLUSIVE in check_ui.py), not proof of a correct or incorrect filter.
+      throw new Error('ambiguous status combobox name: cannot identify the restored control');
+    }
+    if (!matches.length) return false;
+    const combo = matches[0];
+    const displayed = combo.tagName === 'INPUT' ? combo.value
+      : combo.getAttribute('aria-valuetext') || renderedText(combo);
+    return wanted.test(displayed);
+  }
   const select = statusSelect(want);
   if (select) return wanted.test(select.combo.value ?? '');
   const checked = [...screen.queryAllByRole('radio'), ...screen.queryAllByRole('tab')].find(
@@ -320,7 +375,7 @@ test('bar5 the status filter round-trips through the URL and filters visible row
   const user = userEvent.setup();
   const { container } = renderAt('/incidents');
   await screen.findByText(/inc-0001/, undefined, { timeout: 5000 });
-  await chooseStatus(user, 'closed');
+  const comboboxName = await chooseStatus(user, 'closed');
   await waitFor(
     () => {
       expect(
@@ -337,7 +392,7 @@ test('bar5 the status filter round-trips through the URL and filters visible row
   await waitFor(
     () => {
       expect(
-        showsStatus('open'),
+        showsStatus('open', comboboxName),
         'loading /incidents?status=open did not restore the filter control to "open": the ' +
           'URL is not read back as state',
       ).toBe(true);
