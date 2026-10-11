@@ -300,8 +300,6 @@ checks:
   - {check: command_exit_zero, command: "npm run typecheck", timeout: 300, text: "tsc --noEmit is clean under the repo's strict config"}
   - {check: command_exit_zero, command: "npx vitest run src", timeout: 300, text: "the agent's own suite is green when the probe runs it (src/ only, so the oracle is excluded)"}
   - {check: command_exit_zero, command: "npx vitest run src --reporter=json --outputFile=probe_suite.json && node -e \"const r=require('./probe_suite.json');const t=r.testResults.flatMap(f=>f.assertionResults);const hit=t.filter(a=>/incident/i.test(a.fullName+a.title)&&a.status==='passed');process.exit(hit.length?0:1)\"", timeout: 300, text: "an incidents test case the agent wrote actually executed and passed"}
-  - {check: changed_files_not_containing, glob: "package.json", needle: "@mantine/core", text: "no Mantine component library added to a Tailwind-free React app"}
-  - {check: changed_files_not_containing, glob: "src/**", needle: "@mantine/core", text: "no Mantine component imports in the page code"}
   - {check: verification_completed, runner: vitest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}

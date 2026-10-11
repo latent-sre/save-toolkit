@@ -28,6 +28,79 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   shards (it must run `always()`: a skipped required check counts as passing); each failed on the
   break it names. A marker is matched as a whole name, so `-m "not heavyweight"` keeps the heavy
   files out, and `evals/README.md` now gives `pytest evals/ --heavy` as the full eval command.
+- `frontend-craft` is rewritten from the owner's 2026-10-10 decisions; nothing survives from the
+  2026-07-14 import on inheritance. The skill now reads as the operator-UI contract — consume the
+  house API contract, show errors an operator can act on, make writes safe, build once with
+  runtime configuration, keep state where it belongs, treat content as data, stay accessible, use
+  the modern platform, add dependencies deliberately — with an owner-decisions table: React and
+  Vue both supported, one component system per app with two caller-picked React defaults
+  (shadcn/ui + Tailwind + Motion, or HeroUI + Motion) and shadcn-vue for Vue, two design
+  registers by audience, and the UI bound to `backend-craft`'s contract; the decisions, their
+  reasons and the rejected options are in `docs/decisions/2026-10-11-frontend-craft.md`. The
+  Mantine and `@mantine/charts` bans are gone. Six references replace the three inherited ones: `api.md`
+  (typed client from OpenAPI, RFC 9457 problems with `request_id`, cursor pages,
+  `Idempotency-Key`, the error card), `react.md` and `vue.md` (current libraries and
+  capabilities, with licence and coexistence facts for the animated collections), `serving.md`
+  (build once, runtime config, the SPA serving contract), `sessions.md` (SSO, CSRF with Fetch
+  Metadata, multi-tab, live transport) and `design.md` (the console and site registers, the
+  design brief, the generic defaults to replace). Three dependency-free assets ship as contracts the
+  agent writes into the app: `serving-contract.mjs`, `problem.ts` and `problem.test.ts`. [verified]
+  `scripts/test_frontend_craft_assets.py` passes a correct server and the problem helper's six
+  cases, and fails each named serving break on its own check. Evals: the Mantine discovery case
+  is now `discovery-frontend-craft-weighs-mantine-in-tailwind-app`; the incidents-page build drops
+  its two `@mantine/core` checks; three new build scenarios cover the incidents console (with a
+  nine-bar oracle under `evals/oracles/incidents-console/`, adding a problem+json `500` that must
+  show its `request_id` and a "load more" that must follow `next_cursor`), a live log tail and a
+  status front page. The first trials rendered the console and log-tail pages in browser
+  defaults in both arms (the design reference was never loaded and no CSS was written), so the
+  skill now loads the design reference and writes a brief before any page, treats an unstyled
+  app as unbranded, and ships `assets/console-theme.css` — dark-first, light-complete tokens
+  and base element styles whose text and status contrast is tested at WCAG AA in both themes.
+  `assets/idempotent-write.ts` sends a write under one key per user intent and waits out the
+  contract's `409`; the problem helper maps `errors[].loc` to form field names. The three new
+  scenarios gain `evals/oracles/frontend-style/check_style.py`, which fails a build that ships
+  under 1.5 KB of CSS: on the six first-trial workspaces it failed the four pages the
+  screenshots show unstyled and passed the two designed ones. From the second trials' screenshots,
+  the theme also styles a bare `nav > ul` as the app bar with `aria-current` marked, gives `main`
+  a gutter and `[data-panel]` a surface with a `header` row, and draws no ring on a heading that
+  only received focus on navigation; and because two trials still shell-copied an asset out of
+  the plugin folder, the skill says to write assets in with the editor tools, never a `cp`. An
+  audit of every old rule against the rewrite restored eight it had dropped: the saved theme
+  applied before first paint through a CSP-compatible script, AA contrast in every theme, a text
+  or data-table alternative for every chart, charts reading the theme tokens, pagination versus
+  virtualization (virtualization does not reduce what is fetched), widget behaviour from the
+  component system's primitives, complying with a plain-HTML request, and navigation shaped by
+  the workflow (top bar, grouped sidebar, tabs, drawer). A rescan then fixed what the rewrite
+  shipped wrong: `sendIdempotent()` waits out only a `409` that carries `Retry-After` (the
+  contract's in-flight write) and returns any other `409` as a conflict, and keeps the caller's
+  abort signal; an edited payload gets a new key, since a reused key with a different payload is a
+  `422`; the console theme is for apps without a component kit (a kit takes its palette through
+  the kit's tokens), draws focus as an outline that forced-colours mode keeps, styles a sidebar
+  inside `<aside>`, keeps status-pill colours under `role="status"`, adds a `danger` button
+  variant and stops greying primary buttons on hover; the Vue scaffold drops Pinia until a store
+  is needed; and the status words match the theme's `[data-status]` values. It also added
+  missing rules: security headers on `index.html`, which the serving contract now checks
+  (`frame-ancestors` and `nosniff`); confirmation friction matched to blast radius, with undo
+  for reversible actions and the environment named in every confirm; the environment's name in
+  every environment, production most distinctly; chart units, UTC axes, gaps for missing data
+  and one shared time range; and single-key shortcuts that can be scoped or turned off. A
+  comparison of every old rule with the new skill then added: a rolling-window cap on what a live
+  view holds (the old skill's rule, dropped in the rewrite) and query keys that never carry a
+  credential; actions that follow the server's permissions (disabled with the reason, or hidden
+  where never usable) with the signed-in identity and role shown; a request ID linked to its logs
+  and trace from runtime-configuration URL templates; sensitive values masked until revealed and
+  kept out of URLs, titles and telemetry; browser error reporting with the request ID and release;
+  and the modern-platform list scoped to features that need it. A last pass over the three old
+  references restored what they held and the rewrite had dropped: every input that changes a
+  response in its query key, freshness and refetch triggers set from the view's needs, one source
+  per need (never polling and a stream for the same data), `lucide-react` as React's icon set,
+  `@mantine/hooks` for utility hooks, and native elements for simple controls. The old
+  `[sourced: …]` citation links stay out: instruction files carry no citations. [verified] The console oracle passes a hand-written page on all nine bars
+  and fails the untouched fixture on bars 1, 2, 3, 8 and 9 as candidate failures (exit 10); bars
+  4–7 are verbatim from the incidents-page oracle and, as there, report a page that never renders
+  a row as an oracle error rather than a candidate failure. `software-engineer` loads the skill before any web UI code, not only
+  operator-facing UI, and `stack-profile` pins TypeScript to 6.x while TypeScript 7 ships no
+  compiler API.
 
 ### Fixed
 
