@@ -26,12 +26,14 @@ Anything that matches one is a default, not a choice: change it and say why.
 
 ## The console register
 
-Start an unstyled app from [the console theme](../assets/console-theme.css): write it into the
-app's styles, import it once at the entry point, and build every view from its tokens —
+Start an unstyled app from [the console theme](../assets/console-theme.css): read it, write it
+into the app's styles with the editor tools (never a shell copy from the skill's folder), import
+it once at the entry point, and build every view from its tokens —
 `--surface-*`, `--text*`, `--accent`, the `--status-*` set, the type scale and `--row-height`.
-Its base layer already makes semantic HTML look like a console (tables, buttons, inputs, focus,
-`[data-status]` pills, `[role="alert"]` cards); the view's own CSS adds the layout and the one
-memorable element. Change the palette when the product has its own, and keep the token names.
+Its base layer already makes semantic HTML look like a console (the `nav > ul` app bar with the
+current page marked by `aria-current="page"`, a page gutter on `main`, `[data-panel]` surfaces
+with a `header` row, tables, buttons, inputs, focus, `[data-status]` pills, `[role="alert"]`
+cards); the view's own CSS adds the layout and the one memorable element. Change the palette when the product has its own, and keep the token names.
 
 A console page has a shape, not just a style:
 
@@ -42,7 +44,8 @@ A console page has a shape, not just a style:
 - **Log and event views** in the mono face: timestamp, level as a coloured pill with its word,
   message; level filters as a segmented control; the stream state (live, paused with a waiting
   count, reconnecting, dropped) as a pill in the toolbar; keyboard hints shown as `<kbd>`.
-- **Panels** on the panel surface with a heading row, never a bare heading on the page canvas.
+- **Panels** on the panel surface with a heading row (`<section data-panel>` with a `<header>`
+  holding the heading and the panel's actions), never a bare heading on the page canvas.
 
 - **Density is designed, not accidental.** A 4/8 px spacing scale with tight row heights, a
   type scale of four or five sizes, `tabular-nums` on every column of numbers, and monospace only

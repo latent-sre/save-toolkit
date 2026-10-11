@@ -24,6 +24,10 @@ the design brief — even when nobody asked for a look.** A page with no styling
 app with no styling of its own is unbranded: start it from the
 [console theme](./assets/console-theme.css), or the chosen component system's tokens.
 
+This skill's assets are starting files: read each one and write its contents into the app with
+the editor tools. The skill's folder is outside the workspace, so never copy from it with the
+shell — a `cp` from there is refused or prompts.
+
 ## Owner decisions
 
 | Area | Decision |

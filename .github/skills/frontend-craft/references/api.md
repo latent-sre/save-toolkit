@@ -4,7 +4,8 @@ Read before any request, cache, page, write, error display or test double. The s
 team builds follow `backend-craft`'s house contract; this file is the browser side of that
 contract. A repository's own client and contract win over every default here. Start from
 [the problem helper](../assets/problem.ts) and [its test](../assets/problem.test.ts): read them,
-write them beside the API client, and adapt the names to the app. They encode the error shape
+write them beside the API client with the editor tools (never a shell copy from the skill's
+folder), and adapt the names to the app. They encode the error shape
 below and run with `node --test`, no packages.
 
 ## The typed client
@@ -69,7 +70,8 @@ it on every retry of that action, and mint a new one for a new intent. The contr
 `409` while the first request with that key is still in flight — keep waiting and poll, never
 re-send with a fresh key — and `422` when the key is reused with a different payload. Start
 from [the idempotent-write helper](../assets/idempotent-write.ts) and
-[its test](../assets/idempotent-write.test.ts): `newIntentKey()` when the action starts,
+[its test](../assets/idempotent-write.test.ts), written in with the editor tools like the
+problem helper: `newIntentKey()` when the action starts,
 `sendIdempotent()` for every send, which waits out the `409` with the same key. Disable the
 control while the write is pending. Mutations do not retry by default; keep it that way unless
 replay is proven safe. Long-running work answers `202` with a status resource: poll it with

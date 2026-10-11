@@ -3,7 +3,7 @@
 Read when changing the build, runtime configuration, or how the UI is served. The repository's
 existing build and hosting win; this file owns the contract they must meet. Start from
 [the serving contract](../assets/serving-contract.mjs): read it and write it into the repository
-beside the build configuration. It is the acceptance test for everything below.
+beside the build configuration with the editor tools, never a shell copy from the skill's folder. It is the acceptance test for everything below.
 
 ## One build, every environment
 

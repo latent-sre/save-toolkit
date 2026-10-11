@@ -39,7 +39,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   contract's `409`; the problem helper maps `errors[].loc` to form field names. The three new
   scenarios gain `evals/oracles/frontend-style/check_style.py`, which fails a build that ships
   under 1.5 KB of CSS: on the six first-trial workspaces it failed the four pages the
-  screenshots show unstyled and passed the two designed ones. [verified] The console oracle passes a hand-written page on all nine bars
+  screenshots show unstyled and passed the two designed ones. From the second trials' screenshots,
+  the theme also styles a bare `nav > ul` as the app bar with `aria-current` marked, gives `main`
+  a gutter and `[data-panel]` a surface with a `header` row, and draws no ring on a heading that
+  only received focus on navigation; and because two trials still shell-copied an asset out of
+  the plugin folder, the skill says to write assets in with the editor tools, never a `cp`. [verified] The console oracle passes a hand-written page on all nine bars
   and fails the untouched fixture on bars 1, 2, 3, 8 and 9 as candidate failures (exit 10); bars
   4–7 are verbatim from the incidents-page oracle and, as there, report a page that never renders
   a row as an oracle error rather than a candidate failure. `software-engineer` loads the skill before any web UI code, not only
