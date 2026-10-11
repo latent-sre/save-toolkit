@@ -50,8 +50,19 @@ class Source:
     # unslotted dataclass keeps them in the instance dictionary; equality, hashing and
     # ordering still compare only path and content.
     @cached_property
+    def is_text(self) -> bool:
+        """False for a binary canonical input, such as a screenshot inside a review packet."""
+        try:
+            self.content.decode("utf-8")
+        except UnicodeDecodeError:
+            return False
+        return True
+
+    @cached_property
     def text(self) -> str:
-        return self.content.decode("utf-8")
+        # A binary source keeps its path, bytes and digest (so links to it resolve and its
+        # change is detected) but carries no text: no lines, no facts, no citations.
+        return self.content.decode("utf-8") if self.is_text else ""
 
     @cached_property
     def lines(self) -> tuple[str, ...]:

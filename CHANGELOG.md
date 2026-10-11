@@ -8,6 +8,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The fleet atlas accepts a binary canonical input. A screenshot inside a review packet keeps its
+  path, bytes and digest in the snapshot, carries no text and mints no document node, instead of
+  failing the build with a UTF-8 decode error, which is what PR #366's first `validate` run did on
+  the frontend-craft proof packet. [verified] One source test and one extractor test pin it, red
+  before the change and green after; the twelve atlas suites pass. The span-authority list also
+  admits `.tsx`, `.conf` and `Staticfile`, the three starting-file types the skill now ships.
 - `frontend-craft` is rewritten from a fresh start on the owner's 2026-10-11 interview
   ([decision](docs/decisions/2026-10-11-frontend-craft-generalized.md)): React first with Vue
   allowed, any approved kit and kits mixable under layer-order and token-bridge rules, no house

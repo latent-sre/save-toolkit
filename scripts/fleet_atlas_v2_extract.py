@@ -747,7 +747,9 @@ def _resolve_catalog(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> Stage
         if isinstance(declaration, dict) and declaration.get('x-fleet-validator') in sources:
             needed.add(declaration['x-fleet-validator'])
     for path in sorted(needed):
-        if path not in sources or not sources[path].content:
+        # An empty or binary file (a screenshot in a review packet) has no lines to cite:
+        # it stays in the corpus and its links resolve, but it gets no document node.
+        if path not in sources or not sources[path].content or not sources[path].is_text:
             continue
         whole_records = [r for r in records.values() if r.node.path == path and r.node.selector == WHOLE_DOCUMENT]
         if not whole_records:
@@ -1838,7 +1840,8 @@ def extract(snapshot: Snapshot, *, stages: Iterable[ExtractionStage] = EXTRACTIO
     fields = {f.predicate for b in buckets for f in b.facts} - EDGE_TYPES
     # All source spans are replayed; joined proofs may include canonical targets and
     # controlling validators in addition to their declaration source.
-    authority = ('*.md', '*.py', '*.json', '*.csv', '*.yaml', '*.yml', '*.toml', '*.txt', '*.sh', '*.ps1', '*.js', '*.mjs', '*.ts', '*.html', '*.css', '*.svg', '*.ini', '*.cfg')
+    authority = ('*.md', '*.py', '*.json', '*.csv', '*.yaml', '*.yml', '*.toml', '*.txt', '*.sh', '*.ps1', '*.js', '*.mjs', '*.ts', '*.tsx',
+                 '*.html', '*.css', '*.svg', '*.ini', '*.cfg', '*.conf', 'Staticfile')
     predicates = tuple(Predicate(name, frozenset(source), frozenset(target), authority)
                        for name, (source, target) in sorted(EDGE_ENDPOINTS.items()))
     predicates += tuple(Predicate(name, NODE_TYPES, None, authority, None if name in ('unknown', 'guidance') else 1)

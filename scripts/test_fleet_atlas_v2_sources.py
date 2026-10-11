@@ -44,6 +44,18 @@ class SourceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             Snapshot("revision", (Source("z.md", b"z"), source))
 
+    def test_binary_content_keeps_identity_but_carries_no_text(self):
+        png = Source("docs/reviews/packet/shot.png", b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
+        self.assertFalse(png.is_text)
+        self.assertEqual("", png.text)
+        self.assertEqual((), png.lines)
+        self.assertEqual(png.blob_hash, Source("docs/reviews/packet/shot.png", png.content).blob_hash)
+        with self.assertRaises(ValueError):
+            png.locate("IHDR")
+        readme = Source("docs/reviews/packet/README.md", b"# Packet\n[shot](shot.png)\n")
+        self.assertTrue(readme.is_text)
+        self.assertEqual("docs/reviews/packet/shot.png", Snapshot("revision", (readme, png)).source("docs/reviews/packet/shot.png").path)
+
     def test_cached_decoded_views_never_enter_source_identity(self):
         warm, cold = Source("README.md", b"one\ntwo\n"), Source("README.md", b"one\ntwo\n")
         self.assertEqual(("one", "two"), warm.lines)

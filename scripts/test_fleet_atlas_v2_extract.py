@@ -17,7 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def snapshot(files):
-    return Snapshot('1' * 40, tuple(Source(p, text.encode()) for p, text in sorted(files.items())))
+    return Snapshot('1' * 40, tuple(Source(p, text if isinstance(text, bytes) else text.encode())
+                                    for p, text in sorted(files.items())))
 
 
 def agent(name, tools='Read'):
@@ -190,6 +191,19 @@ The service-lifecycle lane was discussed in a review.
         self.assertTrue(any(fact.subject == 'review:packet/README'
                             and fact.predicate == 'cites' and fact.object == inventory.id
                             for fact in graph.facts))
+
+    def test_binary_file_in_a_review_packet_is_cited_but_contributes_no_text(self):
+        path = 'docs/reviews/packet/dark-desktop.png'
+        graph = graph_of({
+            'docs/reviews/packet/README.md': '# Packet\n[Dark desktop](dark-desktop.png)\n',
+            path: b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR',
+        })
+        # The screenshot is a canonical input (its bytes are in the snapshot and its change is
+        # detected) but it has no lines to cite, so it mints no node and no fact; the packet's
+        # README is still extracted and the build does not fail.
+        self.assertFalse(any(node.path == path for node in graph.nodes))
+        self.assertFalse(any(path in str(fact.object) for fact in graph.facts))
+        self.assertTrue(any(node.id == 'review:packet/README' for node in graph.nodes))
 
     def test_multiple_selectors_of_one_evidence_file_are_distinct_claims(self):
         graph = graph_of({'docs/fleet-roadmap.md': '# Roadmap\n### SKILL-001 title\n**Evidence:** [first](reviews/result.md#first)\n[second](reviews/result.md#second)\n[whole](reviews/result.md)\n[empty](reviews/result.md#)\n',
