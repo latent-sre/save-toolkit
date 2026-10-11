@@ -83,7 +83,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   (`frame-ancestors` and `nosniff`); confirmation friction matched to blast radius, with undo
   for reversible actions and the environment named in every confirm; the environment's name in
   every environment, production most distinctly; chart units, UTC axes, gaps for missing data
-  and one shared time range; and single-key shortcuts that can be scoped or turned off. [verified] The console oracle passes a hand-written page on all nine bars
+  and one shared time range; and single-key shortcuts that can be scoped or turned off. A
+  comparison of every old rule with the new skill then added: a rolling-window cap on what a live
+  view holds (the old skill's rule, dropped in the rewrite) and query keys that never carry a
+  credential; actions that follow the server's permissions (disabled with the reason, or hidden
+  where never usable) with the signed-in identity and role shown; a request ID linked to its logs
+  and trace from runtime-configuration URL templates; sensitive values masked until revealed and
+  kept out of URLs, titles and telemetry; browser error reporting with the request ID and release;
+  and the modern-platform list scoped to features that need it. [verified] The console oracle passes a hand-written page on all nine bars
   and fails the untouched fixture on bars 1, 2, 3, 8 and 9 as candidate failures (exit 10); bars
   4–7 are verbatim from the incidents-page oracle and, as there, report a page that never renders
   a row as an oracle error rather than a candidate failure. `software-engineer` loads the skill before any web UI code, not only

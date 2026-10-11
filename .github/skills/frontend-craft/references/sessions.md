@@ -29,7 +29,7 @@ one. `SameSite=Lax` is defence in depth, not the defence.
 On logout or an identity or scope change: cancel in-flight requests, close every stream, clear or
 replace the affected query cache, and announce the change on a `BroadcastChannel` so other tabs
 sign out too. A late response from the old identity must never populate the new one, so query
-keys carry the scope identifier. Consoles stay open for days: show data age, re-read current
+keys carry the scope identifier, never a credential. Consoles stay open for days: show data age, re-read current
 state inside a confirm dialog, and send `If-Match` where the API supports it so a stale tab gets
 a `412` instead of overwriting another operator's change.
 
@@ -46,4 +46,6 @@ reconnect gap, refetch the affected queries rather than trusting the replay alon
 contract's stream filters as query parameters; a filter change opens a new stream and keeps the
 visible lines until it delivers. Feed stream events into the query cache so the view renders one
 source of truth. Batch redraws per animation frame with a bounded pending buffer, and flush on a
-timer while `document.hidden`, because a background tab gets no frames.
+timer while `document.hidden`, because a background tab gets no frames. A live view keeps a
+rolling window — a cap on the lines or points it holds — and says when older data was dropped,
+because a console left open for days otherwise grows until the tab stalls.

@@ -36,7 +36,7 @@ still has something to show.
 | Status | The UI does |
 |---|---|
 | 401 | Hand to the auth client (sessions reference); never loop |
-| 403 | Say the action is not permitted; no retry, no hidden control |
+| 403 | Say what is not permitted and why; no retry; the rest of the view keeps working |
 | 404 | The designed missing or empty state, not an error card |
 | 409 | With `Retry-After`, an idempotent write still in flight: keep waiting. Without it, a conflict: show the current state |
 | 410 | The version is retired; the app needs an upgrade, say so |
@@ -50,7 +50,9 @@ One card per failing panel, inside the panel's error boundary. It shows the `tit
 `detail` or the next step, the request ID (copyable — it is the key to the log line), the time
 with its zone, and the status; a retry only when the request is safe to repeat. Never raw JSON,
 a stack trace, or the `type` URI. An operator reads this card during an incident: every word is
-there to tell them what happened and what to do.
+there to tell them what happened and what to do. When runtime configuration provides log-search
+and trace URL templates, the request ID links to both over a window around the failure's time, so
+the next step is one click rather than a copy and a search.
 
 ## Collections and cursor pages
 

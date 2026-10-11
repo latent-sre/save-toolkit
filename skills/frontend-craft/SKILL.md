@@ -49,15 +49,21 @@ shell — a `cp` from there is refused or prompts.
    waited out; never a call to `/health/*`.
 2. **Shows errors an operator can act on.** Loading, error and empty states are designed before
    the happy path. Each route and independent panel sits in an error boundary, so one failing
-   panel shows its own inline card: title, next step, the request ID (copyable), the time with
-   its zone, and a retry only when the request is safe. Every async path ends in a rendered
-   state; a handler never re-throws to the page. Status never by colour alone.
+   panel shows its own inline card: title, next step, the request ID (copyable, and linked to
+   its logs and trace when runtime configuration provides the URL templates), the time with its
+   zone, and a retry only when the request is safe. Every async path ends in a rendered state; a
+   handler never re-throws to the page. Errors a boundary catches, and unhandled rejections, reach
+   the repository's browser error reporting with the request ID and the release, without
+   sensitive values. Status never by colour alone.
 3. **Makes writes safe.** Friction matches the blast radius: a reversible action runs at once
    and offers undo; a destructive or bulk action shows the exact target, count and environment in
    a confirm with Cancel focused; an irreversible or fleet-wide one also has the user type the
    target's name. Disable the control while the write is pending; report per-item outcomes,
    including unknown. The server is the validation truth; field errors land beside
-   their fields with the user's input intact.
+   their fields with the user's input intact. Actions follow what the server says the user may
+   do: one they can see but not run is disabled with the reason, an area they can never use is
+   hidden, the shell shows who is signed in and with what role, and the server stays the
+   authority.
 4. **Builds once for every environment.** Environment values load at startup from same-origin
    runtime configuration; `import.meta.env` and `VITE_*` hold only values identical everywhere
    and never secrets — the bundle ships to every browser. Every environment shows its name,
@@ -75,6 +81,9 @@ shell — a `cp` from there is refused or prompts.
    (DOMPurify if none); data-driven `href` and `src` allow only `http:`, `https:` and `mailto:`.
    Timestamps show the zone (UTC unless the repository sets another), relative time only beside
    them; numbers format through `Intl`; server decimals such as prices never touch floating point.
+   Sensitive values — account and client identifiers, personal data — are masked until the user
+   reveals them, because consoles are screen-shared on bridges, and never enter URLs, page titles
+   or telemetry.
 7. **Is accessible by construction.** Semantic HTML, labelled inputs, keyboard access, visible
    focus; focus moves to the main heading on navigation and stays put on same-view updates;
    saving, completion and error status reach assistive technology without stealing focus; layouts
@@ -88,7 +97,7 @@ shell — a `cp` from there is refused or prompts.
    nonce, never a weakened CSP), so a page never flashes the wrong theme; charts read the theme
    tokens, so they follow light and dark and the status colours. Charts state units, put time
    on UTC axes, draw missing data as a gap (never a zero), and share one time range across the
-   view, kept in the URL. View transitions for
+   view, kept in the URL. When the feature needs them, not on every page: view transitions for
    navigation and list changes; `<dialog>`, the `popover` attribute and `@starting-style` for
    modals, menus and toasts (anchor positioning is not yet Baseline — keep a JS positioner);
    container queries for panels; `BroadcastChannel` and Web Locks so tabs share one feed and one
