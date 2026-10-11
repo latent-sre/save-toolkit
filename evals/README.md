@@ -837,8 +837,11 @@ items, not regression coverage: the Playwright/Grafana visual path (strict MCP s
 servers), the dispatched child's reads in routing trials (the child runs without Bash), and
 researcher dispatch from the agent.
 
-`python -m pytest evals/` covers the runner, graders, and judge without a model. Gate A is
-structural and does not run them; CI does.
+`python -m pytest evals/ --heavy` covers the runner, graders, and judge without a model. A plain
+`python -m pytest evals/` skips the heavy eval-machinery files listed in the root `conftest.py`
+(`HEAVY`), among them the probe-trial, checking and oracle suites, so it does not. Gate A is
+structural and does not run them; CI runs both shards, and its required `component-tests` check
+passes only when both do.
 
 ## WP-10 offline adversarial preparation
 
