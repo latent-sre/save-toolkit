@@ -13,6 +13,13 @@ kinds of scenario, decided by the keys a spec carries rather than by a mode fiel
 Two directories because the build fixtures carry inline repos hundreds of lines long and would bury
 the short routing specs. The runner does not care which one a spec came from.
 
+## Proposed frontend product evaluations
+
+[verified] The [frontend-craft proposal](proposals/frontend-craft/README.md) contains ten fresh
+scenarios for product design, interaction completion, stack selection, and API integration.
+[unverified] These are unexecuted specifications; the [integration record](proposals/frontend-craft/integration.md)
+separates repository checks from behavioral acceptance.
+
 ## Run it
 
 Use the latest **Python 3.14** patch for development and CI. The native runner's existing
