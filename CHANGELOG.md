@@ -8,6 +8,61 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- The fleet atlas accepts a binary canonical input. A screenshot inside a review packet keeps its
+  path, bytes and digest in the snapshot, carries no text and mints no document node, instead of
+  failing the build with a UTF-8 decode error, which is what PR #366's first `validate` run did on
+  the frontend-craft proof packet. [verified] One source test and one extractor test pin it, red
+  before the change and green after; the twelve atlas suites pass. The span-authority list also
+  admits `.tsx`, `.conf` and `Staticfile`, the three starting-file types the skill now ships.
+- `frontend-craft` is rewritten from a fresh start on the owner's 2026-10-11 interview
+  ([decision](docs/decisions/2026-10-11-frontend-craft-generalized.md)): React first with Vue
+  allowed, any approved kit and kits mixable under layer-order and token-bridge rules, no house
+  look — the design reference names the tells of the generic AI page, requires a brief, and
+  derives each app's palette from chosen OKLCH hues — a caller interview of the forks before any
+  build, visual-and-clickable interaction with keyboard parity, motion welcome and budgeted, the
+  OpenAPI binding to the team's FastAPI and Go services, and serving on localhost and PCF. Five
+  references (design, stack, api, serving, vue) replace six, and the starting code grows to a
+  parametric `theme.css`, `problem.ts` (now reading FastAPI's native shapes too),
+  `idempotent-write.ts`, `runtime-config.ts`, `error-panel.tsx`, `vite.config.ts`, the PCF deploy
+  files (`Staticfile`, `spa.conf`, `manifest.yml`, `profile.sh`) and `serving-contract.mjs`.
+  Library versions and licences were verified against registries and primary documentation on
+  2026-10-11. [verified] `scripts/test_frontend_craft_assets.py` passes 60 cases, including AA
+  contrast at every 15° of brand hue in both schemes, the three helpers' node suites, the PCF
+  profile script and the serving contract; `check_links` passes; the Mantine discovery case is
+  regraded for the mixing rules and `ROUTE-004` closed on the owner's decision that it suffices;
+  `FRONTEND-003` records that the team's GUI mix is defined after the first runs; `stack-profile`'s frontend line now says
+  React is the focus. The rendered proof of the skill's defaults, with its screenshots and the seven
+  defects it found and fixed, is retained in
+  [docs/reviews/2026-10-11-frontend-craft-proof](docs/reviews/2026-10-11-frontend-craft-proof/README.md).
+  A Codex review of the first commit then found twelve defects in the starting code, each
+  verified and fixed with a test: the idempotent helper no longer takes a `Request` and passes
+  the request's own abort signal into its waits; runtime configuration rejects unknown keys and
+  root-relative paths that normalise to another origin; the error card survives an unknown time
+  zone, captures its time once, wraps a long request ID at 320 px, and its boundary resets on a
+  `resetKey` change; the PCF profile refuses control characters; the serving contract probes
+  root-level file paths, requires an error status from an unknown API path and an object from
+  `config.json`. A second round found five more, also fixed: the profile refuses an absolute API
+  URL the shipped `connect-src 'self'` would block, unknown-key detection uses own properties so
+  `constructor` cannot pass, the Vitest setup file ships as `test-setup.ts`, the card's buttons keep
+  a 24 px floor under the compact density, and the boundary shows a plain exception's message to
+  `onError` only. A Copilot review added four: the card offers no Copy, Logs or Trace action for the helper's
+  `unknown` request-ID sentinel; the serving contract requires HTML on a deep link; the proof
+  packet records its re-runs; and the contrast oracle was to composite a translucent pill in
+  gamma-encoded sRGB as browsers paint it, since the linear blend over-reported by about 0.3 and
+  the light warning pill over the hover surface really read 4.48. Commit `2bafcd4` claimed that
+  last fix in its message and on its review thread while committing neither the oracle nor the
+  token; Copilot's final independent review caught it, and it lands with that review's other
+  findings: the oracle encodes, blends and decodes, the light warning token moves to L 0.48, and
+  across all 360 integer brand hues in both schemes no pair is below 4.5, the lowest being the
+  light ok pill over the hover surface at 4.60; `problem.ts` exports `problemFromBody` because
+  openapi-fetch reads every error body before it returns, so `readProblem` on its response could
+  only fall back; the shipped CSP allows inline styles because sonner's toaster, Mantine's
+  provider and Emotion-based kits insert `<style>` elements a static server cannot nonce (both
+  insertion styles were blocked under the old policy and apply under the new one in headless
+  Chromium); the `/assets/` cache header drops `always`, so a missing chunk's 404 is no longer
+  pinned for a year, and the contract checks it; the boundary maps the `unknown` sentinel as the
+  card does; and the include no longer repeats the HSTS header the buildpack option adds.
+  [verified] The asset test passes 61 cases and the proof app's suite passes 12.
 - The incidents-console oracle grades writes, server-side filtering and markup. `bar10` answers
   the first create with an in-flight `409` and `Retry-After: 0` and requires the page to send it
   again under the same `Idempotency-Key`; `bar11` answers with a `422` naming the service field

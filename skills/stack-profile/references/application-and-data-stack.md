@@ -38,10 +38,12 @@ defaults until the owner records a decision here.
 
 - **Backend:** **Spring Boot** on supported JVM services (matching the `java_buildpack_offline` in
   the PCF manifest example); **FastAPI** for Python backend code.
-- **Frontend:** **both React and Vue** are in use; `frontend-craft` preserves the repository's
-  framework, and its owner-decisions table holds the team's frontend choices.
+- **Frontend:** **React is the focus and Vue is in use**; `frontend-craft` preserves the
+  repository's framework, and its owner-decisions table holds the team's frontend choices: the
+  approved, mixable component kits, the per-app identity rule, the OpenAPI binding to the team's
+  FastAPI and Go services, and serving on localhost and PCF.
 
-*[sourced: operator statement 2026-08-21]*
+*[sourced: operator statements 2026-08-21 and 2026-10-11]*
 
 ## Hosts and runners
 

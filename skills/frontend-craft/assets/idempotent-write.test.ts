@@ -1,96 +1,113 @@
-// Contract test for idempotent-write.ts. Run: node --test idempotent-write.test.ts (Node 22.18+, no packages).
+// Contract test for idempotent-write.ts. Run: node --test idempotent-write.test.ts (Node 22.18+ or 24+, no packages).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { newIntentKey, sendIdempotent } from "./idempotent-write.ts";
+import { IDEMPOTENCY_HEADER, isInFlight, newIntentKey, sendIdempotent } from "./idempotent-write.ts";
 
-type Call = { key: string | null; method: string | undefined };
+type Call = { url: string; key: string | null; body: string | null };
 
-function fakeServer(statuses: Array<[number, Record<string, string>?]>) {
+function server(...responses: Array<() => Response>) {
   const calls: Call[] = [];
-  const signals: Array<AbortSignal | null | undefined> = [];
-  const fetch = (async (_input: string | URL, init?: RequestInit) => {
-    calls.push({ key: new Headers(init?.headers).get("idempotency-key"), method: init?.method });
-    signals.push(init?.signal);
-    const [status, headers] = statuses[Math.min(calls.length - 1, statuses.length - 1)];
-    return new Response(status === 204 ? null : "{}", { status, headers });
-  }) as typeof globalThis.fetch;
-  return { fetch, calls, signals };
+  const waits: number[] = [];
+  const fetch = async (input: string | URL | Request, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    calls.push({ url: String(input), key: headers.get(IDEMPOTENCY_HEADER), body: typeof init?.body === "string" ? init.body : null });
+    const next = responses.shift();
+    if (!next) throw new Error("no more responses");
+    return next();
+  };
+  const sleep = async (ms: number) => { waits.push(ms); };
+  return { calls, waits, fetch, sleep };
 }
 
-const recordSleeps = () => {
-  const waits: number[] = [];
-  return { waits, sleep: async (ms: number) => void waits.push(ms) };
-};
+const ok = () => new Response('{"id":"ord-1"}', { status: 201, headers: { "content-type": "application/json" } });
+const inFlight = (retryAfter: string) => () => new Response(null, { status: 409, headers: { "retry-after": retryAfter } });
+const conflict = () => new Response('{"title":"Order already cancelled"}', { status: 409, headers: { "content-type": "application/problem+json" } });
 
-test("the request carries the intent's key", async () => {
-  const server = fakeServer([[201]]);
-  const response = await sendIdempotent("/v1/incidents", { method: "POST", body: "{}" }, "key-1", { fetch: server.fetch });
-  assert.equal(response.status, 201);
-  assert.deepEqual(server.calls, [{ key: "key-1", method: "POST" }]);
+test("newIntentKey mints a distinct v4 UUID each time", () => {
+  const a = newIntentKey(); const b = newIntentKey();
+  assert.match(a, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.notEqual(a, b);
 });
 
-test("a 409 waits Retry-After and resends with the same key", async () => {
-  const server = fakeServer([[409, { "retry-after": "2" }], [409, { "retry-after": "1" }], [201]]);
-  const { waits, sleep } = recordSleeps();
-  const response = await sendIdempotent("/v1/incidents", { method: "POST" }, "key-2", { fetch: server.fetch, sleep });
+test("the key travels as Idempotency-Key and a success returns after one send", async () => {
+  const s = server(ok);
+  const response = await sendIdempotent("/v1/orders", { method: "POST", body: "{}" }, "key-1", s);
   assert.equal(response.status, 201);
-  assert.deepEqual(server.calls.map((c) => c.key), ["key-2", "key-2", "key-2"]);
-  assert.deepEqual(waits, [2000, 1000]);
+  assert.deepEqual(s.calls.map((c) => c.key), ["key-1"]);
+  assert.equal(s.waits.length, 0);
+});
+
+test("an in-flight 409 waits Retry-After and re-sends the same request under the same key", async () => {
+  const s = server(inFlight("2"), inFlight("1"), ok);
+  const response = await sendIdempotent("/v1/orders", { method: "POST", body: '{"qty":5}' }, "key-2", s);
+  assert.equal(response.status, 201);
+  assert.deepEqual(s.calls.map((c) => c.key), ["key-2", "key-2", "key-2"]);
+  assert.deepEqual(s.calls.map((c) => c.body), ['{"qty":5}', '{"qty":5}', '{"qty":5}']);
+  assert.deepEqual(s.waits, [2000, 1000]);
+});
+
+test("a Retry-After date is honoured and a wait is capped at maxWaitMs", async () => {
+  const soon = new Date(Date.now() + 90_000).toUTCString();
+  const s = server(inFlight(soon), ok);
+  await sendIdempotent("/v1/orders", { method: "POST" }, "key-3", { ...s, maxWaitMs: 5000 });
+  assert.deepEqual(s.waits, [5000]);
+  const unreadable = server(inFlight("later"), ok);
+  await sendIdempotent("/v1/orders", { method: "POST" }, "key-3b", { ...unreadable, defaultWaitMs: 250 });
+  assert.deepEqual(unreadable.waits, [250]);
 });
 
 test("a 409 without Retry-After is a conflict, returned at once", async () => {
-  const server = fakeServer([[409], [201]]);
-  const { waits, sleep } = recordSleeps();
-  const response = await sendIdempotent("/v1/incidents", { method: "POST" }, "k", { fetch: server.fetch, sleep });
+  const s = server(conflict);
+  const response = await sendIdempotent("/v1/orders/ord-1/cancel", { method: "POST" }, "key-4", s);
   assert.equal(response.status, 409);
-  assert.equal(server.calls.length, 1, "a conflict was re-sent");
-  assert.deepEqual(waits, []);
+  assert.equal(isInFlight(response), false);
+  assert.equal(s.calls.length, 1);
 });
 
-test("an unparseable Retry-After waits the default", async () => {
-  const server = fakeServer([[409, { "retry-after": "soon" }], [201]]);
-  const { waits, sleep } = recordSleeps();
-  await sendIdempotent("/v1/incidents", { method: "POST" }, "k", { fetch: server.fetch, sleep, defaultWaitMs: 750 });
-  assert.deepEqual(waits, [750]);
-});
-
-test("the caller's abort signal reaches every send", async () => {
-  const server = fakeServer([[409, { "retry-after": "0" }], [201]]);
-  const { sleep } = recordSleeps();
-  const controller = new AbortController();
-  await sendIdempotent("/v1/incidents", { method: "POST", signal: controller.signal }, "k", { fetch: server.fetch, sleep });
-  assert.deepEqual(server.signals, [controller.signal, controller.signal]);
-});
-
-test("the last 409 is returned once the attempts are spent", async () => {
-  const server = fakeServer([[409, { "retry-after": "0" }]]);
-  const { sleep } = recordSleeps();
-  const response = await sendIdempotent("/v1/incidents", { method: "POST" }, "k", { fetch: server.fetch, sleep, maxAttempts: 3 });
-  assert.equal(response.status, 409);
-  assert.equal(server.calls.length, 3);
-});
-
-test("other failures are returned, never retried", async () => {
-  for (const status of [400, 422, 500, 503]) {
-    const server = fakeServer([[status]]);
-    const response = await sendIdempotent("/v1/incidents", { method: "POST" }, "k", { fetch: server.fetch });
+test("any other failure is returned without a retry", async () => {
+  for (const status of [400, 401, 403, 422, 500, 503]) {
+    const s = server(() => new Response(null, { status }));
+    const response = await sendIdempotent("/v1/orders", { method: "POST" }, `key-${status}`, s);
     assert.equal(response.status, status);
-    assert.equal(server.calls.length, 1, `a ${status} was re-sent`);
+    assert.equal(s.calls.length, 1);
   }
 });
 
-test("intent keys are random UUIDs, with or without crypto.randomUUID", () => {
-  const shape = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-  const first = newIntentKey();
-  assert.match(first, shape);
-  assert.notEqual(first, newIntentKey());
-  const original = crypto.randomUUID;
-  try {
-    Object.defineProperty(crypto, "randomUUID", { value: undefined, configurable: true });
-    const fallback = newIntentKey();
-    assert.match(fallback, shape);
-    assert.notEqual(fallback, newIntentKey());
-  } finally {
-    Object.defineProperty(crypto, "randomUUID", { value: original, configurable: true });
-  }
+test("when maxAttempts is spent the last in-flight 409 is returned so the UI can say it is still running", async () => {
+  const s = server(inFlight("0"), inFlight("0"), inFlight("0"), ok);
+  const response = await sendIdempotent("/v1/orders", { method: "POST" }, "key-5", { ...s, maxAttempts: 3 });
+  assert.equal(response.status, 409);
+  assert.equal(isInFlight(response), true);
+  assert.equal(s.calls.length, 3);
+});
+
+test("an abort given as init.signal also ends the wait", async () => {
+  const controller = new AbortController();
+  const s = server(inFlight("30"), ok);
+  const sleep = (_ms: number, signal?: AbortSignal) =>
+    new Promise<void>((_resolve, reject) => {
+      assert.ok(signal, "the wait must receive the request's own signal");
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      controller.abort(new Error("navigated away"));
+    });
+  await assert.rejects(
+    sendIdempotent("/v1/orders", { method: "POST", signal: controller.signal }, "key-7", { fetch: s.fetch, sleep }),
+    /navigated away/,
+  );
+  assert.equal(s.calls.length, 1);
+});
+
+test("an abort during the wait rejects with the abort reason and sends nothing more", async () => {
+  const controller = new AbortController();
+  const s = server(inFlight("30"), ok);
+  const sleep = (_ms: number, signal?: AbortSignal) =>
+    new Promise<void>((_resolve, reject) => {
+      signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+      controller.abort(new Error("user left the page"));
+    });
+  await assert.rejects(
+    sendIdempotent("/v1/orders", { method: "POST" }, "key-6", { fetch: s.fetch, sleep, signal: controller.signal }),
+    /user left the page/,
+  );
+  assert.equal(s.calls.length, 1);
 });

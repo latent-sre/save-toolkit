@@ -1,72 +1,130 @@
 # Build, configure and serve
 
-Read when changing the build, runtime configuration, or how the UI is served. The repository's
-existing build and hosting win; this file owns the contract they must meet. Start from
-[the serving contract](../assets/serving-contract.mjs): read it and write it into the repository
-beside the build configuration with the editor tools, never a shell copy from the skill's folder. It is the acceptance test for everything below.
+Read when changing the build, runtime configuration, local development against the API, or how the
+UI is served. The repository's existing build and hosting win; this file owns the contract they
+meet, and [the serving contract](../assets/serving-contract.mjs) is its acceptance test: read it,
+write it beside the build configuration with the editor tools, and run it against every served
+build.
+
+## Localhost
+
+`vite` serves the app with hot reload and proxies the API prefix to the service on localhost
+(`server.proxy` in the starting [vite.config.ts](../assets/vite.config.ts); FastAPI's default port
+is 8000 and a Go service's often 8080; `API_TARGET` overrides). The browser then sees one origin,
+cookies flow and no CORS is needed, the same shape as production. SSE streams pass through the
+proxy; WebSockets need `ws: true` on their path. `public/config.json` holds the local runtime
+configuration with `"environment": "local"`. `vite preview` serves the production build for a look,
+but it is not a production server and fails the contract's missing-file check by design.
 
 ## One build, every environment
 
-Build once per release and promote the same files through every environment. Serve
-environment-specific values as same-origin runtime configuration — a `config.json` beside
-`index.html`, written at deploy time or served by the backend — and fetch it before the app renders.
-Validate the fields the app needs and show a startup error naming any missing field rather than a
-blank page. Serve it with `Cache-Control: no-cache`. It reaches every browser, so it never holds
-secrets. Show the environment's name from it in the app shell and `document.title` in every
-environment, production most distinctly, and in every destructive confirm.
+Build once per release (`vite build`, hashed assets under `dist/assets/`) and promote the same
+files through every environment. Everything that differs per environment is runtime configuration:
+`config.json` beside `index.html`, fetched and validated before the app renders through the
+starting [runtime-config.ts](../assets/runtime-config.ts); a missing field is a startup error
+naming it, never a blank page. It reaches every browser, so it never holds a secret. Show the
+environment's name from it in the shell and in `document.title`, production most distinctly and in
+every destructive confirm.
 
-## Serve a single-page app
+## Serve on PCF
 
-Build hashed assets with the repository's production build (`vite build` for a Vite app). Serve
-through the platform's static server — on PCF the `staticfile` or `nginx` buildpack — or the API
-app. Fall back to `index.html` for client routes, including deep links, only after reserving asset
-paths and backend routes: missing JS/CSS, images and other static files must return 404, never
-HTML with 200. Include public files outside the bundler's asset prefix. Co-served `/v1/*`,
-`/health/live` and `/health/ready` retain their backend handlers and status codes, including
-problem responses for unknown API routes.
+The UI is its own app on the **staticfile buildpack**, pushed from a deploy directory that CI
+assembles — `dist/`, `Staticfile`, `nginx/conf/includes/spa.conf`, `.profile`, `manifest.yml` —
+never from the source tree. The starting files:
 
-Staticfile's `pushstate: enabled` rewrites **all missing paths**
-([implementation](https://github.com/cloudfoundry/staticfile-buildpack/blob/22b502fd325f5725e0a1d5972f9b59ca9ec6d8c2/src/staticfile/finalize/data.go#L123)),
-so it alone does not enforce those boundaries. Use the buildpack's supported custom configuration
-([Staticfile options](https://docs.cloudfoundry.org/buildpacks/staticfile/index.html)), an explicit
-NGINX configuration, or the API's router to reserve them. `root: dist` selects the built directory
-when pushing the whole project.
+- [Staticfile](../assets/pcf/Staticfile): `root: dist`, which the buildpack requires for
+  `location_include` to apply; `pushstate: enabled` for client routes; `location_include:
+  includes/*.conf`; `force_https`; the HSTS options (`http_strict_transport_security` and its
+  `_include_subdomains` variant), which are the only source of that header.
+- [spa.conf](../assets/pcf/nginx/conf/includes/spa.conf): included inside nginx's `location /`,
+  it sets the HTML's headers — `Cache-Control: no-cache`, the CSP, `nosniff`, `Referrer-Policy`,
+  never HSTS, which the buildpack adds in the same location and a repeat would send twice — and
+  nests locations for `/assets/` (immutable when the file exists; a missing file is a `404` with
+  no cache header) and `/config.json` (always fresh). It exists because `pushstate` on its own rewrites every missing path to
+  `index.html`, which would answer a broken deploy's missing chunk with HTML and a `200`. Whether
+  the nested locations take precedence over that rewrite on the foundation's nginx is exactly what
+  the contract's missing-file check proves; if it fails there, move to the nginx buildpack below.
+- [profile.sh](../assets/pcf/profile.sh), saved as `.profile` at the deploy directory's root:
+  Cloud Foundry runs it in the container before the app starts, and it writes `public/config.json`
+  from the `UI_*` environment variables the manifest or Apps Manager set. The buildpack's own
+  documentation does not describe this pairing, so the contract's runtime-config check is the proof
+  on the foundation. Where a foundation forbids it, the API serves the UI's configuration from a
+  public, secret-free endpoint instead.
+- [manifest.yml](../assets/pcf/manifest.yml): the buildpack by name, 64M of memory (nginx needs
+  about 20 MB to serve static files), an `http` health check on `/`, the host route, the `UI_*`
+  values.
 
-Revalidate HTML (`Cache-Control: no-cache`); immutable, content-hashed assets can use long cache
-lifetimes. Keep prior chunks available during rollout or use bounded, user-visible recovery for
-missing imports that protects unsaved work; avoid reload loops. Prefer an existing framework's
-solution; Vite exposes [`vite:preloadError`](https://vite.dev/guide/build.html#load-error-handling).
+The API is a separate app mapped on the same host under its context path (`host.domain/v1`), so
+the browser sees one origin: Cloud Foundry matches the path route first, and the API serves under
+that prefix. Deployment belongs to the human release owner under `production-change-gate`; prepare
+the exact push and its rollback.
 
-A platform other than PCF must meet the same contract. The team's next runtime is not decided:
-load `stack-profile` before choosing one, and `gcp-ops` for work on GCP.
+When the buildpack's options are not enough — a second include, a rewrite, a custom error page —
+move to the **nginx buildpack** with a complete `nginx.conf` (`{{port}}`, `{{env "NAME"}}`,
+`try_files $uri /index.html` for client routes and `try_files $uri =404` under `/assets/`) and a
+`buildpack.yml`; the serving contract stays the acceptance test.
 
-## Security headers
+## Security headers and the CSP
 
-Send them with `index.html` from whichever server serves it. A `Content-Security-Policy` with
-`frame-ancestors 'none'` (or the origins named to embed the app), `object-src 'none'`,
-`base-uri 'self'`, and `script-src 'self'` plus the hash of the first-paint theme script; add
-`style-src` sources only as the component system needs, since some toast and animation libraries
-insert `<style>` elements at runtime. `X-Content-Type-Options: nosniff`, and `Referrer-Policy:
-strict-origin-when-cross-origin` or stricter; HSTS belongs at the TLS edge. A console whose
-actions run in one click never renders inside another site's frame, where the click can be
-hijacked. The contract checks `frame-ancestors` and `nosniff`.
+`index.html` is served with `Content-Security-Policy: default-src 'self'; script-src 'self';
+style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self';
+frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'`, plus
+`X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin`; HSTS
+belongs at the TLS edge and in the buildpack option, never in the include. A production Vite
+build emits no inline scripts, so `script-src 'self'` holds and `'unsafe-inline'` for scripts is
+never the answer. Styles are different: sonner's toaster, Mantine's provider and Emotion-based
+kits such as Material UI insert `<style>` elements at runtime, a static server cannot mint the
+per-response nonce they would need, and under `style-src 'self'` those styles are silently
+dropped, so the shipped policy allows inline styles. Drop `'unsafe-inline'` only when every kit
+in the app ships stylesheet files (Tailwind-based kits do) and the served build logs no CSP
+violation. `build.assetsInlineLimit: 0` keeps small images as files, so `data:` matters only when
+a kit inlines one. `connect-src 'self'` matches the same-origin API, and the profile script
+refuses an absolute `UI_API_BASE_URL` for that reason; an API on another origin needs that origin
+added to `connect-src`, the profile's check relaxed, and the contract run against the result. A
+console whose actions run in one click never renders inside another site's frame.
+
+The one inline script an app may want is the theme boot, which applies the saved light or dark
+choice before first paint. Keep it tiny and static, and allow it by hash:
+
+```html
+<script>
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem("theme"); } catch (e) {}
+    var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+  })();
+</script>
+```
+
+Hash the exact text between the tags and add the `'sha256-…'` value to `script-src` in the
+include file:
+
+```sh
+node -e 'const s=require("fs").readFileSync("theme-boot.js","utf8");console.log("sha256-"+require("crypto").createHash("sha256").update(s).digest("base64"))'
+```
+
+## Caching and rollout
+
+HTML and `config.json` revalidate (`no-cache`); hashed assets are immutable for a year, and a
+missing one answers `404` with no cache header, so a chunk requested mid-rollout is retried
+rather than pinned as missing (the contract checks this). Keep the
+previous release's chunks available during a rollout, or handle Vite's `vite:preloadError` with a
+bounded, user-visible recovery that protects unsaved work; never a reload loop.
 
 ## Verify
 
-Run the copied contract against the production build behind the production server configuration
-(the NGINX or buildpack configuration, or the API app) and against each deployed environment; it
-needs Node and no packages. `vite preview` is not a production server: it answers some missing
-assets with `index.html`, so the contract fails there by design.
+Run the contract against the production build behind the production server configuration, locally
+and against each environment after a deploy:
 
 ```sh
-BASE_URL=http://localhost:8080 API_PREFIX=/v1/ RUNTIME_CONFIG_PATH=/config.json node --test serving-contract.mjs
+BASE_URL=https://orders-console.apps.example.internal API_PREFIX=/v1/ RUNTIME_CONFIG_PATH=/config.json node --test serving-contract.mjs
 ```
 
 Set `API_PREFIX` when the app co-serves an API and `RUNTIME_CONFIG_PATH` when it loads runtime
-configuration; each unset variable skips its check. When co-serving, also run the project's
-contract tests with the built UI mounted — testing without `dist/` misses conditional fallback
-wiring; compatible FastAPI services can reuse backend-craft's `test_unknown_path_is_a_problem`.
-In a local or staging rollout check, keep a tab open across versions and navigate to a lazy-loaded
-view. Deployment execution belongs to the human release owner; report unperformed checks as gaps.
-Capture browser error, latency, and navigation telemetry: real-user monitoring through mPulse
-(load `akamai-edge`), trace and correlation headers through `obs-pipeline`.
+configuration; each unset variable skips its check. Then open the served build with the browser
+console showing: a CSP violation names the directive and the blocked source, and a kit whose
+styles never applied is a defect the contract cannot see. In a rollout check, keep a tab open
+across versions and navigate to a lazy-loaded view. Report unperformed checks as gaps. Browser error,
+latency and navigation telemetry: real-user monitoring through mPulse (load `akamai-edge`), trace
+and correlation headers through `obs-pipeline`.
