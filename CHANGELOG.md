@@ -15,8 +15,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   the modern platform, add dependencies deliberately — with an owner-decisions table: React and
   Vue both supported, one component system per app with two caller-picked React defaults
   (shadcn/ui + Tailwind + Motion, or HeroUI + Motion) and shadcn-vue for Vue, two design
-  registers by audience, and the UI bound to `backend-craft`'s contract. The Mantine and
-  `@mantine/charts` bans are gone. Six references replace the three inherited ones: `api.md`
+  registers by audience, and the UI bound to `backend-craft`'s contract; the decisions, their
+  reasons and the rejected options are in `docs/decisions/2026-10-11-frontend-craft.md`. The
+  Mantine and `@mantine/charts` bans are gone. Six references replace the three inherited ones: `api.md`
   (typed client from OpenAPI, RFC 9457 problems with `request_id`, cursor pages,
   `Idempotency-Key`, the error card), `react.md` and `vue.md` (current libraries and
   capabilities, with licence and coexistence facts for the animated collections), `serving.md`

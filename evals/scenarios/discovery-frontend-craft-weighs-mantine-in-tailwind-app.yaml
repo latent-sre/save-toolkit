@@ -7,8 +7,8 @@ prompt: |
   week. Any reason not to? Just tell me, don't change anything yet.
 success_criteria:
 - Fires on an unlabelled UI dependency question that never names the skill
-- Treats the choice as the team's to make rather than citing a house ban on Mantine
-- Weighs a second styling system beside Tailwind without claiming Mantine and Tailwind are technically incompatible, and offers a real alternative for the table and modal
+- Applies one component system per app instead of citing a house ban on Mantine — Mantine can be this app's one system, a choice to confirm with the caller
+- Weighs Mantine's styling layer beside Tailwind without claiming they are technically incompatible, and offers a real alternative for the table and modal
 - Answers in the reply rather than editing the project
 target:
   kind: skill

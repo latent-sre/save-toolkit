@@ -31,3 +31,4 @@ PR #238. It preserves branch dispositions, current tool authority, and acceptanc
 | 2026-10-03 | [What the eval harness defends against](2026-10-03-eval-harness-threat-model.md) | Accepted 2026-10-06, with result rules added before acceptance |
 | 2026-10-04 | [The incident companion judge reads the case material, not a summary of it](2026-10-04-rubric-judge-case-material.md) | Proposed; amends 2026-09-01 |
 | 2026-10-05 | [Add one principal engineering lane for system design and architecture](2026-10-05-principal-engineer.md) | Proposed |
+| 2026-10-11 | [Rebuild frontend-craft on the owner's decisions](2026-10-11-frontend-craft.md) | Decisions accepted by the owner 2026-10-10/11; candidate PR #355 pending |
