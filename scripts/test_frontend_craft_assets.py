@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pytest
 
+from testkit import require_shell
+
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "skills/frontend-craft/assets"
 CONTRACT = ASSETS / "serving-contract.mjs"
@@ -181,12 +183,18 @@ def test_the_typescript_helper_contracts_pass(suite: str, cases: int) -> None:
 
 
 def test_the_pcf_profile_writes_config_json_from_the_environment(tmp_path: Path) -> None:
-    bash = shutil.which("bash")
-    if bash is None:
-        pytest.skip("bash is needed to run the PCF .profile starter")
+    bash = require_shell("bash")
+    environment = dict(os.environ)
+    if os.name == "nt":
+        # Prefer Git's utilities alongside its native shell, without changing the host's PATH.
+        shell_dir = Path(bash).parent
+        directories = (shell_dir, shell_dir.parent / "usr/bin")
+        environment["PATH"] = os.pathsep.join([
+            *(str(path) for path in directories if path.is_dir()), environment.get("PATH", ""),
+        ])
     (tmp_path / "public").mkdir()
     env = {
-        **os.environ,
+        **environment,
         "HOME": str(tmp_path),
         "UI_ENVIRONMENT": "staging",
         "UI_API_BASE_URL": "/v1",
@@ -202,7 +210,7 @@ def test_the_pcf_profile_writes_config_json_from_the_environment(tmp_path: Path)
     }
     missing = subprocess.run(
         [bash, str(ASSETS / "pcf/profile.sh")],
-        env={**os.environ, "HOME": str(tmp_path)},
+        env={**environment, "HOME": str(tmp_path)},
         capture_output=True,
         text=True,
         timeout=30,
