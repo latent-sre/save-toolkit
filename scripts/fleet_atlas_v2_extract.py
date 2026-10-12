@@ -1473,6 +1473,14 @@ def _evidence_edges(rel: _Relations) -> set[str]:
     its path happened to be created first. Batch joins cite BOTH determining records.
     """
     records, sources = rel.records, rel.sources
+    reviews_by_batch: dict[str, list[Record]] = {}
+    for record in records:
+        if record.node.type == 'review':
+            for batch in set(cast('tuple[str, ...]', record.attributes.get('batches', ()))):
+                reviews_by_batch.setdefault(batch, []).append(record)
+    ranges_by_item: dict[str, list[tuple[int, int]]] = {}
+    for entry in rel.corpus.roadmap_entries:
+        ranges_by_item.setdefault(entry.item, []).append((entry.start, entry.end))
     incoming_reviews: set[str] = set()
     for record in records:
         if record.node.type not in ('roadmap-item', 'decision'):
@@ -1482,7 +1490,7 @@ def _evidence_edges(rel: _Relations) -> set[str]:
             if source.path == 'docs/roadmap-closed.md':
                 ranges = [(p.start_line, p.end_line) for p in record.spans]
             else:
-                ranges = [(entry.start, entry.end) for entry in rel.corpus.roadmap_entries if entry.item == record.name]
+                ranges = ranges_by_item.get(record.name, [])
         else:
             ranges = [(1, len(source.lines))]
         for i in sorted({i for start, end in ranges for i in range(start, end + 1)}):
@@ -1493,8 +1501,7 @@ def _evidence_edges(rel: _Relations) -> set[str]:
                     rel.link('evidenced_by', record.node.id, dest, raw, (source.span(i, i),))
                     incoming_reviews.add(dest.node.id)
             for batch in set(BATCH.findall(line)):
-                targets = [r for r in records if r.node.type == 'review'
-                           and batch in cast('tuple[str, ...]', r.attributes.get('batches', ()))]
+                targets = reviews_by_batch.get(batch, [])
                 if not targets and record.node.type == 'roadmap-item':
                     rel.unknown(record.node.id, 'extract.batch-unresolved', f'{source.path}:{i} cites batch {batch} with no review', (source.span(i, i),), 'Retain the durable review behind the batch', absence=True)
                 for target in targets:
@@ -1599,10 +1606,14 @@ def _roster_edges(rel: _Relations) -> None:
 
 def _stale_evidence(rel: _Relations) -> None:
     """Staleness is advisory for every dated live status, never an artifact-check failure."""
+    evidence_by_subject: dict[str, list[Record]] = {}
+    for fact in rel.facts.values():
+        if fact.predicate == 'evidenced_by':
+            evidence_by_subject.setdefault(fact.subject, []).append(rel.by_id[cast('str', fact.object)])
     for record in rel.records:
         if record.node.type == 'roadmap-item' and record.state == 'live':
             date = DATE.search(str(record.attributes.get('status_text', '')))
-            evidence = [rel.by_id[cast('str', f.object)] for f in rel.facts.values() if f.subject == record.node.id and f.predicate == 'evidenced_by']
+            evidence = evidence_by_subject.get(record.node.id, [])
             dated = [r for r in evidence if r.attributes.get('date')]
             newest = max((cast('str', r.attributes['date']) for r in dated), default='')
             if date and newest and newest < date.group():

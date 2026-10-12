@@ -20,7 +20,8 @@ class DashboardTests(ReadmeRepository, unittest.TestCase):
         encoded = re.search(r'<script id="atlas-data" type="application/json">(.*?)</script>', html, re.S)[1]
         data = json.loads(encoded)
         self.assertEqual(doc.revision, data["revision"])
-        self.assertEqual("live\n", data["sources"]["README.md"])
+        self.assertEqual(["live"], data["sourceLines"]["README.md"])
+        self.assertNotIn("sources", data)
         self.assertEqual("verified", data["facts"][0]["label"])
         self.assertEqual(1, data["facts"][0]["citations"][0]["start"])
         self.assertIn("blobHash", data["facts"][0]["citations"][0])
