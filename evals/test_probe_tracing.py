@@ -38,6 +38,32 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class TraceAndCommandTests(unittest.TestCase):
+    def test_json_strings_keep_unicode_line_separators_inside_one_event(self) -> None:
+        for separator in ("\u0085", "\u2028", "\u2029"):
+            with self.subTest(separator=repr(separator)), tempfile.TemporaryDirectory() as tmp:
+                text = "first" + separator + "second"
+                events = [
+                    {"type": "system", "subtype": "init", "model": "stub-model"},
+                    {"type": "assistant", "message": {"content": [
+                        {"type": "tool_use", "id": "unicode", "name": "Bash", "input": {"command": text}},
+                    ]}},
+                    {"type": "result", "result": text, "total_cost_usd": 0.25},
+                ]
+                path = Path(tmp) / "trace.jsonl"
+                path.write_text("\n".join(json.dumps(event, ensure_ascii=False) for event in events), encoding="utf-8")
+                trace = probe_tracing.parse_trace(path)
+                self.assertEqual(text, trace.result_text)
+                self.assertEqual([text], trace.bash_commands)
+                self.assertEqual(1, trace.effect_calls[0]["issued"])
+                self.assertTrue(trace.tool_counts_complete)
+                self.assertEqual(0.25, trace.total_cost_usd)
+
+    def test_invalid_reported_cost_is_unknown_at_trace_ingestion(self) -> None:
+        for value in (False, True, -0.01, "0.01", float("nan"), float("inf"), 10**400):
+            with self.subTest(value=value):
+                trace = parse_events([{"type": "result", "result": "done", "total_cost_usd": value}])
+                self.assertIsNone(trace.total_cost_usd)
+
     def test_parse_trace_extracts_tools_and_result(self) -> None:
         events = [
             {"type": "system", "subtype": "init", "model": "claude-sonnet-5"},

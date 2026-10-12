@@ -203,12 +203,12 @@ def _requested_model(timing: dict[str, Any] | None, record: dict[str, Any] | Non
 
 def _record_raised_cost(attempt: Path) -> None:
     """Write what an attempt that raised is known to have cost, as a graded trial's `timing.json` does:
-    nothing for the CLI when it never started, else what its partial trace reports, which is unknown
-    without a result event; plus any judge call its grading made."""
+    nothing for the CLI when it never started, else what all invocation traces report, which is
+    unknown if any invocation lacks a result event; plus any judge call its grading made."""
     if (attempt / "timing.json").exists():  # it was graded before it raised
         return
     trace_path = attempt / "stdout.jsonl"
-    trial_usd = tracing.parse_trace(trace_path).total_cost_usd if trace_path.exists() else 0.0
+    trial_usd = tracing.parse_trial_trace(attempt).total_cost_usd if trace_path.exists() else 0.0
     judge = records.judge_spend()
     cost = records.trial_cost(trial_usd, judge)
     # The parts as well as the total: the v1 record calls a cost complete only beside known parts.
@@ -301,9 +301,9 @@ def _invoke_turns(
             (turn_out / "stderr.txt").open("w", encoding="utf-8") as err,
         ):
             try:
-                returncode = subprocess.run(
+                returncode = invocation.run_cli(
                     command, cwd=str(ws.repo), env=env, stdout=out, stderr=err, timeout=settings.timeout
-                ).returncode
+                )
             except subprocess.TimeoutExpired:
                 timed_out = CutShort(f"timed out after {settings.timeout}s", Stop.WALL_CLOCK)
             except BaseException as exc:

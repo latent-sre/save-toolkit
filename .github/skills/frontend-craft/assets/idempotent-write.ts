@@ -5,8 +5,10 @@
 // Retry-After. So: mint a key when the user starts an action (opens the form, clicks "Cancel order"),
 // send it on every attempt of that unchanged action, mint a new one when the user edits the payload,
 // and wait out an in-flight 409 under the same key, never a fresh one. A 409 without Retry-After is a
-// real conflict with current state and is returned at once. Write this file beside the API client;
+// real conflict with current state and is returned at once. Copy this file and problem.ts beside the API client;
 // run `node --test idempotent-write.test.ts` (Node 22.18+ or 24+, no packages).
+
+import { retryAfterMs } from "./problem.ts";
 
 export interface SendOptions {
   fetch?: typeof fetch;
@@ -35,17 +37,6 @@ export function newIntentKey(): string {
 /** True when the response is the contract's "still running, come back later" answer. */
 export function isInFlight(response: Response): boolean {
   return response.status === 409 && response.headers.has("retry-after");
-}
-
-function waitFor(response: Response, fallbackMs: number, maxMs: number, now = Date.now()): number {
-  const header = response.headers.get("retry-after")?.trim() ?? "";
-  let ms = fallbackMs;
-  if (/^\d+$/.test(header)) ms = Number(header) * 1000;
-  else if (header) {
-    const at = Date.parse(header);
-    if (!Number.isNaN(at)) ms = Math.max(0, at - now);
-  }
-  return Math.min(ms, maxMs);
 }
 
 function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -90,6 +81,6 @@ export async function sendIdempotent(
   for (let attempt = 1; ; attempt += 1) {
     const response = await doFetch(input, request);
     if (!isInFlight(response) || attempt >= maxAttempts) return response;
-    await sleep(waitFor(response, defaultWaitMs, maxWaitMs), signal);
+    await sleep(Math.min(retryAfterMs(response) ?? defaultWaitMs, maxWaitMs), signal);
   }
 }

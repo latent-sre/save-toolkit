@@ -117,7 +117,6 @@ class PackageStructureTests(unittest.TestCase):
 
     def test_each_check_declares_what_it_reads_and_regrades_from_recorded_evidence(self) -> None:
         self.assertEqual(self.EXPECTED_REGRADABLE, probe_checking.REGRADABLE)
-        self.assertIs(probe_checking.CheckRun, probe_checking.CheckRun)
         for name in probe_checking.CHECKS:
             with self.subTest(check=name):
                 params = {"check": name, "name": "regex", "tool": "Read", "minimum": 1, "maximum": 2}

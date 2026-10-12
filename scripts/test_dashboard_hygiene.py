@@ -253,13 +253,17 @@ class StructureTest(unittest.TestCase):
             with self.subTest(panels=panels), self.assertRaisesRegex(hygiene.InputShapeError, message):
                 hygiene.check({"panels": panels, "tags": ["t"]})
 
-    def test_wrappers_are_unwrapped_and_a_bare_model_passes_through(self) -> None:
-        for model in ({"apiVersion": "dashboard.grafana.app/v1", "kind": "Dashboard",
-                       "metadata": {"name": "x"}, "spec": clean_model()},
-                      {"meta": {"provisioned": False}, "dashboard": clean_model()},
-                      clean_model()):
+    def test_wrappers_are_located_and_a_bare_model_passes_through(self) -> None:
+        for model, expected_path in (
+            ({"apiVersion": "dashboard.grafana.app/v1", "kind": "Dashboard",
+              "metadata": {"name": "x"}, "spec": clean_model()}, "$.spec"),
+            ({"meta": {"provisioned": False}, "dashboard": clean_model()}, "$.dashboard"),
+            (clean_model(), "$"),
+        ):
             with self.subTest(keys=sorted(model)):
-                self.assertEqual(clean_model()["title"], hygiene.unwrap(model)["title"])
+                spec, path = hygiene.locate_spec(model)
+                self.assertEqual(clean_model(), spec)
+                self.assertEqual(expected_path, path)
 
 
 class ExitCodeTest(unittest.TestCase):
