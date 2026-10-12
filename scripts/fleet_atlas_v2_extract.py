@@ -1031,32 +1031,43 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
             if isinstance(target, ast.Name):
                 bindings.setdefault(target.id, []).append(statement)
     pathlib_path = bool(path_imports) and not bindings.get('Path')
+    if not pathlib_path:
+        return ()  # No recognized repository binding can originate in this module.
     root_bindings = {name: declarations[0] for name, declarations in bindings.items() if len(declarations) == 1
-                     and REPOSITORY_ROOT.fullmatch(ast.unparse(declarations[0].value)) and pathlib_path}
+                     and REPOSITORY_ROOT.fullmatch(ast.unparse(declarations[0].value))}
     # Nearest enclosing function of every node (the module for top-level code), computed
     # in one breadth-first pass: a parent is always visited before its children.
     enclosing: dict[ast.AST, ast.AST] = {tree: tree}
-    for node in ast.walk(tree):
+    scope_stores: dict[ast.AST, list[ast.Name]] = {}
+    scope_assignments: dict[ast.AST, list[ast.Assign]] = {}
+    calls = []
+    nodes: list[ast.AST] = [tree]
+    for node in nodes:
+        scope = enclosing[node]
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            scope_stores.setdefault(scope, []).append(node)
+        elif isinstance(node, ast.Assign):
+            scope_assignments.setdefault(scope, []).append(node)
+        elif isinstance(node, ast.Call):
+            calls.append(node)
         inner = node if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else enclosing[node]
         for child in ast.iter_child_nodes(node):
             enclosing[child] = inner
+            nodes.append(child)
     scope_roots: dict[ast.AST, Mapping[str, ast.Assign]] = {}
     def roots_in(call_scope: ast.AST) -> Mapping[str, ast.Assign]:
         """Repository-root bindings visible in one scope; a pure function of that scope."""
         if call_scope in scope_roots:
             return scope_roots[call_scope]
-        stores = [n for n in ast.walk(call_scope) if isinstance(n, ast.Name)
-                  and isinstance(n.ctx, ast.Store) and enclosing[n] is call_scope] if call_scope is not tree else []
+        stores = scope_stores.get(call_scope, []) if call_scope is not tree else []
         shadowed = {n.id for n in stores}
         parameters: set[str] = set()
         if isinstance(call_scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
             parameters = {a.arg for a in (*call_scope.args.posonlyargs, *call_scope.args.args, *call_scope.args.kwonlyargs)}
             shadowed.update(parameters)
         bindings_here = {name: declaration for name, declaration in root_bindings.items() if name not in shadowed}
-        if call_scope is not tree and pathlib_path and 'Path' not in shadowed:
-            for declaration in ast.walk(call_scope):
-                if not isinstance(declaration, ast.Assign) or enclosing[declaration] is not call_scope:
-                    continue
+        if call_scope is not tree and 'Path' not in shadowed:
+            for declaration in scope_assignments.get(call_scope, []):
                 if not REPOSITORY_ROOT.fullmatch(ast.unparse(declaration.value)):
                     continue
                 for target in declaration.targets:
@@ -1092,6 +1103,15 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
             return None
         return expression
     functions = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+    # Helpers can be called many times. Retain their call lists only for this source
+    # traversal, preserving ast.walk's inclusion and ordering of nested bodies.
+    function_calls: dict[ast.FunctionDef, tuple[ast.Call, ...]] = {}
+
+    def calls_in(function: ast.FunctionDef) -> tuple[ast.Call, ...]:
+        if function not in function_calls:
+            function_calls[function] = tuple(n for n in ast.walk(function) if isinstance(n, ast.Call))
+        return function_calls[function]
+
     written: set[str] = set()
     def write_expression(call: ast.Call) -> ast.expr | None:
         if isinstance(call.func, ast.Attribute) and call.func.attr in ('write_text', 'write_bytes'):
@@ -1121,7 +1141,7 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
             # Recursive/mutually recursive helper effects are not proved read-only.
             return set(substitutions.values())
         effects: set[str] = set()
-        for call in (n for n in ast.walk(function) if isinstance(n, ast.Call)):
+        for call in calls_in(function):
             expression = write_expression(call)
             if expression is not None:
                 hit = rooted(expression, function, substitutions)
@@ -1131,7 +1151,6 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
                 effects.update(helper_writes(callee, parameters(callee, call, function, substitutions), visiting | {function.name}))
         return effects
 
-    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
     for call in calls:
         expression = write_expression(call)
         if expression is not None and (hit := rooted(expression, enclosing[call])):
@@ -1154,7 +1173,7 @@ def rooted_reads(source: Source) -> tuple[tuple[str, tuple[Span, ...]], ...]:
             parameter = function.args.args[0].arg
             arg = _path_expression(call.args[0], {})
             rooted_arg = rooted(call.args[0], enclosing[call])
-            for helper_call in (n for n in ast.walk(function) if isinstance(n, ast.Call)):
+            for helper_call in calls_in(function):
                 expr = read_expression(helper_call)
                 if expr is None:
                     continue

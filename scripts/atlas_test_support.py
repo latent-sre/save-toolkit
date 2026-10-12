@@ -1,7 +1,8 @@
 """Fixtures shared by the fleet-atlas v2 test suites. Not a test module: pytest collects only test_*.py.
 
 Plain functions and a mixin rather than pytest fixtures, so the unittest suites still run directly.
-Every helper builds its fixture from scratch; none caches a repository, snapshot or verified graph.
+Every helper builds its fixture from scratch; row replay indexes one immutable source per loader,
+never a repository, snapshot or verified graph.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ import shutil
 import subprocess
 import tempfile
 from collections.abc import Collection, Iterable, Mapping
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -128,13 +130,20 @@ def row_extraction(snapshot: Snapshot, path: str, evaluator: str = "row-fixture/
     rules = tuple(Predicate(predicate, kinds, kinds if predicate in EDGE_TYPES else None, (source.path,))
                   for predicate in sorted({row[2] for row in rows}))
 
+    @lru_cache(maxsize=1)
+    def replay_rows(current: Source) -> Mapping[str, Derivation]:
+        # Decode the current source independently of extraction and candidate facts.
+        # Index once, rather than scanning and decoding every preceding row per fact.
+        result: dict[str, Derivation] = {}
+        for i, line in enumerate(current.lines, 1):
+            row = json.loads(line)
+            result.setdefault(row[0], Derivation(row[3], EvidenceClass.EXTRACTED,
+                Proof(ProofKind.EXTRACTED, (current.span(i, i),), evaluator),
+                tuple(sorted(row[4].items())) if len(row) > 4 else ()))
+        return result
+
     def replay(fact: Fact, current_snapshot: Snapshot, premises: Mapping[str, Fact]) -> Derivation:
-        current = current_snapshot.source(path)
-        i, row = next((i, json.loads(line)) for i, line in enumerate(current.lines, 1)
-                      if json.loads(line)[0] == fact.id)
-        return Derivation(row[3], EvidenceClass.EXTRACTED,
-                          Proof(ProofKind.EXTRACTED, (current.span(i, i),), evaluator),
-                          tuple(sorted(row[4].items())) if len(row) > 4 else ())
+        return replay_rows(current_snapshot.source(path))[fact.id]
 
     return Extraction((Bucket("rows", nodes, facts),), rules, {evaluator: replay})
 

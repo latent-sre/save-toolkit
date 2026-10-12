@@ -391,6 +391,39 @@ def test_schema():
             with self.subTest(invocation=invocation):
                 self.assertEqual((), rooted_reads(Source('scripts/test_fixture.py', text.encode())))
 
+    def test_reused_helper_keeps_each_calls_read_and_write_arguments(self):
+        text = '''from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]
+def read(relative):
+    return (ROOT / relative).read_text()
+def seed(path):
+    mutate(path)
+def mutate(path):
+    path.write_text("fixture")
+def test_contract():
+    seed(ROOT / "agents/a.md")
+    seed(ROOT / "agents/b.md")
+    read("agents/a.md")
+    read("agents/b.md")
+    read("agents/c.md")
+'''
+        reads = rooted_reads(Source('scripts/test_contract.py', text.encode()))
+        self.assertEqual(['agents/c.md'], [path for path, _ in reads])
+        self.assertTrue(any(span.start_line == 14 for span in reads[0][1]))
+
+    def test_nested_scope_stores_do_not_shadow_the_parent_root(self):
+        text = '''from pathlib import Path
+def test_contract():
+    root = Path(__file__).resolve().parents[1]
+    def fixture():
+        root = Path("temporary")
+        return (root / "agents/fixture.md").read_text()
+    return (root / "agents/real.md").read_text()
+'''
+        reads = rooted_reads(Source('scripts/test_contract.py', text.encode()))
+        self.assertEqual(['agents/real.md'], [path for path, _ in reads])
+        self.assertTrue(any(span.start_line == 3 for span in reads[0][1]))
+
     def test_shuffled_extractor_registration_is_byte_identical(self):
         source = snapshot({
             'agents/sre-assistant.md': agent('sre-assistant'),
