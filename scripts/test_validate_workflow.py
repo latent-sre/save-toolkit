@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -21,6 +22,10 @@ WORKFLOW = ROOT / ".github" / "workflows" / "validate.yml"
 
 def workflow_jobs() -> dict:
     return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+
+
+def pytest_step(job: dict) -> dict:
+    return next(step for step in job["steps"] if step.get("run", "").startswith("python -m pytest "))
 
 
 class ValidateWorkflowTests(unittest.TestCase):
@@ -237,7 +242,7 @@ class ValidateWorkflowTests(unittest.TestCase):
     def test_fast_tests_install_dependencies_and_run_pytest(self) -> None:
         jobs = workflow_jobs()
         commands = [step.get("run") for step in jobs["fast-tests"]["steps"]]
-        self.assertIn("python -m pytest -q", commands)
+        self.assertEqual(["python", "-m", "pytest", "-q"], shlex.split(pytest_step(jobs["fast-tests"])["run"])[:4])
         self.assertIn("python -m pip install -r requirements-test.txt", commands)
 
     def test_fast_tests_run_in_parallel_without_writing_bytecode(self) -> None:
@@ -247,12 +252,11 @@ class ValidateWorkflowTests(unittest.TestCase):
         parallel workers are only safe while the test step writes no bytecode.
         """
         jobs = workflow_jobs()
-        step = next(step for step in jobs["fast-tests"]["steps"]
-                    if step.get("run") == "python -m pytest -q")
+        step = pytest_step(jobs["fast-tests"])
         environment = step.get("env", {})
-        self.assertRegex(environment.get("PYTEST_ADDOPTS", ""), r"(^| )-n [0-9]+( |$)",
+        self.assertRegex(step["run"], r"(^| )-n [0-9]+( |$)",
                          "the component tests no longer run on parallel workers")
-        self.assertIn("--dist worksteal", environment["PYTEST_ADDOPTS"])
+        self.assertIn("--dist worksteal", step["run"])
         self.assertEqual("1", environment.get("PYTHONDONTWRITEBYTECODE"),
                          "parallel workers may write .pyc files under skills/ mid-trial")
 
@@ -273,16 +277,45 @@ class ValidateWorkflowTests(unittest.TestCase):
     def test_eval_tests_job_runs_the_heavy_files_the_default_run_skips(self) -> None:
         """conftest.py's default run skips HEAVY; without this job no CI run would execute them."""
         job = workflow_jobs()["eval-tests"]
-        self.assertEqual("eval-tests (ubuntu-latest)", job["name"])
+        self.assertEqual("eval-tests (${{ matrix.group }}, ubuntu-latest)", job["name"])
+        self.assertIs(job["strategy"]["fail-fast"], False)
+        self.assertEqual([
+            {"group": "webhook", "selection": "pager_webhook"},
+            {"group": "other", "selection": "not pager_webhook"},
+        ], job["strategy"]["matrix"]["include"])
         self.assertNotIn("needs", job, "the eval tests must run alongside fast-tests, not after")
         commands = [step.get("run") for step in job["steps"]]
         self.assertIn("python -m pip install -r requirements-test.txt", commands)
-        step = next(step for step in job["steps"] if step.get("run") == "python -m pytest -q -m heavy")
+        step = pytest_step(job)
         environment = step.get("env", {})
-        self.assertRegex(environment.get("PYTEST_ADDOPTS", ""), r"(^| )-n [0-9]+( |$)")
-        self.assertIn("--dist worksteal", environment["PYTEST_ADDOPTS"])
+        self.assertIn("-m heavy", step["run"])
+        self.assertIn('-k "${{ matrix.selection }}"', step["run"])
+        self.assertRegex(step["run"], r"(^| )-n [0-9]+( |$)")
+        self.assertIn("--dist worksteal", step["run"])
         self.assertEqual("1", environment.get("PYTHONDONTWRITEBYTECODE"),
                          "parallel workers may write .pyc files under skills/ mid-trial")
+
+    def test_worker_options_do_not_leak_into_nested_pytest_suites(self) -> None:
+        for name in ("fast-tests", "eval-tests"):
+            with self.subTest(job=name):
+                job = workflow_jobs()[name]
+                for env in (job.get("env", {}), pytest_step(job).get("env", {})):
+                    self.assertNotIn("PYTEST_ADDOPTS", env)
+                    self.assertNotIn("PYTEST_PLUGINS", env)
+                step = pytest_step(job)
+                self.assertEqual("1", step["env"]["PYTEST_DISABLE_PLUGIN_AUTOLOAD"])
+                args = shlex.split(step["run"])
+                plugins = {args[i + 1] for i, arg in enumerate(args[:-1]) if arg == "-p"}
+                self.assertTrue({"xdist", "hypothesispytest"} <= plugins)
+
+    def test_dependency_cache_changes_with_selection_or_constraints(self) -> None:
+        for name in ("fast-tests", "eval-tests"):
+            with self.subTest(job=name):
+                step = next(s for s in workflow_jobs()[name]["steps"]
+                            if s.get("uses", "").startswith("actions/setup-python@"))
+                self.assertEqual("pip", step["with"].get("cache"))
+                self.assertEqual({"requirements-test.txt", "requirements-dev.txt"},
+                                 set(step["with"].get("cache-dependency-path", "").split()))
 
     def test_the_gate_still_has_a_schedule_and_manual_dispatch(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
