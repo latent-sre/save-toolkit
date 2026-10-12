@@ -774,7 +774,7 @@ class AuditProxyTests(unittest.TestCase):
                 self._reply(201, {"echo": json.loads(body)})
 
         self.upstream = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
-        threading.Thread(target=self.upstream.serve_forever, daemon=True).start()
+        threading.Thread(target=self.upstream.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
         self.addCleanup(self.upstream.server_close)
         self.addCleanup(self.upstream.shutdown)
         self.addCleanup(self.release.set)
@@ -868,7 +868,7 @@ class ServiceCheckVerdictTests(unittest.TestCase):
                 self.wfile.write(raw)
 
         server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Service)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True).start()
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
         url = f"http://127.0.0.1:{server.server_address[1]}"

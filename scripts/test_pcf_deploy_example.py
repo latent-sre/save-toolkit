@@ -253,7 +253,7 @@ def health_endpoint(statuses):
             pass
 
     server = HTTPServer(("127.0.0.1", 0), Handler)
-    thread = Thread(target=server.serve_forever, daemon=True)
+    thread = Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     thread.start()
     try:
         yield f"http://127.0.0.1:{server.server_port}/readyz", requests
@@ -275,12 +275,17 @@ def health_endpoint(statuses):
 def test_health_requires_ready_status_and_preserves_bounded_retries(
     tmp_path, shell, example_steps, statuses, succeeds, attempts
 ):
+    script = example_steps["Verify health"]["run"]
+    # Pin the published backoff, then shorten only its wait in this real-curl test.
+    # Retry count, HTTP behavior and the Retry-After/max-time check remain unchanged.
+    assert script.count("--retry-delay 5 ") == 1
+    script = script.replace("--retry-delay 5 ", "--retry-delay 1 ")
     curl_home = tmp_path / "curl-home"
     curl_home.mkdir()
     (curl_home / ".curlrc").write_text("location\n", encoding="utf-8")  # a runner's curl config
     with health_endpoint(statuses) as (url, requests):
         result, calls, _ = run_example(
-            tmp_path, shell, example_steps["Verify health"]["run"], "existing",
+            tmp_path, shell, script, "existing",
             outputs={"HEALTH_URL": url, "NO_PROXY": "127.0.0.1", "no_proxy": "127.0.0.1",
                      "CURL_HOME": curl_home.as_posix()},
             timeout=40,
