@@ -1,0 +1,127 @@
+id: build-software-engineer-go-incidents-api
+max_turns: 45
+agent: software-engineer
+# The Go half of the backend bar. A greenfield Go service whose prompt never says "Huma",
+# "OpenAPI", "problem+json", "paginate" or "timeout": it says the on-call UI generates its client
+# from the service, which is what backend-craft turns into a committed OpenAPI document with gates.
+# The probe-owned oracle (probe_checks.py, written by the first check, never seen by the agent)
+# builds the candidate's main package, starts it with PORT set, and grades the running service:
+# bearer auth answered 401 problem+json, a cursor walk over 501 seeded incidents with an
+# oversized limit lowered, a ?status= filter with a 422 problem for a bad value, a 404 problem
+# whose request_id matches X-Request-ID, the router's own 404 and 405 as problems, the store's
+# internal_note kept inside, a committed openapi.json on the house rules, a drift test that fails
+# when that document goes stale, and ReadHeaderTimeout on the server. Go is installed on the host
+# and modules come from the public proxy.
+prompt: |
+  Build a new Go HTTP service in this repo for the on-call UI, end to end, and tell me what you ran
+  to verify it.
+
+  - `GET /v1/incidents` lists the incidents in `store.go`, filterable by `?status=` (open or
+    closed).
+  - `GET /v1/incidents/{id}` returns one incident.
+
+  Callers send a bearer token; check it with `VerifyToken` in `auth.go`, which stands in for our
+  identity provider. It runs on PCF and Cloud Run, which set PORT. The on-call UI generates its
+  TypeScript client from this service. Tests go beside the code (see the README). This is a code
+  change, not a design question, not a review, and not an incident.
+  After your last edit or helper return, run `go test ./...` as a standalone foreground shell
+  command; use read tools for any final inspection.
+  Use separate Changed and Verified headings in your final response, explaining the changes and
+  verification results.
+fixture:
+  files:
+    README.md: |
+      # oncall-api
+
+      A new Go service behind the on-call UI. `store.go` holds the incident seed (the real store
+      is a database) and `auth.go` stands in for the identity provider's token check.
+
+      Go is installed on this machine and modules come from the public proxy. Build and test from
+      the repo root:
+
+          go test ./...
+    go.mod: |
+      module example.com/oncallapi
+
+      go 1.25
+    store.go: |
+      package main
+
+      import (
+          "fmt"
+          "time"
+      )
+
+      // Incident is the stored record. InternalNote is triage scratch and never leaves the service.
+      type Incident struct {
+          ID           string
+          Status       string
+          Title        string
+          Service      string
+          CreatedAt    time.Time
+          InternalNote string
+      }
+
+      var services = []string{"checkout", "payments", "search"}
+
+      // Incidents is the seed, ordered by ID.
+      var Incidents = seed()
+
+      func seed() []Incident {
+          start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+          rows := make([]Incident, 0, 501)
+          for n := 1; n <= 501; n++ {
+              status := "open"
+              if n%3 == 0 {
+                  status = "closed"
+              }
+              rows = append(rows, Incident{
+                  ID:           fmt.Sprintf("inc-%04d", n),
+                  Status:       status,
+                  Title:        fmt.Sprintf("Incident %d", n),
+                  Service:      services[n%3],
+                  CreatedAt:    start.Add(time.Duration(17*n) * time.Minute),
+                  InternalNote: fmt.Sprintf("triage scratch for %d; never shown to callers", n),
+              })
+          }
+          return rows
+      }
+    auth.go: |
+      package main
+
+      import (
+          "context"
+          "os"
+      )
+
+      // VerifyToken reports the subject a bearer token authenticates, or ok=false. It stands in for
+      // the identity provider client; tests and local runs set ONCALL_TEST_TOKEN.
+      func VerifyToken(ctx context.Context, token string) (subject string, ok bool) {
+          if want := os.Getenv("ONCALL_TEST_TOKEN"); want != "" && token == want {
+              return "tester", true
+          }
+          return "", false
+      }
+checks:
+  # The oracle is written by this first check and reused by the ones below (the workspace persists
+  # between checks). Each check builds the main package and starts the binary on a free port.
+  - check: command_exit_zero
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_checks.py auth"
+    timeout: 600
+    text: "oracle: a missing or wrong bearer token is a 401 problem+json with WWW-Authenticate"
+    writes_from: {probe_checks.py: evals/oracles/go-incidents-api/probe_checks.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py pagination", timeout: 600, text: "oracle: cursor pages walk 501 unique incidents, the default page is bounded, an oversized limit is lowered", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py filter", timeout: 600, text: "oracle: ?status= filters, and an invalid value is a 422 problem+json with errors[]", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py problem_json", timeout: 600, text: "oracle: a missing incident is a 404 problem+json whose request_id matches X-Request-ID", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py router_problems", timeout: 600, text: "oracle: the router's own 404 and 405 answer problem+json", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py no_leak", timeout: 600, text: "oracle: internal_note never crosses the API boundary", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py document", timeout: 120, text: "oracle: openapi.json is committed at the root: 3.1, lowerCamel operationIds, security, problem+json errors", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py drift_gate", timeout: 900, text: "oracle: go test fails when openapi.json drifts from the code and passes when it matches", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py server_timeouts", timeout: 120, text: "oracle: the http.Server sets ReadHeaderTimeout", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "go test -count=1 ./...", timeout: 600, text: "suite is green when the probe runs it"}
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
+  - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
+  - {check: no_new_commits, text: "nothing committed uninvited"}
+  - {check: no_agents_dir, text: "no .agents/ progress litter"}
+  - {check: skill_loaded, skill: backend-craft, text: "backend-craft was loaded for backend code"}

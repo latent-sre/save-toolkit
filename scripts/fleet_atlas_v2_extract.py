@@ -1841,7 +1841,7 @@ def extract(snapshot: Snapshot, *, stages: Iterable[ExtractionStage] = EXTRACTIO
     # All source spans are replayed; joined proofs may include canonical targets and
     # controlling validators in addition to their declaration source.
     authority = ('*.md', '*.py', '*.json', '*.csv', '*.yaml', '*.yml', '*.toml', '*.txt', '*.sh', '*.ps1', '*.js', '*.mjs', '*.ts', '*.tsx',
-                 '*.html', '*.css', '*.svg', '*.ini', '*.cfg', '*.conf', 'Staticfile')
+                 '*.go', '*.html', '*.css', '*.svg', '*.ini', '*.cfg', '*.conf', 'Staticfile')
     predicates = tuple(Predicate(name, frozenset(source), frozenset(target), authority)
                        for name, (source, target) in sorted(EDGE_ENDPOINTS.items()))
     predicates += tuple(Predicate(name, NODE_TYPES, None, authority, None if name in ('unknown', 'guidance') else 1)

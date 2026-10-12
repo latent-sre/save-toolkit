@@ -1,241 +1,252 @@
-"""Exercise the shipped HTTP starters through their public request/fixture contracts."""
+"""Exercise backend-craft's starters: each starter's own suite end to end, then the FastAPI house
+module's protections that its example service does not reach."""
 from __future__ import annotations
 
 import asyncio
+import importlib.util
+import json
 import logging
+import os
+import shutil
+import subprocess
 import sys
-from contextlib import asynccontextmanager
 from pathlib import Path
-from textwrap import dedent
-from types import ModuleType
-from urllib.parse import urlsplit
 from uuid import UUID
 
 import pytest
-import yaml
-from fastapi import APIRouter, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from httpx import Response
 from jsonschema import Draft202012Validator
 from pydantic import BaseModel
-from starlette.datastructures import Headers, MutableHeaders
+from starlette.datastructures import Headers
 from starlette.middleware.cors import CORSMiddleware
 
 from testkit import load_path
 
 ASSETS = Path(__file__).resolve().parents[1] / "skills/backend-craft/assets"
+HUMA = "github.com/danielgtaylor/huma/v2@v2.39.1"
 
 
-def load_asset(name):
-    """A fresh copy of an asset, left unregistered: a test that imports it by name registers it itself."""
-    module = load_path(ASSETS / f"{name}.py", name)
-    del sys.modules[name]
+def _run(command: list[str], cwd: Path, **env: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=600,
+                          env={**os.environ, **env})
+
+
+def _passed(result: subprocess.CompletedProcess[str]) -> None:
+    assert result.returncode == 0, f"{result.args}\n{result.stdout[-4000:]}\n{result.stderr[-4000:]}"
+
+
+def test_fastapi_starter_suite_passes(tmp_path):
+    shutil.copytree(ASSETS / "fastapi", tmp_path, dirs_exist_ok=True)
+    pytest_cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts="]
+    _passed(_run([*pytest_cmd, "test_openapi_document.py"], tmp_path, UPDATE_OPENAPI="1"))
+    assert importlib.util.find_spec("schemathesis"), "schemathesis must be installed (requirements-test.txt)"
+    result = _run(pytest_cmd, tmp_path)
+    _passed(result)
+    assert " passed" in result.stdout and "skipped" not in result.stdout, result.stdout
+
+
+def test_fastapi_starter_document_is_the_house_contract(tmp_path):
+    shutil.copytree(ASSETS / "fastapi", tmp_path, dirs_exist_ok=True)
+    _passed(_run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=",
+                  "test_openapi_document.py"], tmp_path, UPDATE_OPENAPI="1"))
+    document = json.loads((tmp_path / "openapi.json").read_text(encoding="utf-8"))
+    schemas = document["components"]["schemas"]
+    assert {"Problem", "FieldError", "Thing", "ThingPage"} <= schemas.keys()
+    assert "HTTPValidationError" not in schemas
+    assert document["components"]["securitySchemes"]["bearer"]["scheme"] == "bearer"
+
+
+def test_go_starter_suite_passes(tmp_path):
+    go = shutil.which("go")
+    assert go, "go must be available to run the Go starter"
+    shutil.copytree(ASSETS / "go", tmp_path, dirs_exist_ok=True)
+    (tmp_path / "go.mod").write_text("module example.com/starter\n\ngo 1.25\n", encoding="utf-8")
+    _passed(_run([go, "get", HUMA], tmp_path))
+    _passed(_run([go, "mod", "tidy"], tmp_path))
+    _passed(_run([go, "vet", "./..."], tmp_path))
+    unformatted = _run([shutil.which("gofmt") or "gofmt", "-l", "."], tmp_path)
+    assert unformatted.stdout.strip() == "", f"gofmt would change: {unformatted.stdout}"
+    _passed(_run([go, "test", "-count=1", "-run", "TestOpenAPIDocument", ".", "-update"], tmp_path))
+    # Schemathesis's `st` sits beside this interpreter when requirements-test.txt is installed.
+    scripts = Path(sys.executable).parent
+    st = shutil.which("st") or shutil.which("st", path=str(scripts))
+    assert st, "schemathesis's st command must be installed (requirements-test.txt)"
+    path = os.pathsep.join([str(Path(st).parent), os.environ.get("PATH", "")])
+    result = _run([go, "test", "-count=1", "-v", "./..."], tmp_path, PATH=path, CI="true")
+    _passed(result)
+    assert "--- PASS: TestSchemathesis" in result.stdout, result.stdout
+
+
+# The FastAPI house module, exercised directly.
+
+def load_house():
+    module = load_path(ASSETS / "fastapi/house.py", "house")
+    del sys.modules["house"]
     return module
 
 
-def handled_app(**options):
-    """A bare app with the problem handlers installed, and the fresh asset module that installed them."""
-    problems = load_asset("problem_fastapi")
-    app = FastAPI()
-    problems.install_problem_handlers(app, **options)
-    return problems, app
-
-
-def starter_openapi():
-    return yaml.safe_load((ASSETS / "openapi.starter.yaml").read_text(encoding="utf-8"))
+async def _no_tokens(token: str) -> None:
+    return None
 
 
 class Payload(BaseModel):
     count: int
 
 
-@pytest.fixture
-def client():
-    problems = load_asset("problem_fastapi")
-    app = FastAPI(responses=problems.problem_responses(400, 422, 500))
-    problems.install_problem_handlers(app, trusted_request_id_header="X-Request-ID")
+def house_client(*, trusted_request_id_header: str | None = None, cors: bool = False):
+    house = load_house()
+    app = house.house_app("Probe", "1.0.0", verify_token=_no_tokens, loopback_only=False,
+                          trusted_request_id_header=trusted_request_id_header)
 
-    @app.get("/auth", responses=problems.problem_responses(401))
+    @app.get("/v1/auth", responses=house.problems(401))
     def auth():
         raise HTTPException(401, "Sign in", headers={"WWW-Authenticate": "Bearer"})
 
-    @app.get("/limited", responses=problems.problem_responses(429))
+    @app.get("/v1/limited", responses=house.problems(429))
     def limited():
         raise HTTPException(429, "Wait", headers={"Retry-After": "30"})
 
-    @app.get("/multi-auth")
+    @app.get("/v1/multi-auth")
     def multi_auth():
         raise HTTPException(401, "Sign in", headers=Headers(raw=[
-            (b"www-authenticate", b'Basic realm="test"'),
-            (b"www-authenticate", b"Bearer"),
-            (b"set-cookie", b"session=; Max-Age=0; Path=/"),
-            (b"set-cookie", b"refresh=; Max-Age=0; Path=/"),
+            (b"www-authenticate", b'Basic realm="test"'), (b"www-authenticate", b"Bearer"),
+            (b"set-cookie", b"session=; Max-Age=0; Path=/"), (b"set-cookie", b"refresh=; Max-Age=0; Path=/"),
         ]))
 
-    @app.get("/old-representation")
+    @app.get("/v1/old-representation")
     def old_representation(compressed: bool = False):
         headers = {
             "WWW-Authenticate": "Bearer", "Content-Type": "text/plain", "Content-Length": "0",
-            "Cache-Control": "no-store", "Vary": "Authorization",
-            "ETag": '"old-body"', "Content-Range": "bytes 0-0/1",
-            "Content-Digest": "sha-256=:old-body:", "Transfer-Encoding": "chunked",
+            "Cache-Control": "no-store", "Vary": "Authorization", "ETag": '"old-body"',
+            "Content-Range": "bytes 0-0/1", "Content-Digest": "sha-256=:old-body:",
+            "Transfer-Encoding": "chunked",
         }
         if compressed:
             headers["cOnTeNt-EnCoDiNg"] = "gzip"
         raise HTTPException(401, "Sign in", headers=headers)
 
-    @app.post("/data")
-    def data(payload: Payload):
+    @app.post("/v1/data")
+    def data(payload: Payload) -> Payload:
         return payload
 
-    @app.get("/boom")
+    @app.get("/v1/boom")
     def boom():
         raise RuntimeError("private diagnostic must not reach the client")
 
-    with TestClient(app, raise_server_exceptions=False) as http:
-        yield http
+    @app.get("/v1/locked", responses=house.problems(409))
+    def locked():
+        raise house.ProblemError(409, "https://errors.example.internal/thing-locked", "Thing is locked",
+                                 "Another change is in progress.")
+
+    exported = app
+    if cors:
+        exported = CORSMiddleware(app, allow_origins=["https://console.example.internal"],
+                                  allow_methods=["GET", "POST"], expose_headers=["X-Request-ID", "Retry-After"])
+    return house, app, TestClient(exported, raise_server_exceptions=False)
 
 
-@pytest.mark.parametrize("method,path,status,header,value", [
-    ("GET", "/auth", 401, "WWW-Authenticate", "Bearer"),
-    ("GET", "/limited", 429, "Retry-After", "30"),
-    ("POST", "/auth", 405, "Allow", "GET"),
+@pytest.fixture
+def client():
+    _, _, test_client = house_client()
+    with test_client as c:
+        yield c
+
+
+@pytest.mark.parametrize(("method", "path", "status", "header", "value"), [
+    ("GET", "/v1/auth", 401, "WWW-Authenticate", "Bearer"),
+    ("GET", "/v1/limited", 429, "Retry-After", "30"),
+    ("POST", "/v1/auth", 405, "Allow", "GET"),
 ])
 def test_problem_keeps_protocol_headers(client, method, path, status, header, value):
     response = client.request(method, path)
-    assert response.status_code == status
+    assert response.status_code == response.json()["status"] == status
     assert response.headers.get(header) == value
     assert response.headers["content-type"] == "application/problem+json"
-    assert response.json()["status"] == status
-    assert "headers" not in response.json()
 
 
-@pytest.mark.parametrize("header,values", [
+@pytest.mark.parametrize(("header", "values"), [
     ("www-authenticate", ['Basic realm="test"', "Bearer"]),
     ("set-cookie", ["session=; Max-Age=0; Path=/", "refresh=; Max-Age=0; Path=/"]),
 ])
 def test_problem_keeps_repeated_protocol_headers(client, header, values):
-    response = client.get("/multi-auth")
-    assert response.status_code == response.json()["status"] == 401
-    assert response.headers.get_list(header) == values
-
-
-@pytest.mark.parametrize("body,status", [('{"count":', 400), ('{"count":"wrong"}', 422)])
-def test_malformed_json_is_distinct_from_invalid_values(client, body, status):
-    response = client.post("/data", content=body, headers={"Content-Type": "application/json"})
-    assert response.status_code == status
-    assert response.headers["content-type"] == "application/problem+json"
-    assert response.json()["status"] == status
+    assert client.get("/v1/multi-auth").headers.get_list(header) == values
 
 
 @pytest.mark.parametrize("compressed", [False, True])
 def test_problem_recomputes_headers_for_the_replaced_representation(client, compressed):
-    response = client.get("/old-representation", params={"compressed": compressed})
+    response = client.get("/v1/old-representation", params={"compressed": compressed})
     assert response.status_code == response.json()["status"] == 401
-    assert response.headers["WWW-Authenticate"] == "Bearer"
-    assert response.headers["Cache-Control"] == "no-store"
-    assert response.headers["Vary"] == "Authorization"
+    assert response.headers["Cache-Control"] == "no-store" and response.headers["Vary"] == "Authorization"
     assert response.headers["content-type"] == "application/problem+json"
     assert int(response.headers["content-length"]) == len(response.content)
     for header in ("content-encoding", "etag", "content-range", "content-digest", "transfer-encoding"):
         assert header not in response.headers
 
 
-def test_validation_response_matches_consumer_fields(client):
-    response = client.post("/data", json={"count": "wrong"})
-    error = response.json()["errors"][0]
-    assert error["loc"] == ["body", "count"]
-    assert isinstance(error["msg"], str) and error["msg"]
-    schema = starter_openapi()
-    item = schema["components"]["schemas"]["Problem"]["properties"]["errors"]["items"]
-    assert set(item["required"]) == {"loc", "msg"}
-    assert item["properties"]["loc"] == {"type": "array", "items": {"type": "string"}}
-    assert item["properties"]["msg"]["type"] == "string"
-    served = client.get("/openapi.json").json()
-    documented = served["paths"]["/data"]["post"]["responses"]["422"]["content"]
-    assert documented["application/problem+json"]["schema"] == schema["components"]["schemas"]["Problem"]
+@pytest.mark.parametrize(("body", "status"), [('{"count":', 400), ('{"count":"wrong"}', 422)])
+def test_malformed_json_is_distinct_from_invalid_values(client, body, status):
+    response = client.post("/v1/data", content=body, headers={"Content-Type": "application/json"})
+    assert response.status_code == response.json()["status"] == status
+    assert response.headers["content-type"] == "application/problem+json"
 
 
-@pytest.mark.parametrize("method,path,body,status", [
-    ("POST", "/data", '{"count":', 400),
-    ("POST", "/data", '{"count":"wrong"}', 422),
-    ("GET", "/boom", None, 500),
-    ("GET", "/auth", None, 401),
-    ("GET", "/limited", None, 429),
+def test_status_only_and_domain_problem_types(client):
+    status_only = client.get("/v1/auth").json()
+    assert status_only["type"] == "about:blank" and status_only["title"] == "Unauthorized"
+    domain = client.get("/v1/locked").json()
+    assert domain["type"] == "https://errors.example.internal/thing-locked"
+    assert domain["title"] == "Thing is locked" and domain["status"] == 409
+
+
+@pytest.mark.parametrize(("method", "path", "body", "status"), [
+    ("POST", "/v1/data", '{"count":', 400),
+    ("POST", "/v1/data", '{"count":"wrong"}', 422),
+    ("GET", "/v1/boom", None, 500),
+    ("GET", "/v1/auth", None, 401),
+    ("GET", "/v1/limited", None, 429),
+    ("GET", "/v1/locked", None, 409),
 ])
-def test_served_openapi_matches_actual_problem_responses(client, method, path, body, status):
-    response = client.request(
-        method, path, content=body, headers={"Content-Type": "application/json"}
-    )
+def test_document_declares_the_problem_each_error_sends(client, method, path, body, status):
+    response = client.request(method, path, content=body, headers={"Content-Type": "application/json"})
     assert response.status_code == status
     document = client.get("/openapi.json").json()
     responses = document["paths"][path][method.lower()]["responses"]
     content = responses[str(status)]["content"]
     assert set(content) == {response.headers["content-type"]} == {"application/problem+json"}
-    schema = content["application/problem+json"]["schema"]
-    Draft202012Validator.check_schema(schema)
-    validator = Draft202012Validator(schema)
+    validator = Draft202012Validator({**content["application/problem+json"]["schema"],
+                                      "components": document["components"]})
     validator.validate(response.json())
     assert not validator.is_valid({"detail": "FastAPI's default error shape"})
-    assert not validator.is_valid({
-        "type": "https://errors.example.internal/validation-failed",
-        "title": "Validation failed", "status": 422, "request_id": "request-1",
-        "errors": [{"loc": ["body", 0], "msg": "Invalid"}],
-    })
     assert set(responses["200"]["content"]) == {"application/json"}
     assert "HTTPValidationError" not in document["components"]["schemas"]
 
 
-def test_problem_metadata_composes_with_router_and_operation_contracts():
-    problems = load_asset("problem_fastapi")
-    app = FastAPI(responses=problems.problem_responses(422, 500))
-    problems.install_problem_handlers(app)
-    router = APIRouter(responses=problems.problem_responses(401, 429))
-    rate_limit = problems.problem_responses(429)
-    rate_limit[429]["description"] = "Per-user quota exceeded"
-    rate_limit[429]["headers"] = {"Retry-After": {"schema": {"type": "integer"}}}
-
-    @router.get("/limited", responses=rate_limit)
-    def limited():
-        raise HTTPException(429, "Wait", headers={"Retry-After": "30"})
-
-    app.include_router(router)
-    with TestClient(app) as client:
-        responses = client.get("/openapi.json").json()["paths"]["/limited"]["get"]["responses"]
-        response = client.get("/limited")
-    assert set(responses) == {"200", "401", "422", "429", "500"}
-    assert responses["429"]["description"] == "Per-user quota exceeded"
-    assert responses["429"]["headers"] == rate_limit[429]["headers"]
-    assert int(response.headers["Retry-After"]) == 30
-    assert response.status_code == 429
-    assert "headers" not in responses["401"]
-    assert "headers" not in problems.problem_responses(429)[429]
-    rate_limit[429]["content"]["application/problem+json"]["schema"]["properties"].clear()
-    fresh = problems.problem_responses(429)[429]["content"]["application/problem+json"]["schema"]
-    assert "status" in fresh["properties"]
+def test_operation_ids_are_lower_camel(client):
+    document = client.get("/openapi.json").json()
+    assert document["paths"]["/v1/old-representation"]["get"]["operationId"] == "oldRepresentation"
 
 
 def test_unexpected_error_is_redacted_and_correlated(client):
-    response = client.get("/boom", headers={"X-Request-ID": "test-request"})
+    response = client.get("/v1/boom")
     assert response.status_code == 500
     assert response.headers["content-type"] == "application/problem+json"
-    assert response.json()["request_id"] == "test-request"
+    assert response.json()["request_id"] == response.headers["X-Request-ID"]
     assert "private diagnostic" not in response.text
 
 
-def _unhandled_record(caplog, problems, app, path):
-    with caplog.at_level(logging.ERROR), TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get(path)
-    records = [record for record in caplog.records if record.name == problems.logger.name]
+def _unhandled_record(caplog, house, app, path):
+    with caplog.at_level(logging.ERROR), TestClient(app, raise_server_exceptions=False) as test_client:
+        response = test_client.get(path)
+    records = [record for record in caplog.records if record.name == house.logger.name]
     assert len(records) == 1
     return response, records[0]
 
 
 def test_unhandled_log_keeps_diagnostics_without_exception_values(caplog):
-    problems, app = handled_app()
+    house, app, _ = house_client()
 
-    @app.get("/failure")
+    @app.get("/v1/failure")
     def failure():
         try:
             raise ValueError("SYNTHETIC_CAUSE_TOKEN")
@@ -244,22 +255,20 @@ def test_unhandled_log_keeps_diagnostics_without_exception_values(caplog):
             error.add_note("SYNTHETIC_NOTE_TOKEN")
             raise error from cause
 
-    response, record = _unhandled_record(caplog, problems, app, "/failure")
+    response, record = _unhandled_record(caplog, house, app, "/v1/failure")
     assert response.status_code == 500
     rendered = logging.Formatter("%(request_id)s %(message)s").format(record)
     assert "SYNTHETIC_" not in rendered
-    assert "RuntimeError" in rendered and "failure" in rendered
-    assert "ValueError" in rendered  # the cause's type survives without its text
-    assert "GET /failure" in rendered
+    assert "RuntimeError" in rendered and "ValueError" in rendered and "GET /v1/failure" in rendered
     assert "test_backend_craft_assets.py" in rendered
     assert record.request_id == response.headers["X-Request-ID"]
-    assert record.exc_info is None  # another handler must not reformat the raw exception
+    assert record.exc_info is None
 
 
 def test_unhandled_log_names_grouped_and_context_exceptions(caplog):
-    problems, app = handled_app()
+    house, app, _ = house_client()
 
-    @app.get("/grouped")
+    @app.get("/v1/grouped")
     def grouped():
         try:
             raise KeyError("SYNTHETIC_CONTEXT_TOKEN")
@@ -268,7 +277,7 @@ def test_unhandled_log_names_grouped_and_context_exceptions(caplog):
                 OSError("SYNTHETIC_MEMBER_TOKEN"), LookupError("SYNTHETIC_MEMBER_TOKEN"),
             ])
 
-    _, record = _unhandled_record(caplog, problems, app, "/grouped")
+    _, record = _unhandled_record(caplog, house, app, "/v1/grouped")
     message = record.getMessage()
     assert "SYNTHETIC_" not in message
     for name in ("ExceptionGroup", "OSError", "LookupError", "KeyError"):
@@ -276,30 +285,24 @@ def test_unhandled_log_names_grouped_and_context_exceptions(caplog):
 
 
 def test_unhandled_log_collapses_recursion(caplog):
-    problems, app = handled_app()
+    house, app, _ = house_client()
 
     def recurse(depth):
         return recurse(depth + 1)
 
-    @app.get("/deep")
+    @app.get("/v1/deep")
     def deep():
         return recurse(0)
 
-    _, record = _unhandled_record(caplog, problems, app, "/deep")
+    _, record = _unhandled_record(caplog, house, app, "/v1/deep")
     message = record.getMessage()
-    assert "RecursionError" in message
-    assert message.count("'recurse')") == 1  # one location and a repeat count, not ~1,000 frames
-    assert "repeated" in message
-    assert len(message) < 10_000  # stays inside common per-event truncation limits
+    assert "RecursionError" in message and "repeated" in message
+    assert message.count("'recurse')") == 1
+    assert len(message) < 10_000
 
 
 def test_unhandled_log_keeps_its_request_id_beside_a_project_record_factory(caplog):
-    problems, app = handled_app()
-
-    @app.get("/boom")
-    def boom():
-        raise RuntimeError("private diagnostic")
-
+    house, app, _ = house_client()
     original = logging.getLogRecordFactory()
 
     def stamping_factory(*args, **kwargs):
@@ -309,236 +312,48 @@ def test_unhandled_log_keeps_its_request_id_beside_a_project_record_factory(capl
 
     logging.setLogRecordFactory(stamping_factory)
     try:
-        response, record = _unhandled_record(caplog, problems, app, "/boom")
+        response, record = _unhandled_record(caplog, house, app, "/v1/boom")
     finally:
         logging.setLogRecordFactory(original)
-    assert response.status_code == 500
-    assert response.headers["content-type"] == "application/problem+json"
     assert record.request_id == response.headers["X-Request-ID"] == response.json()["request_id"]
 
 
-def test_trusted_header_requires_the_request_id_middleware():
-    problems = load_asset("problem_fastapi")
-    with pytest.raises(ValueError, match="install_request_id"):
-        problems.install_problem_handlers(
-            FastAPI(), install_request_id=False, trusted_request_id_header="X-Request-ID",
-        )
-
-
-def test_request_id_defaults_to_generated_without_a_trusted_ingress():
-    _, app = handled_app()
-    with TestClient(app) as client:
-        response = client.get("/missing", headers={
-            "X-Request-ID": "client-request-id", "X-Vcap-Request-Id": "client-vcap-id",
-        })
+def test_request_id_defaults_to_generated_without_a_trusted_ingress(client):
+    response = client.get("/v1/missing", headers={"X-Request-ID": "client-id", "X-Vcap-Request-Id": "client-vcap"})
     request_id = response.headers["X-Request-ID"]
-    assert request_id not in {"client-request-id", "client-vcap-id"}
-    assert UUID(request_id).version == 4
+    assert request_id not in {"client-id", "client-vcap"} and UUID(request_id).version == 4
     assert response.json()["request_id"] == request_id
 
 
 @pytest.mark.parametrize("trusted_header", ["X-Request-ID", "X-Vcap-Request-Id"])
-@pytest.mark.parametrize("trusted_id", ["ingress-id", "bad id", None])
+@pytest.mark.parametrize("trusted_id", ["ingress-id", "bad id", "x" * 129, None])
 def test_only_the_configured_ingress_header_can_supply_an_id(trusted_header, trusted_id):
-    _, app = handled_app(trusted_request_id_header=trusted_header)
+    _, _, test_client = house_client(trusted_request_id_header=trusted_header)
     headers = {name: "client-alternative" for name in ("X-Request-ID", "X-Vcap-Request-Id")}
     if trusted_id is None:
         del headers[trusted_header]
     else:
         headers[trusted_header] = trusted_id
-    with TestClient(app) as client:
-        response = client.get("/missing", headers=headers)
+    with test_client as c:
+        response = c.get("/v1/missing", headers=headers)
     request_id = response.headers["X-Request-ID"]
     if trusted_id == "ingress-id":
         assert request_id == trusted_id
     else:
-        assert request_id != "client-alternative"
-        assert UUID(request_id).version == 4
+        assert request_id != "client-alternative" and UUID(request_id).version == 4
     assert response.json()["request_id"] == request_id
-
-
-@pytest.mark.parametrize("media_type", [
-    "application/problem+json", "Application/Problem+Json; charset=utf-8",
-])
-def test_problem_assertion_accepts_valid_contract(media_type):
-    contract = load_asset("test_http_contract")
-    body = {
-        "type": "about:blank", "title": "Validation failed", "status": 422,
-        "request_id": "request-1", "detail": "Invalid input", "instance": "/data",
-        "errors": [{"loc": ["body", "count"], "msg": "Must be an integer"}],
-        "project_extension": {"code": "invalid-count"},
-    }
-    contract.assert_problem(Response(422, json=body, headers={"Content-Type": media_type}), 422)
-
-
-@pytest.mark.parametrize("field,value", [
-    ("type", []), ("title", False), ("status", "422"),
-    ("request_id", ["not-a-string"]), ("request_id", ""),
-    ("detail", []), ("instance", {}), ("errors", {}),
-    ("errors", [None]), ("errors", [{"loc": [0], "msg": "Invalid"}]),
-    ("errors", [{"loc": [], "msg": False}]), ("errors", [{"msg": "Missing loc"}]),
-])
-def test_problem_assertion_rejects_malformed_fields(field, value):
-    contract = load_asset("test_http_contract")
-    body = {"type": "about:blank", "title": "Error", "status": 422, "request_id": "request-1"}
-    body[field] = value
-    response = Response(422, json=body, headers={"Content-Type": "application/problem+json"})
-    with pytest.raises(AssertionError):
-        contract.assert_problem(response, 422)
-
-
-@pytest.mark.parametrize("media_type,status", [
-    ("application/problem+json-extra", 422), ("application/problem+json", 500),
-])
-def test_problem_assertion_rejects_wrong_media_type_or_http_status(media_type, status):
-    contract = load_asset("test_http_contract")
-    response = Response(status, headers={"Content-Type": media_type}, json={
-        "type": "about:blank", "title": "Error", "status": 422, "request_id": "request-1",
-    })
-    with pytest.raises(AssertionError):
-        contract.assert_problem(response, 422)
-
-
-def test_starter_urls_and_page_shape_match_the_house_contract():
-    schema = starter_openapi()
-    base = urlsplit(schema["servers"][0]["url"]).path.rstrip("/")
-    assert {base + path for path in schema["paths"]} == {"/health/live", "/health/ready", "/v1/incidents"}
-    assert not any(path.endswith("z") for path in schema["paths"]), "Cloud Run reserves some paths ending in z"
-    page = schema["components"]["schemas"]["IncidentPage"]
-    assert set(page["required"]) == {"data", "next_cursor"}
-
-
-@pytest.mark.parametrize("field,accepted,rejected", [
-    ("limit", [1, 50, 200, 201, 100000], [-1, 0]),   # above 200 is lowered by the server, not rejected
-    ("cursor", ["a", "x" * 2048], ["", "x" * 2049]),
-    ("idempotency_key", ["a", "x" * 255], ["", "x" * 256]),
-    ("title", ["a", "x" * 200], ["", "x" * 201]),
-])
-def test_starter_input_bounds(field, accepted, rejected):
-    """Exercise the example's public bounds with an independent schema validator."""
-    schema = starter_openapi()
-    collection = schema["paths"]["/v1/incidents"]
-    inputs = {param["name"]: param["schema"] for param in collection["get"]["parameters"]}
-    inputs["idempotency_key"] = collection["post"]["parameters"][0]["schema"]
-    inputs["title"] = schema["components"]["schemas"]["IncidentCreate"]["properties"]["title"]
-    Draft202012Validator.check_schema(inputs[field])
-    validator = Draft202012Validator(inputs[field])
-    for value in accepted:
-        assert validator.is_valid(value), f"{field}: documented boundary rejected"
-    for value in rejected:
-        assert not validator.is_valid(value), f"{field}: out-of-bounds input accepted"
-
-
-@pytest.mark.parametrize("attribute", ["app", "create_app"])
-def test_starter_accepts_instance_and_factory_and_runs_lifespan(monkeypatch, attribute):
-    events = []
-
-    @asynccontextmanager
-    async def lifespan(app):
-        events.append("started")
-        yield
-        events.append("stopped")
-
-    app = FastAPI(lifespan=lifespan)
-
-    @app.get("/state")
-    def state():
-        return events
-
-    module = ModuleType("craft_fixture_app")
-    module.app = app
-    module.create_app = lambda: app
-    monkeypatch.setitem(sys.modules, module.__name__, module)
-    contract = load_asset("test_http_contract")
-    contract.APP = f"{module.__name__}:{attribute}"
-    loaded = contract.app.__wrapped__()
-    assert loaded is app
-    fixture = contract.client.__wrapped__(loaded)
-    try:
-        http = next(fixture)
-        assert http.get("/state").json() == ["started"]
-    finally:
-        fixture.close()
-    assert events == ["started", "stopped"]
-
-
-@pytest.mark.parametrize("body_id", [None, ""])
-def test_problem_schemas_require_nonempty_request_id(body_id):
-    problems = load_asset("problem_fastapi")
-    schemas = [
-        problems.problem_responses(500)[500]["content"]["application/problem+json"]["schema"],
-        starter_openapi()["components"]["schemas"]["Problem"],
-    ]
-    body = {"type": "https://errors.example.internal/error", "title": "Error", "status": 500}
-    if body_id is not None:
-        body["request_id"] = body_id
-    for schema in schemas:
-        assert not Draft202012Validator(schema).is_valid(body)
-        assert Draft202012Validator(schema).is_valid({**body, "request_id": "request-1"})
-
-
-@pytest.mark.parametrize("bundled", [True, False])
-@pytest.mark.parametrize("path", ["/ok", "/handled", "/boom"])
-def test_project_correlation_owner_keeps_state_logs_and_response_together(caplog, bundled, path):
-    # With the bundled owner disabled, the project owns context and response headers too.
-    problems, app = handled_app(install_request_id=bundled)
-    seen = []
-
-    class ProjectCorrelation:
-        def __init__(self, app):
-            self.app = app
-
-        async def __call__(self, scope, receive, send):
-            if scope["type"] != "http":
-                await self.app(scope, receive, send)
-                return
-            scope.setdefault("state", {})["request_id"] = "project-id"
-            token = problems.request_id_var.set("project-id") if not bundled else None
-
-            async def project_send(message):
-                if not bundled and message["type"] == "http.response.start":
-                    MutableHeaders(scope=message)["X-Request-ID"] = "project-id"
-                await send(message)
-
-            try:
-                await self.app(scope, receive, project_send)
-            finally:
-                if token is not None:
-                    problems.request_id_var.reset(token)
-
-    app.add_middleware(ProjectCorrelation)  # outer: selects the ID before bundled binding
-
-    @app.get("/{kind}")
-    async def endpoint(kind: str, request: Request):
-        seen.append((request.state.request_id, problems.request_id_var.get()))
-        record = logging.makeLogRecord({"msg": "request completed"})
-        problems.RequestIdLogFilter().filter(record)
-        seen.append(record.request_id)
-        if kind == "handled":
-            raise HTTPException(409, "Conflict")
-        if kind == "boom":
-            raise RuntimeError("private detail")
-        return JSONResponse({"request_id": request.state.request_id}, headers={"X-Request-ID": "stale-id"})
-
-    with caplog.at_level(logging.ERROR), TestClient(app, raise_server_exceptions=False) as client:
-        response = client.get(path, headers={"X-Request-ID": "ingress-id"})
-    assert seen == [("project-id", "project-id"), "project-id"]
-    assert response.json()["request_id"] == response.headers["X-Request-ID"] == "project-id"
-    if path == "/boom":
-        assert caplog.records[-1].request_id == "project-id"
-    assert problems.request_id_var.get() == "-"
 
 
 @pytest.mark.parametrize("raises", [False, True])
 def test_request_id_context_is_restored_in_same_task(raises):
-    problems = load_asset("problem_fastapi")
+    house = load_house()
 
     async def exercise():
-        token = problems.request_id_var.set("outer-context")
+        token = house.request_id_var.set("outer-context")
         try:
             for request_id in ("request-1", "request-2"):
-                async def app(scope, receive, send):  # awaited within this iteration, so the loop variable is current
-                    assert scope["state"]["request_id"] == problems.request_id_var.get() == request_id  # noqa: B023
+                async def app(scope, receive, send):  # awaited within this iteration
+                    assert scope["state"]["request_id"] == house.request_id_var.get() == request_id  # noqa: B023
                     if raises:
                         raise RuntimeError("probe")
                     await send({"type": "http.response.start", "status": 200, "headers": []})
@@ -549,266 +364,64 @@ def test_request_id_context_is_restored_in_same_task(raises):
                     messages.append(message)  # noqa: B023 -- awaited within this iteration
 
                 scope = {"type": "http", "headers": [(b"x-request-id", request_id.encode())]}
-                middleware = problems.RequestIdMiddleware(app, trusted_request_id_header="X-Request-ID")
+                middleware = house.RequestIdMiddleware(app, trusted_request_id_header="X-Request-ID")
                 if raises:
                     with pytest.raises(RuntimeError, match="probe"):
                         await middleware(scope, None, send)
                 else:
                     await middleware(scope, None, send)
                     assert Headers(scope=messages[0])["X-Request-ID"] == request_id
-                assert problems.request_id_var.get() == "outer-context"
+                assert house.request_id_var.get() == "outer-context"
         finally:
-            problems.request_id_var.reset(token)
+            house.request_id_var.reset(token)
 
     asyncio.run(exercise())
 
 
-@pytest.mark.parametrize("state_id", ["bad id", "x" * 129, None, 123])
-def test_invalid_preselected_request_id_uses_valid_ingress_id(state_id):
-    _, app = handled_app(trusted_request_id_header="X-Request-ID")
-
-    class IngressState:
-        def __init__(self, app):
-            self.app = app
-
-        async def __call__(self, scope, receive, send):
-            scope.setdefault("state", {})["request_id"] = state_id
-            await self.app(scope, receive, send)
-
-    app.add_middleware(IngressState)
-    with TestClient(app) as client:
-        response = client.get("/missing", headers={"X-Request-ID": "ingress-id"})
-    assert response.json()["request_id"] == response.headers["X-Request-ID"] == "ingress-id"
-
-
-@pytest.mark.parametrize("attribute", ["app", "create_app"])
-def test_cors_wrapper_loads_and_exposes_only_allowed_unhandled_errors(monkeypatch, attribute):
-    problems = load_asset("problem_fastapi")
-    contract = load_asset("test_http_contract")
-    # Execute the copyable setup itself so its policy cannot drift from a test-only wrapper.
-    snippet = problems.__doc__.split("\n\n", 1)[1].split("\nChoose applicable", 1)[0]
-    monkeypatch.setitem(sys.modules, "problem_fastapi", problems)
-    example = {}
-    exec(compile(dedent(snippet), "problem_fastapi.py:documented-example", "exec"), example)
-    wrapped = example["create_app"]()
-    api = contract.api.__wrapped__(wrapped)
-
-    @api.get("/v1/incidents")
-    async def incidents(request: Request):
-        assert request.headers["Authorization"] == "Bearer test-token"
-        return JSONResponse({"data": [], "next_cursor": None}, headers={
-            "RateLimit-Policy": '"default";q=100;w=60', "RateLimit": '"default";r=99;t=30',
-            "X-RateLimit-Limit": "100", "X-RateLimit-Remaining": "99", "X-RateLimit-Reset": "30",
-        })
-
-    @api.post("/v1/incidents")
-    async def create_incident(request: Request):
-        assert request.headers["Authorization"] == "Bearer test-token"
-        assert request.headers["Idempotency-Key"] == "test-key"
-        payload = await request.json()
-        return JSONResponse({"id": "incident-1", "status": "open", "title": payload["title"]},
-                            status_code=201, headers={"Idempotent-Replayed": "true"})
-
-    @api.get("/limited")
-    async def limited():
-        raise HTTPException(429, "Wait", headers={"Retry-After": "30"})
-
-    @api.get("/boom")
-    async def boom():
-        raise RuntimeError("private detail")
-
-    module = ModuleType("cors_fixture_app")
-    module.app = wrapped
-    module.create_app = lambda: wrapped
-    monkeypatch.setitem(sys.modules, module.__name__, module)
-    contract.APP = f"{module.__name__}:{attribute}"
-    loaded = contract.app.__wrapped__()
-    assert loaded is wrapped
-    assert contract.api.__wrapped__(loaded) is api
-    with TestClient(loaded, raise_server_exceptions=False) as client:
-        allowed_origin = "https://console.example.internal"
-        for method, requested_headers in (
-            ("GET", "authorization"),
-            ("POST", "authorization,content-type,idempotency-key"),
-        ):
-            for origin in (allowed_origin, "https://denied.example"):
-                response = client.options("/v1/incidents", headers={
-                    "Origin": origin,
-                    "Access-Control-Request-Method": method,
-                    "Access-Control-Request-Headers": requested_headers,
-                })
-                if origin == allowed_origin:
-                    assert response.status_code == 200, response.text
-                    assert response.headers["access-control-allow-origin"] == origin
-                    assert method in response.headers["access-control-allow-methods"].split(", ")
-                    assert set(requested_headers.split(",")) <= {
-                        value.strip().lower()
-                        for value in response.headers["access-control-allow-headers"].split(",")
-                    }
-                else:
-                    assert response.status_code == 400
-                    assert "access-control-allow-origin" not in response.headers
-
-        request_headers = {"Origin": allowed_origin, "Authorization": "Bearer test-token"}
-        responses = (
-            (client.get("/v1/incidents", headers=request_headers), 200,
-             {"ratelimit", "ratelimit-policy", "x-ratelimit-limit", "x-ratelimit-remaining",
-              "x-ratelimit-reset", "x-request-id"}),
-            (client.post("/v1/incidents", json={"title": "Probe"},
-                         headers={**request_headers, "Idempotency-Key": "test-key"}), 201,
-             {"idempotent-replayed", "x-request-id"}),
-            (client.get("/limited", headers=request_headers), 429, {"retry-after", "x-request-id"}),
-        )
-        for response, status, readable_headers in responses:
-            assert response.status_code == status
-            assert response.headers["access-control-allow-origin"] == allowed_origin
-            assert readable_headers <= set(response.headers)
-            assert readable_headers <= {
-                value.strip().lower()
-                for value in response.headers.get("access-control-expose-headers", "").split(",")
-            }
-
-        for origin in (allowed_origin, "https://denied.example"):
-            response = client.get("/boom", headers={"Origin": origin})
+def test_cors_wrapper_exposes_headers_on_unhandled_errors():
+    _, _, test_client = house_client(cors=True)
+    with test_client as c:
+        for origin, allowed in (("https://console.example.internal", True), ("https://denied.example", False)):
+            response = c.get("/v1/boom", headers={"Origin": origin})
             assert response.status_code == 500
-            contract.assert_problem(response, 500)
-            assert "private detail" not in response.text
-            if origin == allowed_origin:
+            assert response.headers["content-type"] == "application/problem+json"
+            assert "private diagnostic" not in response.text
+            if allowed:
                 assert response.headers["access-control-allow-origin"] == origin
-                assert "Origin" in response.headers["vary"]
                 assert "x-request-id" in response.headers["access-control-expose-headers"].lower()
             else:
                 assert "access-control-allow-origin" not in response.headers
 
 
-@pytest.mark.parametrize("broken_handler", [False, True])
-def test_boom_probe_precedes_fallback_and_restores_routes(broken_handler):
-    problems = load_asset("problem_fastapi")
-    contract = load_asset("test_http_contract")
-    api = FastAPI()
-    if not broken_handler:
-        problems.install_problem_handlers(api)
-
-    @api.get("/{path:path}")
-    async def fallback(path: str):
-        return {"fallback": path}
-
-    wrapped = CORSMiddleware(api, allow_origins=["https://allowed.example"])
-    routes = list(api.routes)
-    with TestClient(wrapped, raise_server_exceptions=False) as client:
-        if broken_handler:
-            with pytest.raises(AssertionError, match="application/problem\\+json"):
-                contract.test_unexpected_error_is_a_problem(api, client, {})
-        else:
-            contract.test_unexpected_error_is_a_problem(api, client, {})
-        assert api.routes == routes
-        assert client.get("/__contract_boom").json() == {"fallback": "__contract_boom"}
-
-
-def collection_app(records, mutate=None):
-    """A fixed project-owned collection; the HTTP boundary is the only substituted behavior."""
-    app = FastAPI()
-
-    @app.get("/v1/incidents")
-    def incidents(limit: int = 50, cursor: int = 0):
-        data = records[cursor:cursor + limit]
-        end = cursor + len(data)
-        page = {"data": data, "next_cursor": str(end) if end < len(records) else None}
-        return mutate(page, limit, cursor) if mutate else page
-
-    return app
-
-
-@pytest.mark.parametrize("count", [0, 1, 3])
-def test_collection_starter_accepts_string_and_null_cursors(count):
-    contract = load_asset("test_http_contract")
-    with TestClient(collection_app([{"id": f"inc-{i}"} for i in range(count)])) as client:
-        contract.test_collection_is_a_cursor_page(client, {})
-
-
-@pytest.mark.parametrize("cursor", [7, False, [], {}, "", "x" * 2049],
-                         ids=["number", "boolean", "array", "object", "empty", "too-long"])
-@pytest.mark.parametrize("request_kind", ["default", "limited"])
-def test_collection_starter_rejects_invalid_cursor(cursor, request_kind):
-    contract = load_asset("test_http_contract")
-
-    def mutate(page, limit, offset):
-        if (limit == 1) == (request_kind == "limited"):
-            page["next_cursor"] = cursor
-        return page
-
-    with (
-        TestClient(collection_app([{"id": "inc-1"}], mutate)) as client,
-        pytest.raises(AssertionError, match="next_cursor"),
-    ):
-        contract.test_collection_is_a_cursor_page(client, {})
-
-
-def test_collection_starter_rejects_empty_limited_populated_page():
-    contract = load_asset("test_http_contract")
-
-    def mutate(page, limit, offset):
-        return {"data": [], "next_cursor": None} if limit == 1 else page
-
-    with (
-        TestClient(collection_app([{"id": "inc-1"}, {"id": "inc-2"}], mutate)) as client,
-        pytest.raises(AssertionError, match="populated"),
-    ):
-        contract.test_collection_is_a_cursor_page(client, {})
-
-
-@pytest.mark.parametrize("count", [2, 3, 60])
-def test_populated_collection_starter_walks_every_seeded_id(count):
-    contract = load_asset("test_http_contract")
-    records = [{"id": f"inc-{i}"} for i in range(count)]
-    expected = [item["id"] for item in records]
-    with TestClient(collection_app(records)) as client:
-        contract.test_populated_collection_limit_and_traversal(client, {}, expected)
-
-
-@pytest.mark.parametrize("defect,reason", [
-    ("empty", "exactly one"), ("ignored_limit", "exactly one"),
-    ("duplicate", "every seeded ID"), ("skip", "every seeded ID"),
-    ("wrong_order", "every seeded ID"), ("early_end", "every seeded ID"),
-    ("no_end", "terminate"), ("numeric_cursor", "next_cursor"),
-    ("empty_cursor", "next_cursor"),
+@pytest.mark.parametrize(("headers", "status"), [
+    ({"Sec-Fetch-Site": "cross-site"}, 403),
+    ({"Sec-Fetch-Site": "same-site"}, 403),
+    ({"Origin": "https://attacker.example"}, 403),
+    ({"Sec-Fetch-Site": "same-origin"}, 200),
+    ({"Sec-Fetch-Site": "none"}, 200),
+    ({}, 200),
 ])
-def test_populated_collection_starter_rejects_broken_traversal(defect, reason):
-    contract = load_asset("test_http_contract")
-    records = [{"id": f"inc-{i}"} for i in range(3)]
-
-    def mutate(page, limit, cursor):
-        if defect == "empty" and cursor == 1:
-            page["data"] = []
-        elif defect == "ignored_limit":
-            page["data"] = records
-        elif defect == "duplicate" and cursor == 1:
-            page["data"] = records[:1]
-        elif defect == "skip" and cursor == 1:
-            page = {"data": records[2:], "next_cursor": None}
-        elif defect == "wrong_order" and cursor == 0:
-            page["data"] = records[1:2]
-        elif defect == "early_end" and cursor == 0:
-            page["next_cursor"] = None
-        elif defect == "no_end" and cursor == 2:
-            page["next_cursor"] = "3"
-        elif defect == "numeric_cursor" and cursor == 1:
-            page["next_cursor"] = 2
-        elif defect == "empty_cursor" and cursor == 2:
-            page["next_cursor"] = ""
-        return page
-
-    with TestClient(collection_app(records, mutate)) as client, pytest.raises(AssertionError, match=reason):
-        contract.test_populated_collection_limit_and_traversal(
-            client, {}, [item["id"] for item in records],
-        )
+def test_cross_site_write_guard(client, headers, status):
+    response = client.post("/v1/data", json={"count": 1}, headers=headers)
+    assert response.status_code == status
+    if status == 403:
+        assert response.headers["content-type"] == "application/problem+json"
 
 
-@pytest.mark.parametrize("expected", [[], ["inc-0"], ["inc-0", "inc-0"]])
-def test_populated_collection_starter_requires_independent_multiple_seed_ids(expected):
-    contract = load_asset("test_http_contract")
-    with (
-        TestClient(collection_app([{"id": "inc-0"}])) as client,
-        pytest.raises(AssertionError, match=r"seed at least two|unique IDs"),
-    ):
-        contract.test_populated_collection_limit_and_traversal(client, {}, expected)
+@pytest.mark.parametrize(("host", "allowed"), [
+    ("127.0.0.1:8000", True), ("localhost:8000", True), ("[::1]:8000", True),
+    ("attacker.example:8000", False), ("127.0.0.1.attacker.example", False),
+])
+def test_loopback_host_guard(host, allowed):
+    house = load_house()
+    app = house.house_app("Probe", "1.0.0", verify_token=_no_tokens, loopback_only=True)
+
+    @app.get("/v1/ping")
+    def ping() -> dict:
+        return {}
+
+    with TestClient(app) as c:
+        response = c.get("/v1/ping", headers={"Host": host})
+    assert (response.status_code == 200) is allowed, (host, response.status_code)
+    if not allowed:
+        assert response.status_code == 421 and response.json()["request_id"]

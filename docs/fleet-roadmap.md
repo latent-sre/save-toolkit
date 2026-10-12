@@ -456,6 +456,40 @@ no real-task runs yet.
 **SRE task:** An SRE building a GUI gets defaults tuned to the kind of GUI the team builds most,
 and a deep reference for the capability they reach for first.
 
+### BACKEND-001 — finish the backend-craft rebuild after the core contract lands
+
+**Status:** `active` (2026-10-11). The owner approved a fresh-start `backend-craft` delivered as a
+core pull request (entrypoint, OpenAPI, FastAPI and Go references, starters, evals) followed by
+capability references ([decision](decisions/2026-10-11-backend-craft.md)). The core carries the
+API-writes, background-work and consuming-APIs references over unchanged.
+**Owner:** The human owner accepts each candidate and names the identity provider;
+`agent-engineer` owns the skill text and its build scenarios.
+**Outcome:** Five follow-up references land, each re-derived from an owner decision, a current
+sourced fact or a measured result: operational actions (dry run, blast-radius limits, actor and
+reason), authentication (OIDC/JWT verification for the team's provider), data (PostgreSQL and SQL
+Server access from both languages), runtime (PCF, Cloud Run, systemd hosts, Windows desktops) and
+security; the three carried-over references are re-derived the same way.
+**Next action:** The owner names the identity provider the services authenticate against; the
+skill owner then drafts the actions reference first, since the services take actions today.
+**Evidence:** none yet.
+**SRE task:** An SRE building a service that restarts apps or silences alerts gets a dry run, a
+bounded blast radius and an audit trail by default, and a verified sign-in path for its callers.
+
+### BACKEND-002 — add go-craft beside python-craft
+
+**Status:** `ready` (2026-10-11). The owner chose a separate Go language skill; `backend-craft`'s
+Go reference covers the HTTP service and defers language idioms to it once it exists
+([decision](decisions/2026-10-11-backend-craft.md)).
+**Owner:** The human owner accepts the candidate; `agent-engineer` owns the skill.
+**Outcome:** `go-craft` covers writing, refactoring and testing Go across services, CLIs and
+libraries, measured against build scenarios the way `python-craft` is, and `backend-craft` and
+`operator-cli` load it for Go changes.
+**Next action:** `agent-engineer` drafts the skill and its first build scenarios after the
+`backend-craft` core merges.
+**Evidence:** none yet.
+**SRE task:** An SRE changing a Go service or tool gets the team's Go conventions applied without
+asking for them.
+
 ### PRECOMMIT-001 — software-engineer reviews a 3-file change before committing, unasked
 
 **Status:** `active` (2026-10-08). The owner chose the trigger on 2026-10-07: review at 3 or more

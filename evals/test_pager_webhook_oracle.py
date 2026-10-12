@@ -274,4 +274,4 @@ def test_webhook_scenario_preserves_scope_and_commit_guards():
     kinds = {check["check"] for check in checks}
     assert {"changes_within", "no_new_commits", "no_agents_dir"} <= kinds
     scope = next(check for check in checks if check["check"] == "changes_within")
-    assert scope["allowed"] == ["app", "tests", "README.md", "pyproject.toml"]
+    assert scope["allowed"] == ["app", "tests", "README.md", "pyproject.toml", "openapi.json"]

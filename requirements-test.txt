@@ -17,5 +17,6 @@ rich
 hypothesis
 pydantic
 ruff
+schemathesis
 mypy
 types-PyYAML

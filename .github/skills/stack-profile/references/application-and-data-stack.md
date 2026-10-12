@@ -37,7 +37,9 @@ defaults until the owner records a decision here.
 ## Frameworks
 
 - **Backend:** **Spring Boot** on supported JVM services (matching the `java_buildpack_offline` in
-  the PCF manifest example); **FastAPI** for Python backend code.
+  the PCF manifest example); **FastAPI** for Python backend code; **Huma** on `net/http` for new
+  Go HTTP services. Both are code-first and publish a committed OpenAPI document whose gates,
+  shared shapes and 3.2-ready policy are `backend-craft`'s owner decisions.
 - **Frontend:** **React is the focus and Vue is in use**; `frontend-craft` preserves the
   repository's framework, and its owner-decisions table holds the team's frontend choices: the
   approved, mixable component kits, the per-app identity rule, the OpenAPI binding to the team's
