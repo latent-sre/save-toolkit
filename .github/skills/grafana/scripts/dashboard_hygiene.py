@@ -16,6 +16,9 @@ Which model shapes it accepts:
     different structure, and silently checking zero panels would be worse than saying so.
 
 Exit codes: 0 clean, 1 violations found, 2 the input could not be checked.
+Use --format json for one ASCII-escaped JSON report on stdout, including input errors.
+The report's ok means checked, not violation-free; coverage is static_hygiene_only.
+--quiet affects text only: JSON always includes every finding. CLI usage errors remain argparse text.
 """
 
 from __future__ import annotations
@@ -258,6 +261,18 @@ def _check_panels(spec, panels):
     return findings
 
 
+def print_json_report(*, title=None, panel_count=None, findings=(), errors=()):
+    """Emit the same envelope for a completed check or a refusal, without mixing prose into stdout."""
+    print(json.dumps({
+        "ok": not errors,
+        "coverage": "static_hygiene_only",
+        "title": title if isinstance(title, str) else None,
+        "panel_count": panel_count,
+        "findings": [finding._asdict() for finding in findings],
+        "errors": list(errors),
+    }, ensure_ascii=True))
+
+
 def main(argv: list[str] | None = None) -> int:
     # The report echoes dashboard and panel titles; captured stdout (an agent's Bash, CI, `> log`)
     # may default to a legacy code page that cannot encode them, and exit 1 must mean violations.
@@ -266,39 +281,52 @@ def main(argv: list[str] | None = None) -> int:
             stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("path", help="dashboard JSON: a bare model, a k8s wrapper, or a legacy GET body")
-    parser.add_argument("--quiet", action="store_true", help="print only the summary line")
+    parser.add_argument("--format", choices=("text", "json"), default="text", help="report format (default: text)")
+    parser.add_argument("--quiet", action="store_true", help="print only the text summary; JSON keeps all findings")
     args = parser.parse_args(argv)
+
+    def cannot_check(code, detail):
+        if args.format == "json":
+            print_json_report(errors=[{"code": code, "detail": detail}])
+        else:
+            print(detail, file=sys.stderr)
+        return 2
 
     try:
         with open(args.path, encoding="utf-8") as handle:
             model = json.load(handle)
     except (OSError, ValueError, RecursionError) as exc:  # deep nesting overflows the JSON decoder
-        print(f"cannot check {args.path}: {exc}", file=sys.stderr)
-        return 2
+        code = ("input_read_error" if isinstance(exc, OSError) else
+                "input_too_deep" if isinstance(exc, RecursionError) else "invalid_json")
+        return cannot_check(code, f"cannot check {args.path}: {exc}")
 
     try:
         spec, root_path = locate_spec(model)
         if "elements" in spec or "layout" in spec:
-            print("refusing to check a V2 (dynamic) dashboard: its panels live under spec.elements, which "
-                  "this checker does not read. Validate the actual V2 candidate with a V2-capable linter "
-                  "(dashboard-linter v0.2.0+), or report the validation gap; keep its stored version.", file=sys.stderr)
-            return 2
+            return cannot_check(
+                "unsupported_v2",
+                "refusing to check a V2 (dynamic) dashboard: its panels live under spec.elements, which "
+                "this checker does not read. Validate the actual V2 candidate with a V2-capable linter "
+                "(dashboard-linter v0.2.0+), or report the validation gap; keep its stored version.",
+            )
         if "panels" not in spec:
-            print("no `panels` key: this does not look like a Classic/V1 dashboard model", file=sys.stderr)
-            return 2
+            return cannot_check("unsupported_model", "no `panels` key: this does not look like a Classic/V1 dashboard model")
         panels = validate_shape(spec, root_path)
         violations = _check_panels(spec, panels)
         panel_count = len(panels)
     except (InputShapeError, RecursionError) as exc:  # rows nested past the recursion limit overflow the walk
-        print(f"cannot check {args.path}: {exc}", file=sys.stderr)
-        return 2
+        code = "input_too_deep" if isinstance(exc, RecursionError) else "invalid_shape"
+        return cannot_check(code, f"cannot check {args.path}: {exc}")
 
+    title = spec.get("title", "<untitled>")
+    if args.format == "json":
+        print_json_report(title=title, panel_count=panel_count, findings=violations)
+        return 1 if violations else 0
     if not args.quiet:
         for rule, where, detail in violations:
             print(f"{rule}: {where}\n    {detail}")
         if violations:
             print()
-    title = spec.get("title", "<untitled>")
     print(f"{title!r}: {len(violations)} violation(s) across {panel_count} panel(s)")
     return 1 if violations else 0
 

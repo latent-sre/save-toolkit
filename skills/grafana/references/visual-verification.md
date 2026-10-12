@@ -72,6 +72,9 @@ credential files or copy session cookies to manufacture another access path.
    absolute `from`/`to` window, timezone, variable values, and panel time overrides, and use the
    same selections for query and image; `query` covers at most 24 hours, so keep a paired render
    within that. A changed dashboard version or variable invalidates a claim that the two match.
+   Start with `dashboard --uid <uid> --panel <id>` for Classic panels. Compare its stored version
+   with the render receipt's `dashboard_version`; a mismatch requires a fresh model and matching
+   evidence. Matching versions alone do not establish matching data or prevent a change during render.
 2. Read all relevant targets and transformations. Query the panel's real datasource with its
    supported read contract; retain instant/range mode, step, macro substitutions, and per-query
    status. An error-free empty frame means no data, not a healthy zero, and one target's sample does

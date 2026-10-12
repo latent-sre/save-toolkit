@@ -38,12 +38,16 @@ Every form except a raw `--expr` query works in both shells:
 
 ```text
 python -I -S "<absolute-installed-path>/grafana_read.py" dashboard --uid dashboard-uid
+python -I -S "<absolute-installed-path>/grafana_read.py" dashboard --uid dashboard-uid --panel 5
 python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource metrics-uid --kind prometheus --from 1758400000000 --to 1758403600000 --expr 'up'
 python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource logs-uid --kind loki --from 1758400000000 --to 1758403600000 --expr '{service="example"} |= "error"'
 python -I -S "<absolute-installed-path>/grafana_read.py" search --query 'checkout latency'
+python -I -S "<absolute-installed-path>/grafana_read.py" search --query orders --folder-uid trading --tag production --page 2
 python -I -S "<absolute-installed-path>/grafana_read.py" alerts --folder-uid folder-uid
+python -I -S "<absolute-installed-path>/grafana_read.py" alerts --uid rule-uid
 python -I -S "<absolute-installed-path>/grafana_read.py" annotations --from 1758400000000 --to 1758403600000 --dashboard-uid dashboard-uid
 python -I -S "<absolute-installed-path>/grafana_read.py" silences
+python -I -S "<absolute-installed-path>/grafana_read.py" silences --id 11111111-2222-3333-4444-555555555555
 python -I -S "<absolute-installed-path>/grafana_read.py" render --uid dashboard-uid --panel 5 --from 1758400000000 --to 1758403600000 --var host=example
 ```
 
@@ -61,12 +65,13 @@ bytes and is not encryption. The guard also rejects general script paths and `po
 
 | Operation | Reads | Limits | Specific errors |
 |---|---|---|---|
-| `dashboard --uid` | One stored model (`coverage: configuration_only`) | 2 MiB | `invalid_dashboard_response` |
+| `dashboard --uid [--panel]` | One stored model, or one Classic panel with dashboard context (`coverage: configuration_only`) | 2 MiB source response | `invalid_dashboard_response`, `unsupported_dashboard_model`, `invalid_panel_tree`, `panel_not_found`, `ambiguous_panel_id` |
 | `query --datasource --kind --from --to --expr` | One Prometheus or Loki `/api/ds/query` POST after checking the datasource UID and type | 24 h, 1,000 points, 500 Loki lines, 2 MiB, 20 s | `datasource_mismatch`, `query_failed`, `unresolved_or_invalid_expression` |
-| `search --query` | Dashboards by title text of letters, digits, spaces and `_.:-` | 100 results | — |
+| `search --query [--page] [--folder-uid] [--tag]` | Dashboards by title text, optionally scoped to one folder and tag; query/tag accept letters, digits, spaces and `_.:-` | 100 results per call, pages 1–100 | `invalid_search_response`, `folder_mismatch` if a scoped response contains another folder |
 | `alerts [--folder-uid]` | Grafana-managed rule groups with state, health and last error | 100 groups, 20 instances per rule | `query_failed` when the rules API reports an error; `folder_mismatch`: Grafana answers a folder this identity cannot see with every folder |
+| `alerts --uid` | One Grafana-managed rule definition, including returned provenance and pause settings | 2 MiB; cannot combine with `--folder-uid` | `alert_rule_mismatch`, `organization_mismatch` |
 | `annotations --from --to [--dashboard-uid]` | Annotations in the window | 24 h, 100 items | — |
-| `silences` | Grafana Alertmanager silences with their state | 2 MiB | — |
+| `silences [--id]` | Built-in Grafana Alertmanager silences, or one exact silence by UUID | 2 MiB | `silence_mismatch` for a mismatched ID |
 | `render --uid --panel --from --to [--var name=value]` | One Classic panel as a 1200×600 owner-only PNG in `~/.cache/save-toolkit/grafana-renders/` (renders older than a day are deleted); prints its path, size, SHA-256 and dimensions | 7 days, five `--var` (repeat a name for multi-value), 8 MiB, 45 s | See the [visual verification](./visual-verification.md) error table |
 
 Every operation can also fail with `invalid_arguments`, `organization_mismatch`, `http_error`,
@@ -79,6 +84,16 @@ Reading results:
   error code. Query errors under HTTP 200 count as failures.
 - Keep `coverage`, `truncated` and `limits` with the evidence. `permission_scoped` means an absent
   result is what this identity saw within the limits, not proof that none exists.
+- Search fetches one page per invocation. Keep the query, folder and tag fixed when following
+  `next_page`; a full page means more results may exist, not that they do. Stop at the task's cap
+  and retain `truncated` even when page 100 has no permitted next page. Search is not a stable
+  snapshot: concurrent dashboard changes can cause duplicates or omissions across pages.
+- A selected panel retains its stored targets, transformations, field configuration and dashboard
+  variable/time context. Saved variable selections may differ from the viewer's current selections;
+  datasource references and macros are not resolved, and no query or transformation is executed.
+- `alerts --uid` reads configuration, not evaluation health or notification delivery. Pair it with
+  the folder's state read. `silences --id` verifies only the built-in Grafana Alertmanager's object;
+  it does not inspect an external Alertmanager or prove an alert is suppressed.
 - Resolve variables and macros from the actual dashboard selections first; the helper rejects
   unresolved ones. It does not run Grafana expressions, panel transformations or instant queries:
   name those gaps. Missing points or events cannot rule out failures outside the sampled coverage.

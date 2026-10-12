@@ -24,12 +24,12 @@ permissions, resource identity, and ownership before relying on them.
 | Inspect actual appearance, render a panel, or diagnose unavailable screenshots | [Visual verification](./references/visual-verification.md) |
 | Inspect, create, update, pause, or resume an alert rule; explain missing notifications | [Alert operations](./references/alert-operations.md); load `obs-alerting` for design decisions |
 | Create, inspect, update, or end a temporary silence | [Silence operations](./references/silences.md) |
-| Read Grafana from a terminal: search dashboards, read models, alert-rule state, annotations, silences, bounded Prometheus/Loki data, or a rendered panel image | [Command access](./references/command-access.md): the bundled [grafana_read.py](./scripts/grafana_read.py) and its [PowerShell wrapper](./scripts/grafana_read.ps1) |
+| Read Grafana from a terminal: scoped/paged search, a dashboard or selected panel, alert definitions/state, exact silences, annotations, bounded Prometheus/Loki data, or a rendered panel image | [Command access](./references/command-access.md): the bundled [grafana_read.py](./scripts/grafana_read.py) and its [PowerShell wrapper](./scripts/grafana_read.ps1) |
 | Create/edit/import a dashboard or folder | [Dashboard operation loop](./references/dashboard-operations.md); use `obs-dashboards` when design decisions are needed |
 | Review existing dashboards or assess an upgrade without writes | [Read-only review](./references/read-only-review.md) |
 | Dashboard/folder API discovery, concurrency, history, or rollback | [HTTP API](./references/http-api.md) |
 | Classic/V1/V2 models, panel JSON, variables, or portability | [Dashboard JSON](./references/json-model.md) |
-| Check an exported Classic/V1 dashboard offline | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py), the installed copy; the `sre-assistant` guard does not run it |
+| Check an exported Classic/V1 dashboard offline, with text or JSON findings | [Read-only review](./references/read-only-review.md) and [dashboard_hygiene.py](./scripts/dashboard_hygiene.py), the installed copy; the `sre-assistant` guard does not run it |
 | Grafana provisioning, evaluation settings, rule groups, contact points, or policies | [Alerting configuration](./references/grafana-alerting.md) |
 | A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [Agent tooling](./references/agent-tooling.md); none is adopted |
 | Viewer/Editor workflows, sharing, annotations, or ownership-aware restore | [Viewer/editor workflows](./references/viewer-editor-workflows.md) |

@@ -266,6 +266,99 @@ class StructureTest(unittest.TestCase):
                 self.assertEqual(expected_path, path)
 
 
+class JsonReportTest(unittest.TestCase):
+    """The CLI produces one complete report, including refusals, for machine consumers."""
+
+    def _check(self, content: str | None, *options: str) -> subprocess.CompletedProcess[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "d.json"
+            if content is not None:
+                path.write_text(content, encoding="utf-8")
+            return subprocess.run(
+                [sys.executable, "-I", "-S", str(MODULE), str(path), *options],
+                capture_output=True, text=True, encoding="utf-8", check=False,
+            )
+
+    def _report(self, content: str | None, exit_code: int, *options: str) -> dict:
+        result = self._check(content, "--format", "json", *options)
+        self.assertEqual(exit_code, result.returncode, result.stderr)
+        self.assertEqual("", result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual("static_hygiene_only", report["coverage"])
+        return report
+
+    def test_clean_report_counts_nested_panels_without_claiming_query_validation(self) -> None:
+        model = clean_model()
+        model["panels"] = [{"type": "row", "panels": model["panels"]}]
+        report = self._report(json.dumps({"meta": {}, "dashboard": model}), 0)
+        self.assertEqual({
+            "ok": True, "coverage": "static_hygiene_only", "title": "Checkout / Health",
+            "panel_count": 1, "findings": [], "errors": [],
+        }, report)
+
+    def test_violations_are_structured_and_quiet_keeps_the_complete_report(self) -> None:
+        model = clean_model()
+        model["panels"][0].pop("description")
+        report = self._report(json.dumps(model), 1)
+        self.assertTrue(report["ok"])
+        self.assertEqual([], report["errors"])
+        self.assertEqual([{
+            "rule": "panel-description", "where": model["panels"][0]["title"],
+            "detail": "no description; it renders as the panel's tooltip",
+        }], report["findings"])
+        self.assertEqual(report, self._report(json.dumps(model), 1, "--quiet"))
+
+    def test_invalid_and_unsupported_inputs_return_json_errors(self) -> None:
+        for content, code, detail in (
+            (None, "input_read_error", "cannot check"),
+            ("{", "invalid_json", "cannot check"),
+            (json.dumps({"panels": [None]}), "invalid_shape", "$.panels[0]"),
+            (json.dumps({"title": "v2", "elements": {}, "layout": {}}),
+             "unsupported_v2", "V2"),
+            (json.dumps({"title": "missing panels"}), "unsupported_model", "no `panels` key"),
+            ('{"panels":' + "[" * 100_000 + "]" * 100_000 + "}",
+             "input_too_deep", "cannot check"),
+        ):
+            with self.subTest(code=code):
+                report = self._report(content, 2)
+                self.assertFalse(report["ok"])
+                self.assertIsNone(report["panel_count"])
+                self.assertEqual([], report["findings"])
+                self.assertEqual(1, len(report["errors"]))
+                self.assertEqual(code, report["errors"][0]["code"])
+                self.assertIn(detail, report["errors"][0]["detail"])
+
+    def test_unicode_and_control_characters_round_trip_as_escaped_json(self) -> None:
+        model = clean_model()
+        model["title"] = 'Health \u2192 "checkout"\n\U0001f680'
+        model["panels"][0]["title"] = 'Panel \u2192 "errors"\n\U0001f680'
+        model["panels"][0].pop("description")
+        result = self._check(json.dumps(model), "--format", "json")
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertEqual("", result.stderr)
+        self.assertTrue(result.stdout.isascii())
+        report = json.loads(result.stdout)
+        self.assertEqual(model["title"], report["title"])
+        self.assertEqual(model["panels"][0]["title"], report["findings"][0]["where"])
+
+    def test_legacy_text_default_and_explicit_text_keep_findings_and_summary(self) -> None:
+        model = clean_model()
+        model["panels"][0].pop("description")
+        expected = (
+            "panel-description: Is checkout error ratio breaching target?\n"
+            "    no description; it renders as the panel's tooltip\n\n"
+            "'Checkout / Health': 1 violation(s) across 1 panel(s)\n"
+        )
+        for options in ((), ("--format", "text")):
+            with self.subTest(options=options):
+                result = self._check(json.dumps(model), *options)
+                self.assertEqual(1, result.returncode, result.stderr)
+                self.assertEqual("", result.stderr)
+                self.assertEqual(expected, result.stdout)
+        quiet = self._check(json.dumps(model), "--format", "text", "--quiet")
+        self.assertEqual(expected.splitlines()[-1] + "\n", quiet.stdout)
+
+
 class ExitCodeTest(unittest.TestCase):
     """The exit codes are the contract a CI step keys on: 0 clean, 1 violations, 2 uncheckable."""
 

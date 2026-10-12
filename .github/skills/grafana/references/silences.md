@@ -9,6 +9,12 @@ silence. Inspect matching firing instances in the preview, set start/end, and ad
 Use Unsilence to end it early. The preview only shows currently firing instances: future alerts
 whose labels match will also be suppressed during the window.
 
+For the built-in Grafana Alertmanager, the helper's `silences` lists visible objects and
+`silences --id <uuid>` reads one exact object for preflight or readback. Keep the selected
+Alertmanager with the evidence: these commands cannot verify an external Alertmanager's silence.
+Inspect returned matchers, window and status; an active object alone does not establish that the
+target alert matched it or that notification delivery stopped.
+
 ## Prepare, apply, verify
 
 1. Bind the instance/org, Alertmanager, service/environment or rule UID, exact matchers, start/end

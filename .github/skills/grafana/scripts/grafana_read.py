@@ -40,9 +40,11 @@ MAX_EXPRESSION_BASE64 = 4 * math.ceil(4 * MAX_EXPRESSION / 3)
 MAX_DATA_POINTS = 1000
 MAX_LOG_LINES = 500
 LIST_LIMIT = 100
+MAX_SEARCH_PAGE = 100
 ALERTS_PER_RULE = 20
 UID = re.compile(r"[A-Za-z0-9_-]{1,40}\Z")
 SEARCH_TEXT = re.compile(r"[A-Za-z0-9 _.:-]{1,100}\Z")
+SILENCE_ID = re.compile(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\Z")
 SETTINGS = ("GRAFANA_URL", "GRAFANA_ORG_ID", "GRAFANA_SA_TOKEN", "GRAFANA_USERNAME", "GRAFANA_PASSWORD")
 MAX_SETTINGS_FILE = 4096
 MAX_RENDER_RANGE_MS = 7 * 24 * 60 * 60 * 1000
@@ -71,6 +73,7 @@ def parse_args(argv):
     commands = parser.add_subparsers(dest="command", required=True)
     dashboard = commands.add_parser("dashboard", add_help=False, allow_abbrev=False)
     dashboard.add_argument("--uid", required=True)
+    dashboard.add_argument("--panel", type=int)
     query = commands.add_parser("query", add_help=False, allow_abbrev=False)
     query.add_argument("--datasource", required=True)
     query.add_argument("--kind", choices=("prometheus", "loki"), required=True)
@@ -81,13 +84,19 @@ def parse_args(argv):
     expression.add_argument("--expr-base64")
     search = commands.add_parser("search", add_help=False, allow_abbrev=False)
     search.add_argument("--query", required=True)
+    search.add_argument("--page", type=int)
+    search.add_argument("--folder-uid")
+    search.add_argument("--tag")
     alerts = commands.add_parser("alerts", add_help=False, allow_abbrev=False)
-    alerts.add_argument("--folder-uid")
+    alert_scope = alerts.add_mutually_exclusive_group()
+    alert_scope.add_argument("--folder-uid")
+    alert_scope.add_argument("--uid")
     annotations = commands.add_parser("annotations", add_help=False, allow_abbrev=False)
     annotations.add_argument("--from", dest="from_ms", type=int, required=True)
     annotations.add_argument("--to", dest="to_ms", type=int, required=True)
     annotations.add_argument("--dashboard-uid")
-    commands.add_parser("silences", add_help=False, allow_abbrev=False)
+    silences = commands.add_parser("silences", add_help=False, allow_abbrev=False)
+    silences.add_argument("--id")
     render = commands.add_parser("render", add_help=False, allow_abbrev=False)
     render.add_argument("--uid", required=True)
     render.add_argument("--panel", type=int, required=True)
@@ -101,9 +110,9 @@ def parse_args(argv):
     if args.command == "query" and args.expr_base64 is not None:
         expected.remove("--expr")
         expected.add("--expr-base64")
-    for flag, value in (("--folder-uid", getattr(args, "folder_uid", None)), ("--dashboard-uid", getattr(args, "dashboard_uid", None))):
-        if value is not None:
-            expected.add(flag)
+    for name in ("folder_uid", "dashboard_uid", "panel", "uid", "page", "tag", "id"):
+        if getattr(args, name, None) is not None:
+            expected.add("--" + name.replace("_", "-"))
     # Separate named flags, each exactly once except a repeated --var; no positional or --flag=value variants.
     variables = getattr(args, "variables", [])
     wanted = dict.fromkeys(expected, 1) | ({"--var": len(variables)} if variables else {})
@@ -113,13 +122,20 @@ def parse_args(argv):
     uids = [getattr(args, name, None) for name in ("uid", "datasource", "folder_uid", "dashboard_uid")]
     if any(uid is not None and not UID.fullmatch(uid) for uid in uids):
         raise SafeError("invalid_arguments")
-    if args.command == "search" and (not SEARCH_TEXT.fullmatch(args.query) or not args.query.strip()):
+    if args.command == "search" and (
+            not SEARCH_TEXT.fullmatch(args.query) or not args.query.strip()
+            or (args.page is not None and not 1 <= args.page <= MAX_SEARCH_PAGE)
+            or (args.tag is not None and (not SEARCH_TEXT.fullmatch(args.tag) or not args.tag.strip()))):
+        raise SafeError("invalid_arguments")
+    if args.command == "silences" and args.id is not None and not SILENCE_ID.fullmatch(args.id):
+        raise SafeError("invalid_arguments")
+    if getattr(args, "panel", None) is not None and not 1 <= args.panel <= 2**31 - 1:
         raise SafeError("invalid_arguments")
     limit = MAX_RENDER_RANGE_MS if args.command == "render" else MAX_RANGE_MS
     if args.command in ("query", "annotations", "render") and (
             not 0 <= args.from_ms < args.to_ms <= 253402300799999 or args.to_ms - args.from_ms > limit):
         raise SafeError("invalid_arguments")
-    if args.command == "render" and (not 1 <= args.panel <= 2**31 - 1 or len(variables) > MAX_VARIABLES
+    if args.command == "render" and (len(variables) > MAX_VARIABLES
                                      or not all(VARIABLE.fullmatch(item) for item in variables)):
         raise SafeError("invalid_arguments")
     if args.command == "query":
@@ -371,6 +387,14 @@ def _dashboard(grafana, args):
     dashboard = response.get("dashboard")
     if not isinstance(dashboard, dict) or dashboard.get("uid") != args.uid or not isinstance(response.get("meta"), dict):
         raise SafeError("invalid_dashboard_response")
+    if args.panel is not None:
+        panel = _panel(dashboard, args.panel)
+        if panel is None:
+            raise SafeError("panel_not_found")
+        # Raw configuration: variables, queries and transformations have not been executed/resolved.
+        context = {name: dashboard.get(name) for name in ("uid", "version", "title", "time", "timezone", "templating")}
+        return {"ok": True, "operation": "dashboard", "dashboard": context, "panel_id": args.panel,
+                "panel": panel, "coverage": "configuration_only"}
     return {"ok": True, "operation": "dashboard", "dashboard": dashboard, "meta": response["meta"],
             "coverage": "configuration_only"}
 
@@ -408,12 +432,35 @@ def _query(grafana, args):
 
 
 def _search(grafana, args):
-    items = grafana.items("/api/search?type=dash-db&limit=" + str(LIST_LIMIT) + "&query=" + quote(args.query, safe=""))
+    path = "/api/search?type=dash-db&limit=" + str(LIST_LIMIT) + "&query=" + quote(args.query, safe="")
+    if args.page is not None:
+        path += "&page=" + str(args.page)
+    if args.folder_uid is not None:
+        path += "&folderUIDs=" + args.folder_uid
+    if args.tag is not None:
+        path += "&tag=" + quote(args.tag, safe="")
+    items = grafana.items(path)
+    if len(items) > LIST_LIMIT:
+        raise SafeError("invalid_search_response")
+    if args.folder_uid is not None and any(item.get("folderUid") != args.folder_uid for item in items):
+        raise SafeError("folder_mismatch")
+    page = args.page or 1
+    full = len(items) == LIST_LIMIT
+    # A full page only suggests a next request; permissions and contents may change between reads.
     return {"ok": True, "operation": "search", "query": args.query, "items": items,
-            "truncated": len(items) >= LIST_LIMIT, "coverage": "permission_scoped", "limits": {"limit": LIST_LIMIT}}
+            "page": page, "next_page": page + 1 if full and page < MAX_SEARCH_PAGE else None,
+            "folder_uid": args.folder_uid, "tag": args.tag,
+            "truncated": full, "coverage": "permission_scoped", "limits": {"limit": LIST_LIMIT, "maxPage": MAX_SEARCH_PAGE}}
 
 
 def _alerts(grafana, args):
+    if args.uid is not None:
+        rule = grafana.read("/api/v1/provisioning/alert-rules/" + args.uid)
+        if rule.get("uid") != args.uid:
+            raise SafeError("alert_rule_mismatch")
+        if "orgID" in rule and (type(rule["orgID"]) is not int or rule["orgID"] != grafana.organization):
+            raise SafeError("organization_mismatch")
+        return {"ok": True, "operation": "alerts", "uid": args.uid, "rule": rule, "coverage": "configuration_only"}
     path = "/api/prometheus/grafana/api/v1/rules?group_limit=" + str(LIST_LIMIT) + "&limit_alerts=" + str(ALERTS_PER_RULE)
     response = grafana.read(path + ("&folder_uid=" + args.folder_uid if args.folder_uid else ""))
     data = response.get("data")
@@ -437,17 +484,38 @@ def _annotations(grafana, args):
 
 
 def _silences(grafana, args):
+    if args.id is not None:
+        silence = grafana.read("/api/alertmanager/grafana/api/v2/silence/" + args.id)
+        if silence.get("id") != args.id:
+            raise SafeError("silence_mismatch")
+        return {"ok": True, "operation": "silences", "id": args.id, "silence": silence, "coverage": "permission_scoped"}
     return {"ok": True, "operation": "silences", "silences": grafana.items("/api/alertmanager/grafana/api/v2/silences"),
             "coverage": "permission_scoped"}
 
 
 def _panel(dashboard, panel_id):
-    """A non-row Classic panel with this integer ID, including panels inside collapsed rows."""
-    top = dashboard.get("panels") if isinstance(dashboard.get("panels"), list) else []
-    nested = [child for panel in top if isinstance(panel, dict) and isinstance(panel.get("panels"), list)
-              for child in panel["panels"]]
-    return next((panel for panel in top + nested if isinstance(panel, dict) and type(panel.get("id")) is int
-                 and panel["id"] == panel_id and panel.get("type") != "row"), None)
+    """Select a unique non-row Classic panel only after validating the complete panel tree."""
+    if any(key in dashboard for key in ("elements", "layout", "spec")):
+        raise SafeError("unsupported_dashboard_model")
+    top = dashboard.get("panels")
+    if not isinstance(top, list):
+        raise SafeError("invalid_panel_tree")
+    pending, ids, selected = list(top), set(), None
+    while pending:
+        panel = pending.pop()
+        if (not isinstance(panel, dict) or type(panel.get("id")) is not int
+                or not 1 <= panel["id"] <= 2**31 - 1 or not isinstance(panel.get("type"), str) or not panel["type"]):
+            raise SafeError("invalid_panel_tree")
+        if panel["id"] in ids:
+            raise SafeError("ambiguous_panel_id")
+        ids.add(panel["id"])
+        if "panels" in panel:
+            if panel["type"] != "row" or not isinstance(panel["panels"], list):
+                raise SafeError("invalid_panel_tree")
+            pending.extend(panel["panels"])
+        if panel["id"] == panel_id and panel["type"] != "row":
+            selected = panel
+    return selected
 
 
 def _render_dir():

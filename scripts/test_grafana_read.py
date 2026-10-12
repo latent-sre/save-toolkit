@@ -33,6 +33,8 @@ BOARD = {"dashboard": {"uid": "board", "version": 3, "panels": [
     {"id": 1, "type": "row", "collapsed": True, "panels": [{"id": 7, "type": "timeseries", "title": "B70 temperatures"}]}]},
     "meta": {"slug": "cylon-ai"}}
 
+SILENCE_ID = "12345678-1234-1234-1234-123456789abc"
+
 
 class Transport:
     def __init__(self, *responses, org_response=None):
@@ -54,6 +56,139 @@ def invoke(args, transport, env=None):
     output = io.StringIO()
     code = reader.main(args, environ=ENV if env is None else env, transport=transport, output=output)
     return code, json.loads(output.getvalue()), output.getvalue()
+
+
+def test_selected_dashboard_panel_preserves_configuration_and_context():
+    board = json.loads(json.dumps(BOARD))
+    context = {"title": "Operations", "time": {"from": "now-1h", "to": "now"}, "timezone": "browser",
+               "templating": {"list": [{"name": "region", "current": {"value": "west"}}]}}
+    board["dashboard"].update(context)
+    panel = board["dashboard"]["panels"][0]["panels"][0]
+    panel.update({"datasource": {"uid": "$source"}, "targets": [{"expr": "up{region=\"$region\"}"}],
+                  "transformations": [{"id": "reduce"}], "description": "test-secret-token"})
+    transport = Transport((200, board))
+    code, result, text = invoke([*DASHBOARD, "--panel", "7"], transport)
+    assert code == 0 and result["coverage"] == "configuration_only"
+    assert result["dashboard"] == {"uid": "board", "version": 3, **context}
+    assert result["panel_id"] == 7 and result["panel"] == {**panel, "description": "[REDACTED]"}
+    assert "test-secret-token" not in text
+    assert len(transport.requests) == 2 and all(request.method == "GET" for request in transport.requests)
+
+
+@pytest.mark.parametrize("panels,error", [
+    (None, "invalid_panel_tree"), ([None], "invalid_panel_tree"),
+    ([{"id": True, "type": "timeseries"}], "invalid_panel_tree"),
+    ([{"id": 7, "type": "timeseries", "panels": []}], "invalid_panel_tree"),
+    ([{"id": 1, "type": "row", "panels": {}}], "invalid_panel_tree"),
+    ([{"id": 7, "type": "timeseries"}, {"id": 7, "type": "timeseries"}], "ambiguous_panel_id"),
+    ([{"id": 7, "type": "timeseries"}, {"id": 1, "type": "row", "panels": [{"id": 7, "type": "timeseries"}]}], "ambiguous_panel_id"),
+    ([{"id": 7, "type": "row", "panels": []}], "panel_not_found"), ([], "panel_not_found"),
+])
+@pytest.mark.parametrize("command", [[*DASHBOARD, "--panel", "7"], RENDER])
+def test_panel_selection_rejects_malformed_ambiguous_or_missing_panels(panels, error, command):
+    transport = Transport((200, {"dashboard": {"uid": "board", "panels": panels}, "meta": {}}))
+    code, result, _ = invoke(command, transport)
+    assert code == 2 and result["error"] == error and len(transport.requests) == 2
+
+
+@pytest.mark.parametrize("model", [{"elements": {}, "layout": {}}, {"kind": "Dashboard", "spec": {} }])
+def test_selected_panel_explicitly_refuses_v2(model):
+    transport = Transport((200, {"dashboard": {"uid": "board", "panels": [], **model}, "meta": {}}))
+    assert invoke([*DASHBOARD, "--panel", "7"], transport)[1]["error"] == "unsupported_dashboard_model"
+
+
+def test_full_dashboard_still_returns_uninterpreted_model_and_metadata():
+    board = {"dashboard": {"uid": "board", "elements": {}, "layout": {}}, "meta": {"slug": "board"}}
+    code, result, _ = invoke(DASHBOARD, Transport((200, board)))
+    assert code == 0 and result["dashboard"] == board["dashboard"] and result["meta"] == board["meta"]
+    assert "panel" not in result
+
+
+@pytest.mark.parametrize("page,count,next_page", [(1, 0, None), (2, 99, None), (2, 100, 3), (100, 100, None)])
+def test_search_page_and_filters_are_bounded_and_permission_scoped(page, count, next_page):
+    items = [{"uid": f"b{n}", "folderUid": "payments", "title": "test-secret-token"} for n in range(count)]
+    transport = Transport((200, items))
+    code, result, text = invoke(["search", "--query", "checkout latency", "--page", str(page),
+                                 "--folder-uid", "payments", "--tag", "team ops"], transport)
+    assert code == 0 and result["page"] == page and result["next_page"] == next_page
+    assert result["truncated"] == (count == 100) and result["coverage"] == "permission_scoped"
+    assert result["limits"] == {"limit": 100, "maxPage": 100}
+    assert "test-secret-token" not in text
+    assert transport.requests[-1].full_url.endswith(
+        f"/api/search?type=dash-db&limit=100&query=checkout%20latency&page={page}&folderUIDs=payments&tag=team%20ops")
+    assert len(transport.requests) == 2 and transport.requests[-1].method == "GET"
+
+
+@pytest.mark.parametrize("items,error", [([{"uid": "board", "folderUid": "other"}], "folder_mismatch"),
+    ([{"uid": "board"}], "folder_mismatch"), ([{"uid": "board", "folderUid": "payments"}] * 101, "invalid_search_response")])
+def test_search_refuses_wrong_folder_and_server_limit_violation(items, error):
+    code, result, _ = invoke(["search", "--query", "edge", "--folder-uid", "payments"], Transport((200, items)))
+    assert code == 2 and result["error"] == error
+
+
+@pytest.mark.parametrize("args,payload,path,key,coverage", [
+    (["alerts", "--uid", "rule-1"], {"uid": "rule-1", "orgID": 7, "title": "test-secret-token"},
+     "/api/v1/provisioning/alert-rules/rule-1", "rule", "configuration_only"),
+    (["silences", "--id", SILENCE_ID], {"id": SILENCE_ID, "comment": "test-secret-token"},
+     "/api/alertmanager/grafana/api/v2/silence/" + SILENCE_ID, "silence", "permission_scoped"),
+])
+def test_exact_alert_and_silence_reads_are_get_only_and_masked(args, payload, path, key, coverage):
+    transport = Transport((200, payload))
+    code, result, text = invoke(args, transport)
+    assert code == 0 and result["coverage"] == coverage and key in result
+    assert "test-secret-token" not in text and len(transport.requests) == 2
+    assert transport.requests[-1].full_url == ENV["GRAFANA_URL"] + path
+    assert all(request.method == "GET" and request.data is None for request in transport.requests)
+
+
+@pytest.mark.parametrize("payload,error", [({}, "alert_rule_mismatch"), ({"uid": "other"}, "alert_rule_mismatch"),
+    ({"uid": "rule-1", "orgID": 2}, "organization_mismatch"),
+    ({"uid": "rule-1", "orgID": "7"}, "organization_mismatch"),
+    ({"uid": "rule-1", "orgID": True}, "organization_mismatch"),
+    ({"uid": "rule-1", "orgID": None}, "organization_mismatch")])
+def test_exact_alert_rule_rejects_wrong_identity_and_organization(payload, error):
+    code, result, _ = invoke(["alerts", "--uid", "rule-1"], Transport((200, payload)))
+    assert code == 2 and result["error"] == error
+
+
+def test_exact_alert_rule_organization_field_is_optional_after_org_preflight():
+    payload = {"uid": "rule-1", "condition": "C", "data": [{"refId": "C", "model": {"expr": "up"}}]}
+    code, result, _ = invoke(["alerts", "--uid", "rule-1"], Transport((200, payload)))
+    assert code == 0 and result["rule"] == payload and result["organization_id"] == 7
+
+
+@pytest.mark.parametrize("args", [[*DASHBOARD, "--panel", "7"], ["search", "--query", "x", "--page", "2"],
+                                  ["alerts", "--uid", "rule-1"], ["silences", "--id", SILENCE_ID]])
+@pytest.mark.parametrize("response,error", [((403, b"test-secret-token"), "http_error"),
+    ((200, b" " * (reader.MAX_RESPONSE + 1)), "response_too_large")])
+def test_new_read_options_preserve_http_and_response_bounds(args, response, error):
+    code, result, text = invoke(args, Transport(response))
+    assert code == 2 and result["error"] == error and "test-secret-token" not in text
+
+
+@pytest.mark.parametrize("payload", [{}, {"id": "other"}, {"id": 7}])
+def test_exact_silence_rejects_wrong_identity(payload):
+    code, result, _ = invoke(["silences", "--id", SILENCE_ID], Transport((200, payload)))
+    assert code == 2 and result["error"] == "silence_mismatch"
+
+
+@pytest.mark.parametrize("args", [
+    [*DASHBOARD, "--panel", "0"], [*DASHBOARD, "--panel", "2147483648"], [*DASHBOARD, "--panel=7"],
+    [*DASHBOARD, "--panel", "7", "--panel", "7"], [*DASHBOARD, "--pan", "7"],
+    ["search", "--query", "x", "--page", "0"], ["search", "--query", "x", "--page", "101"],
+    ["search", "--query", "x", "--page", "1", "--page", "2"], ["search", "--query", "x", "--page=1"],
+    ["search", "--query", "x", "--tag", ""], ["search", "--query", "x", "--tag", "  "],
+    ["search", "--query", "x", "--tag", "a&b"], ["search", "--query", "x", "--tag", "x" * 101],
+    ["search", "--query", "x", "--folder-uid", "../folder"],
+    ["alerts", "--uid", "rule", "--folder-uid", "folder"], ["alerts", "--uid", "../rule"],
+    ["alerts", "--uid", "rule", "--uid", "other"], ["alerts", "--uid=rule"],
+    ["silences", "--id", "../silence"], ["silences", "--id", "123"],
+    ["silences", "--id", SILENCE_ID, "--id", SILENCE_ID], ["silences", "--id=" + SILENCE_ID],
+])
+def test_new_read_options_reject_invalid_grammar_before_authentication(args):
+    transport = Transport()
+    code, result, _ = invoke(args, transport)
+    assert code == 2 and result["error"] == "invalid_arguments" and not transport.requests
 
 
 REAL_SETTINGS_FILE = reader._settings_file
