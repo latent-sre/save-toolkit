@@ -14,7 +14,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Final, NotRequired, TypedDict
+from typing import Any, Final, NotRequired, TypedDict, cast
 
 from .constants import DISPATCH_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
 
@@ -151,21 +151,34 @@ _FAILED_FOREGROUND_RECEIPT = re.compile(r"Error: Exit code \d+(?:\n|\Z)")
 TEST_RUNNERS = ("unittest", "pytest", "vitest")  # the runners whose summaries a trace recognizes
 
 
+def known_usd(value: object) -> float | None:
+    """A reported cost, or None when it is missing, not a number, infinite, NaN or negative."""
+    if type(value) not in (int, float):  # exactly a number: a bool or a float subclass is not a reported cost
+        return None
+    try:
+        number = float(cast(float, value))
+    except OverflowError:
+        return None
+    return number if math.isfinite(number) and number >= 0 else None
+
+
 def parse_trace(path: Path) -> TraceSummary:
     reader = _Reader()
     intact = True
     supported_result = False
-    for position, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines()):
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            intact = False
-            continue
-        if not isinstance(event, dict):
-            intact = False
-        elif event.get("type") == "result":
-            supported_result = isinstance(event.get("result"), str)
-        reader.event(event, position)
+    # JSON strings can contain Unicode line separators; only file newlines delimit events.
+    with path.open(encoding="utf-8", errors="replace") as stream:
+        for position, line in enumerate(stream):
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                intact = False
+                continue
+            if not isinstance(event, dict):
+                intact = False
+            elif event.get("type") == "result":
+                supported_result = isinstance(event.get("result"), str)
+            reader.event(event, position)
     summary = reader.finish()
     summary.tool_counts_complete = intact and summary.saw_init and summary.has_result and supported_result
     return summary
@@ -255,7 +268,7 @@ class _Reader:
         s.usage_models = sorted((event.get("modelUsage") or {}).keys())
         s.models = list(s.usage_models)  # fallback when no main-thread turn was recorded
         s.num_turns = event.get("num_turns")
-        s.total_cost_usd = event.get("total_cost_usd")
+        s.total_cost_usd = known_usd(event.get("total_cost_usd"))
         for denial in event.get("permission_denials") or []:
             s.denials.append(str(denial.get("tool_name") or denial)[:80])
             if isinstance(denial, dict):

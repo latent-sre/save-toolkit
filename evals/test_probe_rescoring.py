@@ -665,7 +665,8 @@ class RescoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self._saved_run(root / "saved")
-            with contextlib.redirect_stderr(io.StringIO()):
+            with contextlib.redirect_stderr(io.StringIO()), \
+                    mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[self.SPEC]):
                 self.assertEqual(3, probe_cli.main(["--rescore", str(root / "saved"), "--out", str(root / "saved" / "x")]))
                 self.assertEqual(3, probe_cli.main(["--rescore", str(root / "saved")]))
             same = {"runner": {"source_sha256": "a"}, "runs": []}

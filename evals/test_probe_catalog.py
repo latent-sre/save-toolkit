@@ -213,8 +213,6 @@ class CheckPolarityTests(unittest.TestCase):
         for params, polarity in VARIABLE_POLARITY:
             with self.subTest(params=params):
                 self.assertEqual(polarity, probe_checking.check_polarity(params))
-        self.assertEqual({name for name, p in INTENDED_POLARITY.items() if p == "forbids"}, probe_checking.FORBIDDING_CHECKS)
-        self.assertEqual({name for name, p in INTENDED_POLARITY.items() if p == "requires"}, probe_checking.REQUIRING_CHECKS)
         self.assertLessEqual(probe_checking.FORBIDDING_GRADERS, set(fleet_graders.REGISTRY))
 
     def test_polarities_align_with_every_committed_scenarios_assertions(self) -> None:

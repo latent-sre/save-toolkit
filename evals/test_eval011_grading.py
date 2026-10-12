@@ -249,7 +249,7 @@ def test_proxy_stops_admission_drains_inflight_and_keeps_backing_service(tmp_pat
             self.wfile.write(body)
 
     upstream = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
-    server_thread = threading.Thread(target=upstream.serve_forever, daemon=True)
+    server_thread = threading.Thread(target=upstream.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
     server_thread.start()
     service = backing.Service("api", "image", "container", f"http://127.0.0.1:{upstream.server_port}")
     backing._start_service_proxy(service)

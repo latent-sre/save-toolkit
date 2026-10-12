@@ -7,8 +7,8 @@ A check's declaration is the single place its meaning lives (threat-model ADR re
 - `on_cut`: how a `both` check is graded on a run cut short;
 - `names_unmeasured`: whether its own INCONCLUSIVE names the trial's reason.
 
-The result-rule tables that used to sit beside the checks (forbidding, requiring, regradable) are
-derived from these declarations, so a new check cannot be registered without being classified.
+Grading and regrading read these declarations directly, so a new check cannot be registered
+without being classified.
 """
 
 from __future__ import annotations
@@ -1438,8 +1438,5 @@ def run(ctx: Context, check: Params) -> Outcome:
     return declared(ctx, check)
 
 
-# The result-rule tables, derived: a check whose polarity depends on its parameters is in neither.
-FORBIDDING_CHECKS = frozenset(name for name, c in CHECKS.items() if c.polarity is Polarity.FORBIDS)
-REQUIRING_CHECKS = frozenset(name for name, c in CHECKS.items() if c.polarity is Polarity.REQUIRES)
 # The checks a regrade re-measures with default parameters, as the hand-kept set of earlier runners named them.
 REGRADABLE = frozenset(name for name, c in CHECKS.items() if c.can_regrade({"check": name}, {}))

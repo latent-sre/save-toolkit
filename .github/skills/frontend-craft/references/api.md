@@ -5,7 +5,8 @@ services are FastAPI and Go behind one contract, backend-craft's: an OpenAPI doc
 problems carrying a `request_id`, cursor pages, an `Idempotency-Key` on writes. A repository's own
 client wins over every default here. The starting files [problem.ts](../assets/problem.ts) and
 [idempotent-write.ts](../assets/idempotent-write.ts) encode the error and write halves: read them,
-write them beside the API client with the editor tools, and keep their tests green in the app.
+copy both beside the API client (`idempotent-write.ts` imports `problem.ts`), and keep their tests
+green in the app.
 
 ## The document and the typed client
 

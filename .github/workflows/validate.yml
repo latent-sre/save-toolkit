@@ -56,14 +56,14 @@ jobs:
       - name: Install pinned fleet test dependencies
         run: python -m pip install -r requirements-test.txt
 
-      # Four workers match the hosted runner's cores; loadfile keeps a test file on one worker.
+      # Four workers match the hosted runner's cores; worksteal balances slow individual cases.
       # No bytecode: the eval runner digests every file under skills/, so a .pyc written by
       # one worker reads as plugin drift to a native trial running in another. The default run
       # skips the heavy eval-machinery files (conftest.py HEAVY); the eval-tests job runs them.
       - name: Fast tests
         run: python -m pytest -q
         env:
-          PYTEST_ADDOPTS: -n 4 --dist loadfile --durations=20
+          PYTEST_ADDOPTS: -n 4 --dist worksteal --durations=20
           PYTHONDONTWRITEBYTECODE: '1'
 
       # pyproject.toml scopes these to the eval runner; they run even when a test failed.
@@ -99,7 +99,7 @@ jobs:
       - name: Eval machinery tests
         run: python -m pytest -q -m heavy
         env:
-          PYTEST_ADDOPTS: -n 4 --dist loadfile --durations=20
+          PYTEST_ADDOPTS: -n 4 --dist worksteal --durations=20
           PYTHONDONTWRITEBYTECODE: '1'
 
   component-tests:

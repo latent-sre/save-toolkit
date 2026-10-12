@@ -192,9 +192,8 @@ class NativeConversationRunTests(unittest.TestCase):
 
     def run_native(self, root, *, wrong_session=False, bad_runtime=False, bad_initial=False, credential=False,
                    wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05, runtime=None, child_events=None,
-                   turns=(3, 2), initial_subtype="success"):
+                   turns=(3, 2), initial_subtype="success", incomplete_followup=False):
         calls, environments = [], []
-        real_run = subprocess.run
 
         @contextlib.contextmanager
         def environment():
@@ -202,8 +201,6 @@ class NativeConversationRunTests(unittest.TestCase):
             yield dict(os.environ)
 
         def launch(argv, **kwargs):
-            if argv[0] != "native-stub":
-                return real_run(argv, **kwargs)
             calls.append((argv, kwargs["cwd"], id(kwargs["env"]), kwargs["timeout"]))
             resumed = "--resume" in argv
             session_id = "different" if resumed and wrong_session else "same-session"
@@ -226,18 +223,48 @@ class NativeConversationRunTests(unittest.TestCase):
                     event["message"]["model"] = observed_model
             result = {"type": "result", "subtype": "success" if resumed else initial_subtype, "session_id": session_id,
                       "result": "Synthetic .credentials.json marker" if credential else "Owner correction assessed.",
-                      "duration_ms": 50, "usage": {"input_tokens": 10}, "modelUsage": {"stub-model": {}}, "total_cost_usd": cost}
+                      "duration_ms": 50, "usage": {"input_tokens": 10}, "modelUsage": {"stub-model": {}}, "total_cost_usd": cost[resumed] if isinstance(cost, tuple) else cost}
             if turns[resumed] is not None:
                 result["num_turns"] = turns[resumed]
-            events += [result, result]  # repeated terminal envelopes must not double-charge a turn
+            if not (resumed and incomplete_followup):
+                events += [result, result]  # repeated terminal envelopes must not double-charge a turn
             kwargs["stdout"].write("\n".join(json.dumps(event) for event in events) + "\n")
-            return subprocess.CompletedProcess(argv, 0)
+            return 0
 
-        with mock.patch.object(subprocess, "run", side_effect=launch):
+        with mock.patch.object(probe_invocation, "run_cli", side_effect=launch):
             summary = probe_trials.run_trial(self.SPEC, run_number=1, settings=probe_trials.BatchSettings(
                 plugin_root=ROOT, label="native", model="stub-model", out_dir=root, timeout=60,
                 executable="native-stub", keep_workspace=False, env_factory=environment, runtime=runtime))
         return summary, root / "eval-native-conversation/native/run-1", calls, environments
+
+    def test_raised_native_attempt_accounts_for_followup_cost(self):
+        for incomplete in (False, True):
+            with self.subTest(incomplete_followup=incomplete), tempfile.TemporaryDirectory() as tmp:
+                with mock.patch.object(probe_assessment, "grade", side_effect=RuntimeError("grading failed")), \
+                        self.assertRaisesRegex(RuntimeError, "grading failed"):
+                    self.run_native(Path(tmp), incomplete_followup=incomplete)
+                kept = Path(tmp) / "eval-native-conversation/native/attempts/run-1/1"
+                timing = read_json(kept / "timing.json")
+                record = read_json(kept / "record.json")
+                self.assertTrue((kept / "followup/stdout.jsonl").is_file())
+                expected_cost = None if incomplete else 0.1
+                self.assertEqual(expected_cost, timing["trial_cost_usd"])
+                self.assertEqual(not incomplete, timing["cost_complete"])
+                self.assertEqual(expected_cost, record["cost"]["trial_usd"])
+                self.assertEqual(not incomplete, record["cost"]["complete"])
+                self.assertEqual("incomplete", record["attempt"]["state"])
+
+    def test_raised_native_attempt_does_not_turn_invalid_cost_into_known_spend(self):
+        for costs in ((False, False), (0.05, -0.01), (0.05, "0.01")):
+            with self.subTest(costs=costs), tempfile.TemporaryDirectory() as tmp:
+                with mock.patch.object(probe_assessment, "grade", side_effect=RuntimeError("grading failed")), \
+                        self.assertRaisesRegex(RuntimeError, "grading failed"):
+                    self.run_native(Path(tmp), cost=costs)
+                kept = Path(tmp) / "eval-native-conversation/native/attempts/run-1/1"
+                timing = read_json(kept / "timing.json")
+                self.assertIsNone(timing["trial_cost_usd"])
+                self.assertFalse(timing["cost_complete"])
+                self.assertFalse(read_json(kept / "record.json")["cost"]["complete"])
 
     def test_trial_records_the_runtime_identity_it_was_given_and_regrade_keeps_it(self):
         runtime = {"cli_version": "9.9.9 (Claude Code)",
@@ -575,8 +602,102 @@ def plain_env_factory():
     return plain
 
 
+class CliProcessCleanupTests(unittest.TestCase):
+    def invoke(self):
+        return probe_invocation.run_cli(["stub"], cwd=".", env={}, stdout=io.StringIO(), stderr=io.StringIO(), timeout=2)
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX process groups")
+    def test_interrupt_stops_the_private_process_group_and_reaps_parent(self):
+        with mock.patch.object(subprocess, "Popen") as launch, mock.patch.object(os, "killpg") as kill_group:
+            process = launch.return_value
+            process.pid = 12345
+            process.wait.side_effect = [KeyboardInterrupt(), -9]
+            with self.assertRaises(KeyboardInterrupt):
+                self.invoke()
+            self.assertTrue(launch.call_args.kwargs["start_new_session"])
+            kill_group.assert_called_once_with(process.pid, probe_invocation.signal.SIGKILL)
+            process.kill.assert_called_once_with()
+            self.assertEqual([mock.call(timeout=2), mock.call(timeout=10)], process.wait.call_args_list)
+
+    def test_windows_terminates_tree_before_reaping_parent(self):
+        with mock.patch.object(probe_invocation.sys, "platform", "win32"), \
+                mock.patch.object(subprocess, "Popen") as launch, mock.patch.object(subprocess, "run") as taskkill:
+            process = launch.return_value
+            process.pid = 12345
+            expired = subprocess.TimeoutExpired(["stub"], 2)
+            process.wait.side_effect = [expired, 1]
+            order = mock.Mock()
+            order.attach_mock(taskkill, "taskkill")
+            order.attach_mock(process.kill, "kill")
+            order.attach_mock(process.wait, "wait")
+            with self.assertRaises(subprocess.TimeoutExpired) as caught:
+                self.invoke()
+            self.assertIs(expired, caught.exception)
+            self.assertFalse(launch.call_args.kwargs["start_new_session"])
+            self.assertEqual(["wait", "taskkill", "kill", "wait"], [call[0] for call in order.mock_calls])
+            taskkill.assert_called_once_with(["taskkill", "/PID", "12345", "/T", "/F"], check=True,
+                                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=10)
+
+    def test_cleanup_failure_propagates_instead_of_becoming_an_ordinary_timeout(self):
+        for error in (FileNotFoundError("taskkill"), subprocess.CalledProcessError(1, ["taskkill"]),
+                      subprocess.TimeoutExpired(["taskkill"], 10)):
+            with self.subTest(error=type(error).__name__), \
+                    mock.patch.object(probe_invocation.sys, "platform", "win32"), \
+                    mock.patch.object(subprocess, "Popen") as launch, \
+                    mock.patch.object(subprocess, "run", side_effect=error):
+                process = launch.return_value
+                process.wait.side_effect = [subprocess.TimeoutExpired(["stub"], 2), 1]
+                with self.assertRaisesRegex(RuntimeError, "process-tree cleanup failed") as caught:
+                    self.invoke()
+                self.assertIs(error, caught.exception.__cause__)
+                process.kill.assert_called_once_with()
+                self.assertEqual(2, process.wait.call_count)
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX process groups")
+    def test_group_already_gone_preserves_the_original_timeout(self):
+        with mock.patch.object(subprocess, "Popen") as launch, \
+                mock.patch.object(os, "killpg", side_effect=ProcessLookupError):
+            process = launch.return_value
+            expired = subprocess.TimeoutExpired(["stub"], 2)
+            process.wait.side_effect = [expired, 0]
+            with self.assertRaises(subprocess.TimeoutExpired) as caught:
+                self.invoke()
+            self.assertIs(expired, caught.exception)
+            process.kill.assert_called_once_with()
+
+
 class EndToEndStubTests(TempRootTestCase):
     """run_trial against a stub `claude` that emits canned stream-json: the whole trace→grade→artefact path, offline."""
+
+    def test_timeout_stops_descendants_before_publishing_the_trial(self) -> None:
+        release, ready, marker = (self.root / name for name in ("release", "ready", "escaped"))
+        descendant = self.root / "descendant.py"
+        descendant.write_text(
+            "import sys, time\nfrom pathlib import Path\n"
+            "release, ready, marker = map(Path, sys.argv[1:])\n"
+            "ready.touch()\ndeadline = time.monotonic() + 10\n"
+            "while not release.exists() and time.monotonic() < deadline: time.sleep(0.01)\n"
+            "if release.exists(): marker.touch()\n", encoding="utf-8")
+        command = stub_cli(self.root)
+        stub = self.root / "stub_claude.py"
+        child = "import subprocess, sys; subprocess.run(sys.argv[1:], check=True)"
+        spawn = [sys.executable, "-c", child, sys.executable, str(descendant), str(release), str(ready), str(marker)]
+        stub.write_text(stub.read_text(encoding="utf-8").replace("sys.exit(0)",
+            f"sys.stdout.flush()\nimport subprocess, time\nsubprocess.Popen({spawn!r})\ntime.sleep(30)"), encoding="utf-8")
+        try:
+            out = self.root / "iteration"
+            self._run_trial(out, executable=command, timeout=2)
+            run = out / "eval-tiny/new_skill/run-1"
+            self.assertTrue(ready.exists(), "the grandchild must start before the timeout")
+            self.assertEqual("timed_out", read_json(run / "invocation.json")["state"])
+            self.assertEqual("cut_short", read_json(run / "grading.json")["run_end"])
+        finally:
+            # Release survivors even on the old implementation; they then exit without leaking.
+            release.touch()
+        deadline = time.monotonic() + 0.5
+        while not marker.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertFalse(marker.exists(), "a grandchild kept running after the trial timed out")
 
     def test_a_trial_is_served_an_image_of_the_measured_inputs_not_the_checkout(self) -> None:
         """EVAL-014: a routing trial runs in an empty repository, but `--plugin-dir` and `--add-dir` named
@@ -1230,7 +1351,7 @@ class CutShortRunTests(TempRootTestCase):
         self.assertEqual({"INCONCLUSIVE"}, {e["state"] for e in grading["expectations"]})
 
     def test_a_timeout_on_the_declared_profile_still_fails_a_forbidding_check(self) -> None:
-        real_run = subprocess.run
+        real_run = probe_invocation.run_cli
 
         def finish_then_time_out(command, **kwargs):
             result = real_run(command, **kwargs)
@@ -1239,7 +1360,7 @@ class CutShortRunTests(TempRootTestCase):
                 raise subprocess.TimeoutExpired(command, 60)
             return result
 
-        with mock.patch.object(subprocess, "run", side_effect=finish_then_time_out):
+        with mock.patch.object(probe_invocation, "run_cli", side_effect=finish_then_time_out):
             summary, grading, _ = self._run(self._cut_spec("unittest"))
         self.assertEqual("FAIL", summary["status"])
         self.assertIn("timed out", grading["unmeasured"])

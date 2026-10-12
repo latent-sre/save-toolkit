@@ -82,12 +82,14 @@ def walk_panels(items, where):
 
 
 def validate_shape(spec: dict, root_path="$"):
-    """Check only containers/text the helper traverses, not Grafana's full schema.
+    """Validate traversed shapes and return their non-row panels in traversal order.
 
     Optional null containers retain their existing empty interpretation. Datasource type guards
     and opaque plugin query/config values keep their existing behavior.
     """
+    panels = []
     for location, panel in walk_panels(spec.get("panels"), f"{root_path}.panels"):
+        panels.append(panel)
         for key in ("title", "description"):
             require_shape(panel.get(key), str, f"{location}.{key}", nullable=True)
         fields = panel.get("fieldConfig")
@@ -107,6 +109,7 @@ def validate_shape(spec: dict, root_path="$"):
         require_shape(variable, dict, location)
         if variable.get("includeAll"):
             require_shape(variable.get("allValue"), str, f"{location}.allValue", nullable=True)
+    return panels
 
 
 def rate_call_spans(expr):
@@ -152,20 +155,6 @@ def locate_spec(model: dict) -> tuple[dict, str]:
         require_shape(model["dashboard"], dict, "$.dashboard")
         return model["dashboard"], "$.dashboard"
     return model, "$"
-
-
-def unwrap(model: dict) -> dict:
-    """Return the dashboard spec whether the caller passed a bare model or a k8s wrapper."""
-    return locate_spec(model)[0]
-
-
-def iter_panels(spec: dict):
-    """Yield every non-row panel, descending into collapsed rows.
-
-    A panel container, panel or type that the walk cannot traverse raises InputShapeError.
-    """
-    for _location, panel in walk_panels(spec.get("panels"), "$.panels"):
-        yield panel
 
 
 def panel_findings(panel: dict, where: str):
@@ -255,8 +244,12 @@ def check(spec: dict) -> list[Finding]:
     Run validate_shape() first: the shared walk checks only the shapes it traverses, not the fields
     inside a panel (title, fieldConfig, targets) or the templating list.
     """
+    return _check_panels(spec, (panel for _, panel in walk_panels(spec.get("panels"), "$.panels")))
+
+
+def _check_panels(spec, panels):
     findings: list[Finding] = []
-    for panel in iter_panels(spec):
+    for panel in panels:
         where = (panel.get("title") or "").strip() or f"panel id={panel.get('id')}"
         for rules in (panel_findings, datasource_findings, query_findings):
             findings.extend(rules(panel, where))
@@ -293,9 +286,9 @@ def main(argv: list[str] | None = None) -> int:
         if "panels" not in spec:
             print("no `panels` key: this does not look like a Classic/V1 dashboard model", file=sys.stderr)
             return 2
-        validate_shape(spec, root_path)
-        violations = check(spec)
-        panel_count = sum(1 for _ in iter_panels(spec))
+        panels = validate_shape(spec, root_path)
+        violations = _check_panels(spec, panels)
+        panel_count = len(panels)
     except (InputShapeError, RecursionError) as exc:  # rows nested past the recursion limit overflow the walk
         print(f"cannot check {args.path}: {exc}", file=sys.stderr)
         return 2

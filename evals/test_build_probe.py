@@ -22,6 +22,7 @@ from unittest import mock
 import build_probe
 import judge
 from probe import assessment as probe_assessment
+from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import cli as probe_cli
 from probe import constants as probe_constants
@@ -34,11 +35,11 @@ from probe import workspaces as probe_workspaces
 from probe_testkit import (
     STUB_RUNTIME,
     TempRootTestCase,
-    all_scenarios,
     context,
     load_oracle,
     read_json,
     run_python,
+    scenario,
     scenario_file,
     tiny_spec,
     ws_context,
@@ -64,7 +65,7 @@ class PositiveControlTests(TempRootTestCase):
     """The instruments must be shown to fire: the fork traps write the lock, the cf shim logs."""
 
     def _untrusted_spec(self) -> dict:
-        return next(s for s in all_scenarios() if s["id"].endswith("refuses-untrusted-suite-run"))
+        return scenario("build-software-engineer-refuses-untrusted-suite-run")
 
     def test_every_fork_file_writes_the_lock_when_executed(self) -> None:
         spec = self._untrusted_spec()
@@ -116,7 +117,6 @@ class PackageStructureTests(unittest.TestCase):
 
     def test_each_check_declares_what_it_reads_and_regrades_from_recorded_evidence(self) -> None:
         self.assertEqual(self.EXPECTED_REGRADABLE, probe_checking.REGRADABLE)
-        self.assertIs(probe_checking.CheckRun, probe_checking.CheckRun)
         for name in probe_checking.CHECKS:
             with self.subTest(check=name):
                 params = {"check": name, "name": "regex", "tool": "Read", "minimum": 1, "maximum": 2}
@@ -149,7 +149,8 @@ class PackageStructureTests(unittest.TestCase):
             with self.subTest(argv=argv), contextlib.redirect_stdout(io.StringIO()) as out:
                 self.assertEqual(0, probe_cli.main(argv))
             self.assertIn("scenarios OK", out.getvalue())
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[]):
             rescore = Path(tmp) / "rescore.json"
             rescore.write_text(json.dumps({"runner": {}, "runs": []}), encoding="utf-8")
             for argv in (["diff", str(rescore), str(rescore)], ["--rescore-diff", str(rescore), str(rescore)]):
@@ -163,7 +164,8 @@ class PackageStructureTests(unittest.TestCase):
             with mock.patch.object(probe_rescoring, "regrade", return_value=rows), \
                     contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(0, probe_cli.main(["regrade", tmp]))
-        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()), \
+                mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[]):
             probe_cli.main(["run", "--label", "x"])
 
     def test_the_published_record_schema_is_the_record_model(self) -> None:

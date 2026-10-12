@@ -30,10 +30,10 @@ from probe_testkit import (
     STUB_RUNTIME,
     ReviewFindingTestCase,
     TempRootTestCase,
-    all_scenarios,
     read_json,
     saved_grade,
     saved_summary,
+    scenario,
     tiny_spec,
     write_saved_run,
 )
@@ -60,15 +60,18 @@ class ReviewFindingTests(ReviewFindingTestCase):
             rows = [{"scenario": "s", "label": "l", "run": n, "status": state, "passed": 0, "total": 1,
                      "models": ["m"], "plugin_source_sha256": "0" * 64, "runtime": STUB_RUNTIME}
                     for n, state in enumerate(states, 1)]
-            with self.subTest(states=states), mock.patch.object(probe_rescoring, "regrade", return_value=rows):
+            # These rows deliberately name an unknown scenario, whose default threshold is 1.
+            with self.subTest(states=states), \
+                    mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[]), \
+                    mock.patch.object(probe_rescoring, "regrade", return_value=rows):
                 self.assertEqual(expected, probe_cli.main(["--regrade", str(self.root)]))
 
     def test_regrade_exit_code_aggregates_each_label_against_the_scenario_threshold(self) -> None:
         """Two of three trials pass a 0.66 scenario, as in a run; a failing arm is not pooled away."""
-        scenario = "discovery-agent-authoring-loop-engineering"
+        spec = scenario("discovery-agent-authoring-loop-engineering", "scenarios")
         def row(label, n, state, model="claude-sonnet-5"):
             return {
-            "scenario": scenario, "label": label, "run": n, "status": state, "passed": 0, "total": 1,
+            "scenario": spec["id"], "label": label, "run": n, "status": state, "passed": 0, "total": 1,
             "models": [model], "plugin_source_sha256": "0" * 64, "runtime": STUB_RUNTIME}
         for rows, expected in (
             ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL")], 0),
@@ -76,14 +79,18 @@ class ReviewFindingTests(ReviewFindingTestCase):
             # One label can hold runs from two resolved models; the failing model's arm is not pooled away.
             ([row("arm", 1, "PASS"), row("arm", 2, "PASS"), row("arm", 3, "FAIL", "claude-opus-5")], 1),
         ):
-            with self.subTest(expected=expected), mock.patch.object(probe_rescoring, "regrade", return_value=rows):
+            with self.subTest(expected=expected), \
+                    mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]), \
+                    mock.patch.object(probe_rescoring, "regrade", return_value=rows):
                 self.assertEqual(expected, probe_cli.main(["--regrade", str(self.root)]))
 
     def test_a_trial_that_raises_leaves_the_finished_trials_in_the_batch_summary(self) -> None:
+        spec = scenario("build-operator-cli-safe-requeue")
         finished = {"scenario": "build-operator-cli-safe-requeue", "label": "l", "run": 1, "status": "PASS",
                     "passed": 1, "total": 1, "models": ["m"], "known_cost_usd": 0.0, "cost_complete": True}
         out = self.root / "it"
-        with mock.patch.object(probe_trials, "run_trial", side_effect=[finished, RuntimeError("harness defect")]), \
+        with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]), \
+                mock.patch.object(probe_trials, "run_trial", side_effect=[finished, RuntimeError("harness defect")]), \
                 mock.patch.object(probe_batches, "batch_identity_problem", return_value=None), \
                 mock.patch.object(probe_fingerprints, "runtime_identity", return_value=STUB_RUNTIME), \
                 contextlib.redirect_stdout(io.StringIO()), self.assertRaisesRegex(RuntimeError, "harness defect"):
@@ -495,7 +502,7 @@ class BatchSpendCapTests(unittest.TestCase):
         self.assertEqual({"sonnet": 2, "opus": 1, None: 1}, counted, "the record names the first; the second is unknown")
 
     def _main(self, costs: list[tuple[float | None, bool]], cap: str) -> tuple[int, list[int], str]:
-        spec = all_scenarios()[0]
+        spec = tiny_spec()
         calls: list[int] = []
 
         def fake_run_trial(spec_arg, **kwargs):
@@ -506,7 +513,12 @@ class BatchSpendCapTests(unittest.TestCase):
                     "plugin_source_sha256": "0" * 64, "scenario_sha256": probe_fingerprints.scenario_digest(spec_arg),
                     "cost_usd": known if complete else None, "known_cost_usd": known, "cost_complete": complete}
 
-        with tempfile.TemporaryDirectory() as tmp,                 mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}),                 mock.patch.object(probe_fingerprints, "runtime_identity", return_value=self.RUNTIME),                 mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial),                 contextlib.redirect_stdout(io.StringIO()) as out:
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]), \
+                mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}), \
+                mock.patch.object(probe_fingerprints, "runtime_identity", return_value=self.RUNTIME), \
+                mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial), \
+                contextlib.redirect_stdout(io.StringIO()) as out:
             code = probe_cli.main(["--scenario", spec["id"], "--label", "l", "--trials", str(len(costs)),
                                      "--out", str(Path(tmp) / "it"), "--max-batch-usd", cap])
         return code, calls, out.getvalue()
@@ -531,8 +543,7 @@ class BatchSpendCapTests(unittest.TestCase):
             probe_cli._budget("0")  # a zero cap would schedule nothing; a cap must be positive
 
     def test_a_resumed_batch_counts_what_its_retained_trials_spent(self) -> None:
-        spec = next(s for s in all_scenarios() if not probe_fingerprints.required_rubrics(s)
-                    and not (s.get("fixture") or {}).get("services") and not s.get("followups"))
+        spec = tiny_spec()
         def row(run, known, complete):
             return {
             "scenario": spec["id"], "label": "l", "run": run, "status": "PASS", "passed": 1, "total": 1,
@@ -575,7 +586,7 @@ class SpendCapAttemptTests(TempRootTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.out = self.root / "it"
-        self.spec = all_scenarios()[0]
+        self.spec = tiny_spec()
 
     def _start_over(self) -> None:
         """Send the next batches to an output folder no earlier batch in this test has written."""
@@ -599,7 +610,8 @@ class SpendCapAttemptTests(TempRootTestCase):
                     "total": 1, "models": ["m"], "runtime": self.RUNTIME, "plugin_source_sha256": "0" * 64,
                     "scenario_sha256": probe_fingerprints.scenario_digest(spec), **cost}
 
-        with mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": plugin_sha}), \
+        with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[self.spec]), \
+                mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": plugin_sha}), \
                 mock.patch.object(probe_fingerprints, "runtime_identity", return_value=self.RUNTIME), \
                 mock.patch.object(probe_trials, "_run_trial", side_effect=fake_run_trial), \
                 mock.patch.object(probe_records, "write_record"), \
@@ -645,7 +657,7 @@ class AuthStopsTheBatchTests(unittest.TestCase):
     """An authentication failure exits 4 and stops the batch; completed trials are still reported."""
 
     def test_an_auth_failure_stops_scheduling_and_exits_distinctly(self) -> None:
-        spec = all_scenarios()[0]
+        spec = tiny_spec()
         calls: list[int] = []
 
         def fake_run_trial(spec_arg, **kwargs):
@@ -657,6 +669,7 @@ class AuthStopsTheBatchTests(unittest.TestCase):
                     "plugin_source_sha256": "0" * 64, "scenario_sha256": probe_fingerprints.scenario_digest(spec_arg)}
 
         with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]), \
                 mock.patch.object(probe_fingerprints, "plugin_provenance", return_value={"plugin_source_sha256": "0" * 64}), \
                 mock.patch.object(probe_fingerprints, "runtime_identity", return_value=STUB_RUNTIME), \
                 mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial), \

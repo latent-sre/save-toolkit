@@ -33,7 +33,6 @@ def payload(document: VerifiedDocument) -> dict[str, object]:
         "nodes": [{"id": node.id, "path": node.path, "selector": node.selector, "type": node.type}
                   for node in document.facts.graph.nodes],
         "facts": records,
-        "sources": {path: snapshot.source(path).text for path in sorted(paths)},
         # Use the same line boundaries as Span/Source, including CR and Unicode
         # separators; JavaScript's usual CRLF regex is not Python splitlines().
         "sourceLines": {path: list(snapshot.source(path).lines) for path in sorted(paths)},

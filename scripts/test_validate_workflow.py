@@ -252,7 +252,7 @@ class ValidateWorkflowTests(unittest.TestCase):
         environment = step.get("env", {})
         self.assertRegex(environment.get("PYTEST_ADDOPTS", ""), r"(^| )-n [0-9]+( |$)",
                          "the component tests no longer run on parallel workers")
-        self.assertIn("--dist loadfile", environment["PYTEST_ADDOPTS"])
+        self.assertIn("--dist worksteal", environment["PYTEST_ADDOPTS"])
         self.assertEqual("1", environment.get("PYTHONDONTWRITEBYTECODE"),
                          "parallel workers may write .pyc files under skills/ mid-trial")
 
@@ -280,7 +280,7 @@ class ValidateWorkflowTests(unittest.TestCase):
         step = next(step for step in job["steps"] if step.get("run") == "python -m pytest -q -m heavy")
         environment = step.get("env", {})
         self.assertRegex(environment.get("PYTEST_ADDOPTS", ""), r"(^| )-n [0-9]+( |$)")
-        self.assertIn("--dist loadfile", environment["PYTEST_ADDOPTS"])
+        self.assertIn("--dist worksteal", environment["PYTEST_ADDOPTS"])
         self.assertEqual("1", environment.get("PYTHONDONTWRITEBYTECODE"),
                          "parallel workers may write .pyc files under skills/ mid-trial")
 

@@ -132,6 +132,22 @@ The service-lifecycle lane was discussed in a review.
             'docs/reviews/result.md': '# Result\n', 'docs/reviews/second.md': '# Other\n'})
         self.assertEqual({'review:result', 'review:second'}, {f.object for f in graph.facts if f.predicate == 'evidenced_by'})
 
+    def test_batch_joins_keep_every_review_and_repeated_roadmap_witness(self):
+        batch = '20260930T010101Z-abcd1234'
+        graph = graph_of({
+            'docs/fleet-roadmap.md': f'# Roadmap\n### EVAL-003 test\n**Evidence:** {batch}\n'
+                f'Another witness: {batch}\n',
+            'docs/reviews/first.md': f'# First\nBatch: {batch}\n',
+            'docs/reviews/second.md': f'# Second\nBatch: {batch}\n',
+        })
+        evidence = [f for f in graph.facts if f.predicate == 'evidenced_by']
+        self.assertEqual({'review:first', 'review:second'}, {f.object for f in evidence})
+        self.assertEqual(2, len(evidence))
+        for fact in evidence:
+            self.assertEqual(ProofKind.JOINED, fact.proof.kind)
+            self.assertEqual({3, 4}, {p.start_line for p in fact.proof.inputs if p.path == 'docs/fleet-roadmap.md'})
+            self.assertTrue(any(p.path == f'docs/reviews/{fact.object.split(":")[1]}.md' for p in fact.proof.inputs))
+
     def test_review_packets_with_the_same_filename_keep_distinct_evidence(self):
         graph = graph_of({
             'docs/fleet-roadmap.md': '# Roadmap\n### AUDIT-001 test\n**Evidence:** '
@@ -391,6 +407,39 @@ def test_schema():
             with self.subTest(invocation=invocation):
                 self.assertEqual((), rooted_reads(Source('scripts/test_fixture.py', text.encode())))
 
+    def test_reused_helper_keeps_each_calls_read_and_write_arguments(self):
+        text = '''from pathlib import Path
+ROOT = Path(__file__).resolve().parents[1]
+def read(relative):
+    return (ROOT / relative).read_text()
+def seed(path):
+    mutate(path)
+def mutate(path):
+    path.write_text("fixture")
+def test_contract():
+    seed(ROOT / "agents/a.md")
+    seed(ROOT / "agents/b.md")
+    read("agents/a.md")
+    read("agents/b.md")
+    read("agents/c.md")
+'''
+        reads = rooted_reads(Source('scripts/test_contract.py', text.encode()))
+        self.assertEqual(['agents/c.md'], [path for path, _ in reads])
+        self.assertTrue(any(span.start_line == 14 for span in reads[0][1]))
+
+    def test_nested_scope_stores_do_not_shadow_the_parent_root(self):
+        text = '''from pathlib import Path
+def test_contract():
+    root = Path(__file__).resolve().parents[1]
+    def fixture():
+        root = Path("temporary")
+        return (root / "agents/fixture.md").read_text()
+    return (root / "agents/real.md").read_text()
+'''
+        reads = rooted_reads(Source('scripts/test_contract.py', text.encode()))
+        self.assertEqual(['agents/real.md'], [path for path, _ in reads])
+        self.assertTrue(any(span.start_line == 3 for span in reads[0][1]))
+
     def test_shuffled_extractor_registration_is_byte_identical(self):
         source = snapshot({
             'agents/sre-assistant.md': agent('sre-assistant'),
@@ -467,6 +516,23 @@ def test_schema():
                 graph = graph_of({'docs/fleet-roadmap.md': f'# Roadmap\n### EVAL-003 test\n**Status:** `{state}` (2026-09-30)\n**Evidence:** [old](reviews/2026-01-01-old.md)\n',
                     'docs/reviews/2026-01-01-old.md': '# Old evidence\n'})
                 self.assertTrue(any(f.predicate == 'unknown' and dict(f.qualifiers)['code'] == 'stale.evidence-predates-status' for f in graph.facts))
+
+    def test_staleness_uses_each_items_newest_evidence_and_keeps_all_dated_witnesses(self):
+        graph = graph_of({
+            'docs/fleet-roadmap.md': '# Roadmap\n### EVAL-003 old evidence\n**Status:** `active` (2026-09-30)\n'
+                '**Evidence:** [old](reviews/2026-01-01-old.md), [later](reviews/2026-02-01-later.md)\n'
+                '### EVAL-004 current evidence\n**Status:** `active` (2026-09-30)\n'
+                '**Evidence:** [old](reviews/2026-01-01-old.md), [current](reviews/2026-10-01-current.md)\n',
+            'docs/reviews/2026-01-01-old.md': '# Old evidence\n',
+            'docs/reviews/2026-02-01-later.md': '# Later evidence\n',
+            'docs/reviews/2026-10-01-current.md': '# Current evidence\n',
+        })
+        stale = [f for f in graph.facts if f.predicate == 'unknown'
+                 and dict(f.qualifiers)['code'] == 'stale.evidence-predates-status']
+        self.assertEqual(['roadmap-item:EVAL-003'], [f.subject for f in stale])
+        self.assertIn('2026-02-01', str(stale[0].object))
+        self.assertEqual({'docs/fleet-roadmap.md', 'docs/reviews/2026-01-01-old.md',
+                          'docs/reviews/2026-02-01-later.md'}, {p.path for p in stale[0].proof.inputs})
 
     def test_all_donor_vocabulary_is_declared(self):
         self.assertEqual(20, len(NODE_TYPES))

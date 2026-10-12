@@ -7,11 +7,16 @@ forbidding checks still count); one on any other profile is void (threat-model A
 
 from __future__ import annotations
 
+import contextlib
 import json
+import os
 import re
+import signal
+import subprocess
+import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, TextIO
 
 import clean_room
 import yaml
@@ -27,6 +32,48 @@ NATIVE_SPEND_CAP_USD = 0.75
 # Account skills synced from claude.ai download in the background at session start and reached 7 of 8
 # unisolated probe sessions; this setting kept them out of 16 of 16 (WP-02 gap 1).
 ISOLATION_SETTINGS = json.dumps({"syncClaudeAiSkills": False})
+
+
+def run_cli(
+    command: list[str], *, cwd: str, env: dict[str, str], stdout: TextIO, stderr: TextIO, timeout: float
+) -> int:
+    """Wait for one CLI, stopping its process tree before returning an interrupted attempt.
+
+    POSIX descendants inherit a private session; Windows taskkill walks the still-live parent's
+    tree. This owns ordinary child processes, not children that deliberately detach themselves.
+    Output stays in the caller's files so partial traces survive a timeout or Ctrl-C.
+    """
+    process = subprocess.Popen(
+        command, cwd=cwd, env=env, stdout=stdout, stderr=stderr, start_new_session=sys.platform != "win32"
+    )
+    try:
+        return process.wait(timeout=timeout)
+    except BaseException:
+        try:
+            _stop_cli(process)
+        except Exception as exc:
+            raise RuntimeError(f"CLI process-tree cleanup failed for PID {process.pid}") from exc
+        raise
+
+
+def _stop_cli(process: subprocess.Popen[bytes]) -> None:
+    try:
+        if sys.platform == "win32":
+            # Do this before killing/reaping the parent: taskkill needs it to find children.
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                timeout=10,
+            )
+        else:
+            with contextlib.suppress(ProcessLookupError):  # the entire group may already have exited
+                os.killpg(process.pid, signal.SIGKILL)
+    finally:
+        # Reap the direct child even if tree cleanup failed; that failure must propagate.
+        process.kill()
+        process.wait(timeout=10)
 
 
 def build_command(

@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 
-INTERFACE_VERSION = "autogen-a2a-interface/v1"
 CASE_VERSION = "canary-evidence-case/v1"
 REQUEST_VERSION = "canary-analysis-request/v1"
 ARTIFACT_VERSION = "release-recommendation/v1"

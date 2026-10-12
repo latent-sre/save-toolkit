@@ -29,12 +29,15 @@ async function get(path) {
 
 const revalidates = (r) => /\bno-cache\b|\bno-store\b|\bmax-age=0\b/.test(r.cache);
 
+let indexPage;
+const index = () => (indexPage ??= get("/"));
+
 // The app's HTML is recognised by its script bundle, which survives per-response nonces and hashes.
 let bundle;
 async function bundlePath() {
   if (bundle) return bundle;
-  const index = await get("/");
-  const match = index.body.match(/<script[^>]+src="([^"]+\.js)"/i);
+  const page = await index();
+  const match = page.body.match(/<script[^>]+src="([^"]+\.js)"/i);
   assert.ok(match, "index.html references no script bundle; is BASE_URL the built app?");
   bundle = new URL(match[1], new URL("/", BASE_URL)).pathname;
   return bundle;
@@ -42,14 +45,14 @@ async function bundlePath() {
 const isApp = (r, b) => r.body.includes(b);
 
 test("index.html is the app and revalidates", async () => {
-  const page = await get("/");
+  const page = await index();
   assert.equal(page.status, 200);
   assert.match(page.type, /text\/html/);
   assert.ok(revalidates(page), `/ must send Cache-Control: no-cache, got "${page.cache}"`);
 });
 
 test("index.html refuses framing and content sniffing", async () => {
-  const page = await get("/");
+  const page = await index();
   assert.match(page.csp, /\bframe-ancestors\b/, `/ must send a Content-Security-Policy with frame-ancestors, got "${page.csp}"`);
   assert.equal(page.sniff, "nosniff", `/ must send X-Content-Type-Options: nosniff, got "${page.sniff}"`);
 });

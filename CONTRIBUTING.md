@@ -116,9 +116,13 @@ after. A dirty receipt is not proof of an exact committed candidate; untracked c
 hashed. An interrupted run may have incomplete artifacts. Keep comparable receipts when assessing
 speed: same candidate and selection, known competing workloads, and the same interpreter.
 
-`pytest.ini` defaults to **10 local workers** with `--dist loadfile`; CI keeps its explicit
-four-worker override. Pass `-n 0` for a debugger or `--pdb`, or a smaller count on a constrained
-host. More workers are not a speed guarantee. The default skips heavy files listed in `conftest.py`
+`pytest.ini` defaults to **10 local workers** with `--dist worksteal`; CI keeps its explicit
+four-worker override. Work stealing balances individual cases across workers; module and class
+fixtures can run once on each worker that receives their tests. Pass `-n 0` for a debugger or
+`--pdb`, or a smaller count on a constrained host. More workers are not a speed guarantee.
+For the opt-in incidents-page and incidents-console UI calibrations, pass `--dist loadfile`
+to run each module's full Vitest matrix once instead of repeating it on several workers.
+The default skips heavy files listed in `conftest.py`
 (`HEAVY`): `--heavy` includes them, `-m heavy` selects only them, and naming a file runs it directly.
 Use `python -m pytest <affected files>` for focused work; use the coordinated runner once for the
 final suite and retain its timing evidence.

@@ -75,8 +75,8 @@ an old main-session trace cannot be reclassified as agent acceptance.
   flags. Unpacking and indexing retain the `(passed, evidence)` reading API; a plain tuple is not
   equal to an outcome. Saved grades keep their text representation; only `Outcome.read` interprets it.
 - **Declared checks.** Each check in [`probe/checking.py`](probe/checking.py) is registered with
-  `@declare`: whether it forbids, requires or both, and the evidence it reads. The forbidding and
-  requiring sets, regradability and the cut-short rules are derived from those declarations.
+  `@declare`: whether it forbids, requires or both, and the evidence it reads. Polarity,
+  regradability and the cut-short rules are read from those declarations.
 - **One grading loop.** `assessment.assess` grades a live trial and a regrade alike; a regrade
   supplies the saved verdicts it keeps. A result rule therefore changes in one place.
 - **A published record contract.** `records.RecordV1` validates each `record.json` strictly, as
@@ -527,6 +527,11 @@ process token; POSIX uses the effective UID, where elevation means UID 0 rather 
 audit. The batch measures this once; `--regrade` keeps the recorded value. Every attempted CLI
 invocation writes `invocation.json` before launch, with argv and workspace, and records launch,
 exit and boundary results afterward; resumed calls retain their own file under `followup/`.
+On a CLI timeout or Python interruption (including Ctrl-C), the runner terminates its POSIX process
+group or uses Windows [`taskkill /T /F`](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/taskkill)
+before reaping the parent and grading partial evidence. Tree cleanup failures abort the attempt;
+they are not recorded as ordinary trial timeouts. This covers children that remain in the invocation's
+process tree, not deliberately detached processes or an abrupt kill of the runner itself.
 Identity hashes say two runs
 measured the same plugin; they do not say the runs measured it the same way — **pin `--model` and
 `--timeout` for any numbers you intend to diff, and compare runs only within one CLI version.** A

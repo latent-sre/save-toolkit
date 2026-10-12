@@ -25,16 +25,6 @@ from runner.validation import require_closed_mapping
 
 
 READINESS_SERVICES = ("checkout", "payments", "inventory")
-GRAPH_NODE_NAMES = (
-    "admit_run",
-    "readiness",
-    "join_readiness",
-    "fixture_plan",
-    "request_approval",
-    "checkout_effect",
-    "reconcile_if_ambiguous",
-    "terminal",
-)
 
 
 class Gateway(Protocol):

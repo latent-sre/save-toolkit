@@ -66,7 +66,7 @@ theme.addEventListener('change', () => { setTheme(theme.value); try { localStora
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (theme.value === 'system') setTheme('system'); });
 try {
 const data = JSON.parse($('atlas-data').textContent);
-if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.facts) || !data.sources || typeof data.sources !== 'object') throw new Error('The embedded atlas payload is missing or malformed.');
+if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.facts) || !data.sourceLines || typeof data.sourceLines !== 'object' || Array.isArray(data.sourceLines)) throw new Error('The embedded atlas payload is missing or malformed.');
 const nodes = data.nodes.filter(node => node && typeof node.id === 'string' && typeof node.path === 'string' && typeof node.type === 'string');
 const facts = data.facts.filter(fact => fact && typeof fact.id === 'string' && typeof fact.subject === 'string' && typeof fact.predicate === 'string');
 const nodeMap = new Map(nodes.map(node => [node.id, node]));

@@ -16,20 +16,17 @@ import math
 import sys
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Annotated, Any, Literal, cast, get_args
+from typing import Annotated, Any, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, NonNegativeFloat, NonNegativeInt, PositiveInt, model_validator
 
-from . import fingerprints, layout
+from . import fingerprints, layout, tracing
 from .outcomes import EVIDENCE_LIMIT, UNMEASURED, Ending, Polarity, State, Stop
 
 
 def known_usd(value: object) -> float | None:
-    """A reported cost, or None when it is missing, not a number, infinite, NaN or negative."""
-    if type(value) not in (int, float):  # exactly a number: a bool or a float subclass is not a reported cost
-        return None
-    number = cast(float, value)
-    return float(number) if math.isfinite(number) and number >= 0 else None
+    """Use the trace cost rules for record and judge accounting too."""
+    return tracing.known_usd(value)
 
 
 def trial_cost(trial_usd: object, judge: dict[str, Any]) -> dict[str, Any]:

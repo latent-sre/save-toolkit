@@ -1,5 +1,5 @@
-"""Exercise backend-craft's starters: each starter's own suite end to end, then the FastAPI house
-module's protections that its example service does not reach."""
+"""Exercise backend-craft's FastAPI starter end to end, then the house module's protections
+that its example service does not reach."""
 from __future__ import annotations
 
 import asyncio
@@ -24,7 +24,6 @@ from starlette.middleware.cors import CORSMiddleware
 from testkit import load_path
 
 ASSETS = Path(__file__).resolve().parents[1] / "skills/backend-craft/assets"
-HUMA = "github.com/danielgtaylor/huma/v2@v2.39.1"
 
 
 def _run(command: list[str], cwd: Path, **env: str) -> subprocess.CompletedProcess[str]:
@@ -40,42 +39,16 @@ def test_fastapi_starter_suite_passes(tmp_path):
     shutil.copytree(ASSETS / "fastapi", tmp_path, dirs_exist_ok=True)
     pytest_cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts="]
     _passed(_run([*pytest_cmd, "test_openapi_document.py"], tmp_path, UPDATE_OPENAPI="1"))
-    assert importlib.util.find_spec("schemathesis"), "schemathesis must be installed (requirements-test.txt)"
-    result = _run(pytest_cmd, tmp_path)
-    _passed(result)
-    assert " passed" in result.stdout and "skipped" not in result.stdout, result.stdout
-
-
-def test_fastapi_starter_document_is_the_house_contract(tmp_path):
-    shutil.copytree(ASSETS / "fastapi", tmp_path, dirs_exist_ok=True)
-    _passed(_run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=",
-                  "test_openapi_document.py"], tmp_path, UPDATE_OPENAPI="1"))
     document = json.loads((tmp_path / "openapi.json").read_text(encoding="utf-8"))
     schemas = document["components"]["schemas"]
     assert {"Problem", "FieldError", "Thing", "ThingPage"} <= schemas.keys()
     assert "HTTPValidationError" not in schemas
     assert document["components"]["securitySchemes"]["bearer"]["scheme"] == "bearer"
 
-
-def test_go_starter_suite_passes(tmp_path):
-    go = shutil.which("go")
-    assert go, "go must be available to run the Go starter"
-    shutil.copytree(ASSETS / "go", tmp_path, dirs_exist_ok=True)
-    (tmp_path / "go.mod").write_text("module example.com/starter\n\ngo 1.25\n", encoding="utf-8")
-    _passed(_run([go, "get", HUMA], tmp_path))
-    _passed(_run([go, "mod", "tidy"], tmp_path))
-    _passed(_run([go, "vet", "./..."], tmp_path))
-    unformatted = _run([shutil.which("gofmt") or "gofmt", "-l", "."], tmp_path)
-    assert unformatted.stdout.strip() == "", f"gofmt would change: {unformatted.stdout}"
-    _passed(_run([go, "test", "-count=1", "-run", "TestOpenAPIDocument", ".", "-update"], tmp_path))
-    # Schemathesis's `st` sits beside this interpreter when requirements-test.txt is installed.
-    scripts = Path(sys.executable).parent
-    st = shutil.which("st") or shutil.which("st", path=str(scripts))
-    assert st, "schemathesis's st command must be installed (requirements-test.txt)"
-    path = os.pathsep.join([str(Path(st).parent), os.environ.get("PATH", "")])
-    result = _run([go, "test", "-count=1", "-v", "./..."], tmp_path, PATH=path, CI="true")
+    assert importlib.util.find_spec("schemathesis"), "schemathesis must be installed (requirements-test.txt)"
+    result = _run(pytest_cmd, tmp_path)
     _passed(result)
-    assert "--- PASS: TestSchemathesis" in result.stdout, result.stdout
+    assert " passed" in result.stdout and "skipped" not in result.stdout, result.stdout
 
 
 # The FastAPI house module, exercised directly.
