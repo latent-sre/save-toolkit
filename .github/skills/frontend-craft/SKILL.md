@@ -1,16 +1,13 @@
 ---
 name: frontend-craft
 description: >-
-  Build or change a web GUI for the team's applications and SRE tooling — operator consoles,
-  workbenches and admin panels, in-app dashboards, status and catalog sites, form-driven workflows —
-  in React (Vue allowed) on Vite and TypeScript, from one page to a full app, wired to the team's
-  FastAPI and Go OpenAPI services and served on localhost and PCF. Owns the caller interview and
-  design brief, the component-kit choice (shadcn/ui, Radix, Base UI, HeroUI, Mantine, Material UI,
-  daisyUI, the animated collections and Motion — mixable), the browser side of the API contract,
-  error and action surfaces, runtime configuration, accessibility and motion. Triggers: 'build a UI
-  for', 'add a page/form/table/console', 'make this look less generic', 'wire the UI to the API'.
-  Not for the service behind the UI (backend-craft) or Grafana dashboards (obs-dashboards to
-  design, grafana to operate).
+  Build or change a web GUI for the team's apps and SRE tooling — consoles, in-app dashboards,
+  status sites, form workflows — in React or Vue, wired to the team's OpenAPI services and served on
+  localhost and PCF. Owns the design brief, component-kit choice and mixing (shadcn/ui, Mantine, MUI
+  and others), the browser side of the API contract, error surfaces and accessibility. Triggers:
+  'build a UI for', 'add a page/form/table/console', 'make this look less generic', 'wire the UI to
+  the API'. Not for the service behind the UI (backend-craft) or Grafana dashboards (obs-dashboards
+  to design, grafana to operate).
 argument-hint: "[the GUI to build or change]"
 ---
 

@@ -1,14 +1,12 @@
 ---
 name: backend-craft
 description: >-
-  Build or change the team's backend services — HTTP APIs in FastAPI (Python) or Huma (Go),
-  workers, schedulers, webhook receivers, and clients for platform and vendor APIs — published as
-  an OpenAPI contract that UIs and automation generate clients from. Owns the house API contract
-  (RFC 9457 problems with a request ID, cursor pages, Idempotency-Key writes, /v1 paths), the
-  contract gates (committed document, drift and house-rule tests, Schemathesis, oasdiff), and the
-  service's operating surface on PCF, Cloud Run, Linux hosts and Windows desktops. Triggers: 'add
-  an endpoint', 'build an API or service for', 'wrap X behind an API', 'write a client for Y'.
-  Not for UI work (frontend-craft) or live database operations (database-reliability).
+  Build or change the team's backend services — FastAPI or Huma (Go) HTTP APIs, workers, schedulers,
+  webhook receivers, and clients for platform and vendor APIs. Owns the house API contract (RFC 9457
+  problems, cursor pages, Idempotency-Key writes, /v1) and its OpenAPI gates (committed document,
+  drift tests, Schemathesis, oasdiff), plus the service's operating surface. Triggers: 'add an
+  endpoint', 'build an API or service for', 'wrap X behind an API', 'write a client for Y'. Not for
+  UI work (frontend-craft) or live database operations (database-reliability).
 argument-hint: "[the API or service to build or change]"
 ---
 
@@ -30,7 +28,7 @@ win over every default here; the owner decisions apply wherever the repository h
 | Shared shapes | Owned here and consumed by `frontend-craft`: RFC 9457 problems with `request_id` and `errors[]`, cursor pages, `Idempotency-Key` writes. |
 | Versioning | Every API path starts with `/v1`; a breaking change follows [versioning](./references/versioning.md). |
 | Actions | Services perform operational actions (restart, scale, silence, purge). An endpoint that changes something outside the service offers a dry run, bounds how many targets one call touches, and logs who acted and why. |
-| Runtimes | PCF, Cloud Run, Linux hosts under systemd, and Windows desktops as localhost tools. |
+| Runtimes | PCF, Linux hosts under systemd, and Windows desktops as localhost tools; Cloud Run as the candidate GCP landing runtime, which `stack-profile` records as decision-pending. |
 | Data | PostgreSQL and SQL Server, connected directly. |
 
 ## Before you build

@@ -469,7 +469,7 @@ NATIVE = {"id": "case", "agent": "reliability-engineer", "prompt": "Help me inve
           "tools": ["Skill", "Read", "Task"], "fixture": {"files": {"evidence.md": "x"}},
           "followups": ["What changes?"], "helper": "sre-assistant", "expected_model": "stub-model"}
 GRAFANA = "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb"
-REFERENCE = "skills/agent-authoring/references/agent-security.md"
+REFERENCE = ".claude/skills/agent-authoring/references/agent-security.md"
 DROP = object()
 
 

@@ -11,7 +11,7 @@ Vue 3.5 with TypeScript on Vite, scaffolded with `npm create vue@latest` (TypeSc
 Vitest, ESLint; Pinia only once a store is needed); Vue 3.6 and Vapor mode stay out of production
 until Vue marks them stable. `<script setup lang="ts">` single-file components with `defineModel`,
 `useTemplateRef` and `onWatcherCleanup`. `vue-tsc` needs the TypeScript compiler API, so pin
-`typescript@6` for the same reason the React stack does. ESLint flat config with
+`typescript` to the release the React stack pins, for the same reason. ESLint flat config with
 `eslint-plugin-vue` and `@vue/eslint-config-typescript`'s type-checked rules; Vitest, Vue Test
 Utils and MSW; Node 22.12 or later.
 

@@ -224,6 +224,15 @@ def human_owner(owner: str) -> str:
     return re.split(r'\s+owns?\b', prefix, maxsplit=1, flags=re.I)[0].strip(' .,:;')
 
 
+def skill_bundle_path(path: str) -> tuple[str, str] | None:
+    """(skill, path inside its bundle) for a shipped or maintainer-only skill file."""
+    for root in ('skills/', '.claude/skills/'):
+        if path.startswith(root):
+            skill, _, tail = path.removeprefix(root).partition('/')
+            return (skill, tail) if tail else None
+    return None
+
+
 def live_guide(path: str) -> bool:
     """Current guidance whose text is a live contract rather than historical evidence."""
     return path in LIVE_DOCS or (PurePosixPath(path).name in ('README.md', 'CHANGELOG.md')
@@ -551,8 +560,8 @@ def _component_records(corpus: Corpus, inputs: Mapping[str, StageOutput]) -> Sta
             add(_record(f'{kind}:{p.stem}', kind, p.stem, path, proof, attrs=attrs, family='components'))
             if kind == 'agent':
                 add(_record(f'owner:{p.stem}', 'owner', p.stem, path, proof, attrs={'kind': 'agent'}, selector=f'owner:{p.stem}', family='owners'))
-        elif path.startswith('skills/') and len(p.parts) >= 3:
-            skill, tail = p.parts[1], '/'.join(p.parts[2:])
+        elif (bundle := skill_bundle_path(path)) is not None:
+            skill, tail = bundle
             if tail == 'SKILL.md':
                 data, proof = frontmatter_fields(source)
                 add(_record(f'skill:{skill}', 'skill', skill, path, spans(proof, whole(source)), attrs={

@@ -12,6 +12,7 @@ without the owner's approval.
 ## 2. Change the source of truth
 
 Edit agents, skills, commands, and hooks only under `agents/`, `skills/`, `commands/`, and `hooks/`;
+maintainer-only skills, which never ship in the plugin, live under `.claude/skills/`.
 `.github/agents/`, `.github/skills/`, and `com.github.copilot/` are generated. After a canonical change, regenerate once and commit
 the projections with the source:
 
@@ -20,7 +21,7 @@ python scripts/generate_platform_adapters.py --write
 ```
 
 Before changing frontmatter, tool authority, delegation, or guard wiring, read the
-[frontmatter reference](skills/agent-authoring/references/claude-code-frontmatter.md). Pin
+[frontmatter reference](.claude/skills/agent-authoring/references/claude-code-frontmatter.md). Pin
 third-party dependencies in `requirements-dev.txt`; `scripts/readonly-guard.py` stays
 standard-library-only under `python -I -S`. Commands using `python` here mean the verified project
 interpreter; activate that environment or use its full executable path. A bare `python` or `py -3`

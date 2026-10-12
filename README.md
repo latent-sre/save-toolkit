@@ -83,7 +83,8 @@ The skills, by area (each `skills/<name>/SKILL.md` carries its own description a
 - **Reliability improvement** — `resilience-analysis`, `toil-reduction`; existing readiness coverage stays in `service-lifecycle`
 - **Engineering craft** — `backend-craft`, `python-craft`, `frontend-craft`, `operator-cli`,
   `ci-actions`, `database-reliability`, `eng-ladder`
-- **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`
+- **For maintainers, in this repository only** — `agent-authoring` and `fleet-atlas` load from
+  `.claude/skills/` when you work here; the installed plugin does not ship them
 
 The roster's tool postures, enforcement model, and design disciplines are in
 [AGENTS.md](AGENTS.md); the repository layout and its consequences are under **Start here**.

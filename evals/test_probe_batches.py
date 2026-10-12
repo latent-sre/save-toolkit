@@ -68,7 +68,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
 
     def test_regrade_exit_code_aggregates_each_label_against_the_scenario_threshold(self) -> None:
         """Two of three trials pass a 0.66 scenario, as in a run; a failing arm is not pooled away."""
-        spec = scenario("discovery-agent-authoring-loop-engineering", "scenarios")
+        spec = scenario("discovery-ci-actions-slow-pipeline", "scenarios") | {"threshold": 0.66}
         def row(label, n, state, model="claude-sonnet-5"):
             return {
             "scenario": spec["id"], "label": label, "run": n, "status": state, "passed": 0, "total": 1,

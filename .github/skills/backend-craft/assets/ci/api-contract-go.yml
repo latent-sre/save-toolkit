@@ -1,7 +1,8 @@
-# API contract gates for a Go/Huma service: copy to .github/workflows/api-contract.yml and adapt
-# the paths. `go test` runs the document drift test, the house-rules test and Schemathesis; the
-# last step fails the pull request on a breaking change to the committed openapi.json against the
-# base branch. Load the ci-actions skill before changing anything beyond these steps.
+# API contract gates for a Go/Huma service: copy to .github/workflows/api-contract.yml, adapt the
+# paths and fill the reviewed uv version. `go test` runs the document drift test, the house-rules
+# test and Schemathesis; the last step fails the pull request on a breaking change to the committed
+# openapi.json against the base branch. Load the ci-actions skill before changing anything beyond
+# these steps.
 name: api-contract
 
 on:
@@ -18,10 +19,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # the base branch's openapi.json
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "<reviewed exact uv release>"
       - name: Install Schemathesis
         run: |
           uv tool install schemathesis==4.30.1

@@ -175,7 +175,7 @@ class ReferenceReadTests(unittest.TestCase):
     SPEC = {
         "id": "ref-contract", "prompt": "p", "skill": "agent-authoring", "max_turns": 20,
         "tools": ["Skill", "Task", "Read"],
-        "references": ["skills/agent-authoring/references/agent-security.md"],
+        "references": [".claude/skills/agent-authoring/references/agent-security.md"],
         "graders": [{"type": "contains_any", "of": ["x"]}],
     }
 
@@ -184,7 +184,7 @@ class ReferenceReadTests(unittest.TestCase):
 
     def test_a_successful_read_of_the_named_reference_passes(self) -> None:
         passed, detail = probe_assessment.reference_read(self._trace([
-            {"tool": "Read", "path": str(ROOT / "skills/agent-authoring/references/agent-security.md"),
+            {"tool": "Read", "path": str(ROOT / ".claude/skills/agent-authoring/references/agent-security.md"),
              "outcome": "allowed"}]), self.SPEC["references"][0], ROOT)
         self.assertTrue(passed, detail)
 
@@ -260,12 +260,6 @@ class ReferenceReadTests(unittest.TestCase):
         self.assertIn((alternate / reference).resolve().as_posix(), prompt)
         self.assertNotIn((ROOT / reference).resolve().as_posix(), prompt)
         self.assertEqual("plain task", probe_catalog.scenario_prompt({"prompt": "plain task"}))
-
-    def test_the_committed_security_review_scenario_requires_its_reference(self) -> None:
-        spec = scenario_file(
-            probe_constants.CONTRACT_SCENARIO_DIR / "skill-direct-agent-authoring-security-review.yaml")
-        self.assertIn("skills/agent-authoring/references/agent-security.md", spec["references"])
-        self.assertIn("Read", spec["tools"])
 
     def test_incident_contracts_require_successful_reference_reads(self) -> None:
         for name, reference in (

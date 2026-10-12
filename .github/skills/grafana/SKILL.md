@@ -49,6 +49,10 @@ the local [evidence writer](./scripts/grafana_evidence.py), offline
 The workflow uses a managed Python environment for [bounded data statistics](./scripts/grafana_frames.py),
 [shared PromQL analysis](./scripts/grafana_promql.py),
 structured comparisons and PNG decoding; its command reference defines the isolated launch.
+The plugin installs none of those libraries. Until an operator installs the plugin's
+`requirements-grafana.txt` into a Python 3.12+ virtual environment whose `python` comes first on
+`PATH`, the workflow stops with `dependency_unavailable_*`; the read helper needs only the standard
+library.
 The [bundled module loader](./scripts/grafana_modules.py) keeps those helpers on fixed local paths.
 Agents start with structured query evidence and explicit coverage gaps. When queries fail or cannot
 reproduce a panel, the default render fallback supplies an image reference; open that image before

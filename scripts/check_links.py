@@ -502,9 +502,14 @@ def check(root: Path = ROOT) -> list[str]:
     root = Path(root).resolve()
     failures: list[str] = []
     failures.extend(_check_guide(root))
-    skill_root = root / "skills"
-    if skill_root.is_dir():
-        for skill_path in sorted(skill_root.glob("*/SKILL.md")):
+    # Maintainer-only skills under .claude/skills/ never ship, but they are canonical source too.
+    skill_paths = [
+        path
+        for skill_root in (root / "skills", root / ".claude" / "skills")
+        for path in sorted(skill_root.glob("*/SKILL.md"))
+    ]
+    if skill_paths:
+        for skill_path in skill_paths:
             try:
                 text = skill_path.read_text(encoding="utf-8")
             except (OSError, UnicodeError) as exc:

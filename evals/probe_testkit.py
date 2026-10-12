@@ -96,7 +96,7 @@ STUB_RUNTIME = {
 }
 
 # The one reference the reference-read tests name: a real file in the measured plugin.
-AGENT_SECURITY_REFERENCE = "skills/agent-authoring/references/agent-security.md"
+AGENT_SECURITY_REFERENCE = ".claude/skills/agent-authoring/references/agent-security.md"
 
 
 def tiny_spec(**changes: Any) -> dict[str, Any]:

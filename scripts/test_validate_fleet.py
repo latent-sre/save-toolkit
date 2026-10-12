@@ -364,7 +364,7 @@ class FleetValidatorTests(unittest.TestCase):
             (
                 "agent-authoring",
                 _markdown_section(
-                    Path("skills/agent-authoring/references/artifact.md"),
+                    Path(".claude/skills/agent-authoring/references/artifact.md"),
                     "## Learn from an encountered failure",
                 ),
                 ("human acceptance of the exact candidate revision is promotion",),
@@ -439,8 +439,8 @@ class FleetValidatorTests(unittest.TestCase):
             Path("skills/operational-learning/scripts/migrate_v1_to_v2.py"),
             Path("skills/operational-learning/scripts/migrate_v2_to_v3.py"),
             Path("skills/operational-learning/scripts/packet_drift.py"),
-            Path("skills/agent-authoring/assets/fleet-improvement-v1.schema.json"),
-            Path("skills/agent-authoring/references/improvement-lifecycle.md"),
+            Path(".claude/skills/agent-authoring/assets/fleet-improvement-v1.schema.json"),
+            Path(".claude/skills/agent-authoring/references/improvement-lifecycle.md"),
             Path("scripts/validate_improvements.py"),
             Path("scripts/test_validate_improvements.py"),
         )
@@ -462,10 +462,10 @@ class FleetValidatorTests(unittest.TestCase):
             Path("AGENTS.md"),
             Path("agents/agent-engineer.md"),
             Path("agents/reviewer.md"),
-            Path("skills/agent-authoring/SKILL.md"),
-            Path("skills/agent-authoring/references/artifact.md"),
-            Path("skills/agent-authoring/references/roster.md"),
-            Path("skills/agent-authoring/references/agent-security.md"),
+            Path(".claude/skills/agent-authoring/SKILL.md"),
+            Path(".claude/skills/agent-authoring/references/artifact.md"),
+            Path(".claude/skills/agent-authoring/references/roster.md"),
+            Path(".claude/skills/agent-authoring/references/agent-security.md"),
         )
         for relative in active_fleet_contracts:
             text = (ROOT / relative).read_text(encoding="utf-8").lower()

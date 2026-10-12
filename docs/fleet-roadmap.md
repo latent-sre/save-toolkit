@@ -59,17 +59,30 @@ the smallest changes needed before relying on affected workflows.
 
 ### AUDIT-002 — reduce the skills' per-session cost and retire what the fleet does not need
 
-**Status:** `decision-needed` (2026-10-12). The read-only audit of `7dec186d` measured save-toolkit's
-skill listing at ~5,170 tokens for 29 skills. On a 1M-token window that listing sits at the 1%
-cap. With an emulated 200K-window budget, every save-toolkit description is dropped.
+**Status:** `active` (2026-10-12). The read-only audit of `7dec186d` measured save-toolkit's skill
+listing at ~5,170 tokens for 29 skills. On a 1M-token window that listing sits at the 1% cap. With
+an emulated 200K-window budget, every save-toolkit description is dropped.
+
+The owner's 2026-10-12 dispositions:
+- The team's context window is mixed or unknown.
+- F1–F3 are accepted.
+- F4: the Grafana workflow stays as merged, with only its optional-library and install note added.
+- F5: `agent-authoring` becomes maintainer-only.
+
+The implementing change moves `agent-authoring` and `fleet-atlas` to `.claude/skills/` and
+retires their five plugin routing scenarios. It also fixes the five F2 drift defects and
+shortens the two craft descriptions. Re-measured, the listing is ~4,680 tokens for 27 skills.
 **Owner:** The human owner selects dispositions; the implementing lane owns each accepted change
 and its verification.
 **Outcome:** Each finding F1–F10 has an accepted, deferred or rejected disposition. The accepted
 changes are merged with a re-measured listing cost, and the team has a usage source for the
 Tier 3 calls.
-**Next action:** The owner names the context window the team runs and decides F4 (the Grafana
-workflow family) and F5 (`agent-authoring` scope). The Tier 1 fixes (F1–F3) can proceed on
-approval.
+**Next action:**
+- The owner accepts the implementing change.
+- The owner decides F6 (fold `obs-dashboards`) and F7 (the untested Go starter).
+- Several SREs run `/skill-doctor` for two weeks to supply usage data for F8–F10.
+- Whether `agent-engineer` also becomes maintainer-only is open. Today it ships in the plugin, but
+  its skill loads only in this repository.
 **Evidence:** [Skills audit](reviews/2026-10-12-skills-audit.md).
 **SRE task:** Get the right skill picked from its description in every session, without paying
 for skills the team does not use.

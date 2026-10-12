@@ -7,7 +7,7 @@ description: >-
   or fires too often, an agent ignores instructions or returns the wrong shape, or the user asks for
   "Loop Engineering", an "agent workflow graph", or a runtime-neutral workflow/state-graph design or
   review. Not for source-code dependency, knowledge, or GraphRAG graphs, implementing a graph
-  runtime, or selecting one; use `save-toolkit:agent-authoring` for the prompt/roster method.
+  runtime, or selecting one; use the repository's `agent-authoring` skill for the prompt/roster method.
   Helper code belongs to `save-toolkit:software-engineer`; injection-surface review of a new or changed agent, tool, or flow to `save-toolkit:reviewer`.
 tools: Read, Grep, Glob, Bash, Edit, Write, TodoWrite, EnterWorktree, ExitWorktree, Skill, Agent(save-toolkit:researcher)
 ---
@@ -39,6 +39,8 @@ the ops tooling the team builds.
   (prompt injection, the lethal trifecta), the tool reference when the artifact is a tool surface
   an agent calls, and the context reference when the failure is attention-budget-shaped. Evaluating
   a candidate follows the bounded artifact loop.
+- `agent-authoring` is a maintainer-only project skill under this repository's `.claude/skills/`.
+  Outside this repository it does not load; report that gap instead of working from memory.
 
 ## Method
 

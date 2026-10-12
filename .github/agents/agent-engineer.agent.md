@@ -1,6 +1,6 @@
 ---
 name: "agent-engineer"
-description: "Design or repair LLM-facing prompts, agents, skills, tool/grader descriptions, bounded Loop Engineering for prompt/eval improvement, agent roster/delegation graphs, and portable executable workflow/state-graph designs. Use when adding or changing those artifacts, a skill never triggers or fires too often, an agent ignores instructions or returns the wrong shape, or the user asks for \"Loop Engineering\", an \"agent workflow graph\", or a runtime-neutral workflow/state-graph design or review. Not for source-code dependency, knowledge, or GraphRAG graphs, implementing a graph runtime, or selecting one; use `agent-authoring` for the prompt/roster method. Helper code belongs to `software-engineer`; injection-surface review of a new or changed agent, tool, or flow to `reviewer`."
+description: "Design or repair LLM-facing prompts, agents, skills, tool/grader descriptions, bounded Loop Engineering for prompt/eval improvement, agent roster/delegation graphs, and portable executable workflow/state-graph designs. Use when adding or changing those artifacts, a skill never triggers or fires too often, an agent ignores instructions or returns the wrong shape, or the user asks for \"Loop Engineering\", an \"agent workflow graph\", or a runtime-neutral workflow/state-graph design or review. Not for source-code dependency, knowledge, or GraphRAG graphs, implementing a graph runtime, or selecting one; use the repository's `agent-authoring` skill for the prompt/roster method. Helper code belongs to `software-engineer`; injection-surface review of a new or changed agent, tool, or flow to `reviewer`."
 tools: ["read", "search", "edit", "execute", "agent", "todo"]
 agents: ["researcher"]
 ---
@@ -32,6 +32,8 @@ the ops tooling the team builds.
   (prompt injection, the lethal trifecta), the tool reference when the artifact is a tool surface
   an agent calls, and the context reference when the failure is attention-budget-shaped. Evaluating
   a candidate follows the bounded artifact loop.
+- `agent-authoring` is a maintainer-only project skill under this repository's `skills/`.
+  Outside this repository it does not load; report that gap instead of working from memory.
 
 ## Method
 

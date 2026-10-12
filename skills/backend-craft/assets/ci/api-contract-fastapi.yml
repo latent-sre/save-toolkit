@@ -1,8 +1,8 @@
 # API contract gates for a FastAPI service managed with uv: copy to
-# .github/workflows/api-contract.yml and adapt the paths. pytest runs the document drift test, the
-# house-rules test and Schemathesis (a dev dependency); the oasdiff step fails the pull request on
-# a breaking change to the committed openapi.json against the base branch. Load the ci-actions
-# skill before changing anything beyond these steps.
+# .github/workflows/api-contract.yml, adapt the paths and fill the reviewed tool versions. pytest
+# runs the document drift test, the house-rules test and Schemathesis (a dev dependency); the
+# oasdiff step fails the pull request on a breaking change to the committed openapi.json against the
+# base branch. Load the ci-actions skill before changing anything beyond these steps.
 name: api-contract
 
 on:
@@ -19,10 +19,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # the base branch's openapi.json
+          persist-credentials: false
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "<reviewed exact uv release>"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: stable # for oasdiff only
+          go-version: "<reviewed exact Go release>" # for oasdiff only
       - name: Tests, document drift and Schemathesis
         run: uv run --locked pytest
       - name: Breaking changes against the base branch

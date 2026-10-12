@@ -291,6 +291,11 @@ class LinkCheckerTests(Fixture):
         self.skill("# Probe\n\nRead [missing](./references/missing.md).\n")
         self.assertTrue(any("dead link" in item for item in check_links.check(self.root)))
 
+    def test_a_maintainer_only_skill_is_checked_like_a_shipped_one(self):
+        self.write(".claude/skills/probe-skill/SKILL.md",
+                   CLEAN_FRONTMATTER + "\n# Probe\n\nRead [missing](./references/missing.md).\n")
+        self.assertTrue(any("dead link" in item for item in check_links.check(self.root)))
+
     def test_a_review_packet_citing_a_deleted_packet_is_a_dead_link(self):
         """Retained evidence cites retained evidence: a retention pass that keeps the citing packet
         and deletes the cited one leaves an active item's chain ending nowhere, and did so behind a

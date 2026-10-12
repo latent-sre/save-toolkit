@@ -10,10 +10,10 @@ green in the app.
 
 ## The document and the typed client
 
-FastAPI publishes OpenAPI 3.1 at `/openapi.json`; a Go service publishes the document its generator
-emits (oapi-codegen reads and writes 3.1; swag's stable line is Swagger 2.0, so check which the
-service has). Commit the document into the UI repository as `docs/openapi.json`, or fetch it in CI
-from the service's repository at a pinned ref, and generate from it:
+Generate from the `openapi.json` the service commits at its repository root; `backend-craft` owns
+that file and its gates, and a service without one gains it in its next API change. Copy it into
+the UI repository as `docs/openapi.json`, or fetch it in CI from the service's repository at a
+pinned ref, and generate from it:
 
 - `openapi-typescript` turns the document into `src/api/schema.d.ts`; commit the output and
   regenerate on every contract change, with a CI step that regenerates and fails on a diff.

@@ -2,7 +2,8 @@
 
 Agents and skills that help SREs and engineers do their work. Canonical sources are `agents/`,
 `skills/`, `commands/`, and `hooks/`; generated adapters are consequences. Descriptions select
-lanes; Claude invokes `save-toolkit:<name>`.
+lanes; Claude invokes `save-toolkit:<name>`. Maintainer-only skills live in `.claude/skills/`: they
+load only inside this repository and never ship in the plugin.
 
 The fleet serves a human SRE who owns the work, and the agents that help them. `incident-investigation`
 advises the human; agents take bounded jobs dispatched by the human or invoking workflow; skills serve both readers, so
@@ -22,8 +23,8 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 
 | Change or question | Source |
 |---|---|
-| Agents, tools, or delegation | [`agents/`](agents) and the [delegation graph](skills/agent-authoring/references/delegation-graph.md); `tools:` must be explicit — omission inherits every tool and Gate A rejects it |
-| Agent or skill frontmatter | [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md); for the VS Code/Copilot projection, [`copilot-frontmatter.md`](skills/agent-authoring/references/copilot-frontmatter.md) |
+| Agents, tools, or delegation | [`agents/`](agents) and the [delegation graph](.claude/skills/agent-authoring/references/delegation-graph.md); `tools:` must be explicit — omission inherits every tool and Gate A rejects it |
+| Agent or skill frontmatter | [`claude-code-frontmatter.md`](.claude/skills/agent-authoring/references/claude-code-frontmatter.md); for the VS Code/Copilot projection, [`copilot-frontmatter.md`](.claude/skills/agent-authoring/references/copilot-frontmatter.md) |
 | Skills or the ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
 | A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder and can dispatch a bounded lookup or investigation to `sre-assistant` |
 | Proactive service reliability, failure behavior, engineering improvements, or recurring toil | [`reliability-engineer`](agents/reliability-engineer.md), with [`resilience-analysis`](skills/resilience-analysis/SKILL.md) and [`toil-reduction`](skills/toil-reduction/SKILL.md) |
@@ -43,7 +44,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 The last column is the Claude delegation graph, validated against each agent's frontmatter by
 Gate A. `Agent(...)` enforces an edge only on the main thread; at subagent depth the list is
 documented intent rather than a control — see the
-[delegation graph](skills/agent-authoring/references/delegation-graph.md). VS Code handoffs are
+[delegation graph](.claude/skills/agent-authoring/references/delegation-graph.md). VS Code handoffs are
 separate.
 
 | Agent | Lane | Tools posture | Delegates to |

@@ -8,6 +8,19 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `agent-authoring` and `fleet-atlas` became maintainer-only (AUDIT-002). They moved to
+  `.claude/skills/` and load only inside this repository, so an installed plugin no longer lists
+  them. Their five plugin routing scenarios are retired. The link gate and the fleet atlas cover
+  the new location. Two descriptions were shortened: `frontend-craft` and `backend-craft`.
+  Five drift defects are repaired:
+  - frontend-craft now generates from the committed `openapi.json`.
+  - The CI starters drop persisted checkout credentials and require reviewed uv and Go versions.
+  - The TypeScript pin now lives only in frontend-craft.
+  - grafana states that its workflow libraries are not installed by the plugin.
+  - backend-craft marks Cloud Run as decision-pending.
+
+  [verified] Claude Code 2.1.296 `/context` shows save-toolkit's skill listing falling from ~5,170
+  to ~4,680 tokens. `claude plugin details` puts always-on cost at ~7,400 tokens, down from ~7,928.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a
