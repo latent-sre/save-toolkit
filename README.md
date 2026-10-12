@@ -121,10 +121,38 @@ agents/ + skills/ (canonical)
 - **The team's own inventories are not in this repository.** The log-index, metrics, PCF-foundation,
   and GCP-project references under `skills/obs-logs`, `skills/obs-metrics`, `skills/pcf-ops`, and
   `skills/gcp-ops` ship as `<app>`/`<index>` placeholders, and service cards, alert cards, and
-  runbooks are read from `operations/`, `runbooks/`, and `postmortems/` under the team's knowledge
-  repository root. Until those
+  runbooks use the team's [configured knowledge layout](skills/stack-profile/references/team-settings.md),
+  with `operations/`, `runbooks/`, and `postmortems/` as fallback directories. Until those
   are filled in, "where are the dashboards, logs, and runbooks for this service" has no answer
   here by design; the skills say so rather than guess.
+
+### Configure team locations
+
+Keep the team's settings in `save-toolkit.yaml` at the selected working repository root, outside
+the installed plugin. Copy the [example](skills/stack-profile/assets/save-toolkit.example.yaml)
+or specify only the overrides you need:
+
+```yaml
+schema_version: 1
+knowledge:
+  root: "."
+  runbooks: "docs/procedures"
+incident:
+  display_timezone: "America/Chicago"
+```
+
+The advisor, knowledge lookups, and document skills read the same
+[resolution contract](skills/stack-profile/references/team-settings.md). Root paths are relative
+to the settings file, and child paths are relative to the knowledge root. Explicit task paths
+win; updates keep the existing owning artifact. Absent settings preserve documented conventions
+and defaults. A selected but invalid or inaccessible file is reported without silently redirecting
+writes. Changing settings does not migrate documents or change write permissions.
+
+The [schema](skills/stack-profile/assets/save-toolkit.schema.json) checks the configuration's shape;
+timezone existence, host access, and filesystem containment require separate checks. Settings are
+read as data with existing tools, not substituted by a shell. A caller can explicitly select a
+different settings file or an accessible external knowledge checkout. The display preference
+changes incident conversation times; closeout and postmortem timestamps remain UTC.
 
 ### Host guarantees and limits
 

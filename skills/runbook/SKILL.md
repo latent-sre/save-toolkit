@@ -13,6 +13,10 @@ argument-hint: "[service or tool]"
 Write for the tired responder: terse, copy-pasteable, unambiguous. Read actual config, unit files,
 and existing docs before drafting; memory is not configuration evidence.
 
+Before selecting an output location, read `${CLAUDE_PLUGIN_ROOT}/skills/stack-profile/references/team-settings.md`.
+Use the resolved `knowledge.runbooks` directory for new files; preserve an existing runbook's
+identity and location when updating it. An explicitly authorized task destination takes precedence.
+
 ## Match the edit
 
 For a contact, link, or wording-only correction, patch affected text and links from supplied evidence;

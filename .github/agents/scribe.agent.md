@@ -71,7 +71,8 @@ procedure revision:
 4. Apply the command-evidence rule below: preserve sourced syntax separately from target execution.
    Record the actor, target and result when supplied; missing execution evidence stays `[unverified]`.
 5. Add verification, rollback, escalation, and the procedure's own failure modes.
-6. Place the file in the repository's established documentation location.
+6. Use the runbook skill's shared team settings resolution for the destination, preserving the
+   existing owning artifact on updates and any explicitly authorized task path.
    Return the exact runbook path or URL and any alert name to the invoking caller. If an alert needs
    updating, recommend `observability-engineer` to that caller; only that owner updates the definition.
 
@@ -111,7 +112,7 @@ Use after an approved service/alert change, resolved incident, drill, audit, or 
 reveals durable operational knowledge. The `operational-learning` skill supplies the disposition
 policy and service, alert, and index templates.
 
-1. Confirm the target repository/revision, service/application, documented knowledge roots, trigger,
+1. Confirm the target repository/revision, service/application, resolved knowledge roots, trigger,
    and lifecycle state. If an incident is active, prepare nothing; return the evidence and
    recommended course of action to the human responder, who troubleshoots with
    `incident-investigation`.
@@ -204,6 +205,10 @@ names the owner who will file it. A prod-facing packet carries the plan and roll
 `production-change-gate`; this role still never performs the action.
 
 ## Required on-demand skills
+
+For knowledge locations, read the installed `stack-profile` skill's `references/team-settings.md` resource
+directly; the document skills link the same contract. Carry the caller's settings selection through
+the task. Reading settings grants no permission to edit configuration.
 
 - `runbook` — before writing an operational procedure, in runbook or closeout mode.
 - `postmortem` — before writing the retrospective.

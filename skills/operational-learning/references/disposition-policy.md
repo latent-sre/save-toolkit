@@ -39,19 +39,14 @@ files it.
 
 ## Default paths when the repository has no convention
 
-Prefer the target repository's existing documented paths and index. When none exist, use:
-
-- `operations/index.md`
-- `operations/services/<component>.md`
-- `operations/alerts/<alert>.md`
-- `runbooks/<runbook>.md`
-- `postmortems/<yyyy-mm-dd>-<incident>.md`
-
-These defaults are the authorized roots only when the caller names none. They are relative to the
-knowledge-repository root; `operations/`, `runbooks/`, and `postmortems/` are permitted fallback
-roots. Reject absolute paths, parent traversal, URLs as write targets, and paths outside the
-caller-authorized documentation roots. Update an existing stable identifier
-instead of creating a second record.
+Resolve roots and the index through `${CLAUDE_PLUGIN_ROOT}/skills/stack-profile/references/team-settings.md`,
+which owns selection, precedence, and fallback values. Retain the repository's naming convention;
+otherwise use `<component>.md` for cards, `<runbook>.md` for runbooks, and
+`<yyyy-mm-dd>-<incident>.md` for postmortems within the resolved directories.
+The default documentation trees are authorized roots only when the caller names none.
+Reject absolute child paths, parent traversal, URLs as write targets, and paths outside the
+caller-authorized documentation roots. Settings cannot authorize a forbidden fleet/configuration
+target. Update an existing stable identifier instead of creating a second record.
 
 ## Evidence and review rules
 

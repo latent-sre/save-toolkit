@@ -25,6 +25,8 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
 
 ## Load only what the closeout needs
 
+- Read the installed `stack-profile` skill's `references/team-settings.md` resource before selecting knowledge
+  locations, including for an ownership lookup without a closeout.
 - Read the [disposition policy](./references/disposition-policy.md) before classifying a discovery.
 - Use the [service card template](./assets/service-card-template.md) for an approved new or changed
   application, service, worker, job, datastore, platform, or other component.
@@ -36,10 +38,10 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
 
 1. **Confirm the event is ready for closeout.** Name the target repository and revision, component,
    trigger, owner, evidence, and requested documentation roots. Roots lie under the repository's
-   documented operations or docs tree, or the policy's `operations/`, `runbooks/`, and
-   `postmortems/` fallback roots — never `agents/`, `skills/`, `hooks/`, `.github/`, `.claude/`, or
+   documented or configured documentation tree, or the shared settings fallback roots — never
+   `agents/`, `skills/`, `hooks/`, `.github/`, `.claude/`, or
    a fleet guide — and a root outside them is `blocked`; when the caller names none, follow the
-   policy's repository conventions and fallback paths. Before `prepared`, require a caller-supplied
+   shared settings resolution contract. Configuration does not grant write authority. Before `prepared`, require a caller-supplied
    `[verified]` checkout binding confirming the mounted checkout's current commit matches the target
    revision. A Bash-holding caller or human resolves the target there and supplies
    `git rev-parse --short=8 HEAD` with its output on `Verified:`, plus `git status --porcelain`:
@@ -72,9 +74,8 @@ alert, SLO, and dashboard design stays with `observability-engineer`; code or au
 ## Answer an ownership or dependency question
 
 "Who owns payments", "how do I page them", "what depends on ledger" are reads, not a closeout.
-Read the repository's documented knowledge index and component-card paths; absent a convention,
-use `operations/index.md` and `operations/services/<app>.md` relative to the knowledge-repository
-root. Report owner, escalation,
+Read the resolved `knowledge.index` and `knowledge.service_cards` locations, following existing
+owning records and links. Report owner, escalation,
 and dependencies as `[sourced]` with the path, `last_reviewed`, and `evidence_status`. For "what
 depends on X", also search every component card's dependency table for X as outbound; name the
 cards searched and any disagreement with X's inbound rows, and mark a dependency whose reverse row

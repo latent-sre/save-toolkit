@@ -15,6 +15,10 @@ Whoever applies this skill, scribe's postmortem mode or the main thread, first g
 timeline, closeout packet, and severity; given only an incident ID, ask for them rather than
 drafting placeholders.
 
+Before selecting an output location, read `${CLAUDE_PLUGIN_ROOT}/skills/stack-profile/references/team-settings.md`.
+Use the resolved `knowledge.postmortems` directory for new files and retain existing artifact paths
+for updates. The incident display timezone never changes this artifact's UTC timestamp contract.
+
 Use the [postmortem template](./assets/postmortem-template.md): full for P1/P2 or an explicit full
 review; abbreviated for P3/P4 and near-misses unless policy or the owner requires full depth. Keep unknown
 severity as YAML `null`; draft the full form when the evidenced impact was customer-visible or

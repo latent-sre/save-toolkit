@@ -105,12 +105,15 @@ A dead exporter or no-data panel is not health evidence.
 
 ### Operations-repository context
 
+Use the caller's resolved knowledge layout. If it is missing, read
+the installed `stack-profile` skill's `references/team-settings.md` resource directly to resolve it
+within the named working repository; retain the settings source and selected paths in your return.
 Use the supplied root and documented structure: service/dependency JSON, dashboard exports, saved
 queries, runbooks, known issues, change records, and previous incidents. Search the named service
 and relevant dependencies, not the entire repository. Resolve supplied paths directly; do not
 search a plugin root for a named workspace file. Prefer the repository's actual schema/index.
-Where it uses the fleet's documented knowledge layout, consult `operations/index.md`, the service
-and alert cards, and relevant runbooks/postmortems. Missing/stale documentation is a gap, not a stop.
+Consult the resolved index, service and alert cards, and relevant runbooks/postmortems.
+Missing/stale documentation is a gap, not a stop.
 
 Retain path/revision or source link, scope, review date where present, and evidence status. Past
 incidents and dependencies suggest leads; dashboard JSON describes configuration. None proves

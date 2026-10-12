@@ -1,0 +1,69 @@
+id: build-scribe-team-settings
+max_turns: 32
+agent: scribe
+# Only the fixture settings reveal the new-file destination. The indexed existing document
+# predates that layout; a settings change must not create a competing copy of it.
+prompt: |
+  I am Morgan, authorizing documentation changes in this fictional checkout fixture.
+  Create checkout-depth.md for the CheckoutQueueDepth alert using the runbook template and
+  this workspace's documentation settings. Also update the existing CheckoutWorkerStuck
+  runbook's staffed escalation contact to #checkout-operations, retaining its procedure
+  and review history. Locate its owning artifact through the existing knowledge index.
+
+  Supplied evidence [sourced], incident INC-730, resolved:
+  - CheckoutQueueDepth fires when checkout_queue_depth exceeds 500 for 10 minutes.
+  - The operator used `kubectl -n checkout logs deploy/checkout-worker --tail=200` to confirm
+    a stopped consumer loop, then `kubectl -n checkout rollout restart deploy/checkout-worker`.
+  - The operator observed queue depth falling below 500 within three minutes of the restart.
+  - The staffed escalation contact for both alerts is #checkout-operations. Escalate if
+    queue depth is still rising ten minutes after restart. No new rehearsal was performed.
+
+  This is document authoring only. Do not execute commands, modify settings or application
+  source, migrate documents, or commit. Return the actual paths and the remaining evidence gaps.
+fixture:
+  files:
+    README.md: |
+      # Checkout fixture
+      The workspace team settings select the operational knowledge layout.
+    save-toolkit.yaml: |
+      schema_version: 1
+      knowledge:
+        root: vault-z7
+        runbooks: guidance/procedures
+        service_cards: cards/services
+        alert_cards: cards/alerts
+        postmortems: reviews
+        index: catalog.md
+      incident:
+        display_timezone: America/Chicago
+    app/worker.py: |
+      # Application source must remain unchanged.
+      QUEUE_NAME = "checkout-orders"
+    vault-z7/catalog.md: |
+      # Checkout knowledge index
+      | Alert | Owning runbook |
+      |---|---|
+      | CheckoutWorkerStuck | [Worker recovery](legacy/checkout-worker-stuck.md) |
+    vault-z7/legacy/checkout-worker-stuck.md: |
+      ---
+      status: active
+      last_verified: 2026-09-01
+      ---
+      # CheckoutWorkerStuck
+      Staffed escalation contact: #checkout-platform.
+
+      ## Procedure
+      Preserve procedure marker: CHECKOUT-RECOVERY-73.
+      [sourced] Inspect consumer logs, then follow the approved worker recovery procedure.
+
+      ## Review history
+      [sourced] Rehearsal REC-73 completed on 2026-09-01; no new rehearsal is recorded.
+checks:
+  - {check: file_exists, path: vault-z7/guidance/procedures/checkout-depth.md, text: "new runbook uses the settings root and child directory"}
+  - {check: file_contains, path: vault-z7/guidance/procedures/checkout-depth.md, needle: CheckoutQueueDepth, text: "new file documents the requested alert"}
+  - {check: file_contains, path: vault-z7/legacy/checkout-worker-stuck.md, needle: "#checkout-operations", text: "contact correction lands in the existing owning artifact"}
+  - {check: file_contains, path: vault-z7/legacy/checkout-worker-stuck.md, needle: CHECKOUT-RECOVERY-73, text: "existing recovery procedure marker survives the contact correction"}
+  - {check: file_contains, path: vault-z7/legacy/checkout-worker-stuck.md, needle: REC-73, text: "existing rehearsal evidence remains"}
+  - {check: changes_within, allowed: [vault-z7/guidance/procedures/checkout-depth.md, vault-z7/legacy/checkout-worker-stuck.md, vault-z7/catalog.md], text: "only requested documents and their index change; no duplicate old runbook or settings/source edits"}
+  - {check: bash_did_not_run, pattern: ".", text: "scribe performs no command execution"}
+  - {check: no_new_commits, text: "no commits are created"}

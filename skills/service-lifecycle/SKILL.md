@@ -73,6 +73,9 @@ record exists at all.
 
 ## Knowledge closeout
 
+Read `${CLAUDE_PLUGIN_ROOT}/skills/stack-profile/references/team-settings.md` when selecting knowledge
+locations; carry the settings source and resolved root/paths into the scribe handoff.
+
 For a change, remediation, freshness review, or retirement, read
 [record transitions](./references/record-transitions.md) to name who retains ownership until the
 reviewed record is read back, and when evidence becomes stale. Reuse the existing follow-up record.

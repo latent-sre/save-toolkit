@@ -23,6 +23,12 @@ prompt: |
   Do not modify `app/checkout_worker.py` or anything outside `docs/` — this is documentation only.
 fixture:
   files:
+    # The explicit authorized task path must win over this new-file default.
+    save-toolkit.yaml: |
+      schema_version: 1
+      knowledge:
+        root: .
+        runbooks: wrong-directory
     README.md: |
       # checkout
 

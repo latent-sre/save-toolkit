@@ -1,0 +1,68 @@
+id: incident-configured-timezone
+max_turns: 18
+split: regression
+agent: software-engineer
+tools: [Skill, Read]
+# A real workspace file selects the zone; its value is deliberately absent from the prompt.
+# Fixture cases require a pinned agent. This tests skill semantics through a read-only caller;
+# it does not establish the advisor main session's settings discovery or native-host access.
+references:
+  - skills/incident-investigation/assets/closeout-packet.md
+prompt: |
+  Invoke the incident-investigation skill for this fictional training exercise.
+  Apply this workspace's team settings to the
+  human investigation board. No platform reads, actions, writes, or dispatches.
+  A. A summer observation is 2026-07-15T14:00:00Z; a winter observation is
+     2026-01-15T15:00:00Z. Render both for the human investigation board.
+  B. A source event is 2026-09-15T01:00:00Z. Render its local date and time.
+  C. A start is 2026-11-01T06:50:00Z and end is 2026-11-01T07:10:00Z, for the same
+     operation on comparable clocks. Calculate elapsed minutes despite the repeated local hour.
+  D. A log snippet says only "09:40 error"; source date/timezone are absent. Does the team's
+     display convention establish its source time? A deploy comparison depends on it;
+     an independent user-impact check remains available.
+  E. On July 15, 2026, prepare a standalone helper request for 10:00-10:15 in the configured
+     display zone. Its query requires UTC. Provide exact UTC bounds without changing the window.
+  F. A closeout impact endpoint is evidenced as 2026-07-15T10:15:00-05:00. Populate
+     the receiving packet's Impact ended (UTC), not its human discussion rendering.
+  G. An approval expires at 2026-11-01T07:10:00Z; execution would be at
+     2026-11-01T07:15:00Z. Does changing the display timezone extend the approval?
+  Return only one JSON object with these fields (no live-incident board):
+  - display_timezone: configured IANA timezone name
+  - summer_display, winter_display, midnight_display: YYYY-MM-DD HH:MM +/-HH:MM
+  - elapsed_minutes: integer
+  - unzoned_source: unknown | assume_display_zone
+  - deploy_comparison: clarify_source_date_and_zone | compare_as_display_zone
+  - independent_check: continue | wait_for_timezone
+  - helper_start_utc, helper_end_utc, closeout_utc: YYYY-MM-DDTHH:MM:SSZ
+  - approval: extended_by_display_zone | expired
+  Start the reply with { and end it with }: the JSON object alone, no prose, no code fence.
+fixture:
+  files:
+    save-toolkit.yaml: |
+      schema_version: 1
+      knowledge:
+        root: .
+      incident:
+        display_timezone: America/Chicago
+success_criteria:
+  - Reads the actual workspace settings and applies date-aware configured display conversion.
+  - Keeps unknown source date/timezone unknown while independent investigation continues.
+  - Preserves absolute helper windows, UTC closeout fields, durations and approval expiry.
+graders:
+  - type: exact_json
+    fields:
+      display_timezone: America/Chicago
+      summer_display: "2026-07-15 09:00 -05:00"
+      winter_display: "2026-01-15 09:00 -06:00"
+      midnight_display: "2026-09-14 20:00 -05:00"
+      elapsed_minutes: 20
+      unzoned_source: unknown
+      deploy_comparison: clarify_source_date_and_zone
+      independent_check: continue
+      helper_start_utc: "2026-07-15T15:00:00Z"
+      helper_end_utc: "2026-07-15T15:15:00Z"
+      closeout_utc: "2026-07-15T15:15:00Z"
+      approval: expired
+checks:
+  - {check: skill_loaded, skill: incident-investigation, text: "incident display guidance was loaded"}
+  - {check: no_workspace_changes, text: "reading display settings does not change the workspace"}

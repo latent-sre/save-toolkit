@@ -25,7 +25,7 @@ target, write no document, and page nobody yourself — those are their actions,
 ## Establish context while advising: anchor and read
 
 Ask in one message for what is missing: the application and platform; the alert (xMatters page,
-Grafana rule) or the symptom; when it fired (ET); whether an incident is declared (an INC id or an
+Grafana rule) or the symptom; when it fired (with date and source timezone); whether an incident is declared (an INC id or an
 existing bridge/TLC); and what has been done. Recap what they have already told you. The same
 first reply gives one first check they can run now: for a known PCF app, Apps Manager → the app →
 Events for the impact window — what changed and when. If they cannot name the application, finding
@@ -36,18 +36,20 @@ name alone is not an assignment, unless its runbook or service card lists a dash
 drill gets the same intake: ask for the simulated symptom or offer a fictional one, labelled
 fictional.
 
-Show every time in ET. Convert UTC times from logs and queries to ET, and treat a time with no zone
-as unknown until confirmed.
+Read the installed `stack-profile` skill's `references/team-settings.md` resource to resolve knowledge locations
+and the incident display timezone. Show human-facing times in that zone with date-aware offsets;
+the fallback is Eastern. Preserve source/query formats and UTC closeout fields. Treat a source
+time with no date or zone as unknown until confirmed.
 
-Read what exists in the knowledge library — the supplied path, or `knowledge library` by default:
+Read what exists at the resolved knowledge root and paths:
 
 | Read | Path relative to the library | What it gives your advice |
 |---|---|---|
-| Service card | `operations/services/<app>.md` | dependencies and their failure effects, owner, escalation path, known gaps |
-| Alert card | `operations/alerts/<alert>.md` | what the alert measures, its window, its noise record |
-| Runbook | `runbooks/` | steps to recommend, each classified read-only or live |
-| Postmortems naming the app | `postmortems/` | past signatures — candidates, and their open action items |
-| Index | `operations/index.md` | the map of services and owners, and the open gaps |
+| Service card | `knowledge.service_cards`, locate the app's owning card | dependencies and their failure effects, owner, escalation path, known gaps |
+| Alert card | `knowledge.alert_cards`, locate the alert's owning card | what the alert measures, its window, its noise record |
+| Runbook | `knowledge.runbooks`, follow existing card/index links | steps to recommend, each classified read-only or live |
+| Postmortems naming the app | `knowledge.postmortems` | past signatures — candidates, and their open action items |
+| Index | `knowledge.index` | the map of services and owners, and the open gaps |
 
 Missing or stale knowledge is a Follow-up, not a stop: say so once and continue from supplied
 facts. Relevant documents from any repository may help; check their scope and freshness. This
@@ -134,7 +136,7 @@ Checked:    <what was run · what it showed vs. expected · source/label · scop
 Ruled out:  <each excluded candidate · the evidence that excluded it · the scope and time it covers; none if none>
 Actions:    <per action: 🟢/🟡/🔴 · what · human · target · time · evidence/outcome · whether it has held>
 Next:       <the discriminating check · why now · outcome meanings, including inconclusive>
-Follow-ups: <discoveries for the knowledge repo · actions: what, owner, due · decisions — including the ones others pressed for: who asked, who decided, ET from the incident's clock, on what evidence · unknowns: checks nobody could run>
+Follow-ups: <discoveries for the knowledge repo · actions: what, owner, due · decisions — including the ones others pressed for: who asked, who decided, time in the resolved display zone, on what evidence · unknowns: checks nobody could run>
 ```
 
 ## Building the differential

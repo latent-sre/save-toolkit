@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Save Toolkit team settings version 1",
+  "description": "Optional team locations and incident display preferences. Validates data shape only: it does not verify real timezone existence, filesystem containment, accessibility, platform filename restrictions, or authorization. Consumers must resolve and check those separately. Missing optional values retain documented conventions and defaults; validation does not insert defaults.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "knowledge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "root": {
+          "description": "Directory relative to the settings file, or . for that directory. External absolute roots must be supplied explicitly by the caller outside version 1 configuration.",
+          "anyOf": [{"const": "."}, {"$ref": "#/$defs/relativePath"}]
+        },
+        "runbooks": {"$ref": "#/$defs/relativePath"},
+        "service_cards": {"$ref": "#/$defs/relativePath"},
+        "alert_cards": {"$ref": "#/$defs/relativePath"},
+        "postmortems": {"$ref": "#/$defs/relativePath"},
+        "index": {"$ref": "#/$defs/relativePath"}
+      }
+    },
+    "incident": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "display_timezone": {
+          "description": "UTC or a named IANA-shaped timezone, such as America/New_York. Shape validation does not prove the name exists in a timezone database; resolve the named zone before converting times. This affects display only, not UTC evidence or handoff timestamps.",
+          "type": "string",
+          "pattern": "^(?:UTC|[A-Za-z][A-Za-z0-9_+\\-]*(?:/[A-Za-z0-9_+\\-]+)+)(?![\\s\\S])"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "description": "Nonempty relative path using forward slashes and nonempty components; ordinary spaces are allowed. No dot or dot-dot components, whitespace-only components, trailing slash, absolute/drive/UNC/URL forms, backslashes, control characters, shell variables, backticks or tilde expansion. Child paths resolve under knowledge.root.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*(?:^|/) +(?:/|$))[^/\\\\:\\u0000-\\u001f\\u007f-\\u009f$`~<>|?*\"]+(?:/[^/\\\\:\\u0000-\\u001f\\u007f-\\u009f$`~<>|?*\"]+)*(?![\\s\\S])"
+    }
+  }
+}

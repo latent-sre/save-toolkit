@@ -1,0 +1,27 @@
+id: build-scribe-invalid-team-settings
+max_turns: 16
+agent: scribe
+prompt: |
+  I am Morgan, authorizing a draft runbook for CheckoutQueueDepth in this fictional workspace.
+  Create checkout-depth.md using the workspace team settings and the runbook template.
+  Supplied evidence [sourced]: the alert fires above 500 queued orders for ten minutes;
+  the staffed contact is #checkout-operations. Command execution and rehearsal evidence
+  are unavailable and must remain unknown. Do not execute commands, change settings,
+  change application source, or commit. Return the document path or the specific blocking gap.
+fixture:
+  files:
+    README.md: |
+      # Checkout fixture
+      Team settings select the destination for new runbooks.
+    save-toolkit.yaml: |
+      schema_version: 1
+      knowledge:
+        root: [unfinished-root
+    app/worker.py: |
+      # Application source must remain unchanged.
+checks:
+  - {check: no_workspace_changes, text: "malformed selected settings produce no fallback write or automatic repair"}
+  - {check: text_contains_any, of: [save-toolkit.yaml], text: "the gap identifies the selected settings file"}
+  - {check: text_contains_any, of: [malformed, invalid, parse, syntax, unterminated, unclosed, unfinished], text: "the response identifies a settings parsing gap"}
+  - {check: bash_did_not_run, pattern: ".", text: "scribe performs no command execution"}
+  - {check: no_new_commits, text: "no commits are created"}

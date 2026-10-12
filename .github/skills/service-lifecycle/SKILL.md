@@ -73,6 +73,9 @@ record exists at all.
 
 ## Knowledge closeout
 
+Read the installed `stack-profile` skill's `references/team-settings.md` resource when selecting knowledge
+locations; carry the settings source and resolved root/paths into the scribe handoff.
+
 For a change, remediation, freshness review, or retirement, read
 [record transitions](./references/record-transitions.md) to name who retains ownership until the
 reviewed record is read back, and when evidence becomes stale. Reuse the existing follow-up record.

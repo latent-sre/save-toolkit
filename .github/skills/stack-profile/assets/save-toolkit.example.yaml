@@ -1,0 +1,13 @@
+# Copy to save-toolkit.yaml at the selected workspace root; edit team values there.
+# Paths are relative: root to this file's directory; other paths to knowledge.root.
+# This example is data, not an active configuration or permission to write.
+schema_version: 1
+knowledge:
+  root: "knowledge library"
+  runbooks: "runbooks"
+  service_cards: "operations/services"
+  alert_cards: "operations/alerts"
+  postmortems: "postmortems"
+  index: "operations/index.md"
+incident:
+  display_timezone: "America/New_York"

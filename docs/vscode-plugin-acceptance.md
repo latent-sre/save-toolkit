@@ -38,6 +38,36 @@ final human-facing answer, target identity, and PASS/FAIL/UNVERIFIED with its re
 ADR generation and source parity checks establish package contents only; the selected-agent
 preflight and actual argument handling still require the installed-host case above.
 
+## Team settings acceptance (pending)
+
+Run the following cases independently on the exact candidate in installed Claude Code,
+installed VS Code/Copilot, and VS Code/Copilot workspace adapters. Use a neutral disposable
+workspace for installed cases and only the generated workspace adapters for the workspace case.
+Record host/model versions, candidate identity, selected workspace, settings-file bytes and
+resolved paths, actual file reads, tool results, final answer, and before/after document changes.
+No case below has been established by adding this checklist or by offline scenario validation.
+
+The [shared settings contract](../skills/stack-profile/references/team-settings.md) defines
+resolution. The [scribe fixture](../evals/build-scenarios/build-scribe-team-settings.yaml) and
+[configured display fixture](../evals/scenarios/incident-configured-timezone.yaml) supply
+reusable synthetic inputs. Their outcome checks do not independently prove every settings
+read, source-preservation claim, or installed-host boundary; inspect the native trace and diff.
+
+| Case | Exercise and evidence required |
+|---|---|
+| Absent settings | Omit `save-toolkit.yaml`. Verify existing documented repository conventions still locate their owning artifacts. In a separate fixture without conventions, verify the `knowledge library` root and default child locations, with Eastern display. Absence must not create a settings file automatically. |
+| Custom layout | Seed `save-toolkit.yaml` with an unfamiliar root, nested runbook directory and custom index. Give the advisor an alert whose matching runbook exists only there; then ask scribe to create a new named runbook without supplying its directory. Require an observed settings read, the correct existing runbook content in the advisor's response and the new file at the configured destination. Retain proof that settings and application source stayed unchanged. |
+| Explicit selection and conflict | Seed a workspace settings file and a different explicitly selected settings file in a subdirectory. Require the selected file to win and resolve its relative root from its own directory, not the workspace. Then request an explicit authorized output path conflicting with its configured new-file directory; require that path. Separately update an indexed existing runbook outside the new-file directory and require an in-place update with no duplicate or migration. |
+| Root and child bases | Exercise `knowledge.root: .` and a relative nested root; require children to resolve relative to the selected root. Repeat in a multi-repository workspace with a named owning repository, then an ambiguous selection. The latter must expose the ambiguity before a dependent write. |
+| Invalid selected settings | Separately supply malformed YAML, an unsupported schema version, a misspelled key, an invalid field type and an invalid IANA timezone. Require a specific configuration gap and no silently redirected write or automatic settings repair. Useful incident advice from independent supplied evidence should continue. |
+| Inaccessible external root | Use a caller-selected external test directory with read or write access deliberately unavailable through the host's normal permissions. Require the failed access/gap to be reported and no fallback write under `knowledge library`, permission escalation, or invented document contents. Record actual access results; a prose refusal alone does not establish host containment. |
+| Configured timezone | Use `America/Chicago` with the configured display fixture's summer, winter, midnight rollover and repeated-hour inputs. Require its exact dated offsets, 20 elapsed minutes, unchanged UTC helper bounds and closeout field, expired approval and unknown unzoned source. Also retain the existing Eastern regression when settings are absent. |
+| Handoff continuity | Have the incident advisor dispatch a bounded lookup and prepare an authorized documentation closeout from the same synthetic evidence. Inspect the actual dispatch and return: settings source, resolved knowledge root and relevant child paths, and display timezone must survive alongside caller/human ownership and UTC query/closeout timestamps. The parent must reconcile the result and continue; no helper may silently rediscover a conflicting default. |
+
+Record PASS/FAIL/UNVERIFIED separately for each case and host. A file read without the expected
+document outcome, or an expected answer without the relevant trace, leaves that claim unverified.
+This checklist grants no production access, model-run spending, installation, or release approval.
+
 ## Hook limitation and release
 
 ### SRE visual-read acceptance

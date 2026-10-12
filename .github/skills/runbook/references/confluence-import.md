@@ -43,8 +43,10 @@ python "<resolved converter path>" page.json -o <runbook root>/<slug>.md \
   --source-url "https://<site>.atlassian.net/wiki/pages/<id>" --service-id <service>
 ```
 
-`<runbook root>` is the knowledge library's `runbooks/` directory, the one service cards and the
-index link, unless the repository documents another root.
+`<runbook root>` is the `knowledge.runbooks` directory resolved through
+the installed `stack-profile` skill's `references/team-settings.md` resource, with the same selection used by
+service cards and the index. Resolve it before running the converter; the converter does not load
+settings. Preserve existing artifact locations when merging an update.
 The converter refuses to overwrite an existing file, because a runbook's history rows are evidence:
 convert to a new path and merge by hand. It reports a warning when it had to guess the title.
 
