@@ -33,6 +33,8 @@ BOARD = {"dashboard": {"uid": "board", "version": 3, "panels": [
     {"id": 1, "type": "row", "collapsed": True, "panels": [{"id": 7, "type": "timeseries", "title": "B70 temperatures"}]}]},
     "meta": {"slug": "cylon-ai"}}
 
+SILENCE_ID = "12345678-1234-1234-1234-123456789abc"
+
 
 class Transport:
     def __init__(self, *responses, org_response=None):
@@ -54,6 +56,139 @@ def invoke(args, transport, env=None):
     output = io.StringIO()
     code = reader.main(args, environ=ENV if env is None else env, transport=transport, output=output)
     return code, json.loads(output.getvalue()), output.getvalue()
+
+
+def test_selected_dashboard_panel_preserves_configuration_and_context():
+    board = json.loads(json.dumps(BOARD))
+    context = {"title": "Operations", "time": {"from": "now-1h", "to": "now"}, "timezone": "browser",
+               "templating": {"list": [{"name": "region", "current": {"value": "west"}}]}}
+    board["dashboard"].update(context)
+    panel = board["dashboard"]["panels"][0]["panels"][0]
+    panel.update({"datasource": {"uid": "$source"}, "targets": [{"expr": "up{region=\"$region\"}"}],
+                  "transformations": [{"id": "reduce"}], "description": "test-secret-token"})
+    transport = Transport((200, board))
+    code, result, text = invoke([*DASHBOARD, "--panel", "7"], transport)
+    assert code == 0 and result["coverage"] == "configuration_only"
+    assert result["dashboard"] == {"uid": "board", "version": 3, **context}
+    assert result["panel_id"] == 7 and result["panel"] == {**panel, "description": "[REDACTED]"}
+    assert "test-secret-token" not in text
+    assert len(transport.requests) == 2 and all(request.method == "GET" for request in transport.requests)
+
+
+@pytest.mark.parametrize("panels,error", [
+    (None, "invalid_panel_tree"), ([None], "invalid_panel_tree"),
+    ([{"id": True, "type": "timeseries"}], "invalid_panel_tree"),
+    ([{"id": 7, "type": "timeseries", "panels": []}], "invalid_panel_tree"),
+    ([{"id": 1, "type": "row", "panels": {}}], "invalid_panel_tree"),
+    ([{"id": 7, "type": "timeseries"}, {"id": 7, "type": "timeseries"}], "ambiguous_panel_id"),
+    ([{"id": 7, "type": "timeseries"}, {"id": 1, "type": "row", "panels": [{"id": 7, "type": "timeseries"}]}], "ambiguous_panel_id"),
+    ([{"id": 7, "type": "row", "panels": []}], "panel_not_found"), ([], "panel_not_found"),
+])
+@pytest.mark.parametrize("command", [[*DASHBOARD, "--panel", "7"], RENDER])
+def test_panel_selection_rejects_malformed_ambiguous_or_missing_panels(panels, error, command):
+    transport = Transport((200, {"dashboard": {"uid": "board", "panels": panels}, "meta": {}}))
+    code, result, _ = invoke(command, transport)
+    assert code == 2 and result["error"] == error and len(transport.requests) == 2
+
+
+@pytest.mark.parametrize("model", [{"elements": {}, "layout": {}}, {"kind": "Dashboard", "spec": {} }])
+def test_selected_panel_explicitly_refuses_v2(model):
+    transport = Transport((200, {"dashboard": {"uid": "board", "panels": [], **model}, "meta": {}}))
+    assert invoke([*DASHBOARD, "--panel", "7"], transport)[1]["error"] == "unsupported_dashboard_model"
+
+
+def test_full_dashboard_still_returns_uninterpreted_model_and_metadata():
+    board = {"dashboard": {"uid": "board", "elements": {}, "layout": {}}, "meta": {"slug": "board"}}
+    code, result, _ = invoke(DASHBOARD, Transport((200, board)))
+    assert code == 0 and result["dashboard"] == board["dashboard"] and result["meta"] == board["meta"]
+    assert "panel" not in result
+
+
+@pytest.mark.parametrize("page,count,next_page", [(1, 0, None), (2, 99, None), (2, 100, 3), (100, 100, None)])
+def test_search_page_and_filters_are_bounded_and_permission_scoped(page, count, next_page):
+    items = [{"uid": f"b{n}", "folderUid": "payments", "title": "test-secret-token"} for n in range(count)]
+    transport = Transport((200, items))
+    code, result, text = invoke(["search", "--query", "checkout latency", "--page", str(page),
+                                 "--folder-uid", "payments", "--tag", "team ops"], transport)
+    assert code == 0 and result["page"] == page and result["next_page"] == next_page
+    assert result["truncated"] == (count == 100) and result["coverage"] == "permission_scoped"
+    assert result["limits"] == {"limit": 100, "maxPage": 100}
+    assert "test-secret-token" not in text
+    assert transport.requests[-1].full_url.endswith(
+        f"/api/search?type=dash-db&limit=100&query=checkout%20latency&page={page}&folderUIDs=payments&tag=team%20ops")
+    assert len(transport.requests) == 2 and transport.requests[-1].method == "GET"
+
+
+@pytest.mark.parametrize("items,error", [([{"uid": "board", "folderUid": "other"}], "folder_mismatch"),
+    ([{"uid": "board"}], "folder_mismatch"), ([{"uid": "board", "folderUid": "payments"}] * 101, "invalid_search_response")])
+def test_search_refuses_wrong_folder_and_server_limit_violation(items, error):
+    code, result, _ = invoke(["search", "--query", "edge", "--folder-uid", "payments"], Transport((200, items)))
+    assert code == 2 and result["error"] == error
+
+
+@pytest.mark.parametrize("args,payload,path,key,coverage", [
+    (["alerts", "--uid", "rule-1"], {"uid": "rule-1", "orgID": 7, "title": "test-secret-token"},
+     "/api/v1/provisioning/alert-rules/rule-1", "rule", "configuration_only"),
+    (["silences", "--id", SILENCE_ID], {"id": SILENCE_ID, "comment": "test-secret-token"},
+     "/api/alertmanager/grafana/api/v2/silence/" + SILENCE_ID, "silence", "permission_scoped"),
+])
+def test_exact_alert_and_silence_reads_are_get_only_and_masked(args, payload, path, key, coverage):
+    transport = Transport((200, payload))
+    code, result, text = invoke(args, transport)
+    assert code == 0 and result["coverage"] == coverage and key in result
+    assert "test-secret-token" not in text and len(transport.requests) == 2
+    assert transport.requests[-1].full_url == ENV["GRAFANA_URL"] + path
+    assert all(request.method == "GET" and request.data is None for request in transport.requests)
+
+
+@pytest.mark.parametrize("payload,error", [({}, "alert_rule_mismatch"), ({"uid": "other"}, "alert_rule_mismatch"),
+    ({"uid": "rule-1", "orgID": 2}, "organization_mismatch"),
+    ({"uid": "rule-1", "orgID": "7"}, "organization_mismatch"),
+    ({"uid": "rule-1", "orgID": True}, "organization_mismatch"),
+    ({"uid": "rule-1", "orgID": None}, "organization_mismatch")])
+def test_exact_alert_rule_rejects_wrong_identity_and_organization(payload, error):
+    code, result, _ = invoke(["alerts", "--uid", "rule-1"], Transport((200, payload)))
+    assert code == 2 and result["error"] == error
+
+
+def test_exact_alert_rule_organization_field_is_optional_after_org_preflight():
+    payload = {"uid": "rule-1", "condition": "C", "data": [{"refId": "C", "model": {"expr": "up"}}]}
+    code, result, _ = invoke(["alerts", "--uid", "rule-1"], Transport((200, payload)))
+    assert code == 0 and result["rule"] == payload and result["organization_id"] == 7
+
+
+@pytest.mark.parametrize("args", [[*DASHBOARD, "--panel", "7"], ["search", "--query", "x", "--page", "2"],
+                                  ["alerts", "--uid", "rule-1"], ["silences", "--id", SILENCE_ID]])
+@pytest.mark.parametrize("response,error", [((403, b"test-secret-token"), "http_error"),
+    ((200, b" " * (reader.MAX_RESPONSE + 1)), "response_too_large")])
+def test_new_read_options_preserve_http_and_response_bounds(args, response, error):
+    code, result, text = invoke(args, Transport(response))
+    assert code == 2 and result["error"] == error and "test-secret-token" not in text
+
+
+@pytest.mark.parametrize("payload", [{}, {"id": "other"}, {"id": 7}])
+def test_exact_silence_rejects_wrong_identity(payload):
+    code, result, _ = invoke(["silences", "--id", SILENCE_ID], Transport((200, payload)))
+    assert code == 2 and result["error"] == "silence_mismatch"
+
+
+@pytest.mark.parametrize("args", [
+    [*DASHBOARD, "--panel", "0"], [*DASHBOARD, "--panel", "2147483648"], [*DASHBOARD, "--panel=7"],
+    [*DASHBOARD, "--panel", "7", "--panel", "7"], [*DASHBOARD, "--pan", "7"],
+    ["search", "--query", "x", "--page", "0"], ["search", "--query", "x", "--page", "101"],
+    ["search", "--query", "x", "--page", "1", "--page", "2"], ["search", "--query", "x", "--page=1"],
+    ["search", "--query", "x", "--tag", ""], ["search", "--query", "x", "--tag", "  "],
+    ["search", "--query", "x", "--tag", "a&b"], ["search", "--query", "x", "--tag", "x" * 101],
+    ["search", "--query", "x", "--folder-uid", "../folder"],
+    ["alerts", "--uid", "rule", "--folder-uid", "folder"], ["alerts", "--uid", "../rule"],
+    ["alerts", "--uid", "rule", "--uid", "other"], ["alerts", "--uid=rule"],
+    ["silences", "--id", "../silence"], ["silences", "--id", "123"],
+    ["silences", "--id", SILENCE_ID, "--id", SILENCE_ID], ["silences", "--id=" + SILENCE_ID],
+])
+def test_new_read_options_reject_invalid_grammar_before_authentication(args):
+    transport = Transport()
+    code, result, _ = invoke(args, transport)
+    assert code == 2 and result["error"] == "invalid_arguments" and not transport.requests
 
 
 REAL_SETTINGS_FILE = reader._settings_file
@@ -179,6 +314,298 @@ def test_query_checks_datasource_and_only_posts_to_query_endpoint():
     assert body["from"] == "1000" and body["to"] == "61000"
     assert body["queries"][0]["maxDataPoints"] == 1000
     assert body["queries"][0]["intervalMs"] >= 1000
+
+
+def query_frame(times, values=None, *, name="Value", labels=None):
+    fields = [{"name": "Time", "type": "time"}]
+    columns = [times]
+    if values is not None:
+        fields.append({"name": name, "type": "number", "labels": labels or {}})
+        columns.append(values)
+    return {"schema": {"fields": fields}, "data": {"values": columns}}
+
+
+def invoke_query_frames(frames, options=(), *, kind="prometheus", extra=None):
+    args = list(QUERY)
+    args[4] = kind
+    transport = Transport((200, {"uid": "metrics-1", "type": kind}),
+                          (200, {"results": {"A": {"frames": frames, **(extra or {})}}}))
+    code, result, text = invoke([*args, *options], transport)
+    return code, result, text, transport
+
+
+@pytest.mark.parametrize("kind", ["prometheus", "loki"])
+def test_instant_query_explicitly_evaluates_at_window_end(kind):
+    code, result, _, transport = invoke_query_frames([query_frame([61000], [0])], ["--mode", "instant"], kind=kind)
+    assert code == 0 and result["mode"] == "instant" and result["evaluation_time_ms"] == 61000
+    body = json.loads(transport.requests[-1].data)
+    assert body["from"] == "1000" and body["to"] == "61000"
+    query = body["queries"][0]
+    if kind == "prometheus":
+        assert query["instant"] is True and query["range"] is False
+    else:
+        assert query["queryType"] == "instant"
+    assert result["summary"]["instant_timestamp_mismatch"] is False
+
+
+@pytest.mark.parametrize("values,state,minimum,maximum,last,finite,nulls", [
+    ([], "empty", None, None, None, 0, 0), ([None, None], "all_null", None, None, None, 0, 2),
+    ([0, 0], "values", 0, 0, 0, 2, 0), ([8, 3, None], "values", 3, 8, None, 2, 1),
+])
+def test_summary_distinguishes_empty_null_zero_and_trailing_null(values, state, minimum, maximum, last, finite, nulls):
+    frame = query_frame([1000 + n * 1000 for n in range(len(values))], values, labels={"job": "edge"})
+    code, result, _, _ = invoke_query_frames([frame], ["--output", "summary"])
+    assert code == 0 and "results" not in result and result["coverage"] == "not_established"
+    summary = result["summary"]
+    assert summary["status"] == "complete" and summary["row_count"] == len(values)
+    assert summary["frame_count"] == 1 and summary["numeric_series_count"] == 1
+    series = summary["series"][0]
+    assert (series["state"], series["min"], series["max"], series["last"]) == (state, minimum, maximum, last)
+    assert (series["finite_count"], series["null_count"], series["labels"]) == (finite, nulls, {"job": "edge"})
+    assert series["maxDataPoints_exceeded"] is False
+
+
+def test_summary_reports_backend_exceeding_point_hint_and_window_without_dropping_full_data():
+    frame = query_frame([400 + 61 * n for n in range(1002)], list(range(1002)))
+    code, result, _, _ = invoke_query_frames([frame])
+    assert code == 0 and result["results"]["A"]["frames"] == [frame]
+    summary = result["summary"]
+    assert summary["row_count"] == 1002 and summary["timestamp_min_ms"] == 400 and summary["timestamp_max_ms"] == 61461
+    assert summary["out_of_window"] is True and summary["series"][0]["maxDataPoints_exceeded"] is True
+    assert result["limits"]["maxDataPoints"] == 1000 and result["limits"]["maxDataPointsEnforced"] is False
+    assert result["limits"]["maxResponseBytes"] == 2 * 1024 * 1024
+
+
+@pytest.mark.parametrize("bad_frame", [{}, None, {"schema": {"fields": []}},
+    {"schema": {"fields": [{"type": "number"}]}, "data": {"values": []}},
+    {"schema": {"fields": [{"type": "time"}, {"type": "number"}]}, "data": {"values": [[1000], []]}}])
+def test_unknown_frame_shape_is_not_reported_as_empty_success(bad_frame):
+    code, result, _, _ = invoke_query_frames([bad_frame])
+    assert code == 0 and result["results"]["A"]["frames"] == [bad_frame]
+    summary = result["summary"]
+    assert summary["status"] == "unsupported" and summary["row_count"] is None
+    assert summary["numeric_series_count"] is None and summary["unsupported_frame_count"] == 1
+    assert summary["out_of_window"] is None
+
+
+@pytest.mark.parametrize("encoding,value", [
+    ("entities", [None, {"NaN": [0]}]), ("entities", [None, {"Inf": [0], "NegInf": [1]}]),
+    ("entities", [None, {"Undef": [0]}]), ("bases", [62000, 0]), ("factors", [1000, 1]),
+    ("nanos", [[500000], []]), ("enums", [None, ["down", "up"]]),
+])
+@pytest.mark.parametrize("placeholder", [0, None])
+def test_summary_does_not_treat_encoded_wire_placeholders_as_measurements(encoding, value, placeholder):
+    frame = query_frame([1000], [placeholder])
+    frame["data"][encoding] = value
+    code, result, _, _ = invoke_query_frames([frame])
+    assert code == 0 and result["results"]["A"]["frames"] == [frame]
+    summary = result["summary"]
+    assert summary["status"] == "unsupported" and summary["row_count"] is None and summary["numeric_series_count"] is None
+    assert summary["series"] == [] and summary["out_of_window"] is None and summary["timestamp_min_ms"] is None
+
+
+def test_empty_wire_encoding_containers_do_not_obscure_real_zero_measurement():
+    frame = query_frame([1000], [0])
+    frame["data"].update({"entities": {}, "bases": [], "factors": None, "nanos": []})
+    code, result, _, _ = invoke_query_frames([frame])
+    assert code == 0 and result["summary"]["status"] == "complete"
+    assert result["summary"]["series"][0]["state"] == "values" and result["summary"]["series"][0]["min"] == 0
+
+
+@pytest.mark.parametrize("format_type", ["numeric-long", "timeseries-long", None])
+def test_summary_does_not_merge_row_labelled_clients_into_one_numeric_series(format_type):
+    frame = query_frame([61000, 61000], [0, 100])
+    frame["schema"]["fields"].append({"name": "client", "type": "string"})
+    frame["data"]["values"].append(["client-a", "client-b"])
+    if format_type:
+        frame["schema"]["meta"] = {"type": format_type}
+    code, result, _, _ = invoke_query_frames([frame], ["--mode", "instant"])
+    assert code == 0 and result["results"]["A"]["frames"] == [frame]
+    assert result["summary"]["status"] == "unsupported" and result["summary"]["numeric_series_count"] is None
+    assert result["summary"]["series"] == []
+
+
+@pytest.mark.parametrize("format_type", ["numeric-long", "timeseries-long"])
+def test_long_frame_metadata_is_respected_even_without_string_label_columns(format_type):
+    frame = query_frame([61000, 61000], [0, 100])
+    frame["schema"]["meta"] = {"type": format_type}
+    _, result, _, _ = invoke_query_frames([frame])
+    assert result["summary"]["status"] == "unsupported"
+
+
+def test_encoded_enum_fields_are_not_summarized_as_plain_rows():
+    frame = query_frame([1000])
+    frame["schema"]["fields"].append({"name": "state", "type": "enum", "config": {"type": {"enum": {"text": ["down", "up"]}}}})
+    frame["data"]["values"].append([0])
+    _, result, _, _ = invoke_query_frames([frame])
+    assert result["summary"]["status"] == "unsupported" and result["summary"]["row_count"] is None
+
+
+def test_summary_caps_details_but_preserves_accurate_counts_and_notices():
+    frames = [query_frame([1000], [n]) for n in range(105)]
+    frames[-1]["schema"]["meta"] = {"notices": [{"severity": "warning", "text": "Backend returned partial data"}]}
+    code, result, _, _ = invoke_query_frames(frames, ["--output", "summary"])
+    summary = result["summary"]
+    assert code == 0 and summary["numeric_series_count"] == 105 and summary["row_count"] == 105
+    assert len(summary["series"]) == 100 and summary["series_truncated"] is True
+    assert summary["notices"][0]["notice"]["text"] == "Backend returned partial data"
+
+
+def test_summary_continues_observations_past_detail_caps():
+    frames = [query_frame([1000], [n]) for n in range(100)] + [query_frame([62000] * 1001, [0] * 1001)]
+    notices = [{"severity": "warning", "text": f"notice {n}"} for n in range(101)]
+    code, result, _, _ = invoke_query_frames(frames, ["--output", "summary"], extra={"notices": notices})
+    summary = result["summary"]
+    assert code == 0 and summary["row_count"] == 1101 and summary["numeric_series_count"] == 101
+    assert summary["series_over_point_hint"] == 1 and summary["out_of_window"] is True
+    assert summary["series_truncated"] is True and summary["notices_truncated"] is True
+    assert len(summary["notices"]) == 100 and summary["notice_count"] == 101
+
+
+def test_empty_query_result_is_distinct_from_an_unsupported_frame():
+    code, result, _, _ = invoke_query_frames([], ["--output", "summary"])
+    summary = result["summary"]
+    assert code == 0 and summary["status"] == "complete" and summary["frame_count"] == 0
+    assert summary["row_count"] == summary["numeric_series_count"] == 0 and summary["out_of_window"] is None
+
+
+def test_mixed_known_and_unknown_frames_retain_observed_counts_without_claiming_totals():
+    code, result, _, _ = invoke_query_frames([query_frame([1000], [0]), {}])
+    summary = result["summary"]
+    assert code == 0 and summary["status"] == "partial" and summary["row_count"] is None
+    assert summary["observed_row_count"] == summary["observed_numeric_series_count"] == 1
+    assert summary["timestamp_min_ms"] == 1000 and summary["timestamp_status"] == "partial"
+    assert summary["out_of_window"] is None
+
+
+@pytest.mark.parametrize("values", [["NaN", 0], [True, 0], [{"unknown": 1}, 0]])
+def test_unsupported_numeric_values_remain_explicitly_partial(values):
+    code, result, _, _ = invoke_query_frames([query_frame([1000, 2000], values)])
+    summary = result["summary"]
+    series = summary["series"][0]
+    assert code == 0 and summary["status"] == "partial" and series["state"] == "unsupported"
+    assert series["invalid_count"] == 1 and series["finite_count"] == 1 and series["min"] == series["max"] == 0
+
+
+def test_missing_timestamps_remain_unknown_and_instant_misalignment_is_observed():
+    frame = {"schema": {"fields": [{"name": "value", "type": "number"}]}, "data": {"values": [[1, 2]]}}
+    _, result, _, _ = invoke_query_frames([frame], ["--mode", "instant"])
+    assert result["summary"]["out_of_window"] is None and result["summary"]["instant_timestamp_mismatch"] is None
+    _, result, _, _ = invoke_query_frames([query_frame([60000, None], [1, 2])], ["--mode", "instant"])
+    summary = result["summary"]
+    assert summary["instant_timestamp_mismatch"] is True and summary["timestamp_invalid_count"] == 1
+    assert summary["status"] == "partial" and summary["out_of_window"] is None
+
+
+def test_log_summary_observes_rows_and_times_without_outputting_log_lines():
+    frame = query_frame([900, 62000])
+    frame["schema"]["fields"].append({"name": "Line", "type": "string"})
+    frame["data"]["values"].append(["private-log-one", "private-log-two"])
+    code, result, text, _ = invoke_query_frames([frame], ["--output", "summary"], kind="loki")
+    assert code == 0 and "private-log" not in text
+    summary = result["summary"]
+    assert summary["row_count"] == 2 and summary["numeric_series_count"] == 0
+    assert summary["timestamp_min_ms"] == 900 and summary["timestamp_max_ms"] == 62000 and summary["out_of_window"] is True
+
+
+def test_log_only_frames_exceeding_point_hint_have_an_observed_warning():
+    frame = query_frame([1000] * 1002)
+    frame["schema"]["fields"].append({"name": "Line", "type": "string"})
+    frame["data"]["values"].append(["private log"] * 1002)
+    code, result, text, _ = invoke_query_frames([frame], ["--output", "summary"], kind="loki")
+    summary = result["summary"]
+    assert code == 0 and "private log" not in text and summary["status"] == "complete"
+    assert summary["row_count"] == 1002 and summary["numeric_series_count"] == 0
+    assert summary["frames_over_point_hint"] == 1 and summary["series_over_point_hint"] == 0
+    assert "observed_frames_exceed_requested_point_hint" in summary["warnings"]
+
+
+def test_query_macros_are_resolved_before_request_and_receipt_records_exact_substitutions():
+    expr = "$__range ${__range_s} $__range_ms $__interval ${__interval_ms} $__rate_interval"
+    transport = Transport((200, {"uid": "metrics-1", "type": "prometheus"}), (200, {"results": {"A": {"frames": []}}}))
+    code, result, _ = invoke([*QUERY[:-1], expr, "--interval-ms", "2000", "--rate-interval-ms", "15000"], transport)
+    assert code == 0
+    assert result["expression"] == {"original": expr, "resolved": "60s 60 60000 2000ms 2000 15000ms", "substitutions": {
+        "$__range": "60s", "${__range_s}": "60", "$__range_ms": "60000", "$__interval": "2000ms",
+        "${__interval_ms}": "2000", "$__rate_interval": "15000ms"}}
+    query = json.loads(transport.requests[-1].data)["queries"][0]
+    assert query["expr"] == result["expression"]["resolved"] and query["intervalMs"] == 2000
+
+
+def test_fractional_range_macro_and_base64_transport_preserve_exact_window():
+    args = list(QUERY)
+    args[8] = "61001"
+    expr = "$__range + $__range_s + ${__range_ms}"
+    args[-2:] = ["--expr-base64", base64.b64encode(expr.encode()).decode()]
+    transport = Transport((200, {"uid": "metrics-1", "type": "prometheus"}), (200, {"results": {"A": {"frames": []}}}))
+    code, result, _ = invoke(args, transport)
+    assert code == 0 and result["expression"]["original"] == expr
+    assert result["expression"]["resolved"] == "60001ms + 60.001 + 60001"
+
+
+def test_explicit_intervals_cannot_increase_request_density_or_guess_loki_scrape_rate():
+    args = list(QUERY)
+    args[8] = "86401000"
+    transport = Transport()
+    assert invoke([*args, "--interval-ms", "1000"], transport)[0] == 2 and not transport.requests
+    args = list(QUERY)
+    args[4] = "loki"
+    assert invoke([*args, "--rate-interval-ms", "2000"], transport)[0] == 2 and not transport.requests
+
+
+def test_expression_receipt_and_summary_mask_authentication_values():
+    expr = 'up{job="test-secret-token"}'
+    frame = query_frame([1000], [0], name="test-secret-token", labels={"job": "test-secret-token"})
+    transport = Transport((200, {"uid": "metrics-1", "type": "prometheus"}), (200, {"results": {"A": {"frames": [frame]}}}))
+    code, result, text = invoke([*QUERY[:-1], expr, "--output", "summary"], transport)
+    assert code == 0 and "test-secret-token" not in text
+    assert result["expression"]["original"] == result["expression"]["resolved"] == 'up{job="[REDACTED]"}'
+
+
+@pytest.mark.parametrize("expr,options", [("$__range_bad", []), ("${__range:raw}", []), ("$service", []),
+    ("$__interval", []), ("$__interval_ms", []), ("$__rate_interval", []), ("[[service]]", []),
+    ("$__interval_bad", ["--interval-ms", "2000"]), ("${__rate_interval_bad}", ["--rate-interval-ms", "2000"])])
+def test_unknown_or_unconfigured_macros_are_refused_before_authentication(expr, options):
+    transport = Transport()
+    code, result, _ = invoke([*QUERY[:-1], expr, *options], transport)
+    assert code == 2 and result["error"] == "unresolved_or_invalid_expression" and not transport.requests
+
+
+@pytest.mark.parametrize("options", [["--mode", "wrong"], ["--output", "wrong"], ["--interval-ms", "999"],
+    ["--interval-ms", "86400001"], ["--rate-interval-ms", "999"], ["--rate-interval-ms", "86400001"],
+    ["--mode=instant"], ["--mode", "instant", "--mode", "range"], ["--inter", "2000"]])
+def test_query_new_option_grammar_and_bounds_fail_before_authentication(options):
+    transport = Transport()
+    assert invoke([*QUERY, *options], transport)[0] == 2 and not transport.requests
+
+
+@pytest.mark.parametrize("width,height", [(400, 200), (2400, 1600), (1600, 900)])
+def test_render_uses_and_verifies_requested_dimensions(capture_dir, width, height):
+    png = PNG[:16] + width.to_bytes(4, "big") + height.to_bytes(4, "big") + PNG[24:]
+    transport = Transport((200, BOARD), (200, png))
+    code, result, _ = invoke([*RENDER, "--width", str(width), "--height", str(height)], transport)
+    assert code == 0 and (result["width"], result["height"]) == (width, height)
+    assert f"&width={width}&height={height}&" in transport.requests[-1].full_url
+    assert result["limits"]["minWidth"] == 400 and result["limits"]["maxHeight"] == 1600
+
+
+def test_render_refuses_valid_png_with_wrong_requested_dimensions(capture_dir):
+    transport = Transport((200, BOARD), (200, PNG))
+    code, result, _ = invoke([*RENDER, "--width", "1600"], transport)
+    assert code == 2 and result["error"] == "renderer_placeholder" and not list(capture_dir.iterdir())
+
+
+def test_render_refuses_known_placeholder_even_if_requested_dimensions_match(capture_dir):
+    transport = Transport((200, BOARD), (200, PLACEHOLDER))
+    code, result, _ = invoke([*RENDER, "--width", "526", "--height", "202"], transport)
+    assert code == 2 and result["error"] == "renderer_placeholder" and not list(capture_dir.iterdir())
+
+
+@pytest.mark.parametrize("options", [["--width", "399"], ["--width", "2401"], ["--height", "199"],
+    ["--height", "1601"], ["--width=1600"], ["--wid", "1600"], ["--height", "900", "--height", "1000"]])
+def test_render_dimensions_reject_invalid_bounds_and_grammar(options):
+    transport = Transport()
+    assert invoke([*RENDER, *options], transport)[0] == 2 and not transport.requests
 
 
 @pytest.mark.parametrize("datasource", [{"uid": "metrics-1", "type": "mysql"}, {"uid": "other", "type": "prometheus"}, {}])
@@ -343,16 +770,50 @@ def test_render_fails_rather_than_report_a_masked_image_path(capture_dir):
 
 def test_render_checks_the_panel_then_saves_one_bounded_png(capture_dir):
     transport = Transport((200, BOARD), (200, PNG))
-    code, result, _ = invoke([*RENDER, "--var", "host=adama", "--var", "host=cally"], transport)
+    code, result, _ = invoke([*RENDER, "--var", "host=host-a", "--var", "host=host-b"], transport)
     assert code == 0 and result["operation"] == "render" and result["coverage"] == "image_uninspected"
     assert [r.full_url for r in transport.requests[1:]] == [
         ENV["GRAFANA_URL"] + "/api/dashboards/uid/board",
         ENV["GRAFANA_URL"] + "/render/d-solo/board/cylon-ai?orgId=7&panelId=7&from=1000&to=61000&width=1200"
-        "&height=600&scale=1&tz=UTC&timeout=40&var-host=adama&var-host=cally"]
+        "&height=600&scale=1&tz=UTC&timeout=40&var-host=host-a&var-host=host-b"]
     assert transport.requests[2].method == "GET" and transport.bounds[2] == {"limit": 8 * 1024 * 1024, "timeout": 45}
     saved = Path(result["image_path"])
     assert saved.parent == capture_dir and saved.read_bytes() == PNG
     assert (result["width"], result["height"], result["panel_title"]) == (1200, 600, "B70 temperatures")
+
+
+def test_render_encoded_scalar_preserves_literal_paths_quotes_and_repeated_order(capture_dir):
+    value = 'host=node.example/path "quoted" & other=value'
+    encoded = base64.b64encode(value.encode()).decode()
+    transport = Transport((200, BOARD), (200, PNG))
+    code, result, _ = invoke([*RENDER, '--var', 'host=first', '--var-base64', encoded,
+                              '--var', 'host=last'], transport)
+    assert code == 0
+    assert result['variables'] == ['host=first', value, 'host=last']
+    assert transport.requests[-1].full_url.endswith(
+        '&var-host=first&var-host=node.example%2Fpath+%22quoted%22+%26+other%3Dvalue&var-host=last')
+
+
+@pytest.mark.parametrize('raw', [b'host=', b'=value', b'bad name=value', b'host=a\nline',
+                                 b'host=\x7f', b'host=\xff', b'host=' + b'a' * 101])
+def test_render_encoded_variable_rejects_invalid_values_before_network(raw):
+    transport = Transport()
+    code, result, _ = invoke([*RENDER, '--var-base64', base64.b64encode(raw).decode()], transport)
+    assert code == 2 and result['error'] == 'invalid_arguments'
+    assert not transport.requests
+
+
+@pytest.mark.parametrize('encoded', ['!', 'aG9zdD14===', 'aG9zdD14\n', 'a' * 625])
+def test_render_encoded_variable_requires_canonical_bounded_base64(encoded):
+    with pytest.raises(reader.SafeError, match='invalid_arguments'):
+        reader.parse_args([*RENDER, '--var-base64', encoded])
+
+
+def test_render_variable_budget_is_shared_across_transports():
+    encoded = base64.b64encode(b'host=a/b').decode()
+    with pytest.raises(reader.SafeError, match='invalid_arguments'):
+        reader.parse_args([*RENDER, *['--var', 'host=a'] * 5, '--var-base64', encoded])
+    assert len(reader.parse_args([*RENDER, *['--var-base64', encoded] * 5]).variables) == 5
 
 
 @pytest.mark.parametrize("panel", ["1", "99"], ids=["row", "absent"])

@@ -72,13 +72,23 @@ credential files or copy session cookies to manufacture another access path.
    absolute `from`/`to` window, timezone, variable values, and panel time overrides, and use the
    same selections for query and image; `query` covers at most 24 hours, so keep a paired render
    within that. A changed dashboard version or variable invalidates a claim that the two match.
+   Start with `dashboard --uid <uid> --panel <id>` for Classic panels. Compare its stored version
+   with the render receipt's `dashboard_version`; a mismatch requires a fresh model and matching
+   evidence. Matching versions alone do not establish matching data or prevent a change during render.
 2. Read all relevant targets and transformations. Query the panel's real datasource with its
    supported read contract; retain instant/range mode, step, macro substitutions, and per-query
    status. An error-free empty frame means no data, not a healthy zero, and one target's sample does
    not verify every series. The SRE agent queries and renders only through the helper's `query` and
    `render`, never arbitrary HTTP or render URLs.
+   Use `--mode instant` for an instant panel. Range macros use the explicit window; supply the
+   observed `--interval-ms` or `--rate-interval-ms` when those macros occur. Compare actual returned
+   bounds and counts in `summary`; backend alignment and sampling may differ from the render.
 3. Render one panel at a time. The helper's `render` takes Classic integer panel IDs and up to five
-   simple `--var` values at a fixed size and timeout; use the browser for anything else.
+   simple `--var` values. It defaults to 1200×600; choose `--width` (400–2400) and `--height`
+   (200–1600) when labels or legends need more space. The byte/time limits remain fixed. Changing
+   dimensions can change Grafana's calculated query interval, so re-check the query context when
+   comparing images at another size. Use the browser for unsupported view controls.
+   The known 526×202 stock error-image size is rejected even when requested; use another size.
 4. Open the image. HTTP 200 or a PNG signature alone is not visual success. Check the expected
    title, axes, units, legends, time window, displayed values, clipping, and missing-data or error
    presentation. Reject a login page, loading or error state, wrong panel, stale window, or Grafana's
@@ -108,7 +118,7 @@ this down:
 |---|---|
 | `http_error` | Permission denied, or the render itself failed (a missing or broken renderer answers HTTP 500); if `dashboard` reads of the same UID succeed, suspect the renderer and report it to the owner |
 | `renderer_busy` | HTTP 429 from the renderer; do not retry in a loop |
-| `renderer_placeholder` | Grafana's own render limit or an unavailable renderer, served as a stock image |
+| `renderer_placeholder` | A stock error image or a PNG whose dimensions differ from the requested render size |
 | `panel_not_found` | No non-row Classic panel with that ID; re-read the model |
 | `invalid_image` | A login page or other non-PNG answer |
 | `redirect_rejected` | Usually a login redirect |

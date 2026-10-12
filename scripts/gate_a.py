@@ -28,7 +28,7 @@ STEPS = [
     ("Fleet, plugin, and generated adapter contracts", ["scripts/validate_fleet.py"]),
 ]
 
-MINIMUM_PYTHON = (3, 11)
+MINIMUM_PYTHON = (3, 12)
 
 
 def preflight() -> bool:

@@ -83,7 +83,7 @@ class _List:
         literal = self.ordered and any(n != numbers[0] + i or not 0 <= n < 10**9
                                        for i, n in enumerate(numbers))
         output = []
-        for number, (_, blocks) in zip(numbers, self.items):
+        for number, (_, blocks) in zip(numbers, self.items, strict=False):
             marker = f"- **{number}.** " if literal else (f"{number}. " if self.ordered else "- ")
             indent = " " * (2 if literal else len(marker))
             lines = "\n".join(render_blocks(blocks)).rstrip("\n").split("\n")

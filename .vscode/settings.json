@@ -1,0 +1,5 @@
+{
+  "workbench.editorAssociations": {
+    "**/report.html": "workbench.editor.browser"
+  }
+}

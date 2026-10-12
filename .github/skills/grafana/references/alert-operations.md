@@ -5,6 +5,13 @@ query, evaluation history, labels, health, and notification destination. For a m
 trace evaluation → instance state → selected Alertmanager → matching route → silence/mute/inhibition
 → grouping/timers → delivery evidence. Reading a contact point does not prove a message arrived.
 
+## Contents
+
+- [Read current state](#read-current-state)
+- [Bind the rule and owner](#bind-the-rule-and-owner)
+- [Apply the requested change](#apply-the-requested-change)
+- [Evidence and scope](#evidence-and-scope)
+
 ## Read current state
 
 Read definitions and evaluation state separately. On the documented Grafana-managed path,
@@ -12,6 +19,11 @@ Read definitions and evaluation state separately. On the documented Grafana-mana
 `GET /api/prometheus/grafana/api/v1/rules` supplies groups, rule health/state, and instances. Discover
 which paths and fields the target serves; record permission failures rather than treating them as
 an empty inventory. Bound the sample when examining instance labels or history.
+
+For a known rule, use the bundled helper's `alerts --uid <rule-uid>` for its exact definition, then
+`alerts --folder-uid <folder-uid>` for evaluation state. Match the rule UID across both reads;
+names are not unique. Preserve `configuration_only` on the definition and the state read's
+truncation/instance limits. A missing sampled instance does not prove a rule is inactive.
 
 Report total visible rules, evaluation-health errors, paused rules, pending/firing rules, and the
 scope/time of the read separately. `health: ok` means the evaluator reports no execution error;
@@ -36,9 +48,11 @@ and differs, so a header-less write silently converts a UI-created rule to API-m
 console then treats as read-only. Send the header for an unmanaged rule, omit it for an API-owned
 rule, and never change provenance as a side effect.
 
-For an agent, discover the target's served API/schema. Grafana 13 still serves the legacy rule
-provisioning API below; do not invent App Platform paths or transplant dashboard concurrency fields
-into an alert request. Pin the selected API family and confirm its target behavior before writing.
+For an agent, discover the target's served API/schema. The helper uses the deprecated legacy rule
+provisioning API below. Confirm the target still serves it; an unavailable route is a compatibility
+gap, not an empty rule inventory. Do not invent App Platform paths or transplant dashboard
+concurrency fields into an alert request. Pin the selected API family and confirm its target
+behavior before writing.
 
 | Operation | Legacy rule provisioning API |
 |---|---|

@@ -286,8 +286,8 @@ def grafana_curl_allowed(command: str, powershell: bool = False) -> bool:
     return True
 
 
-def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
-    """One installed stdlib helper, with literal args validated by its own parser.
+def grafana_helper_allowed(command: str, powershell: bool = False, *, shell_independent: bool = False) -> bool:
+    """Fixed installed helpers, with literal args validated by their own parser.
 
     No general interpreter, workspace script, shell chain, redirection or dynamic
     expression is admitted. PATH and the installed plugin remain trusted inputs.
@@ -296,13 +296,19 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
     # Reject them even inside ASCII quotes before either host can execute this form.
     if len(command) > 12000 or re.search(r"[\x00-\x1f\x7f\u2018\u2019\u201c\u201d]", command):
         return False
-    literal = r"(?:[A-Za-z0-9_+/=-]+|'[^'\r\n]*')"
+    # Copilot does not establish the configured terminal shell. Single quotes do
+    # not protect cmd.exe arguments, and percent/bang/caret syntax can alter argv.
+    # Bash also expands assignment-shaped argv such as host=~ or host=a:~.
+    # Pointer escapes (/a~1b) are literal and remain available for saved evidence.
+    literal = (r"(?!~)(?![A-Za-z_][A-Za-z0-9_]*=[^ ]*~)[A-Za-z0-9_+/:=.,~-]+"
+               if shell_independent else r"(?:[A-Za-z0-9_+/=-]+|'[^'\r\n]*')")
+    path_literal = r'"[^"$`%!^\r\n]+"' if shell_independent else r'''(?:"[^"$`\r\n]+"|'[^'\r\n]+')'''
     match = re.fullmatch(
-        r'''python(?:3|\.exe)? -I -S (?P<path>"[^"$`\r\n]+"|'[^'\r\n]+') '''
+        r'python(?:3|\.exe)? -I(?P<no_site> -S)? (?P<path>' + path_literal + r') '
         + r"(?P<args>" + literal + r"(?: " + literal + r")*)", command,
     )
     wrapper = False
-    if not match and powershell:
+    if not match and powershell and not shell_independent:
         match = re.fullmatch(
             r'''& (?P<path>"[^"$`\r\n]+"|'[^'\r\n]+') '''
             + r"(?P<args>" + literal + r"(?: " + literal + r")*)", command,
@@ -320,6 +326,41 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
     paths.update({p.as_posix(): p for p in installed})
     selected = paths.get(supplied)
     if selected is None:
+        if wrapper:
+            return False
+        workflow = canonical.with_name('grafana_workflow.py')
+        candidates = (workflow, projected.with_name('grafana_workflow.py'))
+        paths = {str(path): path for path in candidates} | {path.as_posix(): path for path in candidates}
+        selected_workflow = paths.get(supplied)
+        if selected_workflow is None:
+            return False
+        try:
+            # All imported siblings are part of the reviewed installed helper, not caller modules.
+            for source in canonical.parent.glob('*.py'):
+                candidate = selected_workflow.parent / source.name
+                if candidate.read_bytes().replace(b'\r\n', b'\n') != source.read_bytes().replace(b'\r\n', b'\n'):
+                    return False
+            arguments = shlex.split(match['args'], posix=True)
+            if powershell and any('"' in value for value in arguments):
+                # Windows PowerShell 5.1 can strip embedded native-argv quotes.
+                return False
+            if not arguments or arguments[0] not in {
+                    'plan', 'investigate', 'dependencies', 'doctor', 'verify-package', 'analyze',
+                    'compare', 'impact', 'inspect', 'alert-preview'}:
+                return False
+            # Agent execution never chooses a file path, opens an editor, or imports raw JSON.
+            if '--agent-json' not in arguments or any(flag in arguments for flag in (
+                    '--output-dir', '--package-dir', '--query-file', '--report-file',
+                    '--before', '--after', '--open-vscode')):
+                return False
+            helper = runpy.run_path(str(workflow), run_name='_grafana_workflow_guard')
+            helper['parse_args'](arguments)
+        except (Exception, SystemExit):
+            return False
+        return True
+    # Only the workflow may load packages from the operator-managed interpreter. The read helper
+    # and this guard remain stdlib-only; no general Python/path grant is added.
+    if not wrapper and not match['no_site']:
         return False
     try:
         # A generated copy must still be the reviewed canonical helper, not a stale
@@ -331,8 +372,12 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
             return False
         arguments = shlex.split(match["args"], posix=True)
         if wrapper:
-            flags = {"-Datasource": "--datasource", "-Kind": "--kind", "-From": "--from", "-To": "--to", "-Expr": "--expr"}
-            if len(arguments) != 10 or set(arguments[::2]) != set(flags):
+            required = {"-Datasource", "-Kind", "-From", "-To", "-Expr"}
+            flags = {"-Datasource": "--datasource", "-Kind": "--kind", "-From": "--from", "-To": "--to", "-Expr": "--expr",
+                     "-Mode": "--mode", "-Output": "--output", "-IntervalMs": "--interval-ms", "-RateIntervalMs": "--rate-interval-ms"}
+            supplied_flags = arguments[::2]
+            if (len(arguments) % 2 or len(supplied_flags) != len(set(supplied_flags))
+                    or not required <= set(supplied_flags) <= set(flags)):
                 return False
             arguments = ["query"] + [value for flag, value in zip(arguments[::2], arguments[1::2], strict=True) for value in (flags[flag], value)]
         elif powershell and "--expr" in arguments:
@@ -348,13 +393,13 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
     return True
 
 
-def explain_powershell(command: str) -> "str | None":
+def explain_powershell(command: str, *, shell_independent: bool = False) -> "str | None":
     """Small literal-command grammar, not a POSIX parse of general PowerShell code.
 
     Reject expressions, expansions, scripts, redirection, stop-parsing and command chains.
     Only fixed cmdlets and the existing external CLI readers may pass. No aliases are inferred.
     """
-    if grafana_helper_allowed(command, powershell=True) or grafana_curl_allowed(command, powershell=True):
+    if grafana_helper_allowed(command, powershell=True, shell_independent=shell_independent) or grafana_curl_allowed(command, powershell=True):
         return None
     if not command.strip():
         return None
@@ -1248,7 +1293,7 @@ def main() -> None:
                 sys.exit(EXIT_INDETERMINATE)
             # Copilot's integrated terminal can be configured independently of host OS. Use
             # the restricted grammar on every host; POSIX-only observation forms are literal.
-            reason = explain_powershell(command)
+            reason = explain_powershell(command, shell_independent=True)
             if reason is not None and copilot_read_allowed(command):
                 reason = None
             if reason:

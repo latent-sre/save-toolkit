@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline tests for skills/grafana/scripts/dashboard_hygiene.py. Stdlib only, no network.
+"""Offline tests for Grafana hygiene, including its stdlib-only CLI fallback.
 
 Fixture-first on purpose. A suite that only asserted "a known-bad dashboard produces violations"
 would still pass if a rule were mutated into always-fire, and one that only asserted "a good
@@ -17,6 +17,9 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
+import promql_parser
 
 from testkit import load_path
 
@@ -264,6 +267,196 @@ class StructureTest(unittest.TestCase):
                 spec, path = hygiene.locate_spec(model)
                 self.assertEqual(clean_model(), spec)
                 self.assertEqual(expected_path, path)
+
+
+class PromqlAnalysisTest(unittest.TestCase):
+    def _inspect(self, expression):
+        model = clean_model_with(("panels", 0, "targets", 0, "expr"), expression)
+        analysis = []
+        findings = hygiene.check(model, query_analysis=analysis)
+        return findings, analysis[0]
+
+    def test_ast_does_not_confuse_label_names_or_comments_with_counter_selectors(self):
+        for expression in (
+            'up{requests_total="active"}',
+            'sum by (requests_total) (up)',
+            'up + on (requests_total) down',
+            'up # rate(fake_total[5m]) + other_total',
+        ):
+            with self.subTest(expression=expression):
+                findings, analysis = self._inspect(expression)
+                self.assertEqual([], findings)
+                self.assertEqual("promql_ast", analysis["mode"])
+                self.assertEqual([], analysis["gaps"])
+
+    def test_ast_recognizes_literal_name_matchers_and_rate_ancestry(self):
+        findings, analysis = self._inspect('{__name__="requests_total"}')
+        self.assertEqual(["target-counter-agg"], [finding.rule for finding in findings])
+        self.assertIn("'requests_total'", findings[0].detail)
+        self.assertEqual("promql_ast", analysis["mode"])
+        findings, _ = self._inspect('rate({__name__="requests_total"}[5m])')
+        self.assertEqual(["target-rate-interval"], [finding.rule for finding in findings])
+        findings, _ = self._inspect('rate(a_total[5m]) + b_total')
+        self.assertEqual(["target-rate-interval", "target-counter-agg"],
+                         [finding.rule for finding in findings])
+        self.assertIn("'b_total'", findings[-1].detail)
+
+    def test_ast_checks_each_rate_call_in_nested_subqueries(self):
+        findings, analysis = self._inspect('max_over_time((rate(a_total[5m]) + rate(b_total[10m]))[1h:1m])')
+        self.assertEqual(["target-rate-interval", "target-rate-interval"],
+                         [finding.rule for finding in findings])
+        self.assertEqual("promql_ast", analysis["mode"])
+
+    def test_unresolved_templates_use_explicit_fallback_without_guessing_values(self):
+        for expression, rules in (
+            ('increase(requests_total[$__range])', []),
+            ('rate(a_total[$__rate_interval]) + rate(b_total[5m])', ["target-rate-interval"]),
+            ('rate(a_total[${window:raw}])', ["target-rate-interval"]),
+            ('up{host="[[host]]"}', []),
+        ):
+            with self.subTest(expression=expression), patch.object(
+                promql_parser, "parse", side_effect=AssertionError("template reached native parser")
+            ):
+                findings, analysis = self._inspect(expression)
+                self.assertEqual(rules, [finding.rule for finding in findings])
+                self.assertEqual("text_heuristic", analysis["mode"])
+                self.assertEqual(["promql_template_unresolved"], analysis["gaps"])
+
+    def test_missing_parser_keeps_text_checks_and_a_machine_readable_gap(self):
+        with patch.dict(sys.modules, {"promql_parser": None}):
+            findings, analysis = self._inspect('rate(requests_total[5m])')
+        self.assertEqual(["target-rate-interval"], [finding.rule for finding in findings])
+        self.assertEqual("text_heuristic", analysis["mode"])
+        self.assertEqual(["dependency_unavailable_promql_parser"], analysis["gaps"])
+
+    def test_native_parser_load_failure_keeps_fallback_without_error_details(self):
+        with patch.object(hygiene.promql, "analyze", side_effect=OSError("PRIVATE_NATIVE_PATH")):
+            findings, analysis = self._inspect('rate(requests_total[5m])')
+        self.assertEqual(["target-rate-interval"], [finding.rule for finding in findings])
+        self.assertEqual("text_heuristic", analysis["mode"])
+        self.assertEqual(["dependency_unavailable_promql_parser"], analysis["gaps"])
+        self.assertNotIn("PRIVATE_NATIVE_PATH", repr((findings, analysis)))
+
+    def test_unsupported_syntax_retains_checks_without_echoing_parser_diagnostics(self):
+        with patch.object(promql_parser, "parse", side_effect=ValueError("PRIVATE_DIAGNOSTIC")):
+            findings, analysis = self._inspect('rate(requests_total[5m])')
+        self.assertEqual(["target-rate-interval"], [finding.rule for finding in findings])
+        self.assertEqual("text_heuristic", analysis["mode"])
+        self.assertEqual(["promql_parse_error"], analysis["gaps"])
+        self.assertNotIn("PRIVATE_DIAGNOSTIC", repr((findings, analysis)))
+
+    def test_over_limit_queries_are_explicitly_skipped_before_native_parsing(self):
+        with patch.object(promql_parser, "parse", side_effect=AssertionError("oversized query reached parser")):
+            findings, analysis = self._inspect('up' + ' ' * hygiene.promql.MAX_TEXT + ' + requests_total')
+        self.assertEqual([], findings)
+        self.assertEqual("not_checked", analysis["mode"])
+        self.assertEqual(["expression_truncated"], analysis["gaps"])
+
+
+class JsonReportTest(unittest.TestCase):
+    """The CLI produces one complete report, including refusals, for machine consumers."""
+
+    def _check(self, content: str | None, *options: str) -> subprocess.CompletedProcess[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "d.json"
+            if content is not None:
+                path.write_text(content, encoding="utf-8")
+            return subprocess.run(
+                [sys.executable, "-I", "-S", str(MODULE), str(path), *options],
+                capture_output=True, text=True, encoding="utf-8", check=False,
+            )
+
+    def _report(self, content: str | None, exit_code: int, *options: str) -> dict:
+        result = self._check(content, "--format", "json", *options)
+        self.assertEqual(exit_code, result.returncode, result.stderr)
+        self.assertEqual("", result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual("static_hygiene_only", report["coverage"])
+        return report
+
+    def test_clean_report_counts_nested_panels_without_claiming_query_validation(self) -> None:
+        model = clean_model()
+        model["panels"] = [{"type": "row", "panels": model["panels"]}]
+        report = self._report(json.dumps({"meta": {}, "dashboard": model}), 0)
+        self.assertEqual({
+            "ok": True, "coverage": "static_hygiene_only", "title": "Checkout / Health",
+            "panel_count": 1, "findings": [], "errors": [],
+            "query_analysis": [{"location": "Is checkout error ratio breaching target? [A]",
+                                "mode": "text_heuristic", "gaps": ["promql_template_unresolved"]}],
+        }, report)
+
+    def test_stdlib_only_cli_reports_the_unavailable_parser_without_failing(self) -> None:
+        model = clean_model_with(("panels", 0, "targets", 0, "expr"), "up")
+        report = self._report(json.dumps(model), 0)
+        self.assertEqual([], report["findings"])
+        self.assertEqual([{"location": "Is checkout error ratio breaching target? [A]",
+                           "mode": "text_heuristic", "gaps": ["dependency_unavailable_promql_parser"]}],
+                         report["query_analysis"])
+
+    def test_violations_are_structured_and_quiet_keeps_the_complete_report(self) -> None:
+        model = clean_model()
+        model["panels"][0].pop("description")
+        report = self._report(json.dumps(model), 1)
+        self.assertTrue(report["ok"])
+        self.assertEqual([], report["errors"])
+        self.assertEqual([{
+            "rule": "panel-description", "where": model["panels"][0]["title"],
+            "detail": "no description; it renders as the panel's tooltip",
+        }], report["findings"])
+        self.assertEqual(report, self._report(json.dumps(model), 1, "--quiet"))
+
+    def test_invalid_and_unsupported_inputs_return_json_errors(self) -> None:
+        for content, code, detail in (
+            (None, "input_read_error", "cannot check"),
+            ("{", "invalid_json", "cannot check"),
+            (json.dumps({"panels": [None]}), "invalid_shape", "$.panels[0]"),
+            (json.dumps({"title": "v2", "elements": {}, "layout": {}}),
+             "unsupported_v2", "V2"),
+            (json.dumps({"title": "missing panels"}), "unsupported_model", "no `panels` key"),
+            # Valid row nesting reaches either the decoder or row-walk recursion limit.
+            # Nested arrays instead become invalid_shape when a decoder accepts their depth.
+            ('{"panels":[' + '{"type":"row","panels":[' * 1_500
+             + '{"type":"timeseries","title":"t"}' + "]}" * 1_500 + "]}",
+             "input_too_deep", "cannot check"),
+        ):
+            with self.subTest(code=code):
+                report = self._report(content, 2)
+                self.assertFalse(report["ok"])
+                self.assertIsNone(report["panel_count"])
+                self.assertEqual([], report["findings"])
+                self.assertEqual(1, len(report["errors"]))
+                self.assertEqual(code, report["errors"][0]["code"])
+                self.assertIn(detail, report["errors"][0]["detail"])
+
+    def test_unicode_and_control_characters_round_trip_as_escaped_json(self) -> None:
+        model = clean_model()
+        model["title"] = 'Health \u2192 "checkout"\n\U0001f680'
+        model["panels"][0]["title"] = 'Panel \u2192 "errors"\n\U0001f680'
+        model["panels"][0].pop("description")
+        result = self._check(json.dumps(model), "--format", "json")
+        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertEqual("", result.stderr)
+        self.assertTrue(result.stdout.isascii())
+        report = json.loads(result.stdout)
+        self.assertEqual(model["title"], report["title"])
+        self.assertEqual(model["panels"][0]["title"], report["findings"][0]["where"])
+
+    def test_legacy_text_default_and_explicit_text_keep_findings_and_summary(self) -> None:
+        model = clean_model()
+        model["panels"][0].pop("description")
+        expected = (
+            "panel-description: Is checkout error ratio breaching target?\n"
+            "    no description; it renders as the panel's tooltip\n\n"
+            "'Checkout / Health': 1 violation(s) across 1 panel(s)\n"
+        )
+        for options in ((), ("--format", "text")):
+            with self.subTest(options=options):
+                result = self._check(json.dumps(model), *options)
+                self.assertEqual(1, result.returncode, result.stderr)
+                self.assertEqual("", result.stderr)
+                self.assertEqual(expected, result.stdout)
+        quiet = self._check(json.dumps(model), "--format", "text", "--quiet")
+        self.assertEqual(expected.splitlines()[-1] + "\n", quiet.stdout)
 
 
 class ExitCodeTest(unittest.TestCase):

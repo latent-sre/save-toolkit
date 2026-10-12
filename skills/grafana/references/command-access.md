@@ -6,11 +6,12 @@ authority.
 ## Contents
 
 - Bundled read helper
+- Query modes, macros and result summaries
 - Grafana resource reads
 
 ## Bundled read helper
 
-The installed `grafana` skill includes [grafana_read.py](../scripts/grafana_read.py), a stdlib-only Python 3.11+
+The installed `grafana` skill includes [grafana_read.py](../scripts/grafana_read.py), a stdlib-only Python 3.12+
 client. Run it as `python -I -S` (or `python3`, `python.exe`) with its **absolute installed path** in
 drive-letter form, such as `"C:/Users/<you>/.claude/plugins/cache/.../grafana_read.py"` (on
 Copilot, the generated `.github` copy), never another file, or call its installed
@@ -20,6 +21,14 @@ arguments (single-quote literals instead), `--flag=value`, pipes, redirection in
 `timeout` and other wrappers, and custom URL, method or credential flags; rely on the host tool's
 own timeout. If Python or the helper is missing on the execution host, report it; never install
 tools or switch shells to get around a denial.
+
+For multi-panel investigation, prefer the installed
+[agent workflow](./investigation-workflows.md#agent-collection-and-follow-up) with `--agent-json`.
+It returns structured data first and falls back to rendering when query evidence is incomplete.
+The guard admits its fixed commands and capture IDs, not arbitrary filesystem paths or editor
+launches. The workflow uses `python -I` with its managed analysis dependencies; the read helper
+continues to require `python -I -S`. On Windows PowerShell, embedded double quotes in native arguments are rejected because
+the shell can change their values; do not retry through another shell to bypass a denial.
 
 The helper loads `GRAFANA_URL`, `GRAFANA_ORG_ID` and a token (or Basic credentials) from the
 environment or, when the environment names none of them, from the human-written
@@ -38,13 +47,18 @@ Every form except a raw `--expr` query works in both shells:
 
 ```text
 python -I -S "<absolute-installed-path>/grafana_read.py" dashboard --uid dashboard-uid
+python -I -S "<absolute-installed-path>/grafana_read.py" dashboard --uid dashboard-uid --panel 5
 python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource metrics-uid --kind prometheus --from 1758400000000 --to 1758403600000 --expr 'up'
 python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource logs-uid --kind loki --from 1758400000000 --to 1758403600000 --expr '{service="example"} |= "error"'
 python -I -S "<absolute-installed-path>/grafana_read.py" search --query 'checkout latency'
+python -I -S "<absolute-installed-path>/grafana_read.py" search --query orders --folder-uid trading --tag production --page 2
 python -I -S "<absolute-installed-path>/grafana_read.py" alerts --folder-uid folder-uid
+python -I -S "<absolute-installed-path>/grafana_read.py" alerts --uid rule-uid
 python -I -S "<absolute-installed-path>/grafana_read.py" annotations --from 1758400000000 --to 1758403600000 --dashboard-uid dashboard-uid
 python -I -S "<absolute-installed-path>/grafana_read.py" silences
+python -I -S "<absolute-installed-path>/grafana_read.py" silences --id 11111111-2222-3333-4444-555555555555
 python -I -S "<absolute-installed-path>/grafana_read.py" render --uid dashboard-uid --panel 5 --from 1758400000000 --to 1758403600000 --var host=example
+python -I -S "<absolute-installed-path>/grafana_read.py" render --uid dashboard-uid --panel 5 --from 1758400000000 --to 1758403600000 --width 1600 --height 900
 ```
 
 On **Windows PowerShell 5.1 or PowerShell 7**, run queries through the installed wrapper, which
@@ -53,21 +67,24 @@ on PowerShell and accepts the wrapper or `--expr-base64`:
 
 ```powershell
 & '<absolute-installed-path>/grafana_read.ps1' -Datasource logs-uid -Kind loki -From 1758400000000 -To 1758403600000 -Expr '{service="example"} |= "error"'
+& '<absolute-installed-path>/grafana_read.ps1' -Datasource metrics-uid -Kind prometheus -From 1758400000000 -To 1758403600000 -Expr 'up' -Mode instant -Output summary
 ```
 
-Use single-quoted literal expressions with observed values, never shell expansion or unresolved
-dashboard macros. `--expr-base64` is for an exact encoding from trusted tooling; it carries query
+Use single-quoted literal expressions with observed values, never shell expansion. The built-in
+macros below resolve from explicit inputs; all other unresolved variables are rejected.
+`--expr-base64` is for an exact encoding from trusted tooling; it carries query
 bytes and is not encryption. The guard also rejects general script paths and `powershell -Command`.
 
 | Operation | Reads | Limits | Specific errors |
 |---|---|---|---|
-| `dashboard --uid` | One stored model (`coverage: configuration_only`) | 2 MiB | `invalid_dashboard_response` |
-| `query --datasource --kind --from --to --expr` | One Prometheus or Loki `/api/ds/query` POST after checking the datasource UID and type | 24 h, 1,000 points, 500 Loki lines, 2 MiB, 20 s | `datasource_mismatch`, `query_failed`, `unresolved_or_invalid_expression` |
-| `search --query` | Dashboards by title text of letters, digits, spaces and `_.:-` | 100 results | — |
+| `dashboard --uid [--panel]` | One stored model, or one Classic panel with dashboard context (`coverage: configuration_only`) | 2 MiB source response | `invalid_dashboard_response`, `unsupported_dashboard_model`, `invalid_panel_tree`, `panel_not_found`, `ambiguous_panel_id` |
+| `query --datasource --kind --from --to --expr [--mode range\|instant] [--output full\|summary]` | One Prometheus or Loki `/api/ds/query` POST after checking the datasource UID and type | 24 h input window; requests 1,000 points and 500 Loki lines; enforced 2 MiB response cap and 20 s timeout | `datasource_mismatch`, `query_failed`, `unresolved_or_invalid_expression` |
+| `search --query [--page] [--folder-uid] [--tag]` | Dashboards by title text, optionally scoped to one folder and tag; query/tag accept letters, digits, spaces and `_.:-` | 100 results per call, pages 1–100 | `invalid_search_response`, `folder_mismatch` if a scoped response contains another folder |
 | `alerts [--folder-uid]` | Grafana-managed rule groups with state, health and last error | 100 groups, 20 instances per rule | `query_failed` when the rules API reports an error; `folder_mismatch`: Grafana answers a folder this identity cannot see with every folder |
+| `alerts --uid` | One Grafana-managed rule definition, including returned provenance and pause settings | 2 MiB; cannot combine with `--folder-uid` | `alert_rule_mismatch`, `organization_mismatch` |
 | `annotations --from --to [--dashboard-uid]` | Annotations in the window | 24 h, 100 items | — |
-| `silences` | Grafana Alertmanager silences with their state | 2 MiB | — |
-| `render --uid --panel --from --to [--var name=value]` | One Classic panel as a 1200×600 owner-only PNG in `~/.cache/save-toolkit/grafana-renders/` (renders older than a day are deleted); prints its path, size, SHA-256 and dimensions | 7 days, five `--var` (repeat a name for multi-value), 8 MiB, 45 s | See the [visual verification](./visual-verification.md) error table |
+| `silences [--id]` | Built-in Grafana Alertmanager silences, or one exact silence by UUID | 2 MiB | `silence_mismatch` for a mismatched ID |
+| `render --uid --panel --from --to [--var name=value] [--width] [--height]` | One Classic panel as an owner-only PNG in `~/.cache/save-toolkit/grafana-renders/` (renders older than a day are deleted); prints its path, size, SHA-256 and verified dimensions | Default 1200×600; width 400–2400, height 200–1600; 7 days, five `--var` (repeat a name for multi-value), 8 MiB, 45 s | See the [visual verification](./visual-verification.md) error table |
 
 Every operation can also fail with `invalid_arguments`, `organization_mismatch`, `http_error`,
 `redirect_rejected`, `request_failed`, `response_too_large` or `invalid_response`. Redirects, ambient
@@ -79,9 +96,19 @@ Reading results:
   error code. Query errors under HTTP 200 count as failures.
 - Keep `coverage`, `truncated` and `limits` with the evidence. `permission_scoped` means an absent
   result is what this identity saw within the limits, not proof that none exists.
-- Resolve variables and macros from the actual dashboard selections first; the helper rejects
-  unresolved ones. It does not run Grafana expressions, panel transformations or instant queries:
-  name those gaps. Missing points or events cannot rule out failures outside the sampled coverage.
+- Search fetches one page per invocation. Keep the query, folder and tag fixed when following
+  `next_page`; a full page means more results may exist, not that they do. Stop at the task's cap
+  and retain `truncated` even when page 100 has no permitted next page. Search is not a stable
+  snapshot: concurrent dashboard changes can cause duplicates or omissions across pages.
+- A selected panel retains its stored targets, transformations, field configuration and dashboard
+  variable/time context. Saved variable selections may differ from the viewer's current selections;
+  datasource references and macros are not resolved, and no query or transformation is executed.
+- `alerts --uid` reads configuration, not evaluation health or notification delivery. Pair it with
+  the folder's state read. `silences --id` verifies only the built-in Grafana Alertmanager's object;
+  it does not inspect an external Alertmanager or prove an alert is suppressed.
+- Resolve dashboard variables from the actual selections first. The helper handles only the
+  built-in macros below and does not run Grafana expressions or panel transformations. Missing
+  points or events cannot rule out failures outside the sampled coverage.
 - Without `--var`, `render` uses the dashboard's saved variable defaults. Open and inspect the PNG
   before describing it (`coverage: image_uninspected`), and bind it to a query over the same window.
 - Missing authentication or an unsupported datasource is a gap: continue with browser or supplied
@@ -91,7 +118,11 @@ Reading results:
 
 In the Copilot command preview the hook cannot tell which shell runs, so it denies raw `--expr` on
 **every terminal shell**, including Bash on macOS. Use `--expr-base64` with an exact encoding from
-trusted tooling, or the wrapper in a confirmed PowerShell terminal. For example, `dXA=` encodes `up`:
+trusted tooling. The command-preview grant requires a double-quoted installed script path and
+unquoted arguments containing only letters, digits and safe literal punctuation. It rejects
+single-quoted values, spaces in argument values, shell operators and expansion syntax because
+their interpretation depends on the terminal shell. The PowerShell wrapper belongs to the
+confirmed PowerShell tool grant and is denied by this preview. For example, `dXA=` encodes `up`:
 
 ```text
 python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource metrics-uid --kind prometheus --from 1758400000000 --to 1758403600000 --expr-base64 dXA=
@@ -99,6 +130,47 @@ python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource metr
 
 Do not invent or alter an encoded query. If neither path is available, report the missing query
 path. This adds no terminal grant to the standard Copilot profile and does not authorize an encoder.
+
+## Query modes, macros and result summaries
+
+`--mode range` and `--output full` remain the defaults. `--mode instant` evaluates at `--to`;
+both absolute timestamps remain required because the window supplies range macros. Prometheus
+and Loki metric instant queries are supported; a backend may reject an instant log-stream query.
+The PowerShell equivalents are `-Mode`, `-Output`, `-IntervalMs` and `-RateIntervalMs`.
+
+The helper expands only these built-ins, including their exact `${__name}` forms:
+
+| Macro | Required source |
+|---|---|
+| `$__range`, `$__range_s`, `$__range_ms` | Difference between `--to` and `--from`; duration, seconds and milliseconds respectively |
+| `$__interval`, `$__interval_ms` | Explicit `--interval-ms` from the panel's query context; also used for the request's `intervalMs` |
+| `$__rate_interval` | Explicit `--rate-interval-ms` from the Prometheus panel's query context |
+
+The rate interval depends on scrape cadence and the query's minimum step; it cannot be inferred
+from the time window alone. Do not guess it. The regular interval must be at least the larger of
+1,000 ms and the window divided by 1,000, rounded up; this preserves the helper's request-density
+bound. Both explicit intervals are capped at 86,400,000 ms, and the rate interval is at least
+1,000 ms. Rate intervals are Prometheus-only. Other variables, macro format modifiers and
+unresolved interval macros fail before authentication. The result records original/resolved
+expressions and substitutions; inspect them before claiming equivalence with the panel.
+
+Every successful query includes a `summary`. `--output summary` omits raw `results` while retaining
+the summary, provenance, requested settings and expression evidence. Numeric summaries include
+finite minima/maxima, the last returned value, last finite value and null counts; they do not apply
+Grafana reductions or infer metric semantics. Log summaries count rows and timestamps without
+copying log lines. Detailed numeric-series entries are capped at 100, with explicit truncation.
+Keep empty, all-null, zero and unsupported frames distinct. A partial/unsupported summary is not
+evidence of no data, and a complete summary describes parsing completeness, not service health.
+Encoded frame values and numeric tables whose series identities live in row labels are not decoded
+by this summarizer; use full output to retain them for a capable reader instead of trusting raw
+placeholder values or aggregating different series together.
+
+Read actual returned timestamp bounds and counts alongside the requested `from`/`to` and `limits`.
+`maxDataPoints` is a backend request hint, not an enforced response count: step alignment can return
+extra points or extend timestamps slightly beyond the requested window. The helper reports these
+differences without silently clipping samples. The 2 MiB response-size cap remains enforced.
+Retain `coverage: not_established` until the caller assesses the actual result and its gaps;
+compact output does not establish complete log history or notification delivery.
 
 ## Grafana resource reads
 

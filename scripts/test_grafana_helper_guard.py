@@ -12,7 +12,22 @@ ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "skills/grafana/scripts/grafana_read.py"
 PREFIX = f'python -I -S "{HELPER.as_posix()}"'
 WRAPPER = f"& '{HELPER.with_suffix('.ps1').as_posix()}'"
+WORKFLOW = f'python -I "{HELPER.with_name("grafana_workflow.py").as_posix()}"'
 PS_QUERY = "-Datasource logs -Kind loki -From 1758400000000 -To 1758403600000 -Expr '{service=\"edge\"} |= \"error\"'"
+
+
+@pytest.mark.parametrize('tool', ['Bash', 'PowerShell', 'execute/runInTerminal'])
+def test_dependency_enabled_launch_is_only_for_installed_workflow(tool):
+    command = WORKFLOW.replace(' -I -S ', ' -I ') + ' doctor --agent-json'
+    assert decision(command, tool, copilot=tool == 'execute/runInTerminal') == 'allow'
+    command = PREFIX.replace(' -I -S ', ' -I ') + ' dashboard --uid edge'
+    assert decision(command, tool, copilot=tool == 'execute/runInTerminal') == 'deny'
+
+
+@pytest.mark.parametrize('flags', ['', '-S', '-I -s', '-I -S -S', '-I -c'])
+def test_workflow_still_requires_exact_isolated_launch(flags):
+    command = WORKFLOW.replace(' -I ', f' {flags} ') + ' doctor --agent-json'
+    assert decision(command, 'Bash') == 'deny'
 
 
 def decision(command, tool, *, copilot=False, agent=SRE_ASSISTANT):
@@ -45,17 +60,21 @@ def test_copilot_query_transport_keeps_shell_and_expression_checks(arguments, ex
 
 @pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
 @pytest.mark.parametrize("arguments", [
-    "dashboard --uid bsg-edge",
+    "dashboard --uid edge-probes",
+    "dashboard --uid edge-probes --panel 7",
     "query --datasource metrics --kind prometheus --from 1758400000000 --to 1758403600000 --expr 'up'",
     'query --datasource logs --kind loki --from 1758400000000 --to 1758403600000 --expr \'{service="edge"} |= "error"\'',
     "search --query checkout",
     "search --query 'checkout latency'",
+    "search --query orders --page 2 --folder-uid trading --tag production",
     "alerts",
     "alerts --folder-uid payments",
-    "annotations --from 1758400000000 --to 1758403600000 --dashboard-uid bsg-edge",
+    "alerts --uid order-latency",
+    "annotations --from 1758400000000 --to 1758403600000 --dashboard-uid edge-probes",
     "silences",
-    "render --uid bsg-cylon-ai --panel 7 --from 1758400000000 --to 1758403600000",
-    "render --uid bsg-host-detail --panel 3 --from 1758400000000 --to 1758403600000 --var host=adama --var host=cally",
+    "silences --id 11111111-2222-3333-4444-555555555555",
+    "render --uid service-health --panel 7 --from 1758400000000 --to 1758403600000",
+    "render --uid host-detail --panel 3 --from 1758400000000 --to 1758403600000 --var host=host-a --var host=host-b",
 ])
 def test_only_installed_helper_reads_are_admitted(tool, arguments):
     assert decision(f"{PREFIX} {arguments}", tool) == ("deny" if tool == "PowerShell" and "--expr " in arguments else "allow")
@@ -83,6 +102,133 @@ def test_only_fixed_powershell_wrapper_preserves_readable_expressions():
     assert decision(f"{WRAPPER} {PS_QUERY}", "Bash") == "deny"
 
 
+@pytest.mark.parametrize('tool', ['Bash', 'PowerShell'])
+@pytest.mark.parametrize('arguments', [
+    'plan --uid board --from 1000 --to 61000 --agent-json',
+    'investigate --uid board --from 1000 --to 61000 --capture-id capture-one --agent-json',
+    'dependencies --folder-uid ops --capture-id folder-one --agent-json',
+    'doctor --agent-json', 'doctor --probe --agent-json',
+    'verify-package --source-id capture-one --agent-json',
+    'analyze --source-id capture-one --analysis summary --agent-json',
+    'inspect --source-id capture-one --panel 1 --ref-id A --mode range --agent-json',
+    'inspect --source-id capture-one --agent-json',
+    'inspect --source-id capture-one --pointer /values/0 --offset 0 --limit 25 --agent-json',
+    'compare --before-id first --after-id second --agent-json',
+    'impact --source-id folder-one --kind datasource --key metrics --agent-json',
+    'alert-preview --source-id capture-one --panel 1 --ref-id A --operator gt --threshold 1 --pending-ms 30000 --step-ms 30000 --agent-json',
+])
+def test_agent_workflow_installed_fixed_commands(tool, arguments):
+    assert decision(f'{WORKFLOW} {arguments}', tool) == 'allow'
+
+
+@pytest.mark.parametrize('tool', ['Bash', 'PowerShell'])
+@pytest.mark.parametrize('arguments', [
+    'investigate --uid board --from 1000 --to 61000 --output-dir output --agent-json',
+    'investigate --uid board --from 1000 --to 61000 --capture-id capture --agent-json --open-vscode',
+    'investigate --uid board --from 1000 --to 61000 --capture-id capture',
+    'analyze --package-dir /etc --agent-json',
+    'analyze --source-id ../outside --agent-json',
+    'analyze --source-id capture --agent-json > output.json',
+    'doctor --agent-json; echo unsafe',
+    'doctor --agent-json --agent-json',
+    'open-report --source-id capture --agent-json',
+    'compare --before one --after two --agent-json',
+    'alert-preview --query-file private.json --operator gt --threshold 1 --pending-ms 0 --step-ms 1000 --agent-json',
+])
+def test_agent_workflow_does_not_grant_arbitrary_paths_or_effects(tool, arguments):
+    assert decision(f'{WORKFLOW} {arguments}', tool) == 'deny'
+
+
+def test_workflow_powershell_does_not_silently_strip_variable_quotes():
+    command = WORKFLOW + ' plan --uid board --from 1000 --to 61000 --var \'host=a"b\' --agent-json'
+    assert decision(command, 'PowerShell') == 'deny'
+    assert decision(command, 'Bash') == 'allow'
+
+
+@pytest.mark.parametrize('tool', ['run_in_terminal', 'runTerminalCommand', 'runInTerminal', 'execute/runInTerminal'])
+@pytest.mark.parametrize('arguments', [
+    "plan --uid board --from 1000 --to 61000 --var 'host=foo& whoami & rem ' --agent-json",
+    "plan --uid board --from 1000 --to 61000 --var 'host=foo|whoami' --agent-json",
+    "plan --uid board --from 1000 --to 61000 --var 'host=%COMSPEC%' --agent-json",
+    "plan --uid board --from 1000 --to 61000 --var 'host=!COMSPEC!' --agent-json",
+    "plan --uid board --from 1000 --to 61000 --var 'host=foo^&whoami' --agent-json",
+    "impact --source-id saved --kind metric --key 'up& whoami & rem ' --agent-json",
+    "impact --source-id saved --node-id 'metric:up>marker' --agent-json",
+    "inspect --source-id saved --panel 1 --ref-id 'A&(whoami)' --agent-json",
+    "plan --uid board --from 1000 --to 61000 --var 'host=two words' --agent-json",
+    'plan --uid board --from 1000 --to 61000 --var host=~ --agent-json',
+    'plan --uid board --from 1000 --to 61000 --var host=a:~ --agent-json',
+])
+def test_copilot_workflow_rejects_shell_dependent_literals(tool, arguments):
+    assert decision(f'{WORKFLOW} {arguments}', tool, copilot=True) == 'deny'
+
+
+def test_copilot_requires_unambiguous_path_and_argument_transport():
+    assert decision(WORKFLOW.replace('"', "'") + ' doctor --agent-json',
+                    'execute/runInTerminal', copilot=True) == 'deny'
+    assert decision(f'{WRAPPER} {PS_QUERY}', 'execute/runInTerminal', copilot=True) == 'deny'
+    assert decision(WORKFLOW + ' plan --uid board --from 1000 --to 61000 --var host=node.example/path --agent-json',
+                    'execute/runInTerminal', copilot=True) == 'allow'
+    assert decision(WORKFLOW + ' inspect --source-id saved --pointer /host=~0 --agent-json',
+                    'execute/runInTerminal', copilot=True) == 'allow'
+
+
+@pytest.mark.parametrize('tool', ['Bash', 'PowerShell'])
+def test_known_shell_workflow_keeps_literal_metacharacters(tool):
+    assert decision(WORKFLOW + " plan --uid board --from 1000 --to 61000 --var 'host=a&b' --agent-json", tool) == 'allow'
+
+
+@pytest.mark.parametrize("options", [
+    "-Mode instant -Output summary",
+    "-IntervalMs 3600",
+    "-Mode range -Output full -IntervalMs 4000 -RateIntervalMs 15000",
+])
+def test_wrapper_optional_query_flags_reuse_helper_validation(options):
+    query = PS_QUERY.replace("-Kind loki", "-Kind prometheus")
+    assert decision(f"{WRAPPER} {query} {options}", "PowerShell") == "allow"
+
+
+@pytest.mark.parametrize("options", [
+    "-Mode instant -Mode range", "-Output summary -Output full",
+    "-IntervalMs 4000 -IntervalMs 5000", "-RateIntervalMs 15000 -RateIntervalMs 30000",
+    "-Mode batch", "-Output raw", "-IntervalMs 3599", "-IntervalMs 86400001",
+    "-RateIntervalMs 999", "-RateIntervalMs 86400001", "-IntervalMs 1e4",
+    "-M instant", "-mode instant", "-Mode=instant", "-Output:summary",
+    "-Unknown value", "-Mode instant; Write-Output sentinel", "-Output summary > report.json",
+])
+def test_wrapper_optional_query_flags_do_not_weaken_exact_grammar(options):
+    query = PS_QUERY.replace("-Kind loki", "-Kind prometheus")
+    assert decision(f"{WRAPPER} {query} {options}", "PowerShell") == "deny"
+
+
+def test_wrapper_rate_interval_is_prometheus_only():
+    assert decision(f"{WRAPPER} {PS_QUERY} -RateIntervalMs 15000", "PowerShell") == "deny"
+
+
+@pytest.mark.parametrize("flag,value", [("-Datasource", "logs"), ("-Kind", "loki"), ("-From", "1758400000000"), ("-To", "1758403600000")])
+def test_wrapper_optional_flags_do_not_replace_required_flags(flag, value):
+    query = PS_QUERY.replace(f"{flag} {value} ", "")
+    assert decision(f"{WRAPPER} {query} -Mode instant", "PowerShell") == "deny"
+
+
+def test_wrapper_macros_require_explicit_intervals_and_keep_literal_shell_transport():
+    query = "-Datasource metrics -Kind prometheus -From 1000 -To 61000 -Expr 'rate(up[$__rate_interval]) + $__range_s + $__interval_ms'"
+    assert decision(f"{WRAPPER} {query} -IntervalMs 2000 -RateIntervalMs 15000", "PowerShell") == "allow"
+    assert decision(f"{WRAPPER} {query} -IntervalMs 2000", "PowerShell") == "deny"
+    assert decision(f"{WRAPPER} {query} -RateIntervalMs 15000", "PowerShell") == "deny"
+
+
+@pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
+@pytest.mark.parametrize("dimensions,expected", [
+    ("--width 400 --height 200", "allow"), ("--width 2400 --height 1600", "allow"),
+    ("--width 399", "deny"), ("--width 2401", "deny"),
+    ("--height 199", "deny"), ("--height 1601", "deny"),
+    ("--width 1200 --width 1600", "deny"), ("--width=1200", "deny"),
+])
+def test_render_dimensions_use_the_shared_bounded_parser(tool, dimensions, expected):
+    assert decision(f"{PREFIX} render --uid board --panel 7 --from 1000 --to 61000 {dimensions}", tool) == expected
+
+
 @pytest.mark.parametrize("command", [
     WRAPPER.replace("grafana_read.ps1", "other.ps1") + " " + PS_QUERY,
     "& './skills/grafana/scripts/grafana_read.ps1' " + PS_QUERY,
@@ -106,6 +252,8 @@ def test_wrapper_does_not_grant_other_scripts_or_shell_forms(command):
 @pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
 @pytest.mark.parametrize("command", [
     f"{PREFIX} dashboard --uid ../other",
+    f"{PREFIX} dashboard --uid edge --panel 0",
+    f"{PREFIX} dashboard --uid edge --panel 7 --panel 8",
     f"{PREFIX} dashboard --uid edge --url https://other.invalid",
     f"{PREFIX} dashboard --uid edge --token secret",
     f"{PREFIX} dashboard --uid edge > result.json",
@@ -115,9 +263,19 @@ def test_wrapper_does_not_grant_other_scripts_or_shell_forms(command):
     f"{PREFIX} query --datasource metrics --kind sql --from 1758400000000 --to 1758403600000 --expr 'DROP TABLE example'",
     f"{PREFIX} query --datasource metrics --kind prometheus --from 1 --to 9999999999999 --expr 'up'",
     f"{PREFIX} search --query 'edge\"; cf restart edge'",
+    f"{PREFIX} search --query orders --page 101",
+    f"{PREFIX} search --query orders --page 0",
+    f"{PREFIX} search --query orders --folder-uid ../other",
+    f"{PREFIX} search --query orders --tag 'production&limit=5000'",
+    f"{PREFIX} search --query orders --page=2",
     f"{PREFIX} alerts --folder-uid ../other",
+    f"{PREFIX} alerts --uid order-latency --folder-uid trading",
+    f"{PREFIX} alerts --uid ../other",
+    f"{PREFIX} alerts --uid order-latency --method PUT",
     f"{PREFIX} annotations --from 0 --to 86400001",
     f"{PREFIX} silences --url https://other.invalid",
+    f"{PREFIX} silences --id ../other",
+    f"{PREFIX} silences --id 11111111-2222-3333-4444-555555555555 --method DELETE",
     f"{PREFIX} silences; cf restart edge",
     f"{PREFIX} render --uid board --panel 0 --from 1000 --to 61000",
     f"{PREFIX} render --uid board --panel 7 --from 1000 --to 61000 --var 'host=$(id)'",

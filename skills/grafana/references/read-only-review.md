@@ -44,6 +44,23 @@ warning, presentation improvement, or unverified heuristic. Missing descriptions
 without blocking working queries. Report counts by category rather than calling every emitted
 "violation" an operational failure. `canSave: true` does not override `provisioned: true` ownership.
 
+For automation, invoke the installed checker with `--format json`. Keep its bundled Python
+helpers beside it when installing or relocating the skill.
+
+```text
+python "<absolute-installed-path>/dashboard_hygiene.py" dashboard.json --format json
+```
+
+Text remains the default. JSON reports `ok` (whether input was checked), `coverage`, `title`,
+`panel_count`, structured `findings` (`rule`, `where`, `detail`), `query_analysis`, and `errors`.
+Each query analysis names its location, analysis mode and gaps: resolved expressions use the
+bounded PromQL parser when available; unresolved templates or unavailable parsing use text
+heuristics, and over-limit expressions are marked `not_checked`. Inspect these gaps even when no
+finding fires. `ok: true` can still
+have findings; use the exit code: 0 means no implemented rule fired, 1 means findings, and 2 means
+the input could not be checked. JSON keeps all findings even with `--quiet`. A clean report is
+static hygiene evidence, not schema, query, render or live-service validation. V2 remains unsupported.
+
 ## Grafana 13.2 checks
 
 | Check | What to establish |

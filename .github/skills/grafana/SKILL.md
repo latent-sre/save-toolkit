@@ -21,15 +21,16 @@ permissions, resource identity, and ownership before relying on them.
 | Request | Method |
 |---|---|
 | Explain a dashboard or compare a change | [Dashboard interpretation](./references/dashboard-reading.md) |
+| Investigate panel data, preflight queries, analyze or compare captured evidence, preview a threshold, or trace configuration dependencies | [Investigation workflows](./references/investigation-workflows.md); bounded agent JSON, query-first with render fallback |
 | Inspect actual appearance, render a panel, or diagnose unavailable screenshots | [Visual verification](./references/visual-verification.md) |
 | Inspect, create, update, pause, or resume an alert rule; explain missing notifications | [Alert operations](./references/alert-operations.md); load `obs-alerting` for design decisions |
 | Create, inspect, update, or end a temporary silence | [Silence operations](./references/silences.md) |
-| Read Grafana from a terminal: search dashboards, read models, alert-rule state, annotations, silences, bounded Prometheus/Loki data, or a rendered panel image | [Command access](./references/command-access.md): the bundled [grafana_read.py](./scripts/grafana_read.py) and its [PowerShell wrapper](./scripts/grafana_read.ps1) |
+| Read Grafana from a terminal: scoped/paged search, a dashboard or selected panel, alert definitions/state, exact silences, annotations, bounded Prometheus/Loki data, or a rendered panel image | [Command access](./references/command-access.md): the bundled [grafana_read.py](./scripts/grafana_read.py) and its [PowerShell wrapper](./scripts/grafana_read.ps1) |
 | Create/edit/import a dashboard or folder | [Dashboard operation loop](./references/dashboard-operations.md); use `obs-dashboards` when design decisions are needed |
 | Review existing dashboards or assess an upgrade without writes | [Read-only review](./references/read-only-review.md) |
 | Dashboard/folder API discovery, concurrency, history, or rollback | [HTTP API](./references/http-api.md) |
 | Classic/V1/V2 models, panel JSON, variables, or portability | [Dashboard JSON](./references/json-model.md) |
-| Check an exported Classic/V1 dashboard offline | [dashboard_hygiene.py](./scripts/dashboard_hygiene.py), the installed copy; the `sre-assistant` guard does not run it |
+| Check an exported Classic/V1 dashboard offline, with text or JSON findings | [Read-only review](./references/read-only-review.md) and [dashboard_hygiene.py](./scripts/dashboard_hygiene.py); guarded agents use workflow `analyze --analysis hygiene` on a named capture |
 | Grafana provisioning, evaluation settings, rule groups, contact points, or policies | [Alerting configuration](./references/grafana-alerting.md) |
 | A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [Agent tooling](./references/agent-tooling.md); none is adopted |
 | Viewer/Editor workflows, sharing, annotations, or ownership-aware restore | [Viewer/editor workflows](./references/viewer-editor-workflows.md) |
@@ -40,6 +41,21 @@ permissions, resource identity, and ownership before relying on them.
 Read only the matching references. An explanation does not start a change workflow. Give console
 steps when the human is operating; use supported API/tool calls when the invoked agent has access.
 Missing access means an unapplied procedure, never a fabricated observation.
+
+The workflow CLI [grafana_workflow.py](./scripts/grafana_workflow.py) composes bounded reads with
+the local [evidence writer](./scripts/grafana_evidence.py), offline
+[threshold preview](./scripts/grafana_alert_preview.py), and
+[configuration dependency mapper](./scripts/grafana_dependencies.py).
+The workflow uses a managed Python environment for [bounded data statistics](./scripts/grafana_frames.py),
+[shared PromQL analysis](./scripts/grafana_promql.py),
+structured comparisons and PNG decoding; its command reference defines the isolated launch.
+The [bundled module loader](./scripts/grafana_modules.py) keeps those helpers on fixed local paths.
+Agents start with structured query evidence and explicit coverage gaps. When queries fail or cannot
+reproduce a panel, the default render fallback supplies an image reference; open that image before
+making a visual claim. Use [query plans](./scripts/grafana_plan.py),
+[offline analysis](./scripts/grafana_analyze.py), and [verified captures](./scripts/grafana_capture.py)
+for follow-up work without recollecting data. HTML and the optional
+[VS Code opener](./scripts/grafana_vscode.py) are secondary views, not prerequisites for agents.
 
 ## Access and authority
 

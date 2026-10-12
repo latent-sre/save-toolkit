@@ -12,6 +12,9 @@ current health. Use [dashboard JSON](./json-model.md) for stored schemas and
 2. Read the relevant queries, units, reductions, transformations, value mappings, thresholds, and
    overrides. A green color or panel title is not a health verdict. A panel threshold is not proof
    that an alert rule exists or evaluates the same expression.
+   Use the helper's `dashboard --uid <uid> --panel <id>` to isolate a Classic panel while retaining
+   its dashboard version and variable/time context. This is stored configuration; expand library
+   panel dependencies through available reads and resolve saved selections against the actual view.
 3. Run bounded read-only queries through available authorized tools. Record expanded variables,
    macros, step, query window, datasource, and returned series/frames. Inspect per-query errors even
    when the HTTP response is 200. Use the signal skill for rate, percentile, and missing-data logic.
