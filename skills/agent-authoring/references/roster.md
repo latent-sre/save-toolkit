@@ -121,7 +121,7 @@ budget, failure handling. Model tiering:
 | Allowed pin | A generation alias (`haiku`/`sonnet`/`opus`/`fable`/`inherit`) where a lane's cost or latency profile justifies it; `validate_fleet.py` rejects a full model ID |
 | Tier down | High-volume, mechanical lanes — mechanical executors, graders, routing trials |
 | Keep inheriting | Judgment-heavy lanes — review, root cause, authority decisions |
-| Per strand | Resolution order: the call's `model`, then the agent's frontmatter `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the session model; with `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` the variable overrides the first two [sourced: code.claude.com/docs/en/sub-agents]. Check both variables before attributing a lane result to the session model. A fork cannot be tiered down |
+| Per strand | Resolution order: the call's `model`, then the agent's frontmatter `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the session model; with `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` the variable overrides the first two. Check both variables before attributing a lane result to the session model. A fork cannot be tiered down |
 | A pin is a claim about difficulty | State why in the same change; drop it when the reason stops holding; Copilot adapters carry no model concept |
 
 Single-artifact wording is [artifact guidance](./artifact.md)'s, not a roster change.

@@ -35,15 +35,10 @@ CONTRIBUTING's retention rule. Discard disposable drafts when no current depende
 
 Freeze the scoring rule before a failure repair; compare incumbent and candidate on identical named
 inputs, model, timeout, trial count, threshold, and fresh-context boundary. Report the numerator and
-denominator, not one favorable transcript. A missing, inconclusive, or incomparable candidate cannot
-win; a tie or safety, authority, or existing-regression loss retains the incumbent. Repository-visible
-cases are calibration or regression, never hidden/held-out; a shadow result requires a human or
-protected evaluator outside this authoring checkout.
-
-Keep scratch candidates and transcripts ephemeral, and persist the regression, exact revisions,
-per-case results, cost, and decision in the PR. A new grader, validator, scenario, or script names
-the measured failure it prevents; unfinished work has one owner in the repository's authoritative
-tracker.
+denominator, not one favorable transcript. Repository-visible cases are calibration or regression,
+never hidden/held-out; a shadow result requires a human or protected evaluator outside this
+authoring checkout. A new grader, validator, scenario, or script names the measured failure it
+prevents.
 
 ## Learn from an encountered failure
 
@@ -88,9 +83,3 @@ schema or the output is intentionally free-form.
   reference proves activation, not reference-dependent behavior.
 - House style: scope-bearing descriptions, [verified]/[sourced]/[unverified] labels, explicit
   [UNTRUSTED] input, conclusion first, blameless language.
-
-## Handoffs
-
-`../SKILL.md`'s handoff and production-gate rules apply unchanged: an agent prepares a change but
-never manufactures or infers approval. A lane or orchestration problem goes to
-[roster guidance](./roster.md).

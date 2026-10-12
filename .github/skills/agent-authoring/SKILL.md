@@ -126,19 +126,15 @@ authorizes a self-modifying loop.
 | Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
 | A cold-start packet or bounded evidence | [context guidance](./references/context.md) |
 | Authoring or debugging any agent or skill frontmatter | [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth |
-| Authoring frontmatter for the VS Code or Copilot projection | [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) — keys, handoff entries, tool aliases, and the two plugin manifest formats |
+| Authoring frontmatter for the VS Code or Copilot projection | [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) — keys, handoff entries, and tool aliases |
 | Relying on a frontmatter field to enforce anything, or publishing a skill beyond this plugin | [skill portability](./references/skill-portability.md) — the portable set can grant, never restrict |
 
 ## Platform traps (the facts models author wrong)
 
 | Surface | What is true here |
 |---|---|
-| Canonical source | `agents/<name>.md`, `skills/<name>/SKILL.md`, `commands/adr.md`; regenerate projections with `scripts/generate_platform_adapters.py --write`; never edit a generated root |
 | Agent frontmatter | `name`, `description`, `tools` — omitting `tools` inherits **every** tool |
-| Delegation | Canonical Claude uses `Agent(target, …)`: an ungranted main-thread edge does not exist, while depth is documented intent. Generated VS Code profiles use `agent` plus `agents:` for model calls and a separately pinned `handoffs:` graph for human-selected ownership changes; enforcement is build-specific and tracked under `RELEASE-001` |
 | Agent keys that do nothing in a plugin | `hooks`, `mcpServers`, `permissionMode`, `initialPrompt` — the read-only Bash guard lives once in `hooks/hooks.json`, scoped to the exact `agent_type` |
-| Skill frontmatter this fleet uses | `name`, `description`, `argument-hint`, `disable-model-invocation`, `compatibility`; depth in `references/`, `assets/`, `scripts/`, each linked from the body |
-| Invocation | Explicit commands for installed Claude and Copilot plugin skills use the plugin-name prefix; bare commands belong to workspace skills ([Copilot details](./references/copilot-frontmatter.md)). The generator rewrites fleet references in projected agents and the `.github/` workspace copies; native plugin acceptance remains unverified |
 
 ## Promotion and composition
 

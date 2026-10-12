@@ -1,8 +1,5 @@
 # Skill portability — which frontmatter survives off Claude Code
 
-[doc-checked 2026-08-30] Checked against the current
-[VS Code Agent Skills](https://code.visualstudio.com/docs/agent-customization/agent-skills) and
-[Agent Plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins) contracts.
 A skill has two audiences. The portable Agent Skills specification
 accepts six fields; Claude Code accepts those plus a Claude-only set. A Claude-only field is
 **rejected** by Anthropic's packaging script when publishing to the portable spec, and silently
@@ -52,7 +49,7 @@ restricting field is a default there.
 
 | Host / spec | Limit | Scope |
 |---|---|---|
-| GitHub Copilot custom agents | 30,000 characters of Markdown below one `.agent.md` frontmatter | Per generated profile, including its host contract — not an aggregate fleet budget, not a skill-body limit; "character" semantics `[unverified]` (GitHub does not define code points vs UTF-16 units), so report the official contract and the counting semantics separately |
+| GitHub Copilot custom agents | 30,000 characters of Markdown below one `.agent.md` frontmatter | Per generated profile, including its host contract — not an aggregate fleet budget, not a skill-body limit; GitHub does not define "character" (code points vs UTF-16 units), so report the official contract and the counting semantics separately |
 | Agent Skills specification | `description` ≤1,024 characters; `SKILL.md` recommended under 5,000 tokens and 500 lines, resources on demand | Authoring recommendations, not body validators |
 | VS Code | No matching body-length check in public source | — |
 
@@ -72,9 +69,6 @@ repository budget leaves headroom below the provider ceiling; other agents retai
 - The root manifest declares Agent Plugins 1.0, so the installed plugin reads canonical `skills/`
   and takes Copilot agents and hooks from `com.github.copilot/`. Without that schema VS Code ranks
   `.claude-plugin/plugin.json` first and loads the Claude agents instead.
-- Codex receives no projection: distribution there was retired as a target on 2026-08-23,
-  so there is nothing to keep portable for it. Codex working inside this repository reads
-  the canonical sources through the root fleet guide like any other agent.
 
 ## Checking a skill before publishing to the portable spec
 

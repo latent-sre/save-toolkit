@@ -31,11 +31,3 @@ Reach for this when exposing `cf`/Splunk/Wavefront/ThousandEyes capability or an
 agent. Use typed inputs, destination allowlists, bounded output, and least-privilege credentials to
 keep a tool from joining sensitive data, untrusted content, and unconstrained external action. Do
 not infer containment from prose.
-
-## Handoffs
-
-`../SKILL.md`'s handoff and production-gate rules apply unchanged. The tool-specific payloads: the
-tool contract and failing fixtures go with implementation to the typed `software-engineer` agent;
-evidence and taint go with independent contract or security findings to the typed `reviewer` agent.
-An agent prepares bounded input and reports evidence only; execution stays with the human release
-owner or separately approved protected automation.

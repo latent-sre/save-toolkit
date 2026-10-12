@@ -8,7 +8,7 @@ agent frontmatter and the guard's tests, not against this file.
 
 An LLM cannot reliably separate trusted instructions from untrusted data; both arrive as one token
 stream, so any text an agent reads can try to become a command. This is architectural. You contain
-it; you do not patch it. *[sourced: Simon Willison, "The lethal trifecta for AI agents"]*
+it; you do not patch it.
 
 ## Contents
 
@@ -38,7 +38,7 @@ a control. Cut a leg structurally, in descending robustness:
 4. **Rule of Two, as the last resort**: an agent running without a human in the loop holds at most
    two of the three; wanting all three means a human approves the sensitive step, validating the
    concrete action, content, destination, and rollback while treating model output and
-   attacker-influenced evidence as [UNTRUSTED]. *[sourced: Meta, "Agents Rule of Two"]*
+   attacker-influenced evidence as [UNTRUSTED].
 
 Breaking one leg interrupts the high-impact chain; it does not eliminate injection or lower-impact
 harm, so defense in depth stays required.
@@ -84,12 +84,10 @@ forensic evidence, and route coordination to the human security incident owner.
   Envelopes, escaping, and injection matchers do not establish trust.
 - **Know what each Claude Code layer does.** Denying `WebFetch` does not stop access through Bash;
   only OS-level sandboxing enforces a network allowlist. The fleet's enforcement order, tool absence
-  then the hook allowlist then host network controls, is this principle applied. *[sourced: Claude
-  Code security and admin-setup docs; reviewed 2026-08-21]*
+  then the hook allowlist then host network controls, is this principle applied.
 - **An MCP server is a dependency with your privileges.** A `stdio` server runs as the client;
   review its launch command like `curl | sh`. A remote server must never forward a token it was not
-  issued, its OAuth metadata URL is an SSRF vector, and scopes start minimal. *[sourced: MCP
-  specification 2025-11-25; reviewed 2026-08-21]*
+  issued, its OAuth metadata URL is an SSRF vector, and scopes start minimal.
 
 ## The review, in five questions
 

@@ -37,13 +37,12 @@ Read the current edges from the validated roster table, not from memory.
 
 ## The honest limit
 
-Plugin targets in the Claude grant need their namespace. On Claude Code 2.1.261 a bare
-`Agent(child)` admitted no plugin child, while `Agent(return-probe:child)` returned successfully
-in the same isolated probe. The generator removes only this plugin's namespace for Copilot's
+Plugin targets in the Claude grant need their namespace. A bare `Agent(child)` admits
+no plugin child; `Agent(<plugin>:child)` does. The generator removes only this plugin's namespace for Copilot's
 bare `agents:` names; it does not widen the allowed target set.
 
 Canonical Claude `Agent(target)` enforces an edge only for a main-thread agent; at subagent depth
-the list is silently ignored (probed; see
+the list is silently ignored (see
 [`claude-code-frontmatter.md`](./claude-code-frontmatter.md)). VS Code has a separate `agents:`
 field. The generated field scopes discovery on the currently observed host; deterministic
 invocation and nested-edge enforcement are build-specific and stay unverified until `RELEASE-001`

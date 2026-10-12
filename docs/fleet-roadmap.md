@@ -604,9 +604,11 @@ target, argv/executable digest, expiry, rollback — instead of an open-ended ex
 **Owner:** Save Toolkit maintainers.
 **Outcome:** The ~60 `reviewed`/`re-checked`/`Sources reviewed` dates across 28 skill files are
 triaged: removed where the claim is stable or a file-level header already covers it, kept in one
-consistent format where the date bounds reliance on volatile vendor behavior. No inline
-`doc-checked` stamps remain anywhere (the two in `agent-authoring` were removed 2026-09-19).
-**Next action:** None until an owner confirms scope — all stamps, or volatile-vendor claims only.
+consistent format where the date bounds reliance on volatile vendor behavior. `agent-authoring`
+is done: the owner chose to strip every date, probe-version tag, and citation from its `SKILL.md`
+and references.
+**Next action:** None until an owner confirms scope for the other skills — all stamps, or
+volatile-vendor claims only.
 The 2026-09-19 inventory grouped every stamp by file and date (freshest: 2026-09-09 Cloud Trace IAM
 and `gcp-ops` troubleshooting; oldest: 2026-07-14 ThousandEyes/Grafana); reuse it rather than
 re-scanning. Reopens as a single cleanup slice with adapter regeneration and Gate A.

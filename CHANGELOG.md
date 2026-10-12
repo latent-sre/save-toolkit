@@ -8,6 +8,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `agent-authoring` drops content that its owning references or code already carry. The
+  entrypoint's platform-traps table keeps only the two agent-frontmatter rows; repeated
+  loop-termination and handoff prose, retired-root and Codex history, and every date, probe-version
+  tag, and citation are gone from the skill. Copilot hook entry shape, launcher behavior, and
+  manifest format detection move to `docs/vscode-plugin-acceptance.md`, which already owned the
+  rest of that host contract.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a
