@@ -25,7 +25,7 @@ win over every default here; the owner decisions apply wherever the repository h
 | Area | Decision |
 |---|---|
 | Frameworks | A new HTTP service is FastAPI (Python) or Huma on `net/http` (Go), code-first: the framework generates the OpenAPI document from typed handlers. An existing service keeps its framework, generator and contract. |
-| Contract gates | Every HTTP service commits its generated `openapi.json`. Its tests fail when the code and the document differ, when an operation breaks a house rule, and when Schemathesis finds a response the document does not allow; CI fails a breaking change with `oasdiff`. |
+| Contract gates | Every HTTP service, new or existing, commits its generated `openapi.json` at the repository root; a service without one gains it, with its document tests, in the first change to its API, because the UI's generated client and oasdiff read only that file. Its tests fail when the code and the document differ, when an operation breaks a house rule, and when Schemathesis finds a response the document does not allow; CI fails a breaking change with `oasdiff`. |
 | OpenAPI version | Emit 3.1, valid as 3.2. A 3.2-only feature waits until the tools that write and read the document support it. |
 | Shared shapes | Owned here and consumed by `frontend-craft`: RFC 9457 problems with `request_id` and `errors[]`, cursor pages, `Idempotency-Key` writes. |
 | Versioning | Every API path starts with `/v1`; a breaking change follows [versioning](./references/versioning.md). |
@@ -63,8 +63,10 @@ win over every default here; the owner decisions apply wherever the repository h
      [api-contract-go.yml](./assets/ci/api-contract-go.yml).
 
    In an existing service, keep its own error and auth code and adapt the contract tests to what
-   it already does; add the document tests with its existing operations listed as predating the
-   house rules, which then govern only what you add.
+   it already does. Add the document tests and the generated `openapi.json` even when the service
+   has neither yet — committing the document changes no behaviour, and without it a contract change
+   is invisible — with its existing operations listed as predating the house rules, which then
+   govern only what you add.
 4. **Change the contract before the code.** Write the route signatures and models, regenerate the
    document (`UPDATE_OPENAPI=1 python -m pytest test_openapi_document.py`, or
    `go test -run TestOpenAPIDocument -update`), and read its diff: that diff is the API change.
@@ -106,8 +108,8 @@ authentication, and browser and host safety rows; the other rows are yours to bu
 
 ## Done means
 
-- Every test passes, including the document tests and Schemathesis, and the committed
-  `openapi.json` matches the code.
+- Every test passes, including the document tests and Schemathesis, and `openapi.json` exists at
+  the repository root and matches the code.
 - Your report has a **Contract change** heading: operations added, changed or removed, and whether
   oasdiff calls any of it breaking, or `none`.
 - Changed endpoints were exercised through the running app, and workers, schedulers and clients

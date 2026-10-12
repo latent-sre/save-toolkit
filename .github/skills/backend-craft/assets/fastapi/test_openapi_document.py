@@ -13,7 +13,14 @@ from pathlib import Path
 
 from main import Settings, ThingStore, create_app
 
-DOCUMENT = Path(__file__).with_name("openapi.json")  # the service root's committed document
+
+def _repository_root() -> Path:
+    here = Path(__file__).resolve().parent
+    markers = ("pyproject.toml", ".git")
+    return next((p for p in (here, *here.parents) if any((p / m).exists() for m in markers)), here)
+
+
+DOCUMENT = _repository_root() / "openapi.json"  # committed at the repository root, beside pyproject.toml
 PUBLIC_OPERATIONS: set[str] = set()  # operation IDs that deliberately need no authentication
 # In an existing service: the operation IDs that predate the house rules, so the rules apply to
 # what changes add without rewriting a contract clients already use. Never add a new operation.

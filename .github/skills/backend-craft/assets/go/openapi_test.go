@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"testing"
@@ -18,7 +19,23 @@ import (
 
 var update = flag.Bool("update", false, "rewrite openapi.json from the code")
 
-const documentPath = "openapi.json"
+// documentPath is openapi.json at the module root, wherever the main package lives.
+var documentPath = moduleRootFile("openapi.json")
+
+func moduleRootFile(name string) string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return name
+	}
+	for d := dir; ; d = filepath.Dir(d) {
+		if _, err := os.Stat(filepath.Join(d, "go.mod")); err == nil {
+			return filepath.Join(d, name)
+		}
+		if filepath.Dir(d) == d {
+			return name
+		}
+	}
+}
 
 func generatedDocument(t *testing.T) []byte {
 	t.Helper()
