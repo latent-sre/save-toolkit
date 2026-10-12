@@ -268,11 +268,18 @@ checks:
   - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py completes", timeout: 120, text: "oracle: an open incident appears with the summary as title and the runbook link", failure_exit_code: 10}
   - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py redelivery", timeout: 120, text: "oracle: three deliveries of one event make one incident; a different event id with the same summary makes its own", failure_exit_code: 10}
   - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py durable", timeout: 180, text: "oracle: killed right after acknowledging, the event is already stored and a restarted app finishes it with its runbook link", failure_exit_code: 10}
+  - check: command_exit_zero
+    failure_exit_code: 10
+    command: "python oracle_protocol.py openapi_checks.py document"
+    timeout: 120
+    text: "oracle: openapi.json is committed at the root and equals the app's generated document"
+    writes_from: {openapi_checks.py: evals/oracles/openapi-document/probe_checks.py}
+  - {check: command_exit_zero, command: "python oracle_protocol.py openapi_checks.py drift_gate", timeout: 900, text: "oracle: the suite fails when openapi.json drifts from the code and passes when it matches", failure_exit_code: 10}
   - {check: command_exit_zero, command: "python -m pytest -q", timeout: 300, text: "suite is green when the probe runs it"}
   - {check: verification_completed, runner: pytest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
-  - {check: changes_within, allowed: ["app", "tests", "README.md", "pyproject.toml"], text: "surgical: only the service, its tests, the README, and the project file changed"}
+  - {check: changes_within, allowed: ["app", "tests", "README.md", "pyproject.toml", "openapi.json"], text: "surgical: only the service, its tests, its committed OpenAPI document, the README, and the project file changed"}
   - {check: no_new_commits, text: "nothing committed uninvited"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}
   - {check: skill_loaded, skill: backend-craft, text: "backend-craft was loaded for backend code"}

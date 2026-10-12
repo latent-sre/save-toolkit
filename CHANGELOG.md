@@ -8,6 +8,22 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
+  ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
+  code-first, each committing its generated `openapi.json` behind four gates — a drift test, a
+  house-rules test, Schemathesis and `oasdiff` — with OpenAPI 3.1 emitted 3.2-ready, the shared
+  problem, page and write shapes owned here, `/v1` with a versioning procedure, and runtimes on
+  PCF, Cloud Run, Linux hosts and Windows desktops. New references: OpenAPI, versioning and Go;
+  the FastAPI reference is rewritten. The starting code is a FastAPI and a Go/Huma service that
+  produce matching documents, each with contract, document and Schemathesis tests, plus GitHub
+  Actions gates; the YAML starter, `problem_fastapi.py` and `test_http_contract.py` are retired.
+  [verified] `scripts/test_backend_craft_assets.py` runs both starters' suites and 45 direct
+  checks of the FastAPI house module; 28 of 29 seeded breaks failed the starters' own tests, and
+  the survivor is a redundant second authentication layer.
+  A Go/Huma greenfield build scenario joins the backend evals, and the three FastAPI scenarios
+  now also grade a committed `openapi.json` and its drift test through a shared oracle proven on
+  each fixture. The fleet atlas admits `*.go` spans. API-writes, background-work and consuming-APIs carry over
+  unchanged until `BACKEND-001` re-derives them.
 - The fleet atlas accepts a binary canonical input. A screenshot inside a review packet keeps its
   path, bytes and digest in the snapshot, carries no text and mints no document node, instead of
   failing the build with a UTF-8 decode error, which is what PR #366's first `validate` run did on

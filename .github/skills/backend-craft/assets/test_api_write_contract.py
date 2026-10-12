@@ -11,7 +11,7 @@ Return independent copies with nonempty state mappings; exclude volatile observa
 Never infer effects from responses, replay caches, or deduplication. The adapter separately
 checks request-to-state correctness and native replay bodies/headers; these checks compare
 persisted identity and state across duplicates, conflicts, restarts, and authorized scopes.
-An adapter for openapi.starter.yaml can call assert_starter_replay_response(first, replay)
+An adapter for the house write contract can call assert_starter_replay_response(first, replay)
 on its native HTTP responses; other project contracts keep their own assertions.
 race(key, payload) submits overlapping server requests and resolves permitted pending/retry
 responses into two completed results. overlap_observed must come from independent server
@@ -32,7 +32,7 @@ from copy import deepcopy
 
 
 def assert_starter_replay_response(first, replay):
-    """Opt-in HTTP assertion for openapi.starter.yaml; generic effect checks do not call it."""
+    """Opt-in HTTP assertion for the house write contract; generic effect checks do not call it."""
     assert first.status_code == replay.status_code == 201, 'starter replay repeats the creation status'
     assert first.json() == replay.json(), 'starter replay repeats the committed body'
     assert first.headers.get('Idempotent-Replayed') in (None, 'false'), 'initial response is not a replay'
