@@ -19,7 +19,10 @@ and tool versions from the project's manifests and lockfiles, never assume them.
    on any response the document does not allow and on any 500. FastAPI runs it in-process
    (`test_schemathesis.py`); Go runs the `st` command against the real handler
    (`schemathesis_test.go`). The test token lives in the test verifier; a service never accepts a
-   static token to make this work.
+   static token to make this work. Both run with `allow-extra-parameters` and
+   `with-security-parameters` off: the test supplies the token, and a service ignores query
+   parameters it does not declare, so neither an undeclared parameter nor a stripped token is
+   input the document forbids.
 6. **oasdiff** fails a pull request whose document breaks the base branch's:
    `oasdiff breaking --fail-on ERR base.json openapi.json`. The CI starters fetch the base
    document with `git show origin/<base>:openapi.json`.

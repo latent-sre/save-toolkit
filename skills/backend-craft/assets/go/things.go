@@ -24,8 +24,9 @@ type Thing struct {
 
 // ThingStore stands in for the datastore; the real one queries with an index on ID.
 type ThingStore struct {
-	mu     sync.RWMutex
-	things []Thing // ordered by ID, the page order
+	mu       sync.RWMutex
+	things   []Thing // ordered by ID, the page order
+	readyErr error   // stands in for a failed dependency check
 }
 
 func NewThingStore(things ...Thing) *ThingStore {
@@ -35,7 +36,7 @@ func NewThingStore(things ...Thing) *ThingStore {
 }
 
 // Ready reports whether this instance can serve: here, always; with a database, a short ping.
-func (s *ThingStore) Ready(context.Context) error { return nil }
+func (s *ThingStore) Ready(context.Context) error { return s.readyErr }
 
 // After returns up to limit things the principal may read, with IDs after the given one.
 func (s *ThingStore) After(_ context.Context, p Principal, afterID string, limit int) []Thing {

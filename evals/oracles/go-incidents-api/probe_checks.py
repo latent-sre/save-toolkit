@@ -98,6 +98,8 @@ class Service:
         built = subprocess.run([go(), "build", "-o", binary, main_package()], cwd=WORKSPACE,
                                capture_output=True, text=True, timeout=600)
         if built.returncode != 0:
+            self.slot.close()
+            shutil.rmtree(self.dir, ignore_errors=True)
             fail("go build failed: " + (built.stderr or built.stdout)[-1500:])
         self.port = free_port()
         env = {**os.environ, "PORT": str(self.port), "ONCALL_TEST_TOKEN": TOKEN}
@@ -107,16 +109,22 @@ class Service:
         while time.monotonic() < deadline:
             if self.proc.poll() is not None:
                 self.log.seek(0)
-                fail("the service exited with %s before listening: %s" % (self.proc.returncode, self.log.read()[-1500:]))
+                output = self.log.read()[-1500:]
+                self.__exit__()
+                fail("the service exited with %s before listening: %s" % (self.proc.returncode, output))
             try:
                 with socket.create_connection(("127.0.0.1", self.port), timeout=0.5):
                     return self
             except OSError:
                 time.sleep(0.2)
+        # __exit__ never runs after a failed __enter__: stop the candidate here, so a service that
+        # ignores PORT does not outlive this check and hold ports or the binary slot.
+        self.__exit__()
         fail("the service did not listen on PORT=%d within 30 s" % self.port)
 
     def __exit__(self, *exc):
-        self.proc.kill()
+        if self.proc.poll() is None:
+            self.proc.kill()
         self.proc.wait(timeout=10)
         self.log.close()
         self.slot.close()
@@ -191,12 +199,13 @@ def walk(svc, query):
 
 def check_auth():
     with Service() as svc:
-        for token, what in ((None, "no token"), ("wrong-token", "a wrong token")):
-            status, headers, raw = svc.request("GET", "/v1/incidents", token=token)
-            assert_problem(status, headers, raw, 401, "GET /v1/incidents with " + what)
-            if not header(headers, "WWW-Authenticate"):
-                fail("a 401 names its scheme in WWW-Authenticate")
-    ok("401 problem+json with WWW-Authenticate without a valid bearer token")
+        for path in ("/v1/incidents", "/v1/incidents/inc-0001"):
+            for token, what in ((None, "no token"), ("wrong-token", "a wrong token")):
+                status, headers, raw = svc.request("GET", path, token=token)
+                assert_problem(status, headers, raw, 401, "GET %s with %s" % (path, what))
+                if not header(headers, "WWW-Authenticate"):
+                    fail("a 401 names its scheme in WWW-Authenticate")
+    ok("both routes answer 401 problem+json with WWW-Authenticate without a valid bearer token")
 
 
 def check_pagination():

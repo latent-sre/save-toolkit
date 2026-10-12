@@ -131,7 +131,18 @@ def test_cross_site_writes_are_refused(client):
 
 
 def test_settings_come_from_the_environment():
-    assert load_settings({}).host == "127.0.0.1"
-    assert load_settings({"PORT": "8081"}).port == 8081
+    assert load_settings({}).host == "127.0.0.1"  # a local tool stays on loopback
+    platform = load_settings({"PORT": "8081"})  # PCF and Cloud Run route from outside
+    assert (platform.host, platform.port) == ("0.0.0.0", 8081)
+    assert load_settings({"PORT": "8081", "HOST": "127.0.0.1"}).host == "127.0.0.1"
     with pytest.raises(ValueError):
         load_settings({"PORT": "eighty"})
+
+
+def test_failed_readiness_is_a_problem():
+    class NotReady(ThingStore):
+        async def ready(self) -> bool:
+            return False
+
+    with client_for(NotReady()) as c:
+        assert_problem(c.get("/health/ready"), 503)

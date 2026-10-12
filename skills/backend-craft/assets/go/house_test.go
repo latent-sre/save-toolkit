@@ -228,6 +228,12 @@ func TestCrossSiteWritesAreRefused(t *testing.T) {
 	assertProblem(t, r, http.StatusForbidden)
 }
 
+func TestFailedReadinessIsAProblem(t *testing.T) {
+	store := seededStore(1)
+	store.readyErr = errors.New("database unreachable")
+	assertProblem(t, call(t, testHandler(t, store), "GET", "/health/ready"), http.StatusServiceUnavailable)
+}
+
 func TestConfigComesFromTheEnvironment(t *testing.T) {
 	env := func(vars map[string]string) func(string) string { return func(k string) string { return vars[k] } }
 	if cfg, err := loadConfig(env(nil)); err != nil || cfg.Addr != "127.0.0.1:8080" {

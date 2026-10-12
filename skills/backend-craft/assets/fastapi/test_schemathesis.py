@@ -23,6 +23,9 @@ app = create_app(
     ThingStore([Thing(id=f"thing-{i:04d}", name=f"Thing {i}", team="sre") for i in range(1, 30)]),
 )
 schema = schemathesis.openapi.from_asgi("/openapi.json", app)
+# The test supplies the token, so Schemathesis does not generate the security header; the service
+# ignores query parameters it does not declare, so an extra one is not invalid input.
+schema.config.generation.update(allow_extra_parameters=False, with_security_parameters=False)
 
 
 @schema.parametrize()

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -87,18 +88,21 @@ func TestOpenAPIHouseRules(t *testing.T) {
 	ids := map[string]bool{}
 	for path, ops := range doc.Paths {
 		for method, op := range ops {
-			where := method + " " + path
-			if predatingOperations[op.OperationID] {
+			where := strings.ToUpper(method) + " " + path
+			if ids[op.OperationID] {
+				t.Errorf("%s: operationId %q is not unique; generated clients use it", where, op.OperationID)
+			}
+			ids[op.OperationID] = true
+			if predatingOperations[where] {
 				continue
 			}
 			if !versionedPath.MatchString(path) {
 				t.Errorf("%s: API paths start with a version, /v1/", where)
 			}
-			if !operationIDShape.MatchString(op.OperationID) || ids[op.OperationID] {
-				t.Errorf("%s: operationId %q must be a unique lowerCamel name; generated clients use it", where, op.OperationID)
+			if !operationIDShape.MatchString(op.OperationID) {
+				t.Errorf("%s: operationId %q must be a lowerCamel name; generated clients use it", where, op.OperationID)
 			}
-			ids[op.OperationID] = true
-			if len(op.Security) == 0 && !publicOperations[op.OperationID] {
+			if !publicOperations[op.OperationID] && !requiresBearer(op.Security) {
 				t.Errorf("%s: declare Security: Bearer, or list it in publicOperations with Metadata: Public", where)
 			}
 			if _, declared := op.Responses["400"]; op.RequestBody != nil && !declared {
@@ -118,7 +122,21 @@ func TestOpenAPIHouseRules(t *testing.T) {
 // publicOperations lists the operation IDs that deliberately need no authentication.
 var publicOperations = map[string]bool{}
 
-// predatingOperations lists, in an existing service, the operation IDs that predate the house
-// rules, so the rules apply to what changes add without rewriting a contract clients already
-// use. Never add a new operation.
+// predatingOperations lists, in an existing service, the operations ("GET /path") that predate the
+// house rules, so the rules apply to what changes add without rewriting a contract clients
+// already use. Their operation IDs still count for uniqueness. Never add a new operation.
 var predatingOperations = map[string]bool{}
+
+// requiresBearer reports whether every security alternative demands the bearer scheme: an empty
+// alternative ({}) would allow anonymous access.
+func requiresBearer(security []map[string][]string) bool {
+	if len(security) == 0 {
+		return false
+	}
+	for _, alternative := range security {
+		if _, ok := alternative["bearer"]; !ok {
+			return false
+		}
+	}
+	return true
+}

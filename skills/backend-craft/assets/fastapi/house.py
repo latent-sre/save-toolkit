@@ -174,6 +174,18 @@ class RequestIdMiddleware:
             request_id_var.reset(token)
 
 
+def _origin(url: str) -> tuple[str, str, int | None] | None:
+    """(scheme, lowercase host, effective port), or None for an origin that cannot be parsed."""
+    try:
+        parts = urlsplit(url)
+        port = parts.port or {"http": 80, "https": 443}.get(parts.scheme.lower())
+    except ValueError:
+        return None
+    if not parts.hostname:
+        return None
+    return parts.scheme.lower(), parts.hostname.lower(), port
+
+
 class CrossSiteWriteGuard:
     """Refuse browser writes from another origin (Sec-Fetch-Site, else Origin against Host).
     Reads and clients that send neither header, such as scripts, pass."""
@@ -193,7 +205,9 @@ class CrossSiteWriteGuard:
             elif site is not None:
                 cross = site not in ("same-origin", "none")
             else:
-                cross = origin is not None and urlsplit(origin).netloc != headers.get("host")
+                cross = origin is not None and _origin(origin) != _origin(
+                    f"{scope.get('scheme', 'http')}://{headers.get('host', '')}"
+                )
             if cross:
                 response = problem(Request(scope), 403, "Cross-origin requests are not accepted.")
                 await response(scope, receive, send)
@@ -202,7 +216,7 @@ class CrossSiteWriteGuard:
 
 
 def is_loopback(host: str) -> bool:
-    host = host.strip("[]")
+    host = host.strip("[]").lower()
     if host == "localhost":
         return True
     try:
@@ -367,6 +381,9 @@ def _house_document(app: FastAPI) -> None:
                 responses.setdefault("500", {"description": HTTPStatus(500).phrase})
                 if "requestBody" in operation:  # unparseable JSON answers 400
                     responses.setdefault("400", {"description": HTTPStatus(400).phrase})
+                if operation.get("security"):  # authenticated: a bad token, or a verifier outage
+                    for status in (401, 503):
+                        responses.setdefault(str(status), {"description": HTTPStatus(status).phrase})
                 for status, response in responses.items():
                     if status.isdigit() and int(status) >= 400:
                         response["content"] = deepcopy(body)

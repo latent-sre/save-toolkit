@@ -49,8 +49,9 @@ win over every default here; the owner decisions apply wherever the repository h
    | Datastore | The one its neighbours use |
    | Does it change anything outside itself | Then the Actions decision applies |
 
-3. **Install the house contract first.** Copy the starter for the language beside the service and
-   adapt its resource, keeping every assertion:
+3. **Install the house contract first.** Read each starter file for the language and write it into
+   the service with your editor tools, adapting its resource and keeping every assertion. They are
+   templates to read: a shell `cp` from the plugin directory is refused.
    - FastAPI: [house.py](./assets/fastapi/house.py), [test_house.py](./assets/fastapi/test_house.py),
      [test_openapi_document.py](./assets/fastapi/test_openapi_document.py),
      [test_schemathesis.py](./assets/fastapi/test_schemathesis.py), with

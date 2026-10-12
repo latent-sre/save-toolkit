@@ -53,9 +53,10 @@ and Python versions from the project's manifests and lockfiles, never assume the
 
 ## Running
 
-- `uvicorn main:build --factory --host "${HOST:-127.0.0.1}" --port "${PORT:-8000}"
-  --timeout-graceful-shutdown 8`. uvicorn binds `127.0.0.1` by default; `fastapi run` binds
-  `0.0.0.0`, so never use it for a desktop tool.
+- Start through the settings, as the example's `python main.py` does with `uvicorn.run`: all
+  interfaces on `$PORT` when the platform sets it, `127.0.0.1` otherwise, and
+  `timeout_graceful_shutdown=8`. A bare uvicorn command binds `127.0.0.1` by default, which a
+  platform cannot route to; `fastapi run` binds `0.0.0.0`, so never use it for a desktop tool.
 - Behind Gorouter or Cloud Run, `--proxy-headers` trusts `X-Forwarded-*` only from the addresses
   in `--forwarded-allow-ips` (default loopback): set the ingress's addresses, or `'*'` only when
   nothing reaches the app except through the ingress.

@@ -235,8 +235,23 @@ func NewAPI(mux *http.ServeMux, title, version string, verify TokenVerifier) hum
 		"bearer": {Type: "http", Scheme: "bearer", BearerFormat: "JWT"},
 	}
 	api := humago.New(mux, config)
+	api.OpenAPI().OnAddOperation = append(api.OpenAPI().OnAddOperation, declareAuthErrors)
 	api.UseMiddleware(RequireAuth(api, verify))
 	return api
+}
+
+// declareAuthErrors documents the 401 and the verifier-outage 503 that RequireAuth can send on
+// every authenticated operation, with the same Problem body as the operation's 500.
+func declareAuthErrors(_ *huma.OpenAPI, op *huma.Operation) {
+	problem := op.Responses["500"]
+	if len(op.Security) == 0 || problem == nil {
+		return
+	}
+	for status, description := range map[string]string{"401": "Unauthorized", "503": "Service Unavailable"} {
+		if op.Responses[status] == nil {
+			op.Responses[status] = &huma.Response{Description: description, Content: problem.Content}
+		}
+	}
 }
 
 // Bearer is the security requirement for an authenticated operation.

@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -54,7 +55,7 @@ func newService(cfg Config, verify TokenVerifier, store *ThingStore) (http.Handl
 	})
 	mux.HandleFunc("GET /health/ready", func(w http.ResponseWriter, r *http.Request) {
 		if err := store.Ready(r.Context()); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
+			WriteProblem(w, r, newProblem(http.StatusServiceUnavailable, "Not ready to receive traffic."))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -78,7 +79,7 @@ func newService(cfg Config, verify TokenVerifier, store *ThingStore) (http.Handl
 }
 
 func isLoopback(host string) bool {
-	if host == "localhost" {
+	if strings.EqualFold(host, "localhost") {
 		return true
 	}
 	ip := net.ParseIP(host)

@@ -22,8 +22,9 @@ def _repository_root() -> Path:
 
 DOCUMENT = _repository_root() / "openapi.json"  # committed at the repository root, beside pyproject.toml
 PUBLIC_OPERATIONS: set[str] = set()  # operation IDs that deliberately need no authentication
-# In an existing service: the operation IDs that predate the house rules, so the rules apply to
-# what changes add without rewriting a contract clients already use. Never add a new operation.
+# In an existing service: the operations ("GET /path") that predate the house rules, so the rules
+# apply to what changes add without rewriting a contract clients already use. Their operation IDs
+# still count for uniqueness. Never add a new operation.
 PREDATING_OPERATIONS: set[str] = set()
 
 
@@ -56,15 +57,18 @@ def test_house_rules():
     for path, operations in document["paths"].items():
         for method, operation in operations.items():
             where = f"{method.upper()} {path}"
-            if operation.get("operationId") in PREDATING_OPERATIONS:
+            op_id = operation.get("operationId", "")
+            assert op_id not in ids, f"{where}: operationId {op_id!r} is not unique; generated clients use it"
+            ids.add(op_id)
+            if where in PREDATING_OPERATIONS:
                 continue
             assert re.match(r"^/v[0-9]+/", path), f"{where}: API paths start with a version, /v1/"
-            op_id = operation.get("operationId", "")
-            assert re.fullmatch(r"[a-z][A-Za-z0-9]*", op_id) and op_id not in ids, (
-                f"{where}: operationId {op_id!r} must be a unique lowerCamel name; generated clients use it"
+            assert re.fullmatch(r"[a-z][A-Za-z0-9]*", op_id), (
+                f"{where}: operationId {op_id!r} must be a lowerCamel name; generated clients use it"
             )
-            ids.add(op_id)
-            assert operation.get("security") or op_id in PUBLIC_OPERATIONS, (
+            security = operation.get("security") or []
+            # Every alternative must demand bearer: an empty one ({}) would allow anonymous access.
+            assert op_id in PUBLIC_OPERATIONS or (security and all("bearer" in alt for alt in security)), (
                 f"{where}: depend on authenticated, or list it in PUBLIC_OPERATIONS"
             )
             if "requestBody" in operation:
