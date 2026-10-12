@@ -1,11 +1,13 @@
 """Calibrate the Python craft outcome oracles against correct and broken artifacts."""
 
 import json
+import sys
 import tempfile
 import textwrap
 import unittest
 from pathlib import Path
 
+import pytest
 from graders import exact_json
 from probe_testkit import run_python, scenario_file, write_tree
 
@@ -149,6 +151,26 @@ CORRECT["scoped"] = scenario("scoped")["fixture"]["files"]["fills.py"].replace(
     "return ordered[-count:]", "return ordered[-count:] if count > 0 else []")
 
 
+def run_artifact(mode, source, *child_args):
+    with tempfile.TemporaryDirectory() as tmp:
+        files = source if isinstance(source, dict) else {SCENARIOS[mode][1]: source}
+        write_tree(Path(tmp), {name: textwrap.dedent(text) for name, text in files.items()})
+        # Policy's aggregate command supervises six fresh import-order checks and a
+        # fixture suite with its own 60s limit. Match command_exit_zero's 180s budget;
+        # a single entrypoint still has the short bound used by the other calibrations.
+        timeout = 180 if mode == "policy" and not child_args else 15
+        return run_python(["-B", str(ORACLE), mode, *child_args], cwd=tmp, isolated=True, timeout=timeout)
+
+
+def assert_rejected(mode, source, diagnostic, *child_args):
+    """The oracle fails `source`, naming `diagnostic` unless it is None (any failure)."""
+    result = run_artifact(mode, source, *child_args)
+    assert result.returncode != 0
+    if diagnostic is not None:
+        assert diagnostic in result.stderr
+    return result
+
+
 class PythonCraftOracleTests(unittest.TestCase):
     def assert_grader_requires_each_decision(self, path, expected):
         fields = scenario_file(path)["graders"][0]["fields"]
@@ -175,57 +197,15 @@ class PythonCraftOracleTests(unittest.TestCase):
             "case_a": "direct_synchronous_path", "case_b": "importable_core_cli_adapter",
             "case_c": "stream_aggregate_then_publish", "case_d": "clarify_failure_contract"})
 
-    def run_artifact(self, mode, source, *child_args):
-        with tempfile.TemporaryDirectory() as tmp:
-            files = source if isinstance(source, dict) else {SCENARIOS[mode][1]: source}
-            write_tree(Path(tmp), {name: textwrap.dedent(text) for name, text in files.items()})
-            # Policy's aggregate command supervises six fresh import-order checks and a
-            # fixture suite with its own 60s limit. Match command_exit_zero's 180s budget;
-            # a single entrypoint still has the short bound used by the other calibrations.
-            timeout = 180 if mode == "policy" and not child_args else 15
-            return run_python(["-B", str(ORACLE), mode, *child_args], cwd=tmp, isolated=True, timeout=timeout)
-
     def assert_passes(self, mode, source):
-        result = self.run_artifact(mode, source)
+        result = run_artifact(mode, source)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("contract passed: " + mode, result.stdout)
-
-    def assert_rejected(self, mode, source, diagnostic, *child_args):
-        """The oracle fails `source`, naming `diagnostic` unless it is None (any failure)."""
-        result = self.run_artifact(mode, source, *child_args)
-        self.assertNotEqual(result.returncode, 0)
-        if diagnostic is not None:
-            self.assertIn(diagnostic, result.stderr)
-        return result
 
     def test_correct_artifacts_pass_each_outcome_oracle(self):
         for mode, source in CORRECT.items():
             with self.subTest(mode=mode):
                 self.assert_passes(mode, source)
-
-    def test_oracles_reject_candidate_system_exit_before_completion(self):
-        api_names = {"refactor": "process", "generator": "iter_records", "migration": "parse_address",
-                     "unchanged": "is_nonnegative", "modules": "render", "calculation": "total_from_lines",
-                     "policy": "normalize_order", "scoped": "latest_fills"}
-        for mode, original in CORRECT.items():
-            files = dict(original) if isinstance(original, dict) else {SCENARIOS[mode][1]: original}
-            filename = SCENARIOS[mode][1]
-            source = textwrap.dedent(files[filename])
-            signature = next(line for line in source.splitlines() if line.startswith("def " + api_names[mode] + "("))
-            # These modes dispatch fresh children; exercise their script entrypoint directly as well.
-            children = {"modules": ("reports", "formatting"),
-                        "policy": ("policy", "api", "cli", "batch", "legacy", "registry")}.get(mode, ())
-            for code in (0, 2):
-                for phase, mutant in (
-                    ("import", f"raise SystemExit({code})\n" + source),
-                    # iter_records remains a generator: its exit occurs when iteration starts.
-                    ("api/iteration", source.replace(signature, signature + f"\n    raise SystemExit({code})", 1)),
-                ):
-                    for child_args in ((), *((first,) for first in children)):
-                        with self.subTest(mode=mode, code=code, phase=phase, child_args=child_args):
-                            result = self.assert_rejected(mode, files | {filename: mutant},
-                                                          "candidate exited before contract checks completed", *child_args)
-                            self.assertNotIn("contract passed: " + mode, result.stdout)
 
     def test_seed_contracts_and_known_gaps_are_distinguished(self):
         diagnostics = {"generator": "I/O operation on closed file",
@@ -240,7 +220,7 @@ class PythonCraftOracleTests(unittest.TestCase):
                 if mode in {"refactor", "unchanged"}:
                     self.assert_passes(mode, source)
                 else:
-                    self.assert_rejected(mode, source, diagnostics[mode])
+                    assert_rejected(mode, source, diagnostics[mode])
 
     def test_generator_open_aliases_remain_valid(self):
         self.assert_passes("generator", "from io import open\n" + textwrap.dedent(CORRECT["generator"]))
@@ -259,7 +239,7 @@ class PythonCraftOracleTests(unittest.TestCase):
                 self.assert_passes("calculation", source)
                 source = source.replace("def total_from_lines(lines):",
                                         'def total_from_lines(lines):\n    open("unused", "w")')
-                self.assert_rejected("calculation", source, "calculation attempted file I/O")
+                assert_rejected("calculation", source, "calculation attempted file I/O")
 
     def test_calculation_accepts_materialization_and_bare_reraise(self):
         for replacement in ("return total_from_lines(list(source))",
@@ -300,7 +280,7 @@ class PythonCraftOracleTests(unittest.TestCase):
                 '            raise ValueError(str(exc))'), "parse exception replaced"),
         ]:
             with self.subTest(name=name):
-                self.assert_rejected("calculation", candidate, diagnostic)
+                assert_rejected("calculation", candidate, diagnostic)
 
     def test_generator_rejects_eager_materialization_before_first_yield(self):
         for expression in (
@@ -312,7 +292,7 @@ class PythonCraftOracleTests(unittest.TestCase):
         ):
             source = CORRECT["generator"].replace("for line in source:", f"for line in {expression}:")
             with self.subTest(expression=expression):
-                self.assert_rejected("generator", source, "source consumed eagerly")
+                assert_rejected("generator", source, "source consumed eagerly")
 
     def test_generator_accepts_readline_and_bounded_chunk_streaming(self):
         chunked = r'''
@@ -339,7 +319,7 @@ class PythonCraftOracleTests(unittest.TestCase):
             "        emit(value)",
             "        if result and result[-1] == value * 2:\n            continue\n        emit(value)",
         )
-        self.assert_rejected("refactor", source, "Lists differ")
+        assert_rejected("refactor", source, "Lists differ")
 
     def test_module_move_rejects_broken_public_lookup_and_circular_imports(self):
         correct = CORRECT["modules"]
@@ -362,7 +342,7 @@ class PythonCraftOracleTests(unittest.TestCase):
             )}, "TypeError not raised"),
         ]:
             with self.subTest(name=name):
-                self.assert_rejected("modules", {**correct, **changes}, diagnostic)
+                assert_rejected("modules", {**correct, **changes}, diagnostic)
 
     def test_dataclass_helpers_with_postponed_annotations_remain_valid(self):
         self.assert_passes("unchanged", "from __future__ import annotations\nfrom dataclasses import dataclass\n"
@@ -406,7 +386,7 @@ class PythonCraftOracleTests(unittest.TestCase):
         ]
         for name, mode, source, diagnostic in mutants:
             with self.subTest(name=name):
-                self.assert_rejected(mode, source, diagnostic)
+                assert_rejected(mode, source, diagnostic)
 
     def test_refactor_preserves_keyword_only_calls_and_propagated_exception_identity(self):
         replaced_error = textwrap.dedent(CORRECT["refactor"]).replace(
@@ -437,7 +417,7 @@ class PythonCraftOracleTests(unittest.TestCase):
             ("input mutated on callback failure", mutated_on_error, "Lists differ"),
         ]:
             with self.subTest(name=name):
-                self.assert_rejected("refactor", source, diagnostic)
+                assert_rejected("refactor", source, diagnostic)
 
     def test_policy_seed_suite_is_green_before_the_refactor(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -464,65 +444,7 @@ class PythonCraftOracleTests(unittest.TestCase):
                 ("wrong exception message", 'raise ValueError("other error")', "disagrees with the specification"),
             ):
                 with self.subTest(message=message, behavior=behavior):
-                    self.assert_rejected("policy", correct | {"policy.py": source.replace(original, replacement)}, diagnostic)
-
-    def test_policy_unification_rejects_partial_ownership_and_lost_consumers(self):
-        correct = CORRECT["policy"]
-        seed = scenario("policy")["fixture"]["files"]
-        policy_source = textwrap.dedent(correct["policy.py"])
-        for name, changes, diagnostic in [
-            ("owner keeps the drifted limit", {"policy.py": policy_source.replace("MAX_QUANTITY = 999", "MAX_QUANTITY = 99")},
-             "quantity limit drifted"),
-            ("owner skips the strip", {"policy.py": policy_source.replace("sku.strip().upper()", "sku.upper()")},
-             "disagrees with the specification"),
-            ("api keeps its own rules before delegating", {"api.py": "import policy\n" + seed["api.py"].replace(
-                'return {"sku": sku, "quantity": quantity, "unit_cents": unit_cents}',
-                "return policy.normalize_order(payload)")},
-             "api.submit bypassed the shared policy or kept its own rules"),
-            ("batch copies the rules instead of delegating", {"batch.py": seed["batch.py"].replace(
-                "SKU.match(sku.upper())", "SKU.match(sku.strip().upper())").replace(
-                '"sku": sku.upper()', '"sku": sku.strip().upper()')},
-             "batch.load bypassed the shared policy or kept its own rules"),
-            ("bound-name import defeats the patch seam", {"api.py": '''
-                from policy import normalize_order
-
-
-                def submit(payload):
-                    return normalize_order(payload)
-            '''}, "api.submit bypassed the shared policy or kept its own rules"),
-            ("legacy wraps instead of re-exporting", {"legacy.py": '''
-                import api
-                from policy import MAX_QUANTITY
-
-
-                def submit_order(payload):
-                    return api.submit(payload)
-            '''}, "legacy name rebound"),
-            ("policy exception replaced by a copy", {"api.py": '''
-                import policy
-
-
-                def submit(payload):
-                    try:
-                        return policy.normalize_order(payload)
-                    except ValueError as exc:
-                        raise ValueError(str(exc)) from None
-            '''}, "policy exception replaced"),
-            ("input mutated", {"api.py": '''
-                import policy
-
-
-                def submit(payload):
-                    if isinstance(payload.get("sku"), str):
-                        payload["sku"] = payload["sku"].strip().upper()
-                    return policy.normalize_order(payload)
-            '''}, "input mutated"),
-            ("circular import", {"policy.py": "from api import submit\n" + policy_source}, "partially initialized module"),
-            ("stale drift test kept", {"tests/test_cli.py": seed["tests/test_cli.py"]}, "fixture test suite failed"),
-            ("drift test deleted instead of updated", {"tests/test_cli.py": "import unittest\n"}, "fixture tests were removed"),
-        ]:
-            with self.subTest(name=name):
-                self.assert_rejected("policy", {**correct, **changes}, diagnostic)
+                    assert_rejected("policy", correct | {"policy.py": source.replace(original, replacement)}, diagnostic)
 
     def test_scoped_fix_rejects_unrequested_refactors_and_fix_regressions(self):
         correct = CORRECT["scoped"]
@@ -558,7 +480,7 @@ def rejected_notional(fills):
         ]:
             with self.subTest(name=name):
                 self.assertNotEqual(source, correct)
-                self.assert_rejected("scoped", source, diagnostic)
+                assert_rejected("scoped", source, diagnostic)
 
     def test_build_checks_bind_the_correct_oracle_and_unchanged_scope(self):
         for mode in SCENARIOS:
@@ -577,5 +499,97 @@ def rejected_notional(fills):
                             for check in scenario("unchanged")["checks"]))
 
 
+def _policy_unification_cases():
+    correct = CORRECT["policy"]
+    seed = scenario("policy")["fixture"]["files"]
+    policy_source = textwrap.dedent(correct["policy.py"])
+    return [
+        ("owner keeps the drifted limit", {"policy.py": policy_source.replace("MAX_QUANTITY = 999", "MAX_QUANTITY = 99")},
+         "quantity limit drifted"),
+        ("owner skips the strip", {"policy.py": policy_source.replace("sku.strip().upper()", "sku.upper()")},
+         "disagrees with the specification"),
+        ("api keeps its own rules before delegating", {"api.py": "import policy\n" + seed["api.py"].replace(
+            'return {"sku": sku, "quantity": quantity, "unit_cents": unit_cents}',
+            "return policy.normalize_order(payload)")},
+         "api.submit bypassed the shared policy or kept its own rules"),
+        ("batch copies the rules instead of delegating", {"batch.py": seed["batch.py"].replace(
+            "SKU.match(sku.upper())", "SKU.match(sku.strip().upper())").replace(
+            '"sku": sku.upper()', '"sku": sku.strip().upper()')},
+         "batch.load bypassed the shared policy or kept its own rules"),
+        ("bound-name import defeats the patch seam", {"api.py": '''
+                from policy import normalize_order
+
+
+                def submit(payload):
+                    return normalize_order(payload)
+            '''}, "api.submit bypassed the shared policy or kept its own rules"),
+        ("legacy wraps instead of re-exporting", {"legacy.py": '''
+                import api
+                from policy import MAX_QUANTITY
+
+
+                def submit_order(payload):
+                    return api.submit(payload)
+            '''}, "legacy name rebound"),
+        ("policy exception replaced by a copy", {"api.py": '''
+                import policy
+
+
+                def submit(payload):
+                    try:
+                        return policy.normalize_order(payload)
+                    except ValueError as exc:
+                        raise ValueError(str(exc)) from None
+            '''}, "policy exception replaced"),
+        ("input mutated", {"api.py": '''
+                import policy
+
+
+                def submit(payload):
+                    if isinstance(payload.get("sku"), str):
+                        payload["sku"] = payload["sku"].strip().upper()
+                    return policy.normalize_order(payload)
+            '''}, "input mutated"),
+        ("circular import", {"policy.py": "from api import submit\n" + policy_source}, "partially initialized module"),
+        ("stale drift test kept", {"tests/test_cli.py": seed["tests/test_cli.py"]}, "fixture test suite failed"),
+        ("drift test deleted instead of updated", {"tests/test_cli.py": "import unittest\n"}, "fixture tests were removed"),
+    ]
+
+
+@pytest.mark.parametrize("code", (0, 2))
+@pytest.mark.parametrize("phase", ("import", "api/iteration"))
+@pytest.mark.parametrize("mode,child_args", [
+    pytest.param(mode, (), id=mode) for mode in CORRECT
+] + [
+    pytest.param(mode, (child,), id=f"{mode}-{child}")
+    for mode, children in {"modules": ("reports", "formatting"),
+                           "policy": ("policy", "api", "cli", "batch", "legacy", "registry")}.items()
+    for child in children
+])
+def test_oracles_reject_candidate_system_exit_before_completion(mode, child_args, phase, code):
+    api_names = {"refactor": "process", "generator": "iter_records", "migration": "parse_address",
+                 "unchanged": "is_nonnegative", "modules": "render", "calculation": "total_from_lines",
+                 "policy": "normalize_order", "scoped": "latest_fills"}
+    original = CORRECT[mode]
+    files = dict(original) if isinstance(original, dict) else {SCENARIOS[mode][1]: original}
+    filename = SCENARIOS[mode][1]
+    source = textwrap.dedent(files[filename])
+    signature = next(line for line in source.splitlines() if line.startswith("def " + api_names[mode] + "("))
+    # iter_records remains a generator: its exit occurs when iteration starts.
+    mutant = (f"raise SystemExit({code})\n" + source if phase == "import" else
+              source.replace(signature, signature + f"\n    raise SystemExit({code})", 1))
+    # Child cases exercise fresh script entrypoints as well as their aggregate command.
+    result = assert_rejected(mode, files | {filename: mutant},
+                             "candidate exited before contract checks completed", *child_args)
+    assert "contract passed: " + mode not in result.stdout
+
+
+@pytest.mark.parametrize("changes,diagnostic", [
+    pytest.param(changes, diagnostic, id=name) for name, changes, diagnostic in _policy_unification_cases()
+])
+def test_policy_unification_rejects_partial_ownership_and_lost_consumers(changes, diagnostic):
+    assert_rejected("policy", {**CORRECT["policy"], **changes}, diagnostic)
+
+
 if __name__ == "__main__":
-    unittest.main()
+    raise SystemExit(pytest.main([__file__, *sys.argv[1:]]))

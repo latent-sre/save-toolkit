@@ -46,7 +46,7 @@ def test_fastapi_starter_suite_passes(tmp_path):
     assert document["components"]["securitySchemes"]["bearer"]["scheme"] == "bearer"
 
     assert importlib.util.find_spec("schemathesis"), "schemathesis must be installed (requirements-test.txt)"
-    result = _run(pytest_cmd, tmp_path)
+    result = _run([*pytest_cmd, "-p", "schemathesis", "-p", "hypothesispytest"], tmp_path)
     _passed(result)
     assert " passed" in result.stdout and "skipped" not in result.stdout, result.stdout
 

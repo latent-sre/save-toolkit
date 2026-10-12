@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFTEST = ROOT / "conftest.py"
@@ -39,7 +41,14 @@ def test_every_heavy_entry_collects_in_the_real_suite() -> None:
     files = heavy_files()
     assert len(files) == len(set(files)) >= 1
     assert [f for f in files if not (ROOT / f).is_file()] == []
-    assert {file_of(n) for n in collect(ROOT, "-m", "heavy", "evals")} == set(files)
+    all_nodes = collect(ROOT, "-m", "heavy", "evals")
+    assert {file_of(n) for n in all_nodes} == set(files)
+    workflow = yaml.safe_load((ROOT / ".github/workflows/validate.yml").read_text(encoding="utf-8"))
+    entries = workflow["jobs"]["eval-tests"]["strategy"]["matrix"]["include"]
+    groups = [collect(ROOT, "-m", "heavy", "-k", entry["selection"], "evals") for entry in entries]
+    assert all(groups), "every eval matrix entry must execute tests"
+    assert set.union(*groups) == all_nodes
+    assert sum(map(len, groups)) == len(all_nodes), "eval matrix entries must not overlap"
 
 
 @pytest.fixture(scope="module")
@@ -89,3 +98,16 @@ def test_a_named_heavy_file_or_node_runs_without_the_option(selection_repo: Path
     target = sorted(heavy_files())[0]
     expected = {target + node} if node else {f"{target}::test_{name}" for name in ("first", "second")}
     assert collect(selection_repo, target + node) == expected
+
+
+@pytest.mark.parametrize("options,excluded", [
+    (["-m", "heavy"], "evals/test_light.py"),
+    ([], None),
+    (["-m", "not heavy"], None),
+])
+def test_unselected_files_are_not_imported(selection_repo, tmp_path, options, excluded):
+    repo = tmp_path / "selection"
+    shutil.copytree(selection_repo, repo)
+    path = repo / (excluded or sorted(heavy_files())[0])
+    path.write_text("raise AssertionError('unselected module was imported')\n", encoding="utf-8")
+    assert collect(repo, *options)

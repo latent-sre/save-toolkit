@@ -51,19 +51,25 @@ jobs:
         with:
           python-version: '3.14'
           check-latest: true
+          cache: pip
+          cache-dependency-path: |
+            requirements-test.txt
+            requirements-dev.txt
 
       # Install the constrained test set so dependency-backed checks do not silently skip.
       - name: Install pinned fleet test dependencies
         run: python -m pip install -r requirements-test.txt
 
       # Four workers match the hosted runner's cores; worksteal balances slow individual cases.
+      # CLI options stay with the outer run; PYTEST_ADDOPTS would spawn workers in fixture suites.
+      # Load only the outer run's plugins; nested suites opt into plugins they actually require.
       # No bytecode: the eval runner digests every file under skills/, so a .pyc written by
       # one worker reads as plugin drift to a native trial running in another. The default run
       # skips the heavy eval-machinery files (conftest.py HEAVY); the eval-tests job runs them.
       - name: Fast tests
-        run: python -m pytest -q
+        run: python -m pytest -q -n 4 --dist worksteal --durations=20 -p xdist -p hypothesispytest
         env:
-          PYTEST_ADDOPTS: -n 4 --dist worksteal --durations=20
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
           PYTHONDONTWRITEBYTECODE: '1'
 
       # pyproject.toml scopes these to the eval runner; they run even when a test failed.
@@ -78,10 +84,18 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
 
   eval-tests:
-    # The heavy eval-machinery tests, in parallel with fast-tests.
-    name: eval-tests (ubuntu-latest)
+    # Webhook observation windows take about as much worker time as the other heavy cases.
+    name: eval-tests (${{ matrix.group }}, ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: webhook
+            selection: pager_webhook
+          - group: other
+            selection: not pager_webhook
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -91,19 +105,23 @@ jobs:
         with:
           python-version: '3.14'
           check-latest: true
+          cache: pip
+          cache-dependency-path: |
+            requirements-test.txt
+            requirements-dev.txt
 
       - name: Install pinned fleet test dependencies
         run: python -m pip install -r requirements-test.txt
 
-      # The same parallel and no-bytecode settings as fast-tests, for the same reasons.
+      # Early collection excludes fast files; worker options stay out of nested pytest environments.
       - name: Eval machinery tests
-        run: python -m pytest -q -m heavy
+        run: python -m pytest -q -m heavy -k "${{ matrix.selection }}" -n 4 --dist worksteal --durations=20 -p xdist -p hypothesispytest
         env:
-          PYTEST_ADDOPTS: -n 4 --dist worksteal --durations=20
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
           PYTHONDONTWRITEBYTECODE: '1'
 
   component-tests:
-    # The required check: it passes only when both test shards passed. A job whose needs failed is
+    # The required check: it passes only when fast tests and every eval matrix entry passed. A job whose needs failed is
     # skipped, and a skipped required check counts as passing, so this one always runs and checks.
     name: component-tests (ubuntu-latest)
     runs-on: ubuntu-latest

@@ -53,6 +53,23 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "heavy: an eval-machinery test that spawns real processes")
 
 
+def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool | None:
+    """Avoid importing the other shard; mixed marker expressions still use pytest's evaluator."""
+    root = config.rootpath
+    if collection_path.suffix != ".py" or not collection_path.is_relative_to(root):
+        return None
+    heavy = collection_path.relative_to(root).as_posix() in HEAVY
+    expression = (config.getoption("markexpr") or "").strip()
+    if expression == "heavy":
+        return not heavy
+    if expression == "not heavy":
+        return heavy
+    if heavy and not config.getoption("--heavy") and "heavy" not in re.findall(r"\w+", expression):
+        named = {(config.invocation_params.dir / arg.split("::", 1)[0]).resolve() for arg in config.args}
+        return collection_path not in named
+    return None
+
+
 @pytest.hookimpl(tryfirst=True)  # mark before `-m` selects, so `-m heavy` sees the marker
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     root = config.rootpath.resolve()

@@ -116,25 +116,33 @@ after. A dirty receipt is not proof of an exact committed candidate; untracked c
 hashed. An interrupted run may have incomplete artifacts. Keep comparable receipts when assessing
 speed: same candidate and selection, known competing workloads, and the same interpreter.
 
-`pytest.ini` defaults to **10 local workers** with `--dist worksteal`; CI keeps its explicit
-four-worker override. Work stealing balances individual cases across workers; module and class
+`pytest.ini` defaults to **10 local workers** with `--dist worksteal`; CI passes its explicit
+four-worker override on the command line. Do not export worker options through `PYTEST_ADDOPTS`:
+fixture suites inherit that variable and start additional worker pools. CI disables automatic
+plugin loading and explicitly loads xdist and Hypothesis; the FastAPI fixture opts into Schemathesis.
+Work stealing balances individual cases across workers; module and class
 fixtures can run once on each worker that receives their tests. Pass `-n 0` for a debugger or
 `--pdb`, or a smaller count on a constrained host. More workers are not a speed guarantee.
 For the opt-in incidents-page and incidents-console UI calibrations, pass `--dist loadfile`
 to run each module's full Vitest matrix once instead of repeating it on several workers.
 The default skips heavy files listed in `conftest.py`
 (`HEAVY`): `--heavy` includes them, `-m heavy` selects only them, and naming a file runs it directly.
+The default run and exact `-m heavy`/`-m "not heavy"` selections exclude the other files before
+importing them. Mixed marker expressions keep pytest's normal marker evaluation.
 Use `python -m pytest <affected files>` for focused work; use the coordinated runner once for the
 final suite and retain its timing evidence.
 
 On POSIX, substitute `.venv/bin/python`. Installing `requirements-test.txt` honors its
 `requirements-dev.txt` constraints; it is a selected test set, not a complete environment export
 for `uv pip sync`. CI retains its setup-python/pip workflow in a job-owned environment.
+Both test jobs cache pip downloads, keyed on the test requirements and development constraints.
 
 [`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs these jobs on the
 pull request: `validate` (this same gate); `fast-tests` (the default `pytest` run against
-`requirements-test.txt` on Linux) and `eval-tests` (the heavy files) in parallel;
-`component-tests`, the required check, which passes only when both test jobs passed; and
+`requirements-test.txt` on Linux) and the two `eval-tests` matrix entries in parallel. The eval
+entries select `pager_webhook` and `not pager_webhook` through pytest's `-k`, covering every heavy
+case exactly once; the real collection contract checks their union and overlap. `component-tests`,
+the required check, passes only when fast tests and every eval matrix entry passed; and
 `claude-plugin-contract`
 (npm's latest Claude Code release, with its resolved version recorded in the job log).
 That job validates `.claude-plugin/marketplace.json` with `--strict` and
