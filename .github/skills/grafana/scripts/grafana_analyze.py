@@ -204,10 +204,24 @@ def analyze_capture(report, *, analysis="all"):
         result["hygiene"] = _hygiene(captures)
     if analysis in ("dependencies", "all"):
         alerts = report.get("alert_captures", [])
-        result["dependencies"] = dependencies.build_map([capture for capture, _ in captures], alerts)
+        if (report["operation"] == "dependencies" and isinstance(report.get("nodes"), list)
+                and isinstance(report.get("edges"), list)):
+            # Export fitting may omit raw captures while retaining their derived graph.
+            # Rebuilding also loses collection gaps even when those captures remain.
+            result["dependencies"] = {key: report[key] for key in (
+                "schema_version", "operation", "coverage", "nodes", "edges", "gaps", "inputs", "truncated",
+                "limits", "metric_extraction", "limitations", "discovery", "provenance", "folder_uid", "evidence",
+            ) if key in report}
+            result["dependencies"]["evidence_ref"] = ""
+        elif (report["operation"] == "dependencies" and not captures
+              and not (isinstance(alerts, list) and alerts)):
+            result["dependencies"] = {"omitted": "dependency_graph_unavailable", "evidence_ref": ""}
+            result["gaps"].append({"code": "dependency_graph_unavailable", "evidence_ref": ""})
+        else:
+            result["dependencies"] = dependencies.build_map([capture for capture, _ in captures], alerts)
+            if "alert_captures" not in report:
+                result["dependencies"]["gaps"].append({"code": "alert_definitions_not_captured", "source": None})
         result["dependencies"]["capture_evidence_refs"] = [pointer for _, pointer in captures]
-        if "alert_captures" not in report:
-            result["dependencies"]["gaps"].append({"code": "alert_definitions_not_captured", "source": None})
     # Enforce a final bound across individually bounded sections. Preserve the source
     # reference and an explicit gap if a section cannot fit; never return cut JSON.
     for key in ("summary", "hygiene", "dependencies"):

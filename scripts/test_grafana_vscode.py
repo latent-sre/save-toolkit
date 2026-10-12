@@ -1,6 +1,7 @@
 """The report opener reuses VS Code without shells or Grafana credentials."""
 import json
 import os
+import stat
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -109,6 +110,177 @@ def test_path_lookup_does_not_pick_up_cwd_launcher(tmp_path, monkeypatch):
         path.write_text('must not execute')
         path.chmod(0o700)
     assert opener._command({'PATH': os.pathsep.join(['.', str(tmp_path)])})[0] is None
+
+
+def test_absolute_workspace_path_launcher_never_reaches_version_probe(tmp_path, monkeypatch):
+    opener = load_path(ROOT / 'skills/grafana/scripts/grafana_vscode.py', 'grafana_vscode')
+    workspace = tmp_path / 'workspace'
+    directory = workspace / 'capture'
+    directory.mkdir(parents=True)
+    (directory / 'report.html').write_text('report')
+    install = workspace / 'contributor' / 'VS Code'
+    (install / 'bin').mkdir(parents=True)
+    (install / 'Code.exe').write_bytes(b'benign launcher fixture')
+    cli = install / 'resources/app/out/cli.js'
+    cli.parent.mkdir(parents=True)
+    cli.write_text('benign CLI fixture')
+    (install / 'bin/code.cmd').write_text('"%~dp0..\\Code.exe" "%~dp0..\\resources\\app\\out\\cli.js" %*')
+    launcher = install / 'bin/code'
+    launcher.write_text('benign launcher fixture')
+    launcher.chmod(0o700)
+    monkeypatch.chdir(workspace)
+    ready(opener, monkeypatch)
+    monkeypatch.setattr(opener, '_session_executable', lambda _env: install / 'Code.exe', raising=False)
+    monkeypatch.setattr(opener, '_installation_roots', lambda: [install], raising=False)
+    calls = []
+
+    def runner(argv, **_options):
+        calls.append(argv)
+        return SimpleNamespace(returncode=0, stdout=b'1.141.0\n')
+
+    result = opener.open_report(directory, environ={'PATH': str(install / 'bin')}, runner=runner)
+    assert calls == []
+    assert result['error'] == 'vscode_cli_unavailable'
+
+
+def test_cli_environment_excludes_loader_selectors_and_unrelated_secrets(tmp_path, monkeypatch):
+    opener = load_path(ROOT / 'skills/grafana/scripts/grafana_vscode.py', 'grafana_vscode')
+    (tmp_path / 'report.html').write_text('report')
+    ready(opener, monkeypatch)
+    monkeypatch.setattr(opener, '_command', lambda _env: (['/trusted/code', '/trusted/cli.js'],
+                                                        {'ELECTRON_RUN_AS_NODE': '1', 'VSCODE_DEV': ''}))
+    env = {'VSCODE_IPC_HOOK_CLI': '/trusted/session.sock', 'HOME': '/trusted/home',
+           'NODE_OPTIONS': '--require contributor.js', 'NODE_PATH': '/contributor/modules',
+           'VSCODE_NODE_OPTIONS': '--require contributor.js', 'LD_PRELOAD': '/contributor/module.so',
+           'DYLD_INSERT_LIBRARIES': '/contributor/module.dylib', 'ELECTRON_RUN_AS_NODE': '0',
+           'PATH': '/contributor', 'GRAFANA_TOKEN': 'grafana-secret', 'OTHER_TOKEN': 'unrelated-secret'}
+    calls = []
+
+    def runner(argv, **options):
+        calls.append((argv, options))
+        return SimpleNamespace(returncode=0, stdout=b'1.141.0\n')
+
+    result = opener.open_report(tmp_path, environ=env, runner=runner)
+    assert result['status'] == 'launch_requested'
+    for _argv, options in calls:
+        assert options['env'] == {'VSCODE_IPC_HOOK_CLI': '/trusted/session.sock', 'HOME': '/trusted/home',
+                                  'ELECTRON_RUN_AS_NODE': '1', 'VSCODE_DEV': ''}
+
+
+def installation(opener, tmp_path, monkeypatch, *, platform='win32', prefix=''):
+    workspace = tmp_path / 'workspace'
+    workspace.mkdir()
+    monkeypatch.chdir(workspace)
+    root = tmp_path / 'installed VS Code'
+    executable = root / {'win32': 'Code.exe', 'linux': 'code', 'darwin': 'Contents/MacOS/Code'}[platform]
+    executable.parent.mkdir(parents=True)
+    executable.write_bytes(b'benign native executable fixture')
+    executable.chmod(0o700)
+    cli = root / ('Contents/Resources/app/out/cli.js' if platform == 'darwin'
+                  else prefix + 'resources/app/out/cli.js')
+    cli.parent.mkdir(parents=True)
+    cli.write_text('benign CLI fixture')
+    if platform == 'win32':
+        (root / 'bin').mkdir()
+        (root / 'bin/code.cmd').write_text('"%~dp0..\\Code.exe" "%~dp0..\\'
+                                          + prefix.replace('/', '\\') + 'resources\\app\\out\\cli.js" %*')
+    monkeypatch.setattr(opener, '_PLATFORM', platform)
+    monkeypatch.setattr(opener, '_installation_roots', lambda: [root])
+    monkeypatch.setattr(opener, '_session_executable', lambda _env: executable)
+    return root, executable, cli
+
+
+@pytest.mark.parametrize('prefix', ['', '123abc456d/'])
+def test_trusted_windows_installation_is_bound_to_pid_and_ignores_path(tmp_path, monkeypatch, prefix):
+    opener = load_path(ROOT / 'skills/grafana/scripts/grafana_vscode.py', 'grafana_vscode')
+    root, executable, cli = installation(opener, tmp_path, monkeypatch, prefix=prefix)
+    directory = Path.cwd() / 'report'
+    directory.mkdir()
+    (directory / 'report.html').write_text('report')
+    ready(opener, monkeypatch)
+    calls = []
+
+    def runner(argv, **options):
+        calls.append((argv, options))
+        return SimpleNamespace(returncode=0, stdout=b'1.141.0\n')
+
+    env = {'PATH': str(Path.cwd() / 'contributor'), 'LOCALAPPDATA': str(Path.cwd()),
+           'PROGRAMFILES': str(Path.cwd()), 'VSCODE_PID': '123', 'VSCODE_IPC_HOOK_CLI': 'trusted IPC'}
+    result = opener.open_report(directory, environ=env, runner=runner)
+    assert result['status'] == 'launch_requested'
+    assert calls[0][0] == [str(executable), str(cli), '--version']
+    assert calls[1][0] == [str(executable), str(cli), '--reuse-window', str(directory / 'report.html')]
+    assert 'PATH' not in calls[0][1]['env']
+    assert root != Path.cwd()
+
+
+@pytest.mark.parametrize('platform', ['linux', 'darwin'])
+def test_posix_installation_invokes_electron_and_cli_without_path_scripts(tmp_path, monkeypatch, platform):
+    opener = load_path(ROOT / 'skills/grafana/scripts/grafana_vscode.py', 'grafana_vscode')
+    _root, executable, cli = installation(opener, tmp_path, monkeypatch, platform=platform)
+    if platform == 'linux':
+        real_stat = Path.stat
+
+        def immutable_stat(path, **kwargs):
+            metadata = list(real_stat(path, **kwargs))
+            metadata[0] = stat.S_IFMT(metadata[0]) | 0o555
+            metadata[4] = 0
+            return os.stat_result(metadata)
+
+        monkeypatch.setattr(Path, 'stat', immutable_stat)
+    assert opener._command({'PATH': str(Path.cwd() / 'contributor')}) == (
+        [str(executable), str(cli)], {'ELECTRON_RUN_AS_NODE': '1', 'VSCODE_DEV': ''})
+
+
+def test_running_foreign_process_does_not_authenticate_standard_installation(tmp_path, monkeypatch):
+    opener = load_path(ROOT / 'skills/grafana/scripts/grafana_vscode.py', 'grafana_vscode')
+    _root, _executable, _cli = installation(opener, tmp_path, monkeypatch)
+    foreign = Path.cwd() / 'Code.exe'
+    foreign.write_bytes(b'benign foreign process fixture')
+    monkeypatch.setattr(opener, '_session_executable', lambda _env: foreign)
+    assert opener._command({}) == (None, {})
+
+
+def test_standard_installation_refuses_workspace_redirected_cli(tmp_path, monkeypatch):
+    opener = load_path(ROOT / 'skills/grafana/scripts/grafana_vscode.py', 'grafana_vscode')
+    root, executable, _cli = installation(opener, tmp_path, monkeypatch)
+    foreign = Path.cwd() / 'cli.js'
+    foreign.write_text('benign foreign CLI fixture')
+    monkeypatch.setattr(opener, '_windows_command', lambda _launcher: [str(executable), str(foreign)])
+    assert not opener._trusted_installation(root, [executable, foreign])
+    assert opener._command({}) == (None, {})
+
+
+@pytest.mark.parametrize('owner,permissions', [(12345, 0o755), (0, 0o777)])
+def test_linux_installation_refuses_user_owned_or_writable_files(tmp_path, monkeypatch, owner, permissions):
+    opener = load_path(ROOT / 'skills/grafana/scripts/grafana_vscode.py', 'grafana_vscode')
+    root, executable, cli = installation(opener, tmp_path, monkeypatch, platform='linux')
+    real_stat = Path.stat
+
+    def insecure_stat(path, **kwargs):
+        metadata = list(real_stat(path, **kwargs))
+        metadata[0] = stat.S_IFMT(metadata[0]) | permissions
+        metadata[4] = owner
+        return os.stat_result(metadata)
+
+    monkeypatch.setattr(Path, 'stat', insecure_stat)
+    assert not opener._trusted_installation(root, [executable, cli])
+    assert opener._command({}) == (None, {})
+
+
+def test_windows_roots_use_os_known_folders_without_ambient_location_variables(tmp_path, monkeypatch):
+    opener = load_path(ROOT / 'skills/grafana/scripts/grafana_vscode.py', 'grafana_vscode')
+    monkeypatch.setattr(opener, '_PLATFORM', 'win32')
+    folders = {identifier: tmp_path / name for identifier, name in (
+        ('F1B32785-6FBA-4FCF-9D55-7B8E7F157091', 'Local'),
+        ('905E63B6-C1BF-494E-B29C-65B732D3D21A', 'Program Files'),
+        ('7C5A40EF-A0FB-4BFC-874A-C0F2E0B9FA8E', 'Program Files x86'))}
+    monkeypatch.setattr(opener, '_windows_known_folder', lambda identifier: folders[identifier])
+    for key in ('LOCALAPPDATA', 'PROGRAMFILES', 'USERPROFILE', 'PATH'):
+        monkeypatch.setenv(key, str(tmp_path / 'contributor'))
+    assert opener._installation_roots() == [folders['F1B32785-6FBA-4FCF-9D55-7B8E7F157091'] / 'Programs/Microsoft VS Code',
+                                            folders['905E63B6-C1BF-494E-B29C-65B732D3D21A'] / 'Microsoft VS Code',
+                                            folders['7C5A40EF-A0FB-4BFC-874A-C0F2E0B9FA8E'] / 'Microsoft VS Code']
 
 
 def test_launch_timeout_is_unknown_and_not_retried(tmp_path, monkeypatch):

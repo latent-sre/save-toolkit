@@ -111,6 +111,8 @@ def test_only_fixed_powershell_wrapper_preserves_readable_expressions():
     'verify-package --source-id capture-one --agent-json',
     'analyze --source-id capture-one --analysis summary --agent-json',
     'inspect --source-id capture-one --panel 1 --ref-id A --mode range --agent-json',
+    'inspect --source-id capture-one --agent-json',
+    'inspect --source-id capture-one --pointer /values/0 --offset 0 --limit 25 --agent-json',
     'compare --before-id first --after-id second --agent-json',
     'impact --source-id folder-one --kind datasource --key metrics --agent-json',
     'alert-preview --source-id capture-one --panel 1 --ref-id A --operator gt --threshold 1 --pending-ms 30000 --step-ms 30000 --agent-json',
@@ -141,6 +143,39 @@ def test_workflow_powershell_does_not_silently_strip_variable_quotes():
     command = WORKFLOW + ' plan --uid board --from 1000 --to 61000 --var \'host=a"b\' --agent-json'
     assert decision(command, 'PowerShell') == 'deny'
     assert decision(command, 'Bash') == 'allow'
+
+
+@pytest.mark.parametrize('tool', ['run_in_terminal', 'runTerminalCommand', 'runInTerminal', 'execute/runInTerminal'])
+@pytest.mark.parametrize('arguments', [
+    "plan --uid board --from 1000 --to 61000 --var 'host=foo& whoami & rem ' --agent-json",
+    "plan --uid board --from 1000 --to 61000 --var 'host=foo|whoami' --agent-json",
+    "plan --uid board --from 1000 --to 61000 --var 'host=%COMSPEC%' --agent-json",
+    "plan --uid board --from 1000 --to 61000 --var 'host=!COMSPEC!' --agent-json",
+    "plan --uid board --from 1000 --to 61000 --var 'host=foo^&whoami' --agent-json",
+    "impact --source-id saved --kind metric --key 'up& whoami & rem ' --agent-json",
+    "impact --source-id saved --node-id 'metric:up>marker' --agent-json",
+    "inspect --source-id saved --panel 1 --ref-id 'A&(whoami)' --agent-json",
+    "plan --uid board --from 1000 --to 61000 --var 'host=two words' --agent-json",
+    'plan --uid board --from 1000 --to 61000 --var host=~ --agent-json',
+    'plan --uid board --from 1000 --to 61000 --var host=a:~ --agent-json',
+])
+def test_copilot_workflow_rejects_shell_dependent_literals(tool, arguments):
+    assert decision(f'{WORKFLOW} {arguments}', tool, copilot=True) == 'deny'
+
+
+def test_copilot_requires_unambiguous_path_and_argument_transport():
+    assert decision(WORKFLOW.replace('"', "'") + ' doctor --agent-json',
+                    'execute/runInTerminal', copilot=True) == 'deny'
+    assert decision(f'{WRAPPER} {PS_QUERY}', 'execute/runInTerminal', copilot=True) == 'deny'
+    assert decision(WORKFLOW + ' plan --uid board --from 1000 --to 61000 --var host=node.example/path --agent-json',
+                    'execute/runInTerminal', copilot=True) == 'allow'
+    assert decision(WORKFLOW + ' inspect --source-id saved --pointer /host=~0 --agent-json',
+                    'execute/runInTerminal', copilot=True) == 'allow'
+
+
+@pytest.mark.parametrize('tool', ['Bash', 'PowerShell'])
+def test_known_shell_workflow_keeps_literal_metacharacters(tool):
+    assert decision(WORKFLOW + " plan --uid board --from 1000 --to 61000 --var 'host=a&b' --agent-json", tool) == 'allow'
 
 
 @pytest.mark.parametrize("options", [

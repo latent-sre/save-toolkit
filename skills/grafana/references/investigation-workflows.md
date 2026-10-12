@@ -40,7 +40,12 @@ python -I "<installed-skill>/scripts/grafana_workflow.py" doctor --agent-json
 planned requests, unsupported contexts and a request upper bound. `investigate` executes that plan,
 then returns query summaries, provenance, configuration hygiene, gaps and JSON-pointer evidence
 references. `inspect` retrieves selected evidence from a verified package. Agent output is capped
-at 512 KiB; `output_truncated` means use a capture and narrower inspection, not no data.
+at 512 KiB. If output is truncated, follow `recovery.arguments` to read the retained package.
+Without a panel selection, `inspect` pages the report's root keys; follow an item's `evidence_ref`
+using `--pointer /nodes/0` or another returned JSON Pointer. This works for dependency graphs,
+comparisons and every other saved report. Containers return child references and sizes; scalar
+strings return text pages. Use `--offset` and `--limit` (1–500 items or characters) and follow
+`next_offset` until null. With no retained package, repeat collection with `--capture-id`.
 Inspection defaults to a summary. Add `--view rows --frame-index 0 --offset 0 --limit 100` with a
 selected panel/ref/mode to page through a supported frame; follow `next_offset` until null.
 Each response retains its source frame pointer, field metadata and total row count. Encoded or
@@ -143,8 +148,12 @@ opens `report.html` in the existing VS Code window, using the Integrated Browser
 python -I "<installed-skill>/scripts/grafana_workflow.py" investigate --uid board-uid --from 1791814800000 --to 1791816600000 --output-dir "<private-parent>/dashboard-capture" --open-vscode
 ```
 
-Run from the current workspace root in local VS Code Desktop 1.134 or later, with `code` on PATH
-and its existing `VSCODE_PID` environment marker. The opener checks that process is alive and uses
+Run from the current workspace root in local VS Code Desktop 1.134 or later, with its existing
+`VSCODE_PID` environment marker. The opener checks that process is alive and that its executable
+belongs to a standard installation: Windows User/System setup, macOS Applications, or Linux
+official system/Snap packages. Installation locations come from the OS, independently of PATH or
+workspace environment overrides. Workspace-owned launchers and redirected CLI files are refused;
+custom or portable installations need manual report opening. The opener uses
 `--reuse-window` with only the report file: it does not create or replace a workspace. VS Code
 selects the existing window containing the file, or its last active window. Keep the intended
 workspace open; multiple windows containing the same folder can make selection ambiguous.
@@ -154,8 +163,9 @@ This repository's `.vscode/settings.json` associates only `**/report.html` with
 `workbench.editorAssociations` in their workspace settings. The opener checks that entry in the
 current root's JSON settings and that the report resides under that root. It does not edit
 settings automatically, install a server or extension, or create a report-specific workspace.
-The Windows launcher invokes the installed CLI directly without a batch shell and does not
-forward `GRAFANA_*` environment values.
+The launcher invokes the installed executable and its CLI directly, without a batch or POSIX
+launcher script. It forwards only the required local desktop, OS and existing-session environment
+fields; loader overrides, PATH and unrelated credentials are excluded.
 
 Without the flag, no editor is launched. Missing/unsupported VS Code, remote execution, or launch
 failure, missing session, or missing browser association leaves the package intact and returns

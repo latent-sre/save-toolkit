@@ -286,7 +286,7 @@ def grafana_curl_allowed(command: str, powershell: bool = False) -> bool:
     return True
 
 
-def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
+def grafana_helper_allowed(command: str, powershell: bool = False, *, shell_independent: bool = False) -> bool:
     """Fixed installed helpers, with literal args validated by their own parser.
 
     No general interpreter, workspace script, shell chain, redirection or dynamic
@@ -296,13 +296,19 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
     # Reject them even inside ASCII quotes before either host can execute this form.
     if len(command) > 12000 or re.search(r"[\x00-\x1f\x7f\u2018\u2019\u201c\u201d]", command):
         return False
-    literal = r"(?:[A-Za-z0-9_+/=-]+|'[^'\r\n]*')"
+    # Copilot does not establish the configured terminal shell. Single quotes do
+    # not protect cmd.exe arguments, and percent/bang/caret syntax can alter argv.
+    # Bash also expands assignment-shaped argv such as host=~ or host=a:~.
+    # Pointer escapes (/a~1b) are literal and remain available for saved evidence.
+    literal = (r"(?!~)(?![A-Za-z_][A-Za-z0-9_]*=[^ ]*~)[A-Za-z0-9_+/:=.,~-]+"
+               if shell_independent else r"(?:[A-Za-z0-9_+/=-]+|'[^'\r\n]*')")
+    path_literal = r'"[^"$`%!^\r\n]+"' if shell_independent else r'''(?:"[^"$`\r\n]+"|'[^'\r\n]+')'''
     match = re.fullmatch(
-        r'''python(?:3|\.exe)? -I(?P<no_site> -S)? (?P<path>"[^"$`\r\n]+"|'[^'\r\n]+') '''
+        r'python(?:3|\.exe)? -I(?P<no_site> -S)? (?P<path>' + path_literal + r') '
         + r"(?P<args>" + literal + r"(?: " + literal + r")*)", command,
     )
     wrapper = False
-    if not match and powershell:
+    if not match and powershell and not shell_independent:
         match = re.fullmatch(
             r'''& (?P<path>"[^"$`\r\n]+"|'[^'\r\n]+') '''
             + r"(?P<args>" + literal + r"(?: " + literal + r")*)", command,
@@ -387,13 +393,13 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
     return True
 
 
-def explain_powershell(command: str) -> "str | None":
+def explain_powershell(command: str, *, shell_independent: bool = False) -> "str | None":
     """Small literal-command grammar, not a POSIX parse of general PowerShell code.
 
     Reject expressions, expansions, scripts, redirection, stop-parsing and command chains.
     Only fixed cmdlets and the existing external CLI readers may pass. No aliases are inferred.
     """
-    if grafana_helper_allowed(command, powershell=True) or grafana_curl_allowed(command, powershell=True):
+    if grafana_helper_allowed(command, powershell=True, shell_independent=shell_independent) or grafana_curl_allowed(command, powershell=True):
         return None
     if not command.strip():
         return None
@@ -1287,7 +1293,7 @@ def main() -> None:
                 sys.exit(EXIT_INDETERMINATE)
             # Copilot's integrated terminal can be configured independently of host OS. Use
             # the restricted grammar on every host; POSIX-only observation forms are literal.
-            reason = explain_powershell(command)
+            reason = explain_powershell(command, shell_independent=True)
             if reason is not None and copilot_read_allowed(command):
                 reason = None
             if reason:

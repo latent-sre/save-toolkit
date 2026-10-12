@@ -163,7 +163,12 @@ def verify_package(directory) -> dict:
 
 def load_capture(directory) -> dict:
     """Parse exactly the bytes verified in this call, not a second report read."""
-    return _verified(directory)[0]
+    return load_verified_capture(directory)[0]
+
+
+def load_verified_capture(directory) -> tuple[dict, dict]:
+    """Return parsed evidence and the receipt for those same verified bytes."""
+    return _verified(directory)
 
 
 @cache

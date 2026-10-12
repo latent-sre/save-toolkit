@@ -1,4 +1,5 @@
 """Workflow integration tests use the real read client and a fake HTTP boundary."""
+import hashlib
 import io
 import json
 import os
@@ -251,6 +252,98 @@ def test_preview_uses_report_query_without_credentials_or_network(tmp_path):
     assert code == 0 and report['coverage'] == 'sampled_threshold_preview'
     assert report['series'][0]['intervals'][0]['start_ms'] == 31000
     assert report['notification_delivery'] == 'not_evaluated'
+
+
+@pytest.mark.parametrize('source_flag', ['--source-id', '--package-dir'])
+def test_packaged_preview_identifies_exact_verified_report_bytes(tmp_path, monkeypatch, source_flag):
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    code, _, _ = run_workflow(tmp_path, HTTP())
+    assert code == 0
+    package = tmp_path / 'capture'
+    raw = (package / 'report.json').read_bytes()
+    canonical = json.dumps(json.loads(raw), sort_keys=True, allow_nan=False).encode()
+    assert raw != canonical, 'Fixture must distinguish source bytes from reserialization'
+    monkeypatch.setattr(workflow, '_capture_path', lambda *_args, **_kwargs: package)
+    output = io.StringIO()
+    assert workflow.main(['alert-preview', source_flag, 'sample' if source_flag == '--source-id' else str(package),
+                          '--panel', '1', '--ref-id', 'A', '--operator', 'gt', '--threshold', '0',
+                          '--pending-ms', '0', '--step-ms', '30000', '--agent-json'],
+                         environ={}, output=output) == 0, output.getvalue()
+    preview = json.loads(output.getvalue())['data']
+    assert preview['source_integrity'] == 'manifest_verified'
+    assert preview['source_sha256'] == hashlib.sha256(raw).hexdigest()
+
+
+@pytest.mark.parametrize('operation,section,report', [
+    ('dependencies', 'nodes', {'operation': 'dependencies', 'nodes': [{'id': 'metric:up', 'kind': 'metric', 'key': 'up'}],
+                               'edges': [], 'gaps': []}),
+    ('compare', 'values', {'operation': 'compare_captures', 'values': [{'target': [1, 'A', 'range'], 'status': 'compared'}]}),
+])
+def test_oversized_saved_output_has_executable_section_recovery(tmp_path, monkeypatch, operation, section, report):
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    monkeypatch.setattr(workflow, '_capture_path', lambda identifier, **kwargs: tmp_path / identifier)
+    # Keep the actual report small while forcing only its first response over budget.
+    monkeypatch.setattr(workflow, 'MAX_AGENT_BYTES', 100)
+    argv = (['dependencies', '--folder-uid', 'ops'] if operation == 'dependencies' else
+            ['compare', '--before-id', 'first', '--after-id', 'second'])
+    args = workflow.parse_args([*argv, '--capture-id', 'saved', '--agent-json'])
+    response = workflow._prepare_response(args, workflow._Execution(report, {}), tmp_path / 'saved', {})
+    assert response['status'] == 'output_truncated'
+    recovery = response['recovery']
+    assert recovery['arguments'] == ['inspect', '--source-id', 'saved', '--agent-json']
+    monkeypatch.setattr(workflow, 'MAX_AGENT_BYTES', 512 * 1024)
+    output = io.StringIO()
+    assert workflow.main(recovery['arguments'], environ={}, output=output) == 0, output.getvalue()
+    assert section in {item['key'] for item in json.loads(output.getvalue())['data']['items']}
+    output = io.StringIO()
+    assert workflow.main([*recovery['arguments'], '--pointer', '/' + section, '--limit', '1'],
+                         environ={}, output=output) == 0, output.getvalue()
+    item = json.loads(output.getvalue())['data']['items'][0]
+    assert item['evidence_ref'] == '/' + section + '/0'
+    output = io.StringIO()
+    assert workflow.main([*recovery['arguments'], '--pointer', item['evidence_ref']],
+                         environ={}, output=output) == 0, output.getvalue()
+    assert json.loads(output.getvalue())['data']['items']
+
+
+def test_section_inspection_pages_and_preserves_json_pointer_keys(tmp_path):
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    args = workflow.parse_args(['inspect', '--source-id', 'saved', '--pointer', '/a~1b~0c',
+                               '--offset', '1', '--limit', '1', '--agent-json'])
+    inspected = workflow._inspect_capture({'a/b~c': [1, {'nested': 'value'}, 3]}, args)
+    assert inspected['total'] == 3 and inspected['next_offset'] == 2
+    assert inspected['items'] == [{'key': 1, 'evidence_ref': '/a~1b~0c/1', 'type': 'object', 'size': 1}]
+    args.pointer = '/absent'
+    with pytest.raises(workflow.reader.SafeError, match='evidence_pointer_unavailable'):
+        workflow._inspect_capture({}, args)
+
+
+def test_section_inspection_can_finish_long_scalar_text():
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    args = workflow.parse_args(['inspect', '--source-id', 'saved', '--pointer', '/text',
+                               '--offset', '1000001', '--limit', '2', '--agent-json'])
+    result = workflow._inspect_capture({'text': 'x' * 1000001 + 'end'}, args)
+    assert result['text'] == 'en' and result['next_offset'] == 1000003
+    args.offset = result['next_offset']
+    result = workflow._inspect_capture({'text': 'x' * 1000001 + 'end'}, args)
+    assert result['text'] == 'd' and result['next_offset'] is None
+
+
+@pytest.mark.parametrize('options', [
+    ['--pointer', 'nodes'], ['--pointer', '/a~2b'], ['--pointer', '/nodes', '--panel', '1'],
+    ['--pointer', '/nodes', '--ref-id', 'A'], ['--view', 'rows'],
+    ['--offset', '33554433'], ['--panel', '1', '--offset', '1000001'],
+])
+def test_section_inspection_rejects_ambiguous_or_out_of_bounds_selection(options):
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    with pytest.raises(workflow.reader.SafeError, match='invalid_arguments'):
+        workflow.parse_args(['inspect', '--source-id', 'saved', '--agent-json', *options])
+
+
+def test_open_report_cannot_dispatch_twice():
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    with pytest.raises(workflow.reader.SafeError, match='invalid_arguments'):
+        workflow.parse_args(['open-report', '--source-id', 'saved', '--capture-id', 'copy', '--open-vscode'])
 
 
 def test_basic_auth_redaction_does_not_rewrite_the_query_before_execution(tmp_path):

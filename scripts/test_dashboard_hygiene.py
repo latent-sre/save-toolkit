@@ -413,7 +413,10 @@ class JsonReportTest(unittest.TestCase):
             (json.dumps({"title": "v2", "elements": {}, "layout": {}}),
              "unsupported_v2", "V2"),
             (json.dumps({"title": "missing panels"}), "unsupported_model", "no `panels` key"),
-            ('{"panels":' + "[" * 100_000 + "]" * 100_000 + "}",
+            # Valid row nesting reaches either the decoder or row-walk recursion limit.
+            # Nested arrays instead become invalid_shape when a decoder accepts their depth.
+            ('{"panels":[' + '{"type":"row","panels":[' * 1_500
+             + '{"type":"timeseries","title":"t"}' + "]}" * 1_500 + "]}",
              "input_too_deep", "cannot check"),
         ):
             with self.subTest(code=code):

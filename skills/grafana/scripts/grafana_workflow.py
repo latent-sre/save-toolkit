@@ -38,7 +38,7 @@ def _check_dependencies(args):
         required.add('promql-parser')
     elif args.command == 'compare':
         required.add('deepdiff')
-    elif args.command == 'inspect' and (args.ref_id is None or args.view == 'summary'):
+    elif args.command == 'inspect' and args.panel is not None and (args.ref_id is None or args.view == 'summary'):
         required.add('polars')
     elif args.command == 'analyze':
         if args.analysis in ('summary', 'all'):
@@ -360,8 +360,8 @@ def dependencies(client, args):
 def alert_preview(args):
     packaged = bool(args.package_dir or args.source_id)
     if packaged:
-        source = _load_source(args)
-        raw = json.dumps(source, sort_keys=True, allow_nan=False).encode()
+        source, receipt = _load_verified_source(args)
+        source_sha256 = receipt['report_sha256']
     else:
         path = args.query_file or args.report_file
         with path.open('rb') as handle:
@@ -372,6 +372,7 @@ def alert_preview(args):
             source = json.loads(raw, parse_constant=reader._reject_constant)
         except (ValueError, UnicodeError, RecursionError):
             raise reader.SafeError('invalid_input') from None
+        source_sha256 = hashlib.sha256(raw).hexdigest()
     query = source
     if args.report_file or packaged:
         if not isinstance(source, dict) or source.get('operation') != 'investigate' or not isinstance(source.get('panels'), list):
@@ -388,7 +389,7 @@ def alert_preview(args):
                                                          alignment=args.alignment, grid_origin_ms=args.grid_origin_ms)
     except ValueError:
         raise reader.SafeError('unsupported_preview_input') from None
-    report['source_sha256'] = hashlib.sha256(raw).hexdigest()
+    report['source_sha256'] = source_sha256
     report['source_integrity'] = 'manifest_verified' if packaged else 'unverified_standalone_json'
     report['source_query'] = query
     return report, {}
@@ -399,8 +400,12 @@ def _source_path(args):
 
 
 def _load_source(args):
+    return _load_verified_source(args)[0]
+
+
+def _load_verified_source(args):
     try:
-        return _module('grafana_capture').load_capture(_source_path(args))
+        return _module('grafana_capture').load_verified_capture(_source_path(args))
     except (OSError, ValueError, RecursionError):
         raise reader.SafeError('invalid_evidence_package') from None
 
@@ -426,6 +431,8 @@ def offline(args):
 
 def _inspect_capture(report, args):
     """Select stored evidence without loading files or contacting Grafana."""
+    if args.panel is None:
+        return _inspect_section(report, args.pointer or '', offset=args.offset, limit=args.limit)
     selected = [(index, panel) for index, panel in enumerate(report.get('panels', [])) if panel.get('id') == args.panel]
     if len(selected) != 1:
         raise reader.SafeError('panel_selection_not_unique')
@@ -448,6 +455,51 @@ def _inspect_capture(report, args):
                 target['result'], pointer + '/result')
         return {'operation': 'inspect', 'evidence_ref': pointer, 'target': digest}
     return _inspect_rows(target, pointer, frame_index=args.frame_index, offset=args.offset, limit=args.limit)
+
+
+def _inspect_section(report, pointer, *, offset, limit):
+    """Page any retained report; containers expose references rather than nested payloads."""
+    value = report
+    try:
+        for encoded in pointer.split('/')[1:] if pointer else []:
+            key = encoded.replace('~1', '/').replace('~0', '~')
+            if isinstance(value, list):
+                if not re.fullmatch(r'0|[1-9][0-9]*', key):
+                    raise ValueError
+                value = value[int(key)]
+            elif isinstance(value, dict):
+                value = value[key]
+            else:
+                raise ValueError
+    except (KeyError, IndexError, ValueError):
+        raise reader.SafeError('evidence_pointer_unavailable') from None
+    result = {'operation': 'inspect', 'evidence_ref': pointer, 'offset': offset}
+    if isinstance(value, str):
+        end = min(offset + limit, len(value))
+        return {**result, 'type': 'string', 'text': value[offset:end], 'total': len(value),
+                'next_offset': end if end < len(value) else None}
+    if not isinstance(value, (list, dict)):
+        return {**result, 'type': 'scalar', 'value': value}
+    keys = list(value) if isinstance(value, dict) else range(len(value))
+    items = []
+    for key in keys[offset:offset + limit]:
+        child = value[key]
+        ref = pointer + '/' + str(key).replace('~', '~0').replace('/', '~1')
+        item = {'key': key, 'evidence_ref': ref}
+        if isinstance(child, (dict, list, str)):
+            item.update(type='object' if isinstance(child, dict) else 'array' if isinstance(child, list) else 'string',
+                        size=len(child))
+        else:
+            item.update(type='scalar', value=child)
+        items.append(item)
+    result.update(type='object' if isinstance(value, dict) else 'array', items=items, total=len(value))
+    while items and len(json.dumps(result, ensure_ascii=True).encode()) > MAX_AGENT_BYTES // 2:
+        items.pop()
+    if offset < len(value) and not items:
+        raise reader.SafeError('evidence_item_too_large')
+    end = min(offset + len(items), len(value))
+    result['next_offset'] = end if end < len(value) else None
+    return result
 
 
 def _inspect_rows(target, pointer, *, frame_index, offset, limit):
@@ -552,7 +604,9 @@ def _argument_parser():
             item.add_argument('--kind')
             item.add_argument('--key')
         elif name == 'inspect':
-            item.add_argument('--panel', type=int, required=True)
+            selection = item.add_mutually_exclusive_group()
+            selection.add_argument('--panel', type=int)
+            selection.add_argument('--pointer', help='JSON Pointer into any saved report; omitted selection pages its root.')
             item.add_argument('--ref-id')
             item.add_argument('--mode', choices=('range', 'instant'))
             item.add_argument('--view', choices=('summary', 'rows'), default='summary')
@@ -612,9 +666,15 @@ def _validate_command_args(args):
         if (args.alignment == 'explicit') != (args.grid_origin_ms is not None):
             raise reader.SafeError('invalid_arguments')
     elif ((args.command == 'impact' and ((args.node_id is None) == (args.kind is None or args.key is None)))
-          or (args.command == 'inspect' and (not 0 <= args.offset <= 1000000 or not 1 <= args.limit <= 500
+          or (args.command == 'inspect' and (not 0 <= args.offset <= (1000000 if args.panel is not None else 32 * 1024 * 1024) or not 1 <= args.limit <= 500
               or not 0 <= args.frame_index <= 1000 or (args.view == 'rows' and args.ref_id is None)))):
         raise reader.SafeError('invalid_arguments')
+    if args.command == 'inspect':
+        if args.panel is None and (args.ref_id is not None or args.mode is not None or args.view != 'summary' or args.frame_index != 0):
+            raise reader.SafeError('invalid_arguments')
+        if args.pointer is not None and (len(args.pointer) > 4096 or (args.pointer and not args.pointer.startswith('/'))
+                                         or re.search(r'~(?![01])|[\x00-\x1f\x7f]', args.pointer)):
+            raise reader.SafeError('invalid_arguments')
 
 
 def parse_args(argv):
@@ -626,6 +686,8 @@ def parse_args(argv):
         raise reader.SafeError('output_required')
     if args.open_vscode and not (args.output_dir or args.capture_id):
         raise reader.SafeError('output_required')
+    if args.command == 'open-report' and args.open_vscode:
+        raise reader.SafeError('invalid_arguments')
     if args.output_dir and (args.output_dir.exists() or args.output_dir.is_symlink()):
         raise reader.SafeError('output_directory_exists')
     return args
@@ -674,12 +736,12 @@ def _prepare_response(args, execution, destination, environ):
         result['package'] = _module('grafana_evidence').write_package(report, destination, images=images)
         # Analyze the bytes actually retained, including explicit budget omissions.
         report = _module('grafana_capture').load_capture(destination)
+    evidence_path = destination or (_source_path(args) if hasattr(args, 'source_id') and (args.source_id or args.package_dir) else None)
     if args.agent_json:
         result['data'] = (_module('grafana_analyze').analyze_capture(report, analysis='all')
                           if args.command == 'investigate' else report)
         if args.capture_id:
             result['capture_id'] = args.capture_id
-        evidence_path = destination or (_source_path(args) if hasattr(args, 'source_id') and (args.source_id or args.package_dir) else None)
         if evidence_path:
             verified = _module('grafana_capture').verify_package(evidence_path)
             result['artifacts'] = [{'image_file': name, 'image_path': str((evidence_path / name).absolute()),
@@ -700,7 +762,13 @@ def _prepare_response(args, execution, destination, environ):
     if len(json.dumps(result, ensure_ascii=True, allow_nan=False).encode()) > MAX_AGENT_BYTES:
         result.pop('data', None)
         result.update(status='output_truncated', gaps=['agent_output_limit_reached'],
-                      next_action='inspect_selected_panel_or_query' if destination else 'repeat_with_capture_id')
+                      next_action='inspect_saved_report' if evidence_path else 'repeat_with_capture_id')
+        if evidence_path:
+            source = (['--source-id', args.capture_id] if destination and args.capture_id else
+                      ['--source-id', args.source_id] if not destination and getattr(args, 'source_id', None) else
+                      ['--package-dir', str(evidence_path)])
+            result['recovery'] = {'arguments': ['inspect', *source, '--agent-json'],
+                                  'selection': 'Follow evidence_ref with --pointer; page with --offset and --limit.'}
     return result
 
 

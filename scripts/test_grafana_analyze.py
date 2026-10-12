@@ -169,6 +169,72 @@ def test_dependencies_capture_and_missing_capture():
     assert any(g["code"] == "dashboard_capture_unavailable" for g in module.analyze_capture(source)["gaps"])
 
 
+@pytest.mark.parametrize("analysis", ["dependencies", "all"])
+def test_fitted_verified_dependencies_keep_retained_graph(tmp_path, monkeypatch, analysis):
+    module = load_module()
+    evidence = module._module("grafana_evidence")
+    packages = module._module("grafana_capture")
+    raw_capture = capture()["dashboard_capture"]
+    raw_capture["dashboard"]["description"] = "x" * 10000
+    source = module.dependencies.build_map([raw_capture], [])
+    source.update(dashboard_captures=[raw_capture], alert_captures=[],
+                  provenance={"grafana_url": "https://metrics.invalid", "organization_id": 2},
+                  discovery={"coverage": "permission_scoped", "truncated": True})
+    source["truncated"] = True
+    source["gaps"].append({"code": "dashboard_discovery_truncated", "source": "folder:example"})
+    monkeypatch.setattr(evidence, "MAX_REPORT_BYTES", 7000)
+    destination = tmp_path / "dependencies"
+    evidence.write_package(source, destination)
+    saved = packages.load_capture(destination)
+    assert "dashboard_captures" not in saved
+    assert saved["evidence"]["status"] == "partial"
+    original = copy.deepcopy(saved)
+
+    report = module.analyze_capture(saved, analysis=analysis)
+    retained = report["dependencies"]
+    assert retained["nodes"] == saved["nodes"]
+    assert retained["edges"] == saved["edges"]
+    for key in ("coverage", "gaps", "inputs", "truncated", "limits", "metric_extraction", "limitations",
+                "discovery", "provenance", "evidence"):
+        assert retained[key] == saved[key]
+    assert pointer(saved, retained["evidence_ref"]) == saved
+    assert retained["capture_evidence_refs"] == []
+    assert report["source_evidence"] == saved["evidence"]
+    assert report["health"] == "not_assessed"
+    assert saved == original
+    assert len(json.dumps(report)) <= module.MAX_OUTPUT_BYTES
+
+
+def test_dependency_analysis_keeps_collection_gaps_when_raw_captures_remain():
+    module = load_module()
+    raw_capture = capture()["dashboard_capture"]
+    source = module.dependencies.build_map([raw_capture], [])
+    source.update(dashboard_captures=[raw_capture], alert_captures=[])
+    source["gaps"].append({"code": "alert_definitions_unavailable", "source": "folder:example"})
+    result = module.analyze_capture(source, analysis="dependencies")["dependencies"]
+    assert result["gaps"] == source["gaps"]
+    assert result["capture_evidence_refs"] == ["/dashboard_captures/0"]
+
+
+def test_retained_dependency_graph_is_still_subject_to_analysis_budget(monkeypatch):
+    module = load_module()
+    source = module.dependencies.build_map([capture()["dashboard_capture"]], [])
+    monkeypatch.setattr(module, "MAX_OUTPUT_BYTES", 1200)
+    result = module.analyze_capture(source, analysis="dependencies")
+    assert result["dependencies"] == {"omitted": "analysis_section_limit", "evidence_ref": ""}
+    assert any(gap["code"] == "analysis_section_limit" for gap in result["gaps"])
+
+
+@pytest.mark.parametrize("raw_fields", [{}, {"alert_captures": []}, {"dashboard_captures": [], "alert_captures": []}])
+def test_dependencies_without_retained_graph_or_raw_sources_are_unavailable(raw_fields):
+    result = load_module().analyze_capture({"schema_version": 1, "operation": "dependencies", **raw_fields},
+                                           analysis="dependencies")
+    assert result["dependencies"]["omitted"] == "dependency_graph_unavailable"
+    assert "nodes" not in result["dependencies"]
+    assert any(gap["code"] == "dependency_graph_unavailable" for gap in result["gaps"])
+    assert result["health"] == "not_assessed"
+
+
 @pytest.mark.parametrize("source", [None, [], {"schema_version": 99, "operation": "investigate"}, {"schema_version": 1, "operation": "alert-preview"}])
 def test_unsupported_capture_rejected(source):
     with pytest.raises(ValueError, match="unsupported_capture"):

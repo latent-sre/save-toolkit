@@ -118,7 +118,11 @@ Reading results:
 
 In the Copilot command preview the hook cannot tell which shell runs, so it denies raw `--expr` on
 **every terminal shell**, including Bash on macOS. Use `--expr-base64` with an exact encoding from
-trusted tooling, or the wrapper in a confirmed PowerShell terminal. For example, `dXA=` encodes `up`:
+trusted tooling. The command-preview grant requires a double-quoted installed script path and
+unquoted arguments containing only letters, digits and safe literal punctuation. It rejects
+single-quoted values, spaces in argument values, shell operators and expansion syntax because
+their interpretation depends on the terminal shell. The PowerShell wrapper belongs to the
+confirmed PowerShell tool grant and is denied by this preview. For example, `dXA=` encodes `up`:
 
 ```text
 python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource metrics-uid --kind prometheus --from 1758400000000 --to 1758403600000 --expr-base64 dXA=
