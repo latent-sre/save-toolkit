@@ -119,6 +119,34 @@ def test_hygiene_unsupported_model_never_clean(model):
     assert not result["ok"] and result["gaps"]
 
 
+def test_hygiene_keeps_query_method_and_template_gaps_with_source_pointers():
+    source = capture()
+    source['dashboard_capture']['dashboard']['panels'][0]['targets'] = [
+        {'refId': 'A', 'expr': 'up{requests_total="label"}'},
+        {'refId': 'B', 'expr': 'rate(requests_total[$__rate_interval])'},
+    ]
+    result = load_module().analyze_capture(source, analysis='hygiene')['hygiene']['dashboards'][0]
+    assert result['query_analysis_count'] == 2
+    assert [query['mode'] for query in result['query_analysis']] == ['promql_ast', 'text_heuristic']
+    assert result['query_analysis'][1]['gaps'] == ['promql_template_unresolved']
+    assert all(pointer(source, query['evidence_ref']) for query in result['query_analysis'])
+    assert not any(finding['rule'] == 'target-counter-agg' for finding in result['findings'])
+
+
+def test_hygiene_query_method_details_are_bounded(monkeypatch):
+    module = load_module()
+    monkeypatch.setattr(module, 'MAX_FINDINGS', 1)
+    source = capture()
+    source['dashboard_capture']['dashboard']['panels'][0]['targets'] = [
+        {'refId': 'A', 'expr': 'up'}, {'refId': 'B', 'expr': 'process_start_time_seconds'},
+    ]
+    result = module.analyze_capture(source, analysis='hygiene')['hygiene']['dashboards'][0]
+    assert result['query_analysis_count'] == 2
+    assert len(result['query_analysis']) == 1
+    assert result['truncated'] is True
+    assert 'hygiene_query_analysis_truncated' in result['gaps']
+
+
 def test_bounds_produce_explicit_gaps():
     source = capture()
     source["panels"][0]["targets"][0]["result"]["summary"]["large"] = "x" * 70000
@@ -150,3 +178,28 @@ def test_unsupported_capture_rejected(source):
 def test_named_modes_only():
     with pytest.raises(ValueError, match="unsupported_analysis"):
         load_module().analyze_capture(capture(), analysis="eval")
+
+
+def test_summary_adds_raw_sample_statistics_without_replacing_captured_summary():
+    source = capture()
+    query = source["panels"][0]["targets"][0]["result"]
+    query["results"] = {"A": {"frames": [{
+        "schema": {"fields": [{"type": "number", "name": "load", "labels": {"host": "example"}}]},
+        "data": {"values": [[1, None, 3, 5]]},
+    }]}}
+    report = load_module().analyze_capture(source, analysis="summary")
+    digest = report["summary"]["panels"][0]["targets"][0]
+    assert digest["summary"] == query["summary"]
+    series = digest["series_statistics"]["series"][0]
+    assert series["statistics"]["mean"] == 3 and series["statistics"]["stddev_sample"] == 2
+    assert pointer(source, series["evidence_ref"]) == [1, None, 3, 5]
+    assert pointer(source, series["field_evidence_ref"])["labels"] == series["labels"]
+    assert report["health"] == "not_assessed"
+
+
+def test_summary_only_capture_explicitly_lacks_raw_statistics():
+    digest = load_module().analyze_capture(capture(), analysis="summary")["summary"]["panels"][0]["targets"][0]
+    assert digest["series_statistics"]["status"] == "unavailable"
+    assert digest["series_statistics"]["gaps"] == [{
+        "code": "raw_query_results_unavailable", "evidence_ref": "/panels/0/targets/0/result",
+    }]

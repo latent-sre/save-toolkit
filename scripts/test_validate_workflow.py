@@ -42,12 +42,12 @@ class ValidateWorkflowTests(unittest.TestCase):
                 self.assertEqual(set(), pins(ROOT / relative) - repository,
                                  "sandbox dependencies drifted from the repository pin set")
 
-    def test_ci_tracks_latest_python_314(self) -> None:
+    def test_ci_checks_python_312_floor_and_314_development_default(self) -> None:
         jobs = workflow_jobs()
         for name in ("validate", "fast-tests", "eval-tests"):
             setup = next(step for step in jobs[name]["steps"]
                          if step.get("uses", "").startswith("actions/setup-python@"))
-            self.assertEqual("3.14", setup["with"]["python-version"])
+            self.assertEqual("3.12" if name == "validate" else "3.14", setup["with"]["python-version"])
             self.assertIs(setup["with"]["check-latest"], True)
 
     def test_repository_actions_use_major_tags(self) -> None:
@@ -314,7 +314,7 @@ class ValidateWorkflowTests(unittest.TestCase):
                 step = next(s for s in workflow_jobs()[name]["steps"]
                             if s.get("uses", "").startswith("actions/setup-python@"))
                 self.assertEqual("pip", step["with"].get("cache"))
-                self.assertEqual({"requirements-test.txt", "requirements-dev.txt"},
+                self.assertEqual({"requirements-test.txt", "requirements-dev.txt", "requirements-grafana.txt"},
                                  set(step["with"].get("cache-dependency-path", "").split()))
 
     def test_the_gate_still_has_a_schedule_and_manual_dispatch(self) -> None:

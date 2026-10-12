@@ -11,7 +11,7 @@ authority.
 
 ## Bundled read helper
 
-The installed `grafana` skill includes [grafana_read.py](../scripts/grafana_read.py), a stdlib-only Python 3.11+
+The installed `grafana` skill includes [grafana_read.py](../scripts/grafana_read.py), a stdlib-only Python 3.12+
 client. Run it as `python -I -S` (or `python3`, `python.exe`) with its **absolute installed path** in
 drive-letter form, such as `"C:/Users/<you>/.claude/plugins/cache/.../grafana_read.py"` (on
 Copilot, the generated `.github` copy), never another file, or call its installed
@@ -26,7 +26,8 @@ For multi-panel investigation, prefer the installed
 [agent workflow](./investigation-workflows.md#agent-collection-and-follow-up) with `--agent-json`.
 It returns structured data first and falls back to rendering when query evidence is incomplete.
 The guard admits its fixed commands and capture IDs, not arbitrary filesystem paths or editor
-launches. On Windows PowerShell, embedded double quotes in native arguments are rejected because
+launches. The workflow uses `python -I` with its managed analysis dependencies; the read helper
+continues to require `python -I -S`. On Windows PowerShell, embedded double quotes in native arguments are rejected because
 the shell can change their values; do not retry through another shell to bypass a denial.
 
 The helper loads `GRAFANA_URL`, `GRAFANA_ORG_ID` and a token (or Basic credentials) from the

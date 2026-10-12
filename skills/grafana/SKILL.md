@@ -46,6 +46,10 @@ The workflow CLI [grafana_workflow.py](./scripts/grafana_workflow.py) composes b
 the local [evidence writer](./scripts/grafana_evidence.py), offline
 [threshold preview](./scripts/grafana_alert_preview.py), and
 [configuration dependency mapper](./scripts/grafana_dependencies.py).
+The workflow uses a managed Python environment for [bounded data statistics](./scripts/grafana_frames.py),
+[shared PromQL analysis](./scripts/grafana_promql.py),
+structured comparisons and PNG decoding; its command reference defines the isolated launch.
+The [bundled module loader](./scripts/grafana_modules.py) keeps those helpers on fixed local paths.
 Agents start with structured query evidence and explicit coverage gaps. When queries fail or cannot
 reproduce a panel, the default render fallback supplies an image reference; open that image before
 making a visual claim. Use [query plans](./scripts/grafana_plan.py),

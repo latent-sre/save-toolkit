@@ -78,7 +78,7 @@ class ThingStore:
 
     async def after(self, principal: Principal, after_id: str, limit: int) -> list[Thing]:
         rows = (t for t in self._things if t.id > after_id and can_read(principal, t))
-        return [row for _, row in zip(range(limit), rows)]
+        return [row for _, row in zip(range(limit), rows, strict=False)]
 
     async def get(self, thing_id: str) -> Thing | None:
         return next((t for t in self._things if t.id == thing_id), None)

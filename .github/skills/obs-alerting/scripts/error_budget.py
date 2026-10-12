@@ -22,9 +22,8 @@ import sys
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, localcontext
 
-# Evaluated annotations that Python 3.8 understands: string annotations (`from __future__`) would
+# Keep evaluated annotations: string annotations (`from __future__`) would
 # make the dataclasses below require their module to be registered when loaded from a file path.
-from typing import Optional, Tuple
 
 # Google SRE Workbook: each long/short pair selects its own threshold and action. No pair lends its
 # window or threshold to another.
@@ -95,11 +94,11 @@ class Inputs:
 
     slo: Decimal
     window_days: float
-    bad_minutes: Optional[float]
-    bad_events: Optional[float]
-    total_events: Optional[float]
-    sli_long: Optional[Decimal]
-    sli_short: Optional[Decimal]
+    bad_minutes: float | None
+    bad_events: float | None
+    total_events: float | None
+    sli_long: Decimal | None
+    sli_short: Decimal | None
     long_window: str
     short_window: str
 
@@ -140,7 +139,7 @@ class BudgetStatus:
     remaining: float  # exactly 0.0 within floating-point residue of zero, so never "-0.0"
     percent: float  # of the budget consumed
     state: str  # "ok", "EXHAUSTED" or "OVER BUDGET"
-    observed_availability: Optional[float] = None  # request-based status only
+    observed_availability: float | None = None  # request-based status only
 
 
 @dataclass(frozen=True)
@@ -169,7 +168,7 @@ def burn_rate(slo: Decimal, sli: Decimal) -> float:
     return (1.0 - float(sli) / 100.0) / budget_fraction(slo)
 
 
-def _remaining(budget: float, consumed: float) -> Tuple[float, str]:
+def _remaining(budget: float, consumed: float) -> tuple[float, str]:
     """Remaining budget and its state, with tolerance for percentage floating-point arithmetic."""
     remaining = budget - consumed
     if abs(remaining) <= max(abs(budget) * 1e-12, 1e-12):

@@ -75,8 +75,8 @@ were synchronous test callbacks consumed within their loop iteration, not observ
    dominates; unbounded concurrency would also change cost and identity assumptions.
 5. **Do not blindly modernize filesystem checks.** Cached `Path.info` cannot replace fresh stat calls
    around mutable fixtures, symlinks, and credential cleanup. Keep containment and reparse-point
-   behavior covered on Windows. Similarly, new type-alias syntax would raise the deployed runtime
-   floor where some scripts still intentionally support 3.11.
+   behavior covered on Windows. The repository now supports Python 3.12 and newer, including
+   installed scripts; syntax changes still need a concrete benefit and consumer checks.
 
 ## Remaining limitations
 

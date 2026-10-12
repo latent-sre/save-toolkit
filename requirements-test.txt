@@ -2,6 +2,7 @@
 # Constraints exclude unrelated sandbox dependencies; runtime contract tests must not skip.
 # The eval runner's typed record, property tests, lint and type checks come from the same set.
 -c requirements-dev.txt
+-r requirements-grafana.txt
 pytest
 pyyaml
 fastapi

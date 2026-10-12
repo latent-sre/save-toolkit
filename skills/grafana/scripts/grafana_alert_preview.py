@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline sampled threshold preview, Python 3.11+, standard library only.
+"""Offline sampled threshold preview, Python 3.12+, standard library only.
 
 This module never evaluates a saved Grafana rule or its no-data/error policy,
 replays pre-window state, or predicts notification delivery. The evaluation grid
@@ -11,6 +11,9 @@ missing, null and invalid samples reset pending state. No interpolation occurs.
 import json
 import math
 import operator as comparisons
+from itertools import pairwise
+from pathlib import Path
+from runpy import run_path
 
 DAY_MS = 86400000
 MAX_SERIES = 100
@@ -18,6 +21,8 @@ MAX_SLOTS = 10000
 MAX_POINTS = 10000
 OPERATORS = {"gt": comparisons.gt, "ge": comparisons.ge, "lt": comparisons.lt,
              "le": comparisons.le, "eq": comparisons.eq, "ne": comparisons.ne}
+_module = run_path(str(Path(__file__).with_name('grafana_modules.py')))['load_module']
+reader = _module('grafana_read')
 
 
 def _finite(value):
@@ -34,23 +39,18 @@ def _epoch(value):
 
 def _frame(frame):
     """Return wide numeric series or one static unsupported reason for a frame."""
-    if not isinstance(frame, dict):
-        return None, "invalid_frame"
-    schema, data = frame.get("schema"), frame.get("data")
-    if not isinstance(schema, dict) or not isinstance(data, dict):
-        return None, "invalid_frame"
-    fields, columns = schema.get("fields"), data.get("values")
-    if any(data.get(key) for key in ("entities", "bases", "factors", "enums", "nanos")):
-        return None, "encoded_frame"
-    meta = schema.get("meta", {})
-    if not isinstance(meta, dict) or meta.get("type") in ("numeric-long", "timeseries-long"):
+    decoded, reason = reader.frame_columns(frame)
+    if decoded is None:
+        return None, reason
+    fields, columns = decoded
+    # The preview requires unambiguous numeric series and exact ordered timestamps;
+    # the reader can also count log rows and summarize numeric-only instant frames.
+    if not isinstance(frame['schema'].get('meta', {}), dict):
         return None, "row_labelled_frame"
-    if not isinstance(fields, list) or not fields or not isinstance(columns, list) or len(fields) != len(columns):
+    if not fields:
         return None, "invalid_columns"
-    if not all(isinstance(field, dict) and field.get("type") in ("time", "number") for field in fields):
+    if any(field['type'] not in ('time', 'number') for field in fields):
         return None, "unsupported_fields"
-    if not all(isinstance(column, list) for column in columns) or len({len(column) for column in columns}) != 1:
-        return None, "invalid_columns"
     if len(columns[0]) > MAX_POINTS:
         return None, "point_limit"
     time_indexes = [index for index, field in enumerate(fields) if field["type"] == "time"]
@@ -60,10 +60,10 @@ def _frame(frame):
         times = [_epoch(value) for value in columns[time_indexes[0]]]
     except (ValueError, OverflowError):
         return None, "invalid_timestamps"
-    if any(right <= left for left, right in zip(times, times[1:])):
+    if any(right <= left for left, right in pairwise(times)):
         return None, "unordered_or_duplicate_timestamps"
     series = []
-    for field, values in zip(fields, columns):
+    for field, values in zip(fields, columns, strict=False):
         if field["type"] == "time":
             continue
         name, labels = field.get("name"), field.get("labels", {})
@@ -77,7 +77,7 @@ def _frame(frame):
 
 def _evaluate(series, start, end, step, pending, compare, threshold, origin):
     samples, outside, off_grid = {}, 0, 0
-    for timestamp, value in zip(series["times"], series["values"]):
+    for timestamp, value in zip(series["times"], series["values"], strict=False):
         if timestamp < start or timestamp > end:
             outside += 1
         elif (timestamp - origin) % step:
@@ -131,6 +131,38 @@ def _evaluate(series, start, end, step, pending, compare, threshold, origin):
             "pending_at_end": {"first_breach_ms": first_breach, "observed_duration_ms": last_grid - first_breach}
             if first_breach is not None and firing is None else None,
             "last_evaluation_ms": last_grid, "end_censored": True}
+
+
+def _alignment(series, start, end, step, requested, explicit_origin):
+    """Resolve a shared grid from eligible series, keeping diagnostics on refusal.
+
+    A None origin means observed alignment is unresolved. No eligible series
+    retains the window grid so the caller can report its existing no-data state.
+    """
+    phases, cadences, observed_times = set(), set(), 0
+    for item in series:
+        times = [timestamp for timestamp in item['times'] if start <= timestamp <= end]
+        observed_times += len(times)
+        phases.update(timestamp % step for timestamp in times)
+        cadences.update(right - left for left, right in pairwise(times))
+    origin = explicit_origin if requested == 'explicit' else start
+    result = {'requested': requested, 'source': 'explicit_origin' if requested == 'explicit' else 'window_start',
+              'observed_timestamp_count': observed_times,
+              'observed_phase_count': len(phases), 'observed_phases_ms': sorted(phases)[:20],
+              'observed_cadence_count': len(cadences), 'observed_cadences_ms': sorted(cadences)[:20],
+              'diagnostics_truncated': len(phases) > 20 or len(cadences) > 20,
+              'interpolation': 'none'}
+    if requested == 'observed' and series:
+        # Require one phase and compatible cadence across every eligible series;
+        # the first series alone cannot establish a shared evaluation grid.
+        if len(phases) != 1 or not cadences or any(cadence % step for cadence in cadences):
+            result.update(source='unresolved', grid_origin_ms=None, first_evaluation_ms=None)
+            return result
+        origin = next(iter(phases))
+        result['source'] = 'observed_sample_phase'
+    first_grid = start + (origin - start) % step
+    result.update(grid_origin_ms=origin, first_evaluation_ms=first_grid if first_grid <= end else None)
+    return result
 
 
 def preview(query_result: dict, *, operator: str, threshold: float, pending_ms: int, step_ms: int,
@@ -206,34 +238,15 @@ def preview(query_result: dict, *, operator: str, threshold: float, pending_ms: 
         if identities[item['identity']] != 1:
             result['unsupported_frames'].append({'frame_index': item['frame_index'],
                                                   'reason': 'duplicate_series_identity', 'identity': item['identity']})
-    phases, cadences, observed_times = set(), set(), 0
-    for item in eligible:
-        times = [timestamp for timestamp in item['times'] if start <= timestamp <= end]
-        observed_times += len(times)
-        phases.update(timestamp % step_ms for timestamp in times)
-        cadences.update(right - left for left, right in zip(times, times[1:]))
-    origin = grid_origin_ms if alignment == 'explicit' else start
-    result['alignment'] = {'requested': alignment, 'source': 'explicit_origin' if alignment == 'explicit' else 'window_start',
-                           'observed_timestamp_count': observed_times,
-                           'observed_phase_count': len(phases), 'observed_phases_ms': sorted(phases)[:20],
-                           'observed_cadence_count': len(cadences), 'observed_cadences_ms': sorted(cadences)[:20],
-                           'diagnostics_truncated': len(phases) > 20 or len(cadences) > 20,
-                           'interpolation': 'none'}
-    if alignment == 'observed' and eligible:
-        # One phase across all eligible samples and evidence of a compatible
-        # cadence are required; never pick whichever series happened to be first.
-        if len(phases) != 1 or not cadences or any(cadence % step_ms for cadence in cadences):
-            result['alignment'].update(source='unresolved', grid_origin_ms=None, first_evaluation_ms=None)
-            result.update(status='alignment_unresolved', evaluation_slots=0,
-                          evaluated_samples=0, evaluation_status='zero_evaluated_samples',
-                          warnings=['observed_alignment_ambiguous_or_insufficient', 'zero_evaluated_samples'])
-            return result
-        origin = next(iter(phases))
-        result['alignment']['source'] = 'observed_sample_phase'
-    first_grid = start + (origin - start) % step_ms
-    result['alignment'].update(grid_origin_ms=origin,
-                               first_evaluation_ms=first_grid if first_grid <= end else None)
-    result['evaluation_slots'] = max(0, (end - first_grid) // step_ms + 1)
+    result['alignment'] = _alignment(eligible, start, end, step_ms, alignment, grid_origin_ms)
+    origin = result['alignment']['grid_origin_ms']
+    if origin is None:
+        result.update(status='alignment_unresolved', evaluation_slots=0,
+                      evaluated_samples=0, evaluation_status='zero_evaluated_samples',
+                      warnings=['observed_alignment_ambiguous_or_insufficient', 'zero_evaluated_samples'])
+        return result
+    first_grid = result['alignment']['first_evaluation_ms']
+    result['evaluation_slots'] = (end - first_grid) // step_ms + 1 if first_grid is not None else 0
     for item in eligible:
         result["series"].append(_evaluate(item, start, end, step_ms, pending_ms, OPERATORS[operator], threshold, origin))
     if result["unsupported_frames"]:

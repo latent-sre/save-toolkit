@@ -287,7 +287,7 @@ def grafana_curl_allowed(command: str, powershell: bool = False) -> bool:
 
 
 def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
-    """One installed stdlib helper, with literal args validated by its own parser.
+    """Fixed installed helpers, with literal args validated by their own parser.
 
     No general interpreter, workspace script, shell chain, redirection or dynamic
     expression is admitted. PATH and the installed plugin remain trusted inputs.
@@ -298,7 +298,7 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
         return False
     literal = r"(?:[A-Za-z0-9_+/=-]+|'[^'\r\n]*')"
     match = re.fullmatch(
-        r'''python(?:3|\.exe)? -I -S (?P<path>"[^"$`\r\n]+"|'[^'\r\n]+') '''
+        r'''python(?:3|\.exe)? -I(?P<no_site> -S)? (?P<path>"[^"$`\r\n]+"|'[^'\r\n]+') '''
         + r"(?P<args>" + literal + r"(?: " + literal + r")*)", command,
     )
     wrapper = False
@@ -352,6 +352,10 @@ def grafana_helper_allowed(command: str, powershell: bool = False) -> bool:
         except (Exception, SystemExit):
             return False
         return True
+    # Only the workflow may load packages from the operator-managed interpreter. The read helper
+    # and this guard remain stdlib-only; no general Python/path grant is added.
+    if not wrapper and not match['no_site']:
+        return False
     try:
         # A generated copy must still be the reviewed canonical helper, not a stale
         # or edited same-named program. Missing files fail closed.

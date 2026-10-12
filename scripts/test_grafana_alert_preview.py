@@ -83,6 +83,24 @@ def test_encoded_columns_unsupported(encoding):
     assert run(data)["status"] == "unsupported"
 
 
+@pytest.mark.parametrize("encoding", ["entities", "bases", "factors", "enums", "nanos"])
+@pytest.mark.parametrize("value", [False, 0, ""])
+def test_scalar_wire_encodings_do_not_become_plain_samples(encoding, value):
+    data = query([6] * 5)
+    data["results"]["A"]["frames"][0]["data"][encoding] = value
+    result = run(data)
+    assert result["status"] == "unsupported"
+    assert result["unsupported_frames"] == [{"frame_index": 0, "reason": "encoded_frame"}]
+    assert result["series"] == []
+
+
+@pytest.mark.parametrize("meta", [None, [], "unknown"])
+def test_preview_still_requires_object_metadata(meta):
+    data = query([6] * 5)
+    data["results"]["A"]["frames"][0]["schema"]["meta"] = meta
+    assert run(data)["unsupported_frames"] == [{"frame_index": 0, "reason": "row_labelled_frame"}]
+
+
 def test_row_labels_and_duplicate_series_unsupported():
     data = query([6] * 5)
     frame = data["results"]["A"]["frames"][0]
@@ -236,3 +254,57 @@ def test_explicit_grid_origin_and_no_slots_are_reported():
 def test_invalid_alignment_contract_is_rejected(options):
     with pytest.raises(ValueError):
         run(query([6] * 5), **options)
+
+
+def test_observed_alignment_uses_all_eligible_series_before_evaluating():
+    data = query([6, 6], times=[30000, 60000])
+    second = copy.deepcopy(data['results']['A']['frames'][0])
+    second['schema']['fields'][1]['labels']['host'] = 'b'
+    second['data']['values'][0] = [31000, 61000]
+    data['results']['A']['frames'].append(second)
+    before = copy.deepcopy(data)
+
+    result = run(data, alignment='observed')
+
+    assert result['status'] == 'alignment_unresolved'
+    assert result['alignment'] == {
+        'requested': 'observed', 'source': 'unresolved', 'observed_timestamp_count': 4,
+        'observed_phase_count': 2, 'observed_phases_ms': [0, 1000],
+        'observed_cadence_count': 1, 'observed_cadences_ms': [30000],
+        'diagnostics_truncated': False, 'interpolation': 'none',
+        'grid_origin_ms': None, 'first_evaluation_ms': None}
+    assert result['warnings'] == ['observed_alignment_ambiguous_or_insufficient', 'zero_evaluated_samples']
+    assert result['series'] == []
+    assert data == before
+
+
+def test_duplicate_identities_do_not_determine_observed_alignment():
+    data = query([6, 6], times=[30000, 60000])
+    duplicate = copy.deepcopy(data['results']['A']['frames'][0])
+    duplicate['data']['values'][0] = [31000, 61000]
+    data['results']['A']['frames'].append(duplicate)
+    eligible = copy.deepcopy(data['results']['A']['frames'][0])
+    eligible['schema']['fields'][1]['labels']['host'] = 'b'
+    data['results']['A']['frames'].append(eligible)
+
+    result = run(data, alignment='observed')
+
+    assert result['status'] == 'partial'
+    assert result['alignment']['observed_timestamp_count'] == 2
+    assert result['alignment']['observed_phases_ms'] == [0]
+    assert result['alignment']['source'] == 'observed_sample_phase'
+    assert [frame['frame_index'] for frame in result['unsupported_frames']] == [0, 1]
+    assert [series['labels'] for series in result['series']] == [{'host': 'b'}]
+
+
+def test_observed_alignment_without_series_keeps_no_data_contract():
+    data = query([6] * 5)
+    data['results']['A']['frames'] = []
+
+    result = run(data, alignment='observed')
+
+    assert result['status'] == 'no_data'
+    assert result['alignment']['source'] == 'window_start'
+    assert result['alignment']['grid_origin_ms'] == 30000
+    assert result['evaluation_slots'] == 5
+    assert result['warnings'] == ['no_numeric_series_returned']

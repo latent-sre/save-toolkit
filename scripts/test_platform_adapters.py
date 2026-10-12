@@ -884,15 +884,19 @@ class PlatformAdapterTests(unittest.TestCase):
     def test_installed_dashboard_helper_runs_outside_the_plugin_checkout(self) -> None:
         outputs = adapters.expected_outputs(ROOT)
         skill_relative = adapters.COPILOT_SKILLS / "grafana/SKILL.md"
-        script_relative = adapters.COPILOT_SKILLS / "grafana/scripts/dashboard_hygiene.py"
+        bundle_relative = adapters.COPILOT_SKILLS / "grafana"
         root = self._temporary_root()
         plugin = root / "installed plugin"
         workspace = root / "user project"
         workspace.mkdir()
-        for relative in (skill_relative, script_relative):
+        # An installed skill carries its bundled siblings, including shared parsing
+        # and module loading. Copy the generator's complete output for this skill.
+        for relative, content in outputs.items():
+            if not relative.is_relative_to(bundle_relative):
+                continue
             target = plugin / relative
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(outputs[relative])
+            target.write_bytes(content)
         skill = plugin / skill_relative
         skill_text = skill.read_text(encoding="utf-8")
         self.assertNotIn("python skills/grafana/scripts/dashboard_hygiene.py", skill_text)
@@ -903,9 +907,11 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIsNotNone(link, "the installed skill must link its bundled validator")
         helper = (skill.parent / link[1]).resolve()
         self.assertTrue(helper.is_relative_to(skill.parent))
-        shadow = workspace / "skills/grafana/scripts/dashboard_hygiene.py"
-        shadow.parent.mkdir(parents=True)
-        shadow.write_text("raise SystemExit('workspace shadow executed')\n", encoding="utf-8")
+        for name in ("dashboard_hygiene", "grafana_modules", "grafana_promql"):
+            for directory in (workspace, workspace / "skills/grafana/scripts"):
+                shadow = directory / (name + ".py")
+                shadow.parent.mkdir(parents=True, exist_ok=True)
+                shadow.write_text("raise SystemExit('workspace shadow executed')\n", encoding="utf-8")
         model = workspace / "dashboard.json"
         model.write_text(
             json.dumps({"title": "Installed helper probe", "panels": [], "tags": ["probe"]}),

@@ -12,6 +12,7 @@ import json
 import os
 import re
 import struct
+from io import BytesIO
 from pathlib import Path
 
 MAX_REPORT_BYTES = 32 * 1024 * 1024
@@ -219,6 +220,7 @@ def _render_html(report: dict, image_names: set[str]) -> bytes:
 
 
 def validate_image(name: str, content: bytes) -> None:
+    """Check byte/pixel bounds before Pillow verifies CRCs and decodes the PNG."""
     if not re.fullmatch(r"panel-[0-9]+\.png", name):
         raise ValueError("Image names must match panel-[digits].png")
     if not isinstance(content, bytes) or not 45 <= len(content) <= 8 * 1024 * 1024:
@@ -228,8 +230,35 @@ def validate_image(name: str, content: bytes) -> None:
     width, height = struct.unpack(">II", content[16:24])
     if not (1 <= width <= 4096 and 1 <= height <= 4096 and width * height <= 8_000_000):
         raise ValueError("PNG dimensions exceed evidence bounds")
-    if content[-12:] != b"\0\0\0\0IEND\xaeB`\x82":
-        raise ValueError("PNG is truncated or has trailing content")
+    # Decoders stop at the first IEND. A second IEND after junk must not disguise trailing bytes.
+    offset = 8
+    while offset + 12 <= len(content):
+        length = int.from_bytes(content[offset:offset + 4], 'big')
+        end = offset + length + 12
+        if end > len(content):
+            break
+        if content[offset + 4:offset + 8] == b'IEND':
+            if length or end != len(content):
+                raise ValueError("PNG has trailing content")
+            break
+        offset = end
+    else:
+        raise ValueError("PNG is truncated")
+    if content[offset:end] != b"\0\0\0\0IEND\xaeB`\x82":
+        raise ValueError("PNG is truncated or has an invalid end chunk")
+    from PIL import Image, ImageFile  # noqa: PLC0415 - optional image dependency, never loaded by guard parsing
+    if ImageFile.LOAD_TRUNCATED_IMAGES:
+        raise ValueError("PNG decoder must reject truncated images")
+    try:
+        with Image.open(BytesIO(content), formats=['PNG']) as image:
+            if image.size != (width, height) or getattr(image, 'n_frames', 1) != 1:
+                raise ValueError("PNG must contain one bounded frame")
+            image.verify()
+        # verify checks chunk integrity without decoding. Reopen to exercise the decoder too.
+        with Image.open(BytesIO(content), formats=['PNG']) as image:
+            image.load()
+    except (OSError, SyntaxError, ValueError, EOFError) as error:
+        raise ValueError("PNG integrity or pixel decoding failed") from error
 
 
 def _partial_report(report: dict) -> tuple[dict, list]:
@@ -299,16 +328,8 @@ def _write_private(path: Path, content: bytes) -> None:
         stream.write(content)
 
 
-def write_package(report: dict, destination: Path, *, images: dict[str, bytes] | None = None) -> dict:
-    """Create a new package; never overwrite an existing destination.
-
-    The caller supplies masked JSON and image bytes from trusted bounded reads.
-    On a write failure the new directory retains an explicit .incomplete marker.
-    POSIX modes are 0700/0600; Windows inherits its parent's access controls.
-    """
-    destination = Path(destination)
-    if destination.exists() or destination.is_symlink():
-        raise FileExistsError("Evidence destination must not exist")
+def _prepare_package(report: dict, images: dict[str, bytes] | None) -> tuple[dict, dict[str, bytes], dict]:
+    """Fit and serialize the complete payload before any filesystem writes."""
     images = dict(images or {})
     if len(images) > 50:
         raise ValueError("Evidence packages support at most 50 images")
@@ -342,6 +363,22 @@ def write_package(report: dict, destination: Path, *, images: dict[str, bytes] |
     manifest_bytes = (_json(manifest) + "\n").encode("utf-8")
     if len(manifest_bytes) + sum(map(len, files.values())) > MAX_PACKAGE_BYTES:
         raise ValueError("Package payload size limit exceeded (96 MiB)")
+    # Insertion order keeps the manifest last, after every file it describes.
+    files["manifest.json"] = manifest_bytes
+    return report, files, manifest
+
+
+def write_package(report: dict, destination: Path, *, images: dict[str, bytes] | None = None) -> dict:
+    """Create a new package; never overwrite an existing destination.
+
+    The caller supplies masked JSON and image bytes from trusted bounded reads.
+    On a write failure the new directory retains an explicit .incomplete marker.
+    POSIX modes are 0700/0600; Windows inherits its parent's access controls.
+    """
+    destination = Path(destination)
+    if destination.exists() or destination.is_symlink():
+        raise FileExistsError("Evidence destination must not exist")
+    report, files, manifest = _prepare_package(report, images)
     destination.mkdir(mode=0o700)
     marker = destination / ".incomplete"
     try:
@@ -353,6 +390,5 @@ def write_package(report: dict, destination: Path, *, images: dict[str, bytes] |
         raise
     for name, content in files.items():
         _write_private(destination / name, content)
-    _write_private(destination / "manifest.json", manifest_bytes)
     marker.unlink()
-    return {"schema_version": 1, "status": "partial" if report.get('evidence', {}).get('status') == 'partial' else "complete", "directory": str(destination.resolve()), "manifest": "manifest.json", "privacy": manifest["privacy"], "image_verification": "image_uninspected", "file_count": len(files) + 1, "evidence": report.get('evidence', {'status': 'complete'})}
+    return {"schema_version": 1, "status": "partial" if report.get('evidence', {}).get('status') == 'partial' else "complete", "directory": str(destination.resolve()), "manifest": "manifest.json", "privacy": manifest["privacy"], "image_verification": "image_uninspected", "file_count": len(files), "evidence": report.get('evidence', {'status': 'complete'})}

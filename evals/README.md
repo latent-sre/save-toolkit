@@ -15,8 +15,9 @@ the short routing specs. The runner does not care which one a spec came from.
 
 ## Run it
 
-Use the latest **Python 3.14** patch for development and CI. The native runner's existing
-compatibility floor is Python 3.12; installed hooks retain their separate Python 3.11 floor.
+Use the latest **Python 3.14** patch for development and component-test CI. The repository-wide
+compatibility floor is Python 3.12, including the native runner and installed hooks; structural CI
+exercises that minimum.
 
 ```bash
 python -m pip install -r requirements-dev.txt

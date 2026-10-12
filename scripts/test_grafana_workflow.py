@@ -1,7 +1,10 @@
 """Workflow integration tests use the real read client and a fake HTTP boundary."""
 import io
 import json
+import os
 import struct
+import subprocess
+import sys
 import zlib
 from pathlib import Path
 
@@ -10,6 +13,40 @@ import pytest
 from testkit import load_path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_missing_dependencies_fail_before_collection_under_no_site():
+    result = subprocess.run([
+        sys.executable, '-I', '-S', str(ROOT / 'skills/grafana/scripts/grafana_workflow.py'),
+        'investigate', '--uid', 'board', '--from', '1000', '--to', '61000', '--render', 'none', '--agent-json',
+    ], capture_output=True, text=True, timeout=15, check=False)
+    assert result.returncode == 2
+    assert json.loads(result.stdout) == {'ok': False, 'error': 'dependency_unavailable_polars'}
+    assert not result.stderr
+
+
+def test_doctor_reports_dependency_runtime_without_importing_telemetry():
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    def no_network(*_args, **_kwargs):
+        pytest.fail('doctor contacted Grafana without --probe')
+    result = workflow.doctor(ENV, no_network)
+    assert result['connection'] == 'not_checked'
+    assert result['runtime']['site_enabled']
+    assert all(item['available'] and item['version'] for item in result['runtime']['dependencies'].values())
+
+
+def test_native_offline_analysis_uses_venv_packages_not_working_directory(tmp_path):
+    code, _, _ = run_workflow(tmp_path, HTTP(), extra=['--render', 'none'])
+    assert code == 0
+    (tmp_path / 'polars.py').write_text("raise RuntimeError('untrusted cwd module')")
+    result = subprocess.run([
+        sys.executable, '-I', str(ROOT / 'skills/grafana/scripts/grafana_workflow.py'),
+        'analyze', '--package-dir', str(tmp_path / 'capture'), '--analysis', 'summary', '--agent-json',
+    ], cwd=tmp_path, env={**os.environ, 'PYTHONPATH': str(tmp_path)},
+        capture_output=True, text=True, timeout=30, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    data = json.loads(result.stdout)['data']
+    assert 'series_statistics' in data['summary']['panels'][0]['targets'][0]
 
 
 def test_dashboard_investigation_writes_package_and_keeps_empty_distinct(tmp_path):
@@ -233,6 +270,22 @@ def test_basic_auth_redaction_does_not_rewrite_the_query_before_execution(tmp_pa
     assert 'example-host' not in (tmp_path / 'capture' / 'report.html').read_text()
 
 
+def test_repeated_workflows_keep_authentication_and_masking_per_invocation():
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    expression = 'up{first="first-host",second="second-host"}'
+    for username, visible in (('first-host', 'second-host'), ('second-host', 'first-host')):
+        http = HTTP(sample_panel(targets=[{'refId': 'A', 'expr': expression}]))
+        output = io.StringIO()
+        code = workflow.main(['investigate', '--uid', 'board', '--from', '1000', '--to', '61000', '--agent-json'],
+                             environ={'GRAFANA_URL': 'https://example.test', 'GRAFANA_ORG_ID': '1',
+                                      'GRAFANA_USERNAME': username, 'GRAFANA_PASSWORD': 'fixture-password'},
+                             transport=http, output=output)
+        assert code == 0, output.getvalue()
+        assert username not in output.getvalue() and visible in output.getvalue()
+        queries = [json.loads(request.data)['queries'][0] for request in http.calls if request.method == 'POST']
+        assert queries[0]['expr'] == expression
+
+
 def test_dependency_collection_failures_are_visible_outside_raw_json(tmp_path):
     http = HTTP()
     http.board['dashboard']['panels'] = [sample_panel(id=index, targets=[
@@ -361,7 +414,12 @@ def test_agent_capture_offline_analysis_and_inspection(tmp_path, monkeypatch):
         output = io.StringIO()
         assert workflow.main([*arguments, '--source-id', 'sample', '--agent-json'],
                              environ={}, transport=no_network, output=output) == 0, output.getvalue()
-        assert json.loads(output.getvalue())['data']
+        data = json.loads(output.getvalue())['data']
+        assert data
+        if arguments[0] == 'inspect':
+            statistics = data['target']['series_statistics']['series'][0]
+            assert statistics['statistics']['mean'] == 1.0
+            assert statistics['evidence_ref'] == '/panels/0/targets/0/result/results/A/frames/0/data/values/1'
     output = io.StringIO()
     assert workflow.main(['compare', '--before-id', 'sample', '--after-id', 'sample', '--agent-json'],
                          environ={}, transport=no_network, output=output) == 0, output.getvalue()

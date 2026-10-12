@@ -27,14 +27,23 @@ interpreter; activate that environment or use its full executable path. A bare `
 can select a different version on Windows; avoid the Store stub.
 `rg` hides generated projections through [`.ignore`](.ignore); pass `--no-ignore` to inspect them.
 
-Repository development and CI track the latest Python 3.14 patch. `.python-version` selects the
-minor series; both CI jobs use `check-latest: true`. Use `uv python install 3.14`, then create
+Python 3.12 is the minimum supported version for all repository Python, including installed
+hooks and bundled skill scripts. The structural CI job runs on the latest 3.12 patch.
+Development and component-test CI track the latest Python 3.14 patch; `.python-version` selects
+that development minor and CI uses `check-latest: true`. Use `uv python install 3.14`, then create
 `uv venv --python 3.14 .venv` if a matching environment does not already exist. Verify it with
 `.venv\Scripts\python.exe -c "import sys; print(sys.executable); print(sys.version)"`
 (POSIX: `.venv/bin/python`). Use this interpreter for installation, the baseline, and final checks.
 This repository uses requirements/constraints files, not a uv project lock; keep that workflow.
 An old uv binary may need updating before it knows about a newly released Python patch.
-This development default does not raise the installed hook guard's Python 3.11 floor.
+The development default does not change the repository's Python 3.12 compatibility floor.
+
+For the optional Grafana analysis libraries, install only their constrained subset with
+`uv pip install --python .venv\Scripts\python.exe -r requirements-grafana.txt`
+(POSIX: use `.venv/bin/python`). Exact versions remain in `requirements-dev.txt`.
+The Grafana workflow runs with `python -I` in that managed environment for data analysis, query
+parsing, capture comparisons and image validation. Its low-level read helper and the hook guard
+remain standard-library-only under `python -I -S`. Plugins do not install these dependencies.
 
 ## 3. Verify in proportion to the change
 

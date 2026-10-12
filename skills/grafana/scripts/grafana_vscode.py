@@ -1,6 +1,6 @@
 """Open a completed local report in the existing VS Code desktop window.
 
-Python 3.11+, stdlib only. No server, extension installation, settings mutation,
+Python 3.12+, stdlib only. No server, extension installation, settings mutation,
 shell command strings, or report-controlled executable arguments.
 """
 import json

@@ -1,8 +1,10 @@
 """Configuration-only dependency graph behavior."""
 
 import importlib.util
+import sys
 from pathlib import Path
 
+import promql_parser
 import pytest
 
 MODULE = Path(__file__).resolve().parents[1] / "skills/grafana/scripts/grafana_dependencies.py"
@@ -37,10 +39,25 @@ def test_same_metric_shared_across_panels_and_stable():
     assert result["inputs"][0]["provenance"] == {"org": 1}
 
 
+@pytest.mark.parametrize(("expression", "name"), [
+    ("up", "up"), ('up{job="gpu"}', "up"), ("up{job='gpu'}", "up"),
+    ('{__name__="gpu_watts"}', "gpu_watts"), ("job:requests:rate5m", "job:requests:rate5m"),
+])
+def test_simple_selector_metric_identity_is_preserved(expression, name):
+    module = load_module()
+    result = module.build_map([dashboard(panels=[panel(expr=expression)])])
+    metric = next(node for node in result["nodes"] if node["kind"] == "metric")
+    datasource = next(node for node in result["nodes"] if node["kind"] == "datasource")
+    assert metric["name"] == name
+    assert metric["id"] == module._id("metric", datasource["id"], name)
+    assert any(gap["code"] == "recording_rule_and_backend_dependencies_unresolved"
+               and gap["source"] == metric["id"] for gap in result["gaps"])
+
+
 def test_complex_promql_does_not_invent_function_or_label_metrics():
     result = load_module().build_map([dashboard(panels=[panel(expr='sum(rate(requests{job="sum"}[5m])) by (job)')])])
-    assert not [n for n in result["nodes"] if n["kind"] == "metric"]
-    assert any(g["code"] == "metric_extraction_unresolved" for g in result["gaps"])
+    assert {n["name"] for n in result["nodes"] if n["kind"] == "metric"} == {"requests"}
+    assert not any(g["code"] == "metric_extraction_unresolved" for g in result["gaps"])
     query = next(n for n in result["nodes"] if n["kind"] == "query")
     assert query["expression"].startswith("sum(rate")
 
@@ -95,11 +112,108 @@ def test_node_cap_has_no_dangling_edges():
     assert all(e["source"] in ids and e["target"] in ids for e in result["edges"])
 
 
-@pytest.mark.parametrize("expression", ['up + down', 'up{job="gpu"} / 2', 'label_replace(up,"x","y","z","w")',
-                                         '{__name__=~"up|down"}', 'up{job="gpu" missing="comma"}'])
-def test_complex_or_invalid_selector_has_no_guessed_metric(expression):
+@pytest.mark.parametrize(("expression", "names"), [
+    ('up + down', {"up", "down"}),
+    ('up{job="gpu"} / 2', {"up"}),
+    ('label_replace(up,"x","$1","z","(.*)")', {"up"}),
+    ('sum(rate(requests_total[5m])) / on(job) group_left(team) service_info', {"requests_total", "service_info"}),
+    ('max_over_time((rate(requests_total[5m]) + errors_total)[1h:5m])', {"requests_total", "errors_total"}),
+    ('topk(scalar(count(service_info)), -(up offset 5m))', {"service_info", "up"}),
+    ('{__name__="up" or __name__="down"}', {"up", "down"}),
+])
+def test_complex_promql_extracts_only_selector_metrics(expression, names):
+    result = load_module().build_map([dashboard(panels=[panel(expr=expression)])])
+    assert {n["name"] for n in result["nodes"] if n["kind"] == "metric"} == names
+    assert result["metric_extraction"] == "bounded_promql_ast_selectors"
+
+
+@pytest.mark.parametrize("expression", ['{__name__=~"up|down"}', '{__name__!="up",job="gpu"}',
+                                         '{job="gpu"}', '{__name__="up",__name__="down"}',
+                                         'up{job="gpu" missing="comma"}', 'sum(rate(up[5m])'])
+def test_unresolved_or_invalid_selector_has_no_guessed_metric(expression):
     result = load_module().build_map([dashboard(panels=[panel(expr=expression)])])
     assert not [n for n in result["nodes"] if n["kind"] == "metric"]
+    assert any(g["code"].startswith("promql_") for g in result["gaps"])
+
+
+def test_known_metric_survives_an_unresolved_selector_with_explicit_gap():
+    result = load_module().build_map([dashboard(panels=[panel(expr='up + {__name__=~"other.*"}')])])
+    assert {n["name"] for n in result["nodes"] if n["kind"] == "metric"} == {"up"}
+    assert any(g["code"] == "promql_metric_name_unresolved" for g in result["gaps"])
+
+
+@pytest.mark.parametrize("expression", ['rate(up[$__rate_interval])', '$metric', '{__name__="$metric"}',
+                                         '{__name__="${metric:raw}"}', '{__name__="[[metric]]"}'])
+def test_unresolved_templates_are_not_invented_metric_names(expression):
+    result = load_module().build_map([dashboard(panels=[panel(expr=expression)])])
+    assert not [n for n in result["nodes"] if n["kind"] == "metric"]
+    assert any(g["code"] == "promql_template_unresolved" for g in result["gaps"])
+
+
+def test_template_label_keeps_explicit_metric_and_gap():
+    result = load_module().build_map([dashboard(panels=[panel(expr='up{host="$host"}')])])
+    assert {n["name"] for n in result["nodes"] if n["kind"] == "metric"} == {"up"}
+    assert any(g["code"] == "promql_template_unresolved" for g in result["gaps"])
+
+
+@pytest.mark.parametrize("expression", ['up{cost="$20",job=~"service$"}', 'label_replace(up,"x","$1","job","(.+)$")'])
+def test_literal_dollars_inside_promql_strings_do_not_prevent_parsing(expression):
+    result = load_module().build_map([dashboard(panels=[panel(expr=expression)])])
+    assert {n["name"] for n in result["nodes"] if n["kind"] == "metric"} == {"up"}
+    assert not any(g["code"] == "promql_template_unresolved" for g in result["gaps"])
+
+
+def test_truncated_expression_is_not_parsed_as_a_complete_prefix(monkeypatch):
+    module = load_module()
+    monkeypatch.setattr(promql_parser, "parse", lambda _: pytest.fail("truncated query reached parser"))
+    result = module.build_map([dashboard(panels=[panel(expr="up" + " " * module.MAX_TEXT + " + down")])])
+    assert result["truncated"]
+    assert not [n for n in result["nodes"] if n["kind"] == "metric"]
+    assert any(g["code"] == "expression_truncated" for g in result["gaps"])
+
+
+def test_expression_nesting_is_bounded_before_native_parser(monkeypatch):
+    module = load_module()
+    monkeypatch.setattr(promql_parser, "parse", lambda _: pytest.fail("deep query reached parser"))
+    expression = "(" * (module.promql.MAX_DEPTH + 1) + "up" + ")" * (module.promql.MAX_DEPTH + 1)
+    result = module.build_map([dashboard(panels=[panel(expr=expression)])])
+    assert result["truncated"]
+    assert any(g["code"] == "promql_depth_limit" for g in result["gaps"])
+
+
+def test_expression_token_budget_is_checked_before_native_parser(monkeypatch):
+    module = load_module()
+    monkeypatch.setattr(promql_parser, "parse", lambda _: pytest.fail("oversized syntax reached parser"))
+    result = module.build_map([dashboard(panels=[panel(expr=" + ".join(["up"] * module.promql.MAX_TOKENS))])])
+    assert result["truncated"]
+    assert any(g["code"] == "promql_token_limit" for g in result["gaps"])
+
+
+def test_quoted_delimiters_do_not_spend_nesting_budget():
+    expression = 'up{job="' + "(" * 100 + '"}'
+    result = load_module().build_map([dashboard(panels=[panel(expr=expression)])])
+    assert not result["truncated"]
+    assert {node["name"] for node in result["nodes"] if node["kind"] == "metric"} == {"up"}
+
+
+def test_ast_depth_and_node_limits_are_explicit(monkeypatch):
+    module = load_module()
+    monkeypatch.setattr(module.promql, "MAX_DEPTH", 2)
+    result = module.build_map([dashboard(panels=[panel(expr="up + up + up + up + up")])])
+    assert result["truncated"]
+    assert any(g["code"] == "promql_depth_limit" for g in result["gaps"])
+    monkeypatch.setattr(module.promql, "MAX_NODES", 2)
+    result = module.build_map([dashboard(panels=[panel(expr="up + down")])])
+    assert result["truncated"]
+    assert any(g["code"] == "promql_node_limit" for g in result["gaps"])
+
+
+def test_missing_parser_is_lazy_and_propagates_import_error(monkeypatch):
+    monkeypatch.setitem(sys.modules, "promql_parser", None)
+    module = load_module()
+    assert module.build_map([])["nodes"] == []
+    with pytest.raises(ImportError):
+        module.build_map([dashboard(panels=[panel()])])
 
 
 def test_scope_separates_identical_uids():
@@ -167,11 +281,11 @@ def test_reverse_impact_ambiguous_scope_requires_exact_id():
     assert module.reverse_impact(graph, kind="metric", key="missing")["status"] == "not_found"
 
 
-def test_reverse_impact_caps_cycles_and_does_not_invent_complex_metric():
+def test_reverse_impact_caps_cycles_and_reaches_complex_metric():
     module = load_module()
     graph = module.build_map([dashboard(panels=[panel(expr="sum(rate(up[5m]))")])])
     result = module.reverse_impact(graph, kind="metric", key="up")
-    assert result["status"] == "not_found" and result["source_gaps"]
+    assert result["status"] == "selected" and result["source_gaps"]
     graph = module.build_map([dashboard(panels=[panel()])])
     result = module.reverse_impact(graph, kind="metric", key="up", max_results=1)
     assert len(result["references"]) == 1 and result["truncated"]

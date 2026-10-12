@@ -12,8 +12,22 @@ ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "skills/grafana/scripts/grafana_read.py"
 PREFIX = f'python -I -S "{HELPER.as_posix()}"'
 WRAPPER = f"& '{HELPER.with_suffix('.ps1').as_posix()}'"
-WORKFLOW = f'python -I -S "{HELPER.with_name("grafana_workflow.py").as_posix()}"'
+WORKFLOW = f'python -I "{HELPER.with_name("grafana_workflow.py").as_posix()}"'
 PS_QUERY = "-Datasource logs -Kind loki -From 1758400000000 -To 1758403600000 -Expr '{service=\"edge\"} |= \"error\"'"
+
+
+@pytest.mark.parametrize('tool', ['Bash', 'PowerShell', 'execute/runInTerminal'])
+def test_dependency_enabled_launch_is_only_for_installed_workflow(tool):
+    command = WORKFLOW.replace(' -I -S ', ' -I ') + ' doctor --agent-json'
+    assert decision(command, tool, copilot=tool == 'execute/runInTerminal') == 'allow'
+    command = PREFIX.replace(' -I -S ', ' -I ') + ' dashboard --uid edge'
+    assert decision(command, tool, copilot=tool == 'execute/runInTerminal') == 'deny'
+
+
+@pytest.mark.parametrize('flags', ['', '-S', '-I -s', '-I -S -S', '-I -c'])
+def test_workflow_still_requires_exact_isolated_launch(flags):
+    command = WORKFLOW.replace(' -I ', f' {flags} ') + ' doctor --agent-json'
+    assert decision(command, 'Bash') == 'deny'
 
 
 def decision(command, tool, *, copilot=False, agent=SRE_ASSISTANT):

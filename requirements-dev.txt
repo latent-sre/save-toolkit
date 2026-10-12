@@ -2,6 +2,7 @@
 # Install all with: python -m pip install -r requirements-dev.txt
 # requirements-test.txt selects the fleet and HTTP-starter test dependencies using these
 # constraints; CI installs that subset rather than the sandbox frameworks.
+# requirements-grafana.txt selects the libraries used by Grafana analysis workflows.
 # No gate-path script imports these pins, so Gate A runs on a bare interpreter and the validate
 # job installs nothing. The first such import must add `python -m pip install -r
 # requirements-dev.txt` to that job in the same change; test_validate_workflow.py enforces it.
@@ -12,6 +13,7 @@ anthropic==1.4.0
 agent-framework-a2a==1.0.0b260821
 agent-framework-core==1.16.0
 autogen-agentchat==0.7.5
+deepdiff==9.1.0
 fastapi==0.141.1
 httpx==0.28.1
 hypothesis==6.168.5
@@ -22,6 +24,9 @@ langgraph==1.2.11
 langgraph-checkpoint-sqlite==3.1.1
 mypy==2.4.0
 orjson==3.12.0
+pillow==12.3.0
+polars==2.0.0
+promql-parser==0.11.0
 pydantic==2.13.5
 pytest==9.1.1
 pytest-xdist==3.8.0

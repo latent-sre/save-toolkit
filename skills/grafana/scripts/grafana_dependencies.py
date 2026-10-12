@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
 """Bounded, offline configuration references from masked Grafana captures.
 
-No expression execution, network access, PromQL parser, or health inference. Metric
-edges cover only whole simple selectors. Complex expressions remain query nodes.
-Python 3.11+, standard library only.
+No expression execution, network access, or health inference. PromQL AST selectors
+identify explicit metric references; unresolved names remain visible as gaps.
+Python 3.12+; promql-parser is loaded only for Prometheus expression inspection.
 """
 
 import hashlib
 import json
-import re
 from collections import Counter, deque
+from pathlib import Path
+from runpy import run_path
+
+_module = run_path(str(Path(__file__).with_name("grafana_modules.py")))["load_module"]
+promql = _module("grafana_promql")
 
 MAX_DASHBOARDS, MAX_ALERTS = 50, 100
 MAX_NODES, MAX_EDGES, MAX_GAPS = 5000, 10000, 1000
 MAX_PANELS, MAX_QUERIES, MAX_VARIABLES = 1000, 100, 200
-MAX_TEXT = 16000
-VARIABLE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::[^}]*)?\}|\$([A-Za-z_][A-Za-z0-9_]*)|\[\[([A-Za-z_][A-Za-z0-9_]*)(?::[^]]*)?\]\]")
-METRIC = r"[a-zA-Z_:][a-zA-Z0-9_:]*"
-SELECTOR = re.compile(r"(?P<metric>" + METRIC + r")?\s*(?:\{(?P<labels>.*)\})?", re.DOTALL)
-MATCHER = re.compile(r'\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(=~|!~|!=|=)\s*("(?:[^"\\]|\\.)*"|\x27(?:[^\x27\\]|\\.)*\x27)\s*(?:,|$)')
+MAX_TEXT = promql.MAX_TEXT
+VARIABLE = promql.VARIABLE
 
 
 def _id(kind, *parts):
@@ -32,30 +33,6 @@ def _text(value):
 
 def _scope(capture):
     return (_text(capture.get("grafana_url")), str(capture.get("organization_id", "unknown")))
-
-
-def _metric(expression):
-    """Extract only a whole simple selector; never tokenize arbitrary PromQL."""
-    match = SELECTOR.fullmatch(expression.strip())
-    if not match or not expression.strip():
-        return None
-    name = match["metric"]
-    labels = match["labels"]
-    if labels is not None:
-        position = 0
-        while position < len(labels):
-            if not labels[position:].strip():
-                break
-            label = MATCHER.match(labels, position)
-            if not label:
-                return None
-            if label[1] == "__name__":
-                literal = label[3][1:-1]
-                if label[2] != "=" or not re.fullmatch(METRIC, literal) or (name and name != literal):
-                    return None
-                name = literal
-            position = label.end()
-    return name
 
 
 class _Graph:
@@ -135,10 +112,12 @@ class _Graph:
         return target, kind
 
     def query(self, node, model, datasource, scope, variables, ref_nodes):
-        expression = _text(model.get("expr", model.get("expression", "")))
+        raw_expression = model.get("expr", model.get("expression", ""))
+        expression = _text(raw_expression)
         if node is not None:
             self.nodes[node]["expression"] = expression
-        if len(str(model.get("expr", model.get("expression", "")))) > MAX_TEXT:
+        expression_truncated = isinstance(raw_expression, str) and len(raw_expression) > MAX_TEXT
+        if expression_truncated:
             self.truncated = True
             self.gap("expression_truncated", node)
         ds, kind = self.datasource(datasource, node, scope, variables)
@@ -166,13 +145,16 @@ class _Graph:
             return
         self.variables(expression, node, variables)
         if expression and kind == "prometheus" and ds:
-            metric = _metric(expression)
-            if metric:
+            if expression_truncated:
+                return
+            analysis = promql.analyze(expression)
+            self.truncated |= analysis.truncated
+            for code in analysis.gaps:
+                self.gap(code, node)
+            for metric in analysis.metrics:
                 target = self.node("metric", ds, metric, name=metric, datasource_id=ds)
                 self.edge(node, target, "selects_metric")
                 self.gap("recording_rule_and_backend_dependencies_unresolved", target)
-            else:
-                self.gap("metric_extraction_unresolved", node)
         elif expression:
             self.gap("metric_extraction_unresolved", node)
         else:
@@ -358,8 +340,10 @@ def build_map(dashboards: list[dict], alerts: list[dict] | None = None) -> dict:
             "edges": [graph.edges[key] for key in sorted(graph.edges)], "gaps": graph.gaps,
             "inputs": inputs, "truncated": graph.truncated,
             "limits": {"dashboards": MAX_DASHBOARDS, "alerts": MAX_ALERTS, "nodes": MAX_NODES,
-                       "edges": MAX_EDGES, "gaps": MAX_GAPS},
-            "metric_extraction": "whole_simple_prometheus_selectors_only",
+                       "edges": MAX_EDGES, "gaps": MAX_GAPS, "expression_characters": MAX_TEXT,
+                       "promql_depth": promql.MAX_DEPTH, "promql_nodes": promql.MAX_NODES,
+                       "promql_tokens": promql.MAX_TOKENS},
+            "metric_extraction": "bounded_promql_ast_selectors",
             "limitations": ["No inventory completeness or health claim.",
                             "No recording rule, exporter, backend, or runtime dependencies resolved.",
                             "Library panels, repeated instances, and transformations are not expanded."]}

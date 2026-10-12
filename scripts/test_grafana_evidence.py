@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import struct
+import zlib
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,21 @@ def evidence():
     return module
 
 
-PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aPioAAAAASUVORK5CYII=")
+PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC")
+
+
+def test_png_crc_and_pixel_stream_are_checked_before_writes(evidence, tmp_path):
+    corrupt_crc = bytearray(PNG)
+    corrupt_crc[-13] ^= 1
+    # Correct framing and CRC do not establish a decodable pixel stream.
+    payload = b'not a zlib stream'
+    chunk = struct.pack('>I', len(payload)) + b'IDAT' + payload
+    chunk += struct.pack('>I', zlib.crc32(b'IDAT' + payload))
+    invalid_pixels = PNG[:33] + chunk + PNG[-12:]
+    for content in (bytes(corrupt_crc), invalid_pixels, PNG + b'junk' + PNG[-12:]):
+        with pytest.raises(ValueError):
+            evidence.write_package({}, tmp_path / 'bad', images={'panel-1.png': content})
+        assert not (tmp_path / 'bad').exists()
 
 
 def report():

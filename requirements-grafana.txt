@@ -1,0 +1,8 @@
+# Grafana workflow dependencies; exact versions live in the canonical development pins.
+# Install into a managed Python 3.12+ virtual environment, not system Python.
+# Run grafana_workflow.py with -I. The low-level read helper and hook guard keep -I -S.
+-c requirements-dev.txt
+deepdiff
+pillow
+polars
+promql-parser

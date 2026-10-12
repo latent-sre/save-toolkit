@@ -83,13 +83,17 @@ class RunStepsTests(unittest.TestCase):
 class PreflightInterpreterFloorTests(unittest.TestCase):
     def test_an_old_interpreter_is_refused_by_name(self) -> None:
         stderr = io.StringIO()
-        with mock.patch.object(gate_a.sys, "version_info", (3, 10, 15)), contextlib.redirect_stderr(stderr):
+        with mock.patch.object(gate_a.sys, "version_info", (3, 11, 15)), contextlib.redirect_stderr(stderr):
             allowed = gate_a.preflight()
         message = stderr.getvalue()
         self.assertFalse(allowed)
-        self.assertIn("3.11", message)
-        self.assertIn("3.10.15", message)
+        self.assertIn("3.12", message)
+        self.assertIn("3.11.15", message)
         self.assertIn("py -3", message)
+
+    def test_python_312_is_the_supported_boundary(self) -> None:
+        with mock.patch.object(gate_a.sys, "version_info", (3, 12, 0)), contextlib.redirect_stderr(io.StringIO()):
+            self.assertTrue(gate_a.preflight())
 
     def test_the_running_interpreter_is_accepted(self) -> None:
         self.assertGreaterEqual(sys.version_info[:2], gate_a.MINIMUM_PYTHON)

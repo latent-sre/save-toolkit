@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bounded Grafana reads with process-local authentication and safe JSON output.
 
-Python 3.11+, stdlib only. The environment supplies GRAFANA_URL, GRAFANA_ORG_ID and either
+Python 3.12+, stdlib only. The environment supplies GRAFANA_URL, GRAFANA_ORG_ID and either
 GRAFANA_SA_TOKEN or GRAFANA_USERNAME/GRAFANA_PASSWORD. When it sets none of them, the one
 per-user file ~/.config/save-toolkit/grafana.env (KEY=VALUE lines) supplies them; sources never mix.
 This masks known authentication values, not arbitrary sensitive telemetry, and does
@@ -24,7 +24,7 @@ import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import quote, quote_plus, urlencode, urlsplit
@@ -516,31 +516,37 @@ def _finite(value):
     return type(value) is int or (type(value) is float and math.isfinite(value))
 
 
-def _frame_columns(frame):
-    """Understand the columnar DataFrame wire shape, never guess rows from unknown shapes."""
+def frame_columns(frame):
+    """Return supported wire columns plus a static refusal reason; never infer rows.
+
+    Reader summaries, statistics, row inspection and threshold previews share this
+    structural boundary. Callers still own stricter time, identity and size rules.
+    """
     if not isinstance(frame, dict) or not isinstance(frame.get("schema"), dict) or not isinstance(frame.get("data"), dict):
-        return None
+        return None, "invalid_frame"
     # These wire encodings change values (including zero/null placeholders and timestamps).
     # Refuse them until decoded, rather than calculating plausible but incorrect statistics.
     if any(frame["data"].get(name) not in (None, {}, []) for name in ("entities", "bases", "factors", "enums", "nanos")):
-        return None
+        return None, "encoded_frame"
     meta = frame["schema"].get("meta")
     if isinstance(meta, dict) and meta.get("type") in ("numeric-long", "timeseries-long"):
-        return None
+        return None, "row_labelled_frame"
     fields, columns = frame["schema"].get("fields"), frame["data"].get("values")
     if not isinstance(fields, list) or not isinstance(columns, list) or len(fields) != len(columns):
-        return None
+        return None, "invalid_columns"
     if any(not isinstance(field, dict) or field.get("type") not in ("time", "number", "string", "boolean", "other")
-           for field in fields) or any(not isinstance(column, list) for column in columns):
-        return None
+           for field in fields):
+        return None, "unsupported_fields"
+    if any(not isinstance(column, list) for column in columns):
+        return None, "invalid_columns"
     types = {field["type"] for field in fields}
     # Row labels can distinguish many series inside one numeric column. Logs without numeric
     # fields remain countable, but do not merge categorical metric rows into one series.
     if "number" in types and types & {"string", "boolean", "other"}:
-        return None
+        return None, "unsupported_fields"
     if len({len(column) for column in columns}) > 1:
-        return None
-    return fields, columns
+        return None, "invalid_columns"
+    return (fields, columns), None
 
 
 def _time_summary(values, args, *, incomplete=False):
@@ -593,7 +599,7 @@ def _query_summary(result, response, args):
         meta = schema.get("meta") if isinstance(schema, dict) else None
         if isinstance(meta, dict):
             notices(f"frames[{index}].schema.meta.notices", meta.get("notices"))
-        parsed = _frame_columns(frame)
+        parsed, _reason = frame_columns(frame)
         if parsed is None:
             summary["unsupported_frame_count"] += 1
             time_incomplete = True
@@ -603,13 +609,13 @@ def _query_summary(result, response, args):
         summary["summarized_frame_count"] += 1
         summary["observed_row_count"] += rows
         summary["frames_over_point_hint"] += rows > MAX_DATA_POINTS
-        time_fields = [column for field, column in zip(fields, columns) if field["type"] == "time"]
+        time_fields = [column for field, column in zip(fields, columns, strict=False) if field["type"] == "time"]
         frame_times = [value for column in time_fields for value in column]
         times.extend(frame_times)
         time_incomplete |= bool(rows and not time_fields)
         time_summary = _time_summary(frame_times, args)
         invalid_values |= bool(time_summary["timestamp_invalid_count"])
-        for field_index, (field, values) in enumerate(zip(fields, columns)):
+        for field_index, (field, values) in enumerate(zip(fields, columns, strict=False)):
             if field["type"] != "number":
                 continue
             summary["observed_numeric_series_count"] += 1
@@ -788,7 +794,7 @@ def run(args, environ, transport):
         raise SafeError("organization_mismatch")
     result = _OPERATIONS[args.command](grafana, args)
     result.update({"grafana_url": grafana.base, "organization_id": grafana.organization,
-                   "retrieved_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")})
+                   "retrieved_at_utc": datetime.now(UTC).isoformat().replace("+00:00", "Z")})
     masked = _mask(result, secrets)
     if args.command == "render" and masked.get("image_path") != result["image_path"]:
         # A configured Basic credential appears in the path; a masked path cannot be opened.

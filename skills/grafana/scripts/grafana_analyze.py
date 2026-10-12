@@ -5,28 +5,20 @@ No telemetry reads, expression execution, or health inference. Source JSON point
 let an agent inspect the supporting capture rather than treating a digest as proof.
 """
 
-import importlib.util
 import json
 from pathlib import Path
+from runpy import run_path
 
 MAX_PANELS, MAX_TARGETS, MAX_FINDINGS = 50, 100, 1000
 MAX_VALUE_BYTES, MAX_MODEL_BYTES = 65536, 2 * 1024 * 1024
 MAX_OUTPUT_BYTES = 8 * 1024 * 1024
 
 
-def _sibling(name):
-    # Fixed local modules only; neither capture data nor import search paths select code.
-    if name not in ("dashboard_hygiene", "grafana_dependencies"):
-        raise ValueError("unsupported_analysis_module")
-    spec = importlib.util.spec_from_file_location("_grafana_analysis_" + name, Path(__file__).with_name(name + ".py"))
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
 # Load trusted sibling code once. analyze_capture itself performs no file/network I/O.
-hygiene = _sibling("dashboard_hygiene")
-dependencies = _sibling("grafana_dependencies")
+_module = run_path(str(Path(__file__).with_name('grafana_modules.py')))['load_module']
+hygiene = _module('dashboard_hygiene')
+dependencies = _module('grafana_dependencies')
+frames = _module('grafana_frames')
 
 
 def _copy(value, limit=MAX_VALUE_BYTES):
@@ -83,7 +75,7 @@ def _hygiene(captures):
     results = []
     for capture, pointer in captures:
         item = {"evidence_ref": pointer + "/dashboard", "coverage": "static_hygiene_only", "ok": False,
-                "findings": [], "gaps": []}
+                "findings": [], "query_analysis": [], "gaps": []}
         results.append(item)
         try:
             if not isinstance(capture, dict) or not isinstance(capture.get("dashboard"), dict):
@@ -93,12 +85,19 @@ def _hygiene(captures):
             if "elements" in spec or "layout" in spec or "panels" not in spec:
                 raise ValueError("unsupported_dashboard_model")
             checked = hygiene.validate_shape(spec)
-            findings = hygiene.check(spec)
+            query_analysis = []
+            findings = hygiene.check(spec, query_analysis=query_analysis)
             item.update(ok=True, panel_count=len(checked), finding_count=len(findings),
                         findings=[{**finding._asdict(), "evidence_ref": pointer + "/dashboard"}
-                                  for finding in findings[:MAX_FINDINGS]], truncated=len(findings) > MAX_FINDINGS)
-            if item["truncated"]:
+                                  for finding in findings[:MAX_FINDINGS]],
+                        query_analysis_count=len(query_analysis),
+                        query_analysis=[{**query, "evidence_ref": pointer + "/dashboard"}
+                                        for query in query_analysis[:MAX_FINDINGS]],
+                        truncated=len(findings) > MAX_FINDINGS or len(query_analysis) > MAX_FINDINGS)
+            if len(findings) > MAX_FINDINGS:
                 item["gaps"].append("hygiene_findings_truncated")
+            if len(query_analysis) > MAX_FINDINGS:
+                item["gaps"].append("hygiene_query_analysis_truncated")
         except (ValueError, RecursionError, TypeError):
             item["gaps"].append("hygiene_input_unsupported_or_over_limit")
     return {"coverage": "static_hygiene_only", "dashboards": results,
@@ -116,6 +115,7 @@ def _summary(report):
         result["truncated"] = True
         result["gaps"].append({"code": "panel_digest_limit_reached", "evidence_ref": "/panels"})
     count = 0
+    statistics = frames.FrameStatistics()
     for index, panel in enumerate(panels[:MAX_PANELS]):
         pointer = f"/panels/{index}"
         if not isinstance(panel, dict):
@@ -159,6 +159,7 @@ def _summary(report):
             query = target.get("result")
             if isinstance(query, dict):
                 digest["result_evidence_ref"] = ref + "/result"
+                digest["series_statistics"] = statistics.summarize(query, ref + "/result")
                 for key in ("summary", "grafana_url", "organization_id", "retrieved_at_utc", "from_ms", "to_ms",
                             "from", "to", "datasource", "kind", "evaluation_time_ms", "datasource_uid",
                             "expression", "mode", "limits", "coverage", "provenance"):

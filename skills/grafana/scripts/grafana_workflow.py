@@ -1,33 +1,55 @@
 #!/usr/bin/env python3
-"""Bounded Grafana investigations and local evidence reports. Python 3.11+, stdlib only.
+"""Bounded Grafana investigations and local evidence reports. Python 3.12+.
 
 Agent-oriented structured investigations reuse grafana_read authentication and fixed endpoints.
 Optional evidence packages and local viewing; no arbitrary URLs or Grafana writes.
 """
 import base64
 import hashlib
+import importlib.metadata
 import importlib.util
 import json
 import os
 import re
 import sys
 import time
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
+from runpy import run_path
 
-
-def _module(name):
-    spec = importlib.util.spec_from_file_location(name, Path(__file__).with_name(name + '.py'))
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
+_module = run_path(str(Path(__file__).with_name('grafana_modules.py')))['load_module']
 reader = _module('grafana_read')
 MAX_REQUESTS, MAX_BYTES, MAX_SECONDS = 300, 64 * 1024 * 1024, 600
 MAX_AGENT_BYTES = 512 * 1024
 CAPTURE_ID = re.compile(r'[A-Za-z0-9][A-Za-z0-9_-]{0,63}\Z')
+LIBRARIES = {'polars': 'polars', 'promql-parser': 'promql_parser', 'deepdiff': 'deepdiff', 'pillow': 'PIL'}
+
+
+def _check_dependencies(args):
+    """Fail before collection when the requested path cannot use its managed dependencies."""
+    required = set()
+    if args.command == 'investigate':
+        if args.agent_json:
+            required.update(('polars', 'promql-parser'))
+        if args.render != 'none':
+            required.add('pillow')
+    elif args.command == 'dependencies' or args.command == 'impact':
+        required.add('promql-parser')
+    elif args.command == 'compare':
+        required.add('deepdiff')
+    elif args.command == 'inspect' and (args.ref_id is None or args.view == 'summary'):
+        required.add('polars')
+    elif args.command == 'analyze':
+        if args.analysis in ('summary', 'all'):
+            required.add('polars')
+        if args.analysis in ('dependencies', 'all'):
+            required.add('promql-parser')
+    for name in sorted(required):
+        try:
+            importlib.import_module(LIBRARIES[name])
+        except (ImportError, OSError):
+            raise reader.SafeError('dependency_unavailable_' + name.replace('-', '_')) from None
 
 
 def _capture_path(identifier, *, create=False):
@@ -80,7 +102,7 @@ class Client:
         args = reader.parse_args(argv)
         result = reader._OPERATIONS[args.command](self.connection, args)
         result.update({'grafana_url': self.connection.base, 'organization_id': self.connection.organization,
-                       'retrieved_at_utc': datetime.now(timezone.utc).isoformat()})
+                       'retrieved_at_utc': datetime.now(UTC).isoformat()})
         return result
 
 
@@ -330,7 +352,7 @@ def dependencies(client, args):
                                  'max_dashboards': args.max_dashboards, 'coverage': 'permission_scoped',
                                  'truncated': len(items) >= 100 or len(items) > args.max_dashboards},
                    'provenance': {'grafana_url': client.connection.base, 'organization_id': client.connection.organization,
-                                  'retrieved_at_utc': datetime.now(timezone.utc).isoformat()},
+                                  'retrieved_at_utc': datetime.now(UTC).isoformat()},
                    'requests_made': client.requests, 'response_bytes': client.bytes})
     return client.mask(report), {}
 
@@ -398,46 +420,57 @@ def offline(args):
         graph = report if report.get('operation') == 'dependencies' else _module('grafana_analyze').analyze_capture(report, analysis='dependencies')['dependencies']
         return _module('grafana_dependencies').reverse_impact(graph, node_id=args.node_id, kind=args.kind, key=args.key)
     if args.command == 'inspect':
-        selected = [(index, panel) for index, panel in enumerate(report.get('panels', [])) if panel.get('id') == args.panel]
-        if len(selected) != 1:
-            raise reader.SafeError('panel_selection_not_unique')
-        index, panel = selected[0]
-        if args.ref_id is None:
-            summary = _module('grafana_analyze').analyze_capture(report, analysis='summary')['summary']
-            return {'operation': 'inspect', 'evidence_ref': f'/panels/{index}',
-                    'panel': next(item for item in summary['panels'] if item.get('id') == args.panel)}
-        targets = [(i, target) for i, target in enumerate(panel.get('targets', []))
-                   if target.get('ref_id') == args.ref_id and (args.mode is None or target.get('mode') == args.mode)]
-        if len(targets) != 1:
-            raise reader.SafeError('query_selection_not_unique')
-        target_index, target = targets[0]
-        pointer = f'/panels/{index}/targets/{target_index}'
-        if args.view == 'summary':
-            digest = {key: value for key, value in target.items() if key != 'result'}
-            if isinstance(target.get('result'), dict):
-                digest['result'] = {key: value for key, value in target['result'].items() if key != 'results'}
-            return {'operation': 'inspect', 'evidence_ref': pointer, 'target': digest}
-        frames = target.get('result', {}).get('results', {}).get('A', {}).get('frames', [])
-        if args.frame_index >= len(frames):
-            raise reader.SafeError('frame_unavailable')
-        frame = frames[args.frame_index]
-        parsed = reader._frame_columns(frame)
-        if parsed is None:
-            raise reader.SafeError('unsupported_frame_encoding')
-        fields, columns = parsed
-        rows = list(zip(*columns))
-        selected_rows = rows[args.offset:args.offset + args.limit]
-        result = {'operation': 'inspect', 'view': 'rows', 'evidence_ref': pointer + f'/result/results/A/frames/{args.frame_index}',
-                  'fields': fields, 'row_count': len(rows), 'offset': args.offset, 'rows': selected_rows,
-                  'health': 'not_assessed'}
-        while selected_rows and len(json.dumps(result, ensure_ascii=True).encode()) > MAX_AGENT_BYTES // 2:
-            selected_rows.pop()
-        result.update(rows_returned=len(selected_rows), next_offset=args.offset + len(selected_rows)
-                      if selected_rows and args.offset + len(selected_rows) < len(rows) else None)
-        if not selected_rows and args.offset < len(rows):
-            result['gaps'] = ['single_row_exceeds_output_budget']
-        return result
+        return _inspect_capture(report, args)
     raise reader.SafeError('invalid_arguments')
+
+
+def _inspect_capture(report, args):
+    """Select stored evidence without loading files or contacting Grafana."""
+    selected = [(index, panel) for index, panel in enumerate(report.get('panels', [])) if panel.get('id') == args.panel]
+    if len(selected) != 1:
+        raise reader.SafeError('panel_selection_not_unique')
+    index, panel = selected[0]
+    if args.ref_id is None:
+        summary = _module('grafana_analyze').analyze_capture(report, analysis='summary')['summary']
+        return {'operation': 'inspect', 'evidence_ref': f'/panels/{index}',
+                'panel': next(item for item in summary['panels'] if item.get('id') == args.panel)}
+    targets = [(i, target) for i, target in enumerate(panel.get('targets', []))
+               if target.get('ref_id') == args.ref_id and (args.mode is None or target.get('mode') == args.mode)]
+    if len(targets) != 1:
+        raise reader.SafeError('query_selection_not_unique')
+    target_index, target = targets[0]
+    pointer = f'/panels/{index}/targets/{target_index}'
+    if args.view == 'summary':
+        digest = {key: value for key, value in target.items() if key != 'result'}
+        if isinstance(target.get('result'), dict):
+            digest['result'] = {key: value for key, value in target['result'].items() if key != 'results'}
+            digest['series_statistics'] = _module('grafana_frames').FrameStatistics().summarize(
+                target['result'], pointer + '/result')
+        return {'operation': 'inspect', 'evidence_ref': pointer, 'target': digest}
+    return _inspect_rows(target, pointer, frame_index=args.frame_index, offset=args.offset, limit=args.limit)
+
+
+def _inspect_rows(target, pointer, *, frame_index, offset, limit):
+    """Build one bounded page while retaining its position in the source frame."""
+    frames = target.get('result', {}).get('results', {}).get('A', {}).get('frames', [])
+    if frame_index >= len(frames):
+        raise reader.SafeError('frame_unavailable')
+    parsed, _reason = reader.frame_columns(frames[frame_index])
+    if parsed is None:
+        raise reader.SafeError('unsupported_frame_encoding')
+    fields, columns = parsed
+    row_count = len(columns[0]) if columns else 0
+    selected_rows = list(zip(*(column[offset:offset + limit] for column in columns), strict=True))
+    result = {'operation': 'inspect', 'view': 'rows', 'evidence_ref': pointer + f'/result/results/A/frames/{frame_index}',
+              'fields': fields, 'row_count': row_count, 'offset': offset, 'rows': selected_rows,
+              'health': 'not_assessed'}
+    while selected_rows and len(json.dumps(result, ensure_ascii=True).encode()) > MAX_AGENT_BYTES // 2:
+        selected_rows.pop()
+    result.update(rows_returned=len(selected_rows), next_offset=offset + len(selected_rows)
+                  if selected_rows and offset + len(selected_rows) < row_count else None)
+    if not selected_rows and offset < row_count:
+        result['gaps'] = ['single_row_exceeds_output_budget']
+    return result
 
 
 def doctor(environ, transport, probe=False):
@@ -446,6 +479,18 @@ def doctor(environ, transport, probe=False):
               'connection': 'not_checked', 'capture_store': 'not_checked',
               'capabilities': ['plan', 'investigate', 'dependencies', 'verify-package', 'analyze', 'compare', 'impact', 'inspect', 'alert-preview'],
               'health': 'not_assessed', 'gaps': []}
+    result['runtime'] = {'python': '.'.join(map(str, sys.version_info[:3])),
+                         'isolated': bool(sys.flags.isolated), 'site_enabled': not bool(sys.flags.no_site),
+                         'dependencies': {}, 'dependency_imports': 'not_tested'}
+    for name, module in LIBRARIES.items():
+        try:
+            version = importlib.metadata.version(name)
+            available = importlib.util.find_spec(module) is not None
+        except (ImportError, ValueError):
+            version, available = None, False
+        result['runtime']['dependencies'][name] = {'version': version, 'available': available}
+        if not available:
+            result['gaps'].append('dependency_unavailable_' + name.replace('-', '_'))
     try:
         reader._connect(reader._settings(environ, reader._settings_file()), transport)
         result['configuration'] = 'valid'
@@ -462,7 +507,7 @@ def doctor(environ, transport, probe=False):
     return result
 
 
-def parse_args(argv):
+def _argument_parser():
     parser = reader._Parser(description=__doc__, allow_abbrev=False)
     sub = parser.add_subparsers(dest='command', required=True)
     investigate_parser = sub.add_parser('investigate', aliases=['plan'], allow_abbrev=False)
@@ -529,7 +574,10 @@ def parse_args(argv):
         command_parser.add_argument('--agent-json', action='store_true', help='Emit bounded structured evidence for agents.')
         command_parser.add_argument('--open-vscode', action='store_true',
                                     help='Open the completed report in the existing local VS Code window using its Integrated Browser.')
-    args = parser.parse_args(argv)
+    return parser
+
+
+def _validate_argument_spelling(argv):
     # A single literal spelling per option keeps guard and CLI semantics identical.
     seen, index = set(), 1
     booleans = {'--agent-json', '--open-vscode', '--probe'}
@@ -539,6 +587,9 @@ def parse_args(argv):
             raise reader.SafeError('invalid_arguments')
         seen.add(flag)
         index += 1 if flag in booleans else 2
+
+
+def _validate_command_args(args):
     for name in ('capture_id', 'source_id', 'before_id', 'after_id'):
         value = getattr(args, name, None)
         if value is not None and not CAPTURE_ID.fullmatch(value):
@@ -564,6 +615,13 @@ def parse_args(argv):
           or (args.command == 'inspect' and (not 0 <= args.offset <= 1000000 or not 1 <= args.limit <= 500
               or not 0 <= args.frame_index <= 1000 or (args.view == 'rows' and args.ref_id is None)))):
         raise reader.SafeError('invalid_arguments')
+
+
+def parse_args(argv):
+    """Share the CLI's exact grammar and command constraints with the guard."""
+    args = _argument_parser().parse_args(argv)
+    _validate_argument_spelling(argv)
+    _validate_command_args(args)
     if not args.agent_json and not (args.output_dir or args.capture_id) and args.command != 'open-report':
         raise reader.SafeError('output_required')
     if args.open_vscode and not (args.output_dir or args.capture_id):
@@ -573,71 +631,96 @@ def parse_args(argv):
     return args
 
 
+@dataclass
+class _Execution:
+    """Keep captured evidence paired with the client that must sanitize its output."""
+
+    report: dict
+    images: dict[str, bytes]
+    client: Client | None = None
+
+
+def _execute_command(args, environ, transport):
+    client = None
+    images = {}
+    if args.command == 'alert-preview':
+        report, images = alert_preview(args)
+    elif args.command == 'doctor':
+        report = doctor(environ, transport, args.probe)
+    elif args.command == 'open-report':
+        _module('grafana_capture').verify_package(_source_path(args))
+        report = {'operation': 'open-report', 'viewer': _module('grafana_vscode').open_report(_source_path(args), environ=environ)}
+    elif args.command in ('plan', 'investigate', 'dependencies'):
+        client = Client(environ, transport)
+        if args.command == 'plan':
+            report = client.mask(query_plan(client.call(['dashboard', '--uid', args.uid]), args))
+        else:
+            report, images = (investigate if args.command == 'investigate' else dependencies)(client, args)
+    else:
+        report = offline(args)
+    return _Execution(report, images, client)
+
+
+def _prepare_response(args, execution, destination, environ):
+    """Publish retained evidence before optional viewing, masking, and output bounds."""
+    report, images, client = execution.report, execution.images, execution.client
+    report.setdefault('schema_version', 1)
+    report['tool_files'] = {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                            for path in sorted(Path(__file__).parent.glob('*.py'))}
+    result = {'ok': True, 'operation': args.command, 'trust': 'untrusted_telemetry'}
+    if args.command == 'open-report':
+        result['viewer'] = report['viewer']
+    if destination:
+        result['package'] = _module('grafana_evidence').write_package(report, destination, images=images)
+        # Analyze the bytes actually retained, including explicit budget omissions.
+        report = _module('grafana_capture').load_capture(destination)
+    if args.agent_json:
+        result['data'] = (_module('grafana_analyze').analyze_capture(report, analysis='all')
+                          if args.command == 'investigate' else report)
+        if args.capture_id:
+            result['capture_id'] = args.capture_id
+        evidence_path = destination or (_source_path(args) if hasattr(args, 'source_id') and (args.source_id or args.package_dir) else None)
+        if evidence_path:
+            verified = _module('grafana_capture').verify_package(evidence_path)
+            result['artifacts'] = [{'image_file': name, 'image_path': str((evidence_path / name).absolute()),
+                                    'verification': 'manifest_verified', 'appearance': 'not_assessed'}
+                                   for name in verified.get('images', [])]
+    if args.open_vscode:
+        try:
+            result['viewer'] = _module('grafana_vscode').open_report(destination, environ=environ)
+        except Exception:
+            result['viewer'] = {'status': 'unavailable', 'error': 'vscode_launch_unavailable',
+                                'visual_verification': 'not_performed'}
+    if client is not None:
+        for artifact in result.get('artifacts', []):
+            if client.mask(artifact['image_path']) != artifact['image_path']:
+                artifact.pop('image_path')
+                artifact['error'] = 'image_path_masked'
+        result = client.mask(result)
+    if len(json.dumps(result, ensure_ascii=True, allow_nan=False).encode()) > MAX_AGENT_BYTES:
+        result.pop('data', None)
+        result.update(status='output_truncated', gaps=['agent_output_limit_reached'],
+                      next_action='inspect_selected_panel_or_query' if destination else 'repeat_with_capture_id')
+    return result
+
+
 def main(argv=None, *, environ=None, transport=None, output=None):
     output = sys.stdout if output is None else output
     try:
         args = parse_args(sys.argv[1:] if argv is None else argv)
-        client = None
-        images = {}
+        _check_dependencies(args)
         env = os.environ if environ is None else environ
         transport = reader.http_transport if transport is None else transport
         destination = _capture_path(args.capture_id, create=True) if args.capture_id else args.output_dir
         if destination and destination.exists():
             raise reader.SafeError('output_directory_exists')
-        if args.command == 'alert-preview':
-            report, images = alert_preview(args)
-        elif args.command == 'doctor':
-            report = doctor(env, transport, args.probe)
-        elif args.command == 'open-report':
-            _module('grafana_capture').verify_package(_source_path(args))
-            report = {'operation': 'open-report', 'viewer': _module('grafana_vscode').open_report(_source_path(args), environ=env)}
-        elif args.command in ('plan', 'investigate', 'dependencies'):
-            client = Client(env, transport)
-            if args.command == 'plan':
-                report = client.mask(query_plan(client.call(['dashboard', '--uid', args.uid]), args))
-            else:
-                report, images = (investigate if args.command == 'investigate' else dependencies)(client, args)
-        else:
-            report = offline(args)
-        report.setdefault('schema_version', 1)
-        report['tool_files'] = {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
-                                for path in sorted(Path(__file__).parent.glob('*.py'))}
-        result, code = {'ok': True, 'operation': args.command, 'trust': 'untrusted_telemetry'}, 0
-        if args.command == 'open-report':
-            result['viewer'] = report['viewer']
-        if destination:
-            result['package'] = _module('grafana_evidence').write_package(report, destination, images=images)
-            # Analyze the bytes actually retained, including explicit budget omissions.
-            report = _module('grafana_capture').load_capture(destination)
-        if args.agent_json:
-            result['data'] = (_module('grafana_analyze').analyze_capture(report, analysis='all')
-                              if args.command == 'investigate' else report)
-            if args.capture_id:
-                result['capture_id'] = args.capture_id
-            evidence_path = destination or (_source_path(args) if hasattr(args, 'source_id') and (args.source_id or args.package_dir) else None)
-            if evidence_path:
-                verified = _module('grafana_capture').verify_package(evidence_path)
-                result['artifacts'] = [{'image_file': name, 'image_path': str((evidence_path / name).absolute()),
-                                        'verification': 'manifest_verified', 'appearance': 'not_assessed'}
-                                       for name in verified.get('images', [])]
-        if args.open_vscode:
-            try:
-                result['viewer'] = _module('grafana_vscode').open_report(destination, environ=environ)
-            except Exception:
-                result['viewer'] = {'status': 'unavailable', 'error': 'vscode_launch_unavailable',
-                                    'visual_verification': 'not_performed'}
-        if client is not None:
-            for artifact in result.get('artifacts', []):
-                if client.mask(artifact['image_path']) != artifact['image_path']:
-                    artifact.pop('image_path')
-                    artifact['error'] = 'image_path_masked'
-            result = client.mask(result)
-        if len(json.dumps(result, ensure_ascii=True, allow_nan=False).encode()) > MAX_AGENT_BYTES:
-            result.pop('data', None)
-            result.update(status='output_truncated', gaps=['agent_output_limit_reached'],
-                          next_action='inspect_selected_panel_or_query' if destination else 'repeat_with_capture_id')
+        execution = _execute_command(args, env, transport)
+        result = _prepare_response(args, execution, destination, environ)
+        code = 0
     except reader.SafeError as error:
         result, code = {'ok': False, 'error': str(error)}, 2
+    except ImportError:
+        result, code = {'ok': False, 'error': 'dependency_unavailable'}, 2
     except (ValueError, OSError, RecursionError):
         result, code = {'ok': False, 'error': 'invalid_or_unavailable_evidence'}, 2
     except Exception:

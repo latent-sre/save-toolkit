@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Dashboard hygiene checker — the mechanically checkable subset of this skill's panel rules.
 
-Pure stdlib and offline. Checks textual properties only: no query parsing, datasource resolution,
-or Grafana access. A clean result means no implemented rule fired, not that the dashboard is correct.
-PromQL heuristics run only for a resolved model reference whose type is `prometheus`; other or
-untyped datasource references need their dialect's query validation. Findings need human review:
+Offline, with a stdlib-only fallback. Uses bounded PromQL AST inspection when promql-parser is
+installed and the expression contains no unresolved Grafana variables. Otherwise textual checks
+retain explicit query_analysis gaps; values are never guessed or substituted. A clean result means
+no implemented rule fired, not that the dashboard is correct. PromQL checks run only for a model
+reference whose type is `prometheus`; other or untyped references need their dialect's query
+validation. Findings need human review:
 fixed UIDs can be intentional in provisioned dashboards, and a `_total` suffix is not type evidence.
 Prefer dashboard-linter where installed for real query/schema validation; this helper is the
 portable fallback for Classic/V1 models.
@@ -27,7 +29,12 @@ import argparse
 import json
 import re
 import sys
+from pathlib import Path
+from runpy import run_path
 from typing import NamedTuple
+
+_module = run_path(str(Path(__file__).with_name("grafana_modules.py")))["load_module"]
+promql = _module("grafana_promql")
 
 # Panel types for which a unit is meaningful. A `text` or `row` panel has no unit, and flagging one
 # would train people to ignore the checker.
@@ -40,9 +47,6 @@ NON_QUERYING = frozenset({"text", "dashlist", "news", "welcome", "alertlist"})
 RATE_FUNCS = re.compile(r"\b(rate|irate|increase)\s*\(")
 COUNTER_NAME = re.compile(r"\b(\w+_total)\b")
 RANGE_SELECTOR = re.compile(r"\[([^\]]*)\]")
-# Ignore string contents without shifting spans; regex label values may contain brackets,
-# parentheses, counter-like names, or text resembling functions and Grafana macros.
-QUOTED_STRING = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`[^`]*`''')
 # A datasource reference that is a literal uid rather than a variable.
 BUILTIN_DS = frozenset({"-- Grafana --", "-- Mixed --", "-- Dashboard --", "grafana"})
 
@@ -198,8 +202,52 @@ def datasource_findings(panel: dict, where: str):
                           f"variable so the model is portable")
 
 
-def query_findings(panel: dict, where: str):
-    """PromQL heuristics, for targets whose effective datasource reference is typed `prometheus`."""
+def _counter_finding(name, location):
+    return Finding("target-counter-agg", location,
+                   f"counter-like name {name!r} is outside rate/irate/increase; "
+                   f"verify metric type and intent (presence, counts, resets, and lifetime "
+                   f"totals can legitimately read it directly)")
+
+
+def _rate_finding(call, location):
+    return Finding("target-rate-interval", location,
+                   f"{call[:60]!r} uses a fixed or non-rate window; review the intended "
+                   f"horizon and scrape cadence before choosing $__rate_interval")
+
+
+def _text_query_findings(expr, location):
+    """Portable checks for templates, unavailable parsing, or unsupported syntax."""
+    query_code = promql.code_only(expr)
+    spans = rate_call_spans(query_code)
+    for function, start, end in spans:
+        windows = RANGE_SELECTOR.findall(query_code[start:end])
+        selected_total = (function == "increase"
+                          and windows and all(w.strip() == "$__range" for w in windows))
+        if windows and not selected_total and not any("$__rate_interval" in w for w in windows):
+            yield _rate_finding(expr[start:end], location)
+    for match in COUNTER_NAME.finditer(query_code):
+        if not any(start <= match.start() < end for _, start, end in spans):
+            yield _counter_finding(match.group(1), location)
+            break
+
+
+def _query_analysis(expr):
+    """Choose AST inspection or an explicit fallback without resolving variables."""
+    if limit := promql.input_limit(expr):
+        return None, "not_checked", [limit]
+    if promql.VARIABLE.search(expr):
+        return None, "text_heuristic", ["promql_template_unresolved"]
+    try:
+        analysis = promql.analyze(expr)
+    except (ImportError, OSError):
+        return None, "text_heuristic", ["dependency_unavailable_promql_parser"]
+    if analysis.ast_complete:
+        return analysis, "promql_ast", list(analysis.gaps)
+    return None, "not_checked" if analysis.truncated else "text_heuristic", list(analysis.gaps)
+
+
+def query_findings(panel: dict, where: str, *, query_analysis=None):
+    """Inspect targets whose effective datasource reference is typed `prometheus`."""
     for target in panel.get("targets") or []:
         datasource = target.get("datasource") or panel.get("datasource") or {}
         if not isinstance(datasource, dict) or datasource.get("type") != "prometheus":
@@ -208,23 +256,16 @@ def query_findings(panel: dict, where: str):
         if not isinstance(expr, str) or not expr:
             continue
         location = f"{where} [{target.get('refId', '?')}]"
-        query_code = QUOTED_STRING.sub(lambda match: " " * len(match.group()), expr)
-        spans = rate_call_spans(query_code)
-        for function, start, end in spans:
-            windows = RANGE_SELECTOR.findall(query_code[start:end])
-            selected_total = (function == "increase"
-                              and windows and all(w.strip() == "$__range" for w in windows))
-            if windows and not selected_total and not any("$__rate_interval" in w for w in windows):
-                yield Finding("target-rate-interval", location,
-                              f"{expr[start:end][:60]!r} uses a fixed or non-rate window; review the intended "
-                              f"horizon and scrape cadence before choosing $__rate_interval")
-        for match in COUNTER_NAME.finditer(query_code):
-            if not any(start <= match.start() < end for _, start, end in spans):
-                yield Finding("target-counter-agg", location,
-                              f"counter-like name {match.group(1)!r} is outside rate/irate/increase; "
-                              f"verify metric type and intent (presence, counts, resets, and lifetime "
-                              f"totals can legitimately read it directly)")
-                break
+        analysis, mode, gaps = _query_analysis(expr)
+        if query_analysis is not None:
+            query_analysis.append({"location": location, "mode": mode, "gaps": gaps})
+        if analysis is not None:
+            for call in analysis.rate_calls:
+                yield _rate_finding(call, location)
+            if analysis.unrated_counters:
+                yield _counter_finding(analysis.unrated_counters[0], location)
+        elif mode == "text_heuristic":
+            yield from _text_query_findings(expr, location)
 
 
 def template_findings(spec: dict):
@@ -241,27 +282,29 @@ def tag_findings(spec: dict):
         yield Finding("dashboard-tags", "dashboard", "no tags; search and the dashboard list rely on them")
 
 
-def check(spec: dict) -> list[Finding]:
+def check(spec: dict, *, query_analysis=None) -> list[Finding]:
     """Return a Finding (rule, where, detail) for every violation, panel by panel, then dashboard-wide.
 
     Run validate_shape() first: the shared walk checks only the shapes it traverses, not the fields
     inside a panel (title, fieldConfig, targets) or the templating list.
     """
-    return _check_panels(spec, (panel for _, panel in walk_panels(spec.get("panels"), "$.panels")))
+    return _check_panels(spec, (panel for _, panel in walk_panels(spec.get("panels"), "$.panels")),
+                         query_analysis=query_analysis)
 
 
-def _check_panels(spec, panels):
+def _check_panels(spec, panels, *, query_analysis=None):
     findings: list[Finding] = []
     for panel in panels:
         where = (panel.get("title") or "").strip() or f"panel id={panel.get('id')}"
-        for rules in (panel_findings, datasource_findings, query_findings):
+        for rules in (panel_findings, datasource_findings):
             findings.extend(rules(panel, where))
+        findings.extend(query_findings(panel, where, query_analysis=query_analysis))
     findings.extend(template_findings(spec))
     findings.extend(tag_findings(spec))
     return findings
 
 
-def print_json_report(*, title=None, panel_count=None, findings=(), errors=()):
+def print_json_report(*, title=None, panel_count=None, findings=(), errors=(), query_analysis=()):
     """Emit the same envelope for a completed check or a refusal, without mixing prose into stdout."""
     print(json.dumps({
         "ok": not errors,
@@ -269,6 +312,7 @@ def print_json_report(*, title=None, panel_count=None, findings=(), errors=()):
         "title": title if isinstance(title, str) else None,
         "panel_count": panel_count,
         "findings": [finding._asdict() for finding in findings],
+        "query_analysis": list(query_analysis),
         "errors": list(errors),
     }, ensure_ascii=True))
 
@@ -312,7 +356,8 @@ def main(argv: list[str] | None = None) -> int:
         if "panels" not in spec:
             return cannot_check("unsupported_model", "no `panels` key: this does not look like a Classic/V1 dashboard model")
         panels = validate_shape(spec, root_path)
-        violations = _check_panels(spec, panels)
+        query_analysis = []
+        violations = _check_panels(spec, panels, query_analysis=query_analysis)
         panel_count = len(panels)
     except (InputShapeError, RecursionError) as exc:  # rows nested past the recursion limit overflow the walk
         code = "input_too_deep" if isinstance(exc, RecursionError) else "invalid_shape"
@@ -320,7 +365,8 @@ def main(argv: list[str] | None = None) -> int:
 
     title = spec.get("title", "<untitled>")
     if args.format == "json":
-        print_json_report(title=title, panel_count=panel_count, findings=violations)
+        print_json_report(title=title, panel_count=panel_count, findings=violations,
+                          query_analysis=query_analysis)
         return 1 if violations else 0
     if not args.quiet:
         for rule, where, detail in violations:
