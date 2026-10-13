@@ -11,6 +11,17 @@ size, ordering, memory, and latency. Use requirements and independent examples a
 Clarify consequential unknowns; state reasonable low-risk assumptions and continue independent work.
 Do not invent requirements to justify an architecture or turn a small task into a questionnaire.
 
+## Establish the starting environment
+
+Inspect the project's runtime, dependency workflow, and existing test, lint, format, and type checks.
+When a new project leaves those choices unset, load `stack-profile` for the team's defaults and
+establish checks appropriate to the delivered component. Use [Environment and checks](./environment-and-checks.md)
+to bind them to the intended interpreter; preserve an existing project's tooling.
+
+Compose the Python guidance with `backend-craft` for services, APIs, workers, storage, or integrations,
+and `operator-cli` for a CLI's output, configuration, failure, or effect contract. Load only the
+applicable layer; language-level correctness does not establish the service or operator contract.
+
 ## Choose a shape that fits
 
 | Decision | What should determine it |
@@ -35,6 +46,12 @@ being tested.
 Verify success, boundaries, invalid input, and relevant failure/cleanup behavior. For effects, check
 whether failure can leave partial state or falsely report success. Test expected values independently
 of the implementation. Exercise realistic data sizes when bounds matter; benchmark performance claims.
+
+For text protocols, establish encoding, record framing, and malformed-input policy at each real
+boundary. A UTF-8 file path and redirected stdin can use different decoders; testing an in-memory
+text stream does not exercise either byte boundary. When the contract rejects invalid bytes, check
+them through both supported paths as well as valid non-ASCII input. Keep CLI decoding policy in the
+CLI adapter; preserve borrowed streams and the core's declared text/record interface.
 
 Check the delivered interface as consumers use it: invoke a CLI, import a library, or exercise a
 service's public contract. If installation is part of delivery, check the installed artifact rather

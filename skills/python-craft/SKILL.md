@@ -21,8 +21,10 @@ scoped; report material adjacent findings separately.
 
 ## Build or improve
 
-1. For new code, establish expected behavior and a realistic consumer. For existing code, trace the
-   operation and locate coupled state, copied policy, awkward calls, tangled effects, or repeated work.
+1. Choose the workflow: **new code** establishes the contract, consumer, and delivery shape;
+   **refactoring** maps existing consumers, behavior, and ownership before changing structure.
+   Use both when a refactor introduces a new capability; distinguish its new behavior from the
+   contracts the restructuring preserves.
 2. Choose the design or transformation that fits: representations, algorithms, control flow,
    interfaces, extraction or inlining. Compare direct code, the standard library, existing
    dependencies, and maintained packages where relevant.
@@ -41,7 +43,7 @@ scoped; report material adjacent findings separately.
 | Starting a new script, module, library, or service | [New code](./references/new-code.md) |
 | Interpreter/dependencies uncertain or changing | [Environment and checks](./references/environment-and-checks.md) |
 | Calls, functions, modules, data, or resource ownership | [Writing Python](./references/writing-python.md) |
-| Structural improvement or Pythonic replacements | [Refactoring](./references/refactoring.md) |
+| Structural improvement, a multi-module migration, or Pythonic replacements | [Refactoring](./references/refactoring.md) |
 | Need a worked comparison for flattening nested control flow | [Guard-clause example](./references/guard-clause-example.md) |
 | Library adoption or dependency/runtime migration | [Libraries and modernization](./references/libraries-and-modernization.md) |
 | Automated transformations or lint fixes | [Refactoring tools](./references/refactoring-tools.md) |
