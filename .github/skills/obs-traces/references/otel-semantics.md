@@ -26,14 +26,6 @@ Primary references:
 
 ## Span kinds describe direction and interaction style
 
-*[sourced: OpenTelemetry Tracing API, SpanKind]*
-
-- `SERVER` — inbound request/response handling while the caller waits.
-- `CLIENT` — outbound request/response call where the caller waits.
-- `PRODUCER` — initiates or schedules deferred work and may finish before processing begins.
-- `CONSUMER` — processes deferred work without a waiting producer.
-- `INTERNAL` — in-process work rather than a remote boundary.
-
 Do not treat every parent/child pair as a network hop. Confirm the kinds on both sides, and expect links
 or separated timelines for deferred work. A missing counterpart remains an instrumentation/propagation
 hypothesis until another signal verifies the call.

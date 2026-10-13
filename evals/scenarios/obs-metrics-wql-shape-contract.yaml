@@ -1,0 +1,42 @@
+id: obs-metrics-wql-shape-contract
+max_turns: 17
+split: regression
+skill: obs-metrics
+tools: [Skill, Read]
+references:
+  - skills/obs-metrics/references/wql.md
+  - skills/obs-metrics/references/promql.md
+prompt: |
+  Read the WQL and PromQL references. Assess this supplied-state metric work; do not run
+  queries or edit files. A teammate drafted Wavefront queries for checkout, a PCF app.
+  Their fleet error-rate draft sums the raw cumulative counters first and divides the
+  totals since process start. Their latency draft takes a percentile across the
+  per-instance latency point values and calls it the request p95; the app also emits
+  per-instance histogram series and, separately, precomputed per-instance percentile
+  metrics. A grouping draft appends a PromQL-style postfix aggregation clause after
+  the closing parenthesis of the WQL expression. For a second metric family emitted
+  as delta counters, the draft applies cumulative-counter rate semantics. A copied
+  tag value `checkout.v2` from a ticket was pasted into a regex matcher with anchors
+  added for safety. When the error numerator matches no series in a clean-looking
+  window, the draft fills it with a default zero and reports a healthy error rate.
+
+  Return exactly one JSON object, without fences or prose, selecting one value per key:
+  aggregation_shape: trailing_or_inner_grouping | promql_postfix_by
+  percentile_shape: merge_histograms_then_percentile | percentile_of_instance_points
+  cumulative_error_ratio: rate_each_series_then_sum | sum_raw_totals_then_divide
+  delta_error_ratio: cs_for_delta_counters | rate_for_delta_counters
+  copied_tag_matching: exact_quoted_after_charset_validation | anchored_regex_from_raw_value
+  missing_numerator: separate_no_data_path | default_zero_is_healthy
+success_criteria:
+  - Groups WQL aggregations with the documented grouping forms and never PromQL postfix syntax.
+  - Combines histogram distributions before a fleet percentile and keeps counter semantics per type.
+  - Treats copied identifiers as exact validated values and missing series as a no-data condition.
+graders:
+  - type: exact_json
+    fields:
+      aggregation_shape: trailing_or_inner_grouping
+      percentile_shape: merge_histograms_then_percentile
+      cumulative_error_ratio: rate_each_series_then_sum
+      delta_error_ratio: cs_for_delta_counters
+      copied_tag_matching: exact_quoted_after_charset_validation
+      missing_numerator: separate_no_data_path

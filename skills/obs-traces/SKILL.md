@@ -22,14 +22,9 @@ analysis, and trace/log correlation; return configuration follow-up to the calle
 
 ## Know what the waterfall represents
 
-A trace is a causal graph rendered as a timeline. Its spans describe operations; parent/child links
-describe nesting, and attributes or events add context. A long span tells you where elapsed time was
-observed, not automatically why the operation was slow.
-
-For whole-request latency allocation, mark the root's user-visible interval and follow the branch
-determining when it can finish: the critical path. Do not add nested durations: a parent's
-duration already includes synchronous children. Parallel branches overlap, and a visual gap may be
-uninstrumented work, scheduling, propagation loss, or clock behavior—not proven idle time.
+A long span shows where elapsed time was observed, not why the operation was slow. Do not add
+nested durations: a parent already includes its synchronous children. A visual gap may be
+uninstrumented work, scheduling, propagation loss, or clock behavior — not proven idle time.
 
 ## Enter through one of two doors
 
@@ -45,20 +40,16 @@ one trace is an example, not proof of prevalence.
 
 ## Find the span that controls latency
 
-For whole-trace investigation, record critical-path service, operation, kind, start/end, duration,
-status and peer/dependency. Compare slow/known-normal traces from the same route and deployment cohort; name
-a missing comparison. A wide client span with a narrower server span can point toward time
-before/after the remote handler, but the gap remains a hypothesis until another signal explains it.
-
-For asynchronous work, do not force producer and consumer spans into a synchronous nesting model. Use
-links, timestamps, and message identity where present, and separate queue delay from consumer processing.
+Compare slow against known-normal traces from the same route and deployment cohort (name a missing
+comparison). A wide client span with a narrower server span only hypothesizes time outside the
+remote handler. For asynchronous work, use links, timestamps, and message identity rather than a
+synchronous nesting model, and separate queue delay from consumer processing.
 
 ## Read status and protocol outcome together
 
-Span status is an instrumentation judgment, while an HTTP or database response code is a protocol
-outcome. They can legitimately differ. Inspect both and apply the semantic convention for the span kind;
-do not equate an unset span status with success or require every non-success protocol result to be an
-instrumentation error.
+Span status is an instrumentation judgment; an HTTP or database response code is a protocol outcome,
+and they can legitimately differ. Inspect both under the span kind's semantic convention; an unset
+span status is not success.
 
 ## Correlate without overclaiming
 
@@ -76,10 +67,10 @@ status/protocol interpretation, missing hops and sampling limits. Preserve missi
 confidence labels; separate observations from hypotheses. The `obs-pipeline` skill owns changes to
 instrumentation, propagation, collection, and export; do not load `obs-pipeline` for a reading task.
 
-Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or session
-values, user identifiers, sensitive headers, request bodies, and database query literals. Prefer an
-access-controlled source link plus the smallest necessary excerpt; do not paste raw payloads into the
-packet.
+Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or
+session values, and user identifiers before any excerpt enters the packet; prefer an
+access-controlled source link plus the smallest necessary excerpt. Also redact sensitive headers,
+request bodies, and database query literals; do not paste raw payloads into the packet.
 
 ## Pick the reference — read it before writing the query
 

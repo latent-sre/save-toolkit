@@ -28,14 +28,10 @@ remains unverified.
 
 ## Designing checks
 
-Cover each critical user journey with an HTTP, transaction, or API test and each key dependency with
-a network or DNS test matched to its failure mode; pair Cloud and Enterprise Agents when the
-inside-versus-outside comparison changes the response path. Alert on actionable availability, loss,
-latency, or correctness symptoms with minimum-sample behaviour, owner, notification route, and
-runbook set, and exercise failure, recovery, and delivery from a safe target before declaring
-coverage. Hand steady-state tuning to the `observability-engineer` agent with the coverage gap,
-proposed test and vantages, threshold evidence, expected cost, runbook, validation plan, and
-rollback condition.
+Pair Cloud and Enterprise Agents when the inside-versus-outside comparison changes the response
+path. Exercise failure, recovery, and delivery from a safe target before declaring coverage. Hand
+steady-state tuning to the `observability-engineer` agent with the coverage gap, proposed test and
+vantages, threshold evidence, expected cost, runbook, validation plan, and rollback condition.
 
 ## Test inventory
 

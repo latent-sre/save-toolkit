@@ -92,6 +92,9 @@ request percentile.
 percentile(95, ts(app.http.requests.latency, app="checkout"), instance)
 ```
 
+That grouped form is a candidate until verified against the target tenant; it still describes
+instances, not requests, when the inputs are per-instance points.
+
 Histogram conversion functions return a value for each input histogram series. To calculate one
 app-wide request percentile across instance histogram series, merge the distributions first.
 

@@ -33,7 +33,8 @@ values from the log line instead of promoting them to labels.
 
 Widen one selector at a time. An empty result can mean the selector is wrong, the tenant is wrong, or
 the stream is absent; it is not by itself evidence that the application emitted no failures.
-Before reading it as quiet, check that the stream is current:
+Before reading it as quiet, check that the stream is current (candidate shape — verify it on the
+target tenant before relying on it):
 
 ```logql
 absent_over_time({app="settlement-api", env="prod"}[10m])

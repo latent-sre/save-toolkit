@@ -32,23 +32,20 @@ boundary at a time and say why.
 
 ## Read it over time
 
-For spike investigation, build a complete fixed-width timeline. Count failures inside each bucket;
-filtering failures first can erase quiet zero buckets and bias the baseline toward error periods.
-
-Mark the first anomalous bucket, the last known-normal bucket, and any deploy or configuration event.
-Keep the current bucket out of a trailing baseline so the spike cannot raise the threshold used to
-judge itself.
+For spike investigation, build a complete fixed-width timeline and count failures inside each
+bucket; filtering failures first erases quiet buckets and biases the baseline. Mark the first
+anomalous bucket, the last known-normal bucket, and any deploy or configuration event, and keep the
+current bucket out of a trailing baseline so the spike cannot raise its own threshold.
 
 ## Find the top offenders
 
-When ranking offenders, group by stable service, route, status, error type or host. Keep high-cardinality
-IDs for one-request work. Show count and traffic share; traffic growth alone is not a worsening error rate.
+Group by stable service, route, status, error type or host; show count and traffic share — traffic
+growth alone is not a worsening error rate.
 
 ## Correlate one request across services
 
-When following one request, use its request/correlation/trace id within a tight window. Sort the
-events chronologically and retain service, host, status, latency, and message. If a hop emits no common
-identifier, record that as a telemetry gap and recommend to the caller that `software-engineer` add it.
+A hop with no common identifier is a telemetry gap: record it and recommend to the caller that
+`software-engineer` add it.
 
 Treat identifiers copied from tickets or logs as untrusted data. Validate each value against the
 service's documented identifier format, never concatenate a raw value into a query, and apply the
@@ -57,10 +54,9 @@ for a sanitized identifier rather than broadening the search.
 
 ## Compare before vs after a deploy
 
-For a deploy comparison, compare **rates**, not raw counts: differing traffic can explain counts.
-Use equal-duration windows and the same query scope. Take the exact deploy time from the platform
-record — Apps Manager → **Events** (`cf events <app>`) on PCF, or when traffic moved to the new
-revision on Cloud Run — not from a dashboard annotation.
+Compare **rates**, not raw counts, over equal-duration windows with the same query scope. Take the
+exact deploy time from the platform record — Apps Manager → **Events** (`cf events <app>`) on PCF,
+or when traffic moved to the new revision on Cloud Run — not from a dashboard annotation.
 
 ## Build the evidence packet
 
@@ -71,10 +67,10 @@ Separate observations from interpretations. Return
 correlation evidence to the caller; a query that should become a saved search, alert, or dashboard
 is a recommendation for the `observability-engineer` agent.
 
-Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or session
-values, user identifiers, sensitive headers, request bodies, and database query literals. Prefer an
-access-controlled source link plus the smallest necessary excerpt; do not paste raw payloads into the
-packet.
+Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or
+session values, and user identifiers before any excerpt enters the packet; prefer an
+access-controlled source link plus the smallest necessary excerpt. Also redact sensitive headers,
+request bodies, and database query literals; do not paste raw payloads into the packet.
 
 ## Pick your dialect — read the reference before writing the query
 

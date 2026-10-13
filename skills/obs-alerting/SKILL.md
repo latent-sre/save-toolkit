@@ -28,13 +28,10 @@ unit; for an SLO, name its objective horizon. Retain query, backend, target, tim
 Without reproducible query evidence, the SLI is proposed, not verified.
 
 **Burn rate = observed bad-event fraction / the SLO's allowed bad-event fraction.** Keep request- and
-time-based budgets in their own units; never translate a request-ratio budget to downtime minutes.
-For budget work, separate consumed-budget status from the current alert verdict. The human service owner
-uses the budget to balance feature risk and reliability work.
-
-For burn-rate work, load the method below for its pairs, low-traffic judgment, and offline
-calculator. Both windows must meet the pair's threshold. A one-window spike or
-recovered short window is not a page, but neither proves the service is in budget.
+time-based budgets in their own units; never translate a request-ratio budget to downtime minutes,
+and separate consumed-budget status from the current alert verdict. For burn-rate work, load the
+method below: both windows must meet the pair's threshold — a one-window spike is not a page, and
+neither outcome proves the service is in budget.
 
 Read only the row needed for the task:
 
@@ -82,10 +79,9 @@ review may be handed off with the missing proof explicitly `[unverified]`:
 ## The bar for asserting cause
 
 Correlation, time order, and a path difference rank hypotheses; they do not prove cause. Promote
-one only with a mechanism stated concretely enough to be disproved, corroboration from an
-independent signal class, a disconfirmation test of what should be true if the hypothesis is false,
-and, for a network path, the blast radius: which agents, sites, or users are affected and which are
-healthy. Below that bar, call it a leading hypothesis and keep the alternatives open.
+one only with a disprovable mechanism, corroboration from an independent signal class, a
+disconfirmation test, and — for a network path — the blast radius. Below that bar, call it a
+leading hypothesis and keep the alternatives open.
 
 ## Don't
 

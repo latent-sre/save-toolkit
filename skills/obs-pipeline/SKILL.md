@@ -91,9 +91,9 @@ time series per value.
 
 Return per boundary checked: target, UTC window, exact check/result, canary service ID (trace ID for
 traces), config revision and claim confidence. Name missing proof without inventing checks or broader
-coverage. Separate observed counters from interpretations. Minimize copied telemetry: redact
-credentials, tokens, secrets, personal data, and sensitive attribute values before any payload
-excerpt enters the packet; prefer an access-controlled link plus the smallest necessary excerpt.
+coverage. Separate observed counters from interpretations. Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or
+session values, and user identifiers before any excerpt enters the packet; prefer an
+access-controlled source link plus the smallest necessary excerpt. Also redact sensitive attribute values.
 Hand pipeline-config changes to the `observability-engineer` agent and app-side instrumentation
 changes to the `software-engineer` agent; if the missing signal is part of an active unknown-cause incident,
 hand the time-bounded evidence to the responder with `incident-investigation` (`sre-assistant` only for a

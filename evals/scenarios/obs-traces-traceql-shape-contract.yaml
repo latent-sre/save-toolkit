@@ -1,0 +1,46 @@
+id: obs-traces-traceql-shape-contract
+max_turns: 17
+split: regression
+skill: obs-traces
+tools: [Skill, Read]
+references:
+  - skills/obs-traces/references/traceql.md
+  - skills/obs-traces/references/otel-semantics.md
+prompt: |
+  Read the TraceQL and OpenTelemetry-semantics references. Assess this supplied-state
+  trace work; do not run queries or edit files. A teammate drafted Tempo work for
+  checkout. Their 5xx search needs the service and the HTTP outcome to describe the
+  same operation, but the draft joins the two conditions so they may match different
+  spans. Their database search needs a checkout trace that also contains a database
+  span, which may be a different span, but the draft forces both into one span. Their
+  repeated-error search thresholds on whole-trace duration instead of counting
+  matching error spans per trace. A ticket's free-text identifier was pasted directly
+  into a trace lookup expression. The draft reads a span marked Error with an HTTP
+  404 on a server span as proof the server failed, from the span status alone. A
+  missing trace for a known slow request is reported as proof the request never
+  reached the service. A query rewritten to current stable attribute names returned
+  nothing, and the draft concludes there was no traffic without checking which
+  attribute names the deployed instrumentation emits.
+
+  Return exactly one JSON object, without fences or prose, selecting one value per key:
+  same_span_conditions: one_braces_block | joined_spansets
+  cross_span_conditions: joined_spansets | one_braces_block
+  repeated_errors: count_matching_spans_per_trace | duration_threshold
+  trace_lookup: validated_quoted_trace_id | pasted_ticket_text
+  status_reading: span_and_protocol_together | span_status_alone
+  missing_trace: sampling_limit_or_export_hypothesis | request_never_happened
+  empty_stable_query: inventory_emitted_attributes_first | no_traffic
+success_criteria:
+  - Keeps same-span conditions in one spanset and cross-span conditions in joined spansets.
+  - Validates copied identifiers and reads span status together with the protocol outcome.
+  - Treats missing traces and empty stable-name results as telemetry questions, not absences.
+graders:
+  - type: exact_json
+    fields:
+      same_span_conditions: one_braces_block
+      cross_span_conditions: joined_spansets
+      repeated_errors: count_matching_spans_per_trace
+      trace_lookup: validated_quoted_trace_id
+      status_reading: span_and_protocol_together
+      missing_trace: sampling_limit_or_export_hypothesis
+      empty_stable_query: inventory_emitted_attributes_first

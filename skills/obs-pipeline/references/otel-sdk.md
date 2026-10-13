@@ -8,6 +8,9 @@ changes belong to the application's development owner; this fleet supports its d
 
 Commands are `[sourced]` to the linked OpenTelemetry documentation.
 Exact-target behavior remains `[unverified]` until a canary proves it.
+Reading conventions for spans, status, attributes, and sampling are owned by the
+`obs-traces` skill's OpenTelemetry semantics reference; this file owns emit-side instrumentation
+choices and points there rather than restating them.
 
 ## Contents
 
@@ -19,8 +22,7 @@ Exact-target behavior remains `[unverified]` until a canary proves it.
 Scoped fixes apply only steps affecting the changed path in the existing setup; service-wide
 instrumentation uses the full method.
 
-1. **For service-wide design, map** users, journeys, entry points, dependencies, and constrained resources.
-2. **For service-wide instrumentation, auto-instrument first** with the SDK; then add **manual** spans for critical
+1. **For service-wide instrumentation, auto-instrument first** with the SDK; then add **manual** spans for critical
    operations. The zero-code entry points *[sourced: opentelemetry.io/docs/zero-code/]*:
 
    For Python, use the repository's managed environment and lock workflow; never install into
@@ -56,7 +58,7 @@ instrumentation uses the full method.
    *[sourced: opentelemetry.io zero-code Java Spring Boot starter pages;
    opentelemetry-java-instrumentation repo]* Which path the team's services
    use today is `[unverified]` — read the build file and the buildpack config.
-3. **Resource attributes** — set `service.name`, `service.version`, and **`deployment.environment.name`**
+2. **Resource attributes** — set `service.name`, `service.version`, and **`deployment.environment.name`**
    (OTel semantic conventions) so signals are filterable per app/space.
    > ⚠️ **`deployment.environment` is DEPRECATED** — renamed to **`deployment.environment.name`** in
    > semconv **v1.27.0**, and stabilized in v1.41.0. Emit the `.name` form. Well-known values:
@@ -73,11 +75,11 @@ instrumentation uses the full method.
    `net.*` forms) *[sourced: opentelemetry.io HTTP-conventions-stable announcement]* — new
    dashboards and queries key on the stable names, and an old exporter emitting pre-stable names is
    a migration flag, not a pattern to copy.
-4. **RED per route** (request-driven services): request count, error count, and a latency **histogram**
+3. **RED per route** (request-driven services): request count, error count, and a latency **histogram**
    — split **success vs error** latency. Bounded labels only (method, route template, status class).
-5. **USE per resource** (pools/queues/CPU/memory): utilization, saturation, errors — this is what catches
+4. **USE per resource** (pools/queues/CPU/memory): utilization, saturation, errors — this is what catches
    the saturation → latency → errors cascade.
-6. **Traces** — propagate W3C context across services. Change sampling policy/topology only when in scope.
+5. **Traces** — propagate W3C context across services. Change sampling policy/topology only when in scope.
    Where **Collector tail sampling** is used, explicit policies (status=error, latency threshold)
    **prioritize** error/slow traces, subject to every constraint below:
    > ⚠️ **Tail sampling does NOT guarantee you keep all error traces.** It is best-effort under capacity
@@ -100,8 +102,8 @@ instrumentation uses the full method.
    >   earlier keep decision — a documented mitigation, not a guarantee; size it and keep watching
    >   the dropped-too-early metric. *[sourced: opentelemetry-collector-contrib
    >   `tailsamplingprocessor` README]*
-7. **Logs** — structured (JSON) carrying the trace/span IDs; redact secrets and PII before serialization; carry only approved trace/span correlation fields.
-8. **Correlate** — verify metric→trace (exemplars) and trace→log (shared IDs) actually link.
+6. **Logs** — structured (JSON) carrying the trace/span IDs; redact secrets and PII before serialization; carry only approved trace/span correlation fields.
+7. **Correlate** — verify metric→trace (exemplars) and trace→log (shared IDs) actually link.
 
 ## Done
 
