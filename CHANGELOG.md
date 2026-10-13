@@ -9,7 +9,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 ### Changed
 
 - `check_links.py` now checks fragments: a link into a Markdown file, same-file `#anchor` links
-  included, must name a heading GitHub renders there (or an explicit `<a id>`). A renamed heading
+  included, must name a heading GitHub renders there (ATX or setext, entities decoded, repeats
+  suffixed past any slug already taken) or an explicit `<a id>` outside code and comments, matched
+  exactly. An unreadable target is reported. A renamed heading
   used to leave every `file.md#old-heading` link green. [verified] Three focused tests went red
   before the check existed and pass after it; renaming a real heading the fleet guide links to now
   fails the gate. The current tree has no broken anchors across the 108 anchored links checked.

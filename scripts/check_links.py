@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import html
 import os
 import re
 import subprocess
@@ -369,27 +370,49 @@ def _relative_target(raw: str) -> str | None:
     return target.split("#", 1)[0].split("?", 1)[0]
 
 
-ANCHOR_HEADING_RE = re.compile(r"^#{1,6}[ \t]+(.+?)[ \t]*#*[ \t]*$")
+ANCHOR_HEADING_RE = re.compile(r"^ {0,3}#{1,6}[ \t]+(.+?)[ \t]*#*[ \t]*$")
+SETEXT_UNDERLINE_RE = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
 HTML_ANCHOR_RE = re.compile(r"""<a\s[^>]*\b(?:id|name)=["']([^"']+)["']""", re.IGNORECASE)
+FRONTMATTER_RE = re.compile(r"\A---[ \t]*\n.*?\n---[ \t]*\n", re.DOTALL)
+
+
+def _heading_slug(text: str) -> str:
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = html.unescape(re.sub(r"<[^>]+>", "", text))
+    return re.sub(r"[^\w\- ]", "", text.lower()).replace(" ", "-")
 
 
 def _heading_anchors(path: Path) -> set[str]:
-    """The fragments GitHub renders for a Markdown file: one slug per heading outside a fence
-    (lowercased, punctuation dropped, spaces to hyphens, repeats suffixed -1, -2), plus explicit
-    `<a id>`/`<a name>` targets."""
+    """The fragments GitHub renders for a Markdown file: a slug per ATX or setext heading outside
+    frontmatter, fences and HTML comments (entities decoded, lowercased, punctuation dropped, spaces
+    to hyphens, a repeat taking the next unused -1, -2 suffix), plus explicit `<a id>`/`<a name>`
+    targets outside inline code."""
+    text = FRONTMATTER_RE.sub("", path.read_text(encoding="utf-8"))
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
     anchors: set[str] = set()
-    counts: dict[str, int] = {}
-    for line in _strip_fences(path.read_text(encoding="utf-8")).splitlines():
-        anchors.update(HTML_ANCHOR_RE.findall(line))
+    slugs: set[str] = set()
+    previous = ""
+    for line in _strip_fences(text).splitlines():
+        anchors.update(HTML_ANCHOR_RE.findall(re.sub(r"`[^`]*`", "", line)))
         match = ANCHOR_HEADING_RE.match(line)
-        if not match:
+        heading = match.group(1) if match else None
+        if (
+            heading is None
+            and SETEXT_UNDERLINE_RE.match(line)
+            and previous.strip()
+            and not re.match(r"^ {0,3}(?:[-*+>#|]|\d+[.)])", previous)
+        ):
+            heading = previous.strip()
+        previous = "" if heading else line
+        if heading is None:
             continue
-        text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", match.group(1))
-        slug = re.sub(r"[^\w\- ]", "", re.sub(r"<[^>]+>", "", text).lower()).replace(" ", "-")
-        seen = counts.get(slug, 0)
-        counts[slug] = seen + 1
-        anchors.add(slug if seen == 0 else f"{slug}-{seen}")
-    return anchors
+        base = candidate = _heading_slug(heading)
+        suffix = 0
+        while candidate in slugs:
+            suffix += 1
+            candidate = f"{base}-{suffix}"
+        slugs.add(candidate)
+    return anchors | slugs
 
 
 def _anchor_failure(source: Path, raw: str, where: str) -> str | None:
@@ -397,7 +420,8 @@ def _anchor_failure(source: Path, raw: str, where: str) -> str | None:
 
     A renamed heading leaves every `file.md#old-heading` link resolving to the right file and
     landing nowhere, which the file-existence checks cannot see. Only Markdown targets that exist
-    are checked: a missing file is already a dead link, and other file types have no headings."""
+    are checked: a missing file is already a dead link, and other file types have no headings.
+    Fragments match exactly, as HTML resolves them; an unreadable target is reported, not assumed."""
     target = unquote(_target(raw))
     if "#" not in target or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", target):
         return None
@@ -410,9 +434,9 @@ def _anchor_failure(source: Path, raw: str, where: str) -> str | None:
         return None
     try:
         anchors = _heading_anchors(destination)
-    except (OSError, UnicodeError):
-        return None
-    if unquote(fragment).lower() in anchors:
+    except (OSError, UnicodeError) as exc:
+        return f"{where}: cannot read anchor target '{target}': {exc}"
+    if unquote(fragment) in anchors:
         return None
     return f"{where}: dead anchor '{target}'"
 

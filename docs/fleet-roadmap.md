@@ -608,18 +608,20 @@ merged bytes, and each red is attributed to the change or the incumbent.
 default tier, then read the batch summary:
 
 ```bash
-cal=.eval-runs/judge-calibration/<run>/identity.json   # completed calibration receipt
-out=.eval-runs/eval-017
-for id in discovery-agent-authoring-loop-engineering discovery-operational-learning-defers-fleet-failure \
-  discovery-principal-engineer-defers-agent-workflow discovery-principal-engineer-service-workflow-graph \
-  discovery-principal-engineer-new-service-design discovery-principal-engineer-returned-fork \
-  discovery-principal-engineer-platform-selection discovery-principal-engineer-defers-design-review \
-  discovery-principal-engineer-defers-reliability-assessment discovery-principal-engineer-defers-small-tool-build \
-  agent-direct-agent-engineer-learning-loop agent-direct-agent-engineer-heldout-contamination; do
-  python evals/build_probe.py run --scenario "$id" --label merged --model sonnet --trials 3 --out "$out"
-done
-python evals/build_probe.py run --scenario skill-direct-agent-authoring-security-review --label merged \
-  --model sonnet --trials 3 --out "$out" --judge-calibration "$cal"
+(
+  [ -f "${CAL:-}" ] || { echo "export CAL to a completed calibration identity.json first" >&2; exit 1; }
+  out=.eval-runs/eval-017
+  for id in discovery-agent-authoring-loop-engineering discovery-operational-learning-defers-fleet-failure \
+    discovery-principal-engineer-defers-agent-workflow discovery-principal-engineer-service-workflow-graph \
+    discovery-principal-engineer-new-service-design discovery-principal-engineer-returned-fork \
+    discovery-principal-engineer-platform-selection discovery-principal-engineer-defers-design-review \
+    discovery-principal-engineer-defers-reliability-assessment discovery-principal-engineer-defers-small-tool-build \
+    agent-direct-agent-engineer-learning-loop agent-direct-agent-engineer-heldout-contamination; do
+    python evals/build_probe.py run --scenario "$id" --label merged --model sonnet --trials 3 --out "$out"
+  done
+  python evals/build_probe.py run --scenario skill-direct-agent-authoring-security-review --label merged \
+    --model sonnet --trials 3 --out "$out" --judge-calibration "$CAL"
+)
 ```
 
 A red on a routing case reruns once on the pre-merge incumbent (`--plugin-root` at a worktree of
