@@ -30,7 +30,6 @@ Primary references:
 - Query shapes — guardrails
 - Rates, windows, and saturation
 - Missing data
-- WQL and PromQL mapping aid
 
 ## Select series and filter point tags
 
@@ -110,11 +109,4 @@ Treat this as a candidate only after verifying its behavior in the target alert 
 platform's no-data notification path for ordinary thresholds whose series vanishes and for selectors
 that match nothing at all. Do not describe a no-data state as healthy.
 
-## WQL and PromQL mapping aid
 
-The following pairs explain intent; they are not byte-for-byte semantic equivalence across all data and
-staleness conditions.
-
-- WQL `sum(ts(m), tag)` roughly maps to PromQL `sum by (label) (m)`.
-- WQL `rate(ts(counter))` roughly maps to PromQL `rate(counter[5m])`.
-- WQL `mavg(5m, ts(m))` is a moving-window operation.

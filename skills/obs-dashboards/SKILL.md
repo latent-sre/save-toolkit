@@ -23,10 +23,9 @@ bundled helper. This skill supplies design decisions and grants no live-write au
 
 ## Design for a decision
 
-Name each panel's backend (per `stack-profile`: Wavefront for PCF application metrics today,
-Mimir/Loki/Tempo for OpenTelemetry-instrumented services, Cloud Monitoring/Logging/Trace for GCP
-workloads) and flag panels needing a vendor plugin. Use `obs-metrics`, `obs-logs`, or `obs-traces`
-for query semantics, and the team's folder, naming, time, and variable conventions via `grafana`.
+Name each panel's backend per `stack-profile` and flag panels needing a vendor plugin. Use
+`obs-metrics`, `obs-logs`, or `obs-traces` for query semantics, and the team's folder, naming,
+time, and variable conventions via `grafana`.
 
 Distinguish no traffic, zero, missing telemetry, and query failure; a blank panel must not look
 healthy, and color is not proof an alert exists or fires. Never append `or vector(0)` or map null

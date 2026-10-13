@@ -18,14 +18,11 @@ guess into evidence.
 
 - [Execution boundaries](#who-runs-a-catalog-entry)
 - [Entry fields](#entry-shape)
-- [Contribute](#contribute-an-entry)
 - [Error onset](#which-errors-started-at-the-same-time-as-the-impact)
 - [Deploy error rate](#did-error-rate-change-across-the-deploy)
 - [Request path](#where-did-one-request-fail-across-services)
 - [Caller load](#which-callers-are-driving-the-current-load)
 - [Akamai edge and cache](#is-the-akamai-edge-failing-or-missing-cache-for-one-hostname-or-region)
-- [Loki: no cataloged entries](#loki-logql)
-- [Metrics: companion pointers only](#metrics-promql-and-wql)
 
 ## Who runs a catalog entry
 
@@ -53,25 +50,6 @@ Use the question as the entry heading, followed by the metadata fields below and
 | **Owner** | Named human or team role accountable for the entry. |
 | **Verified** | `[verified] <date> by <role>`, or `[unverified]` with what is untested. |
 | **Query** | The final code block, with `<placeholders>` for every inventory value. |
-
-## Contribute an entry
-
-Copy this template into this catalog, fill every field, and open a PR. No new skill is needed;
-review checks the entry shape, target assumptions, and safety rules.
-
-````markdown
-### <the question, phrased as a responder would ask it>
-
-- **Applies to:** <service / environment / signal>
-- **Reads as:** <what the output columns mean>
-- **Healthy looks like:** <the result when nothing is wrong>
-- **Owner:** <role>
-- **Verified:** [unverified]
-
-```spl
-<the query, with <placeholders> for inventory values>
-```
-````
 
 ## Splunk (SPL)
 
@@ -183,12 +161,4 @@ scope. Check the `reqHost` value shape in one raw event before filtering on it (
 header). The `akamai-edge` skill's DataStream caveats apply: low-latency streams deliver less
 complete data, and delivery failures lose lines.
 
-## Loki (LogQL)
-
-No entries yet. Add them under this heading using the same shape; `logql.md` owns the dialect and
-`indexes.md` owns the stream selectors.
-
-## Metrics (PromQL and WQL)
-
-No entries yet. Metric searches belong to `obs-metrics`; add a pointer here only when a metric query
-is the natural companion to a log query above, and keep the query itself in the owning skill.
+Metric searches belong to `obs-metrics`; keep their queries in that skill, not here.
