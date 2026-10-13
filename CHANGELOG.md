@@ -13,7 +13,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   loop-termination and handoff prose, retired-root and Codex history, and every date, probe-version
   tag, and citation are gone from the skill. Copilot hook entry shape, launcher behavior, and
   manifest format detection move to `docs/vscode-plugin-acceptance.md`, which already owned the
-  rest of that host contract.
+  rest of that host contract. The `tools.md` reference is retired; its one platform fact, Claude
+  Code's MCP output limits, is now a platform-traps row in `SKILL.md`, updated with the
+  50,000-character persist threshold and the per-tool `anthropic/maxResultSizeChars` override.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a

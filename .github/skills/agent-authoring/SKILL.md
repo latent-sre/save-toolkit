@@ -122,7 +122,6 @@ authorizes a self-modifying loop.
 | A prompt, agent body, skill body, description, or grader | [artifact guidance](./references/artifact.md) |
 | "Agent or skill?", delegation, fan-out, orchestration | [roster guidance](./references/roster.md) |
 | Adding, removing, or checking a delegation edge | [the delegation graph](./references/delegation-graph.md) — one enforced source, validated host renders, and host-specific enforcement limits |
-| A tool contract, or promoting a shell prototype to a tool | [tool guidance](./references/tools.md) |
 | Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
 | A cold-start packet or bounded evidence | [context guidance](./references/context.md) |
 | Authoring or debugging any agent or skill frontmatter | [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth |
@@ -135,6 +134,7 @@ authorizes a self-modifying loop.
 |---|---|
 | Agent frontmatter | `name`, `description`, `tools` — omitting `tools` inherits **every** tool |
 | Agent keys that do nothing in a plugin | `hooks`, `mcpServers`, `permissionMode`, `initialPrompt` — the read-only Bash guard lives once in `hooks/hooks.json`, scoped to the exact `agent_type` |
+| MCP tool output | Claude Code caps a result at 25,000 tokens by default (`MAX_MCP_OUTPUT_TOKENS`); a text-only result over 50,000 characters is saved to a file and replaced by its path whatever that setting is. A server raises one tool's threshold with `_meta["anthropic/maxResultSizeChars"]`, up to 500,000. Other hosts differ: bound output with pagination and filters rather than relying on a cap |
 
 ## Promotion and composition
 
