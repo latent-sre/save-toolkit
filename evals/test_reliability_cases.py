@@ -64,10 +64,10 @@ EXPECTED = {
     },
     "toil-interview-pruning": {
         "response_mode": "ask_batched_intake", "baseline_invented": False,
-        "asks_task_and_trigger": False, "asks_frequency_and_pattern": True,
+        "asks_task_and_trigger": False, "asks_frequency_and_pattern": False,
         "asks_effort_and_interruption": True, "asks_people_and_skill": True,
         "asks_variability_and_judgment": False, "asks_risk_and_reversibility": False,
-        "asks_quality_and_rework": True, "asks_why_it_recurs": True,
+        "asks_why_it_recurs": True,
         "asks_boundaries_and_appetite": True, "recommendation_made": False,
         "live_action": "none",
     },
@@ -214,7 +214,8 @@ class ToilInterviewQuestionTests(unittest.TestCase):
         "What is cleaned up and what triggers it? How often does it happen, and is it growing? "
         "How long does one run take, including being interrupted? Who does it today, and who "
         "would maintain an alternative? Where does it need judgment? What could go wrong, and "
-        "is that reversible? Why does this work exist? What must stay manual, and who decides?"
+        "is that reversible? How often does it fail or bounce back for rework? Why does this "
+        "work exist? What must stay manual, and who decides?"
     )
 
     def grade(self, response):

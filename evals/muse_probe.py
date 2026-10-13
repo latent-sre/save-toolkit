@@ -101,13 +101,14 @@ class MuseTrace:
     def dispatches(self) -> list[str]:
         return sorted(
             name for name in self.tool_counts
-            if "subagent" in name or name in {"agent", "task"}
+            if "subagent" in name.lower() or name.lower() in {"agent", "task"}
         )
 
     def to_summary(self) -> TraceSummary:
         shell = [
             f"<muse shell tool: {name}>" for name, count in self.tool_counts.items()
-            if any(word in name for word in ("powershell", "bash", "shell")) for _ in range(count)
+            if any(word in name.lower() for word in ("powershell", "bash", "shell"))
+            for _ in range(count)
         ]
         return TraceSummary(
             result_text=self.result_text,
@@ -181,12 +182,16 @@ def _sessions_root() -> Path:
 
 
 def augment_from_session_log(trace: MuseTrace) -> MuseTrace:
-    """Corroborate a trace from Muse's retained session log, when one exists.
+    """Corroborate dispatch targets from Muse's retained session log.
 
-    The stdout MSP stream names tools but carries no arguments; the session
-    log is where a SKILL.md read or a subagent target is visible. Absence of a
-    log is recorded (`session_log_found` stays False), never treated as
-    absence of the action.
+    Only a single log line that itself carries a subagent spawn and its own
+    target field credits that target: harvesting every name in a log that
+    merely mentions spawning (a tool catalog does) would certify a dispatch
+    that never happened. Skill loads are NOT credited here — prose and
+    catalog listings mention SKILL.md paths without reading them, so skill
+    credit comes only from tool-carrying stdout events. Absence of a log is
+    recorded (`session_log_found` stays False), never treated as absence of
+    the action.
     """
     if not trace.session_id:
         return trace
@@ -201,12 +206,12 @@ def augment_from_session_log(trace: MuseTrace) -> MuseTrace:
     except OSError:
         return trace
     trace.session_log_found = True
-    trace.skills_loaded.update(_skill_names_in(text))
-    for name in re.findall(r'"(?:agent|subagent_type|name)"\s*:\s*"([a-z0-9]+(?:-[a-z0-9]+)*)"', text):
-        if "subagent_spawn" in text:
-            trace.dispatch_targets.add(name)
-    if "subagent_spawn" in text:
-        trace.tool_counts.setdefault("subagent_spawn", 1)
+    for line in text.splitlines():
+        if "subagent_spawn" not in line:
+            continue
+        trace.dispatch_targets.update(
+            re.findall(r'"(?:subagent_type|agent)"\s*:\s*"([a-z0-9]+(?:-[a-z0-9]+)*)"', line)
+        )
     return trace
 
 
@@ -285,14 +290,20 @@ def build_command(
     ]
     if kind != "build" and not spec.get("followups"):
         command.append("--disable-write")
-    # A pinned agent's own grants govern, over the scenario's default tool set:
-    # the Claude runner's `--agent` restricts the same way.
-    shell_allowed = (
-        _agent_shell_allowed(spec) if spec.get("agent") else bool(tools & SHELL_TOOL_NAMES)
-    )
+    # Restrictions are the intersection of the scenario's declared tools and
+    # the pinned agent's own grants: neither may widen the other. A contract
+    # trial declaring only Read gets no shell even for a shell-holding agent,
+    # exactly as the Claude catalog's minimal-tool trials intend.
+    declared = {str(t) for t in spec["tools"]} if spec.get("tools") else None
+    if spec.get("agent"):
+        shell_allowed = _agent_shell_allowed(spec) and (declared is None or bool(declared & SHELL_TOOL_NAMES))
+        web_allowed = bool((declared or tools) & WEB_TOOL_NAMES)
+    else:
+        shell_allowed = bool(tools & SHELL_TOOL_NAMES)
+        web_allowed = bool(tools & WEB_TOOL_NAMES)
     if not shell_allowed:
         command.append("--disable-shell")
-    if not (tools & WEB_TOOL_NAMES) and spec.get("agent") != "researcher":
+    if not web_allowed:
         command.append("--disable-web-tools")
     if model:
         command += ["--model", model]
@@ -327,23 +338,28 @@ def grade_routing(spec: dict[str, Any], trace: MuseTrace, raw: str) -> list[dict
     expect = (spec.get("routing") or {}).get("expect")
     if not trace.completed:
         return [_expectation("routing", State.INCONCLUSIVE, "run did not complete; discovery unmeasured")]
-    observable = bool(trace.tool_counts) or any(k.startswith("tool.") for k in trace.task_kinds)
-    # Credit only tool-carrying evidence: the raw stream also echoes the
-    # prompt, which may name the target without it ever firing.
-    evidence_text = "\n".join(trace.tool_evidence)
-    fired = bool(name) and name in evidence_text and observable
-    if not observable:
+    # Credit only a structural firing: a fleet SKILL.md read in tool-carrying
+    # evidence for a skill target, or a same-line spawn target for an agent
+    # target. A name merely mentioned in tool output is not a firing, and
+    # absence of that evidence cannot prove a negative on this host, so a
+    # `fire` expectation without it is INCONCLUSIVE, never a FAIL.
+    if target.get("kind") == "agent":
+        fired = bool(name) and name in trace.dispatch_targets
+    else:
+        fired = bool(name) and name in trace.skills_loaded
+    if expect == "fire":
+        if fired:
+            return [_expectation("routing", State.PASS, f"target {name!r} fired in tool evidence")]
         return [_expectation(
             "routing", State.INCONCLUSIVE,
-            "Muse trace carries no tool evidence to credit a component firing; "
-            "an inline answer neither proves nor disproves discovery",
+            f"no SKILL.md read or spawn target credits {name!r}; discovery unmeasured on Muse",
         )]
-    if expect == "fire":
-        state = State.PASS if fired else State.FAIL
-        return [_expectation("routing", state, f"target {name!r} {'fired' if fired else 'did not fire'} in tool evidence")]
     if expect == "not_fire":
-        state = State.FAIL if fired else State.PASS
-        return [_expectation("routing", state, f"target {name!r} {'fired' if fired else 'stayed out'} in tool evidence")]
+        if fired:
+            return [_expectation("routing", State.FAIL, f"target {name!r} fired in tool evidence")]
+        if trace.completed:
+            return [_expectation("routing", State.PASS, f"target {name!r} not credited in a completed trace")]
+        return [_expectation("routing", State.INCONCLUSIVE, "run did not complete; absence unmeasured")]
     return [_expectation("routing", State.INCONCLUSIVE, f"routing expectation {expect!r} not graded on Muse")]
 
 
@@ -354,20 +370,34 @@ def grade_build(spec: dict[str, Any], trace: MuseTrace, ws: Any) -> list[dict[st
     expectations = []
     for check in spec.get("checks") or []:
         name = str(check.get("check"))
-        if name in {"skill_loaded", "skill_not_loaded"}:
-            # Skill credit needs a SKILL.md read in tool evidence or the
-            # retained session log, and load order is never visible here.
-            if not trace.session_log_found and not trace.skills_loaded:
+        run = checking.CHECKS.get(name)
+        if run is not None:
+            # Gate by the evidence each check declares it reads: a Muse
+            # summary cannot carry raw/ordered traces, a judge, or a backing
+            # service, and grading those anyway manufactures verdicts.
+            needs = run.needs_of(dict(check), spec)
+            unmeasurable = needs & {
+                checking.Need.RAW_TRACE, checking.Need.ORDERED_TRACE,
+                checking.Need.JUDGE, checking.Need.SERVICE,
+            }
+            if unmeasurable:
                 expectations.append(_expectation(
                     name, State.INCONCLUSIVE,
-                    "no session log or SKILL.md evidence; skill loads unmeasured"))
+                    f"check needs {sorted(str(n) for n in unmeasurable)}; not visible in a Muse trace"))
+                continue
+        if name in {"skill_loaded", "skill_not_loaded"}:
+            # Skill credit comes only from a fleet SKILL.md read in
+            # tool-carrying stdout evidence; load order is never visible.
+            if not trace.skills_loaded:
+                expectations.append(_expectation(
+                    name, State.INCONCLUSIVE,
+                    "no SKILL.md read in tool evidence; skill loads unmeasured"))
                 continue
             if check.get("before_effects"):
                 expectations.append(_expectation(
                     name, State.INCONCLUSIVE,
                     "skill load order relative to effects is not visible in a Muse trace"))
                 continue
-        run = checking.CHECKS.get(name)
         if run is None:
             expectations.append(_expectation(name, State.INCONCLUSIVE, "unknown check on Muse runner"))
             continue
@@ -385,10 +415,10 @@ def grade_native(
 ) -> list[dict[str, str]]:
     helper = str(spec.get("helper") or "")
     expectations = []
-    dispatched = bool(helper) and (
-        any(t.dispatches for t in traces)
-        or any(helper in t.dispatch_targets for t in traces)
-    )
+    # Credit only a spawn record naming this helper. A spawn of any other
+    # target, or a bare subagent tool count with no visible target, is
+    # unmeasured — never a PASS for a dispatch that may not have happened.
+    dispatched = bool(helper) and any(helper in t.dispatch_targets for t in traces)
     # A conversation that names no helper (an interview, say) has no dispatch
     # expectation; grading it for one would manufacture an inconclusive.
     if helper and dispatched:
@@ -432,7 +462,7 @@ def run_trial(
     spec: dict[str, Any], executable: str, model: str | None,
     out: Path, label: str, run_number: int, timeout: int,
 ) -> dict[str, Any]:
-    kind = "native" if spec.get("followups") else catalog.scenario_kind(spec)
+    kind = catalog.scenario_kind(spec)
     started = time.time()
     with tempfile.TemporaryDirectory(prefix="muse-probe-") as tmp:
         root = Path(tmp)
@@ -449,6 +479,7 @@ def run_trial(
         session_id = str(uuid.uuid4())
         traces: list[MuseTrace] = []
         raws: list[str] = []
+        runs: list[tuple[int, str, str]] = []
         prompts = [build_prompt(spec)] + [str(f) for f in spec.get("followups") or []]
         for index, prompt in enumerate(prompts):
             prompt_file = root / f"prompt-{index}.md"
@@ -458,6 +489,7 @@ def run_trial(
                 code, stdout, stderr = _run_exec(command, workspace, timeout)
             except subprocess.TimeoutExpired:
                 code, stdout, stderr = -1, "", "muse exec timed out"
+            runs.append((code, stdout, stderr))
             (run_dir / f"trace-{index}.jsonl").write_text(stdout, encoding="utf-8")
             if stderr:
                 (run_dir / f"stderr-{index}.txt").write_text(stderr, encoding="utf-8")
@@ -468,15 +500,16 @@ def run_trial(
             raws.append(stdout)
         trace = traces[-1]
         raw = "\n".join(raws)
-        if not trace.completed:
+        codes = [code for code, _stdout, _stderr in runs]
+        if not trace.completed or any(code != 0 for code in codes):
             expectations = [_expectation(
                 "run", State.INCONCLUSIVE,
-                "muse exec did not complete a run; nothing about the candidate was measured",
+                "muse exec did not complete cleanly; nothing about the candidate was measured",
             )]
+        elif spec.get("followups"):
+            expectations = grade_native(spec, traces, raw)
         elif kind == "build" and ws is not None:
             expectations = grade_build(spec, trace, ws)
-        elif kind == "native":
-            expectations = grade_native(spec, traces, raw)
         elif kind == "routing":
             expectations = grade_routing(spec, trace, raw)
         else:
@@ -497,9 +530,9 @@ def run_trial(
             "run": run_number,
             "status": str(status),
             "model_id": trace.model_id or model or "default",
-            "session_id": session_id,
+            "session_id": trace.session_id or session_id,
             "seconds": round(time.time() - started, 1),
-            "tool_counts": dict(trace.tool_counts),
+            "tool_counts": dict(sum((t.tool_counts for t in traces), Counter())),
             "skills_loaded": sorted(trace.skills_loaded),
             "session_log_found": trace.session_log_found,
             "expectations": expectations,

@@ -59,14 +59,15 @@ Options: eliminate (fix the cause — no defect identified), simplify (batch the
 kept as fallback), self-service (rejected: requesters lack access), automate (kept),
 accept (rejected at current volume).
 Calculation: baseline 6 h/month; residual handling 2 + maintenance 2; net saving
-2 h/month [unverified: proposer estimate, no comparable automation observed]; build
-40 h; time-only break-even 20 months.
+2 h/month [unverified: proposer estimate, no comparable automation observed — the
+operations lead accepted it unadjusted; if maintenance reaches 3 h/month the net
+saving halves and break-even doubles]; build 40 h; time-only break-even 20 months.
 Classification: toil — manual and recurring, little enduring value, volume follows ticket count.
 Recommendation: automate the bounded procedure below, or simplify if the 20-month horizon
 exceeds the workflow's expected life.
 Owner: application team implements; operations lead accepts the residual 4 h/month.
 Verification: repeat the same export after one comparable month; benefit stays estimated
 until residual and maintenance match the prediction.
-Uncertainty: maintenance estimate is the proposer's; a comparable system's observed
-maintenance would settle it.
+Uncertainty: maintenance estimate is the proposer's, accepted unadjusted above; the
+workflow's expected useful life is unstated, so the horizon comparison remains open.
 ```

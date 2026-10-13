@@ -74,6 +74,14 @@ class PromptAndCommandTests(unittest.TestCase):
         # A pinned session id requires retained logging; the two flags refuse to start together.
         self.assertNotIn("--no-session-log", command)
 
+    def test_declared_tools_intersect_agent_grants(self):
+        read_only = {"id": "x", "prompt": "Assess.", "tools": ["Read"]}
+        for agent in ("software-engineer", "researcher"):
+            command = muse_probe.build_command(
+                "muse", read_only | {"agent": agent}, ROOT, Path("prompt.md"), "s-1", None)
+            self.assertIn("--disable-shell", command, agent)
+            self.assertIn("--disable-web-tools", command, agent)
+
     def test_build_shell_follows_the_pinned_agents_grants(self):
         base = {"id": "x", "prompt": "Do the task.", "fixture": {"files": {}}}
         for agent, disabled in (("reliability-engineer", True), ("software-engineer", False)):
@@ -103,11 +111,12 @@ class GradingTests(unittest.TestCase):
         self.assertEqual(State.INCONCLUSIVE, muse_probe.grade_graders(spec, trace)[0]["state"])
 
     def test_shell_tools_are_visible_to_did_not_run_checks(self):
-        trace = muse_probe.parse_muse_trace("\n".join([
-            event("tool.result", {"correlation_facts": {"tool_name": "powershell", "outcome": "success"}}),
-            event("run.terminal.completed", {"terminal": "completed", "text": "done"}),
-        ]))
-        self.assertEqual(1, len(trace.to_summary().bash_commands))
+        for tool_name in ("powershell", "PowerShell"):
+            trace = muse_probe.parse_muse_trace("\n".join([
+                event("tool.result", {"correlation_facts": {"tool_name": tool_name, "outcome": "success"}}),
+                event("run.terminal.completed", {"terminal": "completed", "text": "done"}),
+            ]))
+            self.assertEqual(1, len(trace.to_summary().bash_commands), tool_name)
 
     def test_prompt_echo_alone_does_not_credit_routing(self):
         spec = {"target": {"kind": "skill", "name": "toil-reduction"}, "routing": {"expect": "fire"}}
@@ -115,9 +124,10 @@ class GradingTests(unittest.TestCase):
             "tool.result", {"correlation_facts": {"tool_name": "search", "outcome": "success"}})
         trace = muse_probe.parse_muse_trace(raw + "\n" + event(
             "run.terminal.completed", {"terminal": "completed", "text": "done"}))
-        self.assertEqual(State.FAIL, muse_probe.grade_routing(spec, trace, raw)[0]["state"])
+        # A name in tool output is a mention, not a firing: unmeasured, not FAIL.
+        self.assertEqual(State.INCONCLUSIVE, muse_probe.grade_routing(spec, trace, raw)[0]["state"])
 
-    def test_session_log_credits_skills_and_dispatch_targets(self):
+    def test_session_log_credits_only_same_line_dispatch_targets(self):
         session_id = "01a10000-0000-7000-8000-000000000001"
         trace = muse_probe.parse_muse_trace(json.dumps({
             "stream": {"kind": "session", "id": session_id},
@@ -129,14 +139,26 @@ class GradingTests(unittest.TestCase):
             log.parent.mkdir(parents=True)
             log.write_text(
                 'read skills/toil-reduction/SKILL.md\n'
-                'catalog entry bundled://muse-core/skills/doctor/SKILL.md\n'
-                '{"tool": "subagent_spawn", "agent": "sre-assistant"}\n',
+                'catalog entry {"name": "sre-assistant"} in a tool listing\n'
+                '{"tool": "subagent_spawn", "agent": "researcher"}\n',
                 encoding="utf-8")
             with patch.dict(os.environ, {"MUSE_SESSIONS_ROOT": tmp}):
                 muse_probe.augment_from_session_log(trace)
         self.assertTrue(trace.session_log_found)
-        self.assertEqual({"toil-reduction"}, trace.skills_loaded)
-        self.assertIn("sre-assistant", trace.dispatch_targets)
+        # Prose and catalog mentions credit nothing; only the spawn's own target counts.
+        self.assertEqual(set(), trace.skills_loaded)
+        self.assertEqual({"researcher"}, trace.dispatch_targets)
+        spec = {"helper": "sre-assistant"}
+        expectations = muse_probe.grade_native(spec, [trace], "")
+        self.assertEqual(State.INCONCLUSIVE, expectations[0]["state"])
+
+    def test_captured_real_trace_parses(self):
+        fixture = Path(__file__).parent / "fixtures" / "muse-trace-sample.jsonl"
+        trace = muse_probe.parse_muse_trace(fixture.read_text(encoding="utf-8"))
+        self.assertEqual("muse-wonder-1.0", trace.model_id)
+        self.assertTrue(trace.completed)
+        self.assertEqual("grade_smoke.py", trace.result_text)
+        self.assertEqual(1, trace.tool_counts.get("search"))
 
     def test_routing_without_tool_evidence_is_inconclusive(self):
         spec = {"target": {"kind": "skill", "name": "toil-reduction"}, "routing": {"expect": "fire"}}

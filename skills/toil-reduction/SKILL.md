@@ -30,8 +30,11 @@ Two entry modes; the evidence decides, not the caller's patience:
   A human who selected an agent directly is in interview mode, not dispatched mode.
 
 The bank is deliberately task-neutral; phrase each question for the work at hand, accept
-ranges and "unknown", and never make an answer a precondition. An unanswered aspect becomes
-an `[unverified]` gap with the smallest useful measurement, and the assessment proceeds.
+ranges and "unknown", and never make an answer a precondition. An aspect already settled at
+gist level by the supplied description is not re-asked; a sub-detail is asked only when it
+could change the decision. An unanswered aspect becomes an `[unverified]` gap with the
+smallest useful measurement, and the assessment proceeds once the round is answered or the
+caller re-invokes — not in the same reply as the questions.
 
 | Aspect | Ask, generalized |
 |---|---|
@@ -135,7 +138,7 @@ closed schema or JSON only, carry these meanings in its permitted fields and do 
 Baseline: <occurrences and total effort per window; window, sources and coverage limits>
 Options: <elimination, cause correction, simplification, self-service, automation, acceptance — each kept or rejected, with why>
 Calculation: <baseline, residual and maintenance effort, net saving and break-even or why none exists; ranges and assumptions>
-Classification: <toil | accepted work | enduring-value work — by this test: manual and recurring with little enduring value and volume-driven growth is toil; judgment, deliberate practice or rare recovery is accepted work; work that creates lasting capability is enduring-value work>
+Classification: <toil | accepted work | enduring-value work — by this test: manual and recurring with little enduring value is toil (growth with volume is supporting evidence, not a requirement); judgment, deliberate practice or rare recovery is accepted work; work that creates lasting capability is enduring-value work>
 Recommendation: <bounded change, mechanism and alternatives>
 Owner: <implementation owner; acceptance owner and revisit trigger when accepting>
 Verification: <before/after comparison under comparable demand, and what remains unmeasured>
