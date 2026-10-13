@@ -74,7 +74,10 @@ against a Sonnet baseline. Agents and skills are pinned by injecting the canonic
 into the prompt (`pin: prompt-injected`), shell/write/web access is approximated from the pinned
 agent's own grants, and any expectation a Muse trace cannot carry — skill-load completion,
 dispatch targets, tool arguments, a rubric judge — is INCONCLUSIVE rather than graded on
-invented evidence. `python evals/muse_probe.py validate` checks the catalog offline;
+invented evidence. Routing is credited only from tool-carrying events, never the prompt echo;
+a retained Muse session log, when found, corroborates fleet SKILL.md reads (fleet names only,
+never the host's bundled catalog) and dispatch targets, and its absence is recorded rather than
+read as a negative. `python evals/muse_probe.py validate` checks the catalog offline;
 `run --scenario <id> --label <label> --out <dir>` executes live trials.
 
 ## Runner layout

@@ -5,8 +5,11 @@ These never call a model. Live `muse exec` behavior is measured only by a real
 """
 
 import json
+import os
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import muse_probe
 from probe.outcomes import State
@@ -105,6 +108,35 @@ class GradingTests(unittest.TestCase):
             event("run.terminal.completed", {"terminal": "completed", "text": "done"}),
         ]))
         self.assertEqual(1, len(trace.to_summary().bash_commands))
+
+    def test_prompt_echo_alone_does_not_credit_routing(self):
+        spec = {"target": {"kind": "skill", "name": "toil-reduction"}, "routing": {"expect": "fire"}}
+        raw = 'the prompt mentions toil-reduction\n' + event(
+            "tool.result", {"correlation_facts": {"tool_name": "search", "outcome": "success"}})
+        trace = muse_probe.parse_muse_trace(raw + "\n" + event(
+            "run.terminal.completed", {"terminal": "completed", "text": "done"}))
+        self.assertEqual(State.FAIL, muse_probe.grade_routing(spec, trace, raw)[0]["state"])
+
+    def test_session_log_credits_skills_and_dispatch_targets(self):
+        session_id = "01a10000-0000-7000-8000-000000000001"
+        trace = muse_probe.parse_muse_trace(json.dumps({
+            "stream": {"kind": "session", "id": session_id},
+            "payload_type": "run.terminal.completed",
+            "payload": {"terminal": "completed", "text": "done"},
+        }))
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "2026" / "01" / "01" / session_id / "session.jsonl"
+            log.parent.mkdir(parents=True)
+            log.write_text(
+                'read skills/toil-reduction/SKILL.md\n'
+                'catalog entry bundled://muse-core/skills/doctor/SKILL.md\n'
+                '{"tool": "subagent_spawn", "agent": "sre-assistant"}\n',
+                encoding="utf-8")
+            with patch.dict(os.environ, {"MUSE_SESSIONS_ROOT": tmp}):
+                muse_probe.augment_from_session_log(trace)
+        self.assertTrue(trace.session_log_found)
+        self.assertEqual({"toil-reduction"}, trace.skills_loaded)
+        self.assertIn("sre-assistant", trace.dispatch_targets)
 
     def test_routing_without_tool_evidence_is_inconclusive(self):
         spec = {"target": {"kind": "skill", "name": "toil-reduction"}, "routing": {"expect": "fire"}}
