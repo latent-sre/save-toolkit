@@ -98,3 +98,14 @@ the SSO vendor and protocol are not selected here. Common HTTP helpers and optio
 adapters are separate references. Native framework and existing identity implementations may
 satisfy the same contract; copying the example application is optional. Applicable acceptance
 checks and new-service CI delivery remain required.
+
+## Review amendment — 2026-10-13
+
+Amended: 2026-10-13 — review reconciled the Consequences section with the streamlined references.
+
+The Consequences statement that the API-writes, background-work and consuming-APIs references
+"carry over unchanged" no longer holds: those references were streamlined in the same change
+that made the starters optional and the contract tests reusable, and the streamlined text is
+now their current form. The 2026-10-12 amendments above are unaffected: existing services keep
+their canonical specification and checks, and new HTTP services retain the full committed
+document and gate standard. No decision in the Decision section is changed by this amendment.

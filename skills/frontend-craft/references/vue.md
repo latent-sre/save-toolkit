@@ -35,3 +35,5 @@ Apply the [stack mixing rules](./stack.md#mixing-kits) and shared theme tokens.
   `app.config.errorHandler` reports uncaught failures. Port the React error card's markup.
 - **Untrusted content:** only sanitized HTML reaches `v-html`; bound `:href`/`:src` values
   pass the parent skill's protocol allowlist.
+- **Vue 2** is past end of life: keep its stack for a feature change and name the upgrade as a
+  separate decision.

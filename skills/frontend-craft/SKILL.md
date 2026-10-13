@@ -1,11 +1,16 @@
 ---
 name: frontend-craft
 description: >-
-  Build a new web GUI for team applications and SRE tooling: consoles, workbenches, dashboards,
-  sites and guided workflows. Covers product design, React or Vue, API integration, accessibility
-  and browser verification. Triggers: 'build a UI for', 'create a web app', 'build a console'.
-  The service belongs to backend-craft; Grafana dashboards to obs-dashboards and grafana.
-argument-hint: "[the GUI to build]"
+  Build or change a web GUI for the team's applications and SRE tooling — operator consoles,
+  workbenches and admin panels, in-app dashboards, status and catalog sites, form-driven
+  workflows — in React (Vue allowed) on Vite and TypeScript, from one page to a full app, wired
+  to the team's FastAPI and Go OpenAPI services and served on localhost and PCF. Owns the caller
+  interview and design brief, the component-kit choice, the browser side of the API contract,
+  error and action surfaces, runtime configuration, accessibility and motion. Triggers: 'build
+  a UI for', 'add a page/form/table/console', 'make this look less generic', 'wire the UI to
+  the API'. Not for the service behind the UI (backend-craft) or Grafana dashboards
+  (obs-dashboards to design, grafana to operate).
+argument-hint: "[the GUI to build or change]"
 ---
 
 # Frontend craft
@@ -13,6 +18,12 @@ argument-hint: "[the GUI to build]"
 Deliver a distinctive, complete application with runnable code, real backend integration and
 verified user workflows. The backend may be new or existing. Use the caller's requirements and
 repository facts first; defaults fill decisions they leave open.
+
+In an existing app, keep its framework, kit, router, libraries and conventions: read settled
+choices from the repository and confirm only what it leaves open. A feature change never
+migrates a framework, router or kit as a side effect. Write the brief for a new app or a new
+area, and for a visual change larger than one component; a bounded change follows the app's
+established identity.
 
 ## Shape the app and select the relevant guidance
 

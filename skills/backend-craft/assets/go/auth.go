@@ -39,7 +39,8 @@ var ErrInvalidToken = errors.New("invalid bearer token")
 
 // Public marks an operation that needs no authentication: set Metadata: Public and leave Security
 // empty. Every other operation is authenticated, even one that forgot to declare Bearer, and the
-// example document test fails until it declares it.
+// example document test fails until it declares it. Registration through NewAPI copies this map
+// per operation, so mutating one operation's metadata affects neither it nor other operations.
 var Public = map[string]any{"public": true}
 
 // RequireAuth authenticates every operation not marked Public, answering 401 with
@@ -88,16 +89,62 @@ func NewAPI(mux *http.ServeMux, title, version string, verify TokenVerifier) hum
 	return api
 }
 
+// cloneSecurity returns an independent copy of a security requirement: operations that
+// share the Bearer variable must not be able to mutate each other (or it) through it.
+func cloneSecurity(in []map[string][]string) []map[string][]string {
+	if in == nil {
+		return nil
+	}
+	out := make([]map[string][]string, len(in))
+	for i, requirement := range in {
+		copied := make(map[string][]string, len(requirement))
+		for scheme, scopes := range requirement {
+			copied[scheme] = append([]string(nil), scopes...)
+		}
+		out[i] = copied
+	}
+	return out
+}
+
+// cloneMetadata returns an independent copy of operation metadata, so operations sharing
+// the Public marker cannot mutate each other (or it) through the map.
+func cloneMetadata(in map[string]any) map[string]any {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
+}
+
+// cloneContent returns an independent copy of a response content map, so each declared
+// error response owns its map rather than sharing the 500 response's.
+func cloneContent(in map[string]*huma.MediaType) map[string]*huma.MediaType {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]*huma.MediaType, len(in))
+	for mediaType, value := range in {
+		out[mediaType] = value
+	}
+	return out
+}
+
 // declareAuthErrors documents the 401 and the verifier-outage 503 that RequireAuth can send on
 // every declared authenticated operation, with the same Problem body as the operation's 500.
+// It first detaches the operation from any shared Bearer/Public maps it was registered with.
 func declareAuthErrors(_ *huma.OpenAPI, op *huma.Operation) {
+	op.Security = cloneSecurity(op.Security)
+	op.Metadata = cloneMetadata(op.Metadata)
 	problem := op.Responses["500"]
 	if len(op.Security) == 0 || problem == nil {
 		return
 	}
 	for status, description := range map[string]string{"401": "Unauthorized", "503": "Service Unavailable"} {
 		if op.Responses[status] == nil {
-			op.Responses[status] = &huma.Response{Description: description, Content: problem.Content}
+			op.Responses[status] = &huma.Response{Description: description, Content: cloneContent(problem.Content)}
 		}
 	}
 }

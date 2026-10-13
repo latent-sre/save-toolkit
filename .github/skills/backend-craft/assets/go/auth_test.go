@@ -105,6 +105,41 @@ func TestBearerAdapterRequiresAuthenticationByDefault(t *testing.T) {
 	}
 }
 
+func TestDeclareAuthErrorsClonesSharedMaps(t *testing.T) {
+	shared := map[string]*huma.MediaType{"application/problem+json": {}}
+	newOperation := func() *huma.Operation {
+		return &huma.Operation{
+			Security: Bearer, Metadata: Public,
+			Responses: map[string]*huma.Response{
+				"500": {Description: "Internal Server Error", Content: shared},
+			},
+		}
+	}
+	first, second := newOperation(), newOperation()
+	declareAuthErrors(nil, first)
+	declareAuthErrors(nil, second)
+
+	first.Security[0]["bearer"] = append(first.Security[0]["bearer"], "mutated")
+	first.Metadata["public"] = false
+	delete(first.Responses["401"].Content, "application/problem+json")
+
+	if len(Bearer[0]["bearer"]) != 0 {
+		t.Fatal("mutating one operation's security mutated the shared Bearer requirement")
+	}
+	if Public["public"] != true {
+		t.Fatal("mutating one operation's metadata mutated the shared Public marker")
+	}
+	if len(second.Security[0]["bearer"]) != 0 || second.Metadata["public"] != true {
+		t.Fatal("operations sharing Bearer/Public must receive independent maps")
+	}
+	if _, ok := second.Responses["401"].Content["application/problem+json"]; !ok {
+		t.Fatal("mutating one operation's 401 content mutated another operation")
+	}
+	if _, ok := first.Responses["503"].Content["application/problem+json"]; !ok {
+		t.Fatal("401 and 503 responses of one operation must not share a content map")
+	}
+}
+
 func TestPublicOperationDoesNotNeedVerifier(t *testing.T) {
 	mux := http.NewServeMux()
 	api := NewAPI(mux, "Probe", "1.0.0", nil)

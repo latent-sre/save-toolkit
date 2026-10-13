@@ -1,11 +1,16 @@
 ---
 name: backend-craft
 description: >-
-  Build complete backend tools and services, or change existing APIs, workers, schedulers,
-  webhook receivers, storage and upstream clients. Triggers: 'build a service for X', 'add an
-  endpoint', 'write a client for Y', 'build a worker'. Use frontend-craft for UI work and
-  database-reliability for live database operations.
-argument-hint: "[the tool, service or backend change]"
+  Build or change the team's backend services — HTTP APIs in FastAPI (Python) or Huma (Go),
+  workers, schedulers, webhook receivers, and clients for platform and vendor APIs — published
+  as an OpenAPI contract that UIs and automation generate clients from. Owns the house API
+  contract for new HTTP services (RFC 9457 problems with a request ID, cursor pages,
+  Idempotency-Key writes, /v1 paths) and its contract gates (committed document, drift and
+  house-rule tests, Schemathesis, oasdiff), and the service's operating surface on PCF,
+  Cloud Run, Linux hosts and Windows desktops. Triggers: 'add an endpoint', 'build an API or
+  service for', 'wrap X behind an API', 'write a client for Y'. Not for UI
+  work (frontend-craft) or live database operations (database-reliability).
+argument-hint: "[the API or service to build or change]"
 ---
 
 # Backend craft
@@ -20,7 +25,7 @@ before choosing a path.
 |---|---|
 | New HTTP service | FastAPI (Python) or Huma on `net/http` (Go), code-first, using the house contract below. Choose the language of neighbouring services unless the request settles it. |
 | Existing HTTP service | Keep its framework, generator, authentication, API contract, canonical specification format/location and equivalent checks, including for added routes, until the owner authorizes a migration. House defaults fill only undecided parts. |
-| Worker, scheduler, client or storage change | Follow its native entrypoint and repository conventions. Load the relevant references below; an HTTP server, OpenAPI document and house HTTP templates are needed only if the task exposes or changes an HTTP API. |
+| Worker, scheduler or upstream-client change | Follow its native entrypoint and repository conventions. Load the relevant references below; an HTTP server, OpenAPI document and house HTTP templates are needed only if the task exposes or changes an HTTP API. Live database operations belong to `database-reliability`. |
 
 For a new tool, settle only consequential forks the request and repository leave open: callers,
 runtime, language, datastore, and external effects. Present unresolved choices together with

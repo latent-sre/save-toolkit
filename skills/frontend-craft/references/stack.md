@@ -91,7 +91,7 @@ unmaintained `vaul`.
 |---|---|
 | Server state | **TanStack Query 5**, endpoint `queryOptions`; query layer owns retries |
 | Typed API | **openapi-typescript**, **openapi-fetch**, **openapi-react-query**; **@hey-api/openapi-ts** with its TanStack plugin for generated query options; see [API](./api.md) |
-| Routing | **TanStack Router** with `@tanstack/router-plugin` and Zod 4 search validation; React Router with `nuqs` is an alternative |
+| Routing | **TanStack Router** with `@tanstack/router-plugin` and Zod 4 search validation for a new app; an existing app keeps React Router (with `nuqs` for typed URL state), and a feature change never migrates one router to the other |
 | Tables | **TanStack Table 9** (`useTable`, explicit features) and **TanStack Virtual**; **AG Grid Community** (MIT) for spreadsheet editing; **Perspective** for large streaming grids |
 | Forms | **react-hook-form**, **@hookform/resolvers**, **Zod 4**, or **TanStack Form** with Standard Schema |
 | Dates | **date-fns 4** and **@date-fns/tz** |
