@@ -15,6 +15,31 @@ workspace agents and hide an installation defect. Enable one copy of Save Toolki
 The [official plugin guide](https://code.visualstudio.com/docs/agent-customization/agent-plugins)
 owns current installation syntax. Source declarations alone do not establish runtime enforcement.
 
+## Manifest format detection
+
+VS Code detects the format in this order: a root `plugin.json` declaring the Agent Plugins 1.0
+`$schema`; then `.claude-plugin/plugin.json` (Claude format); then `.plugin/plugin.json`; then a
+root `plugin.json` without a schema (Copilot selector format). A repository that ships
+`.claude-plugin/plugin.json` and a schema-less root manifest is therefore loaded as a Claude plugin:
+canonical agents and hooks, not the Copilot projection.
+
+| Format | Shape | Status |
+|---|---|---|
+| Agent Plugins 1.0 | Root `plugin.json` with `$schema: https://agent-plugins.org/schemas/1.0.0/plugin.schema.json` and metadata only (the schema forbids other top-level keys); skills from `skills/`, MCP from `mcp.json`, Copilot-specific agents, commands, rules and `hooks/hooks.json` under `com.github.copilot/`. **What this fleet ships** | Copilot CLI discovers `com.github.copilot/agents/` from v1.0.85 |
+| Copilot (selector) | Root `plugin.json` naming component paths — `agents`, `skills`, `hooks` | Supported, but outranked by `.claude-plugin/plugin.json` |
+
+`generate_platform_adapters.py` requires the 1.0 `$schema`, rejects any other top-level manifest
+key, writes the projected agents to `com.github.copilot/agents/`, projects canonical `commands/*.md`
+to `com.github.copilot/commands/`, and copies `hooks/copilot-hooks.json` to
+`com.github.copilot/hooks/hooks.json`. The plugin reads canonical `skills/`, so plugin skills keep
+their `save-toolkit:` names; the `.github/` copies are workspace customizations for this repository
+and keep the bare-name rewrite.
+
+The ADR command projection preserves its manual invocation metadata and selected-agent/write-scope
+preflight; it adds no tool grant or agent selection. Package parity does not prove that preflight
+or argument handling on an installed host; verify the installed ADR command from a neutral project
+with the cases below.
+
 ## Acceptance cases
 
 | Case | Exercise and evidence required |
@@ -123,6 +148,30 @@ and ordinary nonzero exits become warnings; timeouts need not block the tool. Th
 deny a bad guard response only after it starts. Treat this as a best-effort check, not a sandbox.
 The canary below is a repository acceptance check, not a VS Code product requirement, and grants
 no cloud access.
+
+### Hook contract
+
+| Event | Claude equivalent |
+|---|---|
+| `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact`, `Stop` | same names |
+| `SubagentStart`, `SubagentStop` | also supported by Claude; payload and scoping need host-specific checks |
+
+A hook entry declares `type: "command"` and at least one of `command`, `windows`, `linux`, or
+`osx`; an OS-specific command overrides the default. `timeout` (seconds, default 30), `cwd`, and
+`env` are optional. See the [hook reference](https://code.visualstudio.com/docs/agents/reference/hooks-reference).
+
+`PreToolUse` returns `hookSpecificOutput.permissionDecision` — `allow` \| `deny` \| `ask` — with
+`permissionDecisionReason`. Explicit `deny` and exit 2 block the call; exit 0 with invalid JSON
+provides no permission decision. The launcher translates the guard's 42/43/44 protocol into host
+JSON; those codes distinguish a responding guard from an ordinary interpreter failure, but do not
+authenticate an executable against a malicious PATH replacement. `--copilot` relies on attachment
+to the SRE agent, not Claude's `agent_type`; never register that mode globally.
+
+The installed agent-frontmatter parser does not perform plugin-hook `${CLAUDE_PLUGIN_ROOT}`
+substitution, which is why the export binds `SAVE_TOOLKIT_GUARD_DIR`. The Windows hook executor
+selects PowerShell, so that command uses `$env:` expansion; the POSIX command uses a quoted shell
+variable, and each launcher resolves the guard beside itself. `chat.useClaudeHooks` concerns Claude
+hook files, not this VS Code agent profile.
 
 ### Command preview canary
 

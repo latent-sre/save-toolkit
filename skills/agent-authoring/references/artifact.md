@@ -1,15 +1,8 @@
 # Artifact altitude — author and optimize one LLM-facing artifact
 
-For a repair, locate the layer that owns the failure first: routing metadata, instructions, context assembly,
-tool/output schema, orchestration, wrapper/model/runtime, or the evaluator. When the artifact owns
-it, edit it like code: reproduce, minimal fix, verify. New work starts from the requested behavior
-and success criteria, without an invented failure. `../SKILL.md`'s source-trust gate,
-untrusted-data rules, and method govern every step here; a clean-context subagent is not
-a sandbox.
-
-When the entrypoint's method calls for cases, use the existing overlapping scenarios for routing
-edits. For an accepted failure or new behavior, use one named regression unless a specific adjacent
-risk warrants another.
+For a repair, first locate the owning layer (the entrypoint's rule 2). When the artifact owns it,
+edit it like code: reproduce, minimal fix, verify. New work starts from the requested behavior
+and success criteria, without an invented failure.
 
 ## The bounds on the loop
 
@@ -27,30 +20,25 @@ Before the first iteration, write down every row:
 | Promotion authority | Human acceptance of the exact candidate PR revision; never the loop itself |
 | Durable evidence | The regression case, incumbent and winning revisions, per-case results, cost, and decision in the PR |
 
-Missing or inconclusive evidence is never success. Keep decision evidence, including failed or
-inconclusive results still needed by an unresolved decision or current regression, under
-CONTRIBUTING's retention rule. Discard disposable drafts when no current dependency remains.
+Keep decision evidence, including failed or inconclusive results still needed by an unresolved
+decision or current regression, under the fleet's retention rule (Save Toolkit `CONTRIBUTING.md`). Discard disposable drafts when
+no current dependency remains.
 
 ## Evidence, review, and promotion
 
 Freeze the scoring rule before a failure repair; compare incumbent and candidate on identical named
 inputs, model, timeout, trial count, threshold, and fresh-context boundary. Report the numerator and
-denominator, not one favorable transcript. A missing, inconclusive, or incomparable candidate cannot
-win; a tie or safety, authority, or existing-regression loss retains the incumbent. Repository-visible
-cases are calibration or regression, never hidden/held-out; a shadow result requires a human or
-protected evaluator outside this authoring checkout.
-
-Keep scratch candidates and transcripts ephemeral, and persist the regression, exact revisions,
-per-case results, cost, and decision in the PR. A new grader, validator, scenario, or script names
-the measured failure it prevents; unfinished work has one owner in the repository's authoritative
-tracker.
+denominator, not one favorable transcript. Repository-visible cases are calibration or regression,
+never hidden/held-out; a shadow result requires a human or protected evaluator outside this
+authoring checkout. A new grader, validator, scenario, or script names the measured failure it
+prevents.
 
 ## Learn from an encountered failure
 
 - An observation is evidence, not a contract: a human decides whether the behavior should be
   durable.
-- If it should: one named regression case with its scoring rule before any edit, then the bounded
-  loop above.
+- If it should: one named regression case, plus another only for a specific adjacent risk, with
+  its scoring rule frozen before any edit, then the bounded loop above.
 - Human acceptance of the exact candidate revision is promotion; the authoring agent never merges,
   deploys, or changes a live system through this loop.
 - Unfinished work goes in `docs/fleet-roadmap.md` with one owner (elsewhere, the owning repository's
@@ -58,16 +46,29 @@ tracker.
 - Independent review is conditional — a finding needing independent reconciliation, a
   security/authority rule, or exact-SHA production-deployment evidence — not a universal merge
   prerequisite. A bounded read-only canary only for a named host or runtime risk.
-- Omit explanations the model already knows; retain the team's choices, missing facts, and
-  decision-changing instructions. A tools-off knowledge answer does not establish task compliance.
-  Remove a behavioral instruction only when representative task evidence or an enforced replacement
-  supports the removal; known facts and reliable execution are different claims. A rule the model
-  reads and does not apply ships as a copied test or asset, not a stronger sentence.
 
-## Examples and thresholds
+## Writing the artifact
+
+Omit explanations the model already knows; retain the team's choices, missing facts, and
+decision-changing instructions. A tools-off knowledge answer does not establish task compliance.
+Remove a behavioral instruction only when representative task evidence or an enforced replacement
+supports the removal; known facts and reliable execution are different claims. A rule the model
+reads and does not apply ships as a copied test or asset, not a stronger sentence.
 
 Prefer a small, diverse set of canonical examples over an edge-case list, count chosen by
 evaluation. No vague qualifiers: state the threshold ("≤150 words, no preamble").
+
+## Tool contracts
+
+A tool's name, description, inputs, and output shape are the interface the model reasons over.
+
+- Namespace by domain (`cf_restart_app`, `splunk_search`) so intent is unambiguous; the
+  description carries the capability and when to call it.
+- Bound output with pagination, range selection, and filters, and make errors steer the next call.
+- Promote a shell command to a dedicated tool when the action needs gating, auditing, staleness
+  checks, or rendering; start with the shell for breadth.
+- Tool sprawl has no portable threshold: load coherent sets on demand or split authority across
+  lanes. Never hide unrelated contracts behind one giant `action` enum to reduce the count.
 
 ## Structural beats behavioral
 
@@ -78,19 +79,8 @@ schema or the output is intentionally free-form.
 
 ## In this fleet
 
-- For skills, `name` matches the directory and uses `[a-z0-9-]`; descriptions are ≤1,024 characters
-  with 2–4 quoted trigger phrasings. Canonical validation enforces both. Agent metadata follows the
-  [agent frontmatter rules](./claude-code-frontmatter.md#agents).
 - Add an eval scenario only for a gradeable outcome — a gate blocks, routing lands, a refusal
   happens. No tautological prose evals.
 - Measure the boundary that changed: activation/routing, artifact behavior, tool choice and
   arguments, handoff/path, and final outcome are separate results. A harness denied a linked
   reference proves activation, not reference-dependent behavior.
-- House style: scope-bearing descriptions, [verified]/[sourced]/[unverified] labels, explicit
-  [UNTRUSTED] input, conclusion first, blameless language.
-
-## Handoffs
-
-`../SKILL.md`'s handoff and production-gate rules apply unchanged: an agent prepares a change but
-never manufactures or infers approval. A lane or orchestration problem goes to
-[roster guidance](./roster.md).

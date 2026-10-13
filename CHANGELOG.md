@@ -8,6 +8,62 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `agent-authoring` drops content that its owning references or code already carry. The
+  entrypoint's platform-traps table keeps only the two agent-frontmatter rows; repeated
+  loop-termination and handoff prose, retired-root and Codex history, and every date, probe-version
+  tag, and citation are gone from the skill. Copilot hook entry shape, launcher behavior, and
+  manifest format detection move to `docs/vscode-plugin-acceptance.md`, which already owned the
+  rest of that host contract. The `tools.md` reference is retired; its one platform fact, Claude
+  Code's MCP output limits, is now a platform-traps row in `SKILL.md`, updated with the
+  50,000-character persist threshold and the per-tool `anthropic/maxResultSizeChars` override.
+  The artifact reference drops restatements of the entrypoint, frontmatter reference, and fleet
+  conventions, and moves its writing-economy rule into a "Writing the artifact" section. The
+  agent-engineer learning-loop scenario's correct approval choice is renamed
+  `human_owner_exact_candidate_revision`, matching the human-owner promotion rule instead of the
+  retired non-author framing; no live eval has been re-run against the renamed choice.
+  The roster reference is retired: agent bodies already carry the handoff return core and their own
+  verifiers, and AGENTS.md the roster and learning rules. Its coordination method, lane-verifier
+  rule, and wrapper-layer failures move into `SKILL.md` rules 3 and 5; the subagent model
+  resolution order joins the frontmatter reference's `model` row. The context reference becomes
+  "Context and handoffs": its restatements of the entrypoint and fleet conventions are cut, and the
+  caller receipt rules the roster retirement had dropped — failed or partial returns leave dependent
+  work incomplete, UNKNOWN effects are reconciled before retry — are restored there.
+  The delegation-graph reference is retired: the edge-change procedure moves to CONTRIBUTING,
+  host enforcement limits and handoff semantics to the two frontmatter references, and its
+  role table, a restatement of the `AGENTS.md` roster, is dropped.
+  The agent-security reference now states the MCP rule as the current specification does (a server
+  must not accept, or forward, a token not issued to it) and that a Bash deny rule matches command
+  text, so only sandbox network isolation or host controls enforce egress; two restatements of
+  the label and handoff rules are cut.
+  A rescan against current Claude Code, VS Code and GitHub docs and the repository's own
+  validators corrects seven claims: an empty or unresolvable `tools` list now fails to launch
+  rather than producing a zero-tool agent; skill `allowed-tools` grants last only the invoking
+  turn; a Bash deny rule silently disables PowerShell on Windows with Git Bash; agent frontmatter also
+  admits `model`; VS Code `disallowedTools` is agent-only; generated adapters carry no host
+  preface; and the array form of Copilot `model` is VS Code-only. Skill portability drops its
+  Contents list and duplicated portable-field table.
+  The skill now reads as general authoring method that knows this fleet: per-lane Copilot
+  projection choices, the SRE body budget, and adapter behavior move to the new
+  `docs/copilot-projection.md`; read-only guard scoping moves to CONTRIBUTING; and references to
+  this repository's files name the Save Toolkit repository, so they read correctly once the
+  plugin is installed elsewhere.
+- `agent-engineer` no longer claims a generic portable workflow/state-graph design tier, whose method
+  exists only in the unshipped `sandbox/workflow-graph-engineering` skill; it keeps the fleet's own
+  agent workflow graph, the measured routing in `discovery-principal-engineer-defers-agent-workflow`,
+  and a team service's workflow graph routes to `principal-engineer`. GRAPH-007 tracks promoting or
+  retiring the sandbox skill. Its body drops restatements of `agent-authoring`, merges duplicate
+  handoff and trust lines, and aligns its roster-change rule with the skill's rule 3.
+- After independent review of the branch: `agent-authoring`'s artifact reference regains a compact
+  "Tool contracts" section (domain namespacing, bounded output with steering errors, gated tool
+  promotion, no catch-all `action` enum) with a routing row; the entrypoint's dispatch line names
+  only the fleet's agent workflow graph; and the frontmatter references restore host bounds in
+  plain words, Anthropic's reserved-word rule for skill names, and that generated Copilot adapters
+  carry no `model`.
+  From PR review: `agent-engineer` keeps its executable-graph contract checklist for the fleet's
+  own agent workflow graph, and the MCP output row scopes the 50,000-character file handoff to
+  successful foreground calls, with backgrounded calls reporting through task notifications.
+  A paired routing scenario, `discovery-principal-engineer-service-workflow-graph`, covers the new
+  boundary: a team service's workflow graph reaches `principal-engineer`. It has not been run live.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a

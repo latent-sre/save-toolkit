@@ -325,6 +325,18 @@ offline test results do not establish human acceptance or live operational truth
 **Evidence:** [Design recovery and compatibility contract](reviews/2026-09-30-backlog-four/graph-004.md).
 **SRE task:** Trust atlas citations, ownership, freshness and missing-result distinctions while navigating guidance.
 
+### GRAPH-007 — promote or retire the sandbox workflow-graph skill
+
+**Status:** `decision-needed` (2026-10-13).
+**Owner:** Save Toolkit maintainers; `agent-engineer` owns the skill text if promoted.
+**Outcome:** Portable executable workflow/state-graph design either ships as a reviewed, routed
+skill or is retired. Until then `agent-engineer` claims only the fleet's own agent workflow graph,
+and a team service's workflow graph routes to `principal-engineer`.
+**Next action:** Decide whether `sandbox/workflow-graph-engineering/SKILL.md` earns promotion into
+`skills/`, with routing scenarios and a listing-size check, given ROUTE-003's inconclusive
+workflow-graph discovery measurements; otherwise remove it.
+**SRE task:** Get a design for a durable workflow graph from the lane that can actually back it.
+
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
 **Status:** `active` (2026-10-06); WP-00 is complete: the owner accepted specification revision 0.6
@@ -604,9 +616,11 @@ target, argv/executable digest, expiry, rollback — instead of an open-ended ex
 **Owner:** Save Toolkit maintainers.
 **Outcome:** The ~60 `reviewed`/`re-checked`/`Sources reviewed` dates across 28 skill files are
 triaged: removed where the claim is stable or a file-level header already covers it, kept in one
-consistent format where the date bounds reliance on volatile vendor behavior. No inline
-`doc-checked` stamps remain anywhere (the two in `agent-authoring` were removed 2026-09-19).
-**Next action:** None until an owner confirms scope — all stamps, or volatile-vendor claims only.
+consistent format where the date bounds reliance on volatile vendor behavior. `agent-authoring`
+is done: the owner chose to strip every date, probe-version tag, and citation from its `SKILL.md`
+and references.
+**Next action:** None until an owner confirms scope for the other skills — all stamps, or
+volatile-vendor claims only.
 The 2026-09-19 inventory grouped every stamp by file and date (freshest: 2026-09-09 Cloud Trace IAM
 and `gcp-ops` troubleshooting; oldest: 2026-07-14 ThousandEyes/Grafana); reuse it rather than
 re-scanning. Reopens as a single cleanup slice with adapter regeneration and Gate A.

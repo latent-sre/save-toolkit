@@ -27,6 +27,30 @@ interpreter; activate that environment or use its full executable path. A bare `
 can select a different version on Windows; avoid the Store stub.
 `rg` hides generated projections through [`.ignore`](.ignore); pass `--no-ignore` to inspect them.
 
+### Changing a delegation or handoff edge
+
+A model-call edge `A → B` is the `Agent(save-toolkit:B)` grant in `agents/A.md`. Its one source is
+that grant, pinned by `EXPECTED_DELEGATION` in `scripts/validate_fleet.py` and rendered as the
+"Delegates to" column of the `AGENTS.md` roster; never re-tabulate edges elsewhere. Change all
+three in one commit, regenerate, then run Gate A: the source check, the roster render check, and
+the byte-for-byte adapter gate (Copilot `agents:`) must all pass.
+
+A VS Code handoff edge is separate and never alters an `Agent(...)` grant. Edit
+`COPILOT_HANDOFFS_BY_SOURCE` in `scripts/generate_platform_adapters.py`, update the exact
+source-target and authority assertions in `scripts/test_platform_adapters.py`, regenerate, and run
+those tests and Gate A. Keep `researcher` call-only and every handoff `send: true`.
+
+### Read-only guard scoping
+
+Hook matchers can express an agent-scoped hook; the read-only guard deliberately does not use one.
+A matcher can silently stop matching after an upstream rename. The guard instead runs on every
+Bash or PowerShell call and scopes itself in Python. PowerShell uses a separate literal-command
+grammar and native launcher; it is not parsed as arbitrary POSIX shell code. Its canaries deny a
+guarded name under a changed plugin namespace, or a recognized guarded identity in another
+top-level key containing `agent` when `agent_type` is absent. A renamed key such as `role` is not
+detected. Re-probe the live PreToolUse payload after host upgrades; offline tests cover known
+shapes, not every upstream rename.
+
 Python 3.12 is the minimum supported version for all repository Python, including installed
 hooks and bundled skill scripts. The structural CI job runs on the latest 3.12 patch.
 Development and component-test CI track the latest Python 3.14 patch; `.python-version` selects

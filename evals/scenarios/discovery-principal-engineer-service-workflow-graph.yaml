@@ -1,0 +1,15 @@
+id: discovery-principal-engineer-service-workflow-graph
+max_turns: 3
+split: regression
+# Pairs with discovery-principal-engineer-defers-agent-workflow: the same graph vocabulary for a team
+# service, not the fleet's own agents, belongs to the design lane. Read the trace for which agent fired
+# before attributing a red.
+prompt: |
+  Our payment reconciliation service needs a durable workflow: typed state, retries with idempotent
+  effects, checkpoints, approvals before a ledger write, cancellation, joins, and termination. Write
+  the architecture as a design before anyone builds it or picks an engine.
+target: {kind: agent, name: principal-engineer}
+routing: {expect: fire}
+tools: [Glob, Grep, Read, Skill, Task]
+success_criteria:
+  - Dispatches the team service's workflow-graph design to the design lane rather than agent-engineer, building it, or answering inline.

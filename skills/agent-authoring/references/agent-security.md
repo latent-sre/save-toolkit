@@ -8,7 +8,7 @@ agent frontmatter and the guard's tests, not against this file.
 
 An LLM cannot reliably separate trusted instructions from untrusted data; both arrive as one token
 stream, so any text an agent reads can try to become a command. This is architectural. You contain
-it; you do not patch it. *[sourced: Simon Willison, "The lethal trifecta for AI agents"]*
+it; you do not patch it.
 
 ## Contents
 
@@ -38,7 +38,7 @@ a control. Cut a leg structurally, in descending robustness:
 4. **Rule of Two, as the last resort**: an agent running without a human in the loop holds at most
    two of the three; wanting all three means a human approves the sensitive step, validating the
    concrete action, content, destination, and rollback while treating model output and
-   attacker-influenced evidence as [UNTRUSTED]. *[sourced: Meta, "Agents Rule of Two"]*
+   attacker-influenced evidence as [UNTRUSTED].
 
 Breaking one leg interrupts the high-impact chain; it does not eliminate injection or lower-impact
 harm, so defense in depth stays required.
@@ -55,14 +55,12 @@ harm, so defense in depth stays required.
   are far harder to smuggle through a schema than through prose.
 - **Delegation is not isolation.** Handing an untrusted checkout to a more capable agent moves the
   execution risk; running its tests, build hooks, or package scripts executes attacker-controlled
-  code. This repository provides no credential-free untrusted-code runner; use independently
+  code. The Save Toolkit fleet provides no credential-free untrusted-code runner; use independently
   established isolated CI or label the result `[unverified]`.
 - **Validate at the action boundary.** Check identity, input, target, approval, and source state
   where the effect happens, and fail closed on absence, ambiguity, or mismatch. A mutable path is
   not an exemption boundary: a checkout can replace the file at an allowed path, so privileged
   admission binds reviewed bytes by content hash.
-- Preserve `[verified]`, `[sourced]`, and `[unverified]` through summaries; repetition never
-  upgrades evidence.
 
 For a suspected active production compromise, stop ordinary remediation, preserve state and
 forensic evidence, and route coordination to the human security incident owner.
@@ -82,14 +80,13 @@ forensic evidence, and route coordination to the human security incident owner.
   than strip: [legitimate text](https://www.unicode.org/reports/tr51/#Emoji_Sequences) and attack
   evidence depend on these characters, and the original keeps them.
   Envelopes, escaping, and injection matchers do not establish trust.
-- **Know what each Claude Code layer does.** Denying `WebFetch` does not stop access through Bash;
-  only OS-level sandboxing enforces a network allowlist. The fleet's enforcement order, tool absence
-  then the hook allowlist then host network controls, is this principle applied. *[sourced: Claude
-  Code security and admin-setup docs; reviewed 2026-08-21]*
+- **Know what each Claude Code layer does.** Denying `WebFetch` does not stop access through Bash,
+  and a Bash deny rule matches the command text, not the network call; only sandbox network
+  isolation or host network controls enforce an egress allowlist. The fleet's enforcement order, tool absence
+  then the hook allowlist then host network controls, is this principle applied.
 - **An MCP server is a dependency with your privileges.** A `stdio` server runs as the client;
-  review its launch command like `curl | sh`. A remote server must never forward a token it was not
-  issued, its OAuth metadata URL is an SSRF vector, and scopes start minimal. *[sourced: MCP
-  specification 2025-11-25; reviewed 2026-08-21]*
+  review its launch command like `curl | sh`. A remote server must not accept, or forward, a token not
+  issued to it; its OAuth metadata URL is an SSRF vector, and scopes start minimal.
 
 ## The review, in five questions
 
@@ -107,5 +104,4 @@ Any question without a concrete answer is the finding.
 Name the legs held, the injection surface, the containment (which leg is cut, by what control), and
 the residual risk that needs a human gate. For each finding give evidence, affected boundary, blast
 radius, smallest safe remediation, verification method, and any runtime claim you could not verify
-against frontmatter or the guard's tests. Handoffs follow the skill body: independent findings to
-`reviewer`, approved fixes to `software-engineer`, authorization to the human owner.
+against frontmatter or the guard's tests.
