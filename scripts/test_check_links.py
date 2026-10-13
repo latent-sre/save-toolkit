@@ -291,6 +291,86 @@ class LinkCheckerTests(Fixture):
         self.skill("# Probe\n\nRead [missing](./references/missing.md).\n")
         self.assertTrue(any("dead link" in item for item in check_links.check(self.root)))
 
+    def test_dead_anchor_in_a_skill_reference_is_rejected(self):
+        """A file link that resolves can still land nowhere: a renamed heading left
+        `notes.md#old-heading` green until fragments were checked."""
+        self.skill("# Probe\n\nRead [notes](./references/notes.md#old-heading).\n")
+        self.write("skills/probe-skill/references/notes.md", "# Notes\n\n## New heading\n")
+        failures = check_links.check(self.root)
+        self.assertTrue(any("dead anchor" in item and "notes.md#old-heading" in item for item in failures))
+
+    def test_anchors_resolve_with_github_heading_slugs(self):
+        self.write(
+            "docs/target.md",
+            "# Target\n\n## Changing a delegation, or `handoff` edge!\n\n## Repeat\n\n## Repeat\n\n"
+            '<a id="explicit-anchor"></a>\n\n```\n## Fenced heading\n```\n',
+        )
+        self.write(
+            "docs/source.md",
+            "# Source\n\n## Local\n\n"
+            "[a](target.md#changing-a-delegation-or-handoff-edge) [b](target.md#repeat-1) "
+            "[c](target.md#explicit-anchor) [d](#local) [e](../scripts/tool.py#L10)\n",
+        )
+        self.write("scripts/tool.py", "print('x')\n")
+        self.assertEqual([], [item for item in check_links.check(self.root) if "anchor" in item])
+
+    def test_anchors_follow_gfm_heading_forms_entities_and_collisions(self):
+        """Setext and indented ATX headings render anchors; entities decode before slugging; a
+        repeated slug skips any suffix an earlier heading already took (foo, foo-1, foo -> foo-2)."""
+        self.write(
+            "docs/target.md",
+            "---\nname: frontmatter-line\n---\n# Target\n\nRelease notes\n-------------\n\n"
+            "   ## Indented heading\n\n## Q&amp;A\n\n## foo\n\n## foo-1\n\n## foo\n",
+        )
+        self.write(
+            "docs/source.md",
+            "# Source\n\n[a](target.md#release-notes) [b](target.md#indented-heading) "
+            "[c](target.md#qa) [d](target.md#foo-2)\n",
+        )
+        self.assertEqual([], [item for item in check_links.check(self.root) if "anchor" in item])
+
+    def test_unrendered_and_miscased_anchors_are_rejected(self):
+        self.write(
+            "docs/target.md",
+            "# Target\n\nExample: `<a id=\"ghost\"></a>`\n\n<!-- <a id=\"hidden\"></a> -->\n\n"
+            "## Release notes\n",
+        )
+        self.write(
+            "docs/source.md",
+            "# Source\n\n[a](target.md#ghost) [b](target.md#hidden) [c](target.md#Release-notes)\n",
+        )
+        failures = [item for item in check_links.check(self.root) if "dead anchor" in item]
+        self.assertEqual(
+            [
+                "docs/source.md: dead anchor 'target.md#ghost'",
+                "docs/source.md: dead anchor 'target.md#hidden'",
+                "docs/source.md: dead anchor 'target.md#Release-notes'",
+            ],
+            failures,
+        )
+
+    def test_an_unreadable_anchor_target_is_reported(self):
+        (self.root / "docs").mkdir(parents=True, exist_ok=True)
+        (self.root / "docs" / "target.md").write_bytes(b"# T\xff\xfe\n")
+        self.write("docs/source.md", "# Source\n\n[a](target.md#t)\n")
+        failures = check_links.check(self.root)
+        self.assertTrue(any("cannot read anchor target" in item for item in failures), failures)
+
+    def test_dead_anchors_in_a_live_document_are_rejected(self):
+        self.write("docs/target.md", "# Target\n\n```\n## Fenced heading\n```\n")
+        self.write(
+            "docs/source.md",
+            "# Source\n\n[a](target.md#fenced-heading) [b](#nowhere)\n",
+        )
+        failures = [item for item in check_links.check(self.root) if "dead anchor" in item]
+        self.assertEqual(
+            [
+                "docs/source.md: dead anchor 'target.md#fenced-heading'",
+                "docs/source.md: dead anchor '#nowhere'",
+            ],
+            failures,
+        )
+
     def test_a_review_packet_citing_a_deleted_packet_is_a_dead_link(self):
         """Retained evidence cites retained evidence: a retention pass that keeps the citing packet
         and deletes the cited one leaves an active item's chain ending nowhere, and did so behind a

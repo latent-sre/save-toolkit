@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import html
 import os
 import re
 import subprocess
@@ -114,9 +115,13 @@ def _check_live_doc_links(root: Path) -> list[str]:
         except (OSError, UnicodeError) as exc:
             failures.append(f"{path.as_posix()}: cannot read UTF-8: {exc}")
             continue
+        where = path.relative_to(root).as_posix()
         for _, raw in _links(text):
             target = _relative_target(raw)
             if target is None:
+                anchor_failure = _anchor_failure(path, raw, where)
+                if anchor_failure:
+                    failures.append(anchor_failure)
                 continue
             resolved = (path.parent / target).resolve()
             # Containment before existence. With enough `..` components a link resolves outside the
@@ -133,6 +138,10 @@ def _check_live_doc_links(root: Path) -> list[str]:
                 failures.append(
                     f"{path.relative_to(root).as_posix()}: dead link {target!r}"
                 )
+            else:
+                anchor_failure = _anchor_failure(path, raw, where)
+                if anchor_failure:
+                    failures.append(anchor_failure)
     return failures
 
 
@@ -361,6 +370,77 @@ def _relative_target(raw: str) -> str | None:
     return target.split("#", 1)[0].split("?", 1)[0]
 
 
+ANCHOR_HEADING_RE = re.compile(r"^ {0,3}#{1,6}[ \t]+(.+?)[ \t]*#*[ \t]*$")
+SETEXT_UNDERLINE_RE = re.compile(r"^ {0,3}(?:=+|-+)[ \t]*$")
+HTML_ANCHOR_RE = re.compile(r"""<a\s[^>]*\b(?:id|name)=["']([^"']+)["']""", re.IGNORECASE)
+FRONTMATTER_RE = re.compile(r"\A---[ \t]*\n.*?\n---[ \t]*\n", re.DOTALL)
+
+
+def _heading_slug(text: str) -> str:
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = html.unescape(re.sub(r"<[^>]+>", "", text))
+    return re.sub(r"[^\w\- ]", "", text.lower()).replace(" ", "-")
+
+
+def _heading_anchors(path: Path) -> set[str]:
+    """The fragments GitHub renders for a Markdown file: a slug per ATX or setext heading outside
+    frontmatter, fences and HTML comments (entities decoded, lowercased, punctuation dropped, spaces
+    to hyphens, a repeat taking the next unused -1, -2 suffix), plus explicit `<a id>`/`<a name>`
+    targets outside inline code."""
+    text = FRONTMATTER_RE.sub("", path.read_text(encoding="utf-8"))
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+    anchors: set[str] = set()
+    slugs: set[str] = set()
+    previous = ""
+    for line in _strip_fences(text).splitlines():
+        anchors.update(HTML_ANCHOR_RE.findall(re.sub(r"`[^`]*`", "", line)))
+        match = ANCHOR_HEADING_RE.match(line)
+        heading = match.group(1) if match else None
+        if (
+            heading is None
+            and SETEXT_UNDERLINE_RE.match(line)
+            and previous.strip()
+            and not re.match(r"^ {0,3}(?:[-*+>#|]|\d+[.)])", previous)
+        ):
+            heading = previous.strip()
+        previous = "" if heading else line
+        if heading is None:
+            continue
+        base = candidate = _heading_slug(heading)
+        suffix = 0
+        while candidate in slugs:
+            suffix += 1
+            candidate = f"{base}-{suffix}"
+        slugs.add(candidate)
+    return anchors | slugs
+
+
+def _anchor_failure(source: Path, raw: str, where: str) -> str | None:
+    """A fragment that names no heading in its Markdown target.
+
+    A renamed heading leaves every `file.md#old-heading` link resolving to the right file and
+    landing nowhere, which the file-existence checks cannot see. Only Markdown targets that exist
+    are checked: a missing file is already a dead link, and other file types have no headings.
+    Fragments match exactly, as HTML resolves them; an unreadable target is reported, not assumed."""
+    target = unquote(_target(raw))
+    if "#" not in target or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", target):
+        return None
+    page, fragment = target.split("#", 1)
+    page = page.split("?", 1)[0]
+    if not fragment or page.startswith(("/", "\\")):
+        return None
+    destination = source.parent / page if page else source
+    if destination.suffix.lower() != ".md" or not destination.is_file():
+        return None
+    try:
+        anchors = _heading_anchors(destination)
+    except (OSError, UnicodeError) as exc:
+        return f"{where}: cannot read anchor target '{target}': {exc}"
+    if unquote(fragment) in anchors:
+        return None
+    return f"{where}: dead anchor '{target}'"
+
+
 def _check_self_skill_pointer(path: Path, text: str, skill_root: Path) -> list[str]:
     """Reject a file naming its own bundle -- SKILL.md, scripts/, references/, assets/ -- by
     repo-rooted path.
@@ -402,6 +482,9 @@ def _check_markdown(path: Path, text: str, owned_root: Path) -> list[str]:
     for _label, raw_target in _links(visible):
         relative = _relative_target(raw_target)
         if relative is None:
+            anchor_failure = _anchor_failure(path, raw_target, path.as_posix())
+            if anchor_failure:
+                failures.append(anchor_failure)
             continue
         destination = path.parent / relative
         lexical_destination = Path(os.path.abspath(destination))
@@ -416,6 +499,10 @@ def _check_markdown(path: Path, text: str, owned_root: Path) -> list[str]:
             failures.append(
                 f"{path.as_posix()}: dead link '{relative}'"
             )
+            continue
+        anchor_failure = _anchor_failure(path, raw_target, path.as_posix())
+        if anchor_failure:
+            failures.append(anchor_failure)
     return failures
 
 
@@ -546,7 +633,8 @@ def check(root: Path = ROOT) -> list[str]:
     #
     # Historical documents are in scope on purpose: a superseded plan is still read, and this repo
     # has already shipped a review pointing at a file the same round deleted. What is NOT in scope
-    # is anchor-only and cross-repo links, which `_check_markdown` already ignores.
+    # is cross-repo links, which `_check_markdown` already ignores. Fragments into a Markdown file,
+    # same-file anchors included, must name a heading there.
     failures.extend(_check_live_doc_links(root))
     failures.extend(_check_uncited_review_packets(root))
     command_root = root / "commands"
