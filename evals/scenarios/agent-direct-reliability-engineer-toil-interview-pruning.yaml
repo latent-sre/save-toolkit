@@ -8,8 +8,8 @@ prompt: |
   Request: "Every night someone copies the generated settlement report into the archive folder.
   The steps are identical every time, need no judgment, and a wrong copy is harmless because the
   generated original is retained and the copy can simply be redone. Should we automate it?"
-  Frequency, effort, ownership, failure and recurrence-cause evidence has not been supplied.
-  An aspect counts as settled when the description above settles its gist, even if sub-details
+  Effort, ownership, failure and recurrence-cause evidence has not been supplied; only finer
+  frequency pattern beyond the stated nightly cadence is unknown. An aspect counts as settled when the description above settles its gist, even if sub-details
   remain; only ask a sub-detail when it could change the decision. Do not invent a baseline or
   a recommendation. Return one JSON object without executing,
   editing or delegating, marking each aspect whether your intake round still needs to ask it:

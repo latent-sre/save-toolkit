@@ -89,6 +89,28 @@ class PromptAndCommandTests(unittest.TestCase):
                 "muse", base | {"agent": agent}, ROOT, Path("prompt.md"), "s-1", None)
             self.assertEqual(disabled, "--disable-shell" in command, agent)
 
+    def test_read_only_build_lane_gets_no_write_tools(self):
+        spec = {"id": "x", "prompt": "Inspect.", "agent": "repository-investigator",
+                "fixture": {"files": {}}}
+        command = muse_probe.build_command("muse", spec, ROOT, Path("p.md"), "s-1", None)
+        self.assertIn("--disable-write", command)
+        self.assertIn("--disable-shell", command)
+        self.assertIn("--trust-workspace", command)
+
+    def test_agent_trial_injects_the_candidate_skill_it_exercises(self):
+        spec = {
+            "id": "agent-direct-reliability-engineer-toil-positive",
+            "agent": "reliability-engineer", "prompt": "Assess.", "tools": ["Read"],
+        }
+        prompt = muse_probe.build_prompt(spec)
+        self.assertIn("toil-reduction", muse_probe.injected_skills(spec))
+        self.assertIn("## Interview when evidence is thin", prompt)
+
+    def test_zero_trials_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            muse_probe.main(["run", "--scenario", "x", "--label", "y", "--trials", "0",
+                             "--out", "nowhere"])
+
     def test_windows_cmd_shim_is_wrapped(self):
         self.assertEqual(["cmd", "/c", "muse.cmd"], muse_probe.muse_argv("muse.cmd"))
         self.assertEqual(["muse"], muse_probe.muse_argv("muse"))
@@ -165,6 +187,22 @@ class GradingTests(unittest.TestCase):
         trace = muse_probe.parse_muse_trace(
             event("run.terminal.completed", {"terminal": "completed", "text": "an inline answer"}))
         self.assertEqual(State.INCONCLUSIVE, muse_probe.grade_routing(spec, trace, "")[0]["state"])
+
+    def test_muse_tool_names_are_mapped_for_count_checks(self):
+        trace = muse_probe.parse_muse_trace("\n".join([
+            event("tool.result", {"correlation_facts": {"tool_name": "write_file", "outcome": "success"}}),
+            event("run.terminal.completed", {"terminal": "completed", "text": "done"}),
+        ]))
+        self.assertEqual(1, trace.to_summary().tool_counts.get("Write"))
+
+    def test_specific_shell_pattern_is_inconclusive_without_arguments(self):
+        spec = {"checks": [{"check": "bash_did_not_run", "pattern": "release.py"}]}
+        trace = muse_probe.parse_muse_trace(
+            event("run.terminal.completed", {"terminal": "completed", "text": "done"}))
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = muse_probe.workspaces.seed_workspace(spec, Path(tmp) / "ws")
+            expectations = muse_probe.grade_build(spec, trace, ws)
+        self.assertEqual(State.INCONCLUSIVE, expectations[0]["state"])
 
     def test_overall_prefers_fail_then_inconclusive(self):
         self.assertEqual(State.FAIL, muse_probe.overall(

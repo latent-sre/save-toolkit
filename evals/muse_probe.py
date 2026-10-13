@@ -25,6 +25,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -104,7 +105,22 @@ class MuseTrace:
             if "subagent" in name.lower() or name.lower() in {"agent", "task"}
         )
 
+    # Muse tool name -> the Claude name count checks look up. A Muse count
+    # recorded under its own name would read as zero to a `tool_call_count`
+    # check naming the Claude tool, silently passing a max-zero prohibition.
+    TOOL_NAME_MAP = {
+        "read_file": "Read", "read": "Read", "search": "Grep",
+        "write_file": "Write", "edit_file": "Edit", "edit": "Edit",
+        "powershell": "PowerShell", "bash": "Bash", "web_search": "WebSearch",
+        "web_fetch": "WebFetch",
+    }
+
     def to_summary(self) -> TraceSummary:
+        counts = dict(self.tool_counts)
+        for name, count in self.tool_counts.items():
+            mapped = self.TOOL_NAME_MAP.get(name.lower())
+            if mapped and mapped != name:
+                counts[mapped] = counts.get(mapped, 0) + count
         shell = [
             f"<muse shell tool: {name}>" for name, count in self.tool_counts.items()
             if any(word in name.lower() for word in ("powershell", "bash", "shell"))
@@ -112,7 +128,7 @@ class MuseTrace:
         ]
         return TraceSummary(
             result_text=self.result_text,
-            tool_counts=dict(self.tool_counts),
+            tool_counts=counts,
             tool_counts_complete=self.completed,
             models=[self.model_id] if self.model_id else [],
             has_result=self.completed,
@@ -181,7 +197,7 @@ def _sessions_root() -> Path:
     return Path(data) / "muse" / "sessions"
 
 
-def augment_from_session_log(trace: MuseTrace) -> MuseTrace:
+def augment_from_session_log(trace: MuseTrace, extra_root: Path | None = None) -> MuseTrace:
     """Corroborate dispatch targets from Muse's retained session log.
 
     Only a single log line that itself carries a subagent spawn and its own
@@ -195,12 +211,13 @@ def augment_from_session_log(trace: MuseTrace) -> MuseTrace:
     """
     if not trace.session_id:
         return trace
-    root = _sessions_root()
-    if not root.is_dir():
-        return trace
-    candidates = sorted(root.glob(f"**/{trace.session_id}/session.jsonl"))
+    candidates: list[Path] = []
+    for root in (_sessions_root(), extra_root):
+        if root is not None and root.is_dir():
+            candidates.extend(root.glob(f"**/{trace.session_id}/session.jsonl"))
     if not candidates:
         return trace
+    candidates.sort()
     try:
         text = candidates[0].read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -230,27 +247,73 @@ def _canonical_body(spec: dict[str, Any]) -> tuple[str, str] | None:
     return None
 
 
-def build_prompt(spec: dict[str, Any]) -> str:
-    """The prompt as sent on Muse: canonical pin injected, then the scenario prompt."""
-    prompt = catalog.scenario_prompt(spec, ROOT)
-    pinned = _canonical_body(spec)
-    if pinned is None:
-        return prompt
-    label, body = pinned
-    return (
-        f"You are acting as the {label} defined below. Follow it as your role definition. "
-        "It was written for another host: where it names host tools you do not have, use your "
-        "closest equivalent, and never claim a tool ran that did not.\n\n"
-        f"<canonical-definition>\n{body}\n</canonical-definition>\n\nTask:\n{prompt}"
+def _scenario_skills(spec: dict[str, Any]) -> list[str]:
+    """Fleet skills an agent-pinned scenario exercises, by id-token match.
+
+    The shared catalog forbids pinning both `agent` and `skill`, and the
+    temp workspace contains no fleet skills, so without this the candidate
+    skill a scenario exists to measure never enters the trial. A skill is
+    injected only when the pinned agent's own definition names it and the
+    scenario id carries its leading token (``toil`` -> ``toil-reduction``);
+    the record lists what was injected so the evidence stays auditable.
+    """
+    agent = spec.get("agent")
+    if not isinstance(agent, str) or not agent:
+        return []
+    path = ROOT / "agents" / f"{agent}.md"
+    if not path.is_file():
+        return []
+    body = path.read_text(encoding="utf-8")
+    tokens = set(str(spec.get("id", "")).split("-"))
+    return sorted(
+        name for name in _fleet_skill_names()
+        if name in body and name.split("-")[0] in tokens
     )
 
 
-def _agent_shell_allowed(spec: dict[str, Any]) -> bool:
-    """Whether the pinned canonical agent itself holds a shell grant.
+def injected_skills(spec: dict[str, Any]) -> list[str]:
+    names = [str(spec["skill"])] if spec.get("skill") else []
+    return names + [n for n in _scenario_skills(spec) if n not in names]
 
-    Prompt injection must not widen a lane: a build trial for an agent whose
-    definition has no Bash/PowerShell runs with Muse's shell disabled, just
-    as the Claude runner's `--agent` would restrict it.
+
+def build_prompt(spec: dict[str, Any], workspace: Path | None = None) -> str:
+    """The prompt as sent on Muse: canonical pin injected, then the scenario prompt."""
+    prompt = catalog.scenario_prompt(spec, ROOT)
+    if workspace is not None:
+        for reference in spec.get("references") or []:
+            staged = (workspace / str(reference)).resolve().as_posix()
+            prompt = prompt.replace((ROOT / str(reference)).resolve().as_posix(), staged)
+    pinned = _canonical_body(spec)
+    parts: list[str] = []
+    if pinned is not None:
+        label, body = pinned
+        parts.append(
+            f"You are acting as the {label} defined below. Follow it as your role definition. "
+            "It was written for another host: where it names host tools you do not have, use your "
+            "closest equivalent, and never claim a tool ran that did not.\n\n"
+            f"<canonical-definition>\n{body}\n</canonical-definition>"
+        )
+    for name in _scenario_skills(spec):
+        skill_path = ROOT / "skills" / name / "SKILL.md"
+        parts.append(
+            f"The method for this task is the `{name}` skill, reproduced exactly below.\n\n"
+            f"<skill-definition name=\"{name}\">\n{skill_path.read_text(encoding='utf-8')}\n</skill-definition>"
+        )
+        for reference in sorted((ROOT / "skills" / name / "references").glob("*.md")):
+            parts.append(
+                f"<skill-reference skill=\"{name}\" name=\"{reference.name}\">\n"
+                f"{reference.read_text(encoding='utf-8')}\n</skill-reference>"
+            )
+    parts.append(f"Task:\n{prompt}")
+    return "\n\n".join(parts)
+
+
+def _agent_has(spec: dict[str, Any], *tools: str) -> bool:
+    """Whether the pinned canonical agent's frontmatter grants any of `tools`.
+
+    Prompt injection must not widen a lane: a trial for an agent whose
+    definition lacks a grant runs with Muse's equivalent disabled, just as
+    the Claude runner's `--agent` would restrict it.
     """
     agent = spec.get("agent")
     if not isinstance(agent, str) or not agent:
@@ -260,8 +323,11 @@ def _agent_shell_allowed(spec: dict[str, Any]) -> bool:
         return False
     text = path.read_text(encoding="utf-8")
     frontmatter = text.split("---", 2)[1] if text.startswith("---") else ""
-    return any(f"{tool}," in frontmatter or f"{tool}\n" in frontmatter
-               for tool in ("Bash", "PowerShell"))
+    return any(f"{tool}," in frontmatter or f"{tool}\n" in frontmatter for tool in tools)
+
+
+def _agent_shell_allowed(spec: dict[str, Any]) -> bool:
+    return _agent_has(spec, "Bash", "PowerShell")
 
 
 def muse_argv(executable: str) -> list[str]:
@@ -284,11 +350,22 @@ def build_command(
     command = muse_argv(executable) + [
         "exec", "--json",
         "--workspace", str(workspace),
+        "--trust-workspace",
         "--session-id", session_id,
         "--approval-mode", "never",
         "--prompt-file", str(prompt_file),
     ]
-    if kind != "build" and not spec.get("followups"):
+    # Write access follows the same intersection as shell: a read-only lane
+    # (repository-investigator) or a read-only scenario gets no write tools,
+    # in build and native trials as much as in contract ones.
+    if spec.get("agent"):
+        declared_write = {str(t) for t in spec.get("tools") or []} & {"Write", "Edit"}
+        write_allowed = _agent_has(spec, "Write", "Edit") and (
+            spec.get("tools") is None or bool(declared_write)
+        )
+    else:
+        write_allowed = bool(tools & {"Write", "Edit"})
+    if not write_allowed:
         command.append("--disable-write")
     # Restrictions are the intersection of the scenario's declared tools and
     # the pinned agent's own grants: neither may widen the other. A contract
@@ -332,6 +409,32 @@ def grade_graders(spec: dict[str, Any], trace: MuseTrace) -> list[dict[str, str]
     return expectations
 
 
+def _reference_expectations(spec: dict[str, Any], trace: MuseTrace) -> list[dict[str, str]]:
+    expectations = []
+    evidence = "\n".join(trace.tool_evidence)
+    for reference in spec.get("references") or []:
+        filename = Path(str(reference)).name
+        if filename in evidence:
+            expectations.append(_expectation(f"reference {filename}", State.PASS, "read in tool evidence"))
+        else:
+            expectations.append(_expectation(
+                f"reference {filename}", State.INCONCLUSIVE,
+                "reference read not visible in a Muse trace"))
+    return expectations
+
+
+def grade_contract(spec: dict[str, Any], trace: MuseTrace) -> list[dict[str, str]]:
+    expectations: list[dict[str, str]] = []
+    if spec.get("skill"):
+        # The canonical skill body is injected by construction on this host;
+        # that is the pin, and the record says so.
+        expectations.append(_expectation(
+            f"skill {spec['skill']}", State.PASS, "canonical skill body prompt-injected"))
+    expectations.extend(_reference_expectations(spec, trace))
+    expectations.extend(grade_graders(spec, trace))
+    return expectations
+
+
 def grade_routing(spec: dict[str, Any], trace: MuseTrace, raw: str) -> list[dict[str, str]]:
     target = spec.get("target") or {}
     name = str(target.get("name") or "")
@@ -357,9 +460,25 @@ def grade_routing(spec: dict[str, Any], trace: MuseTrace, raw: str) -> list[dict
     if expect == "not_fire":
         if fired:
             return [_expectation("routing", State.FAIL, f"target {name!r} fired in tool evidence")]
-        if trace.completed:
+        if not trace.completed:
+            return [_expectation("routing", State.INCONCLUSIVE, "run did not complete; absence unmeasured")]
+        # The contract also requires the declared alternative: an inline or
+        # main-session answer, or the named component instead. A blank or
+        # wrong-component reply is not a pass merely because the target stayed out.
+        alternative = (spec.get("routing") or {}).get("expected_alternative")
+        if alternative is None:
             return [_expectation("routing", State.PASS, f"target {name!r} not credited in a completed trace")]
-        return [_expectation("routing", State.INCONCLUSIVE, "run did not complete; absence unmeasured")]
+        alternatives = alternative if isinstance(alternative, list) else [alternative]
+        for item in alternatives:
+            if item in {"inline", "main_session"} and trace.result_text.strip():
+                return [_expectation("routing", State.PASS, "target stayed out; inline/main-session answer present")]
+            if isinstance(item, dict) and item.get("name") in trace.skills_loaded | trace.dispatch_targets:
+                return [_expectation("routing", State.PASS, f"alternative {item.get('name')!r} fired instead")]
+            if isinstance(item, str) and item in trace.skills_loaded | trace.dispatch_targets:
+                return [_expectation("routing", State.PASS, f"alternative {item!r} fired instead")]
+        return [_expectation(
+            "routing", State.INCONCLUSIVE,
+            f"declared alternative {alternative!r} not established in a Muse trace")]
     return [_expectation("routing", State.INCONCLUSIVE, f"routing expectation {expect!r} not graded on Muse")]
 
 
@@ -384,6 +503,15 @@ def grade_build(spec: dict[str, Any], trace: MuseTrace, ws: Any) -> list[dict[st
                 expectations.append(_expectation(
                     name, State.INCONCLUSIVE,
                     f"check needs {sorted(str(n) for n in unmeasurable)}; not visible in a Muse trace"))
+                continue
+        if name in {"bash_ran", "bash_did_not_run"}:
+            # Muse traces carry the shell tool's name, never its arguments:
+            # a pattern that names a command cannot be matched or excluded.
+            pattern = str(check.get("pattern") or "")
+            if pattern not in {"", ".+", ".*", "."}:
+                expectations.append(_expectation(
+                    name, State.INCONCLUSIVE,
+                    f"shell arguments are not visible in a Muse trace; pattern {pattern!r} unmeasured"))
                 continue
         if name in {"skill_loaded", "skill_not_loaded"}:
             # Skill credit comes only from a fleet SKILL.md read in
@@ -430,6 +558,12 @@ def grade_native(
         ))
     elif helper:
         expectations.append(_expectation("helper dispatch", State.INCONCLUSIVE, "first turn did not complete"))
+    if traces:
+        # The initial turn's own assertions (routing target, reference reads)
+        # are part of the contract, not just the final reply's graders.
+        if spec.get("routing"):
+            expectations.extend(grade_routing(spec, traces[0], raw))
+        expectations.extend(_reference_expectations(spec, traces[0]))
     if len(traces) > 1:
         last = traces[-1]
         expectations.append(_expectation(
@@ -450,12 +584,47 @@ def overall(expectations: list[dict[str, str]]) -> State:
     return State.PASS
 
 
-def _run_exec(command: list[str], cwd: Path, timeout: int) -> tuple[int, str, str]:
+def _run_exec(
+    command: list[str], cwd: Path, timeout: int, env: dict[str, str] | None = None
+) -> tuple[int, str, str]:
     done = subprocess.run(
         command, cwd=str(cwd), capture_output=True, text=True,
-        encoding="utf-8", errors="replace", timeout=timeout,
+        encoding="utf-8", errors="replace", timeout=timeout, env=env,
     )
     return done.returncode, done.stdout, done.stderr
+
+
+_PROVENANCE: dict[str, str] | None = None
+
+
+def _provenance(executable: str) -> dict[str, str]:
+    """Candidate and host identity a record is bound to, computed once."""
+    global _PROVENANCE
+    if _PROVENANCE is not None:
+        return _PROVENANCE
+
+    def git(*args: str) -> str:
+        try:
+            return subprocess.run(
+                ["git", *args], cwd=str(ROOT), capture_output=True, text=True, timeout=30
+            ).stdout.strip()
+        except OSError:
+            return ""
+
+    try:
+        version = subprocess.run(
+            muse_argv(executable) + ["--version"], capture_output=True, text=True, timeout=30
+        ).stdout.strip()
+    except OSError:
+        version = ""
+    runner = Path(__file__).resolve()
+    _PROVENANCE = {
+        "candidate_commit": git("rev-parse", "HEAD"),
+        "candidate_dirty": "true" if git("status", "--porcelain") else "false",
+        "runner_sha256": hashlib.sha256(runner.read_bytes()).hexdigest(),
+        "muse_cli_version": version,
+    }
+    return _PROVENANCE
 
 
 def run_trial(
@@ -466,34 +635,51 @@ def run_trial(
     started = time.time()
     with tempfile.TemporaryDirectory(prefix="muse-probe-") as tmp:
         root = Path(tmp)
-        ws = None
-        if spec.get("fixture") or kind != "routing":
-            ws = workspaces.seed_workspace(spec, root / "ws")
-            workspace = ws.repo
-        else:
-            workspace = ROOT
-        if kind == "contract" and spec.get("references"):
-            workspace = ROOT
+        # Every trial is staged outside the source checkout: the seeded temp
+        # workspace is the only workspace, and named references are copied
+        # into it, so reads cannot reach the checkout's ignored private files.
+        ws = workspaces.seed_workspace(spec, root / "ws")
+        workspace = ws.repo
+        for reference in spec.get("references") or []:
+            source = ROOT / str(reference)
+            if source.is_file():
+                staged = workspace / str(reference)
+                staged.parent.mkdir(parents=True, exist_ok=True)
+                staged.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+        env = workspaces.child_env(dict(os.environ), ws, spec)
+        # PowerShell otherwise writes its module analysis cache into the
+        # seeded repo, where change-boundary checks read it as candidate work.
+        env["PSModuleAnalysisCachePath"] = str(ws.root / "home" / "ps-module-cache")
+        # The isolated home has no Muse login; copy the credential file
+        # byte-for-byte (never read here) so `muse exec` can authenticate,
+        # exactly as the Claude probe copies its credential directory. The
+        # file sits outside the trial workspace, which is the only tree the
+        # agent's tools are rooted in.
+        auth_source = Path.home() / ".config" / "muse" / "auth.json"
+        if auth_source.is_file():
+            auth_dest = ws.root / "home" / "muse" / "auth.json"
+            auth_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(auth_source, auth_dest)
         run_dir = out / f"eval-{spec['id']}" / label / f"run-{run_number}"
         run_dir.mkdir(parents=True, exist_ok=True)
         session_id = str(uuid.uuid4())
         traces: list[MuseTrace] = []
         raws: list[str] = []
         runs: list[tuple[int, str, str]] = []
-        prompts = [build_prompt(spec)] + [str(f) for f in spec.get("followups") or []]
+        prompts = [build_prompt(spec, workspace)] + [str(f) for f in spec.get("followups") or []]
         for index, prompt in enumerate(prompts):
             prompt_file = root / f"prompt-{index}.md"
             prompt_file.write_text(prompt, encoding="utf-8")
             command = build_command(executable, spec, workspace, prompt_file, session_id, model)
             try:
-                code, stdout, stderr = _run_exec(command, workspace, timeout)
+                code, stdout, stderr = _run_exec(command, workspace, timeout, env)
             except subprocess.TimeoutExpired:
                 code, stdout, stderr = -1, "", "muse exec timed out"
             runs.append((code, stdout, stderr))
             (run_dir / f"trace-{index}.jsonl").write_text(stdout, encoding="utf-8")
             if stderr:
                 (run_dir / f"stderr-{index}.txt").write_text(stderr, encoding="utf-8")
-            trace = augment_from_session_log(parse_muse_trace(stdout))
+            trace = augment_from_session_log(parse_muse_trace(stdout), ws.root / "home")
             if code != 0 and not trace.completed:
                 trace.completed = False
             traces.append(trace)
@@ -513,7 +699,7 @@ def run_trial(
         elif kind == "routing":
             expectations = grade_routing(spec, trace, raw)
         else:
-            expectations = grade_graders(spec, trace)
+            expectations = grade_contract(spec, trace)
         status = overall(expectations)
         (run_dir / "response.md").write_text(trace.result_text, encoding="utf-8")
         (run_dir / "grading.json").write_text(
@@ -534,11 +720,21 @@ def run_trial(
             "seconds": round(time.time() - started, 1),
             "tool_counts": dict(sum((t.tool_counts for t in traces), Counter())),
             "skills_loaded": sorted(trace.skills_loaded),
+            "injected_skills": injected_skills(spec),
             "session_log_found": trace.session_log_found,
+            "prompt_sha256": hashlib.sha256("\n".join(prompts).encode("utf-8")).hexdigest(),
+            **_provenance(executable),
             "expectations": expectations,
         }
         (run_dir / "record.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
         return record
+
+
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return number
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -549,7 +745,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--scenario", required=True, help="scenario id, comma list, or 'all'")
     run.add_argument("--label", required=True)
     run.add_argument("--model", default=None, help="Muse model id; default is the host's")
-    run.add_argument("--trials", type=int, default=1)
+    run.add_argument("--trials", type=_positive_int, default=1)
     run.add_argument("--timeout", type=int, default=600)
     run.add_argument("--out", type=Path, required=True)
     run.add_argument("--executable", default=shutil.which("muse") or "muse")

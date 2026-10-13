@@ -23,4 +23,4 @@ graders:
   - type: contains_all
     of: ["what", "trigger", "how often", "growing", "how long", "interrupt", "who", "maintain", "judgment", "go wrong", "revers", "rework", "why does", "stay manual", "decide"]
   - type: not_contains
-    of: ["baseline is", "per month you spend", "i recommend automating"]
+    of: ["baseline is", "per month you spend", "i recommend", "you should automate", "my recommendation", "automate it now"]

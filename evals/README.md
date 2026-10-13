@@ -80,7 +80,11 @@ tool output or the prompt echo; a retained Muse session log, when found, corrobo
 targets only under the same same-line rule, and its absence is recorded rather than read as a
 negative. Checks are gated by the evidence they declare they read, so a check needing a raw or
 ordered trace, a judge, or a backing service is INCONCLUSIVE here instead of graded on an empty
-summary. `python evals/muse_probe.py validate` checks the catalog offline;
+summary. Trials are staged in the probe's seeded temp workspace under the Claude probe's isolated
+child environment (with the Muse credential file copied byte-for-byte into the isolated home,
+outside the trial workspace), so routing on Muse measures a staged workspace — fleet-component
+discovery there is unmeasured by design and reports INCONCLUSIVE rather than a verdict.
+`python evals/muse_probe.py validate` checks the catalog offline;
 `run --scenario <id> --label <label> --out <dir>` executes live trials.
 
 ## Runner layout
