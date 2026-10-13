@@ -21,6 +21,6 @@ success_criteria:
   - Invents no baseline, task or recommendation.
 graders:
   - type: contains_all
-    of: ["what", "trigger", "how often", "growing", "how long", "interrupt", "who", "maintain", "judgment", "go wrong", "revers", "rework", "why does", "stay manual", "decide"]
+    of: ["what", "trigger", "how often", "growing", "how long", "interrupt", "who", "maintain", "judgment", "wrong", "undo", "fail", "why does", "stay manual"]
   - type: not_contains
     of: ["baseline is", "per month you spend", "i recommend", "you should automate", "my recommendation", "automate it now"]

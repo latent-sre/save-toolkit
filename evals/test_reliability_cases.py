@@ -214,7 +214,7 @@ class ToilInterviewQuestionTests(unittest.TestCase):
         "What is cleaned up and what triggers it? How often does it happen, and is it growing? "
         "How long does one run take, including being interrupted? Who does it today, and who "
         "would maintain an alternative? Where does it need judgment? What could go wrong, and "
-        "is that reversible? How often does it fail or bounce back for rework? Why does this "
+        "is that reversible, and can it be undone? How often does it fail or bounce back for rework? Why does this "
         "work exist? What must stay manual, and who decides?"
     )
 
