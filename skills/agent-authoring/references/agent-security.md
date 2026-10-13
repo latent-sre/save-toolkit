@@ -55,7 +55,7 @@ harm, so defense in depth stays required.
   are far harder to smuggle through a schema than through prose.
 - **Delegation is not isolation.** Handing an untrusted checkout to a more capable agent moves the
   execution risk; running its tests, build hooks, or package scripts executes attacker-controlled
-  code. This repository provides no credential-free untrusted-code runner; use independently
+  code. The Save Toolkit fleet provides no credential-free untrusted-code runner; use independently
   established isolated CI or label the result `[unverified]`.
 - **Validate at the action boundary.** Check identity, input, target, approval, and source state
   where the effect happens, and fail closed on absence, ambiguity, or mismatch. A mutable path is

@@ -36,7 +36,7 @@ upgrades one.
 
    | Change | Evidence owed |
    |---|---|
-   | Routing failure (never, too often, wrong lane) or a description edit | `CONTRIBUTING.md`'s overlapping scenarios after the edit; pure wording changes need no live eval; run the incumbent only to attribute a red |
+   | Routing failure (never, too often, wrong lane) or a description edit | The fleet's overlapping routing scenarios (Save Toolkit `CONTRIBUTING.md`) after the edit; pure wording changes need no live eval; run the incumbent only to attribute a red |
    | Accepted non-routing behavioral failure | Reproduce on the incumbent before editing; paired incumbent/candidate runs after |
    | Explicit new behavior | Define and check the cases; never invent a failing baseline |
    | Pure rewording without a routing or behavior change | No live eval |
@@ -134,7 +134,7 @@ authorizes a self-modifying loop.
 | Task involves… | Read |
 |---|---|
 | A prompt, agent body, skill body, description, or grader | [artifact guidance](./references/artifact.md) |
-| Adding, removing, or checking a delegation or handoff edge | [Claude Code frontmatter](./references/claude-code-frontmatter.md) for `Agent(...)` grants and their depth limit; [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) for `agents:` and `handoffs:`; the change procedure is in the repository's `CONTRIBUTING.md` |
+| Adding, removing, or checking a delegation or handoff edge | [Claude Code frontmatter](./references/claude-code-frontmatter.md) for `Agent(...)` grants and their depth limit; [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) for `agents:` and `handoffs:`; this fleet's change procedure is in the Save Toolkit repository's `CONTRIBUTING.md` |
 | Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
 | A cold-start packet, bounded evidence, receiving a helper's return, or clearing/replaying context | [context and handoffs](./references/context.md) |
 | Authoring or debugging any agent or skill frontmatter | [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth |
@@ -153,7 +153,7 @@ authorizes a self-modifying loop.
 
 - Prototype in a disposable personal scope. A second user graduates it into the canonical plugin by
   PR, with generated adapters and the smallest test or eval that fails without the new contract.
-  CONTRIBUTING is policy; this skill is method. A personal copy still reaches the user's
+  The fleet's `CONTRIBUTING.md` is policy; this skill is method. A personal copy still reaches the user's
   credentials, tools, files, and network, and competes for routing with the plugin skill.
 
 ## Handoffs

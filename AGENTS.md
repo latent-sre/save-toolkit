@@ -31,7 +31,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 | Grafana dashboard interpretation, alert-rule operations, or temporary silences | [`grafana`](skills/grafana/SKILL.md); live writes belong to the invoked `observability-engineer` under its complete rule |
 | Guard behavior or wiring | [`readonly-guard.py`](scripts/readonly-guard.py) and [`hooks.json`](hooks/hooks.json); exit codes stay 42 allow / 43 deny / 44 indeterminate |
 | Repository changes, dependencies, or verification | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
-| Generated adapters | Fix the source or [`generate_platform_adapters.py`](scripts/generate_platform_adapters.py), then regenerate |
+| Generated adapters | Fix the source or [`generate_platform_adapters.py`](scripts/generate_platform_adapters.py), then regenerate; per-lane Copilot choices are in [`docs/copilot-projection.md`](docs/copilot-projection.md) |
 | Unfinished work | [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md), the only live backlog |
 | Evals and eval evidence | [`evals/README.md`](evals/README.md) |
 | Production change, deployment, or release | [`production-change-gate`](skills/production-change-gate/SKILL.md); the Grafana exception is below |

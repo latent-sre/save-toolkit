@@ -34,7 +34,8 @@ it applies to both the main conversation and subagents
 ([available tools](https://code.claude.com/docs/en/sub-agents#available-tools)). Such a rule
 matches the command text, not the program, so it is not a security boundary: `git -C . push origin
 main` passes a `Bash(git push *)` deny ([Bash rule limits](https://code.claude.com/docs/en/permissions#bash-rule-limits)).
-The fleet's `PreToolUse` hook supplies its agent-specific command policy through `readonly-guard.py`.
+The fleet's `PreToolUse` hook supplies its agent-specific command policy through `readonly-guard.py`;
+how that guard scopes itself is maintainer detail in the Save Toolkit repository's `CONTRIBUTING.md`.
 
 Canonical plugin delegation grants use full names: `Agent(reviewer, scribe)`.
 Bare targets do not match plugin agent identities; the
@@ -57,20 +58,10 @@ description dropped from the discovery listing (see the listing budget below).
 | Field | Disposition here |
 |---|---|
 | `name`, `description`, `argument-hint` | The fleet's set. `description` is the trigger and loads every session; `check_links.py` caps it at the portable **1,024-character** maximum and requires a literal `Triggers:` list carrying 2–4 quoted user phrasings |
-| `compatibility` | Descriptive only: up to 500 characters that Claude Code accepts but does not act on. The fleet uses it for host and access prerequisites (akamai-edge, gcp-ops, pcf-ops, pcf-deploy); `check_links.py` allows it |
+| `compatibility` | Descriptive only: up to 500 characters that Claude Code accepts but does not act on. The fleet uses it for host and access prerequisites (for example `pcf-deploy`); `check_links.py` allows it |
 | `disable-model-invocation: true` | Side-effect skills (deploy): user-only invocation via `/plugin:name`, description removed from the model's context, unavailable for agent `skills:` preloading. Older builds ignored it for plugin-shipped skills, so the skill body still defers authority rather than trusting the flag |
 | `allowed-tools`, `disallowed-tools` | `allowed-tools` **grants** (pre-approves) for the turn that invokes the skill, clearing on the next user message, and cannot restrict; `disallowed-tools` **removes** tools while the skill is active, clearing on the next user message — the only restricting field. Neither is used here |
 | `user-invocable: false`, `when_to_use`, `arguments`, `model`, `effort`, `context`, `agent`, `hooks`, `paths`, `shell` | Available on the platform, unused here; `when_to_use` is decided against below |
-
-### Hook scoping is a fleet decision
-
-Hook matchers can express an agent-scoped hook; the read-only guard deliberately does not use one.
-A matcher can silently stop matching after an upstream rename. The guard instead runs on every
-Bash or PowerShell call and scopes itself in Python. PowerShell uses a separate literal-command
-grammar and native launcher; it is not parsed as arbitrary POSIX shell code. Its canaries deny a guarded name under a changed plugin
-namespace, or a recognized guarded identity in another top-level key containing `agent` when
-`agent_type` is absent. A renamed key such as `role` is not detected. Re-probe the live PreToolUse
-payload after host upgrades; offline tests cover known shapes, not every upstream rename.
 
 ### Authoring rules (only the direct-link rule is enforced)
 

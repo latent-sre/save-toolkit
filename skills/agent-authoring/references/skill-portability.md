@@ -41,24 +41,6 @@ restricting field is a default there.
 | Agent Skills specification | `description` ≤1,024 characters; `SKILL.md` recommended under 5,000 tokens and 500 lines, resources on demand | Authoring recommendations, not body validators |
 | VS Code | No matching body-length check in public source | — |
 
-The SRE assistant has an owner-selected working budget of 25,000 characters in its generated
-Copilot body, enforced by the generator for both standard and command-preview profiles. This
-repository budget leaves headroom below the provider ceiling; other agents retain the 30,000 limit.
-
-## What the generated adapters do
-
-- No field-level equivalence is attempted; intent is preserved in each host's own vocabulary. There
-  is no generated preface: a host limitation that changes what a lane may do is stated in that
-  lane's own canonical body.
-- A skill marked `disable-model-invocation` keeps that frontmatter in the Copilot projection.
-- Stating a host authority difference (Copilot's omitted `execute`, for one) is not claiming a
-  control: the omitted `execute` narrows a default
-  the user can override and the picker can rewrite — read [Capability choices](./copilot-frontmatter.md#capability-choices)
-  before citing it as authority. A fleet control is only as strong as the host it is proven on.
-- The root manifest declares Agent Plugins 1.0, so the installed plugin reads canonical `skills/`
-  and takes Copilot agents and hooks from `com.github.copilot/`. Without that schema VS Code ranks
-  `.claude-plugin/plugin.json` first and loads the Claude agents instead.
-
 ## Checking a skill before publishing to the portable spec
 
 Strip it to the portable six and confirm the body still carries the behavior any dropped field

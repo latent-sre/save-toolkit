@@ -42,6 +42,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   admits `model`; VS Code `disallowedTools` is agent-only; generated adapters carry no host
   preface; and the array form of Copilot `model` is VS Code-only. Skill portability drops its
   Contents list and duplicated portable-field table.
+  The skill now reads as general authoring method that knows this fleet: per-lane Copilot
+  projection choices, the SRE body budget, and adapter behavior move to the new
+  `docs/copilot-projection.md`; read-only guard scoping moves to CONTRIBUTING; and references to
+  this repository's files name the Save Toolkit repository, so they read correctly once the
+  plugin is installed elsewhere.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a

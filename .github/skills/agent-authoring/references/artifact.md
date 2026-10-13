@@ -21,7 +21,7 @@ Before the first iteration, write down every row:
 | Durable evidence | The regression case, incumbent and winning revisions, per-case results, cost, and decision in the PR |
 
 Keep decision evidence, including failed or inconclusive results still needed by an unresolved
-decision or current regression, under CONTRIBUTING's retention rule. Discard disposable drafts when
+decision or current regression, under the fleet's retention rule (Save Toolkit `CONTRIBUTING.md`). Discard disposable drafts when
 no current dependency remains.
 
 ## Evidence, review, and promotion
