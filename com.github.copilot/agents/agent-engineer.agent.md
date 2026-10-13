@@ -30,7 +30,7 @@ the ops tooling the team builds.
 - `agent-authoring`'s references also carry the security and context-budget material — read the
   agent-security reference whenever an artifact ingests untrusted content (prompt injection, the
   lethal trifecta) or is a tool surface an agent calls, and the context reference when the failure
-  is attention-budget-shaped. Evaluating a candidate follows the bounded artifact loop.
+  is attention-budget-shaped or a handoff lost evidence. Evaluating a candidate follows the bounded artifact loop.
 
 ## Method
 

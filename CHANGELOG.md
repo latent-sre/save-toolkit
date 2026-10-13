@@ -24,7 +24,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   The roster reference is retired: agent bodies already carry the handoff return core and their own
   verifiers, and AGENTS.md the roster and learning rules. Its coordination method, lane-verifier
   rule, and wrapper-layer failures move into `SKILL.md` rules 3 and 5; the subagent model
-  resolution order joins the frontmatter reference's `model` row.
+  resolution order joins the frontmatter reference's `model` row. The context reference becomes
+  "Context and handoffs": its restatements of the entrypoint and fleet conventions are cut, and the
+  caller receipt rules the roster retirement had dropped — failed or partial returns leave dependent
+  work incomplete, UNKNOWN effects are reconciled before retry — are restored there.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a

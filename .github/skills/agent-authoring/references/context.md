@@ -1,29 +1,30 @@
-# Context engineering
+# Context and handoffs
 
-Find the smallest set of high-signal tokens that lets the agent act correctly, and treat context
-like least privilege: include what the step needs, nothing it doesn't. `../SKILL.md`'s
-untrusted-data and label rules apply unchanged — compression, compaction, and handoff are the
-easiest places to silently upgrade a label.
+Compression, compaction, and handoff are the easiest places to silently upgrade a label; the
+entrypoint's label rules apply at each.
 
-## Fleet rules the general techniques leave open
+## Sending
 
-- **Durable knowledge lives outside the window** — for us that is runbooks, postmortems, and the
-  knowledge loop, never a giant in-context scratchpad.
-- **Preload context every step needs; retrieve conditional detail when it applies.** Avoid a
-  chain of fetches for prerequisites that are already known.
+Send a cold-start packet, not a transcript: invoking caller and human owner separately, intent,
+source/state, success criteria, scope, source trust, unknowns, and the return fields the receiver's
+agent body defines. Preserve targets, windows, observed values, and [verified], [sourced],
+[unverified], [UNTRUSTED] markers.
+
+Bind evidence to its subject, method, source, and time. Reading export E verifies its bytes;
+`[sourced] export E reports 4/4 at 09:40` does not verify current health. Missing chronology or state
+stays unknown.
+
+## Receiving
+
+Empty, malformed, partial, timed-out, or killed returns leave dependent work incomplete; seek the
+missing evidence and continue independent work. Escalate a material decision, unavailable
+capability, or exhausted budget with the precise gap. UNKNOWN effects require reconciliation before
+retry. Finish with one synthesized answer against the original objective.
+
+## Managing the window
+
 - **Fork or rewind only when replay is defined.** A checkpoint before a failed path gives a clean
   retry only when the runtime defines replay and effect semantics. Never replay an external side
   effect by assumption; otherwise correct in place and record the divergence.
 - **Clearing old tool results is not lossless.** Clear only after retaining their load-bearing
   facts and only when the source can be read safely again.
-
-## In this fleet
-
-Thin agent bodies, on-demand detail, isolated bounded work, and compact evidence packets keep
-context deliberate; apply them before reaching for a bigger model or a longer prompt. Send a
-cold-start packet, not a transcript: invoking caller and human owner separately, intent, source/state,
-success criteria, scope, source trust, unknowns and the return fields the receiver's agent body defines. Preserve
-targets, windows, observed values and [verified], [sourced], [unverified], [UNTRUSTED] markers.
-Preserve the verified subject, method, source and time. Reading export E verifies its bytes;
-`[sourced] export E reports 4/4 at 09:40` does not verify current health. Missing chronology or state
-stays unknown. The caller checks returned evidence and resumes pending work within its authority.

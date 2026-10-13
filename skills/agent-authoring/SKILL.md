@@ -135,7 +135,7 @@ authorizes a self-modifying loop.
 | A prompt, agent body, skill body, description, or grader | [artifact guidance](./references/artifact.md) |
 | Adding, removing, or checking a delegation edge | [the delegation graph](./references/delegation-graph.md) — one enforced source, validated host renders, and host-specific enforcement limits |
 | Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
-| A cold-start packet or bounded evidence | [context guidance](./references/context.md) |
+| A cold-start packet, bounded evidence, receiving a helper's return, or clearing/replaying context | [context and handoffs](./references/context.md) |
 | Authoring or debugging any agent or skill frontmatter | [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth |
 | Authoring frontmatter for the VS Code or Copilot projection | [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) — keys, handoff entries, and tool aliases |
 | Relying on a frontmatter field to enforce anything, or publishing a skill beyond this plugin | [skill portability](./references/skill-portability.md) — the portable set can grant, never restrict |
