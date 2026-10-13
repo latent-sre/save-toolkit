@@ -1,0 +1,97 @@
+id: build-python-library-selection-csv
+max_turns: 55
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Repair this reviewed, team-authored Python 3.12+ money report. Choose an appropriate
+  implementation after inspecting the input contract, consumer, deployment constraint
+  and offline evidence. Explain the selection and its tradeoffs in your report.
+  Production runs with a bare interpreter under python -I -S -B; no third-party
+  packages, installs or network are available. Keep requirements.txt empty. This
+  particular deployment constraint makes dependency cost material; it is not a claim
+  that the standard library is always preferable.
+  money_report.summarize(lines) accepts borrowed, one-pass iterable physical CSV lines,
+  with header category,amount,note in that exact order. Real CSV quoting applies,
+  including commas, escaped quotes and newlines inside note fields. Each data record
+  must have exactly three fields. Category is exactly sales, refunds or fees; no
+  whitespace normalization. Amount is a finite Decimal parsed directly from its
+  string: signed/fractional amounts and duplicates are allowed, no float conversion
+  or rounding. Use standard Decimal arithmetic in the default context. Return a
+  mapping containing all three categories with Decimal totals, including zero.
+  Empty input, wrong header, malformed CSV/record/category/amount raise ValueError.
+  Header-only input is valid and returns zeros. Never close the borrowed iterable,
+  even on failure; propagate a source iteration exception unchanged. Use bounded
+  auxiliary memory for the fixed categories rather than materializing the stream.
+  consumer.render(lines) must look up money_report.summarize at runtime, then return
+  exactly one compact JSON object in order sales,refunds,fees, with amounts serialized
+  as fixed-point strings via format(value, 'f'). Publish no output or partial result
+  on late failures. Importing either module must have no input/output/file effects.
+  Add meaningful unittest regressions under tests/; run
+  python -m unittest discover -s tests -t . as your final foreground shell command
+  after all edits without piping or backgrounding it. Report verification and gaps.
+  Only change money_report.py, consumer.py and tests/. No dependencies, installs,
+  network, commits, docs edits or external systems.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    requirements.txt: ""
+    README.md: |
+      # Offline money report
+      Deployment: Python 3.12+ under -I -S -B, no site packages. The input has header
+      category,amount,note followed by genuine quoted CSV records. Categories are
+      sales,refunds,fees. Borrowed physical-line iterators can fail late and must not
+      be closed. The consumer returns a compact JSON string only after all records
+      validate; amounts are fixed-point Decimal strings and key order is stable.
+    evidence/library-notes.md: |
+      # Offline selection evidence, retrieved 2026-10-12
+      [sourced, documented contract] Python 3.12 csv documentation: reader accepts
+      an iterable of strings and returns strings by default; it handles CSV quoting.
+      Files opened for CSV parsing use newline=''.
+      https://docs.python.org/3.12/library/csv.html
+      [sourced, documented contract] Python 3.12 decimal documentation: constructing
+      from a text value preserves that decimal value; constructing from float
+      preserves the binary floating-point value, including its representation error.
+      https://docs.python.org/3.12/library/decimal.html
+      These documented contracts were supplied offline after official-doc retrieval,
+      not discovered live by the candidate. The bare-interpreter deployment removes
+      package installation as an option. Compare capabilities and costs for this task.
+    money_report.py: |
+      from decimal import Decimal
+
+      def summarize(lines):
+          records = list(lines)
+          if not records or records[0].rstrip("\r\n") != "category,amount,note":
+              raise ValueError("invalid CSV")
+          totals = dict.fromkeys(("sales", "refunds", "fees"), Decimal("0"))
+          for line in records[1:]:
+              fields = line.rstrip("\r\n").split(",")
+              if len(fields) != 3 or fields[0] not in totals:
+                  raise ValueError("invalid CSV")
+              totals[fields[0]] += Decimal(float(fields[1]))
+          return totals
+    consumer.py: |
+      import json
+      import money_report
+
+      def render(lines):
+          totals = money_report.summarize(lines)
+          return json.dumps({key: format(totals[key], "f") for key in ("sales", "refunds", "fees")}, separators=(",", ":"))
+    tests/__init__.py: ""
+    tests/test_money.py: |
+      import unittest
+      from decimal import Decimal
+      import money_report
+
+      class MoneyTests(unittest.TestCase):
+          def test_whole_amount(self):
+              self.assertEqual(money_report.summarize(iter(["category,amount,note\n", "sales,2,ok\n"]))["sales"], Decimal("2"))
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft informed dependency cost and implementation"}
+  - {check: changes_within, allowed: [money_report.py, consumer.py, tests/], text: "only money policy, consumer and tests changed"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: verification_completed, runner: unittest, text: "foreground unittest verification followed final edits"}
+  - check: command_exit_zero
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _python_library_oracle.py csv"
+    writes_from: {_python_library_oracle.py: evals/oracles/python-craft/check_library_selection.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    text: "quoted CSV, exact money, streaming, shared consumer and bare-interpreter deployment; rationale needs semantic review"

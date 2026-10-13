@@ -190,8 +190,8 @@ declare `failure_exit_code`, the code its oracle uses for a failed contract: the
 fails the candidate, and any other nonzero exit, such as the oracle's own uncaught exception, is an
 instrument failure that stops the scenario.
 
-The committed executable oracles use supervised completion: 101 commands across 41 cases
-(94 Python commands and seven UI commands) distinguish contract/candidate failures (exit 10)
+The committed executable oracles use supervised completion for Python and UI commands to
+distinguish contract/candidate failures (exit 10)
 from oracle failures or absent completion evidence (exit 1, INCONCLUSIVE). A successful process
 exit alone cannot establish completed assessment. The Python supervisor binds each receipt to
 its launch and tracks candidate execution, so a candidate's early exit cannot bypass remaining
@@ -308,6 +308,31 @@ be observable. Candidate `SystemExit` is a failure; only the oracle's unavailabl
 returns the declared exit 3, making the native trial INCONCLUSIVE and requiring separate profiling.
 These are bounded observations, not proofs of universal time or space complexity or adversarial
 attestation.
+
+Three further cases cover package refactoring and a bounded library choice:
+
+| Evaluation | What its artifact checks establish |
+|---|---|
+| [Installed package refactor](build-scenarios/build-python-package-refactor.yaml) | Both adapters use the extracted calculation; public imports, configured lookups, package data, numeric behavior and resource ownership survive. The fixture's release ZIP is built and extracted, then exercised outside the checkout with site packages disabled. Obsolete source and release entries must disappear. Candidate tests replay named ownership/error regressions. |
+| [Schema library selection](build-scenarios/build-python-library-selection-schema.yaml) | A maintained available JSON Schema implementation owns validation through both callers, preserving schema/payload errors and object identity. Controlled library behavior distinguishes real delegation from a ceremonial call around a custom interpreter. An unavailable pinned runtime makes the measurement INCONCLUSIVE. |
+| [CSV library selection](build-scenarios/build-python-library-selection-csv.yaml) | Genuine CSV quoting, exact decimal totals, one-pass ownership, bounded observed storage, late failures and the consumer work under the fixture's bare-interpreter deployment constraint. That constraint makes standard-library sufficiency a concrete decision for this case. |
+
+The [package calibration](test_python_package_refactor.py) and
+[library calibration](test_python_library_selection_oracle.py) exercise valid alternatives and
+named counterexamples, including candidate early exits and oracle failures. The package guarantee
+is specific to its existing ZIP release format; it does not establish wheel/build-backend behavior.
+Library candidate suites must also detect named identity, boolean/integer, exact-money and invalid-record
+regressions in disposable replays; these bounded checks do not establish universal test quality.
+The library pair uses supplied, versioned offline evidence and an already provisioned environment;
+it does not measure live package discovery, an advisory audit, or installation resolution.
+
+**Acceptance also needs semantic review:** for the refactor, inspect the ordered trace for consumer
+discovery and checks between meaningful migration steps; for library selection, assess the returned
+capability, compatibility, maintenance/license, deployment-cost and evidence-limit rationale against
+the fixture evidence. Final artifacts do not establish sequencing, and importing a package does not
+establish a sound choice. The automated checks do not score those judgments. The initial turn budgets
+are offline allowances, not measured completion guarantees. Fresh Sol artifact trials may inform
+calibration, but do not establish native Claude routing, tool grants, skill loading or trace checks.
 
 For an agreed native preflight, select each case separately and pin the model:
 

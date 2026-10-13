@@ -41,7 +41,7 @@ scoped; report material adjacent findings separately.
 | Starting a new script, module, library, or service | [New code](./references/new-code.md) |
 | Interpreter/dependencies uncertain or changing | [Environment and checks](./references/environment-and-checks.md) |
 | Calls, functions, modules, data, or resource ownership | [Writing Python](./references/writing-python.md) |
-| Structural improvement or Pythonic replacements | [Refactoring](./references/refactoring.md) |
+| Structural improvement, a multi-module migration, or Pythonic replacements | [Refactoring](./references/refactoring.md) |
 | Need a worked comparison for flattening nested control flow | [Guard-clause example](./references/guard-clause-example.md) |
 | Library adoption or dependency/runtime migration | [Libraries and modernization](./references/libraries-and-modernization.md) |
 | Automated transformations or lint fixes | [Refactoring tools](./references/refactoring-tools.md) |

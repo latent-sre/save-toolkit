@@ -1,0 +1,162 @@
+id: build-python-package-refactor
+max_turns: 73
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Refactor this reviewed, team-authored, standard-library-only Python 3.12+ package.
+  Discover its consumers and release inputs before editing. Extract the duplicated order
+  calculation into order_report/calculation.py with public total_from_lines(lines), the
+  sole owner of calculation policy. Migrate reporting.total_from_file and
+  preview.total_from_lines to call that owner at runtime, so replacing
+  calculation.total_from_lines changes both adapters. Preserve the package's existing
+  public imports, dotted configuration lookup, scheduled consumer and CLI behavior,
+  including Decimal results, duplicates, signed amounts, filtering, empty input and errors.
+  The README describes the input contract. total_from_lines consumes a borrowed iterable
+  once and never closes it, including on failure. The file adapter owns its UTF-8 file and
+  closes it on success, parsing/decoding/read failure, or a replaced owner raising an error.
+  Source iteration and replaced-owner exceptions propagate as the original object.
+  Retire _legacy.py from source and release inputs, and update the explicit release file
+  list so the new module and existing configuration data work from the installed ZIP.
+  This project's offline release ZIP is intentional; do not introduce a wheel backend.
+  Add meaningful unittest regressions under tests/ for the extraction, both adapters,
+  and borrowed iteration failures. Run python -m unittest discover -s tests -t . as your
+  final foreground shell command after all edits, without piping or backgrounding it.
+  Report the structural benefit, compatibility preserved, verification and remaining gaps.
+  Only change order_report/calculation.py, order_report/reporting.py,
+  order_report/preview.py, order_report/_legacy.py, release-files.txt and files under tests/.
+  Keep build_release.py, existing consumers, package exports, configuration and README
+  unchanged. No network, installs, dependencies, commits or external systems.
+fixture:
+  files:
+    .gitignore: "__pycache__/\nrelease.zip\n"
+    README.md: |
+      # Internal order reports
+      Python 3.12+, standard library only. CSV text has exactly three comma-separated
+      fields per line: status,quantity,unit_price. Strip whitespace from each field.
+      Only status 'posted' contributes; other statuses ignore their numeric fields.
+      All lines must have three fields, including ignored lines. Blank/malformed lines
+      raise ValueError. Parse contributing quantity and price with Decimal directly
+      from text, multiply, and sum starting at Decimal('0'). Signed/fractional values
+      and duplicate lines are supported; empty or entirely filtered input totals zero.
+      Decimal conversion errors and source errors propagate. No rounding or float conversion.
+      reporting.total_from_file(path) owns and closes a UTF-8 text file; preview accepts
+      borrowed lines. Both return a Decimal, never a lazy result.
+      order_report.total_from_file and order_report.total_from_lines are public imports.
+      clients.scheduled_report.run(path) resolves the package settings.json dotted name.
+      python -m order_report.cli INPUT prints the total followed by a newline, returns 0
+      on success, and propagates input errors; exactly one input path is required.
+      python build_release.py OUTPUT creates a ZIP from release-files.txt. Install by
+      extracting into an empty directory and adding that directory to Python's module
+      path. The installed package must work without this checkout or its working directory.
+    build_release.py: |
+      from pathlib import Path
+      import sys
+      import zipfile
+
+      def build(output):
+          root = Path(__file__).resolve().parent
+          entries = (root / "release-files.txt").read_text(encoding="utf-8").splitlines()
+          with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+              for entry in entries:
+                  if entry.strip():
+                      archive.write(root / entry, arcname=entry)
+
+      if __name__ == "__main__":
+          build(sys.argv[1])
+    release-files.txt: |
+      order_report/__init__.py
+      order_report/reporting.py
+      order_report/_legacy.py
+      order_report/preview.py
+      order_report/cli.py
+      order_report/settings.json
+      clients/__init__.py
+      clients/scheduled_report.py
+    order_report/__init__.py: |
+      from .reporting import total_from_file
+      from .preview import total_from_lines
+    order_report/_legacy.py: |
+      from decimal import Decimal
+
+      def total_from_lines(lines):
+          total = Decimal("0")
+          for line in lines:
+              status, quantity, price = (field.strip() for field in line.split(","))
+              if status == "posted":
+                  total += Decimal(quantity) * Decimal(price)
+          return total
+    order_report/reporting.py: |
+      from ._legacy import total_from_lines
+
+      def total_from_file(path):
+          with open(path, encoding="utf-8") as lines:
+              return total_from_lines(lines)
+    order_report/preview.py: |
+      from decimal import Decimal
+
+      def total_from_lines(lines):
+          total = Decimal("0")
+          for line in lines:
+              status, quantity, price = (field.strip() for field in line.split(","))
+              if status == "posted":
+                  total += Decimal(quantity) * Decimal(price)
+          return total
+    order_report/cli.py: |
+      import sys
+      from . import total_from_file
+
+      def main(argv=None):
+          argv = sys.argv[1:] if argv is None else argv
+          if len(argv) != 1:
+              raise ValueError("expected one input path")
+          print(total_from_file(argv[0]))
+          return 0
+
+      if __name__ == "__main__":
+          raise SystemExit(main())
+    order_report/settings.json: '{"calculator": "order_report.reporting.total_from_file"}'
+    clients/__init__.py: ""
+    clients/scheduled_report.py: |
+      import importlib
+      from importlib.resources import files
+      import json
+      from order_report import total_from_file as report_alias
+
+      def run(path):
+          configured = json.loads(files("order_report").joinpath("settings.json").read_text(encoding="utf-8"))["calculator"]
+          module, name = configured.rsplit(".", 1)
+          return getattr(importlib.import_module(module), name)(path)
+    tests/__init__.py: ""
+    tests/test_reports.py: |
+      from decimal import Decimal
+      from pathlib import Path
+      import tempfile
+      import unittest
+      import order_report
+      from clients.scheduled_report import run
+
+      class ExistingReports(unittest.TestCase):
+          def test_public_file_and_configured_consumer(self):
+              with tempfile.TemporaryDirectory() as temporary:
+                  path = Path(temporary) / "orders.csv"
+                  path.write_text("posted,2,0.10\nposted,2,0.10\n", encoding="utf-8")
+                  self.assertEqual(order_report.total_from_file(path), Decimal("0.40"))
+                  self.assertEqual(run(path), Decimal("0.40"))
+
+          def test_empty_file(self):
+              with tempfile.TemporaryDirectory() as temporary:
+                  path = Path(temporary) / "empty.csv"
+                  path.write_text("", encoding="utf-8")
+                  self.assertEqual(order_report.total_from_file(path), Decimal("0"))
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded for package refactoring"}
+  - check: changes_within
+    allowed: [order_report/calculation.py, order_report/reporting.py, order_report/preview.py, order_report/_legacy.py, release-files.txt, tests/]
+    text: "changes preserve the existing consumers, release builder and configuration"
+  - {check: no_new_commits, text: "no commits"}
+  - {check: verification_completed, runner: unittest, text: "foreground unittest verification completed after final edits"}
+  - check: command_exit_zero
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _python_package_oracle.py"
+    writes_from: {_python_package_oracle.py: evals/oracles/python-craft/check_package_refactor.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    text: "installed release preserves calculation, consumers, shared policy, resource ownership and runnable regressions"

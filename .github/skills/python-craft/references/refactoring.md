@@ -5,6 +5,7 @@
 - Choose the transformation
 - Simplify control flow and iteration
 - Preserve consumers and integrate
+- Stage a large or multi-module change
 - Example: separate calculation from files
 - Verify behavior and benefit
 
@@ -55,9 +56,33 @@ qualified names; an underscore does not prove a name is private. Controlled inte
 shapes may change with their callers. Preserve supported call forms/defaults, import-time effects,
 and public patch points. Add compatibility adapters only for actual supported consumers.
 
-Complete one usable path, then migrate remaining callers; avoid leaving them with repeated shape
-conversions or copies of moved policy. Check new dependency boundaries and remove superseded code
-once callers use the replacement. Checkpoints follow meaningful behavior and risk, not file counts.
+Avoid leaving callers with repeated shape conversions or copies of moved policy. A moved function
+is not an integrated change until its real consumers use the new owner.
+
+## Stage a large or multi-module change
+
+Map current consumers, policy/state owners, effects, and dependencies before choosing the new
+boundary. Include release inputs and non-code consumers such as configured names and package data.
+State what stays compatible, what intentionally changes, and which requirements remain unknown.
+For an unresolved rollout, compatibility, or recovery design, use the project's design workflow
+before implementing that decision; load `eng-ladder` for principal-level design guidance.
+
+1. Establish a working baseline. Map each material risk to an existing check or a missing regression;
+   prioritize public behavior, ownership, failure paths, and integration over implementation shape.
+2. Expose the seam and complete one path through a real consumer. Verify that path before widening
+   the migration. Move the rule's ownership, not just its text; exercise the replacement through
+   callers so dormant helpers and duplicated decisions cannot masquerade as completion.
+3. Migrate remaining consumers in coherent steps, checking imports, state/effect order, and cleanup
+   as boundaries change. Add compatibility bridges only when supported consumers, mixed versions,
+   or persisted data need them; define when each bridge can be removed.
+4. Retire superseded code and dependencies after callers and release inputs use the replacement.
+   For module-layout, entrypoint, or package-data changes, build the project's actual release
+   artifact and exercise an installation outside the source checkout. Check imports, configured
+   lookups, and bundled resources there; checkout tests can conceal missing release files.
+
+Choose checkpoints by behavior and risk, not file counts or mandatory per-function commits. A small
+atomic replacement may be safer than a compatibility layer. Report the checks actually completed
+at each meaningful stage and any installation or downstream-consumer coverage still missing.
 
 ## Example: separate calculation from files
 
