@@ -61,8 +61,6 @@ harm, so defense in depth stays required.
   where the effect happens, and fail closed on absence, ambiguity, or mismatch. A mutable path is
   not an exemption boundary: a checkout can replace the file at an allowed path, so privileged
   admission binds reviewed bytes by content hash.
-- Preserve `[verified]`, `[sourced]`, and `[unverified]` through summaries; repetition never
-  upgrades evidence.
 
 For a suspected active production compromise, stop ordinary remediation, preserve state and
 forensic evidence, and route coordination to the human security incident owner.
@@ -82,12 +80,13 @@ forensic evidence, and route coordination to the human security incident owner.
   than strip: [legitimate text](https://www.unicode.org/reports/tr51/#Emoji_Sequences) and attack
   evidence depend on these characters, and the original keeps them.
   Envelopes, escaping, and injection matchers do not establish trust.
-- **Know what each Claude Code layer does.** Denying `WebFetch` does not stop access through Bash;
-  only OS-level sandboxing enforces a network allowlist. The fleet's enforcement order, tool absence
+- **Know what each Claude Code layer does.** Denying `WebFetch` does not stop access through Bash,
+  and a Bash deny rule matches the command text, not the network call; only sandbox network
+  isolation or host network controls enforce an egress allowlist. The fleet's enforcement order, tool absence
   then the hook allowlist then host network controls, is this principle applied.
 - **An MCP server is a dependency with your privileges.** A `stdio` server runs as the client;
-  review its launch command like `curl | sh`. A remote server must never forward a token it was not
-  issued, its OAuth metadata URL is an SSRF vector, and scopes start minimal.
+  review its launch command like `curl | sh`. A remote server must not accept, or forward, a token not
+  issued to it; its OAuth metadata URL is an SSRF vector, and scopes start minimal.
 
 ## The review, in five questions
 
@@ -105,5 +104,4 @@ Any question without a concrete answer is the finding.
 Name the legs held, the injection surface, the containment (which leg is cut, by what control), and
 the residual risk that needs a human gate. For each finding give evidence, affected boundary, blast
 radius, smallest safe remediation, verification method, and any runtime claim you could not verify
-against frontmatter or the guard's tests. Handoffs follow the skill body: independent findings to
-`reviewer`, approved fixes to `software-engineer`, authorization to the human owner.
+against frontmatter or the guard's tests.

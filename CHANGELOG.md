@@ -31,6 +31,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   The delegation-graph reference is retired: the edge-change procedure moves to CONTRIBUTING,
   host enforcement limits and handoff semantics to the two frontmatter references, and its
   role table, a restatement of the `AGENTS.md` roster, is dropped.
+  The agent-security reference now states the MCP rule as the current specification does (a server
+  must not accept, or forward, a token not issued to it) and that a Bash deny rule matches command
+  text, so only sandbox network isolation or host controls enforce egress; two restatements of
+  the label and handoff rules are cut.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a
