@@ -1,17 +1,29 @@
 # FastAPI
 
 Read FastAPI, Pydantic, Starlette and Python versions from manifests/lockfiles. Preserve existing
-service contracts. For a new house API, adapt [house.py](../assets/fastapi/house.py) and its
-[main.py](../assets/fastapi/main.py) example.
+service contracts and native identity integration. Shared internal tools use corporate SSO;
+its vendor and protocol come from the project, not this starter. Authenticate protected routes
+and authorize each object and collection regardless of network exposure. Public means explicitly
+unauthenticated, not internet-facing.
+
+[house.py](../assets/fastapi/house.py) supplies reusable HTTP helpers without an auth adapter or
+dummy verifier. Adopt the helpers the app needs. [main.py](../assets/fastapi/main.py) is an optional
+resource example; its Things model, store, pagination and app factory are not required scaffolding.
 
 ## App and handlers
 
-- `house_app(title, version, verify_token=..., loopback_only=...)` installs problems, request IDs,
+- `house_app(title, version, loopback_only=...)` installs problems, request IDs,
   lowerCamel operation IDs, one schema per model, documented Problem errors and browser/host
   guards. Pass `lifespan=` and register routes afterwards.
-- Version/auth belong on routers: `APIRouter(prefix="/v1", dependencies=[Depends(authenticated)])`.
-  Handlers needing the caller take `principal: Authenticated`; declare error statuses with
+- Put versioning and the project's authentication dependency on protected routers; get the trusted
+  caller from that integration for object authorization. Declare applicable error statuses with
   `responses=problems(401, 404, 422)`.
+- Only when that integration accepts bearer tokens, the optional [auth.py](../assets/fastapi/auth.py)
+  offers `configure_bearer_auth(app, verify)`, `authenticated` and `Authenticated`. Configure the
+  verifier and attach `Depends(authenticated)` to protected routers; setup alone protects no route.
+  The verifier returns a trusted `Principal` or `None` for an invalid token and raises on an outage.
+  Missing/invalid credentials return 401; an unconfigured or failed verifier returns 503 for a supplied
+  bearer token. The adapter supplies no identity provider and assumes no JWT format.
 - Use `Annotated` parameters/dependencies and return annotations. A returned `Response` bypasses
   validation/serialization: enforce its contract explicitly.
 - One lifespan opens shared clients/pools before `yield`, stores them on `app.state`, and closes
@@ -42,7 +54,17 @@ service contracts. For a new house API, adapt [house.py](../assets/fastapi/house
   `asgi_lifespan.LifespanManager`. Assert startup and cleanup, not just responses.
 - Exercise the real app with the project's test identity; persistence changes use a disposable
   real datastore.
-- Start through settings, as `python main.py` does with `uvicorn.run`: all interfaces on platform
+- [contract_checks.py](../assets/fastapi/contract_checks.py) exports plain problem/request-ID and
+  document assertions. [test_http_core.py](../assets/fastapi/test_http_core.py) exercises the HTTP
+  helper without any app or identity example. Keep real-route authentication and object-authorization
+  tests; `test_house.py` and [test_auth.py](../assets/fastapi/test_auth.py) cover the optional examples.
+- For `test_openapi_document.py` and `test_schemathesis.py`, replace only
+  [contract_app.py](../assets/fastapi/contract_app.py): supply `make_app()`, seeded resources,
+  `TEST_HEADERS` for the test identity, `AUTH_SCHEME` matching the actual named security scheme,
+  and explicit `PUBLIC_OPERATIONS`. The supplied setup uses Things/bearer; a cookie-session app
+  needs neither `main.py` nor `auth.py`. Checks run lifespan and obtain the schema directly, so no
+  public document endpoint is required. Keep fixture credentials confined to tests.
+- Start through settings, as the optional `main.py` example does with `uvicorn.run`: all interfaces on platform
   `$PORT`, otherwise `127.0.0.1`, with `timeout_graceful_shutdown=8`. Bare uvicorn binds loopback,
   unreachable by the platform; `fastapi run` binds `0.0.0.0`, unsuitable for a desktop default.
 - Behind Gorouter/Cloud Run, `--proxy-headers` trusts only `--forwarded-allow-ips` (default

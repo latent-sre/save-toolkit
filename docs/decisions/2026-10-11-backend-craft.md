@@ -85,3 +85,12 @@ is a separately scoped task, not automatic work in a bounded API change. The cha
 existing contract documentation, verifies changed behaviour and discloses missing contract or
 compatibility evidence. Existing authentication, contract-change approval and versioning obligations
 remain in force.
+
+## Owner amendment — 2026-10-12: internal identity and optional examples
+
+The owner confirmed corporate SSO for internal tools and approved simplifying the starter
+packaging [sourced: owner]. Shared web services retain authentication and object authorization;
+the SSO vendor and protocol are not selected here. Common HTTP helpers and optional bearer
+adapters are separate references. Native framework and existing identity implementations may
+satisfy the same contract; copying the example application is optional. Applicable acceptance
+checks and new-service CI delivery remain required.

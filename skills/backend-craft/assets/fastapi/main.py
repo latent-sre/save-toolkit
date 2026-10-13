@@ -1,7 +1,9 @@
-"""An example service carrying the whole house contract: settings read and validated at startup,
+"""Optional resource example: settings read and validated at startup,
 a loopback default, a lifespan that owns shared resources, health outside the API contract, and a
 resource with /v1 paths, bearer security, cursor pages whose oversized limit is lowered, and a 404
-problem for a missing or unpermitted object. Replace Thing and ThingStore with the real resource.
+problem for a missing or unpermitted object. Adapt relevant patterns to the real app; Thing,
+ThingStore and the bearer adapter are examples, not required scaffolding. Shared internal tools
+use their native/corporate-SSO integration; select this adapter only when it accepts bearer tokens.
 
 Run it with `python main.py`: it listens on all interfaces at $PORT when the platform sets PORT
 (PCF, Cloud Run), and on 127.0.0.1:8000 otherwise, as load_settings decides.
@@ -14,18 +16,15 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Path, Query, Request, Response
-from house import (
+from auth import (
     Authenticated,
-    Page,
     Principal,
     TokenVerifier,
     authenticated,
-    house_app,
-    is_loopback,
-    problem,
-    problems,
+    configure_bearer_auth,
 )
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Path, Query, Request, Response
+from house import Page, house_app, is_loopback, problem, problems
 from pydantic import BaseModel
 
 MAX_PAGE_SIZE = 200
@@ -136,9 +135,10 @@ def create_app(settings: Settings, verify_token: TokenVerifier, store: ThingStor
         yield
 
     app = house_app(
-        "Things API", "1.0.0", verify_token=verify_token, loopback_only=is_loopback(settings.host),
+        "Things API", "1.0.0", loopback_only=is_loopback(settings.host),
         trusted_request_id_header=settings.trusted_request_id_header, lifespan=lifespan,
     )
+    configure_bearer_auth(app, verify_token)
 
     # Health stays outside the contract and authentication; no health path ends in "z".
     @app.get("/health/live", include_in_schema=False)
@@ -156,7 +156,7 @@ def create_app(settings: Settings, verify_token: TokenVerifier, store: ThingStor
 
 
 async def refuse_every_token(token: str) -> Principal | None:
-    """Replace with the identity provider's verifier."""
+    """The example denies all tokens until wired to the app's trusted bearer verifier."""
     return None
 
 

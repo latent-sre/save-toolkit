@@ -1,7 +1,6 @@
-// House API contract for a Huma service. Copy into the service package and keep its tests green:
-// RFC 9457 problems carrying request_id and errors[], X-Request-ID on every response, problem
-// answers for the router's own 404 and 405, cursor pages, and bearer authentication on every
-// operation that declares security.
+// Optional common components for a Huma service: RFC 9457 problems, request IDs, router 404/405
+// problems and cursor pages. Adapt the components the service needs. Authentication belongs to
+// the service's existing middleware or the separate bearer adapter in auth.go.
 package main
 
 import (
@@ -9,15 +8,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
-	"fmt"
-	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humago"
 )
 
 // Problem is the house error body: RFC 9457 plus request_id and, for invalid input, errors.
@@ -169,90 +164,13 @@ func WriteProblem(w http.ResponseWriter, r *http.Request, p *Problem) {
 	_ = json.NewEncoder(w).Encode(p)
 }
 
-// Principal is the authenticated caller.
-type Principal struct {
-	Subject string
-	Scopes  []string
-}
-
-type principalKey struct{}
-
-// PrincipalFrom returns the caller that RequireAuth authenticated, or false on a public operation.
-func PrincipalFrom(ctx context.Context) (Principal, bool) {
-	p, ok := ctx.Value(principalKey{}).(Principal)
-	return p, ok
-}
-
-// TokenVerifier checks a bearer token and returns its principal. The production verifier validates
-// the token against the identity provider; tests inject their own. It returns ErrInvalidToken for
-// a missing, expired or forged token; any other error means the verifier itself failed (the
-// identity provider is unreachable), which is a 503, not a 401.
-type TokenVerifier func(ctx context.Context, token string) (Principal, error)
-
-// ErrInvalidToken is the verifier's answer for a token that does not authenticate anyone.
-var ErrInvalidToken = errors.New("invalid bearer token")
-
-// Public marks an operation that needs no authentication: set Metadata: Public and leave Security
-// empty. Every other operation is authenticated, even one that forgot to declare Bearer, and the
-// document test fails until it declares it.
-var Public = map[string]any{"public": true}
-
-// RequireAuth authenticates every operation not marked Public, answering 401 with
-// WWW-Authenticate when the token is missing or invalid. Object-level authorization stays in the
-// handler, which knows the object.
-func RequireAuth(api huma.API, verify TokenVerifier) func(huma.Context, func(huma.Context)) {
-	return func(ctx huma.Context, next func(huma.Context)) {
-		op := ctx.Operation()
-		if len(op.Security) == 0 && op.Metadata["public"] == true {
-			next(ctx)
-			return
-		}
-		token, found := strings.CutPrefix(ctx.Header("Authorization"), "Bearer ")
-		principal, err := Principal{}, ErrInvalidToken
-		if found && token != "" {
-			principal, err = verify(ctx.Context(), token)
-		}
-		switch {
-		case errors.Is(err, ErrInvalidToken):
-			ctx.SetHeader("WWW-Authenticate", `Bearer`)
-			_ = huma.WriteErr(api, ctx, http.StatusUnauthorized, "A valid bearer token is required.")
-		case err != nil:
-			slog.WarnContext(ctx.Context(), "token verification failed", "error_type", fmt.Sprintf("%T", err))
-			_ = huma.WriteErr(api, ctx, http.StatusServiceUnavailable, "Credentials could not be verified; try again shortly.")
-		default:
-			next(huma.WithValue(ctx, principalKey{}, principal))
-		}
-	}
-}
-
-// NewAPI builds the Huma API on mux with the house configuration. Register operations after it.
-func NewAPI(mux *http.ServeMux, title, version string, verify TokenVerifier) huma.API {
+// HouseConfig supplies common document/error configuration only; it installs no authentication
+// or request middleware. Wire the service's SSO middleware before registering shared internal
+// operations, and wrap the handler with WithRequestID and WithProblemFallback as applicable.
+func HouseConfig(title, version string) huma.Config {
 	config := huma.DefaultConfig(title, version)
 	// No $schema property or Link header in response bodies: the committed document is the contract.
 	config.CreateHooks = nil
 	config.Transformers = append(config.Transformers, stampRequestID)
-	config.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
-		"bearer": {Type: "http", Scheme: "bearer", BearerFormat: "JWT"},
-	}
-	api := humago.New(mux, config)
-	api.OpenAPI().OnAddOperation = append(api.OpenAPI().OnAddOperation, declareAuthErrors)
-	api.UseMiddleware(RequireAuth(api, verify))
-	return api
+	return config
 }
-
-// declareAuthErrors documents the 401 and the verifier-outage 503 that RequireAuth can send on
-// every authenticated operation, with the same Problem body as the operation's 500.
-func declareAuthErrors(_ *huma.OpenAPI, op *huma.Operation) {
-	problem := op.Responses["500"]
-	if len(op.Security) == 0 || problem == nil {
-		return
-	}
-	for status, description := range map[string]string{"401": "Unauthorized", "503": "Service Unavailable"} {
-		if op.Responses[status] == nil {
-			op.Responses[status] = &huma.Response{Description: description, Content: problem.Content}
-		}
-	}
-}
-
-// Bearer is the security requirement for an authenticated operation.
-var Bearer = []map[string][]string{{"bearer": {}}}

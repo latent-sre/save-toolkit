@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 from uuid import UUID
 
@@ -51,6 +52,189 @@ def test_fastapi_starter_suite_passes(tmp_path):
     assert " passed" in result.stdout and "skipped" not in result.stdout, result.stdout
 
 
+def test_fastapi_http_core_runs_without_auth_or_example_files(tmp_path):
+    for name in ("house.py", "contract_checks.py", "test_http_core.py"):
+        shutil.copy2(ASSETS / "fastapi" / name, tmp_path / name)
+    _passed(_run([sys.executable, "-m", "pytest", "-q", "-o", "addopts=", "test_http_core.py"], tmp_path))
+
+
+def test_fastapi_contract_checks_run_against_cookie_service_without_examples(tmp_path):
+    for name in ("house.py", "contract_checks.py", "test_openapi_document.py", "test_schemathesis.py"):
+        shutil.copy2(ASSETS / "fastapi" / name, tmp_path / name)
+    # Deliberately no main.py, auth.py, ThingStore or bearer fixtures. Only this ordinary setup
+    # module changes; the shipped document/schema checks run unmodified against another service.
+    (tmp_path / "contract_app.py").write_text(textwrap.dedent('''\
+        from contextlib import asynccontextmanager
+        from pathlib import Path
+        from typing import Annotated
+
+        from fastapi import Depends, HTTPException, Security
+        from fastapi.security import APIKeyCookie
+        from house import house_app, problems
+        from pydantic import BaseModel
+
+        AUTH_SCHEME = "corporateSession"
+        TEST_HEADERS = {"Cookie": "corp_session=local-alice"}
+        PUBLIC_OPERATIONS = set()
+        cookie = APIKeyCookie(name="corp_session", scheme_name=AUTH_SCHEME, auto_error=False)
+
+        def identity(value: Annotated[str | None, Security(cookie)]):
+            if value != "local-alice":
+                raise HTTPException(401, "Sign in")
+            return "alice"
+
+        class Note(BaseModel):
+            id: int
+            text: str
+
+        @asynccontextmanager
+        async def lifespan(app):
+            app.state.notes = {1: ("alice", Note(id=1, text="Local fixture"))}
+            with Path("lifecycle.log").open("a") as log:
+                log.write("start\\n")
+            try:
+                yield
+            finally:
+                del app.state.notes
+                with Path("lifecycle.log").open("a") as log:
+                    log.write("stop\\n")
+
+        def make_app():
+            app = house_app("Session notes", "1.0.0", loopback_only=False, lifespan=lifespan, openapi_url=None)
+
+            @app.get("/v1/notes/{note_id}", responses=problems(401, 404))
+            def get_note(note_id: int, owner: Annotated[str, Depends(identity)]) -> Note:
+                note = app.state.notes.get(note_id)  # fails if the check skipped lifespan
+                if note is None or note[0] != owner:
+                    raise HTTPException(404, "Not found")
+                return note[1]
+
+            return app
+        '''), encoding="utf-8")
+    (tmp_path / "test_notes.py").write_text(textwrap.dedent('''\
+        from contract_app import TEST_HEADERS, make_app
+        from contract_checks import assert_problem
+        from fastapi.testclient import TestClient
+
+        def test_notes_identity_and_problems():
+            with TestClient(make_app()) as client:
+                assert_problem(client.get("/v1/notes/1"), 401)
+                assert_problem(client.get("/v1/notes/1", headers={"Cookie": "corp_session=invalid"}), 401)
+                assert_problem(client.get("/v1/notes/2", headers=TEST_HEADERS), 404)
+                assert client.get("/v1/notes/1", headers=TEST_HEADERS).json() == {
+                    "id": 1, "text": "Local fixture",
+                }
+        '''), encoding="utf-8")
+    pytest_cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts="]
+    _passed(_run([*pytest_cmd, "test_openapi_document.py"], tmp_path, UPDATE_OPENAPI="1"))
+    result = _run([*pytest_cmd, "-p", "schemathesis", "-p", "hypothesispytest"], tmp_path)
+    _passed(result)
+    assert "skipped" not in result.stdout, result.stdout
+    lifecycle = (tmp_path / "lifecycle.log").read_text().splitlines()
+    assert lifecycle and lifecycle.count("start") == lifecycle.count("stop")
+
+    document_path = tmp_path / "openapi.json"
+    document = json.loads(document_path.read_text(encoding="utf-8"))
+    assert document["components"]["securitySchemes"] == {
+        "corporateSession": {"type": "apiKey", "in": "cookie", "name": "corp_session"}
+    }
+    document["info"]["version"] = "drift"
+    document_path.write_text(json.dumps(document), encoding="utf-8")
+    drift = _run([*pytest_cmd, "test_openapi_document.py::test_document_matches_the_code"], tmp_path)
+    assert drift.returncode == 1 and "openapi.json differs" in drift.stdout, drift.stdout
+
+
+def _cookie_document():
+    return {
+        "openapi": "3.1.0", "components": {"securitySchemes": {
+            "corporateSession": {"type": "apiKey", "in": "cookie", "name": "corp_session"},
+        }},
+        "security": [{"corporateSession": []}],
+        "paths": {"/v1/notes": {"parameters": [], "get": {
+            "operationId": "listNotes", "responses": {"401": {"content": {"application/problem+json": {}}}},
+        }}},
+    }
+
+
+@pytest.mark.parametrize(("scheme", "headers", "configured"), [
+    ("corporateSession", {}, False),
+    ("corporateSession", {"": "local-alice"}, False),
+    ("corporateSession", {"Cookie": ""}, False),
+    ("corporateSession", {"Cookie": " "}, False),
+    (None, {}, True),
+])
+def test_schema_checks_require_configured_identity_for_protected_service(tmp_path, scheme, headers, configured):
+    shutil.copy2(ASSETS / "fastapi/test_schemathesis.py", tmp_path / "test_schemathesis.py")
+    (tmp_path / "contract_app.py").write_text(textwrap.dedent(f'''\
+        from fastapi import FastAPI
+
+        AUTH_SCHEME = {scheme!r}
+        TEST_HEADERS = {headers!r}
+
+        def make_app():
+            app = FastAPI()
+
+            @app.get("/v1/status")
+            def status() -> str:
+                return "ready"
+
+            return app
+        '''), encoding="utf-8")
+    result = _run([sys.executable, "-m", "pytest", "--collect-only", "-q", "-o", "addopts=",
+                   "-p", "schemathesis", "-p", "hypothesispytest"], tmp_path)
+    if configured:
+        _passed(result)
+    else:
+        assert result.returncode != 0 and "Configure nonempty test identity" in result.stdout, result.stdout
+
+
+def test_reusable_document_checks_accept_inherited_cookie_security_and_explicit_public_operation():
+    checks = load_path(ASSETS / "fastapi/contract_checks.py", "contract_checks")
+    document = _cookie_document()
+    checks.assert_document_rules(document, auth_scheme="corporateSession", public_operations=set())
+    document["paths"]["/v1/notes"]["get"]["security"] = []
+    checks.assert_document_rules(document, auth_scheme="corporateSession", public_operations={"listNotes"})
+
+
+@pytest.mark.parametrize("mutation", ["missing", "override", "anonymous", "undeclared", "wrong_scheme", "error_type"])
+def test_reusable_document_checks_reject_broken_contract(mutation):
+    checks = load_path(ASSETS / "fastapi/contract_checks.py", "contract_checks")
+    document = _cookie_document()
+    operation = document["paths"]["/v1/notes"]["get"]
+    if mutation == "missing":
+        del document["security"]
+    elif mutation == "override":
+        operation["security"] = []
+    elif mutation == "anonymous":
+        operation["security"] = [{"corporateSession": []}, {}]
+    elif mutation == "undeclared":
+        operation["security"] = [{"corporateSession": [], "undefinedIdentity": []}]
+    elif mutation == "wrong_scheme":
+        document["components"]["securitySchemes"]["bearer"] = {"type": "http", "scheme": "bearer"}
+        operation["security"] = [{"bearer": []}]
+    else:
+        operation["responses"]["401"]["content"] = {"application/json": {}}
+    with pytest.raises(AssertionError):
+        checks.assert_document_rules(document, auth_scheme="corporateSession", public_operations=set())
+
+
+@pytest.mark.parametrize("mutation", ["request_id", "status", "error_type"])
+def test_reusable_problem_check_rejects_broken_response(mutation):
+    checks = load_path(ASSETS / "fastapi/contract_checks.py", "contract_checks")
+    _, _, test_client = house_client()
+    with test_client as c:
+        response = c.get("/v1/auth")
+    checks.assert_problem(response, 401)
+    if mutation == "request_id":
+        response.headers["x-request-id"] = "different"
+    elif mutation == "status":
+        response.status_code = 503
+    else:
+        response.headers["content-type"] = "application/json"
+    with pytest.raises(AssertionError):
+        checks.assert_problem(response, 401)
+
+
 # The FastAPI house module, exercised directly.
 
 def load_house():
@@ -59,17 +243,13 @@ def load_house():
     return module
 
 
-async def _no_tokens(token: str) -> None:
-    return None
-
-
 class Payload(BaseModel):
     count: int
 
 
 def house_client(*, trusted_request_id_header: str | None = None, cors: bool = False):
     house = load_house()
-    app = house.house_app("Probe", "1.0.0", verify_token=_no_tokens, loopback_only=False,
+    app = house.house_app("Probe", "1.0.0", loopback_only=False,
                           trusted_request_id_header=trusted_request_id_header)
 
     @app.get("/v1/auth", responses=house.problems(401))
@@ -387,7 +567,7 @@ def test_cross_site_write_guard(client, headers, status):
 ])
 def test_loopback_host_guard(host, allowed):
     house = load_house()
-    app = house.house_app("Probe", "1.0.0", verify_token=_no_tokens, loopback_only=True)
+    app = house.house_app("Probe", "1.0.0", loopback_only=True)
 
     @app.get("/v1/ping")
     def ping() -> dict:

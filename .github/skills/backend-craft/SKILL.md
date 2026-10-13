@@ -10,7 +10,7 @@ argument-hint: "[the tool, service or backend change]"
 
 # Backend craft
 
-Deliver runnable tools and services through their real entrypoints. Load `stack-profile` for
+Build internal tools and services through their real entrypoints. Load `stack-profile` for
 authoring and runtime choices; inspect the repository's framework, contracts, tests and deployment
 before choosing a path.
 
@@ -40,11 +40,9 @@ through the real integration, then complete the requested scope, configuration a
    assumptions. For new services, write route signatures/models and generate the document first.
    Use existing caller approval when it covers the contract; otherwise present the concrete
    change for approval. A breaking change follows [versioning](./references/versioning.md).
-3. Use the language's starters below only when they fit the service. Adapt their checks to its
-   contract; keep existing error and auth code. New services verify document drift, contract
-   rules, Schemathesis responses and `oasdiff` against the base document. Existing services run
-   their applicable checks and focused tests for changed behaviour; disclose missing document
-   or compatibility evidence.
+3. New services verify document drift, contract rules, Schemathesis responses and `oasdiff`
+   against the base document. Existing services run their applicable checks and focused tests for changed
+   behaviour; disclose missing document or compatibility evidence.
 
 ### House contract for new HTTP services
 
@@ -56,8 +54,8 @@ These shapes are owned here and consumed by `frontend-craft`.
 | Status codes | `400` for unparseable syntax; `422` for well-formed input with invalid values. Declare input constraints in the schema. Stateful rejection, such as an `Idempotency-Key` reused with different intent, can reject schema-valid input: document and test that response rather than inventing a schema constraint. |
 | Request ID | Generate per request, or accept only from a header a trusted ingress overwrites; echo as `X-Request-ID`, in problems and request logs. |
 | Collections | `{ "data": [...], "next_cursor": "..." \| null }`; opaque cursor with a declared pattern, clamped maximum `limit`, `limit + 1` fetch, deterministic order with a unique tie-breaker, allowlisted filters/sorts. Include a total only when cheap. |
-| Document | Emit OpenAPI 3.1, valid as 3.2; use 3.2-only features only when producer and consumers support them. Unique lowerCamel `operationId`, named schemas (`ThingPage`), `/v1` paths, bearer security unless deliberately public. |
-| Authentication | Authenticate unless listed public. Missing/bad token: `401` with `WWW-Authenticate`; verifier failure: `503`. Authorize each object in the handler; unreadable objects answer `404`. Authentication changes get a `reviewer` pass. |
+| Document | Emit OpenAPI 3.1, valid as 3.2; use 3.2-only features only when producer and consumers support them. Unique lowerCamel `operationId`, named schemas (`ThingPage`), `/v1` paths and the actual authentication scheme, with explicit unauthenticated exceptions. |
+| Authentication | Shared internal web tools use the application's corporate SSO integration; internal network access grants no permissions. Preserve its session/token contract rather than inventing a provider or trusting caller-supplied identity headers. Missing/invalid identity: `401` (`WWW-Authenticate` for bearer); verifier failure: `503`. Authorize each object; unreadable objects answer `404`. Authentication changes get a `reviewer` pass. |
 | Writes | Retryable or concurrent writes follow [API writes](./references/api-writes.md). Long-running work returns `202` with a pollable status resource and follows [background work](./references/background-work.md). |
 | Operational actions | An endpoint changing external state offers dry run and plan-then-apply, bounds targets per call, and logs who acted and why. |
 | Dependency failure | An optional enrichment becomes explicitly unavailable; an essential upstream's bad answer is `502`, timeout `504`. Rate limits return `429` with `Retry-After`. |
@@ -92,17 +90,23 @@ Read only matching references and assets; use every matching row.
 | Populated-table migration | `database-reliability`; execution stays with the human owner |
 | RED metrics or traces | `obs-pipeline` |
 
-For a compatible HTTP service, read and adapt the language's starters with editor tools:
+### Optional implementation references
 
-- FastAPI: [house.py](./assets/fastapi/house.py), [test_house.py](./assets/fastapi/test_house.py),
-  [test_openapi_document.py](./assets/fastapi/test_openapi_document.py),
-  [test_schemathesis.py](./assets/fastapi/test_schemathesis.py); example
-  [main.py](./assets/fastapi/main.py); [CI](./assets/ci/api-contract-fastapi.yml).
-- Go: [house.go](./assets/go/house.go), [house_test.go](./assets/go/house_test.go),
-  [openapi_test.go](./assets/go/openapi_test.go),
-  [schemathesis_test.go](./assets/go/schemathesis_test.go); examples
-  [main.go](./assets/go/main.go), [things.go](./assets/go/things.go);
-  [CI](./assets/ci/api-contract-go.yml).
+Select by capability; equivalent application/framework facilities satisfy the same contract.
+Keep applicable acceptance checks, adapting their fixtures to the real resource and identity
+integration. Copying an example application, datastore or bearer adapter is not a requirement.
+Here, public means explicitly unauthenticated, not internet-facing; shared internal tools stay
+authenticated. Workers use their service identity; local CLIs keep their native execution model.
+
+| Need | FastAPI | Go/Huma |
+|---|---|---|
+| Common HTTP behavior | [house.py](./assets/fastapi/house.py), [tests](./assets/fastapi/test_http_core.py) | [house.go](./assets/go/house.go), [tests](./assets/go/core_test.go) |
+| Bearer adapter, only when that is the identity contract | [auth.py](./assets/fastapi/auth.py), [tests](./assets/fastapi/test_auth.py) | [auth.go](./assets/go/auth.go), [tests](./assets/go/auth_test.go) |
+| Contract assertions and app-specific test setup | [checks](./assets/fastapi/contract_checks.py), [setup](./assets/fastapi/contract_app.py) | [checks](./assets/go/contract_helpers_test.go), [setup](./assets/go/example_fixture_test.go) |
+| Optional sample-resource acceptance | [test_house.py](./assets/fastapi/test_house.py) | [house_test.go](./assets/go/house_test.go) |
+| Document and response checks | [document](./assets/fastapi/test_openapi_document.py), [Schemathesis](./assets/fastapi/test_schemathesis.py) | [document](./assets/go/openapi_test.go), [Schemathesis](./assets/go/schemathesis_test.go) |
+| CI wiring | [workflow](./assets/ci/api-contract-fastapi.yml) | [workflow](./assets/ci/api-contract-go.yml) |
+| Optional composition example: settings, lifecycle and a sample resource | [main.py](./assets/fastapi/main.py) | [main.go](./assets/go/main.go), [things.go](./assets/go/things.go) |
 
 ## Acceptance
 

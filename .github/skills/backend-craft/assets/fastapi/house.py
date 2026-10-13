@@ -1,14 +1,13 @@
-"""House API contract for a FastAPI service. Copy beside the app and keep its tests green.
+"""Reusable HTTP helpers for a FastAPI service; adapt only the pieces the app needs.
 
-    app = house_app("Things API", "1.0.0", verify_token=verify, loopback_only=True)
-    router = APIRouter(prefix="/v1", dependencies=[Depends(authenticated)])
-    ...
-    app.include_router(router)
+    app = house_app("Tools API", "1.0.0", loopback_only=True)
 
 house_app gives every error one RFC 9457 shape carrying request_id (and errors[] for invalid
 input), X-Request-ID on every response, lowerCamel operation IDs, one Problem component declared
-as application/problem+json on every 4xx and 5xx response, bearer authentication, a cross-site
+as application/problem+json on every 4xx and 5xx response, a cross-site
 write guard, and, for a service bound to loopback, a Host guard against DNS rebinding.
+Register the app's own routes and native/corporate-SSO authentication and object authorization.
+The separate auth.py bearer adapter and main.py resource example are optional.
 
 Request IDs: no inbound header is trusted by default. Trust one only when every request passes an
 ingress that overwrites it; on PCF, Gorouter overwrites X-Vcap-Request-Id, but container-to-
@@ -30,22 +29,20 @@ import ipaddress
 import logging
 import re
 import sys
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Mapping
 from contextvars import ContextVar
 from copy import deepcopy
-from dataclasses import dataclass, field
 from http import HTTPStatus
 from traceback import walk_tb
 from types import TracebackType
-from typing import Annotated, Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from starlette.datastructures import Headers, MutableHeaders
 
@@ -243,40 +240,6 @@ class LoopbackHostGuard:
         await self.app(scope, receive, send)
 
 
-@dataclass(frozen=True)
-class Principal:
-    subject: str
-    scopes: frozenset[str] = field(default_factory=frozenset)
-
-
-# Returns the principal, or None for a missing, expired or forged token. Raising means the
-# verifier itself failed (the identity provider is unreachable): that is a 503, not a 401.
-TokenVerifier = Callable[[str], Awaitable[Principal | None]]
-
-_bearer = HTTPBearer(scheme_name="bearer", bearerFormat="JWT", auto_error=False)
-
-
-async def authenticated(
-    request: Request, credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
-) -> Principal:
-    """Every /v1 operation depends on this; it also declares the bearer scheme in the document."""
-    challenge = {"WWW-Authenticate": "Bearer"}
-    if credentials is None:
-        raise HTTPException(401, "A valid bearer token is required.", headers=challenge)
-    verify: TokenVerifier = request.app.state.verify_token
-    try:
-        principal = await verify(credentials.credentials)
-    except Exception:
-        logger.warning("Token verification failed", exc_info=False)
-        raise HTTPException(503, "Credentials could not be verified; try again shortly.") from None
-    if principal is None:
-        raise HTTPException(401, "A valid bearer token is required.", headers=challenge)
-    return principal
-
-
-Authenticated = Annotated[Principal, Depends(authenticated)]
-
-
 def _locations(tb: TracebackType | None) -> list[object]:
     """Code locations, outermost first; a repeated frame (recursion) collapses to a count."""
     locations: list[object] = []
@@ -381,7 +344,7 @@ def _house_document(app: FastAPI) -> None:
                 responses.setdefault("500", {"description": HTTPStatus(500).phrase})
                 if "requestBody" in operation:  # unparseable JSON answers 400
                     responses.setdefault("400", {"description": HTTPStatus(400).phrase})
-                if operation.get("security"):  # authenticated: a bad token, or a verifier outage
+                if operation.get("security"):  # authentication can reject a caller or be unavailable
                     for status in (401, 503):
                         responses.setdefault(str(status), {"description": HTTPStatus(status).phrase})
                 for status, response in responses.items():
@@ -394,7 +357,7 @@ def _house_document(app: FastAPI) -> None:
 
 
 def house_app(
-    title: str, version: str, *, verify_token: TokenVerifier, loopback_only: bool,
+    title: str, version: str, *, loopback_only: bool,
     trusted_request_id_header: str | None = None, trusted_origins: frozenset[str] = frozenset(),
     **fastapi_options: Any,
 ) -> FastAPI:
@@ -404,7 +367,6 @@ def house_app(
         title=title, version=version, generate_unique_id_function=operation_id,
         separate_input_output_schemas=False, **fastapi_options,
     )
-    app.state.verify_token = verify_token
     _install_handlers(app)
     _house_document(app)
     app.add_middleware(CrossSiteWriteGuard, trusted_origins=trusted_origins)

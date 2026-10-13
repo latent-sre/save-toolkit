@@ -1,93 +1,19 @@
-// House contract tests: they drive the real handler chain, so a change that breaks the error,
-// request-ID, page or authentication contract fails here. Adapt the seed and the requests to the
-// service's resource; keep every assertion.
+// Optional example-service tests: they drive the complete handler chain. Adapt the seed,
+// requests and relevant assertions to the service's resource, identity and behavior. Preserve
+// authentication, object-access and HTTP-contract checks for the behavior the service retains.
 package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-const testToken = "test-token"
-
-func testVerify(_ context.Context, token string) (Principal, error) {
-	if token != testToken {
-		return Principal{}, ErrInvalidToken
-	}
-	return Principal{Subject: "tester", Scopes: []string{"team:sre"}}, nil
-}
-
-func seededStore(n int) *ThingStore {
-	things := make([]Thing, 0, n+1)
-	for i := 1; i <= n; i++ {
-		things = append(things, Thing{ID: fmt.Sprintf("thing-%04d", i), Name: fmt.Sprintf("Thing %d", i), Team: "sre"})
-	}
-	return NewThingStore(append(things, Thing{ID: "thing-other", Name: "Other", Team: "payments"})...)
-}
-
-func testHandler(t *testing.T, store *ThingStore) http.Handler {
-	t.Helper()
-	handler, _ := newService(Config{Addr: "127.0.0.1:0"}, testVerify, store)
-	return handler
-}
-
-type reply struct {
-	status int
-	header http.Header
-	body   map[string]any
-}
-
-func call(t *testing.T, h http.Handler, method, target string, headers ...string) reply {
-	t.Helper()
-	req := httptest.NewRequest(method, target, nil)
-	req.Host = "127.0.0.1:8080"
-	for i := 0; i+1 < len(headers); i += 2 {
-		req.Header.Set(headers[i], headers[i+1])
-	}
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-	r := reply{status: rec.Code, header: rec.Header()}
-	if rec.Body.Len() > 0 && strings.Contains(rec.Header().Get("Content-Type"), "json") {
-		if err := json.Unmarshal(rec.Body.Bytes(), &r.body); err != nil {
-			t.Fatalf("%s %s: body is not JSON: %v\n%s", method, target, err, rec.Body.String())
-		}
-	}
-	return r
-}
-
 func authed(h http.Handler, t *testing.T, method, target string) reply {
 	return call(t, h, method, target, "Authorization", "Bearer "+testToken)
-}
-
-// assertProblem checks the house error shape on any non-2xx answer.
-func assertProblem(t *testing.T, r reply, status int) {
-	t.Helper()
-	if r.status != status {
-		t.Fatalf("status %d, want %d: %v", r.status, status, r.body)
-	}
-	if ct := r.header.Get("Content-Type"); !strings.HasPrefix(ct, "application/problem+json") {
-		t.Fatalf("Content-Type %q, want application/problem+json", ct)
-	}
-	for _, field := range []string{"type", "title", "status", "request_id"} {
-		if _, ok := r.body[field]; !ok {
-			t.Fatalf("problem lacks %q: %v", field, r.body)
-		}
-	}
-	if int(r.body["status"].(float64)) != status {
-		t.Fatalf("problem status %v, want %d", r.body["status"], status)
-	}
-	if r.body["request_id"] != r.header.Get("X-Request-ID") || r.body["request_id"] == "" {
-		t.Fatalf("request_id %v does not match X-Request-ID %q", r.body["request_id"], r.header.Get("X-Request-ID"))
-	}
-	if _, ok := r.body["$schema"]; ok {
-		t.Fatalf("problem carries $schema: %v", r.body)
-	}
 }
 
 func TestErrorsAreProblems(t *testing.T) {
@@ -113,6 +39,19 @@ func TestVerifierOutageIsNotAnAuthFailure(t *testing.T) {
 	}
 	handler, _ := newService(Config{Addr: "127.0.0.1:0"}, down, seededStore(1))
 	assertProblem(t, authed(handler, t, "GET", "/v1/things"), http.StatusServiceUnavailable)
+}
+
+func TestEmptyPageSizeMatchesTheDocument(t *testing.T) {
+	r := authed(testHandler(t, seededStore(1)), t, "GET", "/v1/things?limit=")
+	assertProblem(t, r, http.StatusUnprocessableEntity)
+	errs, _ := r.body["errors"].([]any)
+	if len(errs) == 0 {
+		t.Fatal("empty limit must identify the invalid query parameter")
+	}
+	location, _ := errs[0].(map[string]any)["loc"].([]any)
+	if len(location) != 2 || location[0] != "query" || location[1] != "limit" {
+		t.Fatalf("empty limit location = %v, want [query limit]", location)
+	}
 }
 
 func TestUnauthorizedNamesTheScheme(t *testing.T) {
@@ -141,9 +80,7 @@ func TestValidationErrorsLocateTheInput(t *testing.T) {
 func TestEveryResponseCarriesARequestID(t *testing.T) {
 	h := testHandler(t, seededStore(1))
 	for _, target := range []string{"/health/live", "/v1/things", "/v1/nope"} {
-		if call(t, h, "GET", target).header.Get("X-Request-ID") == "" {
-			t.Fatalf("GET %s: no X-Request-ID", target)
-		}
+		assertRequestID(t, call(t, h, "GET", target))
 	}
 	// A client-sent ID is not trusted unless the ingress header is configured.
 	r := call(t, h, "GET", "/health/live", "X-Request-ID", "spoofed")
