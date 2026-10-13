@@ -1,69 +1,78 @@
 # FastAPI
 
-`../SKILL.md` owns the house contract; on any conflict it wins. Read FastAPI, Pydantic, Starlette
-and Python versions from the project's manifests and lockfiles, never assume them. The starter is
-[house.py](../assets/fastapi/house.py) with [main.py](../assets/fastapi/main.py) as its example.
+Read FastAPI, Pydantic, Starlette and Python versions from manifests/lockfiles. Preserve existing
+service contracts and native identity integration. Shared internal tools use corporate SSO;
+its vendor and protocol come from the project, not this starter. Authenticate protected routes
+and authorize each object and collection regardless of network exposure. Public means explicitly
+unauthenticated, not internet-facing.
 
-## Building the app
+[house.py](../assets/fastapi/house.py) supplies reusable HTTP helpers without an auth adapter or
+dummy verifier. Adopt the helpers the app needs. [main.py](../assets/fastapi/main.py) is an optional
+resource example; its Things model, store, pagination and app factory are not required scaffolding.
 
-- **`house_app(title, version, verify_token=..., loopback_only=...)`** builds the FastAPI app on
-  the house contract: problem handlers, request IDs, lowerCamel operation IDs, one schema per
-  model, the Problem body on every error response in the document, and the browser and host
-  guards. Pass `lifespan=` through it; register routes after it.
-- **Routers carry the version and the authentication**:
-  `APIRouter(prefix="/v1", dependencies=[Depends(authenticated)])`, so an operation added later is
-  authenticated even if it forgets. A handler that needs the caller takes `principal: Authenticated`.
-  Declare each route's error statuses with `responses=problems(401, 404, 422)`.
-- **Declare parameters and dependencies with `Annotated`**, and the response by the handler's
-  return annotation. A returned `Response` bypasses validation and serialization; enforce its
-  contract yourself.
-- **One lifespan owns shared resources**: open clients and pools before `yield`, keep them on
-  `app.state`, close them after. `on_event` handlers do not run when `lifespan` is set.
-- **Domain errors stay free of FastAPI**: raise `ProblemError(status, type_uri, title, detail)`
-  from domain code; the installed handler turns it into the problem.
-- **Strict JSON bodies**: a JSON body must arrive with a JSON `Content-Type`. For a webhook sender
-  that omits it, put only that route on `APIRouter(strict_content_type=False)` and validate the
-  body explicitly.
-- **Server-Sent Events**: `EventSourceResponse` with `ServerSentEvent` from `fastapi.sse`, used
-  as `response_class=` on an async generator. It sends a `: ping` comment after 15 s of silence
-  and sets `Cache-Control: no-cache` and `X-Accel-Buffering: no`. See the OpenAPI reference for
-  how generated clients type the stream.
+## App and handlers
+
+- `house_app(title, version, loopback_only=...)` installs problems, request IDs,
+  lowerCamel operation IDs, one schema per model, documented Problem errors and browser/host
+  guards. Pass `lifespan=` and register routes afterwards.
+- Put versioning and the project's authentication dependency on protected routers; get the trusted
+  caller from that integration for object authorization. Declare applicable error statuses with
+  `responses=problems(401, 404, 422)`.
+- Only when that integration accepts bearer tokens, the optional [auth.py](../assets/fastapi/auth.py)
+  offers `configure_bearer_auth(app, verify)`, `authenticated` and `Authenticated`. Configure the
+  verifier and attach `Depends(authenticated)` to protected routers; setup alone protects no route.
+  The verifier returns a trusted `Principal` or `None` for an invalid token and raises on an outage.
+  Missing/invalid credentials return 401; an unconfigured or failed verifier returns 503 for a supplied
+  bearer token. The adapter supplies no identity provider and assumes no JWT format.
+- Use `Annotated` parameters/dependencies and return annotations. A returned `Response` bypasses
+  validation/serialization: enforce its contract explicitly.
+- One lifespan opens shared clients/pools before `yield`, stores them on `app.state`, and closes
+  them afterwards. `on_event` handlers do not run with `lifespan`.
+- Domain code raises framework-free `ProblemError(status, type_uri, title, detail)`; the handler
+  serializes it.
+- JSON bodies require JSON `Content-Type`. For a webhook sender omitting it, only that route uses
+  `APIRouter(strict_content_type=False)` with explicit body validation.
+- SSE uses `EventSourceResponse`/`ServerSentEvent` from `fastapi.sse`, as `response_class=` on an
+  async generator. It sends `: ping` after 15 s silence and sets `Cache-Control: no-cache` and
+  `X-Accel-Buffering: no`. [OpenAPI](./openapi.md) covers generated-client stream types.
 
 ## Concurrency and data
 
-- `async def` fits awaitable libraries; a plain `def` route or dependency runs in the thread pool
-  and suits blocking libraries. A blocking call made directly inside `async def` stalls every
-  request on the worker.
-- With async SQLAlchemy, open one `AsyncSession` per request or task and never share it across
-  concurrent tasks. Load what serialization needs before returning: implicit lazy loading during
-  serialization fails. Paginated queries order by a unique key.
-- PostgreSQL: psycopg 3, through SQLAlchemy's `postgresql+psycopg` dialect, sync or async.
-- SQL Server: `mssql-python` needs no separately installed ODBC driver manager (Linux images still
-  need `libltdl7`, `libkrb5-3` and `libgssapi-krb5-2`); SQLAlchemy 2.1 reaches it as
-  `mssql+mssqlpython`, synchronously, so its routes are `def`. The only async SQLAlchemy SQL Server
-  dialect, `mssql+aioodbc`, needs Microsoft's ODBC driver installed on the host.
+- Awaitable libraries use `async def`; blocking libraries use plain `def` routes/dependencies,
+  which run in the thread pool. Blocking inside `async def` stalls the worker.
+- SQLAlchemy: one `AsyncSession` per request/task, never shared concurrently. Load serialization
+  data before returning; implicit lazy loading then fails. Paginated queries order by a unique key.
+- PostgreSQL: psycopg 3 via SQLAlchemy `postgresql+psycopg`, sync or async.
+- SQL Server: `mssql-python` needs no separate ODBC driver manager; Linux still needs `libltdl7`,
+  `libkrb5-3`, `libgssapi-krb5-2`. SQLAlchemy 2.1 uses sync `mssql+mssqlpython`, so routes are
+  `def`. Async `mssql+aioodbc` requires Microsoft's ODBC driver on the host.
 
-## Tests
+## Tests and runtime
 
-- `with TestClient(app) as client:` runs the lifespan; a bare `TestClient(app)` does not.
-- `httpx.AsyncClient(transport=ASGITransport(app=app))` never runs the lifespan: wrap the app in
-  `asgi_lifespan.LifespanManager`. Assert startup and cleanup; a response alone proves neither ran.
-- Drive the real app with the project's test identity; a changed persistence boundary gets a
-  disposable real datastore.
-
-## Running
-
-- Start through the settings, as the example's `python main.py` does with `uvicorn.run`: all
-  interfaces on `$PORT` when the platform sets it, `127.0.0.1` otherwise, and
-  `timeout_graceful_shutdown=8`. A bare uvicorn command binds `127.0.0.1` by default, which a
-  platform cannot route to; `fastapi run` binds `0.0.0.0`, so never use it for a desktop tool.
-- Behind Gorouter or Cloud Run, `--proxy-headers` trusts `X-Forwarded-*` only from the addresses
-  in `--forwarded-allow-ips` (default loopback): set the ingress's addresses, or `'*'` only when
-  nothing reaches the app except through the ingress.
-- `--workers N` (or `WEB_CONCURRENCY`) starts N processes, each with its own memory and
-  connection pools: size N against the memory quota and the database's connection limit.
-- PCF's Python buildpack installs from `requirements.txt` (or Pipfile, `setup.py`, conda), not
-  from `uv.lock`: commit `uv export --format requirements.txt --no-dev` output beside the lock, and
-  pin the Python version in `runtime.txt`, since the buildpack's default is old.
-- Keep FastAPI and Starlette on patched releases: Host-header handling flaws in Starlette have
-  bypassed path-based authorization.
+- `with TestClient(app) as client:` runs lifespan; bare `TestClient(app)` does not.
+  `httpx.AsyncClient(transport=ASGITransport(app=app))` also skips it: wrap with
+  `asgi_lifespan.LifespanManager`. Assert startup and cleanup, not just responses.
+- Exercise the real app with the project's test identity; persistence changes use a disposable
+  real datastore.
+- [contract_checks.py](../assets/fastapi/contract_checks.py) exports plain problem/request-ID and
+  document assertions. [test_http_core.py](../assets/fastapi/test_http_core.py) exercises the HTTP
+  helper without any app or identity example. Keep real-route authentication and object-authorization
+  tests; `test_house.py` and [test_auth.py](../assets/fastapi/test_auth.py) cover the optional examples.
+- For `test_openapi_document.py` and `test_schemathesis.py`, replace only
+  [contract_app.py](../assets/fastapi/contract_app.py): supply `make_app()`, seeded resources,
+  `TEST_HEADERS` for the test identity, `AUTH_SCHEME` matching the actual named security scheme,
+  `AUTH_ERROR_STATUSES` for actual identity failures, and explicit `PUBLIC_OPERATIONS`. The supplied
+  setup uses Things/bearer; a cookie-session app needs neither `main.py` nor `auth.py`. Checks run
+  lifespan and obtain the schema directly, so no
+  public document endpoint is required. Keep fixture credentials confined to tests.
+- Start through settings, as the optional `main.py` example does with `uvicorn.run`: all interfaces on platform
+  `$PORT`, otherwise `127.0.0.1`, with `timeout_graceful_shutdown=8`. Bare uvicorn binds loopback,
+  unreachable by the platform; `fastapi run` binds `0.0.0.0`, unsuitable for a desktop default.
+- Behind Gorouter/Cloud Run, `--proxy-headers` trusts only `--forwarded-allow-ips` (default
+  loopback). Set ingress addresses; use `'*'` only when the ingress is the sole route to the app.
+- `--workers N`/`WEB_CONCURRENCY` means N independent processes and pools: size against memory and
+  database connection limits.
+- PCF's Python buildpack reads `requirements.txt` (or Pipfile, `setup.py`, conda), not `uv.lock`.
+  Commit `uv export --format requirements.txt --no-dev` beside the lock; pin Python in
+  `runtime.txt` rather than using the buildpack's old default.
+- Keep FastAPI/Starlette patched: Starlette Host-header flaws have bypassed path authorization.

@@ -1,11 +1,12 @@
-"""House contract tests: they drive the real app, so a change that breaks the error, request-ID,
-page or authentication contract fails here. Adapt the import, the seed and the requests to the
-service's resource; keep every assertion."""
+"""Behavior examples for errors, request IDs, paging, authentication and object authorization.
+These exercise the optional resource example. Adapt relevant checks to the actual app's routes,
+identity integration and data; preserve their safety properties without adding unrelated resources."""
 from __future__ import annotations
 
 import pytest
+from auth import Principal
+from contract_checks import assert_problem
 from fastapi.testclient import TestClient
-from house import Principal
 from main import MAX_PAGE_SIZE, Settings, Thing, ThingStore, create_app, load_settings
 
 TOKEN = "test-token"
@@ -31,16 +32,6 @@ def client_for(store: ThingStore, settings: Settings = LOOPBACK, verify_token=ve
 def client():
     with client_for(seeded(3)) as c:  # the with block runs the lifespan
         yield c
-
-
-def assert_problem(response, status: int) -> dict:
-    assert response.status_code == status, response.text
-    assert response.headers["content-type"].startswith("application/problem+json")
-    body = response.json()
-    assert {"type", "title", "status", "request_id"} <= body.keys(), body
-    assert body["status"] == status
-    assert body["request_id"] and body["request_id"] == response.headers["x-request-id"]
-    return body
 
 
 @pytest.mark.parametrize(

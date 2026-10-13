@@ -1,70 +1,81 @@
 # Go and Huma
 
-`../SKILL.md` owns the house contract; on any conflict it wins. Read the Go and Huma versions from
-`go.mod`, never assume them; Huma v2 needs Go 1.25 or later. The starter is
-[house.go](../assets/go/house.go) with [main.go](../assets/go/main.go) and
-[things.go](../assets/go/things.go) as its example.
+Read Go/Huma versions from `go.mod`; the browser guard in this example needs Go 1.25+.
+Preserve existing service contracts and adapt only the components the task needs.
 
-## Building the API
+- [house.go](../assets/go/house.go) supplies common problems, request IDs, router fallbacks,
+  cursor-page types and `HouseConfig(title, version)`. It works without the other example files.
+  `HouseConfig` supplies document/error configuration only: it installs no authentication or
+  request middleware. Use it with the service's established corporate SSO middleware, keeping
+  authentication in place before exposing shared internal operations and retaining object checks.
+- [auth.go](../assets/go/auth.go) is an optional bearer adapter for an integration that actually
+  verifies bearer tokens. Corporate SSO does not establish a token format or protocol. Reuse the
+  existing provider integration instead of adding this adapter when it already handles identity.
+- [main.go](../assets/go/main.go) and [things.go](../assets/go/things.go) are optional service and
+  domain examples. Skipping them does not remove browser/Host protection, request logging,
+  object authorization, server timeouts or shutdown requirements from the real service.
 
-- **`NewAPI(mux, title, version, verify)`** builds the Huma API on a standard `http.ServeMux`
-  (the `humago` adapter) with the house configuration: no `$schema` property or `Link` header in
-  bodies, the request ID stamped on every problem, the bearer scheme, and `RequireAuth`. The
-  `init` in `house.go` replaces `huma.NewError` and `huma.NewErrorWithContext` with the house
-  Problem; Huma reads the error type when an operation registers, so both must be set before
-  the first `huma.Register`.
-- **Register with `huma.Register` and a full `huma.Operation`**: `OperationID` (lowerCamel),
-  `Method`, a `/v1` `Path`, `Summary`, `Security: Bearer`, and `Errors` listing every error
-  status the operation can return, so the document declares them; an operation with a body
-  lists `400`, which Huma sends for unparseable JSON. An operation that needs no
-  authentication sets `Metadata: Public`, leaves `Security` empty, and is listed in
-  `publicOperations`; any other operation is authenticated even if it forgot `Security`.
-- **Inputs and outputs are structs.** Parameters are tagged `path:`, `query:` and `header:`;
-  the body is a `Body` field. Validation tags (`minLength`, `maxLength`, `pattern`, `enum`,
-  `minimum`, `maximum`) become both the document and the check. Huma answers `422` for invalid
-  values and unknown body fields and `400` for unparseable JSON. Cross-field checks, and a query
-  parameter sent with an empty value (which Huma treats as absent), belong in the input's
-  `Resolve(huma.Context) []error` method.
-- **Handlers return the house errors**: `huma.Error404NotFound(...)` and its siblings, or a
-  `*Problem` for a domain error with its own `Type`. A handler error that is not a status error
-  becomes a 500 whose message reaches no client.
-- **Two middleware layers.** The `net/http` chain in `newService` wraps every request, including
-  the router's own 404 and 405 and the health endpoints: request ID, access log, loopback `Host`
-  guard, `http.CrossOriginProtection`, then `WithProblemFallback`. Huma middleware
-  (`api.UseMiddleware`, registered before the operations) sees only Huma operations and their
-  metadata; authentication lives there.
+## API and handlers
 
-## The server
+- The optional adapter's `NewAPI(mux, title, version, verify)` uses `http.ServeMux`/`humago` with:
+  no `$schema` body property or `Link` header, request IDs on problems, bearer security and
+  `RequireAuth`. It authenticates unmarked operations and returns `503` when the verifier is nil;
+  it never turns protected operations public. `house.go`'s `init` replaces `huma.NewError` and
+  `huma.NewErrorWithContext` before the first `huma.Register`, when Huma reads the error type.
+- Register a full `huma.Operation`: lowerCamel `OperationID`, `Method`, `/v1` `Path`, `Summary`,
+  the actual identity scheme in `Security`, and every returned error status in `Errors`. Body
+  operations include `400` for unparseable JSON. With the optional bearer adapter, use
+  `Security: Bearer`; public operations set `Metadata: Public`, empty `Security` and an entry
+  in the service fixture's `publicOperations`. All others are authenticated even if
+  `Security` is omitted. For another SSO integration, configure its named document schemes and
+  test identity in the fixture; preserve unauthenticated and unauthorized denial checks.
+- Inputs/outputs are structs: `path:`, `query:`, `header:` tags and a `Body` field. Validation tags
+  (`minLength`, `maxLength`, `pattern`, `enum`, `minimum`, `maximum`) drive schema and validation.
+  Invalid values/unknown body fields return `422`, unparseable JSON `400`. Cross-field checks and
+  present-but-empty query values belong in `Resolve(huma.Context) []error`; Huma treats empty
+  query values as absent.
+- Return `huma.Error404NotFound(...)` and siblings, or `*Problem` with a domain `Type`. An error
+  without a status becomes `500` with no exception message exposed.
+- The optional `newService` example wraps every request, including router 404/405 and health:
+  request ID, access log, loopback Host guard, `http.CrossOriginProtection`, `WithProblemFallback`. Huma middleware
+  (`api.UseMiddleware` before operations) sees only registered operations/metadata; auth lives there.
 
-- **Timeouts**: the zero `http.Server` has none. Set `ReadHeaderTimeout`, `ReadTimeout`,
-  `WriteTimeout` and `IdleTimeout`. `WriteTimeout` also ends a long stream, so a streaming handler
-  lifts its own deadline with `http.NewResponseController(w).SetWriteDeadline(time.Time{})`.
-- **Shutdown**: `signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)`, then
-  `srv.Shutdown` with a deadline inside the platform's grace period. On Windows, Ctrl+C arrives
-  as `os.Interrupt` and closing the console window as `SIGTERM`, with 5 s to exit.
-- **Memory and CPU**: Go does not derive `GOMEMLIMIT` from the container's memory limit; set it
-  to about 90% of the PCF or Cloud Run memory quota so the collector works before the platform
-  kills the instance. Since Go 1.25, `GOMAXPROCS` follows a cgroup CPU quota. PCF's Diego gives
-  containers CPU shares, not a quota, so `GOMAXPROCS` there stays at the cell's CPU count; log
-  `runtime.GOMAXPROCS(0)` at startup and check it on each platform.
-- **Logs**: `log/slog` with a JSON handler; the starter's handler adds `request_id` to every
-  record logged with a request's context, so log with `slog.InfoContext(ctx, ...)`.
+## Server
 
-## Data
+- A zero `http.Server` has no timeouts. Set `ReadHeaderTimeout`, `ReadTimeout`, `WriteTimeout`,
+  `IdleTimeout`. A streaming handler lifts its write deadline with
+  `http.NewResponseController(w).SetWriteDeadline(time.Time{})`.
+- Use `signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)` and deadline-bounded
+  `srv.Shutdown` inside the platform's grace period. Windows Ctrl+C is `os.Interrupt`; console
+  closure is `SIGTERM` with 5 s to exit.
+- Go does not derive `GOMEMLIMIT` from container memory: set about 90% of the PCF/Cloud Run quota.
+  Since 1.25, `GOMAXPROCS` follows cgroup CPU quota. PCF Diego supplies shares, not quota, leaving
+  it at cell CPU count: log `runtime.GOMAXPROCS(0)` and verify on each platform.
+- Use JSON `log/slog`; the starter adds `request_id` to request-context records, so use
+  `slog.InfoContext(ctx, ...)`.
 
-- PostgreSQL: `pgx` v5 with `pgxpool`. Set `MaxConns` explicitly (the default is the larger of 4
-  and the CPU count), and pass the request context to every query: a cancelled context abandons
-  the query and usually closes its connection.
-- SQL Server: `github.com/microsoft/go-mssqldb`, a pure Go `database/sql` driver with no ODBC
-  dependency. Always set `encrypt` explicitly; with it unset, the driver trusts any server
-  certificate.
-- `sqlc` generates typed Go from SQL for PostgreSQL but does not support SQL Server; SQL Server
-  code uses `database/sql` with explicit pool settings (`SetMaxOpenConns`, `SetMaxIdleConns`,
-  `SetConnMaxLifetime`).
+## Data and tests
 
-## Tests
-
-- Drive the full handler from `newService` with `httptest`, as `house_test.go` does, so the
-  `net/http` chain is in the test. `humatest.New` builds a bare API without the house
-  configuration; use `humatest.Wrap` only for a test of the Huma layer alone.
-- `go test -race` for code with goroutines or shared state.
+- PostgreSQL: `pgx` v5/`pgxpool`, explicit `MaxConns` (default: larger of 4 or CPU count).
+  Pass request context to queries; cancellation abandons the query and usually closes its connection.
+- SQL Server: pure-Go `github.com/microsoft/go-mssqldb` needs no ODBC. Set `encrypt` explicitly;
+  unset, the driver trusts any server certificate.
+- `sqlc` generates PostgreSQL code, not SQL Server; SQL Server uses `database/sql` with explicit
+  `SetMaxOpenConns`, `SetMaxIdleConns`, `SetConnMaxLifetime`.
+- Exercise the real handler chain with `httptest` and the reusable `call`, `assertProblem` and
+  `assertRequestID` in [contract_helpers_test.go](../assets/go/contract_helpers_test.go).
+  [core_test.go](../assets/go/core_test.go) needs only those helpers and `house.go`;
+  [auth_test.go](../assets/go/auth_test.go) separately checks the optional bearer adapter.
+- Replace [example_fixture_test.go](../assets/go/example_fixture_test.go) with a service test
+  fixture: `contractService(t)` returns the real handler and stable generated document bytes;
+  `contractHeaders` supplies a local test identity; `authenticatedSchemes` names the document's
+  actual schemes, `authErrorStatuses` lists actual identity failures, and `publicOperations` lists
+  deliberate anonymous exceptions. This one seam feeds [openapi_test.go](../assets/go/openapi_test.go) and
+  [schemathesis_test.go](../assets/go/schemathesis_test.go), including cookie sessions and inherited
+  top-level security. No Things store or bearer adapter is required. Keep the update command:
+  `go test -run TestOpenAPIDocument -update`, then review `openapi.json` and run `go test ./...`.
+- [house_test.go](../assets/go/house_test.go) retains the optional Things example's pagination,
+  object permissions, browser protection and lifecycle checks. Reuse applicable cases with the
+  real service's resources; changing fixture wiring does not supply those domain checks.
+  `humatest.New` omits house configuration; `humatest.Wrap` is only for Huma-layer tests.
+- Use `go test -race` for goroutines/shared state.

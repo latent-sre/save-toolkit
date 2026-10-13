@@ -16,7 +16,7 @@ export interface SendOptions {
   maxAttempts?: number;
   /** Wait when an in-flight 409 carries an unreadable Retry-After. */
   defaultWaitMs?: number;
-  /** Upper bound on one wait, whatever the server asks. */
+  /** Maximum acceptable wait; a longer delay returns the pending response without retrying. */
   maxWaitMs?: number;
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
   signal?: AbortSignal;
@@ -56,10 +56,11 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 /**
  * Sends a state-changing request under `key`. Takes a URL and an init, never a `Request`: a
- * Request's body is a stream that one send consumes, so it cannot be re-sent after a 409. Returns the first response that is not an in-flight
- * 409, or the last in-flight 409 once maxAttempts is spent, so the caller can say the action is still
- * running. Every other failure is returned, never retried here: a write is replayed only by the
- * user's own retry, which passes the same key.
+ * Request's body is a stream that one send consumes, so it cannot be re-sent after a 409.
+ * Returns the first response that is not an in-flight 409, or the last in-flight 409 once
+ * maxAttempts is spent or its delay exceeds maxWaitMs, so the caller can say it is still running.
+ * Every other failure is returned, never retried here: a write is replayed only by the user's
+ * own retry, which passes the same key.
  */
 export async function sendIdempotent(
   input: string | URL,
@@ -81,6 +82,8 @@ export async function sendIdempotent(
   for (let attempt = 1; ; attempt += 1) {
     const response = await doFetch(input, request);
     if (!isInFlight(response) || attempt >= maxAttempts) return response;
-    await sleep(Math.min(retryAfterMs(response) ?? defaultWaitMs, maxWaitMs), signal);
+    const waitMs = retryAfterMs(response) ?? defaultWaitMs;
+    if (waitMs > maxWaitMs) return response;
+    await sleep(waitMs, signal);
   }
 }

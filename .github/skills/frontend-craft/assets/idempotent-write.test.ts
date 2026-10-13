@@ -46,11 +46,26 @@ test("an in-flight 409 waits Retry-After and re-sends the same request under the
   assert.deepEqual(s.waits, [2000, 1000]);
 });
 
-test("a Retry-After date is honoured and a wait is capped at maxWaitMs", async () => {
-  const soon = new Date(Date.now() + 90_000).toUTCString();
-  const s = server(inFlight(soon), ok);
-  await sendIdempotent("/v1/orders", { method: "POST" }, "key-3", { ...s, maxWaitMs: 5000 });
+test("a Retry-After beyond the wait budget returns the pending response without another send", async () => {
+  for (const retryAfter of ["120", new Date("2099-01-01T00:00:00Z").toUTCString()]) {
+    const pending = inFlight(retryAfter)();
+    const s = server(() => pending, ok);
+    const response = await sendIdempotent("/v1/orders", { method: "POST" }, "key-3", s);
+    assert.equal(response, pending);
+    assert.equal(s.calls.length, 1);
+    assert.deepEqual(s.waits, []);
+  }
+});
+
+test("a Retry-After equal to the wait budget is honoured in full", async () => {
+  const s = server(inFlight("5"), ok);
+  const response = await sendIdempotent("/v1/orders", { method: "POST" }, "key-3a", { ...s, maxWaitMs: 5000 });
+  assert.equal(response.status, 201);
+  assert.equal(s.calls.length, 2);
   assert.deepEqual(s.waits, [5000]);
+});
+
+test("an unreadable Retry-After uses the fallback wait", async () => {
   const unreadable = server(inFlight("later"), ok);
   await sendIdempotent("/v1/orders", { method: "POST" }, "key-3b", { ...unreadable, defaultWaitMs: 250 });
   assert.deepEqual(unreadable.waits, [250]);

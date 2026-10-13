@@ -74,3 +74,38 @@ Rejected [sourced: owner]:
   provider is recorded in `stack-profile` once the owner confirms it.
 - Until their follow-ups land, the existing API-writes, background-work, and consuming-APIs
   references carry over unchanged and are listed in the roadmap for re-derivation.
+
+## Owner amendment — 2026-10-12
+
+Amended: 2026-10-12 — decision owner narrowed existing-service contract scope.
+
+The owner approved narrowing the first-touch requirements for existing services [sourced: owner].
+This amends decisions 2 and 5 and their consequences: new HTTP services retain the full committed
+OpenAPI document and gate standard. Existing services preserve their canonical specification
+format/location, contract and equivalent checks. Missing service-wide documentation or CI adoption
+is a separately scoped task, not automatic work in a bounded API change. The change still updates
+existing contract documentation, verifies changed behaviour and discloses missing contract or
+compatibility evidence. Existing authentication, contract-change approval and versioning obligations
+remain in force.
+
+## Owner amendment — 2026-10-12: internal identity and optional examples
+
+Amended: 2026-10-12 — decision owner confirmed corporate SSO and optional starter examples.
+
+The owner confirmed corporate SSO for internal tools and approved simplifying the starter
+packaging [sourced: owner]. Shared web services retain authentication and object authorization;
+the SSO vendor and protocol are not selected here. Common HTTP helpers and optional bearer
+adapters are separate references. Native framework and existing identity implementations may
+satisfy the same contract; copying the example application is optional. Applicable acceptance
+checks and new-service CI delivery remain required.
+
+## Review amendment — 2026-10-13
+
+Amended: 2026-10-13 — review reconciled the Consequences section with the streamlined references.
+
+The Consequences statement that the API-writes, background-work and consuming-APIs references
+"carry over unchanged" no longer holds: those references were streamlined in the same change
+that made the starters optional and the contract tests reusable, and the streamlined text is
+now their current form. The 2026-10-12 amendments above are unaffected: existing services keep
+their canonical specification and checks, and new HTTP services retain the full committed
+document and gate standard. No decision in the Decision section is changed by this amendment.

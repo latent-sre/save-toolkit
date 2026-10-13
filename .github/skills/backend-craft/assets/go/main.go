@@ -1,6 +1,8 @@
-// A Huma service with the house operating surface: configuration read and validated at startup,
+// Optional Huma service wiring example: configuration read and validated at startup,
 // a loopback default address, server timeouts, health endpoints outside the API contract, a
 // request ID on every log line, and graceful shutdown inside the platform's grace period.
+// When adapting an existing service, retain equivalent browser/Host guards, request logging,
+// timeouts and shutdown behavior even when this example and its bearer adapter are unnecessary.
 package main
 
 import (
@@ -155,7 +157,8 @@ func run(ctx context.Context, getenv func(string) string) error {
 		return err
 	}
 	store := NewThingStore()
-	// Replace with the identity provider's verifier; this one refuses every token.
+	// Example only: this verifier refuses every token. Prefer the service's established SSO
+	// middleware; use this adapter only when that integration verifies bearer tokens.
 	verify := func(context.Context, string) (Principal, error) {
 		return Principal{}, ErrInvalidToken
 	}

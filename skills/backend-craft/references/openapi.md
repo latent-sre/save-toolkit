@@ -1,75 +1,85 @@
-# OpenAPI: the contract as a committed file
+# OpenAPI: the committed contract
 
-`../SKILL.md` owns the house contract; this file is how the document carries it. Read framework
-and tool versions from the project's manifests and lockfiles, never assume them.
+New HTTP services use the pipeline below. Existing services keep their framework, generator,
+contract, canonical specification format/location and equivalent checks. Update that specification
+when present and run applicable checks plus focused tests for changed behaviour. Missing
+service-wide documentation or CI adoption is a separately scoped task; report absent contract or
+compatibility evidence. Read tool/framework versions from manifests and lockfiles.
 
-## The pipeline
+## Pipeline
 
-1. **The code generates the document.** FastAPI and Huma build it from typed handlers and models.
-   Nobody edits `openapi.json` by hand.
-2. **The document is committed** at the service root as `openapi.json`, LF line endings. Consumers
-   (the team's UIs, scripts, other services) generate clients from that file at a pinned revision.
-3. **The drift test** (`test_document_matches_the_code`, `TestOpenAPIDocument`) regenerates it and
-   fails on any difference. After an intended change, regenerate with `UPDATE_OPENAPI=1` or
-   `-update` and review the diff as the API change.
-4. **The house-rules test** fails what a generator cannot know: a path without `/v1`, a missing or
-   non-lowerCamel `operationId`, an operation without security that is not listed public, an error
-   response that is not `application/problem+json`, a version other than `3.1.0`.
-5. **Schemathesis** drives the service from the document, with valid and invalid inputs, and fails
-   on any response the document does not allow and on any 500. FastAPI runs it in-process
-   (`test_schemathesis.py`); Go runs the `st` command against the real handler
-   (`schemathesis_test.go`). The test token lives in the test verifier; a service never accepts a
-   static token to make this work. Both run with `allow-extra-parameters` and
-   `with-security-parameters` off: the test supplies the token, and a service ignores query
-   parameters it does not declare, so neither an undeclared parameter nor a stripped token is
-   input the document forbids.
-6. **oasdiff** fails a pull request whose document breaks the base branch's:
-   `oasdiff breaking --fail-on ERR base.json openapi.json`. The CI starters fetch the base
-   document with `git show origin/<base>:openapi.json`.
+1. **Generate from source:** FastAPI/Huma use typed handlers and models. Keep an existing
+   spec-first workflow; never hand-edit a code-generated document.
+2. **Commit one document for a new service:** `openapi.json`, LF endings, at the **service root** (module or
+   `pyproject.toml` root). In a monorepo this may be `services/orders/openapi.json`. Generation,
+   pinned consumer input and CI all refer to this same file.
+3. **Gate drift:** `test_document_matches_the_code`/`TestOpenAPIDocument` regenerates and compares.
+   For an intended change, run from the service root with `UPDATE_OPENAPI=1 python -m pytest
+   test_openapi_document.py` or `go test -run TestOpenAPIDocument -update`, then review the diff
+   before implementation under the approval rule in `SKILL.md`.
+4. **Check contract rules:** assert `/v1`, unique lowerCamel `operationId`, the actual identity
+   scheme except on explicitly unauthenticated operations, problem-shaped errors and version
+   `3.1.0`. The bundled gates take the app and test identity from one replaceable setup file:
+   FastAPI's `contract_app.py` or Go's `example_fixture_test.go`. Supply the real app, authenticated
+   test headers, expected security schemes and explicitly public operations there; the shared
+   checks need no sample resource or bearer adapter. Public operations have empty effective
+   security and run without identity headers. Protected operations declare problem-shaped 401
+   and the integration's applicable failures in `AUTH_ERROR_STATUSES`/`authErrorStatuses` (such as
+   verifier-outage 503). Empty API documents fail the rules gate. Existing APIs retain their contract,
+   including added routes, until an authorized migration.
+5. **Exercise the document:** Schemathesis sends valid/invalid inputs and rejects undocumented
+   responses and 500s. FastAPI runs in-process (`test_schemathesis.py`); Go runs `st` against the
+   real handler (`schemathesis_test.go`). Supply the app's test identity/session; the examples
+   inject a test verifier, never a service-wide static token. Disable `allow-extra-parameters` and
+   `with-security-parameters`: extra query parameters are ignored, and the test supplies
+   authentication. Explicitly test stateful
+   rejections such as idempotency conflicts; schema-valid does not mean state-valid.
+6. **Gate compatibility:** `oasdiff breaking --fail-on ERR base.json openapi.json` compares the
+   committed candidate and base documents. Accepted breaks follow [versioning](./versioning.md).
 
-## Shape the document for generated clients
+## Generated-client shapes
 
-A client generator turns names into types and functions, so the document's names are API.
-
-- **Operation IDs** are unique lowerCamel names (`listThings`). FastAPI's default
-  (`list_things_v1_things_get`) is replaced by `house.operation_id`; in Huma, set `OperationID`
-  on every `huma.Operation`.
-- **Schemas are named.** FastAPI names a generic `Page[Thing]` `Page_Thing_`: declare
-  `class ThingPage(Page[Thing])`. Huma names `Page[Thing]` `PageThing` and an alias takes the
-  target's name: declare `type ThingPage Page[Thing]`. Huma drops the package path, so two types
-  named `Thing` in different packages collide; rename one.
-- **One schema per model.** `separate_input_output_schemas=False` (set by `house_app`) stops
-  FastAPI from splitting a model into `Thing-Input` and `Thing-Output`.
-- **Nullable means present and null.** A field that is always present but may be null is required
-  and nullable: Python `next_cursor: str | None` with no default, Go `NextCursor *string` without
-  `omitempty`. A Go slice is nullable unless tagged `nullable:"false"`, and the handler must
-  return an empty slice, never nil.
-- **No framework extras in bodies.** Huma's default config adds a `$schema` property and a `Link`
-  header to every body; the house config turns them off.
-- **Declare what the service enforces.** Schemathesis sends every value the schema allows: a
-  pattern, enum, bound or format the handler enforces but the document omits fails its
-  positive-data check. An opaque cursor declares its encoding (`^([0-9a-f]{2})+$`, max 2048).
-  Huma treats an empty query value as absent and skips its validation; reject a present-but-empty
-  parameter in the input's `Resolve` method.
+- **Names are API.** Unique lowerCamel operation IDs (`listThings`): FastAPI's house
+  `operation_id` replaces its default; set Huma's `OperationID` per operation.
+- **Named schemas:** declare `class ThingPage(Page[Thing])` in Python, `type ThingPage Page[Thing]`
+  in Go. Otherwise FastAPI names the generic `Page_Thing_`, Huma uses `PageThing`, and a Go alias
+  keeps its target's name. Huma drops package paths: rename colliding types.
+- **One schema per model:** house FastAPI uses `separate_input_output_schemas=False` to avoid
+  `Thing-Input`/`Thing-Output` splits. House Huma disables its automatic `$schema` body property
+  and `Link` header.
+- **Present and nullable:** Python `next_cursor: str | None` without a default; Go `NextCursor
+  *string` without `omitempty`. Go slices need `nullable:"false"` and an empty, non-nil return.
+- **Schema-declarable validation belongs in the document:** patterns, enums, bounds and formats.
+  Opaque cursors declare encoding (`^([0-9a-f]{2})+$`, max 2048). Huma treats empty query values
+  as absent: reject present-but-empty parameters in `Resolve`. Stateful rejection belongs in
+  documented responses and behavioural tests, not fictitious input restrictions.
 
 ## OpenAPI 3.2-ready
 
-3.2 is a minor release over 3.1 and the OAI states that every 3.1 document works after changing
-only the version, so a document written to 3.1 is ready. FastAPI and Huma emit 3.1.0;
-openapi-typescript documents 3.0 and 3.1; oasdiff, Schemathesis, Redocly CLI, Spectral and
-Swagger UI 5.32 and later read 3.2. A 3.2-only construct — the QUERY method, `in: querystring`,
-`itemSchema` for sequential media, tag `parent` — waits until the producing framework emits it
-and every consumer's generator reads it; check both before adopting one.
+The OAI states 3.1 documents work as 3.2 after changing only the version. FastAPI/Huma emit 3.1.0;
+openapi-typescript documents 3.0/3.1. oasdiff, Schemathesis, Redocly CLI, Spectral and Swagger UI
+5.32+ read 3.2. A 3.2-only construct (`QUERY`, `in: querystring`, sequential-media `itemSchema`,
+tag `parent`) waits for both the producing framework and every consumer's generator.
 
-Server-Sent Events are the exception already in documents: FastAPI's `fastapi.sse` declares a
-stream with 3.2's `itemSchema` inside its 3.1.0 document, and openapi-typescript renders that
-stream's type as `unknown` while still generating each event's data schema. The UI parses each
-event's `data` as that schema (`components["schemas"]["Tick"]`) itself. Huma's `sse` package
-documents a stream as an array of `oneOf` event objects instead.
+SSE is the existing exception: FastAPI's `fastapi.sse` emits 3.2 `itemSchema` inside 3.1.0;
+openapi-typescript types that stream as `unknown` but generates event-data schemas. The UI parses
+each event's `data` as its schema (`components["schemas"]["Tick"]`). Huma's `sse` package documents
+an array of `oneOf` event objects.
 
-## Gates in CI
+## CI
 
-The [Go](../assets/ci/api-contract-go.yml) and [FastAPI](../assets/ci/api-contract-fastapi.yml)
-workflows run the tests (drift, house rules, Schemathesis), then oasdiff against the base branch.
-Load `ci-actions` before changing them. An accepted breaking change follows
-[versioning](./versioning.md); never weaken a gate to pass it.
+Deliver runnable CI configuration for a new HTTP service or a separately scoped gate adoption;
+local-only service delivery still includes it. Wire document drift, contract rules, response
+checks and base compatibility comparison into that workflow. Load `ci-actions` when adapting
+[Go](../assets/ci/api-contract-go.yml) or
+[FastAPI](../assets/ci/api-contract-fastapi.yml) workflows. Set `SERVICE_DIR` to the service root
+(`.` for a single-service repository); tests and comparison run there. The starters verify the
+base commit, then derive the repository-relative document path from the service's Git prefix, so
+`git show` reads the same document from the base. A missing first-service document differs from an
+unavailable base revision; do not silently skip the latter. The starters assume `openapi.json`;
+adapt their paths and commands to an existing service's canonical specification. Keep its existing
+or equivalent drift, contract, response and compatibility checks effective.
+
+The first document skips only the comparison when the base has no document; keep the other
+gates wired. Report the workflow path, local check results and whether CI actually ran. A missing
+workflow leaves delivery incomplete; a prepared workflow with no remote run remains unverified.

@@ -1,6 +1,7 @@
-// An example resource carrying the whole house contract: explicit operation IDs, /v1 paths,
+// Optional domain example: explicit operation IDs, /v1 paths,
 // bearer security, a cursor page whose oversized limit is lowered, a 404 problem for a missing or
-// unpermitted object, and named body types. Replace Thing and ThingStore with the real resource.
+// unpermitted object, and named body types. Use the service's real resource and identity model;
+// preserve object-level authorization when adapting or replacing this example.
 package main
 
 import (
@@ -78,12 +79,16 @@ type ListThingsInput struct {
 	Limit  int    `query:"limit" minimum:"1" default:"50" doc:"Page size; values above 200 are lowered to 200."`
 }
 
-// Resolve rejects ?cursor= with no value: Huma reads an empty query value as absent and skips its
-// validation, while the document says a present cursor matches the pattern.
+// Resolve rejects present-but-empty queries: Huma otherwise treats them as absent and skips
+// validation, while the document requires a cursor matching its pattern and an integer limit.
 func (in *ListThingsInput) Resolve(ctx huma.Context) []error {
 	u := ctx.URL()
-	if query := u.Query(); query.Has("cursor") && query.Get("cursor") == "" {
+	query := u.Query()
+	if query.Has("cursor") && query.Get("cursor") == "" {
 		return []error{&huma.ErrorDetail{Location: "query.cursor", Message: "expected a cursor from next_cursor"}}
+	}
+	if query.Has("limit") && query.Get("limit") == "" {
+		return []error{&huma.ErrorDetail{Location: "query.limit", Message: "expected an integer page size"}}
 	}
 	return nil
 }

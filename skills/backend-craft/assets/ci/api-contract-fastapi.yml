@@ -11,6 +11,9 @@ on:
 permissions:
   contents: read
 
+env:
+  SERVICE_DIR: . # Directory containing pyproject.toml and openapi.json; may be nested.
+
 jobs:
   contract:
     runs-on: ubuntu-latest
@@ -24,15 +27,19 @@ jobs:
         with:
           go-version: stable # for oasdiff only
       - name: Tests, document drift and Schemathesis
+        working-directory: ${{ env.SERVICE_DIR }}
         run: uv run --locked pytest
       - name: Breaking changes against the base branch
+        working-directory: ${{ env.SERVICE_DIR }}
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
-          if git cat-file -e "origin/${BASE_REF}:openapi.json" 2>/dev/null; then
-            git show "origin/${BASE_REF}:openapi.json" > "${RUNNER_TEMP}/base-openapi.json"
+          git rev-parse --verify "origin/${BASE_REF}^{commit}" >/dev/null
+          document="$(git rev-parse --show-prefix)openapi.json"
+          if git cat-file -e "origin/${BASE_REF}:${document}" 2>/dev/null; then
+            git show "origin/${BASE_REF}:${document}" > "${RUNNER_TEMP}/base-openapi.json"
             go run github.com/oasdiff/oasdiff@v1.33.0 breaking --fail-on ERR --format githubactions \
               "${RUNNER_TEMP}/base-openapi.json" openapi.json
           else
-            echo "No openapi.json on ${BASE_REF}: the first contract has nothing to compare."
+            echo "No ${document} on ${BASE_REF}: the first contract has nothing to compare."
           fi

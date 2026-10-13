@@ -1,4 +1,6 @@
-"""The committed OpenAPI document is the contract. test_document_matches_the_code fails when the
+"""Document checks: supply the actual app and identity scheme in contract_app.py.
+Public means deliberately unauthenticated, not merely internet-facing.
+The committed OpenAPI document is the contract. test_document_matches_the_code fails when the
 code and openapi.json disagree; after an intended API change, regenerate it and review the diff:
 
     UPDATE_OPENAPI=1 python -m pytest test_openapi_document.py
@@ -8,33 +10,26 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from pathlib import Path
 
-from main import Settings, ThingStore, create_app
+from contract_app import AUTH_ERROR_STATUSES, AUTH_SCHEME, PUBLIC_OPERATIONS, make_app
+from contract_checks import assert_document_rules
+from fastapi.testclient import TestClient
 
 
-def _repository_root() -> Path:
+def _service_root() -> Path:
     here = Path(__file__).resolve().parent
     markers = ("pyproject.toml", ".git")
     return next((p for p in (here, *here.parents) if any((p / m).exists() for m in markers)), here)
 
 
-DOCUMENT = _repository_root() / "openapi.json"  # committed at the repository root, beside pyproject.toml
-PUBLIC_OPERATIONS: set[str] = set()  # operation IDs that deliberately need no authentication
-# In an existing service: the operations ("GET /path") that predate the house rules, so the rules
-# apply to what changes add without rewriting a contract clients already use. Their operation IDs
-# still count for uniqueness. Never add a new operation.
-PREDATING_OPERATIONS: set[str] = set()
-
-
-async def _refuse(token: str) -> None:
-    return None
+DOCUMENT = _service_root() / "openapi.json"  # beside the service's pyproject.toml; CI uses the same directory
 
 
 def generated_document() -> dict:
-    app = create_app(Settings("127.0.0.1", 8000, None), _refuse, ThingStore())
-    return app.openapi()
+    app = make_app()
+    with TestClient(app):
+        return app.openapi()
 
 
 def test_document_matches_the_code():
@@ -51,30 +46,5 @@ def test_document_matches_the_code():
 
 
 def test_house_rules():
-    document = generated_document()
-    assert document["openapi"] == "3.1.0", "emit 3.1.0, valid as 3.2"
-    ids: set[str] = set()
-    for path, operations in document["paths"].items():
-        for method, operation in operations.items():
-            where = f"{method.upper()} {path}"
-            op_id = operation.get("operationId", "")
-            assert op_id not in ids, f"{where}: operationId {op_id!r} is not unique; generated clients use it"
-            ids.add(op_id)
-            if where in PREDATING_OPERATIONS:
-                continue
-            assert re.match(r"^/v[0-9]+/", path), f"{where}: API paths start with a version, /v1/"
-            assert re.fullmatch(r"[a-z][A-Za-z0-9]*", op_id), (
-                f"{where}: operationId {op_id!r} must be a lowerCamel name; generated clients use it"
-            )
-            security = operation.get("security") or []
-            # Every alternative must demand bearer: an empty one ({}) would allow anonymous access.
-            assert op_id in PUBLIC_OPERATIONS or (security and all("bearer" in alt for alt in security)), (
-                f"{where}: depend on authenticated, or list it in PUBLIC_OPERATIONS"
-            )
-            if "requestBody" in operation:
-                assert "400" in operation["responses"], f"{where}: a body can be unparseable; declare 400"
-            for status, response in operation["responses"].items():
-                if status.isdigit() and int(status) >= 400:
-                    assert list(response.get("content", {})) == ["application/problem+json"], (
-                        f"{where}: {status} must be application/problem+json"
-                    )
+    assert_document_rules(generated_document(), auth_scheme=AUTH_SCHEME, public_operations=PUBLIC_OPERATIONS,
+                          auth_error_statuses=AUTH_ERROR_STATUSES)

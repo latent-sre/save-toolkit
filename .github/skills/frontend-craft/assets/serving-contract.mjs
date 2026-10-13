@@ -28,6 +28,14 @@ async function get(path) {
 }
 
 const revalidates = (r) => /\bno-cache\b|\bno-store\b|\bmax-age=0\b/.test(r.cache);
+// Policies are enforced together; within each policy only the first duplicate directive applies.
+// Require the explicit no-framing policy, not a source list that allows some ancestor origins.
+const refusesFraming = (csp) => csp.split(",").some((policy) => {
+  const ancestors = policy.split(";")
+    .map((directive) => directive.split(/[\t\n\f\r ]+/).filter(Boolean))
+    .find((parts) => parts[0] === "frame-ancestors");
+  return ancestors?.length === 2 && ancestors[1] === "'none'";
+});
 
 let indexPage;
 const index = () => (indexPage ??= get("/"));
@@ -53,7 +61,7 @@ test("index.html is the app and revalidates", async () => {
 
 test("index.html refuses framing and content sniffing", async () => {
   const page = await index();
-  assert.match(page.csp, /\bframe-ancestors\b/, `/ must send a Content-Security-Policy with frame-ancestors, got "${page.csp}"`);
+  assert.ok(refusesFraming(page.csp), `/ must send a Content-Security-Policy with effective frame-ancestors 'none', got "${page.csp}"`);
   assert.equal(page.sniff, "nosniff", `/ must send X-Content-Type-Options: nosniff, got "${page.sniff}"`);
 });
 
