@@ -28,7 +28,7 @@ why one file serves both targets.
 | `agents` | Agent names available as subagents; `*` allows all, `[]` prevents any. Emitted from the canonical `Agent(...)` grant. It scopes discovery on the observed host; deterministic invocation and nested-edge enforcement stay unverified until `RELEASE-001` observes a real allowed and forbidden call on the exact build |
 | `handoffs` | Human-selected ownership transfer — **VS Code only**; explicitly *"not supported for Copilot cloud agent on GitHub.com"*. Emitted for the six lanes in `COPILOT_HANDOFFS_BY_SOURCE`, independently of `Agent(...)` grants. A handoff is a user-selected context transition, not a subagent call, approval, or delegation authority; every write-capable receiver re-checks approval and target binding, and `researcher` is never a target because handoffs carry conversation context. Neither `agents:` nor `handoffs:` is a sandbox |
 | `argument-hint` | **VS Code only**; unsupported on Copilot cloud alongside `handoffs`. Not emitted on agents; the fleet uses it on all skills |
-| `model` | Single model name or a prioritized array. Unused — no fleet agent pins one; dated pins go stale silently |
+| `model` | Single model name; VS Code also accepts a prioritized array. Unused — no fleet agent pins one; dated pins go stale silently |
 | `user-invocable` | Boolean, default `true`; `false` hides the agent from the chat dropdown. Unused — every fleet lane is meant to be reachable by the human SRE |
 | `disable-model-invocation` | Boolean, default `false`. In VS Code it prevents the agent being invoked **as a subagent by other agents**; on GitHub it stops Copilot cloud agent from selecting the agent automatically. Unused on agents pending host verification, and the one host key that could turn the delegation graph's inbound edges into enforcement rather than documented intent |
 | `target` | `vscode` or `github-copilot`. Only the exported SRE command profile sets `vscode`; standard projections leave it unset |
@@ -66,7 +66,7 @@ and `playwright/*` ship out of the box.
 | `execute` | `Bash`, `PowerShell` | yes |
 | `web` | `WebFetch`, `WebSearch` | yes — VS Code only; not applicable on Copilot cloud agent |
 | `agent` | `Agent` | yes |
-| `todo` | `TodoWrite` | yes — builders and the reviewer for bounded investigation. VS Code provisions it; the cloud coding agent does not. `TodoWrite` itself is inert on Claude Code and stays only as this mapping's source |
+| `todo` | `TodoWrite` | yes — builders and the reviewer for bounded investigation. VS Code provisions it; the cloud coding agent does not. `TodoWrite` itself is disabled by default on Claude Code and stays only as this mapping's source |
 
 `EnterWorktree` / `ExitWorktree` have **no Copilot alias** and are deliberately unmapped — the
 projection drops them rather than substituting `execute`, which would widen authority on a host

@@ -35,6 +35,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   must not accept, or forward, a token not issued to it) and that a Bash deny rule matches command
   text, so only sandbox network isolation or host controls enforce egress; two restatements of
   the label and handoff rules are cut.
+  A rescan against current Claude Code, VS Code and GitHub docs and the repository's own
+  validators corrects eight claims: an empty or unresolvable `tools` list now fails to launch
+  rather than producing a zero-tool agent; skill `allowed-tools` grants last only the invoking
+  turn; Task* tools are on by default for older models and in background and cloud sessions;
+  a Bash deny rule silently disables PowerShell on Windows with Git Bash; agent frontmatter also
+  admits `model`; VS Code `disallowedTools` is agent-only; generated adapters carry no host
+  preface; and the array form of Copilot `model` is VS Code-only. Skill portability drops its
+  Contents list and duplicated portable-field table.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a

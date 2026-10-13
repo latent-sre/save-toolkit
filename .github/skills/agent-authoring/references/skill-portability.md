@@ -7,24 +7,12 @@ dropped by a host that ignores it. This fleet ships a Claude plugin *and* genera
 adapters; the generator absorbs the difference, and this file maps what it has to absorb.
 `claude-code-frontmatter.md` owns what each field *does*; this file records where it is honored.
 
-## Contents
-
-- The portable six
-- Claude-only fields
-- Host size limits are not interchangeable
-- What the generated adapters do
-- Checking a skill before publishing to the portable spec
-
 ## The portable six
 
-| Field | Note |
-|---|---|
-| `name` | Lowercase letters, numbers, hyphens; ≤64 chars; no reserved words |
-| `description` | The trigger. Non-empty; ≤1,024 chars in the spec |
-| `license` | Accepted, not acted on by Claude Code |
-| `compatibility` | Environment requirements; ≤500 chars. This fleet requires one single-line scalar so the local gate measures the value exactly without a full YAML implementation |
-| `metadata` | String-to-string mapping for your own tooling, per the [Agent Skills specification](https://agentskills.io/specification#metadata-field); Claude Code ignores it |
-| `allowed-tools` | Grants (pre-approves) tools while the skill is active; an inert hint in VS Code skills. Not used here |
+`name`, `description`, `license`, `compatibility`, `metadata`, and `allowed-tools`. Their limits
+and fleet dispositions are in the Skills table of
+[Copilot & VS Code frontmatter](./copilot-frontmatter.md#skills); this fleet writes `compatibility`
+as one single-line scalar so the local gate measures its 500-character limit exactly.
 
 ## Claude-only fields
 
@@ -36,7 +24,7 @@ Verify against the host you ship to.
 | `argument-hint` | Every skill | Dropped by the portable spec; recognized by VS Code |
 | `disable-model-invocation` | `pcf-deploy` | Dropped by the portable spec, so the side-effect gate does **not** travel there; VS Code honors it (default `false`), which makes the Copilot copies explicit-only |
 | `user-invocable` | not used | Dropped by the portable spec; recognized by VS Code (default `true`) |
-| `disallowed-tools` | not used | Dropped by the portable spec; VS Code has `disallowedTools` (different spelling), runtime effect unconfirmed |
+| `disallowed-tools` | not used | Dropped by the portable spec and absent from VS Code's skill header; VS Code's `disallowedTools` applies only to Claude-format agent files |
 | `context`, `agent`, `background` | not used | Dropped; `context: fork` exists in VS Code behind an experimental setting |
 | `paths`, `shell`, `model`, `effort`, `hooks`, `when_to_use`, `arguments` | not used | Dropped by the portable spec; VS Code recognizes `hooks` on agent files |
 
@@ -59,11 +47,12 @@ repository budget leaves headroom below the provider ceiling; other agents retai
 
 ## What the generated adapters do
 
-- No field-level equivalence is attempted; intent is preserved in each host's own vocabulary and
-  the difference is stated in the adapter itself.
+- No field-level equivalence is attempted; intent is preserved in each host's own vocabulary. There
+  is no generated preface: a host limitation that changes what a lane may do is stated in that
+  lane's own canonical body.
 - A skill marked `disable-model-invocation` keeps that frontmatter in the Copilot projection.
-- Host authority differences (Copilot's omitted `execute`, for one) are stated in every generated
-  adapter. Stating a difference is not claiming a control: the omitted `execute` narrows a default
+- Stating a host authority difference (Copilot's omitted `execute`, for one) is not claiming a
+  control: the omitted `execute` narrows a default
   the user can override and the picker can rewrite — read [Capability choices](./copilot-frontmatter.md#capability-choices)
   before citing it as authority. A fleet control is only as strong as the host it is proven on.
 - The root manifest declares Agent Plugins 1.0, so the installed plugin reads canonical `skills/`

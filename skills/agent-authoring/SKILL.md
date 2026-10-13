@@ -78,9 +78,10 @@ summary becomes a shortcut that displaces the body.
 | Behavior should depend on a condition | Conditional keyed to an observable predicate |
 
 No nuance clauses ("unless it matters") and no don't-lists for human-facing shape — both reopen the
-negotiation. Before editing instructions, locate the first boundary that diverges: strict schema for
-machine-consumed shape, code or a tool gate for fixed branches and effects, the harness for context
-selection.
+negotiation. Before editing instructions, locate the layer that owns the failure — routing metadata,
+instructions, context assembly, tool/output schema, orchestration, wrapper/model/runtime, or the
+evaluator — and fix it there: strict schema for machine-consumed shape, code or a tool gate for
+fixed branches and effects, the harness for context selection.
 
 **3. Four themes decide every artifact or roster change.**
 
@@ -144,7 +145,7 @@ authorizes a self-modifying loop.
 
 | Surface | What is true here |
 |---|---|
-| Agent frontmatter | `name`, `description`, `tools` — omitting `tools` inherits **every** tool |
+| Agent frontmatter | `name`, `description`, `tools`, optional `model`; validation rejects any other key. Omitting `tools` inherits **every** tool |
 | Agent keys that do nothing in a plugin | `hooks`, `mcpServers`, `permissionMode`, `initialPrompt` — the read-only Bash guard lives once in `hooks/hooks.json`, scoped to the exact `agent_type` |
 | MCP tool output | Claude Code caps a result at 25,000 tokens by default (`MAX_MCP_OUTPUT_TOKENS`); a text-only result over 50,000 characters is saved to a file and replaced by its path whatever that setting is. A server raises one tool's threshold with `_meta["anthropic/maxResultSizeChars"]`, up to 500,000. Other hosts differ: bound output with pagination and filters rather than relying on a cap |
 

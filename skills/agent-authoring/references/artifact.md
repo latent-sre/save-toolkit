@@ -1,8 +1,7 @@
 # Artifact altitude — author and optimize one LLM-facing artifact
 
-For a repair, locate the layer that owns the failure first: routing metadata, instructions, context assembly,
-tool/output schema, orchestration, wrapper/model/runtime, or the evaluator. When the artifact owns
-it, edit it like code: reproduce, minimal fix, verify. New work starts from the requested behavior
+For a repair, first locate the owning layer (the entrypoint's rule 2). When the artifact owns it,
+edit it like code: reproduce, minimal fix, verify. New work starts from the requested behavior
 and success criteria, without an invented failure.
 
 ## The bounds on the loop
