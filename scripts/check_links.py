@@ -114,9 +114,13 @@ def _check_live_doc_links(root: Path) -> list[str]:
         except (OSError, UnicodeError) as exc:
             failures.append(f"{path.as_posix()}: cannot read UTF-8: {exc}")
             continue
+        where = path.relative_to(root).as_posix()
         for _, raw in _links(text):
             target = _relative_target(raw)
             if target is None:
+                anchor_failure = _anchor_failure(path, raw, where)
+                if anchor_failure:
+                    failures.append(anchor_failure)
                 continue
             resolved = (path.parent / target).resolve()
             # Containment before existence. With enough `..` components a link resolves outside the
@@ -133,6 +137,10 @@ def _check_live_doc_links(root: Path) -> list[str]:
                 failures.append(
                     f"{path.relative_to(root).as_posix()}: dead link {target!r}"
                 )
+            else:
+                anchor_failure = _anchor_failure(path, raw, where)
+                if anchor_failure:
+                    failures.append(anchor_failure)
     return failures
 
 
@@ -361,6 +369,54 @@ def _relative_target(raw: str) -> str | None:
     return target.split("#", 1)[0].split("?", 1)[0]
 
 
+ANCHOR_HEADING_RE = re.compile(r"^#{1,6}[ \t]+(.+?)[ \t]*#*[ \t]*$")
+HTML_ANCHOR_RE = re.compile(r"""<a\s[^>]*\b(?:id|name)=["']([^"']+)["']""", re.IGNORECASE)
+
+
+def _heading_anchors(path: Path) -> set[str]:
+    """The fragments GitHub renders for a Markdown file: one slug per heading outside a fence
+    (lowercased, punctuation dropped, spaces to hyphens, repeats suffixed -1, -2), plus explicit
+    `<a id>`/`<a name>` targets."""
+    anchors: set[str] = set()
+    counts: dict[str, int] = {}
+    for line in _strip_fences(path.read_text(encoding="utf-8")).splitlines():
+        anchors.update(HTML_ANCHOR_RE.findall(line))
+        match = ANCHOR_HEADING_RE.match(line)
+        if not match:
+            continue
+        text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", match.group(1))
+        slug = re.sub(r"[^\w\- ]", "", re.sub(r"<[^>]+>", "", text).lower()).replace(" ", "-")
+        seen = counts.get(slug, 0)
+        counts[slug] = seen + 1
+        anchors.add(slug if seen == 0 else f"{slug}-{seen}")
+    return anchors
+
+
+def _anchor_failure(source: Path, raw: str, where: str) -> str | None:
+    """A fragment that names no heading in its Markdown target.
+
+    A renamed heading leaves every `file.md#old-heading` link resolving to the right file and
+    landing nowhere, which the file-existence checks cannot see. Only Markdown targets that exist
+    are checked: a missing file is already a dead link, and other file types have no headings."""
+    target = unquote(_target(raw))
+    if "#" not in target or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", target):
+        return None
+    page, fragment = target.split("#", 1)
+    page = page.split("?", 1)[0]
+    if not fragment or page.startswith(("/", "\\")):
+        return None
+    destination = source.parent / page if page else source
+    if destination.suffix.lower() != ".md" or not destination.is_file():
+        return None
+    try:
+        anchors = _heading_anchors(destination)
+    except (OSError, UnicodeError):
+        return None
+    if unquote(fragment).lower() in anchors:
+        return None
+    return f"{where}: dead anchor '{target}'"
+
+
 def _check_self_skill_pointer(path: Path, text: str, skill_root: Path) -> list[str]:
     """Reject a file naming its own bundle -- SKILL.md, scripts/, references/, assets/ -- by
     repo-rooted path.
@@ -402,6 +458,9 @@ def _check_markdown(path: Path, text: str, owned_root: Path) -> list[str]:
     for _label, raw_target in _links(visible):
         relative = _relative_target(raw_target)
         if relative is None:
+            anchor_failure = _anchor_failure(path, raw_target, path.as_posix())
+            if anchor_failure:
+                failures.append(anchor_failure)
             continue
         destination = path.parent / relative
         lexical_destination = Path(os.path.abspath(destination))
@@ -416,6 +475,10 @@ def _check_markdown(path: Path, text: str, owned_root: Path) -> list[str]:
             failures.append(
                 f"{path.as_posix()}: dead link '{relative}'"
             )
+            continue
+        anchor_failure = _anchor_failure(path, raw_target, path.as_posix())
+        if anchor_failure:
+            failures.append(anchor_failure)
     return failures
 
 
@@ -546,7 +609,8 @@ def check(root: Path = ROOT) -> list[str]:
     #
     # Historical documents are in scope on purpose: a superseded plan is still read, and this repo
     # has already shipped a review pointing at a file the same round deleted. What is NOT in scope
-    # is anchor-only and cross-repo links, which `_check_markdown` already ignores.
+    # is cross-repo links, which `_check_markdown` already ignores. Fragments into a Markdown file,
+    # same-file anchors included, must name a heading there.
     failures.extend(_check_live_doc_links(root))
     failures.extend(_check_uncited_review_packets(root))
     command_root = root / "commands"
