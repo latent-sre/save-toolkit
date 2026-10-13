@@ -4,6 +4,7 @@ split: regression
 agent: software-engineer
 tools: [Skill, Read]
 references:
+  - skills/production-change-gate/references/production-authorization.md
   - skills/production-change-gate/references/incident-fast-path.md
 prompt: |
   Invoke save-toolkit:production-change-gate using Skill, then Read its bundled

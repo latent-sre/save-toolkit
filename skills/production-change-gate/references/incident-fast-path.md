@@ -2,7 +2,8 @@
 
 During a declared incident, use this checklist for reversible Tier 0–2 mitigation or rollback to
 an already-live artifact. It replaces the full production checklist for covered actions. The
-parent `SKILL.md` still owns classification and execution authority.
+[production authorization](./production-authorization.md) reference still owns classification;
+the [parent skill](../SKILL.md) owns execution authority.
 
 ## Scope
 

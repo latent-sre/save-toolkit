@@ -1,6 +1,9 @@
 id: production-change-gate-passes-approved
 max_turns: 20
 split: calibration
+tools: [Skill, Read]
+references:
+  - skills/production-change-gate/references/production-authorization.md
 prompt: |
   Treat `T0` as the instant this reusable scenario is evaluated; every relative time below is an
   exact fixture time. This keeps the same approval case current whenever the scenario is rerun.

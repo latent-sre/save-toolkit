@@ -1,8 +1,8 @@
 # Release readiness
 
 Read only for "is this build ready to ship to an environment". Owned by a human release owner. For
-production this establishes readiness only; authorization is the parent `SKILL.md`'s production
-section, later, using this record.
+production this establishes readiness only; [production authorization](./production-authorization.md)
+is a later gate using this record.
 
 | Item | Passes when |
 |---|---|

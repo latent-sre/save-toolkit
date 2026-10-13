@@ -257,8 +257,8 @@ class FleetValidatorTests(unittest.TestCase):
     def test_exact_commit_id_independent_review_is_prod_deployment_only(self) -> None:
         """Deleting or moving the review boundary must fail this contract."""
         production_checklist = _markdown_section(
-            Path("skills/production-change-gate/SKILL.md"),
-            "## Production authorization",
+            Path("skills/production-change-gate/references/production-authorization.md"),
+            "# Production authorization",
         )
         self.assertIn(
             "a new-artifact deployment attaches the exact candidate commit's independent review",
