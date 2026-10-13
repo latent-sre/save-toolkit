@@ -247,8 +247,10 @@ untouched without requiring a cleanup inventory in the reply. The policy oracle 
 domain for every entrypoint, single ownership through the `policy.normalize_order` patch seam
 (a record the old rules reject must pass once the shared policy accepts it), exception identity,
 input immutability, six fresh-process import orders, and that the fixture suite stays green
-without losing assertions; eleven named partial-ownership and lost-consumer artifacts are
-rejected. It does not grade how the work was staged. Their shared
+and detects named normalization, validation, CLI-parsing, and batch-result regressions in
+disposable replays. Test counts alone do not establish assertion preservation; these bounded
+checks do not prove that every original assertion survives. Eleven named partial-ownership and
+lost-consumer artifacts are rejected. The oracle does not grade how the work was staged. Their shared
 [outcome oracle](oracles/python-craft/check_contracts.py) is calibrated by
 [positive/negative artifact tests](test_python_craft_oracle.py): correct implementations pass and
 named behavioral and structural counterexamples fail, including eager reads, adjacent duplicate loss, broken
@@ -286,7 +288,7 @@ Two additional build evaluations exercise implementation outcomes:
 
 | Evaluation | What its artifact checks establish |
 |---|---|
-| [New streaming CLI](build-scenarios/build-python-new-streaming-cli.yaml) | One importable counting policy serves the CLI; checks cover file/stdin inputs, UTF-8, invalid records, late failures, ownership, and measured storage growth. |
+| [New streaming CLI](build-scenarios/build-python-new-streaming-cli.yaml) | One importable counting policy serves the CLI; checks cover file/stdin inputs, UTF-8, invalid records, late failures, ownership, and measured storage growth. Candidate tests must also detect named counting, invalid-record, diagnostic-index, and CLI-failure regressions. |
 | [Indexed membership](build-scenarios/build-python-indexed-membership.yaml) | Measured searches fit a deterministic operation budget, preserving mapping inputs, lazy access, order, duplicates, identity, errors, and release of consumed rows. Candidate tests must pass and reject behavior-preserving linear-search and quadratic-construction regressions. |
 
 Their [new-code calibration](test_python_new_code_probe.py) and
@@ -316,9 +318,12 @@ python evals/build_probe.py run --scenario build-python-indexed-membership --lab
 
 The new probes also require the agent's own final foreground unittest receipt; later shell actions
 can make that receipt inconclusive under the verification contract above. Artifact checks alone do
-not establish general test quality, broad design expertise, or skill-driven uplift. The indexed
-probe replays candidate tests against two cost regressions in disposable fixtures; this measures
-those tests' sensitivity to the requested improvement, not exhaustive coverage of every contract.
+not establish general test quality, broad design expertise, or skill-driven uplift. The new-code,
+policy, and indexed probes replay candidate tests against named regressions in disposable fixtures.
+Passing tests must reject those regressions through assertions; import/runtime errors, skips, or
+early exits cannot substitute for that evidence. The indexed probe's two mutants preserve behavior
+while regressing cost. These checks measure bounded test sensitivity, not exhaustive coverage of
+every contract or protection against a candidate deliberately attacking the evaluator.
 
 For a live Python-skill comparison, agree the native host/model, exact candidate, cases, repetitions,
 and cost cap first. Use matched disposable fixtures and the same builder, tools, prompt, and checks,

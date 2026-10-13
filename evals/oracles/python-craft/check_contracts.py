@@ -15,6 +15,7 @@ import importlib.util
 import io
 import ipaddress
 from itertools import product
+import json
 import re
 import subprocess
 import tempfile
@@ -349,19 +350,146 @@ def modules():
         CHECK.assertEqual(candidate_call(reports.render, ["a", "b"]), ["patched:a", "patched:b"])
 
 
+POLICY_TEST_MUTANTS = {
+    "SKU normalization lost": ("policy.py", '''
+_suite_normalize = normalize_order
+def normalize_order(record):
+    result = _suite_normalize(record)
+    result["sku"] = record["sku"]
+    return result
+'''),
+    "quantity upper bound removed": ("policy.py", '''
+_suite_normalize = normalize_order
+def normalize_order(record):
+    changed = dict(record)
+    if type(changed.get("quantity")) is int and changed["quantity"] > 999:
+        changed["quantity"] = 999
+        result = _suite_normalize(changed)
+        result["quantity"] = record["quantity"]
+        return result
+    return _suite_normalize(record)
+'''),
+    "boolean quantity accepted": ("policy.py", '''
+_suite_normalize = normalize_order
+def normalize_order(record):
+    if isinstance(record.get("quantity"), bool):
+        changed = dict(record, quantity=1)
+        result = _suite_normalize(changed)
+        result["quantity"] = record["quantity"]
+        return result
+    return _suite_normalize(record)
+'''),
+    "negative price accepted": ("policy.py", '''
+_suite_normalize = normalize_order
+def normalize_order(record):
+    if type(record.get("unit_cents")) is int and record["unit_cents"] < 0:
+        changed = dict(record, unit_cents=0)
+        result = _suite_normalize(changed)
+        result["unit_cents"] = record["unit_cents"]
+        return result
+    return _suite_normalize(record)
+'''),
+    "malformed CLI line accepted": ("cli.py", '''
+_suite_run = run
+def run(line):
+    if len(line.rstrip("\\n").split(",")) != 3:
+        return {}
+    return _suite_run(line)
+'''),
+    "noninteger CLI fields accepted": ("cli.py", '''
+_suite_run = run
+def run(line):
+    fields = line.rstrip("\\n").split(",")
+    if len(fields) == 3:
+        try:
+            int(fields[1]), int(fields[2])
+        except ValueError:
+            return {}
+    return _suite_run(line)
+'''),
+    "batch row order reversed": ("batch.py", '''
+_suite_load = load
+def load(rows):
+    return list(reversed(_suite_load(rows)))
+'''),
+    "empty batch result changed": ("batch.py", '''
+_suite_load = load
+def load(rows):
+    result = _suite_load(rows)
+    return result if result else [{}]
+'''),
+}
+
+POLICY_SUITE_RUNNER = '''
+import json
+from pathlib import Path
+import sys
+import unittest
+sys.path.insert(0, str(Path.cwd()))
+suite = unittest.defaultTestLoader.discover("tests", top_level_dir=".")
+result = unittest.TextTestRunner(verbosity=0).run(suite)
+Path("_suite_result.json").write_text(json.dumps({
+    "run": result.testsRun, "failures": len(result.failures),
+    "errors": len(result.errors), "skipped": len(result.skipped),
+    "expected_failures": len(result.expectedFailures),
+    "unexpected_successes": len(result.unexpectedSuccesses),
+    "successful": result.wasSuccessful(),
+}), encoding="utf-8")
+'''
+
+
+def policy_test_coverage():
+    # Replays preserve candidate wiring and test edits; the real fixture is never
+    # changed. Appended wrappers also reach tests that use fresh subprocess imports.
+    def replay(mutation=None):
+        with tempfile.TemporaryDirectory(prefix="policy-suite-") as temporary:
+            root = Path(temporary)
+            names = [Path(name) for name in ("policy.py", "api.py", "cli.py", "batch.py",
+                                             "legacy.py", "registry.py", "client.py", "settings.json")]
+            names += [path for path in Path("tests").rglob("*")
+                      if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"]
+            for path in names:
+                target = root / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(path.read_bytes())
+            if mutation is not None:
+                filename, source = mutation
+                with (root / filename).open("a", encoding="utf-8") as stream:
+                    stream.write("\n" + source)
+            try:
+                result = subprocess.run([sys.executable, "-I", "-B", "-c", POLICY_SUITE_RUNNER],
+                                        cwd=root, capture_output=True, text=True, timeout=15)
+            except subprocess.TimeoutExpired as exc:
+                raise AssertionError("candidate test suite timed out before results") from exc
+            report = root / "_suite_result.json"
+            CHECK.assertEqual(result.returncode, 0, "candidate test runner failed: " + result.stderr[-600:])
+            CHECK.assertTrue(report.is_file(), "candidate tests exited without results")
+            return json.loads(report.read_text(encoding="utf-8")), result.stderr
+
+    real, diagnostic = replay()
+    CHECK.assertTrue(real["successful"], "fixture test suite failed: " + diagnostic[-600:])
+    CHECK.assertGreater(real["run"], 0, "fixture tests were removed: " + diagnostic[-200:])
+    CHECK.assertEqual((real["skipped"], real["expected_failures"], real["unexpected_successes"]),
+                      (0, 0, 0), "fixture tests did not all pass normally")
+    for name, mutation in POLICY_TEST_MUTANTS.items():
+        result, diagnostic = replay(mutation)
+        # A count or failing process cannot certify retained assertions. These
+        # named, bounded regressions must cause real unittest assertion failures;
+        # import/runtime errors, skips and expected failures are not substitutes.
+        CHECK.assertTrue(result["failures"] > 0 and result["errors"] == 0 and
+                         result["skipped"] == result["expected_failures"] == result["unexpected_successes"] == 0,
+                         "candidate tests did not reject " + name + ": " + diagnostic[-600:])
+
+
 def policy():
     # Fresh processes: import caches cannot make a broken import order appear valid, and the
-    # fixture's own suite must stay green on the candidate without losing its assertions.
+    # fixture's own suite must stay green and detect the named regression replays.
     if len(sys.argv) == 2:
         for first in ("policy", "api", "cli", "batch", "legacy", "registry"):
             code = supervise([str(Path(__file__).resolve()), "policy", first])
             if code:
                 raise SystemExit(code)
-        suite = subprocess.run([sys.executable, "-I", "-B", "-m", "unittest", "discover", "-s", "tests", "-t", "."],
-                               capture_output=True, text=True, timeout=60)
-        CHECK.assertEqual(suite.returncode, 0, "fixture test suite failed: " + suite.stderr[-600:])
-        ran = re.search(r"^Ran (\d+) tests?", suite.stderr, re.MULTILINE)
-        CHECK.assertTrue(ran and int(ran.group(1)) >= 10, "fixture tests were removed: " + suite.stderr[-200:])
+        policy_test_coverage()
         return
     sys.path.insert(0, str(Path.cwd()))
     candidate_call(importlib.import_module, sys.argv[2])

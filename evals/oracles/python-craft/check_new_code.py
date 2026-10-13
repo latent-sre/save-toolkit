@@ -17,6 +17,7 @@ import copy
 import importlib.util
 import io
 import json
+import shutil
 import subprocess
 import tempfile
 import tracemalloc
@@ -363,13 +364,131 @@ def cli(module, files):
         failure(invoke(module, ["-"], io.StringIO(valid)), "replacement policy failure")
 
 
+TEST_MUTANTS = {
+    "duplicate count loss": '''
+_suite_summarize = summarize
+def summarize(rows):
+    return {key: min(value, 1) for key, value in _suite_summarize(rows).items()}
+''',
+    "invalid record acceptance": '''
+from collections.abc import Mapping as _SuiteMapping
+_suite_summarize = summarize
+def summarize(rows):
+    def valid_rows():
+        for row in rows:
+            if isinstance(row, _SuiteMapping) and isinstance(row.get('status'), str) and row['status'] in ('success', 'failure', 'skipped'):
+                yield row
+    return _suite_summarize(valid_rows())
+''',
+    "invalid record index loss": '''
+from collections.abc import Mapping as _SuiteMapping
+_suite_summarize = summarize
+def summarize(rows):
+    invalid = False
+    def observed_rows():
+        nonlocal invalid
+        for row in rows:
+            invalid = not (isinstance(row, _SuiteMapping) and isinstance(row.get('status'), str) and row['status'] in ('success', 'failure', 'skipped'))
+            yield row
+    try:
+        return _suite_summarize(observed_rows())
+    except ValueError as exc:
+        if not invalid:
+            raise
+        raise ValueError('invalid record 0') from exc
+''',
+    "CLI failure reported as success": '''
+import contextlib as _suite_contextlib
+import io as _suite_io
+import json as _suite_json
+import sys as _suite_sys
+_suite_main = main
+def main(argv=None):
+    out, err = _suite_io.StringIO(), _suite_io.StringIO()
+    with _suite_contextlib.redirect_stdout(out), _suite_contextlib.redirect_stderr(err):
+        code = _suite_main(argv)
+    if code == 2:
+        print(_suite_json.dumps(dict.fromkeys(('success', 'failure', 'skipped'), 0)))
+        return 0
+    _suite_sys.stdout.write(out.getvalue())
+    _suite_sys.stderr.write(err.getvalue())
+    return code
+''',
+}
+
+# The scratch shim loads the unchanged module as an import, then changes only
+# public callables. Its script entrypoint calls main, so subprocess CLI tests see
+# the same mutation as in-process tests. No candidate source spelling is required.
+MUTANT_MODULE = '''\
+from pathlib import Path as _SuitePath
+import sys as _suite_sys
+_suite_script = __name__ == '__main__'
+_suite_directory = _SuitePath(__file__).resolve().parent
+if _suite_script:
+    __name__ = 'outcome_counts'
+    _suite_sys.modules[__name__] = _suite_sys.modules['__main__']
+exec(compile((_suite_directory / '_suite_original.py').read_bytes(), __file__, 'exec'), globals())
+exec(compile((_suite_directory / '_suite_mutation.py').read_text(encoding='utf-8'), '_suite_mutation.py', 'exec'), globals())
+if _suite_script:
+    raise SystemExit(main())
+'''
+
+SUITE_RUNNER = '''\
+import json
+from pathlib import Path
+import sys
+import unittest
+sys.path.insert(0, str(Path.cwd()))
+class Result(unittest.TextTestResult):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.identities = []
+    def startTest(self, test):
+        self.identities.append(test.id())
+        super().startTest(test)
+suite = unittest.defaultTestLoader.discover('tests', top_level_dir='.')
+result = unittest.TextTestRunner(verbosity=2, resultclass=Result).run(suite)
+Path('_suite_result.json').write_text(json.dumps({
+    'run': result.testsRun, 'identities': result.identities,
+    'failures': len(result.failures), 'errors': len(result.errors),
+    'skipped': len(result.skipped), 'expected': len(result.expectedFailures),
+    'unexpected': len(result.unexpectedSuccesses), 'successful': result.wasSuccessful(),
+}), encoding='utf-8')
+'''
+
+
 def self_tests():
     CHECK.assertTrue(list(Path("tests").rglob("test*.py")), "no runnable self-tests")
-    result = subprocess.run([sys.executable, "-I", "-B", "-m", "unittest", "discover", "-s", "tests", "-t", ".", "-v"],
-                            capture_output=True, text=True, encoding="utf-8", timeout=30)
-    CHECK.assertRegex(result.stderr, r"Ran [1-9]\d* tests?", "no self-tests executed")
-    CHECK.assertEqual(result.returncode, 0, "candidate self-tests failed: " + result.stderr)
-    CHECK.assertRegex(result.stderr, r"\.\.\. ok", "no self-test passed")
+
+    def replay(mutation=None):
+        with tempfile.TemporaryDirectory(prefix="new-code-suite-") as temporary:
+            root = Path(temporary)
+            shutil.copytree("tests", root / "tests")
+            source = Path("outcome_counts.py").read_bytes()
+            (root / "outcome_counts.py").write_bytes(source)
+            if mutation is not None:
+                (root / "_suite_original.py").write_bytes(source)
+                (root / "_suite_mutation.py").write_text(mutation, encoding="utf-8")
+                (root / "outcome_counts.py").write_text(MUTANT_MODULE, encoding="utf-8")
+            try:
+                process = subprocess.run([sys.executable, "-I", "-B", "-c", SUITE_RUNNER], cwd=root,
+                                         capture_output=True, text=True, encoding="utf-8", timeout=30)
+            except subprocess.TimeoutExpired:
+                CHECK.fail("candidate self-tests timed out")
+            CHECK.assertEqual(process.returncode, 0, "candidate self-tests failed: " + process.stderr)
+            report = root / "_suite_result.json"
+            CHECK.assertTrue(report.is_file(), "candidate self-tests exited without results")
+            return json.loads(report.read_text(encoding="utf-8")), process.stderr
+
+    real, diagnostic = replay()
+    CHECK.assertGreater(real["run"], 0, "no self-tests executed")
+    CHECK.assertTrue(real["successful"] and not any(real[key] for key in ("errors", "skipped", "expected", "unexpected")),
+                     "candidate self-tests failed or skipped: " + diagnostic)
+    for name, mutation in TEST_MUTANTS.items():
+        result, diagnostic = replay(mutation)
+        CHECK.assertEqual(result["identities"], real["identities"], "candidate self-tests changed during " + name)
+        CHECK.assertTrue(result["failures"] > 0 and not any(result[key] for key in ("errors", "skipped", "expected", "unexpected")),
+                         "candidate self-tests did not reject " + name + " with assertions: " + diagnostic)
 
 
 if __name__ == "__main__":
