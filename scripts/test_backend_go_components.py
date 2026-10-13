@@ -188,18 +188,25 @@ func contractService(t *testing.T) (http.Handler, []byte) {
         publicOperations["publicStatus"] = true
         status := 200
         if os.Getenv("CONTRACT_FAULT") == "public-not-modified" { status = 304 }
-        huma.Register(api, huma.Operation{
+        operation := huma.Operation{
             Method: "GET", Path: "/v1/status", OperationID: "publicStatus", Errors: []int{401, 403},
             Security: []map[string][]string{}, DefaultStatus: status,
-        }, func(_ context.Context, _ *statusInput) (*struct{Status int}, error) {
-            if os.Getenv("CONTRACT_FAULT") == "public-requires-identity" {
-                return nil, huma.Error401Unauthorized("Sign in")
-            }
-            if os.Getenv("CONTRACT_FAULT") == "public-requires-permission" {
-                return nil, huma.Error403Forbidden("Sign in")
-            }
-            return &struct{Status int}{Status: status}, nil
-        })
+        }
+        if os.Getenv("CONTRACT_FAULT") == "public-invalid-auth" {
+            huma.Register(api, operation, func(_ context.Context, _ *statusInput) (*struct{Status int}, error) {
+                return &struct{Status int}{Status: status}, nil
+            })
+        } else {
+            huma.Register(api, operation, func(_ context.Context, _ *struct{}) (*struct{Status int}, error) {
+                if os.Getenv("CONTRACT_FAULT") == "public-requires-identity" {
+                    return nil, huma.Error401Unauthorized("Sign in")
+                }
+                if os.Getenv("CONTRACT_FAULT") == "public-requires-permission" {
+                    return nil, huma.Error403Forbidden("Sign in")
+                }
+                return &struct{Status int}{Status: status}, nil
+            })
+        }
     }
     var handler http.Handler = WithRequestID(WithProblemFallback(mux), "")
     data, err := json.Marshal(api.OpenAPI())
