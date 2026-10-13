@@ -774,9 +774,9 @@ requires `database-reliability` before the backfill and replay plan.
 `build-principal-engineer-platform-selection` is lane-only and grades the second reasoning depth
 against `distinguished.md`. It needs a proposed record, a reversible first step, and unverified
 vendor claims. The accepted job-scheduler pattern must beat a new runtime or a scheduler of our
-own. The new-system pair also requires `obs-alerting` before its paging rule. Three routing
-positives cover a new-service design assignment, a builder's returned fork, and a multi-year
-platform selection; four negatives require
+own. The new-system pair also requires `obs-alerting` before its paging rule. Four routing
+positives cover a new-service design assignment, a builder's returned fork, a multi-year
+platform selection, and a team service's workflow graph; four negatives require
 reliability assessments, small tool builds, an independent review of a design document, and the
 fleet's own workflow-graph design to reach their own lanes. The design-review negative seeds the
 two consumers its document names; a review the main session keeps passes, as does one handed to
