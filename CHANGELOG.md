@@ -59,6 +59,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   only the fleet's agent workflow graph; and the frontmatter references restore host bounds in
   plain words, Anthropic's reserved-word rule for skill names, and that generated Copilot adapters
   carry no `model`.
+  From PR review: `agent-engineer` keeps its executable-graph contract checklist for the fleet's
+  own agent workflow graph, and the MCP output row scopes the 50,000-character file handoff to
+  successful foreground calls, with backgrounded calls reporting through task notifications.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a

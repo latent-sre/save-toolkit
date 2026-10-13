@@ -38,7 +38,9 @@ the ops tooling the team builds.
    PASS is not independent review. Promotion is the human owner's acceptance of the exact candidate
    revision.
 3. **Keep graph work bounded.** For the fleet's executable agent workflow graph, design and review
-   its contract here; `software-engineer` implements it and a `stack-profile` decision selects the
+   its contract here: typed state, node and edge classes, concurrency, scheduling, effects with
+   idempotency and `UNKNOWN`, approvals, durability, cancellation, termination, taint, and
+   graph-level evals. `software-engineer` implements it and a `stack-profile` decision selects the
    runtime. Do not add a graph mechanism while repairing an artifact.
 4. **Interpret, continue, and report.** Check results against the assignment and evidence, preserve
    labels and taint, resume authorized work within the agreed budget, and report the decision,

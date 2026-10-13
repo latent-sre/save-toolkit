@@ -149,7 +149,7 @@ authorizes a self-modifying loop.
 |---|---|
 | Agent frontmatter | `name`, `description`, `tools`, optional `model`; validation rejects any other key. Omitting `tools` inherits **every** tool |
 | Agent keys that do nothing in a plugin | `hooks`, `mcpServers`, `permissionMode`, `initialPrompt` — the read-only Bash guard lives once in `hooks/hooks.json`, scoped to the exact `agent_type` |
-| MCP tool output | Claude Code caps a result at 25,000 tokens by default (`MAX_MCP_OUTPUT_TOKENS`); a text-only result over 50,000 characters is saved to a file and replaced by its path whatever that setting is. A server raises one tool's threshold with `_meta["anthropic/maxResultSizeChars"]`, up to 500,000. Other hosts differ: bound output with pagination and filters rather than relying on a cap |
+| MCP tool output | Claude Code caps a result at 25,000 tokens by default (`MAX_MCP_OUTPUT_TOKENS`). A successful foreground call returning text only is saved to a file and replaced by its path once over 50,000 characters, whatever that token setting; a server raises one tool's threshold with `_meta["anthropic/maxResultSizeChars"]`, up to 500,000. A call moved to a background task reports through its task notification instead. Other hosts differ: bound output with pagination and filters rather than relying on a cap |
 
 ## Promotion and composition
 
