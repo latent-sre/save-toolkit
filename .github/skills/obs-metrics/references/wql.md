@@ -27,9 +27,7 @@ Primary references:
 ## Contents
 
 - Select series and filter point tags
-- Aggregate and group — reject the fabricated aggregation clause
-- Percentile latency — combine the request distribution
-- Error ratio depends on counter type
+- Query shapes — guardrails
 - Rates, windows, and saturation
 - Missing data
 - WQL and PromQL mapping aid
@@ -57,91 +55,17 @@ for copied identifiers rather than constructing a regex from their contents.
 *[sourced: [WQL reference source](https://github.com/wavefrontHQ/docs/blob/master/pages/doc/query_language_reference.md),
 pattern matching and escaping, reviewed 2026-09-09; unverified target version and arbitrary-value encoder]*
 
-## Aggregate and group — reject the fabricated aggregation clause
+## Query shapes — guardrails
 
-WQL has no PromQL-style **postfix** aggregation clause — `sum(...) by (...)` written after the
-closing parenthesis is the fabrication to reject. Group an aggregation with trailing parameters,
-`sum(ts(app.http.requests.count), app)`, or with the documented inner form
-`sum(ts(app.http.requests.count) by (app))` — the two are equivalent, and `without (...)` also
-exists. WQL's separate `by (...)` construct additionally controls series matching across operators;
-`join()` is an alternative. Do not translate PromQL postfix aggregation syntax into a WQL
-aggregation.
-
-*[sourced: WQL `sum()` and series-matching documentation; the trailing-parameter / inner-`by`
-equivalence is byte-verified at wavefrontHQ/docs@0492d79
-`pages/doc/query_language_aggregate_functions.md:147-151`; unverified for target metric and tag]*
-
-```text
-sum(ts(app.http.requests.count), app)
-```
-
-Multiple trailing parameters create nested grouping dimensions.
-
-```text
-sum(ts(app.http.requests.count), app, env)
-```
-
-Break a flat aggregate down by adding the pointTag parameter: `, instance` / `, host`.
-## Percentile latency — combine the request distribution
-
-`percentile()` over a `ts()` expression aggregates point values across the selected series at each
-timestamp. If those points are per-instance means, the result is a percentile of instance means, not a
-request percentile.
-
-```text
-percentile(95, ts(app.http.requests.latency, app="checkout"), instance)
-```
-
-That grouped form is a candidate until verified against the target tenant; it still describes
-instances, not requests, when the inputs are per-instance points.
-
-Histogram conversion functions return a value for each input histogram series. To calculate one
-app-wide request percentile across instance histogram series, merge the distributions first.
-
-```text
-percentile(95, merge(hs(app.http.requests.latency.m, app="checkout")))
-```
-
-If only precomputed per-instance percentile metrics exist, keep them per instance. Averaging or summing
-those quantiles does not reconstruct the combined request distribution. *[unverified target telemetry]*
-
-## Error ratio depends on counter type
-
-### Cumulative counters
-
-Apply `rate()` to each cumulative series before `sum()`. Dividing raw cumulative totals describes the
-population since process start and is distorted by resets.
-
-```text
-100 * sum(rate(ts(app.http.requests.errors, app="checkout")))
-    / sum(rate(ts(app.http.requests.count, app="checkout")))
-```
-
-`rate()` reports positive change and can leave a gap at a counter reset. On PCF, instance restarts are
-routine, so inspect the target's reset, reporting, and gap behavior before this becomes alert evidence;
-prefer delta counters when the emitted contract supports them.
-
-### Delta counters
-
-Delta counters report change for an interval and are queried with `cs()`. Do not apply cumulative-counter
-`rate()` semantics to them.
-
-```text
-100 * sum(cs(app.http.requests.errors, app="checkout"))
-    / sum(cs(app.http.requests.count, app="checkout"))
-```
-
-When the numerator is absent during clean periods, a narrowly scoped default can render zero. Confirm
-that doing so will not conceal late or missing telemetry.
-
-```text
-100 * default(0, sum(cs(app.http.requests.errors, app="checkout")))
-    / sum(cs(app.http.requests.count, app="checkout"))
-```
-
-Use `default()` sparingly. Filling a delayed point can prevent a threshold from seeing collection loss,
-and a selector that matches no series for the whole window needs a separate no-data path. *[sourced: WQL
-`default()` and missing-data documentation; unverified for target lateness and alert lifecycle]*
+WQL has no PromQL-style postfix aggregation clause: group with trailing parameters
+(`sum(ts(metric), app)`) or the inner `by` form, never `sum(...) by (...)` after the parenthesis.
+For a fleet request percentile, merge instance histogram distributions first
+(`percentile(95, merge(hs(metric.m, ...)))`); a percentile over per-instance points describes
+instances, not requests. Apply `rate()` to each cumulative series before `sum()`; query delta
+counters with `cs()`, not cumulative `rate()` semantics. On PCF, inspect counter-reset behaviour
+before treating a rate as alert evidence, and use `default()` only where it cannot conceal late or
+missing telemetry — a selector matching nothing needs a separate no-data path. *[sourced: WQL
+`sum()`, histogram, delta-counter and missing-data documentation; unverified for target metric]*
 
 ## Rates, windows, and saturation
 

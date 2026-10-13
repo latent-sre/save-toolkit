@@ -1,0 +1,28 @@
+id: obs-logs-spl-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-logs
+tools: [Skill, Read]
+references:
+  - skills/obs-logs/references/spl.md
+  - skills/obs-logs/references/query-catalog.md
+prompt: |
+  Read the SPL and query-catalog references. Write one Splunk search only, with no
+  explanation; do not run queries or edit files. Settlement-api writes to
+  index=<app_index> on a request-completion sourcetype with exactly one event per
+  eligible request and a three-digit status field. Flag five-minute buckets whose 5xx
+  error rate spikes against the preceding hour, using <start_epoch> and <end_epoch> for
+  the window.
+success_criteria:
+  - Buckets are complete, the baseline trails and excludes the candidate, and classification coverage is checked.
+graders:
+  - type: regex
+    pattern: 'timechart[^\n]*cont\s*='
+  - type: regex
+    pattern: 'streamstats[^\n]*current\s*=\s*f'
+  - type: regex
+    pattern: 'count\s*\(\s*status\s*\)'
+  - type: not_regex
+    pattern: 'fillnull'
+  - type: not_regex
+    pattern: 'eventstats'

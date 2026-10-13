@@ -1,0 +1,28 @@
+id: obs-metrics-wql-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-metrics
+tools: [Skill, Read]
+references:
+  - skills/obs-metrics/references/wql.md
+  - skills/obs-metrics/references/promql.md
+prompt: |
+  Read the WQL and PromQL references. Write queries only, with no explanation; do not run
+  queries or edit files. Checkout is a PCF app in prod. It emits per-instance histogram
+  series named app.http.requests.latency.m with point tags app and env, separate
+  per-instance average latency points named app.http.requests.latency, and cumulative
+  counters app.http.requests.errors and app.http.requests.count with point tags app
+  and env. Write, labelled 1 and 2: (1) the fleet-wide request p95 for checkout;
+  (2) the error rate grouped by app.
+success_criteria:
+  - Combines histogram distributions before a fleet percentile and never averages point percentiles.
+  - Applies per-series rate semantics to cumulative counters with WQL grouping forms.
+graders:
+  - type: regex
+    pattern: 'merge\s*\(\s*hs\('
+  - type: regex
+    pattern: 'rate\s*\(\s*ts\('
+  - type: not_regex
+    pattern: '\)\s*by\s*\('
+  - type: not_regex
+    pattern: 'ts\("'

@@ -1,0 +1,24 @@
+id: obs-logs-logql-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-logs
+tools: [Skill, Read]
+references:
+  - skills/obs-logs/references/logql.md
+prompt: |
+  Read the LogQL reference. Write queries only, with no explanation; do not run queries
+  or edit files. Checkout logs to Loki in prod as JSON lines with a numeric status
+  field, on streams labelled app and env. Write, labelled 1 and 2: (1) the count of
+  5xx log lines per five minutes by app; (2) a line query that follows one request by
+  its validated trace id placeholder.
+success_criteria:
+  - Parses structured fields with explicit parser-error handling and never zero-fills an absent selector.
+graders:
+  - type: regex
+    pattern: 'count_over_time|rate\s*\('
+  - type: regex
+    pattern: '\|\s*json'
+  - type: regex
+    pattern: '__error__'
+  - type: not_regex
+    pattern: 'or\s+on\(\)\s*vector\(0\)'
