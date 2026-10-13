@@ -65,6 +65,18 @@ conversations retain positive main-session routing. Measure agent discovery with
 routing scenario. Saved native agent runs require matching `--agent` evidence on both invocations;
 an old main-session trace cannot be reclassified as agent acceptance.
 
+## Muse runner (separate baseline, never comparable)
+
+[`muse_probe.py`](muse_probe.py) runs the same scenario catalog on Muse (`muse exec --json`)
+for a Muse host baseline. It is a separate entry point with its own `muse-record-v1` records:
+the model, harness and tool names differ, so its results are never averaged with or compared
+against a Sonnet baseline. Agents and skills are pinned by injecting the canonical definition
+into the prompt (`pin: prompt-injected`), shell/write/web access is approximated from the pinned
+agent's own grants, and any expectation a Muse trace cannot carry — skill-load completion,
+dispatch targets, tool arguments, a rubric judge — is INCONCLUSIVE rather than graded on
+invented evidence. `python evals/muse_probe.py validate` checks the catalog offline;
+`run --scenario <id> --label <label> --out <dir>` executes live trials.
+
 ## Runner layout
 
 `build_probe.py` is only the command line; the code is in [`probe/`](probe), one module per job (its
