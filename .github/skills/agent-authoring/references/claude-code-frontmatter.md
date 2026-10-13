@@ -20,14 +20,14 @@ either inert in a plugin or decided against below.
 | Field | Disposition here |
 |---|---|
 | `name`, `description` | Required; `description` is the trigger and is capped at **1,024 UTF-8 bytes** by `validate_fleet.py` |
-| `tools` | Allowlist for built-ins **and MCP tools**. **Omitting it inherits every tool**; a list in which no entry resolves to a tool usually fails to launch with an error naming the entries, so there is no zero-tool agent. Exact MCP names are `mcp__<server>__<tool>`; `mcp__<server>` and `mcp__<server>__*` silently acquire tools the server adds later — grant exact entries and include `ToolSearch` when approved MCP tools may be deferred. `Agent(worker)` scoping enforces only for a main-thread agent (`claude --agent`); a subagent ignores the type list. Shell-command restrictions are separate from this tool list; see below. **Removed from every subagent regardless of `tools:`** — `AskUserQuestion`, `EndConversation`, `EnterPlanMode`, `ExitPlanMode` (unless the subagent's `permissionMode` is `plan`), `ScheduleWakeup`, `WaitForMcpServers`, `Workflow`; and `Agent` at the depth limit. A **background** subagent keeps `Agent` below that limit and `TaskStop`, subject to its grants; its other built-ins are filtered as listed in [Available tools](https://code.claude.com/docs/en/sub-agents#available-tools). A **fork** skips tool filtering entirely and receives the main conversation's exact pool, so a fork is not a way to bound authority |
-| `model` | Generation aliases `haiku \| sonnet \| opus \| fable \| inherit` only — `validate_fleet.py` rejects a full ID (a dated pin goes stale silently). No agent pins one today; tiering a routine lane down is allowed when its cost profile justifies it. Tier down mechanical, high-volume lanes (graders, routing trials); keep review, root-cause, and authority lanes inheriting; a pin states its reason in the same change. Resolution order: the call's `model`, then frontmatter `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the session model; a family alias in the call or frontmatter resolves to the session's exact model when it is that family. `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` ignores the first two, so check both variables before attributing a lane result to the session model. A fork always runs on the session model |
+| `tools` | Allowlist for built-ins **and MCP tools**. **Omitting it inherits every tool**; a list in which no entry resolves to a tool usually fails to launch with an error naming the entries, so never rely on an empty list for a zero-tool agent. Exact MCP names are `mcp__<server>__<tool>`; `mcp__<server>` and `mcp__<server>__*` silently acquire tools the server adds later — grant exact entries and include `ToolSearch` when approved MCP tools may be deferred. `Agent(worker)` scoping enforces only for a main-thread agent (`claude --agent`); a subagent ignores the type list. Shell-command restrictions are separate from this tool list; see below. **Removed from every subagent regardless of `tools:`** — `AskUserQuestion`, `EndConversation`, `EnterPlanMode`, `ExitPlanMode` (unless the subagent's `permissionMode` is `plan`), `ScheduleWakeup`, `WaitForMcpServers`, `Workflow`; and `Agent` at the depth limit. A **background** subagent keeps `Agent` below that limit and `TaskStop`, subject to its grants; its other built-ins are filtered as listed in [Available tools](https://code.claude.com/docs/en/sub-agents#available-tools). A **fork** skips tool filtering entirely and receives the main conversation's exact pool, so a fork is not a way to bound authority |
+| `model` | Generation aliases `haiku \| sonnet \| opus \| fable \| inherit` only — `validate_fleet.py` rejects a full ID (a dated pin goes stale silently). No agent pins one today; tiering a routine lane down is allowed when its cost profile justifies it. Tier down mechanical, high-volume lanes (graders, routing trials); keep review, root-cause, and authority lanes inheriting; a pin states its reason in the same change. Resolution order: the call's `model`, then frontmatter `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the session model; a family alias in the call or frontmatter resolves to the session's exact model when it is that family. `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` ignores the first two, so check both variables before attributing a lane result to the session model. A fork always runs on the session model. Generated Copilot adapters carry no `model` |
 | `hooks`, `mcpServers`, `permissionMode` | Plugin-packaged agents **ignore** all three. The fleet ships `hooks/hooks.json` session-wide, self-scoped to exact guarded `agent_type` values; canonical frontmatter containing `hooks` fails validation |
 | `initialPrompt` | Ignored for plugin subagents |
 | `omitClaudeMd` | Launches the subagent without user, project, and local CLAUDE.md files. A candidate for `reviewer`, whose trusted-base review cannot stop a candidate's fleet guide from auto-loading; plugin-subagent behavior is unknown, and adopting it needs a `validate_fleet.py` key decision |
 | `disallowedTools`, `skills`, `maxTurns`, `memory`, `background`, `effort`, `isolation`, `color`, `experimental` | Real on the platform, unused here. `skills:` preloads full skill content at startup — prefer it over `Skill` in `tools` if an agent ever needs a skill every run, and never list a `disable-model-invocation: true` skill. `maxTurns` and `memory` are decided against below |
 
-Scoped Bash specifiers in agent `tools:` do not narrow commands. In `disallowedTools`,
+Scoped Bash specifiers in agent `tools:` did not narrow commands on the hosts tested. In `disallowedTools`,
 `Bash(git push *)` removes Bash entirely. The same entry in settings `permissions.deny`
 instead denies matching commands while retaining Bash;
 it applies to both the main conversation and subagents
@@ -38,7 +38,7 @@ The fleet's `PreToolUse` hook supplies its agent-specific command policy through
 how that guard scopes itself is maintainer detail in the Save Toolkit repository's `CONTRIBUTING.md`.
 
 Canonical plugin delegation grants use full names: `Agent(reviewer, scribe)`.
-Bare targets do not match plugin agent identities; the
+Bare targets did not match plugin agent identities on the hosts tested; the
 generator projects the same targets to bare Copilot names. The validator rejects unqualified or
 foreign-plugin grants.
 
@@ -79,7 +79,7 @@ the model's context window by default (`skillListingBudgetFraction`), or a fixed
 from `SLASH_COMMAND_TOOL_CHAR_BUDGET`; 8,000 characters is only the fallback. On overflow every
 name stays and the least-invoked skills lose their descriptions, visible only in the `/context`
 Skills row, `/doctor`, or the `--debug` log. The CLI computes about 6,000 characters for a 200K-window model and
-30,000 for 1M (undocumented); the fleet's descriptions
+30,000 for 1M (undocumented and unconfirmed); the fleet's descriptions
 alone exceed 6,000, so on a 200K host some drop. An
 invoked skill body is a separate contract: it loads whole into the conversation as a single message
 and stays there across later turns. The 5,000-tokens-per-skill / 25,000-combined figures apply only

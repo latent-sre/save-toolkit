@@ -12,7 +12,8 @@ adapters; the generator absorbs the difference, and this file maps what it has t
 `name`, `description`, `license`, `compatibility`, `metadata`, and `allowed-tools`. Their limits
 and fleet dispositions are in the Skills table of
 [Copilot & VS Code frontmatter](./copilot-frontmatter.md#skills); this fleet writes `compatibility`
-as one single-line scalar so the local gate measures its 500-character limit exactly.
+as one single-line scalar so the local gate measures its 500-character limit exactly. Anthropic's
+platform also rejects a `name` containing XML tags or the reserved words `anthropic` or `claude`.
 
 ## Claude-only fields
 

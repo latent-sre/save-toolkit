@@ -58,6 +58,18 @@ reads and does not apply ships as a copied test or asset, not a stronger sentenc
 Prefer a small, diverse set of canonical examples over an edge-case list, count chosen by
 evaluation. No vague qualifiers: state the threshold ("≤150 words, no preamble").
 
+## Tool contracts
+
+A tool's name, description, inputs, and output shape are the interface the model reasons over.
+
+- Namespace by domain (`cf_restart_app`, `splunk_search`) so intent is unambiguous; the
+  description carries the capability and when to call it.
+- Bound output with pagination, range selection, and filters, and make errors steer the next call.
+- Promote a shell command to a dedicated tool when the action needs gating, auditing, staleness
+  checks, or rendering; start with the shell for breadth.
+- Tool sprawl has no portable threshold: load coherent sets on demand or split authority across
+  lanes. Never hide unrelated contracts behind one giant `action` enum to reduce the count.
+
 ## Structural beats behavioral
 
 A load-bearing rule gets the mechanical control, and says so: explicit tool scope, strict schemas,

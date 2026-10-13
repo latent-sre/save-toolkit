@@ -53,6 +53,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   and a team service's workflow graph routes to `principal-engineer`. GRAPH-007 tracks promoting or
   retiring the sandbox skill. Its body drops restatements of `agent-authoring`, merges duplicate
   handoff and trust lines, and aligns its roster-change rule with the skill's rule 3.
+- After independent review of the branch: `agent-authoring`'s artifact reference regains a compact
+  "Tool contracts" section (domain namespacing, bounded output with steering errors, gated tool
+  promotion, no catch-all `action` enum) with a routing row; the entrypoint's dispatch line names
+  only the fleet's agent workflow graph; and the frontmatter references restore host bounds in
+  plain words, Anthropic's reserved-word rule for skill names, and that generated Copilot adapters
+  carry no `model`.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a
