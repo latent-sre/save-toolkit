@@ -111,19 +111,9 @@ pattern parser; reviewed 2026-08-21]*
 `rate` returns log entries per second over a range; `count_over_time` returns the number of entries in
 each stream over the range. Aggregate across streams when you need a service total.
 
-*[sourced: Grafana Loki metric-query reference; unverified for target labels and fields]*
-
-```logql
-sum by (app) (
-  rate({app="checkout", env="prod"} | json | status >= 500 | __error__="" [5m])
-)
-```
-
-*[sourced: Grafana Loki `count_over_time`; unverified target fields, population, and cadence]*
-
-```logql
-sum(count_over_time({app="checkout", env="prod"} | json | status >= 500 | __error__="" [5m]))
-```
+Aggregate parsed, error-filtered streams with `rate` or `count_over_time` over a fixed range, and
+aggregate across streams when a service total is needed. *[sourced: Grafana Loki metric-query
+reference; unverified for target labels and fields]*
 
 Evaluate fixed five-minute ranges. Preserve an absent result as unknown unless independent evidence
 proves the selector, source freshness, parsing coverage, and eligible population, and the source's

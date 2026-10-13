@@ -22,27 +22,10 @@ choices and points there rather than restating them.
 Scoped fixes apply only steps affecting the changed path in the existing setup; service-wide
 instrumentation uses the full method.
 
-1. **For service-wide instrumentation, auto-instrument first** with the SDK; then add **manual** spans for critical
-   operations. The zero-code entry points *[sourced: opentelemetry.io/docs/zero-code/]*:
-
-   For Python, use the repository's managed environment and lock workflow; never install into
-   system Python. The [upstream uv bootstrap](https://opentelemetry.io/docs/zero-code/python/troubleshooting/#bootstrap-using-uv)
-   below records dependencies in the project. Review the dependency/lock diff and reproduce from
-   the lock before deployment; use the established equivalent for a library using Poetry.
-
-   ```sh
-   # Python — in the uv project
-   uv add opentelemetry-distro opentelemetry-exporter-otlp
-   uv run opentelemetry-bootstrap -a requirements | uv add --requirement -
-   uv run opentelemetry-instrument --traces_exporter otlp --metrics_exporter otlp \
-     --logs_exporter otlp --service_name my-service python app.py
-
-   # Java — agent JAR (Spring Boot starter and Quarkus extension also exist)
-   java -javaagent:./opentelemetry-javaagent.jar -jar my-app.jar
-   ```
-
-   Standard env config either way: `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`
-   (gRPC 4317 / HTTP 4318), `OTEL_EXPORTER_OTLP_PROTOCOL`.
+1. **For service-wide instrumentation, auto-instrument first** with the SDK's zero-code entry
+   points, then add **manual** spans for critical operations. For Python, use the repository's
+   managed environment and lock workflow; never install into system Python, and review the
+   dependency/lock diff before deployment.
 
    **Spring Boot: identify the installed path before troubleshooting.**
 

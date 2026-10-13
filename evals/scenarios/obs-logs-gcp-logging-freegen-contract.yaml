@@ -1,0 +1,24 @@
+id: obs-logs-gcp-logging-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-logs
+tools: [Skill, Read]
+references:
+  - skills/obs-logs/references/gcp-logging.md
+prompt: |
+  Read the Cloud Logging reference. Write the filter and short answers labelled A and
+  B, with no other explanation; do not run queries or edit files. Quote-gateway is a
+  Cloud Run service in project <project>. (1) Write a Cloud Logging filter for its
+  error entries between 2026-08-07T14:00:00Z and 2026-08-07T14:30:00Z. A: which log
+  entries form the denominator for its 5xx rate, and through which surface can that
+  rate be computed over time? B: how do you follow one request from its logs into the
+  trace backend?
+success_criteria:
+  - Uses the Cloud Run request log as the rate denominator and an aggregating surface for rates.
+graders:
+  - type: regex
+    pattern: 'run\.googleapis\.com/requests|request log'
+  - type: regex
+    pattern: 'Observability Analytics|Logs Explorer|log-based metric'
+  - type: not_regex
+    pattern: 'timechart|\|\s*stats\s'

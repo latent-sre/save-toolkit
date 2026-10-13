@@ -1,0 +1,21 @@
+id: obs-logs-logql-metadata-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-logs
+tools: [Skill, Read]
+references:
+  - skills/obs-logs/references/logql.md
+prompt: |
+  Read the LogQL reference. Write the query and the short answer labelled A, with no
+  other explanation; do not run queries or edit files. Checkout logs to Loki 3.x in
+  prod on streams labelled app and env, and its trace IDs are carried as structured
+  metadata, not in the log line and not as stream labels. (1) Write a LogQL line query
+  that follows one request by its validated trace id placeholder, using the metadata.
+  A: a query is rejected with a maximum-series error; what do you do?
+success_criteria:
+  - Filters structured metadata before any parser stage and narrows instead of raising limits.
+graders:
+  - type: regex
+    pattern: '\|\s*traceID\s*='
+  - type: regex
+    pattern: 'narrow|tighter|shorter range|aggregate'

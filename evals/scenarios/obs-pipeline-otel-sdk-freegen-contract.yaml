@@ -1,0 +1,27 @@
+id: obs-pipeline-otel-sdk-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-pipeline
+tools: [Skill, Read]
+references:
+  - skills/obs-pipeline/references/otel-sdk.md
+prompt: |
+  Read the OTel SDK reference. Write setup only, with no explanation; do not edit files
+  or install anything. A team is adding OpenTelemetry to (1) a Python service run with
+  its project virtual environment, exporting all three signals over OTLP, and (2) a
+  Java service. For each, give the minimal setup commands or launch line, the standard
+  environment configuration for service name and exporter endpoint, and the resource
+  attribute name for the deployment environment.
+success_criteria:
+  - Uses zero-code setup with OTLP exporter configuration and the current environment attribute name.
+graders:
+  - type: regex
+    pattern: 'opentelemetry-instrument'
+  - type: regex
+    pattern: 'OTEL_EXPORTER_OTLP_ENDPOINT'
+  - type: regex
+    pattern: '4317|4318'
+  - type: regex
+    pattern: 'deployment\.environment\.name'
+  - type: not_regex
+    pattern: 'deployment\.environment\s*='

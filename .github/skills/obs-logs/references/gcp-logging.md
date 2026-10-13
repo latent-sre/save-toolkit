@@ -9,7 +9,6 @@ and [`gcloud logging read`](https://docs.cloud.google.com/sdk/gcloud/reference/l
 
 ## Contents
 
-- What this language is (and is not)
 - Start narrow
 - Read it over time
 - Correlate one request
@@ -17,14 +16,11 @@ and [`gcloud logging read`](https://docs.cloud.google.com/sdk/gcloud/reference/l
 - Observability Analytics (SQL over logs)
 - Tips & gotchas
 
-## What this language is (and is not)
-
-The Logging query language is a **filter** language: it selects entries, it does not aggregate
-them. There is no `timechart`/`stats` equivalent inside a filter. Time-series and top-N questions
-route through the Logs Explorer histogram, **log-based metrics**, or **Observability Analytics**
-SQL (below) — pick the surface before writing the "query".
-
 ## Start narrow
+
+The Logging query language is a **filter** language: it selects entries and does not aggregate
+them, so time-series and top-N questions route through the Logs Explorer histogram, log-based
+metrics, or Observability Analytics SQL — pick the surface before writing the "query".
 
 *[sourced: Logging query-language page; unverified for the target project's resource types and
 label values]*
@@ -61,18 +57,12 @@ timestamp >= "2026-08-07T00:00:00Z" timestamp <= "2026-08-07T00:30:00Z"
 
 ## Read it over time
 
-The filter alone cannot bucket. Options, in order of preference for an investigation:
-
-1. **Logs Explorer histogram** over the filter — fast visual onset/trend; screenshot or note the
-   bucket edges into the packet, the histogram is not exportable evidence by itself.
-2. **Observability Analytics SQL** (below) — exportable aggregation over time buckets.
-   `GROUP BY` returns only populated buckets. For a complete timeline, generate the bounded
-   bucket series and left-join counts; turn missing counts into zero only after confirming
-   source freshness and ingestion coverage. Otherwise preserve the gap as unknown.
-3. **Log-based metrics** for the recurring version — but user-defined log-based metrics are **not
-   retroactive** ("data … comes only from log entries received after the metric is created")
-   *[sourced: docs.cloud.google.com/logging/docs/logs-based-metrics]* — useless for the incident
-   you are in now, right for the next one.
+The filter alone cannot bucket: use the Logs Explorer histogram for a quick visual, Observability
+Analytics SQL for exportable aggregation, or a log-based metric for the recurring version.
+`GROUP BY` returns only populated buckets, so for a complete timeline generate the bounded bucket
+series and left-join counts; turn missing counts into zero only after confirming source freshness
+and ingestion coverage. Log-based metrics are **not retroactive** — useless for the incident you
+are in now, right for the next one.
 
 ## Correlate one request
 
@@ -121,14 +111,9 @@ gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.servic
 ## Observability Analytics (SQL over logs)
 
 Log Analytics was renamed **Observability Analytics** (June 2026): BigQuery-backed SQL over logs
-and traces inside Cloud Observability; queries from its UI are included in standard Logging
-pricing, while querying through a **linked BigQuery dataset** (needed only to join with other BQ
-data) bills as BigQuery *[sourced: Google Cloud blog 2026-06-23 "Observability Analytics"; the pricing split is on
-docs.cloud.google.com/logging/docs/log-analytics]*. This is where "top offenders" and
-"before vs after, as rates" can be answered, with explicit gap filling when a complete timeline
-is needed. Log buckets must be upgraded for it — upgrade state per bucket is `[unverified]`,
-check before promising a SQL answer. See the official
-[SQL aggregation examples](https://docs.cloud.google.com/logging/docs/analyze/query-and-view).
+and traces, where "top offenders" and "before vs after, as rates" can be answered with explicit
+gap filling. Log buckets must be upgraded for it — upgrade state per bucket is `[unverified]`,
+check before promising a SQL answer.
 
 ## Tips & gotchas
 
