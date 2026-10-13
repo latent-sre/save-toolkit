@@ -1,0 +1,26 @@
+id: grafana-dashboard-reading-freegen-contract
+max_turns: 17
+split: regression
+skill: grafana
+tools: [Skill, Read]
+references:
+  - skills/grafana/references/dashboard-reading.md
+prompt: |
+  Read the dashboard-reading reference. Write short labelled steps only, no
+  explanation; do not edit files or run queries. An on-call engineer opens a
+  Grafana dashboard during an incident and asks what is broken. A: what context
+  do you fix before reading any panel, and what do you record from the panels
+  themselves? B: a panel is green and titled 'healthy'; what does that establish
+  about alerting and service health? C: you have only the stored dashboard
+  model, no live data; what do you report?
+success_criteria:
+  - Fixes window, timezone, and variables first, distrusts color and titles as health proof, and marks health unverified from the model alone.
+graders:
+  - type: regex
+    pattern: '(?i)time ?zone|absolute.*(window|time range)'
+  - type: regex
+    pattern: '(?i)variable'
+  - type: regex
+    pattern: '(?i)threshold|alert'
+  - type: regex
+    pattern: '(?i)unverified|unknown|establishes nothing|not.*(establish|prove)|cannot|can.t show'

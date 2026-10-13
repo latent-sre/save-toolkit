@@ -6,34 +6,26 @@ the grants on this instance.
 
 ## Permission boundary
 
-- Viewer is the read baseline; Editor adds dashboard, folder, annotation, and library-panel changes.
-  Organization Admin also manages organization resources such as data sources and teams.
 - Prefer a user/team grant on the one dashboard or folder over an organization-wide role increase.
-  Dashboards inherit folder permissions. Where licensed, an Explore-specific RBAC grant can allow
-  ad-hoc querying without dashboard-edit authority.
+  Dashboards inherit folder permissions.
 - Permission and role changes use `production-change-gate` under the parent skill's
   [Access and authority](../SKILL.md#access-and-authority). Prepare the exact requested grant; the
   agent does not apply it.
 
-## Viewer evidence
+## Sharing and evidence
 
-- Preserve the investigation state in the URL: absolute or relative time range, `var-<name>` values,
-  and timezone. Prefer an access-controlled live link over a screenshot; a screenshot freezes data
-  and can expose more than the recipient is authorized to query.
-- Panel Inspect exposes the query, returned data, panel JSON, and CSV without granting Explore.
-  Record the time window and variable values with exported evidence.
-- Internal panel/dashboard links remain access-controlled. A Grafana snapshot embeds queried data
-  outside the dashboard's normal access path: scrub it, set an expiry, and treat sharing it as data
-  egress.
+- Prefer an access-controlled live link preserving the time range, `var-<name>` values, and timezone
+  over a screenshot, which freezes data and can expose more than the recipient may query.
+- A Grafana snapshot embeds queried data outside the dashboard's normal access path: scrub it, set
+  an expiry, and treat sharing it as data egress.
 
 ## Editor changes
 
 - Library panels propagate an edit to every consumer; inventory those consumers before changing one.
-- Annotations should mark deploys, incidents, and configuration changes with consistent tags.
-  Annotation writes are not part of the Grafana write exception: prepare them for the human owner.
-- Version history names who changed a dashboard and supports comparison/restore. A restore is durable
-  only for an unmanaged dashboard. Provisioned or tool-managed resources must be changed through
-  their owner or the next reconciliation will replace the UI/API edit.
+- Annotation writes are not part of the Grafana write exception: prepare them for the human owner.
+- A restore from version history is durable only for an unmanaged dashboard. Provisioned or
+  tool-managed resources must be changed through their owner or the next reconciliation will
+  replace the UI/API edit.
 - Every UI or API save is a real change. Use a meaningful save message; prefer the API path in
   [http-api](./http-api.md) when the work needs a reviewable diff, concurrency protection, query
   evidence, and a rollback.

@@ -50,10 +50,9 @@ below does not apply to a review. Read-only results cannot verify write concurre
    substitute a converted V1 model. If the candidate cannot be checked, report the gap and stop
    before writing.
 6. **Show the target and full diff, then write once.** An update carries the API family's fresh
-   concurrency token: `metadata.resourceVersion` on app-platform `PUT`, or `dashboard.version` with
-   `overwrite: false` on legacy `POST`. A create carries neither token and uses its API family's
-   create path (`overwrite: false` only on the legacy request); a collision stops and reconciles.
-   Include a save message naming the dashboard change because it cannot be added later. A conflict
+   concurrency token and a create carries neither (token shapes and create paths are in
+   [http-api](./http-api.md#create-import-update)); a collision stops and reconciles. Include a
+   save message naming the dashboard change because it cannot be added later. A conflict
    re-reads and re-diffs; it never forces.
 
    The write is **idempotent-by-target** only for the same dashboard uid and byte-identical desired

@@ -1,0 +1,26 @@
+id: grafana-verify-freegen-contract
+max_turns: 17
+split: regression
+skill: grafana
+tools: [Skill, Read]
+references:
+  - skills/grafana/references/http-api.md
+prompt: |
+  Read the dashboard HTTP API reference. Write short labelled answers only, no
+  explanation; do not edit files or call APIs. You saved a dashboard change whose
+  main panel uses a rate window macro. A: how do you verify the changed query
+  through the query API, given what that API does not expand? B: the server render
+  of the panel returns HTTP 200 with an image; why is that alone not proof the
+  panel rendered? C: you forgot the save message on the write; can it be added to
+  that version afterwards?
+success_criteria:
+  - Substitutes a concrete rate window, checks rendered dimensions against stock images, and treats save messages as write-time only.
+graders:
+  - type: regex
+    pattern: '__rate_interval|rate.interval'
+  - type: regex
+    pattern: '(?i)scrape interval|concrete (window|duration|value)|substitut|collection cadence|at least four|four times'
+  - type: regex
+    pattern: '(?i)stock|dimensions|1200|width and height|requested (render )?size'
+  - type: regex
+    pattern: '(?i)cannot be added|can.t be added|no,|not.*after|write.time|at write|immutable|fixed when|new (save|version)'

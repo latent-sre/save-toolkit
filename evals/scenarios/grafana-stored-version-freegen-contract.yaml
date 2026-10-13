@@ -1,0 +1,26 @@
+id: grafana-stored-version-freegen-contract
+max_turns: 17
+split: regression
+skill: grafana
+tools: [Skill, Read]
+references:
+  - skills/grafana/references/http-api.md
+prompt: |
+  Read the dashboard HTTP API reference. Write short labelled answers only, no
+  explanation; do not edit files or call APIs. A dashboard read through the Grafana
+  13.2 app-platform V2 shape shows no panels, yet the dashboard renders fine in the
+  console. A: how do you determine which schema version the object is actually
+  stored in before editing it? B: why did the V2 read mislead you? C: you later need
+  the version history of a dashboard stored at an alpha version; where do you list
+  it?
+success_criteria:
+  - Probes the stored version unstructured, distrusts the read shape, and reads history at a stable version.
+graders:
+  - type: regex
+    pattern: 'v0alpha1'
+  - type: regex
+    pattern: 'storedVersion|stored version'
+  - type: regex
+    pattern: 'elements'
+  - type: regex
+    pattern: 'dashboard\.grafana\.app/v1|/v1/namespaces'

@@ -1,0 +1,39 @@
+id: grafana-alerting-spellings-freegen-contract
+max_turns: 17
+split: regression
+skill: grafana
+tools: [Skill, Read]
+references:
+  - skills/grafana/references/grafana-alerting.md
+prompt: |
+  Read the Grafana alerting reference. Write the file-provisioning YAML fragment and
+  the short answers labelled A and B, with no other explanation; do not edit files. A
+  Grafana 13 rule group holds a paging latency rule that must keep firing briefly
+  after clearing, must not map silent telemetry or an erroring query to the normal
+  state, and is provisioned from files. A: give the exact provisioning field
+  spellings and allowed values for the keep-firing behaviour and the two state
+  decisions. B: a teammate wrote the UI labels for those states into the YAML; what
+  happens and why?
+success_criteria:
+  - Uses provisioning spellings keepFiringFor and OK, never UI labels, in file-provisioned rules.
+graders:
+  - type: regex
+    pattern: 'keepFiringFor'
+  - type: regex
+    pattern: 'noDataState'
+  - type: regex
+    pattern: 'execErrState'
+  - type: regex
+    pattern: 'keepFiringFor\s*:'
+  - type: not_regex
+    pattern: '(?m)^\s*keep_firing_for\s*:'
+  - type: regex
+    pattern: '\bOK\b'
+  - type: regex
+    pattern: 'NoData'
+  - type: regex
+    pattern: '\bError\b'
+  - type: not_regex
+    pattern: '(?m)^\s*noDataState\s*:\s*(Normal|Keep Last State)\s*$'
+  - type: not_regex
+    pattern: '(?m)^\s*execErrState\s*:\s*(Normal|Keep Last State)\s*$'

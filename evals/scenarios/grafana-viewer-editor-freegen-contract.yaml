@@ -1,0 +1,31 @@
+id: grafana-viewer-editor-freegen-contract
+max_turns: 17
+split: regression
+skill: grafana
+tools: [Skill, Read]
+references:
+  - skills/grafana/references/viewer-editor-workflows.md
+prompt: |
+  Read the viewer/editor workflows reference. Write short labelled answers only,
+  no explanation; do not edit files. A: which Grafana roles can view, edit, and
+  administer organization resources, and how do dashboard permissions relate to
+  their folder? B: a teammate wants to share a dashboard's current state with an
+  external partner; what are the options and the data-sharing risk of one of
+  them? C: an editor changes a shared panel component used by many dashboards;
+  what must happen first? D: a dashboard is restored from version history but
+  keeps reverting; why?
+success_criteria:
+  - States the role and folder-permission model, the snapshot data-egress risk, library-panel consumer checks, and owner-managed restore limits.
+graders:
+  - type: regex
+    pattern: '(?i)viewer'
+  - type: regex
+    pattern: '(?i)editor'
+  - type: regex
+    pattern: '(?i)folder'
+  - type: regex
+    pattern: '(?i)snapshot'
+  - type: regex
+    pattern: '(?i)library panel'
+  - type: regex
+    pattern: '(?i)provision|managed|reconcil|owner'
