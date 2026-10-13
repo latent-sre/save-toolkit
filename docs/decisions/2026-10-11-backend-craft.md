@@ -77,6 +77,8 @@ Rejected [sourced: owner]:
 
 ## Owner amendment — 2026-10-12
 
+Amended: 2026-10-12 — decision owner narrowed existing-service contract scope.
+
 The owner approved narrowing the first-touch requirements for existing services [sourced: owner].
 This amends decisions 2 and 5 and their consequences: new HTTP services retain the full committed
 OpenAPI document and gate standard. Existing services preserve their canonical specification
@@ -87,6 +89,8 @@ compatibility evidence. Existing authentication, contract-change approval and ve
 remain in force.
 
 ## Owner amendment — 2026-10-12: internal identity and optional examples
+
+Amended: 2026-10-12 — decision owner confirmed corporate SSO and optional starter examples.
 
 The owner confirmed corporate SSO for internal tools and approved simplifying the starter
 packaging [sourced: owner]. Shared web services retain authentication and object authorization;
