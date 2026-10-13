@@ -47,9 +47,9 @@ synchronous nesting model, and separate queue delay from consumer processing.
 
 ## Read status and protocol outcome together
 
-Span status is an instrumentation judgment; an HTTP or database response code is a protocol outcome,
-and they can legitimately differ. Inspect both under the span kind's semantic convention; an unset
-span status is not success.
+Inspect span status and the protocol outcome together under the span kind's convention
+([OpenTelemetry semantics](./references/otel-semantics.md) owns the rules); an unset span status
+is not success.
 
 ## Correlate without overclaiming
 

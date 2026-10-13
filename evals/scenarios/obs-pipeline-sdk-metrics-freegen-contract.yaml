@@ -1,0 +1,24 @@
+id: obs-pipeline-sdk-metrics-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-pipeline
+tools: [Skill, Read]
+references:
+  - skills/obs-pipeline/references/otel-sdk.md
+prompt: |
+  Read the OTel SDK reference. Write short labelled lists only, no explanation; do not
+  edit files or install anything. For a payment API (A) and its worker queue (B), list
+  the golden-signal metrics to emit: what is counted, what is timed as a distribution,
+  and which utilization, saturation, and error signals expose pressure before users
+  feel it.
+success_criteria:
+  - Covers rate, errors, and duration distributions plus utilization, saturation, and errors per resource.
+graders:
+  - type: regex
+    pattern: 'histogram|distribution'
+  - type: regex
+    pattern: 'utilization'
+  - type: regex
+    pattern: 'saturation'
+  - type: regex
+    pattern: 'error'

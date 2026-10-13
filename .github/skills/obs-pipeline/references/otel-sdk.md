@@ -58,11 +58,7 @@ instrumentation uses the full method.
    `net.*` forms) *[sourced: opentelemetry.io HTTP-conventions-stable announcement]* — new
    dashboards and queries key on the stable names, and an old exporter emitting pre-stable names is
    a migration flag, not a pattern to copy.
-3. **RED per route** (request-driven services): request count, error count, and a latency **histogram**
-   — split **success vs error** latency. Bounded labels only (method, route template, status class).
-4. **USE per resource** (pools/queues/CPU/memory): utilization, saturation, errors — this is what catches
-   the saturation → latency → errors cascade.
-5. **Traces** — propagate W3C context across services. Change sampling policy/topology only when in scope.
+3. **Traces** — propagate W3C context across services. Change sampling policy/topology only when in scope.
    Where **Collector tail sampling** is used, explicit policies (status=error, latency threshold)
    **prioritize** error/slow traces, subject to every constraint below:
    > ⚠️ **Tail sampling does NOT guarantee you keep all error traces.** It is best-effort under capacity
@@ -85,8 +81,8 @@ instrumentation uses the full method.
    >   earlier keep decision — a documented mitigation, not a guarantee; size it and keep watching
    >   the dropped-too-early metric. *[sourced: opentelemetry-collector-contrib
    >   `tailsamplingprocessor` README]*
-6. **Logs** — structured (JSON) carrying the trace/span IDs; redact secrets and PII before serialization; carry only approved trace/span correlation fields.
-7. **Correlate** — verify metric→trace (exemplars) and trace→log (shared IDs) actually link.
+4. **Logs** — structured (JSON) carrying the trace/span IDs; redact secrets and PII before serialization; carry only approved trace/span correlation fields.
+5. **Correlate** — verify metric→trace (exemplars) and trace→log (shared IDs) actually link.
 
 ## Done
 

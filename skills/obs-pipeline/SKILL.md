@@ -73,19 +73,10 @@ time series per value.
   stays singular, a unitless countable is pluralized (`system.paging.faults`,
   `system.network.packets`), and UpDownCounter names are never pluralized. *[sourced: semconv
   `general/naming`]*
-  ```
-  ✅  http.server.request.duration     unit: s     <- an OTel instrument name
-  ❌  http_request_duration_seconds                <- an EXPORTER's rendering, not an OTel name
-  ```
 - **This lands natively on our stack.** Wavefront takes dot-delimited names + point tags
   (`app.http.requests.latency`) — the OTel shape, near-unchanged. Keep the bounded-tag discipline;
-  this section owns the emitted naming/tag contract.
-- *Portability note (the Mimir path):* a Prometheus-style exporter translates **for you, by default**
-  (`translation_strategy: UnderscoreEscapingWithSuffixes`) — dots → `_`, a unit suffix appended,
-  `_total` on monotonic sums; with Prometheus 3.x UTF-8 names, `NoTranslation` passes the dotted name
-  through instead. The exporter dedupes suffixes the name already carries, so pre-baking is not
-  applied twice — and it still breaks the OTel naming contract and every non-Prometheus rendering.
-  *[sourced: OTel spec `sdk_exporters/prometheus` and the Prometheus-compatibility spec]*
+  this section owns the emitted naming/tag contract. A Prometheus-style exporter translates dotted
+  names for you by default; do not pre-bake exporter suffixes into the OTel name.
 
 ## Build the evidence packet
 

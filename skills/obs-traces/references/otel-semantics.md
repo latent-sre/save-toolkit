@@ -69,32 +69,10 @@ modes. Record the active convention and emitted fields; this trace-reading skill
 
 *[sourced: OpenTelemetry HTTP and database semantic-convention migration guides; unverified for target]*
 
-*[sourced: current OpenTelemetry HTTP, database, and service semantic conventions; unverified for target]*
-
-| Question | Current attribute(s) to inspect |
-|---|---|
-| Which service emitted the span? | `service.name`, `service.namespace`, `service.instance.id`, `service.version` |
-| What HTTP method/outcome? | `http.request.method`, `http.response.status_code`, `error.type` |
-| Which server request/route? | `http.route`, `url.path`, `url.scheme` |
-| Which client target URL? | `url.full` |
-| Which server endpoint? | `server.address`, `server.port` |
-| Which database/operation? | `db.system.name`, `db.namespace`, `db.collection.name`, `db.operation.name` |
-| What database outcome? | `db.response.status_code`, `error.type` |
-
-`url.full` can contain a query string or other sensitive material. Before copying it into an evidence
-packet, redact userinfo credentials and scrub known tokens, secrets, personal data, and sensitive query
-values; retain only the minimum URL detail needed for the investigation.
-
-*[sourced: OpenTelemetry HTTP semantic conventions, sensitive URL handling; unverified for target data]*
-
-`server.address` identifies the server's logical host/address, not a generic network peer. On server
-spans it can describe the local or original host; on client spans it identifies the target server.
-
-`service.name` is a resource attribute: it is the logical service name and should be consistent across
-horizontally scaled instances. Database client spans normally use `CLIENT` kind; in-memory database work
-may use `INTERNAL`.
-
-*[sourced: OpenTelemetry service registry and database client span definition; unverified for target]*
+Attribute names follow the current OpenTelemetry semantic conventions. `url.full` can contain a
+query string or other sensitive material: before copying it into an evidence packet, redact
+userinfo credentials and scrub known tokens, secrets, personal data, and sensitive query values;
+retain only the minimum URL detail needed for the investigation.
 
 ## Trace context connects boundaries
 

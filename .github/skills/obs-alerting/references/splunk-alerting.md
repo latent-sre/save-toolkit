@@ -20,12 +20,10 @@ dispatch.earliest_time = -7m@m
 dispatch.latest_time = -2m@m
 ```
 
-- **Cover event time and indexing delay.** Matching window length to cadence alone can miss late
-  events permanently. Choose a measured delay allowance, durable-search policy, or bounded overlap
-  with deduplication; check skipped/delayed runs too. Overlap can re-evaluate an event; a shorter
-  window than cadence leaves gaps. Record the completeness/latency tradeoff.
-  *[sourced: Splunk [alert scheduling tips](https://help.splunk.com/en/splunk-enterprise/alert-and-respond/alerting-manual/10.4/create-alerts/alert-scheduling-tips);
-  unverified for target indexing delay and scheduler behavior]*
+- **Cover event time and indexing delay.** The parent skill's scheduled-work section owns the
+  completeness rule (measured delay allowance, bounded overlap with deduplication, skipped-run
+  checks); apply it here with the measured `_indextime - _time` for this source.
+  *[sourced: Splunk alert scheduling tips; unverified for target indexing delay]*
 - **Timezone:** Splunk Cloud evaluates cron in UTC; Splunk Enterprise uses the search head's
   timezone *[sourced: cron-expressions page]*. Record which applies next to every schedule.
 - Trigger conditions are `counttype` with `relation` and `quantity`, or `alert_condition`, a
