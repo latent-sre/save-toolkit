@@ -1,0 +1,22 @@
+id: obs-pipeline-sdk-correlate-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-pipeline
+tools: [Skill, Read]
+references:
+  - skills/obs-pipeline/references/otel-sdk.md
+prompt: |
+  Read the OTel SDK reference. Write short labelled answers only, no explanation; do
+  not edit files or install anything. A: what must application log records carry so a
+  log line can be joined to its trace, and in what form? B: how do you verify that
+  metrics, traces, and logs for one request actually correlate in the backend, rather
+  than merely coexisting?
+success_criteria:
+  - Carries trace and span identity in structured logs and verifies correlation with exemplars and shared IDs.
+graders:
+  - type: regex
+    pattern: '(?i)trace.?id'
+  - type: regex
+    pattern: '(?i)span.?id'
+  - type: regex
+    pattern: '(?i)exemplar'

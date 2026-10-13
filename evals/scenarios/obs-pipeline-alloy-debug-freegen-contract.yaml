@@ -1,0 +1,24 @@
+id: obs-pipeline-alloy-debug-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-pipeline
+tools: [Skill, Read]
+references:
+  - skills/obs-pipeline/references/alloy.md
+prompt: |
+  Read the Alloy reference. Write short labelled steps only, no explanation; do not
+  edit files or run anything. An Alloy instance runs but one pipeline delivers no
+  data to its backend. A: how do you check whether the instance and that component
+  are healthy and where the pipeline is stuck, without restarting it? B: the
+  configuration also contains a component that imports a remote module; how do you
+  validate the configuration safely in an environment whose guard denies network
+  fetches during validation?
+success_criteria:
+  - Uses live health and component evidence and validates network-importing configs in isolation.
+graders:
+  - type: regex
+    pattern: '12345|/-/ready|/-/healthy|debugging UI|component graph'
+  - type: regex
+    pattern: '(?i)docker|container|isolated|sandbox'
+  - type: regex
+    pattern: '(?i)alloy validate|validate.*config|config.*validate'

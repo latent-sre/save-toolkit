@@ -56,22 +56,6 @@ Loki version before using either in a shared rule *[sourced: LogQL query referen
 
 *[sourced: Grafana Loki LogQL line-filter and parser documentation; unverified for target log shape]*
 
-```logql
-{app="checkout", env="prod"} |= "timeout"
-```
-
-*[sourced: Grafana Loki `json` parser and label-filter syntax; unverified for target field names]*
-
-```logql
-{app="checkout", env="prod"} | json | status >= 500 | __error__=""
-```
-
-*[sourced: Grafana Loki `logfmt` parser syntax; unverified for target log shape]*
-
-```logql
-{app="checkout", env="prod"} | logfmt | level="error"
-```
-
 Parser failures can set the `__error__` label, and metric queries cannot contain pipeline errors. Check
 or filter parser errors explicitly before trusting an aggregate. *[sourced: Grafana Loki pipeline-error
 documentation; unverified for target error policy]*
@@ -95,16 +79,9 @@ structured metadata at all, and which keys, is `[unverified]` until read from a 
 *[sourced: Loki structured-metadata, query-acceleration, and cardinality documentation;
 reviewed 2026-08-21]*
 
-**`pattern` is the parser for fixed-shape lines** — "easier and faster to write" than `regexp`
-and it "outperforms the regexp parser". Named captures become labels, `<_>` skips a field:
-
-```logql
-{app="gateway"} | pattern `<ip> - - <_> "<method> <uri> <_>" <status> <size> <_> "<agent>" <_>`
-```
-
-A pattern is invalid with no named capture, or with two captures not separated by whitespace —
-so a line whose fields abut needs `regexp` after all. *[sourced: LogQL log-queries reference,
-pattern parser; reviewed 2026-08-21]*
+**`pattern` is the parser for fixed-shape lines.** A pattern is invalid with no named capture, or
+with two captures not separated by whitespace — so a line whose fields abut needs `regexp` after
+all. *[sourced: LogQL log-queries reference, pattern parser; reviewed 2026-08-21]*
 
 ## Metric queries: rates and complete buckets
 

@@ -81,8 +81,8 @@ instrumentation uses the full method.
    >   earlier keep decision — a documented mitigation, not a guarantee; size it and keep watching
    >   the dropped-too-early metric. *[sourced: opentelemetry-collector-contrib
    >   `tailsamplingprocessor` README]*
-4. **Logs** — structured (JSON) carrying the trace/span IDs; redact secrets and PII before serialization; carry only approved trace/span correlation fields.
-5. **Correlate** — verify metric→trace (exemplars) and trace→log (shared IDs) actually link.
+4. **Logs and correlation** — structured logs carrying only approved trace/span correlation fields;
+   verify metric→trace (exemplars) and trace→log (shared IDs) actually link, not merely coexist.
 
 ## Done
 

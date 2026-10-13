@@ -21,7 +21,6 @@ Primary references:
 - Span kinds describe direction and interaction style
 - Span status is not the protocol status
 - Read stable attributes in context
-- Trace context connects boundaries
 - Sampling makes absence weak evidence
 
 ## Span kinds describe direction and interaction style
@@ -73,24 +72,6 @@ Attribute names follow the current OpenTelemetry semantic conventions. `url.full
 query string or other sensitive material: before copying it into an evidence packet, redact
 userinfo credentials and scrub known tokens, secrets, personal data, and sensitive query values;
 retain only the minimum URL detail needed for the investigation.
-
-## Trace context connects boundaries
-
-W3C `traceparent` carries four hyphen-delimited fields: version, trace id, parent id, and trace flags.
-For version `00`, the trace id is 32 lowercase hexadecimal characters and the parent id is 16; all-zero
-values are invalid. This inert fixture marks the sampling flag as set:
-
-*[sourced: W3C Trace Context, traceparent header field values]*
-
-```text
-traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
-```
-
-Use the trace id for correlation, not the inbound parent id. A valid `traceparent` carries correlation
-context; it does not prove correct end-to-end propagation or that every component recorded and exported
-a span. Treat caller-supplied context as untrusted input.
-
-*[sourced: W3C Trace Context format and security/privacy considerations; unverified for target path]*
 
 ## Sampling makes absence weak evidence
 

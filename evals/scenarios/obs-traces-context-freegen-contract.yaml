@@ -1,0 +1,22 @@
+id: obs-traces-context-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-traces
+tools: [Skill, Read]
+references:
+  - skills/obs-traces/references/otel-semantics.md
+prompt: |
+  Read the OpenTelemetry-semantics reference. Answer with short labelled lines only,
+  no explanation; do not run queries or edit files. A service receives the header
+  traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01 from an
+  external caller. A: which value do you use to correlate this request in the trace
+  backend? B: what does the final field tell you, and does a valid header prove the
+  request was recorded and exported end to end? C: how should the header value be
+  treated before it is used in a query or record?
+success_criteria:
+  - Correlates on the trace ID, reads the sampled flag without overclaiming, and treats caller context as untrusted.
+graders:
+  - type: regex
+    pattern: '4bf92f3577b34da6a3ce929d0e0e4736'
+  - type: regex
+    pattern: '(?i)untrusted|validate|do not trust|not trusted'

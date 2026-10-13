@@ -28,17 +28,9 @@ Primary references:
 
 - Select series and filter point tags
 - Query shapes — guardrails
-- Rates, windows, and saturation
 - Missing data
 
 ## Select series and filter point tags
-
-`ts()` selects time series. Filter sources, source tags, and point tags inside the selector and confirm
-the actual tag keys in [local metric inventory](./metrics.md).
-
-```text
-ts(app.http.requests.count, app="checkout" and env="prod")
-```
 
 ### Encode copied tag values
 
@@ -65,21 +57,6 @@ counters with `cs()`, not cumulative `rate()` semantics. On PCF, inspect counter
 before treating a rate as alert evidence, and use `default()` only where it cannot conceal late or
 missing telemetry — a selector matching nothing needs a separate no-data path. *[sourced: WQL
 `sum()`, histogram, delta-counter and missing-data documentation; unverified for target metric]*
-
-## Rates, windows, and saturation
-
-*[sourced: WQL function reference; unverified for target metrics and operational suitability]*
-
-```text
-rate(ts(app.messages.processed))
-deriv(ts(app.queue.depth))
-mavg(5m, ts(app.http.requests.latency))
-align(1m, mean, ts(app.http.requests.latency))
-100 * ts(app.container.memory.usage) / ts(app.container.memory.limit)
-```
-
-Keep query units and the source metric type in the evidence packet. A syntactically valid function can
-still be semantically wrong for the selected metric.
 
 ## Missing data
 

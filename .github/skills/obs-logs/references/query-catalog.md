@@ -39,17 +39,7 @@ permission to persist results, modify saved searches, or run a query with other 
 
 ## Entry shape
 
-Use the question as the entry heading, followed by the metadata fields below and the query block.
-
-| Field | Meaning |
-|---|---|
-| **Question** | What a responder wants to know, in plain English. This is the lookup key. |
-| **Applies to** | Service, environment, or signal the query is valid for. |
-| **Reads as** | What the columns mean, so pasted output can be interpreted. |
-| **Healthy looks like** | The result shape when nothing is wrong — the comparison that makes an unhealthy result legible. |
-| **Owner** | Named human or team role accountable for the entry. |
-| **Verified** | `[verified] <date> by <role>`, or `[unverified]` with what is untested. |
-| **Query** | The final code block, with `<placeholders>` for every inventory value. |
+Use the question as the entry heading, followed by Applies to, Reads as, Healthy looks like, Owner, Verified, and the query block with `<placeholders>` for every inventory value.
 
 ## Splunk (SPL)
 

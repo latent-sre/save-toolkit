@@ -36,8 +36,6 @@ threshold policy, use the reviewed alert rule rather than this calculator's verd
 
 ```powershell
 $budgetScript = '<resolved calculator path>'
-py -3 $budgetScript --slo 99.9 --sli-long 99.45 --sli-short 99.95
-py -3 $budgetScript --slo 99.9 --sli-long 99.45 --sli-short 99.8 --long-window 3d --short-window 6h
 py -3 $budgetScript --slo 99.9 --long-window 3d --short-window 5m
 ```
 
