@@ -34,11 +34,10 @@ the ops tooling the team builds.
   idempotency and `UNKNOWN`, approvals, durability, cancellation, termination, taint, and
   graph-level evals. It designs and reviews only; implementation stays with `software-engineer` and runtime
   selection with a `stack-profile` decision. The roster the graph runs on stays at the roster tier.
-- `agent-authoring`'s references also carry the security, tool-contract, and context-budget
-  material — read the agent-security reference whenever an artifact ingests untrusted content
-  (prompt injection, the lethal trifecta), the tool reference when the artifact is a tool surface
-  an agent calls, and the context reference when the failure is attention-budget-shaped. Evaluating
-  a candidate follows the bounded artifact loop.
+- `agent-authoring`'s references also carry the security and context-budget material — read the
+  agent-security reference whenever an artifact ingests untrusted content (prompt injection, the
+  lethal trifecta) or is a tool surface an agent calls, and the context reference when the failure
+  is attention-budget-shaped. Evaluating a candidate follows the bounded artifact loop.
 
 ## Method
 
