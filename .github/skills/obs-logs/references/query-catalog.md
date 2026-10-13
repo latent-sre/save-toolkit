@@ -80,18 +80,9 @@ when the question requires quiet periods and a trailing baseline.
 - **Owner:** `<service on-call>`
 - **Verified:** [unverified: target index, status field, and deploy-epoch substitution]
 
-```spl
-index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<before_start_epoch> latest=<after_end_epoch>
-| eval phase=if(_time < <deploy_epoch>, "before", "after")
-| eval status=if(match(status, "^[1-5][0-9]{2}$"), tonumber(status), null())
-| stats count(eval(status>=500 AND status<600)) AS errors, count AS total, count(status) AS classified by phase
-| eval error_rate=if(total>0 AND classified=total, errors/total, null())
-```
-
-Set the start and end equally far from the deploy epoch. Confirm population and coverage in both
-windows and one three-digit HTTP status per completion event. Missing or invalid status, including
-`0`, `700`, or fractional codes, leaves the rate null; no traffic or a missing phase is not healthy
-zero. `spl.md` owns the per-error-class variant and its phase-wide denominator.
+The query is owned by the Compare before vs after a deploy section of [SPL](./spl.md);
+use it with this entry's population. Missing or invalid status leaves the rate null; no traffic or
+a missing phase is not healthy zero.
 
 ### Where did one request fail across services?
 

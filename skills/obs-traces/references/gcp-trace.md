@@ -19,12 +19,11 @@ skill. Sources reviewed 2026-08-19 against live official pages on `docs.cloud.go
   design an export around them; Observability Analytics queries traces with SQL (GA) for the
   analytical path.
 
-## Reading traces during the migration
+## Reading traces here
 
 - **TraceQL does not apply here.** Cloud Trace is queried through the Trace explorer (filters:
   service, latency, status, span attributes) and Observability Analytics SQL — not TraceQL. The
-  investigation shape (find exemplar → read the critical path → compare populations) is the parent
-  skill's; only the query surface differs. Tempo remains the additive first-class backend.
+  investigation shape is the parent skill's; only the query surface differs.
 - **Identify the span source before choosing a backend.** Cloud Run automatically generates
   sampled platform request traces in Cloud Trace. Application spans follow the configured
   SDK/collector route to Tempo, Cloud Trace, or both. For a Cloud Run log's trace ID, look for
