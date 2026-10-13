@@ -61,8 +61,9 @@ resource example; its Things model, store, pagination and app factory are not re
 - For `test_openapi_document.py` and `test_schemathesis.py`, replace only
   [contract_app.py](../assets/fastapi/contract_app.py): supply `make_app()`, seeded resources,
   `TEST_HEADERS` for the test identity, `AUTH_SCHEME` matching the actual named security scheme,
-  and explicit `PUBLIC_OPERATIONS`. The supplied setup uses Things/bearer; a cookie-session app
-  needs neither `main.py` nor `auth.py`. Checks run lifespan and obtain the schema directly, so no
+  `AUTH_ERROR_STATUSES` for actual identity failures, and explicit `PUBLIC_OPERATIONS`. The supplied
+  setup uses Things/bearer; a cookie-session app needs neither `main.py` nor `auth.py`. Checks run
+  lifespan and obtain the schema directly, so no
   public document endpoint is required. Keep fixture credentials confined to tests.
 - Start through settings, as the optional `main.py` example does with `uvicorn.run`: all interfaces on platform
   `$PORT`, otherwise `127.0.0.1`, with `timeout_graceful_shutdown=8`. Bare uvicorn binds loopback,

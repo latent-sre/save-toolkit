@@ -12,7 +12,7 @@ import json
 import os
 from pathlib import Path
 
-from contract_app import AUTH_SCHEME, PUBLIC_OPERATIONS, make_app
+from contract_app import AUTH_ERROR_STATUSES, AUTH_SCHEME, PUBLIC_OPERATIONS, make_app
 from contract_checks import assert_document_rules
 from fastapi.testclient import TestClient
 
@@ -46,4 +46,5 @@ def test_document_matches_the_code():
 
 
 def test_house_rules():
-    assert_document_rules(generated_document(), auth_scheme=AUTH_SCHEME, public_operations=PUBLIC_OPERATIONS)
+    assert_document_rules(generated_document(), auth_scheme=AUTH_SCHEME, public_operations=PUBLIC_OPERATIONS,
+                          auth_error_statuses=AUTH_ERROR_STATUSES)

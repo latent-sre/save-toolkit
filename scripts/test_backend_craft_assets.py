@@ -74,11 +74,14 @@ def test_fastapi_contract_checks_run_against_cookie_service_without_examples(tmp
         from pydantic import BaseModel
 
         AUTH_SCHEME = "corporateSession"
+        AUTH_ERROR_STATUSES = {401, 503}
         TEST_HEADERS = {"Cookie": "corp_session=local-alice"}
         PUBLIC_OPERATIONS = set()
         cookie = APIKeyCookie(name="corp_session", scheme_name=AUTH_SCHEME, auto_error=False)
 
         def identity(value: Annotated[str | None, Security(cookie)]):
+            if value == "outage":
+                raise HTTPException(503, "Session verifier unavailable")
             if value != "local-alice":
                 raise HTTPException(401, "Sign in")
             return "alice"
@@ -102,7 +105,7 @@ def test_fastapi_contract_checks_run_against_cookie_service_without_examples(tmp
         def make_app():
             app = house_app("Session notes", "1.0.0", loopback_only=False, lifespan=lifespan, openapi_url=None)
 
-            @app.get("/v1/notes/{note_id}", responses=problems(401, 404))
+            @app.get("/v1/notes/{note_id}", responses=problems(401, 404, 503))
             def get_note(note_id: int, owner: Annotated[str, Depends(identity)]) -> Note:
                 note = app.state.notes.get(note_id)  # fails if the check skipped lifespan
                 if note is None or note[0] != owner:
@@ -120,6 +123,7 @@ def test_fastapi_contract_checks_run_against_cookie_service_without_examples(tmp
             with TestClient(make_app()) as client:
                 assert_problem(client.get("/v1/notes/1"), 401)
                 assert_problem(client.get("/v1/notes/1", headers={"Cookie": "corp_session=invalid"}), 401)
+                assert_problem(client.get("/v1/notes/1", headers={"Cookie": "corp_session=outage"}), 503)
                 assert_problem(client.get("/v1/notes/2", headers=TEST_HEADERS), 404)
                 assert client.get("/v1/notes/1", headers=TEST_HEADERS).json() == {
                     "id": 1, "text": "Local fixture",
@@ -170,6 +174,7 @@ def test_schema_checks_require_configured_identity_for_protected_service(tmp_pat
 
         AUTH_SCHEME = {scheme!r}
         TEST_HEADERS = {headers!r}
+        PUBLIC_OPERATIONS = {{"status"}}
 
         def make_app():
             app = FastAPI()
@@ -193,7 +198,96 @@ def test_reusable_document_checks_accept_inherited_cookie_security_and_explicit_
     document = _cookie_document()
     checks.assert_document_rules(document, auth_scheme="corporateSession", public_operations=set())
     document["paths"]["/v1/notes"]["get"]["security"] = []
+    document["paths"]["/v1/notes"]["get"]["responses"] = {"200": {"description": "OK"}}
     checks.assert_document_rules(document, auth_scheme="corporateSession", public_operations={"listNotes"})
+
+
+@pytest.mark.parametrize("paths", [{}, {"/v1/notes": {"parameters": [], "summary": "Notes"}}])
+def test_reusable_document_checks_reject_no_http_operations(paths):
+    checks = load_path(ASSETS / "fastapi/contract_checks.py", "contract_checks")
+    document = _cookie_document()
+    document["paths"] = paths
+    with pytest.raises(AssertionError, match="no HTTP operations"):
+        checks.assert_document_rules(document, auth_scheme="corporateSession", public_operations=set())
+
+
+@pytest.mark.parametrize("security", [None, [{"corporateSession": []}], [{"corporateSession": []}, {}], [{}]])
+def test_public_document_operation_cannot_retain_security(security):
+    checks = load_path(ASSETS / "fastapi/contract_checks.py", "contract_checks")
+    document = _cookie_document()
+    if security is not None:
+        document["paths"]["/v1/notes"]["get"]["security"] = security
+    with pytest.raises(AssertionError, match=r"public operation.*security"):
+        checks.assert_document_rules(document, auth_scheme="corporateSession", public_operations={"listNotes"})
+
+
+def test_protected_document_operation_requires_unauthorized_response():
+    checks = load_path(ASSETS / "fastapi/contract_checks.py", "contract_checks")
+    document = _cookie_document()
+    document["paths"]["/v1/notes"]["get"]["responses"] = {"200": {"description": "OK"}}
+    with pytest.raises(AssertionError, match="declare authentication failure 401"):
+        checks.assert_document_rules(document, auth_scheme="corporateSession", public_operations=set())
+
+
+def test_configured_verifier_outage_must_be_documented_as_a_problem():
+    checks = load_path(ASSETS / "fastapi/contract_checks.py", "contract_checks")
+    document = _cookie_document()
+    kwargs = {"auth_scheme": "corporateSession", "public_operations": set(), "auth_error_statuses": {401, 503}}
+    with pytest.raises(AssertionError, match="declare authentication failure 503"):
+        checks.assert_document_rules(document, **kwargs)
+    responses = document["paths"]["/v1/notes"]["get"]["responses"]
+    responses["503"] = {"content": {"application/json": {}}}
+    with pytest.raises(AssertionError, match="503 must be application/problem\\+json"):
+        checks.assert_document_rules(document, **kwargs)
+    responses["503"]["content"] = {"application/problem+json": {}}
+    checks.assert_document_rules(document, **kwargs)
+    document["paths"]["/v1/notes"]["get"]["security"] = []
+    checks.assert_document_rules(document, **{**kwargs, "auth_scheme": None, "public_operations": {"listNotes"}})
+
+
+@pytest.mark.parametrize(("protected", "fault"), [(True, ""), (False, ""),
+                                                 (True, "requires-identity"), (True, "requires-permission")])
+def test_schema_public_operations_run_without_identity(tmp_path, protected, fault):
+    for name in ("house.py", "test_schemathesis.py"):
+        shutil.copy2(ASSETS / "fastapi" / name, tmp_path / name)
+    (tmp_path / "contract_app.py").write_text(textwrap.dedent(f'''\
+        from typing import Annotated
+        from fastapi import HTTPException, Request, Security
+        from fastapi.security import APIKeyCookie
+        from house import house_app, problems
+
+        AUTH_SCHEME = {"corporateSession" if protected else None!r}
+        TEST_HEADERS = {({"Cookie": "corp_session=local-alice"} if protected else {})!r}
+        PUBLIC_OPERATIONS = {{"publicStatus"}}
+        cookie = APIKeyCookie(name="corp_session", scheme_name="corporateSession", auto_error=False)
+
+        def make_app():
+            app = house_app("Public probe", "1.0.0", loopback_only=False)
+
+            @app.get("/v1/status", operation_id="publicStatus", responses=problems(401, 403))
+            def status(request: Request) -> str:
+                if request.headers.get("Cookie") or request.headers.get("Authorization"):
+                    raise HTTPException(403, "Public probe must run without identity headers")
+                if {fault!r}:
+                    raise HTTPException(401 if {fault!r} == "requires-identity" else 403, "Sign in")
+                return "ready"
+
+            if AUTH_SCHEME is not None:
+                @app.get("/v1/notes", responses=problems(401))
+                def notes(value: Annotated[str | None, Security(cookie)]) -> str:
+                    if value != "local-alice":
+                        raise HTTPException(401, "Sign in")
+                    return "private"
+
+            return app
+        '''), encoding="utf-8")
+    result = _run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts=",
+                   "-p", "schemathesis", "-p", "hypothesispytest"], tmp_path)
+    if fault:
+        assert result.returncode == 1 and "public operation requires authentication" in result.stdout, result.stdout
+    else:
+        _passed(result)
+        assert "skipped" not in result.stdout, result.stdout
 
 
 @pytest.mark.parametrize("mutation", ["missing", "override", "anonymous", "undeclared", "wrong_scheme", "error_type"])

@@ -69,8 +69,8 @@ Preserve existing service contracts and adapt only the components the task needs
 - Replace [example_fixture_test.go](../assets/go/example_fixture_test.go) with a service test
   fixture: `contractService(t)` returns the real handler and stable generated document bytes;
   `contractHeaders` supplies a local test identity; `authenticatedSchemes` names the document's
-  actual schemes, and `publicOperations` lists deliberate anonymous exceptions. This one seam
-  feeds [openapi_test.go](../assets/go/openapi_test.go) and
+  actual schemes, `authErrorStatuses` lists actual identity failures, and `publicOperations` lists
+  deliberate anonymous exceptions. This one seam feeds [openapi_test.go](../assets/go/openapi_test.go) and
   [schemathesis_test.go](../assets/go/schemathesis_test.go), including cookie sessions and inherited
   top-level security. No Things store or bearer adapter is required. Keep the update command:
   `go test -run TestOpenAPIDocument -update`, then review `openapi.json` and run `go test ./...`.

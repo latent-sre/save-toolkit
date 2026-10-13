@@ -10,6 +10,7 @@ from main import Settings, Thing, ThingStore, create_app
 
 TEST_HEADERS = {"Authorization": "Bearer test-token"}
 AUTH_SCHEME = "bearer"  # the actual key in components.securitySchemes; session cookies also work
+AUTH_ERROR_STATUSES = {401, 503}  # actual adapter failures; 401 is always required on protected routes
 PUBLIC_OPERATIONS: set[str] = set()  # deliberately unauthenticated operation IDs
 
 

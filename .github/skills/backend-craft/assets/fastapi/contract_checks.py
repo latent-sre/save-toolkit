@@ -14,12 +14,14 @@ def assert_problem(response, status: int) -> dict:
     return body
 
 
-def assert_document_rules(document: dict, *, auth_scheme: str | None, public_operations: set[str]) -> None:
+def assert_document_rules(document: dict, *, auth_scheme: str | None, public_operations: set[str],
+                          auth_error_statuses: set[int] | frozenset[int] = frozenset()) -> None:
     """Check the house contract using the service's actual named identity scheme.
 
     An explicit operation security list overrides a document-level requirement. Every protected
     alternative must require auth_scheme; empty alternatives allow anonymous access. For a wholly
-    unauthenticated service use None and explicitly list its public operation IDs.
+    unauthenticated service use None and explicitly list its public operation IDs. Protected routes
+    declare 401 plus the integration's other failures (for example 503 for a verifier outage).
     """
     assert document["openapi"] == "3.1.0", "emit 3.1.0, valid as 3.2"
     schemes = document.get("components", {}).get("securitySchemes", {})
@@ -40,9 +42,14 @@ def assert_document_rules(document: dict, *, auth_scheme: str | None, public_ope
             assert all(name in schemes for alternative in security for name in alternative), (
                 f"{where}: security names an undeclared scheme"
             )
-            assert op_id in public_operations or (
-                auth_scheme is not None and security and all(auth_scheme in alt for alt in security)
-            ), f"{where}: require {auth_scheme!r}, or list it in PUBLIC_OPERATIONS"
+            if op_id in public_operations:
+                assert not security, f"{where}: public operation must have empty effective security"
+            else:
+                assert auth_scheme is not None and security and all(auth_scheme in alt for alt in security), (
+                    f"{where}: require {auth_scheme!r}, or list it in PUBLIC_OPERATIONS"
+                )
+                for status in {401} | auth_error_statuses:
+                    assert str(status) in operation["responses"], f"{where}: declare authentication failure {status}"
             if "requestBody" in operation:
                 assert "400" in operation["responses"], f"{where}: a body can be unparseable; declare 400"
             for status, response in operation["responses"].items():
@@ -50,3 +57,4 @@ def assert_document_rules(document: dict, *, auth_scheme: str | None, public_ope
                     assert list(response.get("content", {})) == ["application/problem+json"], (
                         f"{where}: {status} must be application/problem+json"
                     )
+    assert ids, "document contains no HTTP operations"

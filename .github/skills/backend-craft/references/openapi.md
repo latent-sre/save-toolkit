@@ -22,7 +22,10 @@ compatibility evidence. Read tool/framework versions from manifests and lockfile
    `3.1.0`. The bundled gates take the app and test identity from one replaceable setup file:
    FastAPI's `contract_app.py` or Go's `example_fixture_test.go`. Supply the real app, authenticated
    test headers, expected security schemes and explicitly public operations there; the shared
-   checks need no sample resource or bearer adapter. Existing APIs retain their contract,
+   checks need no sample resource or bearer adapter. Public operations have empty effective
+   security and run without identity headers. Protected operations declare problem-shaped 401
+   and the integration's applicable failures in `AUTH_ERROR_STATUSES`/`authErrorStatuses` (such as
+   verifier-outage 503). Empty API documents fail the rules gate. Existing APIs retain their contract,
    including added routes, until an authorized migration.
 5. **Exercise the document:** Schemathesis sends valid/invalid inputs and rejects undocumented
    responses and 500s. FastAPI runs in-process (`test_schemathesis.py`); Go runs `st` against the

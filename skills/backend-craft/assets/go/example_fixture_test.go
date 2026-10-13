@@ -47,6 +47,7 @@ func contractService(t *testing.T) (http.Handler, []byte) {
 // Authentication must be real in the handler; these values only describe the test identity.
 var contractHeaders = map[string]string{"Authorization": "Bearer " + testToken}
 var authenticatedSchemes = map[string]bool{"bearer": true}
+var authErrorStatuses = []int{401, 503} // actual adapter failures; protected routes always require 401
 
 // Deliberate unauthenticated operation IDs; health routes outside OpenAPI need no entry.
 var publicOperations = map[string]bool{}

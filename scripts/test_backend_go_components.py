@@ -63,6 +63,11 @@ def test_go_components(tmp_path, component, files):
             ("wrong-scheme-override", "TestOpenAPIHouseRules", "every security alternative"),
             ("undeclared-scheme", "TestOpenAPIHouseRules", "every security alternative"),
             ("missing-scheme", "TestOpenAPIHouseRules", "is not declared"),
+            ("public-inherits-security", "TestOpenAPIHouseRules", "public operation must have empty effective security"),
+            ("public-explicit-security", "TestOpenAPIHouseRules", "public operation must have empty effective security"),
+            ("missing-unauthorized", "TestOpenAPIHouseRules", "declare authentication failure 401"),
+            ("missing-outage", "TestOpenAPIHouseRules", "declare authentication failure 503"),
+            ("outage-media", "TestOpenAPIHouseRules", "503 response must be application/problem+json"),
             ("document-drift", "TestOpenAPIDocument", "differs from the code"),
             ("problem-type", "TestCookieHTTPContract", "want application/problem+json"),
             ("problem-status", "TestCookieHTTPContract", "problem status"),
@@ -71,6 +76,18 @@ def test_go_components(tmp_path, component, files):
         ]:
             result = run("test", "-count=1", "-run", f"^{check}$", "./...", fault=fault, succeeds=False)
             assert diagnostic in result.stdout + result.stderr, result.stdout + result.stderr
+        # In a mixed API the public request must omit the private fixture's cookie. Its schema
+        # deliberately includes 401/403, so schema conformance alone cannot detect this defect.
+        run("test", "-run", "^TestOpenAPIDocument$", "-update", fault="public-probe")
+        run("test", "-count=1", "-run", "^(TestOpenAPIHouseRules|TestSchemathesis)$", fault="public-probe")
+        for fault in ("public-requires-identity", "public-requires-permission"):
+            result = run("test", "-count=1", "-run", "^TestSchemathesis$", fault=fault, succeeds=False)
+            assert "public operation requires authentication" in result.stdout, result.stdout
+        for fault, succeeds in [("public-invalid-auth", False), ("public-not-modified", True)]:
+            run("test", "-run", "^TestOpenAPIDocument$", "-update", fault=fault)
+            result = run("test", "-count=1", "-run", "^TestSchemathesis$", fault=fault, succeeds=succeeds)
+            if not succeeds:
+                assert "public operation requires authentication" in result.stdout, result.stdout
         # An explicitly public-only service needs neither fake auth schemes nor fake headers.
         run("test", "-run", "^TestOpenAPIDocument$", "-update", public=True)
         run("test", "-count=1", "-v", "./...", public=True)
@@ -86,6 +103,7 @@ import (
     "net/http"
     "net/http/httptest"
     "os"
+    "strconv"
     "testing"
 
     "github.com/danielgtaylor/huma/v2"
@@ -94,9 +112,13 @@ import (
 
 var contractHeaders = map[string]string{"Cookie": "corp_session=local-reader"}
 var authenticatedSchemes = map[string]bool{"corporateSession": true}
+var authErrorStatuses = []int{401, 503}
 var publicOperations = map[string]bool{}
 
 func init() {
+    switch os.Getenv("CONTRACT_FAULT") {
+    case "public-inherits-security", "public-explicit-security": publicOperations["readReport"] = true
+    }
     if os.Getenv("CONTRACT_PUBLIC") == "1" {
         contractHeaders = map[string]string{}
         authenticatedSchemes = map[string]bool{}
@@ -105,6 +127,7 @@ func init() {
 }
 
 type reportInput struct { Empty bool `query:"empty"` }
+type statusInput struct { Level int `query:"level" minimum:"0" maximum:"3" default:"0"` }
 
 func (in *reportInput) Resolve(ctx huma.Context) []error {
     u := ctx.URL()
@@ -127,20 +150,57 @@ func contractService(t *testing.T) (http.Handler, []byte) {
     }
     api := humago.New(mux, config)
     api.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
-        if len(authenticatedSchemes) > 0 && ctx.Header("Cookie") != "corp_session=local-reader" {
+        if ctx.Operation().OperationID == "publicStatus" && os.Getenv("CONTRACT_FAULT") == "public-invalid-auth" {
+            u := ctx.URL()
+            raw := u.Query().Get("level")
+            level, err := strconv.Atoi(raw)
+            if raw != "" && (err != nil || level < 0 || level > 3) {
+                _ = huma.WriteErr(api, ctx, 401, "Invalid input incorrectly demands identity.")
+                return
+            }
+        }
+        if ctx.Operation().OperationID == "publicStatus" && (ctx.Header("Cookie") != "" || ctx.Header("Authorization") != "") {
+            _ = huma.WriteErr(api, ctx, 403, "Public probe must run without identity headers.")
+            return
+        }
+        if ctx.Operation().OperationID != "publicStatus" && len(authenticatedSchemes) > 0 && ctx.Header("Cookie") == "corp_session=outage" {
+            _ = huma.WriteErr(api, ctx, 503, "Session verifier unavailable.")
+            return
+        }
+        if ctx.Operation().OperationID != "publicStatus" && len(authenticatedSchemes) > 0 && ctx.Header("Cookie") != "corp_session=local-reader" {
             _ = huma.WriteErr(api, ctx, 401, "Authentication required.")
             return
         }
         next(ctx)
     })
+    errors := []int{404, 422}
+    if len(authenticatedSchemes) > 0 { errors = append(errors, 401, 503) }
     huma.Register(api, huma.Operation{
-        Method: "GET", Path: "/v1/report", OperationID: "readReport", Errors: []int{401, 404, 422},
+        Method: "GET", Path: "/v1/report", OperationID: "readReport", Errors: errors,
     }, func(_ context.Context, input *reportInput) (*struct{Body struct{Status string `json:"status"`}}, error) {
         if input.Empty { return nil, huma.Error404NotFound("No report available.") }
         out := &struct{Body struct{Status string `json:"status"`}}{}
         out.Body.Status = "ready"
         return out, nil
     })
+    switch os.Getenv("CONTRACT_FAULT") {
+    case "public-probe", "public-requires-identity", "public-requires-permission", "public-invalid-auth", "public-not-modified":
+        publicOperations["publicStatus"] = true
+        status := 200
+        if os.Getenv("CONTRACT_FAULT") == "public-not-modified" { status = 304 }
+        huma.Register(api, huma.Operation{
+            Method: "GET", Path: "/v1/status", OperationID: "publicStatus", Errors: []int{401, 403},
+            Security: []map[string][]string{}, DefaultStatus: status,
+        }, func(_ context.Context, _ *statusInput) (*struct{Status int}, error) {
+            if os.Getenv("CONTRACT_FAULT") == "public-requires-identity" {
+                return nil, huma.Error401Unauthorized("Sign in")
+            }
+            if os.Getenv("CONTRACT_FAULT") == "public-requires-permission" {
+                return nil, huma.Error403Forbidden("Sign in")
+            }
+            return &struct{Status int}{Status: status}, nil
+        })
+    }
     var handler http.Handler = WithRequestID(WithProblemFallback(mux), "")
     data, err := json.Marshal(api.OpenAPI())
     if err != nil { t.Fatal(err) }
@@ -152,6 +212,10 @@ func contractService(t *testing.T) (http.Handler, []byte) {
     op := item["get"].(map[string]any)
     switch os.Getenv("CONTRACT_FAULT") {
     case "absent-security": delete(doc, "security")
+    case "public-explicit-security": op["security"] = []any{map[string]any{"corporateSession": []any{}}}
+    case "missing-unauthorized": delete(op["responses"].(map[string]any), "401")
+    case "missing-outage": delete(op["responses"].(map[string]any), "503")
+    case "outage-media": op["responses"].(map[string]any)["503"].(map[string]any)["content"] = map[string]any{"application/json": map[string]any{}}
     case "anonymous-alternative": doc["security"] = []any{map[string]any{"corporateSession": []any{}}, map[string]any{}}
     case "anonymous-override": op["security"] = []any{}
     case "anonymous-object-override": op["security"] = []any{map[string]any{}}
@@ -161,6 +225,10 @@ func contractService(t *testing.T) (http.Handler, []byte) {
     case "undeclared-scheme": op["security"] = []any{map[string]any{"corporateSession": []any{}, "unknown": []any{}}}
     case "missing-scheme": delete(doc["components"].(map[string]any)["securitySchemes"].(map[string]any), "corporateSession")
     case "document-drift": doc["info"].(map[string]any)["title"] = "Drifted title"
+    }
+    // Huma omits an empty Security slice; the fixture explicitly cancels inherited auth here.
+    if status, ok := doc["paths"].(map[string]any)["/v1/status"]; ok {
+        status.(map[string]any)["get"].(map[string]any)["security"] = []any{}
     }
     data, err = json.MarshalIndent(doc, "", "  ")
     if err != nil { t.Fatal(err) }
@@ -196,6 +264,9 @@ func TestCookieHTTPContract(t *testing.T) {
         if len(authenticatedSchemes) > 0 {
             assertProblem(t, call(t, handler, "GET", "/v1/report", "Cookie", cookie), 401)
         }
+    }
+    if len(authenticatedSchemes) > 0 {
+        assertProblem(t, call(t, handler, "GET", "/v1/report", "Cookie", "corp_session=outage"), 503)
     }
     assertProblem(t, call(t, handler, "GET", "/v1/report?empty=true", "Cookie", contractHeaders["Cookie"]), 404)
     assertProblem(t, call(t, handler, "GET", "/v1/report?empty=not-a-boolean", "Cookie", contractHeaders["Cookie"]), 422)

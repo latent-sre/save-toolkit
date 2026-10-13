@@ -95,6 +95,10 @@ func TestOpenAPIHouseRules(t *testing.T) {
 		}
 	}
 	ids := map[string]bool{}
+	authFailures := map[int]bool{401: true}
+	for _, status := range authErrorStatuses {
+		authFailures[status] = true
+	}
 	for path, ops := range doc.Paths {
 		for method, raw := range ops {
 			switch method {
@@ -134,8 +138,17 @@ func TestOpenAPIHouseRules(t *testing.T) {
 					}
 				}
 			}
-			if !publicOperations[op.OperationID] && !requiresAuthentication(security, doc.Components.SecuritySchemes) {
+			if publicOperations[op.OperationID] && len(security) != 0 {
+				t.Errorf("%s: public operation must have empty effective security", where)
+			} else if !publicOperations[op.OperationID] && !requiresAuthentication(security, doc.Components.SecuritySchemes) {
 				t.Errorf("%s: every security alternative must require a declared authenticated scheme; list deliberate anonymous operations in publicOperations", where)
+			}
+			if !publicOperations[op.OperationID] {
+				for status := range authFailures {
+					if _, declared := op.Responses[strconv.Itoa(status)]; !declared {
+						t.Errorf("%s: declare authentication failure %d", where, status)
+					}
+				}
 			}
 			if _, declared := op.Responses["400"]; op.RequestBody != nil && !declared {
 				t.Errorf("%s: a body can be unparseable; list 400 in Errors", where)

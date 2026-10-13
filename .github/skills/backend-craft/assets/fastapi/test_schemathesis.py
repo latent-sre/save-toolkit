@@ -5,7 +5,7 @@ the dev dependencies."""
 from __future__ import annotations
 
 import schemathesis
-from contract_app import AUTH_SCHEME, TEST_HEADERS, make_app
+from contract_app import AUTH_SCHEME, PUBLIC_OPERATIONS, TEST_HEADERS, make_app
 from hypothesis import settings
 
 if AUTH_SCHEME is not None:
@@ -25,4 +25,7 @@ schema.config.generation.update(allow_extra_parameters=False, with_security_para
 @schema.parametrize()
 @settings(max_examples=25, deadline=None)
 def test_api_matches_its_document(case):
-    case.call_and_validate(headers=TEST_HEADERS)
+    public = case.operation.definition.raw["operationId"] in PUBLIC_OPERATIONS
+    response = case.call_and_validate(headers={} if public else TEST_HEADERS)
+    if public:
+        assert response.status_code not in {401, 403}, "public operation requires authentication"
