@@ -1,0 +1,22 @@
+id: obs-metrics-wql-basics-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-metrics
+tools: [Skill, Read]
+references:
+  - skills/obs-metrics/references/wql.md
+prompt: |
+  Read the WQL reference. Write queries only, with no explanation; do not run queries
+  or edit files. Checkout is a Wavefront app in prod with point tags app, env, and
+  instance on app.http.requests.count. Write, labelled 1 and 2: (1) the five-minute
+  moving average of request count for checkout in prod; (2) the request count broken
+  down by instance for the same scope.
+success_criteria:
+  - Selects series with point-tag filters and groups with WQL forms, never quoted metric names.
+graders:
+  - type: regex
+    pattern: 'mavg\s*\(\s*5m'
+  - type: regex
+    pattern: 'ts\(\s*app\.http\.requests\.count'
+  - type: not_regex
+    pattern: 'ts\("'

@@ -21,18 +21,9 @@ Primary references:
 - Span kinds describe direction and interaction style
 - Span status is not the protocol status
 - Read stable attributes in context
-- Trace context connects boundaries
 - Sampling makes absence weak evidence
 
 ## Span kinds describe direction and interaction style
-
-*[sourced: OpenTelemetry Tracing API, SpanKind]*
-
-- `SERVER` — inbound request/response handling while the caller waits.
-- `CLIENT` — outbound request/response call where the caller waits.
-- `PRODUCER` — initiates or schedules deferred work and may finish before processing begins.
-- `CONSUMER` — processes deferred work without a waiting producer.
-- `INTERNAL` — in-process work rather than a remote boundary.
 
 Do not treat every parent/child pair as a network hop. Confirm the kinds on both sides, and expect links
 or separated timelines for deferred work. A missing counterpart remains an instrumentation/propagation
@@ -77,50 +68,10 @@ modes. Record the active convention and emitted fields; this trace-reading skill
 
 *[sourced: OpenTelemetry HTTP and database semantic-convention migration guides; unverified for target]*
 
-*[sourced: current OpenTelemetry HTTP, database, and service semantic conventions; unverified for target]*
-
-| Question | Current attribute(s) to inspect |
-|---|---|
-| Which service emitted the span? | `service.name`, `service.namespace`, `service.instance.id`, `service.version` |
-| What HTTP method/outcome? | `http.request.method`, `http.response.status_code`, `error.type` |
-| Which server request/route? | `http.route`, `url.path`, `url.scheme` |
-| Which client target URL? | `url.full` |
-| Which server endpoint? | `server.address`, `server.port` |
-| Which database/operation? | `db.system.name`, `db.namespace`, `db.collection.name`, `db.operation.name` |
-| What database outcome? | `db.response.status_code`, `error.type` |
-
-`url.full` can contain a query string or other sensitive material. Before copying it into an evidence
-packet, redact userinfo credentials and scrub known tokens, secrets, personal data, and sensitive query
-values; retain only the minimum URL detail needed for the investigation.
-
-*[sourced: OpenTelemetry HTTP semantic conventions, sensitive URL handling; unverified for target data]*
-
-`server.address` identifies the server's logical host/address, not a generic network peer. On server
-spans it can describe the local or original host; on client spans it identifies the target server.
-
-`service.name` is a resource attribute: it is the logical service name and should be consistent across
-horizontally scaled instances. Database client spans normally use `CLIENT` kind; in-memory database work
-may use `INTERNAL`.
-
-*[sourced: OpenTelemetry service registry and database client span definition; unverified for target]*
-
-## Trace context connects boundaries
-
-W3C `traceparent` carries four hyphen-delimited fields: version, trace id, parent id, and trace flags.
-For version `00`, the trace id is 32 lowercase hexadecimal characters and the parent id is 16; all-zero
-values are invalid. This inert fixture marks the sampling flag as set:
-
-*[sourced: W3C Trace Context, traceparent header field values]*
-
-```text
-traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
-```
-
-Use the trace id for correlation, not the inbound parent id. A valid `traceparent` carries correlation
-context; it does not prove correct end-to-end propagation or that every component recorded and exported
-a span. Treat caller-supplied context as untrusted input.
-
-*[sourced: W3C Trace Context format and security/privacy considerations; unverified for target path]*
+Attribute names follow the current OpenTelemetry semantic conventions. `url.full` can contain a
+query string or other sensitive material: before copying it into an evidence packet, redact
+userinfo credentials and scrub known tokens, secrets, personal data, and sensitive query values;
+retain only the minimum URL detail needed for the investigation.
 
 ## Sampling makes absence weak evidence
 

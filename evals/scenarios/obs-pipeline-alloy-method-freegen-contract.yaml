@@ -1,0 +1,24 @@
+id: obs-pipeline-alloy-method-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-pipeline
+tools: [Skill, Read]
+references:
+  - skills/obs-pipeline/references/alloy.md
+prompt: |
+  Read the Alloy reference. Write short labelled steps only, no explanation; do not
+  edit files or run anything. You changed the route of one Alloy pipeline that fans
+  out to two backends. A: how do you prove the changed route delivers, end to end,
+  before calling it verified? B: which existing telemetry feeds in this team's stack
+  are not yours to rewire while doing so?
+success_criteria:
+  - Proves delivery with a bounded canary across every fan-out branch and respects platform-owned feeds.
+graders:
+  - type: regex
+    pattern: '(?i)canary'
+  - type: regex
+    pattern: '(?i)every.*branch|each branch|fan-out'
+  - type: regex
+    pattern: '(?i)accepted|refused|dropped'
+  - type: regex
+    pattern: '(?i)Splunk|Wavefront'

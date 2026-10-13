@@ -1,0 +1,22 @@
+id: obs-metrics-promql-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-metrics
+tools: [Skill, Read]
+references:
+  - skills/obs-metrics/references/promql.md
+prompt: |
+  Read the PromQL reference. Write queries only, with no explanation; do not run queries
+  or edit files. Checkout runs against Mimir with http_requests_total labelled env and
+  status, and the classic histogram http_request_duration_seconds_bucket labelled env
+  and le. Write, labelled 1 and 2: (1) the five-minute error ratio by app over the same
+  population in numerator and denominator; (2) the request p95 by app.
+success_criteria:
+  - Derives rates per series before aggregating and keeps le for the histogram quantile.
+graders:
+  - type: regex
+    pattern: 'histogram_quantile\s*\(\s*0\.95'
+  - type: regex
+    pattern: 'by\s*\([^)]*\ble\b[^)]*\)\s*\(\s*rate\s*\('
+  - type: regex
+    pattern: 'rate\s*\(\s*http_requests_total'

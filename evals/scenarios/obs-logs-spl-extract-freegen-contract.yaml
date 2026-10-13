@@ -1,0 +1,25 @@
+id: obs-logs-spl-extract-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-logs
+tools: [Skill, Read]
+references:
+  - skills/obs-logs/references/spl.md
+prompt: |
+  Read the SPL reference. Write one Splunk search only, with no explanation; do not run
+  queries or edit files. Raw application lines for settlement-api (index=<app_index>)
+  contain latency=<value>ms where the value may have a fractional part, and carry no
+  extracted route field; only the raw URI is available. For the last hour, extract the
+  latency, normalise route identifiers out of the URI, and report request count and
+  p95 latency by route.
+success_criteria:
+  - Extracts fractional milliseconds with rex and keeps request counts beside per-route percentiles.
+graders:
+  - type: regex
+    pattern: '\|\s*rex'
+  - type: regex
+    pattern: '\[\\d\.\]\+|\\d\+\(\?:\\\.\\d\+\)\?'
+  - type: regex
+    pattern: '(?i)perc95|p95\s*\('
+  - type: regex
+    pattern: '(?i)count\s+AS\s+request'

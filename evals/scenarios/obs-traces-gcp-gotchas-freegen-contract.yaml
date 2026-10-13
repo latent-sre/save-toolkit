@@ -1,0 +1,24 @@
+id: obs-traces-gcp-gotchas-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-traces
+tools: [Skill, Read]
+references:
+  - skills/obs-traces/references/gcp-trace.md
+prompt: |
+  Read the Cloud Trace reference. Answer with short labelled lines only, no
+  explanation; do not run queries or edit files. A: can the team change Cloud Run's
+  platform request-trace sampling rate? B: how long are spans retained, and what are
+  the per-span attribute and event caps? C: a responder in another project cannot see
+  a trace; what access must they hold, and on which projects?
+success_criteria:
+  - States the fixed platform sampling, retention and span caps, and cross-project trace access.
+graders:
+  - type: regex
+    pattern: '(?i)not configurable|isn.t configurable|is not configurable|cannot|fixed|no.*control'
+  - type: regex
+    pattern: '30 days'
+  - type: regex
+    pattern: '1,?024'
+  - type: regex
+    pattern: 'cloudtrace\.user'

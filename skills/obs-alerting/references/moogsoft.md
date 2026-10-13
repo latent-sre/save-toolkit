@@ -3,7 +3,7 @@
 The fleet target is on-prem Moogsoft v9.x, and of that line only **v9.2** (GA 2025-05-15) is a
 currently supported release; v9.1 and v9.0 are past end of support, and a patch release does not
 reset the two-year support cycle *[sourced: docs.moogsoft.com/v9/en/moogsoft-releases.html,
-reviewed 2026-08-19]*. Its operator object is a **Situation**; cloud product terms differ.
+reviewed 2026-08-19]*. Re-verify the supported line at each Moogsoft upgrade. Its operator object is a **Situation**; cloud product terms differ.
 
 `[sourced]` The v9 [clustering guide](https://docs.moogsoft.com/v9/en/clustering-algorithm-guide.html)
 names the Sigalisers **Cookbook** (configured Recipes over alert attributes) and **Tempus** (time
@@ -19,15 +19,12 @@ Correlation ranks related evidence; it does not prove cause.
 
 ## During an alert storm
 
-1. Start with the Situation and its scope, not every raw event.
-2. Order alerts by event time and ingestion time. The first alert is a ranked hypothesis, not the
-   cause: polling cadence, delivery delay, and clock skew can reorder the list.
-3. If the local instance merges or supersedes Situations, follow the live one and record every
-   absorbed or superseded ID.
-4. Record alternate hypotheses, which service or region is affected, and which signals share a source.
-5. Hand the ranked evidence to the responder, or the `sre-assistant` slice they dispatched, with the
-   Situation link and ID, first and last timestamps, blast radius, event-source lineage, and unresolved
-   alternatives. The parent skill's bar for asserting cause applies before any hypothesis is promoted.
+Order alerts by event time and ingestion time: the first alert is a ranked hypothesis, not the
+cause, because polling cadence, delivery delay, and clock skew can reorder the list. If the local
+instance merges or supersedes Situations, follow the live one and record every absorbed or
+superseded ID. Hand the ranked evidence to the responder, or the `sre-assistant` slice they
+dispatched, with the Situation link and ID, first and last timestamps, blast radius, event-source
+lineage, and unresolved alternatives.
 
 ## Reducing noise
 

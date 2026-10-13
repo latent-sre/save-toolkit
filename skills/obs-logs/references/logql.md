@@ -33,7 +33,8 @@ values from the log line instead of promoting them to labels.
 
 Widen one selector at a time. An empty result can mean the selector is wrong, the tenant is wrong, or
 the stream is absent; it is not by itself evidence that the application emitted no failures.
-Before reading it as quiet, check that the stream is current:
+Before reading it as quiet, check that the stream is current (candidate shape — verify it on the
+target tenant before relying on it):
 
 ```logql
 absent_over_time({app="settlement-api", env="prod"}[10m])
@@ -54,22 +55,6 @@ Loki version before using either in a shared rule *[sourced: LogQL query referen
 2026-08-24]*.
 
 *[sourced: Grafana Loki LogQL line-filter and parser documentation; unverified for target log shape]*
-
-```logql
-{app="checkout", env="prod"} |= "timeout"
-```
-
-*[sourced: Grafana Loki `json` parser and label-filter syntax; unverified for target field names]*
-
-```logql
-{app="checkout", env="prod"} | json | status >= 500 | __error__=""
-```
-
-*[sourced: Grafana Loki `logfmt` parser syntax; unverified for target log shape]*
-
-```logql
-{app="checkout", env="prod"} | logfmt | level="error"
-```
 
 Parser failures can set the `__error__` label, and metric queries cannot contain pipeline errors. Check
 or filter parser errors explicitly before trusting an aggregate. *[sourced: Grafana Loki pipeline-error
@@ -94,35 +79,18 @@ structured metadata at all, and which keys, is `[unverified]` until read from a 
 *[sourced: Loki structured-metadata, query-acceleration, and cardinality documentation;
 reviewed 2026-08-21]*
 
-**`pattern` is the parser for fixed-shape lines** — "easier and faster to write" than `regexp`
-and it "outperforms the regexp parser". Named captures become labels, `<_>` skips a field:
-
-```logql
-{app="gateway"} | pattern `<ip> - - <_> "<method> <uri> <_>" <status> <size> <_> "<agent>" <_>`
-```
-
-A pattern is invalid with no named capture, or with two captures not separated by whitespace —
-so a line whose fields abut needs `regexp` after all. *[sourced: LogQL log-queries reference,
-pattern parser; reviewed 2026-08-21]*
+**`pattern` is the parser for fixed-shape lines.** A pattern is invalid with no named capture, or
+with two captures not separated by whitespace — so a line whose fields abut needs `regexp` after
+all. *[sourced: LogQL log-queries reference, pattern parser; reviewed 2026-08-21]*
 
 ## Metric queries: rates and complete buckets
 
 `rate` returns log entries per second over a range; `count_over_time` returns the number of entries in
 each stream over the range. Aggregate across streams when you need a service total.
 
-*[sourced: Grafana Loki metric-query reference; unverified for target labels and fields]*
-
-```logql
-sum by (app) (
-  rate({app="checkout", env="prod"} | json | status >= 500 | __error__="" [5m])
-)
-```
-
-*[sourced: Grafana Loki `count_over_time`; unverified target fields, population, and cadence]*
-
-```logql
-sum(count_over_time({app="checkout", env="prod"} | json | status >= 500 | __error__="" [5m]))
-```
+Aggregate parsed, error-filtered streams with `rate` or `count_over_time` over a fixed range, and
+aggregate across streams when a service total is needed. *[sourced: Grafana Loki metric-query
+reference; unverified for target labels and fields]*
 
 Evaluate fixed five-minute ranges. Preserve an absent result as unknown unless independent evidence
 proves the selector, source freshness, parsing coverage, and eligible population, and the source's

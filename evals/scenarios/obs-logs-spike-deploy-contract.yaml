@@ -1,0 +1,44 @@
+id: obs-logs-spike-deploy-contract
+max_turns: 17
+split: regression
+skill: obs-logs
+tools: [Skill, Read]
+references:
+  - skills/obs-logs/references/spl.md
+  - skills/obs-logs/references/query-catalog.md
+prompt: |
+  Read the SPL and query-catalog references. Assess this supplied-state log work; do not
+  run queries or edit files. A teammate drafted Splunk searches for settlement-api over
+  a request-completion sourcetype with one event per eligible request. Their spike
+  search filters to failures first and then buckets by time with a statistics command,
+  so quiet minutes produce no bucket. Their baseline averages the whole period
+  including the candidate bucket, and their draft suppresses any spike whose baseline
+  standard deviation is zero. Their deploy comparison groups failures and the request
+  denominator together by phase and error class, and treats events whose status was
+  never extracted as zero-error requests. To make a slow search faster they switched
+  a metadata search to return summarized data only during a live incident, without
+  recording which mode produced the result, and began rewriting the base search
+  before inspecting why the original was slow.
+
+  Return exactly one JSON object, without fences or prose, selecting one value per key:
+  spike_buckets: complete_buckets_including_quiet | failures_first_no_quiet_buckets
+  spike_baseline: preceding_valid_buckets_candidate_excluded | whole_period_including_candidate
+  flat_baseline: material_increase_still_detectable | suppress_when_sd_zero
+  deploy_denominator: phase_wide_eligible_requests | by_phase_and_error_class
+  unclassified_status: rate_stays_null | count_as_zero_errors
+  summarized_search: state_mode_complete_fallback | summarized_only_unrecorded
+  slow_search_first_step: inspector_scan_vs_result | rewrite_base_search_first
+success_criteria:
+  - Builds spikes on complete buckets with a trailing baseline that excludes the candidate.
+  - Keeps deploy denominators phase-wide and leaves unclassified populations unknown, not zero.
+  - States the summarized-search mode and diagnoses slowness before rewriting.
+graders:
+  - type: exact_json
+    fields:
+      spike_buckets: complete_buckets_including_quiet
+      spike_baseline: preceding_valid_buckets_candidate_excluded
+      flat_baseline: material_increase_still_detectable
+      deploy_denominator: phase_wide_eligible_requests
+      unclassified_status: rate_stays_null
+      summarized_search: state_mode_complete_fallback
+      slow_search_first_step: inspector_scan_vs_result

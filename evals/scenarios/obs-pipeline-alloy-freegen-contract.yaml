@@ -1,0 +1,30 @@
+id: obs-pipeline-alloy-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-pipeline
+tools: [Skill, Read]
+references:
+  - skills/obs-pipeline/references/alloy.md
+prompt: |
+  Read the Alloy reference. Write Alloy configuration only, plus the two short answers
+  labelled A and B; do not edit files. Configure: (1) application log files under
+  /var/log/app/*.log processed and written to Loki at http://loki:3100; (2) a
+  Prometheus scrape forwarded to Mimir remote_write at http://mimir:9009/api/v1/push;
+  (3) an OTLP receiver on the standard ports, batched, exported to an OTLP backend.
+  A: how long does prometheus.remote_write retain buffered samples before purging
+  them when the endpoint is unreachable? B: what does loki.write do once its retries
+  are exhausted?
+success_criteria:
+  - Wires loki/prometheus components with forward_to and otelcol components with output blocks.
+  - States the remote_write retention purge horizon and the loki.write drop behaviour.
+graders:
+  - type: regex
+    pattern: 'forward_to'
+  - type: regex
+    pattern: 'otelcol\.receiver\.otlp'
+  - type: regex
+    pattern: 'prometheus\.remote_write'
+  - type: regex
+    pattern: '8h|8 hours|eight hours'
+  - type: regex
+    pattern: 'drop'

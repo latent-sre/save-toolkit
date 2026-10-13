@@ -15,7 +15,6 @@ Examples are `[unverified]` for the target Mimir tenant until executed there.
 ## Contents
 
 - [Label values](#encode-copied-label-values)
-- [Query shapes](#the-shapes-alerts-and-dashboards-copy)
 - [Version gates](#around-the-query-version-gated-facts)
 - [Tenant limits](#mimir-per-tenant-limits)
 - [Missing data](#missing-data-and-staleness)
@@ -33,40 +32,6 @@ rendered matcher `app=~"checkout\\.v2"`. PromQL regex label matchers are already
 adding `^` and `$` does not make an unescaped dot literal. Use a tested encoder for arbitrary values
 or stop for a sanitized identifier; never concatenate raw input.
 *[sourced: Prometheus querying basics, string literals and label matchers; unverified client encoding]*
-
-## The shapes alerts and dashboards copy
-
-Apply `rate()` to each source series before aggregating, so counter resets stay visible; never
-`sum()` a counter first. An empty selector result can be a stale series, wrong label, wrong tenant,
-or absent telemetry; it is not a zero.
-
-```promql
-sum by (app) (rate(http_requests_total{env="prod"}[5m]))
-```
-
-Error ratio and burn rate: numerator and denominator over the same population and window, divided
-by the allowed error fraction. Do not coerce a missing or zero denominator to a healthy value
-without an explicit, verified no-traffic policy.
-
-```promql
-(
-  sum by (app) (rate(http_requests_total{env="prod", status=~"5.."}[5m]))
-/
-  sum by (app) (rate(http_requests_total{env="prod"}[5m]))
-) / (1 - 0.999)
-```
-
-Classic-histogram p95: rate each `_bucket`, aggregate keeping `le`, then `histogram_quantile`. Never
-average summary quantiles across instances; a summary has already discarded the distribution.
-
-```promql
-histogram_quantile(
-  0.95,
-  sum by (app, le) (
-    rate(http_request_duration_seconds_bucket{env="prod"}[5m])
-  )
-)
-```
 
 ## Around the query: version-gated facts
 

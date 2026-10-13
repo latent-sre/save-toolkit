@@ -28,7 +28,6 @@ comment macro; SPL2's `//` and `/* */` belong to a different language.
 - Spot a spike vs the baseline (anomaly detection)
 - Correlate one request across services
 - Compare before vs after a deploy
-- Extract fields ad hoc
 - Fast paths at scale — tstats, data models, TERM/PREFIX
 - Tips & gotchas (Splunk-specific — where the default bites)
 
@@ -196,17 +195,6 @@ three-digit HTTP status per completion event; verify that source contract. A mis
 row is not a zero: confirm traffic, extraction,
 and window coverage. Successful requests without `error_type` still count in `eventstats` before
 the class grouping. Use the catalog's overall-rate query when no error classification is available.
-
-## Extract fields ad hoc
-
-````spl
-index=<app_index> sourcetype=<...> earliest=-1h latest=now     ```scope the base search — never start bare```
-| rex field=_raw "latency=(?<latency_ms>[\d.]+)"    ```[\d.]+ keeps fractional ms; \d+ truncates them```
-| stats count AS requests p95(latency_ms) AS p95_ms max(latency_ms) AS max_ms by route
-````
-
-Take `route` from the inventory. If only a raw URI exists, normalize ids before grouping, and keep
-`requests` beside each p95: the p95 of one request is that request.
 
 ## Fast paths at scale — tstats, data models, TERM/PREFIX
 

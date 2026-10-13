@@ -56,13 +56,6 @@ under `grafana`; this grants no other lane dashboard writes. Do not hunt for a
 
 ## Gotchas
 
-- **Alignment is built in.** Console charts auto-align/aggregate; a spike visible at 1m alignment
-  can vanish at 5m. Record the alignment/step with every screenshot, same as the parent skill's
-  step-cadence rule.
-- **Log-based metrics start at creation** — not retroactive; never treat their flat history before
-  creation as "was healthy".
-- **Quotas and sampling**: system metrics arrive at fixed granularity (commonly 60s); sub-minute
-  behavior is invisible — say so in the packet instead of calling the service smooth.
 - Wavefront and Mimir remain first-class while workloads coexist; a service migrating runtimes
   should keep emitting to the incumbent path until cutover is recorded in `stack-profile` —
   double-emit beats a telemetry gap.

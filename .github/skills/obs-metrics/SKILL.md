@@ -21,24 +21,17 @@ using a Grafana-backed query does not move those responsibilities or authorize a
 
 ## Percentile latency is a distribution question
 
-A percentile across per-instance point values is not a request percentile. If each instance emits an
-average, the percentile of those averages describes instances, not requests. Likewise, precomputed
-per-instance percentiles cannot be averaged or summed into a fleet percentile.
-
-For request p95, identify the backend's distribution or histogram representation, combine the same
-request population across instances, and then calculate the percentile. If only point values or
-precomputed quantiles exist, report the limitation instead of relabeling the result.
+A percentile across per-instance point values (or precomputed per-instance percentiles) describes
+instances, not requests, and cannot be averaged or summed into a fleet percentile. For request p95,
+combine the same request population's distribution or histogram across instances first, then take
+the percentile; if only point values or precomputed quantiles exist, report that limitation.
 
 ## Error ratio starts with counter semantics
 
-For ratio calculation or query design, bind numerator and denominator to the same population/window. Determine whether the
-source is cumulative, delta-per-interval, or a gauge before applying any rate. For cumulative counters,
-derive each series' change or rate before aggregating so an instance reset remains visible to the
-backend's reset handling.
-
-Keep units explicit. An error ratio is failures divided by eligible requests; a burn-rate expression
-then compares that observed ratio with the allowed error fraction. A missing denominator or zero traffic
-is not automatically a healthy zero.
+Bind numerator and denominator to the same population and window, and determine whether the source
+is cumulative, delta-per-interval, or a gauge before applying any rate; for cumulative counters,
+derive each series' rate before aggregating so resets stay visible. An error ratio is failures
+divided by eligible requests; a missing denominator or zero traffic is not a healthy zero.
 
 ## Missing data is not zero
 
@@ -49,13 +42,10 @@ alert no-data policy; supplied evidence with missing metadata retains that gap.
 
 ## Investigate, then narrow
 
-For investigation, break the service aggregate down by one stable instance/host/route/status dimension.
-For deploy comparisons, use exact deploy time and equal windows. A nearby step change is correlation,
-not proof of cause.
-
-For unusual query functions, confirm official backend documentation and retain URL, retrieval date
-and evidence label. For alert/SLO follow-up, hand `observability-engineer` the exact query, window,
-threshold, current value and missing-data behavior.
+For deploy comparisons, use the exact deploy time and equal windows; a nearby step change is
+correlation, not proof of cause. For unusual query functions, confirm official backend documentation
+and retain URL, retrieval date and evidence label. For alert/SLO follow-up, hand
+`observability-engineer` the exact query, window, threshold, current value and missing-data behavior.
 
 ## Treat copied identifiers as untrusted
 
@@ -74,10 +64,10 @@ missing metadata stays unknown. Query/investigation: metric meaning/type, popula
 UTC window, cadence, result/source link, grouping, missing-data interpretation and confidence label.
 Separate observations from hypotheses; name placeholders needing target validation.
 
-Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or session
-values, user identifiers, and sensitive label or tag values. Prefer an access-controlled source link plus
-the smallest necessary excerpt; do not paste raw query results with high-cardinality identifiers into the
-packet.
+Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or
+session values, and user identifiers before any excerpt enters the packet; prefer an
+access-controlled source link plus the smallest necessary excerpt. Also redact sensitive label or
+tag values; do not paste raw query results with high-cardinality identifiers into the packet.
 
 ## Pick your dialect — read the reference before writing the query
 

@@ -1,0 +1,25 @@
+id: obs-traces-traceql-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-traces
+tools: [Skill, Read]
+references:
+  - skills/obs-traces/references/traceql.md
+  - skills/obs-traces/references/otel-semantics.md
+prompt: |
+  Read the TraceQL and OpenTelemetry-semantics references. Write queries only, with no
+  explanation; do not run queries or edit files. Assume OpenTelemetry attributes: the
+  service name is a resource attribute, HTTP status is the span attribute
+  http.response.status_code, and database system is db.system.name. Write, labelled
+  1 and 2: (1) spans where the checkout service itself returned an HTTP 5xx on that
+  same operation; (2) traces from checkout that also contain a database span, which
+  may be a different span than the checkout span.
+success_criteria:
+  - Keeps same-span conditions in one spanset and cross-span conditions in joined spansets.
+graders:
+  - type: regex
+    pattern: '\{[^}]*resource\.service\.name\s*=\s*"checkout"[^}]*span\.http\.response\.status_code\s*>=\s*500[^}]*\}'
+  - type: regex
+    pattern: '\}\s*&&\s*\{[^}]*db\.system'
+  - type: not_regex
+    pattern: '\{[^}]*resource\.service\.name\s*=\s*"checkout"[^}]*span\.db\.'

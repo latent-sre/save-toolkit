@@ -1,0 +1,24 @@
+id: obs-logs-logql-parsers-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-logs
+tools: [Skill, Read]
+references:
+  - skills/obs-logs/references/logql.md
+prompt: |
+  Read the LogQL reference. Write queries only, with no explanation; do not run queries
+  or edit files. Checkout logs to Loki in prod, streams labelled app and env. Half the
+  lines are JSON with numeric status and latency_ms fields; the rest are plain text
+  containing latency=<value>ms. Write, labelled 1 and 2: (1) a line query returning
+  only JSON lines with status 500-599, with parse failures excluded rather than
+  silently counted or dropped without a trace; (2) a line query extracting the
+  latency value from the plain-text lines.
+success_criteria:
+  - Filters parser errors explicitly and extracts fields from both JSON and pattern-shaped lines.
+graders:
+  - type: regex
+    pattern: '\|\s*json'
+  - type: regex
+    pattern: '__error__'
+  - type: regex
+    pattern: '\|\s*(pattern|regex|unpack)'

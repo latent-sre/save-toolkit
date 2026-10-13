@@ -5,24 +5,16 @@ query: carry the reviewed numerator/denominator query and its result into the al
 
 ## The pairs
 
-`[sourced]` Google's SRE Workbook, [Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/),
-Table 5-8, for a 99.9% SLO over **30 days**:
+The allowed long/short window pairs, thresholds, and actions are owned by the calculator's
+`PAIRS` in [error_budget.py](../scripts/error_budget.py) (`[sourced]` Google's SRE Workbook,
+[Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/), Table 5-8 for a 99.9% SLO);
+run the calculator to see them applied, or pass it a mismatched pair to list the allowed ones.
+This file does not mirror the values, so the two cannot drift.
 
-| Long window | Short window | Threshold | Budget consumed at threshold | Action |
-|---|---|---|---|---|
-| 1h | 5m | 14.4x | 2% in 1h | PAGE (fast burn) |
-| 6h | 30m | 6.0x | 5% in 6h | PAGE (slow burn) |
-| 3d | 6h | 1.0x | 10% in 3d | TICKET (slow leak) |
-
-For another objective horizon, choose whether to retain these fixed thresholds or recalculate them
-for the intended budget fraction: fraction = burn × long window / objective horizon, in matching
-time units. For request SLIs, this time-based estimate assumes comparable request volume; measure
-actual consumed budget from eligible requests. At 28 days, the pairs represent about 2.14%, 5.36%,
-and 10.71%, not 2%, 5%, and 10%.
-
-A pair is one unit: both windows must meet or exceed the pair's threshold (`>=`; AND, never OR).
-No row lends its window or threshold to another. Low-traffic services need separate judgment: a tiny
-denominator turns one failure into an extreme burn.
+A pair is one unit: both windows must meet or exceed the pair's threshold (AND, never OR).
+No pair lends its window or threshold to another. Low-traffic services need separate judgment: a
+tiny denominator turns one failure into an extreme burn. For another objective horizon, measure
+actual consumed budget from eligible requests rather than rescaling the fixed thresholds by time.
 
 ## Verdict boundary
 
@@ -44,8 +36,6 @@ threshold policy, use the reviewed alert rule rather than this calculator's verd
 
 ```powershell
 $budgetScript = '<resolved calculator path>'
-py -3 $budgetScript --slo 99.9 --sli-long 99.45 --sli-short 99.95
-py -3 $budgetScript --slo 99.9 --sli-long 99.45 --sli-short 99.8 --long-window 3d --short-window 6h
 py -3 $budgetScript --slo 99.9 --long-window 3d --short-window 5m
 ```
 

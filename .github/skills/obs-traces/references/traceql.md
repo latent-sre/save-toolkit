@@ -14,12 +14,7 @@ Primary reference:
 ## Contents
 
 - Scope and spanset rules
-- Start from a trace id
-- Start from a latency symptom
-- Find a service span with an HTTP 5xx outcome
-- Find a service trace that also contains a database span
-- Find traces with repeated error-status spans for one service
-- Beyond these shapes — version-gated TraceQL
+- Beyond the basic shapes — version-gated TraceQL
 - Limits and discard reasons — absence causes
 - Record the result boundary
 
@@ -35,82 +30,7 @@ the selected spanset.
 Keep the query time picker narrow even when the expression names a trace. Confirm the exact tenant and
 time range in the evidence packet; a syntactically valid query against the wrong tenant is empty evidence.
 
-## Start from a trace id
-
-Use the trace-level intrinsic for an exact trace id. The value below is the W3C example fixture, not a
-production identifier.
-
-*[sourced: Grafana Tempo intrinsic fields/string literals and W3C Trace Context trace-id example;
-unverified against target]*
-
-```traceql
-{ trace:id = "4bf92f3577b34da6a3ce929d0e0e4736" }
-```
-
-Do not splice arbitrary ticket or log text into an expression. Validate the copied id as the expected
-hex value and keep it inside the quoted value position.
-
-## Start from a latency symptom
-
-The trace-level duration intrinsic is the trace's maximum span end minus minimum span start. It avoids
-reconstructing total trace duration from individual spans.
-
-*[sourced: Grafana Tempo trace-level intrinsics and duration literals; unverified threshold/window]*
-
-```traceql
-{ trace:duration > 2s }
-```
-
-This finds examples above a threshold; it does not calculate prevalence. Retain the search window and
-selection method, then compare a representative slow trace with a normal trace from the same operation.
-
-## Find a service span with an HTTP 5xx outcome
-
-Resource attributes identify the emitting service, while span attributes describe the operation. The
-HTTP attribute below follows the current stable OpenTelemetry HTTP convention; confirm what the deployed
-instrumentation actually emits before treating an empty result as meaningful. Current Tempo
-documentation still includes examples using legacy `span.http.status_code`; that is a query example
-for telemetry emitting the old convention, not the current OpenTelemetry contract.
-
-*[sourced: Grafana Tempo query-builder example/attribute scopes and current OTel HTTP semantic
-conventions; unverified for target attributes]*
-
-```traceql
-{ resource.service.name = "checkout" && span.http.response.status_code >= 500 }
-```
-
-Both conditions are inside one pair of braces, so they must be true on the same span.
-
-## Find a service trace that also contains a database span
-
-Use separate spansets when the service span and database span may be different spans. `!= nil` tests that
-the current stable database-system attribute is present.
-
-*[sourced: Grafana Tempo logical spanset operators/nil and current OTel database semantic conventions;
-unverified for target attributes]*
-
-```traceql
-{ resource.service.name = "checkout" } && { span.db.system.name != nil }
-```
-
-This proves only that both matching spansets occur in the same returned trace. It does not by itself
-prove that the selected service called that database span; inspect parent/child or link structure.
-
-## Find traces with repeated error-status spans for one service
-
-The status intrinsic is an enum. `count()` counts the spans in the selected spanset for each trace, so
-the following retains traces containing more than one matching error-status span.
-
-*[sourced: Grafana Tempo status intrinsic, pipeline, and `count()` examples; unverified for target data]*
-
-```traceql
-{ resource.service.name = "orders" && span:status = error } | count() > 1
-```
-
-Span error status and protocol response status are different evidence. Read
-[OpenTelemetry semantics](./otel-semantics.md) before interpreting either.
-
-## Beyond these shapes — version-gated TraceQL
+## Beyond the basic shapes — version-gated TraceQL
 
 Current Tempo documents more than the `&&` spanset join used above: structural operators (`>`
 direct child, `>>` descendant, `<<` ancestor, `~` sibling), TraceQL metrics functions

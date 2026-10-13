@@ -1,0 +1,28 @@
+id: obs-traces-semantics-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-traces
+tools: [Skill, Read]
+references:
+  - skills/obs-traces/references/otel-semantics.md
+prompt: |
+  Read the OpenTelemetry-semantics reference. Answer with attribute names only, one per
+  labelled line, no explanation; do not run queries or edit files. Using current stable
+  OpenTelemetry semantic conventions, name the attribute that identifies: A: one
+  concrete instance of a service, distinct from the service name; B: the downstream
+  server address a client span called; C: the route template of an HTTP operation;
+  D: the database collection or table a database span touched; E: the messaging
+  destination of a messaging span.
+success_criteria:
+  - Names current stable attributes for instance, peer, route, database target, and messaging destination.
+graders:
+  - type: regex
+    pattern: 'service\.instance\.id'
+  - type: regex
+    pattern: 'server\.address'
+  - type: regex
+    pattern: 'http\.route'
+  - type: regex
+    pattern: 'db\.collection\.name'
+  - type: regex
+    pattern: 'messaging\.destination\.name'

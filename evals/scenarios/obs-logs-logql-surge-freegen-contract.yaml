@@ -1,0 +1,25 @@
+id: obs-logs-logql-surge-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-logs
+tools: [Skill, Read]
+references:
+  - skills/obs-logs/references/logql.md
+prompt: |
+  Read the LogQL reference. Write queries only, with no explanation; do not run queries
+  or edit files. Checkout logs to Loki in prod as JSON lines with a numeric status
+  field, on streams labelled app and env. Detect whether the current five minutes of
+  5xx log volume surged against the preceding hour. Write, labelled 1 and 2: (1) the
+  current-window 5xx count aggregated by app; (2) the preceding-hour baseline for the
+  same population, aligned so the two can be compared bucket by bucket.
+success_criteria:
+  - Uses complete fixed buckets with a trailing baseline that excludes the candidate window.
+graders:
+  - type: regex
+    pattern: 'count_over_time'
+  - type: regex
+    pattern: '__error__'
+  - type: regex
+    pattern: 'offset\s+'
+  - type: not_regex
+    pattern: 'or\s+on\(\)\s*vector\(0\)'

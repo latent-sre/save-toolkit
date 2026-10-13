@@ -1,0 +1,25 @@
+id: obs-alerting-splunk-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-alerting
+tools: [Skill, Read]
+references:
+  - skills/obs-alerting/references/splunk-alerting.md
+prompt: |
+  Read the Splunk-alerting reference. Write the savedsearches.conf snippet and the
+  short answer labelled A, with no other explanation; do not run queries or edit files.
+  Configure a scheduled Splunk alert that runs every five minutes over complete
+  windows, throttles repeat actions per service and alert type for thirty minutes,
+  and posts results to a webhook. A: what must be configured before that webhook
+  action is safe to enable, and why?
+success_criteria:
+  - Schedules complete windows, scopes throttling per service, and gates the webhook behind its allowlist.
+graders:
+  - type: regex
+    pattern: 'cron_schedule'
+  - type: regex
+    pattern: 'alert\.suppress\.fields'
+  - type: regex
+    pattern: 'allowlist'
+  - type: regex
+    pattern: '(?i)enable_allowlist\s*=\s*false|ships as `?false|allowlist[^\n]{0,30}(off|disabled|false)'

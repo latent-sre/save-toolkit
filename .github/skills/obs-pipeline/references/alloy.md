@@ -8,7 +8,7 @@ build's reference before use.
 ## Contents
 
 - The configuration model
-- Pipeline shapes (adapt labels/endpoints to the environment)
+- Pipeline shapes
 - Discipline that stays regardless of syntax
 - Debugging a running Alloy
 - Backpressure and loss — where data quietly dies
@@ -29,78 +29,13 @@ chain with `forward_to = [<component>.receiver]`, while `otelcol.*` components c
 `discovery.relabel` exports `.output` (targets), `prometheus.relabel` exports `.receiver`
 (samples) — mixing those two up is the classic wiring error. *[sourced: component reference pages]*
 
-## Pipeline shapes (adapt labels/endpoints to the environment)
+## Pipeline shapes
 
-**Logs — file/journal → process → Loki** *[sourced: tutorials/logs-and-relabeling-basics; reference/components/loki/*]*
+Build each route from the wiring rules above (file/journal or discovery inputs, signal-specific
+processing, one exporter per destination); adapt labels and endpoints to the environment.
 
-```alloy
-local.file_match "applogs" {
-    path_targets = [{"__path__" = "/var/log/app/*.log"}]
-}
-
-loki.source.file "local_files" {
-    targets    = local.file_match.applogs.targets
-    forward_to = [loki.process.enrich.receiver]
-}
-
-loki.process "enrich" {
-  forward_to = [loki.write.default.receiver]
-  stage.json   { expressions = { "extracted_env" = "environment" } }
-  stage.labels { values = { "env" = "extracted_env" } }
-}
-
-loki.write "default" {
-    endpoint { url = "http://<loki>:3100/loki/api/v1/push" }
-}
-```
-
-**Metrics — discovery → scrape → Mimir remote_write** *[sourced: collect/prometheus-metrics; reference/components/prometheus/prometheus.remote_write]*
-
-```alloy
-prometheus.scrape "apps" {
-  targets    = discovery.relabel.apps.output
-  forward_to = [prometheus.remote_write.mimir.receiver]
-}
-
-prometheus.remote_write "mimir" {
-  endpoint {
-    url = "http://<mimir>:9009/api/v1/push"
-  }
-}
-```
-
-**OTLP (traces/metrics/logs) — receive → batch → export** *[sourced: collect/opentelemetry-data]*
-
-The endpoint must accept every connected signal, directly or through a gateway.
-For direct self-managed LGTM ingestion, use [per-signal exporters](https://grafana.com/docs/alloy/latest/collect/opentelemetry-to-lgtm-stack/);
-pointing this shared exporter at a trace-only backend will not deliver logs or metrics.
-
-```alloy
-otelcol.receiver.otlp "default" {
-  grpc { endpoint = "127.0.0.1:4317" }
-  http { endpoint = "127.0.0.1:4318" }
-  output {
-    traces  = [otelcol.processor.batch.default.input]
-    metrics = [otelcol.processor.batch.default.input]
-    logs    = [otelcol.processor.batch.default.input]
-  }
-}
-
-otelcol.processor.batch "default" {
-  output {
-    traces  = [otelcol.exporter.otlp.default.input]
-    metrics = [otelcol.exporter.otlp.default.input]
-    logs    = [otelcol.exporter.otlp.default.input]
-  }
-}
-
-otelcol.exporter.otlp "default" {
-  client { endpoint = "<otlp-backend>:4317" }
-}
-```
-
-To send that same three-signal pipeline to Google's Telemetry API, replace the generic
-`otelcol.exporter.otlp "default"` block above with this block. The current Grafana Google-auth
+To send a three-signal OTLP pipeline to Google's Telemetry API, replace the generic
+`otelcol.exporter.otlp` exporter block with this block. The current Grafana Google-auth
 example omits the port, while the OTLP exporter contract requires `host:port`; this example follows
 that contract and uses the gRPC TLS port:
 
@@ -143,9 +78,6 @@ and [Alloy v1.18.1 registration](https://github.com/grafana/alloy/blob/v1.18.1/i
 
 ## Debugging a running Alloy
 
-- HTTP server with a **debugging UI at `/`**, default `127.0.0.1:12345`
-  (`--server.http.listen-addr`); endpoints `/metrics`, `/-/ready`, `/-/healthy`, `/-/reload`,
-  `/-/support` (support bundle). *[sourced: troubleshoot/debug; reference/http]*
 - **`alloy validate <config>`** is a documented CLI command (alongside `run`, `fmt`, `convert`) —
   validate before any `/-/reload`. It is not allowed by the read-only guard: validation resolves
   `import.http` and `import.git`, so an untrusted config can initiate outbound requests (including
@@ -171,28 +103,12 @@ and [Alloy v1.18.1 registration](https://github.com/grafana/alloy/blob/v1.18.1/i
   DNS, TCP, TLS, authentication, or telemetry delivery. *[sourced: [Alloy validate](https://grafana.com/docs/alloy/latest/reference/cli/validate/);
   [Docker bind mounts](https://docs.docker.com/engine/storage/bind-mounts/), checked 2026-10-02;
   exact image/config execution remains unverified]*
-- **Live debugging** (per-component data stream in the UI) is disabled by default "to avoid
-  accidentally displaying sensitive telemetry data"; enable deliberately, in non-prod first:
-
-  ```alloy
-  livedebugging { enabled = true }
-  ```
-
-  *[sourced: reference/config-blocks/livedebugging]*
-- Clustering: `clustering { enabled = true }` inside `prometheus.scrape` distributes targets by
-  consistent hashing; assumes identical config on every peer, and cluster CLI flags are fixed at
-  startup — `/-/reload` does not change membership. *[sourced: get-started/clustering]*
-
 ## Backpressure and loss — where data quietly dies
 
 - **`prometheus.remote_write`** buffers in a WAL: defaults `truncate_frequency = "2h"`,
   `min_keepalive_time = "5m"`, `max_keepalive_time = "8h"`. An unreachable endpoint grows disk
   until truncation, and samples older than max keepalive are force-purged — an outage longer than
   ~8h loses the tail silently. *[sourced: reference/components/prometheus/prometheus.remote_write]*
-- Its **`queue_config`** defaults: `capacity` 10000 samples per shard, `max_shards` 50,
-  `max_samples_per_send` 2000, `batch_send_deadline` `"5s"`. When every shard is full, new samples
-  are not read from the WAL, so a slow endpoint shows as WAL growth.
-  *[sourced: reference/components/prometheus/prometheus.remote_write]*
 - **`loki.write`** retries with backoff (defaults: 500ms → 5m, 10 retries, retry on 429) and then
   **drops the batch**, logging "final error sending batch, no retries left, dropping data" — that
   log line is the loss evidence to grep for. *[sourced: loki write client source]*

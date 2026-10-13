@@ -18,14 +18,11 @@ guess into evidence.
 
 - [Execution boundaries](#who-runs-a-catalog-entry)
 - [Entry fields](#entry-shape)
-- [Contribute](#contribute-an-entry)
 - [Error onset](#which-errors-started-at-the-same-time-as-the-impact)
 - [Deploy error rate](#did-error-rate-change-across-the-deploy)
 - [Request path](#where-did-one-request-fail-across-services)
 - [Caller load](#which-callers-are-driving-the-current-load)
 - [Akamai edge and cache](#is-the-akamai-edge-failing-or-missing-cache-for-one-hostname-or-region)
-- [Loki: no cataloged entries](#loki-logql)
-- [Metrics: companion pointers only](#metrics-promql-and-wql)
 
 ## Who runs a catalog entry
 
@@ -42,36 +39,7 @@ permission to persist results, modify saved searches, or run a query with other 
 
 ## Entry shape
 
-Use the question as the entry heading, followed by the metadata fields below and the query block.
-
-| Field | Meaning |
-|---|---|
-| **Question** | What a responder wants to know, in plain English. This is the lookup key. |
-| **Applies to** | Service, environment, or signal the query is valid for. |
-| **Reads as** | What the columns mean, so pasted output can be interpreted. |
-| **Healthy looks like** | The result shape when nothing is wrong — the comparison that makes an unhealthy result legible. |
-| **Owner** | Named human or team role accountable for the entry. |
-| **Verified** | `[verified] <date> by <role>`, or `[unverified]` with what is untested. |
-| **Query** | The final code block, with `<placeholders>` for every inventory value. |
-
-## Contribute an entry
-
-Copy this template into this catalog, fill every field, and open a PR. No new skill is needed;
-review checks the entry shape, target assumptions, and safety rules.
-
-````markdown
-### <the question, phrased as a responder would ask it>
-
-- **Applies to:** <service / environment / signal>
-- **Reads as:** <what the output columns mean>
-- **Healthy looks like:** <the result when nothing is wrong>
-- **Owner:** <role>
-- **Verified:** [unverified]
-
-```spl
-<the query, with <placeholders> for inventory values>
-```
-````
+Use the question as the entry heading, followed by Applies to, Reads as, Healthy looks like, Owner, Verified, and the query block with `<placeholders>` for every inventory value.
 
 ## Splunk (SPL)
 
@@ -102,18 +70,9 @@ when the question requires quiet periods and a trailing baseline.
 - **Owner:** `<service on-call>`
 - **Verified:** [unverified: target index, status field, and deploy-epoch substitution]
 
-```spl
-index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<before_start_epoch> latest=<after_end_epoch>
-| eval phase=if(_time < <deploy_epoch>, "before", "after")
-| eval status=if(match(status, "^[1-5][0-9]{2}$"), tonumber(status), null())
-| stats count(eval(status>=500 AND status<600)) AS errors, count AS total, count(status) AS classified by phase
-| eval error_rate=if(total>0 AND classified=total, errors/total, null())
-```
-
-Set the start and end equally far from the deploy epoch. Confirm population and coverage in both
-windows and one three-digit HTTP status per completion event. Missing or invalid status, including
-`0`, `700`, or fractional codes, leaves the rate null; no traffic or a missing phase is not healthy
-zero. `spl.md` owns the per-error-class variant and its phase-wide denominator.
+The query is owned by the Compare before vs after a deploy section of [SPL](./spl.md);
+use it with this entry's population. Missing or invalid status leaves the rate null; no traffic or
+a missing phase is not healthy zero.
 
 ### Where did one request fail across services?
 
@@ -183,12 +142,4 @@ scope. Check the `reqHost` value shape in one raw event before filtering on it (
 header). The `akamai-edge` skill's DataStream caveats apply: low-latency streams deliver less
 complete data, and delivery failures lose lines.
 
-## Loki (LogQL)
-
-No entries yet. Add them under this heading using the same shape; `logql.md` owns the dialect and
-`indexes.md` owns the stream selectors.
-
-## Metrics (PromQL and WQL)
-
-No entries yet. Metric searches belong to `obs-metrics`; add a pointer here only when a metric query
-is the natural companion to a log query above, and keep the query itself in the owning skill.
+Metric searches belong to `obs-metrics`; keep their queries in that skill, not here.

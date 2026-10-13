@@ -73,27 +73,18 @@ time series per value.
   stays singular, a unitless countable is pluralized (`system.paging.faults`,
   `system.network.packets`), and UpDownCounter names are never pluralized. *[sourced: semconv
   `general/naming`]*
-  ```
-  ✅  http.server.request.duration     unit: s     <- an OTel instrument name
-  ❌  http_request_duration_seconds                <- an EXPORTER's rendering, not an OTel name
-  ```
 - **This lands natively on our stack.** Wavefront takes dot-delimited names + point tags
   (`app.http.requests.latency`) — the OTel shape, near-unchanged. Keep the bounded-tag discipline;
-  this section owns the emitted naming/tag contract.
-- *Portability note (the Mimir path):* a Prometheus-style exporter translates **for you, by default**
-  (`translation_strategy: UnderscoreEscapingWithSuffixes`) — dots → `_`, a unit suffix appended,
-  `_total` on monotonic sums; with Prometheus 3.x UTF-8 names, `NoTranslation` passes the dotted name
-  through instead. The exporter dedupes suffixes the name already carries, so pre-baking is not
-  applied twice — and it still breaks the OTel naming contract and every non-Prometheus rendering.
-  *[sourced: OTel spec `sdk_exporters/prometheus` and the Prometheus-compatibility spec]*
+  this section owns the emitted naming/tag contract. A Prometheus-style exporter translates dotted
+  names for you by default; do not pre-bake exporter suffixes into the OTel name.
 
 ## Build the evidence packet
 
 Return per boundary checked: target, UTC window, exact check/result, canary service ID (trace ID for
 traces), config revision and claim confidence. Name missing proof without inventing checks or broader
-coverage. Separate observed counters from interpretations. Minimize copied telemetry: redact
-credentials, tokens, secrets, personal data, and sensitive attribute values before any payload
-excerpt enters the packet; prefer an access-controlled link plus the smallest necessary excerpt.
+coverage. Separate observed counters from interpretations. Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or
+session values, and user identifiers before any excerpt enters the packet; prefer an
+access-controlled source link plus the smallest necessary excerpt. Also redact sensitive attribute values.
 Hand pipeline-config changes to the `observability-engineer` agent and app-side instrumentation
 changes to the `software-engineer` agent; if the missing signal is part of an active unknown-cause incident,
 hand the time-bounded evidence to the responder with `incident-investigation` (`sre-assistant` only for a
