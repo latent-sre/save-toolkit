@@ -25,8 +25,8 @@ why one file serves both targets.
 |---|---|
 | `name`, `description` | Both emitted. `name` is optional (VS Code falls back to the file name; GitHub marks it optional); `description` is the trigger and the chat-input placeholder |
 | `tools` | Tool or tool-set names — aliases below. Emitted, mapped from the Claude grant |
-| `agents` | Agent names available as subagents; `*` allows all, `[]` prevents any. Emitted from the same `Agent(...)` grant that feeds the delegation graph |
-| `handoffs` | Human-selected ownership transfer — **VS Code only**; explicitly *"not supported for Copilot cloud agent on GitHub.com"*. Emitted for the six lanes in `COPILOT_HANDOFFS_BY_SOURCE` |
+| `agents` | Agent names available as subagents; `*` allows all, `[]` prevents any. Emitted from the canonical `Agent(...)` grant. It scopes discovery on the observed host; deterministic invocation and nested-edge enforcement stay unverified until `RELEASE-001` observes a real allowed and forbidden call on the exact build |
+| `handoffs` | Human-selected ownership transfer — **VS Code only**; explicitly *"not supported for Copilot cloud agent on GitHub.com"*. Emitted for the six lanes in `COPILOT_HANDOFFS_BY_SOURCE`, independently of `Agent(...)` grants. A handoff is a user-selected context transition, not a subagent call, approval, or delegation authority; every write-capable receiver re-checks approval and target binding, and `researcher` is never a target because handoffs carry conversation context. Neither `agents:` nor `handoffs:` is a sandbox |
 | `argument-hint` | **VS Code only**; unsupported on Copilot cloud alongside `handoffs`. Not emitted on agents; the fleet uses it on all skills |
 | `model` | Single model name or a prioritized array. Unused — no fleet agent pins one; dated pins go stale silently |
 | `user-invocable` | Boolean, default `true`; `false` hides the agent from the chat dropdown. Unused — every fleet lane is meant to be reachable by the human SRE |
@@ -38,7 +38,7 @@ why one file serves both targets.
 | `infer` | **Retired** — replaced by `user-invocable` and `disable-model-invocation`. Never emit |
 
 Claude grants use full plugin names (`Agent(reviewer)`); the generator projects the
-same targets to bare Copilot names. The delegation-graph reference owns the edge list.
+same targets to bare Copilot names, removing only this plugin's namespace without widening the target set. The `AGENTS.md` roster owns the edge list.
 
 ## Handoff entries
 

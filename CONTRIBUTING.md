@@ -27,6 +27,19 @@ interpreter; activate that environment or use its full executable path. A bare `
 can select a different version on Windows; avoid the Store stub.
 `rg` hides generated projections through [`.ignore`](.ignore); pass `--no-ignore` to inspect them.
 
+### Changing a delegation or handoff edge
+
+A model-call edge `A → B` is the `Agent(save-toolkit:B)` grant in `agents/A.md`. Its one source is
+that grant, pinned by `EXPECTED_DELEGATION` in `scripts/validate_fleet.py` and rendered as the
+"Delegates to" column of the `AGENTS.md` roster; never re-tabulate edges elsewhere. Change all
+three in one commit, regenerate, then run Gate A: the source check, the roster render check, and
+the byte-for-byte adapter gate (Copilot `agents:`) must all pass.
+
+A VS Code handoff edge is separate and never alters an `Agent(...)` grant. Edit
+`COPILOT_HANDOFFS_BY_SOURCE` in `scripts/generate_platform_adapters.py`, update the exact
+source-target and authority assertions in `scripts/test_platform_adapters.py`, regenerate, and run
+those tests and Gate A. Keep `researcher` call-only and every handoff `send: true`.
+
 Python 3.12 is the minimum supported version for all repository Python, including installed
 hooks and bundled skill scripts. The structural CI job runs on the latest 3.12 patch.
 Development and component-test CI track the latest Python 3.14 patch; `.python-version` selects

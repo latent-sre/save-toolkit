@@ -22,7 +22,7 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 
 | Change or question | Source |
 |---|---|
-| Agents, tools, or delegation | [`agents/`](agents) and the [delegation graph](skills/agent-authoring/references/delegation-graph.md); `tools:` must be explicit — omission inherits every tool and Gate A rejects it |
+| Agents, tools, or delegation | [`agents/`](agents) and the [edge-change procedure](CONTRIBUTING.md#changing-a-delegation-or-handoff-edge); `tools:` must be explicit — omission inherits every tool and Gate A rejects it |
 | Agent or skill frontmatter | [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md); for the VS Code/Copilot projection, [`copilot-frontmatter.md`](skills/agent-authoring/references/copilot-frontmatter.md) |
 | Skills or the ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
 | A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder and can dispatch a bounded lookup or investigation to `sre-assistant` |
@@ -43,8 +43,8 @@ it before recommending or changing supported runtime, tooling, or infrastructure
 The last column is the Claude delegation graph, validated against each agent's frontmatter by
 Gate A. `Agent(...)` enforces an edge only on the main thread; at subagent depth the list is
 documented intent rather than a control — see the
-[delegation graph](skills/agent-authoring/references/delegation-graph.md). VS Code handoffs are
-separate.
+[frontmatter reference](skills/agent-authoring/references/claude-code-frontmatter.md#agents). VS Code
+handoffs are separate.
 
 | Agent | Lane | Tools posture | Delegates to |
 |---|---|---|---|

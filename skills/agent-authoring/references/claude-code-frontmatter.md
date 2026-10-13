@@ -38,8 +38,8 @@ The fleet's `PreToolUse` hook supplies its agent-specific command policy through
 
 Canonical plugin delegation grants use full names: `Agent(save-toolkit:reviewer, save-toolkit:scribe)`.
 Bare targets do not match plugin agent identities; the
-generator projects the same targets to bare Copilot names. The delegation-graph reference owns the
-probe boundary and the validator rejects unqualified or foreign-plugin grants.
+generator projects the same targets to bare Copilot names. The validator rejects unqualified or
+foreign-plugin grants.
 
 On native Windows, `PowerShell` is a separate shell tool and needs its own grant; `Bash` does not
 grant it. Availability depends on the host/provider configuration; see the [PowerShell tool](https://code.claude.com/docs/en/tools-reference#powershell-tool).

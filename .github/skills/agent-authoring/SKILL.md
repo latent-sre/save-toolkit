@@ -133,7 +133,7 @@ authorizes a self-modifying loop.
 | Task involves… | Read |
 |---|---|
 | A prompt, agent body, skill body, description, or grader | [artifact guidance](./references/artifact.md) |
-| Adding, removing, or checking a delegation edge | [the delegation graph](./references/delegation-graph.md) — one enforced source, validated host renders, and host-specific enforcement limits |
+| Adding, removing, or checking a delegation or handoff edge | [Claude Code frontmatter](./references/claude-code-frontmatter.md) for `Agent(...)` grants and their depth limit; [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) for `agents:` and `handoffs:`; the change procedure is in the repository's `CONTRIBUTING.md` |
 | Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
 | A cold-start packet, bounded evidence, receiving a helper's return, or clearing/replaying context | [context and handoffs](./references/context.md) |
 | Authoring or debugging any agent or skill frontmatter | [Claude Code frontmatter](./references/claude-code-frontmatter.md) — the single source of truth |
