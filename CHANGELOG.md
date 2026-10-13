@@ -21,6 +21,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   agent-engineer learning-loop scenario's correct approval choice is renamed
   `human_owner_exact_candidate_revision`, matching the human-owner promotion rule instead of the
   retired non-author framing; no live eval has been re-run against the renamed choice.
+  The roster reference is retired: agent bodies already carry the handoff return core and their own
+  verifiers, and AGENTS.md the roster and learning rules. Its coordination method, lane-verifier
+  rule, and wrapper-layer failures move into `SKILL.md` rules 3 and 5; the subagent model
+  resolution order joins the frontmatter reference's `model` row.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a

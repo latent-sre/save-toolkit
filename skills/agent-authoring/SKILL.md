@@ -100,6 +100,14 @@ read the descriptions (not bodies) of `skills/*/SKILL.md`. If one owns the capab
 with a reference. Otherwise the new description needs a trigger no existing description claims,
 reciprocal "Not for" lines on both sides, and the listing-size delta stated in the PR.
 
+Routing and live coordination stay in the main session. When multi-agent is justified, the default
+is orchestrator–workers: the caller owns plan and synthesis; workers get bounded mandates, separate
+context slices, and explicit write ownership. Choose coordination from dependencies — a pipeline
+when one stage consumes another's output; fan-out with parent synthesis that reconciles rather than
+concatenates for independent slices; a barrier only where the next decision needs every input;
+adversarial review judged by evidence, not votes, for a consequential conclusion; a bounded
+discovery loop with time/cost and round limits set first when the amount of work is unknown.
+
 **4. Which graph.**
 
 | Request | Is | Owner |
@@ -111,7 +119,12 @@ reciprocal "Not for" lines on both sides, and the listing-size delta stated in t
 **5. Loop Engineering** — the bounded gather/action/verify/repeat contract inside a lane: entry
 state, verifier, iteration/candidate/cost/time budget, success and no-progress termination, safety
 stop, promotion authority, durable evidence. Prompt/skill loop: [artifact
-guidance](./references/artifact.md). Lane or system loop: [roster guidance](./references/roster.md).
+guidance](./references/artifact.md). Lane loop: name the verifier before the work; a lane without
+one can only emit [unverified] claims, and a graph edge never substitutes for it. Before blaming the
+model, bisect the wrapper layers: an agent's own assertion read back as fact (user corrections
+outrank self-reports; no agent promotes its own claim), a required tool skipped because only prose
+mandates it (gate it in the harness), and a hidden repair, retry, or summarize pass between
+generation and delivery (make it an explicit contract or remove it).
 `operational-learning` closes operations knowledge after work; it never optimizes prompts or
 authorizes a self-modifying loop.
 
@@ -120,7 +133,6 @@ authorizes a self-modifying loop.
 | Task involves… | Read |
 |---|---|
 | A prompt, agent body, skill body, description, or grader | [artifact guidance](./references/artifact.md) |
-| "Agent or skill?", delegation, fan-out, orchestration | [roster guidance](./references/roster.md) |
 | Adding, removing, or checking a delegation edge | [the delegation graph](./references/delegation-graph.md) — one enforced source, validated host renders, and host-specific enforcement limits |
 | Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
 | A cold-start packet or bounded evidence | [context guidance](./references/context.md) |

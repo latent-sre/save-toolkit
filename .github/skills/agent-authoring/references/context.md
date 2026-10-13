@@ -22,7 +22,7 @@ easiest places to silently upgrade a label.
 Thin agent bodies, on-demand detail, isolated bounded work, and compact evidence packets keep
 context deliberate; apply them before reaching for a bigger model or a longer prompt. Send a
 cold-start packet, not a transcript: invoking caller and human owner separately, intent, source/state,
-success criteria, scope, source trust, unknowns and [return fields](./roster.md#handoffs-between-contexts). Preserve
+success criteria, scope, source trust, unknowns and the return fields the receiver's agent body defines. Preserve
 targets, windows, observed values and [verified], [sourced], [unverified], [UNTRUSTED] markers.
 Preserve the verified subject, method, source and time. Reading export E verifies its bytes;
 `[sourced] export E reports 4/4 at 09:40` does not verify current health. Missing chronology or state

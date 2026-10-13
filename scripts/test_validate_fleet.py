@@ -464,7 +464,6 @@ class FleetValidatorTests(unittest.TestCase):
             Path("agents/reviewer.md"),
             Path("skills/agent-authoring/SKILL.md"),
             Path("skills/agent-authoring/references/artifact.md"),
-            Path("skills/agent-authoring/references/roster.md"),
             Path("skills/agent-authoring/references/agent-security.md"),
         )
         for relative in active_fleet_contracts:
