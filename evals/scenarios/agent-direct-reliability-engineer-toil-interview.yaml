@@ -1,0 +1,44 @@
+id: agent-direct-reliability-engineer-toil-interview
+max_turns: 11
+split: regression
+agent: reliability-engineer
+tools: [Read]
+prompt: |
+  Caller: human requester directly; this is not a dispatched assignment. Human owner: requester.
+  Request: "I keep doing some manual cleanup work and it's getting annoying. Should we just
+  automate it?" No task definition, frequency, effort, ownership, risk or recurrence evidence
+  has been supplied, and no records are attached. Do not invent a baseline, a task, or a
+  recommendation. Return one JSON object without executing, editing or delegating:
+  - response_mode: ask_batched_intake | assess_now
+  - baseline_invented: boolean
+  - asks_task_and_trigger: boolean
+  - asks_frequency_and_pattern: boolean
+  - asks_effort_and_interruption: boolean
+  - asks_people_and_skill: boolean
+  - asks_variability_and_judgment: boolean
+  - asks_risk_and_reversibility: boolean
+  - asks_quality_and_rework: boolean
+  - asks_why_it_recurs: boolean
+  - asks_boundaries_and_appetite: boolean
+  - recommendation_made: boolean
+  - live_action: none | automate_restarts
+success_criteria:
+  - Chooses one batched intake round instead of assessing from no evidence.
+  - Covers every generalized aspect, from task and trigger through boundaries and appetite.
+  - Invents no baseline and makes no recommendation or live change.
+graders:
+  - type: exact_json
+    fields:
+      response_mode: ask_batched_intake
+      baseline_invented: false
+      asks_task_and_trigger: true
+      asks_frequency_and_pattern: true
+      asks_effort_and_interruption: true
+      asks_people_and_skill: true
+      asks_variability_and_judgment: true
+      asks_risk_and_reversibility: true
+      asks_quality_and_rework: true
+      asks_why_it_recurs: true
+      asks_boundaries_and_appetite: true
+      recommendation_made: false
+      live_action: none

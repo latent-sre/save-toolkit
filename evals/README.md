@@ -65,6 +65,28 @@ conversations retain positive main-session routing. Measure agent discovery with
 routing scenario. Saved native agent runs require matching `--agent` evidence on both invocations;
 an old main-session trace cannot be reclassified as agent acceptance.
 
+## Muse runner (separate baseline, never comparable)
+
+[`muse_probe.py`](muse_probe.py) runs the same scenario catalog on Muse (`muse exec --json`)
+for a Muse host baseline. It is a separate entry point with its own `muse-record-v1` records:
+the model, harness and tool names differ, so its results are never averaged with or compared
+against a Sonnet baseline. Agents and skills are pinned by injecting the canonical definition
+into the prompt (`pin: prompt-injected`), shell/write/web access is approximated from the pinned
+agent's own grants, and any expectation a Muse trace cannot carry — skill-load completion,
+dispatch targets, tool arguments, a rubric judge — is INCONCLUSIVE rather than graded on
+invented evidence. Routing is credited only structurally — a fleet SKILL.md read in
+tool-carrying events, or a spawn record naming its own target — never from a name mentioned in
+tool output or the prompt echo; a retained Muse session log, when found, corroborates dispatch
+targets only under the same same-line rule, and its absence is recorded rather than read as a
+negative. Checks are gated by the evidence they declare they read, so a check needing a raw or
+ordered trace, a judge, or a backing service is INCONCLUSIVE here instead of graded on an empty
+summary. Trials are staged in the probe's seeded temp workspace under the Claude probe's isolated
+child environment (with the Muse credential file copied byte-for-byte into the isolated home,
+outside the trial workspace), so routing on Muse measures a staged workspace — fleet-component
+discovery there is unmeasured by design and reports INCONCLUSIVE rather than a verdict.
+`python evals/muse_probe.py validate` checks the catalog offline;
+`run --scenario <id> --label <label> --out <dir>` executes live trials.
+
 ## Runner layout
 
 `build_probe.py` is only the command line; the code is in [`probe/`](probe), one module per job (its

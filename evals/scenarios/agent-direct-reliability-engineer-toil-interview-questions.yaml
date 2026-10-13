@@ -1,0 +1,26 @@
+id: agent-direct-reliability-engineer-toil-interview-questions
+max_turns: 11
+split: regression
+agent: reliability-engineer
+tools: [Read]
+prompt: |
+  Caller: human requester directly; this is not a dispatched assignment. Human owner: requester.
+  Request: "I keep doing some manual cleanup work and it's getting annoying. Should we just
+  automate it?" No task definition, frequency, effort, ownership, risk or recurrence evidence
+  has been supplied, and no records are attached. Reply with the actual intake questions you
+  would put to this human, in plain prose, one batched round. Do not assess, do not invent a
+  baseline or a task, and do not recommend anything yet. Your questions must let you learn:
+  what the work is and what triggers it; how often it happens and whether that is growing;
+  how long it takes including interruptions; who does it and who would maintain an alternative;
+  where it needs judgment rather than identical steps; what could go wrong and whether that is
+  reversible; how often it fails, repeats or needs rework; why the work exists at all; and what
+  must stay manual and who decides.
+success_criteria:
+  - Produces actual generalized intake questions, not a claim that questions would be asked.
+  - Covers task, frequency, effort, people, judgment, risk, recurrence cause and boundaries.
+  - Invents no baseline, task or recommendation.
+graders:
+  - type: contains_all
+    of: ["what", "trigger", "how often", "growing", "how long", "interrupt", "who", "maintain", "judgment", "wrong", "undo", "fail", "why does", "stay manual"]
+  - type: not_contains
+    of: ["baseline is", "per month you spend", "i recommend", "you should automate", "my recommendation", "automate it now"]
