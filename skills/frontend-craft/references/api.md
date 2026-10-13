@@ -18,9 +18,11 @@ Select the sections the app needs; read-only apps need no write helper or mutati
 
 ## Typed client
 
-Use the backend's OpenAPI document, committed as `docs/openapi.json` or fetched in CI from a
-pinned service revision. FastAPI normally exposes `/openapi.json`; check the Go generator's
-format (oapi-codegen supports 3.1; swag's stable line emits Swagger 2.0).
+Use the backend's canonical OpenAPI document. New services commit `openapi.json` at the service
+root; existing services keep their established format and location. A UI may commit a pinned
+consumer copy as `docs/openapi.json` or fetch it in CI from a pinned service revision; that copy
+does not become the service's source of truth. FastAPI normally exposes `/openapi.json`; check
+the Go generator's format (oapi-codegen supports 3.1; swag's stable line emits Swagger 2.0).
 
 Generate `src/api/schema.d.ts` with `openapi-typescript`, commit it and fail CI if regeneration
 differs. `openapi-fetch` provides typed calls; `openapi-react-query` adds TanStack Query
@@ -102,11 +104,13 @@ history. For cross-tab sharing, BroadcastChannel and Web Locks can elect one con
 
 ## Sessions
 
-Reuse the backend's auth flow. For a new corporate SSO flow, use OIDC Authorization Code with
-PKCE through a backend-for-frontend: server-side tokens and a `Secure`, `HttpOnly`,
-`SameSite` session cookie. Sensitive flows get a `reviewer` pass. If JavaScript must hold a
-bearer token, keep it in memory, never storage or URLs; refresh a `401` once and replay only
-when safe.
+Reuse the backend's auth flow. Corporate SSO does not settle the provider, protocol or browser
+session contract; resolve those from the actual integration before implementing a new flow.
+When that contract uses OIDC Authorization Code with PKCE through a backend-for-frontend,
+keep tokens server-side and use a `Secure`, `HttpOnly`, `SameSite` session cookie. Carry the
+actual session and CSRF contract into the UI. Sensitive flows get a `reviewer` pass. If
+JavaScript must hold a bearer token, keep it in memory, never storage or URLs; refresh a `401`
+once and replay only when safe.
 
 Logout or identity change cancels requests, closes streams and clears/replaces the affected
 cache. Notify other tabs through BroadcastChannel; identity-scoped keys prevent late responses

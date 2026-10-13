@@ -1,0 +1,73 @@
+--- a/app/package.json
++++ b/app/package.json
+@@ -11,7 +11,9 @@
+     "test": "vitest run",
+     "build": "vite build",
+     "serve": "node server.mjs",
+-    "verify:serving": "node --test serving-contract.mjs"
++    "verify:serving": "node --test serving-contract.mjs",
++    "verify:styles": "node release-style-check.mjs",
++    "verify": "npm run typecheck && npm run lint && npm test && npm run build && npm run verify:serving && npm run verify:styles"
+   },
+   "dependencies": {
+     "@fontsource/ibm-plex-mono": "5.3.0",
+--- a/app/README.md
++++ b/app/README.md
+@@ -7,26 +7,24 @@
+ ```powershell
+ npm ci
+ npm run generate
+-npm run typecheck
+-npm run lint
+-npm test
+ npm run build
+ npm run serve
+ ```
+ 
+ The built app is at `http://127.0.0.1:8766`; the existing backend must already run at `http://127.0.0.1:8765`. `npm run dev` uses Vite with the same loopback port and API proxy, so stop the built server first when using development mode. The native Node server serves deep links, refuses missing assets, forwards the backend cookie/error/correlation headers, and supplies CSP plus static cache controls. The fake session cookie stays HttpOnly and is never read or persisted by application JavaScript.
+ 
+-To run served-release checks:
++With that server and the backend running, use a second terminal in this directory for normal verification:
+ 
+ ```powershell
+ $env:BASE_URL='http://127.0.0.1:8766'
+ $env:API_PREFIX='/v1/'
+-npm run verify:serving
+-node release-style-check.mjs
++npm run verify
+ ```
++
++`verify` runs typecheck, lint, all component tests (including login/logout heading focus), a fresh build, served-release contracts, and the CSS regression check, stopping on failure. The running server reads this directory's rebuilt `dist`; point `BASE_URL` at that server. The CSS check catches the known loss of compiled theme and layout rules and checks MIME/cache headers. Targeted reruns remain available as `npm run verify:serving` and `npm run verify:styles`; both use `BASE_URL`. Runtime-configuration verification is skipped because this fixture has no runtime configuration endpoint.
+ 
+ `node live-http-check.mjs` runs a real backend journey through the served proxy and adds one explicitly labelled verification note to `svc035`. It does not reset the fixture. Browser evaluation can load the app-local `/axe.min.js`; it is not loaded by the app's normal workflow. No Playwright package or browser download is required.
+ 
+-The component suite uses Vitest, MSW 3 and Testing Library, including axe semantic checks. jsdom does not establish rendered contrast or responsive layout. Browser screenshots, keyboard interaction, light/dark contrast, and 320px layout are independently verified by the parent through its Playwright MCP server.
++The component suite uses Vitest, MSW 3 and Testing Library, including axe semantic checks. After changes affecting the interface, the invoking agent also uses its host Playwright MCP server to inspect the served build: screenshots, keyboard navigation and focus, light/dark contrast, and 320px layout. Record those results separately; `npm run verify` does not perform browser verification, and jsdom or CSS rule presence cannot establish rendered contrast or responsive layout. The previous browser trial's evidence is in `../browser-evidence/`.
+ 
+ See `DESIGN-BRIEF.md` for the identity and `HANDOFF.md` for decisions, evidence, dependencies and limitations. The dependency and verification receipts are in `receipts/`.
+--- a/app/release-style-check.mjs
++++ b/app/release-style-check.mjs
+@@ -1,9 +1,10 @@
+ import assert from 'node:assert/strict';
+-const origin = 'http://127.0.0.1:8766';
++const origin = process.env.BASE_URL;
++assert.ok(origin, 'Set BASE_URL to the served build, as for verify:serving.');
+ const html = await fetch(origin).then((r) => r.text());
+ const match = html.match(/href="(\/assets\/[^" ]+\.css)"/);
+ assert.ok(match, 'A compiled stylesheet must be linked from the served release.');
+-const response = await fetch(origin + match[1]);
++const response = await fetch(new URL(match[1], origin));
+ assert.equal(response.status, 200);
+ assert.match(response.headers.get('content-type'), /text\/css/);
+ const css = await response.text();
+--- a/app/HANDOFF.md
++++ b/app/HANDOFF.md
+@@ -30,6 +30,8 @@
+ 
+ ## Verification and first-attempt correction
+ 
++[verified] Verification wiring follow-up: `npm run verify` now runs typecheck, lint, component tests, build, served-release contracts, and the CSS regression check together. The full run passed; `receipts/verify-wiring-20261013.txt` records the output. Both served checks use `BASE_URL`; server prerequisites and the separate host Playwright MCP handoff are in `README.md`. The original trial snapshots and failure receipts remain historical evidence.
++
+ [verified] Typecheck and type-aware lint pass. Sixteen Vitest contract/component checks pass: backend validation mapping, safe gateway errors/correlation, same-key waits and genuine conflicts, cursor dedup and server filter parameters, safe API text/link rendering, ownership reveal and UTC, viewer/editor isolation, preserved 422 drafts with intent keys, detail 403 containment, stale refresh retention, pending duplicate controls, unknown-write reconciliation, session expiry, auth navigation heading focus, and semantic axe checks on sign-in/overview/notes.
+ 
+ [verified] Seventeen real HTTP requests through the production proxy passed: cookie login/session/logout, paging and filters, empty catalog, detail read, persisted note, idempotent replay and changed-intent conflict, and viewer write rejection. This added one labelled sample note to `svc035`; the parent may reset fixtures as evaluation owner. `receipts/live-http.json` preserves status/correlation evidence without cookie values.

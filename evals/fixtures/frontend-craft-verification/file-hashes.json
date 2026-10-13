@@ -1,0 +1,22 @@
+{
+  "package.json": {
+    "before_sha256": "40f196a8d7376c598434f65da3e2517c8d04f398d0e67adeb48645d5998502e3",
+    "after_sha256": "b1a211ea92cabb0af916a5b4257f567f4fcefb858e3311a020132d2d338eabda",
+    "after_lf_sha256": "b1a211ea92cabb0af916a5b4257f567f4fcefb858e3311a020132d2d338eabda"
+  },
+  "README.md": {
+    "before_sha256": "a8bd58ad86e4bd7b7575667801c73d103636a1be335e91006390976cee752f3c",
+    "after_sha256": "b0f7ee33674c8474e2577c13312184644102ed2ac6f394f4a7b6e65f227f7022",
+    "after_lf_sha256": "b0f7ee33674c8474e2577c13312184644102ed2ac6f394f4a7b6e65f227f7022"
+  },
+  "release-style-check.mjs": {
+    "before_sha256": "3648a763d5aac9b51559d0f0556d2ed3cfdbef42b08568da29adaf70f3bf130e",
+    "after_sha256": "3e816dd21cb9701c49c66c70ee70c041da2dbcc33d8e43777fbef312d6ea7944",
+    "after_lf_sha256": "3e816dd21cb9701c49c66c70ee70c041da2dbcc33d8e43777fbef312d6ea7944"
+  },
+  "HANDOFF.md": {
+    "before_sha256": "94be8ab7665fe363debfe2b91d2c5b840b32851a274e5b7911d64be92146d6f4",
+    "after_sha256": "540e74d66d0cd3ac15177dc1596565c10048134f57fe14253eecc70f5575f97c",
+    "after_lf_sha256": "f0c5f5ae1c908b5bebc7aaaa7111d901593ecb8d1ef1c373f9d59dc53a12d5f2"
+  }
+}
