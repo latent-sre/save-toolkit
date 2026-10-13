@@ -30,11 +30,12 @@ owner per rule and never duplicate a rule in both paths.
 - **Recovery threshold** is hysteresis from the query side: a rule that fires above 1000 ms and
   recovers only below 900 ms cannot oscillate on a value hovering at 1000. Set it on every noisy
   latency or ratio rule; leave it off a step-function signal.
-- **No-data and execution-error states** (`noDataState`, `execErrState`) are a decision per rule:
-  for a paging burn-rate rule, silent telemetry mapped to Normal is the false all-clear, and an
-  erroring query mapped to Normal disarms the alert invisibly. In file-provisioning YAML "Normal"
-  is spelled `OK`. `KeepLast` preserves the previous state; it does not establish current health.
-  Literal UI labels `Normal` and `Keep Last State` are invalid provisioning values.
+- **No-data and execution-error states** are a decision per rule: for a paging burn-rate rule,
+  silent telemetry mapped to Normal is the false all-clear, and an erroring query mapped to Normal
+  disarms the alert invisibly. In file-provisioning YAML "Normal" is spelled `OK`
+  (`noDataState: NoData|Alerting|OK|KeepLast`, `execErrState: Error|Alerting|OK|KeepLast`).
+  `KeepLast` preserves the previous state; it does not establish current health. Literal UI labels
+  `Normal` and `Keep Last State` are invalid provisioning values.
 
 Review all four per rule; the defaults are not a decision.
 

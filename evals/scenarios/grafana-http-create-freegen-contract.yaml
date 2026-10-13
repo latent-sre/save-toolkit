@@ -1,4 +1,4 @@
-id: grafana-http-create-freegen-contract
+﻿id: grafana-http-create-freegen-contract
 max_turns: 17
 split: regression
 skill: grafana
@@ -26,3 +26,15 @@ graders:
     pattern: '/api/dashboards/db'
   - type: regex
     pattern: 'overwrite:\s*false|overwrite=false|"overwrite":\s*false'
+  - type: regex
+    pattern: 'generation'
+  - type: regex
+    pattern: '(?i)omit|leave out|do not send|must not send|not include|absent on'
+  - type: regex
+    pattern: '(?i)reconcil|fresh read|re-?read'
+  - type: regex
+    pattern: '\b200\b'
+  - type: not_regex
+    pattern: '(?im)^(?:(?!never|do not|don.t|must not|not )[^\n])*?(?:use|set|switch to|retry with|send|change to)\s+`?overwrite'':?\s*[:=]\s*`?true'
+  - type: not_regex
+    pattern: '(?im)^\s*C[:.].*overwrite\s*[:=]\s*true'

@@ -24,3 +24,9 @@ graders:
     pattern: '(?i)UNKNOWN|unknown outcome'
   - type: regex
     pattern: '__alert_rule_uid__'
+  - type: regex
+    pattern: '(?i)don.t[^.\n]*(re-?post|create|retry)|do not[^.\n]*(re-?post|create|retry|replay|redispatch)|never[^.\n]*(create|post|retry|redispatch)|must not[^.\n]*(create|post|retry)'
+  - type: regex
+    pattern: '(?i)reconcil|look for an? (active|pending)|identify whether|check[^.\n]*exist'
+  - type: not_regex
+    pattern: '(?i)immediately (post|create|retry|re-?post)'

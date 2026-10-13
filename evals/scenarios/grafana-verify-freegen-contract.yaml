@@ -19,8 +19,8 @@ graders:
   - type: regex
     pattern: '__rate_interval|rate.interval'
   - type: regex
-    pattern: '(?i)scrape interval|concrete window|substitut'
+    pattern: '(?i)scrape interval|concrete (window|duration|value)|substitut|collection cadence|at least four|four times'
   - type: regex
-    pattern: '(?i)stock|dimensions|1200'
+    pattern: '(?i)stock|dimensions|1200|width and height|requested (render )?size'
   - type: regex
-    pattern: '(?i)cannot be added|can.t be added|no,|not.*after|write.time|at write'
+    pattern: '(?i)cannot be added|can.t be added|no,|not.*after|write.time|at write|immutable|fixed when|new (save|version)'

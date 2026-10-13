@@ -27,3 +27,13 @@ graders:
     pattern: 'keepFiringFor\s*:'
   - type: not_regex
     pattern: '(?m)^\s*keep_firing_for\s*:'
+  - type: regex
+    pattern: '\bOK\b'
+  - type: regex
+    pattern: 'NoData'
+  - type: regex
+    pattern: '\bError\b'
+  - type: not_regex
+    pattern: '(?m)^\s*noDataState\s*:\s*(Normal|Keep Last State)\s*$'
+  - type: not_regex
+    pattern: '(?m)^\s*execErrState\s*:\s*(Normal|Keep Last State)\s*$'
