@@ -1,0 +1,189 @@
+id: build-python-library-selection-schema
+max_turns: 65
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Replace this reviewed, team-authored Python 3.12+ service's custom JSON Schema
+  interpreter with a suitable maintained library. Inspect the callers and offline
+  evidence before choosing: the contract is caller-supplied Draft 2020-12 JSON Schema,
+  not Python type annotations. Explain capability, maintenance/license, deployment
+  cost and evidence limits in your final report. A dependency is justified when it
+  removes this substantive machinery. Select from the pinned, already available
+  environment; do not install anything or use the network. Declare the direct chosen
+  dependency with its exact available pin in requirements.txt. If no available library
+  fits, report the blocker instead of inventing a substitute.
+  Preserve validation.validate_payload(schema, payload): validate the schema first,
+  return the identical valid payload, and raise exactly ValueError('invalid schema')
+  or ValueError('invalid payload') for the corresponding failure. Inputs are ordinary
+  decoded JSON values; never mutate the schema or payload. Support nested objects,
+  required/additionalProperties, arrays/items, allOf/anyOf/oneOf/not, enum/const,
+  numeric and string bounds, and local #/$defs references. Task inputs contain only
+  local references; no remote retrieval or network is required or allowed. JSON
+  Schema integers exclude booleans and accept integral floats. Retire the custom
+  interpreter from validation.py rather than wrapping it with a ceremonial package call.
+  Keep api.submit(schema, payload) and batch.load(schema, payloads) delegating at
+  runtime to validation.validate_payload, so replacing that public owner changes
+  both callers, without duplicate checks before or after it. Preserve batch order.
+  Add meaningful standard-library unittest tests under tests/ and run
+  python -m unittest discover -s tests -t . as your final foreground shell command
+  after all edits, without piping or backgrounding it. Report verification and gaps.
+  Only change validation.py, api.py, batch.py, requirements.txt and tests/.
+  No installs, network, commits or external systems. Do not edit evidence or README.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    README.md: |
+      # Schema gateway
+      The API and batch gateway accept arbitrary caller-supplied Draft 2020-12 schemas
+      and decoded JSON payloads. Only local references are in scope for this task.
+      validation.validate_payload is the public policy owner. It returns the original
+      valid object and normalizes invalid schema/payload errors to the messages in the
+      task. The custom interpreter is costly and incomplete; replace it, preserving
+      callers. No dependency installation is permitted in this offline workspace.
+    requirements.txt: ""
+    evidence/library-notes.md: |
+      # Offline selection evidence, retrieved 2026-10-12
+      [sourced, documented contract] Context7 official documentation describes
+      jsonschema's validate, validator check_schema and iter_errors APIs for validating
+      raw JSON schemas/instances. The Context7 page is unversioned; the official
+      versioned page confirms the APIs for 4.26.0:
+      https://python-jsonschema.readthedocs.io/en/v4.26.0/validate/
+      [sourced, upstream metadata] GitHits fetched jsonschema v4.26.0 pyproject.toml,
+      commit a7277432b0f7bcd0551f6e589d30457017125df4: MIT; Python >=3.10;
+      dependencies attrs>=22.2.0, jsonschema-specifications>=2023.03.6,
+      referencing>=0.28.4, rpds-py>=0.25.0. This is package metadata, not an advisory audit.
+      https://github.com/python-jsonschema/jsonschema/blob/v4.26.0/pyproject.toml
+      [sourced, documented contract] Context7's Pydantic migration documentation
+      describes TypeAdapter validation of Python annotations and JSON Schema generation;
+      those capabilities do not establish interpretation of arbitrary raw JSON Schema.
+      https://github.com/pydantic/pydantic/blob/main/docs/migration.md
+      [verified, environment snapshot] jsonschema 4.26.0 and Pydantic 2.13.5 are installed.
+      Existing environment pins include their transitive dependencies. Declare only
+      the selected direct dependency in requirements.txt; do not duplicate environment
+      pins or install packages. These offline facts are supplied evidence, not fresh
+      external discovery by the candidate. Judge your choice against the actual contract.
+    validation.py: |
+      import re
+
+      TYPES = {"object": dict, "array": list, "string": str, "number": (int, float),
+               "integer": int, "boolean": bool, "null": type(None)}
+
+      def _check_schema(schema):
+          if isinstance(schema, bool):
+              return
+          if not isinstance(schema, dict):
+              raise ValueError("invalid schema")
+          kind = schema.get("type")
+          if kind is not None and kind not in TYPES:
+              raise ValueError("invalid schema")
+          for key in ("properties", "$defs"):
+              children = schema.get(key, {})
+              if not isinstance(children, dict):
+                  raise ValueError("invalid schema")
+              for child in children.values():
+                  _check_schema(child)
+          for key in ("items", "not", "additionalProperties"):
+              if key in schema:
+                  _check_schema(schema[key])
+          for key in ("allOf", "anyOf", "oneOf"):
+              if key in schema:
+                  if not isinstance(schema[key], list):
+                      raise ValueError("invalid schema")
+                  for child in schema[key]:
+                      _check_schema(child)
+          if "required" in schema and not isinstance(schema["required"], list):
+              raise ValueError("invalid schema")
+
+      def _matches(schema, value, root):
+          if isinstance(schema, bool):
+              return schema
+          if "$ref" in schema:
+              node = root
+              for part in schema["$ref"].removeprefix("#/").split("/"):
+                  node = node[part]
+              return _matches(node, value, root)
+          kind = schema.get("type")
+          if kind is not None and not isinstance(value, TYPES[kind]):
+              return False
+          if "const" in schema and value != schema["const"]:
+              return False
+          if "enum" in schema and value not in schema["enum"]:
+              return False
+          if isinstance(value, dict):
+              if any(name not in value for name in schema.get("required", [])):
+                  return False
+              properties = schema.get("properties", {})
+              for name, child in value.items():
+                  if not _matches(properties.get(name, schema.get("additionalProperties", True)), child, root):
+                      return False
+          if isinstance(value, list):
+              if len(value) < schema.get("minItems", 0):
+                  return False
+              if "maxItems" in schema and len(value) > schema["maxItems"]:
+                  return False
+              if not all(_matches(schema.get("items", True), item, root) for item in value):
+                  return False
+          if isinstance(value, (int, float)):
+              if "minimum" in schema and value < schema["minimum"]:
+                  return False
+              if "maximum" in schema and value > schema["maximum"]:
+                  return False
+          if isinstance(value, str):
+              if len(value) < schema.get("minLength", 0):
+                  return False
+              if "maxLength" in schema and len(value) > schema["maxLength"]:
+                  return False
+              if "pattern" in schema and re.search(schema["pattern"], value) is None:
+                  return False
+          if "allOf" in schema and not all(_matches(child, value, root) for child in schema["allOf"]):
+              return False
+          if "anyOf" in schema and not any(_matches(child, value, root) for child in schema["anyOf"]):
+              return False
+          if "oneOf" in schema and sum(_matches(child, value, root) for child in schema["oneOf"]) != 1:
+              return False
+          if "not" in schema and _matches(schema["not"], value, root):
+              return False
+          return True
+
+      def validate_payload(schema, payload):
+          _check_schema(schema)
+          if not _matches(schema, payload, schema):
+              raise ValueError("invalid payload")
+          return payload
+    api.py: |
+      import validation
+
+      def submit(schema, payload):
+          return validation.validate_payload(schema, payload)
+    batch.py: |
+      import validation
+
+      def load(schema, payloads):
+          return [validation.validate_payload(schema, payload) for payload in payloads]
+    tests/__init__.py: ""
+    tests/test_gateway.py: |
+      import unittest
+      import api
+      import batch
+
+      class GatewayTests(unittest.TestCase):
+          def test_order_and_identity(self):
+              schema = {"type": "object", "required": ["name"]}
+              payload = {"name": "gateway"}
+              self.assertIs(api.submit(schema, payload), payload)
+              self.assertEqual(batch.load(schema, [payload, payload]), [payload, payload])
+
+          def test_rejects_missing_name(self):
+              with self.assertRaisesRegex(ValueError, "^invalid payload$"):
+                  api.submit({"required": ["name"]}, {})
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft informed library selection"}
+  - {check: changes_within, allowed: [validation.py, api.py, batch.py, requirements.txt, tests/], text: "only gateway policy, callers, dependency declaration and tests changed"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: verification_completed, runner: unittest, text: "foreground unittest verification followed final edits"}
+  - check: command_exit_zero
+    failure_exit_code: 10
+    inconclusive_exit_code: 3
+    command: "python -I -B oracle_protocol.py _python_library_oracle.py schema"
+    writes_from: {_python_library_oracle.py: evals/oracles/python-craft/check_library_selection.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    text: "schema behavior, both caller seams and authoritative available library; selection rationale needs semantic review"

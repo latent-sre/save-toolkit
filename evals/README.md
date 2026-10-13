@@ -212,8 +212,8 @@ declare `failure_exit_code`, the code its oracle uses for a failed contract: the
 fails the candidate, and any other nonzero exit, such as the oracle's own uncaught exception, is an
 instrument failure that stops the scenario.
 
-The committed executable oracles use supervised completion: 101 commands across 41 cases
-(94 Python commands and seven UI commands) distinguish contract/candidate failures (exit 10)
+The committed executable oracles use supervised completion for Python and UI commands to
+distinguish contract/candidate failures (exit 10)
 from oracle failures or absent completion evidence (exit 1, INCONCLUSIVE). A successful process
 exit alone cannot establish completed assessment. The Python supervisor binds each receipt to
 its launch and tracks candidate execution, so a candidate's early exit cannot bypass remaining
@@ -269,8 +269,10 @@ untouched without requiring a cleanup inventory in the reply. The policy oracle 
 domain for every entrypoint, single ownership through the `policy.normalize_order` patch seam
 (a record the old rules reject must pass once the shared policy accepts it), exception identity,
 input immutability, six fresh-process import orders, and that the fixture suite stays green
-without losing assertions; eleven named partial-ownership and lost-consumer artifacts are
-rejected. It does not grade how the work was staged. Their shared
+and detects named normalization, validation, CLI-parsing, and batch-result regressions in
+disposable replays. Test counts alone do not establish assertion preservation; these bounded
+checks do not prove that every original assertion survives. Eleven named partial-ownership and
+lost-consumer artifacts are rejected. The oracle does not grade how the work was staged. Their shared
 [outcome oracle](oracles/python-craft/check_contracts.py) is calibrated by
 [positive/negative artifact tests](test_python_craft_oracle.py): correct implementations pass and
 named behavioral and structural counterexamples fail, including eager reads, adjacent duplicate loss, broken
@@ -308,7 +310,7 @@ Two additional build evaluations exercise implementation outcomes:
 
 | Evaluation | What its artifact checks establish |
 |---|---|
-| [New streaming CLI](build-scenarios/build-python-new-streaming-cli.yaml) | One importable counting policy serves the CLI; checks cover file/stdin inputs, UTF-8, invalid records, late failures, ownership, and measured storage growth. |
+| [New streaming CLI](build-scenarios/build-python-new-streaming-cli.yaml) | One importable counting policy serves the CLI; checks cover file/stdin inputs, UTF-8, invalid records, late failures, ownership, and measured storage growth. Candidate tests must also detect named counting, invalid-record, diagnostic-index, and CLI-failure regressions. |
 | [Indexed membership](build-scenarios/build-python-indexed-membership.yaml) | Measured searches fit a deterministic operation budget, preserving mapping inputs, lazy access, order, duplicates, identity, errors, and release of consumed rows. Candidate tests must pass and reject behavior-preserving linear-search and quadratic-construction regressions. |
 
 Their [new-code calibration](test_python_new_code_probe.py) and
@@ -329,6 +331,31 @@ returns the declared exit 3, making the native trial INCONCLUSIVE and requiring 
 These are bounded observations, not proofs of universal time or space complexity or adversarial
 attestation.
 
+Three further cases cover package refactoring and a bounded library choice:
+
+| Evaluation | What its artifact checks establish |
+|---|---|
+| [Installed package refactor](build-scenarios/build-python-package-refactor.yaml) | Both adapters use the extracted calculation; public imports, configured lookups, package data, numeric behavior and resource ownership survive. The fixture's release ZIP is built and extracted, then exercised outside the checkout with site packages disabled. Obsolete source and release entries must disappear. Candidate tests replay named ownership/error regressions. |
+| [Schema library selection](build-scenarios/build-python-library-selection-schema.yaml) | A maintained available JSON Schema implementation owns validation through both callers, preserving schema/payload errors and object identity. Controlled library behavior distinguishes real delegation from a ceremonial call around a custom interpreter. An unavailable pinned runtime makes the measurement INCONCLUSIVE. |
+| [CSV library selection](build-scenarios/build-python-library-selection-csv.yaml) | Genuine CSV quoting, exact decimal totals, one-pass ownership, bounded observed storage, late failures and the consumer work under the fixture's bare-interpreter deployment constraint. That constraint makes standard-library sufficiency a concrete decision for this case. |
+
+The [package calibration](test_python_package_refactor.py) and
+[library calibration](test_python_library_selection_oracle.py) exercise valid alternatives and
+named counterexamples, including candidate early exits and oracle failures. The package guarantee
+is specific to its existing ZIP release format; it does not establish wheel/build-backend behavior.
+Library candidate suites must also detect named identity, boolean/integer, exact-money and invalid-record
+regressions in disposable replays; these bounded checks do not establish universal test quality.
+The library pair uses supplied, versioned offline evidence and an already provisioned environment;
+it does not measure live package discovery, an advisory audit, or installation resolution.
+
+**Acceptance also needs semantic review:** for the refactor, inspect the ordered trace for consumer
+discovery and checks between meaningful migration steps; for library selection, assess the returned
+capability, compatibility, maintenance/license, deployment-cost and evidence-limit rationale against
+the fixture evidence. Final artifacts do not establish sequencing, and importing a package does not
+establish a sound choice. The automated checks do not score those judgments. The initial turn budgets
+are offline allowances, not measured completion guarantees. Fresh Sol artifact trials may inform
+calibration, but do not establish native Claude routing, tool grants, skill loading or trace checks.
+
 For an agreed native preflight, select each case separately and pin the model:
 
 ```bash
@@ -338,9 +365,12 @@ python evals/build_probe.py run --scenario build-python-indexed-membership --lab
 
 The new probes also require the agent's own final foreground unittest receipt; later shell actions
 can make that receipt inconclusive under the verification contract above. Artifact checks alone do
-not establish general test quality, broad design expertise, or skill-driven uplift. The indexed
-probe replays candidate tests against two cost regressions in disposable fixtures; this measures
-those tests' sensitivity to the requested improvement, not exhaustive coverage of every contract.
+not establish general test quality, broad design expertise, or skill-driven uplift. The new-code,
+policy, and indexed probes replay candidate tests against named regressions in disposable fixtures.
+Passing tests must reject those regressions through assertions; import/runtime errors, skips, or
+early exits cannot substitute for that evidence. The indexed probe's two mutants preserve behavior
+while regressing cost. These checks measure bounded test sensitivity, not exhaustive coverage of
+every contract or protection against a candidate deliberately attacking the evaluator.
 
 For a live Python-skill comparison, agree the native host/model, exact candidate, cases, repetitions,
 and cost cap first. Use matched disposable fixtures and the same builder, tools, prompt, and checks,

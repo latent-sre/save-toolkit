@@ -1,5 +1,6 @@
 """Calibrate the Python craft outcome oracles against correct and broken artifacts."""
 
+import ast
 import json
 import sys
 import tempfile
@@ -552,7 +553,8 @@ def _policy_unification_cases():
             '''}, "input mutated"),
         ("circular import", {"policy.py": "from api import submit\n" + policy_source}, "partially initialized module"),
         ("stale drift test kept", {"tests/test_cli.py": seed["tests/test_cli.py"]}, "fixture test suite failed"),
-        ("drift test deleted instead of updated", {"tests/test_cli.py": "import unittest\n"}, "fixture tests were removed"),
+        ("drift test deleted instead of updated", {"tests/test_cli.py": "import unittest\n"},
+         "candidate tests did not reject malformed CLI line accepted"),
     ]
 
 
@@ -589,6 +591,262 @@ def test_oracles_reject_candidate_system_exit_before_completion(mode, child_args
 ])
 def test_policy_unification_rejects_partial_ownership_and_lost_consumers(changes, diagnostic):
     assert_rejected("policy", {**CORRECT["policy"], **changes}, diagnostic)
+
+
+def _policy_with_empty_tests(names=None):
+    files = dict(CORRECT["policy"])
+    erased = 0
+    for name, source in files.items():
+        if name.startswith("tests/test_") and name.endswith(".py"):
+            tree = ast.parse(textwrap.dedent(source))
+            for node in ast.walk(tree):
+                if (
+                    isinstance(node, ast.FunctionDef)
+                    and node.name.startswith("test_")
+                    and (names is None or node.name in names)
+                ):
+                    node.body = [ast.Pass()]
+                    erased += 1
+            files[name] = ast.unparse(ast.fix_missing_locations(tree))
+    return files, erased
+
+
+def test_policy_rejects_suite_with_all_test_bodies_erased():
+    files, erased = _policy_with_empty_tests()
+    assert erased == 10
+    assert_rejected("policy", files, "candidate tests did not reject SKU normalization lost")
+
+
+@pytest.mark.parametrize(
+    "names,regression",
+    [
+        ({"test_normalizes_sku_and_keeps_values", "test_parses_one_line"}, "SKU normalization lost"),
+        ({"test_rejects_quantity_above_limit"}, "quantity upper bound removed"),
+        ({"test_rejects_bool_quantity"}, "boolean quantity accepted"),
+        ({"test_rejects_negative_price"}, "negative price accepted"),
+        ({"test_reports_malformed_line"}, "malformed CLI line accepted"),
+        ({"test_reports_non_integer_fields"}, "noninteger CLI fields accepted"),
+        ({"test_keeps_row_order"}, "batch row order reversed"),
+        ({"test_empty_input"}, "empty batch result changed"),
+    ],
+)
+def test_policy_rejects_suites_insensitive_to_each_named_regression(names, regression):
+    files, erased = _policy_with_empty_tests(names)
+    assert erased > 0
+    assert_rejected("policy", files, "candidate tests did not reject " + regression)
+
+
+@pytest.mark.parametrize(
+    "after_acceptance,diagnostic",
+    [
+        ("raise RuntimeError('regression runtime error')", "candidate tests did not reject boolean quantity accepted"),
+        ("import missing_policy_dependency", "candidate tests did not reject boolean quantity accepted"),
+        ("self.skipTest('regression skip')", "candidate tests did not reject boolean quantity accepted"),
+        ("raise SystemExit(0)", "candidate tests did not reject boolean quantity accepted"),
+        ("import os; os._exit(0)", "candidate tests exited without results"),
+    ],
+)
+def test_policy_does_not_count_runtime_errors_skips_or_exits_as_regression_assertions(after_acceptance, diagnostic):
+    files = dict(CORRECT["policy"])
+    source = textwrap.dedent(files["tests/test_api.py"])
+    call = 'api.submit({"sku": "ABC-1234", "quantity": True, "unit_cents": 1})'
+    files["tests/test_api.py"] = source.replace(call, call + "\n            " + after_acceptance, 1)
+    result = _run_supervised_policy(files)
+    assert result.returncode == 10, result.stderr
+    assert diagnostic in result.stderr
+
+
+def test_policy_accepts_reorganized_tests_and_alternative_assertion_syntax():
+    files = dict(CORRECT["policy"])
+    combined = []
+    for index, name in enumerate(("tests/test_api.py", "tests/test_cli.py", "tests/test_batch.py")):
+        tree = ast.parse(textwrap.dedent(files[name]))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                node.name = f"RewiredTests{index}"
+            elif isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
+                node.name = "test_reorganized_" + node.name.removeprefix("test_")
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                for position, statement in enumerate(node.body):
+                    if (
+                        isinstance(statement, ast.Expr)
+                        and isinstance(statement.value, ast.Call)
+                        and isinstance(statement.value.func, ast.Attribute)
+                        and statement.value.func.attr == "assertEqual"
+                    ):
+                        left, right = statement.value.args
+                        node.body[position] = ast.Assert(
+                            test=ast.Compare(left=left, ops=[ast.Eq()], comparators=[right]), msg=None
+                        )
+        combined.append(ast.unparse(ast.fix_missing_locations(tree)))
+        files[name] = "import unittest\n"
+    files["tests/test_reorganized.py"] = "\n".join(combined)
+    # A different correct implementation remains eligible as well as different
+    # test names, placement and assertion spelling.
+    files["batch.py"] = """
+        import policy
+        def load(rows):
+            result = []
+            for row in rows:
+                result.append(policy.normalize_order(row))
+            return result
+    """
+    result = run_artifact("policy", files)
+    assert result.returncode == 0, result.stderr
+
+
+def test_policy_accepts_assertions_regrouped_into_three_test_methods():
+    files = dict(CORRECT["policy"])
+    methods = 0
+    for name in ("tests/test_api.py", "tests/test_cli.py", "tests/test_batch.py"):
+        tree = ast.parse(textwrap.dedent(files[name]))
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef):
+                grouped = []
+                tests = [
+                    method
+                    for method in node.body
+                    if isinstance(method, ast.FunctionDef) and method.name.startswith("test_")
+                ]
+                for method in tests:
+                    grouped.append(
+                        ast.With(
+                            items=[
+                                ast.withitem(
+                                    context_expr=ast.Call(
+                                        func=ast.Attribute(
+                                            value=ast.Name(id="self", ctx=ast.Load()), attr="subTest", ctx=ast.Load()
+                                        ),
+                                        args=[],
+                                        keywords=[ast.keyword(arg="case", value=ast.Constant(value=method.name))],
+                                    )
+                                )
+                            ],
+                            body=method.body,
+                        )
+                    )
+                tests[0].name = "test_grouped_contracts"
+                tests[0].body = grouped
+                node.body = [tests[0]]
+                methods += 1
+        files[name] = ast.unparse(ast.fix_missing_locations(tree))
+    assert methods == 3
+    result = run_artifact("policy", files)
+    assert result.returncode == 0, result.stderr
+
+
+def test_policy_regression_replays_reach_cli_tests_using_subprocess_imports():
+    files = dict(CORRECT["policy"])
+    files["tests/test_cli.py"] = textwrap.dedent(files["tests/test_cli.py"]) + '''
+import json
+import subprocess
+import sys
+
+def run_in_process(line):
+    script = """
+import json
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path.cwd()))
+import cli
+try:
+    value = {"value": cli.run(sys.argv[1])}
+except ValueError as exc:
+    value = {"error": str(exc)}
+print(json.dumps(value))
+"""
+    result = subprocess.run([sys.executable, "-I", "-B", "-c", script, line],
+                            capture_output=True, text=True, check=True, timeout=5)
+    value = json.loads(result.stdout)
+    if "error" in value:
+        raise ValueError(value["error"])
+    return value["value"]
+
+cli.run = run_in_process
+'''
+    result = run_artifact("policy", files)
+    assert result.returncode == 0, result.stderr
+
+
+def _run_supervised_policy(files, oracle_source=None):
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        candidate = root / "candidate"
+        write_tree(candidate, {name: textwrap.dedent(source) for name, source in files.items()})
+        oracle = ORACLE
+        if oracle_source is not None:
+            # Keep oracle-owned faults outside the candidate working directory.
+            oracle = root / "check_policy.py"
+            oracle.write_text(oracle_source, encoding="utf-8")
+        return run_python(
+            ["-B", str(ROOT / "oracles/oracle_protocol.py"), str(oracle), "policy"],
+            cwd=candidate,
+            isolated=True,
+            timeout=180,
+        )
+
+
+@pytest.mark.parametrize(
+    "test_body,diagnostic",
+    [
+        ("self.fail('candidate assertion')", "fixture test suite failed"),
+        ("raise RuntimeError('candidate runtime error')", "fixture test suite failed"),
+        ("self.skipTest('candidate skip')", "fixture tests did not all pass normally"),
+        ("raise SystemExit(0)", "fixture test suite failed"),
+        ("import os; os._exit(0)", "candidate tests exited without results"),
+        ("import os; os._exit(2)", "candidate test runner failed"),
+        ("import time; time.sleep(30)", "candidate test suite timed out before results"),
+    ],
+)
+def test_policy_supervision_rejects_candidate_test_failures_and_early_exits(test_body, diagnostic):
+    files = dict(CORRECT["policy"])
+    files["tests/test_failure.py"] = (
+        "import unittest\nclass FailureTests(unittest.TestCase):\n"
+        "    def test_candidate(self):\n        " + test_body + "\n"
+    )
+    result = _run_supervised_policy(files)
+    assert result.returncode == 10, result.stderr
+    assert diagnostic in result.stderr
+
+
+def test_policy_supervision_passes_complete_assessment_without_mutating_candidate():
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        write_tree(root, {name: textwrap.dedent(source) for name, source in CORRECT["policy"].items()})
+        before = {path.relative_to(root): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+        result = run_python(
+            ["-B", str(ROOT / "oracles/oracle_protocol.py"), str(ORACLE), "policy"],
+            cwd=root,
+            isolated=True,
+            timeout=180,
+        )
+        after = {path.relative_to(root): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+    assert result.returncode == 0, result.stderr
+    assert before == after
+
+
+@pytest.mark.parametrize(
+    "fault,code,diagnostic",
+    [
+        ("raise RuntimeError('oracle crash')", 1, "oracle crash"),
+        ("import os; os._exit(0)", 1, "INCONCLUSIVE: oracle process stopped without assessment"),
+        ("raise SystemExit(3)", 3, ""),
+    ],
+)
+def test_policy_supervision_keeps_oracle_crash_and_unavailable_outcomes_distinct(fault, code, diagnostic):
+    # Exercise the real policy completion path, replacing only the oracle-owned
+    # replay entrypoint so its internal faults cannot become candidate failures.
+    source = ORACLE.read_text(encoding="utf-8")
+    source = source.replace(
+        "sys.path.insert(0, str(Path(__file__).resolve().parent.parent))",
+        f"sys.path.insert(0, {str(ROOT / 'oracles')!r})",
+        1,
+    )
+    source = source.replace("def policy_test_coverage():", "def policy_test_coverage():\n    " + fault, 1)
+    result = _run_supervised_policy(CORRECT["policy"], source)
+    assert result.returncode == code, result.stderr
+    assert diagnostic in result.stderr
 
 
 if __name__ == "__main__":

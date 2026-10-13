@@ -82,12 +82,34 @@ SHELL = SHELL.replace("import json\n", "import json\nimport io\n").replace(
     "def main(", STDIN_HELPER + "def main(").replace("contextlib.nullcontext(sys.stdin)", "stdin_source()")
 CORRECT = SHELL.format(api=API)
 SELF_TEST = '''import unittest
+import contextlib
+import io
+import json
+import subprocess
+import sys
 import outcome_counts
 class CountTests(unittest.TestCase):
     def test_empty(self):
         self.assertEqual(outcome_counts.summarize([]), {"success": 0, "failure": 0, "skipped": 0})
     def test_duplicate(self):
         self.assertEqual(outcome_counts.summarize([{"status": "success"}] * 2)["success"], 2)
+    def test_invalid_record(self):
+        with self.assertRaisesRegex(ValueError, r'\\b2\\b'):
+            outcome_counts.summarize(iter([{"status": "success"}, {"status": "invalid"}]))
+    def test_source_value_error_is_preserved(self):
+        error = ValueError('source failed')
+        def rows():
+            yield {"status": "success"}
+            raise error
+        with self.assertRaises(ValueError) as raised:
+            outcome_counts.summarize(rows())
+        self.assertIs(raised.exception, error)
+    def test_late_cli_failure(self):
+        result = subprocess.run([sys.executable, '-I', '-B', 'outcome_counts.py', '-'],
+                                input='{"status":"success"}\\n{}\\n', capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, '')
+        self.assertTrue(result.stderr.strip())
 '''
 
 
@@ -124,16 +146,16 @@ SEMANTIC_MUTANTS = [
 
 
 class TestNewCodeProbe:
-    def run_artifact(self, source, tests=SELF_TEST):
+    def run_artifact(self, source, tests=SELF_TEST, oracle_source=None):
         spec = scenario_file(SPEC)
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
             write_tree(work, spec["fixture"]["files"])
-            (work / "outcome_counts.py").write_text(source, encoding="utf-8")
+            (work / "outcome_counts.py").write_bytes(source if isinstance(source, bytes) else source.encode("utf-8"))
             (work / "tests").mkdir()
             (work / "tests/__init__.py").write_text("", encoding="utf-8")
             (work / "tests/test_outcome_counts.py").write_text(tests, encoding="utf-8")
-            (work / "_python_new_oracle.py").write_bytes(ORACLE.read_bytes())
+            (work / "_python_new_oracle.py").write_bytes(ORACLE.read_bytes() if oracle_source is None else oracle_source.encode("utf-8"))
             (work / "oracle_protocol.py").write_bytes((ROOT / "oracles/oracle_protocol.py").read_bytes())
             return run_python(["-B", "oracle_protocol.py", "_python_new_oracle.py"], cwd=work, isolated=True, encoding="utf-8", timeout=45)
 
@@ -266,6 +288,102 @@ def parsed_inner(source):
                                   (SELF_TEST.replace('"success": 0', '"success": 99'), "candidate self-tests failed")], ids=("empty", "failing"))
     def test_self_tests_must_execute_and_pass(self, tests, diagnostic):
         self.assert_fails(CORRECT, diagnostic, tests)
+
+    def test_tautological_self_test_cannot_establish_public_behavior_coverage(self):
+        self.assert_fails(CORRECT, "candidate self-tests did not reject duplicate count loss",
+                          "import unittest\nclass T(unittest.TestCase):\n def test_nothing(self): self.assertTrue(True)\n")
+
+    def run_self_tests(self, tests, oracle_tail="self_tests()"):
+        # Exercise the supervised self-test seam without repeating independent
+        # streaming workloads for every test-runner failure calibration.
+        oracle = ORACLE.read_text(encoding="utf-8").rsplit('if __name__ == "__main__":', 1)[0]
+        return self.run_artifact(CORRECT, tests, oracle + "\n" + oracle_tail + "\n")
+
+    @pytest.mark.parametrize("tests,diagnostic", (
+        (SELF_TEST.replace('    def test_invalid_record(self):', '    @unittest.skip("not exercised")\n    def test_invalid_record(self):'), "failed or skipped"),
+        (SELF_TEST + '\nclass Unrelated(unittest.TestCase):\n def test_other(self): self.fail("unrelated failure")\n', "candidate self-tests failed"),
+        (SELF_TEST + '\nimport os\nos._exit(0)\n', "exited without results"),
+        (SELF_TEST.replace('    def test_invalid_record(self):', '    @unittest.expectedFailure\n    def test_invalid_record(self):').replace("r'\\b2\\b'", "r'never'"), "failed or skipped"),
+    ), ids=("skip", "unrelated-failure", "early-exit", "expected-failure"))
+    def test_non_assertion_or_unrelated_suite_outcomes_are_failures(self, tests, diagnostic):
+        result = self.run_self_tests(tests)
+        assert result.returncode == 10, result.stderr
+        assert diagnostic in result.stderr
+
+    @pytest.mark.parametrize("effect", ("raise RuntimeError('broken test')", "raise SystemExit(0)", "self.skipTest('disabled')"),
+                             ids=("runtime-error", "system-exit", "skip"))
+    def test_mutant_runtime_errors_exits_and_skips_are_not_sensitivity(self, effect):
+        tests = SELF_TEST.replace('    def test_duplicate(self):',
+                                 '    def test_duplicate(self):\n        if outcome_counts.summarize([{"status": "success"}] * 2)["success"] == 1:\n            ' + effect)
+        result = self.run_self_tests(tests)
+        assert result.returncode == 10, result.stderr
+        assert "did not reject duplicate count loss with assertions" in result.stderr
+
+    def test_missing_invalid_and_cli_assertions_are_rejected_separately(self):
+        cases = (
+            (SELF_TEST.replace("r'\\b2\\b'", "r'invalid'"), "invalid record index loss"),
+            (SELF_TEST.replace("self.assertEqual(result.returncode, 2)", "pass").replace("self.assertEqual(result.stdout, '')", "pass").replace("self.assertTrue(result.stderr.strip())", "pass"), "CLI failure reported as success"),
+        )
+        for tests, diagnostic in cases:
+            result = self.run_self_tests(tests)
+            assert result.returncode == 10, result.stderr
+            assert "did not reject " + diagnostic in result.stderr
+
+    def test_in_process_cli_tests_and_alternative_test_imports_pass(self):
+        tests = SELF_TEST[:SELF_TEST.index('    def test_late_cli_failure(self):')] + '''    def test_late_cli_failure(self):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            with unittest.mock.patch.object(sys, 'stdin', io.StringIO('{"status":"success"}\\n{}\\n')):
+                code = outcome_counts.main(['-'])
+        self.assertEqual(code, 2)
+        self.assertEqual(out.getvalue(), '')
+        self.assertTrue(err.getvalue().strip())
+'''
+        tests = 'from unittest import mock\n' + tests.replace('unittest.mock.patch.object', 'mock.patch.object')
+        result = self.run_self_tests(tests)
+        assert result.returncode == 0, result.stderr
+
+    def test_subprocess_cli_tests_with_alternate_working_directory_pass(self):
+        tests = 'import tempfile\nfrom pathlib import Path\n' + SELF_TEST.replace(
+            "        result = subprocess.run([sys.executable, '-I', '-B', 'outcome_counts.py', '-'],\n"
+            "                                input='{\"status\":\"success\"}\\n{}\\n', capture_output=True, text=True)",
+            "        with tempfile.TemporaryDirectory() as temporary:\n"
+            "            result = subprocess.run([sys.executable, '-I', '-B', str(Path(outcome_counts.__file__).resolve()), '-'],\n"
+            "                                    cwd=temporary, input='{\"status\":\"success\"}\\n{}\\n', capture_output=True, text=True)",
+        )
+        result = self.run_self_tests(tests)
+        assert result.returncode == 0, result.stderr
+
+    def test_python_source_encoding_cookie_is_preserved_in_mutation_replay(self):
+        source = ("# coding: latin-1\n# café\n" + CORRECT).encode("latin-1")
+        result = self.run_artifact(source)
+        assert result.returncode == 0, result.stderr
+        assert "public contracts passed" in result.stdout
+
+    def test_alternate_cwd_invalid_cli_only_suite_cannot_supply_count_sensitivity(self):
+        tests = '''import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+import outcome_counts
+class CliTests(unittest.TestCase):
+    def test_invalid(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result = subprocess.run([sys.executable, '-I', '-B', str(Path(outcome_counts.__file__).resolve()), '-'],
+                                    cwd=temporary, input='{}\\n', capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, '')
+        self.assertTrue(result.stderr.strip())
+'''
+        result = self.run_self_tests(tests)
+        assert result.returncode == 10, result.stderr
+        assert "did not reject duplicate count loss" in result.stderr
+
+    def test_self_test_oracle_crash_remains_measurement_unavailable(self):
+        result = self.run_self_tests(SELF_TEST, "raise RuntimeError('oracle calibration crash')")
+        assert result.returncode == 1, result.stderr
+        assert "oracle calibration crash" in result.stderr
 
     def test_scenario_binds_scope_oracle_and_trace_verification(self):
         spec = scenario_file(SPEC)
