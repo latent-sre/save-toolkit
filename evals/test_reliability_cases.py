@@ -42,6 +42,24 @@ EXPECTED = {
         "break_even_months": 20, "benefit_status": "estimated",
         "next_step": "owner_tradeoff_and_comparable_measurement", "release_approved": False,
     },
+    "toil-duplicate-records": {
+        "distinct_interventions_per_month": 20, "duplicate_records_excluded": 10,
+        "baseline_hours_per_month": 5, "net_saved_hours_per_month": 3,
+        "break_even_months": 10, "benefit_status": "estimated", "live_action": "none",
+    },
+    "toil-zero-savings": {
+        "baseline_hours_per_month": 6, "net_saved_hours_per_month": 0,
+        "positive_time_break_even": False, "break_even_months": None,
+        "recommendation": "compare_simplification_or_acceptance",
+        "benefit_status": "estimated", "live_action": "none",
+    },
+    "toil-unknown-baseline": {
+        "baseline_hours_per_month": None, "break_even_months": None,
+        "baseline_status": "unknown", "payback_supported": False,
+        "next_step": "measure_baseline_first",
+        "recommendation": "qualitative_opportunity_with_measurement_plan",
+        "live_action": "none",
+    },
     "resumes-after-helper-return": {
         "parent_status": "partial", "human_owner": "Morgan",
         "old_override_proves_current_control": False,
