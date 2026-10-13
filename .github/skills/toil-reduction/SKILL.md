@@ -25,7 +25,9 @@ Two entry modes; the evidence decides, not the caller's patience:
   effort or ownership evidence) and an answer would change the recommendation. Ask **one
   batched round** from the generalized bank below — every aspect that could change the
   decision, none that could not — then assess from the answers. A dispatched agent never
-  interviews: it returns its missing evidence to its caller instead.
+  interviews: it returns its missing evidence to its caller **with the relevant bank
+  questions attached**, so the caller can put them to the human without loading this skill.
+  A human who selected an agent directly is in interview mode, not dispatched mode.
 
 The bank is deliberately task-neutral; phrase each question for the work at hand, accept
 ranges and "unknown", and never make an answer a precondition. An unanswered aspect becomes
@@ -94,7 +96,10 @@ break-even windows = one-time effort / positive net effort saved per window
 Count each cost once; include work transferred to developers or another operations team. If net
 savings are zero or negative, there is no positive time-saving break-even. A risk-reduction benefit
 may still justify the work, but needs its own evidence and human tradeoff. Use ranges when demand or
-maintenance is uncertain; do not claim a payback date from weak estimates. Break-even also assumes
+maintenance is uncertain; do not claim a payback date from weak estimates. One-time and maintenance
+estimates from the person proposing the work are systematically optimistic: prefer observed build
+and maintenance effort from a comparable existing automation, or state the optimism margin applied
+and who accepted it. Break-even also assumes
 the workflow and its demand survive unchanged: when the payback approaches the workflow's expected
 useful life, or adoption ramps slowly, compare cumulative effort over that horizon instead of
 quoting a break-even month. Read
@@ -130,6 +135,7 @@ closed schema or JSON only, carry these meanings in its permitted fields and do 
 Baseline: <occurrences and total effort per window; window, sources and coverage limits>
 Options: <elimination, cause correction, simplification, self-service, automation, acceptance — each kept or rejected, with why>
 Calculation: <baseline, residual and maintenance effort, net saving and break-even or why none exists; ranges and assumptions>
+Classification: <toil | accepted work | enduring-value work — by this test: manual and recurring with little enduring value and volume-driven growth is toil; judgment, deliberate practice or rare recovery is accepted work; work that creates lasting capability is enduring-value work>
 Recommendation: <bounded change, mechanism and alternatives>
 Owner: <implementation owner; acceptance owner and revisit trigger when accepting>
 Verification: <before/after comparison under comparable demand, and what remains unmeasured>

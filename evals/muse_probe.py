@@ -383,20 +383,22 @@ def grade_build(spec: dict[str, Any], trace: MuseTrace, ws: Any) -> list[dict[st
 def grade_native(
     spec: dict[str, Any], traces: list[MuseTrace], raw: str
 ) -> list[dict[str, str]]:
-    helper = str(spec.get("helper") or "helper")
+    helper = str(spec.get("helper") or "")
     expectations = []
-    dispatched = (
+    dispatched = bool(helper) and (
         any(t.dispatches for t in traces)
         or any(helper in t.dispatch_targets for t in traces)
     )
-    if dispatched:
+    # A conversation that names no helper (an interview, say) has no dispatch
+    # expectation; grading it for one would manufacture an inconclusive.
+    if helper and dispatched:
         expectations.append(_expectation("helper dispatch", State.PASS, f"dispatch evidence for {helper!r}"))
-    elif traces and traces[0].completed:
+    elif helper and traces and traces[0].completed:
         expectations.append(_expectation(
             "helper dispatch", State.INCONCLUSIVE,
             "Muse trace does not name dispatch targets; helper completion unmeasured",
         ))
-    else:
+    elif helper:
         expectations.append(_expectation("helper dispatch", State.INCONCLUSIVE, "first turn did not complete"))
     if len(traces) > 1:
         last = traces[-1]

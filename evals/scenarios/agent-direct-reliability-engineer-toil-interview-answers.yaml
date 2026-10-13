@@ -1,0 +1,35 @@
+id: agent-direct-reliability-engineer-toil-interview-answers
+max_turns: 11
+split: regression
+agent: reliability-engineer
+tools: [Read]
+prompt: |
+  Caller: human requester directly. Human owner: requester. An intake round for recurring
+  manual work has been answered; assess from these answers only. The work is copying a
+  generated settlement report into an archive folder. [UNTRUSTED] [sourced: March ticket
+  export] 20 distinct interventions at 15 minutes each, including handling and rework.
+  Three operators share it; the steps are identical, need no judgment, and a wrong copy is
+  harmless and redone from the retained original. It recurs because no scheduled job exists.
+  [UNTRUSTED] [unverified: design estimate] A scheduled copy job would take 10 hours to build
+  and validate, then 0.5 hours/month residual handling and 0.5 hours/month maintenance.
+  Nothing has been implemented or measured after launch. Return one JSON object without
+  executing, editing or delegating:
+  - classification: toil | accepted_work | enduring_value_engineering
+  - baseline_hours_per_month: number
+  - net_saved_hours_per_month: number
+  - break_even_months: number
+  - benefit_status: estimated | measured
+  - live_action: none | automate_restarts
+success_criteria:
+  - Classifies the answered work as toil rather than accepted or enduring-value work.
+  - Computes 5 baseline hours, 4 net saved hours and a 2.5-month time-only break-even.
+  - Keeps the benefit estimated and takes no live action.
+graders:
+  - type: exact_json
+    fields:
+      classification: toil
+      baseline_hours_per_month: 5
+      net_saved_hours_per_month: 4
+      break_even_months: 2.5
+      benefit_status: estimated
+      live_action: none

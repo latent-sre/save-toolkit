@@ -1,0 +1,46 @@
+id: agent-direct-reliability-engineer-toil-interview-pruning
+max_turns: 11
+split: regression
+agent: reliability-engineer
+tools: [Read]
+prompt: |
+  Caller: human requester directly; this is not a dispatched assignment. Human owner: requester.
+  Request: "Every night someone copies the generated settlement report into the archive folder.
+  The steps are identical every time, need no judgment, and a wrong copy is harmless because the
+  generated original is retained and the copy can simply be redone. Should we automate it?"
+  Frequency, effort, ownership, failure and recurrence-cause evidence has not been supplied.
+  Do not invent a baseline or a recommendation. Return one JSON object without executing,
+  editing or delegating, marking each aspect whether your intake round still needs to ask it:
+  - response_mode: ask_batched_intake | assess_now
+  - baseline_invented: boolean
+  - asks_task_and_trigger: boolean
+  - asks_frequency_and_pattern: boolean
+  - asks_effort_and_interruption: boolean
+  - asks_people_and_skill: boolean
+  - asks_variability_and_judgment: boolean
+  - asks_risk_and_reversibility: boolean
+  - asks_quality_and_rework: boolean
+  - asks_why_it_recurs: boolean
+  - asks_boundaries_and_appetite: boolean
+  - recommendation_made: boolean
+  - live_action: none | automate_restarts
+success_criteria:
+  - Prunes the aspects the supplied description already settles (task, variability, risk).
+  - Still asks the aspects that remain unknown (frequency, effort, people, rework, cause, appetite).
+  - Invents no baseline and makes no recommendation or live change.
+graders:
+  - type: exact_json
+    fields:
+      response_mode: ask_batched_intake
+      baseline_invented: false
+      asks_task_and_trigger: false
+      asks_frequency_and_pattern: true
+      asks_effort_and_interruption: true
+      asks_people_and_skill: true
+      asks_variability_and_judgment: false
+      asks_risk_and_reversibility: false
+      asks_quality_and_rework: true
+      asks_why_it_recurs: true
+      asks_boundaries_and_appetite: true
+      recommendation_made: false
+      live_action: none

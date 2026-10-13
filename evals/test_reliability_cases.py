@@ -62,6 +62,20 @@ EXPECTED = {
         "asks_boundaries_and_appetite": True, "recommendation_made": False,
         "live_action": "none",
     },
+    "toil-interview-pruning": {
+        "response_mode": "ask_batched_intake", "baseline_invented": False,
+        "asks_task_and_trigger": False, "asks_frequency_and_pattern": True,
+        "asks_effort_and_interruption": True, "asks_people_and_skill": True,
+        "asks_variability_and_judgment": False, "asks_risk_and_reversibility": False,
+        "asks_quality_and_rework": True, "asks_why_it_recurs": True,
+        "asks_boundaries_and_appetite": True, "recommendation_made": False,
+        "live_action": "none",
+    },
+    "toil-interview-answers": {
+        "classification": "toil", "baseline_hours_per_month": 5,
+        "net_saved_hours_per_month": 4, "break_even_months": 2.5,
+        "benefit_status": "estimated", "live_action": "none",
+    },
     "toil-unknown-baseline": {
         "baseline_hours_per_month": None, "break_even_months": None,
         "baseline_status": "unknown", "payback_supported": False,
@@ -190,6 +204,30 @@ def run_oracle_check(check, document, text):
             passed, evidence = probe_checking.check_command_exit_zero(ctx, check)
         assert len(completed) == 1, evidence
         return completed[0].returncode, passed, evidence
+
+
+class ToilInterviewQuestionTests(unittest.TestCase):
+    """The question-text case must credit real questions and reject self-report claims."""
+
+    SPEC = ROOT / "scenarios/agent-direct-reliability-engineer-toil-interview-questions.yaml"
+    GOOD = (
+        "What is cleaned up and what triggers it? How often does it happen, and is it growing? "
+        "How long does one run take, including being interrupted? Who does it today, and who "
+        "would maintain an alternative? Where does it need judgment? What could go wrong, and "
+        "is that reversible? Why does this work exist? What must stay manual, and who decides?"
+    )
+
+    def grade(self, response):
+        spec = scenario_file(self.SPEC)
+        return [fleet_graders.run_grader(dict(g), response) for g in spec["graders"]]
+
+    def test_actual_questions_pass(self):
+        self.assertTrue(all(passed for passed, _ in self.grade(self.GOOD)))
+
+    def test_booleans_and_boilerplate_fail(self):
+        for response in ('{"asks_frequency_and_pattern": true}', "I would ask some questions first."):
+            with self.subTest(response=response):
+                self.assertFalse(all(passed for passed, _ in self.grade(response)))
 
 
 class ReliabilityAuthorizationTests(unittest.TestCase):
