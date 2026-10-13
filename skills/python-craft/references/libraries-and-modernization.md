@@ -30,6 +30,30 @@ project's compatibility, licensing, dependency, and execution constraints. Seek 
 runtime, framework, public-contract, or external-effect changes only when not already authorized.
 Verify intentional behavior changes separately from behavior-preserving restructuring.
 
+## Worked decision: order intake validation
+
+An API and an import tool each carry custom checks for the same order input. The agreed contract
+requires a nonempty symbol and a positive integer quantity, rejecting booleans and numeric strings.
+The service already uses Pydantic elsewhere.
+
+- **Compare the work removed.** A dataclass can represent an internal order but does not replace
+  runtime validation. The existing validation dependency can replace the duplicated boundary
+  checks; another package would need an additional capability to justify its cost.
+- **Make library behavior explicit.** Configure field constraints and coercion to match the agreed
+  contract. Check the actual Python-object or JSON entrypoint being used; strict validation can
+  accept different representations through those entrypoints.
+- **Integrate one owner.** Put the input rules in one boundary model and expose the parsing operation
+  both callers need. Keep transport-specific error responses in their adapters. Introduce a separate
+  domain record only when the internal representation needs to differ from the validated input.
+- **Finish the replacement.** Exercise both callers with valid, missing, empty, boolean, string,
+  and nonpositive quantities as applicable; check error and serialization contracts. Remove the
+  superseded validators after their callers move. Success means the duplicate rules are gone and
+  the intended boundary behavior remains, not merely that the package was imported.
+
+For a local calculation receiving already validated values, ordinary arguments or a dataclass may
+be sufficient. The decision follows the capability needed and maintenance removed; it does not
+make every internal object a validation model or every small check a dependency opportunity.
+
 ## Examples of migration differences
 
 These examples illustrate what to investigate, not a package shortlist. Select candidates for the
