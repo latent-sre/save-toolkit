@@ -1,0 +1,23 @@
+id: obs-metrics-gcp-gotchas-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-metrics
+tools: [Skill, Read]
+references:
+  - skills/obs-metrics/references/gcp-monitoring.md
+prompt: |
+  Read the Cloud Monitoring reference. Answer with short labelled lines only, no
+  explanation; do not run queries or edit files. A: a spike shows in a console chart
+  at one alignment and vanishes at another; what must accompany any screenshot as
+  evidence? B: at what granularity do system metrics commonly arrive, and what does
+  that hide? C: a log-based metric was created today; what does its flat history
+  before creation prove?
+success_criteria:
+  - Records alignment, states the sampling granularity limit, and never reads pre-creation history as health.
+graders:
+  - type: regex
+    pattern: '(?i)alignment|step'
+  - type: regex
+    pattern: '(?i)60s|60 seconds|one minute|one-minute|1-minute|minute aggregat|minute-level|per minute|minute samples'
+  - type: regex
+    pattern: '(?i)not retroactive|creation|nothing|no data before'

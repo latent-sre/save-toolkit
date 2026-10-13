@@ -1,0 +1,24 @@
+id: obs-logs-gcp-gotchas-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-logs
+tools: [Skill, Read]
+references:
+  - skills/obs-logs/references/gcp-logging.md
+prompt: |
+  Read the Cloud Logging reference. Answer with short labelled lines only, no
+  explanation; do not run queries or edit files. A: how long does the _Required log
+  bucket retain entries, and how long do _Default buckets retain them by default?
+  B: what is the entries.list quota per project, and can it be raised? C: a log entry
+  is absent; name two configuration reasons that prove nothing about the service.
+success_criteria:
+  - States the retention asymmetry, the fixed read quota, and silent sink or exclusion behaviour.
+graders:
+  - type: regex
+    pattern: '400 days'
+  - type: regex
+    pattern: '30 days'
+  - type: regex
+    pattern: '60'
+  - type: regex
+    pattern: '(?i)exclusion|sink'

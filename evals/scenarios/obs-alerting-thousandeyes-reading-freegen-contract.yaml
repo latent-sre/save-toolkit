@@ -1,0 +1,24 @@
+id: obs-alerting-thousandeyes-reading-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-alerting
+tools: [Skill, Read]
+references:
+  - skills/obs-alerting/references/thousandeyes.md
+prompt: |
+  Read the ThousandEyes reference. Write short labelled steps only, no explanation; do
+  not run tests or edit files. A synthetic journey to checkout fails from two regions
+  while application error rates look flat. A: how do you bound the failure and locate
+  the layer at fault using the synthetic evidence? B: what do you correlate it with
+  before assigning ownership, and which lane owns which conclusion?
+success_criteria:
+  - Bounds by vantage and hop, compares healthy controls, and separates network from application ownership.
+graders:
+  - type: regex
+    pattern: '(?i)path visualization|by hop|hop'
+  - type: regex
+    pattern: '(?i)BGP|reachability'
+  - type: regex
+    pattern: 'cf app'
+  - type: regex
+    pattern: '(?i)healthy|control'

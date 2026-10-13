@@ -1,0 +1,27 @@
+id: obs-alerting-moogsoft-noise-freegen-contract
+max_turns: 17
+split: regression
+skill: obs-alerting
+tools: [Skill, Read]
+references:
+  - skills/obs-alerting/references/moogsoft.md
+prompt: |
+  Read the Moogsoft reference. Write short labelled steps only, no explanation; do not
+  run queries or edit files. A Moogsoft Onprem deployment pages too much during
+  storms: repeated alerts leak as duplicates while unrelated services merge into one
+  Situation. A: how do you tune deduplication and correlation so repeats collapse
+  without false merges? B: how do you prove the tuning worked, and with what replay
+  evidence? C: how are expected deploy and patch noise handled?
+success_criteria:
+  - Tunes signatures, Recipes, and Tempus against replayed incidents and measures clustering quality.
+graders:
+  - type: regex
+    pattern: '(?i)signature|dedup key'
+  - type: regex
+    pattern: '(?i)tempus|recipe|cookbook'
+  - type: regex
+    pattern: '(?i)replay|resolved incident'
+  - type: regex
+    pattern: '(?i)false.merge|missed'
+  - type: regex
+    pattern: '(?i)maintenance window'
