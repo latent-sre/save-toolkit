@@ -60,7 +60,9 @@ an array of `oneOf` event objects.
 
 ## CI
 
-For a new service or a separately scoped gate adoption, load `ci-actions` when adapting
+Deliver runnable CI configuration for a new HTTP service or a separately scoped gate adoption;
+local-only service delivery still includes it. Wire document drift, contract rules, response
+checks and base compatibility comparison into that workflow. Load `ci-actions` when adapting
 [Go](../assets/ci/api-contract-go.yml) or
 [FastAPI](../assets/ci/api-contract-fastapi.yml) workflows. Set `SERVICE_DIR` to the service root
 (`.` for a single-service repository); tests and comparison run there. The starters verify the
@@ -69,3 +71,7 @@ base commit, then derive the repository-relative document path from the service'
 unavailable base revision; do not silently skip the latter. The starters assume `openapi.json`;
 adapt their paths and commands to an existing service's canonical specification. Keep its existing
 or equivalent drift, contract, response and compatibility checks effective.
+
+The first document skips only the comparison when the base has no document; keep the other
+gates wired. Report the workflow path, local check results and whether CI actually ran. A missing
+workflow leaves delivery incomplete; a prepared workflow with no remote run remains unverified.

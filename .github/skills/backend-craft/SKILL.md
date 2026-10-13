@@ -31,7 +31,8 @@ through the real integration, then complete the requested scope, configuration a
 
 1. Read [OpenAPI](./references/openapi.md). A new HTTP service commits `openapi.json` at its
    **service root** (the module or `pyproject.toml` root, possibly below the repository root).
-   Code generation, consumers and CI use that same path. Existing services keep their canonical
+   Code generation, consumers and CI use that same path. Deliver CI configuration for the
+   contract gates below, including for a local-only service. Existing services keep their canonical
    specification and checks; missing service-wide documentation or CI adoption is a separately
    scoped task, not a prerequisite for a bounded API change.
 2. Describe the contract change before handler implementation: review the canonical document
