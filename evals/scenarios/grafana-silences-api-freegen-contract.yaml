@@ -1,0 +1,26 @@
+id: grafana-silences-api-freegen-contract
+max_turns: 17
+split: regression
+skill: grafana
+tools: [Skill, Read]
+references:
+  - skills/grafana/references/silences.md
+prompt: |
+  Read the silence-operations reference. Write short labelled answers only, no
+  explanation; do not edit files or call APIs. On Grafana 13.2 with the built-in
+  Alertmanager: A: which API paths list, create, and end a temporary silence early?
+  B: you update an active silence's matchers and the response carries a different ID
+  than the one you sent; what happened and what must you verify? C: a create POST
+  times out with no response; what do you do next, and what must you not do?
+  D: how do you scope a silence to exactly one alert rule rather than a service?
+success_criteria:
+  - Uses Alertmanager v2 silence paths, handles silence ID replacement on update, and never redispatches on unknown outcome.
+graders:
+  - type: regex
+    pattern: '/api/alertmanager/grafana/api/v2/silences'
+  - type: regex
+    pattern: '(?i)new ID|different ID|expires the original|replaced'
+  - type: regex
+    pattern: '(?i)UNKNOWN|unknown outcome'
+  - type: regex
+    pattern: '__alert_rule_uid__'

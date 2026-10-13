@@ -1,0 +1,30 @@
+id: grafana-panel-shape-freegen-contract
+max_turns: 17
+split: regression
+skill: grafana
+tools: [Skill, Read]
+references:
+  - skills/grafana/references/json-model.md
+prompt: |
+  Read the dashboard JSON reference. Write only the JSON object, no explanation;
+  do not edit files. Author one new Classic panel for a dashboard: it shows the
+  99th percentile request latency for a service against a 300 ms target, plotted
+  over time in seconds, placed on the standard dashboard grid, querying a
+  Prometheus histogram whose metric and labels you state as placeholders, with a
+  sensible empty-data display. Use the variable-driven data source reference the
+  reference prefers.
+success_criteria:
+  - Authors a complete Classic panel shape with a rate-window latency query, seconds unit, and explicit no-data display.
+graders:
+  - type: regex
+    pattern: 'histogram_quantile\(0\.99'
+  - type: regex
+    pattern: '\$__rate_interval'
+  - type: regex
+    pattern: '"gridPos"'
+  - type: regex
+    pattern: '"unit":\s*"s"'
+  - type: regex
+    pattern: '"noValue"'
+  - type: regex
+    pattern: '\$\{datasource\}'

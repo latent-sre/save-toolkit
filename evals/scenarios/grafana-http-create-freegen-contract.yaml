@@ -1,0 +1,28 @@
+id: grafana-http-create-freegen-contract
+max_turns: 17
+split: regression
+skill: grafana
+tools: [Skill, Read]
+references:
+  - skills/grafana/references/http-api.md
+prompt: |
+  Read the dashboard HTTP API reference. Write short labelled answers only, no
+  explanation; do not edit files or call APIs. Creating a new dashboard on a
+  Grafana 13.2 target through the app-platform API: A: which path do you POST to,
+  which field carries the dashboard UID, and which concurrency fields must the
+  create body omit? B: the create returns a conflict saying the UID is taken; what
+  do you do, and what must you never do? C: same creation through the legacy API:
+  path, the overwrite setting, and the success status.
+success_criteria:
+  - Creates on the collection path with metadata.name and no server concurrency fields, and never forces overwrite.
+graders:
+  - type: regex
+    pattern: 'namespaces/<ns>/dashboards|namespaces/[^/]+/dashboards'
+  - type: regex
+    pattern: 'metadata\.name'
+  - type: regex
+    pattern: 'resourceVersion'
+  - type: regex
+    pattern: '/api/dashboards/db'
+  - type: regex
+    pattern: 'overwrite:\s*false|overwrite=false|"overwrite":\s*false'
