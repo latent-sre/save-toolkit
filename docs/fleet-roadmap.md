@@ -597,6 +597,38 @@ traps rather than re-surveying OpenAI Evals, DeepEval or OpenEvals, which it lef
 **SRE task:** Trust an agent's graded mitigation advice because the cheapest judge that matched the
 human labels graded it.
 
+### EVAL-017 — run the evals owed by the agent-authoring consolidation
+
+**Status:** `ready` (2026-10-13); PR #371 merged as `ec248cf` with these runs deferred by the owner.
+**Owner:** Save Toolkit maintainers, on an unelevated Claude-enabled runner; the native preflight
+refuses an elevated account before any trial starts.
+**Outcome:** Routing and behavior after #371's description and reference changes are measured on the
+merged bytes, and each red is attributed to the change or the incumbent.
+**Next action:** From the repository root on `main`, run each affected scenario with the fleet's
+default tier, then read the batch summary:
+
+```bash
+(
+  [ -f "${CAL:-}" ] || { echo "export CAL to a completed calibration identity.json first" >&2; exit 1; }
+  out=.eval-runs/eval-017
+  for id in discovery-agent-authoring-loop-engineering discovery-operational-learning-defers-fleet-failure \
+    discovery-principal-engineer-defers-agent-workflow discovery-principal-engineer-service-workflow-graph \
+    discovery-principal-engineer-new-service-design discovery-principal-engineer-returned-fork \
+    discovery-principal-engineer-platform-selection discovery-principal-engineer-defers-design-review \
+    discovery-principal-engineer-defers-reliability-assessment discovery-principal-engineer-defers-small-tool-build \
+    agent-direct-agent-engineer-learning-loop agent-direct-agent-engineer-heldout-contamination; do
+    python evals/build_probe.py run --scenario "$id" --label merged --model sonnet --trials 3 --out "$out"
+  done
+  python evals/build_probe.py run --scenario skill-direct-agent-authoring-security-review --label merged \
+    --model sonnet --trials 3 --out "$out" --judge-calibration "$CAL"
+)
+```
+
+A red on a routing case reruns once on the pre-merge incumbent (`--plugin-root` at a worktree of
+`7dec186`, label `incumbent`) before it is attributed to #371.
+**SRE task:** Trust that a request about prompts, agents, or a workflow graph reaches the lane that
+can answer it.
+
 ### EFFECT-001 — effect-bound execution broker
 
 **Status:** `deferred`
