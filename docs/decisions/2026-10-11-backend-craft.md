@@ -74,3 +74,14 @@ Rejected [sourced: owner]:
   provider is recorded in `stack-profile` once the owner confirms it.
 - Until their follow-ups land, the existing API-writes, background-work, and consuming-APIs
   references carry over unchanged and are listed in the roadmap for re-derivation.
+
+## Owner amendment — 2026-10-12
+
+The owner approved narrowing the first-touch requirements for existing services [sourced: owner].
+This amends decisions 2 and 5 and their consequences: new HTTP services retain the full committed
+OpenAPI document and gate standard. Existing services preserve their canonical specification
+format/location, contract and equivalent checks. Missing service-wide documentation or CI adoption
+is a separately scoped task, not automatic work in a bounded API change. The change still updates
+existing contract documentation, verifies changed behaviour and discloses missing contract or
+compatibility evidence. Existing authentication, contract-change approval and versioning obligations
+remain in force.

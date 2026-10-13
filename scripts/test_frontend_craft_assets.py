@@ -58,7 +58,7 @@ def server_for(**breaks: object) -> type[BaseHTTPRequestHandler]:
             if cache:
                 self.send_header("Cache-Control", str(cache))
             if settings["security_headers"] and content_type.startswith("text/html"):
-                for name, value in SECURITY_HEADERS.items():
+                for name, value in {**SECURITY_HEADERS, **settings.get("header_overrides", {})}.items():
                     self.send_header(name, value)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -152,6 +152,32 @@ def test_unset_optional_checks_are_skipped() -> None:
     assert "# skipped 2" in result.stdout, result.stdout
 
 
+@pytest.mark.parametrize(
+    ("csp", "accepts"),
+    [
+        pytest.param("frame-ancestors *", False, id="wildcard"),
+        pytest.param("frame-ancestors 'self'", False, id="same-origin-framing"),
+        pytest.param("default-src 'none'", False, id="missing-directive"),
+        pytest.param("frame-ancestors", False, id="missing-required-none"),
+        pytest.param("frame-ancestors none", False, id="unquoted-none-host"),
+        pytest.param("frame-ancestors 'none' *", False, id="none-with-another-source"),
+        pytest.param("default-src 'self' frame-ancestors 'none'", False, id="missing-semicolon"),
+        pytest.param("x-frame-ancestors 'none'", False, id="different-directive"),
+        pytest.param("frame-ancestors *; frame-ancestors 'none'", False, id="later-duplicate-ignored"),
+        pytest.param("frame-ancestors 'none'; frame-ancestors *", True, id="first-duplicate-applies"),
+        pytest.param("default-src 'self'; FRAME-ANCESTORS\t'NONE' ;", True, id="case-and-whitespace"),
+        pytest.param("frame-ancestors *, frame-ancestors 'none'", True, id="second-policy-blocks"),
+        pytest.param("frame-ancestors 'none', frame-ancestors *", True, id="first-policy-blocks"),
+        pytest.param("frame-ancestors *, frame-ancestors 'self'", False, id="both-policies-permit-framing"),
+    ],
+)
+def test_framing_check_requires_an_effective_none_policy(csp: str, accepts: bool) -> None:
+    with serving(header_overrides={"Content-Security-Policy": csp}) as base:
+        result = run_contract(BASE_URL=base, API_PREFIX="/v1/", RUNTIME_CONFIG_PATH="/config.json")
+    assert (result.returncode == 0) == accepts, result.stdout + result.stderr
+    assert failed_checks(result) == ([] if accepts else ["index.html refuses framing and content sniffing"])
+
+
 def test_a_missing_base_url_fails() -> None:
     result = run_contract()
     assert result.returncode != 0
@@ -168,7 +194,7 @@ def node_version() -> tuple[int, int]:
 
 @pytest.mark.parametrize(
     ("suite", "cases"),
-    [("problem.test.ts", 9), ("idempotent-write.test.ts", 9), ("runtime-config.test.ts", 7)],
+    [("problem.test.ts", 9), ("idempotent-write.test.ts", 11), ("runtime-config.test.ts", 7)],
 )
 def test_the_typescript_helper_contracts_pass(suite: str, cases: int) -> None:
     # Type stripping runs .ts files without a build from Node 22.18; CI's runner image ships 22.23.
@@ -315,13 +341,13 @@ def split_top_level(text: str, separator: str) -> list[str]:
 
 
 class Theme:
-    """The custom properties the theme's first :root rule declares, resolved for one scheme."""
+    """The custom properties the theme's base :root rules declare, resolved for one scheme."""
 
     def __init__(self, scheme: str, knobs: dict[str, str] | None = None) -> None:
         css = THEME.read_text(encoding="utf-8")
-        match = re.search(r":root\s*\{(.*?)\n\s*\}", css, re.S)
-        assert match, "theme.css has no :root rule"
-        self.vars = dict(re.findall(r"(--[\w-]+):\s*([^;]+);", match.group(1)))
+        rules = re.findall(r":root\s*\{(.*?)\n\s*\}", css, re.S)
+        assert rules, "theme.css has no :root rule"
+        self.vars = dict(re.findall(r"(--[\w-]+):\s*([^;]+);", "\n".join(rules)))
         self.vars.update(knobs or {})
         self.scheme = scheme
 
@@ -358,6 +384,17 @@ class Theme:
 
 SURFACES = ("--surface-page", "--surface-panel", "--surface-raised", "--surface-hover", "--surface-sunken")
 STATUSES = ("ok", "warn", "critical", "info", "unknown")
+CHARTS = tuple(f"--chart-{index}" for index in range(1, 6))
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_categorical_colours_are_distinct_and_independent_of_status(scheme: str) -> None:
+    theme = Theme(scheme)
+    colours = [theme.colour(token)[0] for token in CHARTS]
+    changed_status = Theme(scheme, {f"--status-{status}": "oklch(0 0 0)" for status in STATUSES})
+    assert colours == [changed_status.colour(token)[0] for token in CHARTS], "status changes must not recolour categories"
+    assert len(set(colours)) == len(CHARTS), "categories must have distinct colours"
+    assert not set(colours) & {theme.colour(f"--status-{status}")[0] for status in STATUSES}
 
 
 @pytest.mark.parametrize("scheme", ["light", "dark"])
@@ -367,7 +404,7 @@ def test_the_theme_meets_aa_contrast_at_every_brand_hue(scheme: str, hue: int) -
     failures = []
     for surface in SURFACES:
         background, _ = theme.colour(surface)
-        for ink in ("--text", "--text-muted", "--text-faint", "--brand"):
+        for ink in ("--text", "--text-muted", "--text-faint", "--brand", *CHARTS):
             ratio = contrast(theme.colour(ink)[0], background)
             if ratio < 4.5:
                 failures.append(f"{ink} on {surface}: {ratio:.2f}")

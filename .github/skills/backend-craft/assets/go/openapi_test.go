@@ -93,9 +93,6 @@ func TestOpenAPIHouseRules(t *testing.T) {
 				t.Errorf("%s: operationId %q is not unique; generated clients use it", where, op.OperationID)
 			}
 			ids[op.OperationID] = true
-			if predatingOperations[where] {
-				continue
-			}
 			if !versionedPath.MatchString(path) {
 				t.Errorf("%s: API paths start with a version, /v1/", where)
 			}
@@ -121,11 +118,6 @@ func TestOpenAPIHouseRules(t *testing.T) {
 
 // publicOperations lists the operation IDs that deliberately need no authentication.
 var publicOperations = map[string]bool{}
-
-// predatingOperations lists, in an existing service, the operations ("GET /path") that predate the
-// house rules, so the rules apply to what changes add without rewriting a contract clients
-// already use. Their operation IDs still count for uniqueness. Never add a new operation.
-var predatingOperations = map[string]bool{}
 
 // requiresBearer reports whether every security alternative demands the bearer scheme: an empty
 // alternative ({}) would allow anonymous access.

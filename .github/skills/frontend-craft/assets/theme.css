@@ -69,6 +69,13 @@
     --status-unknown-bg:  light-dark(oklch(0.48 0.02 var(--surface-hue) / 0.10), oklch(0.84 0.02 var(--surface-hue) / 0.12));
     --on-critical:        var(--on-brand);
 
+    /* ── Categorical data: a separate palette from status; pair series with labels or line patterns. */
+    --category-1: light-dark(oklch(0.48 0.12 285), oklch(0.80 0.12 285));
+    --category-2: light-dark(oklch(0.48 0.12 200), oklch(0.80 0.12 200));
+    --category-3: light-dark(oklch(0.48 0.12 335), oklch(0.80 0.12 335));
+    --category-4: light-dark(oklch(0.48 0.12 110), oklch(0.80 0.12 110));
+    --category-5: light-dark(oklch(0.48 0.12 55),  oklch(0.80 0.12 55));
+
     /* ── Depth: light mode rises by shadow, dark mode by lightness, so shadows fade in the dark. */
     --elevation-1: 0 1px 2px light-dark(oklch(0.2 0.02 var(--surface-hue) / 0.10), oklch(0 0 0 / 0.30));
     --elevation-2: 0 6px 20px -6px light-dark(oklch(0.2 0.02 var(--surface-hue) / 0.18), oklch(0 0 0 / 0.45));
@@ -128,11 +135,11 @@
     --destructive-foreground: var(--on-critical);
     --border: var(--line);
     --input: var(--line-strong);
-    --chart-1: var(--brand);
-    --chart-2: var(--status-info);
-    --chart-3: var(--status-ok);
-    --chart-4: var(--status-warn);
-    --chart-5: var(--status-critical);
+    --chart-1: var(--category-1);
+    --chart-2: var(--category-2);
+    --chart-3: var(--category-3);
+    --chart-4: var(--category-4);
+    --chart-5: var(--category-5);
     --sidebar: var(--surface-sunken);
     --sidebar-foreground: var(--text);
     --sidebar-primary: var(--brand);

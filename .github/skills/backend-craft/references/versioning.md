@@ -1,19 +1,20 @@
-# Versioning: when oasdiff reports a breaking change
+# Breaking HTTP changes
 
-Read this only after `oasdiff breaking` reports an error for the change, or the caller asks for a
-breaking change. Additive changes — a new operation, an optional field or parameter, a new enum
-value the clients tolerate — need none of it.
+Use when compatibility checks identify a break or a breaking change is requested. Additive
+operations, optional fields/parameters and enum values consumers tolerate need no version migration.
 
-1. **Stop and ask the caller.** Show the oasdiff output and who consumes the operation: the
-   team's own UI shipped with it, scripts and automation, or other teams.
-2. **Prefer expand and contract inside `/v1`.** Add the new field or operation beside the old one,
-   move every consumer to it, then remove the old one in a later release. During a rolling deploy
-   and while browser tabs keep an older UI open, old and new clients call the same instances, so
-   both shapes stay served until the old one has no callers.
-3. **Only when consumers outside the release cannot move in time, add `/v2`** beside `/v1`, with
-   at most two versions live. Mark every `/v1` response with `Deprecation: @<unix-seconds>`
-   (RFC 9745), `Sunset: <HTTP-date>` (RFC 8594) no earlier than the deprecation, and
-   `Link: <successor-doc>; rel="deprecation"`. After the sunset date, `/v1` answers `410` problems.
-4. **Record an accepted break** in an oasdiff ignore file passed with `--err-ignore`, each line
-   the method, path and change text oasdiff printed, and name the reason and the caller who
-   accepted it in the pull request. Never loosen `--fail-on` instead.
+1. Show the contract change, affected consumers and compatibility evidence (`oasdiff` for the
+   house pipeline, existing checks for established services); identify unavailable evidence.
+   Obtain the caller's approval for the concrete break unless existing approval already covers it.
+2. Prefer expand/contract within `/v1`: add alongside the old shape, migrate consumers, remove
+   only once the old shape has no callers. Rolling deploys and open browser tabs need both.
+3. When consumers outside the release cannot migrate in time, serve `/v2` beside `/v1`, at most
+   two versions live. Deprecating `/v1` responses carry `Deprecation: @<unix-seconds>` (RFC 9745),
+   `Sunset: <HTTP-date>` (RFC 8594) no earlier than deprecation, and
+   `Link: <successor-doc>; rel="deprecation"`. After sunset, `/v1` returns `410` problems.
+4. When using oasdiff, record accepted breaks in its `--err-ignore` file: method, path and change
+   text from its output; keep `--fail-on` intact. Otherwise use the service's exception mechanism.
+   Name the reason and approving caller in the PR.
+
+Existing services keep their established versioning and error conventions until an authorized
+migration; adding a route alone does not authorize one.

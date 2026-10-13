@@ -14,18 +14,14 @@ from pathlib import Path
 from main import Settings, ThingStore, create_app
 
 
-def _repository_root() -> Path:
+def _service_root() -> Path:
     here = Path(__file__).resolve().parent
     markers = ("pyproject.toml", ".git")
     return next((p for p in (here, *here.parents) if any((p / m).exists() for m in markers)), here)
 
 
-DOCUMENT = _repository_root() / "openapi.json"  # committed at the repository root, beside pyproject.toml
+DOCUMENT = _service_root() / "openapi.json"  # beside the service's pyproject.toml; CI uses the same directory
 PUBLIC_OPERATIONS: set[str] = set()  # operation IDs that deliberately need no authentication
-# In an existing service: the operations ("GET /path") that predate the house rules, so the rules
-# apply to what changes add without rewriting a contract clients already use. Their operation IDs
-# still count for uniqueness. Never add a new operation.
-PREDATING_OPERATIONS: set[str] = set()
 
 
 async def _refuse(token: str) -> None:
@@ -60,8 +56,6 @@ def test_house_rules():
             op_id = operation.get("operationId", "")
             assert op_id not in ids, f"{where}: operationId {op_id!r} is not unique; generated clients use it"
             ids.add(op_id)
-            if where in PREDATING_OPERATIONS:
-                continue
             assert re.match(r"^/v[0-9]+/", path), f"{where}: API paths start with a version, /v1/"
             assert re.fullmatch(r"[a-z][A-Za-z0-9]*", op_id), (
                 f"{where}: operationId {op_id!r} must be a lowerCamel name; generated clients use it"
