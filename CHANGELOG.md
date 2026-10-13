@@ -16,6 +16,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   rest of that host contract. The `tools.md` reference is retired; its one platform fact, Claude
   Code's MCP output limits, is now a platform-traps row in `SKILL.md`, updated with the
   50,000-character persist threshold and the per-tool `anthropic/maxResultSizeChars` override.
+  The artifact reference drops restatements of the entrypoint, frontmatter reference, and fleet
+  conventions, and moves its writing-economy rule into a "Writing the artifact" section. The
+  agent-engineer learning-loop scenario's correct approval choice is renamed
+  `human_owner_exact_candidate_revision`, matching the human-owner promotion rule instead of the
+  retired non-author framing; no live eval has been re-run against the renamed choice.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a
