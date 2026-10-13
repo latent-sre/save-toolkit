@@ -15,6 +15,38 @@ Reduce recurring operational burden without transferring hidden work or failure 
 team. This is analysis and design under the caller's authority, not permission to automate live
 actions. Load `stack-profile` for ownership before recommending implementation.
 
+## Interview when evidence is thin
+
+Two entry modes; the evidence decides, not the caller's patience:
+
+- **Evidence mode (default):** records or a supplied assessment packet exist. Assess from them
+  and label gaps; ask nothing.
+- **Interview mode:** a human invokes this directly with a thin description (no frequency,
+  effort or ownership evidence) and an answer would change the recommendation. Ask **one
+  batched round** from the generalized bank below — every aspect that could change the
+  decision, none that could not — then assess from the answers. A dispatched agent never
+  interviews: it returns its missing evidence to its caller instead.
+
+The bank is deliberately task-neutral; phrase each question for the work at hand, accept
+ranges and "unknown", and never make an answer a precondition. An unanswered aspect becomes
+an `[unverified]` gap with the smallest useful measurement, and the assessment proceeds.
+
+| Aspect | Ask, generalized |
+|---|---|
+| Task and trigger | What exactly is done, what triggers it, for which service/environment, and what counts as done? |
+| Frequency and pattern | How often over the last full cycle? Growing, shrinking, seasonal or spiky — and what drives the volume (users, services, releases, data)? |
+| Effort and interruption | Hands-on time per occurrence? Elapsed time, waiting and approvals? When does it land (work hours, on-call, nights) and what does the context switch cost? |
+| People and skill | Who bears it today, who else touches it (handoffs, approvers), and what skill or judgment does it need? Who would maintain an alternative? |
+| Variability and judgment | How identical is each run? Where do exceptions, decisions or escalation happen, and what makes an occurrence hard? |
+| Risk and reversibility | What goes wrong when it's done badly, late or not at all? Blast radius, detection, and how is a mistake undone? What access or compliance constraints apply? |
+| Quality and rework | How often does it fail, repeat or bounce back? What verification follows, and what is the user or downstream impact of the work itself? |
+| Why it recurs | Why does this work exist at all — defect, process, growth, missing tooling or documentation? What has already been tried? |
+| Boundaries and appetite | What must stay manual, what may requesters do themselves, and what outcome would make this worth changing now? Who owns that decision? |
+
+Do not infer toil from the interview alone: a task that is rare, judgment-heavy or deliberately
+practised may be accepted work, and the interview's job is to surface that, not to manufacture
+an automation case.
+
 ## Find the recurring mechanism
 
 Trace **trigger -> manual steps -> judgment/access needed -> result -> reason it recurs** using a

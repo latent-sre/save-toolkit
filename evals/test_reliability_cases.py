@@ -53,6 +53,15 @@ EXPECTED = {
         "recommendation": "compare_simplification_or_acceptance",
         "benefit_status": "estimated", "live_action": "none",
     },
+    "toil-interview": {
+        "response_mode": "ask_batched_intake", "baseline_invented": False,
+        "asks_task_and_trigger": True, "asks_frequency_and_pattern": True,
+        "asks_effort_and_interruption": True, "asks_people_and_skill": True,
+        "asks_variability_and_judgment": True, "asks_risk_and_reversibility": True,
+        "asks_quality_and_rework": True, "asks_why_it_recurs": True,
+        "asks_boundaries_and_appetite": True, "recommendation_made": False,
+        "live_action": "none",
+    },
     "toil-unknown-baseline": {
         "baseline_hours_per_month": None, "break_even_months": None,
         "baseline_status": "unknown", "payback_supported": False,
