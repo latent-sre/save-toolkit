@@ -70,7 +70,7 @@ will offer it).
 | `reliability-engineer` | Service reliability assessment, resilience design, and toil reduction | Local evidence and design documents; bounded facts from `repository-investigator`, protected observations from `sre-assistant`, and sanitized research from `researcher`; implementation stays with its existing owner |
 | `researcher` | Extended public research or bounded external-source help for another agent | Returns cited evidence from official docs, upstream code, packages, and advisories; quick lookups stay with a caller that already has evidence or approved retrieval tools |
 | `reviewer` *(for maintainers and builders)* | Independent investigation, isolated verification, and correctness/security review | Gathers Git/PR evidence and uses focused evidence helpers; owns the verdict, while its caller dispatches fixes to `software-engineer` |
-| `agent-engineer` *(for maintainers)* | The fleet's prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, roster/delegation graphs, and portable executable workflow-graph designs | Delegates only sanitized public lookups to `researcher`; the caller separately dispatches helper code to `software-engineer` and injection-surface review to `reviewer` |
+| `agent-engineer` *(for maintainers)* | The fleet's prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, and the fleet's agent workflow graph (roster, delegation, handoffs, and the executable graph its agents run on) | Delegates only sanitized public lookups to `researcher`; the caller separately dispatches helper code to `software-engineer` and injection-surface review to `reviewer` |
 
 The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 

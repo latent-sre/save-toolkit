@@ -5,8 +5,8 @@ description: >-
   graders, bounded Loop Engineering for evaluation/verification, and agent roster/delegation
   graphs. Triggers: 'write me an agent/skill/prompt', 'my skill fires too often', 'the output is
   the wrong shape', 'is this agent safe / prompt injection'. Not for source-code dependency,
-  knowledge, or GraphRAG graphs, implementing a graph runtime, or the design contract for an
-  executable workflow/state graph (agent-engineer's graph tier).
+  knowledge, or GraphRAG graphs, implementing a graph runtime, or a team service's workflow graph
+  (principal-engineer).
 argument-hint: "[artifact, roster, tool, or context problem]"
 ---
 
@@ -115,7 +115,8 @@ discovery loop with time/cost and round limits set first when the amount of work
 |---|---|---|
 | Roster, delegation/handoff edges, context and authority boundaries, joins, termination | Agent workflow graph | This skill |
 | Source-code import graph, knowledge graph, GraphRAG | A different capability | Not this skill |
-| Durable executable workflow/state graph — typed state, node and edge classes, effects, checkpoints, cancellation, termination | Executable graph contract | `agent-engineer`'s graph tier; this skill still owns its prompts and roster; implementation `software-engineer`; runtime a `stack-profile` decision, never LangGraph because the design is graph-shaped |
+| The executable workflow/state graph the fleet's agents run on — typed state, node and edge classes, effects, checkpoints, cancellation, termination | Executable agent workflow graph | `agent-engineer`, with this skill's roster rules; implementation `software-engineer`; runtime a `stack-profile` decision, never LangGraph because the design is graph-shaped |
+| A team service's executable workflow graph | Service architecture | `principal-engineer` |
 
 **5. Loop Engineering** — the bounded gather/action/verify/repeat contract inside a lane: entry
 state, verifier, iteration/candidate/cost/time budget, success and no-progress termination, safety

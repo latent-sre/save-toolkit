@@ -47,6 +47,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `docs/copilot-projection.md`; read-only guard scoping moves to CONTRIBUTING; and references to
   this repository's files name the Save Toolkit repository, so they read correctly once the
   plugin is installed elsewhere.
+- `agent-engineer` no longer claims a generic portable workflow/state-graph design tier, whose method
+  exists only in the unshipped `sandbox/workflow-graph-engineering` skill; it keeps the fleet's own
+  agent workflow graph, the measured routing in `discovery-principal-engineer-defers-agent-workflow`,
+  and a team service's workflow graph routes to `principal-engineer`. GRAPH-007 tracks promoting or
+  retiring the sandbox skill. Its body drops restatements of `agent-authoring`, merges duplicate
+  handoff and trust lines, and aligns its roster-change rule with the skill's rule 3.
 - `backend-craft` is rebuilt from a fresh start on the owner's 2026-10-11 decisions
   ([decision](docs/decisions/2026-10-11-backend-craft.md)): FastAPI and Huma (Go) services,
   code-first, each committing its generated `openapi.json` behind four gates — a drift test, a

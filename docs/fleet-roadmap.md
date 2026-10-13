@@ -325,6 +325,18 @@ offline test results do not establish human acceptance or live operational truth
 **Evidence:** [Design recovery and compatibility contract](reviews/2026-09-30-backlog-four/graph-004.md).
 **SRE task:** Trust atlas citations, ownership, freshness and missing-result distinctions while navigating guidance.
 
+### GRAPH-007 — promote or retire the sandbox workflow-graph skill
+
+**Status:** `decision-needed` (2026-10-13).
+**Owner:** Save Toolkit maintainers; `agent-engineer` owns the skill text if promoted.
+**Outcome:** Portable executable workflow/state-graph design either ships as a reviewed, routed
+skill or is retired. Until then `agent-engineer` claims only the fleet's own agent workflow graph,
+and a team service's workflow graph routes to `principal-engineer`.
+**Next action:** Decide whether `sandbox/workflow-graph-engineering/SKILL.md` earns promotion into
+`skills/`, with routing scenarios and a listing-size check, given ROUTE-003's inconclusive
+workflow-graph discovery measurements; otherwise remove it.
+**SRE task:** Get a design for a durable workflow graph from the lane that can actually back it.
+
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
 **Status:** `active` (2026-10-06); WP-00 is complete: the owner accepted specification revision 0.6
