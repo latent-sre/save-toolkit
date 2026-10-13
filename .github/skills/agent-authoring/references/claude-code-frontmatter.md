@@ -109,7 +109,7 @@ Considered, not overlooked; reopen only with a reason.
 | `when_to_use` | Trigger phrasings live in `description` so routing has one surface to tune under the 1,024-character cap |
 | `maxTurns` | A capped subagent returns partial output marked as partial, and Claude can resume it. Still unused: loop bounds are task-shaped prose rules (three-strikes, two-round review caps) that fail with a diagnosis. Revisit on an observed runaway loop |
 | `memory` | Agents are stateless; durable knowledge lives in the repo. It is not a scratch workspace. Setting it auto-enables Read/Write/Edit, so it must never reach `repository-investigator` or `researcher` |
-| `TodoWrite` in `tools` | Disabled by default in favour of `TaskCreate`/`TaskGet`/`TaskList`/`TaskUpdate` (`CLAUDE_CODE_ENABLE_TASKS=0` restores it), none yet shown to reach a subagent, and a partially unresolved list launches without it. Kept only as the source of Copilot's `todo`, which VS Code provisions and the cloud coding agent does not. No swap to the Task* names is planned: they are on by default only for older models (Claude 3.x, Opus 4–4.7, Sonnet 4–4.6, Haiku 4.5) and in background and cloud sessions; newer models need `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` |
+| `TodoWrite` in `tools` | Disabled by default in favour of `TaskCreate`/`TaskGet`/`TaskList`/`TaskUpdate`, none yet shown to reach a subagent, and a partially unresolved list launches without it. Kept only as the source of Copilot's `todo`, which VS Code provisions and the cloud coding agent does not. No swap to the Task* names is planned |
 
 ## Quote description scalars that contain a colon
 
