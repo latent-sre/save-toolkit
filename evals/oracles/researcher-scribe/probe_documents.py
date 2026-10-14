@@ -62,7 +62,7 @@ def _check_postmortem(root, *, full):
     assert len(rows) == 1, f"retain one existing FUP-{number} follow-up row"
     cells = [cell.strip() for cell in rows[0].split("|")[1:-1]]
     assert len(cells) == 6, "follow-up must use the six template columns"
-    assert re.fullmatch(rf"(?:FUP-{number}|\[FUP-{number}\]\([^)]+\))", cells[0]), "wrong follow-up ID"
+    assert cells[0] == f"FUP-{number}", "retain the supplied bare follow-up ID; no tracking URL was supplied"
     expected = ("Investigate causal mechanism from retained profiles", "Casey / 2026-09-30", "open",
                 "Reviewed causal finding or explicit evidence limit linked")
     assert tuple(cells[1:5]) == expected, "lost follow-up question, owner/date, open status, or proof"

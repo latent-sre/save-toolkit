@@ -11,6 +11,9 @@ wait); a rollback entry per state change, bound to the step by number and carryi
 or an explicit disposition, plus a safe-abort that says something; an escalation row that is timed
 and reachable on the same row; a triage tree of conditional branches; an evidence label in every
 step that runs a command; and none of the template's placeholders left behind.
+The checkout fixture also requires the prompt's target-confirmation records in Prerequisites
+and its readback/owner/retry records in every state-changing step. These bounded records do not
+establish correctness of arbitrary prose or live execution.
 """
 import re
 import sys
@@ -109,6 +112,43 @@ def entries(body: str) -> list[str]:
 
 def title(step: str) -> str:
     return step.split("\n", 1)[0][:60]
+
+
+def fixture_records(body: str, expected: dict[str, str]) -> str | None:
+    """Match the fixture's declared unfenced records, allowing indentation and bullet markers."""
+    visible = re.sub(r"<!--.*?-->", "", prose(body), flags=re.S)
+    lines = [re.sub(r"^[-*]\s+", "", line.strip()) for line in visible.splitlines()]
+    for label, value in expected.items():
+        records = [m.group(1) for line in lines
+                   if (m := re.match(re.escape(label) + r"\s*:\s*(.*)$", line))]
+        if len(records) != 1 or " ".join(records[0].split()) != value:
+            return f"missing, duplicate, or incorrect {label} record"
+    return None
+
+
+def rule_target_confirmation(text: str, alert: str) -> str | None:
+    return fixture_records(section(text, "Prerequisites"), {
+        "Target": "checkout / production / checkout-prod / checkout",
+        "Target source": "docs/operations/services/checkout.md",
+        "Target check": "kubectl config current-context; expect checkout-prod; "
+                        "mismatch -> stop and contact Checkout Operations",
+    })
+
+
+def rule_unknown_outcome(text: str, alert: str) -> str | None:
+    changes = [s for s in steps(section(text, "Procedure"))
+               if STATE_CHANGE.search(commands(s)) or re.search(r"\bTier\s*[23]\b", prose(s), re.I)]
+    if not changes:
+        return "fixture recovery is missing its state-changing procedure step"
+    for step in changes:
+        problem = fixture_records(step, {
+            "Unknown outcome readback": "checkout-worker rollout status, revision, and events in checkout-prod/checkout",
+            "Reconciliation owner": "Checkout Operations / #checkout-oncall",
+            "Retry policy": "blocked until outcome established and Checkout Operations authorizes",
+        })
+        if problem:
+            return f"{title(step)}: {problem}"
+    return None
 
 
 def rule_frontmatter(text: str, alert: str) -> str | None:

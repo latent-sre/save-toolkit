@@ -483,7 +483,11 @@ card/index edit after a completed scribe dispatch; inspect the trace to establis
 and whether the caller supplied the correct checkout binding. These are bounded artifact checks,
 not general document-quality judgments. `python -m pytest evals/test_researcher_scribe_cases.py`
 calibrates their checks offline, including rejection of newly verified execution in the runbook
-fixture, which supplies no incoming verified execution claims. New scenario definitions and
+fixture, which supplies no incoming verified execution claims. The runbook fixture also declares
+target/source/check records in Prerequisites and readback/owner/retry records for each changing
+step; `test_runbook_safeguards.py` calibrates missing, misplaced, and incorrect records plus
+supervised pass/fail. `test_postmortem_tracking_links.py` rejects invented follow-up links in
+both postmortem forms. These checks remain bounded to the declared fixture records. New scenario definitions and
 offline passes do not establish live model behavior, routing reliability, or host acceptance.
 
 Agent-target routing probes remain **calibration-only** evidence of model/host propensity
