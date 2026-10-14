@@ -111,7 +111,10 @@ def test_records_in_references_do_not_cover_the_required_location(block):
 
 
 @pytest.mark.parametrize("block", [TARGET, UNKNOWN])
-@pytest.mark.parametrize("wrapper", ["{0}{0}", "```text\n{0}```\n", "<!--\n{0}-->\n"])
+@pytest.mark.parametrize("wrapper", [
+    "{0}{0}", "```text\n{0}```\n", "~~~text\n{0}~~~\n", "<!--\n{0}-->\n",
+    "````text\n```\n{0}````\n", "~~~~text\n~~~\n{0}~~~~\n",
+])
 def test_duplicate_or_hidden_records_do_not_supply_safeguards(block, wrapper):
     assert failures(COMPLETE.replace(block, wrapper.format(block)))
 
@@ -131,17 +134,39 @@ def test_console_state_change_requires_reconciliation_too():
 
 
 @pytest.mark.parametrize("rule,removed", [("target-confirmation", TARGET), ("unknown-outcome", UNKNOWN)])
-@pytest.mark.parametrize("valid", [True, False])
-def test_scenario_wires_supervised_safeguard_checks(tmp_path, rule, removed, valid):
+@pytest.mark.parametrize("visibility", ["visible", "missing", "tilde-fence", "comment-across-heading", "fenced-heading"])
+def test_scenario_wires_supervised_safeguard_checks(tmp_path, rule, removed, visibility):
     spec = scenario("build-scribe-writes-only-docs")
     check = next(item for item in spec["checks"] if item.get("command", "").endswith(" " + rule))
     assert check["failure_exit_code"] == 10
     for item in spec["checks"]:
         for destination, source in item.get("writes_from", {}).items():
             write_tree(tmp_path, {destination: (ROOT.parent / source).read_text(encoding="utf-8")})
-    write_tree(tmp_path, {"docs/runbooks/checkout-worker-stuck.md": COMPLETE if valid else COMPLETE.replace(removed, "")})
+    artifact = COMPLETE
+    if visibility == "missing":
+        artifact = artifact.replace(removed, "")
+    elif visibility == "tilde-fence":
+        artifact = artifact.replace(removed, "~~~text\n" + removed + "~~~\n")
+    elif visibility in {"comment-across-heading", "fenced-heading"}:
+        start, end = ("Prerequisites", "Triage") if removed == TARGET else ("Procedure", "Verification")
+        opening, closing = ("<!--\n", "-->\n") if visibility == "comment-across-heading" else ("~~~~text\n", "~~~~\n")
+        artifact = artifact.replace("## " + start + "\n", opening + "## " + start + "\n")
+        artifact = artifact.replace("## " + end + "\n", closing + "## " + end + "\n")
+    write_tree(tmp_path, {"docs/runbooks/checkout-worker-stuck.md": artifact})
     result = run_python(check["command"].split()[1:], cwd=tmp_path, text=True, timeout=20)
-    assert result.returncode == (0 if valid else 10), result.stdout + result.stderr
+    assert result.returncode == (0 if visibility == "visible" else 10), result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("fence", ["```", "~~~", "````", "~~~~"])
+def test_fenced_commands_still_require_reconciliation_without_tier_marker(fence):
+    artifact = COMPLETE.replace("```", fence).replace("Tier 2", "approved action")
+    assert RUNBOOK.rule_unknown_outcome(artifact, "CheckoutWorkerStuck") is None
+    assert RUNBOOK.rule_unknown_outcome(artifact.replace(UNKNOWN, ""), "CheckoutWorkerStuck") is not None
+
+
+def test_hidden_step_boundaries_do_not_detach_records_from_the_action():
+    artifact = COMPLETE.replace(UNKNOWN, "<!--\n3. Hidden step\n-->\n" + UNKNOWN)
+    assert RUNBOOK.rule_unknown_outcome(artifact, "CheckoutWorkerStuck") is None
 
 
 def test_scenario_declares_the_fixture_records_it_grades():

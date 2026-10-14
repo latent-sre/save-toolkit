@@ -73,29 +73,54 @@ UNFILLED = re.compile(r"\b(TBD|TODO|TBC|FIXME)\b|\?\?\?")
 OUTPUT_FENCE = re.compile(r"^(json|yaml|yml|text|txt|output|log|logs|plain|console-output)$", re.I)
 
 
+def markdown_parts(text: str) -> tuple[str, list[tuple[int, str, str]]]:
+    """Mask comments/fences without moving offsets; retain fenced commands separately.
+
+    This is a bounded view of the fixture's Markdown, not a general renderer. Scan in source
+    order so comment markers inside code cannot hide a later visible section or step.
+    """
+    opener = re.compile(r"<!--|^[ \t]*(`{3,}|~{3,})([^\n]*)\n", re.M)
+    visible, blocks, position = list(text), [], 0
+    while m := opener.search(text, position):
+        if m.group(0) == "<!--":
+            close = text.find("-->", m.end())
+            end = len(text) if close < 0 else close + 3
+        else:
+            fence, tag = m.group(1), m.group(2)
+            close = re.compile(r"^[ \t]*" + re.escape(fence[0]) + "{" + str(len(fence))
+                               + r",}[ \t]*(?:\n|$)", re.M).search(text, m.end())
+            end = close.end() if close else len(text)
+            blocks.append((m.start(), tag, text[m.end():close.start() if close else len(text)]))
+        visible[m.start():end] = ["\n" if char == "\n" else " " for char in text[m.start():end]]
+        position = end
+    return "".join(visible), blocks
+
+
 def section(text: str, name: str) -> str:
     """The body of the H2 section whose heading starts with `name`, or ''."""
-    m = re.search(r"^## " + re.escape(name) + r"[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
-    return m.group(1) if m else ""
+    m = re.search(r"^## " + re.escape(name) + r"[^\n]*\n(.*?)(?=^## |\Z)", prose(text), re.M | re.S)
+    return text[m.start(1):m.end(1)] if m else ""
 
 
 def steps(body: str) -> list[str]:
     """Numbered steps of a section, each with its indented continuation lines."""
-    parts = re.split(r"^(?=\d+\.\s)", body, flags=re.M)
-    return [p for p in parts if re.match(r"\d+\.\s", p)]
+    starts = [m.start() for m in re.finditer(r"^\d+\.\s", prose(body), re.M)]
+    return [body[start:end] for start, end in zip(starts, starts[1:] + [len(body)])]
 
 
 def commands(step: str) -> str:
     """The fenced command blocks of a step: fences before its Expected line whose language tag is
     not an output format, so shown output and prose like "do not restart" are not commands."""
-    before = re.split(r"expected\s*:", step, maxsplit=1, flags=re.I)[0]
-    blocks = re.findall(r"```([^\n]*)\n(.*?)```", before, re.S)
-    return "\n".join(body for tag, body in blocks if not OUTPUT_FENCE.match(tag.strip()))
+    visible, blocks = markdown_parts(step)
+    expected = re.search(r"expected\s*:", visible, re.I)
+    end = expected.start() if expected else len(step)
+    return "\n".join(body for start, tag, body in blocks
+                     if start < end and not OUTPUT_FENCE.match(tag.strip()))
 
 
 def prose(step: str) -> str:
-    """A step with its fenced blocks removed."""
-    return re.sub(r"```.*?```", " ", step, flags=re.S)
+    """Visible prose with comments and fenced blocks masked at their original offsets."""
+    return markdown_parts(step)[0]
 
 
 def outcome_lines(step: str) -> str:
@@ -116,7 +141,7 @@ def title(step: str) -> str:
 
 def fixture_records(body: str, expected: dict[str, str]) -> str | None:
     """Match the fixture's declared unfenced records, allowing indentation and bullet markers."""
-    visible = re.sub(r"<!--.*?-->", "", prose(body), flags=re.S)
+    visible = prose(body)
     lines = [re.sub(r"^[-*]\s+", "", line.strip()) for line in visible.splitlines()]
     for label, value in expected.items():
         records = [m.group(1) for line in lines
