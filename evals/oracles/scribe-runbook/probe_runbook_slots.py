@@ -24,6 +24,11 @@ STRING_KEYS = ("runbook_id", "service_id", "owner", "severity", "source_revision
 # Every placeholder the template carries (assets/runbook-template.md), so a copied slot left
 # unfilled is caught whichever one it is. evals/test_build_probe.py holds this list to the template.
 TEMPLATE_LITERALS = (
+    "<0–3>",
+    "<service/environment and foundation, project, or account from the service card/change packet>",
+    "<console view or read-only context check>",
+    "<prerequisites for entering this step directly>",
+    "<readback and reconciliation owner>",
     "<Apps Manager view, Grafana panel, Splunk search, or Wavefront chart>",
     "<Apps Manager or Cloud Console, Grafana, Splunk, Wavefront or PCF App Metrics; cf CLI v8 or gcloud only if installed>",
     "<N min or N attempts>", "<P1|P2|P3|P4 / page | ticket>", "<PR or evidence reference; closeout disposition id if one exists>",

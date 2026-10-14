@@ -62,7 +62,7 @@ including disconfirming evidence and unresolved alternatives. Never force a Why 
 
 ### Where we got lucky
 
-- <Each item should become a preventative action or an explicit accepted risk.>
+- <Each item should become a justified follow-up or an explicit accepted risk.>
 
 ### Lessons
 

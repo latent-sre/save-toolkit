@@ -8,7 +8,7 @@ import pytest
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe_testkit import context as check_context
-from probe_testkit import load_oracle, parse_events, scenario, write_tree
+from probe_testkit import load_oracle, parse_events, run_python, scenario, write_tree
 
 ROOT = Path(__file__).resolve().parent
 RUNBOOK = load_oracle(ROOT / "oracles/scribe-runbook/probe_runbook_slots.py")
@@ -190,15 +190,16 @@ resolved_at: "2026-09-22T10:12:00Z"
 resolution_confirmed_at: "2026-09-22T10:20:00Z"
 ---
 ## Summary
-Checkout errors lasted 12 minutes, from EVENT-72 [UNTRUSTED][sourced].
+Impact duration: [UNTRUSTED][sourced] EVENT-72: 12 minutes
 ## Timeline (UTC)
-RES-72 [UNTRUSTED][sourced]: Morgan confirmed resolution after recovery.
+Resolution confirmation: [UNTRUSTED][sourced] RES-72: Morgan at 2026-09-22T10:20:00Z
 ## Assessment
-Causal status: [UNTRUSTED][unverified] unknown; follow-up is owned.
-Data integrity is [UNTRUSTED][unverified].
+Causal status: [UNTRUSTED][unverified] unknown
+Data integrity: [UNTRUSTED][unverified] not assessed
 ## Follow-ups
-| ID | Owner | Due | Status |
-| FUP-72 | Casey | 2026-09-30 | open |
+| ID / tracking link | Action or question / scope | Owner / due | Status / prerequisite | Artifact / proof of done | Evidence / reason |
+|---|---|---|---|---|---|
+| FUP-72 | Investigate causal mechanism from retained profiles | Casey / 2026-09-30 | open | Reviewed causal finding or explicit evidence limit linked | EVENT-72 [UNTRUSTED][sourced] |
 '''
 
 
@@ -218,15 +219,107 @@ def test_postmortem_artifact_rejects_time_promotion_and_missing_followup(tmp_pat
 @pytest.mark.parametrize("old,new", [
     ("Causal status: [UNTRUSTED][unverified]", "Causal status: [UNTRUSTED][verified]"),
     ("Causal status: [UNTRUSTED][unverified]", "Causal status: [UNTRUSTED][sourced]"),
-    ("Data integrity is [UNTRUSTED][unverified]", "Data integrity is [UNTRUSTED][sourced]"),
+    ("Data integrity: [UNTRUSTED][unverified]", "Data integrity: [UNTRUSTED][sourced]"),
     ("EVENT-72 [UNTRUSTED][sourced]", "EVENT-72 [sourced]"),
-    ("RES-72 [UNTRUSTED][sourced]", "RES-72 [UNTRUSTED]"),
+    ("[UNTRUSTED][sourced] RES-72", "[UNTRUSTED] RES-72"),
     ("[UNTRUSTED]", ""),
 ])
 def test_postmortem_rejects_single_claim_promotion_or_label_loss(tmp_path, old, new):
+    assert old in POSTMORTEM
     write_tree(tmp_path, {"docs/postmortems/INC-72.md": POSTMORTEM.replace(old, new)})
     with pytest.raises(AssertionError):
         DOCUMENTS.check_postmortem(tmp_path)
+
+
+@pytest.mark.parametrize("old,new", [
+    ("| open |", "| completed |"),
+    ("Investigate causal mechanism from retained profiles", "Change dashboard colors"),
+    ("Reviewed causal finding or explicit evidence limit linked", "Dashboard is blue"),
+    ("Reviewed causal finding or explicit evidence limit linked", ""),
+    ("12 minutes", "20 minutes"),
+    ("Causal status: [UNTRUSTED][unverified] unknown",
+     "Causal status: [UNTRUSTED][unverified] confirmed memory leak"),
+    ("Data integrity: [UNTRUSTED][unverified] not assessed",
+     "Data integrity: [UNTRUSTED][unverified] confirmed no data loss"),
+    ("Impact duration: [UNTRUSTED][sourced] EVENT-72: 12 minutes",
+     "Impact duration: 12 minutes\nEVENT-72 [UNTRUSTED][sourced]: source retained"),
+    ("Resolution confirmation: [UNTRUSTED][sourced] RES-72: Morgan at 2026-09-22T10:20:00Z",
+     "Resolution confirmation: Morgan at 2026-09-22T10:20:00Z\nRES-72 [UNTRUSTED][sourced]: source retained"),
+])
+def test_postmortem_rejects_changed_fixture_facts_and_followup(tmp_path, old, new):
+    assert old in POSTMORTEM, "counterexample must change the positive control"
+    write_tree(tmp_path, {"docs/postmortems/INC-72.md": POSTMORTEM.replace(old, new)})
+    with pytest.raises(AssertionError):
+        DOCUMENTS.check_postmortem(tmp_path)
+
+
+POSTMORTEM_FULL = POSTMORTEM.replace("72", "74").replace(
+    "severity: P3", "severity: null"
+).replace(
+    'resolved_at: "2026-09-22T10:12:00Z"', "resolved_at: null"
+).replace(
+    "Impact duration: [UNTRUSTED][sourced] EVENT-74: 12 minutes",
+    "Impact duration: [UNTRUSTED][unverified] unknown\n"
+    "Form choice: [UNTRUSTED][sourced] EVENT-74: full; customer-visible impact; owner confirmation pending"
+).replace(
+    "## Follow-ups",
+    "## Full analysis\n### Impact\nCustomer-visible request failures; end time is unknown.\n"
+    "### Causal analysis\nFault tree; alternatives remain unverified pending FUP-74.\n"
+    "### Detection and response\nRecovery telemetry is unavailable.\n"
+    "### Where we got lucky\nNo evidenced near-miss supplied.\n"
+    "### Lessons\nPreserve the evidence gap in FUP-74.\n## Follow-ups"
+)
+
+
+@pytest.mark.parametrize("old,new", [
+    (None, None),
+    ("severity: null", "severity: P1"),
+    ("resolved_at: null", 'resolved_at: "2026-09-22T10:20:00Z"'),
+    ("Impact duration: [UNTRUSTED][unverified] unknown",
+     "Impact duration: [UNTRUSTED][unverified] 20 minutes"),
+    ("## Full analysis", "## Abbreviated analysis"),
+    ("### Causal analysis", "### Notes"),
+    ("customer-visible impact", "internal maintenance"),
+    ("owner confirmation pending", "owner approved"),
+    ("| open |", "| completed |"),
+    ("Reviewed causal finding or explicit evidence limit linked", ""),
+    ("Causal status: [UNTRUSTED][unverified] unknown",
+     "Causal status: [UNTRUSTED][unverified] confirmed memory leak"),
+])
+def test_full_postmortem_preserves_unknown_metadata_and_pending_review(tmp_path, old, new):
+    if old is not None:
+        assert old in POSTMORTEM_FULL
+    artifact = POSTMORTEM_FULL if old is None else POSTMORTEM_FULL.replace(old, new)
+    write_tree(tmp_path, {"docs/postmortems/INC-74.md": artifact})
+    if old is None:
+        DOCUMENTS.check_postmortem_full(tmp_path)
+    else:
+        with pytest.raises(AssertionError):
+            DOCUMENTS.check_postmortem_full(tmp_path)
+
+
+@pytest.mark.parametrize("full", [False, True])
+@pytest.mark.parametrize("variant", ["valid", "completed", "missing", "early_exit", "oracle_crash"])
+def test_postmortem_scenario_command_reports_supervised_outcome(tmp_path, full, variant):
+    name = "build-scribe-postmortem-unknown-metadata" if full else "build-scribe-postmortem-evidence"
+    spec = scenario(name)
+    assert probe_catalog.validate_scenario(spec) == []
+    check = next(item for item in spec["checks"] if item["check"] == "command_exit_zero")
+    files = {path: (ROOT.parent / source).read_text(encoding="utf-8")
+             for path, source in check["writes_from"].items()}
+    if variant in {"early_exit", "oracle_crash"}:
+        files["probe_documents.py"] = (
+            "import os\nos._exit(0)\n" if variant == "early_exit" else "raise RuntimeError('broken measurement')\n"
+        )
+    if variant != "missing":
+        artifact = POSTMORTEM_FULL if full else POSTMORTEM
+        files[f"docs/postmortems/INC-{'74' if full else '72'}.md"] = (
+            artifact.replace("| open |", "| completed |") if variant == "completed" else artifact
+        )
+    write_tree(tmp_path, files)
+    result = run_python(check["command"].split()[1:], cwd=tmp_path, timeout=30)
+    expected = 0 if variant == "valid" else 10 if variant in {"completed", "missing"} else 1
+    assert result.returncode == expected, result.stdout + result.stderr
 
 
 @pytest.mark.parametrize("mutation", [None, "contact", "lifecycle", "review_date", "provenance", "index",
