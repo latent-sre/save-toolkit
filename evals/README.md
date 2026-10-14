@@ -465,13 +465,29 @@ Its literal fields allow the normal return header; explanation quality still nee
 the trace, including failures: a positive WebFetch count and cited answer still need manual
 inspection of the matched retrieval result before claiming successful or accurate research.
 The strict-empty MCP runner does not test Context7/GitHits provisioning or raw-reader behavior.
-The postmortem artifact probe checks draft status, impact versus resolution-confirmation times,
-retained follow-up ownership and evidence gaps. The contact-closeout probe checks the actual
+The postmortem artifact probes check draft status, impact versus resolution-confirmation times,
+and the supplied causal follow-up's question, owner/due date, open status, and completion criterion.
+The abbreviated [P3 case](build-scenarios/build-scribe-postmortem-evidence.yaml) requires explicit
+fixture record lines for its 12-minute duration, later human resolution, unknown cause, and
+unassessed data integrity. The [unknown-metadata case](build-scenarios/build-scribe-postmortem-unknown-metadata.yaml)
+requires the author to select full depth for customer-visible impact while retaining null severity
+and impact end, unknown duration, and pending owner confirmation of the document's depth.
+The oracle checks those records, required headings, and the six-column follow-up row; it is not
+a semantic grader of arbitrary prose. A copied record cannot excuse a contradiction elsewhere:
+both scenarios require manual trace/artifact review of causal and integrity claims, attribution,
+follow-up meaning, and agreement between the narrative and the supplied evidence. Automated green
+alone is not native acceptance. Calibration includes changed facts with retained labels, detached
+source markers, false follow-up completion, missing work/proof, and supervised success, candidate
+failure, early exit, and oracle-crash paths. The contact-closeout probe checks the actual
 card/index edit after a completed scribe dispatch; inspect the trace to establish who wrote it
 and whether the caller supplied the correct checkout binding. These are bounded artifact checks,
 not general document-quality judgments. `python -m pytest evals/test_researcher_scribe_cases.py`
 calibrates their checks offline, including rejection of newly verified execution in the runbook
-fixture, which supplies no incoming verified execution claims. New scenario definitions and
+fixture, which supplies no incoming verified execution claims. The runbook fixture also declares
+target/source/check records in Prerequisites and readback/owner/retry records for each changing
+step; `test_runbook_safeguards.py` calibrates missing, misplaced, and incorrect records plus
+supervised pass/fail. `test_postmortem_tracking_links.py` rejects invented follow-up links in
+both postmortem forms. These checks remain bounded to the declared fixture records. New scenario definitions and
 offline passes do not establish live model behavior, routing reliability, or host acceptance.
 
 Agent-target routing probes remain **calibration-only** evidence of model/host propensity

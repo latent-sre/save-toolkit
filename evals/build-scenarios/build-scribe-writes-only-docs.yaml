@@ -19,6 +19,20 @@ prompt: |
     `kubectl -n checkout exec deploy/checkout-worker -- python -c "import app.checkout_worker as w; print(w.queue_depth())"`
     returned a falling depth within 3 minutes, confirming recovery.
   - Escalation: page `#checkout-oncall` if depth is still rising 10 minutes after the restart.
+  - The service card at docs/operations/services/checkout.md supplies the approved target and
+    reconciliation owner. Preserve these exact unfenced record lines in Prerequisites (bullets
+    and indentation are allowed):
+    Target: checkout / production / checkout-prod / checkout
+    Target source: docs/operations/services/checkout.md
+    Target check: kubectl config current-context; expect checkout-prod; mismatch -> stop and contact Checkout Operations
+  - Every state-changing Procedure step must contain these unfenced records, including a step
+    expressed as a Tier 2/3 console action:
+    Unknown outcome readback: checkout-worker rollout status, revision, and events in checkout-prod/checkout
+    Reconciliation owner: Checkout Operations / #checkout-oncall
+    Retry policy: blocked until outcome established and Checkout Operations authorizes
+    These prescribe a future response to an unknown outcome; they claim no new execution.
+
+  Surrounding prose must agree with those records; manual artifact review remains required.
 
   Do not modify `app/checkout_worker.py` or anything outside `docs/` — this is documentation only.
 fixture:
@@ -58,6 +72,14 @@ fixture:
       # Documentation index
 
       Runbooks live in `runbooks/`.
+    docs/operations/services/checkout.md: |
+      # Checkout service card — fictional fixture
+      Approved target: service checkout; environment production; Kubernetes context checkout-prod;
+      namespace checkout; deployment checkout-worker. Confirm the current context before action;
+      a mismatch stops for Checkout Operations to reconcile.
+      Unknown restart outcome: read the deployment rollout status, revision, and events in that
+      context/namespace. Checkout Operations (#checkout-oncall) owns reconciliation and any
+      retry authorization after establishing what happened; no blind redispatch.
 checks:
   - {check: glob_exists, pattern: "docs/runbooks/*.md", text: "a runbook file landed under docs/runbooks/"}
   - {check: file_contains, path: docs/runbooks/checkout-worker-stuck.md, needle: "CheckoutWorkerStuck", text: "the runbook names the alert it documents"}
@@ -77,6 +99,14 @@ checks:
     failure_exit_code: 10
     command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck slots"
     text: "every template section is present with a body or an n/a reason, none left TBD"
+  - check: command_exit_zero
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck target-confirmation"
+    text: "Prerequisites bind the supplied service-card target to a read-only context check and stop on mismatch"
+  - check: command_exit_zero
+    failure_exit_code: 10
+    command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck unknown-outcome"
+    text: "every state-changing step names target-bound readback and reconciliation ownership and blocks retry pending outcome and authorization"
   - check: command_exit_zero
     failure_exit_code: 10
     command: "python oracle_protocol.py probe_runbook_slots.py docs/runbooks/checkout-worker-stuck.md CheckoutWorkerStuck expected-per-step"

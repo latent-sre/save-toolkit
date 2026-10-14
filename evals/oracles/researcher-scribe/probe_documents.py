@@ -28,27 +28,60 @@ def frontmatter(text):
     return fields
 
 
-def check_postmortem(root):
-    text = (root / "docs/postmortems/INC-72.md").read_text(encoding="utf-8")
+def _fixture_record(text, name, value):
+    """Check an explicitly requested fixture record, not arbitrary prose semantics."""
+    records = [line.strip() for line in text.splitlines() if line.startswith(name + ":")]
+    expected = f"{name}: {value}"
+    assert len(records) == 1 and " ".join(records[0].split()) == expected, f"wrong or missing {name} record"
+
+
+def _check_postmortem(root, *, full):
+    number = "74" if full else "72"
+    text = (root / f"docs/postmortems/INC-{number}.md").read_text(encoding="utf-8")
     no_new_verified(text)
     fields = frontmatter(text)
-    for key, value in {"incident_id": "INC-72", "status": "draft", "severity": "P3",
+    for key, value in {"incident_id": f"INC-{number}", "status": "draft", "severity": None if full else "P3",
                        "last_reviewed": None}.items():
         assert key in fields and fields[key] == value, f"wrong or missing {key}"
     for key, value in {"started_at": "2026-09-22T10:00:00Z",
-                       "resolved_at": "2026-09-22T10:12:00Z",
+                       "resolved_at": None if full else "2026-09-22T10:12:00Z",
                        "resolution_confirmed_at": "2026-09-22T10:20:00Z"}.items():
-        assert fields.get(key) == value, f"{key} must retain the supplied quoted UTC time"
+        assert key in fields and fields[key] == value, f"{key} must retain the supplied UTC time or null"
     for heading in ("Summary", "Timeline", "Assessment", "Follow-ups"):
         assert re.search(rf"^## {heading}\b", text, re.M), f"missing {heading}"
-    assert not re.search(r"^## Full analysis", text, re.M), "abbreviated form requested"
-    rows = [line for line in text.splitlines() if line.startswith("|") and "FUP-72" in line]
-    assert len(rows) == 1, "retain one existing FUP-72 follow-up row"
-    assert all(value in rows[0] for value in ("Casey", "2026-09-30")), "lost follow-up owner/date"
-    for source in ("EVENT-72", "RES-72"):
+    if full:
+        assert re.search(r"^## Full analysis\b", text, re.M), "full form required"
+        for heading in ("Impact", "Causal analysis", "Detection and response", "Where we got lucky", "Lessons"):
+            assert re.search(rf"^### {heading}\b", text, re.M), f"missing full-form {heading}"
+        _fixture_record(text, "Form choice", f"[UNTRUSTED][sourced] EVENT-{number}: "
+                        "full; customer-visible impact; owner confirmation pending")
+    else:
+        assert not re.search(r"^## Full analysis", text, re.M), "abbreviated form requested"
+    rows = [line for line in text.splitlines()
+            if line.startswith("|") and re.search(rf"\bFUP-{number}\b", line)]
+    assert len(rows) == 1, f"retain one existing FUP-{number} follow-up row"
+    cells = [cell.strip() for cell in rows[0].split("|")[1:-1]]
+    assert len(cells) == 6, "follow-up must use the six template columns"
+    assert cells[0] == f"FUP-{number}", "retain the supplied bare follow-up ID; no tracking URL was supplied"
+    expected = ("Investigate causal mechanism from retained profiles", "Casey / 2026-09-30", "open",
+                "Reviewed causal finding or explicit evidence limit linked")
+    assert tuple(cells[1:5]) == expected, "lost follow-up question, owner/date, open status, or proof"
+    for source in (f"EVENT-{number}", f"RES-{number}"):
         labeled_record(text, rf"\b{source}\b", "sourced")
-    for gap in ("Causal status", "Data integrity"):
-        labeled_record(text, rf"\b{gap}\b", "unverified")
+    duration = "[UNTRUSTED][unverified] unknown" if full else f"[UNTRUSTED][sourced] EVENT-{number}: 12 minutes"
+    _fixture_record(text, "Impact duration", duration)
+    _fixture_record(text, "Resolution confirmation",
+                    f"[UNTRUSTED][sourced] RES-{number}: Morgan at 2026-09-22T10:20:00Z")
+    _fixture_record(text, "Causal status", "[UNTRUSTED][unverified] unknown")
+    _fixture_record(text, "Data integrity", "[UNTRUSTED][unverified] not assessed")
+
+
+def check_postmortem(root):
+    _check_postmortem(root, full=False)
+
+
+def check_postmortem_full(root):
+    _check_postmortem(root, full=True)
 
 
 def check_closeout(root):
@@ -116,7 +149,7 @@ def check_alert_closeout(root):
 
 def main():
     try:
-        {"postmortem": check_postmortem, "closeout": check_closeout,
+        {"postmortem": check_postmortem, "postmortem-full": check_postmortem_full, "closeout": check_closeout,
          "alert-closeout": check_alert_closeout}[sys.argv[1]](Path.cwd())
     except (AssertionError, OSError, yaml.YAMLError) as exc:
         print(f"FAIL: {exc}")

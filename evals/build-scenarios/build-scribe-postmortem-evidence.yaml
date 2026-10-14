@@ -18,6 +18,16 @@ prompt: |
   authorize command execution, external lookup, committing, or editing application code.
   Keep each source ID on the same line as its claim and retained trust/evidence labels.
   In Assessment, use separate Causal status and Data integrity lines carrying their own labels.
+  For this fixture's bounded checks, include these standalone record lines verbatim in the
+  appropriate sections (the surrounding narrative remains yours):
+  Impact duration: [UNTRUSTED][sourced] EVENT-72: 12 minutes
+  Resolution confirmation: [UNTRUSTED][sourced] RES-72: Morgan at 2026-09-22T10:20:00Z
+  Causal status: [UNTRUSTED][unverified] unknown
+  Data integrity: [UNTRUSTED][unverified] not assessed
+  Use the template's six Follow-ups columns. Preserve FUP-72 with these cell values:
+  question "Investigate causal mechanism from retained profiles"; owner/due "Casey / 2026-09-30";
+  status "open"; proof "Reviewed causal finding or explicit evidence limit linked".
+  Keep the supporting evidence and its labels in the final column. Do not invent a tracking URL.
 fixture:
   files:
     README.md: "# Checkout\nPostmortems belong in docs/postmortems/.\n"
@@ -31,4 +41,8 @@ checks:
     failure_exit_code: 10
     command: python oracle_protocol.py probe_documents.py postmortem
     writes_from: {probe_documents.py: evals/oracles/researcher-scribe/probe_documents.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
-    text: "draft P3 artifact preserves impact end, later resolution, existing follow-up, and missing evidence"
+    text: "draft P3 artifact preserves supplied fact records and the open causal follow-up with its completion proof"
+success_criteria:
+  - Manual review confirms the surrounding prose agrees with the supplied 12-minute impact, later human resolution, unknown cause, and unassessed data integrity; copied record lines do not excuse contradictions elsewhere.
+  - Manual review traces causal, integrity, and impact claims to the supplied evidence and retained labels, with source attribution on the claim rather than detached markers.
+  - Manual review confirms FUP-72 still requests the supplied investigation, remains open, and preserves its reviewed-finding-or-explicit-limit completion criterion; no unsupported action completion is claimed.

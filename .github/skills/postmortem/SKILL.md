@@ -12,8 +12,10 @@ argument-hint: "[the resolved incident]"
 # Blameless postmortem
 
 Whoever applies this skill, scribe's postmortem mode or the main thread, first gathers the
-timeline, closeout packet, and severity; given only an incident ID, ask for them rather than
-drafting placeholders.
+supplied incident timeline, severity, and the incident record's root-cause evidence (the advisor's
+closeout packet and any `sre-assistant` slices); given only an incident ID, ask for them rather than
+drafting placeholders. Preserve every `[verified]`, `[sourced]`, and `[unverified]` label; never
+upgrade one.
 
 Use the [postmortem template](./assets/postmortem-template.md): full for P1/P2 or an explicit full
 review; abbreviated for P3/P4 and near-misses unless policy or the owner requires full depth. Keep unknown
@@ -65,9 +67,3 @@ Keep one Follow-ups record with incoming IDs; after the write-up, knowledge clos
 
 Use evidenced successes, gaps, and narrowly avoided failures. A revealed risk warrants a justified
 follow-up or explicit accepted risk, not an invented action to fill the template.
-
-## Tip
-
-Seed this from the supplied incident timeline and the incident record's root-cause evidence (the advisor's
-closeout packet and any `sre-assistant` slices) so it is accurate
-while memory is fresh. Preserve every `[verified]`, `[sourced]`, and `[unverified]` label; never upgrade one.

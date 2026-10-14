@@ -24,6 +24,8 @@ The exact alert/symptom that brings you here: <alert name + condition, or observ
 Dashboard: <link>  ·  Source/repo: <link>
 
 ## Prerequisites
+- Target: <service/environment and foundation, project, or account from the service card/change packet>
+  Confirm with: <console view or read-only context check>; stop on mismatch.
 - Access: <roles, Apps Manager org/space, VPN, tools>
 - Tools: <Apps Manager or Cloud Console, Grafana, Splunk, Wavefront or PCF App Metrics; cf CLI v8 or gcloud only if installed>
 - Useful links: <dashboard, saved search, prior postmortem>
@@ -45,7 +47,7 @@ Dashboard: <link>  ·  Source/repo: <link>
 > Record approver, time, and rollback with the change. Impact growing or customer-visible and no
 > incident open → start one through the team's incident process first.
 
-1. <imperative step>
+1. <imperative step> — Tier <0–3>; <prerequisites for entering this step directly>
    Apps Manager (PCF) or Cloud Console (Cloud Run): <org / space → app → view → control and value>, or
    ```bash
    <cf or gcloud command — the console action's equivalent, for responders who have the CLI>
@@ -53,6 +55,8 @@ Dashboard: <link>  ·  Source/repo: <link>
    Expected: <what you should see, in console terms first>, sorted into worked / partly worked / failed, each with where to go
    If not within <N min or N attempts>: → <the step or escalation row to go to> (every step that
    changes state or might not work carries this line; it is the step's own exit)
+   Unknown action outcome: <readback and reconciliation owner>; do not retry until the owner
+   establishes what happened and authorizes retry.
 2. <next step> — every step gets its Expected line, including waits and evidence captures …
 
 ## Verification
@@ -79,17 +83,19 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
       were missing, follow-up id.
 - [ ] Create a learning disposition for every missing, contradicted, or newly useful step.
 - [ ] **Update this runbook** from supplied evidence when a disposition requires it.
-- [ ] Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version,
-      target, actor, timestamp, and outcome; otherwise leave it unchanged (including `null`) and
-      record the gap.
+- [ ] On a procedure-version change, preserve prior verification in history; clear `last_verified`
+      and `verification_evidence` unless qualifying evidence covers the new version.
+- [ ] For an unchanged version: Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version,
+      target, actor, timestamp, and passing outcomes for every step claimed; otherwise leave it unchanged
+      (including `null`) and record the gap. Untraversed branches remain untested.
 - [ ] File follow-up **automation candidates** (Crawl→Walk→Run) as tickets after a toil assessment
       of frequency, effort, and maintenance cost.
 - [ ] If this was an incident, after recovery, hand the timeline and evidence to the `scribe` agent for retrospective documentation.
 
 ## Incident history (living-runbook accretion)
 > Append one row per incident or rehearsal that used this runbook — newest first. Rows are evidence:
-> never rewrite or delete them. A "failed / missing" cell that stays empty across many incidents is
-> signal too. Three rows with the same manual fix ⇒ file the Crawl→Walk→Run automation candidate.
+> never rewrite or delete them. Three incidents with the same manual fix ⇒ record an automation candidate; assess it
+> with `toil-reduction` before filing.
 
 | Date (UTC) | Incident / drill ref | Version used | Steps that held | Steps that failed / were missing | Follow-up (disposition / PR or evidence reference) |
 |---|---|---|---|---|---|

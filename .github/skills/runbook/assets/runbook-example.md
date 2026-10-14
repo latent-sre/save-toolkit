@@ -201,7 +201,8 @@ Hand over: trigger, evidence, attempted steps, current state, and the current ow
 - [ ] **Update this runbook** from supplied evidence when a disposition requires it.
 - [ ] Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version,
       target, actor, timestamp, and outcome; otherwise leave it unchanged and record the gap.
-- [ ] File follow-up **automation candidates** (Crawl→Walk→Run) as tickets.
+- [ ] Assess follow-up **automation candidates** (Crawl→Walk→Run) with `toil-reduction` for
+      frequency, effort, and maintenance cost before filing tickets.
 - [ ] If this was an incident, after recovery, hand the timeline and evidence to `scribe`.
 
 ## Incident history (living-runbook accretion)
