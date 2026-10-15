@@ -482,13 +482,19 @@ and waiter-retention claims, but independent semantic review proposes FAIL becau
 does not force admission overload. The first two reliability records remain INCONCLUSIVE. The bounded
 GCP-01 transport is exercised; remaining families and native behavior are still separate. Human
 result acceptance and candidate promotion remain pending; the eleven-attempt allowance is exhausted.
-Next: repair or explicitly dispose of the quotation and overload-verification findings before claiming
-those behaviors qualified. A prepared closeout candidate puts overload verification in the
-resilience entrypoint and adds the missing GCP startup comparison/follow-up guidance. Its
-[five-attempt confirmation proposal](reviews/2026-10-15-luna-reliability-gcp01.md#prepared-closeout-candidate-and-final-confirmation-proposal)
-was approved on 2026-10-15: three reliability observations and one GCP-01 A/B pair, one candidate, no
-retries or automatic tuning round. Quotation remains an open limitation. New behavioral evidence
-and exact-candidate acceptance remain pending; this closes only the bounded Luna continuation if accepted.
+The owner approved a final five-attempt closeout and local commit on 2026-10-15, retaining quotation
+as an open limitation. [verified] The [final batch](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout)
+completed on `f151c276`: reliability mechanically PASS 3/3; GCP A/B remain mechanically INCONCLUSIVE
+at their expected human-review gates. All five have complete instrument evidence and no detected
+authority/effect regression. [sourced: independent review] Every reliability assessment now contains
+explicit overload verification, but all three omit the required distinction between falsy returns
+and uncaught client exceptions, so their full-rubric semantic proposals are FAIL. GCP A's proposal is PASS;
+B's is FAIL because it changes the healthy 09:12 baseline to 14:12 and still omits new-start monitoring.
+The five-attempt allowance is exhausted, with no retries or automatic tuning round. This bounded
+Luna continuation is complete at the implementation/run/evidence level; behavioral qualification
+remains partial. Next: human disposition of the bound semantic proposals and exact candidate revision.
+Quotation, exception-path explanation and GCP B factual/startup-follow-up findings remain open;
+no further campaign or candidate promotion is implied.
 The helper verification gap stays
 INCONCLUSIVE; any further campaign needs a new bounded scope. The saved-trace review
 did not rerun models; the later Luna qualification attempts are recorded separately. Runner follow-ups, not blocking: unittest

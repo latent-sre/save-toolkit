@@ -162,6 +162,13 @@ MCP pipes on Windows; their source bindings and the two affected INCONCLUSIVEs r
 The other two INCONCLUSIVEs are GCP's expected human-review gates. Quotation remains unreliable;
 the conclusive reliability assessment fixes the old reasoning claims but has an AI-proposed semantic
 FAIL for not forcing admission overload in its verification plan. No result promotes the candidate.
+The owner then approved a final five-attempt closeout on `f151c276`: three reliability mechanical
+PASS and two complete GCP human-review gates. Separate semantic proposals are reliability
+FAIL/FAIL/FAIL (missing exception-path distinction), GCP A PASS and GCP B FAIL (incorrect baseline
+time and incomplete startup follow-up). Explicit overload checks appear in all three reliability
+assessments; quotation remains an accepted open limitation. The linked closeout retains every
+observation and source binding. The allowance is exhausted; no automatic retry or tuning round
+follows, and result acceptance and promotion remain separate.
 The first step's USD 20 decision does not authorize a later campaign.
 
 ## Budget

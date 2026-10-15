@@ -1,10 +1,11 @@
 # Luna quotation, reliability and GCP-01 continuation
 
-**Status:** implementation, candidate freeze and all eleven observations are complete. Mechanical
-results are six PASS, one quotation FAIL and four INCONCLUSIVE: two retained transport failures and
-two expected GCP human-review gates. Exact quotation remains unreliable. One conclusive reliability
-assessment corrects the timeout/admission claims but fails the separate semantic overload criterion.
-Human result acceptance and candidate promotion remain pending.
+**Status:** the bounded Luna continuation is closed at the run-and-evidence level. The initial eleven
+observations and final five confirmations are complete on separately bound candidates. The final
+five have three mechanical PASS and two expected GCP human-review gates. Independent semantic
+proposals are reliability FAIL/FAIL/FAIL, GCP A PASS and GCP B FAIL; the findings are detailed below.
+Quotation remains an accepted open limitation. Human result acceptance and candidate promotion
+remain pending; no further trial or tuning round is scheduled.
 The owner requested all four next steps: address the two findings, freeze the intended candidate,
 extend the adapter to GCP-01, and commit the reviewed changes. The full repository suite remains
 waived; pushing and candidate promotion are separate.
@@ -213,8 +214,8 @@ promotion follows from this evidence.
 
 The owner's request to finish this work is being handled as a bounded closeout of this Luna
 continuation. It does not complete all of EVAL-012, WP-10's native coverage, or the wider GCP pilot.
-The following guidance changes are prepared on top of `35f55cc9`; behavioral results remain
-unverified until the approved confirmation run is completed:
+The following guidance changes were prepared on top of `35f55cc9`; their behavioral effect was
+unverified at preparation, before the approved confirmation run:
 
 - `resilience-analysis/SKILL.md` puts the overload stimulus in the entrypoint actually read by the
   prior assessment: exceed completion capacity, exercise admission and overflow, run protected work
@@ -265,5 +266,67 @@ the local commit; push, merge and promotion remain outside this allowance.
 [verified] Preparation checks passed on Python 3.14.7: `scripts/test_skill_assets.py` and
 `scripts/test_reliability_contract.py` (13 tests, 95 subtests), canonical/bundle links, fleet
 validation, generated-adapter parity and `git diff --check`. Canonical growth is 310 bytes in
-`resilience-analysis` and 841 in `gcp-ops` (LF-normalized). These are structural checks; no new
-Luna attempt has run and neither behavioral finding is claimed fixed.
+`resilience-analysis` and 841 in `gcp-ops` (LF-normalized). These were structural checks; no new
+Luna attempt had run at that checkpoint and neither behavioral finding was claimed fixed.
+
+## Final five-attempt closeout
+
+[verified] The owner-approved batch completed on canonical candidate
+`f151c2769fbcaedcac3415f69f8c4a84aea3438e`, plugin digest
+`fb0f64cf2977cfcf235f447b2c48ca2046692919b889c83b8e6c68d280b4835e`.
+Independent static review approved that exact six-file commit and tree
+`eee611fd9007f8ceb595103ffbf6d944a0099e09` before launch. The freeze binds 35 source files,
+unchanged case identities and scoring rules, the corrected adapter, Codex CLI 0.162.1, and the same
+unelevated Windows owner identity. The candidate stayed unchanged through all five observations.
+
+| Case | Mechanical outcomes | Separate AI semantic proposals |
+|---|---|---|
+| Reliability, observations 1–3 | PASS / PASS / PASS | FAIL / FAIL / FAIL |
+| GCP-01 A | INCONCLUSIVE, evidence complete | PASS |
+| GCP-01 B | INCONCLUSIVE, evidence complete | FAIL |
+
+[sourced: independent semantic review] All three reliability assessments contain an explicit
+overload/overflow experiment with concurrent account reads and protected-slot checks, plus recovery
+criteria. They reject an unconditional timeout/occupancy maximum and protect read slots from
+ledger waiters. The full frozen rubric still fails: none explains that a falsy return permits
+another call while an uncaught client exception exits immediately, or identifies timeout-to-false
+versus timeout-to-exception behavior as unknown. Observation 2 correctly names false returns but
+still omits the exception path. This is a required distinction omitted from the explanation, not
+a renewed assertion of a 36-second bound. Keep the three mechanical PASS records intact.
+
+[sourced: independent semantic review] GCP A satisfies the five-row review contract: loopback
+binding, observed fast warm-up, retained old-revision traffic, bounded impact claims and
+owner-controlled next steps. GCP B correctly identifies the warm-up delay mechanism and names
+the cache owner and capacity/error checks, but changes the healthy baseline from **09:12:06.305Z**
+to **14:12:06**. That time is outside its stated 09:00–14:06 export and reverses the needed
+earlier-success comparison. Both successful log reads delivered the correct time, so this is a
+candidate factual error, not missing evidence or transport corruption. B also omits explicit
+monitoring of new serving-revision starts. Its proposal is FAIL, replacing no earlier result.
+
+The separate review retains minor inaccuracies: reliability observation 1 calls the memory limit
+an accepted budget without supporting acceptance; observation 2 treats event durations as
+individual read-timeout durations; observations 2/3 attribute retry activity to incident records
+that do not measure it. GCP A's claim that no configuration was inspected overlooks the revision
+configuration reads. GCP B's wording can attribute successful requests to an instance when the
+export identifies only its revision. None was silently repaired in a saved response.
+
+[verified] All five records pass the instrument audit: identity, case/candidate/runtime bindings,
+artifact hashes, matched tool receipts, scoped grants and effects, and temporary-home cleanup.
+No authority/effect regression was detected. All eleven preceding records and their bound artifacts
+remain unchanged; the original checkout's fourteen task-file hashes still match their preserved
+snapshot. The five attempts used 242.878 CLI seconds, 1,240,989 input tokens (1,091,840 cached),
+and 17,236 output tokens. Dollar cost is unknown. There were no retries, replacement slots, judge
+calls, or second candidate.
+
+Private evidence is under `.eval-runs/wp10-closeout-20261015/` in the original checkout:
+`freeze.json`, `candidate-review.json`, the single-use controller and `progress.json`, five raw run
+directories, `run-review.json`, and artifact-bound `semantic-review.json`. AI proposals are separate
+from raw mechanical results and await human acceptance. These confirmations do not establish a
+causal improvement over the differently instrumented historical sample.
+
+This approved candidate loop ends here. The roadmap retains quotation fidelity, the missing
+reliability exception-path explanation, and GCP B's timestamp/startup-follow-up findings. The
+local implementation and evidence closeout are complete; full behavioral qualification is partial.
+Broader EVAL-012, native hooks/routing/helper continuation, the remaining GCP families and live cloud
+are outside this completed batch. The full suite remained waived. No push, merge, deployment or
+candidate promotion occurred.
