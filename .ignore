@@ -16,3 +16,7 @@
 .github/agents/
 .github/skills/
 com.github.copilot/
+
+# Retired snapshots are historical data, excluded from ordinary source searches.
+# Inspect explicitly with rg --no-ignore <pattern> archive/.
+/archive/

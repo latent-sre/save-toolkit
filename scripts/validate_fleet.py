@@ -154,8 +154,7 @@ EXPECTED_AUTHORITY = {
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
     },
 }
-# The roster and its enforced delegation graph. Kept a plain literal: the fleet atlas reads this
-# assignment with ast.literal_eval, and validate_roster_graph binds AGENTS.md's roster table to it.
+# The enforced delegation graph; validate_roster_graph binds AGENTS.md's roster table to it.
 EXPECTED_DELEGATION = {
     "reliability-engineer": {"repository-investigator", "sre-assistant", "researcher"},
     "principal-engineer": {"repository-investigator", "sre-assistant", "researcher"},

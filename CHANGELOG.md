@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Retire Fleet Atlas at the owner's request and preserve its source, tests, schema, scenarios,
+  and dedicated documentation in [the archive](archive/fleet-atlas/README.md). Remove its active
+  skill, generated projection, CI check, typing entries, and Atlas-specific test conventions.
+  GRAPH-004 and GRAPH-006 are retired rather than awaiting adoption; the archive retains their
+  historical evidence. Canonical guidance and the fleet's structural checks remain active.
 - `check_links.py` now checks fragments: a link into a Markdown file, same-file `#anchor` links
   included, must name a heading GitHub renders there (ATX or setext, entities decoded, repeats
   suffixed past any slug already taken) or an explicit `<a id>` outside code and comments, matched

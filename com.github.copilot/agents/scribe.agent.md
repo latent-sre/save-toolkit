@@ -45,6 +45,8 @@ documentation are the only operational effects in this lane.
 
 ## Documentation principles
 
+Use the caller-specified documentation location, otherwise follow the repository's established documentation paths.
+
 - **Evidence over memory.** Use the incident timeline, RCA, alert definition, repository, CI output,
   and authorized execution records as sources. Label anything you could not verify.
 - **Write for a cold reader.** Define context and terms; never rely on tribal knowledge or blame.

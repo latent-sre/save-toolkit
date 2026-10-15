@@ -34,9 +34,6 @@ jobs:
       - name: Gate A -- mechanical audit
         run: python scripts/gate_a.py
 
-      - name: Fleet atlas -- real-tree build and query contract
-        run: python scripts/check_fleet_atlas_v2.py --build
-
   fast-tests:
     # The default pytest run: everything except the heavy eval-machinery files.
     name: fast-tests (ubuntu-latest)

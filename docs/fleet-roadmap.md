@@ -293,38 +293,6 @@ no live authority.
 and [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml).
 **SRE task:** Know whether a service record still applies to the deployment being operated.
 
-### GRAPH-004 — use the fleet knowledge atlas for change impact and investigation guidance
-
-**Status:** `decision-needed` (2026-09-30); both workflows implemented; expanded compatibility
-comparison independently approved; exact-candidate human acceptance pending.
-**Owner:** Save Toolkit maintainers; the implementing lane owns the atlas and `agent-engineer` its consumer guidance.
-**Outcome:** An SRE can trace affected fleet guidance and verification before a change, or find
-relevant canonical guidance during an investigation, with bounded, current, cited results.
-**Next action:** Obtain human acceptance of the exact integrated candidate for both workflows and
-its independently reviewed compatibility corrections.
-Runtime `c9fb5bf7` passes the full suite and all seven real-tree atlas checks. The comparison captures
-35 actual CLI cases per version; 2,161 individually justified proposals match with zero unexpected
-or unused exceptions. Preserve exact donor `21dc443b` from closed-unmerged PR #205 and the failed
-intermediate observations. First-adoption consumer stop/resume is verified; generated navigation
-cannot establish live service state, and measured compatibility does not promote the candidate.
-**Evidence:** [Recovered donor, selected uses and acceptance matrix](reviews/2026-09-30-backlog-four/graph-004.md).
-**SRE task:** Find the right operational guidance and understand the recorded consequences of changing it.
-
-### GRAPH-006 — complete the typed atlas prerequisite for GRAPH-004
-
-**Status:** `decision-needed` (2026-09-30); typed pipeline and regression requirements implemented;
-compatibility disposition independently approved; GRAPH-004 human acceptance pending.
-**Owner:** Save Toolkit maintainers; implementing lane owns the typed extraction/verification pipeline.
-**Outcome:** One selector-safe typed pipeline and shared artifact verifier serve build, check and
-query, preserving donor semantics with explicit reviewed corrections and reversible v2 output.
-**Next action:** Obtain the same exact-candidate human acceptance as GRAPH-004.
-The recovered revision-2 design's thirteen requirements and seventeen named regressions have
-mapped evidence, including typed proof replay, bounded projections, source-history checks,
-semantic comparison and a real-tree CI contract. Retain the measured limits and rollback scope;
-offline test results do not establish human acceptance or live operational truth.
-**Evidence:** [Design recovery and compatibility contract](reviews/2026-09-30-backlog-four/graph-004.md).
-**SRE task:** Trust atlas citations, ownership, freshness and missing-result distinctions while navigating guidance.
-
 ### GRAPH-007 — promote or retire the sandbox workflow-graph skill
 
 **Status:** `decision-needed` (2026-10-13).
