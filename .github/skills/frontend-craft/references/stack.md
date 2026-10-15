@@ -33,8 +33,6 @@ before pinning, and record additions and licences in the handoff.
 - **Tests:** Vitest 5, Testing Library, MSW 3 and jsdom. Layout-sensitive components can use
   Vitest browser mode; critical journeys use the host's Playwright MCP server as described in
   the parent skill. Use `vitest-axe` for component accessibility. Adapt asset tests to this runner.
-  Name a setup file in `test.setupFiles` that imports `@testing-library/jest-dom/vitest` and
-  calls Testing Library's `cleanup()` after each test; the error panel's test needs both.
 
 For a Vue app, use the [Vue equivalents](./vue.md).
 
