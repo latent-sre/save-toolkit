@@ -1,6 +1,8 @@
 """Controls for the bounded reliability and GCP artifact profiles; no models."""
 
 import json
+import subprocess
+import sys
 import tempfile
 import tomllib
 import unittest
@@ -25,6 +27,69 @@ def mcp(tool, arguments, result):
 
 
 class ProfileControls(unittest.TestCase):
+    def test_isolated_mcp_pipe_preserves_utf8_write_arguments(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "assessment.md"
+            config = root / "config.json"
+            probe.write_json(
+                config,
+                {
+                    "readable": {"assessment.md": str(target)},
+                    "writable": ["assessment.md"],
+                    "ledger": str(root / "ledger.jsonl"),
+                    "max_calls": 1,
+                },
+            )
+            content = "Literal punctuation: \u2014 \u00d7 \u201cquotes\u201d and \u0394.\n"
+            request = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "write_file", "arguments": {"path": "assessment.md", "content": content}},
+            }
+            proc = subprocess.run(
+                [sys.executable, "-I", "-B", fixture_tools.__file__, str(config)],
+                input=(json.dumps(request, ensure_ascii=False) + "\n").encode("utf-8"),
+                capture_output=True,
+                check=True,
+                timeout=10,
+            )
+            result = json.loads(proc.stdout.decode("utf-8"))["result"]
+            self.assertFalse(result["isError"], result)
+            self.assertEqual(target.read_text(encoding="utf-8"), content)
+            rows = probe.json_lines((root / "ledger.jsonl").read_text(encoding="utf-8"))
+            self.assertTrue(all(r["arguments"]["content"] == content for r in rows))
+
+    def test_returned_tool_error_is_complete_only_with_matching_failed_receipt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "logs.txt"
+            source.write_text("source", encoding="utf-8")
+            server = fixture_tools.FixtureTools(
+                {
+                    "readable": {"logs.txt": str(source)},
+                    "writable": ["logs.txt"],
+                    "ledger": str(root / "tools.jsonl"),
+                    "max_calls": 3,
+                }
+            )
+            read_args = {"path": "logs.txt"}
+            read = mcp("read_file", read_args, server.call("read_file", read_args))
+            bad_args = {"path": "logs.txt", "content": "invalid \udc9d"}
+            failed = mcp("write_file", bad_args, server.call("write_file", bad_args))
+            self.assertTrue(failed["result"].pop("isError"))  # CLI reports status, omitting MCP isError
+            failed["status"] = "failed"
+            trace = probe.parse_trace(stream(read, failed))
+            ledger = (root / "tools.jsonl").read_text(encoding="utf-8")
+            self.assertEqual(probe.evidence_problems(trace, ledger, "logs.txt", "source"), [])
+            wrong = ledger.replace('"ok": false', '"ok": true')
+            self.assertTrue(probe.evidence_problems(trace, wrong, "logs.txt", "source"))
+            failed["result"] = None  # a transport failure without its result is still incomplete
+            self.assertTrue(
+                probe.evidence_problems(probe.parse_trace(stream(read, failed)), ledger, "logs.txt", "source")
+            )
+
     def test_reordered_lifecycle_is_incomplete_but_retains_forbidden_attempts(self):
         events = [
             json.loads(line)

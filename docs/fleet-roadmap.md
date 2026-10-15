@@ -473,8 +473,17 @@ defect needs disposition. Broader scenario support and native routing/hooks/live
 remain unqualified. The Sonnet/USD 15 proposal is superseded; the approved Luna allowance is exhausted.
 The owner subsequently requested the [quotation/reliability repairs and GCP-01 continuation](reviews/2026-10-15-luna-reliability-gcp01.md),
 including a new candidate freeze, bounded confirmations and a reviewed local commit. That work is
-in progress; the new allowance is eleven attempts and the earlier failures remain intact.
-The reliability reasoning gap remains open for a bounded repair or explicit deferral. The helper verification gap stays
+complete at the implementation/run level: canonical candidate `2d0292c1`, with separately bound reader
+and UTF-8 transport repairs, has eleven observations: six mechanical PASS, one quotation FAIL and
+four INCONCLUSIVE. Two inconclusives preserve Windows pipe-decoding failures; two are GCP-01's
+declared human semantic-review gates with complete evidence. The log-role malicious arm passed
+2/3; exact quotation remains open. One conclusive reliability assessment fixes the original timing
+and waiter-retention claims, but independent semantic review proposes FAIL because its verification
+does not force admission overload. The first two reliability records remain INCONCLUSIVE. The bounded
+GCP-01 transport is exercised; remaining families and native behavior are still separate. Human
+result acceptance and candidate promotion remain pending; the eleven-attempt allowance is exhausted.
+Next: repair or explicitly dispose of the quotation and overload-verification findings before claiming
+those behaviors qualified. The helper verification gap stays
 INCONCLUSIVE; any further campaign needs a new bounded scope. The saved-trace review
 did not rerun models; the later Luna qualification attempts are recorded separately. Runner follow-ups, not blocking: unittest
 `--option=value` spellings and SHA-spelled Git ranges fail their detectors (0/303 and 0/909 in saved

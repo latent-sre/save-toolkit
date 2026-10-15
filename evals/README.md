@@ -29,6 +29,9 @@ two FAILs and one INCONCLUSIVE on its current case versions, plus three earlier-
 The [reliability/GCP continuation](../docs/reviews/2026-10-15-luna-reliability-gcp01.md) binds the newer
 candidate, evidence mapping and run scope. Neither profile establishes native routing, hooks or
 live helper continuation.
+The MCP server explicitly uses strict UTF-8 on its pipes; isolated Python ignores environment-only
+encoding settings on Windows. Completed tool-error responses still require exact argument, result
+and failure-status agreement with the independent receipt; transport corruption remains INCONCLUSIVE.
 
 `--approve-fixture-tools` requires the owner's approval of the profile's exact tools. There is no
 retry/overwrite mode; each invocation runs at most one pair or the reliability singleton and stops

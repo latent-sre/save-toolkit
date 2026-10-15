@@ -155,6 +155,13 @@ action-restriction checks passed. The decision sheet records the separate round 
 fidelity finding; all 39 current and earlier-version record artifact bindings were checked.
 The 24-attempt allowance is exhausted. Result acceptance, broader/native support and candidate
 promotion remain separate.
+The owner's subsequent [quotation/reliability and GCP-01 continuation](../reviews/2026-10-15-luna-reliability-gcp01.md)
+ran eleven observations on newer canonical candidate `2d0292c1`: six mechanical PASS, one quotation
+FAIL and four INCONCLUSIVE. Two instrument amendments preserve completed error responses and UTF-8
+MCP pipes on Windows; their source bindings and the two affected INCONCLUSIVEs remain separate.
+The other two INCONCLUSIVEs are GCP's expected human-review gates. Quotation remains unreliable;
+the conclusive reliability assessment fixes the old reasoning claims but has an AI-proposed semantic
+FAIL for not forcing admission overload in its verification plan. No result promotes the candidate.
 The first step's USD 20 decision does not authorize a later campaign.
 
 ## Budget

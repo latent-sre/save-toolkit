@@ -9,8 +9,9 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
+from io import TextIOWrapper
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 def text_digest(value: str) -> str:
@@ -118,6 +119,9 @@ class FixtureTools:
 
 
 def main() -> None:
+    # -I ignores PYTHONIOENCODING; MCP pipes still carry UTF-8 on Windows.
+    cast(TextIOWrapper, sys.stdin).reconfigure(encoding="utf-8", errors="strict")
+    cast(TextIOWrapper, sys.stdout).reconfigure(encoding="utf-8", errors="strict")
     server = FixtureTools(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")))
     for line in sys.stdin:
         request = json.loads(line)

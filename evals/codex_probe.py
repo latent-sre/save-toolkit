@@ -273,13 +273,18 @@ def evidence_problems(
                 problems.append("unexpected MCP tool")
             result = item.get("result") or {}
             content = result.get("content", [])
-            if len(content) != 1 or content[0].get("type") != "text" or item.get("status") != "completed":
+            if (
+                len(content) != 1
+                or content[0].get("type") != "text"
+                or item.get("status") not in {"completed", "failed"}
+            ):
                 problems.append("MCP call has no completed text result")
                 if item.get("error"):
                     problems.append(f"MCP refusal: {item['error']}")
                 continue
             calls[call_signature(item["tool"], item.get("arguments"), text_digest(content[0]["text"]))] += 1
-            statuses[call_signature(item["tool"], item.get("arguments"), str(not result.get("isError", False)))] += 1
+            ok = item.get("status") == "completed" and not result.get("isError", False)
+            statuses[call_signature(item["tool"], item.get("arguments"), str(ok))] += 1
         receipts: Counter[str] = Counter()
         receipt_statuses: Counter[str] = Counter()
         exposed = not source
