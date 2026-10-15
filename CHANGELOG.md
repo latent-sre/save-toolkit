@@ -8,6 +8,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- `python-craft` gains a worked characterization test: an input/outcome table pinned across the
+  refactor, whose type assertion catches an `int 0` returned for an empty `Decimal` total. It adds
+  `warnings.deprecated` for compatibility bridges (mypy lists remaining callers only with its
+  `deprecated` error code enabled), `vulture`, `deptry`, and `ast-grep` in the refactoring tools,
+  text searches for dotted and entry-point import paths, and Python 3.14/3.15 notes on deferred
+  annotations, explicit lazy imports, free threading, and the UTF-8 default. Restated staging,
+  library-migration, fix-workflow, and guard-example prose is trimmed. [verified] The example
+  passes against the pre- and post-refactor code and fails the `int 0` mutant. On
+  `python-refactoring-judgment`, main and this change each answered all 17 cases correctly in
+  12/13 Haiku, 3/3 Sonnet, and 3/3 Opus trials, scored with the JSON fence stripped: the committed
+  `exact_json` grader rejects fenced answers on both (main 3/19, this change 2/19).
 - `check_links.py` now checks fragments: a link into a Markdown file, same-file `#anchor` links
   included, must name a heading GitHub renders there (ATX or setext, entities decoded, repeats
   suffixed past any slug already taken) or an explicit `<a id>` outside code and comments, matched
