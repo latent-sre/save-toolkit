@@ -73,7 +73,7 @@ Context reduction is proposed only where it preserves useful safeguards and demo
 |---|---|---|---|
 | 01 | Skills | [agent-authoring](group-01-agent-authoring.md), [akamai-edge](group-01-akamai-edge.md), [backend-craft](group-01-backend-craft.md) | Six passes complete |
 | 02 | Skills | [ci-actions](group-02-ci-actions.md), [database-reliability](group-02-database-reliability.md), [eng-ladder](group-02-eng-ladder.md) | Six passes complete |
-| 03 | Skills | [fleet-atlas](group-03-fleet-atlas.md), [frontend-craft](group-03-frontend-craft.md), [gcp-ops](group-03-gcp-ops.md) | Six passes complete |
+| 03 | Skills | [fleet-atlas (retired; archived report)](../../../archive/fleet-atlas/docs/reviews/2026-10-02-fleet-audit/group-03-fleet-atlas.md), [frontend-craft](group-03-frontend-craft.md), [gcp-ops](group-03-gcp-ops.md) | Six passes complete |
 | 04 | Skills | [grafana](group-04-grafana.md), [incident-investigation](group-04-incident-investigation.md), [obs-alerting](group-04-obs-alerting.md) | Six passes complete |
 | 05 | Skills | [obs-dashboards](group-05-obs-dashboards.md), [obs-logs](group-05-obs-logs.md), [obs-metrics](group-05-obs-metrics.md) | Six passes complete |
 | 06 | Skills | [obs-pipeline](group-06-obs-pipeline.md), [obs-traces](group-06-obs-traces.md), [operational-learning](group-06-operational-learning.md) | Six passes complete |

@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Retire Fleet Atlas at the owner's request and preserve its source, tests, schema, scenarios,
+  and dedicated documentation in [the archive](archive/fleet-atlas/README.md). Remove its active
+  skill, generated projection, CI check, typing entries, and Atlas-specific test conventions.
+  GRAPH-004 and GRAPH-006 are retired rather than awaiting adoption; the archive retains their
+  historical evidence. Canonical guidance and the fleet's structural checks remain active.
 - `python-craft` gains a worked characterization test: an input/outcome table pinned across the
   refactor, whose type assertion catches an `int 0` returned for an empty `Decimal` total. It adds
   `warnings.deprecated` for compatibility bridges (mypy lists remaining callers only with its

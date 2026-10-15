@@ -335,25 +335,29 @@ class FleetValidatorTests(unittest.TestCase):
                 "software-engineer-boundary",
                 _markdown_section(Path("agents/software-engineer.md"), "## Handoffs"),
                 (
-                    "a change below the process step 5 threshold, or made only of nits, returns the evidence packet to the caller without spawning a review",
-                    "a change that meets process step 5's threshold is ready to commit or return",
-                    "caller requests review",
-                    "security-sensitive",
-                    "production deployment",
+                    "when the review decision does not require review",
+                    "returns the evidence packet to the caller without spawning a review",
+                    "the review decision requires it",
                 ),
-                (),
+                ("process step 5 threshold", "caller requests review", "security-sensitive"),
             ),
             (
                 "software-engineer-precommit-review",
                 _markdown_section(Path("agents/software-engineer.md"), "## Process"),
                 (
-                    "before you commit or return a change that touches 3 or more files",
-                    "leaving out any path already changed before your first edit",
+                    "before you commit or return a change, apply the review decision below",
+                    "caller explicitly declines review",
+                    "dispatch `reviewer` for an explicit request",
+                    "independent finding reconciliation",
+                    "security-sensitive",
+                    "exact-sha production-deployment review",
+                    "at any size, including nit-only changes",
+                    "5 or more files changed by this task",
                     "unless every change in it is a nit",
-                    "a change to fewer than 3 files needs no review here",
-                    "the security-sensitive and production-deployment triggers in handoffs apply at any size",
+                    "include already-dirty files this task changes",
+                    "exclude only unrelated pre-existing changes",
                 ),
-                (),
+                ("leaving out any path already changed", "3 or more files", "fewer than 3"),
             ),
             (
                 "agent-engineer",
@@ -389,6 +393,14 @@ class FleetValidatorTests(unittest.TestCase):
                     self.assertIn(phrase, text)
                 for phrase in forbidden:
                     self.assertNotIn(phrase, text)
+
+    def test_artifact_assessment_does_not_require_a_change_review(self) -> None:
+        handoffs = _markdown_section(Path("skills/agent-authoring/SKILL.md"), "## Handoffs")
+        self.assertIn("independent review of a proposed artifact change", handoffs)
+        self.assertIn("base and candidate", handoffs)
+        self.assertIn("without a proposed change stays with the invoking session", handoffs)
+        self.assertIn("do not invent a baseline or issue a merge verdict", handoffs)
+        self.assertNotIn("independent review of an artifact, supplied evaluation evidence", handoffs)
 
     def test_scribe_is_a_non_executing_document_writer(self) -> None:
         body = _agent("scribe").body

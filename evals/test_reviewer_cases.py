@@ -371,6 +371,56 @@ class HandoffScenarioTests(unittest.TestCase):
                 self.assertEqual(copy, probe_checking.check_bash_ran(ctx, copied)[0])
 
 
+class AutomaticReviewScenarioTests(unittest.TestCase):
+    CASES = {
+        "reviews-nontrivial-change": (5, True),
+        "reviews-task-changes-in-dirty-files": (5, True),
+        "skips-review-below-five-files": (4, False),
+        "skips-review-for-code-nit": (5, False),
+        "skips-review-for-trivial-fix": (5, False),
+    }
+
+    def test_controls_require_every_task_file_at_the_intended_boundary(self):
+        for name, (count, review) in self.CASES.items():
+            spec = scenario_file(ROOT / f"build-scenarios/build-software-engineer-{name}.yaml")
+            with self.subTest(name=name):
+                (scope,) = [c for c in spec["checks"] if c["check"] == "changes_within"]
+                required = {c["path"] for c in spec["checks"] if c["check"] == "file_contains"}
+                self.assertEqual(count, len(required))
+                self.assertEqual(required, set(scope["allowed"]) - {"scratch-note.txt"})
+                initial = spec["fixture"]["files"] | spec["fixture"].get("uncommitted", {})
+                for check in spec["checks"]:
+                    if check["check"] == "file_contains":
+                        self.assertNotIn(check["needle"], initial.get(check["path"], ""))
+                (dispatch,) = [c for c in spec["checks"] if c.get("target") == "reviewer"]
+                self.assertEqual("task_completed" if review else "no_task_dispatch", dispatch["check"])
+                self.assertTrue(any(c.get("command") == "python -m pytest -q" for c in spec["checks"]))
+
+    def test_all_seeded_fixture_tests_pass_before_the_task(self):
+        for name in self.CASES:
+            spec = scenario_file(ROOT / f"build-scenarios/build-software-engineer-{name}.yaml")
+            files = spec["fixture"]["files"] | spec["fixture"].get("uncommitted", {})
+            modules = [n for n in ("prices", "report", "upload", "statement") if f"{n}.py" in files]
+            modules += [Path(p).stem for p in files if p.startswith("test_") and p.endswith(".py")]
+            with self.subTest(name=name):
+                loaded = load_modules(files, *modules)
+                for module in loaded.values():
+                    for function_name, function in vars(module).items():
+                        if function_name.startswith("test_"):
+                            function()
+
+    def test_dirty_controls_seed_overlapping_and_unrelated_work(self):
+        cases = {"reviews-task-changes-in-dirty-files": {"report.py", "scratch-note.txt"},
+                 "skips-review-below-five-files": {"scratch-note.txt"}}
+        for name, expected in cases.items():
+            spec = scenario_file(ROOT / f"build-scenarios/build-software-engineer-{name}.yaml")
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temp:
+                ws = probe_workspaces.seed_workspace(spec, Path(temp))
+                self.assertEqual(expected, {p for _, p in probe_workspaces.collect_git_facts(ws).changed})
+                for path, text in spec["fixture"]["uncommitted"].items():
+                    self.assertEqual(text, (ws.repo / path).read_text(encoding="utf-8"))
+
+
 def load_modules(files, *names):
     """Execute reviewed fixture modules in order, each importable by the ones after it."""
     loaded = {}

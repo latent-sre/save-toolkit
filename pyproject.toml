@@ -5,9 +5,8 @@
 # helpers (evals/probe_testkit.py), the fleet tooling and its suites (scripts/), and the Python bundled
 # in skills/. It formats the eval code but its tests; scripts/ and skills/ keep their hand layouts.
 # Strict mypy covers the eval code without the tests or their helpers, plus the scripts/ modules that
-# are fully typed: the read-only guard and its session preflight, the Gate A path, the fleet atlas
-# with its CI check and dashboard export, and the scripts/ test helpers. CI runs all three in the
-# component-tests job.
+# are fully typed: the read-only guard and its session preflight, the Gate A path,
+# and the scripts/ test helpers. CI runs all three in the component-tests job.
 # judge.py, clean_room.py and oracles/ keep their byte-bound layouts and incremental typing:
 # CI separately runs Ruff's syntax, invalid-control-flow and undefined-name rules on them.
 # A global format/type migration needs a measured benefit; it would replace calibration and case
@@ -51,10 +50,6 @@ ignore = ["E501"]  # the formatter owns line length; long messages and patterns 
 "scripts/readonly-guard.py" = ["SIM102", "SIM103"]
 # Preserve evaluated aliases and model generics; changing their runtime representation is separate
 # from raising the supported interpreter floor.
-"scripts/fleet_atlas_v2_artifacts.py" = ["UP040"]
-"scripts/fleet_atlas_v2_compat.py" = ["UP040"]
-"scripts/fleet_atlas_v2_extract.py" = ["UP040"]
-"scripts/fleet_atlas_v2_model.py" = ["UP040"]
 "scripts/fleet_frontmatter.py" = ["UP040"]
 "skills/backend-craft/assets/fastapi/house.py" = ["UP046"]
 
@@ -66,11 +61,7 @@ files = [
     # A file joins once it is clean.
     "scripts/readonly-guard.py", "scripts/guard-session-preflight.py", "scripts/gate_a.py", "scripts/check_links.py",
     "scripts/validate_fleet.py", "scripts/generate_platform_adapters.py", "scripts/fleet_frontmatter.py",
-    "scripts/fleet_atlas_v2_model.py", "scripts/fleet_atlas_v2_sources.py", "scripts/fleet_atlas_v2_proofs.py",
-    "scripts/fleet_atlas_v2_extract.py", "scripts/fleet_atlas_v2_format.py", "scripts/fleet_atlas_v2_artifacts.py",
-    "scripts/fleet_atlas_v2_compat.py", "scripts/fleet_atlas_v2_compare.py", "scripts/fleet_atlas_v2.py",
-    "scripts/check_fleet_atlas_v2.py", "scripts/fleet_atlas_dashboard.py",
-    "scripts/testkit.py", "scripts/atlas_test_support.py", "scripts/local_tests.py",
+    "scripts/testkit.py", "scripts/local_tests.py",
 ]
 mypy_path = "evals,scripts"
 strict = true

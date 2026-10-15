@@ -6,11 +6,6 @@ here runs at import time; every xdist worker imports this module once per proces
 
 Helpers that read Markdown are deliberately independent of the generator's and validator's own
 parsers: checking a tool's output with that tool's parser would make the assertion circular.
-
-Each test module keeps its own `ROOT = Path(__file__).resolve().parents[1]` and reads repository
-files as `ROOT / "..."` there. The fleet atlas credits a test with verifying a file only through
-that module-local binding (fleet_atlas_v2_extract.rooted_reads), so a test that imports ROOT from
-here silently drops out of the atlas's change-impact answers. `_ROOT` below is this module's own.
 """
 
 from __future__ import annotations

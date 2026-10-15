@@ -293,38 +293,6 @@ no live authority.
 and [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml).
 **SRE task:** Know whether a service record still applies to the deployment being operated.
 
-### GRAPH-004 — use the fleet knowledge atlas for change impact and investigation guidance
-
-**Status:** `decision-needed` (2026-09-30); both workflows implemented; expanded compatibility
-comparison independently approved; exact-candidate human acceptance pending.
-**Owner:** Save Toolkit maintainers; the implementing lane owns the atlas and `agent-engineer` its consumer guidance.
-**Outcome:** An SRE can trace affected fleet guidance and verification before a change, or find
-relevant canonical guidance during an investigation, with bounded, current, cited results.
-**Next action:** Obtain human acceptance of the exact integrated candidate for both workflows and
-its independently reviewed compatibility corrections.
-Runtime `c9fb5bf7` passes the full suite and all seven real-tree atlas checks. The comparison captures
-35 actual CLI cases per version; 2,161 individually justified proposals match with zero unexpected
-or unused exceptions. Preserve exact donor `21dc443b` from closed-unmerged PR #205 and the failed
-intermediate observations. First-adoption consumer stop/resume is verified; generated navigation
-cannot establish live service state, and measured compatibility does not promote the candidate.
-**Evidence:** [Recovered donor, selected uses and acceptance matrix](reviews/2026-09-30-backlog-four/graph-004.md).
-**SRE task:** Find the right operational guidance and understand the recorded consequences of changing it.
-
-### GRAPH-006 — complete the typed atlas prerequisite for GRAPH-004
-
-**Status:** `decision-needed` (2026-09-30); typed pipeline and regression requirements implemented;
-compatibility disposition independently approved; GRAPH-004 human acceptance pending.
-**Owner:** Save Toolkit maintainers; implementing lane owns the typed extraction/verification pipeline.
-**Outcome:** One selector-safe typed pipeline and shared artifact verifier serve build, check and
-query, preserving donor semantics with explicit reviewed corrections and reversible v2 output.
-**Next action:** Obtain the same exact-candidate human acceptance as GRAPH-004.
-The recovered revision-2 design's thirteen requirements and seventeen named regressions have
-mapped evidence, including typed proof replay, bounded projections, source-history checks,
-semantic comparison and a real-tree CI contract. Retain the measured limits and rollback scope;
-offline test results do not establish human acceptance or live operational truth.
-**Evidence:** [Design recovery and compatibility contract](reviews/2026-09-30-backlog-four/graph-004.md).
-**SRE task:** Trust atlas citations, ownership, freshness and missing-result distinctions while navigating guidance.
-
 ### GRAPH-007 — promote or retire the sandbox workflow-graph skill
 
 **Status:** `decision-needed` (2026-10-13).
@@ -502,24 +470,28 @@ libraries, measured against build scenarios the way `python-craft` is, and `back
 **SRE task:** An SRE changing a Go service or tool gets the team's Go conventions applied without
 asking for them.
 
-### PRECOMMIT-001 — software-engineer reviews a 3-file change before committing, unasked
+### PRECOMMIT-001 — software-engineer reviews a 5-file change before committing, unasked
 
-**Status:** `active` (2026-10-08). The owner chose the trigger on 2026-10-07: review at 3 or more
-changed files unless every change is a nit. software-engineer's Process step 5 carries it, counting
-only the files changed for the task. The skip controls hold; the unasked review on a small 3-file
-feature mostly does not fire.
+**Status:** `active` (2026-10-15). The owner raised the threshold from three to five task-changed
+files, retaining the nit exemption and explicit-request, finding-reconciliation, security, and
+production-review triggers. The Review decision in software-engineer owns their precedence and
+counts already-dirty paths the task changes, excluding only unrelated pre-existing work. The
+five-file rule and revised scenarios have not been measured in native trials.
 **Owner:** The human owner decides the mechanism; `agent-engineer` owns the software-engineer rule and
 its scenarios.
-**Outcome:** software-engineer dispatches `reviewer` unasked on a 3-file feature in most trials, and
-still skips a change below 3 files or one made only of nits, on the current CLI.
-**Next action:** The owner chooses: try step 5 as a concrete action ("your next tool call is
-`reviewer`"), measured interleaved against the shipped line, or accept the limit and close the item.
-Every miss so far counted 3 files and skipped review as "small", whatever the wording.
-**Evidence:** Sonnet on CLI 2.1.294, with the scenarios Codex's PR #332 review made exact (the feature
+**Outcome:** software-engineer dispatches `reviewer` unasked on a five-file feature, including when
+the task edits already-dirty files; it skips a change below five files or made only of nits unless
+another review trigger applies.
+**Next action:** Measure the five-file boundary, overlapping dirty paths, nit controls, and
+explicit-review overrides on the current CLI before claiming native adherence. Keep the historical
+results below separate from the revised contract.
+**Evidence:** Historical three-file trials, not acceptance of the five-file rule: Sonnet on CLI
+2.1.294, with the scenarios Codex's PR #332 review made exact (the feature
 case asserts all three files; both nit controls touch three files):
 `build-software-engineer-reviews-nontrivial-change` reviewed 1/3 with #332's original line and 0/3
-with each of two rewrites; the three skip controls passed 3/3 each. The shipped line is the original
-plus the counting fix and has not been run. Earlier, on CLI 2.1.292 and the previous feature case,
+with each of two rewrites; the three skip controls passed 3/3 each. Every miss counted three files
+and skipped review as "small". The original line plus its earlier counting fix was not measured.
+Earlier, on CLI 2.1.292 and the previous feature case,
 five wordings reviewed in 10 of 15 trials. Runs are private under `.eval-runs/precommit-20261008/`.
 **SRE task:** An SRE gets an independent review of agent-written changes before they are committed
 without having to ask for it each time.

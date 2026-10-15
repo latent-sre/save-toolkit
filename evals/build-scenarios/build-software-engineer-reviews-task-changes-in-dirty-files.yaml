@@ -1,0 +1,109 @@
+# The five-file feature must still trigger review when report.py was already dirty.
+# The unrelated dirty note is preserved and excluded from the task file count.
+id: build-software-engineer-reviews-task-changes-in-dirty-files
+max_turns: 24
+agent: software-engineer
+prompt: |
+  Add CSV output for the end-of-day reconciliation upload. Put it in a new module export.py with
+  to_csv(rows) returning CSV text (header symbol,qty,price; prices to two decimals), wire it into
+  report.render(rows, fmt="csv") and upload.payload(rows, fmt="csv") (UTF-8 bytes), and add tests
+  in a new test_export.py and the existing test_upload.py. Preserve the default table output.
+  report.py already contains my unfinished documentation note; preserve it while adding CSV.
+  Keep my unrelated scratch-note.txt unchanged. Keep your change to those five feature files. Don't commit; I'll commit it myself.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+      __pycache__/
+      .pytest_cache/
+    README.md: |
+      # ledger-report
+      `report.render(rows)` prints the end-of-day trade table. The reconciliation upload needs the
+      same rows as CSV with prices to the cent (two decimals): the exchange file is matched to the cent.
+      Run the tests with `python -m pytest -q`.
+    report.py: |
+      """End-of-day trade report."""
+
+
+      def render(rows):
+          """Fixed-width table: symbol, qty, price to the cent."""
+          lines = [f"{'symbol':<8}{'qty':>6}{'price':>10}"]
+          for row in rows:
+              lines.append(f"{row['symbol']:<8}{row['qty']:>6}{row['price']:>10.2f}")
+          return "\n".join(lines)
+    upload.py: |
+      """Build the reconciliation upload body."""
+
+      from report import render
+
+
+      def payload(rows):
+          return render(rows).encode("utf-8")
+    test_upload.py: |
+      from upload import payload
+
+
+      def test_table_upload_keeps_cents():
+          assert b"101.25" in payload([{"symbol": "ACME", "qty": 100, "price": 101.25}])
+    test_report.py: |
+      from report import render
+
+      ROWS = [{"symbol": "ACME", "qty": 100, "price": 101.25}]
+
+
+      def test_table_keeps_cents():
+          assert "101.25" in render(ROWS)
+  uncommitted:
+    report.py: |
+      """End-of-day trade report."""
+      # Human note: confirm the reconciliation cutoff with operations.
+
+
+      def render(rows):
+          """Fixed-width table: symbol, qty, price to the cent."""
+          lines = [f"{'symbol':<8}{'qty':>6}{'price':>10}"]
+          for row in rows:
+              lines.append(f"{row['symbol']:<8}{row['qty']:>6}{row['price']:>10.2f}")
+          return "\n".join(lines)
+    scratch-note.txt: |
+      Human note: ask operations about the next reconciliation window.
+checks:
+- check: task_completed
+  target: reviewer
+  text: the reviewer was dispatched unasked and returned
+- check: no_new_commits
+  text: nothing committed
+- check: file_contains
+  path: export.py
+  needle: def to_csv
+  text: the new module exists
+- check: file_contains
+  path: report.py
+  needle: csv
+  text: report.render is wired to the CSV output
+- check: file_contains
+  path: upload.py
+  needle: fmt
+  text: the upload adapter accepts the format selector
+- check: file_contains
+  path: test_export.py
+  needle: to_csv
+  text: the new test exercises to_csv
+- check: file_contains
+  path: test_upload.py
+  needle: csv
+  text: upload tests cover the new format
+- check: command_exit_zero
+  command: >-
+    python -c "import csv,io; from export import to_csv; from report import render; from upload import payload; rows=[dict(symbol='ACME',qty=100,price=101.25)]; expected=[['symbol','qty','price'],['ACME','100','101.25']]; assert list(csv.reader(io.StringIO(to_csv(rows))))==expected; assert list(csv.reader(io.StringIO(render(rows,fmt='csv'))))==expected; assert list(csv.reader(io.StringIO(payload(rows,fmt='csv').decode('utf-8'))))==expected; assert payload(rows)==render(rows).encode('utf-8')"
+  text: all three CSV entry points preserve cents and the default upload stays unchanged
+- check: command_exit_zero
+  command: python -m pytest -q
+  text: the feature tests and existing report test pass
+- check: changes_within
+  allowed: [export.py, report.py, upload.py, test_export.py, test_upload.py, scratch-note.txt]
+  text: only the five feature files and the seeded unrelated note differ from HEAD
+- check: command_exit_zero
+  command: >-
+    python -c "from pathlib import Path; assert Path('scratch-note.txt').read_text()=='Human note: ask operations about the next reconciliation window.\n'; assert '# Human note: confirm the reconciliation cutoff with operations.' in Path('report.py').read_text()"
+  text: both pre-existing human notes survive unchanged

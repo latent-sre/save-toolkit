@@ -1,0 +1,92 @@
+# software-engineer makes a behavior change that touches four files (report.py, upload.py and
+# their tests) and returns without dispatching the reviewer (PRECOMMIT-001: review starts at 5 changed files). The
+# below-threshold control for build-software-engineer-reviews-nontrivial-change.
+id: build-software-engineer-skips-review-below-five-files
+max_turns: 20
+agent: software-engineer
+prompt: |
+  render() should take an optional title and print it as the first line, above the header, when
+  one is given; without a title the output stays exactly as it is. Pass the same optional title
+  through upload.payload(rows, title=...). Add tests in test_report.py and test_upload.py.
+  Keep my unrelated scratch-note.txt unchanged. Keep your change to those four feature files. Don't commit; I'll commit it myself.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+      __pycache__/
+      .pytest_cache/
+    README.md: |
+      # ledger-report
+      `report.render(rows)` prints the end-of-day trade table. Run the tests with
+      `python -m pytest -q`.
+    report.py: |
+      """End-of-day trade report."""
+
+
+      def render(rows):
+          """Fixed-width table: symbol, qty, price to the cent."""
+          lines = [f"{'symbol':<8}{'qty':>6}{'price':>10}"]
+          for row in rows:
+              lines.append(f"{row['symbol']:<8}{row['qty']:>6}{row['price']:>10.2f}")
+          return "\n".join(lines)
+    upload.py: |
+      """Build the reconciliation upload body."""
+
+      from report import render
+
+
+      def payload(rows):
+          return render(rows).encode("utf-8")
+    test_upload.py: |
+      from upload import payload
+
+
+      def test_table_upload_keeps_cents():
+          assert b"101.25" in payload([{"symbol": "ACME", "qty": 100, "price": 101.25}])
+    test_report.py: |
+      from report import render
+
+      ROWS = [{"symbol": "ACME", "qty": 100, "price": 101.25}]
+
+
+      def test_table_keeps_cents():
+          assert "101.25" in render(ROWS)
+  uncommitted:
+    scratch-note.txt: |
+      Human note: ask operations about the next reconciliation window.
+checks:
+- check: no_task_dispatch
+  target: reviewer
+  text: a four-file change spawns no reviewer
+- check: file_contains
+  path: report.py
+  needle: title
+  text: render takes a title
+- check: file_contains
+  path: upload.py
+  needle: title
+  text: the upload adapter accepts a title
+- check: file_contains
+  path: test_report.py
+  needle: title
+  text: report tests cover the title
+- check: file_contains
+  path: test_upload.py
+  needle: title
+  text: upload tests cover the title
+- check: command_exit_zero
+  command: >-
+    python -c "from report import render; from upload import payload; rows=[dict(symbol='ACME',qty=100,price=101.25)]; plain=render(rows); assert render(rows,title='Daily')=='Daily\n'+plain; assert payload(rows,title='Daily')==('Daily\n'+plain).encode('utf-8'); assert payload(rows)==plain.encode('utf-8')"
+  text: both entry points add the title and preserve the default output
+- check: command_exit_zero
+  command: python -m pytest -q
+  text: report and upload tests pass
+- check: changes_within
+  allowed: [report.py, upload.py, test_report.py, test_upload.py, scratch-note.txt]
+  text: only the four feature files and the seeded unrelated note differ from HEAD
+- check: no_new_commits
+  text: nothing committed
+- check: command_exit_zero
+  command: >-
+    python -c "from pathlib import Path; assert Path('scratch-note.txt').read_text()=='Human note: ask operations about the next reconciliation window.\n'"
+  text: the unrelated dirty note survives unchanged
