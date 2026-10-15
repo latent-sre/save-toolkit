@@ -73,11 +73,7 @@ API's effect and idempotency contract: can an item be applied twice, and what do
 
 Use the project's language and test runner at the real command boundary. Select checks for its
 actual capabilities; a read-only command needs no apply plan, effect receipt, confirmation, or
-lock solely to match an example. Exercise effects against disposable targets or controlled clients.
-
-The [reference command](./assets/cli_contract.py) and [tests](./assets/test_cli_contract.py) are
-optional examples for a state-changing Python batch CLI. Reuse existing facilities and adapt
-applicable assertions; the example's flags, bounds, and local lock are not universal requirements.
+lock. Exercise effects against disposable targets or controlled clients.
 
 | Capability | Evidence needed |
 |---|---|
