@@ -6,29 +6,22 @@ its vendor and protocol come from the project. Authenticate protected routes
 and authorize each object and collection regardless of network exposure. Public means explicitly
 unauthenticated, not internet-facing.
 
-[house.py](../assets/fastapi/house.py) supplies reusable HTTP helpers without an auth adapter or
-dummy verifier. Adopt the helpers the app needs.
-
 ## App and handlers
 
-- `house_app(title, version, loopback_only=...)` installs problems, request IDs,
-  lowerCamel operation IDs, one schema per model, documented Problem errors and browser/host
-  guards. Pass `lifespan=` and register routes afterwards.
+- Build the app with `generate_unique_id_function` returning the lowerCamel handler name,
+  `separate_input_output_schemas=False` and `lifespan=`. Register problem+json handlers for
+  Starlette's `HTTPException` (it also catches the router's own 404/405), `RequestValidationError`
+  and `Exception`; override `app.openapi` so every 4xx/5xx response declares the problem schema.
+  Request-ID and browser/host guards are pure ASGI middleware so streamed responses stay unbuffered.
 - Put versioning and the project's authentication dependency on protected routers; get the trusted
-  caller from that integration for object authorization. Declare applicable error statuses with
-  `responses=problems(401, 404, 422)`.
-- Only when that integration accepts bearer tokens, the optional [auth.py](../assets/fastapi/auth.py)
-  offers `configure_bearer_auth(app, verify)`, `authenticated` and `Authenticated`. Configure the
-  verifier and attach `Depends(authenticated)` to protected routers; setup alone protects no route.
-  The verifier returns a trusted `Principal` or `None` for an invalid token and raises on an outage.
-  Missing/invalid credentials return 401; an unconfigured or failed verifier returns 503 for a supplied
-  bearer token. The adapter supplies no identity provider and assumes no JWT format.
+  caller from that integration for object authorization. Declare each applicable error status in
+  `responses=`. Authentication setup alone protects no route.
 - Use `Annotated` parameters/dependencies and return annotations. A returned `Response` bypasses
   validation/serialization: enforce its contract explicitly.
 - One lifespan opens shared clients/pools before `yield`, stores them on `app.state`, and closes
   them afterwards. `on_event` handlers do not run with `lifespan`.
-- Domain code raises framework-free `ProblemError(status, type_uri, title, detail)`; the handler
-  serializes it.
+- Domain code raises a framework-free problem exception carrying status, type URI, title and
+  detail; one exception handler serializes it.
 - JSON bodies require JSON `Content-Type`. For a webhook sender omitting it, only that route uses
   `APIRouter(strict_content_type=False)` with explicit body validation.
 - SSE uses `EventSourceResponse`/`ServerSentEvent` from `fastapi.sse`, as `response_class=` on an
@@ -53,17 +46,12 @@ dummy verifier. Adopt the helpers the app needs.
   `asgi_lifespan.LifespanManager`. Assert startup and cleanup, not just responses.
 - Exercise the real app with the project's test identity; persistence changes use a disposable
   real datastore.
-- [contract_checks.py](../assets/fastapi/contract_checks.py) exports plain problem/request-ID and
-  document assertions. [test_http_core.py](../assets/fastapi/test_http_core.py) exercises the HTTP
-  helper without any app or identity example. Keep real-route authentication and object-authorization
-  tests; [test_auth.py](../assets/fastapi/test_auth.py) checks the optional bearer adapter.
-- For `test_openapi_document.py` and `test_schemathesis.py`, create a test-only
-  `contract_app.py`: supply `make_app()`, seeded resources,
-  `TEST_HEADERS` for the test identity, `AUTH_SCHEME` matching the actual named security scheme,
-  `AUTH_ERROR_STATUSES` for actual identity failures, and explicit `PUBLIC_OPERATIONS`. The
-  fixture must use the real app and its identity integration. Checks run
-  lifespan and obtain the schema directly, so no
-  public document endpoint is required. Keep fixture credentials confined to tests.
+- Assert problem bodies and `X-Request-ID` on router 404/405, validation 422, unhandled 500 and
+  identity failures, plus real-route authentication and object authorization.
+- The [OpenAPI](./openapi.md) gates use one test fixture built on the real app and its identity
+  integration. Read the schema from `app.openapi()` inside lifespan; Schemathesis runs in-process
+  with `schemathesis.openapi.from_dict(app.openapi())` and `schema.app = app`, so no public
+  document endpoint is required. Keep fixture credentials confined to tests.
 - Start through settings with `uvicorn.run`: all interfaces on platform
   `$PORT`, otherwise `127.0.0.1`, with `timeout_graceful_shutdown=8`. Bare uvicorn binds loopback,
   unreachable by the platform; `fastapi run` binds `0.0.0.0`, unsuitable for a desktop default.
