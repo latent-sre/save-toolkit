@@ -20,13 +20,13 @@ API's effect and idempotency contract: can an item be applied twice, and what do
 - Results go to stdout; diagnostics/progress to stderr. Machine output (`--json` or the existing
   format) parses even on partial failure. Human and machine views share result data. Preserve the
   published schema or provide a versioned migration.
-- Report every item's outcome (`succeeded`, `failed`, `unknown`, `skipped`). `skipped` means
+- For batch operations, report every item's outcome (`succeeded`, `failed`, `unknown`, `skipped`). `skipped` means
   never attempted; an attempt the target rejected is `failed`. Keep existing exit codes; a new
   contract uses these:
 
 | Exit | Meaning |
 |---|---|
-| 0 | Every item succeeded, or a dry run completed |
+| 0 | Successful completion, including a dry run |
 | 1 | Operational failure: any item failed or remains UNKNOWN |
 | 2 | Usage error, including a destructive request without confirmation |
 | 128+N | Stopped by signal N: 130 for SIGINT, 143 for SIGTERM |
@@ -71,27 +71,17 @@ API's effect and idempotency contract: can an item be applied twice, and what do
 
 ## Verify the operator contract
 
-Start from the [contract test](./assets/test_cli_contract.py) and the
-[reference command](./assets/cli_contract.py) it exercises: copy both, adapt the command, flags,
-and effect seam to the task, and keep every case. Use the repo's test runner at the command
-boundary, against disposable targets or controlled effects:
+Use the project's language and test runner at the real command boundary. Select checks for its
+actual capabilities; a read-only command needs no apply plan, effect receipt, confirmation, or
+lock. Exercise effects against disposable targets or controlled clients.
 
-The reference requires positive `--older-than` minutes and a positive `--max-items` (default 100).
-It refuses an oversized plan before effects, then stops at the first failed or UNKNOWN item and
-reports the remainder as `skipped`. Dry-run JSON uses the same `items` schema, all `skipped`.
-Discovery errors and interruptions before apply also produce a receipt: known targets stay
-`skipped`; if discovery never completed, `items: []` means the plan is unavailable, not empty,
-with that distinction on stderr and a failure or signal exit code.
-An exclusive local lock protects selection revalidation and apply; an existing or changed owner
-causes refusal. This cooperative lock is scoped to the working directory, not a distributed API lock.
-
-| Case | Evidence needed |
+| Capability | Evidence needed |
 |---|---|
-| Help and success | Useful usage; documented precedence; machine output parses without diagnostic chatter |
-| Partial failure | Item outcomes preserved; exit 1; no blind replay of successful or UNKNOWN effects |
-| Dry run and non-TTY destructive request | Effect calls stay zero; piped input never confirms; missing confirmation exits 2 promptly |
-| Target set changes before apply | Refused, or apply uses the saved plan |
-| Invalid bounds, oversized plan, first failure/UNKNOWN | Positive bounds required; oversized plan makes no effects; later items stay skipped |
-| Existing, concurrent, or replaced lock | No overlapping apply; another owner's lock remains intact |
-| SIGINT and SIGTERM during work | 130 and 143; owned resources released; completed items reported; unresolved effects UNKNOWN |
-| Reader closes stdout early | No traceback |
+| Every command | Useful help; success and expected failures; documented precedence; clean diagnostics |
+| Machine output | Parses without diagnostic chatter on success and failure |
+| Batch effects | Item outcomes and exit status preserved; bounds enforced before effects; no blind replay of successful or UNKNOWN items |
+| State changes | Dry run makes zero effect calls; apply uses the shown target set or refuses drift |
+| Destructive actions | Piped input never confirms; missing non-interactive confirmation fails promptly |
+| Concurrency protection | Competing runs cannot violate the protected invariant; another owner's lock remains intact |
+| Interruptible work | Signal exit status and owned-resource cleanup; completed effects reported and unresolved effects UNKNOWN |
+| Piped output | A reader closing early causes no traceback |

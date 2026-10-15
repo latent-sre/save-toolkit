@@ -115,7 +115,5 @@ behaviour covered by the app's runner.
 | API errors | [problem.ts](./assets/problem.ts), [test](./assets/problem.test.ts) → beside the client |
 | API writes | [idempotent-write.ts](./assets/idempotent-write.ts), [test](./assets/idempotent-write.test.ts) → beside the client; imports `problem.ts` |
 | Runtime configuration | [runtime-config.ts](./assets/runtime-config.ts), [test](./assets/runtime-config.test.ts) → bootstrap |
-| React error surfaces | [error-panel.tsx](./assets/error-panel.tsx), [stylesheet](./assets/error-panel.css), [test](./assets/error-panel.test.tsx) → shared components; port the card and boundary for Vue |
-| React build and tests | [vite.config.ts](./assets/vite.config.ts) → app root; [test-setup.ts](./assets/test-setup.ts) → `src/test/setup.ts`; retain only needed plugins/proxy routes |
 | PCF serving | [Staticfile](./assets/pcf/Staticfile), [spa.conf](./assets/pcf/nginx/conf/includes/spa.conf), [manifest.yml](./assets/pcf/manifest.yml), [profile.sh](./assets/pcf/profile.sh) → deploy directory, with `profile.sh` saved as `.profile` |
 | Served-build checks | [serving-contract.mjs](./assets/serving-contract.mjs) → build configuration; enable API/runtime-config checks only when applicable |

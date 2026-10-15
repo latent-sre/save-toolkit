@@ -37,9 +37,9 @@ Use for retryable or concurrent writes; preserve the project's contract, datasto
 
 ## Verify the boundary
 
-Adapt [write acceptance tests](../assets/test_api_write_contract.py) for a compatible create/replay
-contract, or translate to native tests. Inspect authoritative effects and stored business state
-independently of receipt/response caches; matching IDs alone miss corruption.
+Test the create/replay contract with the project's native tests. Inspect authoritative effects
+and stored business state independently of receipt/response caches; matching IDs alone miss
+corruption.
 
 Cover duplicates, conflicting payloads and authorization-scope isolation. An idempotent `PUT` or
 natural-key upsert needs a duplicate-request test; where duplicates/lost responses have a business

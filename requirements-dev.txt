@@ -1,6 +1,6 @@
 # Canonical exact pins for development, behavioral evals, and repository-owned sandboxes.
 # Install all with: python -m pip install -r requirements-dev.txt
-# requirements-test.txt selects the fleet and HTTP-starter test dependencies using these
+# requirements-test.txt selects the fleet and build-oracle test dependencies using these
 # constraints; CI installs that subset rather than the sandbox frameworks.
 # requirements-grafana.txt selects the libraries used by Grafana analysis workflows.
 # No gate-path script imports these pins, so Gate A runs on a bare interpreter and the validate
@@ -33,7 +33,6 @@ pytest-xdist==3.8.0
 pyyaml==6.0.3
 rich==15.0.0
 ruff==0.16.10
-schemathesis==4.30.1
 sse-starlette==3.4.11
 types-PyYAML==6.0.12.20260906
 uvicorn==0.52.4

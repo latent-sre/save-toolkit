@@ -49,7 +49,7 @@ also handles FastAPI's native errors and gateway HTML.
 | 429, 503 | Honour `Retry-After` and show the wait |
 | 5xx | Actionable error panel; retry only safe requests |
 
-The [error panel](../assets/error-panel.tsx) shows title, detail/next step, status, time/zone and
+The error panel shows title, detail/next step, status, time/zone and
 copyable request ID, with log/trace links when configuration provides templates. Keep it inside
 the failing region; never substitute raw JSON, stack traces or a problem `type` URI.
 

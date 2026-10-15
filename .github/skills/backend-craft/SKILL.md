@@ -82,36 +82,21 @@ The runtime targets are PCF, Cloud Run, Linux hosts under systemd, and Windows d
 
 ## Load for the changed boundary
 
-Read only matching references and assets; use every matching row.
+Read only matching references; use every matching row.
 
 | Boundary | Guidance and checks |
 |---|---|
 | HTTP contract, document, generated client or CI | [OpenAPI](./references/openapi.md); [versioning](./references/versioning.md) if breaking |
 | FastAPI | [FastAPI](./references/fastapi.md); `python-craft` for language choices |
 | Huma | [Go](./references/go.md) |
-| Retryable or concurrent write | [API writes](./references/api-writes.md); adapt [write acceptance tests](./assets/test_api_write_contract.py) when the create/replay contract fits |
+| Retryable or concurrent write | [API writes](./references/api-writes.md) |
 | Upstream or vendor client | [Consuming APIs](./references/consuming-apis.md) for deadlines, retries, capacity and integration mechanics |
 | Durable job, scheduler or webhook | [Background work](./references/background-work.md) |
 | Populated-table migration | `database-reliability`; execution stays with the human owner |
 | RED metrics or traces | `obs-pipeline` |
 
-### Optional implementation references
-
-Select by capability; equivalent application/framework facilities satisfy the same contract.
-Keep applicable acceptance checks, adapting their fixtures to the real resource and identity
-integration. Copying an example application, datastore or bearer adapter is not a requirement.
-Here, public means explicitly unauthenticated, not internet-facing; shared internal tools stay
+Public means explicitly unauthenticated, not internet-facing; shared internal tools stay
 authenticated. Workers use their service identity; local CLIs keep their native execution model.
-
-| Need | FastAPI | Go/Huma |
-|---|---|---|
-| Common HTTP behavior | [house.py](./assets/fastapi/house.py), [tests](./assets/fastapi/test_http_core.py) | [house.go](./assets/go/house.go), [tests](./assets/go/core_test.go) |
-| Bearer adapter, only when that is the identity contract | [auth.py](./assets/fastapi/auth.py), [tests](./assets/fastapi/test_auth.py) | [auth.go](./assets/go/auth.go), [tests](./assets/go/auth_test.go) |
-| Contract assertions and app-specific test setup | [checks](./assets/fastapi/contract_checks.py), [setup](./assets/fastapi/contract_app.py) | [checks](./assets/go/contract_helpers_test.go), [setup](./assets/go/example_fixture_test.go) |
-| Optional sample-resource acceptance | [test_house.py](./assets/fastapi/test_house.py) | [house_test.go](./assets/go/house_test.go) |
-| Document and response checks | [document](./assets/fastapi/test_openapi_document.py), [Schemathesis](./assets/fastapi/test_schemathesis.py) | [document](./assets/go/openapi_test.go), [Schemathesis](./assets/go/schemathesis_test.go) |
-| CI wiring | [workflow](./assets/ci/api-contract-fastapi.yml) | [workflow](./assets/ci/api-contract-go.yml) |
-| Optional composition example: settings, lifecycle and a sample resource | [main.py](./assets/fastapi/main.py) | [main.go](./assets/go/main.go), [things.go](./assets/go/things.go) |
 
 ## Acceptance
 

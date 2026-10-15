@@ -16,7 +16,7 @@ a served production build; it is separate from the app's component runner.
 ## Localhost
 
 Vite hot-reloads the app and proxies the API prefix to the running service through
-`server.proxy` in [vite.config.ts](../assets/vite.config.ts). `API_TARGET` selects the backend
+`server.proxy` in `vite.config.ts`. `API_TARGET` selects the backend
 (FastAPI commonly uses 8000, Go 8080). One browser origin keeps cookies and API calls aligned
 without CORS. SSE passes through; WebSockets need `ws: true` on their path. When runtime
 configuration is used, `public/config.json` identifies the environment as `local`.
