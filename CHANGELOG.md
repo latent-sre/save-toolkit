@@ -8,6 +8,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Skills stop bundling starter and example code that saved trials show agents do not open.
+  `backend-craft` drops all FastAPI and Go assets, its write-contract test and CI workflows;
+  `operator-cli` its reference command and contract test; `frontend-craft` its error panel, Vite
+  configuration and test setup; `ci-actions` its Python/uv workflow starter. The backend references
+  now state the contract and the framework mechanics the code carried rather than helper APIs, and
+  `schemathesis` leaves the requirements files. [verified] FastAPI builds that loaded
+  `backend-craft` read none of its assets; the three WP-02 `build-operator-cli-safe-requeue` trials
+  passed the oracle 5/5 without opening either asset.
 - Retire Fleet Atlas at the owner's request and preserve its source, tests, schema, scenarios,
   and dedicated documentation in [the archive](archive/fleet-atlas/README.md). Remove its active
   skill, generated projection, CI check, typing entries, and Atlas-specific test conventions.
