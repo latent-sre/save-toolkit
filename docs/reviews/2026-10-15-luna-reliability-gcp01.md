@@ -208,3 +208,62 @@ verification remain open behavior findings. Current evidence supports the bounde
 not the remaining 22 pilot cases, native hooks/routing, actual helper continuation or live cloud
 behavior. The code and results are committed locally; no push, merge, deployment or candidate
 promotion follows from this evidence.
+
+## Prepared closeout candidate and final confirmation proposal
+
+The owner's request to finish this work is being handled as a bounded closeout of this Luna
+continuation. It does not complete all of EVAL-012, WP-10's native coverage, or the wider GCP pilot.
+The following guidance changes are prepared on top of `35f55cc9`; behavioral results remain
+unverified until the approved confirmation run is completed:
+
+- `resilience-analysis/SKILL.md` puts the overload stimulus in the entrypoint actually read by the
+  prior assessment: exceed completion capacity, exercise admission and overflow, run protected work
+  concurrently, and count active work, waiters and retries in shared-slot occupancy.
+- `gcp-ops/SKILL.md` requires a timestamped successful/failing startup comparison, including new
+  instances of the serving revision. Dependency-related returns name the owner check, serving
+  capacity/error monitoring and recovery evidence before another release attempt. Requested query
+  bounds stay distinct from the export's demonstrated coverage.
+
+The quotation result remains an open limitation, not a repaired behavior. Its source line was fully
+delivered and an exact-copy instruction was already present. Another stronger sentence would not
+address a demonstrated missing rule. Do not claim reliable verbatim extraction or use these results
+as evidence that machine-consumed quotations can bypass independent source comparison. A mechanical
+extraction/validation change would need its own scoped design; it is outside this closeout proposal.
+No source quote, case prompt, fixture, grader, saved response or historical verdict is changed.
+
+**Approved remaining model budget: five attempts on one frozen candidate.** The owner approved
+this closeout and its local commit on 2026-10-15, retaining quotation as an open limitation.
+
+| Case | Fresh attempts | Required assessment |
+|---|---:|---|
+| `build-reliability-engineer-proportionate-options` | 3 | Mechanical checks plus every frozen semantic criterion above, including explicit overload and recovery |
+| `build-gcp01-startup-a` | 1 | Complete instrument evidence and the unchanged five-row GCP semantic review; regression control |
+| `build-gcp01-startup-b` | 1 | Same review, including the healthy baseline, dependency-owner follow-up, serving capacity and recovery condition |
+
+Use `gpt-6-luna` at high effort under the existing subscription and unelevated owner identity;
+retain the 300-second CLI and 32-fixture-call per-attempt limits, scoped tools and corrected UTF-8
+transport. No retries, replacement slots, judge calls or second candidate. The CLI execution cap is
+1,500 seconds (25 minutes), excluding setup and review; dollar cost is unknown. Existing case hashes
+and scoring rules stay frozen. Bind the exact candidate commit, plugin digest, adapter/runner
+sources and runtime before launch, and store new artifacts in a new private run directory.
+
+Stop scheduling on source/runtime/identity drift, authentication failure, incomplete instrument
+evidence or an authority/effect regression. Retain every attempted result, including failed or
+inconclusive ones. Ordinary behavioral failures remain observations; finish only the declared
+unattempted slots without edits. GCP's expected human-review gate alone is not an instrument failure.
+At the cap, review the saved evidence and end this candidate loop regardless of outcome. Any
+unresolved behavior remains open in the roadmap; it does not trigger another automatic tuning round.
+
+These are candidate confirmations, not a matched causal comparison: the historical transport and
+sample sizes differ, so do not pool records or claim that these edits caused an improvement. Review
+mechanical and semantic results separately, retain the quotation limitation, and present the exact
+revision and proposed dispositions for human acceptance. Qualification remains limited to the named
+artifact tasks. Native routing/hooks/helper continuation, other GCP families, benchmark integrations
+and live cloud remain separate work. Full-suite testing stays waived. The owner separately approved
+the local commit; push, merge and promotion remain outside this allowance.
+
+[verified] Preparation checks passed on Python 3.14.7: `scripts/test_skill_assets.py` and
+`scripts/test_reliability_contract.py` (13 tests, 95 subtests), canonical/bundle links, fleet
+validation, generated-adapter parity and `git diff --check`. Canonical growth is 310 bytes in
+`resilience-analysis` and 841 in `gcp-ops` (LF-normalized). These are structural checks; no new
+Luna attempt has run and neither behavioral finding is claimed fixed.

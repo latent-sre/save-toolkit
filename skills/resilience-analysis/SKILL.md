@@ -82,8 +82,11 @@ a timeout sum alone bounds neither elapsed time nor slot occupancy. A concurrenc
 shared capacity only if admission or waiting does not retain the slots being reserved.
 
 Verification names the target/version, stimulus, expected user and resource behavior, discriminating
-measurements, bounds/stop conditions, and recovery checks. Preserve actual results separately from
-the proposed test. Assess findings and coverage, not a blanket reliability score; test passes do not
+measurements, bounds/stop conditions, and recovery checks. To verify an admission or isolation control,
+drive arrivals above completion capacity until its limit and overflow path are exercised, while
+protected work runs concurrently. Count active work, permit waiters and retries in shared-slot
+occupancy; representative demand alone may never exercise the protection. Preserve actual results
+separately from the proposed test. Assess findings and coverage, not a blanket reliability score; test passes do not
 approve a deployment. See [worked contrasts](references/worked-contrasts.md) for supported risks,
 effective controls and missing evidence. Read [sources](references/sources.md) when checking a
 practice's provenance or adapting this method.

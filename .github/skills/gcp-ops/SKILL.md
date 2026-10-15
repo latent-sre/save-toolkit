@@ -70,6 +70,14 @@ After listing revisions, inspect one with
 `gcloud run revisions describe <revision> --region <region> --project <project>`.
 As with `cf events`, a revision near symptom onset is a hypothesis, not proof of cause.
 
+For startup failures, compare the last observed successful start with the failing starts: revision,
+time, warm-up duration, dependency errors and evidence that listening actually began. Include new
+instances of the serving revision; its earlier ready state does not establish current startup
+capacity. A configured or logged bind address alone does not prove an open listener. If a shared
+dependency delays startup, return the dependency-owner check, serving-revision startup/capacity and
+request-error monitoring, and the recovery evidence needed before the release owner considers
+another attempt. Missing comparisons or recovery evidence stay explicit gaps.
+
 ## Logs — guard-safe filter shapes
 
 ```bash
@@ -82,6 +90,8 @@ captures 429s logged at WARNING. Correlate the message, capacity and revision be
 Keep the single quotes, freshness and count bounds. Accept `<service>` and `<region>` only as
 lowercase letters, digits and inner hyphens; otherwise stop and ask. `--project` selects the log
 project; `resource.labels.location` selects the Cloud Run region.
+Distinguish the requested filter/window/limit from the returned export's demonstrated coverage;
+record unknown truncation or sampling instead of assuming the request was applied.
 
 For historical UTC windows, other filter shapes, shell restrictions or log bucket/view selection,
 load `obs-logs` and its **Cloud Logging dialect** reference; it owns those mechanics and sources.

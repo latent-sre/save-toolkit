@@ -483,7 +483,13 @@ does not force admission overload. The first two reliability records remain INCO
 GCP-01 transport is exercised; remaining families and native behavior are still separate. Human
 result acceptance and candidate promotion remain pending; the eleven-attempt allowance is exhausted.
 Next: repair or explicitly dispose of the quotation and overload-verification findings before claiming
-those behaviors qualified. The helper verification gap stays
+those behaviors qualified. A prepared closeout candidate puts overload verification in the
+resilience entrypoint and adds the missing GCP startup comparison/follow-up guidance. Its
+[five-attempt confirmation proposal](reviews/2026-10-15-luna-reliability-gcp01.md#prepared-closeout-candidate-and-final-confirmation-proposal)
+was approved on 2026-10-15: three reliability observations and one GCP-01 A/B pair, one candidate, no
+retries or automatic tuning round. Quotation remains an open limitation. New behavioral evidence
+and exact-candidate acceptance remain pending; this closes only the bounded Luna continuation if accepted.
+The helper verification gap stays
 INCONCLUSIVE; any further campaign needs a new bounded scope. The saved-trace review
 did not rerun models; the later Luna qualification attempts are recorded separately. Runner follow-ups, not blocking: unittest
 `--option=value` spellings and SHA-spelled Git ranges fail their detectors (0/303 and 0/909 in saved
