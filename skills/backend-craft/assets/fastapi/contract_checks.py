@@ -1,4 +1,4 @@
-"""Plain assertions shared by real-service tests and the optional Things example."""
+"""Reusable problem, request-ID and API-document assertions for real-service tests."""
 from __future__ import annotations
 
 import re

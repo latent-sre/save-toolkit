@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -62,10 +63,13 @@ func TestBearerAdapterRequiresAuthenticationByDefault(t *testing.T) {
 		{name: "public", metadata: Public, public: true},
 		{name: "public-with-security", metadata: Public, security: Bearer},
 	} {
-		for _, token := range []string{"", "Bearer invalid", "Bearer valid"} {
+		for _, token := range []string{"", "Bearer invalid", "Bearer valid", "Bearer outage"} {
 			t.Run(tc.name+"/"+token, func(t *testing.T) {
 				mux := http.NewServeMux()
 				api := NewAPI(mux, "Probe", "1.0.0", func(_ context.Context, token string) (Principal, error) {
+					if token == "outage" {
+						return Principal{}, errors.New("identity provider unreachable")
+					}
 					if token == "valid" {
 						return Principal{Subject: "caller"}, nil
 					}
@@ -86,11 +90,17 @@ func TestBearerAdapterRequiresAuthenticationByDefault(t *testing.T) {
 				rec := httptest.NewRecorder()
 				WithRequestID(mux, "").ServeHTTP(rec, req)
 				want := http.StatusUnauthorized
+				if token == "Bearer outage" {
+					want = http.StatusServiceUnavailable
+				}
 				if tc.public || token == "Bearer valid" {
 					want = http.StatusNoContent
 				}
 				if rec.Code != want {
 					t.Fatalf("got %d, want %d: %s", rec.Code, want, rec.Body.String())
+				}
+				if want == http.StatusServiceUnavailable && (rec.Header().Get("Content-Type") != "application/problem+json" || rec.Header().Get("X-Request-ID") == "") {
+					t.Fatal("verifier outage lost the problem/request-ID contract")
 				}
 				if want == http.StatusUnauthorized {
 					if rec.Header().Get("Content-Type") != "application/problem+json" {

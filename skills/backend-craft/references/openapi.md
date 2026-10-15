@@ -19,8 +19,8 @@ compatibility evidence. Read tool/framework versions from manifests and lockfile
    before implementation under the approval rule in `SKILL.md`.
 4. **Check contract rules:** assert `/v1`, unique lowerCamel `operationId`, the actual identity
    scheme except on explicitly unauthenticated operations, problem-shaped errors and version
-   `3.1.0`. The bundled gates take the app and test identity from one replaceable setup file:
-   FastAPI's `contract_app.py` or Go's `example_fixture_test.go`. Supply the real app, authenticated
+   `3.1.0`. The bundled gates take the app and test identity from a test fixture you supply:
+   FastAPI's `contract_app.py` or a Go service `_test.go` file. Supply the real app, authenticated
    test headers, expected security schemes and explicitly public operations there; the shared
    checks need no sample resource or bearer adapter. Public operations have empty effective
    security and run without identity headers. Protected operations declare problem-shaped 401
@@ -29,8 +29,8 @@ compatibility evidence. Read tool/framework versions from manifests and lockfile
    including added routes, until an authorized migration.
 5. **Exercise the document:** Schemathesis sends valid/invalid inputs and rejects undocumented
    responses and 500s. FastAPI runs in-process (`test_schemathesis.py`); Go runs `st` against the
-   real handler (`schemathesis_test.go`). Supply the app's test identity/session; the examples
-   inject a test verifier, never a service-wide static token. Disable `allow-extra-parameters` and
+   real handler (`schemathesis_test.go`). Supply the app's test identity/session with an isolated
+   verifier or identity fixture, never a service-wide static token. Disable `allow-extra-parameters` and
    `with-security-parameters`: extra query parameters are ignored, and the test supplies
    authentication. Explicitly test stateful
    rejections such as idempotency conflicts; schema-valid does not mean state-valid.

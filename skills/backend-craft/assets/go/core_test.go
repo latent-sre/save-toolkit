@@ -39,12 +39,34 @@ func TestHouseComponentsWithoutStarter(t *testing.T) {
 	} {
 		t.Run(tc.method+tc.path, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			handler.ServeHTTP(rec, httptest.NewRequest(tc.method, tc.path, nil))
+			req := httptest.NewRequest(tc.method, tc.path, nil)
+			req.Header.Set("X-Request-ID", "spoofed")
+			handler.ServeHTTP(rec, req)
 			var body map[string]any
 			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 				t.Fatal(err)
 			}
 			assertProblem(t, reply{status: rec.Code, header: rec.Header(), body: body}, tc.status)
+			if rec.Header().Get("X-Request-ID") == "spoofed" {
+				t.Fatal("echoed an untrusted client request ID")
+			}
+			if tc.status == 422 {
+				errs, _ := body["errors"].([]any)
+				if len(errs) == 0 {
+					t.Fatal("422 must locate the invalid query parameter")
+				}
+				first := errs[0].(map[string]any)
+				loc, _ := first["loc"].([]any)
+				msg, _ := first["msg"].(string)
+				if len(loc) != 2 || loc[0] != "query" || loc[1] != "limit" || msg == "" {
+					t.Fatalf("invalid error location/message: %v", first)
+				}
+				for _, key := range []string{"input", "value"} {
+					if _, present := first[key]; present {
+						t.Fatalf("error echoes submitted %s", key)
+					}
+				}
+			}
 			if rec.Header().Get("Link") != "" {
 				t.Fatal("problem advertises a generated schema")
 			}

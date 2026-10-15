@@ -7,7 +7,7 @@ input), X-Request-ID on every response, lowerCamel operation IDs, one Problem co
 as application/problem+json on every 4xx and 5xx response, a cross-site
 write guard, and, for a service bound to loopback, a Host guard against DNS rebinding.
 Register the app's own routes and native/corporate-SSO authentication and object authorization.
-The separate auth.py bearer adapter and main.py resource example are optional.
+The separate auth.py bearer adapter is optional.
 
 Request IDs: no inbound header is trusted by default. Trust one only when every request passes an
 ingress that overwrites it; on PCF, Gorouter overwrites X-Vcap-Request-Id, but container-to-

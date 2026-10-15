@@ -1,19 +1,16 @@
 # Go and Huma
 
-Read Go/Huma versions from `go.mod`; the browser guard in this example needs Go 1.25+.
+Read Go/Huma versions from `go.mod`; `http.CrossOriginProtection` needs Go 1.25+.
 Preserve existing service contracts and adapt only the components the task needs.
 
 - [house.go](../assets/go/house.go) supplies common problems, request IDs, router fallbacks,
-  cursor-page types and `HouseConfig(title, version)`. It works without the other example files.
+  cursor-page types and `HouseConfig(title, version)`. It works without the bearer adapter.
   `HouseConfig` supplies document/error configuration only: it installs no authentication or
   request middleware. Use it with the service's established corporate SSO middleware, keeping
   authentication in place before exposing shared internal operations and retaining object checks.
 - [auth.go](../assets/go/auth.go) is an optional bearer adapter for an integration that actually
   verifies bearer tokens. Corporate SSO does not establish a token format or protocol. Reuse the
   existing provider integration instead of adding this adapter when it already handles identity.
-- [main.go](../assets/go/main.go) and [things.go](../assets/go/things.go) are optional service and
-  domain examples. Skipping them does not remove browser/Host protection, request logging,
-  object authorization, server timeouts or shutdown requirements from the real service.
 
 ## API and handlers
 
@@ -36,7 +33,7 @@ Preserve existing service contracts and adapt only the components the task needs
   query values as absent.
 - Return `huma.Error404NotFound(...)` and siblings, or `*Problem` with a domain `Type`. An error
   without a status becomes `500` with no exception message exposed.
-- The optional `newService` example wraps every request, including router 404/405 and health:
+- Wrap every request, including router 404/405 and health, with:
   request ID, access log, loopback Host guard, `http.CrossOriginProtection`, `WithProblemFallback`. Huma middleware
   (`api.UseMiddleware` before operations) sees only registered operations/metadata; auth lives there.
 
@@ -51,7 +48,7 @@ Preserve existing service contracts and adapt only the components the task needs
 - Go does not derive `GOMEMLIMIT` from container memory: set about 90% of the PCF/Cloud Run quota.
   Since 1.25, `GOMAXPROCS` follows cgroup CPU quota. PCF Diego supplies shares, not quota, leaving
   it at cell CPU count: log `runtime.GOMAXPROCS(0)` and verify on each platform.
-- Use JSON `log/slog`; the starter adds `request_id` to request-context records, so use
+- Use JSON `log/slog`; attach `request_id` to request-context records and use
   `slog.InfoContext(ctx, ...)`.
 
 ## Data and tests
@@ -66,16 +63,16 @@ Preserve existing service contracts and adapt only the components the task needs
   `assertRequestID` in [contract_helpers_test.go](../assets/go/contract_helpers_test.go).
   [core_test.go](../assets/go/core_test.go) needs only those helpers and `house.go`;
   [auth_test.go](../assets/go/auth_test.go) separately checks the optional bearer adapter.
-- Replace [example_fixture_test.go](../assets/go/example_fixture_test.go) with a service test
-  fixture: `contractService(t)` returns the real handler and stable generated document bytes;
-  `contractHeaders` supplies a local test identity; `authenticatedSchemes` names the document's
-  actual schemes, `authErrorStatuses` lists actual identity failures, and `publicOperations` lists
-  deliberate anonymous exceptions. This one seam feeds [openapi_test.go](../assets/go/openapi_test.go) and
+- Create a service test fixture: `contractService(t *testing.T) (http.Handler, []byte)` returns
+  the real handler and stable generated document bytes;
+  `contractHeaders` (`map[string]string`) supplies a local test identity; `authenticatedSchemes`
+  and `publicOperations` (`map[string]bool`) name the document's actual schemes and deliberate
+  anonymous operation IDs; `authErrorStatuses` (`[]int`) lists actual identity failures, including 401.
+  This one seam feeds [openapi_test.go](../assets/go/openapi_test.go) and
   [schemathesis_test.go](../assets/go/schemathesis_test.go), including cookie sessions and inherited
-  top-level security. No Things store or bearer adapter is required. Keep the update command:
+  top-level security. Keep the update command:
   `go test -run TestOpenAPIDocument -update`, then review `openapi.json` and run `go test ./...`.
-- [house_test.go](../assets/go/house_test.go) retains the optional Things example's pagination,
-  object permissions, browser protection and lifecycle checks. Reuse applicable cases with the
-  real service's resources; changing fixture wiring does not supply those domain checks.
+- Test pagination, object permissions, browser protection and lifecycle against the real service;
+  contract-fixture wiring does not supply those checks.
   `humatest.New` omits house configuration; `humatest.Wrap` is only for Huma-layer tests.
 - Use `go test -race` for goroutines/shared state.

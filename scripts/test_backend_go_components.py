@@ -1,4 +1,4 @@
-"""Run Go backend components independently and retain the optional starter's security checks."""
+"""Run Go backend components and contract checks against an independent cookie service."""
 
 from __future__ import annotations
 
@@ -16,9 +16,6 @@ ASSETS = Path(__file__).resolve().parents[1] / "skills/backend-craft/assets/go"
 @pytest.mark.parametrize("component, files", [
     ("common", ["house.go", "core_test.go", "contract_helpers_test.go"]),
     ("bearer", ["house.go", "auth.go", "auth_test.go"]),
-    ("starter", ["house.go", "auth.go", "main.go", "things.go", "house_test.go",
-                 "auth_test.go", "core_test.go", "openapi_test.go",
-                 "contract_helpers_test.go", "example_fixture_test.go", "schemathesis_test.go"]),
     ("cookie", ["house.go", "contract_helpers_test.go", "openapi_test.go",
                 "schemathesis_test.go"]),
 ])
@@ -47,7 +44,7 @@ def test_go_components(tmp_path, component, files):
         return result
 
     run("mod", "download", "github.com/danielgtaylor/huma/v2")
-    if component in {"starter", "cookie"}:
+    if component == "cookie":
         run("test", "-run", "^TestOpenAPIDocument$", "-update")
     result = run("test", "-count=1", "-v", "./...")
     assert "PASS" in result.stdout, result.stdout

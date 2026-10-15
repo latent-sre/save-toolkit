@@ -99,7 +99,7 @@ Read only matching references and assets; use every matching row.
 
 Select by capability; equivalent application/framework facilities satisfy the same contract.
 Keep applicable acceptance checks, adapting their fixtures to the real resource and identity
-integration. Copying an example application, datastore or bearer adapter is not a requirement.
+integration. Supply the real app's test fixture; a bearer adapter is needed only for that identity contract.
 Here, public means explicitly unauthenticated, not internet-facing; shared internal tools stay
 authenticated. Workers use their service identity; local CLIs keep their native execution model.
 
@@ -107,11 +107,9 @@ authenticated. Workers use their service identity; local CLIs keep their native 
 |---|---|---|
 | Common HTTP behavior | [house.py](./assets/fastapi/house.py), [tests](./assets/fastapi/test_http_core.py) | [house.go](./assets/go/house.go), [tests](./assets/go/core_test.go) |
 | Bearer adapter, only when that is the identity contract | [auth.py](./assets/fastapi/auth.py), [tests](./assets/fastapi/test_auth.py) | [auth.go](./assets/go/auth.go), [tests](./assets/go/auth_test.go) |
-| Contract assertions and app-specific test setup | [checks](./assets/fastapi/contract_checks.py), [setup](./assets/fastapi/contract_app.py) | [checks](./assets/go/contract_helpers_test.go), [setup](./assets/go/example_fixture_test.go) |
-| Optional sample-resource acceptance | [test_house.py](./assets/fastapi/test_house.py) | [house_test.go](./assets/go/house_test.go) |
+| Contract assertions and fixture requirements | [checks](./assets/fastapi/contract_checks.py), [setup](./references/fastapi.md#tests-and-runtime) | [checks](./assets/go/contract_helpers_test.go), [setup](./references/go.md#data-and-tests) |
 | Document and response checks | [document](./assets/fastapi/test_openapi_document.py), [Schemathesis](./assets/fastapi/test_schemathesis.py) | [document](./assets/go/openapi_test.go), [Schemathesis](./assets/go/schemathesis_test.go) |
 | CI wiring | [workflow](./assets/ci/api-contract-fastapi.yml) | [workflow](./assets/ci/api-contract-go.yml) |
-| Optional composition example: settings, lifecycle and a sample resource | [main.py](./assets/fastapi/main.py) | [main.go](./assets/go/main.go), [things.go](./assets/go/things.go) |
 
 ## Acceptance
 

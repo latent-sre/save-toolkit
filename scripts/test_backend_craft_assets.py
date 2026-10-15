@@ -1,9 +1,7 @@
-"""Exercise backend-craft's FastAPI starter end to end, then the house module's protections
-that its example service does not reach."""
+"""Exercise reusable FastAPI components and contract checks against an independent service."""
 from __future__ import annotations
 
 import asyncio
-import importlib.util
 import json
 import logging
 import os
@@ -36,32 +34,20 @@ def _passed(result: subprocess.CompletedProcess[str]) -> None:
     assert result.returncode == 0, f"{result.args}\n{result.stdout[-4000:]}\n{result.stderr[-4000:]}"
 
 
-def test_fastapi_starter_suite_passes(tmp_path):
-    shutil.copytree(ASSETS / "fastapi", tmp_path, dirs_exist_ok=True)
-    pytest_cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-o", "addopts="]
-    _passed(_run([*pytest_cmd, "test_openapi_document.py"], tmp_path, UPDATE_OPENAPI="1"))
-    document = json.loads((tmp_path / "openapi.json").read_text(encoding="utf-8"))
-    schemas = document["components"]["schemas"]
-    assert {"Problem", "FieldError", "Thing", "ThingPage"} <= schemas.keys()
-    assert "HTTPValidationError" not in schemas
-    assert document["components"]["securitySchemes"]["bearer"]["scheme"] == "bearer"
-
-    assert importlib.util.find_spec("schemathesis"), "schemathesis must be installed (requirements-test.txt)"
-    result = _run([*pytest_cmd, "-p", "schemathesis", "-p", "hypothesispytest"], tmp_path)
-    _passed(result)
-    assert " passed" in result.stdout and "skipped" not in result.stdout, result.stdout
-
-
-def test_fastapi_http_core_runs_without_auth_or_example_files(tmp_path):
-    for name in ("house.py", "contract_checks.py", "test_http_core.py"):
+@pytest.mark.parametrize("files, test_file", [
+    (("house.py", "contract_checks.py"), "test_http_core.py"),
+    (("house.py", "contract_checks.py", "auth.py"), "test_auth.py"),
+])
+def test_fastapi_components_run_independently(tmp_path, files, test_file):
+    for name in (*files, test_file):
         shutil.copy2(ASSETS / "fastapi" / name, tmp_path / name)
-    _passed(_run([sys.executable, "-m", "pytest", "-q", "-o", "addopts=", "test_http_core.py"], tmp_path))
+    _passed(_run([sys.executable, "-m", "pytest", "-q", "-o", "addopts=", test_file], tmp_path))
 
 
 def test_fastapi_contract_checks_run_against_cookie_service_without_examples(tmp_path):
     for name in ("house.py", "contract_checks.py", "test_openapi_document.py", "test_schemathesis.py"):
         shutil.copy2(ASSETS / "fastapi" / name, tmp_path / name)
-    # Deliberately no main.py, auth.py, ThingStore or bearer fixtures. Only this ordinary setup
+    # Deliberately no auth.py or bearer fixtures. Only this ordinary setup
     # module changes; the shipped document/schema checks run unmodified against another service.
     (tmp_path / "contract_app.py").write_text(textwrap.dedent('''\
         from contextlib import asynccontextmanager

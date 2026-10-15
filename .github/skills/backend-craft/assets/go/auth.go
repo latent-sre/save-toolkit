@@ -1,6 +1,6 @@
 // Optional bearer-authentication adapter. Prefer the service's established corporate SSO
 // middleware; use this adapter only when verified bearer tokens are its chosen boundary.
-// It depends on house.go, but does not require the example main.go or things.go.
+// It depends on house.go; the service supplies its routes and identity verifier.
 package main
 
 import (

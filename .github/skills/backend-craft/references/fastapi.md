@@ -2,13 +2,12 @@
 
 Read FastAPI, Pydantic, Starlette and Python versions from manifests/lockfiles. Preserve existing
 service contracts and native identity integration. Shared internal tools use corporate SSO;
-its vendor and protocol come from the project, not this starter. Authenticate protected routes
+its vendor and protocol come from the project. Authenticate protected routes
 and authorize each object and collection regardless of network exposure. Public means explicitly
 unauthenticated, not internet-facing.
 
 [house.py](../assets/fastapi/house.py) supplies reusable HTTP helpers without an auth adapter or
-dummy verifier. Adopt the helpers the app needs. [main.py](../assets/fastapi/main.py) is an optional
-resource example; its Things model, store, pagination and app factory are not required scaffolding.
+dummy verifier. Adopt the helpers the app needs.
 
 ## App and handlers
 
@@ -57,15 +56,15 @@ resource example; its Things model, store, pagination and app factory are not re
 - [contract_checks.py](../assets/fastapi/contract_checks.py) exports plain problem/request-ID and
   document assertions. [test_http_core.py](../assets/fastapi/test_http_core.py) exercises the HTTP
   helper without any app or identity example. Keep real-route authentication and object-authorization
-  tests; `test_house.py` and [test_auth.py](../assets/fastapi/test_auth.py) cover the optional examples.
-- For `test_openapi_document.py` and `test_schemathesis.py`, replace only
-  [contract_app.py](../assets/fastapi/contract_app.py): supply `make_app()`, seeded resources,
+  tests; [test_auth.py](../assets/fastapi/test_auth.py) checks the optional bearer adapter.
+- For `test_openapi_document.py` and `test_schemathesis.py`, create a test-only
+  `contract_app.py`: supply `make_app()`, seeded resources,
   `TEST_HEADERS` for the test identity, `AUTH_SCHEME` matching the actual named security scheme,
-  `AUTH_ERROR_STATUSES` for actual identity failures, and explicit `PUBLIC_OPERATIONS`. The supplied
-  setup uses Things/bearer; a cookie-session app needs neither `main.py` nor `auth.py`. Checks run
+  `AUTH_ERROR_STATUSES` for actual identity failures, and explicit `PUBLIC_OPERATIONS`. The
+  fixture must use the real app and its identity integration. Checks run
   lifespan and obtain the schema directly, so no
   public document endpoint is required. Keep fixture credentials confined to tests.
-- Start through settings, as the optional `main.py` example does with `uvicorn.run`: all interfaces on platform
+- Start through settings with `uvicorn.run`: all interfaces on platform
   `$PORT`, otherwise `127.0.0.1`, with `timeout_graceful_shutdown=8`. Bare uvicorn binds loopback,
   unreachable by the platform; `fastapi run` binds `0.0.0.0`, unsuitable for a desktop default.
 - Behind Gorouter/Cloud Run, `--proxy-headers` trusts only `--forwarded-allow-ips` (default
