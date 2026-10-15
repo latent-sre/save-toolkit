@@ -96,7 +96,5 @@ their own constraints. Validate affected deployment versions rather than just th
 [Tenacity defaults](https://tenacity.readthedocs.io/en/latest/),
 [PyPA dependency contracts](https://packaging.python.org/en/latest/discussions/install-requires-vs-requirements/),
 [dataclasses](https://docs.python.org/3/library/dataclasses.html),
-[PEP 695](https://peps.python.org/pep-0695/),
-[deferred annotations](https://peps.python.org/pep-0649/),
-[Python 3.14](https://docs.python.org/3.14/whatsnew/3.14.html), and
-[Python 3.15](https://docs.python.org/3.15/whatsnew/3.15.html).
+[PEP 695](https://peps.python.org/pep-0695/), and
+[Python 3.14](https://docs.python.org/3.14/whatsnew/3.14.html).

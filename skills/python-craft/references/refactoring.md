@@ -191,8 +191,6 @@ performance motivates the design; compatibility tests alone do not establish imp
 [Extract Function](https://refactoring.com/catalog/extractFunction.html),
 [expression semantics](https://docs.python.org/3/reference/expressions.html),
 [Hypothesis properties](https://hypothesis.readthedocs.io/en/latest/tutorial/introduction.html),
-[`warnings.deprecated`](https://peps.python.org/pep-0702/),
-[explicit lazy imports](https://peps.python.org/pep-0810/),
 [iteration](https://docs.python.org/3.11/library/functions.html),
 [collections](https://docs.python.org/3.11/library/collections.html), and
 [context managers](https://docs.python.org/3.11/library/contextlib.html).

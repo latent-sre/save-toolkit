@@ -43,7 +43,5 @@ attempt, use `root-cause`. Report material adjacent findings separately.
 [sourced] [ruff rules](https://docs.astral.sh/ruff/rules/),
 [Requests timeouts](https://requests.readthedocs.io/en/latest/user/advanced/#timeouts),
 [asyncio tasks](https://docs.python.org/3/library/asyncio-task.html),
-[time.monotonic](https://docs.python.org/3/library/time.html#time.monotonic),
-[free threading](https://docs.python.org/3.14/whatsnew/3.14.html),
-[UTF-8 mode default](https://peps.python.org/pep-0686/), and
+[time.monotonic](https://docs.python.org/3/library/time.html#time.monotonic), and
 [decimal](https://docs.python.org/3/library/decimal.html).

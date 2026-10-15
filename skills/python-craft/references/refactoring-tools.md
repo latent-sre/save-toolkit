@@ -69,9 +69,6 @@ Keep tools in a development environment; report the tool/version and unresolved 
 [change previews/history](https://rope.readthedocs.io/en/latest/library.html),
 [LibCST syntax preservation](https://libcst.readthedocs.io/en/latest/why_libcst.html),
 [codemod testing](https://libcst.readthedocs.io/en/latest/codemods.html),
-[ast-grep rewriting](https://ast-grep.github.io/guide/rewrite-code.html),
-[vulture](https://github.com/jendrikseipp/vulture),
-[deptry](https://deptry.com/),
 [Ruff fix safety](https://docs.astral.sh/ruff/linter/#fix-safety),
 [Ruff check/diff options](https://docs.astral.sh/ruff/configuration/),
 [AST guarantees](https://docs.python.org/3/library/ast.html#ast.unparse), and
