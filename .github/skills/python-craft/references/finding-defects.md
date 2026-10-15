@@ -29,20 +29,21 @@ Use existing tools when Ruff is absent; acquiring a new tool is a separate envir
 | Durations and deadlines | `time.time()` differences for timeouts or elapsed time | Use `time.monotonic()`; wall clocks jump |
 | Retries and timeouts | Missing I/O timeouts, no attempt/deadline budget, or retried non-idempotent effects | Establish eligibility and a bounded overall operation; account for nested retry owners |
 | Resource lifetime | An iterator returned from inside `with`; a client created per call; a file opened without `with` | Consume the result after the function returns; assert cleanup on failure |
-| Shared state | Globals or class attributes mutated from threads or tasks; unbounded caches | Name the owner; bound or lock it |
+| Shared state | Globals or class attributes mutated from threads or tasks; unbounded caches | Name the owner; bound or lock it. The GIL never made compound updates atomic; free-threaded builds (supported since 3.14) remove the serialization that hid such races |
 | Async failures | Unowned tasks, swallowed cancellation, or an individual-error handler around grouped failures | Force one task to fail; check sibling lifetime, cleanup, and handling of the actual exception shape |
-| Text I/O | An implicit encoding where files cross machines or processes | Read and write non-ASCII text under the required encoding; do not assume the host's default |
+| Text I/O | An implicit encoding where files cross machines or processes | Read and write non-ASCII text under the required encoding; do not assume the host's default. Python 3.15 defaults to UTF-8, so explicit encodings still matter while older runtimes are supported |
 | Validation by `assert` | `assert` guarding input outside tests | `python -O` strips it; raise an explicit error |
 
 ## Fix what you found
 
-When a fix is requested, capture a failing check at the entrypoint the defect reaches, using the
-project's test conventions and independent expected behavior. Control irrelevant time, randomness,
-and external effects, while keeping real boundaries that the check needs to exercise. Verify the
-smallest sufficient repair and relevant failure paths; report material adjacent findings separately.
+When a fix is requested, capture a failing check at the entrypoint the defect reaches, with an
+independent expected result. Verify the smallest repair and its failure paths; after a failed fix
+attempt, use `root-cause`. Report material adjacent findings separately.
 
 [sourced] [ruff rules](https://docs.astral.sh/ruff/rules/),
 [Requests timeouts](https://requests.readthedocs.io/en/latest/user/advanced/#timeouts),
 [asyncio tasks](https://docs.python.org/3/library/asyncio-task.html),
-[time.monotonic](https://docs.python.org/3/library/time.html#time.monotonic), and
+[time.monotonic](https://docs.python.org/3/library/time.html#time.monotonic),
+[free threading](https://docs.python.org/3.14/whatsnew/3.14.html),
+[UTF-8 mode default](https://peps.python.org/pep-0686/), and
 [decimal](https://docs.python.org/3/library/decimal.html).

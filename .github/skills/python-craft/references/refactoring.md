@@ -7,6 +7,7 @@
 - Preserve consumers and integrate
 - Stage a large or multi-module change
 - Example: separate calculation from files
+- Example: pin current behavior
 - Verify behavior and benefit
 
 ## Choose the transformation
@@ -52,37 +53,43 @@ Establish required behavior from specifications and consumers. Characterization 
 behavior; it cannot justify preserving a demonstrated bug or guessing an undocumented rule.
 
 Find imports/re-exports, entrypoints, configured import strings, registries/decorators, and persisted
-qualified names; an underscore does not prove a name is private. Controlled internal signatures and
-shapes may change with their callers. Preserve supported call forms/defaults, import-time effects,
-and public patch points. Add compatibility adapters only for actual supported consumers.
+qualified names; an underscore does not prove a name is private. Search for qualified names as text
+too (`"pkg.module.name"`, entry-point `"pkg.module:name"`) across code, configuration, and package
+metadata; a rename tool or language server resolves only static references. Controlled internal
+signatures and shapes may change with their callers. Preserve supported call forms/defaults,
+import-time effects, and public patch points. An explicit `lazy import` (3.15) defers the imported
+module's import-time effects until first use; adding or removing one moves them. Add compatibility
+adapters only for actual supported consumers.
 
 Avoid leaving callers with repeated shape conversions or copies of moved policy. A moved function
 is not an integrated change until its real consumers use the new owner.
 
 ## Stage a large or multi-module change
 
-Map current consumers, policy/state owners, effects, and dependencies before choosing the new
-boundary. Include release inputs and non-code consumers such as configured names and package data.
-State what stays compatible, what intentionally changes, and which requirements remain unknown.
-For an unresolved rollout, compatibility, or recovery design, use the project's design workflow
-before implementing that decision; load `eng-ladder` for principal-level design guidance.
+Map consumers before choosing the boundary, including release inputs and non-code consumers such as
+configured names and package data. For an unresolved rollout, compatibility, or recovery design,
+use the project's design workflow; load `eng-ladder` for principal-level design guidance.
 
-1. Establish a working baseline. Map each material risk to an existing check or a missing regression;
-   prioritize public behavior, ownership, failure paths, and integration over implementation shape.
-2. Expose the seam and complete one path through a real consumer. Verify that path before widening
-   the migration. Move the rule's ownership, not just its text; exercise the replacement through
-   callers so dormant helpers and duplicated decisions cannot masquerade as completion.
-3. Migrate remaining consumers in coherent steps, checking imports, state/effect order, and cleanup
-   as boundaries change. Add compatibility bridges only when supported consumers, mixed versions,
-   or persisted data need them; define when each bridge can be removed.
+1. Map each material risk to an existing check or a missing regression before changing structure.
+2. Complete one path through a real consumer before widening, then migrate the rest in coherent
+   stages. Move the rule's ownership, not just its text: dormant helpers and duplicated decisions
+   can pass tests while callers still use the old copy.
+3. Add compatibility bridges only when supported consumers, mixed versions, or persisted data need
+   them, and define when each can be removed. Mark a bridge with
+   `warnings.deprecated` (3.13+; `typing_extensions.deprecated` before that): it warns at runtime,
+   and type checkers can list remaining callers; mypy does so only with its `deprecated` error code
+   enabled.
 4. Retire superseded code and dependencies after callers and release inputs use the replacement.
+   Find leftovers with an instrument and read its hits as leads: the type checker and text searches
+   for callers, `vulture` for unreferenced definitions, `deptry` for declared dependencies nothing
+   imports. Entry points, registries, and dynamic lookups look unused to static tools; confirm a
+   detector reports a known leftover before trusting its clean run.
    For module-layout, entrypoint, or package-data changes, build the project's actual release
    artifact and exercise an installation outside the source checkout. Check imports, configured
    lookups, and bundled resources there; checkout tests can conceal missing release files.
 
-Choose checkpoints by behavior and risk, not file counts or mandatory per-function commits. A small
-atomic replacement may be safer than a compatibility layer. Report the checks actually completed
-at each meaningful stage and any installation or downstream-consumer coverage still missing.
+Choose checkpoints by risk, not file counts; a small atomic replacement may be safer than a
+compatibility layer. Report the checks completed and any installation or downstream coverage missing.
 
 ## Example: separate calculation from files
 
@@ -121,6 +128,45 @@ The new boundary serves a caller; an explicit loop is equally valid. The start p
 `Decimal` result. Check filtered/signed/empty data, one-pass inputs, invalid numbers, missing fields,
 string/`Path` callers, and cleanup on failure. Keep a short function intact if the extraction has no use.
 
+## Example: pin current behavior
+
+Before restructuring `filled_notional`, record what the existing code returns for chosen inputs,
+then keep the table unchanged across the refactor:
+
+```python
+from decimal import Decimal, InvalidOperation
+
+import pytest
+
+from orders import filled_notional
+
+CASES = [
+    pytest.param([], Decimal("0"), id="empty"),
+    pytest.param([{"status": "FILLED", "qty": "2", "price": "1.10"}], Decimal("2.20"), id="filled"),
+    pytest.param([{"status": "OPEN", "qty": "2", "price": "1.10"}], Decimal("0"), id="unfilled"),
+    pytest.param([{"status": "FILLED", "qty": "x", "price": "1"}], InvalidOperation, id="bad-number"),
+    pytest.param([{"status": "FILLED", "qty": "1"}], KeyError, id="missing-price"),
+]
+
+
+@pytest.mark.parametrize(("rows", "expected"), CASES)
+def test_filled_notional_unchanged(rows, expected):
+    if isinstance(expected, type) and issubclass(expected, Exception):
+        with pytest.raises(expected):
+            filled_notional(rows)
+        return
+    result = filled_notional(rows)
+    assert type(result) is Decimal
+    assert result == expected
+```
+
+Take the values from the pre-refactor code and review each one; mark a row that records a known bug
+rather than treating it as a requirement. Keep raised outcomes raised: a returned error string is a
+different contract from an exception. Equality alone passes a version returning `0` for empty input,
+since `0 == Decimal("0")`; the type assertion catches it. Change a row only as a separate, named
+behavior change. Snapshot libraries (`inline-snapshot`, `syrupy`) can record and update such values;
+adopt one through the project's dependency workflow when characterization recurs, not for one change.
+
 ## Verify behavior and benefit
 
 Establish that tests exercise affected behavior; characterize material gaps. Use coverage or a
@@ -145,6 +191,8 @@ performance motivates the design; compatibility tests alone do not establish imp
 [Extract Function](https://refactoring.com/catalog/extractFunction.html),
 [expression semantics](https://docs.python.org/3/reference/expressions.html),
 [Hypothesis properties](https://hypothesis.readthedocs.io/en/latest/tutorial/introduction.html),
+[`warnings.deprecated`](https://peps.python.org/pep-0702/),
+[explicit lazy imports](https://peps.python.org/pep-0810/),
 [iteration](https://docs.python.org/3.11/library/functions.html),
 [collections](https://docs.python.org/3.11/library/collections.html), and
 [context managers](https://docs.python.org/3.11/library/contextlib.html).

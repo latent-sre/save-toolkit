@@ -8,6 +8,8 @@ choose the right design or prove application behavior. Inspect existing tooling 
 | Small local transformation | Direct edit | Inspect callers and semantic differences |
 | Symbol-aware rename, move, extract, inline | Rope or an existing capable editor | Dynamic/uncertain references still need review |
 | Repeated source migration across files | LibCST codemod | Matching rules and the transformation need their own tests |
+| Pattern search or one-off rewrite across files | ast-grep | Matches syntax patterns, not resolved names; aliases and dynamic access need review |
+| Unused definitions or declared dependencies | vulture; deptry | Entry points, registries, and dynamic lookups appear unused to static analysis |
 | Supported lint or syntax fix | Ruff | Safe/unsafe classification and target version matter |
 | Structural source analysis | Python AST | Unparsing does not preserve original source formatting |
 
@@ -67,6 +69,9 @@ Keep tools in a development environment; report the tool/version and unresolved 
 [change previews/history](https://rope.readthedocs.io/en/latest/library.html),
 [LibCST syntax preservation](https://libcst.readthedocs.io/en/latest/why_libcst.html),
 [codemod testing](https://libcst.readthedocs.io/en/latest/codemods.html),
+[ast-grep rewriting](https://ast-grep.github.io/guide/rewrite-code.html),
+[vulture](https://github.com/jendrikseipp/vulture),
+[deptry](https://deptry.com/),
 [Ruff fix safety](https://docs.astral.sh/ruff/linter/#fix-safety),
 [Ruff check/diff options](https://docs.astral.sh/ruff/configuration/),
 [AST guarantees](https://docs.python.org/3/library/ast.html#ast.unparse), and

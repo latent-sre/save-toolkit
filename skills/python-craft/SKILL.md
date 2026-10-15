@@ -46,9 +46,9 @@ scoped; report material adjacent findings separately.
 | Structural improvement, a multi-module migration, or Pythonic replacements | [Refactoring](./references/refactoring.md) |
 | Need a worked comparison for flattening nested control flow | [Guard-clause example](./references/guard-clause-example.md) |
 | Library adoption or dependency/runtime migration | [Libraries and modernization](./references/libraries-and-modernization.md) |
-| Automated transformations or lint fixes | [Refactoring tools](./references/refactoring-tools.md) |
+| Automated transformations, lint fixes, or unused-code detection | [Refactoring tools](./references/refactoring-tools.md) |
 | Bug hunting, review, or a suspected failure | [Finding defects](./references/finding-defects.md) |
 
-Load matching references only. Use project checks in the intended environment and supported Python
-versions. Report the change's benefit, intentional behavior differences, verification, and remaining
-uncertainty; measure performance claims separately.
+Load matching references only. Run project checks in the intended environment on supported Python
+versions; report intentional behavior differences, verification, and remaining uncertainty; measure
+performance claims separately.
