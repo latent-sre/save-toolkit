@@ -63,7 +63,6 @@ many unrelated switches.
 | Permissions, untrusted events, action versions, credentials, supply-chain evidence or a Python package release | [Security and provenance](./references/security-and-provenance.md) |
 | Submitting or rerunning remote validation | [Bounded CI runs](./references/validation-runs.md) |
 | A PCF deployment job, foundation authentication or rollback | [PCF deployment example](./references/pcf-deploy-job.md) |
-| A new reusable **Python/uv project** workflow, with no project-owned starter | [Python/uv starter](./assets/ci.reusable.yml); copy it with the caller in its header, choose the supported versions and adapt checks/groups from the project |
 
 For this fleet's runtime, runner or identity choices, load `stack-profile` first; its facts win.
 New GitHub-hosted Linux jobs use `runs-on: ubuntu-latest`; keep an existing job's label.
