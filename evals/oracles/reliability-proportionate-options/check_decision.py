@@ -6,8 +6,8 @@ Each section the prompt names must appear as a second-level or deeper heading, o
 or ending in a colon, with some content of its own outside the decision block. Whether that prose is
 sound is left to the reviewer reading the trace. The assessment must also hold exactly one fenced
 json block, other fences aside, that ends the document, with exactly the keys below in strict JSON: no duplicate keys, non-finite numbers, or booleans standing in for numbers.
-More than one proposal is proportionate here: either form of ledger bulkhead keeps account-read
-slots free. A larger pool is refuted by change record CHG-2203, restart automation leaves the reads
+More than one proposal is proportionate here: either form of ledger bulkhead can protect account-read
+slots with a sound occupancy/admission contract, which the reviewer checks. A larger pool is refuted by change record CHG-2203, restart automation leaves the reads
 failing until the restart, and replacing the ledger is out of proportion to the evidence. The
 on-call log records six 20-minute restarts, so two hours a month is both the baseline and the most
 the fix can avoid; no supplied evidence supports an incident-reduction figure, the product sheet's

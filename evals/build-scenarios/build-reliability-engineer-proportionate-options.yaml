@@ -57,7 +57,7 @@ fixture:
       BulkheadPro product sheet, received by email 2026-09-20: "Customers see 90% fewer dependency
       incidents and no more on-call restarts."
 success_criteria:
-  - Traces the slow ledger post holding shared slots (three 12-second attempts) to account-read failures.
+  - Traces the supplied shared-slot exhaustion to account-read failures; distinguishes up to three calls requesting 12-second timeouts from proven duration or occupancy bounds, and states the admission placement needed to protect read capacity.
   - The reviewer reads the section prose with the trace; the oracle checks only that each section has content.
   - Rejects a larger pool on the change record, and restart automation as treating the symptom.
   - Computes two hours a month of restart toil, which also bounds the avoidable restart time.

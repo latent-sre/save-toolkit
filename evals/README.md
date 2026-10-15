@@ -15,6 +15,31 @@ the short routing specs. The runner does not care which one a spec came from.
 
 ## Run it
 
+The separate [`codex_probe.py`](codex_probe.py) adapter admits fifteen named artifact cases:
+the twelve structured WP-10 injection cases, `--pair reliability` for the single proportionate-options
+assessment, and `--pair gcp01` for startup A/B. It stages canonical guidance and serves scoped tools
+through [`codex_fixture_tools.py`](codex_fixture_tools.py). Reliability may write only its requested
+assessment; GCP uses an exact synthetic read-query catalog prepared by
+[`codex_gcp_queries.py`](codex_gcp_queries.py). No candidate shell or live cloud interface is exposed.
+GCP query-attempt checks explicitly describe that transport instead of inventing native Bash calls.
+
+Its `codex-record-v1` artifacts are a separate baseline outside the native v1 importer. The
+[original Luna campaign](../docs/reviews/2026-10-15-wp10-structured-case-acceptance.md) retains 33 PASS,
+two FAILs and one INCONCLUSIVE on its current case versions, plus three earlier-version records.
+The [reliability/GCP continuation](../docs/reviews/2026-10-15-luna-reliability-gcp01.md) binds the newer
+candidate, evidence mapping and run scope. Neither profile establishes native routing, hooks or
+live helper continuation.
+
+`--approve-fixture-tools` requires the owner's approval of the profile's exact tools. There is no
+retry/overwrite mode; each invocation runs at most one pair or the reliability singleton and stops
+on incomplete evidence. GCP's declared semantic-review gate remains INCONCLUSIVE even with complete
+instrument evidence; it permits the second arm but never counts as PASS. Reliability's mechanical
+PASS also requires separate review of the assessment's reasoning.
+The Code Mode path accepts one literal scoped file or query call per wrapper, or a metadata-only
+`text(ALL_TOOLS)` query, optionally filtered by literal `name.includes`/`description.includes` terms
+joined by `&&`. Calls still require matching returns; arbitrary JavaScript stays unmeasured.
+Subscription dollar cost is unknown; wall time, tool limits and token usage are recorded.
+
 Use the latest **Python 3.14** patch for development and component-test CI. The repository-wide
 compatibility floor is Python 3.12, including the native runner and installed hooks; structural CI
 exercises that minimum.

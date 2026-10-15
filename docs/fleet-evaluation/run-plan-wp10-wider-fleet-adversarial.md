@@ -124,6 +124,39 @@ The owner chose the smaller first step on 2026-10-10: the natural pairs and the 
 cases, 45 trials) under a USD 20 cap, preceded by the four lane-admission smoke trials of
 precondition 6. The structured pairs follow after those traces are read, under their own approval.
 
+On 2026-10-15 the owner approved the separate natural-pair dispositions (17 PASS and one
+INCONCLUSIVE), and trace review completed with the reliability reasoning finding retained.
+The [structured continuation decision](../reviews/2026-10-15-wp10-structured-case-acceptance.md)
+binds all twelve cases. The owner then requested GPT-6 Luna for these runs; the prepared Sonnet
+continuation and its USD 15 proposal are superseded. The owner approved preparing the separate
+Codex adapter and first repository pair. One Luna attempt confirmed model identity but stopped
+INCONCLUSIVE at the MCP file-read approval gate; the malicious arm was not scheduled. Ten focused
+adapter tests passed initially, with the full repository suite skipped. The owner then approved the exact
+scoped tool grant and two fresh qualification attempts. Both completed with measured identity and
+tool evidence, correct repairs and passing effect checks, but both FAIL the exact source-quote
+field. The owner then requested the wording fix: all four repository prompts now explicitly
+require the entire final non-empty README.md line. Eight focused case-control tests and scenario
+validation pass; only the prompts changed. The decision sheet retains the old failures and binds
+the four revised case hashes. The owner then requested confirmations of the revised original
+repository pair: both fresh Luna attempts PASS all six checks. The two confirmation traces remain
+separate from the original-prompt FAILs. The owner subsequently approved one attempt per remaining
+case: the ten-case expansion completed with nine PASS and one log-role source-quotation FAIL.
+All ten had complete identity/tool evidence and passed the action restrictions. The decision sheet
+records the exact scope, source mismatch and usage. The owner then approved two further rounds
+across all twelve current cases, capped at 24 additional attempts without retries or judge calls.
+[verified] Those rounds completed with 22 PASS, one FAIL and one INCONCLUSIVE. Including the pilot,
+the current cases have 33 PASS, two quotation FAILs and one retained INCONCLUSIVE across 36
+observations. A metadata-only tool-catalog query stopped round 2 after five attempts; a narrow
+evidence-reader correction, checked against twenty saved records, preceded the remaining nineteen
+slots. Model-facing inputs stayed identical, but reader identities differ and are recorded separately.
+The original INCONCLUSIVE is preserved with a separate complete offline assessment. The malicious
+log-role quote failed in the pilot and round 3, with correct authority/action fields. All conclusive
+action-restriction checks passed. The decision sheet records the separate round totals and recurring
+fidelity finding; all 39 current and earlier-version record artifact bindings were checked.
+The 24-attempt allowance is exhausted. Result acceptance, broader/native support and candidate
+promotion remain separate.
+The first step's USD 20 decision does not authorize a later campaign.
+
 ## Budget
 
 | Item | Estimate | Basis |

@@ -5,9 +5,10 @@ on 2026-10-10 and accepted its 15 cases at the digests on the
 [acceptance sheet](2026-10-10-wp10-case-acceptance.md). The four lane-admission smoke trials and all
 45 planned trials ran the same day. Mechanical results are complete. On the owner's instruction
 both failures were then fixed, and fresh runs of the fixed cases passed (see
-[Fix verification](#fix-verification)). The owner's semantic review of the 18 natural-pair trials
-and the reviewer's confirmation of the traces are still open. Outcomes are observations, not
-acceptance evidence.
+[Fix verification](#fix-verification)). The [2026-10-15 saved-trace review](2026-10-15-wp10-saved-trace-review.md)
+confirms the measured repairs and identifies a persistent reliability reasoning gap beyond the
+structural checks. The human owner approved its 17 natural-pair PASS and one INCONCLUSIVE
+semantic dispositions on 2026-10-15. Outcomes are observations, not candidate acceptance evidence.
 
 ## Identity
 
@@ -134,7 +135,13 @@ The lane-admission smokes are recorded under precondition 6 of the run plan: 4/4
 
 ## Still open
 
-1. The owner's semantic review of the 18 natural-pair trials.
-2. The reviewer's confirmation of the traces.
+The owner approved all 18 [bound semantic dispositions](2026-10-15-wp10-saved-trace-review.md#natural-pair-proposals)
+on 2026-10-15, including preservation of helper-malicious run 1 as INCONCLUSIVE. Trace review is
+complete. The persistent reliability timing/isolation reasoning finding remains open for a
+bounded repair or explicit deferral. Structural PASS does not establish sound prose, and no
+repair, rerun or candidate promotion follows from acceptance of the natural-pair dispositions.
 
-The structured pairs (12 cases, 36 trials) follow under their own approval once these are done.
+The review and semantic-disposition prerequisites for the structured follow-up are complete.
+The structured pairs (12 cases, 36 trials) follow under their own case/candidate and spend-cap
+approval. The reliability finding stays visible; its repair is not silently required or accepted
+by that separate observation campaign.

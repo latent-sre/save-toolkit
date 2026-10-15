@@ -4,11 +4,12 @@ These fictional examples teach claim boundaries; their numbers are not service d
 
 ## Retry duration with and without an overall deadline
 
-Local configuration permits three total attempts, each taking at most 12 seconds. Their timeout
-budgets sum to 36 seconds; that is not a bound on elapsed time or slot occupancy unless backoff,
-other work and resource-release behavior are also bounded. "Three retries" may instead mean four
-total attempts; resolve that contract before calculating. Keep these assumptions attached whenever
-reusing the result, including in a findings table.
+A loop permits up to three calls and passes `timeout_seconds=12` to an unseen client. This proves
+the call limit and requested timeout, not enforcement. A false return may permit another call;
+an uncaught client exception stops the loop. The nominal timeout sum is 36 seconds, conditional
+on three attempts with enforced 12-second limits; elapsed time and slot occupancy also depend on
+backoff, other work, cancellation and resource release. "Three retries" may mean four attempts.
+Keep these conditions attached when reusing the calculation, including in a findings table.
 
 A 20-second overall deadline does not make a third attempt unreachable: early failures can allow
 all three attempts before it expires. Conversely, a caller returning at 20 seconds does not prove
@@ -47,9 +48,10 @@ certification, a merge verdict or production authorization.
 
 This fictional assessment starts with an owner-supplied requirement: checkout must either commit
 once or return a clear failure; a slow ledger must not stop unrelated account reads. The inspected
-worker calls `ledger.post` before acknowledging each queue message. Its caller permits three
-12-second attempts, shares a 20-slot worker pool with account reads, and has no demonstrated
-overall deadline or cancellation. A ledger slowdown could retain all 20 slots through retries,
+worker calls `ledger.post` before acknowledging each queue message. Its caller permits up to three
+calls requesting 12-second timeouts; client enforcement and exception behavior are unknown. It
+shares a 20-slot worker pool with account reads and has no demonstrated overall deadline or
+cancellation. A ledger slowdown could retain all 20 slots through retries,
 delaying unrelated reads. This is a **supported design risk**, not evidence that production has
 exhausted the pool. The same source shows a stable event ID on each message, but the persistence
 contract and any downstream deduplication are unknown; do not recommend blind redelivery.
@@ -60,15 +62,16 @@ lead within that scope. Otherwise compare two changes:
 
 | Option | Benefit | Cost and remaining risk |
 |---|---|---|
-| Propagate one caller deadline, cancel outstanding attempts, and reserve/bound ledger concurrency | Stops slow ledger calls from occupying every shared slot | May reject ledger work sooner; must preserve an explicit retry/unknown-commit contract and verify cancellation actually releases resources |
+| Propagate one deadline, verify cancellation, and admit ledger work before shared-slot acquisition or reject/defer without retaining a shared slot | Can preserve capacity for account reads, including when ledger admission is overloaded | May reject ledger work sooner; preserve an explicit retry/unknown-commit contract and verify release of calls, permit waiters and retries |
 | Add more worker replicas | Raises temporary capacity | Shared ledger saturation and retry amplification remain; cost grows and all replicas can still block |
 
 Choose the first option **conditionally**, owned by the application team, because it interrupts the
 shown propagation path instead of only increasing capacity. Before implementation, the owner must
 settle the acceptable timeout and partial-commit semantics; this example supplies neither an SLO
 nor approval to change production. The smallest useful proof is an authorized, same-version test
-that delays `ledger.post` beyond the chosen overall deadline while running representative account
-reads and a duplicate-delivery case. Record completed/failed user transactions, worker occupancy,
+that overloads ledger admission and delays `ledger.post` beyond the chosen overall deadline while
+running representative account reads and a duplicate-delivery case. Count all ledger-owned slots,
+including permit waiters and retries. Record completed/failed user transactions, worker occupancy,
 queue age, duplicate credits, and cancellation time. The proposal is falsified if reads still lose
 their reserved capacity, workers stay occupied after cancellation, or redelivery duplicates a
 business effect. Stop the experiment at the agreed queue-age or error bound, remove the injected
