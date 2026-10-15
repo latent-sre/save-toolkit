@@ -76,12 +76,17 @@ independent change review and live execution retain their existing owners.
 For calculations, show units, measured versus assumed inputs, the equation, uncertainty and validity
 conditions. Account for shared demand and failure capacity. Use existing permitted calculators when
 available; no tool capability may be invented. A model estimate is not measured load-test evidence.
-For retry timing, distinguish retries from total attempts and maximum from actual duration; keep
-backoff and resource-release assumptions explicit. A deadline alone does not prove slot release.
+For retry timing, distinguish retries from total attempts and requested timeouts from enforced
+durations. Trace false returns, exceptions, backoff and cancellation before claiming a time bound;
+a timeout sum alone bounds neither elapsed time nor slot occupancy. A concurrency limit protects
+shared capacity only if admission or waiting does not retain the slots being reserved.
 
 Verification names the target/version, stimulus, expected user and resource behavior, discriminating
-measurements, bounds/stop conditions, and recovery checks. Preserve actual results separately from
-the proposed test. Assess findings and coverage, not a blanket reliability score; test passes do not
+measurements, bounds/stop conditions, and recovery checks. To verify an admission or isolation control,
+drive arrivals above completion capacity until its limit and overflow path are exercised, while
+protected work runs concurrently. Count active work, permit waiters and retries in shared-slot
+occupancy; representative demand alone may never exercise the protection. Preserve actual results
+separately from the proposed test. Assess findings and coverage, not a blanket reliability score; test passes do not
 approve a deployment. See [worked contrasts](references/worked-contrasts.md) for supported risks,
 effective controls and missing evidence. Read [sources](references/sources.md) when checking a
 practice's provenance or adapting this method.

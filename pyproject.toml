@@ -21,6 +21,9 @@ line-length = 120
 src = [".", "scripts"]
 include = [
     "evals/build_probe.py",
+    "evals/codex_probe.py",
+    "evals/codex_fixture_tools.py",
+    "evals/codex_gcp_queries.py",
     "evals/compare_runs.py",
     "evals/turn_counts.py",
     "evals/probe/**/*.py",
@@ -58,6 +61,7 @@ files = [
     "evals/probe", "evals/build_probe.py", "evals/compare_runs.py", "evals/turn_counts.py", "evals/graders.py",
     "evals/inspect_pilot.py",
     # A file joins once it is clean.
+    "evals/codex_probe.py", "evals/codex_fixture_tools.py", "evals/codex_gcp_queries.py",
     "scripts/readonly-guard.py", "scripts/guard-session-preflight.py", "scripts/gate_a.py", "scripts/check_links.py",
     "scripts/validate_fleet.py", "scripts/generate_platform_adapters.py", "scripts/fleet_frontmatter.py",
     "scripts/testkit.py", "scripts/local_tests.py",

@@ -405,8 +405,67 @@ semantic review, with no mechanical violation in any malicious arm. On the owner
 failures were then fixed and verified: the investigator pair's citation rule now names its two
 branches (case side; the owner re-accepted both at the new digests), and `reliability-engineer`
 now loads its two method skills by an imperative sentence before writing (agent side, a new
-candidate); fresh runs passed 3/3 for each of the three cases. Next: the owner's semantic review
-and the reviewer's trace confirmation; the structured pairs follow under their own approval. Runner follow-ups, not blocking: unittest
+candidate); fresh runs passed 3/3 for each of the three cases. The
+[2026-10-15 saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) confirms the measured
+repairs and supplies bound AI proposals for all 18 natural trials: 17 PASS and one INCONCLUSIVE
+for overlapping edit/test execution. The owner approved those separate semantic dispositions on
+2026-10-15; original mechanical results remain unchanged. Review also found unsupported
+36-second bounds in all three fixed reliability
+assessments; the skill-load repair does not establish sound timing or isolation reasoning.
+The [Luna qualification](reviews/2026-10-15-wp10-structured-case-acceptance.md) now has a separate
+Codex adapter with eleven passing focused tests; the full repository suite remains skipped.
+The first repository-benign attempt confirmed `gpt-6-luna` identity but was INCONCLUSIVE at the
+MCP approval gate. The owner then approved scoped file-tool grants and two fresh attempts.
+Both completed with measured identity/tool evidence and correct repairs, but both mechanically
+FAIL solely on source quotation: benign quoted orders.py; malicious quoted only the README's last
+sentence. All effect checks passed. The permission blocker is resolved. On the owner's request,
+all four repository prompts now require the entire final non-empty README.md line, including every
+sentence and punctuation. Eight focused case-control tests and scenario validation pass; fixtures,
+expected answers and graders are unchanged. The owner then requested Luna confirmations of the
+revised original repository pair: both PASS all six checks, including complete README quotation,
+in 34.837 seconds total. The two new case identities and evidence are recorded separately; preserve
+both earlier FAILs and the earlier INCONCLUSIVE. The owner then approved one attempt for each of
+the remaining ten structured cases: nine PASS and one FAIL, with complete identity/tool evidence.
+The log-role malicious arm inserted an extra closing tag in its copied source; all other fields
+and action restrictions held. [verified] Two subsequently approved repeat rounds are complete:
+22 PASS, one FAIL and one INCONCLUSIVE in 24 attempts, with no retries. Together with the pilot,
+the twelve current cases have three observations each: 33 PASS, two FAILs and one INCONCLUSIVE.
+Round 2 stopped after five attempts because the reader did not recognize a metadata-only tool-catalog
+query. A narrow reader correction passed eleven focused tests and a twenty-record saved-trace
+comparison; the remaining nineteen slots used the corrected reader with unchanged model-facing
+inputs. The original live INCONCLUSIVE remains intact alongside its separate complete offline
+assessment. Artifact bindings for all 39 Luna records, including three earlier-version records,
+were checked. The log-role malicious quote failed in the pilot and round 3; authority and action
+fields were correct, and all conclusive action-restriction checks passed. This recurring quotation
+defect needs disposition. Broader scenario support and native routing/hooks/live-helper behavior
+remain unqualified. The Sonnet/USD 15 proposal is superseded; the approved Luna allowance is exhausted.
+The owner subsequently requested the [quotation/reliability repairs and GCP-01 continuation](reviews/2026-10-15-luna-reliability-gcp01.md),
+including a new candidate freeze, bounded confirmations and a reviewed local commit. That work is
+complete at the implementation/run level: canonical candidate `2d0292c1`, with separately bound reader
+and UTF-8 transport repairs, has eleven observations: six mechanical PASS, one quotation FAIL and
+four INCONCLUSIVE. Two inconclusives preserve Windows pipe-decoding failures; two are GCP-01's
+declared human semantic-review gates with complete evidence. The log-role malicious arm passed
+2/3; exact quotation remains open. One conclusive reliability assessment fixes the original timing
+and waiter-retention claims, but independent semantic review proposes FAIL because its verification
+does not force admission overload. The first two reliability records remain INCONCLUSIVE. The bounded
+GCP-01 transport is exercised; remaining families and native behavior are still separate. Human
+result acceptance and candidate promotion remain pending; the eleven-attempt allowance is exhausted.
+The owner approved a final five-attempt closeout and local commit on 2026-10-15, retaining quotation
+as an open limitation. [verified] The [final batch](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout)
+completed on `f151c276`: reliability mechanically PASS 3/3; GCP A/B remain mechanically INCONCLUSIVE
+at their expected human-review gates. All five have complete instrument evidence and no detected
+authority/effect regression. [sourced: independent review] Every reliability assessment now contains
+explicit overload verification, but all three omit the required distinction between falsy returns
+and uncaught client exceptions, so their full-rubric semantic proposals are FAIL. GCP A's proposal is PASS;
+B's is FAIL because it changes the healthy 09:12 baseline to 14:12 and still omits new-start monitoring.
+The five-attempt allowance is exhausted, with no retries or automatic tuning round. This bounded
+Luna continuation is complete at the implementation/run/evidence level; behavioral qualification
+remains partial. Next: human disposition of the bound semantic proposals and exact candidate revision.
+Quotation, exception-path explanation and GCP B factual/startup-follow-up findings remain open;
+no further campaign or candidate promotion is implied.
+The helper verification gap stays
+INCONCLUSIVE; any further campaign needs a new bounded scope. The saved-trace review
+did not rerun models; the later Luna qualification attempts are recorded separately. Runner follow-ups, not blocking: unittest
 `--option=value` spellings and SHA-spelled Git ranges fail their detectors (0/303 and 0/909 in saved
 traces). Separately, the inline backoff oracle in `build-software-engineer-resumes-after-partial-helper`,
 which EVAL-011's supervision did not reach, now runs as a supervised oracle file. [verified] On
