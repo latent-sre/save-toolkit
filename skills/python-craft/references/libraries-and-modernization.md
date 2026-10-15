@@ -6,20 +6,15 @@ present, and suitable new packages against the actual problem. Release recency a
 
 ## Choose and migrate
 
-1. Name the limitation or duplicated capability. Inspect current callers, manifests, constraints,
-   supported Python versions, target OS/architecture, and relevant tests.
-2. Establish the documented contract for the installed and proposed APIs using current official
-   documentation; inspect upstream source/tests when behavior is unclear. Research public APIs
-   without exporting private source or credentials. State missing evidence instead of inventing an API.
-3. Check support/maintenance, migration notes, relevant advisories, licensing fit, and direct and
-   transitive dependencies. Preserve environment markers and check distribution availability for
-   the target platform. Package summaries and popularity do not establish compatibility.
-4. State the concrete benefit and behavior differences: inputs/coercion, defaults, exceptions,
-   serialization, public interfaces, sync/async behavior, resource lifetime, and measured performance
-   where material. Prefer supported public APIs to library internals.
-5. Implement the replacement through its callers. Follow the project's dependency and lock/constraint workflow;
-   keep developer-only refactoring tools out of application runtime dependencies. Preserve an
-   installable previous code/dependency state. Remove obsolete helpers and dependencies once unused.
+1. Check the installed and proposed APIs against current official documentation, or upstream
+   source and tests when unclear, without exporting private source or credentials. State missing
+   evidence instead of inventing an API; popularity does not establish compatibility.
+2. Check advisories, licensing, and transitive dependencies. Preserve environment markers and
+   confirm distributions exist for every target Python version and platform.
+3. State the benefit and behavior differences: coercion, defaults, exceptions, serialization,
+   sync/async behavior, and resource lifetime. Prefer public APIs to library internals.
+4. Replace through callers under the project's dependency workflow. Keep developer tools out of
+   runtime dependencies, keep the previous state installable, and remove obsolete helpers once unused.
 
 Verify that real callers use the replacement. A small compatibility adapter may be necessary;
 retaining a second full implementation needs a concrete reason. Count removed maintenance work,
@@ -79,7 +74,11 @@ actual problem and recheck their current contracts at adoption; keep version pin
 Check the oldest supported Python and the runtime consumers of the affected feature. New syntax
 must parse there; a backported library cannot make an older interpreter accept newer grammar.
 Runtime annotation readers, class construction, serialization, and optional-dependency paths can
-also constrain a change. Avoid rewriting syntax merely because a newer spelling exists.
+also constrain a change. Deferred annotation evaluation (3.14) lets unquoted forward references
+work without `from __future__ import annotations` only when every supported runtime is 3.14+;
+below that floor, removing the import or the quotes raises `NameError` when the definition runs.
+Runtime readers see strings under that import and evaluated objects otherwise. Avoid rewriting
+syntax merely because a newer spelling exists.
 
 Use the [refactoring reference](./refactoring.md) to assess control-flow, collection, and iteration
 replacements. For data and async changes, [Writing Python](./writing-python.md) covers ownership and

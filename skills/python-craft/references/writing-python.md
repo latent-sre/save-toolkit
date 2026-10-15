@@ -51,7 +51,7 @@ length, argument count, and caller count are signals, not limits.
   ordinary failures are grouped. `except ValueError` misses grouped members; `except Exception` catches
   `ExceptionGroup`. Handle inside tasks or use `except*`; its handler cannot exit via `return`, `break`,
   or `continue`. Apply one operation deadline: `asyncio.timeout()` on 3.11+, or `wait_for()` around the
-  combined coroutine on 3.10; do not reset the deadline per await.
+  combined coroutine on 3.10 (end of life); do not reset the deadline per await.
 
 [sourced] [parameters](https://docs.python.org/3/tutorial/controlflow.html#special-parameters),
 [typing](https://docs.python.org/3/library/typing.html),
