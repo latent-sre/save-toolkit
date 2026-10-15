@@ -160,8 +160,13 @@ authorizes a self-modifying loop.
 
 ## Handoffs
 
-- Independent review of an artifact, supplied evaluation evidence, or security finding → the typed `reviewer` agent, with the exact artifact,
-  success criteria, evidence, source trust, and unresolved labels.
+- Independent review of a proposed artifact change → the typed `reviewer` agent, with the base and
+  candidate, success criteria, evaluation evidence or findings about that change, source trust,
+  and unresolved labels.
+- Assessment of an existing artifact, evaluation evidence, or finding without a proposed change
+  stays with the invoking session under this method. Do not invent a baseline or issue a merge
+  verdict. If independent assessment is required and no compatible lane is available, return that
+  capability gap to the caller; self-assessment is not independent review.
 - Approved implementation or generator change → the typed `software-engineer` agent, with the
   required behavior, relevant fixtures, and minimal required scope.
 - Any authority-changing, production-facing, destructive, or external action → the human release

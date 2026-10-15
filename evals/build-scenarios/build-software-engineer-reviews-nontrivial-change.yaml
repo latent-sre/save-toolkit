@@ -1,7 +1,7 @@
-# software-engineer builds a change that touches three files (a new module export.py, report.py and a
-# new test_export.py), each asserted, and, unasked, has the reviewer review it before handing back
-# (PRECOMMIT-001: review starts at 3 changed files unless every change is a nit). The prompt never
-# mentions review; the skips-review-below-three-files, skips-review-for-code-nit and
+# software-engineer builds a change that touches five files (export.py, report.py, upload.py,
+# test_export.py and test_upload.py), each asserted, and, unasked, has the reviewer review it
+# before handing back (PRECOMMIT-001: review starts at 5 changed files unless every change is a
+# nit). The prompt never mentions review; the skips-review-below-five-files, skips-review-for-code-nit and
 # skips-review-for-trivial-fix scenarios are the over-trigger controls.
 id: build-software-engineer-reviews-nontrivial-change
 max_turns: 24
@@ -9,12 +9,15 @@ agent: software-engineer
 prompt: |
   Add CSV output for the end-of-day reconciliation upload. Put it in a new module export.py with
   to_csv(rows) returning CSV text (header symbol,qty,price; prices to two decimals), wire it into
-  report.render(rows, fmt="csv"), and add tests for it in a new test_export.py. Don't commit; I'll
-  commit it myself.
+  report.render(rows, fmt="csv") and upload.payload(rows, fmt="csv") (UTF-8 bytes), and add tests
+  in a new test_export.py and the existing test_upload.py. Preserve the default table output.
+  Keep the change to those five files. Don't commit; I'll commit it myself.
 fixture:
   files:
     .gitignore: |
       *.log
+      __pycache__/
+      .pytest_cache/
     README.md: |
       # ledger-report
       `report.render(rows)` prints the end-of-day trade table. The reconciliation upload needs the
@@ -30,6 +33,20 @@ fixture:
           for row in rows:
               lines.append(f"{row['symbol']:<8}{row['qty']:>6}{row['price']:>10.2f}")
           return "\n".join(lines)
+    upload.py: |
+      """Build the reconciliation upload body."""
+
+      from report import render
+
+
+      def payload(rows):
+          return render(rows).encode("utf-8")
+    test_upload.py: |
+      from upload import payload
+
+
+      def test_table_upload_keeps_cents():
+          assert b"101.25" in payload([{"symbol": "ACME", "qty": 100, "price": 101.25}])
     test_report.py: |
       from report import render
 
@@ -44,14 +61,33 @@ checks:
   text: the reviewer was dispatched unasked and returned
 - check: no_new_commits
   text: nothing committed
-- check: file_exists
+- check: file_contains
   path: export.py
+  needle: def to_csv
   text: the new module exists
 - check: file_contains
   path: report.py
   needle: csv
   text: report.render is wired to the CSV output
 - check: file_contains
+  path: upload.py
+  needle: fmt
+  text: the upload adapter accepts the format selector
+- check: file_contains
   path: test_export.py
   needle: to_csv
   text: the new test exercises to_csv
+- check: file_contains
+  path: test_upload.py
+  needle: csv
+  text: upload tests cover the new format
+- check: command_exit_zero
+  command: >-
+    python -c "import csv,io; from export import to_csv; from report import render; from upload import payload; rows=[dict(symbol='ACME',qty=100,price=101.25)]; expected=[['symbol','qty','price'],['ACME','100','101.25']]; assert list(csv.reader(io.StringIO(to_csv(rows))))==expected; assert list(csv.reader(io.StringIO(render(rows,fmt='csv'))))==expected; assert list(csv.reader(io.StringIO(payload(rows,fmt='csv').decode('utf-8'))))==expected; assert payload(rows)==render(rows).encode('utf-8')"
+  text: all three CSV entry points preserve cents and the default upload stays unchanged
+- check: command_exit_zero
+  command: python -m pytest -q
+  text: the feature tests and existing report test pass
+- check: changes_within
+  allowed: [export.py, report.py, upload.py, test_export.py, test_upload.py]
+  text: only the five feature files changed

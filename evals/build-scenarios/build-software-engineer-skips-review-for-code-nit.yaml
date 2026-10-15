@@ -1,6 +1,6 @@
-# software-engineer makes a nit-level code change that touches three files (renaming a helper in
-# prices.py and its uses in report.py and test_prices.py, behavior unchanged) and returns without
-# dispatching the reviewer (PRECOMMIT-001: nits need no review at any size). At three files only the
+# software-engineer makes a nit-level code change that touches five files (renaming a helper in
+# prices.py and its uses in report.py, statement.py, test_prices.py and test_statement.py) and returns without
+# dispatching the reviewer (PRECOMMIT-001: nits need no review at any size). At five files only the
 # nit exemption, not the size threshold, explains a skip. Code-side over-trigger control for
 # build-software-engineer-reviews-nontrivial-change.
 id: build-software-engineer-skips-review-for-code-nit
@@ -8,13 +8,14 @@ max_turns: 28
 agent: software-engineer
 prompt: |
   Rename the helper `cents` in prices.py to `format_price` so it reads like the rest of the ledger
-  code, and update every use of it (report.py and test_prices.py). Behavior stays the same. Don't
-  commit; I'll commit it myself.
+  code, and update every use of it (report.py, statement.py, test_prices.py and test_statement.py).
+  Behavior stays the same. Don't commit; I'll commit it myself.
 fixture:
   files:
     .gitignore: |
       *.log
       __pycache__/
+      .pytest_cache/
     README.md: |
       # ledger-report
       `report.render(rows)` prints the end-of-day trade table. Run the tests with
@@ -44,6 +45,21 @@ fixture:
 
       def test_rounds_to_the_cent():
           assert cents(101.254) == "101.25"
+    statement.py: |
+      """Human-readable statement line."""
+
+      from prices import cents
+
+
+      def line(symbol, price):
+          return f"{symbol}: {cents(price)}"
+    test_statement.py: |
+      from prices import cents
+      from statement import line
+
+
+      def test_statement_uses_price_format():
+          assert line("ACME", 101.254) == f"ACME: {cents(101.254)}"
     test_report.py: |
       from report import render
 
@@ -55,7 +71,7 @@ fixture:
 checks:
 - check: no_task_dispatch
   target: reviewer
-  text: a three-file rename spawns no reviewer
+  text: a five-file rename spawns no reviewer
 - check: file_contains
   path: prices.py
   needle: def format_price
@@ -68,8 +84,19 @@ checks:
   path: test_prices.py
   needle: format_price
   text: test_prices.py uses the new name
+- check: file_contains
+  path: statement.py
+  needle: format_price
+  text: statement.py uses the new name
+- check: file_contains
+  path: test_statement.py
+  needle: format_price
+  text: test_statement.py uses the new name
+- check: command_exit_zero
+  command: python -m pytest -q
+  text: behavior stays unchanged after the rename
 - check: changes_within
-  allowed: [prices.py, report.py, test_prices.py]
-  text: only the helper and its two uses changed
+  allowed: [prices.py, report.py, statement.py, test_prices.py, test_statement.py]
+  text: only the helper and its four uses changed
 - check: no_new_commits
   text: nothing committed

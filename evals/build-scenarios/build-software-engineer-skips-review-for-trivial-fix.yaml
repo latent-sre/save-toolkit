@@ -1,23 +1,28 @@
-# software-engineer fixes one typo that appears in three files (README.md, a docstring in report.py
-# and a comment in test_report.py) and returns without dispatching the reviewer (PRECOMMIT-001: a
-# typo fix is a nit and needs no review at any size). At three files only the nit exemption, not the
+# software-engineer fixes one typo that appears in five files (README.md, report.py, test_report.py,
+# docs/usage.md and docs/operations.md) and returns without dispatching the reviewer (PRECOMMIT-001: a
+# typo fix is a nit and needs no review at any size). At five files only the nit exemption, not the
 # size threshold, explains a skip. Over-trigger control for
 # build-software-engineer-reviews-nontrivial-change.
 id: build-software-engineer-skips-review-for-trivial-fix
 max_turns: 14
 agent: software-engineer
 prompt: |
-  "recieve" is misspelled for "receive" in README.md, in report.py and in test_report.py. Fix the
-  spelling everywhere. Don't commit; I'll commit it myself.
+  "recieve" is misspelled for "receive" in README.md, report.py, test_report.py, docs/usage.md and
+  docs/operations.md. Fix the spelling everywhere. Don't commit; I'll commit it myself.
 fixture:
   files:
     .gitignore: |
       *.log
       __pycache__/
+      .pytest_cache/
     README.md: |
       # ledger-report
       `report.render(rows)` prints the end-of-day trade table. Downstream jobs recieve the table on
       stdout. Run the tests with `python -m pytest -q`.
+    docs/usage.md: |
+      Consumers recieve the trade table on stdout.
+    docs/operations.md: |
+      Downstream jobs recieve the report after the market closes.
     report.py: |
       """End-of-day trade report; downstream jobs recieve it on stdout."""
 
@@ -40,7 +45,7 @@ fixture:
 checks:
 - check: no_task_dispatch
   target: reviewer
-  text: a three-file typo fix spawns no reviewer
+  text: a five-file typo fix spawns no reviewer
 - check: file_contains
   path: README.md
   needle: Downstream jobs receive the table
@@ -53,8 +58,19 @@ checks:
   path: test_report.py
   needle: Downstream jobs receive exactly
   text: the test comment typo is fixed
+- check: file_contains
+  path: docs/usage.md
+  needle: Consumers receive the trade table
+  text: the usage typo is fixed
+- check: file_contains
+  path: docs/operations.md
+  needle: Downstream jobs receive the report
+  text: the operations typo is fixed
+- check: command_exit_zero
+  command: python -m pytest -q
+  text: report behavior stays unchanged after the spelling fix
 - check: changes_within
-  allowed: [README.md, report.py, test_report.py]
-  text: only the three files with the typo changed
+  allowed: [README.md, report.py, test_report.py, docs/usage.md, docs/operations.md]
+  text: only the five files with the typo changed
 - check: no_new_commits
   text: nothing committed

@@ -502,24 +502,28 @@ libraries, measured against build scenarios the way `python-craft` is, and `back
 **SRE task:** An SRE changing a Go service or tool gets the team's Go conventions applied without
 asking for them.
 
-### PRECOMMIT-001 — software-engineer reviews a 3-file change before committing, unasked
+### PRECOMMIT-001 — software-engineer reviews a 5-file change before committing, unasked
 
-**Status:** `active` (2026-10-08). The owner chose the trigger on 2026-10-07: review at 3 or more
-changed files unless every change is a nit. software-engineer's Process step 5 carries it, counting
-only the files changed for the task. The skip controls hold; the unasked review on a small 3-file
-feature mostly does not fire.
+**Status:** `active` (2026-10-15). The owner raised the threshold from three to five task-changed
+files, retaining the nit exemption and explicit-request, finding-reconciliation, security, and
+production-review triggers. The Review decision in software-engineer owns their precedence and
+counts already-dirty paths the task changes, excluding only unrelated pre-existing work. The
+five-file rule and revised scenarios have not been measured in native trials.
 **Owner:** The human owner decides the mechanism; `agent-engineer` owns the software-engineer rule and
 its scenarios.
-**Outcome:** software-engineer dispatches `reviewer` unasked on a 3-file feature in most trials, and
-still skips a change below 3 files or one made only of nits, on the current CLI.
-**Next action:** The owner chooses: try step 5 as a concrete action ("your next tool call is
-`reviewer`"), measured interleaved against the shipped line, or accept the limit and close the item.
-Every miss so far counted 3 files and skipped review as "small", whatever the wording.
-**Evidence:** Sonnet on CLI 2.1.294, with the scenarios Codex's PR #332 review made exact (the feature
+**Outcome:** software-engineer dispatches `reviewer` unasked on a five-file feature, including when
+the task edits already-dirty files; it skips a change below five files or made only of nits unless
+another review trigger applies.
+**Next action:** Measure the five-file boundary, overlapping dirty paths, nit controls, and
+explicit-review overrides on the current CLI before claiming native adherence. Keep the historical
+results below separate from the revised contract.
+**Evidence:** Historical three-file trials, not acceptance of the five-file rule: Sonnet on CLI
+2.1.294, with the scenarios Codex's PR #332 review made exact (the feature
 case asserts all three files; both nit controls touch three files):
 `build-software-engineer-reviews-nontrivial-change` reviewed 1/3 with #332's original line and 0/3
-with each of two rewrites; the three skip controls passed 3/3 each. The shipped line is the original
-plus the counting fix and has not been run. Earlier, on CLI 2.1.292 and the previous feature case,
+with each of two rewrites; the three skip controls passed 3/3 each. Every miss counted three files
+and skipped review as "small". The original line plus its earlier counting fix was not measured.
+Earlier, on CLI 2.1.292 and the previous feature case,
 five wordings reviewed in 10 of 15 trials. Runs are private under `.eval-runs/precommit-20261008/`.
 **SRE task:** An SRE gets an independent review of agent-written changes before they are committed
 without having to ask for it each time.
