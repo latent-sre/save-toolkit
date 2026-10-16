@@ -191,7 +191,7 @@ def node_version() -> tuple[int, int]:
 
 @pytest.mark.parametrize(
     ("suite", "cases"),
-    [("problem.test.ts", 9), ("idempotent-write.test.ts", 11), ("runtime-config.test.ts", 7)],
+    [("problem.test.ts", 9), ("idempotent-write.test.ts", 12), ("runtime-config.test.ts", 7)],
 )
 def test_the_typescript_helper_contracts_pass(suite: str, cases: int) -> None:
     # Type stripping runs .ts files without a build from Node 22.18; CI's runner image ships 22.23.

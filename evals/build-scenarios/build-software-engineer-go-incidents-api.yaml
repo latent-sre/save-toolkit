@@ -1,6 +1,9 @@
 id: build-software-engineer-go-incidents-api
 max_turns: 45
 agent: software-engineer
+tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
+references:
+  - skills/backend-craft/references/api-contract.md
 # The Go half of the backend bar. A greenfield Go service whose prompt never says "Huma",
 # "OpenAPI", "problem+json", "paginate" or "timeout": it says the on-call UI generates its client
 # from the service, which is what backend-craft turns into a committed OpenAPI document with gates.

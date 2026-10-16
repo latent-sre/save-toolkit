@@ -10,6 +10,10 @@
 
 import { retryAfterMs } from "./problem.ts";
 
+export type ReplayableRequestInit = Omit<RequestInit, "body"> & {
+  body?: Exclude<BodyInit, ReadableStream> | null;
+};
+
 export interface SendOptions {
   fetch?: typeof fetch;
   /** Total sends, the first one included. */
@@ -57,6 +61,7 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
 /**
  * Sends a state-changing request under `key`. Takes a URL and an init, never a `Request`: a
  * Request's body is a stream that one send consumes, so it cannot be re-sent after a 409.
+ * The init accepts only replayable, non-stream bodies; streams are rejected before any send.
  * Returns the first response that is not an in-flight 409, or the last in-flight 409 once
  * maxAttempts is spent or its delay exceeds maxWaitMs, so the caller can say it is still running.
  * Every other failure is returned, never retried here: a write is replayed only by the user's
@@ -64,10 +69,15 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
  */
 export async function sendIdempotent(
   input: string | URL,
-  init: RequestInit,
+  init: ReplayableRequestInit,
   key: string,
   options: SendOptions = {},
 ): Promise<Response> {
+  const body = init.body;
+  // Check the stream interface rather than instanceof, which misses other browser realms.
+  if (body !== null && typeof body === "object" && "getReader" in body && typeof body.getReader === "function") {
+    throw new TypeError("sendIdempotent requires a replayable body; ReadableStream is not supported");
+  }
   const doFetch = options.fetch ?? fetch;
   const sleep = options.sleep ?? defaultSleep;
   const maxAttempts = Math.max(1, options.maxAttempts ?? 5);

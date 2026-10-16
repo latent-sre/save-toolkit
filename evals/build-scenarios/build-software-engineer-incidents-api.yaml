@@ -1,6 +1,9 @@
 id: build-software-engineer-incidents-api
 max_turns: 39
 agent: software-engineer
+tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
+references:
+  - skills/backend-craft/references/api-contract.md
 # The backend bar with real tools. The prompt asks only for two endpoints and tests; it never says
 # "paginate", "problem+json", "timeout", or "response model". Those are what backend-craft is for,
 # so the probe-owned oracle (probe_checks.py, written by the first check, never seen by the agent)

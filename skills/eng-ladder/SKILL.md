@@ -25,13 +25,9 @@ change, or the selected tier's escalation rule.
 
 ## Mode 1 — Route a task
 
-Match the lowest rung for the decision still to be made. Unresolved shared-contract, cross-service,
-new-system architecture, migration or hard-to-reverse design choices need principal reasoning;
-unresolved tool or platform selection, platform consolidation or multi-year strategy needs
-distinguished. Bounded
-implementation of an accepted design stays builder-owned across services within its agreed scope
-and compatibility criteria. Return consequential choices or required constraint changes for decision; when unsure,
-start lower and escalate when its bar is insufficient.
+Use the lowest rung that resolves the open decision. Bounded implementation of an accepted design
+stays builder-owned across services within its scope and compatibility criteria; return consequential
+choices or required constraint changes to the caller.
 
 Keep implementation ownership separate from consultation. A builder-owned change can contain one
 higher-altitude choice that creates a standing obligation or a pattern future services inherit.

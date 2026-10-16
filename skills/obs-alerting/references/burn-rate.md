@@ -6,7 +6,7 @@ query: carry the reviewed numerator/denominator query and its result into the al
 ## The pairs
 
 The allowed long/short window pairs, thresholds, and actions are owned by the calculator's
-`PAIRS` in [error_budget.py](../scripts/error_budget.py) (`[sourced]` Google's SRE Workbook,
+`WINDOW_PAIRS` in [error_budget.py](../scripts/error_budget.py) (`[sourced]` Google's SRE Workbook,
 [Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/), Table 5-8 for a 99.9% SLO);
 run the calculator to see them applied, or pass it a mismatched pair to list the allowed ones.
 This file does not mirror the values, so the two cannot drift.
@@ -30,13 +30,18 @@ actual consumed budget from eligible requests rather than rescaling the fixed th
 [error_budget.py](../scripts/error_budget.py) is pure stdlib with budget-status and burn-rate modes.
 A human or an unguarded lane runs it and pastes the output; the read-only guard denies script
 execution by design. Resolve the linked calculator to its absolute path in this installed skill;
-substitute that path below. Set `--window-days` to the objective horizon for budget status; its
+substitute that path below and use the project's verified Python interpreter. Set `--window-days`
+to the objective horizon for budget status; its
 default is 28 days and it **does not rescale the fixed alert thresholds above**. For a different
-threshold policy, use the reviewed alert rule rather than this calculator's verdict. The examples:
+threshold policy, use the reviewed alert rule rather than this calculator's verdict. These fictional
+inputs demonstrate request-budget status and a valid paired burn:
 
 ```powershell
 $budgetScript = '<resolved calculator path>'
-py -3 $budgetScript --slo 99.9 --long-window 3d --short-window 5m
+$budgetPython = '<verified project Python executable>'
+& $budgetPython $budgetScript --slo 99.9 --window-days 28 --bad-events 200 --total-events 1000000
+& $budgetPython $budgetScript --slo 99.9 --sli-long 98.5 --sli-short 98.5 --long-window 1h --short-window 5m
 ```
 
-The third command is deliberately invalid and must exit 2 with the exact allowed-pair list.
+The first result consumes 20% of the request budget. The second pages because both windows burn at
+15×; it does not establish the consumed budget over the objective horizon.

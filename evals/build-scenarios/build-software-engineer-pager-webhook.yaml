@@ -1,6 +1,9 @@
 id: build-software-engineer-pager-webhook
 max_turns: 46
 agent: software-engineer
+tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
+references:
+  - skills/backend-craft/references/api-contract.md
 # backend-craft's background-work rules with real tools. The prompt asks only for a webhook that
 # turns pager events into incidents; the README states the vendor's contract (an HMAC signature,
 # a 3 s wait for a 2xx, then redelivery of the same event) and the runbook lookup is slow, without

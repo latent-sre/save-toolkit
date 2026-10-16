@@ -27,6 +27,11 @@ Name each panel's backend per `stack-profile` and flag panels needing a vendor p
 `obs-metrics`, `obs-logs`, or `obs-traces` for query semantics, and the team's folder, naming,
 time, and variable conventions via `grafana`.
 
+For example, "Are order requests failing?" starts with error ratio beside request volume and
+request latency, compared with a known-normal window for the same population. Drill from the
+affected route to its errors and traces. "Is position sync current?" instead starts with age of
+last success against its schedule, then the latest run's outcome and failing-stage logs.
+
 Distinguish no traffic, zero, missing telemetry, and query failure; a blank panel must not look
 healthy, and color is not proof an alert exists or fires. Never append `or vector(0)` or map null
 to zero on an error ratio or its numerator; put the request-rate (denominator) panel beside every

@@ -71,9 +71,10 @@ console path and the relevant observability skill for its query dialect.
    to where it left baseline before ranking any candidate on timing — a change two minutes before
    the page is still in play); what the last result ruled in or out, or leaves open. An unknown
    cause alone does not block resolution. Pasted output is `[sourced]` on first use.
-2. **Candidates.** Two or three, ranked, each with evidence for and against. Never one story: a
-   past postmortem with the same signature is a candidate, not the answer. Say what would change
-   the ranking; when the evidence cannot yet separate them, say so and let the next check decide.
+2. **Candidates.** Track supported candidates with evidence for and against; rank them only when
+   the evidence separates them. When only one remains, state what excluded the alternatives and
+   what uncertainty remains. A past postmortem with the same signature is a candidate, not the
+   answer. Say what would change the ranking; unresolved alternatives guide the next check.
    Do not pad the list, state percentages without a basis, or treat a familiar signature as
    certainty. A leading candidate is not an established cause. Until impact is confirmed, "not
    real" — a noisy alert, a monitoring gap, or a test — is one of the candidates, tested like the

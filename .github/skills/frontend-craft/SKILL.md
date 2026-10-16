@@ -1,15 +1,10 @@
 ---
 name: frontend-craft
 description: >-
-  Build or change a web GUI for the team's applications and SRE tooling — operator consoles,
-  workbenches and admin panels, in-app dashboards, status and catalog sites, form-driven
-  workflows — in React (Vue allowed) on Vite and TypeScript, from one page to a full app, wired
-  to the team's FastAPI and Go OpenAPI services and served on localhost and PCF. Owns the caller
-  interview and design brief, the component-kit choice, the browser side of the API contract,
-  error and action surfaces, runtime configuration, accessibility and motion. Triggers: 'build
-  a UI for', 'add a page/form/table/console', 'make this look less generic', 'wire the UI to
-  the API'. Not for the service behind the UI (backend-craft) or Grafana dashboards
-  (obs-dashboards to design, grafana to operate).
+  Build or change web applications and SRE interfaces in React or Vue, from one page to a
+  complete app integrated with its backend. Triggers: 'build a UI for', 'add a page/form/table/console',
+  'make this look less generic', 'wire the UI to the API'. Not for backend implementation
+  (backend-craft) or Grafana dashboards (obs-dashboards to design, grafana to operate).
 argument-hint: "[the GUI to build or change]"
 ---
 

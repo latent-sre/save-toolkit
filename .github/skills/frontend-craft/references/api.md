@@ -69,6 +69,7 @@ helper, or an equivalent implementation. Create one `newIntentKey()` per user in
 with `sendIdempotent()` on every send of the unchanged payload. Editing the payload creates a
 new intent/key; reuse with a different payload returns `422`. Disable pending controls and
 turn off automatic mutation retries. Unknown outcomes remain unknown until reconciled.
+Pass replayable, non-stream bodies; the helper rejects `ReadableStream` before sending.
 For an in-flight `409`, honor the full `Retry-After`; if it exceeds the wait budget, retain the
 pending state and reconcile later without an early resend or a fresh key.
 

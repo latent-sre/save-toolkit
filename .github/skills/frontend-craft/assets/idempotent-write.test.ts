@@ -9,8 +9,8 @@ function server(...responses: Array<() => Response>) {
   const calls: Call[] = [];
   const waits: number[] = [];
   const fetch = async (input: string | URL | Request, init?: RequestInit) => {
-    const headers = new Headers(init?.headers);
-    calls.push({ url: String(input), key: headers.get(IDEMPOTENCY_HEADER), body: typeof init?.body === "string" ? init.body : null });
+    const request = new Request(input instanceof Request ? input : new URL(input, "https://api.example.test"), init);
+    calls.push({ url: request.url, key: request.headers.get(IDEMPOTENCY_HEADER), body: request.body === null ? null : await request.text() });
     const next = responses.shift();
     if (!next) throw new Error("no more responses");
     return next();
@@ -44,6 +44,30 @@ test("an in-flight 409 waits Retry-After and re-sends the same request under the
   assert.deepEqual(s.calls.map((c) => c.key), ["key-2", "key-2", "key-2"]);
   assert.deepEqual(s.calls.map((c) => c.body), ['{"qty":5}', '{"qty":5}', '{"qty":5}']);
   assert.deepEqual(s.waits, [2000, 1000]);
+});
+
+test("a stream body is refused before any send or wait", async () => {
+  const body = new ReadableStream({
+    start(controller) { controller.enqueue(new TextEncoder().encode('{"qty":5}')); controller.close(); },
+  });
+  let sends = 0;
+  let waits = 0;
+  const fetch = async (input: string | URL | Request, init?: RequestInit) => {
+    sends += 1;
+    const request = new Request(input, { ...init, duplex: "half" } as RequestInit);
+    await request.arrayBuffer();
+    return sends === 1 ? inFlight("0")() : ok();
+  };
+  // Exercise the runtime boundary too: JavaScript callers can bypass the public body type.
+  const init = { method: "POST", body } as unknown as Parameters<typeof sendIdempotent>[1];
+  const error = await sendIdempotent("https://api.example.test/v1/orders", init, "key-stream", {
+    fetch, sleep: async () => { waits += 1; },
+  }).then(() => undefined, (error: unknown) => error);
+  assert.equal(sends, 0);
+  assert.equal(waits, 0);
+  assert.equal(body.locked, false);
+  assert.ok(error instanceof TypeError);
+  assert.match(error.message, /replayable|stream/i);
 });
 
 test("a Retry-After beyond the wait budget returns the pending response without another send", async () => {

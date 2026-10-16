@@ -1,6 +1,9 @@
 id: build-software-engineer-incident-writes
 max_turns: 42
 agent: software-engineer
+tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
+references:
+  - skills/backend-craft/references/api-contract.md
 # backend-craft's API-writes rules with real tools. The prompt asks only for a create endpoint; the
 # README describes the calling bot (a fresh Idempotency-Key per alert, a resend on a 5 s timeout,
 # sometimes while the first request is still running) without saying what the server should do.

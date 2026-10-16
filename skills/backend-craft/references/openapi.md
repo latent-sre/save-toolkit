@@ -16,7 +16,7 @@ compatibility evidence. Read tool/framework versions from manifests and lockfile
 3. **Gate drift:** a test regenerates the document and compares it with the committed file, with
    an explicit update mode (`UPDATE_OPENAPI=1` for pytest, a `-update` flag for
    `go test -run TestOpenAPIDocument`). For an intended change, update from the service root, then
-   review the diff before implementation under the approval rule in `SKILL.md`.
+   review the diff before implementation under the [contract-change approval rule](./api-contract.md#contract-changes).
 4. **Check contract rules:** assert `/v1`, unique lowerCamel `operationId`, the actual identity
    scheme except on explicitly unauthenticated operations, problem-shaped errors and version
    `3.1.0`. Drive the gates from one test fixture that supplies the real app, authenticated test
