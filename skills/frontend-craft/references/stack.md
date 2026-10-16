@@ -25,7 +25,8 @@ before pinning, and record additions and licences in the handoff.
   `baseUrl`, mirrored by Vite's `resolve.alias`.
 - **React Compiler:** `react({ compiler: true })` with `oxc-transform-react` and the
   `eslint-plugin-react-hooks` recommended rules.
-- **Tailwind v4:** `@tailwindcss/vite`; the theme's `@theme inline` exposes token utilities.
+- **Tailwind v4:** `@tailwindcss/vite`; the theme's `@theme inline` exposes token utilities once
+  the theme is `@import`ed in the Tailwind stylesheet.
   Respect the chosen kit's styling integration below.
 - **Lint and format:** ESLint 10 flat config, typescript-eslint's type-checked promise rules,
   React hooks/refresh plugins and Prettier. Keep create-vite's fast oxlint check if useful;

@@ -3,12 +3,14 @@
    derives from them in OKLCH, so one app's look differs from the next by decision, not by accident.
    Light and dark are both complete through light-dark(); the default follows the OS and
    <html data-theme="light|dark"> overrides it (see references/design.md for the boot script).
-   WCAG AA holds at every brand hue for the shipped lightness values: the repository test sweeps the
-   hue circle. Change a lightness value and re-run that test.
+   WCAG AA holds at every brand hue for the shipped lightness values: the skill repository's test
+   sweeps the hue circle. After changing a lightness value, re-check AA contrast in both schemes.
 
    How it is used:
-   - Write this file into the app as src/styles/theme.css and import it once at the entry point,
-     before any component-kit stylesheet.
+   - Write this file into the app as src/styles/theme.css. With Tailwind, @import it in the
+     stylesheet that imports Tailwind, right after @import "tailwindcss" and before any kit
+     stylesheet: imported on its own it never reaches Tailwind, and the utilities below do not
+     exist. Without Tailwind, import it once at the entry point, before any kit stylesheet.
    - Tailwind v4: the `@theme inline` block at the end exposes the tokens as utilities
      (bg-page, text-ink-muted, border-line, bg-brand, text-ok ...). Delete that block without Tailwind.
    - shadcn/ui: keep the `shadcn bridge` block; it feeds the names its components read, and the

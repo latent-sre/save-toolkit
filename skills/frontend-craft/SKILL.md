@@ -27,9 +27,27 @@ established identity.
 
 ## Shape the app and select the relevant guidance
 
-Write a short [design brief](./references/design.md) from the known audience, job, workflows and
-visual direction before styling. Ask one round with recommended defaults only for consequential
-unsettled choices; carry forward answers already supplied. Choose an app identity, density and
+Before building a new app or a new area, interview the caller in one round. Skip any question the
+request or repository already answers, and give each remaining question your recommended default
+so a one-word reply settles it. When the request asks for a finished, verified build rather than a
+conversation, or you cannot ask before starting, build on the defaults, list them in the brief as
+assumptions, and return the unanswered questions with the result.
+
+| Question | Default |
+|---|---|
+| Who uses it, for which jobs and how often; is it used during incidents? | Inferred from the request |
+| Which workflows must work end to end in the first version? | The workflows the request names |
+| Read-only, or does it change things, and which actions? | Read-only unless the request names an action |
+| Who signs in, and do roles limit what they can do? | The backend's existing sign-in, one role |
+| Does anything need to update without a click? | Nothing live |
+| Localhost only, or served on PCF? | Localhost |
+| Dense and dark, or roomy and light? | The nearest archetype's |
+| Any colours, logo or existing app it should match? | Two or three proposed hues; the theme's shipped hue only by choice |
+| What should people remember it by? | One proposed signature |
+| shadcn/ui + Tailwind + Motion, or HeroUI v3 + Motion; Vue where neighbouring apps use it? | shadcn/ui + Tailwind + Motion |
+
+Write a short [design brief](./references/design.md) from the answers before styling, stating the
+type pairing and motion budget as defaults the owner may veto. Choose an app identity, density and
 motion budget that fit the work, with visible actions and keyboard and screen-reader parity.
 
 Resolve these capabilities before scaffolding:
@@ -110,7 +128,7 @@ behaviour covered by the app's runner.
 
 | Capability | Assets and destination |
 |---|---|
-| App identity | [theme.css](./assets/theme.css) → `src/styles/theme.css`, imported before kit styles; set its palette, type and density from the brief |
+| App identity | [theme.css](./assets/theme.css) → `src/styles/theme.css`; with Tailwind, `@import` it in the Tailwind stylesheet right after `@import "tailwindcss"`, otherwise import it once before kit styles; set its palette, type and density from the brief |
 | API errors | [problem.ts](./assets/problem.ts), [test](./assets/problem.test.ts) → beside the client |
 | API writes | [idempotent-write.ts](./assets/idempotent-write.ts), [test](./assets/idempotent-write.test.ts) → beside the client; imports `problem.ts` |
 | Runtime configuration | [runtime-config.ts](./assets/runtime-config.ts), [test](./assets/runtime-config.test.ts) → bootstrap |
