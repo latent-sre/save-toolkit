@@ -33,6 +33,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   The theme's wiring now says to `@import` it in the Tailwind stylesheet. [verified] Tailwind
   4.3.2 generates the theme's utilities when the theme is in that stylesheet's import graph and
   none when it is imported separately.
+- `frontend-craft`'s references are rechecked against the registry and upstream source. `stack.md`
+  makes the Babel React Compiler preset the default and names `react({ compiler: true })` the
+  plugin's experimental Rust port; `vue.md` adds `@hey-api/openapi-ts`'s TanStack Vue Query
+  plugin; `api.md` names Huma beside FastAPI as serving `/openapi.json`. Sentences that repeated
+  `SKILL.md` are cut. [verified] `@vitejs/plugin-react` 6.1.2's README calls its native compiler
+  support experimental; hey-api's TanStack Query plugin lists `@tanstack/vue-query`; Huma's
+  default `OpenAPIPath` is `/openapi`.
 - `python-craft` gains a worked characterization test: an input/outcome table pinned across the
   refactor, whose type assertion catches an `int 0` returned for an empty `Decimal` total. It adds
   `warnings.deprecated` for compatibility bridges (mypy lists remaining callers only with its

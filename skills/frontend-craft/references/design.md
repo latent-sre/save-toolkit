@@ -1,8 +1,7 @@
 # Design: an identity for every app
 
 Choose an identity for the app from its audience and work. Honour a caller-supplied brand or
-design system; otherwise use the brief below. Accessibility and content safety live in the
-parent skill.
+design system; otherwise use the brief below.
 
 ## Contents
 
@@ -139,4 +138,3 @@ unavailable.
 
 Inspect the rendered app against the brief: hierarchy, legibility, identity, density, every state
 and both themes. Replace unchosen defaults and remove decoration that competes with the work.
-The parent skill owns the browser, responsive, keyboard and accessibility checks.

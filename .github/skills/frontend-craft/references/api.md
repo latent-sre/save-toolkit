@@ -3,7 +3,7 @@
 Bind the new UI to the actual service contract, whether the backend is new or existing.
 The team's FastAPI/Go contract uses OpenAPI, RFC 9457 problems with `request_id`, cursor pages
 for paged collections and `Idempotency-Key` for writes. Reuse an equivalent repository client.
-Select the sections the app needs; read-only apps need no write helper or mutation tests.
+Select the sections the app needs.
 
 ## Contents
 
@@ -21,8 +21,9 @@ Select the sections the app needs; read-only apps need no write helper or mutati
 Use the backend's canonical OpenAPI document. New services commit `openapi.json` at the service
 root; existing services keep their established format and location. A UI may commit a pinned
 consumer copy as `docs/openapi.json` or fetch it in CI from a pinned service revision; that copy
-does not become the service's source of truth. FastAPI normally exposes `/openapi.json`; check
-the Go generator's format (oapi-codegen supports 3.1; swag's stable line emits Swagger 2.0).
+does not become the service's source of truth. FastAPI and Huma serve `/openapi.json` by
+default; for another Go generator, check its format (oapi-codegen supports 3.1; swag's stable
+line emits Swagger 2.0).
 
 Generate `src/api/schema.d.ts` with `openapi-typescript`, commit it and fail CI if regeneration
 differs. `openapi-fetch` provides typed calls; `openapi-react-query` adds TanStack Query
@@ -74,8 +75,7 @@ pending state and reconcile later without an early resend or a fresh key.
 For `202`, poll the status resource with backoff, show progress and allow navigation away.
 Cookie-authenticated writes carry the server's CSRF defence through its token/custom header
 (`X-Requested-With` where that is the contract), never a plain form post. Send `If-Match`
-where supported so stale writes receive `412` instead of overwriting newer state. The parent
-skill owns confirmation, undo and bulk-action presentation.
+where supported so stale writes receive `412` instead of overwriting newer state.
 
 ## Cache and retries
 
@@ -123,5 +123,4 @@ the app consumes. Test errors rendering request IDs, API text remaining text, au
 failures and session isolation. For forms, verify `422` field mapping with input preserved;
 for paged collections, two pages, deduplication and server filter parameters; for writes, same-key
 retry, waiting on `409`/`Retry-After` and a new key after editing. Live views need reconnect,
-stale and teardown checks. Mocked checks supplement the real-backend journeys required by the
-parent skill.
+stale and teardown checks.
