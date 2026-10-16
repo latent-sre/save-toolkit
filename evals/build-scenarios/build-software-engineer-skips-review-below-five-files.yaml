@@ -75,8 +75,11 @@ checks:
   needle: title
   text: upload tests cover the title
 - check: command_exit_zero
-  command: >-
-    python -c "from report import render; from upload import payload; rows=[dict(symbol='ACME',qty=100,price=101.25)]; plain=render(rows); assert render(rows,title='Daily')=='Daily\n'+plain; assert payload(rows,title='Daily')==('Daily\n'+plain).encode('utf-8'); assert payload(rows)==plain.encode('utf-8')"
+  failure_exit_code: 10
+  command: python -I -B oracle_protocol.py _report_oracle.py title
+  writes_from:
+    _report_oracle.py: evals/oracles/software-engineer-review/check_report.py
+    oracle_protocol.py: evals/oracles/oracle_protocol.py
   text: both entry points add the title and preserve the default output
 - check: command_exit_zero
   command: python -m pytest -q

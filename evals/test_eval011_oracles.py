@@ -82,6 +82,50 @@ def test_actual_order_oracles_pass_good_artifact_and_leave_own_crash_unavailable
     assert result.returncode == 1, result.stdout + result.stderr
 
 
+REPORT_ORACLE = ROOT / "oracles/software-engineer-review/check_report.py"
+GOOD_REPORT = {
+    "export.py": "import csv, io\n\ndef to_csv(rows):\n    out = io.StringIO()\n"
+                 "    writer = csv.writer(out, lineterminator='\\n')\n    writer.writerow(['symbol', 'qty', 'price'])\n"
+                 "    for r in rows:\n        writer.writerow([r['symbol'], r['qty'], f\"{r['price']:.2f}\"])\n"
+                 "    return out.getvalue()\n",
+    # Each entry point owns its own CSV cents and title, so most defects below break exactly one.
+    "report.py": "def render(rows, fmt=\"table\", title=None):\n"
+                 "    text = \"\\n\".join([\"symbol,qty,price\", *(f\"{r['symbol']},{r['qty']},{r['price']:.2f}\" for r in rows)]\n"
+                 "                     if fmt == \"csv\" else (f\"{r['symbol']:<8}{r['qty']:>6}{r['price']:>10.2f}\" for r in rows))\n"
+                 "    return f\"{title}\\n{text}\" if title else text\n",
+    "upload.py": "from report import render\n\ndef payload(rows, fmt=\"table\", title=None):\n"
+                 "    body = \"\\n\".join([\"symbol,qty,price\", *(f\"{r['symbol']},{r['qty']},{r['price']:.2f}\" for r in rows)])\\\n"
+                 "        if fmt == \"csv\" else render(rows)\n"
+                 "    return (f\"{title}\\n{body}\" if title else body).encode('utf-8')\n",
+}
+
+
+@pytest.mark.parametrize("mode", ["csv", "title"])
+def test_report_oracle_passes_good_artifact_and_leaves_own_crash_unavailable(tmp_path, mode):
+    source = REPORT_ORACLE.read_text(encoding="utf-8")
+    result = execute(tmp_path, source, GOOD_REPORT, (mode,))
+    assert result.returncode == 0, result.stdout + result.stderr
+    result = execute(tmp_path, source + "\nraise RuntimeError('broken oracle')\n", GOOD_REPORT, (mode,))
+    assert result.returncode == 1, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("mode,name,old,new", [
+    ("csv", "export.py", "f\"{r['price']:.2f}\"", "int(r['price'])"),
+    ("csv", "report.py", "{r['price']:.2f}\" for r in rows)]", "{int(r['price'])}\" for r in rows)]"),
+    ("csv", "upload.py", 'if fmt == "csv" else', "if False else"),
+    ("csv", "upload.py", 'fmt="table"', 'fmt="csv"'),
+    ("csv", "report.py", "def render", "raise SystemExit(0)\ndef render"),
+    ("title", "report.py", 'f"{title}\\n{text}" if title else text', "text"),
+    ("title", "upload.py", 'f"{title}\\n{body}" if title else body', "body"),
+])
+def test_report_oracle_fails_each_entry_point_defect(tmp_path, mode, name, old, new):
+    files = dict(GOOD_REPORT)
+    assert old in files[name]
+    files[name] = files[name].replace(old, new)
+    result = execute(tmp_path, REPORT_ORACLE.read_text(encoding="utf-8"), files, (mode,))
+    assert result.returncode == 10, result.stdout + result.stderr
+
+
 @pytest.mark.parametrize("oracle,args", [
     ("python-craft/check_contracts.py", ("unchanged",)),
     ("python-craft/check_new_code.py", ()),
@@ -256,7 +300,7 @@ def test_every_live_probe_owned_command_declares_distinct_failure_and_bound_help
             if "check_ui.py" not in command:
                 assert "oracle_protocol.py" in command, (scenario.name, command)
                 assert staged.get("oracle_protocol.py") == "evals/oracles/oracle_protocol.py"
-    assert count == 137
+    assert count == 140
 
 
 GOOD_BACKOFF = ("def retry_delay(attempt):\n    if attempt < 0:\n        raise ValueError(attempt)\n"
