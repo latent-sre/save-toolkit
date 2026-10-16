@@ -6,8 +6,7 @@
 - Simplify control flow and iteration
 - Preserve consumers and integrate
 - Stage a large or multi-module change
-- Example: separate calculation from files
-- Example: pin current behavior
+- Characterization pitfalls
 - Verify behavior and benefit
 
 ## Choose the transformation
@@ -91,81 +90,11 @@ use the project's design workflow; load `eng-ladder` for principal-level design 
 Choose checkpoints by risk, not file counts; a small atomic replacement may be safer than a
 compatibility layer. Report the checks completed and any installation or downstream coverage missing.
 
-## Example: separate calculation from files
+## Characterization pitfalls
 
-A pre-trade preview needs in-memory rows, but the calculation is trapped in file I/O:
-
-```python
-import csv
-from decimal import Decimal
-
-
-def filled_notional_from_file(path):
-    with open(path, newline="", encoding="utf-8") as source:
-        total = Decimal("0")
-        for row in csv.DictReader(source):
-            if row["status"] == "FILLED":
-                total += Decimal(row["qty"]) * Decimal(row["price"])
-        return total
-```
-
-Expose the calculation and route the existing file entrypoint through it:
-
-```python
-def filled_notional(rows):
-    return sum(
-        (Decimal(row["qty"]) * Decimal(row["price"]) for row in rows if row["status"] == "FILLED"),
-        Decimal("0"),
-    )
-
-
-def filled_notional_from_file(path):
-    with open(path, newline="", encoding="utf-8") as source:
-        return filled_notional(csv.DictReader(source))
-```
-
-The new boundary serves a caller; an explicit loop is equally valid. The start preserves an empty
-`Decimal` result. Check filtered/signed/empty data, one-pass inputs, invalid numbers, missing fields,
-string/`Path` callers, and cleanup on failure. Keep a short function intact if the extraction has no use.
-
-## Example: pin current behavior
-
-Before restructuring `filled_notional`, record what the existing code returns for chosen inputs,
-then keep the table unchanged across the refactor:
-
-```python
-from decimal import Decimal, InvalidOperation
-
-import pytest
-
-from orders import filled_notional
-
-CASES = [
-    pytest.param([], Decimal("0"), id="empty"),
-    pytest.param([{"status": "FILLED", "qty": "2", "price": "1.10"}], Decimal("2.20"), id="filled"),
-    pytest.param([{"status": "OPEN", "qty": "2", "price": "1.10"}], Decimal("0"), id="unfilled"),
-    pytest.param([{"status": "FILLED", "qty": "x", "price": "1"}], InvalidOperation, id="bad-number"),
-    pytest.param([{"status": "FILLED", "qty": "1"}], KeyError, id="missing-price"),
-]
-
-
-@pytest.mark.parametrize(("rows", "expected"), CASES)
-def test_filled_notional_unchanged(rows, expected):
-    if isinstance(expected, type) and issubclass(expected, Exception):
-        with pytest.raises(expected):
-            filled_notional(rows)
-        return
-    result = filled_notional(rows)
-    assert type(result) is Decimal
-    assert result == expected
-```
-
-Take the values from the pre-refactor code and review each one; mark a row that records a known bug
-rather than treating it as a requirement. Keep raised outcomes raised: a returned error string is a
-different contract from an exception. Equality alone passes a version returning `0` for empty input,
-since `0 == Decimal("0")`; the type assertion catches it. Change a row only as a separate, named
-behavior change. Snapshot libraries (`inline-snapshot`, `syrupy`) can record and update such values;
-adopt one through the project's dependency workflow when characterization recurs, not for one change.
+Characterize values, types, exceptions, effects and cleanup before restructuring. Equality can hide a
+changed type (`0 == Decimal("0")`); preserve empty-result type and one-pass input behavior. Keep raised
+outcomes raised rather than returning error strings. Record known bugs separately from required behavior.
 
 ## Verify behavior and benefit
 
