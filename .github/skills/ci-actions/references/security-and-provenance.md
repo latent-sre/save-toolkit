@@ -2,13 +2,12 @@
 
 Read when changing permissions, credentials, event trust, action versions or release evidence.
 Use the repository's established policy; identify a policy change explicitly instead of silently
-rewriting it while optimizing CI. The parent skill owns execution authority.
+rewriting it while optimizing CI.
 
 ## Permissions and untrusted inputs
 
-Start with explicit read permissions and grant writes to the job that needs them. Inspect both
-the automatic token and other credentials: a read-only `GITHUB_TOKEN` does not limit a separate
-PAT or cloud credential. Keep untrusted validation separate from privileged delivery.
+Inspect both the automatic token and other credentials: a read-only `GITHUB_TOKEN` does not limit
+a separate PAT or cloud credential.
 When later steps need no authenticated Git, use checkout's `persist-credentials: false` so its
 credential is not retained for scripts. This reduces exposure; it does not remove the job token
 from the Actions runtime or sandbox the code being tested.
@@ -35,34 +34,31 @@ mutability; do not claim reproducibility from a major tag or attach an exact-rel
 a moving ref. An upgrade must meet action/runtime compatibility and organization allowlist rules.
 Never replace an existing reviewed SHA with a tag as incidental cleanup.
 
-Pin installed tools separately from setup actions. Use locked installs and integrity checks where
+Use locked installs and integrity checks where
 supported. A deliberate latest-version compatibility canary is a separate concern from reproducible
 release validation; label it and record the resolved versions. Consider package lifecycle scripts
 as executable dependencies, disabling them only when the project works without them.
 
 ## Identity and deployment controls
 
-For a new cloud target supporting federation, prefer short-lived OIDC credentials over adding a
-long-lived secret. Verify issuer, audience and subject restrictions against the exact repository,
-ref or environment; `id-token: write` permits minting a token but grants no cloud role by itself.
-Existing identity policy and target support govern the choice. For this fleet, read `stack-profile`
-before proposing an identity change; its current environment-secret policy remains in force.
-For a GCP target, deliver under this policy and name Workload Identity Federation as a policy option
-for the owner; never create a service-account key yourself.
+This fleet authenticates CI from GitHub environment secrets (`stack-profile`); read it before
+proposing an identity change. For a GCP target, name Workload Identity Federation as an option for
+the owner and never create a service-account key yourself. If federation is adopted, restrict
+issuer, audience and subject to the exact repository, ref or environment; `id-token: write` mints
+a token but grants no cloud role by itself.
 
 When secrets are needed, scope them to the relevant environment/job and avoid broad inheritance
-through reusable workflows. Do not print values or put them in argv, caches or artifacts. A
+through reusable workflows. A
 credential available in the environment does not authorize its use for a different target.
 
 Check the repository's plan/visibility and actual environment settings before relying on required
-reviewers, branch restrictions, self-review prevention or administrator bypass controls. A job's
-environment name alone is not an approval gate. If a required control is unavailable, name the
+reviewers, branch restrictions, self-review prevention or administrator bypass controls. If a
+required control is unavailable, name the
 gap and the existing alternative; do not invent protection or weaken it to make YAML run.
 
 ## Verification and supply-chain evidence
 
-Use trusted repository-established `actionlint` and security lint such as `zizmor` when configured.
-Static checks do not execute the workflow or prove a credential boundary. Exercise changed
+Static checks such as `actionlint` and `zizmor` do not execute the workflow or prove a credential boundary. Exercise changed
 permissions/events with scoped evidence; a negative check should test the actual protection.
 
 For release provenance, bind source commit, workflow/run attempt and artifact digest. Add build
@@ -70,13 +66,11 @@ attestations or an SBOM when release policy or a consumer needs them, and verify
 creating an attestation without checking it downstream does not protect the consumer. An attestation
 does not make an unsafe producing workflow safe. For immutable releases, prepare and verify the
 draft and assets before publication; recovery after publication may require a new release.
-Production readiness and execution remain with the existing release owner/process.
 
 For a distributable Python package, also test the built wheel in a clean environment without the
 checkout shadowing the installed package. Exercise imports, entry points and required package data;
 if shipping an sdist, check that it builds too. Editable-install tests alone do not establish release
-contents. Preserve the project's dependency groups/extras and requirements/constraints workflow;
-this is a release check, not a reason to migrate every project to uv. See
+contents. See
 [pytest's installed-package guidance](https://docs.pytest.org/en/stable/explanation/goodpractices.html).
 
 Sources: [GitHub secure use](https://docs.github.com/en/actions/reference/security/secure-use),

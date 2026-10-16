@@ -16,6 +16,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `schemathesis` leaves the requirements files. [verified] FastAPI builds that loaded
   `backend-craft` read none of its assets; the three WP-02 `build-operator-cli-safe-requeue` trials
   passed the oracle 5/5 without opening either asset.
+- `ci-actions`' security reference drops sentences that repeat its `SKILL.md` and the uv clause
+  left by the starter removal, and leads its identity guidance with the fleet's environment-secret
+  policy rather than an OIDC preference the next sentence overrode.
 - Retire Fleet Atlas at the owner's request and preserve its source, tests, schema, scenarios,
   and dedicated documentation in [the archive](archive/fleet-atlas/README.md). Remove its active
   skill, generated projection, CI check, typing entries, and Atlas-specific test conventions.
