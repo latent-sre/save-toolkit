@@ -43,8 +43,7 @@ Resolve these capabilities before scaffolding:
 
 Load `stack-profile` before recommending runtime, tooling or infrastructure choices. Use
 [starting code](#starting-code) selectively: equivalent app or library facilities satisfy the
-contract. A read-only app needs no write helper; an unpaged API needs no cursor machinery; a
-localhost-only app needs no PCF deployment scaffold.
+contract. A read-only app needs no write helper; an unpaged API needs no cursor machinery.
 
 ## Build the complete workflows
 
@@ -115,5 +114,4 @@ behaviour covered by the app's runner.
 | API errors | [problem.ts](./assets/problem.ts), [test](./assets/problem.test.ts) → beside the client |
 | API writes | [idempotent-write.ts](./assets/idempotent-write.ts), [test](./assets/idempotent-write.test.ts) → beside the client; imports `problem.ts` |
 | Runtime configuration | [runtime-config.ts](./assets/runtime-config.ts), [test](./assets/runtime-config.test.ts) → bootstrap |
-| PCF serving | [Staticfile](./assets/pcf/Staticfile), [spa.conf](./assets/pcf/nginx/conf/includes/spa.conf), [manifest.yml](./assets/pcf/manifest.yml), [profile.sh](./assets/pcf/profile.sh) → deploy directory, with `profile.sh` saved as `.profile` |
 | Served-build checks | [serving-contract.mjs](./assets/serving-contract.mjs) → build configuration; enable API/runtime-config checks only when applicable |

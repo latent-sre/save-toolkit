@@ -21,6 +21,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   skill, generated projection, CI check, typing entries, and Atlas-specific test conventions.
   GRAPH-004 and GRAPH-006 are retired rather than awaiting adoption; the archive retains their
   historical evidence. Canonical guidance and the fleet's structural checks remain active.
+- `frontend-craft` drops its PCF starter files (`Staticfile`, `spa.conf`, `manifest.yml`,
+  `profile.sh`) and their test at the owner's request. Its serving reference now states each
+  file's contract, including the buildpack facts the files encoded: `root` keeps `nginx/conf` out
+  of `public/`, and nested locations inherit neither the include's headers nor pushstate's
+  rewrite. The serving contract still checks the result on the foundation.
 - `python-craft` gains a worked characterization test: an input/outcome table pinned across the
   refactor, whose type assertion catches an `int 0` returned for an empty `Decimal` total. It adds
   `warnings.deprecated` for compatibility bridges (mypy lists remaining callers only with its

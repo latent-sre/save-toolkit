@@ -4,7 +4,6 @@ WCAG AA contrast in both schemes at every brand hue."""
 
 from __future__ import annotations
 
-import json
 import math
 import os
 import re
@@ -17,8 +16,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
-
-from testkit import require_shell
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "skills/frontend-craft/assets"
@@ -206,59 +203,6 @@ def test_the_typescript_helper_contracts_pass(suite: str, cases: int) -> None:
     result = subprocess.run(command, cwd=ASSETS, capture_output=True, text=True, encoding="utf-8", timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
     assert f"# pass {cases}" in result.stdout and "# fail 0" in result.stdout, result.stdout
-
-
-def test_the_pcf_profile_writes_config_json_from_the_environment(tmp_path: Path) -> None:
-    bash = require_shell("bash")
-    environment = dict(os.environ)
-    if os.name == "nt":
-        # Prefer Git's utilities alongside its native shell, without changing the host's PATH.
-        shell_dir = Path(bash).parent
-        directories = (shell_dir, shell_dir.parent / "usr/bin")
-        environment["PATH"] = os.pathsep.join([
-            *(str(path) for path in directories if path.is_dir()), environment.get("PATH", ""),
-        ])
-    (tmp_path / "public").mkdir()
-    env = {
-        **environment,
-        "HOME": str(tmp_path),
-        "UI_ENVIRONMENT": "staging",
-        "UI_API_BASE_URL": "/v1",
-        "UI_LOG_SEARCH_URL_TEMPLATE": 'https://logs.example.internal/search?q="{request_id}"',
-    }
-    result = subprocess.run([bash, str(ASSETS / "pcf/profile.sh")], env=env, capture_output=True, text=True, timeout=30)
-    assert result.returncode == 0, result.stdout + result.stderr
-    written = json.loads((tmp_path / "public/config.json").read_text(encoding="utf-8"))
-    assert written == {
-        "environment": "staging",
-        "apiBaseUrl": "/v1",
-        "logSearchUrlTemplate": 'https://logs.example.internal/search?q="{request_id}"',
-    }
-    missing = subprocess.run(
-        [bash, str(ASSETS / "pcf/profile.sh")],
-        env={**environment, "HOME": str(tmp_path)},
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert missing.returncode != 0 and "UI_ENVIRONMENT must be set" in missing.stderr
-    control = subprocess.run(
-        [bash, str(ASSETS / "pcf/profile.sh")],
-        env={**env, "UI_ENVIRONMENT": "staging\r"},
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert control.returncode != 0 and "must not contain control characters" in control.stderr
-    for url in ("https://api.example.internal/v1", "//api.example.internal/v1"):
-        elsewhere = subprocess.run(
-            [bash, str(ASSETS / "pcf/profile.sh")],
-            env={**env, "UI_API_BASE_URL": url},
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        assert elsewhere.returncode != 0 and "UI_API_BASE_URL must" in elsewhere.stderr, url
 
 
 # --- The parametric theme: OKLCH tokens evaluated for both schemes, contrast checked at every hue ---
