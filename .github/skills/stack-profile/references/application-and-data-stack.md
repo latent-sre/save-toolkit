@@ -36,16 +36,15 @@ defaults until the owner records a decision here.
 
 ## Frameworks
 
-- **Backend:** **Spring Boot** on supported JVM services (matching the `java_buildpack_offline` in
-  the PCF manifest example); **FastAPI** for Python backend code; **Huma** on `net/http` for new
-  Go HTTP services. Both are code-first and publish a committed OpenAPI document whose gates,
-  shared shapes and 3.2-ready policy are `backend-craft`'s owner decisions.
+- **Backend:** **FastAPI** is the established framework. Other framework choices remain open;
+  choose from the task, existing code, consumer contracts and operating constraints. Huma is an
+  available Go option, not the default. **Spring Boot** remains support-only on existing JVM
+  services. `backend-craft` owns engineering guidance; API shapes, identity integration, document
+  workflow and verification tools follow each service's requirements.
 - **Frontend:** **React is the focus and Vue is in use**; `frontend-craft` preserves the
   repository's framework and holds the team's frontend choices: the approved, mixable component
-  kits, the per-app identity rule, the OpenAPI binding to the team's FastAPI and Go services, and
+  kits, the per-app identity rule, typed integration with each service's actual contract, and
   serving on localhost and PCF.
-
-*[sourced: operator statements 2026-08-21 and 2026-10-11]*
 
 ## Hosts and runners
 

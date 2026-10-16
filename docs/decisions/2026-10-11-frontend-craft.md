@@ -65,3 +65,10 @@ Rejected [sourced: owner]:
 - **Measurement.** The three build scenarios added with the skill (incidents console, live log
   tail, status front page) and their stylesheet check measure these decisions. The Mantine
   discovery case is graded for the one-component-system-per-app rule.
+
+## Owner amendment — 2026-10-16: service-specific API contracts
+
+The API-binding clause now follows each service's actual contract, under the
+[backend owner amendment](2026-10-11-backend-craft.md#owner-amendment--2026-10-16-established-stack-and-engineering-judgment).
+Shared error, pagination, versioning and replay shapes are no longer universal requirements.
+Existing service contracts remain supported; frontend visual/framework choices are unchanged.

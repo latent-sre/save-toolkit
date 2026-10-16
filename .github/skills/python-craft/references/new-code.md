@@ -24,28 +24,13 @@ applicable layer; language-level correctness does not establish the service or o
 
 ## Choose a shape that fits
 
-| Decision | What should determine it |
-|---|---|
-| Script, installed CLI, library, or service | Actual consumers and delivery needs. Preserve project conventions; do not manufacture a package, service hierarchy, or plugin system for a single local operation. |
-| Shared core and adapters | When multiple consumers need the same decision, expose an importable operation. Keep parsing, display, process exit, and framework details at their appropriate boundaries. |
-| Materialize, stream, or index | Required access and input growth. Bounded-category aggregation can stream; global sorting needs another plan. Include index/cardinality costs in the memory model. |
-| Sequential, concurrent, or async | Independent work, I/O, ordering, and resource budgets. Concurrency adds coordination and failure behavior; it is not a default marker of modern code. |
-| Fail all, return per-item outcomes, or allow partial progress | The caller's contract and effects already performed. Make failures observable; choose transaction, retry, or recovery machinery only when needed. |
-| Direct implementation or dependency | Compare the standard library, existing dependencies, and maintained packages against the actual capability; use [Libraries and modernization](./libraries-and-modernization.md) when adopting one. |
-
-Make a consequential design choice explicit with its main tradeoff. Prefer the simplest design
-that satisfies the complete requirement; add abstraction when actual cases reveal a shared concept.
+Choose the delivery form from actual consumers. State consequential tradeoffs, bound work and memory,
+and preserve partial-failure semantics. For dependency adoption, use
+[Libraries and modernization](./libraries-and-modernization.md).
 
 ## Deliver and verify
 
-Build one usable path from input through validation and the core operation to its result or effect,
-then complete the remaining requirements. A directory skeleton, disconnected helpers, or a happy-path
-demo is not completion. Introduce test seams at real boundaries without mocking away the behavior
-being tested.
-
-Verify success, boundaries, invalid input, and relevant failure/cleanup behavior. For effects, check
-whether failure can leave partial state or falsely report success. Test expected values independently
-of the implementation. Exercise realistic data sizes when bounds matter; benchmark performance claims.
+Deliver complete behavior through its real entrypoint; test against independent expectations.
 
 For text protocols, establish encoding, record framing, and malformed-input policy at each real
 boundary. A UTF-8 file path and redirected stdin can use different decoders; testing an in-memory

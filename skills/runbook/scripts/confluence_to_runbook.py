@@ -491,8 +491,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--owner", default="<team/role>", type=parse_owner)
     parser.add_argument("--title", default=None,
                         help="page title, when the export is a bare body fragment without one")
-    parser.add_argument("--force", action="store_true",
-                        help="replace an existing draft; a runbook's history rows are evidence")
     args = parser.parse_args(argv)
 
     if not args.source.is_file():
@@ -507,10 +505,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         try:
-            output = args.output.open("w" if args.force else "x", encoding="utf-8")
+            output = args.output.open("x", encoding="utf-8")
         except FileExistsError:
-            print(f"error: {args.output} exists; pass --force to replace it (its history rows are "
-                  f"evidence — convert to a new path and merge by hand instead)", file=sys.stderr)
+            print(f"error: {args.output} exists; its history rows are evidence — "
+                  "convert to a new path and merge by hand instead", file=sys.stderr)
             return 1
         with output:
             output.write(draft)

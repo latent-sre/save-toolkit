@@ -1,15 +1,10 @@
 ---
 name: frontend-craft
 description: >-
-  Build or change a web GUI for the team's applications and SRE tooling — operator consoles,
-  workbenches and admin panels, in-app dashboards, status and catalog sites, form-driven
-  workflows — in React (Vue allowed) on Vite and TypeScript, from one page to a full app, wired
-  to the team's FastAPI and Go OpenAPI services and served on localhost and PCF. Owns the caller
-  interview and design brief, the component-kit choice, the browser side of the API contract,
-  error and action surfaces, runtime configuration, accessibility and motion. Triggers: 'build
-  a UI for', 'add a page/form/table/console', 'make this look less generic', 'wire the UI to
-  the API'. Not for the service behind the UI (backend-craft) or Grafana dashboards
-  (obs-dashboards to design, grafana to operate).
+  Build or change web applications and SRE interfaces in React or Vue, from one page to a
+  complete app integrated with its backend. Triggers: 'build a UI for', 'add a page/form/table/console',
+  'make this look less generic', 'wire the UI to the API'. Not for backend implementation
+  (backend-craft) or Grafana dashboards (obs-dashboards to design, grafana to operate).
 argument-hint: "[the GUI to build or change]"
 ---
 
@@ -48,8 +43,8 @@ contract. A read-only app needs no write helper; an unpaged API needs no cursor 
 ## Build the complete workflows
 
 Get one working end-to-end path through the running backend early, then complete every required
-workflow and its loading, empty, success, error and stale states. Generate the client from the
-backend's actual OpenAPI contract. If the backend also needs work, coordinate it through
+workflow and its loading, empty, success, error and stale states. Use a typed client for the
+backend's actual contract; generate it from OpenAPI when available. If the backend also needs work, coordinate it through
 `backend-craft`. Mocks and labelled sample data support development and tests; any integration
 they replace remains an explicit gap.
 
@@ -112,6 +107,6 @@ behaviour covered by the app's runner.
 |---|---|
 | App identity | [theme.css](./assets/theme.css) → `src/styles/theme.css`; with Tailwind, `@import` it in the Tailwind stylesheet right after `@import "tailwindcss"`, otherwise import it once before kit styles; set its palette, type and density from the brief |
 | API errors | [problem.ts](./assets/problem.ts), [test](./assets/problem.test.ts) → beside the client |
-| API writes | [idempotent-write.ts](./assets/idempotent-write.ts), [test](./assets/idempotent-write.test.ts) → beside the client; imports `problem.ts` |
+| Writes using the helper's Idempotency-Key contract | [idempotent-write.ts](./assets/idempotent-write.ts), [test](./assets/idempotent-write.test.ts) → beside the client; imports `problem.ts` |
 | Runtime configuration | [runtime-config.ts](./assets/runtime-config.ts), [test](./assets/runtime-config.test.ts) → bootstrap |
 | Served-build checks | [serving-contract.mjs](./assets/serving-contract.mjs) → build configuration; enable API/runtime-config checks only when applicable |

@@ -42,20 +42,16 @@ Read only the matching references. An explanation does not start a change workfl
 steps when the human is operating; use supported API/tool calls when the invoked agent has access.
 Missing access means an unapplied procedure, never a fabricated observation.
 
-The workflow CLI [grafana_workflow.py](./scripts/grafana_workflow.py) composes bounded reads with
-the local [evidence writer](./scripts/grafana_evidence.py), offline
-[threshold preview](./scripts/grafana_alert_preview.py), and
-[configuration dependency mapper](./scripts/grafana_dependencies.py).
-The workflow uses a managed Python environment for [bounded data statistics](./scripts/grafana_frames.py),
-[shared PromQL analysis](./scripts/grafana_promql.py),
-structured comparisons and PNG decoding; its command reference defines the isolated launch.
-The [bundled module loader](./scripts/grafana_modules.py) keeps those helpers on fixed local paths.
-Agents start with structured query evidence and explicit coverage gaps. When queries fail or cannot
-reproduce a panel, the default render fallback supplies an image reference; open that image before
-making a visual claim. Use [query plans](./scripts/grafana_plan.py),
-[offline analysis](./scripts/grafana_analyze.py), and [verified captures](./scripts/grafana_capture.py)
-for follow-up work without recollecting data. HTML and the optional
-[VS Code opener](./scripts/grafana_vscode.py) are secondary views, not prerequisites for agents.
+Use [grafana_workflow.py](./scripts/grafana_workflow.py) for query-first evidence and coverage gaps;
+open fallback images before visual claims. Reuse verified captures for follow-up. HTML and the
+[VS Code opener](./scripts/grafana_vscode.py) are optional views. The command reference owns the
+managed-environment launch.
+
+Bundled helpers: [evidence](./scripts/grafana_evidence.py),
+[threshold preview](./scripts/grafana_alert_preview.py), [dependencies](./scripts/grafana_dependencies.py),
+[statistics](./scripts/grafana_frames.py), [PromQL](./scripts/grafana_promql.py),
+[module loading](./scripts/grafana_modules.py), [plans](./scripts/grafana_plan.py),
+[analysis](./scripts/grafana_analyze.py), [captures](./scripts/grafana_capture.py).
 
 ## Access and authority
 

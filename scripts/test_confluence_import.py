@@ -533,14 +533,22 @@ class ConfluenceImportPathTest(ConverterTest):
         self.assertIn("no page title found", proc.stdout)
         self.assertIn("--title", proc.stdout)
 
-    def test_existing_output_is_refused_unless_forced(self) -> None:
+    def test_existing_output_is_preserved_with_manual_merge_advice(self) -> None:
         history = "| 2026-02-18 | INC-8841 | 3 | steps 1-2 | — | PR #412 |\n"
         proc, draft = run_converter(self.PAGE_JSON, name="page.json", existing=history)
         self.assertEqual(1, proc.returncode)
-        self.assertIn("--force", proc.stderr)
         self.assertEqual(history, draft, "an existing runbook and its history must survive")
-        _, draft = self.convert(self.PAGE_JSON, "--force", name="page.json", existing=history)
-        self.assertIn("restart-the-order-router", draft)
+        self.assertIn("new path", proc.stderr)
+        self.assertIn("merge by hand", proc.stderr)
+        self.assertNotIn("--force", proc.stderr)
+
+    def test_removed_force_option_cannot_replace_existing_history(self) -> None:
+        history = "| 2026-02-18 | INC-8841 | 3 | steps 1-2 | — | PR #412 |\n"
+        proc, draft = run_converter(self.PAGE_JSON, "--force", name="page.json", existing=history)
+        self.assertEqual(history, draft, "a legacy --force attempt must preserve incident history")
+        self.assertEqual(2, proc.returncode)
+        self.assertIn("unrecognized arguments: --force", proc.stderr)
+        self.assertNotIn("Draft written:", proc.stdout)
 
     def test_output_created_during_conversion_is_preserved(self) -> None:
         converter = load_converter("confluence_import_race_test")
@@ -566,7 +574,9 @@ class ConfluenceImportPathTest(ConverterTest):
                 ])
             self.assertEqual(history, output.read_bytes(), "the competing runbook must survive byte-for-byte")
             self.assertEqual(1, returncode)
-            self.assertIn("--force", stderr.getvalue())
+            self.assertIn("new path", stderr.getvalue())
+            self.assertIn("merge by hand", stderr.getvalue())
+            self.assertNotIn("--force", stderr.getvalue())
             self.assertNotIn("Draft written:", stdout.getvalue())
 
     def test_the_caller_can_date_the_conversion(self) -> None:

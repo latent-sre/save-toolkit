@@ -1,69 +1,49 @@
-# Go and Huma
+# Go HTTP services
 
-Read Go/Huma versions from `go.mod`; `http.CrossOriginProtection` needs Go 1.25+.
-Preserve existing service contracts and adapt only the components the task needs.
+Framework selection is open. Preserve the repository's choice; use standard-library HTTP or
+another framework when it fits the task. The Huma notes below apply only when Huma is selected.
+Read versions from `go.mod`; `http.CrossOriginProtection` needs Go 1.25+.
 
-Use the service's established corporate SSO middleware, keeping authentication in place before
-exposing shared internal operations and retaining object checks. Corporate SSO does not establish
-a token format or protocol; reuse the existing provider integration.
+## Server and data
 
-## API and handlers
+- A zero `http.Server` has no timeouts. Set header, read, write and idle limits for the workload;
+  streaming handlers need an appropriate per-response write deadline.
+- Use `signal.NotifyContext` and deadline-bounded `srv.Shutdown` within the host's grace period.
+  Windows Ctrl+C is `os.Interrupt`; console closure gives limited shutdown time.
+- Set container memory headroom deliberately. Go 1.25+ follows cgroup CPU quotas for
+  `GOMAXPROCS`; PCF shares may leave it at cell CPU count. Verify effective limits on the target.
+- Use structured request-context logging and the service's correlation identity.
+  Enforce authentication, object permissions and browser/host protections across the real chain,
+  including routes outside framework middleware.
+- PostgreSQL: `pgx`/`pgxpool` is an option; bound pool connections and propagate cancellation.
+  Cancellation can close the underlying connection.
+- SQL Server: `github.com/microsoft/go-mssqldb` needs no ODBC. Configure encryption and certificate
+  validation explicitly. With `database/sql`, bound open/idle connections and connection lifetime.
+  `sqlc` supports PostgreSQL, not SQL Server.
 
-- Use `http.ServeMux` with `humago`. Set `config.CreateHooks = nil` so responses carry no `$schema`
-  body property or `Link` header. Replace `huma.NewError` and `huma.NewErrorWithContext` with a
-  problem type before the first `huma.Register`, which reads the error type to document each
-  status; its `ContentType` method returns `application/problem+json`. Stamp request IDs on
-  errors created without a request context.
-- Register a full `huma.Operation`: lowerCamel `OperationID`, `Method`, `/v1` `Path`, `Summary`,
-  the actual identity scheme in `Security`, and every returned error status in `Errors`. Body
-  operations include `400` for unparseable JSON. Authenticate every operation not explicitly
-  public, even if `Security` is omitted; a missing verifier answers `503` and never makes an
-  operation public. Public operations set empty `Security` and are listed as deliberate
-  exceptions in the contract test; preserve unauthenticated and unauthorized denial checks.
-- Inputs/outputs are structs: `path:`, `query:`, `header:` tags and a `Body` field. Validation tags
-  (`minLength`, `maxLength`, `pattern`, `enum`, `minimum`, `maximum`) drive schema and validation.
-  Invalid values/unknown body fields return `422`, unparseable JSON `400`. Cross-field checks and
-  present-but-empty query values belong in `Resolve(huma.Context) []error`; Huma treats empty
-  query values as absent.
-- Return `huma.Error404NotFound(...)` and siblings, or `*Problem` with a domain `Type`. An error
-  without a status becomes `500` with no exception message exposed.
-- Wrap every request, including router 404/405 and health, with:
-  request ID, access log, loopback Host guard, `http.CrossOriginProtection`, and a fallback that
-  turns `ServeMux`'s plain-text 404/405 (with `Allow`) into problems. Huma middleware
-  (`api.UseMiddleware` before operations) sees only registered operations/metadata; auth lives there.
+## When using Huma
 
-## Server
+- `humago` integrates with `http.ServeMux`. Match the selected API contract: stable operation IDs,
+  paths, security declarations and returned error statuses.
+- For a contract excluding Huma's `$schema` body property and `Link` header, set
+  `config.CreateHooks = nil`. For RFC 9457 errors, replace `huma.NewError` and
+  `huma.NewErrorWithContext` before `huma.Register`, which reads the error type for documentation.
+  Its `ContentType` method declares the chosen media type.
+- Inputs/outputs use structs with `path:`, `query:`, `header:` tags and `Body`.
+  Validation tags drive schema and validation. Put cross-field checks and required
+  present-but-empty query rejection in `Resolve(huma.Context) []error`; Huma treats empty query
+  values as absent.
+- `api.UseMiddleware` sees registered operations. Cover router 404/405, health and other handlers
+  separately when they need correlation, error mapping or security controls.
+- Authenticate protected operations even when document security metadata is missing; a verifier
+  failure must not make an operation public.
 
-- A zero `http.Server` has no timeouts. Set `ReadHeaderTimeout`, `ReadTimeout`, `WriteTimeout`,
-  `IdleTimeout`. A streaming handler lifts its write deadline with
-  `http.NewResponseController(w).SetWriteDeadline(time.Time{})`.
-- Use `signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)` and deadline-bounded
-  `srv.Shutdown` inside the platform's grace period. Windows Ctrl+C is `os.Interrupt`; console
-  closure is `SIGTERM` with 5 s to exit.
-- Go does not derive `GOMEMLIMIT` from container memory: set about 90% of the PCF/Cloud Run quota.
-  Since 1.25, `GOMAXPROCS` follows cgroup CPU quota. PCF Diego supplies shares, not quota, leaving
-  it at cell CPU count: log `runtime.GOMAXPROCS(0)` and verify on each platform.
-- Use JSON `log/slog`; attach `request_id` to request-context records and use
-  `slog.InfoContext(ctx, ...)`.
+## Verification
 
-## Data and tests
+Exercise the real handler chain with `httptest`: serialization, errors, authentication and object
+access, pagination, concurrency and lifecycle where applicable. Use `go test -race` for shared state.
 
-- PostgreSQL: `pgx` v5/`pgxpool`, explicit `MaxConns` (default: larger of 4 or CPU count).
-  Pass request context to queries; cancellation abandons the query and usually closes its connection.
-- SQL Server: pure-Go `github.com/microsoft/go-mssqldb` needs no ODBC. Set `encrypt` explicitly;
-  unset, the driver trusts any server certificate.
-- `sqlc` generates PostgreSQL code, not SQL Server; SQL Server uses `database/sql` with explicit
-  `SetMaxOpenConns`, `SetMaxIdleConns`, `SetConnMaxLifetime`.
-- Exercise the real handler chain with `httptest`, asserting problem bodies and request IDs on
-  router 404/405, validation, unparseable JSON and identity failures.
-- One test fixture feeds the [OpenAPI](./openapi.md) gates: the real handler, stable generated
-  document bytes, a local test identity, the document's actual security schemes (including cookie
-  sessions and inherited top-level security), deliberately public operation IDs, and the actual
-  identity failure statuses, including 401. Schemathesis runs the `st` CLI against an `httptest`
-  server with `PYTHONUTF8=1` (Windows pipes otherwise default to cp1252); it skips locally
-  without `st` and fails in CI. After `go test -run TestOpenAPIDocument -update`, review
-  `openapi.json` and run `go test ./...`.
-- Test pagination, object permissions, browser protection and lifecycle against the real service;
-  contract-fixture wiring does not supply those checks.
-  `humatest.New` omits house configuration; `humatest.Wrap` is only for Huma-layer tests.
-- Use `go test -race` for goroutines/shared state.
+For [OpenAPI](./openapi.md), verify the selected document and consumer contract.
+Schemathesis can run against an `httptest` server; `PYTHONUTF8=1` avoids Windows pipe decoding
+mismatches. Required CI checks must fail when their tooling is unavailable.
+`humatest.New` does not apply application configuration; `humatest.Wrap` only covers the Huma layer.

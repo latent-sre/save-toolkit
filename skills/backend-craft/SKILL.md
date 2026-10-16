@@ -1,113 +1,59 @@
 ---
 name: backend-craft
 description: >-
-  Build or change the team's backend services — HTTP APIs in FastAPI (Python) or Huma (Go),
-  workers, schedulers, webhook receivers, and clients for platform and vendor APIs — published
-  as an OpenAPI contract that UIs and automation generate clients from. Owns the house API
-  contract for new HTTP services (RFC 9457 problems with a request ID, cursor pages,
-  Idempotency-Key writes, /v1 paths) and its contract gates (committed document, drift and
-  house-rule tests, Schemathesis, oasdiff), and the service's operating surface on PCF,
-  Cloud Run, Linux hosts and Windows desktops. Triggers: 'add an endpoint', 'build an API or
-  service for', 'wrap X behind an API', 'write a client for Y'. Not for UI
-  work (frontend-craft) or live database operations (database-reliability).
+  Build or change backend services, APIs, workers, schedulers, webhooks, and upstream clients.
+  Covers service design, integration, persistence, and failure behavior. Triggers:
+  'add an endpoint', 'build an API or service for', 'wrap X behind an API', 'write a client for Y'.
+  Not for UI work (frontend-craft) or live database operations (database-reliability).
 argument-hint: "[the API or service to build or change]"
 ---
 
 # Backend craft
 
-Build internal tools and services through their real entrypoints. Load `stack-profile` for
-authoring and runtime choices; inspect the repository's framework, contracts, tests and deployment
-before choosing a path.
+FastAPI is the team's established backend framework; other framework choices remain open.
+Choose from the requirements, existing code, consumer contracts and operating constraints.
+Load `stack-profile`; preserve the existing datastore, using PostgreSQL or SQL Server for new services.
 
-## Choose the path
+Preserve supported behavior and identity integrations. Separate deliberate contract changes from
+cleanup; resolve consequential unknowns with a recommendation. Workers and clients keep native
+entrypoints; an HTTP API is added only when the task needs one.
 
-| Task | Contract and starting point |
-|---|---|
-| New HTTP service | FastAPI (Python) or Huma on `net/http` (Go), code-first, using the house contract below. Choose the language of neighbouring services unless the request settles it. |
-| Existing HTTP service | Keep its framework, generator, authentication, API contract, canonical specification format/location and equivalent checks, including for added routes, until the owner authorizes a migration. House defaults fill only undecided parts. |
-| Worker, scheduler or upstream-client change | Follow its native entrypoint and repository conventions. Load the relevant references below; an HTTP server, OpenAPI document and house HTTP templates are needed only if the task exposes or changes an HTTP API. Live database operations belong to `database-reliability`. |
+## Engineering bar
 
-For a new tool, settle only consequential forks the request and repository leave open: callers,
-runtime, language, datastore, and external effects. Present unresolved choices together with
-defaults; skip a separate brief when those decisions are already clear. Build one working path
-through the real integration, then complete the requested scope, configuration and failure handling.
-
-## HTTP changes
-
-1. Read [OpenAPI](./references/openapi.md). A new HTTP service commits `openapi.json` at its
-   **service root** (the module or `pyproject.toml` root, possibly below the repository root).
-   Code generation, consumers and CI use that same path. Deliver CI configuration for the
-   contract gates below, including for a local-only service. Existing services keep their canonical
-   specification and checks; missing service-wide documentation or CI adoption is a separately
-   scoped task, not a prerequisite for a bounded API change.
-2. Describe the contract change before handler implementation: review the canonical document
-   diff when one exists; otherwise state the changed routes, inputs, outputs and compatibility
-   assumptions. For new services, write route signatures/models and generate the document first.
-   Use existing caller approval when it covers the contract; otherwise present the concrete
-   change for approval. A breaking change follows [versioning](./references/versioning.md).
-3. New services verify document drift, contract rules, Schemathesis responses and `oasdiff`
-   against the base document. Existing services run their applicable checks and focused tests for changed
-   behaviour; disclose missing document or compatibility evidence.
-
-### House contract for new HTTP services
-
-These shapes are owned here and consumed by `frontend-craft`.
-
-| Concern | Rule |
-|---|---|
-| Errors | HTTP errors (`4xx`/`5xx`), including validation, unknown routes/methods, authentication and unhandled failures, use `application/problem+json`: `type`, `title`, `status`, `request_id`, optional `detail`, and input errors as `errors[]` of `{loc, msg}`. Status-only errors use `about:blank` and the status phrase; actionable domain errors get a stable `type` URI. Never echo submitted values or exception text. Redirects and `304` keep their HTTP semantics. |
-| Status codes | `400` for unparseable syntax; `422` for well-formed input with invalid values. Declare input constraints in the schema. Stateful rejection, such as an `Idempotency-Key` reused with different intent, can reject schema-valid input: document and test that response rather than inventing a schema constraint. |
-| Request ID | Generate per request, or accept only from a header a trusted ingress overwrites; echo as `X-Request-ID`, in problems and request logs. |
-| Collections | `{ "data": [...], "next_cursor": "..." \| null }`; opaque cursor with a declared pattern, clamped maximum `limit`, `limit + 1` fetch, deterministic order with a unique tie-breaker, allowlisted filters/sorts. Include a total only when cheap. |
-| Document | Emit OpenAPI 3.1, valid as 3.2; use 3.2-only features only when producer and consumers support them. Unique lowerCamel `operationId`, named schemas (`ThingPage`), `/v1` paths and the actual authentication scheme, with explicit unauthenticated exceptions. |
-| Authentication | Shared internal web tools use the application's corporate SSO integration; internal network access grants no permissions. Preserve its session/token contract rather than inventing a provider or trusting caller-supplied identity headers. Missing/invalid identity: `401` (`WWW-Authenticate` for bearer); verifier failure: `503`. Authorize each object; unreadable objects answer `404`. Authentication changes get a `reviewer` pass. |
-| Writes | Retryable or concurrent writes follow [API writes](./references/api-writes.md). Long-running work returns `202` with a pollable status resource and follows [background work](./references/background-work.md). |
-| Operational actions | An endpoint changing external state offers dry run and plan-then-apply, bounds targets per call, and logs who acted and why. |
-| Dependency failure | An optional enrichment becomes explicitly unavailable; an essential upstream's bad answer is `502`, timeout `504`. Rate limits return `429` with `Retry-After`. |
-| Browser and host safety | Refuse cross-site writes (`Sec-Fetch-Site`, else `Origin` against `Host`); loopback services refuse non-loopback `Host`; CORS uses an allowlist. |
-| Streaming | One-way push uses Server-Sent Events: IDs with `Last-Event-ID`, keep-alive comments about every 15 s, bounded streams. |
-
-## Runtime and persistence
-
-The runtime targets are PCF, Cloud Run, Linux hosts under systemd, and Windows desktop tools;
-`stack-profile` distinguishes current deployments from approved targets.
-
-| Concern | Rule |
-|---|---|
-| Configuration | Read environment settings once, validate at startup and fail on invalid values. Keep secrets out of code, logs and problem bodies. |
-| Listening and health, for HTTP | Bind all interfaces on platform `$PORT` (PCF, Cloud Run), otherwise `127.0.0.1`. `/health/live` is process-only; `/health/ready` checks dependencies only when withdrawing the instance helps. Both bypass auth and the API document; no health path ends in `z`. PCF uses `health-check-type: http` on `/health/live` and `readiness-health-check-type: http` on `/health/ready`; Cloud Run uses an HTTP liveness probe on `/health/live`. |
-| Shutdown | Stop intake, drain, close clients and finish or requeue jobs on SIGTERM/Ctrl+C. PCF and Cloud Run send SIGKILL after 10 s; a closed Windows console allows 5 s. |
-| Logs | Structured and redacted. HTTP request records carry method, route, status, duration and `request_id`; never log tokens, cookies or bodies. |
-| Persistence | Keep the existing datastore; new services connect directly to PostgreSQL or SQL Server. Parameterized queries and short explicit transactions; no transaction across an outbound call. A migration on a populated table goes to `database-reliability`. |
+- **Design:** cohesive responsibilities, explicit dependencies, readable control flow; abstraction
+  earns its place through actual consumers or a meaningful boundary.
+- **Contracts:** explicit inputs, outputs and failure semantics; stable consumer behavior and a
+  compatibility path for deliberate changes.
+- **Failure:** bounded work, deadlines and retry ownership; cancellation, partial effects and
+  recovery handled at the real boundary.
+- **Security:** validate untrusted input, enforce identity and object permissions where required,
+  and keep secrets and sensitive payloads out of outputs.
+- **Data:** parameterized queries, short transactions, concurrency control; no transaction across
+  an outbound call.
+- **Operation:** validated startup configuration, correlated structured logs, owned clients/pools/tasks,
+  and drain or requeue within the deployment's shutdown deadline.
 
 ## Load for the changed boundary
 
-Read only matching references; use every matching row.
+Use every matching row and no others.
 
-| Boundary | Guidance and checks |
+| Boundary | Guidance |
 |---|---|
-| HTTP contract, document, generated client or CI | [OpenAPI](./references/openapi.md); [versioning](./references/versioning.md) if breaking |
-| FastAPI | [FastAPI](./references/fastapi.md); `python-craft` for language choices |
-| Huma | [Go](./references/go.md) |
-| Retryable or concurrent write | [API writes](./references/api-writes.md) |
-| Upstream or vendor client | [Consuming APIs](./references/consuming-apis.md) for deadlines, retries, capacity and integration mechanics |
-| Durable job, scheduler or webhook | [Background work](./references/background-work.md) |
+| HTTP API, including a webhook receiver | [API contract](./references/api-contract.md) |
+| OpenAPI document, generated client or schema checks | [OpenAPI](./references/openapi.md) |
+| Breaking API change | [Versioning](./references/versioning.md) |
+| FastAPI | [FastAPI](./references/fastapi.md) |
+| Go HTTP server; Huma only when selected | [Go](./references/go.md) |
+| Python implementation | `python-craft` |
+| Retryable or concurrent write, including remote effects | [API writes](./references/api-writes.md) |
+| Upstream client | [Consuming APIs](./references/consuming-apis.md) |
+| Durable job, scheduler or asynchronous webhook work | [Background work](./references/background-work.md) |
 | Populated-table migration | `database-reliability`; execution stays with the human owner |
-| RED metrics or traces | `obs-pipeline` |
-
-Public means explicitly unauthenticated, not internet-facing; shared internal tools stay
-authenticated. Workers use their service identity; local CLIs keep their native execution model.
+| Metrics or traces | `obs-pipeline` |
 
 ## Acceptance
 
-- The requested tool or change runs through its actual entrypoint, with configuration/startup,
-  successful work and relevant failure/shutdown behaviour exercised. Complete the requested scope
-  after the first working integration path.
-- Applicable tests pass. New HTTP services meet the document and gate requirements above;
-  existing services update their canonical specification when present and verify the changed
-  behaviour with their applicable checks. For item/write routes, test both refusal of an
-  authenticated caller without object permission and intended owner/shared/admin access.
-- Report changed behaviour, commands and bounded evidence: HTTP method/path, status, request ID
-  and schema assertion, or job/client inputs, outcome and failure handling. State unavailable
-  checks. For HTTP changes, include **Contract change** with added/changed/removed operations (or
-  `none`), compatibility results and any missing contract evidence; do not call an unrun check clean.
+Deliver the complete change through its real entrypoint. Exercise success, material failures,
+authorization, concurrency and lifecycle behavior as applicable; run the project's checks.
+Report the design choices that matter, observed results and remaining gaps. Distinguish
+mocked behavior from verified integration.

@@ -1,15 +1,17 @@
 id: build-software-engineer-go-incidents-api
 max_turns: 45
 agent: software-engineer
-# The Go half of the backend bar. A greenfield Go service whose prompt never says "Huma",
-# "OpenAPI", "problem+json", "paginate" or "timeout": it says the on-call UI generates its client
-# from the service, which is what backend-craft turns into a committed OpenAPI document with gates.
+tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
+references:
+  - skills/backend-craft/references/api-contract.md
+# The Go half of the backend bar. The fixture README specifies this service's API, document,
+# and server contracts; framework choice remains open.
 # The probe-owned oracle (probe_checks.py, written by the first check, never seen by the agent)
 # builds the candidate's main package, starts it with PORT set, and grades the running service:
 # bearer auth answered 401 problem+json, a cursor walk over 501 seeded incidents with an
 # oversized limit lowered, a ?status= filter with a 422 problem for a bad value, a 404 problem
 # whose request_id matches X-Request-ID, the router's own 404 and 405 as problems, the store's
-# internal_note kept inside, a committed openapi.json on the house rules, a drift test that fails
+# internal_note kept inside, a root openapi.json matching the fixture contract, a drift test that fails
 # when that document goes stale, and ReadHeaderTimeout on the server. Go is installed on the host
 # and modules come from the public proxy.
 prompt: |
@@ -35,6 +37,25 @@ fixture:
 
       A new Go service behind the on-call UI. `store.go` holds the incident seed (the real store
       is a database) and `auth.go` stands in for the identity provider's token check.
+
+      ## Service contract
+
+      Framework choice is open; use the simplest suitable Go HTTP implementation.
+
+      - Lists return `{data: [...], next_cursor: string | null}`. Support `limit` and `cursor`,
+        keep a stable order without gaps or duplicates, and return `null` on the last page. Use
+        bounded default and maximum page sizes (at most 500); clamp an oversized limit to the cap.
+        Keep `internal_note` out of list and detail responses.
+      - Errors use `application/problem+json` with nonempty `type`, `title`, and `request_id`,
+        plus `status` matching the HTTP status. `X-Request-ID` matches the body's `request_id`.
+        A missing incident or route returns 404; an unsupported method returns 405 with `Allow`.
+        Missing or invalid bearer credentials return 401 with `WWW-Authenticate`. An invalid
+        `status` filter returns 422 with a nonempty `errors[]` locating the invalid input.
+      - Keep a generated `openapi.json` at the repo root using OpenAPI 3.1, unique lowerCamel
+        operationIds, bearer security declarations, and problem+json error declarations. Document
+        the item route as `/v1/incidents/{id}`. Include a `go test` drift check that fails with a
+        stale document and passes with the generated document.
+      - Listen on `PORT` and bound header reads with `http.Server.ReadHeaderTimeout`.
 
       Go is installed on this machine and modules come from the public proxy. Build and test from
       the repo root:

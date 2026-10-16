@@ -48,7 +48,8 @@ keep this file for discovered names, types, tags, and target links.
 
 Prometheus/Mimir tenant and data-source identity: `<tenant / data source>`.
 
-Use the [PromQL reference](./promql.md) for counter, error-ratio, and histogram query forms.
+Use the [PromQL reference](./promql.md) for selector encoding, histogram compatibility, query limits,
+and missing-data safeguards.
 
 ## Lookup packet
 
