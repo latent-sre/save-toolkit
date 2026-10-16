@@ -40,6 +40,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   `SKILL.md` are cut. [verified] `@vitejs/plugin-react` 6.1.2's README calls its native compiler
   support experimental; hey-api's TanStack Query plugin lists `@tanstack/vue-query`; Huma's
   default `OpenAPIPath` is `/openapi`.
+- `stack-profile` stops pointing at a `frontend-craft` owner-decisions table that no longer
+  exists; the skill itself holds those choices.
 - `python-craft` gains a worked characterization test: an input/outcome table pinned across the
   refactor, whose type assertion catches an `int 0` returned for an empty `Decimal` total. It adds
   `warnings.deprecated` for compatibility bridges (mypy lists remaining callers only with its
