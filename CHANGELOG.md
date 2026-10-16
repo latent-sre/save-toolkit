@@ -26,17 +26,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   file's contract, including the buildpack facts the files encoded: `root` keeps `nginx/conf` out
   of `public/`, and nested locations inherit neither the include's headers nor pushstate's
   rewrite. The serving contract still checks the result on the foundation.
-- `frontend-craft` interviews the caller in one round before a new app or area: who uses it,
-  required workflows, read-only or actions, sign-in and roles, live data, serving, density and
-  theme, colours, signature and kit, each with a default. It skips what the request or repository
-  answers and builds on the defaults when asked for a finished build or when nobody can answer,
-  always writing the brief with any defaults marked as assumptions.
-  `build-software-engineer-status-front-page` grades that a reply states its unspecified design
-  choices as assumptions. [verified] On seven saved trials the check matches the two replies that
-  do so and none of the five that do not.
-  The theme's wiring now says to `@import` it in the Tailwind stylesheet. [verified] Tailwind
-  4.3.2 generates the theme's utilities when the theme is in that stylesheet's import graph and
-  none when it is imported separately.
+- `frontend-craft`'s theme wiring now says to `@import` the theme in the Tailwind stylesheet.
+  [verified] Tailwind 4.3.2 generates the theme's utilities when the theme is in that
+  stylesheet's import graph and none when it is imported separately.
 - `frontend-craft`'s references are rechecked against the registry and upstream source. `stack.md`
   makes the Babel React Compiler preset the default and names `react({ compiler: true })` the
   plugin's experimental Rust port; `vue.md` adds `@hey-api/openapi-ts`'s TanStack Vue Query

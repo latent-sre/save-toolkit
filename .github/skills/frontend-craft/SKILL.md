@@ -27,29 +27,10 @@ established identity.
 
 ## Shape the app and select the relevant guidance
 
-Before building a new app or a new area, interview the caller in one round. Skip any question the
-request or repository already answers, and give each remaining question your recommended default
-so a one-word reply settles it. When the request asks for a finished, verified build rather than a
-conversation, or you cannot ask before starting, build on the defaults instead of asking.
-
-| Question | Default |
-|---|---|
-| Who uses it, for which jobs and how often; is it used during incidents? | Inferred from the request |
-| Which workflows must work end to end in the first version? | The workflows the request names |
-| Read-only, or does it change things, and which actions? | Read-only unless the request names an action |
-| Who signs in, and do roles limit what they can do? | The backend's existing sign-in, one role |
-| Does anything need to update without a click? | Nothing live |
-| Localhost only, or served on PCF? | Localhost |
-| Dense and dark, or roomy and light? | The nearest archetype's |
-| Any colours, logo or existing app it should match? | Two or three proposed hues; the theme's shipped hue only by choice |
-| What should people remember it by? | One proposed signature |
-| shadcn/ui + Tailwind + Motion, or HeroUI v3 + Motion; Vue where neighbouring apps use it? | shadcn/ui + Tailwind + Motion |
-
-Always write a short [design brief](./references/design.md) before styling: from the answers, or
-from the defaults where none came, marked as assumptions; state the type pairing and motion budget
-as defaults the owner may veto. Return the brief and any unanswered questions with the result.
-Choose an app identity, density and motion budget that fit the work, with visible actions and
-keyboard and screen-reader parity.
+Write a short [design brief](./references/design.md) from the known audience, job, workflows and
+visual direction before styling. Ask one round with recommended defaults only for consequential
+unsettled choices; carry forward answers already supplied. Choose an app identity, density and
+motion budget that fit the work, with visible actions and keyboard and screen-reader parity.
 
 Resolve these capabilities before scaffolding:
 

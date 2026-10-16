@@ -16,8 +16,8 @@ design system; otherwise use the brief below.
 
 ## The brief
 
-Record these decisions before styling from known facts and the parent skill's interview; list
-defaults nobody chose as assumptions. Keep it short enough to guide implementation and review.
+Record these decisions before styling, using known facts and asking only about consequential
+gaps. Keep it short enough to guide implementation and review.
 
 1. **Audience and job:** who uses the app, for which workflows, how often and under what pressure.
 2. **Archetype:** the nearest row below, or a named blend.
