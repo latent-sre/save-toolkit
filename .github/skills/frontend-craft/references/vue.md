@@ -25,8 +25,8 @@ Apply the [stack mixing rules](./stack.md#mixing-kits) and shared theme tokens.
 
 ## Data and interactions
 
-- **@tanstack/vue-query** with `openapi-fetch` calls wrapped in `queryOptions`; **orval** or
-  **kubb** for generated composables. There is no official Vue OpenAPI-query wrapper.
+- **@tanstack/vue-query** with `openapi-fetch` calls wrapped in `queryOptions`; for generated
+  composables, **@hey-api/openapi-ts** with its TanStack Vue Query plugin, **orval** or **kubb**.
 - **Vue Router** for routes/shareable URL state; **Pinia** for distant components' shared UI
   state, leaving server data in the query cache.
 - **TanStack Table**'s Vue adapter and **TanStack Virtual**; **VeeValidate** or **TanStack Form**

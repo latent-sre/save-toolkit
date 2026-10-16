@@ -35,15 +35,15 @@ build-time values must be identical across promoted environments.
 
 ## PCF
 
-Assemble a deploy directory in CI containing `dist/` and the selected assets; do not push the
-source tree. Use the staticfile buildpack:
+Assemble a deploy directory in CI containing `dist/` and these files; do not push the source
+tree. Use the staticfile buildpack:
 
-| Asset | Contract |
+| File | Contract |
 |---|---|
-| [Staticfile](../assets/pcf/Staticfile) | `root: dist`, required for `location_include`; `pushstate: enabled`; `includes/*.conf`; HTTPS/HSTS buildpack options |
-| [spa.conf](../assets/pcf/nginx/conf/includes/spa.conf) | Included inside `location /`; HTML security/revalidation headers, nested immutable-asset and fresh-config locations, missing assets as uncached `404` |
-| [profile.sh](../assets/pcf/profile.sh), saved as `.profile` | Runs before app startup and writes `public/config.json` from manifest/Apps Manager `UI_*` values |
-| [manifest.yml](../assets/pcf/manifest.yml) | Buildpack, 64M memory, HTTP health check on `/`, host route and `UI_*` values |
+| `Staticfile` | `root: dist`: without it the buildpack moves `nginx/conf` into the served `public/` directory and the include never loads. `pushstate: enabled`; `location_include: includes/*.conf`; `force_https: true` and the `http_strict_transport_security` options |
+| `nginx/conf/includes/spa.conf` | Included inside the buildpack's `location /`: HTML gets `Cache-Control: no-cache`, the CSP below, `nosniff` and the referrer policy, each with `always`; no HSTS, which the buildpack adds there. Nested locations inherit neither those headers nor pushstate's rewrite, so each repeats what it needs: `location ^~ /assets/` immutable for a year without `always` and `try_files $uri =404`; `location = /config.json` `no-cache`; a regex location for file-like extensions answering an uncached `404` |
+| `.profile` | Runs from the app root before nginx starts. Writes `$HOME/public/config.json` from manifest/Apps Manager `UI_*` values through a temporary file and rename; fails startup on a missing required value, a control character, or an API base that is not a root-relative path |
+| `manifest.yml` | `staticfile_buildpack`, 64M memory, HTTP health check on `/`, host route and `UI_*` values |
 
 The API remains a separate app on the same host's context-path route, such as
 `host.domain/v1`; Cloud Foundry chooses that route first and the API serves its prefix.

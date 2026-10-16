@@ -41,9 +41,9 @@ defaults until the owner records a decision here.
   Go HTTP services. Both are code-first and publish a committed OpenAPI document whose gates,
   shared shapes and 3.2-ready policy are `backend-craft`'s owner decisions.
 - **Frontend:** **React is the focus and Vue is in use**; `frontend-craft` preserves the
-  repository's framework, and its owner-decisions table holds the team's frontend choices: the
-  approved, mixable component kits, the per-app identity rule, the OpenAPI binding to the team's
-  FastAPI and Go services, and serving on localhost and PCF.
+  repository's framework and holds the team's frontend choices: the approved, mixable component
+  kits, the per-app identity rule, the OpenAPI binding to the team's FastAPI and Go services, and
+  serving on localhost and PCF.
 
 *[sourced: operator statements 2026-08-21 and 2026-10-11]*
 

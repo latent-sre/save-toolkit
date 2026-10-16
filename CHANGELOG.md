@@ -21,6 +21,23 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   skill, generated projection, CI check, typing entries, and Atlas-specific test conventions.
   GRAPH-004 and GRAPH-006 are retired rather than awaiting adoption; the archive retains their
   historical evidence. Canonical guidance and the fleet's structural checks remain active.
+- `frontend-craft` drops its PCF starter files (`Staticfile`, `spa.conf`, `manifest.yml`,
+  `profile.sh`) and their test at the owner's request. Its serving reference now states each
+  file's contract, including the buildpack facts the files encoded: `root` keeps `nginx/conf` out
+  of `public/`, and nested locations inherit neither the include's headers nor pushstate's
+  rewrite. The serving contract still checks the result on the foundation.
+- `frontend-craft`'s theme wiring now says to `@import` the theme in the Tailwind stylesheet.
+  [verified] Tailwind 4.3.2 generates the theme's utilities when the theme is in that
+  stylesheet's import graph and none when it is imported separately.
+- `frontend-craft`'s references are rechecked against the registry and upstream source. `stack.md`
+  makes the Babel React Compiler preset the default and names `react({ compiler: true })` the
+  plugin's experimental Rust port; `vue.md` adds `@hey-api/openapi-ts`'s TanStack Vue Query
+  plugin; `api.md` names Huma beside FastAPI as serving `/openapi.json`. Sentences that repeated
+  `SKILL.md` are cut. [verified] `@vitejs/plugin-react` 6.1.2's README calls its native compiler
+  support experimental; hey-api's TanStack Query plugin lists `@tanstack/vue-query`; Huma's
+  default `OpenAPIPath` is `/openapi`.
+- `stack-profile` stops pointing at a `frontend-craft` owner-decisions table that no longer
+  exists; the skill itself holds those choices.
 - `python-craft` gains a worked characterization test: an input/outcome table pinned across the
   refactor, whose type assertion catches an `int 0` returned for an empty `Decimal` total. It adds
   `warnings.deprecated` for compatibility bridges (mypy lists remaining callers only with its

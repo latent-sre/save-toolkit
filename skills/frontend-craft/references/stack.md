@@ -17,22 +17,24 @@ before pinning, and record additions and licences in the handoff.
 - **React 19.3, Vite 8 and strict TypeScript.** Scaffold with
   `npm create vite@latest -- --template react-ts`; adapt the starting Vite configuration.
   Narrow `unknown` at boundaries; use branded IDs and exhaustive unions where they prevent
-  mistakes. Node 22.12 or later, preferably the active LTS line (24). Use npm with one committed
+  mistakes. Node 22.12 or later, preferably the active LTS line. Use npm with one committed
   lockfile; keep pnpm where the repository already uses it.
 - **TypeScript 6** while typescript-eslint and vue-tsc require the compiler API absent from
   TypeScript 7. Verify that compatibility before changing the pin. Vite strips types;
   `tsc --noEmit` checks them. Use `"paths": { "@/*": ["./src/*"] }` without deprecated
   `baseUrl`, mirrored by Vite's `resolve.alias`.
-- **React Compiler:** `react({ compiler: true })` with `oxc-transform-react` and the
-  `eslint-plugin-react-hooks` recommended rules.
-- **Tailwind v4:** `@tailwindcss/vite`; the theme's `@theme inline` exposes token utilities.
+- **React Compiler:** `babel({ presets: [reactCompilerPreset()] })` beside `react()`, from
+  `@vitejs/plugin-react` and `@rolldown/plugin-babel` with `@babel/core` and
+  `babel-plugin-react-compiler`, plus the `eslint-plugin-react-hooks` recommended rules.
+  `react({ compiler: true })` with `oxc-transform-react` is the plugin's experimental Rust port.
+- **Tailwind v4:** `@tailwindcss/vite`; the theme's `@theme inline` exposes token utilities once
+  the theme is `@import`ed in the Tailwind stylesheet.
   Respect the chosen kit's styling integration below.
 - **Lint and format:** ESLint 10 flat config, typescript-eslint's type-checked promise rules,
   React hooks/refresh plugins and Prettier. Keep create-vite's fast oxlint check if useful;
   repository-standard type-aware oxlint or Biome 2 are alternatives.
 - **Tests:** Vitest 5, Testing Library, MSW 3 and jsdom. Layout-sensitive components can use
-  Vitest browser mode; critical journeys use the host's Playwright MCP server as described in
-  the parent skill. Use `vitest-axe` for component accessibility. Adapt asset tests to this runner.
+  Vitest browser mode. Use `vitest-axe` for component accessibility.
 
 For a Vue app, use the [Vue equivalents](./vue.md).
 
