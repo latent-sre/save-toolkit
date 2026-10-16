@@ -274,15 +274,24 @@ class ValidateWorkflowTests(unittest.TestCase):
         for shard in ("fast-tests", "eval-tests"):
             self.assertIn(f'test "${{{{ needs.{shard}.result }}}}" = success', script)
 
+    def assert_shards_cover_every_test(self, name: str, groups: list[str]) -> None:
+        """The last shard's `-k` is the complement of the others, so a shard edit cannot drop a test."""
+        job = workflow_jobs()[name]
+        self.assertEqual(f"{name} (${{{{ matrix.group }}}}, ubuntu-latest)", job["name"])
+        self.assertIs(job["strategy"]["fail-fast"], False)
+        include = job["strategy"]["matrix"]["include"]
+        self.assertEqual(groups, [entry["group"] for entry in include])
+        *named, rest = [entry["selection"] for entry in include]
+        self.assertEqual(f"not ({' or '.join(named)})", rest)
+        self.assertIn('-k "${{ matrix.selection }}"', pytest_step(job)["run"])
+
+    def test_fast_tests_shards_cover_every_default_test(self) -> None:
+        self.assert_shards_cover_every_test("fast-tests", ["scripts", "other"])
+
     def test_eval_tests_job_runs_the_heavy_files_the_default_run_skips(self) -> None:
         """conftest.py's default run skips HEAVY; without this job no CI run would execute them."""
+        self.assert_shards_cover_every_test("eval-tests", ["webhook", "python", "other"])
         job = workflow_jobs()["eval-tests"]
-        self.assertEqual("eval-tests (${{ matrix.group }}, ubuntu-latest)", job["name"])
-        self.assertIs(job["strategy"]["fail-fast"], False)
-        self.assertEqual([
-            {"group": "webhook", "selection": "pager_webhook"},
-            {"group": "other", "selection": "not pager_webhook"},
-        ], job["strategy"]["matrix"]["include"])
         self.assertNotIn("needs", job, "the eval tests must run alongside fast-tests, not after")
         commands = [step.get("run") for step in job["steps"]]
         self.assertIn("python -m pip install -r requirements-test.txt", commands)

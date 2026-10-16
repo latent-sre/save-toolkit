@@ -35,10 +35,19 @@ jobs:
         run: python scripts/gate_a.py
 
   fast-tests:
-    # The default pytest run: everything except the heavy eval-machinery files.
-    name: fast-tests (ubuntu-latest)
+    # The default pytest run: everything except the heavy eval-machinery files. The last matrix
+    # selection is the complement of the others, so every test runs in exactly one shard.
+    name: fast-tests (${{ matrix.group }}, ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - group: scripts
+            selection: scripts
+          - group: other
+            selection: not (scripts)
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -65,7 +74,7 @@ jobs:
       # one worker reads as plugin drift to a native trial running in another. The default run
       # skips the heavy eval-machinery files (conftest.py HEAVY); the eval-tests job runs them.
       - name: Fast tests
-        run: python -m pytest -q -n 4 --dist worksteal --durations=20 -p xdist -p hypothesispytest
+        run: python -m pytest -q -k "${{ matrix.selection }}" -n 4 --dist worksteal --durations=20 -p xdist -p hypothesispytest
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
           PYTHONDONTWRITEBYTECODE: '1'
@@ -82,7 +91,8 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
 
   eval-tests:
-    # Webhook observation windows take about as much worker time as the other heavy cases.
+    # Webhook observation windows and the Python-craft oracles each take a shard; the last
+    # selection is the complement of the others, so every heavy test runs in exactly one shard.
     name: eval-tests (${{ matrix.group }}, ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -92,8 +102,10 @@ jobs:
         include:
           - group: webhook
             selection: pager_webhook
+          - group: python
+            selection: python_craft_oracle or python_new_code_probe or python_package_refactor or python_library_selection_oracle or python_index_probe
           - group: other
-            selection: not pager_webhook
+            selection: not (pager_webhook or python_craft_oracle or python_new_code_probe or python_package_refactor or python_library_selection_oracle or python_index_probe)
     steps:
       - name: Check out repository
         uses: actions/checkout@v7

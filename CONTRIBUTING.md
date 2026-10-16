@@ -171,10 +171,11 @@ for `uv pip sync`. CI retains its setup-python/pip workflow in a job-owned envir
 Both test jobs cache pip downloads, keyed on the test requirements and development constraints.
 
 [`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs these jobs on the
-pull request: `validate` (this same gate); `fast-tests` (the default `pytest` run against
-`requirements-test.txt` on Linux) and the two `eval-tests` matrix entries in parallel. The eval
-entries select `pager_webhook` and `not pager_webhook` through pytest's `-k`, covering every heavy
-case exactly once; the real collection contract checks their union and overlap. `component-tests`,
+pull request: `validate` (this same gate); the two `fast-tests` matrix entries (the default `pytest`
+run against `requirements-test.txt` on Linux) and the three `eval-tests` matrix entries in
+parallel. Each matrix selects its shards through pytest's `-k`, and its last entry is the complement
+of the others, so every case runs in exactly one shard; the real collection contract checks the eval
+entries' union and overlap. `component-tests`,
 the required check, passes only when fast tests and every eval matrix entry passed; and
 `claude-plugin-contract`
 (npm's latest Claude Code release, with its resolved version recorded in the job log).

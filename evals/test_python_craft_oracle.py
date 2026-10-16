@@ -787,6 +787,16 @@ def _run_supervised_policy(files, oracle_source=None):
         )
 
 
+def _oracle_copy(*replacements):
+    """The policy oracle's source, runnable from a temporary path, with each (old, new) applied once."""
+    source = ORACLE.read_text(encoding="utf-8")
+    for old, new in (("sys.path.insert(0, str(Path(__file__).resolve().parent.parent))",
+                      f"sys.path.insert(0, {str(ROOT / 'oracles')!r})"), *replacements):
+        assert source.count(old) == 1, old
+        source = source.replace(old, new)
+    return source
+
+
 @pytest.mark.parametrize(
     "test_body,diagnostic",
     [
@@ -805,7 +815,9 @@ def test_policy_supervision_rejects_candidate_test_failures_and_early_exits(test
         "import unittest\nclass FailureTests(unittest.TestCase):\n"
         "    def test_candidate(self):\n        " + test_body + "\n"
     )
-    result = _run_supervised_policy(files)
+    # The oracle's 15 s replay limit is waiting, not evidence; a short limit reaches the same branch.
+    oracle_source = _oracle_copy(("text=True, timeout=15)", "text=True, timeout=3)")) if "sleep" in test_body else None
+    result = _run_supervised_policy(files, oracle_source)
     assert result.returncode == 10, result.stderr
     assert diagnostic in result.stderr
 
@@ -837,13 +849,7 @@ def test_policy_supervision_passes_complete_assessment_without_mutating_candidat
 def test_policy_supervision_keeps_oracle_crash_and_unavailable_outcomes_distinct(fault, code, diagnostic):
     # Exercise the real policy completion path, replacing only the oracle-owned
     # replay entrypoint so its internal faults cannot become candidate failures.
-    source = ORACLE.read_text(encoding="utf-8")
-    source = source.replace(
-        "sys.path.insert(0, str(Path(__file__).resolve().parent.parent))",
-        f"sys.path.insert(0, {str(ROOT / 'oracles')!r})",
-        1,
-    )
-    source = source.replace("def policy_test_coverage():", "def policy_test_coverage():\n    " + fault, 1)
+    source = _oracle_copy(("def policy_test_coverage():", "def policy_test_coverage():\n    " + fault))
     result = _run_supervised_policy(CORRECT["policy"], source)
     assert result.returncode == code, result.stderr
     assert diagnostic in result.stderr
