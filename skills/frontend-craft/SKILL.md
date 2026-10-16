@@ -30,8 +30,7 @@ established identity.
 Before building a new app or a new area, interview the caller in one round. Skip any question the
 request or repository already answers, and give each remaining question your recommended default
 so a one-word reply settles it. When the request asks for a finished, verified build rather than a
-conversation, or you cannot ask before starting, build on the defaults, list them in the brief as
-assumptions, and return the unanswered questions with the result.
+conversation, or you cannot ask before starting, build on the defaults instead of asking.
 
 | Question | Default |
 |---|---|
@@ -46,9 +45,11 @@ assumptions, and return the unanswered questions with the result.
 | What should people remember it by? | One proposed signature |
 | shadcn/ui + Tailwind + Motion, or HeroUI v3 + Motion; Vue where neighbouring apps use it? | shadcn/ui + Tailwind + Motion |
 
-Write a short [design brief](./references/design.md) from the answers before styling, stating the
-type pairing and motion budget as defaults the owner may veto. Choose an app identity, density and
-motion budget that fit the work, with visible actions and keyboard and screen-reader parity.
+Always write a short [design brief](./references/design.md) before styling: from the answers, or
+from the defaults where none came, marked as assumptions; state the type pairing and motion budget
+as defaults the owner may veto. Return the brief and any unanswered questions with the result.
+Choose an app identity, density and motion budget that fit the work, with visible actions and
+keyboard and screen-reader parity.
 
 Resolve these capabilities before scaffolding:
 

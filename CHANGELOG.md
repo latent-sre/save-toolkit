@@ -29,7 +29,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 - `frontend-craft` interviews the caller in one round before a new app or area: who uses it,
   required workflows, read-only or actions, sign-in and roles, live data, serving, density and
   theme, colours, signature and kit, each with a default. It skips what the request or repository
-  answers and builds on the defaults when asked for a finished build or when nobody can answer.
+  answers and builds on the defaults when asked for a finished build or when nobody can answer,
+  always writing the brief with any defaults marked as assumptions.
   The theme's wiring now says to `@import` it in the Tailwind stylesheet. [verified] Tailwind
   4.3.2 generates the theme's utilities when the theme is in that stylesheet's import graph and
   none when it is imported separately.
