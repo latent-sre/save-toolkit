@@ -4,16 +4,15 @@ Use for retryable or concurrent writes; preserve the project's contract, datasto
 
 ## Identity and replay
 
-- Prefer native idempotence: client-chosen resource IDs or atomic preconditions. Otherwise a new
-  HTTP write needs `Idempotency-Key` for unsafe retries; persist replay state only when needed.
-- Follow the Idempotency-Key draft (expired, not an RFC): missing required key is `400`; reuse with
-  different intent is `422`; a same-key attempt still in progress is `409` with `Retry-After`.
-  Give each case a distinct problem `type`. The stateful `422` is a documented response to
-  schema-valid input, not a schema-validation failure. Never replace or replay a conflicting result.
+- Choose native idempotence, client-chosen resource IDs, atomic preconditions or a replay key
+  according to the operation. Persist replay state only when needed.
+- Document missing-key, conflicting-intent and in-progress responses when using replay keys;
+  choose statuses, retry hints and error shapes with consumers. A state conflict is distinct from
+  schema validation. Never replace or replay a conflicting result.
 - Scope keys by authenticated caller/tenant and operation. Authorize every attempt, including
   replays. Fingerprint normalized, validated payload, target and API version.
-- Replay the committed identity and documented status, body and headers. Preserve the project's
-  replay indicator; otherwise use `Idempotent-Replayed: true`. Pending work waits a bounded time or
+- Replay the committed identity and documented status, body and headers, including any agreed
+  replay indicator. Pending work waits a bounded time or
   returns in-progress, never completion before commit. Store business data, not credentials,
   cookies or per-attempt trace headers.
 - Publish key retention and post-expiry reconciliation. Keep durable business uniqueness beyond

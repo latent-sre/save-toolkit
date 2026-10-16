@@ -104,3 +104,10 @@ app; React only; keyboard-first as the default look; a single default stack.
   in the starting code and references, each fixed before this candidate.
 - What would show this decision wrong: rendered trials whose pages still read as generic, or
   callers who find the fork questions a burden rather than a service.
+
+## Owner amendment — 2026-10-16: service-specific API contracts
+
+The API-binding clause now follows each service's actual contract, under the
+[backend owner amendment](2026-10-11-backend-craft.md#owner-amendment--2026-10-16-established-stack-and-engineering-judgment).
+Shared error, pagination, versioning and replay shapes are no longer universal requirements.
+Existing service contracts remain supported; frontend visual/framework choices are unchanged.

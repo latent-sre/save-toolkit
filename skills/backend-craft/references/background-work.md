@@ -3,15 +3,15 @@
 Use the repository's queue; otherwise load `stack-profile`. ARQ/TaskIQ for async FastAPI and Celery
 for its ecosystem are candidates, not defaults; accepted choices belong in `stack-profile`.
 
-- **Acceptance:** new asynchronous HTTP receivers return `202` with status for long-running work;
-  a provider's acknowledgement contract wins. Acceptance is not completion.
+- **Acceptance:** follow the producer/consumer acknowledgement contract. HTTP `202` with a
+  status resource is one pattern for long-running work. Acceptance is not completion.
 - **Work owed after acknowledgement:** persist pending work with the event in one transaction;
   workers resume it at startup and while running. `BackgroundTasks` and in-memory threads die
   with the process, and an acknowledged sender will not redeliver. Make each resumed step safe
   to repeat. Commit a local effect and completion together, guarded so one writer wins; remote
   effects follow [API-write recovery](./api-writes.md). Where repetition costs, atomically claim
-  the step with a lease expiring soon after its deadline. Keep the acknowledgement `202` (or the
-  provider's code) while work remains, even if the record it will complete already exists.
+  the step with a lease expiring soon after its deadline. Keep acceptance and completion distinct
+  while work remains, even if the record it will complete already exists.
 - **Dispatch:** atomically commit business state and dispatch intent using the existing
   transactional queue or an outbox added for this boundary. Publish outside the transaction;
   mark sent only after durable broker confirmation. Consumers tolerate duplicate publication.

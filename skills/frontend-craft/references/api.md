@@ -1,9 +1,8 @@
 # Consume the API
 
-Bind the new UI to the actual service contract, whether the backend is new or existing.
-The team's FastAPI/Go contract uses OpenAPI, RFC 9457 problems with `request_id`, cursor pages
-for paged collections and `Idempotency-Key` for writes. Reuse an equivalent repository client.
-Select the sections the app needs.
+Bind the UI to the actual service contract and reuse an existing typed client.
+Error shapes, pagination, correlation, authentication and replay behavior come from that service.
+The patterns below apply when their contracts match; select only the sections the app needs.
 
 ## Contents
 
@@ -18,25 +17,24 @@ Select the sections the app needs.
 
 ## Typed client
 
-Use the backend's canonical OpenAPI document. New services commit `openapi.json` at the service
-root; existing services keep their established format and location. A UI may commit a pinned
-consumer copy as `docs/openapi.json` or fetch it in CI from a pinned service revision; that copy
-does not become the service's source of truth. FastAPI and Huma serve `/openapi.json` by
-default; for another Go generator, check its format (oapi-codegen supports 3.1; swag's stable
-line emits Swagger 2.0).
+When OpenAPI is available, use the service's canonical document and pinned revision;
+a consumer copy does not become its source of truth. Otherwise bind typed interfaces and
+runtime validation to the published contract. Keep existing client tooling.
 
-Generate `src/api/schema.d.ts` with `openapi-typescript`, commit it and fail CI if regeneration
-differs. `openapi-fetch` provides typed calls; `openapi-react-query` adds TanStack Query
-hooks/options and request-derived keys. Create one client from the configured base URL with
-`credentials: "same-origin"`; retain `X-Request-ID` from responses.
+For an OpenAPI TypeScript client, `openapi-typescript`, `openapi-fetch` and
+`openapi-react-query` are options. Keep generated types synchronized with the chosen document.
+Configure the actual base URL, session credentials and response correlation headers.
 
-Declare problem bodies for each error status in the service document. openapi-fetch already
+For a service using problem bodies, declare applicable statuses in its document. openapi-fetch already
 consumes the body, so use
 `if (error !== undefined || !response.ok) throw problemFromBody(error, response)`.
 Use `readProblem` only for an unread response or clone. The [problem helper](../assets/problem.ts)
 also handles FastAPI's native errors and gateway HTML.
 
 ## Problems
+
+Map the service's documented statuses and bodies; this table covers common meanings, with
+idempotency-specific rows applying only to that replay contract.
 
 | Status | UI response |
 |---|---|
@@ -50,8 +48,8 @@ also handles FastAPI's native errors and gateway HTML.
 | 429, 503 | Honour `Retry-After` and show the wait |
 | 5xx | Actionable error panel; retry only safe requests |
 
-The error panel shows title, detail/next step, status, time/zone and
-copyable request ID, with log/trace links when configuration provides templates. Keep it inside
+The error panel shows title, detail/next step, status, time/zone and available
+correlation identity, with log/trace links when configuration provides templates. Keep it inside
 the failing region; never substitute raw JSON, stack traces or a problem `type` URI.
 
 ## Cursor pages
@@ -64,8 +62,10 @@ server. Deduplicate appended rows by ID. TanStack Query's page rule is:
 
 ## Writes
 
-Use the [idempotent-write helper](../assets/idempotent-write.ts), which imports the problem
-helper, or an equivalent implementation. Create one `newIntentKey()` per user intent; reuse it
+Follow the service's write contract: native idempotence, preconditions or replay keys.
+For the Idempotency-Key protocol below, use the [idempotent-write helper](../assets/idempotent-write.ts)
+or an equivalent implementation. It expects conflict `422`, in-progress `409` and `Retry-After`.
+Create one `newIntentKey()` per user intent; reuse it
 with `sendIdempotent()` on every send of the unchanged payload. Editing the payload creates a
 new intent/key; reuse with a different payload returns `422`. Disable pending controls and
 turn off automatic mutation retries. Unknown outcomes remain unknown until reconciled.
@@ -87,7 +87,7 @@ can cause repeated console refetches. Choose one update source per need: polling
 The query layer owns read retries, normally three with backoff; honour `Retry-After` on
 `429`/`503`, skip non-retryable statuses and avoid wrapper-level retries. Show
 `dataUpdatedAt` and stale/disconnected state after refresh failure. Log `Deprecation` or
-`Sunset` once per session. The UI never calls `/health/*`.
+`Sunset` once per session. Use application endpoints for user data; platform health probes serve a different purpose.
 
 ## Live data
 
@@ -120,7 +120,7 @@ from the previous session populating the new one.
 ## Contract tests
 
 Use MSW 3 at the network boundary (`setupServer`, `http`, `HttpResponse`) for the contract
-the app consumes. Test errors rendering request IDs, API text remaining text, auth/permission
+the app consumes. Test errors rendering available correlation IDs, API text remaining text, auth/permission
 failures and session isolation. For forms, verify `422` field mapping with input preserved;
 for paged collections, two pages, deduplication and server filter parameters; for writes, same-key
 retry, waiting on `409`/`Retry-After` and a new key after editing. Live views need reconnect,

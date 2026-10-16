@@ -109,3 +109,22 @@ that made the starters optional and the contract tests reusable, and the streaml
 now their current form. The 2026-10-12 amendments above are unaffected: existing services keep
 their canonical specification and checks, and new HTTP services retain the full committed
 document and gate standard. No decision in the Decision section is changed by this amendment.
+
+## Owner amendment — 2026-10-16: established stack and engineering judgment
+
+The owner clarified that FastAPI is the current backend framework and other framework choices
+remain open; PostgreSQL and SQL Server remain the datastore choices [sourced: owner].
+The requested standard for the remaining guidance is experienced senior engineering judgment.
+
+This supersedes the universal framework/API prescriptions in decisions 1–5 and their delivery
+consequences: Huma, fixed URL/error/page/header shapes, a particular OpenAPI artifact layout,
+versioning scheme and test packages are options selected for a service's consumers and risks.
+Existing consumer contracts, identity integrations (including established corporate SSO), security
+controls and applicable checks remain obligations of those services. This does not authorize their
+removal, production changes or a framework migration during unrelated work.
+
+Backend guidance now states the engineering bar and conditional implementation reminders.
+Frontend guidance consumes the actual service contract. Build fixtures state their own specific
+contracts so their existing checks do not manufacture team-wide policy. This amendment also updates
+the API-binding clauses of the two frontend decisions from 2026-10-11; their visual and frontend
+framework decisions are unchanged. The implementing candidate still requires exact-revision acceptance.

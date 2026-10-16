@@ -4,11 +4,10 @@ agent: software-engineer
 tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
 references:
   - skills/backend-craft/references/api-contract.md
-# backend-craft's background-work rules with real tools. The prompt asks only for a webhook that
-# turns pager events into incidents; the README states the vendor's contract (an HMAC signature,
-# a 3 s wait for a 2xx, then redelivery of the same event) and the runbook lookup is slow, without
-# saying how the receiver should work. The probe-owned oracle (probe_checks.py, never seen by the
-# agent) runs the app as a uvicorn subprocess against its own SQLite file and a runbook stub that
+# backend-craft's background-work judgment with real tools. The fixture README specifies the
+# vendor contract and this receiver's acceptance, durability, deduplication, and document contract.
+# The probe-owned oracle (probe_checks.py, never seen by the agent) runs the app as a uvicorn
+# subprocess against its own SQLite file and a runbook stub that
 # answers in 8 s, and grades: a forged or missing signature is refused, and nothing is stored or
 # processed even after the runbook delay; a valid event is acknowledged within 3 s, with 202; an
 # open incident appears with its runbook link; three deliveries of one event make one incident
@@ -45,6 +44,17 @@ fixture:
 
       The runbook service (`RUNBOOK_BASE_URL`, client in `app/runbooks.py`) is slow: a lookup can
       take up to 10 seconds.
+
+      ## Receiver contract
+
+      - Reject missing or forged signatures with 401 or 403 problem+json before storing or processing work.
+      - A valid event receives 202 Accepted within 3 seconds, after durable storage. Complete the
+        open incident with its runbook link, including after a process restart immediately after
+        acknowledgement.
+      - Deduplicate by `event_id` and acknowledge redeliveries. One event produces one incident;
+        a different event id with the same summary produces a separate incident.
+      - Keep `openapi.json` at the repo root equal to `create_app().openapi()`. Include a pytest
+        drift check that fails with a stale document and passes with the generated document.
 
       Dependencies (fastapi, httpx, pytest) are already installed on this machine. Run the tests
       from the repo root:

@@ -4,15 +4,11 @@ agent: software-engineer
 tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
 references:
   - skills/backend-craft/references/api-contract.md
-# The backend bar with real tools. The prompt asks only for two endpoints and tests; it never says
-# "paginate", "problem+json", "timeout", or "response model". Those are what backend-craft is for,
-# so the probe-owned oracle (probe_checks.py, written by the first check, never seen by the agent)
-# grades them on the running app: a cursor walk over 501 seeded incidents with an oversized limit
-# lowered to the cap, the service's existing RFC 9457 shape (app/errors.py) kept for a 404 and a
-# 422 bad filter, an internal field that must not cross the boundary, the vendor owner actually
-# fetched, a vendor that sleeps 20 s answered fast (a 502/504 problem or the owner explicitly
-# unavailable), and the service's existing /healthz independent of that vendor. The fixture's
-# problem+json handlers are an existing contract, so preserving it and the house rules agree.
+# The backend bar with real tools. The fixture README specifies this service's API and document
+# contract; backend-craft should preserve it while supplying implementation judgment. The
+# probe-owned oracle (probe_checks.py, written by the first check, never seen by the agent) grades
+# pagination, existing problem responses, field isolation, vendor enrichment and failure handling,
+# independent health, and OpenAPI drift detection on the running app.
 # The fixture is stdlib plus fastapi/httpx, which requirements-dev.txt
 # pins and the host has installed; the agent adds no dependency.
 prompt: |
@@ -38,6 +34,19 @@ fixture:
       Small FastAPI service behind the on-call tooling. `app/main.py` builds the app in
       `create_app()`; settings come from the environment via `app/config.py`. Every error is an
       RFC 9457 `application/problem+json` body, installed by `app/errors.py`.
+
+      ## Service contract
+
+      - Lists return `{data: [...], next_cursor: string | null}`. Support `limit` and `cursor`,
+        keep a stable order without gaps or duplicates, and return `null` on the last page. Use
+        bounded default and maximum page sizes (at most 500); clamp an oversized limit to the cap.
+      - Preserve the installed problem handlers: a missing incident returns 404; an invalid
+        `status` filter returns 422. Never expose `internal_note` in any response.
+      - Fetch the current owner from the vendor. If the vendor stalls, answer within 12 seconds
+        with a 502/504 problem or a public incident whose owner is explicitly unavailable.
+        `/healthz` stays independent of the vendor and answers within 2 seconds.
+      - Keep `openapi.json` at the repo root equal to `create_app().openapi()`. Include a pytest
+        drift check that fails with a stale document and passes with the generated document.
 
       Dependencies (fastapi, httpx, pytest) are already installed on this machine. Run the tests
       from the repo root:

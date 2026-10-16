@@ -4,9 +4,8 @@ agent: software-engineer
 tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
 references:
   - skills/backend-craft/references/api-contract.md
-# backend-craft's API-writes rules with real tools. The prompt asks only for a create endpoint; the
-# README describes the calling bot (a fresh Idempotency-Key per alert, a resend on a 5 s timeout,
-# sometimes while the first request is still running) without saying what the server should do.
+# backend-craft's API-writes judgment with real tools. The fixture README specifies this service's
+# caller, idempotency responses, and document contract.
 # The probe-owned oracle (probe_checks.py, never seen by the agent) runs the app under uvicorn on a
 # real port against its own SQLite file and grades the outcome: a replay returns the first result
 # without a second row, a reused key with a different payload is refused, a write without a key is
@@ -42,6 +41,18 @@ fixture:
       header (a UUID). When it gets no answer within 5 seconds it sends the same request with the
       same key again, sometimes while the first is still being processed. A different alert gets a
       different key, even when its title and service repeat.
+
+      ## Service contract
+
+      - Create returns 201 with the new open incident, readable by its id. Replaying the same key
+        and payload returns the original 201 and body without another row, with
+        `Idempotent-Replayed: true`; the first response must not claim to be a replay.
+      - A missing key returns 400 problem+json; reusing a key with a different payload returns
+        422 problem+json without changing the incident or preventing the original replay.
+      - Overlapping requests with one key create one incident: return the original 201 after a
+        bounded wait or a 409 problem while processing. Different keys represent separate alerts.
+      - Keep `openapi.json` at the repo root equal to `create_app().openapi()`. Include a pytest
+        drift check that fails with a stale document and passes with the generated document.
 
       Dependencies (fastapi, httpx, pytest) are already installed on this machine. Run the tests
       from the repo root:

@@ -1,5 +1,5 @@
 // idempotent-write.ts — one user intent, one Idempotency-Key.
-// The team's services accept an Idempotency-Key on writes (backend-craft's house contract): a key
+// For services implementing this Idempotency-Key replay contract: a key
 // replayed with the same payload returns the first result; a key reused with a different payload is
 // answered 422; while the first request with a key is still running, a replay is answered 409 with
 // Retry-After. So: mint a key when the user starts an action (opens the form, clicks "Cancel order"),
