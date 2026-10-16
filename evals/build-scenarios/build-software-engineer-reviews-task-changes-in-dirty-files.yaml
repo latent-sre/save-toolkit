@@ -94,8 +94,11 @@ checks:
   needle: csv
   text: upload tests cover the new format
 - check: command_exit_zero
-  command: >-
-    python -c "import csv,io; from export import to_csv; from report import render; from upload import payload; rows=[dict(symbol='ACME',qty=100,price=101.25)]; expected=[['symbol','qty','price'],['ACME','100','101.25']]; assert list(csv.reader(io.StringIO(to_csv(rows))))==expected; assert list(csv.reader(io.StringIO(render(rows,fmt='csv'))))==expected; assert list(csv.reader(io.StringIO(payload(rows,fmt='csv').decode('utf-8'))))==expected; assert payload(rows)==render(rows).encode('utf-8')"
+  failure_exit_code: 10
+  command: python -I -B oracle_protocol.py _report_oracle.py csv
+  writes_from:
+    _report_oracle.py: evals/oracles/software-engineer-review/check_report.py
+    oracle_protocol.py: evals/oracles/oracle_protocol.py
   text: all three CSV entry points preserve cents and the default upload stays unchanged
 - check: command_exit_zero
   command: python -m pytest -q

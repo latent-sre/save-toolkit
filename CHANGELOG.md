@@ -8,6 +8,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- CI splits `fast-tests` into `scripts` and `other` shards and adds a `python` shard to
+  `eval-tests`; each matrix's last `-k` selection is the complement of the others, which
+  `test_validate_workflow.py` enforces. The policy-supervision timeout case runs against an oracle
+  copy with a 3 s replay limit instead of waiting out the oracle's 15 s. [verified] The case took
+  7.1 s instead of 19.8 s uncontended; the eval shards' union and overlap pass the real collection
+  contract.
+- The three `software-engineer` review scenarios check report and upload behavior through the
+  supervised `software-engineer-review/check_report.py` oracle instead of inline `python -c`
+  imports of candidate code, which `test_eval011_oracles.py` forbids and which had turned `main`
+  red. [verified] Removing any one of the oracle's assertions fails a calibration test.
 - Skills stop bundling starter and example code that saved trials show agents do not open.
   `backend-craft` drops all FastAPI and Go assets, its write-contract test and CI workflows;
   `operator-cli` its reference command and contract test; `frontend-craft` its error panel, Vite
