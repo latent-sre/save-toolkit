@@ -29,7 +29,7 @@ prompt: |
   Both SLO series count requests (DELTA, INT64, unit 1); the SLI is good requests divided by total requests summed over the period, not an average of per-minute ratios.
   Metric timing: request_count is sampled every 60 seconds and may stay invisible for up to 120 seconds after sampling, so the panel's coverage ends at 10:06:00Z.
   10:07:10Z message from Sasha on the existing TLC: the panel '5.6.0 canary availability' on the fx-rate-api SLO dashboard shows 97.0% non-5xx for 09:30-10:06 against the 99.5% goal; Sasha proposes moving 100% of traffic back to fx-rate-api-00030-wup.
-  The message gives the panel's title, time range and Sasha's 97.0% window summary only; the panel's query text, legend, per-minute shape and sample counts were not included.
+  The message gives the panel's title, time range and Sasha's 97.0% window summary only (Sasha describes it as the panel's ratio of counts summed over the range, not an average of per-minute ratios); the panel's query text, legend, per-minute shape and sample counts were not included.
   The SLO's own compliance and burn-rate widgets were not captured, and no SLO alert state is supplied.
   No customer report, request-log extract or dependency observation is supplied.
   Rory owns the investigation; Teagan owns the dashboard, SLO definition and metric exports; Sasha owns traffic and rollout decisions; the application owner owns fx-rate-api code; ITO coordinates the existing TLC.
@@ -46,7 +46,7 @@ prompt: |
   fx-rate-api-00031-kez: 3,600 requests; 2 in class 5xx; 99.94% non-5xx.
   Both revisions together: 36,000 requests; 1,077 in class 5xx; 97.01% non-5xx, matching the panel.
   fx-rate-api-00030-wup before the split, same grouping: 09:00-09:22, 22,000 requests, 9 in class 5xx; 09:22-09:30, 8,000 requests, 265 in class 5xx. Its 5xx rise starts in the minute beginning 09:22, before fx-rate-api-00031-kez was deployed.
-  Sample presence: both revisions have a request_count point in every one-minute bucket from 09:30 through 10:06 (fx-rate-api-00030-wup from 09:00); no gaps.
+  Sample presence: both revisions have a request_count point in all 36 one-minute buckets from 09:30 to 10:06 (fx-rate-api-00030-wup from 09:00); no gaps.
   Not supplied: individual response codes within class 5xx, request logs, dependency observations, or any data after 10:06:00Z.
 fixture:
   files:

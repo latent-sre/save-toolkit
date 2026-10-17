@@ -27,7 +27,7 @@ prompt: |
   Latency chart: Cloud Monitoring request_latencies for order-router, 1-minute p95, captured 14:30:00. Samples may appear up to 120 s late, so coverage ends at 14:28:00.
   Baseline 13:30-13:55: p95 0.27-0.31 s. Event interval 14:05-14:28: p95 3.8-4.3 s. Request count steady at 55-62 per minute; 5xx count 0 in every minute.
   Trading-desk report relayed by Lee at 14:12: order submissions take about four seconds; no rejected orders reported.
-  The three slowest request log entries 14:05-14:25 (resource cloud_run_revision, revision_name=order-router-00031-ktm), each POST /v1/orders, status 200:
+  The three slowest request log entries 14:05-14:25 whose traces open (resource cloud_run_revision, revision_name=order-router-00031-ktm), each POST /v1/orders, status 200:
   14:09:12.402 latency=4.214s trace=projects/synthetic-routing-prod/traces/7a3e9c1f5b2d48e6a0c4f81d9e2b6c35
   14:14:47.118 latency=4.051s trace=projects/synthetic-routing-prod/traces/c18d4e7a92f64b03b5e1a7c96d20f84e
   14:21:05.730 latency=3.986s trace=projects/synthetic-routing-prod/traces/5f0b2a8e6c1d47f9b3a6e0d48c7f12a9

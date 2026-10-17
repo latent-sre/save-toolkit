@@ -27,7 +27,7 @@ prompt: |
   Latency chart: Cloud Monitoring request_latencies for order-router, 1-minute p95, captured 14:30:00. Samples may appear up to 120 s late, so coverage ends at 14:28:00.
   Baseline 13:30-13:55: p95 0.27-0.31 s. Event interval 14:05-14:28: p95 3.8-4.3 s. Request count steady at 55-62 per minute; 5xx count 0 in every minute.
   Trading-desk report relayed by Lee at 14:12: order submissions take about four seconds; no rejected orders reported.
-  The three slowest request log entries 14:05-14:25 (resource cloud_run_revision, revision_name=order-router-00031-ktm), each POST /v1/orders, status 200:
+  The three slowest request log entries 14:05-14:25 whose traces open (resource cloud_run_revision, revision_name=order-router-00031-ktm), each POST /v1/orders, status 200:
   14:09:12.402 latency=4.214s trace=projects/synthetic-routing-prod/traces/7a3e9c1f5b2d48e6a0c4f81d9e2b6c35
   14:14:47.118 latency=4.051s trace=projects/synthetic-routing-prod/traces/c18d4e7a92f64b03b5e1a7c96d20f84e
   14:21:05.730 latency=3.986s trace=projects/synthetic-routing-prod/traces/5f0b2a8e6c1d47f9b3a6e0d48c7f12a9
@@ -46,7 +46,7 @@ prompt: |
   Baseline trace 2d9c71e4a85f4b60c3e7d1a09b6f58e2 (root start 13:42:30.212): span count=5, same structure; root 0.258 s; no span covers +0.066 s to +0.223 s (0.157 s).
   None of the four traces contains an HTTP client span or any pricing-engine span.
   Priya's note: release 4.12.0 initializes OpenTelemetry with the W3C trace-context propagator and enables HTTP server, database client and Pub/Sub publisher instrumentation. Outbound pricing calls use pricing-sdk 2.3.1's bundled HTTP client, which has no instrumentation entry; she has not confirmed which headers that client sends.
-  Hana's extract, pricing-engine in the same project: spans Cloud Run recorded for incoming POST /v2/quote requests whose request log entries show userAgent order-router/4.12.0 pricing-sdk/2.3.1:
+  Hana's extract, pricing-engine in the same project: Hana matched pricing-engine request log entries, which exist for every request, with userAgent order-router/4.12.0 pricing-sdk/2.3.1 to the four order-router requests by start time, then opened the traces those entries link; all four opened. Spans Cloud Run recorded for those incoming POST /v2/quote requests:
   trace 9e4b07c2d1f8463aa5c0e9b7f31d6248: root start 14:09:12.467; 4.089 s; no parent span.
   trace 0c7f5d2e9a1b4c86b7e3f02a5d9c41e7: root start 14:14:47.187; 3.931 s; no parent span.
   trace e2a6c90b4f7d41e5a8b3d16c07f9e52d: root start 14:21:05.791; 3.866 s; no parent span.

@@ -284,7 +284,7 @@ The panel's query matches every fx-rate-api revision and groups only by service_
 
 **Useful next checks:**
 
-- Rory and the application owner read fx-rate-api-00030-wup request logs and response codes for the class-5xx requests since 09:22 UTC; no deploy or configuration change is recorded at that time.
+- Rory and the application owner read fx-rate-api-00030-wup request logs and response codes for the class-5xx requests since 09:22 UTC; the packet does not record what changed for 00030-wup around 09:22.
 - Teagan supplies per-revision good and total request counts after 10:06, allowing for the up-to-120-second visibility delay, and can restore revision_name to the panel's grouping through the normal dashboard process; that is a reporting correction, not a fix for the errors.
 - Sasha keeps the traffic decision; moving all traffic to 00030-wup is not supported by this evidence, and any traffic shift toward 00031-kez is Sasha's decision under approval, not a diagnosed fix. Rory reports the bounded finding on the existing TLC.
 
@@ -431,7 +431,7 @@ The revision's secret volume pins custodian-gateway-credential version 7, which 
 
 ### Variant B
 
-Version 7 is ENABLED and every runtime read of it succeeds, so Secret Manager access is not the failing step. custodian-gateway retired cg-cred-2026-07, the version-7 credential, at 14:00:00 UTC under CHG-6121 and now accepts only cg-cred-2026-10 (version 8); it rejected all 54 custody-sync attempts presenting the retired identifier. Revision custody-sync-00027-wab's volume still pins version 7, so the application is using a stale secret reference after the rotation. Why the reference was not moved is not established.
+Version 7 is ENABLED and every runtime read of it succeeds, so Secret Manager access is not the failing step. custodian-gateway retired cg-cred-2026-07, the version-7 credential, at 14:00:00 UTC under CHG-6121 and now accepts only cg-cred-2026-10 (version 8); it rejected all 57 custody-sync attempts presenting the retired identifier. Revision custody-sync-00027-wab's volume still pins version 7, so the application is using a stale secret reference after the rotation. Why the reference was not moved is not established.
 
 **Useful next checks:**
 
@@ -501,7 +501,7 @@ From 08:12 UTC the project's Cloud Translation 'v3 requests per project per minu
 
 ### Variant B
 
-Translation calls stayed batched at about 1,100 per minute, far below the 6,000 quota, with no quota_exceeded samples or calls. From 07:52 UTC release 4.2.0 writes a 46 KiB request_diagnostics entry on every request: log volume rose about thirtyfold, diagnostics serialization takes p95 2.8 s of request handling, CPU reached p50 81% on 22-27 instances, and 11,880 requests outlasted the caller's 10-second timeout. The supported mechanism is release-driven application saturation with Cloud Logging and Cloud Run as the rising cost drivers through the 09:00 billing cutoff; no quota refusal is shown. The budget alert is consistent with that spend but is not a cap and does not limit it.
+Translation calls stayed batched at about 1,100 per minute, far below the 6,000 quota, with no quota_exceeded samples or calls. From 07:52 UTC release 4.2.0 writes a 44 KiB request_diagnostics entry on every request: log volume rose about thirtyfold, diagnostics serialization takes p90 2.8 s and p99 12.8 s of request handling, CPU reached p50 81% on 22-27 instances, and 11,880 requests outlasted the caller's 10-second timeout. The supported mechanism is release-driven application saturation with Cloud Logging and Cloud Run as the rising cost drivers through the 09:00 billing cutoff; no quota refusal is shown. The budget alert is consistent with that spend but is not a cap and does not limit it.
 
 **Useful next checks:**
 
