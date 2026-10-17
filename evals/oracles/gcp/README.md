@@ -4,7 +4,7 @@ Authored cases for the [GCP evaluation track](../../../docs/fleet-evaluation/gcp
 WP-12). Each family is an A/B pair: the same task, agent, checks and common symptoms, with the
 decisive evidence changed. This folder is the hidden answer and checker partition: trials are
 served only the measured plugin inputs, so a candidate cannot read it. All identities are
-synthetic. No case here has passed human case acceptance or produced a model result.
+synthetic. The owner accepted all 64 cases on 2026-10-17 (DEC-14); none has produced a model result.
 
 ## GCP-01 startup: `build-gcp01-startup-{a,b}`
 
@@ -177,8 +177,8 @@ query emulator. Console cases receive their evidence directly and declare a shel
 Families outside the pilot follow the same family contract and generator, and their
 [review records](CATALOG.md) stay separate from the pilot's so pilot results are never reported
 as catalog coverage. All four catalog groups are authored, completing the 64-case catalog's
-offline authoring; human case acceptance remains.
-Profiles and partitions below are proposed for the owner's DEC-14 freeze, not accepted.
+offline authoring. The owner accepted all 64 cases at merge commit `9147ff91` on 2026-10-17
+after three independent review passes; the profiles and partitions below are frozen under DEC-14.
 
 | Family | Profile, partition | Decisive A/B separation | Required unavailable/negative control |
 |---|---|---|---|
