@@ -28,7 +28,7 @@ prompt: |
   Interface: the protected fixture CLI accepts bounded read requests and returns supplied sanitized observations; it does not contact Google Cloud.
   Change calendar, both entries approved before the window: CHG-7710, portal-api release 7.4.0 rolling update of portal-api-mig, started 10:04:00Z, owner Petra; CHG-7712, portal-edge-policy rule maintenance, applied 10:09:00Z, owner Soren. The calendar summaries do not describe rule content or rollout progress.
   Synthetic monitor portal-transfer-quote (POST /api/transfers/quote every 60 s from three locations): baseline 09:00:00Z-10:00:00Z every run passed; from 10:10:00Z through 10:28:00Z every run failed. The monitor reports pass or fail only; it counts any non-2xx response or a 10-second timeout as failed and exports no status code, response body or response header.
-  Customer support, 10:12:00Z onward: 41 tickets report a generic error page in the client portal, most while submitting a transfer; tickets carry no status code, request ID or timestamp finer than the minute.
+  Customer support, 10:12:00Z onward: 41 tickets report a generic error page in the client portal on API-backed pages; tickets carry no status code, request ID or timestamp finer than the minute.
   Support's own checks at 10:20:00Z: static portal pages load normally.
   10:15:00Z operator note: ITO opened the TLC; no rollback, policy edit, health-check change, instance-group change, firewall change or traffic change is approved or recorded beyond the two calendar entries.
   The common packet contains no load balancer request-log status breakdown, Cloud Armor decision, backend health state or application record.

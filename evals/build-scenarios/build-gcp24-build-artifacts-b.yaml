@@ -58,7 +58,7 @@ fixture:
       Request records: all 12,960 POST /v1/margin requests from 09:30:00Z to 11:18:00Z were served by margin-calc-00018-paz, all status=200.
       Container records: a margin-calc-00018-paz scale-out instance started at 10:41:07Z and logged build_commit=3c7d0e8; no instance logs build_commit=9f4e2b1.
       Wren'"'"'s build history: no margin-calc build after 4412 through 11:15:00Z.
-      Wren'"'"'s trading-images tag history for margin-calc: 09:52:41Z tag 5.3.1 added to sha256:b531b531b531b531b531b531b531b531b531b531b531b531b531b531b531b531 by build 4412; no tag change after that; at 11:15:00Z tag 5.3.1 still points to that digest.
+      Wren'"'"'s trading-images tag history for margin-calc: 09:52:38Z tag 5.3.1 added to sha256:b531b531b531b531b531b531b531b531b531b531b531b531b531b531b531b531 by build 4412; no tag change after that; at 11:15:00Z tag 5.3.1 still points to that digest.
       Odette'"'"'s IAM excerpt for repository trading-images: roles/artifactregistry.reader granted to margin-cd@synthetic-initial-margin-prod.iam.gserviceaccount.com since 2026-10-12T15:00:00Z under CHG-7731; no binding for service-418220937165@serverless-robot-prod.iam.gserviceaccount.com, the Cloud Run service agent of synthetic-initial-margin-prod, on the repository or in project synthetic-build-artifacts; no IAM change on the repository or project in the window.
       The records do not say why CHG-7731 granted the deployer identity but not the Cloud Run service agent, or whether other projects consuming trading-images lack the same binding.'
       }

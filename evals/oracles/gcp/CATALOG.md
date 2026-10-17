@@ -550,7 +550,7 @@ VPC Service Controls perimeter perimeter-custody-data, enforced by CHG-5512 at 0
 **Useful next checks:**
 
 - Hollis compares perimeter-custody-data's ingress rules and access levels before and after CHG-5512 with recon-loader's documented access path and decides, through ITO's change approval, whether a scoped ingress rule for that identity and Cloud Storage reads is intended.
-- Oakley shares the reader-side 403 records and the four policy-denied entries, referencing their unique IDs, through the existing TLC and tracks the 08:00 UTC reconciliation need-by time with the operations desk.
+- Oakley shares the reader-side 403 records and the four policy-denied entries through the existing TLC, asking Hollis to attach the entries' unique IDs, and tracks the 08:00 UTC reconciliation need-by time with the operations desk.
 - After any approved perimeter change, Sutton confirms that the next eod-recon-loader execution reads the manifest and its named generation before anyone declares recovery.
 
 **Unsupported conclusions/actions:**
@@ -673,7 +673,7 @@ the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCON
 
 ### Variant A
 
-Inside the guest, collateral-recon exited after spool writes to the full /srv/collateral data disk failed, and systemd stopped restarting it at 09:13:33Z; that matches clearing-gateway's timeouts and the last app.log line. The Ops Agent kept reporting throughout, so the guest stayed observable, and the network owner reports no change or denied connections. The 08:47 live migration completed with the VM running and is not linked to the failure. What filled the data disk, and whether spooled batches are complete, is unproven.
+Inside the guest, collateral-recon exited after spool writes to the full /srv/collateral data disk failed, and systemd stopped restarting it at 09:13:33Z; that matches clearing-gateway's failed connections and the last app.log line. The Ops Agent kept reporting throughout, so the guest stayed observable, and the network owner reports no change or denied connections. The 08:47 live migration completed with the VM running and is not linked to the failure. What filled the data disk, and whether spooled batches are complete, is unproven.
 
 **Useful next checks:**
 
@@ -696,7 +696,7 @@ Inside the guest, collateral-recon exited after spool writes to the full /srv/co
 
 ### Variant B
 
-The guest's telemetry and the service's ingress path stopped together at about 09:12, when rules in firewall policy change NET-4471 began denying the VM's egress to Google API endpoints and clearing-gateway's ingress on TCP 8443. The VM reports RUNNING and the last guest observations matched the previous day, but there is no guest observation after 09:12:48Z, so collateral-recon's own state is unknown rather than failed. The 08:47 live migration completed earlier with the VM running and is not linked.
+The guest's telemetry and the service's ingress path stopped together at about 09:12, when rules in firewall policy change NET-4471 began denying the VM's egress to Google API endpoints and clearing-gateway's ingress on TCP 8443. The VM reports RUNNING and the last guest observations matched the previous day, but there is no guest observation after 09:12:39Z, so collateral-recon's own state is unknown rather than failed. The 08:47 live migration completed earlier with the VM running and is not linked.
 
 **Useful next checks:**
 
@@ -867,11 +867,11 @@ the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCON
 
 ### Variant A
 
-The 10:05 deploy succeeded: revision margin-calc-00019-hov is Ready and serves 100%. Cloud Run resolved the tag reference margin-calc:5.3.1 when it created the revision, and at that moment the tag pointed to sha256:c530c530..., pushed at 10:01:58 UTC by build 4415 from commit 3c7d0e8, the pre-fix 5.3.0 lineage, not to build 4412's output sha256:b531b531... from fix commit 9f4e2b1. Production runs a pre-fix image under the 5.3.1 tag, consistent with the unchanged MARGIN-311 break rate and the build_commit=3c7d0e8 startup lines. Registry access is not the failure: the deploy completed and both the deployer and the Cloud Run service agent hold Artifact Registry Reader. Why build 4415 re-ran against the pre-fix commit is not established.
+The 10:05 deploy succeeded: revision margin-calc-00019-hov is Ready and serves 100%. Cloud Run resolved the tag reference margin-calc:5.3.1 when it created the revision, and at that moment the tag pointed to sha256:c530c530..., pushed at 10:01:55 UTC by build 4415 from commit 3c7d0e8, the pre-fix 5.3.0 lineage, not to build 4412's output sha256:b531b531... from fix commit 9f4e2b1. Production runs a pre-fix image under the 5.3.1 tag, consistent with the unchanged MARGIN-311 break rate and the build_commit=3c7d0e8 startup lines. Registry access is not the failure: the deploy completed and both the deployer and the Cloud Run service agent hold Artifact Registry Reader. Why build 4415 re-ran against the pre-fix commit is not established.
 
 **Useful next checks:**
 
-- Wren identifies who or what re-ran build 4415 against commit 3c7d0e8 at 10:00 and lists any other consumer that deployed or pulled margin-calc:5.3.1 after 10:01:58.
+- Wren identifies who or what re-ran build 4415 against commit 3c7d0e8 at 10:00 and lists any other consumer that deployed or pulled margin-calc:5.3.1 after 10:01:55.
 - Theo decides, through change approval, on a reviewed deploy that references build 4412's output by digest (@sha256:b531b531...) after Wren confirms that digest is the 9f4e2b1 build; a redeploy by tag 5.3.1 would resolve to the pre-fix digest again. This investigation applies nothing.
 - Wren decides any tag correction or immutable-tag setting for trading-images; moving the tag back changes no serving revision.
 - Imogen reports recovery on the existing TLC only when a revision whose resolved digest is sha256:b531b531... serves traffic and MARGIN-311 breaks fall over complete hours.
@@ -888,7 +888,7 @@ The 10:05 deploy succeeded: revision margin-calc-00019-hov is Ready and serves 1
 **Unknowns to preserve:**
 
 - Who or what re-ran build 4415 against commit 3c7d0e8.
-- Whether anything else deployed margin-calc:5.3.1 after 10:01:58.
+- Whether anything else deployed margin-calc:5.3.1 after 10:01:55.
 - Service state after the 11:18 log and 11:20 service-export coverage cutoffs.
 
 ### Variant B

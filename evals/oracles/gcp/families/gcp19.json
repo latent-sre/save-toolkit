@@ -65,7 +65,7 @@
       "conclusion": "VPC Service Controls perimeter perimeter-custody-data, enforced by CHG-5512 at 05:40 UTC, denies recon-loader's reads from synthetic-recon-prod: the reader's first read, the manifest, returned 403 with reason vpcServiceControls, and each attempt matches an enforced (dryRun=false) policy-denied entry with NO_MATCHING_ACCESS_LEVEL for that perimeter. Bucket IAM still grants the reader object read and the manifest names the live generation, so a missing IAM grant, a stale generation or lost data is not supported. Whether the perimeter was meant to admit this reader is unknown.",
       "next_checks": [
         "Hollis compares perimeter-custody-data's ingress rules and access levels before and after CHG-5512 with recon-loader's documented access path and decides, through ITO's change approval, whether a scoped ingress rule for that identity and Cloud Storage reads is intended.",
-        "Oakley shares the reader-side 403 records and the four policy-denied entries, referencing their unique IDs, through the existing TLC and tracks the 08:00 UTC reconciliation need-by time with the operations desk.",
+        "Oakley shares the reader-side 403 records and the four policy-denied entries through the existing TLC, asking Hollis to attach the entries' unique IDs, and tracks the 08:00 UTC reconciliation need-by time with the operations desk.",
         "After any approved perimeter change, Sutton confirms that the next eod-recon-loader execution reads the manifest and its named generation before anyone declares recovery."
       ],
       "unsupported": [

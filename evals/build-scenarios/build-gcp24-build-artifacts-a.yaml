@@ -59,9 +59,9 @@ fixture:
       Request records: the 4,340 POST /v1/margin requests before 10:06:10Z were served by margin-calc-00018-paz; the 8,620 from 10:06:10Z to 11:18:00Z were served by margin-calc-00019-hov, all status=200.
       Container records: every margin-calc-00019-hov instance start from 10:05:48Z logs build_commit=3c7d0e8; no instance logs build_commit=9f4e2b1.
       Wren'"'"'s build history: build 4415, a re-run of trigger margin-calc-release against source commit 3c7d0e8, started 10:00:12Z, status SUCCESS at 10:01:57Z; results.images: margin-calc:5.3.1 with digest sha256:c530c530c530c530c530c530c530c530c530c530c530c530c530c530c530c530. No margin-calc build after 4415 through 11:15:00Z.
-      Wren'"'"'s trading-images tag history for margin-calc: 09:52:41Z tag 5.3.1 added to sha256:b531b531b531b531b531b531b531b531b531b531b531b531b531b531b531b531 by build 4412; 10:01:58Z tag 5.3.1 moved to sha256:c530c530c530c530c530c530c530c530c530c530c530c530c530c530c530c530 by build 4415; no tag change after 10:01:58Z. The b531b531... version is still stored, untagged since 10:01:58Z.
+      Wren'"'"'s trading-images tag history for margin-calc: 09:52:38Z tag 5.3.1 added to sha256:b531b531b531b531b531b531b531b531b531b531b531b531b531b531b531b531 by build 4412; 10:01:55Z tag 5.3.1 moved to sha256:c530c530c530c530c530c530c530c530c530c530c530c530c530c530c530c530 by build 4415; no tag change after 10:01:55Z. The b531b531... version is still stored, untagged since 10:01:55Z.
       Odette'"'"'s IAM excerpt for repository trading-images: roles/artifactregistry.reader granted to margin-cd@synthetic-initial-margin-prod.iam.gserviceaccount.com and to service-418220937165@serverless-robot-prod.iam.gserviceaccount.com, the Cloud Run service agent of synthetic-initial-margin-prod, both since 2026-10-12T15:00:00Z under CHG-7731; no IAM change on the repository or project in the window.
-      The records do not say who or what re-ran build 4415 against commit 3c7d0e8, or whether anything else deployed margin-calc:5.3.1 after 10:01:58Z.'
+      The records do not say who or what re-ran build 4415 against commit 3c7d0e8, or whether anything else deployed margin-calc:5.3.1 after 10:01:55Z.'
       }
       if [ "$1 $2" != "logging read" ]; then
         case " $* " in
