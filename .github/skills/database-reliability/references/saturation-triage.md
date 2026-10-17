@@ -26,5 +26,7 @@ Use the first evidence to choose the next discriminator:
   responder with `incident-investigation` without upgrading correlation into root cause.
 
 Return current impact, verified signals, competing hypotheses, the next read-only discriminator, and
-the named owner. If mitigation is requested, reference the applicable gate record and
+the named owner. Requests that timed out may still have committed their effects, so report their
+effect state as unknown and have the effect's owner reconcile it before any retry or replay. If
+mitigation is requested, reference the applicable gate record and
 report its approval state and gaps; never execute mitigation.

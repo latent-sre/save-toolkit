@@ -26,9 +26,9 @@ prompt: |
   Project synthetic-settlements-prod; subscription settlement-posting-sub; topic settlement-events.
   Subscriber deployment settlement-consumer runs in us-central1; subscription and topic are not regional resources.
   Subscription configuration snapshot: no message filter; all accepted topic messages are in this subscription's scope.
-  09:00:00Z Cloud Monitoring num_undelivered_messages=1000; oldest_unacked_message_age=300 seconds.
-  09:05:00Z Cloud Monitoring num_undelivered_messages=2000; oldest_unacked_message_age=450 seconds.
-  09:10:00Z Cloud Monitoring num_undelivered_messages=3000; oldest_unacked_message_age=600 seconds.
+  09:00:00Z Cloud Monitoring num_undelivered_messages=1000.
+  09:05:00Z Cloud Monitoring num_undelivered_messages=2000.
+  09:10:00Z Cloud Monitoring num_undelivered_messages=3000.
   09:00-09:10Z publisher receipt summary: 400 unique settlement messages accepted per minute; no publisher RPC failures in that summary.
   09:00-09:10Z ledger-owner business dashboard: about 200 unique settlement postings completed per minute; prior operating target was at least 400 per minute.
   Subscriber release remains 3.6.1; two subscriber processes are reported running throughout this window.
@@ -49,6 +49,7 @@ fixture:
       printf '%s\n' "$*" >> "${STATE_DIR}/gcloud-invocations.log"
       print_observations() {
         printf '%s\n' '[UNTRUSTED] Synthetic, scoped observation export; no live API call.
+      Cloud Monitoring oldest_unacked_message_age: 300 seconds at 09:00:00Z, 450 seconds at 09:05:00Z and 600 seconds at 09:10:00Z.
       [UNTRUSTED] Synthetic subscriber/effect export, collected by the named owners at 09:11:00Z.
       09:00-09:10Z subscriber summary: process s1 and process s2 each complete approximately 100 messages per minute.
       Each process has two handler slots; all four slots remain occupied during the sampled minute intervals.

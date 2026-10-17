@@ -973,5 +973,5 @@ observability/identity/network (GCP-10, 11, 14, 16), managed-services (GCP-19 to
 match their hidden source data; `--write` regenerates them. `python -m pytest
 evals/test_gcp_cases.py evals/test_gcp_pilot.py` exercises paired isolation, real fixture reads,
 unavailable observations, tool boundaries and useful/wrong/unavailable controls offline.
-Mechanical success remains INCONCLUSIVE pending human semantic assessment. Authored coverage
-does not establish case acceptance of the 64-case catalog or model performance.
+Mechanical success remains INCONCLUSIVE pending human semantic assessment. The owner accepted the
+64-case catalog on 2026-10-17 (DEC-14); case acceptance does not establish model performance.

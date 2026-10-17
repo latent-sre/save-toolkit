@@ -11,8 +11,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 - WP-12's GCP catalog is authored offline: 20 families (40 A/B cases) beyond the 24-case pilot,
   across Cloud Run/migration, observability/identity/network, managed services and GKE, with
   hidden source-bound review records in `evals/oracles/gcp/CATALOG.md`, kept separate from the
-  pilot's. Each group had one independent review whose findings were fixed. No case has passed
-  human acceptance or produced a model result.
+  pilot's. Each group had one independent review whose findings were fixed. The owner then
+  accepted all 64 cases at `9147ff91` after three independent review passes, freezing their
+  profiles and partitions under DEC-14 and completing WP-12; no case has produced a model result.
 
 ## [0.51.2] - 2026-10-16
 
