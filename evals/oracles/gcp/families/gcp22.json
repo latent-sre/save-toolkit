@@ -56,7 +56,7 @@
     },
     {
       "url": "https://docs.cloud.google.com/compute/docs/instance-groups/rolling-out-updates-to-managed-instance-groups",
-      "claim": "A managed instance group's updater waits up to the autohealing policy's initial delay for a new instance to report HEALTHY before counting it ready; if the group has no health check, the timer starts when the instance is RUNNING. Whether portal-api-mig has an autohealing health check is not in the packet, so why the rollout continued stays an owner question.",
+      "claim": "With an autohealing health check, a managed instance group's updater waits up to the policy's initial delay for a new instance to report HEALTHY, then any configured minReadySec wait, before counting it updated; with no health check, that minReadySec timer starts when the instance is RUNNING. Whether portal-api-mig has an autohealing health check is not in the packet, so why the rollout continued stays an owner question.",
       "checked": "2026-10-17"
     },
     {
@@ -70,7 +70,7 @@
       "conclusion": "From 10:09:40 UTC portal-api-bes had no healthy backend. CHG-7710 replaced all six instances with release 7.4.0, whose /readyz returns 503 while the application reports missing ledger.endpoint configuration, so health checks mark every instance unhealthy and the load balancer returns 503 failed_to_pick_backend for every /api/* request. portal-edge-policy enforced no denial; CHG-7712's rule 900 is in preview and its DENY outcomes are logged, not enforced. Probes reach the instances, so a firewall or probe-reachability cause is not supported. Why 7.4.0 lacks the configuration and why the rollout proceeded are not established.",
       "next_checks": [
         "Petra confirms why release 7.4.0 starts without ledger.endpoint; Petra and the change approver decide through ITO's change approval between restoring the 7.3.2 instance template and correcting the configuration; this investigation applies neither.",
-        "Bram establishes why CHG-7710's rolling update continued while replacement instances failed health checks, starting with whether portal-api-mig has an autohealing health check (without one the updater treats a RUNNING instance as ready), and reports the healthy backend count on the TLC.",
+        "Bram establishes why CHG-7710's rolling update continued while replacement instances failed health checks, starting with portal-api-mig's autohealing health check and update policy (without a health check, RUNNING starts any configured minReadySec wait), and reports the healthy backend count on the TLC.",
         "Ines reports recovery only from correlated evidence: HEALTHY backends in Bram's view, /api/* entries with response_sent_by_backend and status 200, and passing monitor runs. Soren reviews the rule 900 preview matches separately before any later enforcement."
       ],
       "unsupported": [
