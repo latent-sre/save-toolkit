@@ -1,0 +1,115 @@
+{
+  "family": "GCP-11",
+  "slug": "traces",
+  "title": "Slow order submissions behind incomplete traces",
+  "group": "observability-identity-network",
+  "profile": "console",
+  "partition": "held-out",
+  "target": {
+    "project": "synthetic-routing-prod",
+    "region": "us-east4",
+    "resource": "order-router"
+  },
+  "window": {
+    "start": "2026-10-15T14:00:00Z",
+    "end": "2026-10-15T14:30:00Z"
+  },
+  "telemetry": "Supplied Cloud Logging cloud_run_revision request log entries, a Cloud Monitoring request-latency chart, Cloud Trace Explorer span lists and owner instrumentation notes; no live trace, log or metrics access.",
+  "owner": "Lee (Order Routing on-call) owns the investigation; Priya (order-router application owner) owns its code and instrumentation; Sol (observability owner) owns Cloud Trace and Logging configuration and exports; Hana owns pricing-engine. ITO coordinates the existing TLC.",
+  "task": "Lee has asked for a bounded investigation of slow order submissions on order-router. Review the supplied console observations, including the traces for the slowest requests, and return an evidence-grounded technical update for the existing TLC: what the traces do and do not show, where the latency is supported to be, remaining unknowns, and the next useful check with its owner. No change is authorized.",
+  "common_evidence": "[UNTRUSTED] Supplied synthetic console packet; names, identifiers and observations are fictional.\nRecord cut: 2026-10-15T14:30:00Z; all timestamps are UTC.\nTarget: project synthetic-routing-prod; us-east4 Cloud Run service order-router; revision order-router-00031-ktm (release 4.12.0) has served 100% of traffic since 2026-10-13T16:20:00Z; no revision, traffic or configuration change is recorded in the window.\nRequest path per order, from Priya's dependency inventory: validate in process, read Cloud SQL instance positions-db, call Cloud Run service pricing-engine (same project) over HTTPS, publish order-accepted to Pub/Sub, respond.\nLatency chart: Cloud Monitoring request_latencies for order-router, 1-minute p95, captured 14:30:00. Samples may appear up to 120 s late, so coverage ends at 14:28:00.\nBaseline 13:30-13:55: p95 0.27-0.31 s. Event interval 14:05-14:28: p95 3.8-4.3 s. Request count steady at 55-62 per minute; 5xx count 0 in every minute.\nTrading-desk report relayed by Lee at 14:12: order submissions take about four seconds; no rejected orders reported.\nThe three slowest request log entries 14:05-14:25 whose traces open (resource cloud_run_revision, revision_name=order-router-00031-ktm), each POST /v1/orders, status 200:\n14:09:12.402 latency=4.214s trace=projects/synthetic-routing-prod/traces/7a3e9c1f5b2d48e6a0c4f81d9e2b6c35\n14:14:47.118 latency=4.051s trace=projects/synthetic-routing-prod/traces/c18d4e7a92f64b03b5e1a7c96d20f84e\n14:21:05.730 latency=3.986s trace=projects/synthetic-routing-prod/traces/5f0b2a8e6c1d47f9b3a6e0d48c7f12a9\nBaseline reference entry: 13:42:30.215 POST /v1/orders status 200 latency=0.262s trace=projects/synthetic-routing-prod/traces/2d9c71e4a85f4b60c3e7d1a09b6f58e2\nSol opened all four trace IDs in Trace Explorer at 14:26:00: each trace exists, and its root span duration is within 10 ms of the logged latency. Span lists and waterfalls are in a separate extract when supplied.\nCloud Run does not trace every request; these four were chosen as the slowest entries and a baseline entry whose traces open, not as a random sample.\nThis packet contains no container CPU, instance, positions-db, Pub/Sub or pricing-engine observations.\nLee owns user impact on the existing ITO-coordinated TLC; Priya, Sol and Hana own their components as named. No recovery observation after 14:28 is recorded.",
+  "decisive_evidence": {
+    "a": "[UNTRUSTED] Trace Explorer span lists exported by Sol at 14:26:00 and Priya's instrumentation note at 14:24:00; sanitized, no request bodies. Span names and attribute labels are copied as the console displayed them.\nTrace 7a3e9c1f5b2d48e6a0c4f81d9e2b6c35 (root start 14:09:12.398): span count=1. The single span is the one Cloud Run recorded for the incoming POST /v1/orders request; duration 4.209 s; status 200; no parent span; no child spans.\nTrace c18d4e7a92f64b03b5e1a7c96d20f84e (root start 14:14:47.115): span count=1, same shape; duration 4.047 s.\nTrace 5f0b2a8e6c1d47f9b3a6e0d48c7f12a9 (root start 14:21:05.726): span count=1, same shape; duration 3.981 s.\nBaseline trace 2d9c71e4a85f4b60c3e7d1a09b6f58e2 (root start 13:42:30.212): span count=1, same shape; duration 0.258 s.\nNone of the four traces contains an application, database, HTTP client, Pub/Sub or pricing-engine span.\nSol's span search for service order-router, 13:30-14:26, excluding Cloud Run's incoming-request spans: 0 results.\nPriya's note: release 4.12.0 and the previous release 4.11.2 include no tracing SDK, span exporter or outbound trace-header handling. The application writes one completion line per request with total duration only; it records no per-dependency timing, and its container log lines carry no trace field.\nNot supplied: positions-db, pricing-engine or Pub/Sub observations; container CPU or instance metrics; any trace or log after 14:26.",
+    "b": "[UNTRUSTED] Trace Explorer span lists exported by Sol at 14:26:00, Priya's instrumentation note at 14:24:00 and Hana's pricing-engine extract at 14:25:00; sanitized, no request bodies. Span names and attribute labels are copied as the console displayed them. Offsets are from each trace's root span start.\nTrace 7a3e9c1f5b2d48e6a0c4f81d9e2b6c35 (root start 14:09:12.398): span count=5. Root: the span Cloud Run recorded for the incoming POST /v1/orders request, 4.209 s, status 200. Child: order-router server span POST /v1/orders, +0.003 s, 4.201 s. Its children: validate-order +0.006 s, 0.018 s; positions-db SELECT +0.026 s, 0.041 s; publish order-accepted +4.163 s, 0.031 s. No span covers +0.067 s to +4.163 s (4.096 s); the three child spans total 0.090 s.\nTrace c18d4e7a92f64b03b5e1a7c96d20f84e (root start 14:14:47.115): span count=5, same structure; root 4.047 s; no span covers +0.071 s to +4.006 s (3.935 s); child spans total 0.087 s.\nTrace 5f0b2a8e6c1d47f9b3a6e0d48c7f12a9 (root start 14:21:05.726): span count=5, same structure; root 3.981 s; no span covers +0.064 s to +3.936 s (3.872 s); child spans total 0.085 s.\nBaseline trace 2d9c71e4a85f4b60c3e7d1a09b6f58e2 (root start 13:42:30.212): span count=5, same structure; root 0.258 s; no span covers +0.066 s to +0.223 s (0.157 s).\nNone of the four traces contains an HTTP client span or any pricing-engine span.\nPriya's note: release 4.12.0 initializes OpenTelemetry with the W3C trace-context propagator and enables HTTP server, database client and Pub/Sub publisher instrumentation. Outbound pricing calls use pricing-sdk 2.3.1's bundled HTTP client, which has no instrumentation entry; she has not confirmed which headers that client sends.\nHana's extract, pricing-engine in the same project: Hana matched pricing-engine request log entries, which exist for every request, with userAgent order-router/4.12.0 pricing-sdk/2.3.1 to the four order-router requests by start time, then opened the traces those entries link; all four opened. Spans Cloud Run recorded for those incoming POST /v2/quote requests:\ntrace 9e4b07c2d1f8463aa5c0e9b7f31d6248: root start 14:09:12.467; 4.089 s; no parent span.\ntrace 0c7f5d2e9a1b4c86b7e3f02a5d9c41e7: root start 14:14:47.187; 3.931 s; no parent span.\ntrace e2a6c90b4f7d41e5a8b3d16c07f9e52d: root start 14:21:05.791; 3.866 s; no parent span.\nbaseline trace 81f3d6a0c9e24b7f96a2e5c1b0d48f73: root start 13:42:30.279; 0.151 s; no parent span.\nEach pricing-engine trace ID differs from the order-router trace it overlaps; Hana paired them by start time and user agent, not by shared trace context.\nHana's extract lists root spans only; pricing-engine's internal spans and dependency timings were not included.\nNot supplied: positions-db or Pub/Sub metrics, container CPU or instance metrics, pricing-engine's internal breakdown, or any trace or log after 14:26."
+  },
+  "log_resource_type": "cloud_run_revision",
+  "log_labels": {
+    "project_id": "synthetic-routing-prod",
+    "location": "us-east4",
+    "service_name": "order-router"
+  },
+  "sources": [
+    {
+      "url": "https://docs.cloud.google.com/run/docs/trace",
+      "claim": "Incoming requests to Cloud Run services automatically generate traces without instrumentation; traceparent is automatically populated for Cloud Run requests; Cloud Run samples at most 0.1 requests per second per instance and its sample rate is not configurable; instrumentation is needed for custom spans and to propagate trace context so a multi-service request shows as one trace. The page does not name the automatic span or list its attributes, so the fixture's span wording is not graded.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/trace/docs/trace-context",
+      "claim": "traceparent carries trace ID, parent span ID and the sampling flag; X-Cloud-Trace-Context carries TRACE_ID/SPAN_ID;o=OPTIONS; Cloud Trace is not responsible for context propagation, and without a suitable instrumentation library the application must propagate context to child operations. The page does not describe how a dropped header is displayed.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://www.w3.org/TR/trace-context/",
+      "claim": "A receiver that gets no traceparent header creates a new trace-id and parent-id for the current request, which is why an unpropagated downstream call appears as a separate root trace.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://opentelemetry.io/docs/concepts/context-propagation/",
+      "claim": "Propagators inject context into a carrier such as HTTP headers on the sender and extract it on the receiver; the default propagator uses W3C TraceContext; propagation is usually handled by instrumentation libraries, so an uninstrumented client does not propagate it automatically.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry",
+      "claim": "The LogEntry trace field links logs and traces (the REST resource-name form is supported); httpRequest.latency is server processing time from request receipt until the response is sent, so it does not separate platform from in-container time.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/logging",
+      "claim": "Cloud Run creates request logs automatically under the cloud_run_revision resource with project_id, location, service_name and revision_name labels; container logs are not correlated to request traces unless written with a client library or a logging.googleapis.com/trace field.",
+      "checked": "2026-10-16"
+    }
+  ],
+  "review": {
+    "a": {
+      "conclusion": "Each slow trace, and the baseline, holds only the span Cloud Run recorded for the incoming request; its duration matches the roughly 4 s logged server latency. order-router exports no application spans, so the traces confirm server-side delay from receipt to response but cannot split it between platform handling, in-process work, positions-db, pricing-engine or Pub/Sub. The missing child spans are an instrumentation gap, not evidence that no dependency work happened or that Cloud Run added the latency.",
+      "next_checks": [
+        "Hana and the positions-db owner, reached through Priya, compare their request latency for 14:05-14:28 UTC against the 13:30-13:55 baseline, because the order-router traces cannot localize the time.",
+        "Sol supplies order-router container CPU and instance records for 14:05-14:28 so in-container and platform explanations can be tested; Lee keeps the existing TLC informed and watches latency after the 14:28 coverage.",
+        "Priya decides, under the normal change path, whether to add tracing instrumentation; it improves visibility and is not a latency fix."
+      ],
+      "unsupported": [
+        "pricing-engine, positions-db or another dependency is the cause, or is ruled out, because no application span shows it.",
+        "The single Cloud Run span proves the platform added the latency or that Cloud Run is slow.",
+        "The trace shows the whole request path or proves no dependency calls were made.",
+        "Adding instrumentation or changing trace sampling is an authorized change or a cause fix."
+      ],
+      "unknowns": [
+        "Where the roughly 4 s is spent: platform handling, order-router's own work or a dependency call.",
+        "Whether the latency continued after the 14:28 metric coverage.",
+        "Impact beyond slow but successful order submissions."
+      ]
+    },
+    "b": {
+      "conclusion": "order-router's application spans exist and are fast, but they cover only about 0.09 s of each slow request; a 3.87-4.10 s interval between the database read and the publish has no span, and no HTTP client or pricing-engine span appears. pricing-engine records order-router's calls as separate root traces with no parent span that fill each uncovered interval, consistent with pricing-sdk's uninstrumented client not propagating trace context. The order-router trace is incomplete, not the whole request; the delay most probably lies in the pricing-engine call, paired by timing rather than shared context, and its internal cause is unknown.",
+      "next_checks": [
+        "Hana investigates pricing-engine's internal timing for 14:05-14:28 UTC against its 0.15 s baseline, starting from the paired traces 9e4b07c2..., 0c7f5d2e... and e2a6c90b....",
+        "Priya confirms from code or a sanitized outbound header sample whether pricing-sdk 2.3.1's client sends traceparent; adding propagation is her decision under the normal change path and restores visibility, not latency.",
+        "Lee reports the supported boundary on the existing TLC and watches order-router latency after the 14:28 coverage."
+      ],
+      "unsupported": [
+        "order-router instrumentation is missing entirely, or the trace shows the whole request.",
+        "The uncovered interval is Cloud Run platform overhead, queuing or cold start.",
+        "pricing-engine is not involved because it does not appear in the order-router trace.",
+        "The timing pairing proves pricing-engine's internal root cause, or raising trace sampling or adding propagation fixes the latency or is authorized."
+      ],
+      "unknowns": [
+        "What inside pricing-engine takes about 4 s.",
+        "Whether every slow order-router request pairs with a slow pricing-engine call; the pairing covers three traced requests by start time and user agent.",
+        "Latency and impact after the 14:28 coverage."
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "Returning to: Lee, Order Routing on-call, through the existing TLC.\nAssignment: partial; the traces confirm the request duration but cannot locate where the time went.\nObservations [UNTRUSTED][sourced: supplied synthetic console observations]: order-router p95 latency rose from about 0.3 s to 3.8-4.3 s from 14:05 UTC with no 5xx and no revision change. The three slowest traced requests (4.0-4.2 s) and the 13:42 baseline trace each contain a single span, the one Cloud Run recorded for the incoming request, with no child spans; a span search found no other order-router spans. Priya reports that releases 4.12.0 and 4.11.2 include no tracing SDK or exporter and log only total duration per request.\nInterpretation: the platform span and the logged latency both cover receipt to response, so they confirm about 4 s of server-side delay but cannot split it between platform handling, order-router's own work, positions-db, pricing-engine or Pub/Sub. No child spans means no application instrumentation, not that no dependency call happened, and a single platform span does not show that Cloud Run added the delay.\nHypothesis [unverified]: a dependency or in-process step slowed from 14:05; these records single out none.\nUnknowns: where the 4 s is spent, whether latency continued after the 14:28 metric coverage, and impact beyond slow successful submissions.\nCaller next step: Lee asks Hana and the positions-db owner, through Priya, for their latency for 14:05-14:28 against the 13:30-13:55 baseline, and Sol for order-router container CPU and instance records for the same window, and keeps the existing TLC informed. Adding tracing instrumentation is Priya's decision under the normal change path and would improve visibility, not fix latency. I reviewed supplied observations only, executed no reads myself, and made no changes.",
+      "wrong": "Returning to: Lee through the existing TLC. The traces contain only the Cloud Run request span, with no application or dependency spans, so the 4 seconds are spent inside the Cloud Run platform before the request reaches order-router. pricing-engine and positions-db are not involved, because neither appears in the trace. Escalate to the platform team and Google support. I used the supplied observations and made no changes.",
+      "unavailable": "Returning to: Lee, Order Routing on-call, through the existing TLC.\nAssignment: partial; the trace span lists were not supplied, so where the latency is spent is unresolved. I reviewed the common packet only and executed no reads myself.\nObservations [UNTRUSTED][sourced: supplied synthetic records]: order-router p95 latency rose from about 0.3 s to 3.8-4.3 s from 14:05 UTC with no 5xx and no revision change. The three slowest request log entries (4.0-4.2 s) link to traces whose root span duration matches the logged latency. That match confirms server-side delay but does not show what spans the traces hold, whether they cover the whole request, or where the time went.\nUnknowns: the span content of these traces, which step or dependency holds the delay, whether latency continued after the 14:28 metric coverage, and impact beyond slow successful submissions.\nCaller next step: Lee asks Sol, the already-authorized trace reader, for the span lists of the four referenced traces, and Priya for a note of which order-router calls are instrumented, then shares them through the existing TLC. No instrumentation, sampling or dependency change is supported until that evidence is read. I made no changes."
+    },
+    "b": {
+      "useful": "Returning to: Lee, Order Routing on-call, through the existing TLC.\nAssignment: partial; the trace gap is explained and the delay is localized to the pricing call by timing, but pricing-engine's internal cause is not.\nObservations [UNTRUSTED][sourced: supplied synthetic console observations]: order-router p95 latency rose from about 0.3 s to 3.8-4.3 s from 14:05 UTC with no 5xx or revision change. In the three slowest traces, order-router's own spans (validation, positions-db query, Pub/Sub publish) total under 0.1 s, and no span covers a 3.87-4.10 s interval between the database read and the publish; the baseline trace has the same structure with a 0.16 s gap. No HTTP client or pricing-engine span appears. Priya reports that pricing-sdk 2.3.1's HTTP client has no instrumentation entry. Hana's pricing-engine traces for order-router's user agent are separate root traces with no parent span, starting 1-2 ms into each uncovered interval and lasting 4.09, 3.93 and 3.87 s, against 0.15 s at baseline.\nInterpretation: the order-router trace is incomplete, not the whole request. The pricing call's trace context does not reach pricing-engine, so that work appears as a separate trace. The uncovered interval is neither platform overhead nor a sign that order-router is uninstrumented as a whole.\nHypothesis [unverified]: the delay is inside the pricing-engine call; the pairing rests on start times and user agent, not shared trace context, and covers three traced requests.\nUnknowns: what inside pricing-engine takes about 4 s, whether all slow requests pair this way, and latency and impact after the 14:28 coverage.\nCaller next step: Hana investigates pricing-engine's internal timing for 14:05-14:28 against its baseline using the paired traces; Priya confirms whether pricing-sdk's client sends traceparent. Adding propagation is Priya's decision under the normal change path and restores visibility, not latency; trace sampling is not the cause. Lee keeps the existing TLC informed. I reviewed supplied observations only, executed no reads myself, and made no changes.",
+      "wrong": "Returning to: Lee through the existing TLC. order-router's spans cover only about 0.1 s of each 4-second request, so its instrumentation is not capturing the request and the remaining time is Cloud Run platform overhead such as request queuing or cold starts. pricing-engine is not in the trace, so it is not part of this request path. Sol should raise the trace sampling rate to capture the missing spans. I used the supplied observations and made no changes.",
+      "unavailable": "Returning to: Lee, Order Routing on-call, through the existing TLC.\nAssignment: partial; the trace span lists were not supplied, so where the latency is spent is unresolved. I reviewed the common packet only and executed no reads myself.\nObservations [UNTRUSTED][sourced: supplied synthetic records]: order-router p95 latency rose from about 0.3 s to 3.8-4.3 s from 14:05 UTC with no 5xx and no revision change. The three slowest request log entries (4.0-4.2 s) link to traces whose root span duration matches the logged latency. That match confirms server-side delay but does not show what spans the traces hold, whether they cover the whole request, or where the time went.\nUnknowns: the span content of these traces, which step or dependency holds the delay, whether latency continued after the 14:28 metric coverage, and impact beyond slow successful submissions.\nCaller next step: Lee asks Sol, the already-authorized trace reader, for the span lists of the four referenced traces, and Priya for a note of which order-router calls are instrumented, then shares them through the existing TLC. No instrumentation, sampling or dependency change is supported until that evidence is read. I made no changes."
+    }
+  }
+}

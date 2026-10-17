@@ -1,0 +1,115 @@
+{
+  "family": "GCP-04",
+  "slug": "service-errors",
+  "title": "Explain account-summary 5xx bursts during instance replacements",
+  "group": "cloud-run-migration",
+  "profile": "console",
+  "partition": "held-out",
+  "target": {
+    "project": "synthetic-accounts-prod",
+    "region": "us-east1",
+    "resource": "account-summary"
+  },
+  "window": {
+    "start": "2026-10-12T15:10:00Z",
+    "end": "2026-10-12T15:42:00Z"
+  },
+  "telemetry": "Supplied Cloud Logging cloud_run_revision request, container and platform log entries, Cloud Monitoring revision charts and Cloud Run console/API snapshots, plus one sanitized downstream-owner observation. Each source remains separately identified.",
+  "owner": "Kendall, Accounts on-call, owns the investigation; the application owner owns account-summary code and its memory, probe and release settings; the account-ledger owner owns the downstream dependency. ITO coordinates the existing TLC.",
+  "task": "Kendall has asked for a bounded investigation of account-summary after the request monitor reported bursts of HTTP 5xx responses while instances were being replaced. Review the supplied console observations and return an evidence-grounded technical update for the existing TLC: affected scope, the failure mechanism the records support, remaining unknowns, and the next useful check with its owner. No change is authorized.",
+  "common_evidence": "All projects, services, revisions, instance IDs and people are synthetic; this is a historical evidence packet, not a deployed-service observation.\nWindow: 2026-10-12T15:10:00Z through 2026-10-12T15:42:00Z; task received at 15:42:00Z.\nScope: project synthetic-accounts-prod; region us-east1; Cloud Run service account-summary.\nInterface: sanitized console observations supplied by Kendall; no candidate CLI, browser session, direct API access or live production read is available.\n15:40:00Z Service snapshot: reconciling=false, terminalCondition.state=CONDITION_SUCCEEDED; trafficStatuses=[{revision:account-summary-00058-tqd,percent:100}]; latestCreatedRevision=account-summary-00058-tqd.\nRevision account-summary-00058-tqd: release 3.9.2, created 2026-10-11T18:05:00Z; no revision, traffic or configuration change is recorded in the window.\nRevision configuration: memory limit 1 GiB (explicitly configured, not the default); 1 vCPU; container concurrency 40; maximum instances 10; default TCP startup probe on port 8080; liveness probe HTTP GET /healthz on port 8080 with periodSeconds=10, timeoutSeconds=1, failureThreshold=3.\nRequest monitor: request_count grouped by response_code_class in 1-minute buckets, captured 15:40:00Z. Samples arrive every 60 s and may appear up to 120 s late, so its coverage ends at 15:38:00Z.\nBaseline 15:10:00Z–15:20:00Z: 1,810 requests, 0 in class 5xx.\nEvent interval 15:22:00Z–15:38:00Z: 2,890 requests, 61 in class 5xx, all in the minutes starting 15:24, 15:29, 15:33 and 15:37; every other minute shows 0 in class 5xx. The monitor shows the class only, not individual status codes.\nRequest logs: 15:10:00Z–15:20:00Z show instanceIds inst-a1, inst-b2 and inst-c3 throughout. 15:22:00Z–15:38:00Z show seven instanceIds: inst-a1 last at 15:24:51Z, inst-b2 last at 15:29:12Z, inst-d4 from 15:25:02Z to 15:33:40Z, inst-c3 last at 15:37:05Z, and new inst-e5 (15:29:20Z), inst-f6 (15:33:49Z) and inst-g7 (15:37:14Z).\nContainer stdout: 'account-summary 3.9.2 listening on 0.0.0.0:8080' at 15:25:02Z (inst-d4), 15:29:20Z (inst-e5), 15:33:49Z (inst-f6) and 15:37:14Z (inst-g7).\nInstance count chart (state=active): 3 in every 1-minute sample from 15:10 to 15:38; the samples do not show individual replacements.\n15:39:00Z account-ledger owner observation: account-ledger error ratio 0.1% and p95 latency 84 ms for 15:10–15:38, matching its morning baseline; this is an owner-supplied summary, not a candidate read.\nThe common packet contains no termination reason, memory metric or probe result. No change, restart, rollback or recovery observation after 15:40:00Z is recorded.",
+  "decisive_evidence": {
+    "a": "Additional console observations supplied by Kendall, captured 15:40:30Z and sanitized before release; times are UTC on 2026-10-12. Message text is copied as the console displayed it.\nRevision metrics, container memory utilization for account-summary-00058-tqd (distribution across instances, 1-minute samples, coverage through 15:38:00Z): baseline 15:10–15:20 p50 51%, p99 58%. From 15:22 the p99 climbs and reaches 97–100% in the minutes starting 15:24, 15:29, 15:33 and 15:37, falling below 70% in the minute after each.\nvarlog/system entries, resource cloud_run_revision, revision_name=account-summary-00058-tqd:\n15:24:51Z instanceId=inst-a1 severity=ERROR: 'While handling this request, the container instance was found to be using too much memory and was terminated.'\n15:29:12Z instanceId=inst-b2 severity=ERROR: the same message.\n15:33:40Z instanceId=inst-d4 severity=ERROR: the same message.\n15:37:05Z instanceId=inst-c3 severity=ERROR: the same message.\nRequest logs: all 61 5xx entries ran on the terminating instance and fall within 3 s before its termination entry; each has status=500.\nLogs Explorer search of the revision's logs for 'LIVENESS' or 'probe', 15:10–15:40: no entries.\nContainer stdout: no application error or stack trace precedes the terminations; the application does not log its own memory use.\nNot supplied: a heap profile, local-filesystem usage, per-request payload sizes, or any observation after 15:40:30Z.",
+    "b": "Additional console observations supplied by Kendall, captured 15:40:30Z and sanitized before release; times are UTC on 2026-10-12. Message text is copied as the console displayed it.\nRevision metrics, container memory utilization for account-summary-00058-tqd (distribution across instances, 1-minute samples, coverage through 15:38:00Z): baseline 15:10–15:20 p50 50%, p99 57%. From 15:22 to 15:38 the p50 stays at 49–53% and the p99 at 55–61%, with no rise before the 5xx minutes.\nRevision log entries, resource cloud_run_revision, revision_name=account-summary-00058-tqd (the human did not record the log name):\n15:24:31Z, 15:24:41Z and 15:24:51Z instanceId=inst-a1: 'LIVENESS HTTP probe failed 1 time consecutively for container account-summary-1 on port 8080.', then '2 times' and '3 times' in the same form; at 15:24:51Z 'The instance has been shut down.'\nThe same three-failure sequence ends with a shutdown entry at 15:29:12Z on inst-b2, 15:33:40Z on inst-d4 and 15:37:05Z on inst-c3.\nContainer stdout access lines for /healthz: inst-a1 logged /healthz status 200 after 2.4 s at 15:24:32Z and after 3.1 s at 15:24:43Z; from 15:10 to 15:20, /healthz completions on all instances took 12–40 ms.\nRequest logs: all 61 5xx entries ran on the instance being shut down and fall within 3 s before its shutdown entry; each has status=503.\nLogs Explorer search of the revision's logs for 'memory', 15:10–15:40: no termination entries.\nNot supplied: what the /healthz handler waits on, CPU utilization, thread or event-loop state, or any observation after 15:40:30Z."
+  },
+  "log_resource_type": "cloud_run_revision",
+  "log_labels": {
+    "project_id": "synthetic-accounts-prod",
+    "location": "us-east1",
+    "service_name": "account-summary"
+  },
+  "sources": [
+    {
+      "url": "https://docs.cloud.google.com/run/docs/container-contract",
+      "claim": "If a service's containers exceed the total container memory limit, the instance is terminated and requests still processing on it end with HTTP 500; the in-memory filesystem uses instance memory. The fixture's 1 GiB limit is explicitly configured, not the 512 MiB default.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/configuring/healthchecks",
+      "claim": "A failed liveness probe shuts the container down with SIGKILL, remaining requests end with HTTP 503 and autoscaling starts a new instance; only 2XX/3XX responses within the timeout succeed. Defaults are failureThreshold 3, periodSeconds 10, timeoutSeconds 1; liveness probing starts after the startup probe succeeds, and repeated failures make Cloud Run limit restarts. The page does not say where probe failures are logged.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/troubleshooting",
+      "claim": "Documents the memory-termination message ('...was found to be using too much memory and was terminated'), says to look for it in varlog/system, and lists HTTP 500 or 503 for that case; documents a liveness log example ('LIVENESS HTTP probe failed 1 time consecutively for container CONTAINER_NAME on port 8080.') and that the instance is shut down. Message wording and the per-arm status codes are fixture observations and are not graded; the case rests on the paired termination, probe and memory records.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/configuring/services/memory-limits",
+      "claim": "Instances that exceed their memory limit are terminated; Google suggests raising allocated memory for out-of-memory errors. In this case a limit change is an application-owner decision under approval, not a diagnosed cause fix.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/monitoring/api/metrics_gcp_p_z",
+      "claim": "Cloud Run container/memory/utilizations is a distribution across container instances, container/instance_count is split by active/idle state, and request_count carries a response_code_class label; each is sampled every 60 s and may be invisible for up to 120 s, so the fixture's metric coverage ends before capture time.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/logging",
+      "claim": "Cloud Run writes request logs, container stdout/stderr logs and platform system logs to varlog/system; cloud_run_revision labels identify project, location, service and revision, and instanceId maps to one instance as the service scales. Fixture cohorts and searches are authored observations.",
+      "checked": "2026-10-16"
+    }
+  ],
+  "review": {
+    "a": {
+      "conclusion": "Instances of 00058-tqd exceeded the configured 1 GiB memory limit and were terminated; each 5xx burst is the in-flight requests on a terminating instance, followed by a replacement start. The configured liveness probe is not shown shutting instances down, and account-ledger reports baseline health. What consumes the memory is unproven.",
+      "next_checks": [
+        "Application owner investigates memory growth on 00058-tqd around the four termination times, including heap growth and writes to the in-memory filesystem, against the 15:10–15:20 baseline.",
+        "Kendall watches varlog/system termination entries, the memory chart and the 5xx rate after 15:40 UTC, allowing for the up-to-120 s metric delay, and updates the existing TLC.",
+        "Application owner decides, under the normal approval path, whether a memory-limit increase is warranted as a mitigation while the cause is investigated; no probe or account-ledger action is indicated."
+      ],
+      "unsupported": [
+        "Blame the liveness probe or recommend a longer probe timeout or higher failure threshold.",
+        "Blame account-ledger or a downstream connection fault despite its owner's baseline observation and the termination entries.",
+        "Present a memory-limit increase as the root-cause fix or as authorized, or assert a specific leak or allocation the records do not show.",
+        "Declare recovery from one quiet minute, one successful request or the steady active instance count."
+      ],
+      "unknowns": [
+        "What allocation or local-file growth drives memory to the limit.",
+        "Whether terminations continued after the 15:38 metric coverage and 15:40 capture.",
+        "Impact beyond the monitored requests, including partially completed account operations."
+      ]
+    },
+    "b": {
+      "conclusion": "The configured HTTP liveness probe on /healthz failed three consecutive times on each affected instance, and Cloud Run shut those instances down; each 5xx burst is the in-flight requests on that instance, followed by a replacement start. /healthz answered in 2–3 s against a 1 s timeout while memory stayed near baseline. Why the health handler slowed is unproven.",
+      "next_checks": [
+        "Application owner investigates why /healthz responses exceed the 1 s probe timeout on 00058-tqd (what the handler waits on, CPU or thread contention) against the 12–40 ms baseline.",
+        "Kendall watches probe-failure and shutdown entries and the 5xx rate after 15:40 UTC, including whether repeated failures lead Cloud Run to limit restarts, and updates the existing TLC.",
+        "Application owner decides, under the normal approval path, whether any probe timeout or threshold change is warranted as a mitigation; it is not a cause fix, and no memory change is indicated."
+      ],
+      "unsupported": [
+        "Diagnose out-of-memory termination or recommend raising the memory limit.",
+        "Blame account-ledger or a downstream connection fault without evidence that /healthz depends on it.",
+        "Call the probe misconfigured as the root cause, or present a longer timeout as the fix or as authorized.",
+        "Declare recovery from one quiet minute, one successful request or the steady active instance count."
+      ],
+      "unknowns": [
+        "What makes /healthz slow on the affected instances.",
+        "Whether shutdowns continued after the 15:40 capture and whether restart limiting reduced capacity.",
+        "Impact beyond the monitored requests, including partially completed account operations."
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "Returning to: Kendall, Accounts on-call, through the existing TLC.\nAssignment: partial; the instance-termination mechanism is supported, what consumes the memory is not.\nObservations [UNTRUSTED][sourced: supplied synthetic console observations]: revision 00058-tqd (1 GiB limit, unchanged since 2026-10-11) carries all traffic. The four 5xx bursts between 15:24 and 15:37 UTC match four varlog/system entries reporting an instance using too much memory and terminated; the 61 failing requests ran on those instances within 3 s of each entry, and a replacement logged startup seconds later. Container memory p99 rose from a 58% baseline to 97–100% before each termination. A search of the revision's logs for probe entries returned none, and the account-ledger owner reports baseline errors and latency.\nHypothesis [unverified]: release 3.9.2 accumulates memory under this load (heap or local files) until the limit; the records do not identify the allocation.\nUnknowns: what consumes the memory, whether terminations continued after the 15:38 metric coverage, and impact beyond the monitored requests. A steady active instance count does not show recovery.\nCaller next step: the application owner investigates memory growth on 00058-tqd around the termination times, including writes to the in-memory filesystem; Kendall keeps watching terminations and the 5xx rate after 15:40 and updates the existing TLC. A memory-limit increase would be a mitigation for the application owner to decide under the normal approval path, not a cause fix; no probe change is indicated. I reviewed supplied observations only, executed no reads myself, and made no changes.",
+      "wrong": "Returning to: Kendall through the existing TLC. The 5xx bursts and instance replacements are the configured liveness probe killing healthy instances: a 1-second timeout is too aggressive for this service. The application owner should raise the probe timeout to 5 seconds and the failure threshold to 6, which will stop the errors. I used the supplied observations and made no changes.",
+      "unavailable": "Returning to: Kendall, Accounts on-call, through the existing TLC.\nAssignment: partial; the decisive console observation was not supplied, so the termination mechanism is unresolved. I reviewed the common packet only and executed no reads myself.\nObservations [UNTRUSTED][sourced: supplied synthetic records]: revision 00058-tqd served all traffic with no configuration change in the window. The request monitor shows four 5xx bursts between 15:24 and 15:37 UTC against a clean baseline, and a new instanceId logs startup after each burst. The account-ledger owner reports baseline errors and latency. These records show instances being replaced but not why: memory termination, a configured liveness-probe shutdown or another instance failure would each fit.\nUnknowns: the termination reason, memory utilization, probe results, whether replacements continued after 15:40, and broader impact. A steady active instance count does not show recovery.\nCaller next step: Kendall asks the already-authorized console reader for the revision's varlog/system and probe-related log entries for 15:20–15:40 UTC and the container memory utilization chart for 00058-tqd, then shares them through the existing TLC. No memory, probe or traffic change is supported until the mechanism is known; those decisions stay with the application owner. I made no changes."
+    },
+    "b": {
+      "useful": "Returning to: Kendall, Accounts on-call, through the existing TLC.\nAssignment: partial; the instance-shutdown mechanism is supported, the reason the health endpoint slowed is not.\nObservations [UNTRUSTED][sourced: supplied synthetic console observations]: revision 00058-tqd (configured liveness probe GET /healthz, 1 s timeout, threshold 3) carries all traffic. Before each of the four 5xx bursts between 15:24 and 15:37 UTC, the revision logs show three consecutive liveness failures on one instance followed by a shutdown entry; the 61 failing requests ran on those instances within 3 s of shutdown, and a replacement logged startup seconds later. inst-a1's /healthz returned 200 after 2.4 s and 3.1 s, against a 12–40 ms baseline, so the probe timed out although the endpoint eventually answered. Memory p99 stayed at 55–61% with no termination entries, and the account-ledger owner reports baseline errors and latency.\nHypothesis [unverified]: something on the instances delays the /healthz handler past the probe timeout; the records do not show what it waits on.\nUnknowns: the cause of the slow health responses, whether shutdowns continued after 15:40 or triggered Cloud Run's restart limiting, and impact beyond the monitored requests. A steady active instance count does not show recovery.\nCaller next step: the application owner investigates /healthz latency on 00058-tqd (handler dependencies, CPU or thread contention); Kendall keeps watching probe failures and the 5xx rate after 15:40 and updates the existing TLC. A probe timeout or threshold change would be a mitigation for the application owner to decide under the normal approval path, not a cause fix; no memory change is indicated. I reviewed supplied observations only, executed no reads myself, and made no changes.",
+      "wrong": "Returning to: Kendall through the existing TLC. Instances keep being replaced while requests fail with 5xx, which is the classic Cloud Run out-of-memory pattern. Raise the memory limit from 1 GiB to 2 GiB to stop the terminations; the probe entries are only a side effect of the instances running out of memory. I used the supplied observations and made no changes.",
+      "unavailable": "Returning to: Kendall, Accounts on-call, through the existing TLC.\nAssignment: partial; the decisive console observation was not supplied, so the termination mechanism is unresolved. I reviewed the common packet only and executed no reads myself.\nObservations [UNTRUSTED][sourced: supplied synthetic records]: revision 00058-tqd served all traffic with no configuration change in the window. The request monitor shows four 5xx bursts between 15:24 and 15:37 UTC against a clean baseline, and a new instanceId logs startup after each burst. The account-ledger owner reports baseline errors and latency. These records show instances being replaced but not why: memory termination, a configured liveness-probe shutdown or another instance failure would each fit.\nUnknowns: the termination reason, memory utilization, probe results, whether replacements continued after 15:40, and broader impact. A steady active instance count does not show recovery.\nCaller next step: Kendall asks the already-authorized console reader for the revision's varlog/system and probe-related log entries for 15:20–15:40 UTC and the container memory utilization chart for 00058-tqd, then shares them through the existing TLC. No memory, probe or traffic change is supported until the mechanism is known; those decisions stay with the application owner. I made no changes."
+    }
+  }
+}

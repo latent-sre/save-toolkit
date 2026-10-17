@@ -172,13 +172,45 @@ not validate arbitrary query semantics, IAM enforcement or a live cloud read. GC
 specified saved-query/results explain scope versus delayed arrival; they do not create a general
 query emulator. Console cases receive their evidence directly and declare a shell-free tool list.
 
+## Catalog continuation
+
+Families outside the pilot follow the same family contract and generator, and their
+[review records](CATALOG.md) stay separate from the pilot's so pilot results are never reported
+as catalog coverage. All four catalog groups are authored, completing the 64-case catalog's
+offline authoring; human case acceptance remains.
+Profiles and partitions below are proposed for the owner's DEC-14 freeze, not accepted.
+
+| Family | Profile, partition | Decisive A/B separation | Required unavailable/negative control |
+|---|---|---|---|
+| GCP-03 Capacity | CLI, tuning | Every instance active at the revision's maximum with HTTP 429 refusals / spare instances and CPU with application 503s at a slow downstream's deadline | Missing instance and status evidence; neither raising the maximum nor scaling the dependency is a supported fix |
+| GCP-04 Service errors | Console, held-out | Memory-limit terminations after high memory utilization / consecutive liveness-probe failures with flat memory | Missing termination, memory and probe records; no memory or probe change as a cause fix |
+| GCP-06 Local state | CLI, held-out | Retained in-memory `/tmp` files grow while heap is flat / heap grows while `/tmp` is flat | Missing per-instance file and heap split; disk is not persistent and more memory is not a cause fix |
+| GCP-07 Background work | Console, tuning | Post-response work stalls under request-based billing / a retried job task repeats a non-idempotent send | Missing dispatch-path evidence; no billing, retry-setting or re-run change without effect checks |
+| GCP-10 Metrics and SLOs | Console, tuning | Panel query drops the revision label, so service-wide errors read as the canary's / correct canary population with absent minutes | Missing query and per-revision counts; absent samples are neither zero nor an outage |
+| GCP-11 Traces | Console, held-out | Only the platform request span exists because the app was never instrumented / app spans exist but an uninstrumented client drops trace context to the downstream | Missing trace detail; absent spans are not absent work, and sampling changes are not a fix |
+| GCP-14 Secret references | CLI, tuning | The pinned secret version was disabled, so reads fail / reads succeed but the gateway retired the pinned credential | Missing access-outcome and gateway evidence; no secret-value read, broad grant or redeploy |
+| GCP-16 Quota and spend | CLI, held-out | A release unbatched API calls past a per-minute request quota / per-request diagnostic logging saturates the service and drives spend | Missing quota and cost breakdown; a budget alert is not a cap and a quota increase is not a fix |
+| GCP-19 Cloud Storage | Console, tuning | A VPC Service Controls perimeter denies the reader / the manifest pins an object generation a re-publish replaced | Missing denial and generation evidence; no perimeter rollback or object restore without the owners |
+| GCP-20 Tasks and Scheduler | CLI, held-out | The job's OIDC identity lost invoker access, so no run happened / runs completed after the attempt deadline and Scheduler's retries repeated them | Missing attempt and ledger evidence; no forced run, IAM grant or retry change |
+| GCP-21 Compute Engine | Console, held-out | A full data disk stops the guest service while the agent still reports / a firewall policy blocks the access paths and the guest's state is unknown | Missing agent, serial and firewall evidence; no reset, SSH or diagnosis from absent data |
+| GCP-22 Load balancing and Cloud Armor | CLI, tuning | No healthy backend after a release, with a preview-only rule as bait / an enforced Cloud Armor rule denies traffic to healthy backends | Missing edge and backend evidence; no policy, health-check or backend change |
+| GCP-23 Provider health and recovery | Console, tuning | A provider incident scoped to the project starts the impact, and provider resolution is not recovery / the only event is elsewhere and local evidence points at the release | Missing provider and per-revision evidence; neither provider status nor its absence settles cause |
+| GCP-24 Build and artifact delivery | CLI, held-out | A moved tag made the revision serve an older digest / the Cloud Run service agent cannot read the cross-project repository, so the old revision serves | Missing digest and deploy evidence; no IAM grant, redeploy or tag move |
+| GCP-26 Pending workloads | Console, tuning (Standard) | A raised CPU request fits no node shape / unchanged requests wait on scale-ups refused by CPU quota | Missing scheduling and autoscaler evidence; no quota request, request change or node-pool resize |
+| GCP-27 Service reachability | CLI, held-out (Autopilot) | A selector change leaves no endpoints / ready endpoints fail a load balancer health check moved by a BackendConfig | Missing endpoint and backend-health evidence; no relabel, health-check or rollback change |
+| GCP-28 DNS and network policy | Console, tuning (Standard) | A short name no longer resolves after the Service moved namespaces / resolution succeeds but an ingress policy denies the client namespace | Missing resolver and policy-log evidence; no policy, DNS or label change |
+| GCP-30 Node and storage pressure | CLI, held-out (Standard) | The workload's own ephemeral storage exceeds its limit / node disk pressure evicts Pods across namespaces | Missing per-Pod usage and node-condition evidence; no cordon, drain or limit change |
+| GCP-31 Rollout and disruption | Console, held-out (Autopilot) | The surge Pod fails readiness / zone anti-affinity leaves the surge Pod unschedulable, with a PodDisruptionBudget as a decoy | Missing Pod and scheduling evidence; no rollback, PDB deletion or constraint change |
+| GCP-32 Scaling signals | CLI, tuning (Standard) | The autoscaler cannot read its external metric / valid demand is capped at a deliberately set maximum | Missing autoscaler conditions; no min/max edit, manual scale or adapter redeploy |
+
 ## Authoring and verification
 
-The eleven files under `families/` are the source data for the added cases. Keep task/common
+The files under `families/` are the source data for the added cases. Keep task/common
 evidence, decisive observations, hidden review criteria, control responses and public sources in
 their separate fields. `scripts/generate_gcp_pilot.py --write` projects only the explicit candidate
-fields into 22 scenario YAMLs and renders `PILOT.md`. Running the script without `--write` checks
-for drift. GCP-01 remains the separately accepted hand-authored pair.
+fields into the scenario YAMLs and renders `PILOT.md` for the pilot families and `CATALOG.md` for
+the rest. Running the script without `--write` checks for drift. GCP-01 remains the separately
+accepted hand-authored pair.
 
 Each new case inherits the accepted startup template's 24-turn limit as a conservative offline
 authoring bound, not a measured completion claim. Adjustments before native execution change case
