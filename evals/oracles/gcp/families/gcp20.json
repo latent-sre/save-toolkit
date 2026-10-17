@@ -51,7 +51,7 @@
     },
     {
       "url": "https://docs.cloud.google.com/run/docs/troubleshooting",
-      "claim": "A Cloud Run 403 can occur when the principal that generated the token lacks run.routes.invoke, resolved by granting Cloud Run Invoker; a 401 indicates a missing, malformed or wrong-type token. Google does not state whether a refused request reaches the container, and does not document what a cancelled client request does to the handler, so the case relies on authored application records for both.",
+      "claim": "A Cloud Run 403 can occur when the principal that generated the token lacks run.routes.invoke, resolved by granting Cloud Run Invoker; a 401 indicates a missing, malformed or wrong-type token. Google does not state whether a refused request reaches the container. The same page states that on HTTP/1.1 a client disconnect is not propagated to the container, and the request-timeout page says a container might continue processing an aborted request; neither states that a cancelled request runs to completion, so the case relies on authored application records for that.",
       "checked": "2026-10-17"
     },
     {
