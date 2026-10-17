@@ -1257,7 +1257,7 @@ Since 09:41:15 UTC the HPA cannot read its Pub/Sub backlog metric: ScalingActive
 **Useful next checks:**
 
 - Solveig, the GKE platform owner, checks the custom-metrics-stackdriver-adapter rolled out under CHG-7342: its logs, the external.metrics.k8s.io APIService and the adapter's Cloud Monitoring read access, and lists other HPAs on external metrics that report the same condition.
-- Bao and Solveig decide how to restore the measurement through ITO's change approval; Ifeoma confirms entitlement-ledger headroom first, because once the metric is readable the backlog implies about 75 replicas and the HPA would scale toward maxReplicas 24.
+- Bao and Solveig decide how to restore the measurement through ITO's change approval; Ifeoma confirms entitlement-ledger headroom first, because once the metric is readable the backlog implies about 75-80 replicas (75 on the 10:33 sample, 80 on the 10:35 sample) and the HPA would scale toward maxReplicas 24.
 - Tamsin reports ScalingActive, desired and ready replicas, backlog and oldest unacked age on the TLC past the 10:35 cutoff; one improved sample is not recovery.
 
 **Unsupported conclusions/actions:**
@@ -1276,7 +1276,7 @@ Since 09:41:15 UTC the HPA cannot read its Pub/Sub backlog metric: ScalingActive
 
 ### Variant B
 
-The HPA reads its metrics: ScalingActive=True with reason ValidMetricFound, an external average of 4,675 per Pod against a 500 target (37,400 total, the 10:33 backlog sample) and CPU 34%. The backlog implies ceil(8 x 4,675/500) = ceil(74.8) = 75 replicas, but maxReplicas is 8, so ScalingLimited=True since 10:08 and the Deployment holds at its maximum. The supported mechanism is valid demand above the configured replica ceiling, which CR-2209 set to keep ledger connections (96 of 100) within Ifeoma's budget. The measurement path works, no Warning events appear and the 8 Pods are healthy at their usual per-Pod rate.
+The HPA reads its metrics: ScalingActive=True with reason ValidMetricFound, an external average of 4,675 per Pod against a 500 target (37,400 total, the 10:33 backlog sample) and CPU 34%. The backlog implies ceil(8 x 4,675/500) = ceil(74.8) = 75 replicas, and the latest 10:35 backlog sample (39,800) gives 80; either is far above maxReplicas 8, so ScalingLimited=True since 10:08 and the Deployment holds at its maximum. The supported mechanism is valid demand above the configured replica ceiling, which CR-2209 set to keep ledger connections (96 of 100) within Ifeoma's budget. The measurement path works, no Warning events appear and the 8 Pods are healthy at their usual per-Pod rate.
 
 **Useful next checks:**
 

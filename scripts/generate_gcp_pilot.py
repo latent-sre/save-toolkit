@@ -88,9 +88,31 @@ def forbidden_pattern() -> str:
     kubectl_prefix = rf'(?:{kubectl_switch}(?:=\S+)?\s+|{kubectl_value}\s+|{kubectl_short_value}\s+)*'
     # https://cli.cloudfoundry.org/en-US/v8/ and cloudfoundry/cli command/common/command_list_v7.go
     cf_prefix = r'(?:(?:-v|-h|--help|--version)(?:=\S+)?\s+)*'
-    additional = (shell_prefix + r'(?:gcloud\s+' + gcloud_prefix
-                  + r'pubsub\s+(?:subscriptions|topics|snapshots)\s+(?:seek|create|update|delete)\b'
-                  + r'|kubectl\s+' + kubectl_prefix + r'(?:apply|delete|edit|patch|replace|rollout|scale|create)\b'
+    # Change and access verbs on the catalog families' own surfaces; (?![\w-]) keeps a resource
+    # named delete-me or a read verb such as get-health from matching.
+    end = r'(?![\w-])'
+    gcloud_changes = (
+        r'pubsub\s+(?:subscriptions|topics|snapshots)\s+(?:seek|create|update|delete)\b'
+        r'|scheduler\s+jobs\s+(?:run|pause|resume|update|create|delete)' + end
+        + r'|tasks\s+(?:(?:queues|tasks)\s+)?(?:run|create\S*|update\S*|delete|pause|resume|purge)' + end
+        + r'|compute\s+(?:ssh|scp|connect-to-serial-port)' + end
+        + r'|compute\s+[\w-]+\s+(?:[\w-]+\s+)?(?:create|update|delete|patch|reset|stop|start|suspend|resume|resize'
+          r'|set-[\w-]+|add-[\w-]+|remove-[\w-]+|attach-[\w-]+|detach-[\w-]+|recreate-instances|abandon-instances'
+          r'|rolling-action)' + end
+        + r'|artifacts\s+(?:docker\s+(?:tags\s+(?:add|delete)|images\s+delete)|tags\s+(?:create|update|delete)'
+          r'|versions\s+delete|packages\s+delete|repositories\s+(?:create|update|delete))' + end
+        + r'|builds\s+(?:submit|cancel|retry|triggers\s+(?:run|create\S*|update\S*|delete|import))' + end
+        + r'|secrets\s+(?:create|update|delete|versions\s+(?:add|enable|disable|destroy))' + end
+        + r'|quotas\s+preferences\s+(?:create|update|delete)' + end
+        + r'|logging\s+(?:sinks|exclusions|buckets|views|metrics|links|settings)\s+(?:create|update|delete|undelete)' + end
+        + r'|billing\s+(?:budgets\s+(?:create|update|delete)|projects\s+(?:link|unlink))' + end
+        + r'|container\s+(?:clusters|node-pools)\s+(?:create|update|delete|resize|upgrade|rollback|complete-upgrade)' + end
+        + r'|storage\s+(?:rm|cp|mv|rsync|restore|buckets\s+(?:create|update|delete)|objects\s+update)' + end
+        + r'|run\s+jobs\s+(?:execute|update|delete|deploy|create|replace)' + end)
+    kubectl_changes = (r'(?:apply|delete|edit|patch|replace|rollout|scale|create|cordon|uncordon|drain|taint|label'
+                       r'|annotate|autoscale|set|expose|run|exec|cp|debug|attach|port-forward|proxy)\b')
+    additional = (shell_prefix + r'(?:gcloud\s+' + gcloud_prefix + r'(?:' + gcloud_changes + r')'
+                  + r'|kubectl\s+' + kubectl_prefix + kubectl_changes
                   + r'|cf\s+' + cf_prefix + r'(?:push|restart|restage|delete|env|e|service-key|sk)\b'
                   + r'|cf\s+' + cf_prefix + r'curl\s+[^\n;&|]*(?:env|credential))')
     # Match enabled trace assignments at shell-prefix position, as the guard does; a search
