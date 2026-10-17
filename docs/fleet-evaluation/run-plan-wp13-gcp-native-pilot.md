@@ -1,7 +1,9 @@
 # WP-13 run plan: GCP native pilot
 
-- **Status:** Draft, written 2026-10-17; not approved. No trial may start until the owner approves
-  the decisions below. A change to the cases, trial count, model or cap needs a new approval.
+- **Status:** Approved by the owner on 2026-10-17: decisions D1 to D5 as recommended below (smoke
+  capped at USD 2; pilot capped at USD 25 after the smoke reads clean; AI-proposed semantic
+  dispositions approved by the owner; `sonnet`; steps run serially). A change to the cases,
+  trial count, model or cap needs a new approval.
 - **Run owner:** the human owner starts each step; `agent-engineer` prepares it; `reviewer` checks
   traces and identity evidence; semantic dispositions are the owner's (decision D3).
 - **Purpose:** the first native observations of the fleet on the accepted
