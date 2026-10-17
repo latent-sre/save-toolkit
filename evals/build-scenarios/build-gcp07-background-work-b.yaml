@@ -43,12 +43,12 @@ prompt: |
   14:02:00.4Z–14:31:00Z: no post-response worker records for B-2290 on any confirm-dispatch instance.
   14:15:00Z execution confirm-dispatch-sweep-7kq2m created by the existing schedule; 4 tasks; each task's partition holds 10 B-2290 confirmations.
   Tasks 0, 1 and 3: retried=0; each sent its 10 confirmations, recorded sent marks and exited 0 by 14:16:20Z.
-  Task 2 first attempt, 14:16:05Z–14:16:38Z: sent confirmations for 6 trades; 14:16:40Z application record: state-store write for partition sent marks timed out; the attempt exited with code 1; no sent marks recorded.
+  Task 2 first attempt, 14:16:05Z–14:16:38Z: sent confirmations for 6 trades; 14:16:40Z application record: state-store read for the 7th confirmation's trade record timed out; the attempt exited with code 1 before sending it or reaching the end-of-partition sent-mark write; no sent marks recorded.
   Task 2: retried=1; second attempt 14:16:52Z–14:17:20Z sent all 10 confirmations in its partition, recorded sent marks and exited 0; last attempt result OK.
   Execution 7kq2m: 4/4 tasks succeeded after one task retry.
   14:30:00Z execution confirm-dispatch-sweep-p9x4d: 4/4 tasks succeeded; every task shows retried=0; 0 pending B-2290 confirmations.
   Gateway-owner export captured 14:31:10Z, covering acknowledgments through 14:31:00Z: 46 acknowledgments for B-2290 covering all 40 trades. The 6 trades sent by task 2's first attempt each have two acknowledgments with distinct gateway message ids, one between 14:16:05Z and 14:16:38Z and one between 14:16:52Z and 14:17:20Z; the gateway rejected neither copy.
-  The export does not show whether the counterparty acted on both copies, why the state-store write timed out, or whether other executions since 13:30Z retried tasks.
+  The export does not show whether the counterparty acted on both copies, why the state-store read timed out, or whether other executions since 13:30Z retried tasks.
 fixture:
   files:
     README.md: |

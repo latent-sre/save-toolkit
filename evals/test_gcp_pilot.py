@@ -83,12 +83,18 @@ def test_the_named_pilot_is_complete_and_each_group_has_both_interfaces():
     assert all(profiles == {'cli', 'console'} for profiles in groups.values())
     ids = [AUTHOR.case_id(row, arm) for row in records for arm in ('a', 'b')]
     assert len(set(ids)) == 22
+    # The accepted pilot's interfaces are fixed; a flipped profile must not pass silently.
+    assert tuple(number for number in PILOT if number in CLI) == (5, 9, 13, 17, 25)
 
 
 def test_catalog_families_extend_the_pilot_without_overlap():
     records = AUTHOR.load_families(numbers=AUTHOR.CATALOG)
     assert not set(AUTHOR.CATALOG) & set(PILOT) and 1 not in AUTHOR.CATALOG
     assert [int(row['family'].split('-')[1]) for row in records] == list(AUTHOR.CATALOG)
+    groups = {}
+    for row in records:
+        groups.setdefault(row['group'], set()).add(row['profile'])
+    assert all(profiles == {'cli', 'console'} for profiles in groups.values()), groups
     every = AUTHOR.load_families() + records
     assert len({AUTHOR.case_id(row, arm) for row in every for arm in ('a', 'b')}) == 2 * len(every)
     # A synthetic target shared with another family would let one family's packet answer another's.

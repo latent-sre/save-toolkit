@@ -31,7 +31,7 @@ prompt: |
   Team runbook page for statement-render, last edited 2026-03-02, says the service runs with 2 GiB; it predates both revisions and is not a configuration export.
   Application-owner design note: each POST /render request writes a PDF under /tmp/render/ and uploads it to the archive bucket synthetic-statements-archive; a statement is durable only when the job ledger records upload_committed for its object. /tmp/render holds render scratch only.
   Monitoring export captured 10:47:30Z (container memory utilization, statement-render-00023-kfz, p99 across instances, 5-minute alignment): 10:00 0.52; 10:15 0.68; 10:30 0.86; 10:40 0.97. Instance count rose from 2 to 6 over the window.
-  Historical baseline from the same monitor, 2026-10-07T10:00:00Z to 10:50:00Z on statement-render-00022-wqp: p99 memory utilization 0.44 to 0.49; no memory-limit terminations.
+  Historical baseline from the same monitor, 2026-10-07T10:00:00Z to 10:50:00Z on statement-render-00022-wqp: p99 memory utilization 0.38 to 0.41; no memory-limit terminations.
   The monitoring export reports container totals only; it does not separate application heap from file-backed or other memory.
   varlog/system records for statement-render-00023-kfz at 10:31:12Z (instance i-7f3a), 10:38:40Z (instance i-c210) and 10:44:05Z (instance i-9d4e): instance terminated after exceeding the memory limit. This fixture wording is a paraphrase, not documented Google text.
   Request records: 7 POST /render requests on those instances ended with status=500 at the three termination times; all other sampled requests in the window returned 200.

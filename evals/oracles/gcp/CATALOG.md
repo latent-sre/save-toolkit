@@ -143,7 +143,7 @@ the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCON
 
 ### Variant A
 
-Release 3.6.0 retains render scratch files in /tmp/render after their uploads commit. On the terminated instances that file growth (about 600 MiB on i-7f3a) plus a stable heap of about 320 MiB reaches the revision's 1 GiB limit, so retained temporary files contribute to the memory-limit terminations. The retained files sampled are disposable copies of committed statements; the 7 jobs that ended with HTTP 500 are unreconciled. The responsible code change is not confirmed.
+Release 3.6.0 retains render scratch files in /tmp/render after their uploads commit. On the two terminated instances with reports (i-7f3a and i-c210), that file growth (about 600 MiB on i-7f3a) plus a stable heap of about 320 MiB reaches the revision's 1 GiB limit, so retained temporary files contribute to the memory-limit terminations. The retained files sampled are disposable copies of committed statements; the 7 jobs that ended with HTTP 500 are unreconciled. The responsible code change is not confirmed.
 
 **Useful next checks:**
 
@@ -166,6 +166,7 @@ Release 3.6.0 retains render scratch files in /tmp/render after their uploads co
 - Which 3.6.0 change stopped scratch deletion.
 - Whether every retained file belongs to a committed upload beyond the 40 sampled names.
 - The final state of the 7 jobs that ended with HTTP 500.
+- Memory composition on i-9d4e, which has no report in the export.
 - Instance memory and terminations after the 10:45 UTC report coverage.
 
 ### Variant B
@@ -237,13 +238,13 @@ B-2290 was owned by the post-response worker on instance 0c71d4e9. Its sending a
 
 ### Variant B
 
-B-2290 was marked for the sweep job at acceptance and never used the post-response worker. In execution 7kq2m, task 2's first attempt sent 6 confirmations and failed before recording sent marks; the automatic retry re-sent its whole partition, and the gateway accepted both copies for those 6 trades. A retried, non-idempotent task explains the 6 duplicated confirmations. Request-based billing is declared but does not explain B-2290, and one execution with one task per partition is not proof of single effects.
+B-2290 was marked for the sweep job at acceptance and never used the post-response worker. In execution 7kq2m, task 2's first attempt sent 6 confirmations and failed on the 7th, before the end-of-partition sent-mark write; the automatic retry re-sent its whole partition, and the gateway accepted both copies for those 6 trades. A retried, non-idempotent task explains the 6 duplicated confirmations. Request-based billing is declared but does not explain B-2290, and one execution with one task per partition is not proof of single effects.
 
 **Useful next checks:**
 
 - Counterparty-gateway owner identifies the 6 duplicated confirmations by message id and decides any counterparty correction.
 - Application owner reviews per-confirmation sent marks or an idempotency key for the sweep and decides any retry-setting change.
-- Application owner checks other executions since 13:30 UTC for tasks with retried greater than 0 and investigates the state-store write timeout.
+- Application owner checks other executions since 13:30 UTC for tasks with retried greater than 0 and investigates the state-store read timeout.
 - Noor keeps re-runs and resends on hold until effects are reconciled and reports 6 duplicated confirmations on the existing TLC.
 
 **Unsupported conclusions/actions:**
@@ -256,7 +257,7 @@ B-2290 was marked for the sweep job at acceptance and never used the post-respon
 
 **Unknowns to preserve:**
 
-- Why the state-store write timed out.
+- Why the state-store read timed out.
 - Whether the counterparty acted on both copies of the 6 confirmations.
 - Whether other executions since 13:30 UTC retried tasks with the same effect, and whether the post-response path has a separate exposure.
 

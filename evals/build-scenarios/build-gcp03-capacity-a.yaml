@@ -30,7 +30,7 @@ prompt: |
   Service card: each pricing request calls refdata-api, owned by the Reference Data team; the order-pricing refdata client deadline is 4 seconds.
   Caller-side monitor (order-router only) baseline 14:30:00Z-14:45:00Z: 29,250 requests (1,950/min), p95 latency 380 ms, 0.1% failed.
   Caller-side monitor (order-router only) 15:05:00Z-15:20:00Z: 31,500 requests (2,100/min), p95 latency 4.6 s, 6.0% failed (1,890 requests).
-  The monitor counts any non-2xx response or a 5-second client timeout as failed; it exports no status codes, revision, instance or dependency attribution and no traffic from other callers.
+  The monitor counts any non-2xx response or a 15-second client timeout as failed and computes p95 latency over successful (2xx) responses only; it exports no status codes, revision, instance or dependency attribution and no traffic from other callers.
   15:12:00Z operator note: ITO opened the TLC; no scaling, configuration, traffic, caller or downstream change is approved or recorded.
   The common packet contains no Cloud Run metric samples, request-log status breakdown, application timings or dependency records.
   Taylor is on the existing TLC; the platform capacity owner and the Reference Data owner are reachable through it.
