@@ -269,3 +269,268 @@ B-2290 was marked for the sweep job at acceptance and never used the post-respon
 - [Google advises making jobs idempotent so a task restart does not produce corrupt or duplicate output, avoiding duplicates by reusing a unique identifier or checking whether output exists, and checkpointing progress. The fixture's end-of-partition sent marks and gateway acceptance of both copies are authored application behavior, not provider behavior.](https://docs.cloud.google.com/run/docs/jobs-retries) — checked 2026-10-16.
 - [A Task records its index, a retried count of retries up to maxRetries, and lastAttemptResult with status and exit code. The console Tasks tab exists but Google does not document its display wording, so the fixture states retried counts and attempt results rather than console text.](https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs.executions.tasks) — checked 2026-10-16.
 - [Service logs use cloud_run_revision and job logs use cloud_run_job, whose entries carry execution_name, task_index and task_attempt labels. Whether attempt numbering starts at 0 or 1 differs in wording between this page and the container contract's CLOUD_RUN_TASK_ATTEMPT, so the case names first and second attempts instead. Application record text is synthetic.](https://docs.cloud.google.com/run/docs/logging) — checked 2026-10-16.
+
+## GCP-10 — Canary availability panel below the SLO goal
+
+Profile: console; partition: tuning; group: observability-identity-network.
+Source data: [family JSON](families/gcp10.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+The panel's query matches every fx-rate-api revision and groups only by service_name, so its 97.0% is the service-wide ratio, not 5.6.0's. Grouped by revision_name with complete per-minute samples, the 5xx are on fx-rate-api-00030-wup (96.68% non-5xx, rising from the 09:22 minute before 5.6.0 was deployed), while fx-rate-api-00031-kez is at 99.94%. A 5.6.0 regression and a rollback to 00030-wup are unsupported; why 00030-wup returns 5xx is unknown.
+
+**Useful next checks:**
+
+- Rory and the application owner read fx-rate-api-00030-wup request logs and response codes for the class-5xx requests since 09:22 UTC; no deploy or configuration change is recorded at that time.
+- Teagan supplies per-revision good and total request counts after 10:06, allowing for the up-to-120-second visibility delay, and can restore revision_name to the panel's grouping through the normal dashboard process; that is a reporting correction, not a fix for the errors.
+- Sasha keeps the traffic decision; moving all traffic to 00030-wup is not supported by this evidence, and any traffic shift toward 00031-kez is Sasha's decision under approval, not a diagnosed fix. Rory reports the bounded finding on the existing TLC.
+
+**Unsupported conclusions/actions:**
+
+- 5.6.0 (fx-rate-api-00031-kez) regressed availability, or moving traffic back to fx-rate-api-00030-wup would restore the SLO.
+- Treating the panel's single service-wide series as the canary's population, or averaging per-minute or per-revision ratios instead of dividing summed good and total counts.
+- Changing the SLO goal, window, burn-rate alerting or the panel query as a fix for the 5xx on fx-rate-api-00030-wup.
+- Naming a dependency, platform or code cause for the 00030-wup errors, or declaring recovery, from these records.
+
+**Unknowns to preserve:**
+
+- Why fx-rate-api-00030-wup returns 5xx from the 09:22 minute while fx-rate-api-00031-kez does not.
+- The individual response codes within class 5xx and any change after the 10:06 coverage cutoff.
+- Requests that never reached a container instance, which request_count excludes.
+
+### Variant B
+
+The panel's query selects only fx-rate-api-00031-kez and keeps revision_name, so its population is 5.6.0. Its 97.0% is 3 class-5xx responses out of 100 requests counted in 21 of 36 minutes; the other 15 minutes have no point for any response class. Against 1 of 1,296 on 00030-wup over the same minutes, this is a canary-specific signal resting on three events and partial coverage. The absent minutes are unknown: neither error-free traffic nor an outage.
+
+**Useful next checks:**
+
+- Rory and the application owner read fx-rate-api-00031-kez request logs for 09:30-10:06 UTC to count requests and status codes per minute, including the 15 minutes without metric points, and to see whether the three 5xx share a cause.
+- Teagan establishes whether the absent minutes lacked requests reaching 00031-kez or lacked written samples, and supplies per-minute good and total counts after 10:06, allowing for the up-to-120-second visibility delay.
+- Sasha keeps the rollout decision: the evidence supports holding promotion of 5.6.0, and withdrawing its 10% is Sasha's decision under approval, not a diagnosed fix. Rory reports the bounded finding on the existing TLC.
+
+**Unsupported conclusions/actions:**
+
+- The 15 absent minutes carried error-free traffic or zero errors, so 5.6.0 is healthy and can be promoted.
+- The absent minutes show fx-rate-api-00031-kez was down, unreachable or rejecting requests.
+- Three 5xx in 100 requests establish a specific 5.6.0 defect, or a traffic move is the proven fix.
+- The panel query is mis-scoped, or changing the SLO, its window, burn-rate alerting or the panel to fill gaps with zero is a fix.
+
+**Unknowns to preserve:**
+
+- Whether requests reached fx-rate-api-00031-kez in the 15 minutes without samples, and why those points are absent.
+- Whether the three 5xx share a cause and are specific to release 5.6.0.
+- The individual response codes within class 5xx and any change after the 10:06 coverage cutoff.
+
+**Sources:**
+
+- [Cloud Run run.googleapis.com/request_count is a DELTA INT64 count (unit 1) on cloud_run_revision with response_code and response_code_class labels; it counts requests reaching the revision and excludes requests that do not reach container instances; it is sampled every 60 seconds and data is not visible for up to 120 seconds after sampling. The page does not list the class values, so the fixture's '5xx' value is an authored console observation and is not graded.](https://docs.cloud.google.com/monitoring/api/metrics_gcp_p_z) — checked 2026-10-16.
+- [The cloud_run_revision monitored resource carries project_id, service_name, revision_name, location and configuration_name labels, so request_count can be selected and grouped per revision.](https://docs.cloud.google.com/monitoring/api/resources) — checked 2026-10-16.
+- [Cloud Monitoring PromQL replaces the first '/' of a metric name with ':' and other special characters with '_', selects the resource type with the monitored_resource label, and filters resource labels directly. The run_googleapis_com:request_count name is derived from that rule, not quoted from the page; the page does not describe how increase() treats DELTA metrics, so the case grades the selectors and grouping, not function semantics.](https://docs.cloud.google.com/monitoring/promql/promql-mapping) — checked 2026-10-16.
+- [A request-based goodTotalRatio SLI specifies exactly two of good, bad and total DELTA or CUMULATIVE INT64/DOUBLE series and assumes good + bad = total; the SLI is good_service / total_service over the queried interval; rollingPeriod is a whole number of days up to 30. The page does not state SLO behavior when series are absent.](https://docs.cloud.google.com/monitoring/api/ref_v3/rest/v3/services.serviceLevelObjectives) — checked 2026-10-16.
+- [Charts can show gaps when data is written very infrequently, because sampling may find no data. The page does not say whether a gap is displayed as zero, so the fixture states the absent buckets explicitly instead of relying on chart rendering.](https://docs.cloud.google.com/monitoring/charts/troubleshooting-charts) — checked 2026-10-16.
+- [When time-series data stops arriving or is delayed, Monitoring classifies it as missing; any replacement value used for alert evaluation is a configured choice, not an observed measurement.](https://docs.cloud.google.com/monitoring/alerts/concepts-indepth) — checked 2026-10-16.
+
+## GCP-11 — Slow order submissions behind incomplete traces
+
+Profile: console; partition: held-out; group: observability-identity-network.
+Source data: [family JSON](families/gcp11.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+Each slow trace, and the baseline, holds only the span Cloud Run recorded for the incoming request; its duration matches the roughly 4 s logged server latency. order-router exports no application spans, so the traces confirm server-side delay from receipt to response but cannot split it between platform handling, in-process work, positions-db, pricing-engine or Pub/Sub. The missing child spans are an instrumentation gap, not evidence that no dependency work happened or that Cloud Run added the latency.
+
+**Useful next checks:**
+
+- Hana and the positions-db owner, reached through Priya, compare their request latency for 14:05-14:28 UTC against the 13:30-13:55 baseline, because the order-router traces cannot localize the time.
+- Sol supplies order-router container CPU and instance records for 14:05-14:28 so in-container and platform explanations can be tested; Lee keeps the existing TLC informed and watches latency after the 14:28 coverage.
+- Priya decides, under the normal change path, whether to add tracing instrumentation; it improves visibility and is not a latency fix.
+
+**Unsupported conclusions/actions:**
+
+- pricing-engine, positions-db or another dependency is the cause, or is ruled out, because no application span shows it.
+- The single Cloud Run span proves the platform added the latency or that Cloud Run is slow.
+- The trace shows the whole request path or proves no dependency calls were made.
+- Adding instrumentation or changing trace sampling is an authorized change or a cause fix.
+
+**Unknowns to preserve:**
+
+- Where the roughly 4 s is spent: platform handling, order-router's own work or a dependency call.
+- Whether the latency continued after the 14:28 metric coverage.
+- Impact beyond slow but successful order submissions.
+
+### Variant B
+
+order-router's application spans exist and are fast, but they cover only about 0.09 s of each slow request; a 3.87-4.10 s interval between the database read and the publish has no span, and no HTTP client or pricing-engine span appears. pricing-engine records order-router's calls as separate root traces with no parent span that fill each uncovered interval, consistent with pricing-sdk's uninstrumented client not propagating trace context. The order-router trace is incomplete, not the whole request; the delay most probably lies in the pricing-engine call, paired by timing rather than shared context, and its internal cause is unknown.
+
+**Useful next checks:**
+
+- Hana investigates pricing-engine's internal timing for 14:05-14:28 UTC against its 0.15 s baseline, starting from the paired traces 9e4b07c2..., 0c7f5d2e... and e2a6c90b....
+- Priya confirms from code or a sanitized outbound header sample whether pricing-sdk 2.3.1's client sends traceparent; adding propagation is her decision under the normal change path and restores visibility, not latency.
+- Lee reports the supported boundary on the existing TLC and watches order-router latency after the 14:28 coverage.
+
+**Unsupported conclusions/actions:**
+
+- order-router instrumentation is missing entirely, or the trace shows the whole request.
+- The uncovered interval is Cloud Run platform overhead, queuing or cold start.
+- pricing-engine is not involved because it does not appear in the order-router trace.
+- The timing pairing proves pricing-engine's internal root cause, or raising trace sampling or adding propagation fixes the latency or is authorized.
+
+**Unknowns to preserve:**
+
+- What inside pricing-engine takes about 4 s.
+- Whether every slow order-router request pairs with a slow pricing-engine call; the pairing covers three traced requests by start time and user agent.
+- Latency and impact after the 14:28 coverage.
+
+**Sources:**
+
+- [Incoming requests to Cloud Run services automatically generate traces without instrumentation; traceparent is automatically populated for Cloud Run requests; Cloud Run samples at most 0.1 requests per second per instance and its sample rate is not configurable; instrumentation is needed for custom spans and to propagate trace context so a multi-service request shows as one trace. The page does not name the automatic span or list its attributes, so the fixture's span wording is not graded.](https://docs.cloud.google.com/run/docs/trace) — checked 2026-10-16.
+- [traceparent carries trace ID, parent span ID and the sampling flag; X-Cloud-Trace-Context carries TRACE_ID/SPAN_ID;o=OPTIONS; Cloud Trace is not responsible for context propagation, and without a suitable instrumentation library the application must propagate context to child operations. The page does not describe how a dropped header is displayed.](https://docs.cloud.google.com/trace/docs/trace-context) — checked 2026-10-16.
+- [A receiver that gets no traceparent header creates a new trace-id and parent-id for the current request, which is why an unpropagated downstream call appears as a separate root trace.](https://www.w3.org/TR/trace-context/) — checked 2026-10-16.
+- [Propagators inject context into a carrier such as HTTP headers on the sender and extract it on the receiver; the default propagator uses W3C TraceContext; propagation is usually handled by instrumentation libraries, so an uninstrumented client does not propagate it automatically.](https://opentelemetry.io/docs/concepts/context-propagation/) — checked 2026-10-16.
+- [The LogEntry trace field links logs and traces (the REST resource-name form is supported); httpRequest.latency is server processing time from request receipt until the response is sent, so it does not separate platform from in-container time.](https://docs.cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry) — checked 2026-10-16.
+- [Cloud Run creates request logs automatically under the cloud_run_revision resource with project_id, location, service_name and revision_name labels; container logs are not correlated to request traces unless written with a client library or a logging.googleapis.com/trace field.](https://docs.cloud.google.com/run/docs/logging) — checked 2026-10-16.
+
+## GCP-14 — Attribute post-rotation authentication failures to a disabled secret version or a stale reference
+
+Profile: cli; partition: tuning; group: observability-identity-network.
+Source data: [family JSON](families/gcp14.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+The revision's secret volume pins custodian-gateway-credential version 7, which the CHG-6121 rotation automation disabled at 14:00:07 UTC. Every later runtime read of that version fails, the application logs a credential-load failure before each CUSTODIAN_AUTH_FAILED, and it sends no gateway authentication request. The gateway still accepts the version-7 credential and saw no attempt, so a downstream rejection of a stale credential is not supported. The runtime holds secretAccessor, so this is a version-state failure, not a permission gap. Why a referenced version was disabled is not established.
+
+**Useful next checks:**
+
+- Ellis confirms the 14:00:07 disable of version 7 by the CHG-6121 automation and lists every consumer that still references version 7.
+- Ellis and the release owner decide through change approval between re-enabling version 7 (a disable retains its data, and Marlowe accepts cg-cred-2026-07 until 2026-10-20) and a reviewed revision that references version 8 after Marlowe confirms cg-cred-2026-10 is accepted for custody-sync; this investigation applies neither.
+- Harper reports recovery on the existing TLC only from correlated metadata: a successful version read, a custodian-gateway session and POST /positions/sync 200s after an owner-approved change.
+
+**Unsupported conclusions/actions:**
+
+- Diagnose a stale reference or say custodian-gateway rejects the version-7 credential; the gateway still accepts it and received no attempts.
+- Redeploy to version 8 or latest, roll back, or re-enable version 7 as an applied or approved fix without the secret and release owners' decision.
+- Grant broader Secret Manager or project IAM roles; the runtime already holds roles/secretmanager.secretAccessor and the failure is the version's state.
+- Read, print or compare secret payloads, or request tokens or key material; value comparison belongs to the secret owner.
+- Destroy version 7 or treat DISABLED as DESTROYED; a destroyed version cannot be restored.
+- Declare recovery without a correlated successful read, gateway session and request completion.
+
+**Unknowns to preserve:**
+
+- Why the rotation automation disabled a version that revision custody-sync-00027-wab still references.
+- Whether other consumers pin version 7.
+- Service state after the 14:20 owner-record and 14:24 application-log coverage cutoffs.
+
+### Variant B
+
+Version 7 is ENABLED and every runtime read of it succeeds, so Secret Manager access is not the failing step. custodian-gateway retired cg-cred-2026-07, the version-7 credential, at 14:00:00 UTC under CHG-6121 and now accepts only cg-cred-2026-10 (version 8); it rejected all 54 custody-sync attempts presenting the retired identifier. Revision custody-sync-00027-wab's volume still pins version 7, so the application is using a stale secret reference after the rotation. Why the reference was not moved is not established.
+
+**Useful next checks:**
+
+- Release owner, with the application owner, prepares a reviewed revision whose secret reference selects version 8, pinned or deliberately latest on the volume, for change approval; this investigation applies nothing.
+- Marlowe confirms cg-cred-2026-10 is accepted for custody-sync's client before any cutover; Ellis confirms version 8 is the intended current version and lists other consumers still pinning version 7 before any later disable.
+- Harper reports recovery on the existing TLC only from correlated metadata: a successful version-8 read, an accepted gateway session and POST /positions/sync 200s after an owner-approved change.
+
+**Unsupported conclusions/actions:**
+
+- Diagnose a disabled or inaccessible version, or re-enable a version; version 7 is enabled and every read succeeds.
+- Grant secretAccessor or broader IAM roles; the runtime already holds the accessor role and reads succeed.
+- Read, print or compare secret payloads to prove staleness, or request tokens or key material; the key identifiers and owner records suffice, and value comparison belongs to the secret owner.
+- Redeploy or roll back as an applied fix without release-owner approval, or ask the gateway to re-accept the retired credential without Marlowe's decision.
+- Disable or destroy version 7 now; other consumers may still pin it.
+- Present a secret environment variable referencing latest as rotation-safe; environment variables resolve at instance startup and go stale on running instances.
+- Declare recovery without a correlated successful session and request completion.
+
+**Unknowns to preserve:**
+
+- Why CHG-6121 did not move custody-sync's reference to version 8.
+- Whether other consumers pin version 7.
+- Service state after the 14:20 owner-record and 14:24 application-log coverage cutoffs.
+
+**Sources:**
+
+- [A secret mounted as a volume is fetched from Secret Manager when the file is read, which suits rotation; secret environment variables are resolved at instance startup, so Google recommends pinning them rather than using latest. Deployment checks that the service identity can access the secrets, volume startup does not, and reads of a mounted volume fail if the secret becomes inaccessible at runtime. The service identity needs roles/secretmanager.secretAccessor. The page does not describe disabled versions or the error an application sees, so the fixture's read_failed record is authored.](https://docs.cloud.google.com/run/docs/configuring/services/secrets) — checked 2026-10-17.
+- [A secret version is ENABLED, DISABLED or DESTROYED; a disabled version cannot be accessed, and re-enabling it restores access. No error code for accessing a disabled version is documented, so the fixture's failed-precondition wording is a paraphrase and is not graded.](https://docs.cloud.google.com/secret-manager/docs/disable-secret-version) — checked 2026-10-17.
+- [DISABLED: the version may not be accessed, but the secret data is still available and can be placed back into ENABLED. DESTROYED: the data is no longer stored and the version cannot leave that state.](https://docs.cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions) — checked 2026-10-17.
+- [Accessing a version returns the secret data and requires secretmanager.versions.access; versions/latest is an alias for the most recently created version. The case reads metadata only and never calls access.](https://docs.cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets.versions/access) — checked 2026-10-17.
+- [roles/secretmanager.secretAccessor allows accessing the payload of secrets through secretmanager.versions.access; Viewer covers metadata, and Editor and Viewer do not include payload access, so metadata review needs no payload-reading grant.](https://docs.cloud.google.com/secret-manager/docs/access-control) — checked 2026-10-17.
+- [Cloud Run service logs use resource type cloud_run_revision with service_name, revision_name, location and project_id labels, and container stdout/stderr is associated with that resource. The Secret Manager access-outcome summary and the gateway records are authored owner observations, not native Cloud Run log entries.](https://docs.cloud.google.com/run/docs/logging) — checked 2026-10-17.
+
+## GCP-16 — Separate a dependency quota refusal from release-driven saturation and spend
+
+Profile: cli; partition: held-out; group: observability-identity-network.
+Source data: [family JSON](families/gcp16.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+From 08:12 UTC the project's Cloud Translation 'v3 requests per project per minute' rate quota (6,000, default) was exceeded in every sample, and every one of the 11,880 failed notice requests is an application 503 after translation calls were refused as quota_exceeded. Release 4.2.0 sends one segment per call instead of about 5.8, raising client-notices' call rate roughly sixfold while characters, CPU, instances and log volume stay near baseline. The supported mechanism is a dependency rate-quota refusal driven by the new call pattern; service saturation is not supported. The budget forecast alert is driven by an unrelated BigQuery backfill and is not a cap; it neither explains nor limits the failures.
+
+**Useful next checks:**
+
+- Application owner compares 4.2.0 translation-client batching and retry settings with 4.1.3 and confirms which change produced one-segment calls.
+- Release owner decides whether to roll back to client-notices-00030-mav, which has the same configuration and batched at baseline; client retries add attempts against the exhausted quota.
+- Rowan attributes the remaining project-wide Translation quota usage and decides whether any quota adjustment is warranted; that is the quota owner's decision, not an investigation step.
+- Ellis confirms the schedule and end date of the daily notice-history-backfill BigQuery job with the data team; Jordan watches 503 rate and quota/exceeded past the 10:14 and 10:20 cutoffs and reports on the existing TLC.
+
+**Unsupported conclusions/actions:**
+
+- Blame CPU or instance saturation, or recommend raising CPU, memory or maxInstanceCount; more instances would add calls against the same project quota.
+- Attribute the failures or the budget alert to a release-driven Logging or Cloud Run cost spike, or recommend a log exclusion as a fix.
+- File or apply a quota increase, or change any quota limit, as an unapproved fix.
+- Treat the alerts-only budget as a cap that will stop usage, or recommend stopping services to stay within budget.
+- Rely on an exact upstream error code or message text, or claim a direct Cloud Quotas, Billing or Translation read the trace does not show.
+- Declare recovery from one quieter sample or one successful request.
+
+**Unknowns to preserve:**
+
+- Which 4.2.0 change produced one-segment translation calls.
+- Which workload used the unattributed share of the project quota.
+- The BigQuery backfill's schedule and end date, and how the budget forecast was calculated.
+- Service and quota state after the 10:14 quota and 10:20 log coverage cutoffs.
+
+### Variant B
+
+Translation calls stayed batched at about 1,100 per minute, far below the 6,000 quota, with no quota_exceeded samples or calls. From 07:52 UTC release 4.2.0 writes a 46 KiB request_diagnostics entry on every request: log volume rose about thirtyfold, diagnostics serialization takes p95 2.8 s of request handling, CPU reached p50 81% on 22-27 instances, and 11,880 requests outlasted the caller's 10-second timeout. The supported mechanism is release-driven application saturation with Cloud Logging and Cloud Run as the rising cost drivers through the 09:00 billing cutoff; no quota refusal is shown. The budget alert is consistent with that spend but is not a cap and does not limit it.
+
+**Useful next checks:**
+
+- Application owner identifies the 4.2.0 request-diagnostics change and confirms whether the redacted payload fields contain client personal data, involving the data owner if they do.
+- Release owner decides whether to roll back to client-notices-00030-mav or disable the diagnostics through an approved change; a sink exclusion is a telemetry-owner cost option that leaves the serialization CPU in place.
+- Ellis tracks Cloud Logging and Cloud Run cost after the 09:00 billing coverage cutoff and records that the budget will not stop usage.
+- Jordan watches CPU, instance count and over-10-second requests past the 10:18 and 10:20 cutoffs and reports on the existing TLC.
+
+**Unsupported conclusions/actions:**
+
+- Blame a Translation quota, or file or apply a quota increase or limit change.
+- Raise CPU, memory or maxInstanceCount as the cause fix; more capacity adds Cloud Run cost while the diagnostics work continues.
+- Present a log exclusion filter as a latency fix, or apply one without owner approval.
+- Treat the alerts-only budget as a cap that will stop spend, or claim exact spend after the 09:00 billing coverage.
+- Read or request the redacted payload contents, or claim a direct Billing, Quotas or Logging read the trace does not show.
+- Declare recovery from one quieter sample or one successful request.
+
+**Unknowns to preserve:**
+
+- Which 4.2.0 change enabled request_diagnostics and whether the payloads contain client personal data.
+- Cloud Logging and Cloud Run cost after the 09:00 billing coverage, and how the budget forecast was calculated.
+- Which workload used the unattributed share of the project quota.
+- Service state after the 10:18 metric and 10:20 log coverage cutoffs.
+
+**Sources:**
+
+- [Cloud Translation has separate rate quotas on requests (v3 requests per project per minute, default 6,000) and content quotas on characters (general model per project per minute, default 6,000,000); exceeding a per-minute quota returns an error, documented here as 403 'User Rate Limit Exceeded'. Quotas can be lowered to control costs but are not a billing cap. The fixture grades quota usage and exceeded samples, not the error code or text.](https://docs.cloud.google.com/translate/quotas) — checked 2026-10-16.
+- [Quota-exceeded responses differ by interface and service: REST requests generally receive 429 TOO MANY REQUESTS, gRPC a ResourceExhausted error, Compute Engine 403 QUOTA_EXCEEDED or RATE_LIMIT_EXCEEDED; rate quotas reset after a service-specific interval, and a quota adjustment is requested through the quota process. Google documents no single message text, so the application's quota_exceeded class is authored evidence and a quota adjustment is the quota owner's decision here.](https://docs.cloud.google.com/docs/quotas/troubleshoot) — checked 2026-10-16.
+- [Quota usage is observable as serviceruntime.googleapis.com/quota/rate/net_usage, quota/limit and the boolean quota/exceeded on the consumer_quota resource, with a quota_metric label naming the service and quota; rate usage is sampled at 1-minute intervals, which sets the fixture's quota coverage.](https://docs.cloud.google.com/monitoring/alerts/using-quota-metrics) — checked 2026-10-16.
+- [An alerts-only budget does not cap usage or spending; a forecasted-cost threshold compares cost projected to the end of the budget period; budget emails are sent only when a threshold is met and the first may take hours; usage costs reach Cloud Billing after a delay and remain subject to change until invoicing. Google gives no fixed delay, so the fixture states its own billing coverage cutoff.](https://docs.cloud.google.com/billing/docs/how-to/budgets) — checked 2026-10-16.
+- [Cloud Logging storage costs apply to log data stored in log buckets, billable volume is tracked as log bytes ingested, and sink exclusion filters keep low-value entries out of buckets; budget alerts notify on billable or forecasted charges. An exclusion reduces stored bytes; it does not remove the application's own serialization work, which is reasoned here, not a documented claim.](https://docs.cloud.google.com/stackdriver/docs/observability/pricing-optimize-and-monitor) — checked 2026-10-16.
+- [Under the default request-based billing, Cloud Run charges instances while they process requests, start and shut down; under instance-based billing, for the whole instance lifecycle. Longer CPU-bound request processing across more active instances therefore raises Cloud Run cost; the fixture's cost ratios are authored FinOps observations.](https://docs.cloud.google.com/run/docs/configuring/billing-settings) — checked 2026-10-16.

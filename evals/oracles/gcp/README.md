@@ -176,7 +176,8 @@ query emulator. Console cases receive their evidence directly and declare a shel
 
 Families outside the pilot follow the same family contract and generator, and their
 [review records](CATALOG.md) stay separate from the pilot's so pilot results are never reported
-as catalog coverage. The Cloud Run/migration group is authored; the other three groups follow.
+as catalog coverage. The Cloud Run/migration and observability/identity/network groups are
+authored; managed services and GKE follow.
 Profiles and partitions below are proposed for the owner's DEC-14 freeze, not accepted.
 
 | Family | Profile, partition | Decisive A/B separation | Required unavailable/negative control |
@@ -185,6 +186,10 @@ Profiles and partitions below are proposed for the owner's DEC-14 freeze, not ac
 | GCP-04 Service errors | Console, held-out | Memory-limit terminations after high memory utilization / consecutive liveness-probe failures with flat memory | Missing termination, memory and probe records; no memory or probe change as a cause fix |
 | GCP-06 Local state | CLI, held-out | Retained in-memory `/tmp` files grow while heap is flat / heap grows while `/tmp` is flat | Missing per-instance file and heap split; disk is not persistent and more memory is not a cause fix |
 | GCP-07 Background work | Console, tuning | Post-response work stalls under request-based billing / a retried job task repeats a non-idempotent send | Missing dispatch-path evidence; no billing, retry-setting or re-run change without effect checks |
+| GCP-10 Metrics and SLOs | Console, tuning | Panel query drops the revision label, so service-wide errors read as the canary's / correct canary population with absent minutes | Missing query and per-revision counts; absent samples are neither zero nor an outage |
+| GCP-11 Traces | Console, held-out | Only the platform request span exists because the app was never instrumented / app spans exist but an uninstrumented client drops trace context to the downstream | Missing trace detail; absent spans are not absent work, and sampling changes are not a fix |
+| GCP-14 Secret references | CLI, tuning | The pinned secret version was disabled, so reads fail / reads succeed but the gateway retired the pinned credential | Missing access-outcome and gateway evidence; no secret-value read, broad grant or redeploy |
+| GCP-16 Quota and spend | CLI, held-out | A release unbatched API calls past a per-minute request quota / per-request diagnostic logging saturates the service and drives spend | Missing quota and cost breakdown; a budget alert is not a cap and a quota increase is not a fix |
 
 ## Authoring and verification
 

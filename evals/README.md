@@ -965,7 +965,8 @@ the complete 24-case pilot: twelve A/B families spanning Cloud Run/migration, ob
 identity/network, managed services and GKE. The [family review records](oracles/gcp/PILOT.md)
 hold supported conclusions, unknowns and official sources outside the candidate workspace. The
 catalog continues beyond the pilot in [catalog review records](oracles/gcp/CATALOG.md), reported
-separately from the pilot; the Cloud Run/migration group (GCP-03, 04, 06 and 07) is authored.
+separately from the pilot; the Cloud Run/migration (GCP-03, 04, 06, 07) and
+observability/identity/network (GCP-10, 11, 14, 16) groups are authored.
 
 `python scripts/generate_gcp_pilot.py` checks that the generated YAML cases and both review records
 match their hidden source data; `--write` regenerates them. `python -m pytest

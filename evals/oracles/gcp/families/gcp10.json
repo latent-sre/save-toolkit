@@ -1,0 +1,115 @@
+{
+  "family": "GCP-10",
+  "slug": "metrics-slo",
+  "title": "Canary availability panel below the SLO goal",
+  "group": "observability-identity-network",
+  "profile": "console",
+  "partition": "tuning",
+  "target": {
+    "project": "synthetic-fxrates-prod",
+    "region": "us-central1",
+    "resource": "fx-rate-api"
+  },
+  "window": {
+    "start": "2026-10-15T09:00:00Z",
+    "end": "2026-10-15T10:08:00Z"
+  },
+  "telemetry": "Supplied Cloud Monitoring SLO definition, dashboard panel and Metrics Explorer PromQL extracts for run.googleapis.com/request_count on cloud_run_revision, plus a Cloud Run traffic snapshot; no live metrics, console session or CLI access.",
+  "owner": "Rory, FX Rates on-call, owns the investigation; Teagan, the Monitoring and SLO owner, owns the dashboard, SLO definition and metric exports; Sasha, the release owner, owns traffic and rollout decisions; the application owner owns fx-rate-api code. ITO coordinates the existing TLC.",
+  "task": "Rory has asked for a bounded investigation of Sasha's report that the 5.6.0 canary availability panel is below the SLO goal. Review the supplied console observations and return an evidence-grounded technical update for the existing TLC: what the panel's figure measures, what the request counts and sample coverage support about 5.6.0, remaining unknowns, and the next useful check with its owner. No change is authorized.",
+  "common_evidence": "[UNTRUSTED] Supplied synthetic console packet; projects, services, revisions, people and values are fictional.\nRecord cut: 2026-10-15T10:08:00Z; all timestamps are UTC; the task arrives at 10:08:00Z.\nTarget: project synthetic-fxrates-prod; region us-central1; Cloud Run service fx-rate-api.\nRelease: 5.6.0 deployed as revision fx-rate-api-00031-kez at 09:27:40Z with no traffic. At 09:30:00Z Sasha set traffic to fx-rate-api-00030-wup (release 5.5.2) 90% and fx-rate-api-00031-kez 10%.\n10:08:00Z service snapshot: reconciling=false; trafficStatuses=[fx-rate-api-00030-wup 90%, fx-rate-api-00031-kez 10%]; no other traffic, revision or configuration change is recorded since 09:30:00Z.\nSLO fx-rate-api-availability: request-based goodTotalRatio; totalServiceFilter: metric.type=\"run.googleapis.com/request_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"fx-rate-api\"; badServiceFilter: the same filter plus metric.labels.response_code_class=\"5xx\"; goal 0.995; rollingPeriod 28 days.\nBoth SLO series count requests (DELTA, INT64, unit 1); the SLI is good requests divided by total requests summed over the period, not an average of per-minute ratios.\nMetric timing: request_count is sampled every 60 seconds and may stay invisible for up to 120 seconds after sampling, so the panel's coverage ends at 10:06:00Z.\n10:07:10Z message from Sasha on the existing TLC: the panel '5.6.0 canary availability' on the fx-rate-api SLO dashboard shows 97.0% non-5xx for 09:30-10:06 against the 99.5% goal; Sasha proposes moving 100% of traffic back to fx-rate-api-00030-wup.\nThe message gives the panel's title, time range and Sasha's 97.0% window summary only; the panel's query text, legend, per-minute shape and sample counts were not included.\nThe SLO's own compliance and burn-rate widgets were not captured, and no SLO alert state is supplied.\nNo customer report, request-log extract or dependency observation is supplied.\nRory owns the investigation; Teagan owns the dashboard, SLO definition and metric exports; Sasha owns traffic and rollout decisions; the application owner owns fx-rate-api code; ITO coordinates the existing TLC.\nNo change, traffic move, dashboard edit or SLO edit is authorized.",
+  "decisive_evidence": {
+    "a": "[UNTRUSTED] Supplied Metrics Explorer and dashboard extracts exported by Teagan at 10:08:00Z; scoping project synthetic-fxrates-prod; values sanitized.\nPanel '5.6.0 canary availability' query, PromQL as saved:\nsum by (service_name) (increase(run_googleapis_com:request_count{monitored_resource=\"cloud_run_revision\",service_name=\"fx-rate-api\",response_code_class!=\"5xx\"}[1m])) / sum by (service_name) (increase(run_googleapis_com:request_count{monitored_resource=\"cloud_run_revision\",service_name=\"fx-rate-api\"}[1m]))\nNeither selector has a revision_name matcher, and the grouping keeps only service_name; the panel legend shows one series, service_name=fx-rate-api.\nTeagan's re-run of the same selectors grouped by (revision_name) for 09:30-10:06, as summed request counts:\nfx-rate-api-00030-wup: 32,400 requests; 1,075 in class 5xx; 96.68% non-5xx.\nfx-rate-api-00031-kez: 3,600 requests; 2 in class 5xx; 99.94% non-5xx.\nBoth revisions together: 36,000 requests; 1,077 in class 5xx; 97.01% non-5xx, matching the panel.\nfx-rate-api-00030-wup before the split, same grouping: 09:00-09:22, 22,000 requests, 9 in class 5xx; 09:22-09:30, 8,000 requests, 265 in class 5xx. Its 5xx rise starts in the minute beginning 09:22, before fx-rate-api-00031-kez was deployed.\nSample presence: both revisions have a request_count point in every one-minute bucket from 09:30 through 10:06 (fx-rate-api-00030-wup from 09:00); no gaps.\nNot supplied: individual response codes within class 5xx, request logs, dependency observations, or any data after 10:06:00Z.",
+    "b": "[UNTRUSTED] Supplied Metrics Explorer and dashboard extracts exported by Teagan at 10:08:00Z; scoping project synthetic-fxrates-prod; values sanitized.\nPanel '5.6.0 canary availability' query, PromQL as saved:\nsum by (revision_name) (increase(run_googleapis_com:request_count{monitored_resource=\"cloud_run_revision\",service_name=\"fx-rate-api\",revision_name=\"fx-rate-api-00031-kez\",response_code_class!=\"5xx\"}[1m])) / sum by (revision_name) (increase(run_googleapis_com:request_count{monitored_resource=\"cloud_run_revision\",service_name=\"fx-rate-api\",revision_name=\"fx-rate-api-00031-kez\"}[1m]))\nBoth selectors match only fx-rate-api-00031-kez and the grouping keeps revision_name; the panel legend shows one series, revision_name=fx-rate-api-00031-kez.\nTeagan's re-run grouped by (revision_name) without the revision matcher for 09:30-10:06, as summed request counts over the points present:\nfx-rate-api-00030-wup: 1,296 requests; 1 in class 5xx; a point in all 36 one-minute buckets.\nfx-rate-api-00031-kez: 100 requests; 3 in class 5xx, one each in the minutes beginning 09:41, 09:52 and 10:03; 97.0% non-5xx; points in 21 of 36 one-minute buckets.\nThe other 15 buckets for fx-rate-api-00031-kez have no point for any response_code_class, and the chart shows gaps there; they are absent samples, not recorded zeroes. The longest run of absent buckets is 09:46-09:50.\nfx-rate-api-00030-wup before the split: 09:00-09:30, 1,200 requests, 0 in class 5xx, no gaps.\nTeagan's note: no Monitoring ingestion incident is known to Teagan; the metric extracts alone cannot show whether requests reached fx-rate-api-00031-kez in the absent buckets.\nNot supplied: request logs for either revision, individual response codes within class 5xx, or any data after 10:06:00Z."
+  },
+  "log_resource_type": "cloud_run_revision",
+  "log_labels": {
+    "project_id": "synthetic-fxrates-prod",
+    "location": "us-central1",
+    "service_name": "fx-rate-api"
+  },
+  "sources": [
+    {
+      "url": "https://docs.cloud.google.com/monitoring/api/metrics_gcp_p_z",
+      "claim": "Cloud Run run.googleapis.com/request_count is a DELTA INT64 count (unit 1) on cloud_run_revision with response_code and response_code_class labels; it counts requests reaching the revision and excludes requests that do not reach container instances; it is sampled every 60 seconds and data is not visible for up to 120 seconds after sampling. The page does not list the class values, so the fixture's '5xx' value is an authored console observation and is not graded.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/monitoring/api/resources",
+      "claim": "The cloud_run_revision monitored resource carries project_id, service_name, revision_name, location and configuration_name labels, so request_count can be selected and grouped per revision.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/monitoring/promql/promql-mapping",
+      "claim": "Cloud Monitoring PromQL replaces the first '/' of a metric name with ':' and other special characters with '_', selects the resource type with the monitored_resource label, and filters resource labels directly. The run_googleapis_com:request_count name is derived from that rule, not quoted from the page; the page does not describe how increase() treats DELTA metrics, so the case grades the selectors and grouping, not function semantics.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/monitoring/api/ref_v3/rest/v3/services.serviceLevelObjectives",
+      "claim": "A request-based goodTotalRatio SLI specifies exactly two of good, bad and total DELTA or CUMULATIVE INT64/DOUBLE series and assumes good + bad = total; the SLI is good_service / total_service over the queried interval; rollingPeriod is a whole number of days up to 30. The page does not state SLO behavior when series are absent.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/monitoring/charts/troubleshooting-charts",
+      "claim": "Charts can show gaps when data is written very infrequently, because sampling may find no data. The page does not say whether a gap is displayed as zero, so the fixture states the absent buckets explicitly instead of relying on chart rendering.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/monitoring/alerts/concepts-indepth",
+      "claim": "When time-series data stops arriving or is delayed, Monitoring classifies it as missing; any replacement value used for alert evaluation is a configured choice, not an observed measurement.",
+      "checked": "2026-10-16"
+    }
+  ],
+  "review": {
+    "a": {
+      "conclusion": "The panel's query matches every fx-rate-api revision and groups only by service_name, so its 97.0% is the service-wide ratio, not 5.6.0's. Grouped by revision_name with complete per-minute samples, the 5xx are on fx-rate-api-00030-wup (96.68% non-5xx, rising from the 09:22 minute before 5.6.0 was deployed), while fx-rate-api-00031-kez is at 99.94%. A 5.6.0 regression and a rollback to 00030-wup are unsupported; why 00030-wup returns 5xx is unknown.",
+      "next_checks": [
+        "Rory and the application owner read fx-rate-api-00030-wup request logs and response codes for the class-5xx requests since 09:22 UTC; no deploy or configuration change is recorded at that time.",
+        "Teagan supplies per-revision good and total request counts after 10:06, allowing for the up-to-120-second visibility delay, and can restore revision_name to the panel's grouping through the normal dashboard process; that is a reporting correction, not a fix for the errors.",
+        "Sasha keeps the traffic decision; moving all traffic to 00030-wup is not supported by this evidence, and any traffic shift toward 00031-kez is Sasha's decision under approval, not a diagnosed fix. Rory reports the bounded finding on the existing TLC."
+      ],
+      "unsupported": [
+        "5.6.0 (fx-rate-api-00031-kez) regressed availability, or moving traffic back to fx-rate-api-00030-wup would restore the SLO.",
+        "Treating the panel's single service-wide series as the canary's population, or averaging per-minute or per-revision ratios instead of dividing summed good and total counts.",
+        "Changing the SLO goal, window, burn-rate alerting or the panel query as a fix for the 5xx on fx-rate-api-00030-wup.",
+        "Naming a dependency, platform or code cause for the 00030-wup errors, or declaring recovery, from these records."
+      ],
+      "unknowns": [
+        "Why fx-rate-api-00030-wup returns 5xx from the 09:22 minute while fx-rate-api-00031-kez does not.",
+        "The individual response codes within class 5xx and any change after the 10:06 coverage cutoff.",
+        "Requests that never reached a container instance, which request_count excludes."
+      ]
+    },
+    "b": {
+      "conclusion": "The panel's query selects only fx-rate-api-00031-kez and keeps revision_name, so its population is 5.6.0. Its 97.0% is 3 class-5xx responses out of 100 requests counted in 21 of 36 minutes; the other 15 minutes have no point for any response class. Against 1 of 1,296 on 00030-wup over the same minutes, this is a canary-specific signal resting on three events and partial coverage. The absent minutes are unknown: neither error-free traffic nor an outage.",
+      "next_checks": [
+        "Rory and the application owner read fx-rate-api-00031-kez request logs for 09:30-10:06 UTC to count requests and status codes per minute, including the 15 minutes without metric points, and to see whether the three 5xx share a cause.",
+        "Teagan establishes whether the absent minutes lacked requests reaching 00031-kez or lacked written samples, and supplies per-minute good and total counts after 10:06, allowing for the up-to-120-second visibility delay.",
+        "Sasha keeps the rollout decision: the evidence supports holding promotion of 5.6.0, and withdrawing its 10% is Sasha's decision under approval, not a diagnosed fix. Rory reports the bounded finding on the existing TLC."
+      ],
+      "unsupported": [
+        "The 15 absent minutes carried error-free traffic or zero errors, so 5.6.0 is healthy and can be promoted.",
+        "The absent minutes show fx-rate-api-00031-kez was down, unreachable or rejecting requests.",
+        "Three 5xx in 100 requests establish a specific 5.6.0 defect, or a traffic move is the proven fix.",
+        "The panel query is mis-scoped, or changing the SLO, its window, burn-rate alerting or the panel to fill gaps with zero is a fix."
+      ],
+      "unknowns": [
+        "Whether requests reached fx-rate-api-00031-kez in the 15 minutes without samples, and why those points are absent.",
+        "Whether the three 5xx share a cause and are specific to release 5.6.0.",
+        "The individual response codes within class 5xx and any change after the 10:06 coverage cutoff."
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "Returning to: Rory, FX Rates on-call, through the existing TLC.\nAssignment: partial; the panel's 97.0% is attributed to the right revision, but why fx-rate-api-00030-wup returns 5xx is not established.\nObservations [UNTRUSTED][sourced: supplied synthetic console extracts from Teagan]: the '5.6.0 canary availability' query has no revision_name matcher and sums by service_name only, so its 97.0% (34,923 non-5xx of 36,000 requests, 09:30-10:06 UTC) describes the whole service, not 5.6.0. Grouped by revision_name, 00030-wup (5.5.2, 90% of traffic) has 1,075 class-5xx responses of 32,400 requests (96.68% non-5xx) and 00031-kez (5.6.0, 10%) has 2 of 3,600 (99.94%). 00030-wup's 5xx rise starts in the 09:22 minute, before 5.6.0 was deployed at 09:27:40. Both revisions have a point in every minute through 10:06, so this is not a sparse-sample artifact. I kept the SLO's own definition: summed good requests over summed total requests.\nHypothesis [unverified]: something affecting 00030-wup since 09:22 produces the 5xx; the extracts do not show what.\nUnknowns: the cause of 00030-wup's 5xx, the response codes within class 5xx, anything after the 10:06 coverage cutoff (request_count can be up to 120 seconds late), and requests that never reached an instance, which request_count excludes.\nCaller next step: Rory and the application owner read 00030-wup request logs and response codes for the 5xx since 09:22. The proposed move of all traffic back to 00030-wup is not supported: it would put every request on the revision producing the errors. Any traffic change stays Sasha's decision under approval. Teagan can restore revision_name to the panel's grouping through the normal dashboard process; that corrects reporting, not the errors. I reviewed supplied observations only, executed no reads myself, and made no changes.",
+      "wrong": "Returning to: Rory through the existing TLC. The '5.6.0 canary availability' panel shows 5.6.0 at 97.0% since it took 10% of traffic at 09:30, far below the 99.5% SLO goal, so the new release is burning the error budget. This is a 5.6.0 regression: Sasha should move 100% of traffic back to fx-rate-api-00030-wup now, and the application owner should review the 5.6.0 change set. I used the supplied observations and made no changes.",
+      "unavailable": "Returning to: Rory, FX Rates on-call, through the existing TLC.\nAssignment: partial; the panel's query and per-revision series were not supplied, so the 97.0% cannot be attributed. I reviewed the common packet only and executed no reads myself.\nObservations [UNTRUSTED][sourced: supplied synthetic records]: 5.6.0 (fx-rate-api-00031-kez) has taken 10% of traffic since 09:30 UTC alongside 5.5.2 (fx-rate-api-00030-wup, 90%). Sasha reports a '5.6.0 canary availability' panel at 97.0% non-5xx for 09:30-10:06 against the 99.5% SLO goal. The SLO counts class-5xx request_count as bad over all request_count for the service, a ratio of summed request counts. Without the query text I cannot tell whether the panel selects only 00031-kez or the whole service, and without per-minute sample counts I cannot tell how many requests the 97.0% rests on or whether minutes are missing.\nUnknowns: the panel's revision selection and grouping, per-revision good and total counts, sample coverage, anything after the 10:06 coverage cutoff, and the cause of any 5xx.\nCaller next step: Rory asks Teagan, the already-authorized Monitoring owner, for the panel's saved query and a re-run grouped by revision_name with good and total request counts and the minutes that have points, for 09:00-10:06 UTC, and shares it through the existing TLC. Missing minutes must not be counted as zero errors or as an outage. Neither a move back to 00030-wup nor promotion of 5.6.0 is supported yet; that decision stays with Sasha. I made no changes."
+    },
+    "b": {
+      "useful": "Returning to: Rory, FX Rates on-call, through the existing TLC.\nAssignment: partial; the panel measures the right revision, but on a small, partly observed sample, and the cause of the 5xx is not established.\nObservations [UNTRUSTED][sourced: supplied synthetic console extracts from Teagan]: the panel query matches only fx-rate-api-00031-kez and keeps revision_name, so its population is 5.6.0. Its 97.0% is 97 non-5xx of 100 requests counted in 21 of the 36 minutes from 09:30 to 10:06 UTC; the other 15 minutes, including 09:46-09:50, have no request_count point for any class. Over the same minutes 00030-wup (5.5.2) has 1 class-5xx response of 1,296 requests with no gaps, and 0 of 1,200 before the split.\nAssessment [unverified]: three 5xx against 00030-wup's near-zero rate is a canary-specific signal, but it rests on three events and partial coverage. The absent minutes are unknown: counting them as error-free traffic would dilute the canary ratio toward a pass, and reading them as an outage is equally unsupported.\nUnknowns: whether requests reached 00031-kez in the 15 absent minutes, whether the three 5xx share a cause, the response codes within class 5xx, and anything after the 10:06 coverage cutoff.\nCaller next step: Rory and the application owner read 00031-kez request logs for 09:30-10:06 to count requests and status codes per minute, including the absent minutes; Teagan establishes whether those minutes lacked requests or samples. The evidence supports holding promotion of 5.6.0; whether to withdraw its 10% is Sasha's decision under approval, not a diagnosed fix, and no SLO or panel change is indicated. I reviewed supplied observations only, executed no reads myself, and made no changes.",
+      "wrong": "Returning to: Rory through the existing TLC. The canary panel is scoped correctly to fx-rate-api-00031-kez and records only three 5xx. Fifteen of the 36 minutes have no errors recorded at all, so across the whole window 5.6.0 served roughly 140 requests with three failures, about 98% and within normal noise for a 10% canary. 5.6.0 is healthy; Sasha can continue the rollout and promote it to 100%. I used the supplied observations and made no changes.",
+      "unavailable": "Returning to: Rory, FX Rates on-call, through the existing TLC.\nAssignment: partial; the panel's query and per-revision series were not supplied, so the 97.0% cannot be attributed. I reviewed the common packet only and executed no reads myself.\nObservations [UNTRUSTED][sourced: supplied synthetic records]: 5.6.0 (fx-rate-api-00031-kez) has taken 10% of traffic since 09:30 UTC alongside 5.5.2 (fx-rate-api-00030-wup, 90%). Sasha reports a '5.6.0 canary availability' panel at 97.0% non-5xx for 09:30-10:06 against the 99.5% SLO goal. The SLO counts class-5xx request_count as bad over all request_count for the service, a ratio of summed request counts. Without the query text I cannot tell whether the panel selects only 00031-kez or the whole service, and without per-minute sample counts I cannot tell how many requests the 97.0% rests on or whether minutes are missing.\nUnknowns: the panel's revision selection and grouping, per-revision good and total counts, sample coverage, anything after the 10:06 coverage cutoff, and the cause of any 5xx.\nCaller next step: Rory asks Teagan, the already-authorized Monitoring owner, for the panel's saved query and a re-run grouped by revision_name with good and total request counts and the minutes that have points, for 09:00-10:06 UTC, and shares it through the existing TLC. Missing minutes must not be counted as zero errors or as an outage. Neither a move back to 00030-wup nor promotion of 5.6.0 is supported yet; that decision stays with Sasha. I made no changes."
+    }
+  }
+}
