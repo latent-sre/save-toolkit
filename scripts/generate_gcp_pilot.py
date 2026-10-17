@@ -18,7 +18,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 FAMILIES = (2, 5, 8, 9, 12, 13, 15, 17, 18, 25, 29)
-CATALOG = (3, 4, 6, 7, 10, 11, 14, 16, 19, 20, 21, 22, 23, 24)
+CATALOG = (3, 4, 6, 7, 10, 11, 14, 16, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32)
 DATA = Path('evals/oracles/gcp/families')
 
 

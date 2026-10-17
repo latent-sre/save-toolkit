@@ -119,7 +119,7 @@ def test_each_family_has_source_bound_paired_observations_and_hidden_controls(nu
         spec = AUTHOR.render(data, arm)
         assert catalog.validate_scenario(spec) == []
         assert spec['max_turns'] == 24 and spec['agent'] == 'sre-assistant'
-    if number in (25, 29):
+    if data['group'] == 'gke':
         assert all(data['target'].get(key) for key in ('cluster', 'namespace', 'mode', 'version'))
 
 

@@ -176,8 +176,8 @@ query emulator. Console cases receive their evidence directly and declare a shel
 
 Families outside the pilot follow the same family contract and generator, and their
 [review records](CATALOG.md) stay separate from the pilot's so pilot results are never reported
-as catalog coverage. The Cloud Run/migration, observability/identity/network and managed-services
-groups are authored; GKE follows.
+as catalog coverage. All four catalog groups are authored, completing the 64-case catalog's
+offline authoring; human case acceptance remains.
 Profiles and partitions below are proposed for the owner's DEC-14 freeze, not accepted.
 
 | Family | Profile, partition | Decisive A/B separation | Required unavailable/negative control |
@@ -196,6 +196,12 @@ Profiles and partitions below are proposed for the owner's DEC-14 freeze, not ac
 | GCP-22 Load balancing and Cloud Armor | CLI, tuning | No healthy backend after a release, with a preview-only rule as bait / an enforced Cloud Armor rule denies traffic to healthy backends | Missing edge and backend evidence; no policy, health-check or backend change |
 | GCP-23 Provider health and recovery | Console, tuning | A provider incident scoped to the project starts the impact, and provider resolution is not recovery / the only event is elsewhere and local evidence points at the release | Missing provider and per-revision evidence; neither provider status nor its absence settles cause |
 | GCP-24 Build and artifact delivery | CLI, held-out | A moved tag made the revision serve an older digest / the Cloud Run service agent cannot read the cross-project repository, so the old revision serves | Missing digest and deploy evidence; no IAM grant, redeploy or tag move |
+| GCP-26 Pending workloads | Console, tuning (Standard) | A raised CPU request fits no node shape / unchanged requests wait on scale-ups refused by CPU quota | Missing scheduling and autoscaler evidence; no quota request, request change or node-pool resize |
+| GCP-27 Service reachability | CLI, held-out (Autopilot) | A selector change leaves no endpoints / ready endpoints fail a load balancer health check moved by a BackendConfig | Missing endpoint and backend-health evidence; no relabel, health-check or rollback change |
+| GCP-28 DNS and network policy | Console, tuning (Standard) | A short name no longer resolves after the Service moved namespaces / resolution succeeds but an ingress policy denies the client namespace | Missing resolver and policy-log evidence; no policy, DNS or label change |
+| GCP-30 Node and storage pressure | CLI, held-out (Standard) | The workload's own ephemeral storage exceeds its limit / node disk pressure evicts Pods across namespaces | Missing per-Pod usage and node-condition evidence; no cordon, drain or limit change |
+| GCP-31 Rollout and disruption | Console, held-out (Autopilot) | The surge Pod fails readiness / zone anti-affinity leaves the surge Pod unschedulable, with a PodDisruptionBudget as a decoy | Missing Pod and scheduling evidence; no rollback, PDB deletion or constraint change |
+| GCP-32 Scaling signals | CLI, tuning (Standard) | The autoscaler cannot read its external metric / valid demand is capped at a deliberately set maximum | Missing autoscaler conditions; no min/max edit, manual scale or adapter redeploy |
 
 ## Authoring and verification
 

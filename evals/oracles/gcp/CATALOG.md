@@ -925,3 +925,382 @@ Release 5.3.1 did not reach production. The 10:05 deploy of margin-calc:5.3.1 fr
 - [Build.images are pushed upon successful completion of all build steps, and a failed push marks the build FAILURE; Results.images lists each built image with its pushed name and Docker Registry 2.0 digest. The build and tag summaries in this case are authored owner observations, not native API responses.](https://docs.cloud.google.com/build/docs/api/reference/rest/v1/projects.builds) — checked 2026-10-17.
 - [Documented cross-project image errors include a Container Registry form stating the Google Cloud Run Service Agent must have permission to read the image and an Artifact Registry form 'PERMISSION_DENIED: User must have permission to read the image'; the remediation is the cross-project deployment instructions. The exact current message for a missing service-agent binding on an Artifact Registry repository, and whether such a failure leaves a non-ready revision object, are not documented, so the fixture's error is a paraphrase, its revision list is authored, and neither is graded.](https://docs.cloud.google.com/run/docs/troubleshooting) — checked 2026-10-17.
 - [Cloud Run service logs use resource type cloud_run_revision with service_name, revision_name, location and project_id labels; request logs and container logs are separate. The service export, CD log, build, tag and IAM records are authored owner observations, not native Cloud Run log entries.](https://docs.cloud.google.com/run/docs/logging) — checked 2026-10-17.
+
+## GCP-26 — Scenario-engine release Pods stuck Pending
+
+Profile: console; partition: tuning; group: gke.
+Source data: [family JSON](families/gcp26.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+Release 6.2.0 raised the scenario-engine CPU request from 5 to 10, more than the 8 CPU capacity of any n2-standard-8 node in scenario-pool, the only node pool. The scheduler finds no node and the autoscaler rejects both scenario-pool groups on NodeResourcesFit, with node auto-provisioning disabled, so adding nodes of this shape cannot place the Pods. Quota headroom and the unreached pool maximum rule out a capacity-provisioning block. The 6.1.3 Pods keep serving; whether the workload needs 10 CPU is unproven.
+
+**Useful next checks:**
+
+- Kofi, the application and release owner, confirms whether 6.2.0's cpu 10 request is intended and what the workload needs per Pod, comparing it with 6.1.3's cpu 5.
+- If the request is a mistake, Kofi proposes a corrected template under ITO's change approval; if 10 CPU is genuinely needed, Annika evaluates a node pool with a machine type that fits it as a platform change. Neither is authorized by this investigation.
+- Ximena tracks the stalled rollout and the 6.1.3 Pods' serving health in the existing TLC against the 12:00 UTC stress run, and decides with Kofi whether to pause or undo the rollout through the normal approval path.
+
+**Unsupported conclusions/actions:**
+
+- Diagnosing a quota, node pool maximum or autoscaler failure, or recommending a quota increase or higher autoscaling limits, when quota headroom exists and the autoscaler rejected the shape.
+- Concluding the cluster is simply full and waiting for or adding nodes of the existing machine type will place the Pods.
+- Editing requests, the Deployment or node pools with kubectl or the console, rolling back, or claiming node access as a step taken or authorized.
+- Claiming an outage or scenario-run failures while the 6.1.3 Pods serve at baseline.
+
+**Unknowns to preserve:**
+
+- Why 6.2.0 sets cpu 10 and whether the workload needs that much CPU per Pod.
+- Whether the rollout can meet the 12:00 UTC stress run, and any state after the 10:37 capture.
+
+### Variant B
+
+The 6.2.0 Pods request the same cpu 5 as 6.1.3 and would fit a new scenario-pool node, but the existing nodes are full. The cluster autoscaler tried three times to add three nodes, below the pool maximum, and each attempt failed on Compute Engine N2_CPUS quota in us-east1, which is fully used. Three replay-batch instances outside the cluster consume the headroom the pool used on 2026-10-13. The workload configuration is not the blocker; who owns the replay-batch instances and whether the quota should change is unproven.
+
+**Useful next checks:**
+
+- Ravi, the cloud quota and policy owner, confirms N2_CPUS usage and history in us-east1 and identifies the owner and purpose of replay-batch-01 to replay-batch-03.
+- Ravi, Annika and the replay-batch owner decide under ITO's change approval whether to free capacity or request a quota increase; no quota request, VM deletion or policy exception is authorized by this investigation.
+- Annika watches the next autoscaler scaleUp/eventResult entries and scenario-pool instance counts after the backoff; Ximena tracks the stalled rollout and 6.1.3 serving health against the 12:00 UTC stress run and decides with Kofi whether to pause or undo the rollout.
+
+**Unsupported conclusions/actions:**
+
+- Blaming the 6.2.0 resource requests or recommending lower requests from the Insufficient cpu events, when requests match 6.1.3 and the autoscaler accepted the shape.
+- Diagnosing a node pool maximum, machine-type mismatch or organization policy block that the records do not show.
+- Requesting a quota increase, deleting the replay-batch instances, resizing node pools or editing the Deployment as a step taken or authorized, or assuming node access.
+- Claiming an outage or scenario-run failures while the 6.1.3 Pods serve at baseline.
+
+**Unknowns to preserve:**
+
+- Who created the replay-batch instances, whether they are still needed, and the quota's change history.
+- Whether another constraint would block node creation once quota is available, and any state after the 10:37 capture.
+
+**Sources:**
+
+- [The scheduler places a Pod only where the sum of requests fits node capacity, regardless of actual usage; an unschedulable Pod stays unscheduled with a FailedScheduling event (the page's example reads '0/42 nodes available: insufficient cpu'). Remedies include adding nodes, freeing room, and checking that the Pod is not larger than all the nodes. The fixture's exact scheduler wording is not graded.](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) — checked 2026-10-17.
+- [maxSurge and maxUnavailable bound Pods above desired and unavailable during a rolling update, and they cannot both be 0; progressDeadlineSeconds defaults to 600, after which the Deployment reports Progressing=False with reason ProgressDeadlineExceeded. Kubernetes takes no other action on a stalled Deployment, so the old Pods keep serving and no automatic rollback occurs.](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) — checked 2026-10-17.
+- [The cluster autoscaler works per node pool and decides from Pod resource requests, not utilization; --min-nodes/--max-nodes are per-zone limits. Scale-up can fail on node creation errors such as insufficient quota, and the autoscaler then backs off from five minutes up to 30 minutes.](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/cluster-autoscaler) — checked 2026-10-17.
+- [Visibility events are in log container.googleapis.com/cluster-autoscaler-visibility, queried with resource.type k8s_cluster. scaleUp carries increasedMigs, requestedNodes and triggeringPods; eventResult follows a scaleUp and its errorMsg can be scale.up.error.quota.exceeded naming the failing groups; noScaleUp is best-effort, emitted every couple of minutes per persisting reason, with rejectedMigs reason no.scale.up.mig.failing.predicate (predicate name and reason, e.g. NodeResourcesFit), top-level no.scale.up.in.backoff and no.scale.up.nap.disabled. The page does not document an organization-policy scale-up error, so the case does not use one.](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/cluster-autoscaler-visibility) — checked 2026-10-17.
+- [The autoscaler adds nodes to a pool only if its machine type provides enough resources; for no.scale.up.mig.failing.predicate review the Pod's requirements, and either correct inaccurate requests or create a node pool with a machine type that fits. scale.up.error.quota.exceeded means some groups could not grow due to Compute Engine quota, visible in the group's Errors tab, with a backoff of up to 30 minutes; the remedy is a quota increase, which here is an owner decision under approval.](https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/cluster-autoscaler-scale-up) — checked 2026-10-17.
+- [CPU quota is regional and counts virtual CPUs across all VM instances in a region; N2 machine types use their own N2_CPUS pool, separate from the CPUS pool used by E2 and N1; resources cannot be created once the limit is reached. The page gives no exact error text, so the fixture's QUOTA_EXCEEDED Errors-tab summary is not graded for wording.](https://docs.cloud.google.com/compute/resource-usage) — checked 2026-10-17.
+
+## GCP-27 — Separate an unselected endpoint set from a failing load balancer health check behind rebalance-web 502s
+
+Profile: cli; partition: held-out; group: gke.
+Source data: [family JSON](families/gcp27.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+CHG-8817 changed Service rebalance-api's selector to require tier=frontend, which none of the three Running, Ready Pods carries. The EndpointSlices have held zero endpoints since 09:20:06 UTC, the Ingress's NEGs emptied by 09:20:38, and the load balancer has had no backend to pick, returning 502 failed_to_pick_backend from 09:20:41. The Pods, their /ready probes, the unchanged health check and the firewall are healthy, so a backend health-check or firewall cause is not supported. Why the bundle added tier=frontend is not established.
+
+**Useful next checks:**
+
+- Cyrus confirms why bundle 4.3.0 added tier=frontend to Service rebalance-api's selector and whether it was meant for another workload; Cyrus and the change approver decide through ITO's change approval between restoring the previous selector and another reviewed correction; this investigation applies neither.
+- Mireille confirms whether any other Service in rebalance-apps received the same selector change in CHG-8817 and, after an approved correction, that EndpointSlices list three ready endpoints and the NEGs show them attached and HEALTHY.
+- Anouk reports recovery on the TLC only from correlated evidence: ready endpoints, HEALTHY NEG endpoints, request-log entries with response_sent_by_backend and status 200, and passing monitor runs.
+
+**Unsupported conclusions/actions:**
+
+- Attributing the 502s to a failing load balancer health check, health-check path or firewall rule; the NEGs have no endpoints and the unchanged /ready check returned 200 until detachment.
+- Treating Running and Ready Pods as proof that users are served; the Service selects none of them.
+- Running kubectl to relabel Pods, edit the Service or apply manifests, or changing the health check or firewall, as an applied or approved fix.
+- Restarting, rolling back or scaling Deployment rebalance-api; its Pod template did not change and the Pods are Ready.
+- Reverting CHG-8817 without Cyrus's decision through change approval, or declaring recovery from one passing request or monitor run.
+
+**Unknowns to preserve:**
+
+- Why bundle 4.3.0 added tier=frontend to the selector.
+- Whether other Services or namespaces received the same selector change.
+- State after the 09:37 object-snapshot and 09:38 view coverage cutoffs.
+
+### Variant B
+
+Service rebalance-api still selects all three Ready Pods and its EndpointSlices list three ready endpoints, so the in-cluster endpoint set is usable. CHG-8817 attached BackendConfig rebalance-api-bc, which changed the load balancer health check to /healthz on port 8080 at 09:20:22 UTC; release 4.2.1 returns 404 there, while the kubelet readiness probe uses /ready and passes. Probes reach every endpoint, so the NEG endpoints went UNHEALTHY by 09:20:38 and the classic load balancer has had no healthy backend, returning 502 failed_to_pick_backend from 09:20:41. A selector, Pod or firewall cause is not supported. Why the BackendConfig names /healthz is not established.
+
+**Useful next checks:**
+
+- Cyrus confirms which health endpoint rebalance-api-bc was meant to probe, given that 4.2.1 serves /ready and /live; Cyrus and the change approver decide through ITO's change approval between correcting the BackendConfig requestPath and removing the backend-config annotation; this investigation applies neither.
+- Mireille confirms the controller-managed health check and per-endpoint health after any approved correction, and flags that a rebalance-api Pod created while the check fails may not pass its load balancer readiness gate, so no restart or scale action is a workaround.
+- Anouk reports recovery on the TLC only from correlated evidence: HEALTHY NEG endpoints, request-log entries with response_sent_by_backend and status 200, and passing monitor runs.
+
+**Unsupported conclusions/actions:**
+
+- Attributing the 502s to a Service selector, label or empty endpoint set; the EndpointSlices list three ready endpoints throughout.
+- Treating Ready Pods or ready EndpointSlices as proof that the load balancer can use them; its health check is a separate check that fails.
+- Adding or changing firewall rules; probes reach the endpoints and receive 404.
+- Running kubectl to edit the BackendConfig, Service or Ingress, or editing the controller-managed health check directly, as an applied or approved fix.
+- Restarting, rolling back or scaling Deployment rebalance-api; its Pod template did not change and new Pods may not pass the readiness gate.
+- Reverting CHG-8817 without Cyrus's decision through change approval, or declaring recovery from one passing request or monitor run.
+
+**Unknowns to preserve:**
+
+- Why rebalance-api-bc names /healthz.
+- Whether a newly created Pod would pass its load balancer readiness gate while the check fails; none was created in the window.
+- State after the 09:37 object-snapshot and 09:38 view coverage cutoffs.
+
+**Sources:**
+
+- [The control plane creates EndpointSlices for a Service with a selector, referencing all Pods that match the selector, labelled kubernetes.io/service-name. For a Pod-backed endpoint, serving maps to the Pod's Ready condition and ready means serving and not terminating. A Ready Pod that the selector does not match therefore contributes no endpoint.](https://kubernetes.io/docs/concepts/services-networking/endpoint-slices/) — checked 2026-10-17.
+- [External GKE Ingress deploys the classic Application Load Balancer; container-native load balancing uses GCE_VM_IP_PORT NEGs whose endpoints are Pod IP addresses, and Services are annotated cloud.google.com/neg '{"ingress": true}'. The controller creates firewall rules for Google health-check systems from 130.211.0.0/22 and 35.191.0.0/16. Readiness probes are used as health checks only when Pods exist at Ingress creation, and later readinessProbe changes do not affect the Ingress. The per-endpoint NEG detach timing in variant A is authored.](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/ingress) — checked 2026-10-17.
+- [Each backend service needs a Google Cloud health check, separate from Kubernetes liveness and readiness probes; GKE builds it from a BackendConfig, from an inferred readiness probe or from defaults (default path /), and recommends BackendConfig. The Ingress controller sets the load-balancer-neg-ready readiness gate True when the load balancer health check reports the Pod's endpoint healthy; a new Pod whose gate never becomes True stalls a rollout. Whether the gate can revert after a Pod became ready is not documented, so the case keeps every Pod pre-existing and reports Ready from the owner snapshot rather than grading gate behavior.](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/ingress-routing-security) — checked 2026-10-17.
+- [HTTP health checks require an HTTP 200 response before the timeout; any other code is unhealthy. Unhealthy backends are not eligible for new connections, and a classic Application Load Balancer returns HTTP 502 when all backends are unhealthy. 35.191.0.0/16 is a GFE health-check probe range. The 502 status for a backend with an empty NEG is not separately documented, so both variants share the same load balancer summary and neither is graded on it.](https://docs.cloud.google.com/load-balancing/docs/health-check-concepts) — checked 2026-10-17.
+- [Classic and global external Application Load Balancer logs use resource.type http_load_balancer; statusDetails failed_to_pick_backend means the load balancer failed to pick a healthy backend (commonly 502 or 503), and response_sent_by_backend means the backend's response was proxied. The request counts are authored and identical in both variants, so the statusDetails value does not separate them.](https://docs.cloud.google.com/load-balancing/docs/https/https-logging-monitoring) — checked 2026-10-17.
+- [k8s_cluster has project_id, location and cluster_name labels. The Service, EndpointSlice, BackendConfig, NEG, health-check and application observations in this export are labelled owner records, not native k8s_cluster log entries.](https://docs.cloud.google.com/logging/docs/api/v2/resource-list) — checked 2026-10-17.
+
+## GCP-28 — Allocation fee lookups fail after a namespace move
+
+Profile: console; partition: tuning; group: gke.
+Source data: [family JSON](families/gcp28.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+allocation-engine still looks up the short name fee-schedule, which resolves only within trade-allocation. When the old Service there was deleted at 13:06:30Z, cluster DNS began answering NXDOMAIN and no connection was attempted. The pricing-ref Service name resolves, and the same Pod reaches its ClusterIP with an allow entry from allow-fee-schedule-clients and no denies from trade-allocation, so the new NetworkPolicies are not blocking this path. Why the effective setting kept the short name is unknown.
+
+**Useful next checks:**
+
+- Anselm, the application owner, compares the effective FEE_SCHEDULE_HOST of ReplicaSet 6c9d7f5b8d with CHG-8846's plan and finds why the update did not land; any correction or rollout is his proposal under ITO's change approval in the existing TLC.
+- Perpetua and Calloway check whether any other workload still looks up fee-schedule from trade-allocation before any owner considers restoring the old Service as a mitigation; that is an owner decision, not an approved step.
+- After an approved correction, Wrenna confirms resolver answers for the pricing-ref name, allow entries for allocation-engine sources, successful fee lookups and the held-allocation backlog with Anselm.
+
+**Unsupported conclusions/actions:**
+
+- Blaming default-deny-ingress or allow-fee-schedule-clients, or deleting, editing or relaxing NetworkPolicies, despite the logged allow and absent denies.
+- Restarting kube-dns, changing the Cloud DNS scope or zone records, or calling Cloud DNS broken when the pricing-ref name resolves correctly.
+- Running kubectl or exec into Pods, recreating the old Service, or editing the setting as an authorized step of this investigation.
+- Claiming recovery from the health-check diagnostic or from Ready Pods.
+
+**Unknowns to preserve:**
+
+- Why the effective setting kept the short name and whether other workloads depend on it.
+- Which held allocations need reprocessing.
+- State after the 13:33 capture.
+
+### Variant B
+
+allocation-engine resolves fee-schedule.pricing-ref.svc.cluster.local to 10.68.14.30 throughout, so DNS is not failing. From 13:06:31Z, when pricing-ref's new ingress policies took effect, connections from all three allocation-engine Pods to fee-schedule on TCP 8443 are logged as denied at ingress. allow-fee-schedule-clients admits namespaces labelled fee-schedule-client=true; settlement-ops has the label and is allowed, trade-allocation does not. The client namespace has no egress policy, so DNS egress is unaffected. Whether the selector or the labels are wrong is for the owners.
+
+**Useful next checks:**
+
+- Calloway, the network-policy owner, and Perpetua compare allow-fee-schedule-clients' namespace selector and the trade-allocation labels with CHG-8846's intended client list and propose a narrow correction under ITO's change approval.
+- Calloway checks deny entries for other source namespaces to fee-schedule since 13:06:30Z to scope the impact.
+- After an approved correction, Wrenna confirms allow entries for allocation-engine sources, no new denies, successful fee lookups and the held-allocation backlog with Anselm.
+
+**Unsupported conclusions/actions:**
+
+- Diagnosing a DNS failure, restarting kube-dns or changing the Cloud DNS scope or records when every lookup resolved to the ClusterIP.
+- Deleting default-deny-ingress, applying an allow-all policy, or labelling the namespace as an authorized step of this investigation.
+- Claiming the deny entries name the denying policy (deny entries carry no policies field) or that the label omission is already proven unintended.
+- Running kubectl or exec into Pods, or rolling back the whole move as a proven fix.
+
+**Unknowns to preserve:**
+
+- Whether the allow rule's selector or the trade-allocation labels deviate from CHG-8846's intent.
+- Which other namespaces are denied and which held allocations need reprocessing.
+- State after the 13:33 capture.
+
+**Sources:**
+
+- [A normal Service gets an A/AAAA record my-svc.my-namespace.svc.cluster-domain that resolves to its cluster IP. DNS queries that do not specify a namespace are limited to the querying Pod's namespace, and the kubelet-written search list expands a short name to name.<pod namespace>.svc.cluster.local, so a Pod in another namespace must name the Service's namespace. The resolver extract reports only each lookup's final answer, so the case does not depend on GKE's exact search list or ndots handling.](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/) — checked 2026-10-17.
+- [A Pod is isolated for ingress when any NetworkPolicy with Ingress in policyTypes selects it; policies are additive allow lists with no explicit deny, and a connection needs both the source's egress and the destination's ingress to allow it. A default-deny-ingress policy does not affect egress, while a default-deny egress policy also blocks DNS unless DNS egress is allowed. namespaceSelector matches namespace labels. Variant B's policies are ingress-only in pricing-ref and no policy selects the client Pods, so client DNS is unrestricted by policy in both arms and resolution cannot fail because of them.](https://kubernetes.io/docs/concepts/services-networking/network-policies/) — checked 2026-10-17.
+- [Network policy logging requires GKE Dataplane V2 and is configured by the single NetworkLogging object (default) with separate allow and deny log/delegate settings. Entries use log name policy-action on resource k8s_node, with connection fields (src_ip, dest_ip, ports, protocol, direction), disposition allow or deny, src/dest pod_name, namespace, workload_name and workload_kind, and count. The policies field appears only for allowed connections; denied connections are aggregated over five seconds and name no policy. The page does not say whether dest_ip records a Service ClusterIP or a Pod IP, so the supplied summaries give destination Pod and port and the case does not rely on dest_ip.](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/network-policy-logging) — checked 2026-10-17.
+- [Kubernetes NetworkPolicy is always on in clusters with GKE Dataplane V2, network policy logging is built in, and Dataplane V2 can only be enabled when the cluster is created.](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/dataplane-v2) — checked 2026-10-17.
+- [Cloud DNS for GKE manages DNS records for Kubernetes Services and can replace kube-dns as the provider; cluster scope, the default, limits Service-name resolution to the cluster, and kube-dns continues to run after Cloud DNS is enabled. Standard-cluster Pods use nameserver 169.254.169.254, where the Cloud DNS data plane listens on port 53. The page does not document query logging for Pod lookups, so lookup outcomes come from an application-owner resolver extract and the case claims no Cloud DNS query-log fields.](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/cloud-dns) — checked 2026-10-17.
+- [Troubleshooting Cloud DNS in GKE includes verifying that the cluster's private zone contains the Service's A record and checking the Pod's resolver configuration; Pods that cannot reach Services may report 'no such host' or 'dial tcp: i/o timeout'. The fixture's application wrapper text is synthetic and is neither a Google message nor graded.](https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/dns) — checked 2026-10-17.
+
+## GCP-30 — Trade-capture enrichment Pods evicted
+
+Profile: cli; partition: held-out; group: gke.
+Source data: [family JSON](families/gcp30.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+Each evicted capture-enricher Pod's own ephemeral-storage usage, mostly its spool emptyDir, grew from the 0.14-0.22 GiB baseline to its 2Gi limit after the 5.2.0 rollout, and the kubelet evicted it for exceeding that limit. Node conditions stayed normal and no other namespace's Pod on the same nodes was evicted, so this is workload-local limit eviction for the application owner, not node pressure. The responsible 5.2.0 change is not confirmed, and the remaining original Pod and the replacements are on the same path.
+
+**Useful next checks:**
+
+- Matteo, the application owner, compares 5.2.0 spool-segment retention with 5.1.3 and confirms which change keeps segments, and what happened to in-flight spool data at each eviction.
+- Matteo decides, through ITO's change approval, between a rollback to 5.1.3 and a reviewed fix; raising the ephemeral-storage limit or adding an emptyDir sizeLimit only changes when the eviction happens and is not a cause fix.
+- Lisbeth tracks k6vxz on x7ln and the replacement Pods' ephemeral-storage usage and further evictions on the existing TLC; Saskia has no node action indicated by this evidence.
+
+**Unsupported conclusions/actions:**
+
+- Diagnosing node DiskPressure or a node fault, or recommending that Saskia cordon, drain, delete or recreate nodes k4dz, m9pq or r2wt.
+- Recommending a higher ephemeral-storage limit, a sizeLimit or a larger boot disk as the fix, or applying any limit change without Matteo's decision and ITO's approval.
+- Diagnosing an OOM kill or memory leak despite memory within limit and no OOMKilled termination.
+- Deleting Pods or restarting the Deployment as a fix, running kubectl, using node SSH, or claiming recovery from the 5 of 6 Ready snapshot.
+
+**Unknowns to preserve:**
+
+- Which 5.2.0 change retains spool segments.
+- Whether in-flight spool data was lost or re-requested at each eviction.
+- When k6vxz and the replacement Pods will reach the limit, and the state after the 11:48 snapshot.
+
+### Variant B
+
+Nodes k4dz, m9pq and r2wt entered DiskPressure as nodefs.available fell below the 10% boot-disk eviction threshold, and their kubelets evicted Pods across three namespaces, including all five capture-enricher Pods, while capture-enricher's own usage stayed at its baseline, below its request and limit. This is node-level storage pressure for the GKE platform owner, not a capture-enricher limit or a 5.2.0 regression. Container images dominate the pressured boot disks, but why they accumulated and why image garbage collection fell short is not established.
+
+**Useful next checks:**
+
+- Saskia, the GKE platform owner, investigates boot-disk consumption and image garbage collection on k4dz, m9pq and r2wt, compares them with the three unaffected nodes, and decides any node-level remediation through ITO's change approval.
+- Lisbeth informs the fx-quotes-batch and client-reporting owners through the existing TLC that their Pods were evicted by the same node condition, so each confirms its own workload impact.
+- Lisbeth tracks DiskPressure on the three nodes, further evictions across namespaces and capture-enricher readiness on the TLC; Matteo has no limit change indicated by this evidence.
+
+**Unsupported conclusions/actions:**
+
+- Blaming release 5.2.0 or capture-enricher's ephemeral-storage use, or recommending a higher limit, a sizeLimit or a rollback as the fix.
+- Treating the incident as capture-enricher-only and ignoring the fx-quotes-batch and client-reporting evictions on the same nodes.
+- Cordoning, draining, deleting or recreating nodes, cleaning images or resizing boot disks as an action of this lane rather than a platform-owner decision with ITO approval.
+- Deleting Pods as a fix, running kubectl, using node SSH, diagnosing an OOM kill, or claiming the pressure has cleared.
+
+**Unknowns to preserve:**
+
+- Why images accumulated on these three nodes and why image garbage collection did not recover enough space.
+- Whether the pressure clears without intervention, and the other teams' workload impact.
+- State of the nodes and evictions after the 11:48 snapshot.
+
+**Sources:**
+
+- [DiskPressure maps to nodefs, imagefs and containerfs available-space and inode signals, MemoryPressure to memory.available, and the control plane maps node conditions to taints. The kubelet reclaims node resources, including unused images, before evicting; it then sets selected Pods to phase Failed, ranking BestEffort or Burstable Pods whose usage exceeds requests first and Pods below requests last. Node-pressure eviction can therefore remove Pods that are within their own limits.](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/) — checked 2026-10-17.
+- [The kubelet measures Pod ephemeral storage in non-tmpfs emptyDir volumes, log directories and writable container layers by regular scans. For pod-level isolation, the Pod limit is the sum of its containers' limits, and usage above it makes the kubelet mark the Pod for eviction. The eviction message wording in the fixture is a paraphrase and is not graded.](https://kubernetes.io/docs/concepts/storage/ephemeral-storage/) — checked 2026-10-17.
+- [On GKE Standard node pools, ephemeral storage is backed by the node boot disk by default, shared with the node's system use, and the eviction threshold is 10% of total boot-disk capacity. Autopilot does not require this planning because Google manages its nodes, which is why the case declares Standard mode.](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/plan-node-sizes) — checked 2026-10-17.
+- [Kubernetes Event logs are stored under the events log name with resource type k8s_pod for Pod Events and k8s_node for Node Events, and gcloud logging read queries cluster, node, Pod and container logs. The node-condition, usage and cross-namespace summaries in this packet are labelled platform-owner observations, not claimed native log fields.](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/view-logs) — checked 2026-10-17.
+- [k8s_pod uses project_id, location, cluster_name, namespace_name and pod_name labels; k8s_node uses project_id, location, cluster_name and node_name.](https://docs.cloud.google.com/logging/docs/api/v2/resource-list) — checked 2026-10-17.
+
+## GCP-31 — Corporate-actions API release stalled mid-rollout
+
+Profile: console; partition: held-out; group: gke.
+Source data: [family JSON](families/gcp31.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+Revision 8 (5.2.0) created one surge Pod, which was scheduled and is Running without restarts but has failed every readiness probe with HTTP 503 since 10:31:24; its log reports reference schema 41 required and 40 found. With maxUnavailable resolving to 0, the controller keeps all three 5.1.3 Pods until a new Pod is available, so the rollout stalled and reported ProgressDeadlineExceeded at 10:41:02 while 5.1.3 serves all traffic at baseline 5xx with 3 of 3 desired Pods ready. The PodDisruptionBudget does not limit rolling updates, the templates carry no placement constraint and no node operation ran, so none of them is the cause. Why production is at schema 40 is unknown.
+
+**Useful next checks:**
+
+- Caspian establishes whether 5.2.0 depends on reference schema 41 and how production was meant to reach it, comparing with pre-production; whether to leave the stalled rollout in place, roll back to revision 7 or fix forward is his decision under ITO approval.
+- Folasade keeps watching the three 5.1.3 Pods' readiness, the Service's ready endpoints and the 5xx ratio after the 10:54 coverage and reports through the existing TLC; healthy capacity is 3 of 3 desired Pods, all on the previous release.
+- Henrike and Caspian review corp-actions-api-pdb (minAvailable equal to replicas, disruptionsAllowed 0) before the maintenance window opening 2026-10-17T02:00Z, as a separate risk to node-upgrade drains rather than a cause of this stall.
+
+**Unsupported conclusions/actions:**
+
+- Blaming the PodDisruptionBudget or a node upgrade for the stall, or deleting or lowering the PDB to let the rollout finish.
+- Changing the rollout strategy, replica count, readiness probe or placement rules, or deleting the new or old Pods, as a fix.
+- Presenting a rollback, schema change or fix-forward as decided or performed by the candidate.
+- Claiming user impact from the stalled rollout, or claiming completion or recovery from the pipeline state.
+
+**Unknowns to preserve:**
+
+- Whether 5.2.0 is meant to require schema 41 and whether or when production should receive it.
+- Whether 5.2.0 serves correctly once it becomes ready.
+- The rollout and serving state after the 10:54 metric coverage and 10:55 captures.
+
+### Variant B
+
+Both revisions require pod anti-affinity on topology.kubernetes.io/zone for app=corp-actions-api, and the three 5.1.3 Pods occupy all three of the cluster's zones, so the surge Pod has no eligible zone: it has been Pending with FailedScheduling since 10:31:02 and triggered no scale-up. With maxUnavailable resolving to 0, the controller will not remove a 5.1.3 Pod until a new Pod is available, so the rollout deadlocks and reported ProgressDeadlineExceeded at 10:41:02. Revision 7 last rolled out at 2 replicas, when a free zone existed; replicas became 3 on 2026-10-13. The 5.2.0 container never ran, so the image is shown neither faulty nor healthy in production. Healthy capacity is 3 of 3 desired Pods on 5.1.3 at baseline 5xx; the PodDisruptionBudget does not limit rolling updates and no node operation ran.
+
+**Useful next checks:**
+
+- Caspian and Henrike choose a recovery under ITO approval, for example maxSurge 0 and maxUnavailable 1 for this rollout after checking that two Ready Pods can carry current load, or a placement rule that admits a surge Pod while keeping zone spread; a rollback to revision 7 only abandons 5.2.0 and leaves the next rollout facing the same constraint.
+- Folasade keeps watching the three 5.1.3 Pods' readiness, the Service's ready endpoints and the 5xx ratio after the 10:54 coverage and reports through the existing TLC; after any approved change, confirm separately that 5.2.0 Pods become Ready and serve.
+- Henrike and Caspian review corp-actions-api-pdb (minAvailable equal to replicas, disruptionsAllowed 0) before the maintenance window opening 2026-10-17T02:00Z, as a separate risk to node-upgrade drains.
+
+**Unsupported conclusions/actions:**
+
+- Calling 5.2.0 broken or recommending a rollback as the fix, although its container never started.
+- Blaming the PodDisruptionBudget or a node upgrade, or deleting or lowering the PDB.
+- Deleting old or new Pods, editing the anti-affinity rule or strategy, adding zones or forcing node changes as unapproved fixes, or expecting Autopilot node provisioning to satisfy the rule.
+- Asserting that 5.2.0 will pass readiness in production from the pre-production result, or claiming completion or recovery.
+
+**Unknowns to preserve:**
+
+- Whether 5.2.0 becomes Ready and serves correctly in production.
+- Whether two Ready Pods can carry current load during a one-at-a-time replacement.
+- The rollout and serving state after the 10:54 metric coverage and 10:55 captures.
+
+**Sources:**
+
+- [maxSurge and maxUnavailable default to 25%; a percentage resolves to an absolute number by rounding up for maxSurge and down for maxUnavailable, so 3 replicas allow 1 surge Pod and 0 unavailable. progressDeadlineSeconds defaults to 600; when exceeded the Deployment reports type Progressing, status False, reason ProgressDeadlineExceeded, and Kubernetes takes no other action. Progress means creating or scaling ReplicaSets or new Pods becoming ready or available; with minReadySeconds 0 a Pod is available once ready. Status counts and the condition time are authored fixture values; no condition message text is used.](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) — checked 2026-10-17.
+- [A Pod whose readiness probe fails is marked unready and receives no traffic through Services; an HTTP probe succeeds only for status codes from 200 up to but not including 400. The kubelet event wording and its count field are fixture observations and are not graded.](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/) — checked 2026-10-17.
+- [Workload resources such as Deployment are not limited by PodDisruptionBudgets when doing rolling upgrades, although Pods unavailable during a rolling upgrade count against the budget; deleting Pods bypasses a PDB. Tools that respect PDBs use the Eviction API, and a drain blocks while an eviction would breach the budget. The PDB status values are authored observations.](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/) — checked 2026-10-17.
+- [Required pod anti-affinity is a hard scheduling filter: a Pod is not placed in a topology domain, named by the topologyKey node label such as a zone, that already runs a matching Pod; preferred anti-affinity only scores nodes. An optional admission controller can restrict required anti-affinity to kubernetes.io/hostname; the fixture's template and FailedScheduling events are supplied observations, and the scheduler message wording is not graded.](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/) — checked 2026-10-17.
+- [Autopilot supports pod affinity and anti-affinity with topologyKey topology.kubernetes.io/zone or kubernetes.io/hostname, and new Autopilot clusters are regional. The page does not say which zones an Autopilot cluster may use; the three node zones, the absent scale-up and the Pending state are supplied observations, not inferences from this page.](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview) — checked 2026-10-17.
+- [Autopilot node upgrades drain nodes by evicting Pods and respect a PodDisruptionBudget for one hour; maintenance windows and exclusions control timing and are honored if possible. The page does not say what happens after that hour, so the case relies only on the PDB being a latent risk to a future drain.](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/cluster-upgrades-autopilot) — checked 2026-10-17.
+
+## GCP-32 — Entitlement backlog with a flat replica count
+
+Profile: cli; partition: tuning; group: gke.
+Source data: [family JSON](families/gcp32.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+Since 09:41:15 UTC the HPA cannot read its Pub/Sub backlog metric: ScalingActive=False with reason FailedGetExternalMetric, the external value reads <unknown>, and FailedGetExternalMetric and FailedComputeMetricsReplicas warnings repeat. CPU alone (34% against a 70% target) proposes ceil(8 x 34/70) = 4 replicas, a scale-down the HPA skips while a metric is unreadable, so it keeps the existing 8 replicas, well below maxReplicas 24 with ScalingLimited=False. The backlog is still recorded in Cloud Monitoring, so the measurement path between the source and the HPA is broken; it began three minutes after the 09:38 adapter rollout, but the adapter-side cause is not established. The 8 Pods are healthy at their usual per-Pod rate; capacity is short because the count never grew.
+
+**Useful next checks:**
+
+- Solveig, the GKE platform owner, checks the custom-metrics-stackdriver-adapter rolled out under CHG-7342: its logs, the external.metrics.k8s.io APIService and the adapter's Cloud Monitoring read access, and lists other HPAs on external metrics that report the same condition.
+- Bao and Solveig decide how to restore the measurement through ITO's change approval; Ifeoma confirms entitlement-ledger headroom first, because once the metric is readable the backlog implies about 75 replicas and the HPA would scale toward maxReplicas 24.
+- Tamsin reports ScalingActive, desired and ready replicas, backlog and oldest unacked age on the TLC past the 10:35 cutoff; one improved sample is not recovery.
+
+**Unsupported conclusions/actions:**
+
+- Calling the HPA capped at its maximum or recommending a higher maxReplicas; ScalingLimited is False and maxReplicas is 24.
+- Concluding that demand is low or that CPU-based sizing is correct because CPU is 34%; the backlog metric is unreadable, not low.
+- Manually scaling the Deployment, editing HPA min/max or metrics, or redeploying or rolling back the adapter as an applied or approved fix; running kubectl or requesting cluster credentials.
+- Asserting the adapter's internal cause (version, identity or API registration) from timing alone, or blaming node capacity, quota or unhealthy Pods.
+
+**Unknowns to preserve:**
+
+- Why external metric reads fail after the 09:38 adapter rollout.
+- Whether other HPAs in the cluster that use external metrics are affected.
+- Entitlement-ledger headroom for more writers and how fast the backlog drains once scaling resumes.
+- State after the 10:35 snapshot and series cutoff.
+
+### Variant B
+
+The HPA reads its metrics: ScalingActive=True with reason ValidMetricFound, an external average of 4,675 per Pod against a 500 target (37,400 total, the 10:33 backlog sample) and CPU 34%. The backlog implies ceil(8 x 4,675/500) = ceil(74.8) = 75 replicas, but maxReplicas is 8, so ScalingLimited=True since 10:08 and the Deployment holds at its maximum. The supported mechanism is valid demand above the configured replica ceiling, which CR-2209 set to keep ledger connections (96 of 100) within Ifeoma's budget. The measurement path works, no Warning events appear and the 8 Pods are healthy at their usual per-Pod rate.
+
+**Useful next checks:**
+
+- Ifeoma, the entitlement-ledger owner, states current connection usage and whether more writers are safe, because the 8-replica ceiling encodes the ledger's writer budget.
+- Tamsin asks the publishing owner whether the 6,000-per-minute surge since 10:05 is expected and how long it lasts; at 8 Pods the backlog grows by about 1,200 per minute and does not drain.
+- Bao proposes, and Solveig approves through ITO, a bounded option within confirmed ledger headroom or an accepted delay; Tamsin watches ScalingLimited, backlog and oldest unacked age on the TLC past the 10:35 cutoff.
+
+**Unsupported conclusions/actions:**
+
+- Blaming a broken metrics adapter or unreadable metric, or redeploying the adapter; ScalingActive is True and the external value is read.
+- Raising maxReplicas, manually scaling or editing the HPA as an applied or approved fix without the ledger owner's headroom check and change approval.
+- Attributing the hold to node capacity, Pending Pods, quota or the cluster autoscaler; all 8 Pods run and the cap is the HPA spec.
+- Calling the workers unhealthy or a release regression; Pods are Ready with an unchanged per-Pod rate and no rollout since 2026-10-12.
+
+**Unknowns to preserve:**
+
+- Entitlement-ledger headroom for more writers.
+- Whether the publish surge is expected and how long it continues.
+- State after the 10:35 snapshot and series cutoff.
+
+**Sources:**
+
+- [The HPA computes desiredReplicas = ceil[currentReplicas x (currentMetricValue / desiredMetricValue)], skips scaling within a default 0.1 tolerance, averages AverageValue targets across Pods (external and object metrics count Running and Ready Pods), and takes the largest proposal across metrics. If any metric cannot be converted into a replica count, for example after a metrics-API fetch error, and the readable metrics suggest scaling down, scaling is skipped; it can still scale up. Default scale-up allows 100% or 4 Pods per 15 s, and the control loop runs every 15 s by default.](https://kubernetes.io/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/) — checked 2026-10-17.
+- [autoscaling/v2 sets AbleToScale, ScalingActive and ScalingLimited conditions; ScalingActive False generally indicates problems fetching metrics, and ScalingLimited indicates the desired scale was capped by the HPA's minimum or maximum. External metrics sum the matched series and support Value and AverageValue targets. ValidMetricFound and DesiredWithinRange appear in the documented example; TooManyReplicas and FailedComputeMetricsReplicas are upstream controller strings (kubernetes/kubernetes pkg/controller/podautoscaler/horizontal.go, release-1.33) not documented on these pages, so the case grades the condition status and the replica bound, not reason or message wording.](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/) — checked 2026-10-17.
+- [The custom/external metrics pipeline runs from the HPA controller through the metrics API and a metrics adapter such as custom-metrics-stackdriver-adapter to a source such as Cloud Monitoring; a broken pipeline shows the metric as <unknown> with FailedGetExternalMetric events, and the HPA conservatively refuses to scale down when a metric is unavailable. ScalingLimited shows the HPA wants to scale but is capped by minReplicas or maxReplicas. HPA events are found in Cloud Logging with resource.type k8s_cluster, logName events and involvedObject kind HorizontalPodAutoscaler.](https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/horizontal-pod-autoscaling) — checked 2026-10-17.
+- [The Custom Metrics Stackdriver Adapter runs as Kubernetes service account custom-metrics-stackdriver-adapter in namespace custom-metrics and, with Workload Identity Federation, is granted roles/monitoring.viewer. A Pub/Sub HPA uses external metric pubsub.googleapis.com|subscription|num_undelivered_messages with selector resource.labels.subscription_id and an AverageValue target. The fixture uses this adapter path rather than GKE's newer managed metrics adapter; the adapter's internal failure mode in variant A is deliberately left unknown.](https://docs.cloud.google.com/kubernetes-engine/docs/tutorials/autoscaling-metrics) — checked 2026-10-17.
+- [Pub/Sub subscription/num_undelivered_messages (backlog) and subscription/oldest_unacked_message_age are pubsub_subscription gauges sampled every 60 seconds and not visible for up to 120 seconds after sampling, which sets the packet's series cutoff and why the HPA's 10:35 reading can match the 10:33 sample.](https://docs.cloud.google.com/monitoring/api/metrics_gcp_p_z) — checked 2026-10-17.
+- [k8s_cluster uses labels project_id, location and cluster_name, which the declared export filter uses. The HPA status snapshot, adapter, ledger and subscription records are labelled owner observations compiled into the packet, not native event log entries.](https://docs.cloud.google.com/logging/docs/api/v2/resource-list) — checked 2026-10-17.

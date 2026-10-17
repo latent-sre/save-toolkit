@@ -966,8 +966,8 @@ identity/network, managed services and GKE. The [family review records](oracles/
 hold supported conclusions, unknowns and official sources outside the candidate workspace. The
 catalog continues beyond the pilot in [catalog review records](oracles/gcp/CATALOG.md), reported
 separately from the pilot; the Cloud Run/migration (GCP-03, 04, 06, 07),
-observability/identity/network (GCP-10, 11, 14, 16) and managed-services (GCP-19 to 24) groups
-are authored.
+observability/identity/network (GCP-10, 11, 14, 16), managed-services (GCP-19 to 24) and GKE
+(GCP-26, 27, 28, 30, 31, 32) groups are authored, completing the catalog's offline authoring.
 
 `python scripts/generate_gcp_pilot.py` checks that the generated YAML cases and both review records
 match their hidden source data; `--write` regenerates them. `python -m pytest
