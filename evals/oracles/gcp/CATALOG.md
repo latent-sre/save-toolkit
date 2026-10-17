@@ -40,7 +40,7 @@ Revision order-pricing-00024-kfz held its configured maxInstanceCount of 20 acti
 
 ### Variant B
 
-order-pricing had spare scaling capacity: at most 18 of 20 instances, low CPU, per-instance concurrency below the configured 10 and no 429s. From 15:04:40 UTC its refdata-api calls rose from 110 ms to 3.8 s at p95, and all 1,890 failed order-router requests are application 503s at the 4-second refdata deadline. The supported mechanism is a slow downstream as seen from order-pricing; whether the delay is in refdata-api, the network path or the client is not established.
+order-pricing had spare scaling capacity: at most 18 of 20 instances, low CPU, per-instance concurrency below the configured 10 and no 429s. Its refdata-api calls slowed from 15:04:40 UTC, reaching a successful-call p95 of 3.8 s over 15:05-15:20 against 110 ms at baseline, and all 1,890 failed order-router requests are application 503s at the 4-second refdata deadline. The supported mechanism is a slow downstream as seen from order-pricing; whether the delay is in refdata-api, the network path or the client is not established.
 
 **Useful next checks:**
 
@@ -143,7 +143,7 @@ the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCON
 
 ### Variant A
 
-Release 3.6.0 retains render scratch files in /tmp/render after their uploads commit. On the two terminated instances with reports (i-7f3a and i-c210), that file growth (about 600 MiB on i-7f3a) plus a stable heap of about 320 MiB reaches the revision's 1 GiB limit, so retained temporary files contribute to the memory-limit terminations. The retained files sampled are disposable copies of committed statements; the 7 jobs that ended with HTTP 500 are unreconciled. The responsible code change is not confirmed.
+Release 3.6.0 retains render scratch files in /tmp/render after their uploads commit. On the two terminated instances with reports (i-7f3a and i-c210), that file growth (about 600 MiB on i-7f3a by its last report), alongside a stable heap of about 320 MiB, contributes to the memory pressure behind the recorded memory-limit terminations; other memory use and growth after the last samples are not measured. The retained files sampled are disposable copies of committed statements; the 7 jobs that ended with HTTP 500 are unreconciled. The responsible code change is not confirmed.
 
 **Useful next checks:**
 
@@ -297,7 +297,7 @@ The panel's query matches every fx-rate-api revision and groups only by service_
 
 **Unknowns to preserve:**
 
-- Why fx-rate-api-00030-wup returns 5xx from the 09:22 minute while fx-rate-api-00031-kez does not.
+- Why fx-rate-api-00030-wup returns 5xx from the 09:22 minute while fx-rate-api-00031-kez has a much lower observed 5xx rate.
 - The individual response codes within class 5xx and any change after the 10:06 coverage cutoff.
 - Requests that never reached a container instance, which request_count excludes.
 
@@ -366,7 +366,7 @@ Each slow trace, and the baseline, holds only the span Cloud Run recorded for th
 
 ### Variant B
 
-order-router's application spans exist and are fast, but they cover only about 0.09 s of each slow request; a 3.87-4.10 s interval between the database read and the publish has no span, and no HTTP client or pricing-engine span appears. pricing-engine records order-router's calls as separate root traces with no parent span that fill each uncovered interval, consistent with pricing-sdk's uninstrumented client not propagating trace context. The order-router trace is incomplete, not the whole request; the delay most probably lies in the pricing-engine call, paired by timing rather than shared context, and its internal cause is unknown.
+order-router's operation child spans exist and are fast, but within a server span that lasts the whole request they cover only about 0.09 s of each slow request; a 3.87-4.10 s interval between the database read and the publish has no span, and no HTTP client or pricing-engine span appears. pricing-engine records order-router's calls as separate root traces with no parent span that fill each uncovered interval, consistent with pricing-sdk's uninstrumented client not propagating trace context. The order-router trace is incomplete, not the whole request; the delay most probably lies in the pricing-engine call, paired by timing rather than shared context, and its internal cause is unknown.
 
 **Useful next checks:**
 
@@ -474,7 +474,7 @@ the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCON
 
 ### Variant A
 
-From 08:12 UTC the project's Cloud Translation 'v3 requests per project per minute' rate quota (6,000, default) was exceeded in every sample, and every one of the 11,880 failed notice requests is an application 503 after translation calls were refused as quota_exceeded. Release 4.2.0 sends one segment per call instead of about 5.8, raising client-notices' call rate roughly sixfold while characters, CPU, instances and log volume stay near baseline. The supported mechanism is a dependency rate-quota refusal driven by the new call pattern; service saturation is not supported. The budget forecast alert is driven by an unrelated BigQuery backfill and is not a cap; it neither explains nor limits the failures.
+From 08:12 UTC the project's Cloud Translation 'v3 requests per project per minute' rate quota (6,000, default) was exceeded in every sample, and every one of the 11,880 failed notice requests is an application 503 after translation calls were refused as quota_exceeded. Release 4.2.0 sends one segment per call instead of about 5.8, raising client-notices' call rate roughly sixfold while characters, CPU, instances and log volume stay near baseline. The supported mechanism is a dependency rate-quota refusal driven by the new call pattern; service saturation is not supported. The unrelated BigQuery backfill explains the observed month-to-date cost increase and is consistent with the budget forecast alert, whose calculation is not shown; the alert is not a cap; it neither explains nor limits the failures.
 
 **Useful next checks:**
 
@@ -606,11 +606,11 @@ the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCON
 
 ### Variant A
 
-Every scheduler attempt was refused by accrual-close with HTTP 403 before the close-day handler ran. At 15:12 UTC the job's OIDC service account was changed to accrual-scheduler@, which holds no invoker permission on the service, while the invoker grant remains on the previous account. The 2026-10-16 accruals are missing, not duplicated; the two retries were refused the same way and repeated no effect. Why the account was changed, and whether folder, organization or deny policies or other jobs are involved, are not established.
+Every scheduler attempt was refused by accrual-close with HTTP 403 before the close-day handler ran. At 15:12 UTC the job's OIDC service account was changed to accrual-scheduler@, and the supplied service and project policies grant run.invoker only to the previous account; folder, organization and deny policies are outside the snapshot, so the new account's effective authorization still needs checking. The 2026-10-16 accruals are missing, not duplicated; the two retries were refused the same way and repeated no effect. Why the account was changed, and whether folder, organization or deny policies or other jobs are involved, are not established.
 
 **Useful next checks:**
 
-- Odalys confirms the intent of the 15:12 UTC service-account change and, through ITO's change approval, decides whether to restore the previous account or grant invoker on accrual-close to the new account only.
+- Odalys confirms the intent of the 15:12 UTC service-account change, has accrual-scheduler@'s effective permission on accrual-close checked across inherited and deny policies, and then, through ITO's change approval, decides whether to restore the previous account or grant invoker on accrual-close to the new account only.
 - Linnea and Tobias confirm the 2026-10-16 business date still has zero accrual entries before any approved single close-day run, because the handler has no duplicate check; after it, Linnea verifies one entry per active account.
 - Odalys checks other jobs changed by the same automation for a service account without invoker permission on their targets, before the next scheduled run on 2026-10-19 at 21:30 UTC.
 - Imani reports on the existing TLC that the scheduler delivered no authenticated request and the 2026-10-16 accruals are missing, not duplicated.
@@ -828,7 +828,7 @@ A Service Health incident for Cloud SQL in us-east4, marked IMPACTED for this pr
 
 ### Variant B
 
-Service Health shows no event for Cloud SQL or Cloud Run in us-east4; its only event is Cloud SQL in europe-west2, started before the window and marked PARTIALLY_RELATED, so it matches product but not location or time. That absence alone neither clears Google Cloud nor proves the application at fault. The local scope evidence supports a release-linked cause: 7.4.0 failed 7.0% of its 10% share while 7.3.9 stayed at 0.1%, ledger-reports on another us-east4 instance stayed at baseline, holdings-db reports baseline 0.6-0.9 s establishment, and 7.4.0 lowered the connect timeout to 0.5 s. That hypothesis is untested, and impact persists without recovery.
+Service Health shows no event for Cloud SQL or Cloud Run in us-east4; its only event is Cloud SQL in europe-west2, started before the window and marked PARTIALLY_RELATED, so it matches product but not location; its onset predates the local failures, although its reported active interval overlaps them. That absence alone neither clears Google Cloud nor proves the application at fault. The local scope evidence supports a release-linked cause: 7.4.0 failed 7.0% of its 10% share while 7.3.9 stayed at 0.1%, ledger-reports on another us-east4 instance stayed at baseline, holdings-db reports baseline 0.6-0.9 s establishment, and 7.4.0 lowered the connect timeout to 0.5 s. That hypothesis is untested, and impact persists without recovery.
 
 **Useful next checks:**
 
