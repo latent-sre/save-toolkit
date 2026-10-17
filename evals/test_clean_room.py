@@ -202,6 +202,15 @@ def test_is_auth_failure_recognises_a_real_not_logged_in_trace() -> None:
     assert clean_room.is_auth_failure(assistant + "\n" + result, returncode=1), "detects it in a full trace"
 
 
+def test_is_auth_failure_recognises_an_expired_oauth_session() -> None:
+    # Claude Code 2.1.301 reports a lost login with this wording instead of "Not logged in"; a WP-13
+    # batch on 2026-10-17 graded 53 such trials as ordinary errors instead of stopping (exit=1).
+    result = ('{"type":"result","subtype":"success","is_error":true,'
+              '"result":"Failed to authenticate: OAuth session expired and could not be refreshed"}')
+    assert clean_room.is_auth_failure(result, returncode=1), "detects the expired-session result text"
+    assert not clean_room.is_auth_failure(result, returncode=0), "still gated on a non-zero exit"
+
+
 def test_is_auth_failure_does_not_fire_on_a_healthy_trace() -> None:
     healthy = (
         '{"type":"system","subtype":"init","tools":["Skill","Task"]}\n'

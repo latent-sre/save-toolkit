@@ -71,7 +71,7 @@ DENIED_TOOLS = (
 
 # Markers of an auth failure in a trial's output.
 # NOT `subtype`: the result event of a not-logged-in run says subtype="success" while is_error=true.
-AUTH_MARKERS = ("authentication_failed", "Not logged in")
+AUTH_MARKERS = ("authentication_failed", "Not logged in", "Failed to authenticate")
 
 # Direct API authentication variables that must survive the environment scrub. Bedrock and Vertex
 # selectors are handled separately: those modes depend on a wider, provider-specific credential
