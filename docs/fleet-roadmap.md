@@ -180,8 +180,9 @@ authorizes no model spend, lab provisioning or production changes.
   internal timeline and arithmetic contradictions, were fixed. All 31 families then passed
   three independent case-acceptance review passes. On 2026-10-17 the owner accepted all 64
   cases at merge commit `9147ff91` and froze their profiles and partitions under DEC-14, which
-  completes WP-12. Next: WP-13's native run plan, with trial counts and a cost cap, for the
-  owner's approval before any run.
+  completes WP-12. The [WP-13 run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md) is
+  approved; the pilot's semantic review found a shared-evidence contradiction in GCP-17, which was
+  revised and awaits re-acceptance.
 
 2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases (15
 cases, 45 trials) under a USD 20 cap, and the sre-assistant, software-engineer and
