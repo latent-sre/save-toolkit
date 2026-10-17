@@ -71,8 +71,8 @@ Each case id is prefixed `build-` in `evals/build-scenarios/`.
 
 GCP-17 was revised on 2026-10-17 after the pilot's semantic review found that its shared
 oldest-unacknowledged-age series fit only variant A's mechanism; each variant now carries its own
-series. Its new digests, a `126ff9f70fec` and b `e15acfb80da6`, need the owner's re-acceptance,
-and its six pilot trials re-run at those digests. The pilot trials above stay bound to the original
+series. The owner re-accepted it at its new digests, a `126ff9f70fec` and b `e15acfb80da6`, on
+2026-10-17 after an independent follow-up check, and its six pilot trials re-run at those digests. The pilot trials above stay bound to the original
 digests.
 
 ## Model-free controls

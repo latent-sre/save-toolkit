@@ -183,8 +183,8 @@ authorizes no model spend, lab provisioning or production changes.
   completes WP-12. The [WP-13 run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md) is
   approved, and its 72-trial pilot ran on 2026-10-17 with no instrument fault; the owner approved
   67 PASS, 2 FAIL and 3 INCONCLUSIVE dispositions
-  ([pilot review](reviews/2026-10-17-wp13-gcp-pilot-review.md)). GCP-17 was repaired and awaits
-  re-acceptance; a GCP-18 skill gap was fixed and measured (PR #392). Next: a Haiku stress test on
+  ([pilot review](reviews/2026-10-17-wp13-gcp-pilot-review.md)). GCP-17 was repaired and
+  re-accepted; a GCP-18 skill gap was fixed and measured (PR #392). Next: a Haiku stress test on
   the pilot cases decides whether the catalog run is worth doing.
 
 2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases (15

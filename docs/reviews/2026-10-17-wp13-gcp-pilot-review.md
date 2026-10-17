@@ -19,7 +19,8 @@ one candidate, one model and three trials per case. They do not accept or reject
   INCONCLUSIVE; slips in asides are PASS with a note.
 - [verified] The pilot found a case defect that three acceptance passes missed. GCP-17's shared
   oldest-unacknowledged-age series fit only variant A's mechanism, and all three B trials noticed
-  it. The family was repaired and awaits re-acceptance and a re-run.
+  it. The family was repaired; an independent follow-up check accepted the repair, the owner
+  re-accepted it at its new digests, and its six trials re-run.
 - [verified] The pilot found one systematic candidate gap. All three GCP-18 A trials omitted the
   effect state of timed-out requests. A one-sentence rule in `database-reliability`'s
   saturation-triage reference (PR #392) raised that from 0 of 3 to 3 of 3 on the same cases, runner
