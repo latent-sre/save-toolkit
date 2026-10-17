@@ -50,7 +50,11 @@ The stress test showed the result. Reading the cases shows the cause.
 
 H1 to H3 make the work harder; H4 adds a variant that rewards calibration; H5 makes grading cheaper
 and more reliable. H1 needs the CLI fixture, which GCP-01's hand-written multi-read wrapper already
-demonstrates. Console families would gain an equivalent "request observation" fixture tool.
+demonstrates. The
+`sre-assistant` read-only guard admits only `gcloud run services describe`, `gcloud run revisions
+describe` and `gcloud logging read`, so a catalog offers those reads with different filters (audit,
+request, application and Kubernetes-event logs). Widening the guard would change the agent's real
+authority and is out of scope. Console families would gain an equivalent "request observation" fixture tool.
 
 ## What stays the same
 
