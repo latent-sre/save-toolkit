@@ -155,6 +155,8 @@ pilot (GCP-17 re-acceptance and re-run), run a Haiku stress test on the same 24 
 USD 6 cap before any catalog run, add mechanical must-mention checks, make fix-and-measure the
 main loop, and prioritize branching investigations over the remaining static cases. The
 [pilot review](../reviews/2026-10-17-wp13-gcp-pilot-review.md) holds the evidence and decisions.
+The [stress test](../reviews/2026-10-17-wp13-stress-test.md) then found that the pilot cases do not
+separate Haiku from Sonnet on a blind review, so the cases are hardened before the catalog run.
 
 ## Done means
 
