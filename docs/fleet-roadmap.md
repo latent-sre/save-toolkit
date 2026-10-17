@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; working update 2026-10-10, EVAL-011 closeout in PR #348.** This is the only backlog.
+> **Status: live; working update 2026-10-16, backlog prune.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -23,40 +23,6 @@ records do not re-queue work.
 
 ## Repository work
 
-### AUDIT-001 — review all skills and agents and disposition the findings
-
-**Status:** `decision-needed` (2026-10-02); all 13 groups reviewed, covering 30 skills and 9 agents
-with six passes each against freshly fetched main `a2d2e57d`. The evidence records 50 confirmed
-findings; thirty-eight selected repairs were implemented and locally verified, with no open material
-independent review findings. Reference cleanup additionally corrects II-01 in source, bringing
-source repairs to 39 of 50; its supplied-case/grader calibration and native/model verification
-remain open. The remaining 11 source findings retain their original dispositions.
-**Owner:** The human owner selects repairs and dispositions; the audit caller owns the review evidence.
-**Outcome:** All 30 skills, then all 9 agents, receive six documented review passes in groups of
-three, with each group's findings committed before the next group, and the owner can select
-evidence-backed repairs, recommendations, or explicit deferrals.
-**Next action:** The human owner reviews the published repairs and their verification limits,
-then selects remaining repairs or explicit dispositions and the real inventory-record location.
-[Earlier repair evidence](reviews/2026-10-02-fleet-audit/selected-fixes.md) and
-[third](reviews/2026-10-02-fleet-audit/selected-fixes-batch-03.md) and
-[fourth-batch evidence](reviews/2026-10-02-fleet-audit/selected-fixes-batch-04.md) retain exact
-implementation identities. Latest full-suite verification passed 1,711 tests and 3,192 subtests,
-with 19 skips. Live calibration
-of the edited judge corpus and target-platform acceptance remain separately scoped.
-**Evidence:** [Six-pass audit and group reports](reviews/2026-10-02-fleet-audit/README.md).
-Retain this packet until the owner's dispositions and any accepted repairs no longer depend on it.
-The read-only necessity and context-cost audit of all 103 bundled references on the repaired
-candidate is complete: six lenses in groups of three skill bundles, each committed before the
-next group. Its [action register](reviews/2026-10-02-reference-audit/recommendations.md) records
-74 KEEP, 26 TRIM, one paired MERGE and two CONDITIONAL inventories. Forty records comprise two
-documentation correctness defects, seven navigation-convention records, 30 optional recommendations
-and one shared ownership decision. The 39 actionable reference records are implemented; the
-[implementation receipt](reviews/2026-10-02-reference-audit/implementation.md) tracks its changes
-and fresh verification. The inventory-location decision remains pending. REF-II-01 repairs the
-original II-01 source defect; the other 11 original source findings remain separate.
-**SRE task:** Identify which guidance is correct and useful, which claims lack verification, and
-the smallest changes needed before relying on affected workflows.
-
 ### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
 
 **Status:** `active` (2026-10-02); comprehensive product specification and delivery planning.
@@ -73,97 +39,6 @@ will have a separate repository/release decision; this roadmap remains the sole 
 come from the owner discussion on 2026-10-02. All product runtime behavior remains unverified.
 **SRE task:** Run the same useful operational checks from a terminal or an agent, preserve their
 evidence, and extend the tool as new operational needs appear.
-
-### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
-
-**Status:** `active` (2026-10-08). [sourced] The owner's bar is demonstrably better design judgment
-plus consistent usable records, recorded in the [acceptance packet](reviews/2026-10-07-principal-judgment-acceptance.md).
-[sourced] The campaign and offline counts in this paragraph are historical receipts retained in
-that packet, not fresh verification of this PR head. The approved twelve-attempt diagnostic cost USD 2.351204: eleven
-completed and one builder contract attempt was interrupted by OAuth expiration. The revised
-principal loaded `obs-alerting` in 3/3 tracker trials and passed all six structural trials, but
-document review found material lifecycle, database-alerting, recovery and false-source claims.
-The owner-approved source repair has 166 affected tests and 535 subtests passing. A separately
-approved twelve-trial comparison of repaired digest `fb2fba9ac780` completed for USD 2.306003,
-without interruptions or retries. Principal passed all six structural trials. Author-aware review
-found all three principal tracker records address source grounding, current membership,
-query-error notification/testing and preservation prerequisites; builder records leave substantive
-gaps. [sourced] The [independent familiar-case trace review](reviews/2026-10-08-principal-independent-second-pass.md)
-preserved its blind scores through trace reconciliation: the three
-strongest tracker designs align with principal, and contract migration is tied without a detected
-principal regression. This supports the stronger bar on these familiar cases, not general
-superiority or implementation competence. [sourced] The
-[held-out receipt and reconciliation](reviews/2026-10-08-principal-heldout-cutover.md)
-records completion of the separately approved six-trial live-store cutover
-campaign for USD 1.905009 on the same candidate: principal 3/3 structural PASS, builder
-0/3. Its independent AI first pass, prompted addendum and trace/unmasking pass are now preserved
-verbatim. [sourced] The [independent held-out trace review](reviews/2026-10-08-principal-heldout-independent-second-pass.md)
-rates design judgment a tie with material findings in both arms;
-principal's repeatable advantage is method and authority consistency, partly due to absent shell
-authority. Two builder runs loaded design/database guidance before Write but after forbidden
-read-only shell calls; misleading method-check labels must not hide those loads. All three
-builder non-execution claims conflict literally with their traces. Across three cases there is
-one tracker advantage and two design ties, not established general superiority or an equivalence
-proof. [unverified] General superiority and exact-candidate acceptance are not established.
-The original stronger acceptance bar remains open; no new trials or agent-source repairs follow
-from this evidence update. The [semantic scoring proposal](../evals/proposals/principal-judgment/README.md)
-is outside the active catalog until its complete-context labels are reviewed and a separately
-approved calibration is accepted. [sourced] The [earlier native evaluation packet](reviews/2026-10-05-principal-engineer-evals.md)
-records the lane's implementation at the owner's request and completion of nine earlier native
-campaigns (108 Sonnet trials). Within those campaigns, on each case's latest measured bytes the lane
-passes every case it owns except
-one: the new-system case fails 0/3 on a new `obs-alerting` load check, which `software-engineer`
-also never meets. Platform selection reaches the lane 3/3 and passes its build case 3/3. The lane
-has taken none of the reliability, small-build, design-review or fleet workflow-graph requests in
-the boundary cases. On identical bytes `software-engineer` returned the same decision fields on both
-design tasks:
-- On the contract-change task, on the two revisions where both arms ran, the lane wrote the
-  complete design record in 6/6 trials; `software-engineer` did once in 6, when it read the
-  reference.
-- On the new-system task, whose prompt names the record, `software-engineer` matched it on every
-  scored check, 6/6.
-
-Owner acceptance pending.
-**Owner:** Maintainers select the exact candidate and approve the evaluation budget;
-`agent-engineer` owns the lane and its `eng-ladder` method.
-**Outcome:** The principal engineer returns design records that name supported and unseen
-consumers, plan compatible staged rollout and recovery, shape new systems against the stack
-profile, and leave every decision to the human owner without expanded authority. One lane is shown
-to serve both design depths, or the owner splits or removes it.
-**Next action:** Review the [completed held-out reconciliation and bounded follow-up](reviews/2026-10-08-principal-heldout-cutover.md#disposition-and-bounded-follow-up)
-alongside the [familiar-case evidence](reviews/2026-10-07-principal-judgment-acceptance.md#independent-ai-review-and-reconciliation-2026-10-08).
-Scope a repair proposal for builder adherence/reporting, shared capture/abort reasoning and the
-method-check label/predicate mismatch. Keep measured sources and reports frozen; further repair
-or measurement needs its own scope/budget. Preserve all campaigns separately, including the
-first one's interruption. Any future judgment case must distinguish defensible trade-offs rather
-than reward a shared mechanism. The current review cycle is complete; do not rerun it for a pass.
-Record consistency alone does not meet the owner's bar. Automated semantic scoring still needs
-reviewed labels and a new calibration after other judge/corpus changes settle. Complete the picker
-assessment separately. Exact-candidate acceptance remains the owner's decision.
-
-Retain the independent reports while this decision is open: familiar-case
-[first pass](reviews/2026-10-08-principal-independent-first-pass.md) and
-[trace pass](reviews/2026-10-08-principal-independent-second-pass.md); held-out
-[first pass](reviews/2026-10-08-principal-heldout-independent-first-pass.md),
-[prompted addendum](reviews/2026-10-08-principal-heldout-independent-addendum.md) and
-[trace pass](reviews/2026-10-08-principal-heldout-independent-second-pass.md).
-
-Open choices:
-- disposition of the independently reviewed fence/abort, replay and truthful-execution-reporting
-  findings; no acceptance or implementation-readiness claim follows from reviewer severity labels;
-- live calibration and measurement of the prepared semantic cases for endpoint lifecycle,
-  failure handling, history recovery and feasible migration evidence;
-- a re-run that swaps the "design document" and "design record" wording;
-- whether the 3/3 alert-guidance loads on repaired digest `fb2fba9ac780` suffice for that prerequisite;
-  the previous digest's 3/3 and earlier 0/3 remain separate evidence; the written-record check stays;
-- the combined versus principal-only and architect-only comparison, which the picker sheet decides.
-
-Each further campaign states trial count, estimated cost, review hours and cost cap under DEC-04
-before any call.
-**Evidence:** [Native evaluation](reviews/2026-10-05-principal-engineer-evals.md); the
-[lane decision](decisions/2026-10-05-principal-engineer.md) keeps its acceptance scope.
-**SRE task:** Get a reviewable design or architecture record, with options, staged rollout and
-recovery, and the decisions to make, before code is written.
 
 ### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
 
@@ -189,34 +64,6 @@ fail-closed host behavior. Keep those limits explicit until the host cases are o
 **Evidence:** The 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
 [`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
 **SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
-
-### INCIDENT-QUALITY-001 — verify decision quality after the SRE contract repairs
-
-**Status:** `decision-needed` (2026-09-07); behavioral acceptance remains on hold.
-**Owner:** Maintainers select the exact candidate and evaluation budget; `agent-engineer` owns
-the bounded follow-up.
-**Outcome:** The advisor loads relevant guidance, dispatches a bounded helper, reconciles its
-return, and advances without invented causes, timing, or current-state claims.
-**Next action:** Address unsupported stage/timing/escalation conclusions and exact file resolution
-before the next bounded candidate. The helper-scope repair at `c53ed2b6` used one helper in both
-fresh samples; one completed the actual native return/resume sequence but failed semantic criteria
-4 and 6. The second read the fixture then tried an unnecessary missing path, stopping before resume.
-Preserve these failures; neither the source repair nor structural PASS establishes acceptance. See the
-[selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md).
-The completed 24-session Sonnet campaign failed behavioral acceptance; later source merges are not
-a fresh behavioral verdict. Preserve actual return/resume and sufficient-evidence recovery as
-regressions. Separate decisions remain for limited Terra comparisons (zero calls; tool absence
-unproved and host skills injected), six Sonnet pairs for task-sized outputs, and three pairs for
-helper exchanges. These are pending choices, not permission to run them.
-**Evidence:** [Second pass](reviews/2026-09-07-incident-quality-second-pass.md), its
-[symptom-guidance](reviews/2026-09-06-general-incident-help.md) and
-[first-repair](reviews/2026-09-06-sre-decision-quality-repairs.md) baselines, plus
-[task-sized outputs](reviews/2026-09-07-task-sized-skill-outputs.md) and
-[helper exchange](reviews/2026-09-07-incident-helper-exchange.md). The
-[operational-contract report](reviews/2026-09-04-operational-contract-fixes.md) remains the
-record-provenance evidence used by merged PR #237. Results apply to those records' named snapshots.
-**SRE task:** Get a useful next check or closeout without mistaking a helper's completed assignment
-or an untimed aggregate for evidence of incident recovery or cause.
 
 ### SRE-CF-001 — complete protected SRE investigation access
 
@@ -245,53 +92,6 @@ Helix/BigQuery remains an unconnected placeholder. INCIDENT-QUALITY-001 retains 
 Source and offline checks do not establish native acceptance of the access policy.
 **SRE task:** Delegate a scoped application-state or event-history check while investigating another
 part of the incident, without delegating deployment or remediation authority.
-
-### CONTEXT-001 — establish a generalized SRE operational-context contract
-
-**Status:** `active` (2026-09-07).
-**Owner:** Maintainers accept the generic alpha; `agent-engineer` owns consumer requirements and
-`software-engineer` owns producer/resolver implementation.
-**Outcome:** Explicit team, service, environment, and deployment selectors produce the smallest
-schema-valid context projection. Missing or ambiguous context fails closed and grants no authority.
-**Next action:** Obtain the owner's selected critical service, environment, and approved record
-location, then prepare the smallest real-service slice through the existing contract. The newer
-producer passes the current consumer's fixture requirements; it still prohibits operational data
-and action selection. Verify real-service navigation, freshness/missing records, ownership, and
-handoff before claiming usability. Do not replay the old consumer patch as proof of current coverage.
-**Evidence:** Refreshed 2026-09-07 in the
-[selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md); the
-[accepted scope](decisions/2026-08-24-sre-operational-context-contract.md) governs acceptance:
-
-- [verified] Local source at `0450ea58`: the [consumer sidecar](../skills/service-lifecycle/context-requirements.yaml)
-  declares `v1alpha2`; the current authority-path checks are in the [asset test](../scripts/test_skill_assets.py).
-- [verified] Local producer branch `work/context-001-lifecycle-review` at `be29c942` is seven
-  commits ahead of refreshed producer main `903ac830`; its mirror is `v1alpha2`, superseding the old
-  `458f39c` compatibility assessment. Its 86 offline tests and an explicit fixture resolve against
-  this consumer passed. The all-state PR query for the newer branch returned none.
-- [unverified] No real service has been selected or made operational through that fixture-only
-  producer. Compatibility, producer merge, service onboarding, and live usability are distinct claims.
-
-**SRE task:** State team, service, environment, and deployment once instead of repeating context.
-
-### LIFECYCLE-001 — a service record stays true for the whole service life
-
-**Status:** `blocked` (2026-09-30); consumer/producer repairs verified and independently reviewed;
-real-service records are unavailable for operational acceptance.
-**Owner:** Save Toolkit maintainers.
-**Outcome:** Change, remediation, refresh, and retirement each have an owner who keeps the service
-record current or visibly marks it stale.
-**Next action:** Review and integrate both exact candidates: this consumer and the separate
-`sre-context` candidate `3433f98e` on `work/lifecycle-001-status-projection`, based on `be29c942` (seven unmerged
-prerequisite commits ahead of refreshed producer main `903ac830`). The producer now projects
-service/deployment lifecycle and owners through immutable `v1alpha6`; the consumer rejects missing
-service lifecycle/owner fields. Then use the owner's selected service, environment and record
-repository to verify change, remediation, refresh and retirement ownership/readback. The owner has
-confirmed that no such records are currently available; resume that acceptance when they exist.
-Catalog dates do not establish execution-backed `last_verified`; fixture-only resolution grants
-no live authority.
-**Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md)
-and [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml).
-**SRE task:** Know whether a service record still applies to the deployment being operated.
 
 ### GRAPH-007 — promote or retire the sandbox workflow-graph skill
 
@@ -564,6 +364,84 @@ without having to ask for it each time.
 
 ## Deferred
 
+### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
+
+**Status:** `deferred` (2026-10-16); the lane stays shipped and unaccepted. Across three measured
+cases there is one tracker advantage and two design ties, not established general superiority or
+an equivalence proof; principal's repeatable advantage is method and authority consistency. The
+review cycle is complete.
+**Owner:** Maintainers select the exact candidate and approve the evaluation budget;
+`agent-engineer` owns the lane and its `eng-ladder` method.
+**Outcome:** The principal engineer returns design records that name supported and unseen
+consumers, plan compatible staged rollout and recovery, shape new systems against the stack
+profile, and leave every decision to the human owner without expanded authority. One lane is shown
+to serve both design depths, or the owner splits or removes it.
+**Next action:** None. Reopens when the owner scopes a repair for builder adherence/reporting,
+shared capture/abort reasoning and the method-check label/predicate mismatch, or approves
+calibration of the [semantic scoring proposal](../evals/proposals/principal-judgment/README.md).
+Each campaign states trial count, estimated cost, review hours and cost cap under DEC-04 before
+any call. Do not rerun the completed review cycle; exact-candidate acceptance remains the owner's
+decision. Retain the [held-out reconciliation](reviews/2026-10-08-principal-heldout-cutover.md#disposition-and-bounded-follow-up),
+the [familiar-case packet](reviews/2026-10-07-principal-judgment-acceptance.md) and the independent
+reports while this item is deferred: familiar-case
+[first pass](reviews/2026-10-08-principal-independent-first-pass.md) and
+[trace pass](reviews/2026-10-08-principal-independent-second-pass.md); held-out
+[first pass](reviews/2026-10-08-principal-heldout-independent-first-pass.md),
+[prompted addendum](reviews/2026-10-08-principal-heldout-independent-addendum.md) and
+[trace pass](reviews/2026-10-08-principal-heldout-independent-second-pass.md).
+**Evidence:** [Native evaluation](reviews/2026-10-05-principal-engineer-evals.md); the
+[lane decision](decisions/2026-10-05-principal-engineer.md) keeps its acceptance scope.
+**SRE task:** Get a reviewable design or architecture record, with options, staged rollout and
+recovery, and the decisions to make, before code is written.
+
+### INCIDENT-QUALITY-001 — verify decision quality after the SRE contract repairs
+
+**Status:** `deferred` (2026-10-16); behavioral acceptance failed and stays on hold. The completed
+24-session Sonnet campaign failed acceptance. After the helper-scope repair at `c53ed2b6`, one fresh
+sample completed the native return/resume sequence but failed semantic criteria 4 and 6; the other
+stopped before resume. Later source merges are not a fresh behavioral verdict.
+**Owner:** Maintainers select the exact candidate and evaluation budget; `agent-engineer` owns
+the bounded follow-up.
+**Outcome:** The advisor loads relevant guidance, dispatches a bounded helper, reconciles its
+return, and advances without invented causes, timing, or current-state claims.
+**Next action:** None. Reopens when the owner scopes a repair for unsupported stage, timing and
+escalation conclusions and exact file resolution, with a fresh bounded campaign on a named
+candidate. Preserve actual return/resume and sufficient-evidence recovery as regressions.
+**Evidence:** [Selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md);
+[second pass](reviews/2026-09-07-incident-quality-second-pass.md), its
+[symptom-guidance](reviews/2026-09-06-general-incident-help.md) and
+[first-repair](reviews/2026-09-06-sre-decision-quality-repairs.md) baselines, plus
+[task-sized outputs](reviews/2026-09-07-task-sized-skill-outputs.md) and
+[helper exchange](reviews/2026-09-07-incident-helper-exchange.md). The
+[operational-contract report](reviews/2026-09-04-operational-contract-fixes.md) remains the
+record-provenance evidence used by merged PR #237. Results apply to those records' named snapshots.
+**SRE task:** Get a useful next check or closeout without mistaking a helper's completed assignment
+or an untimed aggregate for evidence of incident recovery or cause.
+
+### LIFECYCLE-001 — operational context and service records stay true for a real service
+
+**Status:** `deferred` (2026-10-16); CONTEXT-001 merged in. Consumer and producer repairs are
+verified and independently reviewed against fixtures; no real-service records exist to accept
+them against.
+**Owner:** Save Toolkit maintainers; `agent-engineer` owns consumer requirements and
+`software-engineer` owns producer/resolver implementation.
+**Outcome:** Explicit team, service, environment, and deployment selectors produce the smallest
+schema-valid context projection, failing closed on missing or ambiguous context and granting no
+authority. Change, remediation, refresh, and retirement each have an owner who keeps the service
+record current or visibly marks it stale.
+**Next action:** None. Reopens when the owner selects a critical service, environment and record
+repository. Then review and integrate the `sre-context` candidate `3433f98e` on
+`work/lifecycle-001-status-projection`, based on `be29c942` (seven unmerged prerequisite commits
+ahead of producer main `903ac830`), with this consumer, and verify navigation, freshness,
+ownership, and change/remediation/refresh/retirement readback on that service. Fixture-only
+resolution grants no live authority; catalog dates do not establish `last_verified`.
+**Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md),
+[lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml), the
+[accepted context-contract scope](decisions/2026-08-24-sre-operational-context-contract.md), and
+the context refresh in the [selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md).
+**SRE task:** State team, service, environment, and deployment once, and know whether the service
+record still applies to the deployment being operated.
+
 ### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
 
 **Status:** `deferred` (2026-10-08); the owner kept the lane unaccepted after the owner-approved
@@ -634,38 +512,6 @@ traps rather than re-surveying OpenAI Evals, DeepEval or OpenEvals, which it lef
 **Evidence:** [Judge bake-off, 2026-10-03](reviews/2026-10-03-judge-bakeoff.md).
 **SRE task:** Trust an agent's graded mitigation advice because the cheapest judge that matched the
 human labels graded it.
-
-### EVAL-017 — run the evals owed by the agent-authoring consolidation
-
-**Status:** `ready` (2026-10-13); PR #371 merged as `ec248cf` with these runs deferred by the owner.
-**Owner:** Save Toolkit maintainers, on an unelevated Claude-enabled runner; the native preflight
-refuses an elevated account before any trial starts.
-**Outcome:** Routing and behavior after #371's description and reference changes are measured on the
-merged bytes, and each red is attributed to the change or the incumbent.
-**Next action:** From the repository root on `main`, run each affected scenario with the fleet's
-default tier, then read the batch summary:
-
-```bash
-(
-  [ -f "${CAL:-}" ] || { echo "export CAL to a completed calibration identity.json first" >&2; exit 1; }
-  out=.eval-runs/eval-017
-  for id in discovery-agent-authoring-loop-engineering discovery-operational-learning-defers-fleet-failure \
-    discovery-principal-engineer-defers-agent-workflow discovery-principal-engineer-service-workflow-graph \
-    discovery-principal-engineer-new-service-design discovery-principal-engineer-returned-fork \
-    discovery-principal-engineer-platform-selection discovery-principal-engineer-defers-design-review \
-    discovery-principal-engineer-defers-reliability-assessment discovery-principal-engineer-defers-small-tool-build \
-    agent-direct-agent-engineer-learning-loop agent-direct-agent-engineer-heldout-contamination; do
-    python evals/build_probe.py run --scenario "$id" --label merged --model sonnet --trials 3 --out "$out"
-  done
-  python evals/build_probe.py run --scenario skill-direct-agent-authoring-security-review --label merged \
-    --model sonnet --trials 3 --out "$out" --judge-calibration "$CAL"
-)
-```
-
-A red on a routing case reruns once on the pre-merge incumbent (`--plugin-root` at a worktree of
-`7dec186`, label `incumbent`) before it is attributed to #371.
-**SRE task:** Trust that a request about prompts, agents, or a workflow graph reaches the lane that
-can answer it.
 
 ### EFFECT-001 — effect-bound execution broker
 

@@ -14,8 +14,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   pilot's. Each group had one independent review whose findings were fixed. No case has passed
   human acceptance or produced a model result.
 
+## [0.51.2] - 2026-10-16
+
 ### Changed
 
+- The roadmap closes AUDIT-001 (39 of 50 findings repaired; the owner closed the rest) and EVAL-017
+  (owner dropped the owed runs), and deletes the two 2026-10-02 audit packets that only AUDIT-001
+  cited. PRINCIPAL-001, INCIDENT-QUALITY-001 and LIFECYCLE-001 move to Deferred with reopen
+  triggers; CONTEXT-001 merges into LIFECYCLE-001, which shares its real-service blocker.
 - CI splits `fast-tests` into `scripts` and `other` shards and adds a `python` shard to
   `eval-tests`; each matrix's last `-k` selection is the complement of the others, which
   `test_validate_workflow.py` enforces. The policy-supervision timeout case runs against an oracle

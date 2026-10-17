@@ -1,7 +1,7 @@
 # LIFECYCLE-001: ownership contract and producer compatibility
 
 Checked 2026-09-30 against Save Toolkit base `41383e3d` plus the candidate files below.
-This evidence is retained for the open [LIFECYCLE-001](../../fleet-roadmap.md#lifecycle-001--a-service-record-stays-true-for-the-whole-service-life)
+This evidence is retained for the open [LIFECYCLE-001](../../fleet-roadmap.md#lifecycle-001--operational-context-and-service-records-stay-true-for-a-real-service)
 and CONTEXT-001 acceptance decisions. **Partial implementation and fixture verification; no
 real-service acceptance or promotion.**
 
