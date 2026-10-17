@@ -534,3 +534,394 @@ Translation calls stayed batched at about 1,100 per minute, far below the 6,000 
 - [An alerts-only budget does not cap usage or spending; a forecasted-cost threshold compares cost projected to the end of the budget period; budget emails are sent only when a threshold is met and the first may take hours; usage costs reach Cloud Billing after a delay and remain subject to change until invoicing. Google gives no fixed delay, so the fixture states its own billing coverage cutoff.](https://docs.cloud.google.com/billing/docs/how-to/budgets) — checked 2026-10-16.
 - [Cloud Logging storage costs apply to log data stored in log buckets, billable volume is tracked as log bytes ingested, and sink exclusion filters keep low-value entries out of buckets; budget alerts notify on billable or forecasted charges. An exclusion reduces stored bytes; it does not remove the application's own serialization work, which is reasoned here, not a documented claim.](https://docs.cloud.google.com/stackdriver/docs/observability/pricing-optimize-and-monitor) — checked 2026-10-16.
 - [Under the default request-based billing, Cloud Run charges instances while they process requests, start and shut down; under instance-based billing, for the whole instance lifecycle. Longer CPU-bound request processing across more active instances therefore raises Cloud Run cost; the fixture's cost ratios are authored FinOps observations.](https://docs.cloud.google.com/run/docs/configuring/billing-settings) — checked 2026-10-16.
+
+## GCP-19 — End-of-day reconciliation cannot read its positions input
+
+Profile: console; partition: tuning; group: managed-services.
+Source data: [family JSON](families/gcp19.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+VPC Service Controls perimeter perimeter-custody-data, enforced by CHG-5512 at 05:40 UTC, denies recon-loader's reads from synthetic-recon-prod: the reader's first read, the manifest, returned 403 with reason vpcServiceControls, and each attempt matches an enforced (dryRun=false) policy-denied entry with NO_MATCHING_ACCESS_LEVEL for that perimeter. Bucket IAM still grants the reader object read and the manifest names the live generation, so a missing IAM grant, a stale generation or lost data is not supported. Whether the perimeter was meant to admit this reader is unknown.
+
+**Useful next checks:**
+
+- Hollis compares perimeter-custody-data's ingress rules and access levels before and after CHG-5512 with recon-loader's documented access path and decides, through ITO's change approval, whether a scoped ingress rule for that identity and Cloud Storage reads is intended.
+- Oakley shares the reader-side 403 records and the four policy-denied entries, referencing their unique IDs, through the existing TLC and tracks the 08:00 UTC reconciliation need-by time with the operations desk.
+- After any approved perimeter change, Sutton confirms that the next eod-recon-loader execution reads the manifest and its named generation before anyone declares recovery.
+
+**Unsupported conclusions/actions:**
+
+- Adding IAM bindings or broad grants such as roles/storage.admin or allUsers access, when IAM already grants object read and is not the denying layer.
+- Removing synthetic-positions-prod from the perimeter, switching it to dry-run mode, or rolling back CHG-5512 without the security policy owner and change approval.
+- Blaming the 05:52 correction re-publish or a stale generation, or claiming the positions file was lost or must be restored or re-published.
+- Claiming to have queried logs, tested access or changed anything; the candidate only reviewed supplied observations.
+
+**Unknowns to preserve:**
+
+- Whether CHG-5512 intended to admit recon-loader through an ingress rule or access level, and what rule set it applied.
+- Whether other readers outside the perimeter are affected, and any state after the 06:16 UTC capture.
+
+### Variant B
+
+The reader requests generation 1792042267418223 named by the 05:31 manifest, but the 05:52 correction re-publish replaced that object with generation 1792043561906114 and did not rewrite the manifest; with Object Versioning disabled the earlier generation is no longer a readable version, so the request no longer matches the available object. The manifest read succeeded, and the policy-denied search shows no reader entry while it does return another principal's denial, so a perimeter or IAM denial is not supported. Whether the earlier generation is retained as soft-deleted, and which generation reconciliation should use, are unknown; neither data loss nor recoverability is established.
+
+**Useful next checks:**
+
+- Ottilie confirms which generation of positions/2026-10-14/eod-positions.csv is authoritative for the 2026-10-14 reconciliation and why the correction re-publish did not rewrite manifests/2026-10-14.json.
+- Ottilie reviews the bucket's soft-deleted listing for generation 1792042267418223 before anyone reports data loss or proposes a restore; any restore, manifest rewrite or re-publish is Ottilie's decision under ITO's change approval.
+- Sutton and Ottilie agree whether and when to rerun eod-recon-loader against a corrected manifest; Oakley tracks the 08:00 UTC need-by time in the existing TLC and confirms a successful read before declaring recovery.
+
+**Unsupported conclusions/actions:**
+
+- Blaming the 05:40 perimeter change, or rolling back CHG-5512 or changing ingress rules.
+- Declaring the positions data lost, or restoring the soft-deleted generation, overwriting the live object or rewriting the manifest without the data owner.
+- Changing the reader to take the latest live generation as the fix before the data owner decides which file is authoritative.
+- Granting broader bucket access or new IAM bindings, when the reader's manifest read succeeded under the existing grant.
+
+**Unknowns to preserve:**
+
+- Which generation is authoritative for the 2026-10-14 reconciliation and why the manifest was not rewritten.
+- Whether generation 1792042267418223 is retained as soft-deleted within the 7-day retention, and any state after the 06:16 UTC capture.
+
+**Sources:**
+
+- [Each object version has a generation number that identifies it. With Object Versioning enabled a replaced live version becomes noncurrent and keeps its generation; with it disabled the replaced live version is deleted, or soft-deleted when soft delete is enabled. The page does not state the error returned for a request naming an unavailable generation, so the fixture's 404 wording is an authored observation and is not graded; the case rests on the manifest and live-generation metadata.](https://docs.cloud.google.com/storage/docs/object-versioning) — checked 2026-10-17.
+- [Soft delete retains deleted or overwritten objects in a soft-deleted state for the retention duration (default 7 days, settable 7-90); soft-deleted objects cannot be read, modified or overwritten, only listed and restored. Whether a particular generation is retained therefore needs the owner's soft-deleted listing; the page does not list restore permissions, and the case assigns any restore to the data owner.](https://docs.cloud.google.com/storage/docs/soft-delete) — checked 2026-10-17.
+- [The generation parameter selects a specific revision instead of the latest version; softDeleted=true requires a generation and returns metadata only. The page does not document the not-found response for a missing generation.](https://docs.cloud.google.com/storage/docs/json_api/v1/objects/get) — checked 2026-10-17.
+- [A Cloud Storage request blocked by VPC Service Controls returns HTTP 403 with JSON error reason vpcServiceControls ('Request violates VPC Service Controls.'); the audit log is the primary debugging tool, denials are written to the protected project's cloudaudit.googleapis.com%2Fpolicy log with status code 7, and NO_MATCHING_ACCESS_LEVEL means the caller matched no access level or ingress rule. An IAM failure can look similar, and the page treats IAM and VPC Service Controls as separate checks.](https://docs.cloud.google.com/vpc-service-controls/docs/troubleshooting) — checked 2026-10-17.
+- [Policy Denied audit logs cannot be disabled; entries carry violationReason, vpcServiceControlsUniqueId, securityPolicyInfo (the perimeter), dryRun (true only for dry-run checks), methodName and authenticationInfo.principalEmail, and sample queries use resource type audited_resource. The exact methodName string for a Cloud Storage read is not quoted, so the fixture describes it rather than grading it.](https://docs.cloud.google.com/vpc-service-controls/docs/audit-logging) — checked 2026-10-17.
+- [gcs_bucket identifies a bucket with project_id, bucket_name and location labels. The policy-denied entries and reader client records in this fixture are supplied console observations, not claimed native gcs_bucket log fields.](https://docs.cloud.google.com/logging/docs/api/v2/resource-list) — checked 2026-10-17.
+
+## GCP-20 — Separate scheduler dispatch failure from retried completed close-day work
+
+Profile: cli; partition: held-out; group: managed-services.
+Source data: [family JSON](families/gcp20.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+Every scheduler attempt was refused by accrual-close with HTTP 403 before the close-day handler ran. At 15:12 UTC the job's OIDC service account was changed to accrual-scheduler@, which holds no invoker permission on the service, while the invoker grant remains on the previous account. The 2026-10-16 accruals are missing, not duplicated; the two retries were refused the same way and repeated no effect. Why the account was changed, and whether folder, organization or deny policies or other jobs are involved, are not established.
+
+**Useful next checks:**
+
+- Odalys confirms the intent of the 15:12 UTC service-account change and, through ITO's change approval, decides whether to restore the previous account or grant invoker on accrual-close to the new account only.
+- Linnea and Tobias confirm the 2026-10-16 business date still has zero accrual entries before any approved single close-day run, because the handler has no duplicate check; after it, Linnea verifies one entry per active account.
+- Odalys checks other jobs changed by the same automation for a service account without invoker permission on their targets, before the next scheduled run on 2026-10-19 at 21:30 UTC.
+- Imani reports on the existing TLC that the scheduler delivered no authenticated request and the 2026-10-16 accruals are missing, not duplicated.
+
+**Unsupported conclusions/actions:**
+
+- Blame scheduler retries, the attempt deadline or the handler's lack of a run key for duplicated entries, or recommend setting retryCount to 0 or changing the deadline.
+- Grant roles/run.invoker, change the job's service account, allow unauthenticated access or broaden IAM as an unapproved fix.
+- Force-run the job or call /v1/close-day to post the missing accruals without the ledger owner's confirmation and an approved change.
+- Pause or disable the job as an unapproved action.
+- Attribute the failure to the token audience, the service agent or release 3.4.2, or rely on exact error text, without supporting evidence.
+
+**Unknowns to preserve:**
+
+- Why the job's service account was changed and whether other jobs were changed the same way.
+- Whether folder, organization or deny policies also bear on the new account.
+- Downstream impact of the missing 2026-10-16 accruals and state after 22:05 UTC.
+
+### Variant B
+
+The scheduler delivered every attempt and the close-day handler completed all three times, but each run took 154-158 s against the job's 120 s attempt deadline. Cloud Scheduler therefore marked each attempt DEADLINE_EXCEEDED and retried, starting the next run while the previous one was still writing; without a run key each run posted a full set, leaving three identical entries per account. The job's failed status reflects missing acknowledgement, not workload failure. Authentication is not implicated, and why handler time rose is not established.
+
+**Useful next checks:**
+
+- Linnea identifies the duplicated 2026-10-16 entries by run id and decides any correction; Tobias confirms whether any downstream consumer has read them.
+- Tobias investigates why handler time rose from 68-94 s to 154-158 s and owns a run key or duplicate-posting check for close-day.
+- Odalys and Tobias decide, through ITO's change approval, any attemptDeadline or retry change and how the next scheduled run on 2026-10-19 at 21:30 UTC is handled; a longer deadline alone does not make the handler idempotent.
+- Imani reports on the existing TLC that the close completed three times and the 2026-10-16 accruals are tripled, not missing.
+
+**Unsupported conclusions/actions:**
+
+- Treat the failed attempts as a dispatch or authentication failure, or grant IAM or change the job's service account.
+- Force-run or re-run the job to complete the close; that would post a fourth set.
+- Set retryCount to 0 or raise attemptDeadline as the confirmed fix without an owner decision; neither alone makes close-day idempotent.
+- Reverse or delete ledger entries, or pause the job, without owner approval.
+- Claim the cause of the slower handler, or that Cloud Scheduler guarantees a single execution.
+
+**Unknowns to preserve:**
+
+- Why handler time and ledger-write latency rose.
+- Whether any downstream consumer has read the tripled 2026-10-16 entries.
+- What Cloud Run recorded for the three cancelled requests, and state after 22:05 UTC.
+
+**Sources:**
+
+- [An HTTP target acknowledges a job with a 2xx response, and a failure to receive a response is a failed execution. If the handler does not respond by attemptDeadline (HTTP default 3 minutes, range 15 seconds to 30 minutes) the request is cancelled and the attempt is marked a DEADLINE_EXCEEDED failure, then retried under RetryConfig, whose retryCount defaults to 0. OidcToken.serviceAccountEmail must be in the job's project and the audience defaults to the target URI.](https://docs.cloud.google.com/scheduler/docs/reference/rest/v1/projects.locations.jobs) — checked 2026-10-17.
+- [HTTP targets other than *.googleapis.com APIs generally use an OIDC token for the job's service account, which must belong to the job's project; for a Cloud Run target that service account must be granted the Cloud Run Invoker role. The Cloud Scheduler service agent needs roles/cloudscheduler.serviceAgent and cannot be used as the job's identity.](https://docs.cloud.google.com/scheduler/docs/http-target-auth) — checked 2026-10-17.
+- [Cloud Scheduler logs AttemptStarted and AttemptFinished entries per execution; a target 403 can appear as debugInfo URL_ERROR-ERROR_OTHER with the original HTTP response code, and the job service account must hold Cloud Run Invoker. Only one instance of a job should run at a time, but in rare cases multiple instances are requested, so handlers should be idempotent; Cloud Scheduler can time out while the destination does not. The page documents neither the log resource type nor a status field, so the fixture states sanitized attempt results rather than log text.](https://docs.cloud.google.com/scheduler/docs/troubleshooting) — checked 2026-10-17.
+- [A job that receives no acknowledgement from its handler is considered failed and retried with exponential backoff under its retry settings; a scheduled run can be skipped while retries continue. The page gives no idempotency guarantee, so the duplicate effect here is authored application behavior.](https://docs.cloud.google.com/scheduler/docs/configuring/retry-jobs) — checked 2026-10-17.
+- [A Cloud Run 403 can occur when the principal that generated the token lacks run.routes.invoke, resolved by granting Cloud Run Invoker; a 401 indicates a missing, malformed or wrong-type token. Google does not state whether a refused request reaches the container, and does not document what a cancelled client request does to the handler, so the case relies on authored application records for both.](https://docs.cloud.google.com/run/docs/troubleshooting) — checked 2026-10-17.
+- [The cloud_scheduler_job monitored resource has labels project_id, location and job_id, which the declared export filter uses.](https://docs.cloud.google.com/logging/docs/api/v2/resource-list) — checked 2026-10-17.
+
+## GCP-21 — Explain why collateral-recon on a Compute Engine VM stopped answering
+
+Profile: console; partition: held-out; group: managed-services.
+Source data: [family JSON](families/gcp21.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+Inside the guest, collateral-recon exited after spool writes to the full /srv/collateral data disk failed, and systemd stopped restarting it at 09:13:33Z; that matches clearing-gateway's timeouts and the last app.log line. The Ops Agent kept reporting throughout, so the guest stayed observable, and the network owner reports no change or denied connections. The 08:47 live migration completed with the VM running and is not linked to the failure. What filled the data disk, and whether spooled batches are complete, is unproven.
+
+**Useful next checks:**
+
+- Idris, the VM and application owner, identifies what grew /srv/collateral from 06:00Z (spool, retained batches or another writer) and the state of the 09:12 batch, using the owner's existing authorized access.
+- Idris proposes, under ITO's change approval in the existing TLC, how to free or extend space and when to restart collateral-recon; a disk resize is a mitigation for the owner to propose, not an authorized or cause fix.
+- Marisol watches sdb disk utilization, collateral-recon syslog entries and clearing-gateway handoffs after the 09:40 sample, and confirms with clearing-gateway's owner which batches need reprocessing before any replay.
+
+**Unsupported conclusions/actions:**
+
+- Blaming the 08:47 live migration, a host fault or the network path, or recommending a VM reset, stop/start or migration.
+- Assuming SSH, OS Login or interactive serial-console access, or claiming to have inspected the guest directly.
+- Resizing the disk, deleting spool files or restarting the service as an authorized step or a demonstrated cause fix.
+- Declaring recovery from RUNNING status or from the continuing agent metrics.
+
+**Unknowns to preserve:**
+
+- What wrote to /srv/collateral from 06:00Z and whether it is still writing.
+- Whether the 09:12 batch and earlier spool files are complete, and which clearing handoffs need reprocessing.
+- The state of the service and disk after the 09:42 capture.
+
+### Variant B
+
+The guest's telemetry and the service's ingress path stopped together at about 09:12, when rules in firewall policy change NET-4471 began denying the VM's egress to Google API endpoints and clearing-gateway's ingress on TCP 8443. The VM reports RUNNING and the last guest observations matched the previous day, but there is no guest observation after 09:12:48Z, so collateral-recon's own state is unknown rather than failed. The 08:47 live migration completed earlier with the VM running and is not linked.
+
+**Useful next checks:**
+
+- Linden, the shared-network owner, confirms whether NET-4471's rules were meant to match collateral-recon's subnet and decides, under ITO's change approval, whether to revert or narrow them.
+- Once the path is restored, Idris and Marisol read Ops Agent uptime, syslog and app.log for the gap and confirm collateral-recon's state before anyone restarts or changes the VM.
+- Marisol keeps clearing-gateway's owner informed in the existing TLC and confirms which handoffs need reprocessing after the service answers again; no replay before that check.
+
+**Unsupported conclusions/actions:**
+
+- Diagnosing a full disk, a crashed service or another guest fault from the absent agent data or the stopped application log.
+- Resetting, stopping or restarting the VM or service, resizing a disk, or assuming SSH or serial-console access to look inside the guest.
+- Blaming the 08:47 live migration, or treating RUNNING status as proof that collateral-recon is healthy.
+- Presenting a firewall change as authorized by this investigation or as already confirmed to be unintended.
+
+**Unknowns to preserve:**
+
+- Whether collateral-recon is still running and whether a batch was in flight at 09:12.
+- Whether NET-4471 was intended to cover this subnet and which other workloads it affects.
+- The state of the VM, service and path after the 09:42 capture.
+
+**Sources:**
+
+- [The operating system, BIOS and other system-level entities often write to the serial ports, serial port 1 being the usual one; for a running instance the console, gcloud or REST shows only the most recent 1 MB per port. Serial port output logging to Cloud Logging is disabled by default, and sending input is the separate interactive serial console. Whether an image copies service or syslog messages to serial port 1 is image configuration, so the fixture states it as an owner note and does not grade it.](https://docs.cloud.google.com/compute/docs/troubleshooting/viewing-serial-port-output) — checked 2026-10-17.
+- [Ops Agent health is checked by querying agent.googleapis.com/agent/uptime on gce_instance for the google-cloud-ops-agent-metrics and google-cloud-ops-agent-logging components. The page reads an absent uptime metric as an agent not running properly, and names networking problems such as firewall rules, proxies or DNS when a running agent sends neither logs nor metrics, alongside missing roles, scopes or APIs. Absent agent data therefore does not by itself establish guest or application state; variant B rests on the network owner's DENIED records, not on the gap alone.](https://docs.cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/troubleshoot-run-ingest) — checked 2026-10-17.
+- [agent.googleapis.com/disk/percent_used is in the Ops Agent's default configuration, is labelled by device and by state (free, used, reserved), and is sampled every 60 seconds. The page gives no visibility delay for it, so the fixture states its own chart coverage cutoff.](https://docs.cloud.google.com/monitoring/api/metrics_agent) — checked 2026-10-17.
+- [During live migration the instance remains running, with a possible short period of decreased performance; migrations are reported as system events with operation type compute.instances.migrateOnHostMaintenance in the zone's operations and the System Events logs. A host error (compute.instances.hostError) crashes the instance, and an automatic restart is recorded as compute.instances.automaticRestart. The page does not quantify migration pause length; the case relies only on the migration completing with the VM running.](https://docs.cloud.google.com/compute/docs/instances/host-maintenance-overview) — checked 2026-10-17.
+- [When a firewall policy rule with logging enabled applies to a VM's traffic, Cloud Logging records the connection; disposition is ALLOWED, DENIED or INTERCEPTED, and a hierarchical policy rule reference has the form {folder tier index}/firewallPolicy:{id}. The NET-4471 record is a supplied network-owner summary; the case does not rely on the log name or monitored resource of these records.](https://docs.cloud.google.com/firewall/docs/firewall-policy-log-format) — checked 2026-10-17.
+- [gce_instance (VM Instance) identifies a Compute Engine VM with project_id, instance_id (the numeric identifier) and zone labels. The fixture's syslog and app.log entries are labelled supplied records attributed to that resource, not native exports.](https://docs.cloud.google.com/logging/docs/api/v2/resource-list) — checked 2026-10-17.
+
+## GCP-22 — Separate a backend readiness failure from an edge policy denial behind client-portal errors
+
+Profile: cli; partition: tuning; group: managed-services.
+Source data: [family JSON](families/gcp22.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+From 10:09:40 UTC portal-api-bes had no healthy backend. CHG-7710 replaced all six instances with release 7.4.0, whose /readyz returns 503 while the application reports missing ledger.endpoint configuration, so health checks mark every instance unhealthy and the load balancer returns 503 failed_to_pick_backend for every /api/* request. portal-edge-policy enforced no denial; CHG-7712's rule 900 is in preview and its DENY outcomes are logged, not enforced. Probes reach the instances, so a firewall or probe-reachability cause is not supported. Why 7.4.0 lacks the configuration and why the rollout proceeded are not established.
+
+**Useful next checks:**
+
+- Petra confirms why release 7.4.0 starts without ledger.endpoint; Petra and the change approver decide through ITO's change approval between restoring the 7.3.2 instance template and correcting the configuration; this investigation applies neither.
+- Bram establishes why CHG-7710's rolling update continued while replacement instances failed health checks and reports the healthy backend count on the TLC.
+- Ines reports recovery only from correlated evidence: HEALTHY backends in Bram's view, /api/* entries with response_sent_by_backend and status 200, and passing monitor runs. Soren reviews the rule 900 preview matches separately before any later enforcement.
+
+**Unsupported conclusions/actions:**
+
+- Attributing the failures to Cloud Armor or the CHG-7712 rule; no enforced DENY is recorded and preview outcomes are not enforced.
+- Disabling, detaching or editing portal-edge-policy or rule 900 to obtain a passing request.
+- Loosening portal-api-hc (path, threshold or interval) so instances that report not ready receive traffic, or calling that a fix.
+- Rolling back, restarting or resizing portal-api-mig as an applied or approved action without the application owner's decision through change approval.
+- Blaming firewall rules or probe reachability; probes reach the instances and receive 503 from /readyz.
+- Declaring recovery from one passing request or monitor run.
+
+**Unknowns to preserve:**
+
+- Why release 7.4.0 starts without ledger.endpoint.
+- Why the rolling update proceeded while new instances failed health checks.
+- Whether the 64 preview matches are attacks or legitimate transfers; they do not explain the current failure.
+- State after the 10:27 owner-record and 10:28 request-log coverage cutoffs.
+
+### Variant B
+
+Rule priority 900 of portal-edge-policy (preconfigured WAF rule set sqli-v422-stable), switched from preview to enforced by CHG-7712 at 10:09:00 UTC, denies POST /api/transfers requests with 403 denied_by_security_policy, including every synthetic monitor request since 10:10. The backends are healthy: all six instances pass /readyz on 7.4.0, the other /api/* requests return 200 from the backend and no denied transfer request reached an instance. The edge policy, not backend readiness or the rollout, is the failing step for transfers. Which request field matched the signature and whether every denied request is legitimate are not established.
+
+**Useful next checks:**
+
+- Soren reviews the denied entries and the preview-period matches for rule 900, identifies the request field that matched owasp-crs-v042200-id942100-sqli, and decides through change approval between a field exclusion, a sensitivity change, returning the rule to preview or keeping it enforced; this investigation applies none of them.
+- Petra, with Soren, establishes from sanitized request metadata, starting with the monitor's fixed payload, whether the matched transfer requests are legitimate; customer payloads are not copied into the TLC.
+- Ines reports recovery only from correlated evidence after an approved policy decision: transfer requests with response_sent_by_backend and status 200, no enforced rule 900 DENY on legitimate traffic, and passing monitor runs.
+
+**Unsupported conclusions/actions:**
+
+- Attributing the failures to the 7.4.0 rollout or backend readiness; backends are HEALTHY and denied requests never reached them.
+- Restarting, rolling back or scaling portal-api-mig, or loosening portal-api-hc.
+- Disabling or detaching portal-edge-policy, deleting rule 900 or returning it to preview as an applied fix without the edge security owner's decision through change approval.
+- Asserting that all denied traffic is benign, or that it is an attack, without reviewing the matched requests.
+- Treating the 403 as an application authentication or authorization failure.
+- Declaring recovery from one passing request or monitor run.
+
+**Unknowns to preserve:**
+
+- Which request field matched the signature and whether every denied request is legitimate.
+- Why the preview-period matches were not reviewed before enforcement.
+- State after the 10:27 owner-record and 10:28 request-log coverage cutoffs.
+
+**Sources:**
+
+- [Global external and classic Application Load Balancer logs use resource.type http_load_balancer. statusDetails explains why the load balancer returned its status: failed_to_pick_backend means it failed to pick a healthy backend (502 or 503); denied_by_security_policy means a Cloud Armor policy denied the request, with the status configured in the policy; response_sent_by_backend means the backend's own response was proxied. The fixture's per-request entries and counts are authored.](https://docs.cloud.google.com/load-balancing/docs/https/https-logging-monitoring) — checked 2026-10-17.
+- [Cloud Armor request logging records enforcedSecurityPolicy name, outcome (ACCEPT, DENY, REDIRECT and EXEMPT are given as examples), configuredAction, priority and preconfiguredExprIds; previewSecurityPolicy is populated when a preview rule would have taken priority, with its own outcome; a denial has statusDetails denied_by_security_policy. Whether an accepted request that then fails backend selection carries enforcedSecurityPolicy is not documented, so variant A reports Cloud Armor decisions as an owner summary.](https://docs.cloud.google.com/armor/docs/request-logging) — checked 2026-10-17.
+- [Security policies can block traffic before it reaches load-balanced backend services; deny rules can return 403, 404 or 502; a rule can be previewed without enforcement, with its actions noted and both matched and preview rules available in logs. Because a deny can return 502, a status code alone does not separate an edge denial from a backend failure; the case grades statusDetails and policy decisions, not status alone. That a denied request never reached an instance is supplied by the application owner's records, not inferred from the docs.](https://docs.cloud.google.com/armor/docs/security-policy-overview) — checked 2026-10-17.
+- [Unhealthy backends are not eligible to receive new connections; a global external Application Load Balancer returns HTTP 503 when all backends are unhealthy (classic returns 502); probers for GFE-based load balancers use 35.191.0.0/16 and need ingress allow firewall rules. Health check log field names are not given on this page, so the fixture's health view is a labelled owner observation.](https://docs.cloud.google.com/load-balancing/docs/health-check-concepts) — checked 2026-10-17.
+- [Preconfigured WAF rules are named like sqli-v422-stable with signature IDs like owasp-crs-v042200-id942100-sqli; the default sensitivity is 4, and higher sensitivity raises false-positive risk; Google recommends validating rules in preview before they affect production. The fixture reuses the documented example identifiers; which request content matches that signature is not graded.](https://docs.cloud.google.com/armor/docs/waf-rules) — checked 2026-10-17.
+- [The http_load_balancer monitored resource (Application Load Balancer) has project_id, forwarding_rule_name, url_map_name, target_proxy_name, backend_service_name and zone labels. Owner health views, policy summaries and application records in this export are labelled supplied records, not native load balancer log fields.](https://docs.cloud.google.com/logging/docs/api/v2/resource-list) — checked 2026-10-17.
+
+## GCP-23 — Holdings view database timeouts during a rollout and a provider-status question
+
+Profile: console; partition: tuning; group: managed-services.
+Source data: [family JSON](families/gcp23.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+A Service Health incident for Cloud SQL in us-east4, marked IMPACTED for this project, starts at 10:09, three minutes before holdings-view's 10:12 onset, and ledger-reports, which had no release, failed new Cloud SQL connections over the same interval. Release 7.4.0 served 10% at baseline before onset and changed no database settings, so a release regression is unsupported. Google closed the event as RESOLVED at 10:50 and ledger-reports returned to baseline, but holdings-view still returns 6-7% 5xx through 10:56: recovery is not established and why holdings-view lags is unknown.
+
+**Useful next checks:**
+
+- Bartholomew examines holdings-view's database connection pool and instance state after 10:50 against the 10:50-10:56 holdings-db establishment times; any recovery action, such as recycling instances, is his decision under ITO approval, and a rollback is not indicated.
+- Ingrid follows the event's updates and, if holdings-view impact persists, decides whether to open or link a support case to the event.
+- Thandiwe watches holdings-view 5xx and connection timeouts after 10:56 and reports recovery on the existing TLC only from holdings-view user outcomes, not from the provider's RESOLVED state or ledger-reports' recovery.
+
+**Unsupported conclusions/actions:**
+
+- Attributing the 5xx to release 7.4.0 or recommending a rollback to holdings-view-00087-mez as the fix, despite the clean 10% stage, the unchanged database settings and the matching ledger-reports impact.
+- Declaring holdings-view recovered because the provider event is CLOSED/RESOLVED or because ledger-reports returned to baseline.
+- Treating the 10:25 public-dashboard note as clearing Google Cloud for this limited-scope incident.
+- Presenting a failover, instance recycle, rollback or support escalation as decided or performed by the candidate.
+
+**Unknowns to preserve:**
+
+- Why holdings-view still fails after the provider event closed and other connections recovered.
+- Which of the project's Cloud SQL instances the event touched; the export names project, product and location only.
+- holdings-view's state after the 10:56 metric coverage and 10:57 capture.
+
+### Variant B
+
+Service Health shows no event for Cloud SQL or Cloud Run in us-east4; its only event is Cloud SQL in europe-west2, started before the window and marked PARTIALLY_RELATED, so it matches product but not location or time. That absence alone neither clears Google Cloud nor proves the application at fault. The local scope evidence supports a release-linked cause: 7.4.0 failed 7.0% of its 10% share while 7.3.9 stayed at 0.1%, ledger-reports on another us-east4 instance stayed at baseline, holdings-db reports baseline 0.6-0.9 s establishment, and 7.4.0 lowered the connect timeout to 0.5 s. That hypothesis is untested, and impact persists without recovery.
+
+**Useful next checks:**
+
+- Bartholomew compares 7.4.0 and 7.3.9 connection settings and timeout errors against holdings-db's establishment times; a rollback to holdings-view-00087-mez or a setting change is his decision under ITO approval.
+- Thandiwe tracks holdings-view 5xx and connection timeouts after 10:56 on the existing TLC; recovery is claimed only from holdings-view user outcomes.
+- Ingrid rechecks Service Health for us-east4 and contacts Google Cloud support only if the local checks fail to explain the timeouts.
+
+**Unsupported conclusions/actions:**
+
+- Attributing the impact to an unposted Google Cloud incident, or to the europe-west2 Cloud SQL event, against the per-revision, ledger-reports and holdings-db evidence.
+- Waiting for Google or a support case as the response while user impact persists.
+- Treating the absent provider event alone as proof of an application fault, or the 0.5 s setting as a confirmed cause rather than a hypothesis.
+- Presenting a rollback or setting change as decided or performed by the candidate, or claiming recovery.
+
+**Unknowns to preserve:**
+
+- Whether the 7.4.0 connect-timeout change causes the failures; no comparison has been made.
+- Whether a narrower provider issue exists that Service Health does not represent.
+- holdings-view's state after the 10:56 metric coverage and 10:57 capture.
+
+**Sources:**
+
+- [A Service Health event carries eventImpacts (products and locations), startTime, endTime, updateTime and updates from Google. Relevance IMPACTED means the incident is verified to impact the project; PARTIALLY_RELATED means it concerns a product the project uses but may not impact the project. State CLOSED with detailedState RESOLVED means the incident no longer affects any Google Cloud product: a provider statement, not a measurement of the customer's own user outcomes. The page does not list EventImpact subfields; the fixture's product/location rows are authored.](https://docs.cloud.google.com/service-health/docs/reference/rest/v1/projects.locations.events) — checked 2026-10-17.
+- [Personalized Service Health is the primary channel and a corroboration signal for incident response; limited-scope incidents (single location, zone or subset of projects) are communicated through PSH, while the public Cloud Service Health page carries broad severe incidents. The page gives no posting or update timing.](https://docs.cloud.google.com/service-health/docs/incident-communication) — checked 2026-10-17.
+- [The public dashboard lists broad, severe incidents or serves when PSH is unavailable; an issue not listed there may be isolated to the customer's projects or a limited number of customers. Customers with a paid support plan can report an incident by creating a support case and can link a case to a known issue; in this case that is the platform owner's action.](https://docs.cloud.google.com/support/docs/dashboard) — checked 2026-10-17.
+- [Review an event's scope, impact and relevance to the project; projects in a different location may not be affected; if an issue does not appear to be represented in any dashboard event, contact Support. The page does not describe verifying the customer's own recovery.](https://docs.cloud.google.com/service-health/docs/how-to-integrate) — checked 2026-10-17.
+- [The console dashboard shows incidents relevant to the project with per-product and per-location status, so partial recovery can be seen during an incident. The page does not say that the absence of an event means no issue, nor how quickly events are posted.](https://docs.cloud.google.com/service-health/docs/overview) — checked 2026-10-17.
+- [Cloud Run writes request, container and varlog/system logs; cloud_run_revision labels include project_id, location, service_name and revision_name. Per-revision request counts in the fixture are authored observations.](https://docs.cloud.google.com/run/docs/logging) — checked 2026-10-17.
+
+## GCP-24 — Explain why a shipped fix is absent: a moved image tag or a failed cross-project image read
+
+Profile: cli; partition: held-out; group: managed-services.
+Source data: [family JSON](families/gcp24.json).
+
+The useful control is authored for PASS after semantic review; the wrong control for FAIL;
+the unavailable control for INCONCLUSIVE. Mechanical success alone remains INCONCLUSIVE.
+
+### Variant A
+
+The 10:05 deploy succeeded: revision margin-calc-00019-hov is Ready and serves 100%. Cloud Run resolved the tag reference margin-calc:5.3.1 when it created the revision, and at that moment the tag pointed to sha256:c530c530..., pushed at 10:01:58 UTC by build 4415 from commit 3c7d0e8, the pre-fix 5.3.0 lineage, not to build 4412's output sha256:b531b531... from fix commit 9f4e2b1. Production runs a pre-fix image under the 5.3.1 tag, consistent with the unchanged MARGIN-311 break rate and the build_commit=3c7d0e8 startup lines. Registry access is not the failure: the deploy completed and both the deployer and the Cloud Run service agent hold Artifact Registry Reader. Why build 4415 re-ran against the pre-fix commit is not established.
+
+**Useful next checks:**
+
+- Wren identifies who or what re-ran build 4415 against commit 3c7d0e8 at 10:00 and lists any other consumer that deployed or pulled margin-calc:5.3.1 after 10:01:58.
+- Theo decides, through change approval, on a reviewed deploy that references build 4412's output by digest (@sha256:b531b531...) after Wren confirms that digest is the 9f4e2b1 build; a redeploy by tag 5.3.1 would resolve to the pre-fix digest again. This investigation applies nothing.
+- Wren decides any tag correction or immutable-tag setting for trading-images; moving the tag back changes no serving revision.
+- Imogen reports recovery on the existing TLC only when a revision whose resolved digest is sha256:b531b531... serves traffic and MARGIN-311 breaks fall over complete hours.
+
+**Unsupported conclusions/actions:**
+
+- Blame Artifact Registry access or IAM, or recommend granting roles/artifactregistry.reader to the service agent, runtime identity or deployer; the deploy completed and both required identities already hold the role.
+- Treat tag 5.3.1 as identifying build 4412's output or report 5.3.1's fix as in production; the tag is a mutable pointer and the revision serves its resolved digest.
+- Redeploy by tag, roll back, move the tag or rebuild as an applied or approved fix without Theo's and Wren's decisions.
+- Conclude that the MARGIN-311 fix code is ineffective; the fix build never served traffic.
+- Delete build 4415's image or the untagged sha256:b531b531... version; the untagged version is the intended release artifact.
+- Declare recovery without a serving revision resolved to the fix digest and a lower break rate.
+
+**Unknowns to preserve:**
+
+- Who or what re-ran build 4415 against commit 3c7d0e8.
+- Whether anything else deployed margin-calc:5.3.1 after 10:01:58.
+- Service state after the 11:18 log and 11:20 service-export coverage cutoffs.
+
+### Variant B
+
+Release 5.3.1 did not reach production. The 10:05 deploy of margin-calc:5.3.1 from trading-images in project synthetic-build-artifacts failed with a permission error naming synthetic-initial-margin-prod's Cloud Run service agent; no revision references that image, and margin-calc-00018-paz (5.3.0, sha256:a530a530...) still serves 100%, consistent with the unchanged MARGIN-311 break rate. Odette's repository policy grants Artifact Registry Reader to the deployer identity margin-cd but has no binding for the Cloud Run service agent, which Cloud Run requires for images in another project. The build and tag are consistent: tag 5.3.1 still points to build 4412's output sha256:b531b531.... Service stays available on 5.3.0; this is a failed rollout, not an outage. Why CHG-7731 omitted the service agent is not established.
+
+**Useful next checks:**
+
+- Odette confirms the trading-images policy and decides, through change approval, whether to grant roles/artifactregistry.reader on the trading-images repository to service-418220937165@serverless-robot-prod.iam.gserviceaccount.com; the deployer identity and CD authentication design stay unchanged. This investigation grants nothing.
+- After any approved grant, Theo decides a reviewed redeploy that references build 4412's output by digest (@sha256:b531b531...) and confirms the new revision's resolved digest before reporting 5.3.1 as live.
+- Wren and Odette check whether other projects consuming trading-images have the same missing service-agent binding.
+- Imogen reports on the existing TLC that 5.3.0 continues to serve and the fix is not deployed; recovery only when a revision resolved to the fix digest serves and MARGIN-311 breaks fall over complete hours.
+
+**Unsupported conclusions/actions:**
+
+- Blame the build or image, or ask Wren to rebuild or re-tag 5.3.1; build 4412 succeeded and the tag still points to its output.
+- Retry or redeploy by tag before the access gap is resolved; it would fail the same way.
+- Grant project-wide or broader roles (Editor, Owner, Artifact Registry Writer or Administrator), grant the runtime service account, or change the CD deployer's credentials; the gap is the Cloud Run service agent's read access on one repository and the decision is Odette's.
+- Apply any grant, deploy or traffic change as an investigation step.
+- Report 5.3.1 as live because the pipeline submitted it, or report an outage or failing 00018 instance starts; 00018 serves with status=200 and Cloud Run keeps its image copy.
+- Depend on the exact error message text; the fixture's wording is a paraphrase.
+
+**Unknowns to preserve:**
+
+- Why CHG-7731 granted the deployer identity but not the Cloud Run service agent.
+- Whether other projects consuming trading-images lack the same binding.
+- Service state after the 11:18 log and 11:20 service-export coverage cutoffs.
+
+**Sources:**
+
+- [A tag deployed to Cloud Run is resolved to a digest and the revision always serves that digest; revisions are immutable. Deploying an image from another project requires granting both the deployer account and the Cloud Run service agent (suffix @serverless-robot-prod.iam.gserviceaccount.com) Artifact Registry Reader, preferably on the repository; the deployer also needs Cloud Run Developer and Service Account User. Images are not pulled from the repository when a new instance starts, and Cloud Run keeps its copy while a serving revision uses it. The page does not say what an existing revision does when a tag later moves; the case relies only on resolution at revision creation.](https://docs.cloud.google.com/run/docs/deploying) — checked 2026-10-17.
+- [RevisionStatus.imageDigest holds the digest resolved for the image during creation of the revision, whether a tag or digest was specified. The v2 Revision and Container references document no digest field, so the fixture's status.imageDigest follows the v1 resource.](https://docs.cloud.google.com/run/docs/reference/rest/v1/namespaces.revisions) — checked 2026-10-17.
+- [A tag points to only one version of an image, but the digest it references can change; each digest uniquely identifies an image version and cannot be changed. Docker repositories can allow mutable tags or enforce immutable tags. Image paths take the form LOCATION-docker.pkg.dev/PROJECT-ID/REPOSITORY/IMAGE.](https://docs.cloud.google.com/artifact-registry/docs/docker/names) — checked 2026-10-17.
+- [Build.images are pushed upon successful completion of all build steps, and a failed push marks the build FAILURE; Results.images lists each built image with its pushed name and Docker Registry 2.0 digest. The build and tag summaries in this case are authored owner observations, not native API responses.](https://docs.cloud.google.com/build/docs/api/reference/rest/v1/projects.builds) — checked 2026-10-17.
+- [Documented cross-project image errors include a Container Registry form stating the Google Cloud Run Service Agent must have permission to read the image and an Artifact Registry form 'PERMISSION_DENIED: User must have permission to read the image'; the remediation is the cross-project deployment instructions. The exact current message for a missing service-agent binding on an Artifact Registry repository, and whether such a failure leaves a non-ready revision object, are not documented, so the fixture's error is a paraphrase, its revision list is authored, and neither is graded.](https://docs.cloud.google.com/run/docs/troubleshooting) — checked 2026-10-17.
+- [Cloud Run service logs use resource type cloud_run_revision with service_name, revision_name, location and project_id labels; request logs and container logs are separate. The service export, CD log, build, tag and IAM records are authored owner observations, not native Cloud Run log entries.](https://docs.cloud.google.com/run/docs/logging) — checked 2026-10-17.

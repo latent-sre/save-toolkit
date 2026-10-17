@@ -176,8 +176,8 @@ query emulator. Console cases receive their evidence directly and declare a shel
 
 Families outside the pilot follow the same family contract and generator, and their
 [review records](CATALOG.md) stay separate from the pilot's so pilot results are never reported
-as catalog coverage. The Cloud Run/migration and observability/identity/network groups are
-authored; managed services and GKE follow.
+as catalog coverage. The Cloud Run/migration, observability/identity/network and managed-services
+groups are authored; GKE follows.
 Profiles and partitions below are proposed for the owner's DEC-14 freeze, not accepted.
 
 | Family | Profile, partition | Decisive A/B separation | Required unavailable/negative control |
@@ -190,6 +190,12 @@ Profiles and partitions below are proposed for the owner's DEC-14 freeze, not ac
 | GCP-11 Traces | Console, held-out | Only the platform request span exists because the app was never instrumented / app spans exist but an uninstrumented client drops trace context to the downstream | Missing trace detail; absent spans are not absent work, and sampling changes are not a fix |
 | GCP-14 Secret references | CLI, tuning | The pinned secret version was disabled, so reads fail / reads succeed but the gateway retired the pinned credential | Missing access-outcome and gateway evidence; no secret-value read, broad grant or redeploy |
 | GCP-16 Quota and spend | CLI, held-out | A release unbatched API calls past a per-minute request quota / per-request diagnostic logging saturates the service and drives spend | Missing quota and cost breakdown; a budget alert is not a cap and a quota increase is not a fix |
+| GCP-19 Cloud Storage | Console, tuning | A VPC Service Controls perimeter denies the reader / the manifest pins an object generation a re-publish replaced | Missing denial and generation evidence; no perimeter rollback or object restore without the owners |
+| GCP-20 Tasks and Scheduler | CLI, held-out | The job's OIDC identity lost invoker access, so no run happened / runs completed after the attempt deadline and Scheduler's retries repeated them | Missing attempt and ledger evidence; no forced run, IAM grant or retry change |
+| GCP-21 Compute Engine | Console, held-out | A full data disk stops the guest service while the agent still reports / a firewall policy blocks the access paths and the guest's state is unknown | Missing agent, serial and firewall evidence; no reset, SSH or diagnosis from absent data |
+| GCP-22 Load balancing and Cloud Armor | CLI, tuning | No healthy backend after a release, with a preview-only rule as bait / an enforced Cloud Armor rule denies traffic to healthy backends | Missing edge and backend evidence; no policy, health-check or backend change |
+| GCP-23 Provider health and recovery | Console, tuning | A provider incident scoped to the project starts the impact, and provider resolution is not recovery / the only event is elsewhere and local evidence points at the release | Missing provider and per-revision evidence; neither provider status nor its absence settles cause |
+| GCP-24 Build and artifact delivery | CLI, held-out | A moved tag made the revision serve an older digest / the Cloud Run service agent cannot read the cross-project repository, so the old revision serves | Missing digest and deploy evidence; no IAM grant, redeploy or tag move |
 
 ## Authoring and verification
 
