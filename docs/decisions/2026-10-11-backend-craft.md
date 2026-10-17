@@ -128,3 +128,15 @@ Frontend guidance consumes the actual service contract. Build fixtures state the
 contracts so their existing checks do not manufacture team-wide policy. This amendment also updates
 the API-binding clauses of the two frontend decisions from 2026-10-11; their visual and frontend
 framework decisions are unchanged. The implementing candidate still requires exact-revision acceptance.
+
+## Owner amendment — 2026-10-17: no provider-specific authentication reference
+
+Amended: 2026-10-17 — decision owner dropped the authentication follow-up.
+
+The owner judged provider-specific token-verification guidance unsuitable for a generic plugin and
+dangerous to generate, since a subtle verification error admits the wrong caller without failing
+any test [sourced: owner]. The authentication follow-up named in the delivery sequence and
+Consequences is withdrawn, and no identity provider is recorded for it. Authentication guidance is
+the identity rule in [`api-contract.md`](../../skills/backend-craft/references/api-contract.md):
+reuse the application's existing authentication integration, fail closed, and send authentication
+changes to independent review. The other follow-up references are unchanged.

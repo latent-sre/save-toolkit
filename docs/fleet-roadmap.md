@@ -93,18 +93,6 @@ Source and offline checks do not establish native acceptance of the access polic
 **SRE task:** Delegate a scoped application-state or event-history check while investigating another
 part of the incident, without delegating deployment or remediation authority.
 
-### GRAPH-007 — promote or retire the sandbox workflow-graph skill
-
-**Status:** `decision-needed` (2026-10-13).
-**Owner:** Save Toolkit maintainers; `agent-engineer` owns the skill text if promoted.
-**Outcome:** Portable executable workflow/state-graph design either ships as a reviewed, routed
-skill or is retired. Until then `agent-engineer` claims only the fleet's own agent workflow graph,
-and a team service's workflow graph routes to `principal-engineer`.
-**Next action:** Decide whether `sandbox/workflow-graph-engineering/SKILL.md` earns promotion into
-`skills/`, with routing scenarios and a listing-size check, given ROUTE-003's inconclusive
-workflow-graph discovery measurements; otherwise remove it.
-**SRE task:** Get a design for a durable workflow graph from the lane that can actually back it.
-
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
 **Status:** `active` (2026-10-06); WP-00 is complete: the owner accepted specification revision 0.6
@@ -308,18 +296,21 @@ and a deep reference for the capability they reach for first.
 core pull request (entrypoint, OpenAPI, FastAPI and Go references, starters, evals) followed by
 capability references ([decision](decisions/2026-10-11-backend-craft.md)). The core carries the
 API-writes, background-work and consuming-APIs references over unchanged.
-**Owner:** The human owner accepts each candidate and names the identity provider;
-`agent-engineer` owns the skill text and its build scenarios.
-**Outcome:** Five follow-up references land, each re-derived from an owner decision, a current
+**Owner:** The human owner accepts each candidate; `agent-engineer` owns the skill text and its
+build scenarios.
+**Outcome:** Four follow-up references land, each re-derived from an owner decision, a current
 sourced fact or a measured result: operational actions (dry run, blast-radius limits, actor and
-reason), authentication (OIDC/JWT verification for the team's provider), data (PostgreSQL and SQL
-Server access from both languages), runtime (PCF, Cloud Run, systemd hosts, Windows desktops) and
-security; the three carried-over references are re-derived the same way.
-**Next action:** The owner names the identity provider the services authenticate against; the
-skill owner then drafts the actions reference first, since the services take actions today.
+reason), data (PostgreSQL and SQL Server access from both languages), runtime (PCF, Cloud Run,
+systemd hosts, Windows desktops) and security; the three carried-over references are re-derived
+the same way. The plugin stays provider-neutral, so authentication gets no reference of its own:
+the identity rule in [`api-contract.md`](../skills/backend-craft/references/api-contract.md)
+governs, reusing the application's existing authentication integration, failing closed and
+sending authentication changes to independent review.
+**Next action:** The skill owner drafts the actions reference first, since the services take
+actions today.
 **Evidence:** none yet.
 **SRE task:** An SRE building a service that restarts apps or silences alerts gets a dry run, a
-bounded blast radius and an audit trail by default, and a verified sign-in path for its callers.
+bounded blast radius and an audit trail by default.
 
 ### BACKEND-002 — add go-craft beside python-craft
 
@@ -441,6 +432,19 @@ resolution grants no live authority; catalog dates do not establish `last_verifi
 the context refresh in the [selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md).
 **SRE task:** State team, service, environment, and deployment once, and know whether the service
 record still applies to the deployment being operated.
+
+### GRAPH-007 — promote or retire the sandbox workflow-graph skill
+
+**Status:** `deferred` (2026-10-17); the owner deferred the promote-or-retire decision.
+**Owner:** Save Toolkit maintainers; `agent-engineer` owns the skill text if promoted.
+**Outcome:** Portable executable workflow/state-graph design either ships as a reviewed, routed
+skill or is retired. Until then `agent-engineer` claims only the fleet's own agent workflow graph,
+and a team service's workflow graph routes to `principal-engineer`.
+**Next action:** None. Reopens when the owner takes the decision: promote
+`sandbox/workflow-graph-engineering/SKILL.md` into `skills/` with routing scenarios and a
+listing-size check, given ROUTE-003's inconclusive workflow-graph discovery measurements, or
+remove it.
+**SRE task:** Get a design for a durable workflow graph from the lane that can actually back it.
 
 ### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
 

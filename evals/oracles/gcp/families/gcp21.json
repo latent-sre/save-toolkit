@@ -36,7 +36,7 @@
     },
     {
       "url": "https://docs.cloud.google.com/stackdriver/docs/solutions/agents/ops-agent/troubleshoot-run-ingest",
-      "claim": "Ops Agent health is checked by querying agent.googleapis.com/agent/uptime on gce_instance for the google-cloud-ops-agent-metrics and google-cloud-ops-agent-logging components. The page reads an absent uptime metric as an agent not running properly, and names networking problems such as firewall rules, proxies or DNS when a running agent sends neither logs nor metrics, alongside missing roles, scopes or APIs. Absent agent data therefore does not by itself establish guest or application state; variant B rests on the network owner's DENIED records, not on the gap alone.",
+      "claim": "Ops Agent health is checked by querying agent.googleapis.com/agent/uptime on gce_instance for the google-cloud-ops-agent-metrics and google-cloud-ops-agent-logging components. The page recommends checking uptime and the agent's local module logs, reads absent local module logs as an agent not running properly, and names networking problems such as firewall rules, proxies or DNS when a running agent sends neither logs nor metrics, alongside missing roles, scopes or APIs. Absent agent data therefore does not by itself establish guest or application state; variant B rests on the network owner's DENIED records, not on the gap alone. Google names the API hostnames the agent must reach, not a port, so the TCP 443 match comes from those records rather than from the docs.",
       "checked": "2026-10-17"
     },
     {

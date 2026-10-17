@@ -58,7 +58,7 @@ fixture:
       15:06:00Z-15:18:00Z metrics: instance count active 12-15, idle 2-4; total never above 18 against scaling.maxInstanceCount=20.
       15:06:00Z-15:18:00Z metrics: container CPU utilization p50 21%, p99 38%; max concurrent requests per active instance p50 6, p99 9 against the configured 10.
       Application handling time for status=200 requests (container log, request start to response written): order-router p95 3.9 s (baseline 210 ms).
-      refdata-api client calls (container log) 15:05:00Z-15:20:00Z: p95 3.8 s, 1,890 calls ended at the 4 s client deadline; baseline 14:30:00Z-14:45:00Z p95 110 ms.
+      refdata-api client calls (container log) 15:05:00Z-15:20:00Z: successful-call p95 3.8 s; 1,890 calls ended at the 4 s client deadline; baseline 14:30:00Z-14:45:00Z p95 110 ms.
       No quota-exceeded, permission, deploy or revision-failure record appears in this export.
       The export shows only order-pricing'"'"'s client side of refdata-api calls; it does not show refdata-api server-side latency or saturation, the network path, or whether other refdata-api clients are affected.'
       }
