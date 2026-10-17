@@ -296,22 +296,21 @@ and a deep reference for the capability they reach for first.
 core pull request (entrypoint, OpenAPI, FastAPI and Go references, starters, evals) followed by
 capability references ([decision](decisions/2026-10-11-backend-craft.md)). The core carries the
 API-writes, background-work and consuming-APIs references over unchanged.
-**Owner:** The human owner accepts each candidate and names the identity provider;
-`agent-engineer` owns the skill text and its build scenarios.
-**Outcome:** Five follow-up references land, each re-derived from an owner decision, a current
+**Owner:** The human owner accepts each candidate; `agent-engineer` owns the skill text and its
+build scenarios.
+**Outcome:** Four follow-up references land, each re-derived from an owner decision, a current
 sourced fact or a measured result: operational actions (dry run, blast-radius limits, actor and
-reason), authentication (caller verification for the team's provider through a maintained,
-provider-endorsed library or platform enforcement, never hand-written token parsing), data
-(PostgreSQL and SQL Server access from both languages), runtime (PCF, Cloud Run, systemd hosts,
-Windows desktops) and
-security; the three carried-over references are re-derived the same way.
+reason), data (PostgreSQL and SQL Server access from both languages), runtime (PCF, Cloud Run,
+systemd hosts, Windows desktops) and security; the three carried-over references are re-derived
+the same way. The plugin stays provider-neutral, so authentication gets no reference of its own:
+the identity rule in [`api-contract.md`](../skills/backend-craft/references/api-contract.md)
+governs, reusing the application's existing authentication integration, failing closed and
+sending authentication changes to independent review.
 **Next action:** The skill owner drafts the actions reference first, since the services take
-actions today. The authentication reference waits until the owner names the identity provider,
-without blocking the other references: generic token-verification guidance is not written,
-because a subtle verification error admits the wrong caller without failing any test.
+actions today.
 **Evidence:** none yet.
 **SRE task:** An SRE building a service that restarts apps or silences alerts gets a dry run, a
-bounded blast radius and an audit trail by default, and a verified sign-in path for its callers.
+bounded blast radius and an audit trail by default.
 
 ### BACKEND-002 — add go-craft beside python-craft
 
