@@ -6,6 +6,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+## [0.51.2] - 2026-10-16
+
 ### Changed
 
 - The roadmap closes AUDIT-001 (39 of 50 findings repaired; the owner closed the rest) and EVAL-017
