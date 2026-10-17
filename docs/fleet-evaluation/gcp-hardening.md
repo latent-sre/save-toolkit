@@ -1,6 +1,6 @@
 # GCP case hardening: design proposal
 
-**Status:** Proposal, written 2026-10-17; not approved. Nothing here changes an accepted case. It
+**Status:** Approved by the owner on 2026-10-17 with the decisions recorded below; written the same day. Nothing here changes an accepted case. It
 responds to the [stress test](../reviews/2026-10-17-wp13-stress-test.md), which found that the 24
 accepted pilot cases do not separate Haiku from Sonnet.
 
@@ -101,3 +101,10 @@ demonstrates. Console families would gain an equivalent "request observation" fi
 | H-D2 | Pilot families | GCP-13, GCP-17 and GCP-25, as new hardened cases beside the accepted ones |
 | H-D3 | Success criterion | As in validation step 5, fixed before the run |
 | H-D4 | Comparison budget | 27 trials per model, cap USD 5, two blind reviewers per answer |
+
+**Owner decisions, 2026-10-17:** H-D1 all five mechanisms; H-D2 GCP-13, GCP-17 and GCP-25 as new
+hardened cases beside the accepted ones; H-D3 the criterion as proposed; H-D4 **45 trials per model**
+(3 families × 3 variants × 5 trials) under a **USD 8 cap**, with two blind reviewers per answer.
+The criterion's thresholds scale to 45 trials at the same proportions, fixed here before any run:
+Sonnet's PASS count exceeds Haiku's by at least 10 of 45; at least one H5 behavioral check differs by
+at least 10 of 45; Sonnet still passes at least 25 of 45.
