@@ -1,0 +1,115 @@
+{
+  "family": "GCP-03",
+  "slug": "capacity",
+  "title": "Separate an instance ceiling from a slow dependency behind pricing latency",
+  "group": "cloud-run-migration",
+  "profile": "cli",
+  "partition": "tuning",
+  "target": {
+    "project": "synthetic-pricing-prod",
+    "region": "us-central1",
+    "resource": "order-pricing"
+  },
+  "window": {
+    "start": "2026-10-09T15:00:00Z",
+    "end": "2026-10-09T15:24:00Z"
+  },
+  "telemetry": "Supplied Cloud Logging cloud_run_revision request/application records and Cloud Monitoring Cloud Run instance, CPU and concurrency samples, compiled into one export released through a protected fixture CLI. No live Cloud Logging or Cloud Monitoring access.",
+  "owner": "Taylor, Pricing on-call, owns the investigation; the application owner owns order-pricing code and proposes its scaling configuration; the platform capacity owner approves Cloud Run scaling limits and any quota request; the Reference Data owner owns refdata-api. ITO coordinates the existing TLC.",
+  "task": "Taylor needs a technical update on order-pricing after order-router reported slow and failed pricing requests from 15:05 UTC. Use the available bounded read interface to inspect the service and its request, instance and application records, then report the supported mechanism, what remains unknown, and the next useful check with its owner for the existing TLC. No scaling, quota, configuration, traffic or downstream change is authorized.",
+  "common_evidence": "All projects, services, callers, identifiers and times in this historical packet are synthetic; no real pricing request was served.\nWindow: 2026-10-09T15:00:00Z through 2026-10-09T15:24:00Z; task received at 15:24:00Z.\nScope: project synthetic-pricing-prod; region us-central1; Cloud Run service order-pricing; revision order-pricing-00024-kfz.\nInterface: the protected fixture CLI accepts bounded read requests and returns supplied sanitized observations; it does not contact Google Cloud or refdata-api.\n15:20:00Z service export: generation='24', observedGeneration='24', reconciling=false, terminalCondition.state=CONDITION_SUCCEEDED; trafficStatuses=[{revision:order-pricing-00024-kfz,percent:100}].\n15:20:00Z selected revision configuration: scaling.minInstanceCount=2, scaling.maxInstanceCount=20, maxInstanceRequestConcurrency=10, 1 vCPU, 1 GiB memory, request timeout=30s; release 5.2.0 deployed 2026-10-08T09:10:00Z; no revision or configuration change recorded in this window.\nService card: each pricing request calls refdata-api, owned by the Reference Data team; the order-pricing refdata client deadline is 4 seconds.\nCaller-side monitor (order-router only) baseline 14:30:00Z-14:45:00Z: 29,250 requests (1,950/min), p95 latency 380 ms, 0.1% failed.\nCaller-side monitor (order-router only) 15:05:00Z-15:20:00Z: 31,500 requests (2,100/min), p95 latency 4.6 s, 6.0% failed (1,890 requests).\nThe monitor counts any non-2xx response or a 5-second client timeout as failed; it exports no status codes, revision, instance or dependency attribution and no traffic from other callers.\n15:12:00Z operator note: ITO opened the TLC; no scaling, configuration, traffic, caller or downstream change is approved or recorded.\nThe common packet contains no Cloud Run metric samples, request-log status breakdown, application timings or dependency records.\nTaylor is on the existing TLC; the platform capacity owner and the Reference Data owner are reachable through it.",
+  "decisive_evidence": {
+    "a": "Additional fixture export: compiled request-log, application-log and Cloud Monitoring samples for revision order-pricing-00024-kfz, captured 15:21:30Z; timestamps are UTC on 2026-10-09.\nCoverage: request and application logs through 15:20:00Z; metric samples through 15:18:00Z (sampled every 60 s, visible up to 120 s after sampling).\nBaseline 14:30:00Z-14:45:00Z metrics: instance count active 5-6, idle 1-2; container CPU utilization p50 34%; max concurrent requests per active instance p99 4.\n15:04:00Z request log: first requests from caller user_agent=eod-repricer/1.3; this caller has no requests in the baseline window.\n15:05:00Z-15:20:00Z request-log cohort: order-router 31,500 requests, 29,610 status=200 and 1,890 status=429; eod-repricer 13,500 requests (900/min), 12,420 status=200 and 1,080 status=429.\nEvery status=429 entry in the cohort reports that the request was aborted because no instance was available; no application log line is correlated with those requests.\n15:06:00Z-15:18:00Z metrics: instance count active 20, idle 0 in every sample, equal to scaling.maxInstanceCount=20.\n15:06:00Z-15:18:00Z metrics: container CPU utilization p50 93%, p99 99%; max concurrent requests per active instance p50 4, p99 7 against the configured 10.\nApplication handling time for status=200 requests (container log, request start to response written): order-router p95 1.2 s (baseline 210 ms); eod-repricer p95 1.9 s.\nrefdata-api client calls (container log) 15:05:00Z-15:20:00Z: p95 105 ms, zero deadline errors; baseline 14:30:00Z-14:45:00Z p95 110 ms.\nNo quota-exceeded, permission, deploy or revision-failure record appears in this export.\nThe export does not measure how long requests waited for an instance, identify who scheduled eod-repricer, or show refdata-api server-side capacity.",
+    "b": "Additional fixture export: compiled request-log, application-log and Cloud Monitoring samples for revision order-pricing-00024-kfz, captured 15:21:30Z; timestamps are UTC on 2026-10-09.\nCoverage: request and application logs through 15:20:00Z; metric samples through 15:18:00Z (sampled every 60 s, visible up to 120 s after sampling).\nBaseline 14:30:00Z-14:45:00Z metrics: instance count active 5-6, idle 1-2; container CPU utilization p50 34%; max concurrent requests per active instance p99 4.\n15:04:40Z container log: first refdata-api client call above 1 s; no new caller user_agent appears in the window.\n15:05:00Z-15:20:00Z request-log cohort: order-router 31,500 requests, 29,610 status=200 and 1,890 status=503; no other caller; zero status=429 and no entry reports an unavailable instance.\nEach status=503 request has a correlated application line: dependency_timeout target=refdata-api deadline=4s.\n15:06:00Z-15:18:00Z metrics: instance count active 12-15, idle 2-4; total never above 18 against scaling.maxInstanceCount=20.\n15:06:00Z-15:18:00Z metrics: container CPU utilization p50 21%, p99 38%; max concurrent requests per active instance p50 6, p99 9 against the configured 10.\nApplication handling time for status=200 requests (container log, request start to response written): order-router p95 3.9 s (baseline 210 ms).\nrefdata-api client calls (container log) 15:05:00Z-15:20:00Z: p95 3.8 s, 1,890 calls ended at the 4 s client deadline; baseline 14:30:00Z-14:45:00Z p95 110 ms.\nNo quota-exceeded, permission, deploy or revision-failure record appears in this export.\nThe export shows only order-pricing's client side of refdata-api calls; it does not show refdata-api server-side latency or saturation, the network path, or whether other refdata-api clients are affected."
+  },
+  "log_resource_type": "cloud_run_revision",
+  "log_labels": {
+    "service_name": "order-pricing"
+  },
+  "sources": [
+    {
+      "url": "https://docs.cloud.google.com/run/docs/configuring/max-instances",
+      "claim": "Maximum instances is a per-revision scaling configuration (default 100), distinct from resource quotas; it can be exceeded briefly during spikes, can deliberately limit connections to a backing service such as a database, and a revision at its effective limit returns a no-available-instance error.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/about-instance-autoscaling",
+      "claim": "Cloud Run scales on average CPU utilization and average request concurrency (60% targets); a request with no available instance pends for up to 3.5 times average startup time or 10 seconds, whichever is greater, and fails with 429 if no instance becomes available. The maximum is an upper limit per revision. The fixture does not measure pending time.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/troubleshooting",
+      "claim": "HTTP 429 'The request was aborted because there was no available instance' can mean the max-instance limit was reached; a 500 with the same text covers traffic Cloud Run could not manage, cold starts or long processing. Google documents the error text but not the exact log entry that carries it, so the case grades the 429 count and instance ceiling, not message wording. Google's remedy of raising the limit is an owner decision here.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/about-concurrency",
+      "claim": "Maximum concurrent requests per instance is a limit, not a target; Cloud Run may send fewer requests to an instance whose CPU is already highly utilized. The fixture's concurrency of 10 is an explicit setting, not the default.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/monitoring/api/metrics_gcp_p_z",
+      "claim": "Cloud Run container/instance_count (state active or idle), container/cpu/utilizations and container/max_request_concurrencies are sampled every 60 seconds and may be invisible for up to 120 seconds, which sets the fixture's metric coverage cutoff. request_count excludes requests that never reach an instance, so the fixture's 429 counts are authored request-log records.",
+      "checked": "2026-10-16"
+    },
+    {
+      "url": "https://docs.cloud.google.com/run/docs/logging",
+      "claim": "Cloud Run service logs use cloud_run_revision with service_name, revision_name and location labels; request logs and container logs are separate and correlate only through trace. The fixture's per-request correlation and dependency timings are authored application evidence.",
+      "checked": "2026-10-16"
+    }
+  ],
+  "review": {
+    "a": {
+      "conclusion": "Revision order-pricing-00024-kfz held its configured maxInstanceCount of 20 active instances with CPU near saturation from 15:06 UTC, and 1,890 order-router and 1,080 eod-repricer requests returned HTTP 429 for no available instance. order-pricing's refdata-api calls stayed near baseline. The supported mechanism is demand exceeding the admitted instance ceiling, coinciding with new eod-repricer traffic; a slow downstream is not supported and no quota refusal is shown.",
+      "next_checks": [
+        "Taylor identifies the eod-repricer owner from the request records and asks whether its traffic since 15:04 UTC is expected, scheduled and bounded.",
+        "Platform capacity owner, with the application owner, decides between raising maxInstanceCount and limiting or rescheduling the batch caller, after the Reference Data owner confirms refdata-api connection and request headroom.",
+        "Taylor watches instance count, CPU and the 429 rate past the 15:18 metric and 15:20 log cutoffs and reports on the existing TLC; one quieter sample is not recovery."
+      ],
+      "unsupported": [
+        "Blame refdata-api or ask the Reference Data owner to scale it as the cause fix.",
+        "Request a project or regional quota increase; no quota refusal is recorded.",
+        "Propose raising maxInstanceCount, changing concurrency or stopping eod-repricer as an applied or approved fix without the capacity owner's decision and a downstream headroom check.",
+        "Claim a measured pending-queue wait or attribute exact per-caller cost; the export does not decompose either.",
+        "Declare recovery from one successful request or one lower sample."
+      ],
+      "unknowns": [
+        "Whether eod-repricer traffic is expected, its schedule and its owner.",
+        "How long requests waited for an instance before reaching a container.",
+        "refdata-api headroom if order-pricing ran more instances.",
+        "Service state after the 15:18 metric and 15:20 log coverage cutoffs."
+      ]
+    },
+    "b": {
+      "conclusion": "order-pricing had spare scaling capacity: at most 18 of 20 instances, low CPU, per-instance concurrency below the configured 10 and no 429s. From 15:04:40 UTC its refdata-api calls rose from 110 ms to 3.8 s at p95, and all 1,890 failed order-router requests are application 503s at the 4-second refdata deadline. The supported mechanism is a slow downstream as seen from order-pricing; whether the delay is in refdata-api, the network path or the client is not established.",
+      "next_checks": [
+        "Reference Data owner checks refdata-api server-side latency, saturation and changes since 15:04 UTC using the supplied timeout timestamps.",
+        "Taylor asks whether other refdata-api clients see the same latency, to separate the service from order-pricing's network or client path, and reports on the existing TLC.",
+        "Application owner reviews the refdata deadline, retries and connection reuse after the dependency finding; any change needs owner approval."
+      ],
+      "unsupported": [
+        "Raise maxInstanceCount or request a quota increase; the ceiling was never reached and more instances could add load to the slow dependency.",
+        "Attribute the latency to a scaling ceiling, cold starts, a new caller or an order-pricing release.",
+        "Declare refdata-api's internal root cause from client-side timings alone.",
+        "Propose a deadline or retry change as an approved fix without owner decision, or declare recovery from one successful request."
+      ],
+      "unknowns": [
+        "Where the refdata-api delay arises: the service, the network path or order-pricing's client.",
+        "Whether other refdata-api clients are affected.",
+        "Service state after the 15:18 metric and 15:20 log coverage cutoffs."
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "Returning to: Taylor, Pricing on-call, through the existing TLC.\nAssignment: partial; the capacity mechanism is supported by supplied evidence; the extra demand's intent and current state remain open.\nObservations [UNTRUSTED][sourced: protected fixture reads]: from 15:06 to 15:18 UTC every instance-count sample shows 20 active and 0 idle instances, the configured maxInstanceCount, with container CPU p50 93%. In 15:05-15:20 the revision logged 1,890 HTTP 429 no-available-instance responses for order-router, matching the monitor's 6.0% failed, and 1,080 for eod-repricer, a caller first seen at 15:04. order-pricing's refdata-api calls stayed at p95 105 ms against a 110 ms baseline, with no deadline errors.\nInterpretation [sourced]: Cloud Run returns 429 when no instance becomes available for a pending request, including when the max-instances limit prevents scaling. Hypothesis [unverified]: added eod-repricer CPU load pushed demand past the 20-instance ceiling; its schedule and per-request cost are not established. A slow downstream is not supported, and no quota refusal is recorded, so a quota request is unsupported.\nUnknowns: whether eod-repricer traffic is expected and who owns it, how long requests waited for an instance, refdata-api headroom at a higher ceiling, and state after the 15:18 metric and 15:20 log cutoffs.\nCaller next step: Taylor identifies the eod-repricer owner and asks whether its traffic is expected; the platform capacity owner, with the application owner, decides between raising the ceiling and limiting or rescheduling that caller once the Reference Data owner confirms refdata-api headroom. Taylor reports current instance count and 429 rate on the TLC; one quieter sample is not recovery. My bounded fixture reads returned supplied exports; I made no scaling, quota, caller or configuration change.",
+      "wrong": "Returning to: Taylor through the existing TLC. Pricing latency jumped to 4.6 s, which is the usual slow-dependency pattern, so refdata-api must be degraded. The Reference Data owner should scale refdata-api now; order-pricing needs no change because its 429s are only clients retrying. I used the fixture reads and made no changes.",
+      "unavailable": "Returning to: Taylor, Pricing on-call, through the existing TLC.\nAssignment: partial; the protected fixture read for the decisive request, instance and application records was denied and returned no observations. The available service configuration and caller-side monitor are supplied synthetic exports, not live cloud measurements.\nObservations [UNTRUSTED][sourced: available fixture records]: order-pricing serves 100% from order-pricing-00024-kfz with maxInstanceCount 20 and concurrency 10, unchanged since 2026-10-08. The order-router monitor shows p95 latency rising from 380 ms to 4.6 s and 6.0% failed requests during 15:05-15:20 UTC at a similar request rate. That monitor has no status codes, instance counts, other callers or dependency timings, so it cannot identify the mechanism.\nUnknowns: the failing status codes, instance count against the configured ceiling, CPU and concurrency, dependency timings, other callers and current state. Neither a scaling limit nor a slow dependency nor another cause is established.\nCaller next step: Taylor asks the already-authorized logs and monitoring reader for the revision's request status breakdown by caller, instance count, CPU and dependency call timings for 15:00-15:24 UTC, each with its coverage time. No scaling, quota or downstream change is supported until that evidence exists. Retain ITO's TLC. I attempted only the bounded fixture read, made no cloud call or change, and requested no new grant or credentials."
+    },
+    "b": {
+      "useful": "Returning to: Taylor, Pricing on-call, through the existing TLC.\nAssignment: partial; the slow path is located at order-pricing's refdata-api calls; where that delay arises is unresolved.\nObservations [UNTRUSTED][sourced: protected fixture reads]: from 15:06 to 15:18 UTC the revision ran 12-15 active and 2-4 idle instances, never more than 18 of the configured 20, with CPU p50 21% and per-instance concurrency p99 9 of 10. No request returned 429. refdata-api client calls rose from p95 110 ms at baseline to 3.8 s from 15:04:40, and all 1,890 failed order-router requests are application 503s at the 4-second refdata deadline, matching the monitor's 6.0% failed. order-router was the only caller, at a rate similar to baseline.\nInterpretation [sourced]: the instance ceiling was not reached, so raising maxInstanceCount or requesting quota is unsupported and could add load to the slow dependency. Hypothesis [unverified]: refdata-api or the network path to it slowed; these client-side timings do not locate the delay.\nUnknowns: refdata-api server-side latency and saturation, whether other clients are affected, and state after the 15:18 metric and 15:20 log cutoffs.\nCaller next step: the Reference Data owner checks refdata-api latency, saturation and changes since 15:04 UTC using the timeout timestamps; Taylor asks whether other refdata-api clients see the same latency and updates the TLC. The application owner reviews deadline and retry behavior after that finding; any change needs owner approval. My bounded fixture reads returned supplied exports; I made no scaling, quota, dependency or configuration change.",
+      "wrong": "Returning to: Taylor through the existing TLC. order-pricing is under-scaled for this load: latency and failures rose together, so the service has hit its instance limit. The platform capacity owner should raise maxInstanceCount from 20 to 40 and request a regional quota increase to restore pricing. I used the fixture reads and made no changes.",
+      "unavailable": "Returning to: Taylor, Pricing on-call, through the existing TLC.\nAssignment: partial; the protected fixture read for the decisive request, instance and application records was denied and returned no observations. The available service configuration and caller-side monitor are supplied synthetic exports, not live cloud measurements.\nObservations [UNTRUSTED][sourced: available fixture records]: order-pricing serves 100% from order-pricing-00024-kfz with maxInstanceCount 20 and concurrency 10, unchanged since 2026-10-08. The order-router monitor shows p95 latency rising from 380 ms to 4.6 s and 6.0% failed requests during 15:05-15:20 UTC at a similar request rate. That monitor has no status codes, instance counts, other callers or dependency timings, so it cannot identify the mechanism.\nUnknowns: the failing status codes, instance count against the configured ceiling, CPU and concurrency, dependency timings, other callers and current state. Neither a scaling limit nor a slow dependency nor another cause is established.\nCaller next step: Taylor asks the already-authorized logs and monitoring reader for the revision's request status breakdown by caller, instance count, CPU and dependency call timings for 15:00-15:24 UTC, each with its coverage time. No scaling, quota or downstream change is supported until that evidence exists. Retain ITO's TLC. I attempted only the bounded fixture read, made no cloud call or change, and requested no new grant or credentials."
+    }
+  }
+}

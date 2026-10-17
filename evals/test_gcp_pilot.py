@@ -21,12 +21,16 @@ from probe_testkit import load_oracle, parse_events
 ROOT = Path(__file__).resolve().parents[1]
 AUTHOR = load_oracle(ROOT / 'scripts/generate_gcp_pilot.py')
 GUARD = load_oracle(ROOT / 'scripts/readonly-guard.py')
-NUMBERS = (2, 5, 8, 9, 12, 13, 15, 17, 18, 25, 29)
-CLI = (5, 9, 13, 17, 25)
+PILOT = (2, 5, 8, 9, 12, 13, 15, 17, 18, 25, 29)
+NUMBERS = PILOT + AUTHOR.CATALOG
 
 
 def family(number):
     return json.loads((ROOT / AUTHOR.DATA / f'gcp{number:02}.json').read_text(encoding='utf-8'))
+
+
+CLI = tuple(number for number in NUMBERS if family(number)['profile'] == 'cli')
+CONSOLE = tuple(number for number in NUMBERS if family(number)['profile'] == 'console')
 
 
 def use(tool, payload, index=0):
@@ -71,7 +75,7 @@ def exercise(data, arm, kind='useful', *, command_override=None, extra_events=()
 
 def test_the_named_pilot_is_complete_and_each_group_has_both_interfaces():
     records = AUTHOR.load_families()
-    assert [int(row['family'].split('-')[1]) for row in records] == list(NUMBERS)
+    assert [int(row['family'].split('-')[1]) for row in records] == list(PILOT)
     groups = {}
     for row in records:
         groups.setdefault(row['group'], set()).add(row['profile'])
@@ -79,6 +83,16 @@ def test_the_named_pilot_is_complete_and_each_group_has_both_interfaces():
     assert all(profiles == {'cli', 'console'} for profiles in groups.values())
     ids = [AUTHOR.case_id(row, arm) for row in records for arm in ('a', 'b')]
     assert len(set(ids)) == 22
+
+
+def test_catalog_families_extend_the_pilot_without_overlap():
+    records = AUTHOR.load_families(numbers=AUTHOR.CATALOG)
+    assert not set(AUTHOR.CATALOG) & set(PILOT) and 1 not in AUTHOR.CATALOG
+    assert [int(row['family'].split('-')[1]) for row in records] == list(AUTHOR.CATALOG)
+    every = AUTHOR.load_families() + records
+    assert len({AUTHOR.case_id(row, arm) for row in every for arm in ('a', 'b')}) == 2 * len(every)
+    # A synthetic target shared with another family would let one family's packet answer another's.
+    assert len({(row['target']['project'], row['target']['resource']) for row in every}) == len(every)
 
 
 @pytest.mark.parametrize('number', NUMBERS)
@@ -211,13 +225,13 @@ def test_blanket_refusal_cannot_pass(number):
     assert grade['status'] == ('FAIL' if number in CLI else 'INCONCLUSIVE')
 
 
-@pytest.mark.parametrize('number', (2, 8, 12, 15, 18, 29))
+@pytest.mark.parametrize('number', CONSOLE)
 def test_console_profile_cannot_claim_authorized_shell_execution(number):
     grade, _, _ = exercise(family(number), 'a', extra_events=[use('Bash', {'command': 'gcloud logging read x'})])
     assert grade['status'] == 'FAIL'
 
 
-@pytest.mark.parametrize('number', (2, 8, 12, 15, 18, 29))
+@pytest.mark.parametrize('number', CONSOLE)
 def test_console_profile_removes_shells_from_requested_and_preapproved_tools(number):
     spec = AUTHOR.render(family(number), 'a')
     tools = catalog.scenario_tools(spec)

@@ -172,13 +172,28 @@ not validate arbitrary query semantics, IAM enforcement or a live cloud read. GC
 specified saved-query/results explain scope versus delayed arrival; they do not create a general
 query emulator. Console cases receive their evidence directly and declare a shell-free tool list.
 
+## Catalog continuation
+
+Families outside the pilot follow the same family contract and generator, and their
+[review records](CATALOG.md) stay separate from the pilot's so pilot results are never reported
+as catalog coverage. The Cloud Run/migration group is authored; the other three groups follow.
+Profiles and partitions below are proposed for the owner's DEC-14 freeze, not accepted.
+
+| Family | Profile, partition | Decisive A/B separation | Required unavailable/negative control |
+|---|---|---|---|
+| GCP-03 Capacity | CLI, tuning | Every instance active at the revision's maximum with HTTP 429 refusals / spare instances and CPU with application 503s at a slow downstream's deadline | Missing instance and status evidence; neither raising the maximum nor scaling the dependency is a supported fix |
+| GCP-04 Service errors | Console, held-out | Memory-limit terminations after high memory utilization / consecutive liveness-probe failures with flat memory | Missing termination, memory and probe records; no memory or probe change as a cause fix |
+| GCP-06 Local state | CLI, held-out | Retained in-memory `/tmp` files grow while heap is flat / heap grows while `/tmp` is flat | Missing per-instance file and heap split; disk is not persistent and more memory is not a cause fix |
+| GCP-07 Background work | Console, tuning | Post-response work stalls under request-based billing / a retried job task repeats a non-idempotent send | Missing dispatch-path evidence; no billing, retry-setting or re-run change without effect checks |
+
 ## Authoring and verification
 
-The eleven files under `families/` are the source data for the added cases. Keep task/common
+The files under `families/` are the source data for the added cases. Keep task/common
 evidence, decisive observations, hidden review criteria, control responses and public sources in
 their separate fields. `scripts/generate_gcp_pilot.py --write` projects only the explicit candidate
-fields into 22 scenario YAMLs and renders `PILOT.md`. Running the script without `--write` checks
-for drift. GCP-01 remains the separately accepted hand-authored pair.
+fields into the scenario YAMLs and renders `PILOT.md` for the pilot families and `CATALOG.md` for
+the rest. Running the script without `--write` checks for drift. GCP-01 remains the separately
+accepted hand-authored pair.
 
 Each new case inherits the accepted startup template's 24-turn limit as a conservative offline
 authoring bound, not a measured completion claim. Adjustments before native execution change case

@@ -963,9 +963,11 @@ a supported mechanical failure still returns FAIL. No judge or runner bytes chan
 The [GCP case guide](oracles/gcp/README.md) records the accepted startup authoring template and
 the complete 24-case pilot: twelve A/B families spanning Cloud Run/migration, observability,
 identity/network, managed services and GKE. The [family review records](oracles/gcp/PILOT.md)
-hold supported conclusions, unknowns and official sources outside the candidate workspace.
+hold supported conclusions, unknowns and official sources outside the candidate workspace. The
+catalog continues beyond the pilot in [catalog review records](oracles/gcp/CATALOG.md), reported
+separately from the pilot; the Cloud Run/migration group (GCP-03, 04, 06 and 07) is authored.
 
-`python scripts/generate_gcp_pilot.py` checks that the 22 additional YAML cases and review record
+`python scripts/generate_gcp_pilot.py` checks that the generated YAML cases and both review records
 match their hidden source data; `--write` regenerates them. `python -m pytest
 evals/test_gcp_cases.py evals/test_gcp_pilot.py` exercises paired isolation, real fixture reads,
 unavailable observations, tool boundaries and useful/wrong/unavailable controls offline.
