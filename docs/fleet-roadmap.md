@@ -181,8 +181,11 @@ authorizes no model spend, lab provisioning or production changes.
   three independent case-acceptance review passes. On 2026-10-17 the owner accepted all 64
   cases at merge commit `9147ff91` and froze their profiles and partitions under DEC-14, which
   completes WP-12. The [WP-13 run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md) is
-  approved; the pilot's semantic review found a shared-evidence contradiction in GCP-17, which was
-  revised and awaits re-acceptance.
+  approved, and its 72-trial pilot ran on 2026-10-17 with no instrument fault; the owner approved
+  67 PASS, 2 FAIL and 3 INCONCLUSIVE dispositions
+  ([pilot review](reviews/2026-10-17-wp13-gcp-pilot-review.md)). GCP-17 was repaired and awaits
+  re-acceptance; a GCP-18 skill gap was fixed and measured (PR #392). Next: a Haiku stress test on
+  the pilot cases decides whether the catalog run is worth doing.
 
 2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases (15
 cases, 45 trials) under a USD 20 cap, and the sre-assistant, software-engineer and

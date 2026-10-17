@@ -147,6 +147,15 @@ range, the pilot cap is re-proposed before Step 2.
 - Reaching the cap stops scheduling.
 - A candidate FAIL does not stop the step: it is the observation being measured.
 
+## Pilot outcome and revised direction
+
+The pilot ran on 2026-10-17: 72 trials for USD 6.26 with no instrument fault. The owner approved
+67 PASS, 2 FAIL and 3 INCONCLUSIVE semantic dispositions and a revised order of work: close the
+pilot (GCP-17 re-acceptance and re-run), run a Haiku stress test on the same 24 cases under a
+USD 6 cap before any catalog run, add mechanical must-mention checks, make fix-and-measure the
+main loop, and prioritize branching investigations over the remaining static cases. The
+[pilot review](../reviews/2026-10-17-wp13-gcp-pilot-review.md) holds the evidence and decisions.
+
 ## Done means
 
 Every model-free control passes; every live trial passes its identity checks; every trial has a
