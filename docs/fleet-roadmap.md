@@ -300,11 +300,15 @@ API-writes, background-work and consuming-APIs references over unchanged.
 `agent-engineer` owns the skill text and its build scenarios.
 **Outcome:** Five follow-up references land, each re-derived from an owner decision, a current
 sourced fact or a measured result: operational actions (dry run, blast-radius limits, actor and
-reason), authentication (OIDC/JWT verification for the team's provider), data (PostgreSQL and SQL
-Server access from both languages), runtime (PCF, Cloud Run, systemd hosts, Windows desktops) and
+reason), authentication (caller verification for the team's provider through a maintained,
+provider-endorsed library or platform enforcement, never hand-written token parsing), data
+(PostgreSQL and SQL Server access from both languages), runtime (PCF, Cloud Run, systemd hosts,
+Windows desktops) and
 security; the three carried-over references are re-derived the same way.
-**Next action:** The owner names the identity provider the services authenticate against; the
-skill owner then drafts the actions reference first, since the services take actions today.
+**Next action:** The skill owner drafts the actions reference first, since the services take
+actions today. The authentication reference waits until the owner names the identity provider,
+without blocking the other references: generic token-verification guidance is not written,
+because a subtle verification error admits the wrong caller without failing any test.
 **Evidence:** none yet.
 **SRE task:** An SRE building a service that restarts apps or silences alerts gets a dry run, a
 bounded blast radius and an audit trail by default, and a verified sign-in path for its callers.
