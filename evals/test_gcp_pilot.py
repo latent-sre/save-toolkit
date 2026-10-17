@@ -121,6 +121,7 @@ def test_each_family_has_source_bound_paired_observations_and_hidden_controls(nu
         assert spec['max_turns'] == 24 and spec['agent'] == 'sre-assistant'
     if data['group'] == 'gke':
         assert all(data['target'].get(key) for key in ('cluster', 'namespace', 'mode', 'version'))
+        assert data['target']['mode'] in {'Standard', 'Autopilot'}
 
 
 @pytest.mark.parametrize('number', NUMBERS)

@@ -41,8 +41,8 @@ prompt: |
   scaleUp entry at 10:04:40Z: increasedMigs scenario-pool us-east1-b requestedNodes 2 and us-east1-c requestedNodes 1; triggeringPods are the three scenario-engine-7c9f6d5b48 Pods.
   eventResult at 10:06:00Z for that event: errorMsg messageId scale.up.error.quota.exceeded, parameters naming both scenario-pool managed instance groups.
   noScaleUp entries at 10:08:10Z, 10:20:30Z and 10:30:15Z with top-level reason messageId no.scale.up.in.backoff.
-  scaleUp entries at 10:11:20Z and 10:22:05Z request the same increases; their eventResult entries at 10:12:40Z and 10:23:25Z carry the same quota error. No scaleUp entry after 10:22:05Z through 10:35:00Z, and no entry rejects a scenario-pool group with no.scale.up.mig.failing.predicate.
-  Compute Engine instance groups: both scenario-pool managed instance groups still have 3 running instances; the Errors tab lists instance creation failures at 10:05:52Z, 10:12:31Z and 10:23:16Z reporting QUOTA_EXCEEDED for quota N2_CPUS in region us-east1.
+  scaleUp entries at 10:11:20Z and 10:22:45Z request the same increases; their eventResult entries at 10:12:40Z and 10:24:05Z carry the same quota error. No scaleUp entry after 10:22:45Z through 10:35:00Z, and no entry rejects a scenario-pool group with no.scale.up.mig.failing.predicate.
+  Compute Engine instance groups: both scenario-pool managed instance groups still have 3 running instances; the Errors tab lists instance creation failures at 10:05:52Z, 10:12:31Z and 10:23:56Z reporting QUOTA_EXCEEDED for quota N2_CPUS in region us-east1.
   Quotas page, Compute Engine API, N2_CPUS in us-east1: limit 72, current usage 72: 48 by the six scenario-pool nodes and 24 by three n2-standard-8 instances, replay-batch-01 to replay-batch-03, created 2026-10-14T08:30:00Z outside the cluster; their owner and purpose are not identified in this packet.
   Not supplied: who created the replay-batch instances and whether they are still needed, the quota's change history, whether any other constraint would also block node creation, or any observation after 10:37:00Z.
 fixture:

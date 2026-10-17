@@ -974,4 +974,4 @@ match their hidden source data; `--write` regenerates them. `python -m pytest
 evals/test_gcp_cases.py evals/test_gcp_pilot.py` exercises paired isolation, real fixture reads,
 unavailable observations, tool boundaries and useful/wrong/unavailable controls offline.
 Mechanical success remains INCONCLUSIVE pending human semantic assessment. Authored coverage
-does not establish case acceptance, model performance or completion of the 64-case catalog.
+does not establish case acceptance of the 64-case catalog or model performance.

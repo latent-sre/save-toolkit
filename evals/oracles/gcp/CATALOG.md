@@ -1168,6 +1168,7 @@ Nodes k4dz, m9pq and r2wt entered DiskPressure as nodefs.available fell below th
 
 - Why images accumulated on these three nodes and why image garbage collection did not recover enough space.
 - Whether the pressure clears without intervention, and the other teams' workload impact.
+- Why the kubelets evicted no remaining kube-system Pods while DiskPressure persisted.
 - State of the nodes and evictions after the 11:48 snapshot.
 
 **Sources:**

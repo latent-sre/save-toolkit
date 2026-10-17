@@ -6,6 +6,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Added
+
+- WP-12's GCP catalog is authored offline: 20 families (40 A/B cases) beyond the 24-case pilot,
+  across Cloud Run/migration, observability/identity/network, managed services and GKE, with
+  hidden source-bound review records in `evals/oracles/gcp/CATALOG.md`, kept separate from the
+  pilot's. Each group had one independent review whose findings were fixed. No case has passed
+  human acceptance or produced a model result.
+
 ### Changed
 
 - CI splits `fast-tests` into `scripts` and `other` shards and adds a `python` shard to

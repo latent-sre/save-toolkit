@@ -380,12 +380,19 @@ authorizes no model spend, lab provisioning or production changes.
   Template acceptance does not accept unreviewed live cases.
   The full 24-case pilot is now authored with hidden source-bound review records and offline
   useful/wrong/unavailable controls. Each catalog group has console and protected-CLI profiles;
-  new tool inventories narrow access to the declared interface. The 64-case catalog, human case
-  acceptance and WP-13's native pilot remain separate work. Next: review the
-  [pilot family records](../evals/oracles/gcp/PILOT.md) at the resulting case identities.
+  new tool inventories narrow access to the declared interface. Human case acceptance and WP-13's
+  native pilot remain separate work.
   [verified] Independent source review approved implementation `3c5ae9f6`; all 228 GCP checks and
   the full repository suite pass, with limitations retained in the
   [offline completion receipt](../evals/oracles/gcp/README.md#offline-completion-receipt--2026-10-10).
+- 2026-10-17, WP-12 offline authoring complete: the 20 families outside the pilot (40 cases) are
+  authored in the four catalog groups, rendered to separate
+  [catalog review records](../evals/oracles/gcp/CATALOG.md) so pilot results are never reported as
+  catalog coverage. Each group received one independent review pass, and its findings, mostly
+  internal timeline and arithmetic contradictions, were fixed. Profiles and partitions are
+  proposed, not frozen. Next: the owner reviews the
+  [pilot](../evals/oracles/gcp/PILOT.md) and catalog records for human case acceptance and freezes
+  profiles and partitions under DEC-14; WP-13's native pilot needs its own approval.
 
 2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases (15
 cases, 45 trials) under a USD 20 cap, and the sre-assistant, software-engineer and
