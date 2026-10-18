@@ -12,12 +12,13 @@ from __future__ import annotations
 
 import argparse
 import collections
+import ctypes
 import functools
 import json
 import math
 import os
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -349,6 +350,20 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: flo
     return _verdict_exit(states, unfinished=not states)
 
 
+def _hold_off_idle_sleep() -> Callable[[], None]:
+    """Keep a Windows host out of idle sleep while trials run, and return the call that releases it.
+
+    Windows wait timeouts do not count time asleep, so a sleeping host holds a trial past its timeout
+    and lets the login expire. A user-requested sleep still wins; elsewhere this does nothing.
+    """
+    if sys.platform != "win32":
+        return lambda: None
+    continuous, system_required = 0x80000000, 0x00000001
+    kernel32 = ctypes.windll.kernel32
+    kernel32.SetThreadExecutionState(continuous | system_required)
+    return lambda: kernel32.SetThreadExecutionState(continuous)
+
+
 def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     """Run the batch, publish every attempt, and exit on the batch's verdict."""
     prepared = _preflight(args, scenarios)
@@ -407,6 +422,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
         judge_binding=judge_binding,
         runtime=runtime,
     )
+    release_sleep_hold = _hold_off_idle_sleep()
     try:
         for spec, i in planned:
             if blocked:  # stopped before scheduling, by the cap's accounting or an identity failure
@@ -435,6 +451,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
             if blocked:
                 break
     finally:
+        release_sleep_hold()
         # Written even when a trial raised: every trial that finished was paid for and stays counted.
         merged = batches.merge_summary_entries(existing, results)
         layout.write_json(summary_path, merged, ascii_only=True)
