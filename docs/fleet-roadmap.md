@@ -220,6 +220,36 @@ five wordings reviewed in 10 of 15 trials. Runs are private under `.eval-runs/pr
 **SRE task:** An SRE gets an independent review of agent-written changes before they are committed
 without having to ask for it each time.
 
+### EVAL-005 — the observability engineer's Grafana write lands, and only that write
+
+**Status:** `ready` (2026-10-18); moved out of Parked by the owner.
+**Owner:** The human owner approves the run; `agent-engineer` runs and reads it.
+**Outcome:** One run of
+[`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
+on this host's Docker, three Sonnet trials per side, no retries, shows from Grafana's own state and
+the audit proxy whether `observability-engineer` adds the requested panel and refuses the datasource
+edit in the same request.
+**Next action:** The owner approves the run (about USD 1); `agent-engineer` runs it and records the
+result.
+**Evidence:** none yet; the probe seeds a real Prometheus datasource since 2026-08-29.
+**SRE task:** Trust that the observability engineer changes the dashboard asked for and leaves
+datasources alone.
+
+### ROUTE-007 — re-check routing for the descriptions trimmed on 2026-09-02
+
+**Status:** `ready` (2026-10-18); the routing re-check EVAL-009 left owed, kept when EVAL-009 closed.
+**Owner:** The human owner approves the run; `agent-engineer` writes the missing scenarios and runs them.
+**Outcome:** The eleven surviving skills whose description clauses `5c5aa742` replaced with short
+exclusions (akamai-edge, backend-craft, database-reliability, frontend-craft, obs-alerting,
+obs-dashboards, obs-metrics, obs-pipeline, obs-traces, pcf-deploy, pcf-ops) each have at least one
+fire and one not-fire routing scenario, and all of them pass once on current main.
+**Next action:** `agent-engineer` writes fire and not-fire scenarios for backend-craft,
+database-reliability, pcf-deploy and pcf-ops, which have none; the owner then approves one run of
+those and the twelve existing scenarios for the other seven.
+**Evidence:** none yet; the commit message of `5c5aa742` records the scenarios as owed.
+**SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
+owns it, not a neighbour.
+
 ## Deferred
 
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
@@ -451,7 +481,7 @@ without repeating intake.
 
 ## Parked
 
-All six items below remain `deferred` (2026-09-03). Reopening requires a named SRE task and owner
+The item below remains `deferred` (2026-09-03). Reopening requires a named SRE task and owner
 decision, then a full seven-field item above. This refresh neither closes them nor authorizes runs.
 The [prior roadmap](https://github.com/latent-sre/save-toolkit/blob/ed3210358557415023f33faaaf669315fe79d7ec/docs/fleet-roadmap.md)
 retains their historical evidence paths and recovery commands; those measurements do not establish
@@ -459,9 +489,4 @@ current behavior. Consumed evaluation profiles remain non-reusable.
 
 | ID | Required decision or evidence before work resumes |
 |---|---|
-| WF-001 | Prove dispatch of an exact trusted `ship-review` workflow without caller-supplied workflow code. Re-probe only on a material host/contract change. |
-| ROUTE-006 | EVAL-009 decides whether the retired observability-to-incident deferral case needs replacement; only then judge the disputed handoff phrasing. |
 | ROUTE-003 | Decide whether to replace or retire the two inconclusive workflow-graph discovery measurements; do not reuse consumed profiles. |
-| EVAL-005 | The [dashboard probe](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml) now seeds real Prometheus data. Remaining proof is a Windows Docker comparison at an approved exact revision: three Sonnet trials per side, no retries. |
-| EVAL-007 | Resolve the closure contract for an incident-response verdict based on meaning: a structural or relation-based grader plus a clean guidance-removal counterfactual. |
-| EVAL-009 | Reconcile the old fleet-weight/PR #224 prerequisites against current main before authorizing a new corpus baseline and judge calibration. Decide description ownership-map wording and injection-refusal coverage; include the eleven-description routing follow-up. |
