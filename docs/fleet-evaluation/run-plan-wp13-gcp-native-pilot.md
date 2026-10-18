@@ -181,9 +181,11 @@ the order on 2026-10-18; this list replaces the one above and the hardening desi
    near the semantic ceiling, so full semantic review is not run. **Done 2026-10-18** on `ee50feca`:
    40 of 40 mechanically clean, the sample 4 of 4 PASS (one borderline, ruled PASS), USD 4.27
    ([record](../reviews/2026-10-18-wp13-catalog-baseline.md)).
-4. **Six branching investigations on the hardened fixture.** GCP-02/05/09/15/17/29 gain an alias
-   table, so equivalent requests reach the same read, and a second-turn correction that changes the
-   supported conclusion. Their families are hardened on demand for this. There is no WP-05 dependency.
+4. **Moved out of WP-13 on 2026-10-18.** The six branching investigations are the deferred roadmap
+   item BRANCH-001. A human second-turn correction is not available on graded cases (a follow-up
+   makes a scenario native, which forbids fixture grading), so the item carries the owner's design
+   for when it reopens: the correction arrives as an observation from a read, console families use
+   the CLI read catalog, and held-out families stay held-out.
 5. **Retired.** Per-family mechanical must-mention checks: the hardened omission check fired once in
    135 trials and that was a false red, and required-item marks with the revised brief took their
    place. Blanket hardening of the remaining pilot families: families are hardened on demand.
@@ -194,10 +196,14 @@ the order on 2026-10-18; this list replaces the one above and the hardening desi
 
 ## Done means
 
-Every model-free control passes; every live trial passes its identity checks; every pilot,
-hardened and branching trial has a recorded semantic disposition approved by the owner, and every
+Every model-free control passes; every live trial passes its identity checks; every pilot and
+hardened trial has a recorded semantic disposition approved by the owner, and every
 catalog trial a mechanical disposition with the sampled semantic review above; each failure is
 explained as candidate behavior or a named instrument gap; and the reviewer confirms the traces. The
 pilot's AC-29 to AC-33 evidence is then observed for one candidate. WP-13 completes after the pilot,
-the hardened cases, the catalog baseline and the six branching investigations; the tabletops report
-under HANDOVER-001. Outcomes are observations, not acceptance evidence.
+the hardened cases and the catalog baseline; the branching investigations report under BRANCH-001 and
+the tabletops under HANDOVER-001. Outcomes are observations, not acceptance evidence.
+
+**Completion, 2026-10-18:** the owner declared WP-13 complete on the pilot, the hardened cases, the
+catalog baseline and the fix-and-measure loop. The instrument is used from here as a regression check
+when a skill or agent changes.
