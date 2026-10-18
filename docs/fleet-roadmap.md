@@ -226,11 +226,14 @@ without having to ask for it each time.
 **Owner:** The human owner approves the run; `agent-engineer` runs and reads it.
 **Outcome:** One run of
 [`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
-on this host's Docker, three Sonnet trials per side, no retries, shows from Grafana's own state and
+on this host's Docker, three Sonnet trials per arm, no retries, shows from Grafana's own state and
 the audit proxy whether `observability-engineer` adds the requested panel and refuses the datasource
-edit in the same request.
-**Next action:** The owner approves the run (about USD 1); `agent-engineer` runs it and records the
-result.
+edit in the same request. The candidate arm is the main commit the owner approves; the historical arm
+is `2cdcbbba`, the historical plugin of the 2026-08-31 run packet (`c187c105`). Both run under the
+evaluator at the candidate commit.
+**Next action:** The owner approves the run (about USD 1) and names the candidate commit;
+`agent-engineer` freezes both arms, records each commit and plugin digest, binds them with
+`--expect-plugin-digest` before any call, runs it and records the result.
 **Evidence:** none yet; the probe seeds a real Prometheus datasource since 2026-08-29.
 **SRE task:** Trust that the observability engineer changes the dashboard asked for and leaves
 datasources alone.
@@ -243,9 +246,11 @@ datasources alone.
 exclusions (akamai-edge, backend-craft, database-reliability, frontend-craft, obs-alerting,
 obs-dashboards, obs-metrics, obs-pipeline, obs-traces, pcf-deploy, pcf-ops) each have at least one
 fire and one not-fire routing scenario, and all of them pass once on current main.
-**Next action:** `agent-engineer` writes fire and not-fire scenarios for backend-craft,
-database-reliability, pcf-deploy and pcf-ops, which have none; the owner then approves one run of
-those and the twelve existing scenarios for the other seven.
+**Next action:** `agent-engineer` writes the nine missing scenarios: fire and not-fire for
+backend-craft, database-reliability and pcf-ops, which have none; not-fire for akamai-edge,
+obs-alerting and obs-metrics; and fire for pcf-deploy. The owner then approves one run of those and
+the 13 existing scenarios that target the eleven skills (counted 2026-10-18 by `target.name` and
+`routing.expect` across `evals/scenarios/`).
 **Evidence:** none yet; the commit message of `5c5aa742` records the scenarios as owed.
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.
@@ -258,8 +263,10 @@ no evidence labels, dates or citations, and state an unknown in plain words.
 **Owner:** Save Toolkit maintainers; `agent-engineer` does the cleanup.
 **Outcome:** No skill file carries a review date, a source citation or an evidence label on its own
 statements. Meaningful unknowns become plain statements ("not yet confirmed"), and lines that tell an
-agent how to label its own output stay. Done already: `agent-authoring`, and the 18 grafana and
-stack-profile files `39404d24` cleaned.
+agent how to label its own output stay. `agent-authoring` carries only output-labelling
+instructions. `39404d24` cleaned parts of 14 grafana and stack-profile files, but on 2026-10-18 nine
+grafana and stack-profile files still carried labels, citations or review dates
+(`skills/grafana/references/json-model.md` among them), so both skills stay in scope.
 **Next action:** `agent-engineer` cleans the remaining skills in one slice, the method `39404d24`
 used, then regenerates the platform adapters and runs Gate A. On 2026-10-18 about 47 review dates in
 about 26 files and up to 414 evidence labels across 25 skills remained (an upper bound, since some
@@ -273,7 +280,10 @@ eroding trust in the guidance.
 **Status:** `ready` (2026-10-18); narrowed by the owner to the grader fix. The label-restatement rule
 it also proposed is dropped: across the handoff build probes on 2026-09-30 it landed in 0 to 2 of 3
 trials on every arm, the no-rule controls included, and AGENTS.md adds a handoff body rule only when
-a probe shows the agent failing without it.
+a probe shows the agent failing without it. The gap itself stays known and unremedied: every arm
+dropped a restated helper label in at least one trial, against the AGENTS.md rule to preserve
+labels in transit, and no wording tried closed it. A new remedy needs a handoff build probe showing
+it lands before it enters an agent body.
 **Owner:** `agent-engineer` owns the graders.
 **Outcome:** `agent-direct-handoff-software-engineer-blocks-unapproved` grades blocking without false
 reds: its `not_regex` graders accept a statement that nothing changed ("I changed nothing") and a
@@ -430,7 +440,8 @@ remove it.
 **Outcome:** Pydantic Evals' `LLMJudge` prompt and Inspect's `model_graded_qa` are scored on the
 calibration corpus beside `judge.py`'s prompt; one is adopted only if it beats `judge.py` on every
 rubric and removes code or cost, and a judge from another family needs a new ADR.
-**Next action:** None until the owner approves the budget. As of 2026-10-18 Inspect is already
+**Next action:** None until the owner approves the budget, the Pydantic Evals dependency and the
+widened scope of any key it uses. As of 2026-10-18 Inspect is already
 pinned (`inspect-ai==0.3.263`, with `evals/inspect_pilot.py`), so only Pydantic Evals would be a new
 dependency, and WP-08's OpenRouter key could serve if its scope is widened. The bake-off already chose
 the incumbent judge's model, semantic grading of GCP and natural-injection answers now uses blind
