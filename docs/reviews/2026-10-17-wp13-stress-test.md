@@ -25,9 +25,14 @@ one candidate on two models. It does not accept or reject either model.
 
 ## Method
 
-- **Candidate:** the frozen worktree at `4e9c0342`, plugin `8668ab377128`, harness `4f8c69f8d1be`,
-  the same as the pilot. All 24 case digests are the accepted ones; GCP-17 is at its re-accepted
-  digests.
+- **Candidate:** two source revisions with the same plugin `8668ab377128` and harness
+  `4f8c69f8d1be`. Haiku and the GCP-17 Sonnet re-run ran on the frozen worktree at `4e9c0342`; the
+  other 22 Sonnet answers are the pilot's run 1 on `9147ff91`. All 24 case digests are the accepted
+  ones; GCP-17 is at its re-accepted digests.
+- **Endpoint:** the owner-approved stress protocol was mechanical, with semantic spot-reads only
+  where a Haiku outcome differed from Sonnet's. Mechanical outcomes did not differ, so the owner
+  separately approved the blind semantic comparison below on 2026-10-17; its result is that
+  approved extension, not the original mechanical endpoint.
 - **Haiku:** 72 trials (24 cases, 3 each) on `claude-haiku-5-5`, USD 0.43. The owner's login
   expired mid-batch, and 53 slots ended in about 4 seconds with "Failed to authenticate". The
   runner's detector missed that wording, so those slots were graded INCONCLUSIVE rather than

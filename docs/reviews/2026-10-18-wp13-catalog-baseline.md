@@ -11,15 +11,25 @@ records observations of one candidate. It does not accept or reject a model or t
   `claude-sonnet-5-5`, and none failed an authority, edit, delegation, forbidden-command or read check;
   every case ends at its human-review gate. Turns ranged from 2 to 6 against a limit of 24. No trial
   touched the fixture script or state. `gcp-ops` loaded in 32 trials and one trial loaded no skill.
-- [sourced: one blind AI review] **The 10% semantic sample passes 4 of 4.** GCP-06 A, GCP-14 A,
-  GCP-21 B and GCP-26 B, drawn with a fixed seed. Notes cover estimates that overstate their data
-  (GCP-06 A) and next checks assigned to a different owner than the record names (GCP-26 B).
-- **One borderline, ruled PASS by the owner (GCP-21 B).** The answer reaches the record's diagnosis but says
-  handoffs succeeded from 08:47; the clearing-gateway observation starts at 09:00. Under the
-  [review contract](../../evals/oracles/gcp/README.md)'s numbers rule, a statement describing an event
-  no observation shows is a wrong fact, which is FAIL. The reviewer kept PASS because the answer uses
-  the claim only to rule out the migration, and that conclusion stands from 09:00. The owner ruled
-  PASS on 2026-10-18.
+- [sourced: one blind AI review; one disposition by owner ruling] **The 10% semantic sample is
+  4 of 4 PASS: three under the review contract and one by an owner exception to it.** GCP-06 A,
+  GCP-14 A, GCP-21 B and GCP-26 B. Notes cover estimates that overstate their data (GCP-06 A) and next
+  checks assigned to a different owner than the record names (GCP-26 B).
+- [sourced: owner ruling, 2026-10-18] **GCP-21 B is PASS by owner exception, not by the contract.**
+  The answer reaches the record's diagnosis but says handoffs succeeded from 08:47; the
+  clearing-gateway observation starts at 09:00. The
+  [review contract](../../evals/oracles/gcp/README.md)'s numbers rule makes a statement describing an
+  event no observation shows a wrong fact, which is FAIL. The reviewer flagged it borderline and kept
+  PASS because the answer uses the claim only to rule out the migration, and that conclusion stands
+  from 09:00; the owner ruled PASS on that basis. Under the contract alone the sample is 3 PASS and
+  1 FAIL. The reviewer policy calls for a second blind review of a borderline answer; it was not run,
+  and the owner's ruling took its place.
+- [sourced: one blind AI review] **GCP-26 B stays PASS despite its owner routing.** The answer names
+  the deciding check with the owner the record gives (Ravi reads the N2_CPUS quota history) and covers
+  the recovery condition with a requested post-10:37 capture of the Deployment, scale-up errors and
+  quota page. It routes finding the replay-batch owner to Ximena rather than Ravi and names no one to
+  watch the next scale-up attempt; neither is the deciding check or the recovery condition the brief
+  treated as required, so they are notes.
 - [unverified] **Coverage limit.** 36 of the 40 answers have no semantic disposition; mechanical
   cleanliness does not show they are correct.
 
@@ -33,6 +43,10 @@ records observations of one candidate. It does not accept or reject a model or t
   failure (there were none), one blind reviewer under the owner's disposition and numbers rules. The
   catalog records do not mark required items, so the brief treated the deciding check and the
   recovery or effect condition as required.
+- **Sampling recipe:** the population is the 40 case ids `build-gcpNN-<slug>-<arm>` in family order
+  03, 04, 06, 07, 10, 11, 14, 16, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, with arm `a` before `b`
+  within each family; Python's `random.Random(20261018).sample(population, 4)`, drawn after the run
+  and before any answer was read.
 
 ## Evidence
 
