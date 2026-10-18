@@ -123,7 +123,6 @@ Confirm stream composition before computing rates. With midgress collection enab
 below requires that field. Omit its predicate only when the stream is independently verified to
 contain client requests only and does not emit the field. A missing flag is not evidence of `0`:
 if composition or extraction is unknown, report the gap and withhold the rates.
-[sourced: Akamai's midgress definition and missing-flag caveat](https://techdocs.akamai.com/datastream2/docs/data-set-parameters#midgress-traffic).
 
 ```spl
 index=<datastream_index> sourcetype=<datastream_sourcetype> earliest=<start_epoch> latest=<end_epoch> isMidgress=0

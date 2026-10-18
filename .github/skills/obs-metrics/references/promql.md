@@ -10,7 +10,7 @@ Primary references: [querying basics](https://prometheus.io/docs/prometheus/late
 [histogram practices](https://prometheus.io/docs/practices/histograms/),
 [Grafana Mimir HTTP API](https://grafana.com/docs/mimir/latest/references/http-api/).
 
-Examples are `[unverified]` for the target Mimir tenant until executed there.
+Examples are unconfirmed for the target Mimir tenant until executed there.
 
 ## Contents
 
@@ -30,14 +30,12 @@ If a regex is necessary, first escape its metacharacters so the supplied value i
 encode that regex as a PromQL string. `checkout.v2` becomes regex text `checkout\.v2` and the
 rendered matcher `app=~"checkout\\.v2"`. PromQL regex label matchers are already fully anchored;
 adding `^` and `$` does not make an unescaped dot literal. Use a tested encoder for arbitrary values
-or stop for a sanitized identifier; never concatenate raw input.
-*[sourced: Prometheus querying basics, string literals and label matchers; unverified client encoding]*
+or stop for a sanitized identifier; never concatenate raw input. The client encoding step is
+unconfirmed.
 
 ## Around the query: version-gated facts
 
-*[sourced: prometheus.io practices and configuration reference, the prometheus/prometheus
-CHANGELOG, and the Mimir 3.2.0 release notes; reviewed 2026-08-07 to 2026-08-21; unverified for
-the deployed Prometheus and Mimir versions]*
+These facts are unconfirmed for the deployed Prometheus and Mimir versions.
 
 - **Recording-rule names are `level:metric:operations`**, aggregating with an explicit
   `without (…)` so labels like `job` survive:
@@ -51,7 +49,7 @@ the deployed Prometheus and Mimir versions]*
   check consumers before choosing `level`.
 - **Native histograms are stable but optional** from v3.8 (the old feature flag is a no-op from
   v3.9; scraping is enabled per job via `scrape_native_histograms`). Whether the deployed chain has
-  them on is `[unverified]` per target, and `histogram_quantile` over a native histogram uses no
+  them on is unconfirmed per target, and `histogram_quantile` over a native histogram uses no
   `_bucket` series or `le` label, so the classic p95 shape silently matches nothing against a
   native-only metric. Check which representation the target scrapes before declaring no data.
 - **Newer PromQL surface is version-gated**: duration arithmetic from v3.4; later duration helpers
@@ -63,22 +61,22 @@ the deployed Prometheus and Mimir versions]*
   at the receiving end, a finding for the `obs-pipeline` skill, not a query rewrite.
 - **After a Mimir ≥3.2 upgrade**, a query whose cost or result shape changed may now be sharded
   (query sharding is on by default), and query-planning self-metrics moved from
-  `component="querier"` to `engine="querier"`. The deployed Mimir version is `[unverified]`.
+  `component="querier"` to `engine="querier"`. The deployed Mimir version is unconfirmed.
 
 ## Mimir per-tenant limits
 
 Mimir rejects over-limit requests with typed `err-mimir-*` IDs; record the ID verbatim, it
 distinguishes data absent from a guardrail firing, and the upstream Mimir runbooks page is the
-lookup *[sourced: grafana/mimir runbooks and configuration reference]*. Write-side IDs
+lookup. Write-side IDs
 (`err-mimir-max-series-per-user`, `err-mimir-max-series-per-metric`, `err-mimir-max-active-series`,
 `err-mimir-tenant-max-ingestion-rate`) are pipeline findings for `obs-pipeline`; query-side IDs
 (`err-mimir-max-chunks-per-query` and siblings) mean narrow the query rather than ask for a
-mid-incident limit raise. Which limits bind this tenant is `[unverified]` until read from the
+mid-incident limit raise. Which limits bind this tenant is unconfirmed until read from the
 deployed runtime configuration; never quote upstream defaults as the tenant's limits.
 
 ## Missing data and staleness
 
 Prometheus marks a series stale when it stops being exported or its target disappears, and selectors
 stop returning it after the lookback and staleness behaviour. Record the target's scrape and rule
-intervals and test its no-data path separately from any threshold *[sourced: Prometheus querying
-basics; unverified for the target's configuration]*.
+intervals and test its no-data path separately from any threshold; this behavior is unconfirmed
+for the target's configuration.

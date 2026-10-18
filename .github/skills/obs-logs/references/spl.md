@@ -5,13 +5,13 @@ Fill in the team's indexes, sourcetypes, correlation-id field, and saved searche
 [local log inventory](./indexes.md) before treating any placeholder as real.
 
 Official syntax basis: Splunk's current documentation (Splunk Enterprise **10.4**, the latest in the
-docs version selector *[sourced: help.splunk.com; reviewed 2026-08-21]*) for
+docs version selector) for
 [comments](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.4/use-the-search-app/add-comments-to-searches),
 [classic SPL quoting and escaping](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.4/use-the-search-app/anatomy-of-a-search),
 [`timechart`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.4/search-commands/timechart),
 and [`streamstats`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.4/search-commands/streamstats).
-Query syntax is `[sourced]` to Splunk's command references. Every example remains `[unverified]`
-for the target version, permissions, inventory, and extractions until executed there.
+Query syntax follows Splunk's command references. Every example remains unconfirmed for the
+target version, permissions, inventory, and extractions until executed there.
 
 ## SPL comments
 
@@ -56,9 +56,8 @@ These rows describe only events whose `_time` falls in the last four hours. An o
 or missing expected host leaves current ingestion unknown: recently indexed backfill, delayed
 events, or clock skew can fall outside that event-time window. For example, at 12:00 an event
 timestamped 05:50 and indexed at 11:59 is excluded even though ingestion is active.
-*[sourced: Splunk `tstats` (indexed fields in tsidx) and Splunk's event-indexing-delay
-troubleshooting page (`_indextime-_time`); `max(_indextime)` inside `tstats` is `[unverified]` —
-if the search head rejects it, run the same `stats` over a raw search]*
+`max(_indextime)` inside `tstats` is unconfirmed; if the search head rejects it, run the same
+`stats` over a raw search.
 
 Before concluding ingestion stopped, check a bounded index-time window on the same source and
 expected host. Select event-time bounds covering the plausible delay, backfill and clock skew:
@@ -74,9 +73,6 @@ if event-time coverage is unknown, absence remains inconclusive. Splunk document
 for exhaustive event-time coverage; using it requires a separate scope/cost decision. Recent
 indexing proves arrival only for the returned population. Measure individual event delay on raw
 events with `| eval delay_s=_indextime-_time`; compare timestamps before assigning its cause.
-*[sourced: [Splunk index-time modifiers](https://help.splunk.com/en/splunk-enterprise/spl-search-reference/10.4/time-format-variables-and-modifiers/time-modifiers)
-and [indexing-delay checks](https://help.splunk.com/en/splunk-enterprise/administer/troubleshoot/10.4/data-acquisition-problems/event-indexing-delay);
-checked 2026-10-02; target query execution remains `[unverified]`]*
 
 ## Read it over time
 
@@ -121,9 +117,6 @@ minutes, excluding the current incomplete bucket. `timechart cont=t` retains emp
 `stats ... by _time` would omit them. Missing/invalid status or zero traffic leaves the ratio null,
 not healthy zero. An entirely empty search has no usable baseline.
 
-*[sourced: Splunk `timechart`, `eval`, and `streamstats` mechanisms; unverified target fields,
-query execution, coverage, and suitability of the thresholds]*
-
 ````spl
 index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<start_epoch> latest=<end_epoch>
 | eval status=if(match(status, "^[1-5][0-9]{2}$"), tonumber(status), null())
@@ -148,8 +141,6 @@ Source freshness remains an independent check: complete result buckets do not pr
 `timewrap 1week series=short`. Compare `s0` (latest) with `s1` (previous):
 require aligned, complete, non-null buckets in both weeks and an owner-set minimum ratio increase. Do not append the preceding-hour
 `streamstats` pipeline: `error_rate` has become period-specific fields.
-*[sourced: [Splunk timewrap](https://help.splunk.com/en/splunk-enterprise/spl-search-reference/10.4/search-commands/timewrap);
-unverified target query execution and period alignment]*
 `eventstats` includes the candidate in its whole-period baseline. Thresholds and normalization
 remain operational choices, not Splunk guarantees.
 
@@ -198,10 +189,6 @@ the class grouping. Use the catalog's overall-rate query when no error classific
 
 ## Fast paths at scale — tstats, data models, TERM/PREFIX
 
-*[sourced: help.splunk.com SPL search reference — `tstats`, `datamodel`, data-model acceleration,
-and the CASE/TERM search-primer pages; reviewed 2026-08-07 via indirect retrieval; unverified for
-the target's accelerated models and index population]*
-
 When a raw search over the incident window is too slow to iterate, `tstats` reads **indexed
 metadata (tsidx files), not raw events** — orders faster, with two strings attached:
 
@@ -238,18 +225,15 @@ filter isn't index-time-selective (that's what `TERM()`/`tstats` fix).
 - **Never leave the search broadly unscoped without reason.** `index=*` scans every public index (internal `_*` indexes are excluded) — slow, costly,
   and may silently miss role-restricted data. Scope to the app index from [local log inventory](./indexes.md);
   the one justified exception is tracing a single correlation id across services you can't enumerate —
-  even then, keep the window tight. *[unverified for target permissions and scale]*
+  even then, keep the window tight.
 - **The time range is implicit and dangerous.** A bare search uses the picker's range (often last 24h);
   in a saved search/API job it's whatever the job sets. Set `earliest`/`latest` explicitly during triage.
-  *[sourced: Splunk time-modifier syntax; unverified target UI state]*
 - **Fields are case-sensitive and only exist after extraction.** `table status` shows nothing if the
   field was never extracted; `rex` it first. `_time` is in the search TZ, not necessarily the event's.
-  *[sourced: Splunk field/search behavior; unverified target extractions]*
 - **`timechart`/`chart … by <field>` keeps only the top 10 series** by the sum of the aggregation
   and folds the rest into `OTHER`, so early 503s or one low-volume host can vanish. Set `limit=0`, or
   state the limit, whenever a rare value is the point of the search.
-  *[sourced: Splunk `timechart` and `chart` `limit`/`useother`]*
 - `stats`/`timechart`/`tstats` aggregate; `transaction` groups events but is expensive — prefer
-  `stats by <id>` for correlation. *[unverified performance guidance for target data]*
+  `stats by <id>` for correlation; that performance advice is untested on the target data.
 - Record every change and symptom in one UTC incident timeline; hand it to the responder (or the `sre-assistant` slice they dispatched) with
   confidence labels.

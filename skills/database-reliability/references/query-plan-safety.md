@@ -28,8 +28,7 @@ ROLLBACK;
 That rollback is not a blanket safety net. It does not undo sequence/`nextval` consumption or effects
 that escape the transaction, such as independently committed `dblink` writes or external effects
 from `COPY TO PROGRAM`. FDW behavior depends on the wrapper: `postgres_fdw` aborts its corresponding
-remote transaction when the local transaction aborts *[sourced:
-www.postgresql.org/docs/current/postgres-fdw.html#POSTGRES-FDW-TRANSACTION-MANAGEMENT]*.
+remote transaction when the local transaction aborts.
 Confirm volatile functions, triggers, and external transaction boundaries before execution. Treat SQL
 Server `STATISTICS XML` exactly like running the statement, including permissions, load, mutation,
 and session-option cleanup.

@@ -6,7 +6,7 @@ and [metric-query reference](https://grafana.com/docs/loki/latest/query/metric_q
 [string-quoting guidance](https://grafana.com/docs/loki/latest/query/log_queries/). Confirm the
 deployed Loki version, tenant, labels, parsers, and alert-engine behavior before use.
 
-Examples are `[unverified]` for the target until executed there. `or on() vector(0)` turns a
+Examples are unconfirmed for the target until executed there. `or on() vector(0)` turns a
 selector matching nothing into zero-valued samples, so it cannot distinguish a quiet service from
 wrong labels, a wrong tenant, or lost ingestion.
 
@@ -25,8 +25,6 @@ A LogQL query begins with a stream selector. Keep stable, bounded values such as
 environment, cluster, or namespace as indexed labels; parse request ids and other high-cardinality
 values from the log line instead of promoting them to labels.
 
-*[sourced: Grafana Loki label and LogQL selector documentation; unverified for target labels]*
-
 ```logql
 {app="checkout", env="prod"}
 ```
@@ -42,8 +40,7 @@ absent_over_time({app="settlement-api", env="prod"}[10m])
 
 It returns 1 when the selector matched no lines in the range and nothing when lines exist. A 1 means
 a wrong selector or tenant, a silent source, or lost ingestion; widen the range to find the last line
-before calling it a pipeline finding for `obs-pipeline`. *[sourced: Loki metric-query reference,
-`absent_over_time`; unverified for target labels]*
+before calling it a pipeline finding for `obs-pipeline`.
 
 ## Line filters versus parsers
 
@@ -51,14 +48,10 @@ Use a line filter for literal or regular-expression text. Use `json` or `logfmt`
 depends on a structured field, then apply a label filter to the parsed value; `pattern` also exists
 for fixed-shape lines. Newer Loki adds pattern-match line filters `|>` / `!>` and the probabilistic
 `approx_topk(k, ...)` (instant queries only, no grouping) — version-gated; confirm the deployed
-Loki version before using either in a shared rule *[sourced: LogQL query reference, re-checked
-2026-08-24]*.
-
-*[sourced: Grafana Loki LogQL line-filter and parser documentation; unverified for target log shape]*
+Loki version before using either in a shared rule.
 
 Parser failures can set the `__error__` label, and metric queries cannot contain pipeline errors. Check
-or filter parser errors explicitly before trusting an aggregate. *[sourced: Grafana Loki pipeline-error
-documentation; unverified for target error policy]*
+or filter parser errors explicitly before trusting an aggregate.
 
 **Structured metadata — filter it before you parse anything.** Loki 3.x can carry high-cardinality
 values (trace IDs, pod names, user IDs, `detected_level`) as *structured metadata*: attached to the
@@ -75,13 +68,11 @@ query time". Two rules follow. First, **order matters**: put the structured-meta
 any `| json` / `| logfmt`; if bloom-filter query acceleration is enabled (experimental, needs
 structured metadata, aimed at 75 TB/month+ tenants) only a filter that precedes every parser stage
 is accelerated. Second, it needs schema v13+ with the `tsdb` index — whether the team's Loki emits
-structured metadata at all, and which keys, is `[unverified]` until read from a real line.
-*[sourced: Loki structured-metadata, query-acceleration, and cardinality documentation;
-reviewed 2026-08-21]*
+structured metadata at all, and which keys, is unconfirmed until read from a real line.
 
 **`pattern` is the parser for fixed-shape lines.** A pattern is invalid with no named capture, or
 with two captures not separated by whitespace — so a line whose fields abut needs `regexp` after
-all. *[sourced: LogQL log-queries reference, pattern parser; reviewed 2026-08-21]*
+all.
 
 ## Metric queries: rates and complete buckets
 
@@ -89,8 +80,7 @@ all. *[sourced: LogQL log-queries reference, pattern parser; reviewed 2026-08-21
 each stream over the range. Aggregate across streams when you need a service total.
 
 Aggregate parsed, error-filtered streams with `rate` or `count_over_time` over a fixed range, and
-aggregate across streams when a service total is needed. *[sourced: Grafana Loki metric-query
-reference; unverified for target labels and fields]*
+aggregate across streams when a service total is needed.
 
 Evaluate fixed five-minute ranges. Preserve an absent result as unknown unless independent evidence
 proves the selector, source freshness, parsing coverage, and eligible population, and the source's
@@ -101,9 +91,8 @@ silently discarded records still reduce coverage.
 For a recurring baseline, record the count with its coverage state, then calculate history in the
 configured Prometheus-compatible destination. Loki recording rules remote-write samples there;
 a pure Loki query cannot read that derived metric history. Require a complete valid baseline window
-before drawing an anomaly conclusion. *[sourced: Loki
-[recording rules](https://grafana.com/docs/loki/latest/operations/recording-rules/); unverified target
-ruler, remote-write destination, and missing-data policy]*
+before drawing an anomaly conclusion. The target ruler, remote-write destination, and
+missing-data policy are unconfirmed until read from the target.
 
 ## Compare before and after a deploy
 
@@ -111,8 +100,6 @@ Select a verified request-completion stream with exactly one event per eligible 
 The illustrative `log_type` label below must be replaced with the target's discovered selector;
 application debug/lifecycle logs are not a request denominator. Confirm fresh, complete ingestion in
 both windows and one three-digit HTTP status per completion. Run this coverage ratio first:
-
-*[sourced: Loki metric queries, JSON parsing, and label filters; revised queries and target semantics unverified]*
 
 ```logql
 sum(count_over_time({app="checkout", env="prod", log_type="request_completion"} | json | status=~"[1-5][0-9]{2}" | __error__="" [30m]))
@@ -150,10 +137,6 @@ be escaped, and a raw backtick-delimited string is safe only after excluding the
 If arbitrary values are allowed, use a query client that emits a LogQL literal and inspect the
 rendered query.
 
-*[sourced: Grafana Loki LogQL string-quoting guidance; unverified target id grammar and query client]*
-
-*[sourced: Grafana Loki `json` parser and label-filter syntax; unverified for target correlation field]*
-
 ```logql
 {env="prod", app=~"checkout|payments"} |= "<validated_and_logql_escaped_id>" | json | request_id="<validated_and_logql_escaped_id>"
 ```
@@ -164,8 +147,7 @@ only lines where the id is the request-id field.
 ## Errors that are limits, not bugs
 
 A rejected query or a gap in recent logs can be a configured guardrail, not absent data. Record
-the error text verbatim with the query — it is evidence. *[sourced: grafana/loki@4b3f975
-troubleshoot and configuration docs]*
+the error text verbatim with the query — it is evidence.
 
 - Query-side — narrow instead of raising limits mid-incident: `maximum number of series (<limit>)
   reached for a single query…` (`max_query_series`, upstream default 500 — tighter selectors,
@@ -174,5 +156,5 @@ troubleshoot and configuration docs]*
   stream rate limit exceeded (limit: <X>/sec)… consider splitting a stream via additional labels`;
   stream-count pressure is governed by `max_global_streams_per_user`, and upstream warns against
   raising it to absorb high-cardinality labels.
-- Which limits bind this tenant is `[unverified]` until read from the deployed config; upstream
+- Which limits bind this tenant is unknown until read from the deployed config; upstream
   defaults are not the tenant's limits.

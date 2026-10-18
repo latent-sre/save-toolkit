@@ -29,7 +29,7 @@ infrastructure, runtime or identity recommendations.
   `manifest.yml`, and exposes their SHA-256 digests as `app_sha256` and `manifest_sha256` outputs.
   The manifest must be self-contained, without credentials or a Docker-image deployment path.
 - Shell tracing off. `cf auth` with no arguments reads `CF_USERNAME` and `CF_PASSWORD` from the
-  environment; never put them in argv. *[sourced: cf CLI `command/v7/auth_command.go` help text]*
+  environment; never put them in argv.
 - Health checks, rollback commands, and the release-readiness and exact human approval evidence
   required by the existing production-change process. Preparing this evidence grants no approval.
 
@@ -201,10 +201,9 @@ provides `--fail` for HTTP errors. This is an observation before the push, not a
 exclude concurrent deployments to this app through other jobs or humans during the approved window.
 `cf rollback <app> --version <n>` requires the version and prompts unless `-f`.
 `cf cancel-deployment <app>` resets the droplet but not environment-variable or binding changes, and
-does not guarantee zero downtime. *[verified: cf CLI v8 source, `rollback_command.go` and
-`command_list_v7.go`; Cloud Foundry rolling-deploy docs]* Revision retention limits the rollback;
-see `/save-toolkit:pcf-deploy`. A job timeout or cancellation during `cf push` likely leaves the
-platform rollout running, so check `cf app` before choosing. *[unverified]* Static validation
+does not guarantee zero downtime. Revision retention limits the rollback; see
+`/save-toolkit:pcf-deploy`. A job timeout or cancellation during `cf push` likely leaves the
+platform rollout running, so check `cf app` before choosing. Static validation
 cannot prove foundation reachability, credential validity, application health, or rollback success;
 keep those `[unverified]` until the human-approved run produces evidence. Report the workflow and
 artifact SHA, PCF API/org/space identifiers without credentials, environment, runner group,

@@ -1,7 +1,7 @@
 # WQL dialect for metric investigation
 
-Apply the parent investigation shape first. Query syntax is `[sourced]` to the primary references
-below; all example names, tags, types, policies, and target behavior remain `[unverified]` until
+Apply the parent investigation shape first. Query syntax follows the primary references
+below; all example names, tags, types, policies, and target behavior remain unconfirmed until
 checked against the deployed tenant.
 
 **Lifecycle.** Wavefront continues as Broadcom DX OpenExplore; the end-of-availability retired
@@ -42,9 +42,8 @@ identifier. Inspect the rendered query after any additional client encoding.
 
 WQL regex patterns use `/.../`; backslashes escape special characters, and `^`/`$` anchors are
 unsupported. Do not copy PromQL's `=~` syntax or treat anchoring as escaping. Prefer exact matching
-for copied identifiers rather than constructing a regex from their contents.
-*[sourced: [WQL reference source](https://github.com/wavefrontHQ/docs/blob/master/pages/doc/query_language_reference.md),
-pattern matching and escaping, reviewed 2026-09-09; unverified target version and arbitrary-value encoder]*
+for copied identifiers rather than constructing a regex from their contents. The target version
+and an arbitrary-value encoder are unconfirmed.
 
 ## Query shapes — guardrails
 
@@ -55,8 +54,8 @@ For a fleet request percentile, merge instance histogram distributions first
 instances, not requests. Apply `rate()` to each cumulative series before `sum()`; query delta
 counters with `cs()`, not cumulative `rate()` semantics. On PCF, inspect counter-reset behaviour
 before treating a rate as alert evidence, and use `default()` only where it cannot conceal late or
-missing telemetry — a selector matching nothing needs a separate no-data path. *[sourced: WQL
-`sum()`, histogram, delta-counter and missing-data documentation; unverified for target metric]*
+missing telemetry — a selector matching nothing needs a separate no-data path. These shapes are
+unconfirmed for the target metric.
 
 ## Missing data
 
@@ -64,9 +63,7 @@ Test the expected reporting interval separately from an ordinary threshold. For 
 per minute, a five-minute count should be interpreted against that cadence; a known series that stops
 and a selector that has never matched are different conditions.
 
-*[sourced: WQL `mcount()` and missing-data alert guidance, byte-verified at
-wavefrontHQ/docs@0492d79 `pages/doc/alerts_missing_data.md:54-77`; unverified for target
-interval/metric]*
+This is unconfirmed for the target interval and metric.
 
 ```text
 mcount(5m, ts(app.http.requests.count, app="checkout")) < 5
@@ -75,8 +72,7 @@ mcount(5m, ts(app.http.requests.count, app="checkout")) < 5
 For a sustained gap, `mcount()` can decay to zero and later stop returning a series. Holding the last
 known count across a bounded window is one documented candidate for keeping the condition evaluable.
 
-*[sourced: WQL missing-data alert guidance, byte-verified at wavefrontHQ/docs@0492d79
-`pages/doc/alerts_missing_data.md:164`; unverified for target interval, lifecycle, and metric]*
+This is unconfirmed for the target interval, lifecycle, and metric.
 
 ```text
 last(1h, mcount(3m, ts(app.http.requests.count, app="checkout"))) = 0

@@ -32,9 +32,9 @@ a fallback, and the `sre-assistant` agent says when `cf` is absent where it runs
 have observed the platform. **GCP migration is in progress**: GCP is an approved target, arriving (as planned) as
 reference files inside the obs skills plus the `gcp-ops` triage skill, not as a restructure. The
 landing runtime is **decision-pending** (Cloud Run is the primary candidate for TAS-shaped apps;
-GKE only if a workload demands it) — do not present either as decided. [unverified — record the
-runtime decision here when a human owner accepts it]. **No self-managed Kubernetes**; on-prem stays
-Kubernetes-free.
+GKE only if a workload demands it) — do not present either as decided. The runtime decision is not
+recorded yet; record it here when a human owner accepts it. **No self-managed Kubernetes**; on-prem
+stays Kubernetes-free.
 
 ## Observability decision
 

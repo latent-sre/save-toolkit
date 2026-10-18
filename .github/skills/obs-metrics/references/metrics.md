@@ -4,7 +4,7 @@ Concrete metric names, point tags, and dashboards for the `obs-metrics` skill. L
 
 > Names and links only — no API tokens.
 
-Every value is `[unverified]` until checked against the target tenant and telemetry contract.
+Every value is unconfirmed until checked against the target tenant and telemetry contract.
 
 ## Candidate Wavefront metric names
 
@@ -17,7 +17,7 @@ Every value is `[unverified]` until checked against the target tenant and teleme
 
 PCF apps also expose container CPU, memory, disk, and request metrics through **PCF App Metrics** in
 Apps Manager: use it for a quick per-instance view, and Wavefront for history and alerting.
-[unverified — confirm the metric names your foundation exports]
+These names are not yet confirmed; confirm the metric names your foundation exports.
 
 ## Source / tag conventions
 

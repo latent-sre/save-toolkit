@@ -6,8 +6,7 @@ query: carry the reviewed numerator/denominator query and its result into the al
 ## The pairs
 
 The allowed long/short window pairs, thresholds, and actions are owned by the calculator's
-`WINDOW_PAIRS` in [error_budget.py](../scripts/error_budget.py) (`[sourced]` Google's SRE Workbook,
-[Alerting on SLOs](https://sre.google/workbook/alerting-on-slos/), Table 5-8 for a 99.9% SLO);
+`WINDOW_PAIRS` in [error_budget.py](../scripts/error_budget.py);
 run the calculator to see them applied, or pass it a mismatched pair to list the allowed ones.
 This file does not mirror the values, so the two cannot drift.
 

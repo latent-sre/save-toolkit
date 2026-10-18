@@ -2,7 +2,7 @@
 
 Read only for PostgreSQL-specific migration mechanics. The compatibility, recovery, authority, and
 output contracts in `../SKILL.md` remain binding. Confirm the deployed major with
-`SHOW server_version;`; it is `[unverified]` until observed.
+`SHOW server_version;`; it is unconfirmed until observed.
 
 ## Bound every lock wait
 
@@ -27,10 +27,7 @@ hold off vacuum and other DDL on that table), and have the DBA watch the waits a
 at a DBA-agreed deadline. A failed or cancelled build may leave an INVALID index. Inspect the catalog and
 migration record first; use `DROP INDEX CONCURRENTLY` only for the invalid index created by that
 failed attempt, before retrying. Do not drop a pre-existing valid index merely because creation
-failed. *[sourced: PostgreSQL 18 [ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html)
-lock levels, [lock modes](https://www.postgresql.org/docs/18/explicit-locking.html),
-[`lock_timeout`](https://www.postgresql.org/docs/18/runtime-config-client.html#GUC-LOCK-TIMEOUT),
-and [concurrent index creation](https://www.postgresql.org/docs/18/sql-createindex.html#SQL-CREATEINDEX-CONCURRENTLY)]*
+failed.
 
 ## Constraints and columns
 
@@ -55,8 +52,7 @@ backfill or validation. The constraint syntax depends on the major:
   `ALTER TABLE t ADD CONSTRAINT t_col_nn NOT NULL col NOT VALID;` enforces inserts and updates.
   After the backfill, `ALTER TABLE t VALIDATE CONSTRAINT t_col_nn;` scans under
   `SHARE UPDATE EXCLUSIVE`, compatible with ordinary writes. No `CHECK` detour or second
-  `SET NOT NULL` step is needed. *[sourced: PostgreSQL 18
-  [ALTER TABLE](https://www.postgresql.org/docs/18/sql-altertable.html)]*
+  `SET NOT NULL` step is needed.
 - **12–17**: use `CHECK (col IS NOT NULL) NOT VALID`; after the backfill, validate it and only then
   run `SET NOT NULL`; the validated check lets these versions skip the second scan.
 - **Before 12**: do not assume the validated check avoids the final scan; assess that scan and its
@@ -65,7 +61,7 @@ backfill or validation. The constraint syntax depends on the major:
 
 On PostgreSQL 18+, generated columns are **virtual by default** and computed on read. Adding one no
 longer rewrites the table, but moves computation to queries; specify `STORED` when that is the intended
-behavior. *[sourced: PostgreSQL 18 release notes; reviewed 2026-08-21]*
+behavior.
 
 ## Index and tool behavior
 

@@ -78,9 +78,3 @@ if shipping an sdist, check that it builds too. Editable-install tests alone do 
 contents. Preserve the project's dependency groups/extras and requirements/constraints workflow;
 this is a release check, not a reason to migrate every project to uv. See
 [pytest's installed-package guidance](https://docs.pytest.org/en/stable/explanation/goodpractices.html).
-
-Sources: [GitHub secure use](https://docs.github.com/en/actions/reference/security/secure-use),
-[checkout inputs](https://github.com/actions/checkout/blob/3d3c42e5aac5ba805825da76410c181273ba90b1/action.yml),
-[OIDC](https://docs.github.com/en/actions/concepts/security/openid-connect),
-[environment controls](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments),
-and [artifact attestations](https://docs.github.com/en/actions/concepts/security/artifact-attestations).

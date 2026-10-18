@@ -150,8 +150,8 @@ Use `[verified]` for directly observed bounded facts,
 `[UNTRUSTED]` taint. Write no durable operational records through this method; requested accepted
 knowledge goes to `scribe` through the caller.
 
-Primary method: [Google SRE: Eliminating Toil](https://sre.google/workbook/eliminating-toil/), checked
-2026-09-21 for measurement, option selection and maintenance economics. Recheck when adapting the
+Primary method: [Google SRE: Eliminating Toil](https://sre.google/workbook/eliminating-toil/), for
+measurement, option selection and maintenance economics. Recheck when adapting the
 method or resolving disputed guidance. Organization-specific targets in that source are not fleet
 policy. The examples here are fictional and the method's native effectiveness remains unverified
 until evaluated on the accepted candidate.

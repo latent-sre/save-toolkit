@@ -42,10 +42,3 @@ validate the candidate without satisfying the PR's required status check in a br
 check the triggering event and actual PR/ruleset result before claiming that gate passed. A CI-only
 run is not production-deployment evidence. The human release owner retains deployment and
 publication execution under the existing process.
-
-Sources: [rerun semantics](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs),
-[reusable-workflow reruns](https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations#behavior-of-reusable-workflows-when-re-running-jobs),
-[workflow_run effects](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run),
-[reusable-workflow reference selection](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows#calling-a-reusable-workflow),
-[dispatch ref contract](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event),
-and [required-check eligibility](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks#checks-from-some-workflow-jobs-are-not-evaluated).

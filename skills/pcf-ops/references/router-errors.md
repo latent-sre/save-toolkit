@@ -14,9 +14,6 @@ Status alone under-determines the cause. The documented shapes include:
 | `Connection Limit Reached` | 503 | backend connection limit |
 | `route_service_unsupported` | 502 | route-service configuration problem |
 
-*[sourced: Cloud Foundry "Troubleshooting router error responses"; gorouter
-`handlers/lookup.go` and `proxy/round_tripper/error_handler.go`]*
-
 - **502 with `endpoint_failure`** — backend connection or response failed, including refused dials;
   it does not prove the app received the request. Check connection errors, mid-request crashes,
   router timeouts, and the **keep-alive race**. Upstream
@@ -26,12 +23,11 @@ Status alone under-determines the cause. The documented shapes include:
   `server.tomcat.keep-alive-timeout`). This is the router-to-app connection pool, not a universal
   Gorouter keepalive; the frontend idle timeout is separate and platform-configurable. The
   application setting is usually app-side, while any Gorouter setting remains a platform-team
-  concern. *[sourced: gorouter `proxy/proxy.go` backend transport and `router/router.go` frontend
-  server]*
+  concern.
 - A 502 can also be **platform-side**: clock skew between Gorouter and a Diego cell makes the cell's
   TLS certificate look not-yet-valid (`x509: certificate ... is not yet valid`), surfaced as
   `ExpiredOrNotYetValidCertFailure`. Escalate that NTP/time-sync evidence to the platform team rather
-  than chasing it app-side. *[sourced: CF router error docs; Broadcom KB 297999]*
+  than chasing it app-side.
 - **503 Service Unavailable** — inspect `X-Cf-RouterError`: `no_endpoints` and
   `Connection Limit Reached` lead to different checks (backend availability versus connection
   pressure). Without that evidence, status alone does not establish that all instances are down.

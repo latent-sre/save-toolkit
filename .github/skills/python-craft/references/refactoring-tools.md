@@ -64,12 +64,3 @@ assume older refactoring recipes still run on the target toolchain.
 Check the installed tool's parser support against the actual syntax, including modern annotations;
 its minimum installable Python version does not establish support for every target syntax feature.
 Keep tools in a development environment; report the tool/version and unresolved references when material.
-
-[sourced] [Rope overview](https://rope.readthedocs.io/en/latest/overview.html),
-[change previews/history](https://rope.readthedocs.io/en/latest/library.html),
-[LibCST syntax preservation](https://libcst.readthedocs.io/en/latest/why_libcst.html),
-[codemod testing](https://libcst.readthedocs.io/en/latest/codemods.html),
-[Ruff fix safety](https://docs.astral.sh/ruff/linter/#fix-safety),
-[Ruff check/diff options](https://docs.astral.sh/ruff/configuration/),
-[AST guarantees](https://docs.python.org/3/library/ast.html#ast.unparse), and
-[Python 3.13 removals](https://docs.python.org/3.13/whatsnew/3.13.html#removed-modules-and-apis).

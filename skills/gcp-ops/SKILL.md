@@ -36,11 +36,7 @@ account identity and credential properties are excluded; configuration can conta
 | Which revisions exist? | Service → **Revision history** | `gcloud run revisions list --service <service> --region <region> --project <project>` |
 | Recent request/container errors? | Service → **Logs**; select the last hour | `gcloud run services logs read <service> --freshness=1h --limit=100 --region <region> --project <project>` |
 
-[sourced] Google documents these [service details](https://docs.cloud.google.com/run/docs/managing/services),
-[metrics](https://docs.cloud.google.com/run/docs/monitoring),
-[revision](https://docs.cloud.google.com/run/docs/managing/revisions),
-and [log views](https://docs.cloud.google.com/run/docs/logging);
-the [log CLI](https://docs.cloud.google.com/sdk/gcloud/reference/run/services/logs/read) bounds age and count.
+The log CLI bounds age and count.
 
 Bring back the target, revision names/traffic allocation, observation time and log window in UTC,
 and a small sanitized error excerpt. A revision's existence is not proof it serves traffic or
@@ -62,9 +58,7 @@ and `--no-traffic` keeps the new revision out of the service URL's percentage-ba
 Tagged revision URLs can still receive requests; check tags and request logs as well as percentages.
 A human stages a rollout with
 `gcloud run services update-traffic <service> --to-revisions <revision>=<percentage> --region <region> --project <project>`; `--to-latest`
-instead sends 100% to the latest revision and restores automatic promotion on later deploys
-*[sourced: docs.cloud.google.com/run/docs/resource-model;
-docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration]*.
+instead sends 100% to the latest revision and restores automatic promotion on later deploys.
 
 After listing revisions, inspect one with
 `gcloud run revisions describe <revision> --region <region> --project <project>`.
@@ -98,9 +92,8 @@ load `obs-logs` and its **Cloud Logging dialect** reference; it owns those mecha
 
 ## Reading failures
 
-Search the logs for the message, then run its first check *[sourced:
-docs.cloud.google.com/run/docs/troubleshooting; liveness probes are off unless configured,
-…/run/docs/configuring/healthchecks]*:
+Search the logs for the message, then run its first check (liveness probes are off unless
+configured):
 
 | Code | Documented message | First check |
 |---|---|---|
@@ -110,19 +103,18 @@ docs.cloud.google.com/run/docs/troubleshooting; liveness probes are off unless c
 | 504 | "…reached the maximum request timeout." | Compare the revision's request timeout with the slow downstream call. A [504 can leave application work running](https://docs.cloud.google.com/run/docs/configuring/request-timeout); check completion/effects and retry safety before recommending a retry or timeout increase |
 
 - **Cold starts** — min-instances is a billed change to recommend, not assume.
-- **Concurrency/saturation** — exact defaults vary by deploy path: `[unverified]`, read them from
+- **Concurrency/saturation** — exact defaults vary by deploy path: read them from
   the affected revision and service configuration, don't quote memory.
 
 ### OOM evidence
 
 Cloud Logging example: *"While handling this request, the container instance was found to be
-using too much memory and was terminated."* (HTTP 500/503; exact target wording `[unverified]`).
+using too much memory and was terminated."* (HTTP 500/503; exact target wording is unconfirmed).
 **No exit code to grep.** Writes to the default writable container filesystem count toward memory,
 including logs outside `/var/log/*` and `/dev/log`. For a leak after PCF migration, check these writes first;
 take `resource.labels.revision_name` from the failing log, select that revision in **Revision
 history**, or use the target-bound `revisions describe` command above. Read its container memory
-limit before recommending a bump; the current service template may describe a later revision
-*[sourced: docs.cloud.google.com/run/docs/troubleshooting; reviewed 2026-08-21]*.
+limit before recommending a bump; the current service template may describe a later revision.
 
 ## Pub/Sub backlogs and GKE pull failures: read the deciding signal first
 
@@ -142,8 +134,7 @@ push record is the next deciding read.
 
 ## Mitigation you recommend (never run): traffic rollback
 
-Traffic rollback routes requests to the previous healthy revision *[sourced:
-docs.cloud.google.com/run/docs/rollouts-rollbacks-traffic-migration]*:
+Traffic rollback routes requests to the previous healthy revision:
 
 ```bash
 gcloud run services update-traffic <service> --to-revisions <previous-revision>=100 --region <region> --project <project>
@@ -172,7 +163,7 @@ the smallest sanitized excerpt.
 
 ## Provisional project/platform ownership
 
-The GCP ownership split is **[unverified], not yet ratified**; `stack-profile` carries the working
+The GCP ownership split is **unconfirmed, not yet ratified**; `stack-profile` carries the working
 proposal, and Google's customer/provider boundary does not settle our internal owners. Confirm the
 responsible owner before recommending a change, and escalate with `pcf-ops`'s packet: symptom and
 UTC timing (onset unknown if not established), scope across services/projects, checks and their

@@ -36,8 +36,8 @@ Distinguish no traffic, zero, missing telemetry, and query failure; a blank pane
 healthy, and color is not proof an alert exists or fires. Never append `or vector(0)` or map null
 to zero on an error ratio or its numerator; put the request-rate (denominator) panel beside every
 ratio. Add a telemetry-present stat whose zero is the alarm: on a Prometheus-scrape target use
-`count(up{job="<job>"} == 1) or on() vector(0)` mapped red at 0 `[unverified against the team's
-Mimir labels]`; on a push (OTLP) target there is no `up` series, so use the backend or pipeline
+`count(up{job="<job>"} == 1) or on() vector(0)` mapped red at 0 (unconfirmed against the team's
+Mimir labels); on a push (OTLP) target there is no `up` series, so use the backend or pipeline
 presence signal for that route instead of inventing one.
 
 ## Check and hand off

@@ -39,9 +39,3 @@ Use existing tools when Ruff is absent; acquiring a new tool is a separate envir
 When a fix is requested, capture a failing check at the entrypoint the defect reaches, with an
 independent expected result. Verify the smallest repair and its failure paths; after a failed fix
 attempt, use `root-cause`. Report material adjacent findings separately.
-
-[sourced] [ruff rules](https://docs.astral.sh/ruff/rules/),
-[Requests timeouts](https://requests.readthedocs.io/en/latest/user/advanced/#timeouts),
-[asyncio tasks](https://docs.python.org/3/library/asyncio-task.html),
-[time.monotonic](https://docs.python.org/3/library/time.html#time.monotonic), and
-[decimal](https://docs.python.org/3/library/decimal.html).

@@ -1,7 +1,7 @@
 # Sources and applicability
 
-Checked 2026-09-21 for this method. These sources guide analysis; they neither set company policy
-nor demonstrate performance of this skill. Recheck when their advice becomes a disputed requirement,
+These sources guide analysis; they neither set company policy nor demonstrate performance of this
+skill. Recheck when their advice becomes a disputed requirement,
 the method changes, or target platform behavior matters. Use current platform documentation for
 version-specific mechanisms.
 

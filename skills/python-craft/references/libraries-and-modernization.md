@@ -76,12 +76,3 @@ calls can break. A feature's availability does not establish equivalence.
 For a Ruff upgrade preview, follow [Refactoring tools](./refactoring-tools.md) and select `UP` with
 the component's actual `--target-version`. Keep optional and standard-library-only components within
 their own constraints. Validate affected deployment versions rather than just the developer's runtime.
-
-[sourced] [Pydantic migration](https://docs.pydantic.dev/latest/migration/),
-[strict mode](https://docs.pydantic.dev/latest/concepts/strict_mode/),
-[HTTPX compatibility](https://www.python-httpx.org/compatibility/),
-[Tenacity defaults](https://tenacity.readthedocs.io/en/latest/),
-[PyPA dependency contracts](https://packaging.python.org/en/latest/discussions/install-requires-vs-requirements/),
-[dataclasses](https://docs.python.org/3/library/dataclasses.html),
-[PEP 695](https://peps.python.org/pep-0695/), and
-[Python 3.14](https://docs.python.org/3.14/whatsnew/3.14.html).
