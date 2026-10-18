@@ -174,7 +174,7 @@
     },
     {
       "url": "https://docs.cloud.google.com/run/docs/audit-logging",
-      "claim": "Cloud Run's audit-logged methods include google.cloud.run.v2.Services.UpdateService and Services.SetIamPolicy as ADMIN_WRITE (Admin Activity); no invoke method or run.routes.invoke appears, so a service invocation leaves no audit entry for the caller.",
+      "claim": "Cloud Run's audit-logged methods include google.cloud.run.v2.Services.UpdateService and Services.SetIamPolicy as ADMIN_WRITE (Admin Activity); the page does not mention service invocations or run.routes.invoke, so the case offers no audit read of invocation decisions; it does not claim that invocations are never audit-logged.",
       "checked": "2026-10-17"
     },
     {

@@ -137,3 +137,10 @@ hardened cases beside the accepted ones; H-D3 the criterion as proposed; H-D4 **
 The criterion's thresholds scale to 45 trials at the same proportions, fixed here before any run:
 Sonnet's PASS count exceeds Haiku's by at least 10 of 45; at least one H5 behavioral check differs by
 at least 10 of 45; Sonnet still passes at least 25 of 45.
+
+**Owner acceptance, 2026-10-17:** the nine hardened cases, after the independent review's fixes, at
+case digests GCP-13 `fe843334d4a8` / `70d98555da09` / `83a910786c08`, GCP-17 `1ba58ee45e74` /
+`ea989d91afdf` / `9a0b7e00577a` and GCP-25 `882c22c61844` / `7449cf594346` / `bb93038103a3` (A / B /
+C). A documentation recheck the same day supported the packets' platform claims except one hidden
+source note, which overstated that Cloud Run invocations are never audit-logged; the note was
+corrected without changing any case.
