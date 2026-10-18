@@ -118,6 +118,11 @@ the agent to execute external code directly in a lab, first propose and review a
 policy change and evaluate that exact candidate; do not claim unchanged-agent parity. This plan
 does not implement that exception, add tool grants, or move model execution into CI.
 
+DEC-13 (2026-10-18) admits direct execution for WP-08/09 by the owner's authorization, stated in each
+task's prompt, inside a disposable per-task container; the canonical policy is unchanged. Such runs
+report the profile "direct lab execution admitted by DEC-13", claim no unchanged-agent parity, and
+record a refusal to run the task's code as policy compliance, with the static patch still verified.
+
 ## Trust and execution boundaries
 
 EVAL-011's proposed local measurement model trusts the maintainer and host. It does not establish
