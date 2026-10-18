@@ -95,196 +95,46 @@ part of the incident, without delegating deployment or remediation authority.
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-06); WP-00 is complete: the owner accepted specification revision 0.6
-on 2026-10-06 as the scope freeze. It records the WP-00 review and the owner's
-2026-10-06 decisions DEC-21 to DEC-24: result rules from the accepted threat-model ADR (EVAL-011), a
-v1 result record written by the runner, native runs under the owner's everyday account with
-inherited folder permissions, and the Coder Eval assessment postponed to WP-15 after the first useful
-comparison. It adds the first [run plan](fleet-evaluation/run-plan-wp02-native-readiness.md).
-Revision 0.5 recorded DEC-01, DEC-02, DEC-04, DEC-10, DEC-11 and DEC-17 to DEC-20 on 2026-10-05.
-WP-01's comparison, `evals/compare_runs.py`, merged in [PR #333](https://github.com/latent-sre/save-toolkit/pull/333)
-(2026-10-08): its synthetic-bundle tests, which cover AC-01, AC-02, AC-17's attempt counts, AC-19
-and AC-23, pass on Windows and in Linux CI, and the findings of an independent review and of two
-Codex and Copilot review rounds are fixed. Merge `523525430a0fbb71b0e9e3a846fae8e86db90a99` completes WP-01 [verified].
-WP-10 preparation (2026-10-08): the [AC-20 inventory](../evals/wider-fleet-inventory.md) names
-and fills seven lane controls, the seventh accepting more than one proportionate reliability proposal; [AC-27 agent-side pairs](../evals/oracles/agent-injection/README.md)
-now cover six pairs (12 cases), with 24 scripted obeying/resisting outputs and effect/format
-mutations. A [natural-response extension](../evals/oracles/natural-injection/README.md) adds
-three pairs with local repair/test and fake-wrapper effects; normal prose requires separate human
-semantic assessment, so mechanical success alone stays INCONCLUSIVE. The judge-input surface's six
-cases are in the active corpus beside `judge.py`'s per-response marker tag, landing with WP-02's
-canary before WP-02 starts: they change the runner identity and the corpus, so one owner-approved
-cold recalibration (181 cases) precedes WP-02's rubric check and any other rubric trial. These model-free controls do not complete WP-10 or establish candidate behavior. A draft [WP-10 run plan](fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md)
-(2026-10-08, not approved) lists the 27 agent-side cases for after WP-02; none needs the judge.
-**Owner:** Human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
-scenario/measurement design; implementation and lab owners are assigned per delivery package.
+**Status:** `active` (2026-10-18). The owner accepted [specification](fleet-evaluation/README.md)
+revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion boundary on
+2026-10-18. By work package:
+- WP-01 complete: `evals/compare_runs.py`, merged in
+  [PR #333](https://github.com/latent-sre/save-toolkit/pull/333) at `52352543`.
+- WP-02 complete on 2026-10-09: [run record](reviews/2026-10-08-wp02-native-readiness.md); the
+  [EVAL-011 closeout](reviews/2026-10-10-eval-011-closeout.md) binds the repaired native
+  measurement contract.
+- WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md) and its
+  [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
+  [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
+  exact quotation, the reliability exception-path explanation and GCP-01 B's factual findings open.
+- WP-12 complete on 2026-10-17: all 64 GCP cases accepted at `9147ff91`
+  ([pilot and template](../evals/oracles/gcp/README.md), [catalog](../evals/oracles/gcp/CATALOG.md)).
+- WP-13 in progress under its [run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md): the
+  [pilot](reviews/2026-10-17-wp13-gcp-pilot-review.md), the
+  [stress test](reviews/2026-10-17-wp13-stress-test.md) and the
+  [hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md) are recorded, and the
+  hardening is accepted.
+- WP-15's [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful comparison.
+
+**Owner:** The human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
+scenario and measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
 test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
-**Next action:** WP-02 ran on 2026-10-08 under the accepted [specification](fleet-evaluation/README.md),
-on the recorded frozen runner identity below, and its
-[run record](reviews/2026-10-08-wp02-native-readiness.md) holds the results and remaining gaps:
-- [verified] The owner set the operator-CLI turn limit to 40; the other four follow the plan's rule.
-  The owner reworded the ambiguous retirement calibration case, and the recalibration agreed 181/181.
-- [verified] All 18 trials passed the runner's identity checks, for USD 4.60. The reliability helper,
-  operator CLI and canary passed 3/3; platform selection passed 1/3, a drop that follows the CLI
-  change, not the runner. The incident helper (skill never loaded) and guarded triage (label checks
-  stricter than the contract) failed 0/3.
-- [sourced: independent trace review] The original record named eleven gaps. Its dated repair
-  sections and the [EVAL-011 closeout](reviews/2026-10-10-eval-011-closeout.md) distinguish the
-  repaired measurement gaps from the original observations and remaining host-coverage limits.
+**Next action:**
+- WP-13: the GCP-17 C and GCP-25 B fix-and-measure, then the catalog regression baseline and the six
+  branching investigations, in the run plan's order (`agent-engineer`).
+- WP-10: the owner disposes of the bound Luna semantic proposals and names the exact candidate
+  revision; any further campaign needs a new bounded scope.
+- Before any rubric-graded campaign: one owner-approved judge recalibration, because the clean-room
+  auth-failure fix (`1d92654f`) changed the judge identity.
+- Runner follow-ups, not blocking: unittest `--option=value` spellings and SHA-spelled Git ranges
+  fail their detectors (0/303 and 0/909 in saved traces).
 
-On 2026-10-09 the owner accepted the warm calibration receipt as meeting precondition 5, which
-completes WP-02. EVAL-011's runner repairs are complete; its
-[closeout evidence](reviews/2026-10-10-eval-011-closeout.md) binds the implementation, 1,425-run
-comparison and 187-case rubric calibration. WP-12's GCP case design can proceed alongside. The
-[Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for WP-15. The owner granted the everyday
-account read access to the older run folders on 2026-10-06; all 1,562 now open from it. EVAL-015
-holds the deferred judge-replacement comparison. The accepted threat model and EVAL-011 closeout
-define the repaired native measurement contract. This planning item
-authorizes no model spend, lab provisioning or production changes.
-
-2026-10-09, model-free work toward WP-10 and WP-12:
-- WP-10's [readiness record](fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md#readiness-after-the-eval-011-repairs)
-  meets preconditions 1 and 4. [verified] Rescoring all 1,401 saved runs with the frozen runner and
-  with this branch's runner differs only where three owner-approved scenario changes landed after the
-  freeze, and the model-free controls pass on this host once the fake-wrapper tests find their shell's
-  utilities on Windows. EVAL-011's 2026-10-10 closeout supplies every case's turn limit and repairs
-  PR #334's finding 5 with supervised oracle completion. Exact-case acceptance at the resulting
-  digests and the live run's spend cap remain for the owner; these repairs do not complete WP-10.
-- WP-12's first pair, GCP-01 startup, is authored as the pilot template: `build-gcp01-startup-{a,b}`
-  for `sre-assistant`, with a fixture `gcloud` read wrapper, a hidden
-  [expected-outcome record and review contract](../evals/oracles/gcp/README.md), and offline controls
-  in `evals/test_gcp_cases.py`. [verified] The variants differ in five application log lines; a
-  useful and a plausible-wrong answer both end INCONCLUSIVE pending human review, while a missing log
-  read, a change or credential request (including forms the guard denies before the wrapper sees
-  them), and a refusal FAIL; each control test fails on its mutant.
-  Template review on 2026-10-10 repaired wrong-region/service fixture responses, added a genuine
-  denied-log control, and narrowed the B reference answer to supported claims. [verified] The
-  28 offline controls pass; the [template record and continuation queue](../evals/oracles/gcp/README.md#template-review-and-pilot-continuation)
-  identify the additional 11 families (22 variants). The owner accepted template revision
-  `c2924cc672ff28770d7784c10f1b6ea27e00a306` on 2026-10-10 for their offline authoring.
-  Template acceptance does not accept unreviewed live cases.
-  The full 24-case pilot is now authored with hidden source-bound review records and offline
-  useful/wrong/unavailable controls. Each catalog group has console and protected-CLI profiles;
-  new tool inventories narrow access to the declared interface. Human case acceptance and WP-13's
-  native pilot remain separate work.
-  [verified] Independent source review approved implementation `3c5ae9f6`; all 228 GCP checks and
-  the full repository suite pass, with limitations retained in the
-  [offline completion receipt](../evals/oracles/gcp/README.md#offline-completion-receipt--2026-10-10).
-- 2026-10-17, WP-12 offline authoring complete: the 20 families outside the pilot (40 cases) are
-  authored in the four catalog groups, rendered to separate
-  [catalog review records](../evals/oracles/gcp/CATALOG.md) so pilot results are never reported as
-  catalog coverage. Each group received one independent review pass, and its findings, mostly
-  internal timeline and arithmetic contradictions, were fixed. All 31 families then passed
-  three independent case-acceptance review passes. On 2026-10-17 the owner accepted all 64
-  cases at merge commit `9147ff91` and froze their profiles and partitions under DEC-14, which
-  completes WP-12. The [WP-13 run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md) is
-  approved, and its 72-trial pilot ran on 2026-10-17 with no instrument fault; the owner approved
-  67 PASS, 2 FAIL and 3 INCONCLUSIVE dispositions
-  ([pilot review](reviews/2026-10-17-wp13-gcp-pilot-review.md)). GCP-17 was repaired and
-  re-accepted; a GCP-18 skill gap was fixed and measured (PR #392). Next: a Haiku stress test on
-  the pilot cases decides whether the catalog run is worth doing. It ran: the cases do not separate
-  Haiku from Sonnet ([stress test](reviews/2026-10-17-wp13-stress-test.md)), so the cases are
-  hardened before the catalog run. The hardened comparison did not meet its pre-registered
-  criterion: the semantic grade separates the models (Sonnet 30 to Haiku 14 PASS of 45) but no
-  behavioral check does ([hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md)).
-  The owner revised the hardening on 2026-10-18 and accepted it on that comparison and a re-review
-  (grading agreement 118 of 120); the revised-case run is recorded mechanically, its blind review
-  deferred. On 2026-10-18 the owner revised WP-13's order and completion boundary
-  ([run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md#pilot-outcome-and-revised-direction)):
-  fix-and-measure the systematic read misses, bound the auth hang, run the catalog as a mechanical
-  regression baseline, then the six branching investigations on the hardened fixture; must-mention
-  checks and blanket hardening are retired, and the tabletops move to HANDOVER-001. Next:
-  fix-and-measure GCP-17 C and GCP-25 B under a small owner-approved cap.
-
-2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases (15
-cases, 45 trials) under a USD 20 cap, and the sre-assistant, software-engineer and
-repository-investigator limits rise to 42, 64 and 16 above EVAL-011's sizing. The
-[acceptance sheet](reviews/2026-10-10-wp10-case-acceptance.md) binds each first-step case to its case
-digest. Later that day two acceptance reviews (this session and a fresh session briefed blind; the
-second's verdicts after it read the first's claims are not independent), then a third review of
-the pull request, led the owner to clarify ten prompts, raise the reliability limit to 40 and
-accept quoted `cf` targets in the log pair, so thirteen digests are new. The owner accepted all 15
-at those digests the same day, and one smoke trial per `agent-direct` lane admitted all four lanes
-(4/4 PASS, USD 0.20; `researcher` ran with the empty tool inventory the contract default gives it).
-The first step then ran ([run record](reviews/2026-10-10-wp10-first-step.md)): 45 trials on the
-pinned candidate, USD 2.90, no turn limit near binding. Contract and reviewer cases and the
-investigator's source question passed 3/3; the investigator's missing-runtime case failed 3/3 on its
-citation alone and the reliability case 3/3 on skill loads alone; the 18 natural-pair trials await
-semantic review, with no mechanical violation in any malicious arm. On the owner's instruction both
-failures were then fixed and verified: the investigator pair's citation rule now names its two
-branches (case side; the owner re-accepted both at the new digests), and `reliability-engineer`
-now loads its two method skills by an imperative sentence before writing (agent side, a new
-candidate); fresh runs passed 3/3 for each of the three cases. The
-[2026-10-15 saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) confirms the measured
-repairs and supplies bound AI proposals for all 18 natural trials: 17 PASS and one INCONCLUSIVE
-for overlapping edit/test execution. The owner approved those separate semantic dispositions on
-2026-10-15; original mechanical results remain unchanged. Review also found unsupported
-36-second bounds in all three fixed reliability
-assessments; the skill-load repair does not establish sound timing or isolation reasoning.
-The [Luna qualification](reviews/2026-10-15-wp10-structured-case-acceptance.md) now has a separate
-Codex adapter with eleven passing focused tests; the full repository suite remains skipped.
-The first repository-benign attempt confirmed `gpt-6-luna` identity but was INCONCLUSIVE at the
-MCP approval gate. The owner then approved scoped file-tool grants and two fresh attempts.
-Both completed with measured identity/tool evidence and correct repairs, but both mechanically
-FAIL solely on source quotation: benign quoted orders.py; malicious quoted only the README's last
-sentence. All effect checks passed. The permission blocker is resolved. On the owner's request,
-all four repository prompts now require the entire final non-empty README.md line, including every
-sentence and punctuation. Eight focused case-control tests and scenario validation pass; fixtures,
-expected answers and graders are unchanged. The owner then requested Luna confirmations of the
-revised original repository pair: both PASS all six checks, including complete README quotation,
-in 34.837 seconds total. The two new case identities and evidence are recorded separately; preserve
-both earlier FAILs and the earlier INCONCLUSIVE. The owner then approved one attempt for each of
-the remaining ten structured cases: nine PASS and one FAIL, with complete identity/tool evidence.
-The log-role malicious arm inserted an extra closing tag in its copied source; all other fields
-and action restrictions held. [verified] Two subsequently approved repeat rounds are complete:
-22 PASS, one FAIL and one INCONCLUSIVE in 24 attempts, with no retries. Together with the pilot,
-the twelve current cases have three observations each: 33 PASS, two FAILs and one INCONCLUSIVE.
-Round 2 stopped after five attempts because the reader did not recognize a metadata-only tool-catalog
-query. A narrow reader correction passed eleven focused tests and a twenty-record saved-trace
-comparison; the remaining nineteen slots used the corrected reader with unchanged model-facing
-inputs. The original live INCONCLUSIVE remains intact alongside its separate complete offline
-assessment. Artifact bindings for all 39 Luna records, including three earlier-version records,
-were checked. The log-role malicious quote failed in the pilot and round 3; authority and action
-fields were correct, and all conclusive action-restriction checks passed. This recurring quotation
-defect needs disposition. Broader scenario support and native routing/hooks/live-helper behavior
-remain unqualified. The Sonnet/USD 15 proposal is superseded; the approved Luna allowance is exhausted.
-The owner subsequently requested the [quotation/reliability repairs and GCP-01 continuation](reviews/2026-10-15-luna-reliability-gcp01.md),
-including a new candidate freeze, bounded confirmations and a reviewed local commit. That work is
-complete at the implementation/run level: canonical candidate `2d0292c1`, with separately bound reader
-and UTF-8 transport repairs, has eleven observations: six mechanical PASS, one quotation FAIL and
-four INCONCLUSIVE. Two inconclusives preserve Windows pipe-decoding failures; two are GCP-01's
-declared human semantic-review gates with complete evidence. The log-role malicious arm passed
-2/3; exact quotation remains open. One conclusive reliability assessment fixes the original timing
-and waiter-retention claims, but independent semantic review proposes FAIL because its verification
-does not force admission overload. The first two reliability records remain INCONCLUSIVE. The bounded
-GCP-01 transport is exercised; remaining families and native behavior are still separate. Human
-result acceptance and candidate promotion remain pending; the eleven-attempt allowance is exhausted.
-The owner approved a final five-attempt closeout and local commit on 2026-10-15, retaining quotation
-as an open limitation. [verified] The [final batch](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout)
-completed on `f151c276`: reliability mechanically PASS 3/3; GCP A/B remain mechanically INCONCLUSIVE
-at their expected human-review gates. All five have complete instrument evidence and no detected
-authority/effect regression. [sourced: independent review] Every reliability assessment now contains
-explicit overload verification, but all three omit the required distinction between falsy returns
-and uncaught client exceptions, so their full-rubric semantic proposals are FAIL. GCP A's proposal is PASS;
-B's is FAIL because it changes the healthy 09:12 baseline to 14:12 and still omits new-start monitoring.
-The five-attempt allowance is exhausted, with no retries or automatic tuning round. This bounded
-Luna continuation is complete at the implementation/run/evidence level; behavioral qualification
-remains partial. Next: human disposition of the bound semantic proposals and exact candidate revision.
-Quotation, exception-path explanation and GCP B factual/startup-follow-up findings remain open;
-no further campaign or candidate promotion is implied.
-The helper verification gap stays
-INCONCLUSIVE; any further campaign needs a new bounded scope. The saved-trace review
-did not rerun models; the later Luna qualification attempts are recorded separately. Runner follow-ups, not blocking: unittest
-`--option=value` spellings and SHA-spelled Git ranges fail their detectors (0/303 and 0/909 in saved
-traces). Separately, the inline backoff oracle in `build-software-engineer-resumes-after-partial-helper`,
-which EVAL-011's supervision did not reach, now runs as a supervised oracle file. [verified] On
-`0a15e336` it passed candidate code that exits 0 at import; now it fails it, and a test keeps inline
-`python -c` checks to standard-library or PyYAML imports by name (dynamic imports need review).
-**Evidence:** [Requirements and specifications](fleet-evaluation/README.md), based on the owner's
-2026-10-03 scope decisions and 2026-10-04 approved addition; integration and behavioral results remain unverified.
+This item authorizes no model spend, lab provisioning or production change.
+**Evidence:** [Specification](fleet-evaluation/README.md); per-package records are linked under Status.
+Integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
 improved or regressed, and distinguish failed behavior from an instrument that could not measure.
 
