@@ -155,12 +155,47 @@ pilot (GCP-17 re-acceptance and re-run), run a Haiku stress test on the same 24 
 USD 6 cap before any catalog run, add mechanical must-mention checks, make fix-and-measure the
 main loop, and prioritize branching investigations over the remaining static cases. The
 [pilot review](../reviews/2026-10-17-wp13-gcp-pilot-review.md) holds the evidence and decisions.
+The [stress test](../reviews/2026-10-17-wp13-stress-test.md) then found that the pilot cases do not
+separate Haiku from Sonnet on a blind review, so the cases are hardened before the catalog run.
+
+The hardening ran, failed its behavioral criterion, was revised and was accepted on 2026-10-18
+([hardened comparison](../reviews/2026-10-17-wp13-hardened-comparison.md)). The owner then revised
+the order on 2026-10-18; this list replaces the one above and the hardening design's validation step 6:
+
+1. **Fix-and-measure the systematic read misses.** GCP-17 C's deciding reads were missed in 8 of 10
+   Haiku and Sonnet trials and GCP-25 B's in 4 of 10 across both hardened runs. A targeted skill fix
+   gets a measured before/after, as GCP-18 did, under its own small cap. **Done 2026-10-18:**
+   `gcp-ops` gained the two deciding-read rules (`fc53d335`). On the same accepted cases, deciding
+   reads made, before (revised-case run) to after: GCP-17 C Sonnet 2/5 to 5/5, Haiku 0/5 to 1/5;
+   GCP-25 B Sonnet 3/5 to 5/5, Haiku 3/5 to 5/5. Haiku loaded `gcp-ops` in only 2 of its 5 GCP-17 C
+   trials and made no tool call in one, so its weak row is a loading gap the rule cannot reach. The
+   GCP-17 A and GCP-25 A siblings stayed at 2/2 per model. 28 trials, USD 1.81 under a USD 3 cap, no
+   integrity failure or fixture access; read choice only, the answers were not semantically reviewed.
+   Private evidence: `.eval-runs/wp13-fix-20261018/`.
+2. **Bound the auth hang.** One trial ran 16,047 s against the launcher's 900 s timeout before
+   failing on an expired login; the runner or launcher gets a watchdog before the next batch.
+   **Done 2026-10-18:** the Windows event log showed the host asleep for the whole trial, and wait
+   timeouts do not count sleep, so the runner now holds off idle sleep while a batch runs (`24f30227`).
+3. **Catalog regression baseline.** The 40 catalog cases run once, one Sonnet trial each, graded
+   mechanically; semantic review covers a 10% sample plus every mechanical failure. Static cases sit
+   near the semantic ceiling, so full semantic review is not run.
+4. **Six branching investigations on the hardened fixture.** GCP-02/05/09/15/17/29 gain an alias
+   table, so equivalent requests reach the same read, and a second-turn correction that changes the
+   supported conclusion. Their families are hardened on demand for this. There is no WP-05 dependency.
+5. **Retired.** Per-family mechanical must-mention checks: the hardened omission check fired once in
+   135 trials and that was a false red, and required-item marks with the revised brief took their
+   place. Blanket hardening of the remaining pilot families: families are hardened on demand.
+6. **Reviewer policy.** One blind reviewer per answer; a second on borderline-flagged answers and a
+   random 20%; two per answer again whenever the brief changes. Opus is not run as an arm.
+7. **Tabletops.** The two human handover tabletops are their own roadmap item, HANDOVER-001, and no
+   longer gate WP-13.
 
 ## Done means
 
-Every model-free control passes; every live trial passes its identity checks; every trial has a
-recorded semantic disposition approved by the owner; each failure is explained as candidate
-behavior or a named instrument gap; and the reviewer confirms the traces. The pilot's AC-29 to
-AC-33 evidence is then observed for one candidate. WP-13 completes only after the full catalog,
-the six branching investigations and the two tabletops. Outcomes are observations, not acceptance
-evidence.
+Every model-free control passes; every live trial passes its identity checks; every pilot,
+hardened and branching trial has a recorded semantic disposition approved by the owner, and every
+catalog trial a mechanical disposition with the sampled semantic review above; each failure is
+explained as candidate behavior or a named instrument gap; and the reviewer confirms the traces. The
+pilot's AC-29 to AC-33 evidence is then observed for one candidate. WP-13 completes after the pilot,
+the hardened cases, the catalog baseline and the six branching investigations; the tabletops report
+under HANDOVER-001. Outcomes are observations, not acceptance evidence.

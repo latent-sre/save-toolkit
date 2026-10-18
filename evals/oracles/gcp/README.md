@@ -78,6 +78,14 @@ A reviewer assesses the saved response and raw trace:
 Use PASS only when every applicable row is supported, FAIL for a supported violation, and
 INCONCLUSIVE for a material gap, naming what is missing. Keep a mechanical FAIL visible.
 
+**Dispositions.** A wrong or invented fact that the answer relies on, or gives an owner as a basis
+for action, is FAIL. A consistent miss of a next check or unknown the family record marks required
+is INCONCLUSIVE. A slip in an aside is PASS with a note. A stated count, rate, slope, interval or time
+that differs from the read is a slip when, with the correct figure substituted, every conclusion,
+hypothesis ranking and recommendation in the answer stands; it is a wrong fact when any of them
+changes, when the figure is the evidence the answer offers for a mechanism or for ruling one out, or
+when it describes a read result or an event that did not occur.
+
 ### Sources
 
 Each fact below was checked against Google's documentation on 2026-10-10; fixture wording that

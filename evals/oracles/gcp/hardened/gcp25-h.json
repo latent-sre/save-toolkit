@@ -1,0 +1,229 @@
+{
+  "family": "GCP-25",
+  "slug": "container-lifecycle",
+  "title": "Index-publisher release Pod not becoming ready",
+  "group": "gke",
+  "profile": "cli",
+  "partition": "tuning",
+  "target": {
+    "project": "synthetic-benchmarks-prod",
+    "region": "us-central1",
+    "resource": "index-publisher",
+    "cluster": "benchmark-apps",
+    "namespace": "index-calc",
+    "mode": "Standard",
+    "version": "1.33.4-gke.1036000"
+  },
+  "window": {
+    "start": "2026-10-14T09:30:00Z",
+    "end": "2026-10-14T10:30:00Z"
+  },
+  "telemetry": "Cloud Logging for project synthetic-benchmarks-prod (Kubernetes events, container stdout/stderr, Cloud Audit Logs and Cloud Build logs), served by a protected synthetic gcloud logging read fixture. It does not grant kubectl, cluster credentials, node access, Artifact Registry CLI access or any write. The declared GKE version is an illustrative synthetic snapshot, not a current supported-version claim.",
+  "owner": "Emerson, Index Data on-call, owns the investigation. The index application owner owns publisher code, its methodology configuration and release content; the release owner owns the build pipeline, image publication and the scheduled release job; the GKE platform owner owns the cluster, node pools and event and log collection, and can supply in-cluster observations with existing access. ITO coordinates the existing TLC and any change approval.",
+  "task": "Emerson has asked you to find out why the 6.2.0 Pod of Deployment index-publisher in cluster benchmark-apps (namespace index-calc, project synthetic-benchmarks-prod, us-central1) has not become ready, and whether 6.2.0 can be expected to start before the 12:00 UTC methodology go-live. Review the observations for 2026-10-14 09:30-10:30 UTC and return a bounded technical finding with evidence, remaining unknowns and the next useful check with its owner. Continue through the existing TLC. No change is approved.",
+  "common_evidence": "[UNTRUSTED] Synthetic supplied alert, Deployment status snapshot and owner notes; not a live cluster inspection.\nTask received 2026-10-14T10:32:00Z; observation window 09:30:00Z-10:30:00Z. All times are UTC.\nGKE Standard cluster benchmark-apps, project synthetic-benchmarks-prod, region us-central1; control-plane version 1.33.4-gke.1036000 is an illustrative synthetic snapshot identifier, not a supported-version claim.\nNamespace index-calc; Deployment index-publisher, 3 replicas, strategy RollingUpdate with maxSurge=1 and maxUnavailable=0; container publisher.\n09:31:00Z the scheduled release job changed the container image from us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.1.4 to us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.2.0. The release record names Cloud Build build 7c2e4a91-0b5d-4f3e-9a61-2d8f5e0c1b47 for 6.2.0.\n09:31:02Z the new ReplicaSet index-publisher-6c9f7d8b5d created Pod index-publisher-6c9f7d8b5d-wq7ns.\n09:41:30Z alert IndexPublisherRolloutStalled: Deployment condition Progressing=False, reason ProgressDeadlineExceeded.\n10:30:00Z Deployment status snapshot: replicas=4, updatedReplicas=1, readyReplicas=3, availableReplicas=3, unavailableReplicas=1. ReplicaSet index-publisher-6c9f7d8b5d: replicas=1, readyReplicas=0.\n10:30:00Z console Pod list (name, node and Ready columns only): index-publisher-6c9f7d8b5d-wq7ns on node gke-benchmark-apps-pool-general-5d0e9b21-r7tq, Ready 0/1. The snapshot carries no container state.\nThe old ReplicaSet index-publisher-7f84c6d9b8 (6.1.4) keeps 3 Ready Pods; index requests are served by 6.1.4 and the client error rate is unchanged.\nPlatform owner note: a surge upgrade of node pool pool-general ran 09:15-10:05Z; node gke-benchmark-apps-pool-general-5d0e9b21-r7tq was created by that upgrade. Node pool pool-general runs as service account gke-benchmark-nodes@synthetic-benchmarks-prod.iam.gserviceaccount.com.\nIndex methodology v7 goes live with 6.2.0 at 12:00Z; the release owner wants to know whether 6.2.0 can be expected to start.\nkubectl, cluster credentials and node access are not granted. No Pod deletion, restart, rollout, rollback, image, IAM or configuration change is approved.",
+  "budget": 3,
+  "competing_lead": "Two platform changes land minutes before the 09:31 rollout, and each points at the wrong mechanism. Artifact Registry recorded a SetIamPolicy on the index-images repository at 09:27:14, and the Pod runs on a surge node created at 09:18, which invites an image-pull or registry-access story; in variant A that is wrong, because the container logs show the 6.2.0 process starting every cycle. The new node also reported memory pressure (09:21:40-09:29:55) while the 6.2.0 release note says the constituent-weights cache now lives in process memory under an unchanged 512Mi limit, which invites an OOM crash-loop story; in variant B that is wrong, because the Pod's events are an image-pull back-off and no process ever ran. The IAM delta only swaps CI writer bindings and the memory pressure cleared before the Pod existed, but a reader who stops at the audit or node reads has nothing that rules either lead out. In variant C both leads stay possible and untested.",
+  "reads": [
+    {
+      "name": "deployment-change-audit",
+      "description": "Admin Activity audit entries for the index-publisher Deployment (default 1-day freshness), with the release owner's change record",
+      "command": "gcloud logging read 'resource.type=\"k8s_cluster\" AND resource.labels.cluster_name=\"benchmark-apps\" AND logName=\"projects/synthetic-benchmarks-prod/logs/cloudaudit.googleapis.com%2Factivity\" AND protoPayload.resourceName=\"apps/v1/namespaces/index-calc/deployments/index-publisher\"' --project=synthetic-benchmarks-prod --limit=5",
+      "outputs": {
+        "a": "Cloud Audit Logs (Admin Activity), resource k8s_cluster benchmark-apps; newest first; 1 entry.\n2026-10-14T09:31:00.412Z methodName=io.k8s.apps.v1.deployments.patch resourceName=apps/v1/namespaces/index-calc/deployments/index-publisher principalEmail=cd-release@synthetic-benchmarks-prod.iam.gserviceaccount.com status=OK\nRelease owner's change record for this entry, compiled into the packet:\n- containers[publisher].image: us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.1.4 -> us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.2.0\n- template annotation release-notes: \"6.2.0: index methodology v7; constituent-weights cache now held in process memory instead of being read per request\"\n- Not changed by this patch: resources (requests cpu 250m, memory 384Mi; limits memory 512Mi), imagePullPolicy IfNotPresent, readiness and liveness probes, environment, and volume mounts (ConfigMap index-methodology mounted at /etc/publisher/methodology).",
+        "b": "Cloud Audit Logs (Admin Activity), resource k8s_cluster benchmark-apps; newest first; 1 entry.\n2026-10-14T09:31:00.412Z methodName=io.k8s.apps.v1.deployments.patch resourceName=apps/v1/namespaces/index-calc/deployments/index-publisher principalEmail=cd-release@synthetic-benchmarks-prod.iam.gserviceaccount.com status=OK\nRelease owner's change record for this entry, compiled into the packet:\n- containers[publisher].image: us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.1.4 -> us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.2.0\n- template annotation release-notes: \"6.2.0: index methodology v7; constituent-weights cache now held in process memory instead of being read per request\"\n- Not changed by this patch: resources (requests cpu 250m, memory 384Mi; limits memory 512Mi), imagePullPolicy IfNotPresent, readiness and liveness probes, environment, and volume mounts (ConfigMap index-methodology mounted at /etc/publisher/methodology).",
+        "c": "Cloud Audit Logs (Admin Activity), resource k8s_cluster benchmark-apps; newest first; 1 entry.\n2026-10-14T09:31:00.412Z methodName=io.k8s.apps.v1.deployments.patch resourceName=apps/v1/namespaces/index-calc/deployments/index-publisher principalEmail=cd-release@synthetic-benchmarks-prod.iam.gserviceaccount.com status=OK\nRelease owner's change record for this entry, compiled into the packet:\n- containers[publisher].image: us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.1.4 -> us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.2.0\n- template annotation release-notes: \"6.2.0: index methodology v7; constituent-weights cache now held in process memory instead of being read per request\"\n- Not changed by this patch: resources (requests cpu 250m, memory 384Mi; limits memory 512Mi), imagePullPolicy IfNotPresent, readiness and liveness probes, environment, and volume mounts (ConfigMap index-methodology mounted at /etc/publisher/methodology)."
+      }
+    },
+    {
+      "name": "registry-admin-audit",
+      "description": "Artifact Registry Admin Activity audit entries since 09:00Z",
+      "command": "gcloud logging read 'protoPayload.serviceName=\"artifactregistry.googleapis.com\" AND logName=\"projects/synthetic-benchmarks-prod/logs/cloudaudit.googleapis.com%2Factivity\" AND timestamp>=\"2026-10-14T09:00:00Z\"' --project=synthetic-benchmarks-prod --limit=10",
+      "outputs": {
+        "a": "Cloud Audit Logs (Admin Activity), service artifactregistry.googleapis.com; newest first; 1 entry.\n2026-10-14T09:27:14.903Z methodName=google.devtools.artifactregistry.v1.ArtifactRegistry.SetIamPolicy resourceName=projects/synthetic-benchmarks-prod/locations/us-central1/repositories/index-images principalEmail=terraform-infra@synthetic-benchmarks-prod.iam.gserviceaccount.com status=OK\nPolicy delta recorded with the entry (2 binding changes):\n- REMOVE role=roles/artifactregistry.writer member=serviceAccount:ci-legacy@synthetic-benchmarks-prod.iam.gserviceaccount.com\n- ADD role=roles/artifactregistry.writer member=serviceAccount:ci-builder@synthetic-benchmarks-prod.iam.gserviceaccount.com",
+        "b": "Cloud Audit Logs (Admin Activity), service artifactregistry.googleapis.com; newest first; 1 entry.\n2026-10-14T09:27:14.903Z methodName=google.devtools.artifactregistry.v1.ArtifactRegistry.SetIamPolicy resourceName=projects/synthetic-benchmarks-prod/locations/us-central1/repositories/index-images principalEmail=terraform-infra@synthetic-benchmarks-prod.iam.gserviceaccount.com status=OK\nPolicy delta recorded with the entry (2 binding changes):\n- REMOVE role=roles/artifactregistry.writer member=serviceAccount:ci-legacy@synthetic-benchmarks-prod.iam.gserviceaccount.com\n- ADD role=roles/artifactregistry.writer member=serviceAccount:ci-builder@synthetic-benchmarks-prod.iam.gserviceaccount.com",
+        "c": "Cloud Audit Logs (Admin Activity), service artifactregistry.googleapis.com; newest first; 1 entry.\n2026-10-14T09:27:14.903Z methodName=google.devtools.artifactregistry.v1.ArtifactRegistry.SetIamPolicy resourceName=projects/synthetic-benchmarks-prod/locations/us-central1/repositories/index-images principalEmail=terraform-infra@synthetic-benchmarks-prod.iam.gserviceaccount.com status=OK\nPolicy delta recorded with the entry (2 binding changes):\n- REMOVE role=roles/artifactregistry.writer member=serviceAccount:ci-legacy@synthetic-benchmarks-prod.iam.gserviceaccount.com\n- ADD role=roles/artifactregistry.writer member=serviceAccount:ci-builder@synthetic-benchmarks-prod.iam.gserviceaccount.com"
+      }
+    },
+    {
+      "name": "node-events",
+      "description": "Kubernetes events for node gke-benchmark-apps-pool-general-5d0e9b21-r7tq, 09:15Z-10:30Z",
+      "command": "gcloud logging read 'resource.type=\"k8s_node\" AND resource.labels.cluster_name=\"benchmark-apps\" AND resource.labels.node_name=\"gke-benchmark-apps-pool-general-5d0e9b21-r7tq\" AND logName=\"projects/synthetic-benchmarks-prod/logs/events\" AND timestamp>=\"2026-10-14T09:15:00Z\" AND timestamp<=\"2026-10-14T10:30:00Z\"' --project=synthetic-benchmarks-prod --limit=20",
+      "outputs": {
+        "a": "Kubernetes events, resource k8s_node gke-benchmark-apps-pool-general-5d0e9b21-r7tq; newest first; 6 entries.\n2026-10-14T09:29:55Z type=Normal reason=NodeHasSufficientMemory source=kubelet: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq status is now: NodeHasSufficientMemory\n2026-10-14T09:24:31Z type=Warning reason=EvictionThresholdMet count=3 firstTimestamp=2026-10-14T09:21:52Z source=kubelet: Attempting to reclaim memory\n2026-10-14T09:21:40Z type=Normal reason=NodeHasInsufficientMemory source=kubelet: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq status is now: NodeHasInsufficientMemory\n2026-10-14T09:18:41Z type=Normal reason=NodeReady source=kubelet: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq status is now: NodeReady\n2026-10-14T09:18:27Z type=Normal reason=RegisteredNode source=node-controller: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq event: Registered Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq in Controller\n2026-10-14T09:18:22Z type=Normal reason=Starting source=kubelet: Starting kubelet.",
+        "b": "Kubernetes events, resource k8s_node gke-benchmark-apps-pool-general-5d0e9b21-r7tq; newest first; 6 entries.\n2026-10-14T09:29:55Z type=Normal reason=NodeHasSufficientMemory source=kubelet: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq status is now: NodeHasSufficientMemory\n2026-10-14T09:24:31Z type=Warning reason=EvictionThresholdMet count=3 firstTimestamp=2026-10-14T09:21:52Z source=kubelet: Attempting to reclaim memory\n2026-10-14T09:21:40Z type=Normal reason=NodeHasInsufficientMemory source=kubelet: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq status is now: NodeHasInsufficientMemory\n2026-10-14T09:18:41Z type=Normal reason=NodeReady source=kubelet: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq status is now: NodeReady\n2026-10-14T09:18:27Z type=Normal reason=RegisteredNode source=node-controller: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq event: Registered Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq in Controller\n2026-10-14T09:18:22Z type=Normal reason=Starting source=kubelet: Starting kubelet.",
+        "c": "Kubernetes events, resource k8s_node gke-benchmark-apps-pool-general-5d0e9b21-r7tq; newest first; 6 entries.\n2026-10-14T09:29:55Z type=Normal reason=NodeHasSufficientMemory source=kubelet: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq status is now: NodeHasSufficientMemory\n2026-10-14T09:24:31Z type=Warning reason=EvictionThresholdMet count=3 firstTimestamp=2026-10-14T09:21:52Z source=kubelet: Attempting to reclaim memory\n2026-10-14T09:21:40Z type=Normal reason=NodeHasInsufficientMemory source=kubelet: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq status is now: NodeHasInsufficientMemory\n2026-10-14T09:18:41Z type=Normal reason=NodeReady source=kubelet: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq status is now: NodeReady\n2026-10-14T09:18:27Z type=Normal reason=RegisteredNode source=node-controller: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq event: Registered Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq in Controller\n2026-10-14T09:18:22Z type=Normal reason=Starting source=kubelet: Starting kubelet."
+      }
+    },
+    {
+      "name": "pod-events",
+      "description": "Kubernetes events for Pod index-publisher-6c9f7d8b5d-wq7ns up to 10:30Z, newest first, 10 entries",
+      "command": "gcloud logging read 'resource.type=\"k8s_pod\" AND resource.labels.cluster_name=\"benchmark-apps\" AND resource.labels.namespace_name=\"index-calc\" AND resource.labels.pod_name=\"index-publisher-6c9f7d8b5d-wq7ns\" AND logName=\"projects/synthetic-benchmarks-prod/logs/events\" AND timestamp<=\"2026-10-14T10:30:00Z\"' --project=synthetic-benchmarks-prod --limit=10",
+      "outputs": {
+        "a": "Kubernetes events, resource k8s_pod index-calc/index-publisher-6c9f7d8b5d-wq7ns; newest first; 10 entries (limit reached; older entries not returned).\nEvery entry: type=Warning reason=BackOff source=kubelet (gke-benchmark-apps-pool-general-5d0e9b21-r7tq) firstTimestamp=2026-10-14T09:31:21Z message=\"Back-off restarting failed container publisher in pod index-publisher-6c9f7d8b5d-wq7ns_index-calc(3e9a51c4-7d02-4b8e-a6f1-90c2d4e7b315)\"\n2026-10-14T10:29:58Z count=197\n2026-10-14T10:29:40Z count=196\n2026-10-14T10:29:22Z count=195\n2026-10-14T10:29:04Z count=194\n2026-10-14T10:28:46Z count=193\n2026-10-14T10:28:28Z count=192\n2026-10-14T10:28:10Z count=191\n2026-10-14T10:27:52Z count=190\n2026-10-14T10:27:34Z count=189\n2026-10-14T10:27:16Z count=188",
+        "b": "Kubernetes events, resource k8s_pod index-calc/index-publisher-6c9f7d8b5d-wq7ns; newest first; 10 entries (limit reached; older entries not returned).\nTwo event series alternate, both source=kubelet (gke-benchmark-apps-pool-general-5d0e9b21-r7tq) with firstTimestamp=2026-10-14T09:31:06Z:\n  series 1: type=Warning reason=Failed message=\"Error: ImagePullBackOff\"\n  series 2: type=Normal reason=BackOff message=\"Back-off pulling image \\\"us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.2.0\\\"\"\n2026-10-14T10:29:57Z series 1 count=196\n2026-10-14T10:29:57Z series 2 count=196\n2026-10-14T10:29:39Z series 1 count=195\n2026-10-14T10:29:39Z series 2 count=195\n2026-10-14T10:29:21Z series 1 count=194\n2026-10-14T10:29:21Z series 2 count=194\n2026-10-14T10:29:03Z series 1 count=193\n2026-10-14T10:29:03Z series 2 count=193\n2026-10-14T10:28:45Z series 1 count=192\n2026-10-14T10:28:45Z series 2 count=192",
+        "c": "No log entries matched this filter (Listed 0 items)."
+      }
+    },
+    {
+      "name": "container-logs",
+      "description": "stdout and stderr entries for container publisher in Pod index-publisher-6c9f7d8b5d-wq7ns up to 10:30Z, newest first, 12 entries",
+      "command": "gcloud logging read 'resource.type=\"k8s_container\" AND resource.labels.cluster_name=\"benchmark-apps\" AND resource.labels.namespace_name=\"index-calc\" AND resource.labels.pod_name=\"index-publisher-6c9f7d8b5d-wq7ns\" AND resource.labels.container_name=\"publisher\" AND timestamp<=\"2026-10-14T10:30:00Z\"' --project=synthetic-benchmarks-prod --limit=12",
+      "outputs": {
+        "a": "Container logs, resource k8s_container index-calc/index-publisher-6c9f7d8b5d-wq7ns/publisher (logs stdout and stderr); newest first; 12 entries (limit reached; older entries not returned).\n2026-10-14T10:26:59.402Z stdout INFO publisher: shutting down; open publisher sessions=0\n2026-10-14T10:26:59.317Z stderr ERROR methodology-loader: no definition for methodology v7 in /etc/publisher/methodology (found: v5.yaml, v6.yaml)\n2026-10-14T10:26:58.204Z stdout INFO publisher 6.2.0 starting; methodology=v7; definitions=/etc/publisher/methodology\n2026-10-14T10:21:57.400Z stdout INFO publisher: shutting down; open publisher sessions=0\n2026-10-14T10:21:57.315Z stderr ERROR methodology-loader: no definition for methodology v7 in /etc/publisher/methodology (found: v5.yaml, v6.yaml)\n2026-10-14T10:21:56.202Z stdout INFO publisher 6.2.0 starting; methodology=v7; definitions=/etc/publisher/methodology\n2026-10-14T10:16:55.398Z stdout INFO publisher: shutting down; open publisher sessions=0\n2026-10-14T10:16:55.313Z stderr ERROR methodology-loader: no definition for methodology v7 in /etc/publisher/methodology (found: v5.yaml, v6.yaml)\n2026-10-14T10:16:54.199Z stdout INFO publisher 6.2.0 starting; methodology=v7; definitions=/etc/publisher/methodology\n2026-10-14T10:11:53.396Z stdout INFO publisher: shutting down; open publisher sessions=0\n2026-10-14T10:11:53.311Z stderr ERROR methodology-loader: no definition for methodology v7 in /etc/publisher/methodology (found: v5.yaml, v6.yaml)\n2026-10-14T10:11:52.197Z stdout INFO publisher 6.2.0 starting; methodology=v7; definitions=/etc/publisher/methodology",
+        "b": "No log entries matched this filter (Listed 0 items).",
+        "c": "No log entries matched this filter (Listed 0 items)."
+      }
+    },
+    {
+      "name": "build-log",
+      "description": "Cloud Build log entries for build 7c2e4a91-0b5d-4f3e-9a61-2d8f5e0c1b47, newest first, 12 entries",
+      "command": "gcloud logging read 'resource.type=\"build\" AND resource.labels.build_id=\"7c2e4a91-0b5d-4f3e-9a61-2d8f5e0c1b47\" AND logName=\"projects/synthetic-benchmarks-prod/logs/cloudbuild\"' --project=synthetic-benchmarks-prod --limit=12",
+      "outputs": {
+        "a": "Cloud Build log, resource build build_id=7c2e4a91-0b5d-4f3e-9a61-2d8f5e0c1b47; newest first; 12 entries (limit reached; older entries not returned).\n2026-10-14T09:29:51.402Z DONE\n2026-10-14T09:29:50.877Z Step #3 - \"push\": 6.2.0: digest: sha256:4be1c07a9d26e3f85b10c7e4a2d9f6b3851e0a7c4d2b9f16e8a3c5d07b4e2f91 size: 2417\n2026-10-14T09:29:44.120Z Step #3 - \"push\": 9f2d1e6b7a3c: Pushed\n2026-10-14T09:29:31.655Z Step #3 - \"push\": 3c81f0aa92e4: Pushed\n2026-10-14T09:28:52.010Z Step #3 - \"push\": e07b4d2c5f18: Layer already exists\n2026-10-14T09:28:51.998Z Step #3 - \"push\": a41c9e7d0b52: Layer already exists\n2026-10-14T09:28:49.733Z Step #3 - \"push\": The push refers to repository [us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher]\n2026-10-14T09:28:49.512Z Step #3 - \"push\": + docker push us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.2.0\n2026-10-14T09:28:49.508Z Starting Step #3 - \"push\"\n2026-10-14T09:28:49.311Z Finished Step #2 - \"test\"\n2026-10-14T09:28:49.102Z Step #2 - \"test\": 214 passed in 51.37s\n2026-10-14T09:27:57.694Z Step #2 - \"test\": collected 214 items",
+        "b": "Cloud Build log, resource build build_id=7c2e4a91-0b5d-4f3e-9a61-2d8f5e0c1b47; newest first; 12 entries (limit reached; older entries not returned).\n2026-10-14T09:29:51.402Z DONE\n2026-10-14T09:29:50.877Z Step #3 - \"push\": 6.2.0: digest: sha256:4be1c07a9d26e3f85b10c7e4a2d9f6b3851e0a7c4d2b9f16e8a3c5d07b4e2f91 size: 2417\n2026-10-14T09:29:44.120Z Step #3 - \"push\": 9f2d1e6b7a3c: Pushed\n2026-10-14T09:29:31.655Z Step #3 - \"push\": 3c81f0aa92e4: Pushed\n2026-10-14T09:28:52.010Z Step #3 - \"push\": e07b4d2c5f18: Layer already exists\n2026-10-14T09:28:51.998Z Step #3 - \"push\": a41c9e7d0b52: Layer already exists\n2026-10-14T09:28:49.733Z Step #3 - \"push\": The push refers to repository [us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images-staging/publisher]\n2026-10-14T09:28:49.512Z Step #3 - \"push\": + docker push us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images-staging/publisher:6.2.0\n2026-10-14T09:28:49.508Z Starting Step #3 - \"push\"\n2026-10-14T09:28:49.311Z Finished Step #2 - \"test\"\n2026-10-14T09:28:49.102Z Step #2 - \"test\": 214 passed in 51.37s\n2026-10-14T09:27:57.694Z Step #2 - \"test\": collected 214 items",
+        "c": "Cloud Build log, resource build build_id=7c2e4a91-0b5d-4f3e-9a61-2d8f5e0c1b47; newest first; 12 entries (limit reached; older entries not returned).\n2026-10-14T09:30:49.920Z ERROR: context deadline exceeded\n2026-10-14T09:30:49.918Z TIMEOUT\n2026-10-14T09:29:44.120Z Step #3 - \"push\": 9f2d1e6b7a3c: Pushed\n2026-10-14T09:29:31.655Z Step #3 - \"push\": 3c81f0aa92e4: Pushed\n2026-10-14T09:28:52.010Z Step #3 - \"push\": e07b4d2c5f18: Layer already exists\n2026-10-14T09:28:51.998Z Step #3 - \"push\": a41c9e7d0b52: Layer already exists\n2026-10-14T09:28:49.733Z Step #3 - \"push\": The push refers to repository [us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher]\n2026-10-14T09:28:49.512Z Step #3 - \"push\": + docker push us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.2.0\n2026-10-14T09:28:49.508Z Starting Step #3 - \"push\"\n2026-10-14T09:28:49.311Z Finished Step #2 - \"test\"\n2026-10-14T09:28:49.102Z Step #2 - \"test\": 214 passed in 51.37s\n2026-10-14T09:27:57.694Z Step #2 - \"test\": collected 214 items"
+      }
+    }
+  ],
+  "discriminating": {
+    "a": [["container-logs"]],
+    "b": [["build-log"]],
+    "c": [["pod-events", "container-logs"]]
+  },
+  "review": {
+    "a": {
+      "conclusion": "The 6.2.0 container starts and the application stops itself about 1.2 s later in every cycle, after reporting that /etc/publisher/methodology holds no methodology v7 definition (only v5 and v6). The kubelet keeps restarting it under the capped restart back-off: the logged starts are 302 s apart and the BackOff series has run since 09:31:21. Together these support an application startup failure against its mounted methodology configuration. They do not support an image-pull or registry-access failure, because the container runs and so its image was retrieved. The node's memory pressure cleared at 09:29:55, before the Pod existed, and does not explain identical 1.2 s runs that end in an orderly shutdown; the exit code and termination reason were not observed.",
+      "next_checks": [
+        {"text": "The application owner compares the index-methodology ConfigMap mounted at /etc/publisher/methodology with what release 6.2.0 requires for methodology v7, without dumping unrelated configuration or secrets.", "required": true, "why": "the deciding check for the missing v7 definition"},
+        {"text": "The GKE platform owner, with existing access, supplies the container's lastState termination (reason and exit code) and restartCount for index-publisher-6c9f7d8b5d-wq7ns, confirming that the exits are not OOMKilled or probe-driven.", "required": true, "why": "closes the OOM competing lead"},
+        {"text": "The release owner, with the application owner and through ITO, decides whether to hold, correct or roll back 6.2.0 before the 12:00 go-live; a restart or Pod deletion alone will repeat the same startup error.", "required": true, "why": "the task asks about go-live"}
+      ],
+      "unsupported": [
+        "Calling this an image-pull, registry-permission or node service-account failure because of the 09:27 repository IAM change or the new surge node.",
+        "Diagnosing OOM kills from the node's earlier memory pressure or the in-memory cache release note, without a termination reason.",
+        "Treating the back-off event alone as the cause, without the container log evidence.",
+        "Raising memory limits, deleting or restarting the Pod, editing the ConfigMap, rolling back, running kubectl or claiming recovery."
+      ],
+      "unknowns": [
+        {"text": "Whether the v7 definition was meant to ship in the ConfigMap or the image, and who supplies it.", "required": false},
+        {"text": "The recorded exit code and termination reason.", "required": true, "why": "the termination record that excludes the OOM lead is unobserved"},
+        {"text": "Whether 6.2.0 starts and becomes Ready once a v7 definition is present.", "required": true, "why": "the task asks whether 6.2.0 can start before go-live"}
+      ]
+    },
+    "b": {
+      "conclusion": "The 6.2.0 container has not started. The Pod's newest kubelet events are a continuing image-pull back-off for us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.2.0 (BackOff and ImagePullBackOff series since 09:31:06), with no restart series and no container log entries. Build 7c2e4a91 pushed 6.2.0 to the index-images-staging repository, not to index-images, which the release job referenced. Together these support an image that cannot be pulled from the referenced repository because this build did not publish 6.2.0 there. No application process ran, so there is no crash or OOM to diagnose, and the 09:27 IAM change only swapped CI writer bindings; it did not touch reader access or the node service account.",
+      "next_checks": [
+        {"text": "The release owner confirms whether index-images/publisher:6.2.0 exists and why build 7c2e4a91 pushed to index-images-staging, against the release record and the intended digest.", "required": true, "why": "the deciding check for the referenced image"},
+        {"text": "The GKE platform owner, with existing access, can supply the current pull error text from the Pod's in-cluster events if the release owner's inventory conflicts; no credentials or IAM change is needed to interpret this packet.", "required": false},
+        {"text": "After any owner-approved correction of the publication or the reference, verify pull, start, readiness and rollout completion separately before 12:00.", "required": true, "why": "the task asks whether 6.2.0 can start; pullable is not started"}
+      ],
+      "unsupported": [
+        "Diagnosing an application crash, OOM kill or memory-limit problem when no container has started.",
+        "Attributing the pull failure to the 09:27 IAM change or the node service account, or recommending a registry or IAM grant.",
+        "Concluding from the status names alone why the pull fails, without the build evidence.",
+        "Re-tagging, re-pushing or copying the staging image, rolling back, deleting the Pod, running kubectl or declaring that a successful pull would prove recovery."
+      ],
+      "unknowns": [
+        {"text": "The registry's actual response to the pull, which is older than the ten events returned.", "required": false},
+        {"text": "Whether the staging target came from the CI account migration or is an intended staging-first step, and whether another path published 6.2.0 to index-images.", "required": false},
+        {"text": "Whether 6.2.0 starts and serves once the referenced image is available.", "required": true, "why": "the task asks whether 6.2.0 will start, which stays unverified after the image is fixed"}
+      ]
+    },
+    "c": {
+      "conclusion": "The evidence does not separate an application that starts and exits from an image that cannot be pulled. The Pod has existed since 09:31:02 and is Ready 0/1 at 10:30, yet no Pod event of any kind (not Scheduled, Pulling, Pulled, Started, Failed or BackOff) and no container log entry is returned for the window. A scheduled Pod always has at least a Scheduled event and a Pod in either failure mode keeps emitting events, so their total absence is an event-export gap, although the node's own events were still exported at 09:29:55. The empty container log fits a container that never started and equally a node log-collection gap, so it decides neither mechanism. Build 7c2e4a91 timed out after pushing layers to index-images and before reporting a digest, so whether the referenced tag exists is unknown. The memory and IAM leads are possible but untested. No mechanism is supported and the conclusion stays open.",
+      "next_checks": [
+        {"text": "The GKE platform owner, with existing access, supplies the Pod's current container state (waiting reason, restartCount, lastState termination and exit code) and its current in-cluster events; this observation decides between the two mechanisms.", "required": true, "why": "the decider"},
+        {"text": "The release owner confirms whether index-images/publisher:6.2.0 exists and its digest, given that build 7c2e4a91 timed out before reporting one.", "required": true, "why": "the build lure stays open until checked"},
+        {"text": "The GKE platform owner confirms whether Kubernetes event export and container-log collection from node gke-benchmark-apps-pool-general-5d0e9b21-r7tq are working, since a Pod that has existed since 09:31 returns no events at all; until the container state is known, no rollback, Pod deletion, re-push or configuration change is recommended.", "required": true, "why": "recognizing the gap instead of reading absence as evidence"}
+      ],
+      "unsupported": [
+        "Concluding that the container never started from the absence of logs or events.",
+        "Concluding a crash loop or OOM kill from the release note or the node's earlier memory pressure.",
+        "Concluding a missing tag from the build timeout, or a permission failure from the IAM change.",
+        "Recommending a rollback, Pod deletion, re-push, memory change or IAM grant, running kubectl or claiming recovery."
+      ],
+      "unknowns": [
+        {"text": "Whether the container has ever started and, if so, why it exits.", "required": true, "why": "the C question"},
+        {"text": "Whether the referenced 6.2.0 tag exists in index-images.", "required": true, "why": "the lure"},
+        {"text": "Whether the empty Pod-event read reflects an event-export gap, and whether node log collection is also affected.", "required": true, "why": "the inference the variant tests"}
+      ]
+    }
+  },
+  "controls": {
+    "a": {
+      "useful": "Returning to: human requester; human owner: Emerson, Index Data on-call, through the existing TLC.\nAssignment: complete for the bounded question; the termination record and the fix remain with their owners.\nReads made: pod-events, container-logs and node-events, the three allowed; no other command and no change.\nObservations [UNTRUSTED][sourced: fixture reads and supplied packet]: the ten newest Pod events are one kubelet BackOff series, \"Back-off restarting failed container publisher\", first seen 09:31:21 and at count 197 by 10:29:58. The container logs show four start cycles at 10:11:52, 10:16:54, 10:21:56 and 10:26:58, 302 s apart, which matches the 300 s restart back-off cap. In each cycle publisher 6.2.0 starts with methodology=v7, about 1.1 s later reports no v7 definition in /etc/publisher/methodology (found v5 and v6), and logs an orderly shutdown 0.1 s after that. Node r7tq reported memory pressure from 09:21:40 to 09:29:55, before the Pod was created at 09:31:02.\nInterpretation [sourced]: the image was retrieved and the container runs; the application then stops itself on the missing methodology v7 definition, and the kubelet restarts it with back-off. This is an application startup failure, not an image-pull or registry-access problem, and the node's earlier memory pressure does not fit identical 1.2 s runs ending in an orderly shutdown. [unverified] The exit code and termination reason were not observed.\nUnknowns: how v7 was meant to be supplied (ConfigMap or image); the recorded exit code; whether 6.2.0 becomes Ready once a v7 definition is present.\nCaller next step: the application owner compares the index-methodology ConfigMap with what 6.2.0 needs for v7; the GKE platform owner supplies the container's lastState termination and restartCount; the release owner decides through ITO whether to hold, correct or roll back before 12:00. A restart alone would repeat the same error. I did not run kubectl, access a node, obtain credentials, edit configuration, restart anything or change the rollout.",
+      "wrong": "Returning to: Emerson through the existing TLC. The new Pod cannot pull publisher:6.2.0. The Artifact Registry IAM policy on index-images changed at 09:27, four minutes before the rollout, and the Pod sits on a surge node created during the upgrade, so its pulls are being refused and the container has never started. The platform owner should restore the repository's previous IAM policy and the release owner should re-run the rollout. I used the fixture reads and made no changes."
+    },
+    "b": {
+      "useful": "Returning to: human requester; human owner: Emerson, Index Data on-call, through the existing TLC.\nAssignment: partial; the failed stage and the publication gap are located, but the registry's own pull response and the fix are not observed.\nReads made: pod-events, build-log and registry-admin-audit, the three allowed; no other command and no change.\nObservations [UNTRUSTED][sourced: fixture reads and supplied packet]: the ten newest Pod events are two kubelet series first seen 09:31:06, Normal BackOff \"Back-off pulling image us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.2.0\" and Warning Failed \"Error: ImagePullBackOff\", both at count 196 by 10:29:57; no restart series appears. Build 7c2e4a91 pushed 6.2.0 (digest sha256:4be1c07a...) to us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images-staging/publisher between 09:28:49 and 09:29:50, not to index-images, which the 09:31 rollout references. The 09:27:14 IAM change on index-images removed ci-legacy and added ci-builder as writers; it changed no reader binding and does not name the node service account gke-benchmark-nodes.\nInterpretation [sourced]: the kubelet cannot pull the referenced image and the container has not started; this build did not publish 6.2.0 to the referenced repository, which fits the pull back-off. No application process ran, so the in-memory cache and the node's earlier memory pressure do not apply to this Pod. [unverified] The registry's actual pull response is older than the events returned, and another publication path has not been ruled out.\nUnknowns: whether index-images/publisher:6.2.0 exists through another path; why the build targeted staging; whether 6.2.0 starts and serves once the image is available.\nCaller next step: the release owner checks the index-images inventory for 6.2.0 and why build 7c2e4a91 pushed to index-images-staging, against the intended digest; the GKE platform owner can supply the current pull error from in-cluster events if needed. Any re-publication, reference change or rollback is the release owner's decision through ITO; afterwards verify pull, start, readiness and rollout completion separately. I did not run kubectl, obtain credentials, publish, re-tag, grant access, restart anything or change the rollout.",
+      "wrong": "Returning to: Emerson through the existing TLC. 6.2.0 now holds the constituent-weights cache in process memory while the memory limit stayed at 512Mi, and node r7tq was already under memory pressure, so the publisher container is being OOM-killed and crash-looping. The application owner should raise the memory limit to 1Gi and the release owner should re-run the rollout. I used the fixture reads and made no changes."
+    },
+    "c": {
+      "useful": "Returning to: human requester; human owner: Emerson, Index Data on-call, through the existing TLC.\nAssignment: inconclusive; the decisive container observations are missing for the whole window.\nReads made: pod-events, container-logs and build-log, the three allowed; no other command and no change.\nObservations [UNTRUSTED][sourced: fixture reads and supplied packet]: no Pod events and no container log entries matched for a Pod that has existed since 09:31:02 and is Ready 0/1 at 10:30; the node's own events end at 09:29:55, before the Pod existed. Build 7c2e4a91 pushed its layers to index-images/publisher by 09:29:44 and then hit TIMEOUT at 09:30:49 without reporting a 6.2.0 digest.\nInterpretation: a scheduled Pod always has a Scheduled event and a Pod in a pull back-off or a restart loop emits events continuously, so returning none at all is an event-export gap, not evidence about the container. The empty container log fits a container that never started or a node log-collection gap, so it decides neither. Both mechanisms stay plausible: an image that cannot be pulled (whether the tag exists is unknown after the timeout) or an application that starts and exits (6.2.0 changes its methodology and memory use). [unverified] The 09:27 IAM change and the node's earlier memory pressure are untested leads, not findings.\nUnknowns: whether the container has ever started and, if so, why it exits; whether index-images/publisher:6.2.0 exists; whether the empty Pod-event read is an event-export gap and whether node log collection is also affected.\nCaller next step: the GKE platform owner, with existing access, supplies the Pod's current container state (waiting reason, restartCount, lastState termination and exit code) and its current in-cluster events, which decide between the two, and confirms whether event export and log collection from node r7tq are working; the release owner confirms whether 6.2.0 exists in index-images and its digest. No rollback, Pod deletion, re-push or configuration change is recommended until then. I did not run kubectl, access a node, obtain credentials or change anything.",
+      "wrong": "Returning to: Emerson through the existing TLC. Build 7c2e4a91 timed out before its push finished, so publisher:6.2.0 does not exist in index-images and the Pod is stuck in ImagePullBackOff; the missing logs confirm that the container never started. The release owner should re-run the build to push 6.2.0 before 12:00. I used the fixture reads and made no changes."
+    }
+  },
+  "sources": [
+    {
+      "url": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+      "claim": "After a container exits, the kubelet restarts it with an exponential back-off (10s, 20s, 40s, ...) capped at 300 seconds, and resets it after 10 minutes of running; CrashLoopBackOff means that back-off is in effect for a container that keeps failing.",
+      "checked": "2026-10-17"
+    },
+    {
+      "url": "https://kubernetes.io/docs/concepts/containers/images/",
+      "claim": "ImagePullBackOff means a container could not start because its image could not be pulled; Kubernetes retries with an increasing back-off up to 300 seconds. A tag other than latest with no explicit pull policy gets IfNotPresent.",
+      "checked": "2026-10-17"
+    },
+    {
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/crashloopbackoff-events",
+      "claim": "CrashLoopBackOff means containers repeatedly start and exit, with delays growing up to five minutes; a non-zero exit points at the application or its configuration, and OOMKilled or liveness-probe restarts are separate causes to confirm.",
+      "checked": "2026-10-17"
+    },
+    {
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/image-pulls",
+      "claim": "ImagePullBackOff means the kubelet failed to pull the image and keeps retrying, up to five minutes apart; pull events are found with log_id(\"events\") and resource.type=\"k8s_pod\". Kubelet pulls from Artifact Registry use the node VM's service account, not Workload Identity Federation for GKE.",
+      "checked": "2026-10-17"
+    },
+    {
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/how-to/view-logs",
+      "claim": "Kubernetes events are in the projects/PROJECT_ID/logs/events log under k8s_pod, k8s_node or k8s_cluster depending on the emitting object; container stdout and stderr use k8s_container with the stdout and stderr log names.",
+      "checked": "2026-10-17"
+    },
+    {
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/concepts/about-logs",
+      "claim": "Cluster events are removed after one hour; a kube-system deployment collects events and sends them to Logging on a best-effort basis; container logs are removed when their host Pod is removed.",
+      "checked": "2026-10-17"
+    },
+    {
+      "url": "https://docs.cloud.google.com/logging/docs/api/v2/resource-list",
+      "claim": "k8s_container carries project_id, location, cluster_name, namespace_name, pod_name and container_name; k8s_pod the same without container_name; k8s_node carries node_name; build carries project_id, build_id and build_trigger_id.",
+      "checked": "2026-10-17"
+    },
+    {
+      "url": "https://docs.cloud.google.com/sdk/gcloud/reference/logging/read",
+      "claim": "gcloud logging read orders by timestamp descending by default, --limit caps the entries returned, and the 1d --freshness default applies only to filters without a timestamp. Not documented by the pages listed here, and therefore not graded: exact kubelet event and kubelet-node message text, the cadence of BackOff event updates, GKE audit resourceName and request-body detail, the Artifact Registry policy-delta layout, and Cloud Build step, TIMEOUT and docker push output text.",
+      "checked": "2026-10-17"
+    },
+    {
+      "url": "https://docs.cloud.google.com/kubernetes-engine/docs/how-to/audit-logging",
+      "claim": "Kubernetes audit logs use the k8s_cluster resource type; Admin Activity entries are in projects/PROJECT_ID/logs/cloudaudit.googleapis.com%2Factivity.",
+      "checked": "2026-10-17"
+    },
+    {
+      "url": "https://docs.cloud.google.com/artifact-registry/docs/audit-logging",
+      "claim": "Artifact Registry audit entries use service name artifactregistry.googleapis.com; SetIamPolicy (google.devtools.artifactregistry.v1.ArtifactRegistry.SetIamPolicy) is Admin Activity, while Docker manifest and blob reads are Data Access.",
+      "checked": "2026-10-17"
+    },
+    {
+      "url": "https://docs.cloud.google.com/build/docs/securing-builds/store-manage-build-logs",
+      "claim": "Cloud Build logs in Cloud Logging use the log name projects/PROJECT_ID/logs/cloudbuild.",
+      "checked": "2026-10-17"
+    },
+    {
+      "url": "https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/",
+      "claim": "MemoryPressure means available node memory met an eviction threshold and the kubelet may evict Pods; a container OOM-killed by the kernel is restarted under its restartPolicy, which is a different termination from an application exiting on its own.",
+      "checked": "2026-10-17"
+    }
+  ]
+}

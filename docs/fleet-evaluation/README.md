@@ -9,7 +9,10 @@ ITBench-Lite and SREGym are included; Microsoft AIOpsLab is a later phase. The c
 repository repair, test generation and selected terminal tasks. GCP has a dedicated managed-service,
 migration and GKE track. The owner approved adding UiPath Coder Eval as the first candidate to pilot
 for custom agent/skill/tool regression execution; adoption depends on the specified experiment. No
-integration or benchmark result is established by this planning package.
+integration or benchmark result is established by this planning package. On 2026-10-18 the owner
+amended WP-13's completion boundary: the six branching investigations stay in WP-13 on the hardened
+fixture, and the two handover tabletops move to their own roadmap item, HANDOVER-001; see
+[delivery](delivery.md) and [measurement](measurement.md).
 
 The project helps an SRE or maintainer decide whether a specific Save Toolkit candidate improves
 useful work. It measures incident diagnosis, investigation with a human, live lab investigation,
@@ -37,6 +40,7 @@ results remain separate.
 | [WP-02 run plan](run-plan-wp02-native-readiness.md) | The first live run: cases, conditions, budget and stop rules for native readiness |
 | [WP-10 run plan](run-plan-wp10-wider-fleet-adversarial.md) | Draft, not approved: the AC-20 lane cases and AC-27 pairs, conditions, budget estimate and how to read the pairs |
 | [WP-13 run plan](run-plan-wp13-gcp-native-pilot.md) | Approved 2026-10-17: the native GCP pilot's smoke step and 24-case pilot, decisions, budget, review mode and stop rules |
+| [GCP case hardening](gcp-hardening.md) | Approved 2026-10-17: why the pilot cases do not separate models, five hardening mechanisms, a three-family pilot and a pre-registered success criterion |
 | [Scenario specifications](scenarios.md) | Incident pairs, coding tasks, wider-fleet cases and examples |
 | [GCP evaluation track](gcp.md) | 32 paired scenario families, migration and managed services, GKE, reusable foundations and cloud lab profiles |
 | [Measurement and verification](measurement.md) | Judge calibration, experiment design and acceptance tests |

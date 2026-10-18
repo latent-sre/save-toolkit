@@ -151,7 +151,8 @@ GCP acceptance is staged. WP-12's model-free controls establish fixture/scorer d
 case completeness, not candidate capability. WP-13 assesses the actual native candidate using
 supplied or recorded observations; a documented human review can assess semantics before a judge
 is selected. Report the 24-case pilot separately from the full 64-case catalog, and include the
-six branching investigations and two tabletops before declaring WP-13 complete.
+six branching investigations before declaring WP-13 complete; the two tabletops report under their
+own roadmap item (owner amendment, 2026-10-18).
 
 WP-14 establishes live behavior only for its eight named exercises and selected cloud profiles.
 Query checks against recorded API responses do not prove a query executes against Google Cloud;

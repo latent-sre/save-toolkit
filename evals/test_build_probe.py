@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import contextlib
+import ctypes
 import dataclasses
 import io
 import json
@@ -213,6 +214,22 @@ class PackageStructureTests(unittest.TestCase):
                 if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module and node.module != "outcomes":
                     with self.subTest(module=path.stem, source=node.module):
                         self.assertEqual(set(), {alias.name for alias in node.names} & functions.get(node.module, set()))
+
+
+class IdleSleepHoldTests(unittest.TestCase):
+    """A sleeping Windows host holds a trial past its timeout (waits do not count sleep) and lets the login expire."""
+
+    @unittest.skipUnless(os.name == "nt", "the hold is Windows-only")
+    def test_the_batch_holds_off_idle_sleep_and_releases_it(self) -> None:
+        with mock.patch.object(ctypes.windll.kernel32, "SetThreadExecutionState") as set_state:
+            release = probe_cli._hold_off_idle_sleep()
+            set_state.assert_called_once_with(0x80000000 | 0x00000001)
+            release()
+        self.assertEqual(set_state.call_args_list[-1], mock.call(0x80000000))
+
+    @unittest.skipIf(os.name == "nt", "elsewhere the hold does nothing")
+    def test_the_hold_is_a_no_op_off_windows(self) -> None:
+        self.assertIsNone(probe_cli._hold_off_idle_sleep()())
 
 
 if __name__ == "__main__":
