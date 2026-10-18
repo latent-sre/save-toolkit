@@ -268,6 +268,25 @@ labels are output-labelling instructions); re-count at the start rather than reu
 **SRE task:** Read skill guidance without stale-looking confirmation dates and citation clutter
 eroding trust in the guidance.
 
+### HANDOFF-002 — the blocks-unapproved graders stop false-redding
+
+**Status:** `ready` (2026-10-18); narrowed by the owner to the grader fix. The label-restatement rule
+it also proposed is dropped: across the handoff build probes on 2026-09-30 it landed in 0 to 2 of 3
+trials on every arm, the no-rule controls included, and AGENTS.md adds a handoff body rule only when
+a probe shows the agent failing without it.
+**Owner:** `agent-engineer` owns the graders.
+**Outcome:** `agent-direct-handoff-software-engineer-blocks-unapproved` grades blocking without false
+reds: its `not_regex` graders accept a statement that nothing changed ("I changed nothing") and a
+conditional plan that waits for approval ("once approved, I will apply the patch"), and its fields
+grader is not tripped by a field name repeated in prose.
+**Next action:** `agent-engineer` narrows the patterns and proves each fix offline on scripted
+responses that show the false red before and the pass after, plus a true unapproved edit that still
+fails; no model run is needed.
+**Evidence:** [the scenario](../evals/scenarios/agent-direct-handoff-software-engineer-blocks-unapproved.yaml);
+its graders are unchanged since 2026-09-30 apart from `max_turns`.
+**SRE task:** An SRE trusts that a red on this check means the agent edited without approval, not
+that it said so in a harmless sentence.
+
 ## Deferred
 
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
@@ -388,35 +407,6 @@ with the earlier comparison and instrument repair in the same record; the
 **SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
 work with an owner and a meaningful proof-of-improvement check.
 
-### REVIEWER-001 — the reviewer reads the history of every changed file
-
-**Status:** `deferred` (2026-10-01).
-**Owner:** `agent-engineer`.
-**Outcome:** In branch reviews the reviewer runs `log -n 10 <base> -- <each changed path>` before
-judging a change, on Sonnet and Opus.
-**Next action:** Measure on a fixture whose base history holds a deliberate earlier change the
-candidate reverts; the current fixtures have one base commit, so the read finds nothing and its
-2/3 Sonnet rate (3/3 Opus) says little about value.
-**Evidence:** [`build-reviewer-reproduces-in-scratch`](../evals/build-scenarios/build-reviewer-reproduces-in-scratch.yaml)
-(`contract: reads the history of the changed files`).
-**SRE task:** A reviewer catches a change that silently undoes deliberate earlier work.
-
-### HANDOFF-002 — restated helper claims keep their labels, and the handoff graders stop false-redding
-
-**Status:** `deferred` (2026-09-30).
-**Owner:** Save Toolkit maintainers; `agent-engineer` owns the graders and the label wording.
-**Outcome:** An agent that restates a helper's unknown in its report keeps `[UNTRUSTED] [unverified]`
-on it, and `agent-direct-handoff-software-engineer-blocks-unapproved` grades blocking without false reds.
-**Next action:** Fix the blocks-unapproved graders first: they false-red on a conditional
-post-approval plan, on "I changed nothing", and on a field name repeated in prose. Then decide
-whether label restatement deserves a body rule: across the seven handoff build probes on 2026-09-30
-it landed in 0 to 2 of 3 trials on every arm, including main and the no-handoff controls, so no
-current wording carries it.
-**Evidence:** [`build-sre-assistant-handles-partial-research`](../evals/build-scenarios/build-sre-assistant-handles-partial-research.yaml)
-and its six sibling handoff probes in `evals/build-scenarios/`.
-**SRE task:** An SRE reading an agent's report can tell which restated claims came unverified from an
-untrusted helper without re-reading the helper's return.
-
 ### EVAL-015 — compare library judge prompts with the incumbent judge
 
 **Status:** `deferred` (2026-10-07); split from EVAL-010 action 4 when EVAL-010 closed.
@@ -425,8 +415,11 @@ untrusted helper without re-reading the helper's return.
 **Outcome:** Pydantic Evals' `LLMJudge` prompt and Inspect's `model_graded_qa` are scored on the
 calibration corpus beside `judge.py`'s prompt; one is adopted only if it beats `judge.py` on every
 rubric and removes code or cost, and a judge from another family needs a new ADR.
-**Next action:** None until the owner approves the budget and dependency. Each provider API needs a
-key; DEC-04's OpenRouter key is the likely one. Reuse the bake-off's `codex exec` method and corpus
+**Next action:** None until the owner approves the budget. As of 2026-10-18 Inspect is already
+pinned (`inspect-ai==0.3.263`, with `evals/inspect_pilot.py`), so only Pydantic Evals would be a new
+dependency, and WP-08's OpenRouter key could serve if its scope is widened. The bake-off already chose
+the incumbent judge's model, semantic grading of GCP and natural-injection answers now uses blind
+reviewers, and 16 scenarios use the rubric judge. Reuse the bake-off's `codex exec` method and corpus
 traps rather than re-surveying OpenAI Evals, DeepEval or OpenEvals, which it left out.
 **Evidence:** [Judge bake-off, 2026-10-03](reviews/2026-10-03-judge-bakeoff.md).
 **SRE task:** Trust an agent's graded mitigation advice because the cheapest judge that matched the
