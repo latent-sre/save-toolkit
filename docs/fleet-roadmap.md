@@ -123,8 +123,9 @@ test generation, selected terminal tasks, GCP managed-service/migration and GKE 
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
 **Next action:**
-- WP-13: the GCP-17 C and GCP-25 B fix-and-measure, then the catalog regression baseline and the six
-  branching investigations, in the run plan's order (`agent-engineer`).
+- WP-13: the catalog regression baseline, then the six branching investigations, in the run plan's
+  order (`agent-engineer`); the GCP-17 C and GCP-25 B fix-and-measure and the sleep hold are done.
+  Haiku's inconsistent `gcp-ops` loading is the remaining limit on that fix.
 - WP-10: the owner disposes of the bound Luna semantic proposals and names the exact candidate
   revision; any further campaign needs a new bounded scope.
 - Before any rubric-graded campaign: one owner-approved judge recalibration, because the clean-room

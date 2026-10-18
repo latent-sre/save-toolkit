@@ -164,9 +164,18 @@ the order on 2026-10-18; this list replaces the one above and the hardening desi
 
 1. **Fix-and-measure the systematic read misses.** GCP-17 C's deciding reads were missed in 8 of 10
    Haiku and Sonnet trials and GCP-25 B's in 4 of 10 across both hardened runs. A targeted skill fix
-   gets a measured before/after, as GCP-18 did, under its own small cap.
+   gets a measured before/after, as GCP-18 did, under its own small cap. **Done 2026-10-18:**
+   `gcp-ops` gained the two deciding-read rules (`fc53d335`). On the same accepted cases, deciding
+   reads made, before (revised-case run) to after: GCP-17 C Sonnet 2/5 to 5/5, Haiku 0/5 to 1/5;
+   GCP-25 B Sonnet 3/5 to 5/5, Haiku 3/5 to 5/5. Haiku loaded `gcp-ops` in only 2 of its 5 GCP-17 C
+   trials and made no tool call in one, so its weak row is a loading gap the rule cannot reach. The
+   GCP-17 A and GCP-25 A siblings stayed at 2/2 per model. 28 trials, USD 1.81 under a USD 3 cap, no
+   integrity failure or fixture access; read choice only, the answers were not semantically reviewed.
+   Private evidence: `.eval-runs/wp13-fix-20261018/`.
 2. **Bound the auth hang.** One trial ran 16,047 s against the launcher's 900 s timeout before
    failing on an expired login; the runner or launcher gets a watchdog before the next batch.
+   **Done 2026-10-18:** the Windows event log showed the host asleep for the whole trial, and wait
+   timeouts do not count sleep, so the runner now holds off idle sleep while a batch runs (`24f30227`).
 3. **Catalog regression baseline.** The 40 catalog cases run once, one Sonnet trial each, graded
    mechanically; semantic review covers a 10% sample plus every mechanical failure. Static cases sit
    near the semantic ceiling, so full semantic review is not run.
