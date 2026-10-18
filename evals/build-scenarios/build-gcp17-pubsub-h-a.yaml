@@ -231,10 +231,10 @@ checks:
   text: the fixture script and its state are not read directly
 - check: command_exit_zero
   command: python -I -B oracle_protocol.py _read_check.py subscription-metrics subscriber-deliveries
+  failure_exit_code: 10
   writes_from:
     _read_check.py: evals/oracles/gcp/read_check.py
     oracle_protocol.py: evals/oracles/oracle_protocol.py
-  failure_exit_code: 10
   text: a discriminating read set was served within the read budget
 - check: command_exit_zero
   command: python -I -B _semantic_review.py

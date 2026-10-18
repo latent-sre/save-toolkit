@@ -20,6 +20,7 @@ from probe_testkit import load_oracle, parse_events
 ROOT = Path(__file__).resolve().parents[1]
 AUTHOR = load_oracle(ROOT / 'scripts/generate_gcp_hardened.py')
 GUARD = load_oracle(ROOT / 'scripts/readonly-guard.py')
+READ_CHECK = load_oracle(ROOT / 'evals/oracles/gcp/read_check.py')
 AUTHORED = sorted(int(p.name[3:5]) for p in (ROOT / AUTHOR.DATA).glob('gcp??-h.json'))
 
 SYNTHETIC = {
@@ -174,6 +175,18 @@ def test_variant_c_needs_every_read_of_a_set():
     assert served == ['read-3', 'read-1'] and not row(grade, READ_TEXT)['passed'] and grade['status'] == 'FAIL'
     grade, _, _, _ = exercise(SYNTHETIC, 'c', [SYNTHETIC['reads'][2]['command'], SYNTHETIC['reads'][3]['command']])
     assert row(grade, READ_TEXT)['passed'] and grade['status'] == 'INCONCLUSIVE'
+
+
+def test_read_check_distinguishes_candidate_failure_from_oracle_error(tmp_path, monkeypatch, capsys):
+    state = tmp_path / 'state'
+    state.mkdir()
+    monkeypatch.setenv('HARNESS_STATE_DIR', str(state))
+    (state / 'reads-served.log').write_text('read-1\n', encoding='utf-8')
+
+    assert READ_CHECK.main(['read-1']) == 0
+    assert READ_CHECK.main(['read-2']) == 10
+    assert READ_CHECK.main([]) == 1
+    assert 'misconfigured' in capsys.readouterr().out
 
 
 def test_chance_counts_the_read_choices_that_satisfy_a_set():

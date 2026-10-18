@@ -300,7 +300,7 @@ def test_every_live_probe_owned_command_declares_distinct_failure_and_bound_help
             if "check_ui.py" not in command:
                 assert "oracle_protocol.py" in command, (scenario.name, command)
                 assert staged.get("oracle_protocol.py") == "evals/oracles/oracle_protocol.py"
-    assert count == 140
+    assert count == 149
 
 
 GOOD_BACKOFF = ("def retry_delay(attempt):\n    if attempt < 0:\n        raise ValueError(attempt)\n"
