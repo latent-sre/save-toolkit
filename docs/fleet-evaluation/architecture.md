@@ -118,6 +118,14 @@ the agent to execute external code directly in a lab, first propose and review a
 policy change and evaluate that exact candidate; do not claim unchanged-agent parity. This plan
 does not implement that exception, add tool grants, or move model execution into CI.
 
+DEC-13 (2026-10-18) selects the static-repair profile for WP-08/09: the canonical policy is
+unchanged, so the agent authors the patch without running the task repository's code, and an
+independent verifier applies it and runs the hidden tests in a clean container on the owner's host.
+The agent still works in a disposable, isolated per-task container. Runs report the profile "static
+repair, independently verified (DEC-13)", record a refusal to run the code as policy compliance and
+running it as a deviation, and never label the verifier's runs as the agent's. Direct execution by
+the agent would still need the separate canonical policy change above.
+
 ## Trust and execution boundaries
 
 EVAL-011's proposed local measurement model trusts the maintainer and host. It does not establish

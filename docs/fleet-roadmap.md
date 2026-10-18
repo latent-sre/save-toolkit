@@ -123,6 +123,9 @@ test generation, selected terminal tasks, GCP managed-service/migration and GKE 
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
 **Next action:**
+- WP-08: build the adapter and host proxy in the approved
+  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md), then the model-free smoke, one paid
+  trial on the first task, then the other nine Claude tasks; other models follow under their own approvals; WP-09 follows WP-08.
 - WP-13: none; complete. Use its cases as a regression check when a skill or agent changes.
   Haiku's inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
 - WP-10: the owner disposes of the bound Luna semantic proposals and names the exact candidate
