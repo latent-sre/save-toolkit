@@ -178,7 +178,9 @@ the order on 2026-10-18; this list replaces the one above and the hardening desi
    timeouts do not count sleep, so the runner now holds off idle sleep while a batch runs (`24f30227`).
 3. **Catalog regression baseline.** The 40 catalog cases run once, one Sonnet trial each, graded
    mechanically; semantic review covers a 10% sample plus every mechanical failure. Static cases sit
-   near the semantic ceiling, so full semantic review is not run.
+   near the semantic ceiling, so full semantic review is not run. **Done 2026-10-18** on `ee50feca`:
+   40 of 40 mechanically clean, the sample 4 of 4 PASS with one borderline for the owner, USD 4.27
+   ([record](../reviews/2026-10-18-wp13-catalog-baseline.md)).
 4. **Six branching investigations on the hardened fixture.** GCP-02/05/09/15/17/29 gain an alias
    table, so equivalent requests reach the same read, and a second-turn correction that changes the
    supported conclusion. Their families are hardened on demand for this. There is no WP-05 dependency.
