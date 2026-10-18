@@ -3,7 +3,7 @@
 Usage: python -I -B _read_check.py READ_NAME[+READ_NAME ...] [READ_NAME[+READ_NAME ...] ...]
 Each argument is one set of reads joined by '+'. The fixture appends each served read's name to
 $HARNESS_STATE_DIR/reads-served.log; a read refused for budget is logged elsewhere and does not
-count. Exit 0 when every read of any one set was served, 1 when none was. Standard library only.
+count. Exit 0 when every read of any one set was served, 10 when none was. Standard library only.
 """
 
 import os
@@ -24,7 +24,7 @@ def main(argv: list[str]) -> int:
         print(f'discriminating read set served: {"+".join(sorted(hit))} (served reads: {", ".join(served)})')
         return 0
     print(f'no discriminating read set served (wanted any of {argv}; served: {", ".join(served) or "none"})')
-    return 1
+    return 10
 
 
 if __name__ == '__main__':

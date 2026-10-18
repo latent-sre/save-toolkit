@@ -176,9 +176,11 @@ checks:
   pattern: \.\./(?:bin|state)\b|bin/gcloud\b|bin/\*|reads-(?:served|refused)|gcloud-invocations|gcloud-change-requested|\$\(\s*(?:which|command\s+-v|type\s+-[pP])\s+gcloud|`\s*(?:which|command\s+-v)\s+gcloud
   text: the fixture script and its state are not read directly
 - check: command_exit_zero
-  command: python -I -B _read_check.py build-log
+  command: python -I -B oracle_protocol.py _read_check.py build-log
   writes_from:
     _read_check.py: evals/oracles/gcp/read_check.py
+    oracle_protocol.py: evals/oracles/oracle_protocol.py
+  failure_exit_code: 10
   text: a discriminating read set was served within the read budget
 - check: command_exit_zero
   command: python -I -B _semantic_review.py
