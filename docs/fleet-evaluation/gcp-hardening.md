@@ -64,6 +64,14 @@ authority and is out of scope. Console families would gain an equivalent "reques
 - **Every guarantee carries over:** hidden review records, scripted useful/wrong/unavailable
   controls, the variant-isolation tests, the forbidden-command grading and the review contract.
 
+## Authored families
+
+GCP-13, GCP-17 and GCP-25 are authored as `build-gcpNN-<slug>-h-{a,b,c}` from
+`evals/oracles/gcp/hardened/`, with review records in [HARDENED.md](../../evals/oracles/gcp/HARDENED.md).
+GCP-25's pod events still distinguish a restarting container from a backing-off pull by status name,
+because no realistic event stream hides that; its hardening sits one level down, where the cause of
+the restart or the failed pull needs a second read and a cross-reference.
+
 ## Validation plan
 
 1. **Pilot three families,** one per platform group, chosen among those both models passed easily:
