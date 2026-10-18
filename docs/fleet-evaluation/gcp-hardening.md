@@ -147,3 +147,7 @@ corrected without changing any case.
 
 **Result, 2026-10-17:** the criterion is not met. The PASS gap (16) and Sonnet's PASS count (30) hold;
 no H5 behavioral check differs by 10. See the [hardened comparison](../reviews/2026-10-17-wp13-hardened-comparison.md).
+
+**Owner decisions, 2026-10-17, after the result:** the nine cases are accepted at the digests the
+oracle-protocol fix produced (listed in the comparison record, finding 4). R-D1: revise the hardening.
+A Fable 5.1 review drafts the revision and recommends how to settle R-D2 and R-D3 before they are applied.
