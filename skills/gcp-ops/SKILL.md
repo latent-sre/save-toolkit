@@ -132,15 +132,13 @@ the arrival rate or a subset of messages fails on every delivery. Before choosin
 fast as wall-clock time means some messages are never acknowledged; a slower rise with a growing
 backlog means messages complete, but too slowly. Repeated message IDs that are never acknowledged
 confirm a failing subset. When an export, sink or view lacks one of these, name the missing
-observation and who can read it from Cloud Monitoring; do not infer the cause from the other alone
-*[sourced: docs.cloud.google.com/pubsub/docs/monitoring; …/pubsub/docs/pull-troubleshooting]*.
+observation and who can read it from Cloud Monitoring; do not infer the cause from the other alone.
 
 For `ImagePullBackOff` or `ErrImagePull` on GKE, establish that the referenced image address and tag
 exist in the referenced registry, from the build's push record or the registry itself, before
 attributing the failure to access: a missing image and a denied pull both back off. The pull event's
 message separates them (`not found` versus `403 Forbidden`); when that message is unavailable, the
-push record is the next deciding read
-*[sourced: docs.cloud.google.com/kubernetes-engine/docs/troubleshooting/image-pulls]*.
+push record is the next deciding read.
 
 ## Mitigation you recommend (never run): traffic rollback
 

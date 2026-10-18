@@ -223,6 +223,126 @@ five wordings reviewed in 10 of 15 trials. Runs are private under `.eval-runs/pr
 **SRE task:** An SRE gets an independent review of agent-written changes before they are committed
 without having to ask for it each time.
 
+### EVAL-005 — the observability engineer's Grafana write lands, and only that write
+
+**Status:** `ready` (2026-10-18); moved out of Parked by the owner.
+**Owner:** The human owner approves the run; `agent-engineer` runs and reads it.
+**Outcome:** One run of
+[`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
+on this host's Docker, three Sonnet trials per arm, no retries, shows from Grafana's own state and
+the audit proxy whether `observability-engineer` adds the requested panel and refuses the datasource
+edit in the same request. The candidate arm is the main commit the owner approves; the historical arm
+is `2cdcbbba`, the historical plugin of the 2026-08-31 run packet (`c187c105`). Both run under the
+evaluator at the candidate commit.
+**Next action:** The owner approves the run (about USD 1) and names the candidate commit;
+`agent-engineer` freezes both arms, records each commit and plugin digest, binds them with
+`--expect-plugin-digest` before any call, runs it and records the result.
+**Evidence:** none yet; the probe seeds a real Prometheus datasource since 2026-08-29.
+**SRE task:** Trust that the observability engineer changes the dashboard asked for and leaves
+datasources alone.
+
+### ROUTE-007 — re-check routing for the descriptions trimmed on 2026-09-02
+
+**Status:** `ready` (2026-10-18); the routing re-check EVAL-009 left owed, kept when EVAL-009 closed.
+**Owner:** The human owner approves the run; `agent-engineer` writes the missing scenarios and runs them.
+**Outcome:** The eleven surviving skills whose description clauses `5c5aa742` replaced with short
+exclusions (akamai-edge, backend-craft, database-reliability, frontend-craft, obs-alerting,
+obs-dashboards, obs-metrics, obs-pipeline, obs-traces, pcf-deploy, pcf-ops) each have at least one
+fire and one not-fire routing scenario, and all of them pass once on current main.
+**Next action:** `agent-engineer` writes the nine missing scenarios: fire and not-fire for
+backend-craft, database-reliability and pcf-ops, which have none; not-fire for akamai-edge,
+obs-alerting and obs-metrics; and fire for pcf-deploy. The owner then approves one run of those and
+the 13 existing scenarios that target the eleven skills (counted 2026-10-18 by `target.name` and
+`routing.expect` across `evals/scenarios/`).
+**Evidence:** none yet; the commit message of `5c5aa742` records the scenarios as owed.
+**SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
+owns it, not a neighbour.
+
+### FRESHNESS-001 — bring skills in line with the no-labels, no-dates rule
+
+**Status:** `ready` (2026-10-18); rescoped by the owner. The AGENTS.md rule of 2026-10-09
+(`39404d24`) decides the scope the item used to wait for: instruction files, skills included, carry
+no evidence labels, dates or citations, and state an unknown in plain words.
+**Owner:** Save Toolkit maintainers; `agent-engineer` does the cleanup.
+**Outcome:** No skill file carries a review date, a source citation or an evidence label on its own
+statements. Meaningful unknowns become plain statements ("not yet confirmed"), and lines that tell an
+agent how to label its own output stay. `agent-authoring` carries only output-labelling
+instructions. `39404d24` cleaned parts of 14 grafana and stack-profile files, but on 2026-10-18 nine
+grafana and stack-profile files still carried labels, citations or review dates
+(`skills/grafana/references/json-model.md` among them), so both skills stay in scope.
+**Next action:** `agent-engineer` cleans the remaining skills in one slice, the method `39404d24`
+used, then regenerates the platform adapters and runs Gate A. On 2026-10-18 about 47 review dates in
+about 26 files and up to 414 evidence labels across 25 skills remained (an upper bound, since some
+labels are output-labelling instructions); re-count at the start rather than reusing an inventory.
+**Evidence:** [AGENTS.md shared conventions](../AGENTS.md#shared-conventions).
+**SRE task:** Read skill guidance without stale-looking confirmation dates and citation clutter
+eroding trust in the guidance.
+
+### HANDOFF-002 — the blocks-unapproved graders stop false-redding
+
+**Status:** `ready` (2026-10-18); narrowed by the owner to the grader fix. The label-restatement rule
+it also proposed is dropped: across the handoff build probes on 2026-09-30 it landed in 0 to 2 of 3
+trials on every arm, the no-rule controls included, and AGENTS.md adds a handoff body rule only when
+a probe shows the agent failing without it. The gap itself stays known and unremedied: every arm
+dropped a restated helper label in at least one trial, against the AGENTS.md rule to preserve
+labels in transit, and no wording tried closed it. A new remedy needs a handoff build probe showing
+it lands before it enters an agent body.
+**Owner:** `agent-engineer` owns the graders.
+**Outcome:** `agent-direct-handoff-software-engineer-blocks-unapproved` grades blocking without false
+reds: its `not_regex` graders accept a statement that nothing changed ("I changed nothing") and a
+conditional plan that waits for approval ("once approved, I will apply the patch"), and its fields
+grader is not tripped by a field name repeated in prose.
+**Next action:** `agent-engineer` narrows the patterns and proves each fix offline on scripted
+responses that show the false red before and the pass after, plus a true unapproved edit that still
+fails; no model run is needed.
+**Evidence:** [the scenario](../evals/scenarios/agent-direct-handoff-software-engineer-blocks-unapproved.yaml);
+its graders are unchanged since 2026-09-30 apart from `max_turns`.
+**SRE task:** An SRE trusts that a red on this check means the agent edited without approval, not
+that it said so in a harmless sentence.
+
+### RELIABILITY-001 — measure the timing repair on Claude, then decide on the reliability lane
+
+**Status:** `ready` (2026-10-18); facts corrected by the owner. The source repair the deferral waited
+for has landed, and nothing has measured it on Claude.
+- [verified] The 2026-10-08 comparison: candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt
+  byte-identically from its commit, ran one native trial each on `claude-sonnet-5-5` for USD 0.70 in
+  all. Both pass the three structural checks.
+- [sourced: independent blind trace review] Both arms pass four of the five manual criteria and fail
+  the timing criterion the same way: each fixes the retry count at three and treats the 36-second
+  sum of timeouts as a bound on elapsed time and slot use.
+- [verified] Since then `resilience-analysis` distinguishes retries from attempts and states that a
+  timeout sum alone bounds neither elapsed time nor slot occupancy, with a worked contrast between a
+  false return and an uncaught exception (`2d0292c1`, 2026-10-15); `f151c276` added overload and
+  startup comparison evidence, and the lane loads its method skills before writing (2026-10-10).
+- [sourced: independent semantic review] On Luna (Codex), three trials of
+  `build-reliability-engineer-proportionate-options` on `f151c276` rejected an unconditional timeout
+  or occupancy maximum but failed the rubric: none explained that a false return permits another
+  call while an uncaught exception exits immediately
+  ([closeout](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout)).
+**Owner:** The human owner approves the run and remains the only acceptor; `agent-engineer` runs and
+reads it.
+**Outcome:** One bounded Sonnet comparison shows whether the reliability engineer states timing
+without the 36-second bound and keeps the false-return versus exception distinction, against a
+control that differs from it only by the timing repair. The owner then accepts the lane, scopes a
+further repair, or keeps it shipped and unaccepted.
+**Next action:** `agent-engineer` freezes a main commit as the candidate and builds the control from
+it: the same bytes with only the retry-timing text restored to its pre-`2d0292c1` wording (the
+retry-timing sentences in `skills/resilience-analysis/SKILL.md` and the two retry passages in its
+`references/worked-contrasts.md`), keeping the overload and admission wording, with adapters
+regenerated. A `git revert` of `2d0292c1` no longer applies, because `f151c276` rewrote the same
+lines, so the control is a hand diff pushed to a ref and reviewed. With both commits and plugin
+digests recorded, the owner approves that bound pair (about USD 1; one native trial per arm on
+`claude-sonnet-5-5`, no retries). `agent-engineer` then runs both on
+[`native-reliability-helper-return-and-resume`](../evals/scenarios/native-reliability-helper-return-and-resume.yaml)
+and has the timing criterion graded blind. One sample per arm cannot establish a rate. The 2026-10-08
+arms, including the unpublished synthetic baseline `cecadc1b`, the impossible old native case and all
+failed observations stay historical evidence.
+**Evidence:** [Owner-approved comparison on rebuilt arms](reviews/2026-09-30-backlog-four/reliability.md#owner-approved-comparison-on-rebuilt-arms-2026-10-08),
+with the earlier comparison and instrument repair in the same record; the
+[lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
+**SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
+work with an owner and a meaningful proof-of-improvement check.
+
 ## Deferred
 
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
@@ -267,7 +387,10 @@ the bounded follow-up.
 return, and advances without invented causes, timing, or current-state claims.
 **Next action:** None. Reopens when the owner scopes a repair for unsupported stage, timing and
 escalation conclusions and exact file resolution, with a fresh bounded campaign on a named
-candidate. Preserve actual return/resume and sufficient-evidence recovery as regressions.
+candidate. Preserve actual return/resume and sufficient-evidence recovery as regressions. As of
+2026-10-18, 101 commits on main have touched `incident-investigation` or `sre-assistant` since
+2026-09-07, so reopening starts with a fresh bounded baseline on current main before any repair;
+the September failures are not assumed to persist or to be fixed.
 **Evidence:** [Selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md);
 [second pass](reviews/2026-09-07-incident-quality-second-pass.md), its
 [symptom-guidance](reviews/2026-09-06-general-incident-help.md) and
@@ -295,7 +418,8 @@ repository. Then review and integrate the `sre-context` candidate `3433f98e` on
 `work/lifecycle-001-status-projection`, based on `be29c942` (seven unmerged prerequisite commits
 ahead of producer main `903ac830`), with this consumer, and verify navigation, freshness,
 ownership, and change/remediation/refresh/retirement readback on that service. Fixture-only
-resolution grants no live authority; catalog dates do not establish `last_verified`.
+resolution grants no live authority; catalog dates do not establish `last_verified`. The candidate
+was committed on 2026-09-30; rebase it onto producer main and rerun its tests before review.
 **Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md),
 [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml), the
 [accepted context-contract scope](decisions/2026-08-24-sre-operational-context-contract.md), and
@@ -316,62 +440,6 @@ listing-size check, given ROUTE-003's inconclusive workflow-graph discovery meas
 remove it.
 **SRE task:** Get a design for a durable workflow graph from the lane that can actually back it.
 
-### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
-
-**Status:** `deferred` (2026-10-08); the owner kept the lane unaccepted after the owner-approved
-two-trial comparison.
-- [verified] Candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt byte-identically from its
-  commit, ran one native trial on `claude-sonnet-5-5` for USD 0.70 in all. Both pass the three
-  structural checks.
-- [sourced: independent blind trace review] Both arms pass four of the five manual criteria and
-  fail the timing criterion the same way: each fixes the retry count at three and treats the
-  36-second sum of timeouts as a bound on elapsed time and slot use.
-- [unverified] In this one-sample-per-arm comparison, the candidate's targeted timing correction
-  did not change that defect.
-**Owner:** Maintainers select the exact candidate and bounded evaluation budget; `agent-engineer`
-owns the lane and methods.
-**Outcome:** The reliability engineer discovers supported service risks, recognizes effective
-controls, designs proportionate improvements, and evaluates toil without fabricated benefit or
-expanded authority.
-**Next action:** None. Reopens when the owner scopes and approves a source repair for retry-count
-ambiguity and timeout sums, with its own bounded comparison; one sample per arm cannot establish a
-rate. The reliability lane stays shipped and unaccepted. Preserve the impossible old native case and
-all failed observations as historical evidence.
-**Evidence:** [Owner-approved comparison on rebuilt arms](reviews/2026-09-30-backlog-four/reliability.md#owner-approved-comparison-on-rebuilt-arms-2026-10-08),
-with the earlier comparison and instrument repair in the same record; the
-[lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
-**SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
-work with an owner and a meaningful proof-of-improvement check.
-
-### REVIEWER-001 — the reviewer reads the history of every changed file
-
-**Status:** `deferred` (2026-10-01).
-**Owner:** `agent-engineer`.
-**Outcome:** In branch reviews the reviewer runs `log -n 10 <base> -- <each changed path>` before
-judging a change, on Sonnet and Opus.
-**Next action:** Measure on a fixture whose base history holds a deliberate earlier change the
-candidate reverts; the current fixtures have one base commit, so the read finds nothing and its
-2/3 Sonnet rate (3/3 Opus) says little about value.
-**Evidence:** [`build-reviewer-reproduces-in-scratch`](../evals/build-scenarios/build-reviewer-reproduces-in-scratch.yaml)
-(`contract: reads the history of the changed files`).
-**SRE task:** A reviewer catches a change that silently undoes deliberate earlier work.
-
-### HANDOFF-002 — restated helper claims keep their labels, and the handoff graders stop false-redding
-
-**Status:** `deferred` (2026-09-30).
-**Owner:** Save Toolkit maintainers; `agent-engineer` owns the graders and the label wording.
-**Outcome:** An agent that restates a helper's unknown in its report keeps `[UNTRUSTED] [unverified]`
-on it, and `agent-direct-handoff-software-engineer-blocks-unapproved` grades blocking without false reds.
-**Next action:** Fix the blocks-unapproved graders first: they false-red on a conditional
-post-approval plan, on "I changed nothing", and on a field name repeated in prose. Then decide
-whether label restatement deserves a body rule: across the seven handoff build probes on 2026-09-30
-it landed in 0 to 2 of 3 trials on every arm, including main and the no-handoff controls, so no
-current wording carries it.
-**Evidence:** [`build-sre-assistant-handles-partial-research`](../evals/build-scenarios/build-sre-assistant-handles-partial-research.yaml)
-and its six sibling handoff probes in `evals/build-scenarios/`.
-**SRE task:** An SRE reading an agent's report can tell which restated claims came unverified from an
-untrusted helper without re-reading the helper's return.
-
 ### EVAL-015 — compare library judge prompts with the incumbent judge
 
 **Status:** `deferred` (2026-10-07); split from EVAL-010 action 4 when EVAL-010 closed.
@@ -380,8 +448,12 @@ untrusted helper without re-reading the helper's return.
 **Outcome:** Pydantic Evals' `LLMJudge` prompt and Inspect's `model_graded_qa` are scored on the
 calibration corpus beside `judge.py`'s prompt; one is adopted only if it beats `judge.py` on every
 rubric and removes code or cost, and a judge from another family needs a new ADR.
-**Next action:** None until the owner approves the budget and dependency. Each provider API needs a
-key; DEC-04's OpenRouter key is the likely one. Reuse the bake-off's `codex exec` method and corpus
+**Next action:** None until the owner approves the budget, the Pydantic Evals dependency and the
+widened scope of any key it uses. As of 2026-10-18 Inspect is already
+pinned (`inspect-ai==0.3.263`, with `evals/inspect_pilot.py`), so only Pydantic Evals would be a new
+dependency, and WP-08's OpenRouter key could serve if its scope is widened. The bake-off already chose
+the incumbent judge's model, semantic grading of GCP and natural-injection answers now uses blind
+reviewers, and 16 scenarios use the rubric judge. Reuse the bake-off's `codex exec` method and corpus
 traps rather than re-surveying OpenAI Evals, DeepEval or OpenEvals, which it left out.
 **Evidence:** [Judge bake-off, 2026-10-03](reviews/2026-10-03-judge-bakeoff.md).
 **SRE task:** Trust an agent's graded mitigation advice because the cheapest judge that matched the
@@ -399,24 +471,6 @@ to cross the current prepare/recommend boundary with a separately controlled exe
 **Evidence:** none yet
 **SRE task:** An SRE approving a live automated action gets one exact, bound, revocable approval —
 target, argv/executable digest, expiry, rollback — instead of an open-ended execution grant.
-
-### FRESHNESS-001 — review and retire vendor-fact date stamps in skills
-
-**Status:** `deferred` (2026-09-19).
-**Owner:** Save Toolkit maintainers.
-**Outcome:** The ~60 `reviewed`/`re-checked`/`Sources reviewed` dates across 28 skill files are
-triaged: removed where the claim is stable or a file-level header already covers it, kept in one
-consistent format where the date bounds reliance on volatile vendor behavior. `agent-authoring`
-is done: the owner chose to strip every date, probe-version tag, and citation from its `SKILL.md`
-and references.
-**Next action:** None until an owner confirms scope for the other skills — all stamps, or
-volatile-vendor claims only.
-The 2026-09-19 inventory grouped every stamp by file and date (freshest: 2026-09-09 Cloud Trace IAM
-and `gcp-ops` troubleshooting; oldest: 2026-07-14 ThousandEyes/Grafana); reuse it rather than
-re-scanning. Reopens as a single cleanup slice with adapter regeneration and Gate A.
-**Evidence:** none yet
-**SRE task:** Read skill guidance without stale-looking confirmation dates eroding trust in the
-cited vendor facts.
 
 ### BRANCH-001 — author the six GCP branching investigations
 
@@ -454,7 +508,7 @@ without repeating intake.
 
 ## Parked
 
-All six items below remain `deferred` (2026-09-03). Reopening requires a named SRE task and owner
+The item below remains `deferred` (2026-09-03). Reopening requires a named SRE task and owner
 decision, then a full seven-field item above. This refresh neither closes them nor authorizes runs.
 The [prior roadmap](https://github.com/latent-sre/save-toolkit/blob/ed3210358557415023f33faaaf669315fe79d7ec/docs/fleet-roadmap.md)
 retains their historical evidence paths and recovery commands; those measurements do not establish
@@ -462,9 +516,4 @@ current behavior. Consumed evaluation profiles remain non-reusable.
 
 | ID | Required decision or evidence before work resumes |
 |---|---|
-| WF-001 | Prove dispatch of an exact trusted `ship-review` workflow without caller-supplied workflow code. Re-probe only on a material host/contract change. |
-| ROUTE-006 | EVAL-009 decides whether the retired observability-to-incident deferral case needs replacement; only then judge the disputed handoff phrasing. |
 | ROUTE-003 | Decide whether to replace or retire the two inconclusive workflow-graph discovery measurements; do not reuse consumed profiles. |
-| EVAL-005 | The [dashboard probe](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml) now seeds real Prometheus data. Remaining proof is a Windows Docker comparison at an approved exact revision: three Sonnet trials per side, no retries. |
-| EVAL-007 | Resolve the closure contract for an incident-response verdict based on meaning: a structural or relation-based grader plus a clean guidance-removal counterfactual. |
-| EVAL-009 | Reconcile the old fleet-weight/PR #224 prerequisites against current main before authorizing a new corpus baseline and judge calibration. Decide description ownership-map wording and injection-refusal coverage; include the eleven-description routing follow-up. |
