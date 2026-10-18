@@ -318,17 +318,22 @@ for has landed, and nothing has measured it on Claude.
   ([closeout](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout)).
 **Owner:** The human owner approves the run and remains the only acceptor; `agent-engineer` runs and
 reads it.
-**Outcome:** One bounded Sonnet comparison shows whether current main's reliability engineer states
-timing without the 36-second bound and keeps the false-return versus exception distinction, against
-the 2026-10-08 baseline on the same native case. The owner then accepts the lane, scopes a further
-repair, or keeps it shipped and unaccepted.
-**Next action:** The owner approves the run (about USD 1; one native trial per arm on
-`claude-sonnet-5-5`, no retries); `agent-engineer` freezes current main as the candidate, runs it and
-the `cecadc1b` baseline on
+**Outcome:** One bounded Sonnet comparison shows whether the reliability engineer states timing
+without the 36-second bound and keeps the false-return versus exception distinction, against a
+control that differs from it only by the timing repair. The owner then accepts the lane, scopes a
+further repair, or keeps it shipped and unaccepted.
+**Next action:** `agent-engineer` freezes a main commit as the candidate and builds the control from
+it: the same bytes with only the retry-timing text restored to its pre-`2d0292c1` wording (the
+retry-timing sentences in `skills/resilience-analysis/SKILL.md` and the two retry passages in its
+`references/worked-contrasts.md`), keeping the overload and admission wording, with adapters
+regenerated. A `git revert` of `2d0292c1` no longer applies, because `f151c276` rewrote the same
+lines, so the control is a hand diff pushed to a ref and reviewed. With both commits and plugin
+digests recorded, the owner approves that bound pair (about USD 1; one native trial per arm on
+`claude-sonnet-5-5`, no retries). `agent-engineer` then runs both on
 [`native-reliability-helper-return-and-resume`](../evals/scenarios/native-reliability-helper-return-and-resume.yaml)
-(changed since 2026-10-08 only by its declared turn limit), and has the timing criterion graded blind.
-One sample per arm cannot establish a rate. Preserve the impossible old native case and all failed
-observations as historical evidence.
+and has the timing criterion graded blind. One sample per arm cannot establish a rate. The 2026-10-08
+arms, including the unpublished synthetic baseline `cecadc1b`, the impossible old native case and all
+failed observations stay historical evidence.
 **Evidence:** [Owner-approved comparison on rebuilt arms](reviews/2026-09-30-backlog-four/reliability.md#owner-approved-comparison-on-rebuilt-arms-2026-10-08),
 with the earlier comparison and instrument repair in the same record; the
 [lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
