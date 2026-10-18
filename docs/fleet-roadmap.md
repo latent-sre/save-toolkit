@@ -109,11 +109,11 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   exact quotation, the reliability exception-path explanation and GCP-01 B's factual findings open.
 - WP-12 complete on 2026-10-17: all 64 GCP cases accepted at `9147ff91`
   ([pilot and template](../evals/oracles/gcp/README.md), [catalog](../evals/oracles/gcp/CATALOG.md)).
-- WP-13 in progress under its [run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md): the
-  [pilot](reviews/2026-10-17-wp13-gcp-pilot-review.md), the
-  [stress test](reviews/2026-10-17-wp13-stress-test.md) and the
-  [hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md) are recorded, and the
-  hardening is accepted.
+- WP-13 complete on 2026-10-18 under its [run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md):
+  the [pilot](reviews/2026-10-17-wp13-gcp-pilot-review.md), the
+  [stress test](reviews/2026-10-17-wp13-stress-test.md), the
+  [hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md) and the
+  [catalog baseline](reviews/2026-10-18-wp13-catalog-baseline.md); branching moved to BRANCH-001.
 - WP-15's [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful comparison.
 
 **Owner:** The human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
@@ -123,9 +123,8 @@ test generation, selected terminal tasks, GCP managed-service/migration and GKE 
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
 **Next action:**
-- WP-13: the catalog regression baseline, then the six branching investigations, in the run plan's
-  order (`agent-engineer`); the GCP-17 C and GCP-25 B fix-and-measure and the sleep hold are done.
-  Haiku's inconsistent `gcp-ops` loading is the remaining limit on that fix.
+- WP-13: none; complete. Use its cases as a regression check when a skill or agent changes.
+  Haiku's inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
 - WP-10: the owner disposes of the bound Luna semantic proposals and names the exact candidate
   revision; any further campaign needs a new bounded scope.
 - Before any rubric-graded campaign: one owner-approved judge recalibration, because the clean-room
@@ -415,6 +414,23 @@ re-scanning. Reopens as a single cleanup slice with adapter regeneration and Gat
 **Evidence:** none yet
 **SRE task:** Read skill guidance without stale-looking confirmation dates eroding trust in the
 cited vendor facts.
+
+### BRANCH-001 — author the six GCP branching investigations
+
+**Status:** `deferred` (2026-10-18); moved out of WP-13 by the owner. Reopens when WP-05's incident
+conversations are planned or a skill change needs a re-reasoning measure.
+**Owner:** `agent-engineer` authors; the human owner accepts the cases.
+**Outcome:** Branching versions of GCP-02/05/09/15/17/29 meet AC-26: different checks reveal only
+their own observations, equivalent requests reach the same read, unsupported requests return
+unavailable, and a correction changes the supported conclusion, as the
+[GCP specification](fleet-evaluation/gcp.md#branching-investigations-and-human-use) describes.
+**Next action:** None until reopened. The owner's design: the hardened read-catalog fixture with an
+alias table; the correction arrives as an observation from a read, because graded cases cannot take a
+human second turn; console families use the CLI read catalog; GCP-15 and GCP-29 stay held-out; all
+six are authored in one batch with one independent review.
+**Evidence:** none yet.
+**SRE task:** An agent updates its finding when a later observation contradicts the first story,
+instead of defending it.
 
 ### HANDOVER-001 — run the two human handover tabletops
 

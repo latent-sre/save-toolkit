@@ -163,12 +163,14 @@ The GCP-specific acceptance checks are AC-28 through AC-35 in [measurement](meas
 
 ## Branching investigations and human use
 
-WP-13 adds branching versions of GCP-02/05/09/15/17/29, each with at least two useful alternative
+Branching versions of GCP-02/05/09/15/17/29 (roadmap item BRANCH-001, outside WP-13 since
+2026-10-18) each have at least two useful alternative
 checks, an inaccessible observation and a correction that changes the supported conclusion.
 Follow AC-26's frozen branch mapping and score against only the evidence released so far. These are
 additional interaction profiles over the 64 cases, not extra independent incident families. They are
 authored on the hardened read-catalog fixture, with an alias table for equivalent requests and a
-second-turn correction, and do not wait for WP-05.
+correction that a read returns; graded cases cannot take a human second turn. Console families use
+the CLI read catalog, and held-out families stay held-out.
 
 Run two bounded human tabletops after the instrument and native profile work: one migration/hybrid
 incident and one GKE identity/reachability incident. Include a less-experienced and an experienced

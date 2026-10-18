@@ -201,9 +201,9 @@ blind review deferred, so R1, R2 and R4 were not re-scored on the revised cases.
 
 **Owner decisions, 2026-10-18, after acceptance:** validation step 6 is retired. Families are hardened
 on demand, when a fix-and-measure needs a discriminating case in a family whose static case sits at
-ceiling. The six branching investigations are built on this fixture: an alias table so equivalent
-requests reach the same read, and a second-turn correction that changes the supported conclusion;
-they need no WP-05 capability. Future comparisons use one blind reviewer per answer, a second on
+ceiling. The six branching investigations moved out of WP-13 to the deferred item BRANCH-001; when
+it reopens they use this fixture with an alias table and a correction returned by a read, because a
+human second turn is not available on graded cases. Future comparisons use one blind reviewer per answer, a second on
 borderline-flagged answers and a random 20%, two per answer whenever the brief changes, and no Opus
 arm. The order of work is in the
 [run plan](run-plan-wp13-gcp-native-pilot.md#pilot-outcome-and-revised-direction).

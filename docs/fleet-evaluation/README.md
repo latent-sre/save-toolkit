@@ -10,8 +10,8 @@ repository repair, test generation and selected terminal tasks. GCP has a dedica
 migration and GKE track. The owner approved adding UiPath Coder Eval as the first candidate to pilot
 for custom agent/skill/tool regression execution; adoption depends on the specified experiment. No
 integration or benchmark result is established by this planning package. On 2026-10-18 the owner
-amended WP-13's completion boundary: the six branching investigations stay in WP-13 on the hardened
-fixture, and the two handover tabletops move to their own roadmap item, HANDOVER-001; see
+amended WP-13's completion boundary: the six branching investigations and the two handover tabletops
+move to their own roadmap items, BRANCH-001 and HANDOVER-001, and WP-13 is complete; see
 [delivery](delivery.md) and [measurement](measurement.md).
 
 The project helps an SRE or maintainer decide whether a specific Save Toolkit candidate improves
