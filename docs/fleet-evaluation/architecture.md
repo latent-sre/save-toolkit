@@ -118,10 +118,13 @@ the agent to execute external code directly in a lab, first propose and review a
 policy change and evaluate that exact candidate; do not claim unchanged-agent parity. This plan
 does not implement that exception, add tool grants, or move model execution into CI.
 
-DEC-13 (2026-10-18) admits direct execution for WP-08/09 by the owner's authorization, stated in each
-task's prompt, inside a disposable per-task container; the canonical policy is unchanged. Such runs
-report the profile "direct lab execution admitted by DEC-13", claim no unchanged-agent parity, and
-record a refusal to run the task's code as policy compliance, with the static patch still verified.
+DEC-13 (2026-10-18) selects the static-repair profile for WP-08/09: the canonical policy is
+unchanged, so the agent authors the patch without running the task repository's code, and an
+independent verifier applies it and runs the hidden tests in a clean container on the owner's host.
+The agent still works in a disposable, isolated per-task container. Runs report the profile "static
+repair, independently verified (DEC-13)", record a refusal to run the code as policy compliance and
+running it as a deviation, and never label the verifier's runs as the agent's. Direct execution by
+the agent would still need the separate canonical policy change above.
 
 ## Trust and execution boundaries
 
