@@ -287,6 +287,44 @@ its graders are unchanged since 2026-09-30 apart from `max_turns`.
 **SRE task:** An SRE trusts that a red on this check means the agent edited without approval, not
 that it said so in a harmless sentence.
 
+### RELIABILITY-001 — measure the timing repair on Claude, then decide on the reliability lane
+
+**Status:** `ready` (2026-10-18); facts corrected by the owner. The source repair the deferral waited
+for has landed, and nothing has measured it on Claude.
+- [verified] The 2026-10-08 comparison: candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt
+  byte-identically from its commit, ran one native trial each on `claude-sonnet-5-5` for USD 0.70 in
+  all. Both pass the three structural checks.
+- [sourced: independent blind trace review] Both arms pass four of the five manual criteria and fail
+  the timing criterion the same way: each fixes the retry count at three and treats the 36-second
+  sum of timeouts as a bound on elapsed time and slot use.
+- [verified] Since then `resilience-analysis` distinguishes retries from attempts and states that a
+  timeout sum alone bounds neither elapsed time nor slot occupancy, with a worked contrast between a
+  false return and an uncaught exception (`2d0292c1`, 2026-10-15); `f151c276` added overload and
+  startup comparison evidence, and the lane loads its method skills before writing (2026-10-10).
+- [sourced: independent semantic review] On Luna (Codex), three trials of
+  `build-reliability-engineer-proportionate-options` on `f151c276` rejected an unconditional timeout
+  or occupancy maximum but failed the rubric: none explained that a false return permits another
+  call while an uncaught exception exits immediately
+  ([closeout](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout)).
+**Owner:** The human owner approves the run and remains the only acceptor; `agent-engineer` runs and
+reads it.
+**Outcome:** One bounded Sonnet comparison shows whether current main's reliability engineer states
+timing without the 36-second bound and keeps the false-return versus exception distinction, against
+the 2026-10-08 baseline on the same native case. The owner then accepts the lane, scopes a further
+repair, or keeps it shipped and unaccepted.
+**Next action:** The owner approves the run (about USD 1; one native trial per arm on
+`claude-sonnet-5-5`, no retries); `agent-engineer` freezes current main as the candidate, runs it and
+the `cecadc1b` baseline on
+[`native-reliability-helper-return-and-resume`](../evals/scenarios/native-reliability-helper-return-and-resume.yaml)
+(changed since 2026-10-08 only by its declared turn limit), and has the timing criterion graded blind.
+One sample per arm cannot establish a rate. Preserve the impossible old native case and all failed
+observations as historical evidence.
+**Evidence:** [Owner-approved comparison on rebuilt arms](reviews/2026-09-30-backlog-four/reliability.md#owner-approved-comparison-on-rebuilt-arms-2026-10-08),
+with the earlier comparison and instrument repair in the same record; the
+[lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
+**SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
+work with an owner and a meaningful proof-of-improvement check.
+
 ## Deferred
 
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
@@ -331,7 +369,10 @@ the bounded follow-up.
 return, and advances without invented causes, timing, or current-state claims.
 **Next action:** None. Reopens when the owner scopes a repair for unsupported stage, timing and
 escalation conclusions and exact file resolution, with a fresh bounded campaign on a named
-candidate. Preserve actual return/resume and sufficient-evidence recovery as regressions.
+candidate. Preserve actual return/resume and sufficient-evidence recovery as regressions. As of
+2026-10-18, 101 commits on main have touched `incident-investigation` or `sre-assistant` since
+2026-09-07, so reopening starts with a fresh bounded baseline on current main before any repair;
+the September failures are not assumed to persist or to be fixed.
 **Evidence:** [Selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md);
 [second pass](reviews/2026-09-07-incident-quality-second-pass.md), its
 [symptom-guidance](reviews/2026-09-06-general-incident-help.md) and
@@ -359,7 +400,8 @@ repository. Then review and integrate the `sre-context` candidate `3433f98e` on
 `work/lifecycle-001-status-projection`, based on `be29c942` (seven unmerged prerequisite commits
 ahead of producer main `903ac830`), with this consumer, and verify navigation, freshness,
 ownership, and change/remediation/refresh/retirement readback on that service. Fixture-only
-resolution grants no live authority; catalog dates do not establish `last_verified`.
+resolution grants no live authority; catalog dates do not establish `last_verified`. The candidate
+was committed on 2026-09-30; rebase it onto producer main and rerun its tests before review.
 **Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md),
 [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml), the
 [accepted context-contract scope](decisions/2026-08-24-sre-operational-context-contract.md), and
@@ -379,33 +421,6 @@ and a team service's workflow graph routes to `principal-engineer`.
 listing-size check, given ROUTE-003's inconclusive workflow-graph discovery measurements, or
 remove it.
 **SRE task:** Get a design for a durable workflow graph from the lane that can actually back it.
-
-### RELIABILITY-001 — accept the reliability engineering lane on representative tasks
-
-**Status:** `deferred` (2026-10-08); the owner kept the lane unaccepted after the owner-approved
-two-trial comparison.
-- [verified] Candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt byte-identically from its
-  commit, ran one native trial on `claude-sonnet-5-5` for USD 0.70 in all. Both pass the three
-  structural checks.
-- [sourced: independent blind trace review] Both arms pass four of the five manual criteria and
-  fail the timing criterion the same way: each fixes the retry count at three and treats the
-  36-second sum of timeouts as a bound on elapsed time and slot use.
-- [unverified] In this one-sample-per-arm comparison, the candidate's targeted timing correction
-  did not change that defect.
-**Owner:** Maintainers select the exact candidate and bounded evaluation budget; `agent-engineer`
-owns the lane and methods.
-**Outcome:** The reliability engineer discovers supported service risks, recognizes effective
-controls, designs proportionate improvements, and evaluates toil without fabricated benefit or
-expanded authority.
-**Next action:** None. Reopens when the owner scopes and approves a source repair for retry-count
-ambiguity and timeout sums, with its own bounded comparison; one sample per arm cannot establish a
-rate. The reliability lane stays shipped and unaccepted. Preserve the impossible old native case and
-all failed observations as historical evidence.
-**Evidence:** [Owner-approved comparison on rebuilt arms](reviews/2026-09-30-backlog-four/reliability.md#owner-approved-comparison-on-rebuilt-arms-2026-10-08),
-with the earlier comparison and instrument repair in the same record; the
-[lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
-**SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
-work with an owner and a meaningful proof-of-improvement check.
 
 ### EVAL-015 — compare library judge prompts with the incumbent judge
 
