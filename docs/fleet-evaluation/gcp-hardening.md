@@ -193,3 +193,8 @@ slips noted per model; INCONCLUSIVE causes by required item. Decision rule: if a
 to validation step 6. If R1, R2 and R4 hold but R3 fails, revise the brief wording only and re-review
 the same answers, with no new trials. If R1 or R2 fails, the owner decides between redesign and
 abandonment.
+
+**Owner decision, 2026-10-18, closing the pilot:** the hardening is accepted on the first comparison and
+the re-review (R3 met at 118 of 120). The run on the revised cases was recorded mechanically and its
+blind review deferred, so R1, R2 and R4 were not re-scored on the revised cases. See the
+[comparison record](../reviews/2026-10-17-wp13-hardened-comparison.md).

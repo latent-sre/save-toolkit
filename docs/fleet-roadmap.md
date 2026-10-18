@@ -190,7 +190,10 @@ authorizes no model spend, lab provisioning or production changes.
   hardened before the catalog run. The hardened comparison did not meet its pre-registered
   criterion: the semantic grade separates the models (Sonnet 30 to Haiku 14 PASS of 45) but no
   behavioral check does ([hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md)).
-  Next: the owner decides R-D1 to R-D3 there.
+  The owner revised the hardening on 2026-10-18 and accepted it on that comparison and a re-review
+  (grading agreement 118 of 120); the revised-case run is recorded mechanically, its blind review
+  deferred. Next: [design](fleet-evaluation/gcp-hardening.md) validation step 6, hardening the
+  remaining pilot families, then the catalog decision.
 
 2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases (15
 cases, 45 trials) under a USD 20 cap, and the sre-assistant, software-engineer and

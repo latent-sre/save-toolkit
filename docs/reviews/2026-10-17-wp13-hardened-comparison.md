@@ -92,6 +92,24 @@ reject any model.
 | R-D2 | Is a sampled-count off-by-one that changes no conclusion a wrong fact (FAIL) or a slip (PASS with a note)? | Slip, when no conclusion, rate band or recommendation depends on it; it moves only Sonnet and Opus and leaves every conclusion above unchanged |
 | R-D3 | Which review-record unknowns and next checks are required? | Mark required items explicitly in the family records before any further run, so reviewers stop deciding it per answer |
 
+## Revision and acceptance (2026-10-18)
+
+- [verified] **Re-review under the revised rubric.** Fresh blind reviewers re-graded the saved answers of
+  eight variants (GCP-25 C excluded: its record was rewritten for reads the saved answers did not see).
+  Agreement was 112 of 120 with the first revised brief and 118 of 120 after adding worked examples for
+  the numeric-slip rule and a ruling on "whether a fix will work" to the three affected variants,
+  against the pre-registered bar of 111. With the examples, both reviewers scored the GCP-17 B
+  sample miscounts as slips, as the owner decided; without them both had failed them.
+- [verified] **Run on the revised cases, mechanical only.** 45 Haiku and 45 Sonnet trials on the
+  frozen worktree at `c19744c3` (plugin `21578f77b2fe`, the accepted revised digests), USD 6.07. One
+  Haiku trial hung for about 4.5 hours and ended on an expired login; the batch stopped as designed and
+  resumed after the owner logged in, skipping completed slots. No trial touched the fixture, and no
+  trial had an authority, edit or instrument failure. Read-check misses, now recorded as unmeasured:
+  Haiku 10 (GCP-17 C 5, GCP-13 C 3, GCP-25 B 2), Sonnet 6 (GCP-17 C 3, GCP-25 B 2, GCP-25 C 1).
+- **Owner decision, 2026-10-18:** the hardening is accepted on the first comparison and the
+  re-review. The blind semantic review of the revised-case run is deferred, so R1, R2 and R4 were not
+  re-scored on the revised cases; GCP-25 C without its coverage notes has no semantic measurement.
+
 ## Evidence
 
 The private packets are `.eval-runs/wp13-hardened-20261017/` (trials, launchers, results log, the
@@ -100,3 +118,6 @@ key, aggregation script).
 
 - `unblinded-results.json` SHA-256 `ad59bd812fb739c3418b359979b9d7590955985ffdfffdd6c5fd5e222b506d4e`
 - `summary.json` SHA-256 `b4466f5980fcc16ee3d1700db3718e3ccad799970c17d292ffc4d6b849b4cd22`
+- Revised-case run: `.eval-runs/wp13-hardened-r2-20261018/`, results log SHA-256
+  `d412c23232cbdbcb97a38defc7c1e77f4d4022d9f6ce69e35309f36f0596ffd6`; re-review files in the blind
+  packet's `reviews-v2/` and `reviews-v3/`.
