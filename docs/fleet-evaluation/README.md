@@ -9,7 +9,10 @@ ITBench-Lite and SREGym are included; Microsoft AIOpsLab is a later phase. The c
 repository repair, test generation and selected terminal tasks. GCP has a dedicated managed-service,
 migration and GKE track. The owner approved adding UiPath Coder Eval as the first candidate to pilot
 for custom agent/skill/tool regression execution; adoption depends on the specified experiment. No
-integration or benchmark result is established by this planning package.
+integration or benchmark result is established by this planning package. On 2026-10-18 the owner
+amended WP-13's completion boundary: the six branching investigations stay in WP-13 on the hardened
+fixture, and the two handover tabletops move to their own roadmap item, HANDOVER-001; see
+[delivery](delivery.md) and [measurement](measurement.md).
 
 The project helps an SRE or maintainer decide whether a specific Save Toolkit candidate improves
 useful work. It measures incident diagnosis, investigation with a human, live lab investigation,

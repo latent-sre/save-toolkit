@@ -192,8 +192,12 @@ authorizes no model spend, lab provisioning or production changes.
   behavioral check does ([hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md)).
   The owner revised the hardening on 2026-10-18 and accepted it on that comparison and a re-review
   (grading agreement 118 of 120); the revised-case run is recorded mechanically, its blind review
-  deferred. Next: [design](fleet-evaluation/gcp-hardening.md) validation step 6, hardening the
-  remaining pilot families, then the catalog decision.
+  deferred. On 2026-10-18 the owner revised WP-13's order and completion boundary
+  ([run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md#pilot-outcome-and-revised-direction)):
+  fix-and-measure the systematic read misses, bound the auth hang, run the catalog as a mechanical
+  regression baseline, then the six branching investigations on the hardened fixture; must-mention
+  checks and blanket hardening are retired, and the tabletops move to HANDOVER-001. Next:
+  fix-and-measure GCP-17 C and GCP-25 B under a small owner-approved cap.
 
 2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases (15
 cases, 45 trials) under a USD 20 cap, and the sre-assistant, software-engineer and
@@ -560,6 +564,23 @@ re-scanning. Reopens as a single cleanup slice with adapter regeneration and Gat
 **Evidence:** none yet
 **SRE task:** Read skill guidance without stale-looking confirmation dates eroding trust in the
 cited vendor facts.
+
+### HANDOVER-001 — run the two human handover tabletops
+
+**Status:** `deferred` (2026-10-18); detached from WP-13's completion by the owner. Reopens when two
+responders and a facilitator are scheduled.
+**Owner:** The human owner schedules and facilitates; `scribe` records the boards.
+**Outcome:** Two bounded tabletops, a migration/hybrid incident and a GKE identity/reachability
+incident, each handing the board to a second responder with read-back of impact, evidence, open
+alternatives, owners and next check, and a record of inaccessible instructions, repeated intake, lost
+open items and whether work could continue, as the
+[GCP specification](fleet-evaluation/gcp.md#branching-investigations-and-human-use) describes;
+AC-35's human-handover half.
+**Next action:** None until scheduled. The owner names the responders and dates; the facilitator picks
+the two cases from the accepted catalog.
+**Evidence:** none yet.
+**SRE task:** A responder taking over a board mid-incident continues from the handed-over record
+without repeating intake.
 
 ## Parked
 
