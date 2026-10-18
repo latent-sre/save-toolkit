@@ -250,6 +250,24 @@ those and the twelve existing scenarios for the other seven.
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.
 
+### FRESHNESS-001 — bring skills in line with the no-labels, no-dates rule
+
+**Status:** `ready` (2026-10-18); rescoped by the owner. The AGENTS.md rule of 2026-10-09
+(`39404d24`) decides the scope the item used to wait for: instruction files, skills included, carry
+no evidence labels, dates or citations, and state an unknown in plain words.
+**Owner:** Save Toolkit maintainers; `agent-engineer` does the cleanup.
+**Outcome:** No skill file carries a review date, a source citation or an evidence label on its own
+statements. Meaningful unknowns become plain statements ("not yet confirmed"), and lines that tell an
+agent how to label its own output stay. Done already: `agent-authoring`, and the 18 grafana and
+stack-profile files `39404d24` cleaned.
+**Next action:** `agent-engineer` cleans the remaining skills in one slice, the method `39404d24`
+used, then regenerates the platform adapters and runs Gate A. On 2026-10-18 about 47 review dates in
+about 26 files and up to 414 evidence labels across 25 skills remained (an upper bound, since some
+labels are output-labelling instructions); re-count at the start rather than reusing an inventory.
+**Evidence:** [AGENTS.md shared conventions](../AGENTS.md#shared-conventions).
+**SRE task:** Read skill guidance without stale-looking confirmation dates and citation clutter
+eroding trust in the guidance.
+
 ## Deferred
 
 ### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
@@ -426,24 +444,6 @@ to cross the current prepare/recommend boundary with a separately controlled exe
 **Evidence:** none yet
 **SRE task:** An SRE approving a live automated action gets one exact, bound, revocable approval —
 target, argv/executable digest, expiry, rollback — instead of an open-ended execution grant.
-
-### FRESHNESS-001 — review and retire vendor-fact date stamps in skills
-
-**Status:** `deferred` (2026-09-19).
-**Owner:** Save Toolkit maintainers.
-**Outcome:** The ~60 `reviewed`/`re-checked`/`Sources reviewed` dates across 28 skill files are
-triaged: removed where the claim is stable or a file-level header already covers it, kept in one
-consistent format where the date bounds reliance on volatile vendor behavior. `agent-authoring`
-is done: the owner chose to strip every date, probe-version tag, and citation from its `SKILL.md`
-and references.
-**Next action:** None until an owner confirms scope for the other skills — all stamps, or
-volatile-vendor claims only.
-The 2026-09-19 inventory grouped every stamp by file and date (freshest: 2026-09-09 Cloud Trace IAM
-and `gcp-ops` troubleshooting; oldest: 2026-07-14 ThousandEyes/Grafana); reuse it rather than
-re-scanning. Reopens as a single cleanup slice with adapter regeneration and Gate A.
-**Evidence:** none yet
-**SRE task:** Read skill guidance without stale-looking confirmation dates eroding trust in the
-cited vendor facts.
 
 ### BRANCH-001 — author the six GCP branching investigations
 
