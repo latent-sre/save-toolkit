@@ -144,3 +144,6 @@ case digests GCP-13 `fe843334d4a8` / `70d98555da09` / `83a910786c08`, GCP-17 `1b
 C). A documentation recheck the same day supported the packets' platform claims except one hidden
 source note, which overstated that Cloud Run invocations are never audit-logged; the note was
 corrected without changing any case.
+
+**Result, 2026-10-17:** the criterion is not met. The PASS gap (16) and Sonnet's PASS count (30) hold;
+no H5 behavioral check differs by 10. See the [hardened comparison](../reviews/2026-10-17-wp13-hardened-comparison.md).

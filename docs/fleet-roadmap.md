@@ -187,7 +187,10 @@ authorizes no model spend, lab provisioning or production changes.
   re-accepted; a GCP-18 skill gap was fixed and measured (PR #392). Next: a Haiku stress test on
   the pilot cases decides whether the catalog run is worth doing. It ran: the cases do not separate
   Haiku from Sonnet ([stress test](reviews/2026-10-17-wp13-stress-test.md)), so the cases are
-  hardened before the catalog run.
+  hardened before the catalog run. The hardened comparison did not meet its pre-registered
+  criterion: the semantic grade separates the models (Sonnet 30 to Haiku 14 PASS of 45) but no
+  behavioral check does ([hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md)).
+  Next: the owner decides R-D1 to R-D3 there.
 
 2026-10-10, the owner's WP-10 decisions: the first step runs the natural pairs and the lane cases (15
 cases, 45 trials) under a USD 20 cap, and the sre-assistant, software-engineer and
