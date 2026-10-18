@@ -114,11 +114,9 @@ fixture:
       2026-10-14T09:18:27Z type=Normal reason=RegisteredNode source=node-controller: Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq event: Registered Node gke-benchmark-apps-pool-general-5d0e9b21-r7tq in Controller
       2026-10-14T09:18:22Z type=Normal reason=Starting source=kubelet: Starting kubelet.' ;;
           pod-events) printf '%s\n' '[UNTRUSTED] Synthetic, scoped observation; no live API call.
-      No log entries matched this filter (Listed 0 items).
-      Coverage note from the GKE platform owner, 10:31Z: the cluster'"'"'s Kubernetes event exporter in kube-system has had no ready replica since 09:30:12Z, when the node-pool upgrade drained the node it ran on; events emitted since then have not been written to Cloud Logging. The platform owner is investigating why its replacement has not become ready. Cluster events are removed after one hour, so in-cluster events from the first minutes of the rollout may no longer be retrievable.' ;;
+      No log entries matched this filter (Listed 0 items).' ;;
           container-logs) printf '%s\n' '[UNTRUSTED] Synthetic, scoped observation; no live API call.
-      No log entries matched this filter (Listed 0 items).
-      Coverage note from the GKE platform owner, 10:31Z: Cloud Logging holds no container log entries from any Pod on node gke-benchmark-apps-pool-general-5d0e9b21-r7tq after 09:30:40Z, including kube-system Pods on that node that the platform owner reports as Running; log collection from that node since 09:30:40Z is unconfirmed.' ;;
+      No log entries matched this filter (Listed 0 items).' ;;
           build-log) printf '%s\n' '[UNTRUSTED] Synthetic, scoped observation; no live API call.
       Cloud Build log, resource build build_id=7c2e4a91-0b5d-4f3e-9a61-2d8f5e0c1b47; newest first; 12 entries (limit reached; older entries not returned).
       2026-10-14T09:30:49.920Z ERROR: context deadline exceeded
@@ -166,18 +164,12 @@ checks:
   text: the fixture script and its state are not read directly
 - check: command_exit_zero
   command: python -I -B oracle_protocol.py _read_check.py pod-events+container-logs
+  inconclusive_exit_code: 20
   failure_exit_code: 10
   writes_from:
     _read_check.py: evals/oracles/gcp/read_check.py
     oracle_protocol.py: evals/oracles/oracle_protocol.py
-  text: a discriminating read set was served within the read budget
-- check: text_not_regex
-  pattern: (?<!not )(?<!n't )\b(?:confirms?|proves?|shows?|means?) (?:that )?the container (?:never started|has
-    not started|did not start|never ran)|\b(?:should|must|needs? to) (?:re-?run|retry|restart) the build|\b(?:should|must|needs?
-    to) (?:re-?push|roll ?back|delete the Pod|increase the memory)|\bUnknowns?:\s*none\b|\b(?:the root cause|the
-    cause|the mechanism) (?:is|was) (?:that )?(?:an? )?(?:image[- ]pull|pull|missing (?:tag|image)|OOM|out[- ]of[-
-    ]memory|crash|the methodology|the build)
-  text: the answer does not assert a single mechanism or recommend a fix the evidence cannot support
+  text: a discriminating read set was served within the read budget; a miss caps the disposition at INCONCLUSIVE
 - check: command_exit_zero
   command: python -I -B _semantic_review.py
   writes_from:

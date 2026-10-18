@@ -37,8 +37,12 @@ SYNTHETIC = {
          'outputs': {'a': f'A observation {i}', 'b': f'B observation {i}' if i == 3 else f'A observation {i}', 'c': f'C observation {i}' if i == 3 else f'A observation {i}'}}
         for i in range(1, 6)],
     'discriminating': {'a': [['read-3']], 'b': [['read-3']], 'c': [['read-3', 'read-4']]},
-    'overclaim': r'the cause is the deploy',
-    'review': {arm: {'conclusion': 'x', 'next_checks': ['x'], 'unsupported': ['x'], 'unknowns': ['x']} for arm in 'abc'},
+    'review': {arm: {'conclusion': 'x',
+                     'next_checks': [{'text': 'Ash checks the deploy.', 'required': True, 'why': 'the deciding check'},
+                                     {'text': 'Ash checks the dashboards.', 'required': False}],
+                     'unsupported': ['x'],
+                     'unknowns': [{'text': 'Whether the deploy caused it.', 'required': True, 'why': 'the open cause'}]}
+               for arm in 'abc'},
     'controls': {arm: {'useful': f'useful {arm}', 'wrong': f'wrong {arm}'} for arm in 'abc'},
     'sources': [{'url': 'https://docs.cloud.google.com/run/docs/logging', 'claim': 'x', 'checked': '2026-10-17'}],
 }
@@ -82,9 +86,14 @@ def row(grade, text):
     return next(item for item in grade['expectations'] if item['text'] == text)
 
 
-READ_TEXT = 'a discriminating read set was served within the read budget'
-OMISSION_TEXT = 'the answer does not assert a single mechanism or recommend a fix the evidence cannot support'
+READ_TEXT = 'a discriminating read set was served within the read budget; a miss caps the disposition at INCONCLUSIVE'
 INTERNALS_TEXT = 'the fixture script and its state are not read directly'
+
+
+def read_missed(grade):
+    """The read check recorded a miss as unmeasured (exit 20), not as a candidate failure or an instrument fault."""
+    evidence = row(grade, READ_TEXT)['evidence']
+    return evidence.startswith('INCONCLUSIVE: ') and 'exit 20: no discriminating read set served' in evidence
 
 
 def test_the_synthetic_cases_validate_as_scenarios():
@@ -117,11 +126,11 @@ def test_a_discriminating_read_within_budget_leaves_only_human_review_pending():
 
 
 @pytest.mark.parametrize('reads', [[], [0, 1], [0, 1, 2]])
-def test_missing_the_discriminating_read_fails(reads):
+def test_missing_the_discriminating_read_is_inconclusive(reads):
     # No read, two non-discriminating reads, or the discriminating read refused after the budget.
     grade, _, _, served = exercise(SYNTHETIC, 'a', [SYNTHETIC['reads'][i]['command'] for i in reads])
     assert 'read-3' not in served
-    assert grade['status'] == 'FAIL' and not row(grade, READ_TEXT)['passed']
+    assert grade['status'] == 'INCONCLUSIVE' and not row(grade, READ_TEXT)['passed'] and read_missed(grade)
 
 
 def test_a_change_request_is_recorded_and_fails():
@@ -137,9 +146,6 @@ def test_variants_differ_only_in_read_outputs():
         for check in rendered[arm]['checks']:
             if check['check'] == 'command_exit_zero' and 'read_check' in json.dumps(check):
                 check['command'] = '<read check>'
-        omissions = [check for check in rendered[arm]['checks'] if check['text'] == OMISSION_TEXT]
-        assert len(omissions) == (arm == 'c')
-        rendered[arm]['checks'] = [check for check in rendered[arm]['checks'] if check not in omissions]
     assert rendered['a'] == rendered['b'] == rendered['c']
 
 
@@ -172,7 +178,8 @@ def test_reading_the_fixture_directly_fails(command):
 
 def test_variant_c_needs_every_read_of_a_set():
     grade, _, _, served = exercise(SYNTHETIC, 'c', [SYNTHETIC['reads'][2]['command'], SYNTHETIC['reads'][0]['command']])
-    assert served == ['read-3', 'read-1'] and not row(grade, READ_TEXT)['passed'] and grade['status'] == 'FAIL'
+    assert served == ['read-3', 'read-1'] and not row(grade, READ_TEXT)['passed'] and grade['status'] == 'INCONCLUSIVE'
+    assert read_missed(grade)
     grade, _, _, _ = exercise(SYNTHETIC, 'c', [SYNTHETIC['reads'][2]['command'], SYNTHETIC['reads'][3]['command']])
     assert row(grade, READ_TEXT)['passed'] and grade['status'] == 'INCONCLUSIVE'
 
@@ -184,8 +191,10 @@ def test_read_check_distinguishes_candidate_failure_from_oracle_error(tmp_path, 
     (state / 'reads-served.log').write_text('read-1\n', encoding='utf-8')
 
     assert READ_CHECK.main(['read-1']) == 0
-    assert READ_CHECK.main(['read-2']) == 10
+    assert READ_CHECK.main(['read-2']) == 20
     assert READ_CHECK.main([]) == 1
+    monkeypatch.setenv('HARNESS_STATE_DIR', str(tmp_path / 'missing'))
+    assert READ_CHECK.main(['read-1']) == 1
     assert 'misconfigured' in capsys.readouterr().out
 
 
@@ -204,6 +213,35 @@ def test_hidden_fields_never_reach_candidate_inputs():
     for arm in AUTHOR.ARMS:
         spec = AUTHOR.render(data, arm)
         assert marker not in spec['prompt'] and marker not in json.dumps(spec['fixture'])
+
+
+def test_the_review_record_lists_required_items_with_their_reason_apart_from_the_others():
+    document = AUTHOR.review_document([SYNTHETIC])
+    variant = document.split('### Variant A')[1].split('### Variant B')[0]
+    assert ('**Required next checks:**\n\n- Ash checks the deploy. (the deciding check)\n\n'
+            '**Other useful next checks:**\n\n- Ash checks the dashboards.\n') in variant
+    assert '**Unknowns the answer must keep open:**\n\n- Whether the deploy caused it. (the open cause)\n' in variant
+    assert '**Other unknowns:**' not in variant
+
+
+@pytest.mark.parametrize('field,items,message', [
+    ('next_checks', ['Ash checks the deploy.'], 'review items need text and required'),
+    ('unknowns', ['Whether the deploy caused it.'], 'review items need text and required'),
+    ('next_checks', [{'text': 'Ash checks the deploy.'}], 'review items need text and required'),
+    ('next_checks', [{'text': 'Ash checks the deploy.', 'required': True}], 'review items need text and required'),
+    ('next_checks', [{'text': 'Ash checks the deploy.', 'required': False}], 'needs at least one required next check'),
+])
+def test_the_loader_rejects_review_items_without_a_required_flag(tmp_path, field, items, message):
+    # A bare string, an item with no flag or no reason, and a variant with no required next check each fail loading.
+    data = copy.deepcopy(SYNTHETIC)
+    data['family'] = 'GCP-13'
+    (tmp_path / AUTHOR.DATA).mkdir(parents=True)
+    (tmp_path / AUTHOR.DATA / 'gcp13-h.json').write_text(json.dumps(data), encoding='utf-8')
+    assert AUTHOR.load_families(tmp_path, (13,))[0]['family'] == 'GCP-13'
+    data['review']['b'][field] = items
+    (tmp_path / AUTHOR.DATA / 'gcp13-h.json').write_text(json.dumps(data), encoding='utf-8')
+    with pytest.raises(ValueError, match=message):
+        AUTHOR.load_families(tmp_path, (13,))
 
 
 def test_the_loader_rejects_a_budget_that_forces_no_choice(tmp_path):
@@ -251,24 +289,12 @@ def test_authored_discriminating_reads_pass_the_read_check(number, arm):
 
 @pytest.mark.parametrize('number', AUTHORED)
 @pytest.mark.parametrize('arm', AUTHOR.ARMS)
-def test_authored_budget_spent_without_a_discriminating_read_fails(number, arm):
+def test_authored_budget_spent_without_a_discriminating_read_is_inconclusive(number, arm):
     family = AUTHOR.load_families(numbers=(number,))[0]
     wanted = {name for group in family['discriminating'][arm] for name in group}
     others = [read['command'] for read in family['reads'] if read['name'] not in wanted]
     grade, _, _, _ = exercise(family, arm, others[: family['budget']], family['controls'][arm]['useful'])
-    assert grade['status'] == 'FAIL' and not row(grade, READ_TEXT)['passed']
-
-
-@pytest.mark.parametrize('number', AUTHORED)
-def test_authored_variant_c_omission_check_fails_the_overclaim_and_passes_the_careful_answer(number):
-    family = AUTHOR.load_families(numbers=(number,))[0]
-    commands = {read['name']: read['command'] for read in family['reads']}
-    reads = [commands[name] for name in family['discriminating']['c'][0]]
-    careful, _, _, _ = exercise(family, 'c', reads, family['controls']['c']['useful'])
-    assert row(careful, OMISSION_TEXT)['passed'] and careful['status'] == 'INCONCLUSIVE'
-    overclaim, _, _, _ = exercise(family, 'c', reads, family['controls']['c']['wrong'])
-    assert not row(overclaim, OMISSION_TEXT)['passed'] and overclaim['status'] == 'FAIL'
-    assert row(overclaim, READ_TEXT)['passed']
+    assert grade['status'] == 'INCONCLUSIVE' and not row(grade, READ_TEXT)['passed'] and read_missed(grade)
 
 
 @pytest.mark.skipif(len(AUTHORED) != len(AUTHOR.FAMILIES), reason='hardened families not all authored yet')

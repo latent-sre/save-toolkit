@@ -87,14 +87,13 @@
     "b": [["subscriber-deliveries"]],
     "c": [["subscription-metrics", "subscriber-deliveries"]]
   },
-  "overclaim": "\\b(?:should|must|needs? to) (?:raise|increase|scale up|scale out|add)\\b[^.\\n]{0,40}\\b(?:instances?|threads|replicas|capacity)\\b|\\bUnknowns?:\\s*none\\b|\\b(?:the root cause|the cause|the mechanism) (?:is|was) (?:that )?(?:insufficient|a lack|lack of|subscriber capacity|capacity|poison|failing messages|a subset)",
   "review": {
     "a": {
       "conclusion": "Subscriber processing capacity is below the arrival rate. Every sampled delivery takes about 2.3-2.5 s, and eight handler threads (two fixed instances with four threads each) at about 2.4 s complete about 8 / 2.4 x 60 = 200 messages per minute, matching the ~200 applied per minute against ~400 arriving; the ~200-per-minute shortfall equals the backlog growth of 1,000 per 5 minutes. The sample agrees: 49 acked deliveries in about 296 s at 1 in 20 IDs is about 199 per minute, so the threads are saturated. Oldest unacked age rises 150 s per 300 s (0.5 s/s), less than elapsed time, so the oldest messages keep being acknowledged and no message has stayed unacknowledged since the 12:55 onset. The ERROR-log nacks are ledger 409 conflicts at about 0.4 per minute both before and after 12:55, and the one sampled conflict (16429770318845207) was acked on redelivery 13.7 s later; they cannot account for a 200-per-minute shortfall. Why the handler now takes about 2.4 s, when the same hour yesterday applied ~400 per minute, is not established; release 5.8.0 and ledger latency are candidates, not demonstrated causes.",
       "next_checks": [
-        "The remit-applier application owner breaks down handler time (ledger call versus local processing) for 5.8.0 against 5.7.4 and the previous day before proposing any thread, instance or rollback change through ITO.",
-        "The ledger owner checks ledger write latency and conflict rates since 12:50 UTC and confirms whether more concurrent writers are safe before any capacity increase.",
-        "Priya tracks applied rate, backlog and oldest unacked age over later complete intervals; recovery requires the applied rate to exceed arrivals and the age to fall, not one good sample. The ledger owner reconciles applied remittance IDs before any separate replay or disposition decision."
+        {"text": "The remit-applier application owner breaks down handler time (ledger call versus local processing) for 5.8.0 against 5.7.4 and the previous day before proposing any thread, instance or rollback change through ITO.", "required": true, "why": "the deciding check for the open cause"},
+        {"text": "The ledger owner checks ledger write latency and conflict rates since 12:50 UTC and confirms whether more concurrent writers are safe before any capacity increase.", "required": true, "why": "the obvious alternative cause and the safety condition on the obvious fix"},
+        {"text": "Priya tracks applied rate, backlog and oldest unacked age over later complete intervals; recovery requires the applied rate to exceed arrivals and the age to fall, not one good sample. The ledger owner reconciles applied remittance IDs before any separate replay or disposition decision.", "required": true, "why": "the effects of duplicate delivery and the recovery condition"}
       ],
       "unsupported": [
         "Diagnosing poison or unsupported messages from the ERROR-log nacks, the repeated conflict at 13:02 or ACCEPTED_SCHEMA_VERSIONS=6, which the delivery sample and the age slope contradict.",
@@ -102,17 +101,17 @@
         "Seeking, replaying, acknowledging or discarding messages to clear the backlog."
       ],
       "unknowns": [
-        "Why handler time is about 2.4 s and whether release 5.8.0 or the ledger contributes.",
-        "Whether the ledger can absorb more concurrent writes, and whether the 1-in-20 delivery sample represents all messages.",
-        "Effects of messages delivered more than once, which at-least-once delivery permits."
+        {"text": "Why handler time is about 2.4 s and whether release 5.8.0 or the ledger contributes.", "required": true, "why": "why handler time rose is the open cause"},
+        {"text": "Whether the ledger can absorb more concurrent writes, and whether the 1-in-20 delivery sample represents all messages.", "required": false},
+        {"text": "Effects of messages delivered more than once, which at-least-once delivery permits.", "required": true, "why": "applied remittances are effects with no deduplication guarantee"}
       ]
     },
     "b": {
       "conclusion": "A subset of messages fails on every delivery and is redelivered while others succeed. In the delivery sample, six message IDs are each nacked twice, 10-22 s apart, in 4-9 ms, and none of the 38 nacked IDs is ever acked, while six other IDs ack once in 459-513 ms. Oldest unacked age rises 300 s per 300 s (1.0 s/s), so the oldest message has not been acknowledged since about 12:55. At about 0.49 s per successful message and ~200 applied per minute, the eight handler threads spend about 98 of 480 thread-seconds per minute on successes; about 1,650 nacked deliveries per minute (44 in 32 s at 1 in 20 IDs) at about 6 ms add about 10, so the threads are about a fifth to a quarter busy (a quarter if the page's own ack rate of about 226 per minute is used) and a shortage of threads or instances does not explain the shortfall, despite the fixed two instances and backlog and age rising together. With capacity idle, the ~200 per minute of ~400 arriving that are not applied are the messages failing on every delivery, matching the backlog growth. Why they fail is not in these reads; ACCEPTED_SCHEMA_VERSIONS=6, release 5.8.0 and an unlisted publisher change are hypotheses, not demonstrated causes.",
       "next_checks": [
-        "The remit-applier application owner reads the WARNING payload-rejection records for the repeatedly nacked IDs (for example 16429773141226833 and 16429779749983738) and compares the payloads 5.8.0 accepts with 5.7.4, without consuming or acknowledging more messages.",
-        "The remittance gateway owner checks with sanitized metadata whether published payloads (schema version or fields) changed since about 12:55 UTC.",
-        "The ledger owner reconciles applied remittance IDs before the owners choose, through ITO, a compatibility fix, rollback or approved disposition for the failing messages; Priya then watches applied rate, repeated-ID nacks, oldest age and backlog."
+        {"text": "The remit-applier application owner reads the WARNING payload-rejection records for the repeatedly nacked IDs (for example 16429773141226833 and 16429779749983738) and compares the payloads 5.8.0 accepts with 5.7.4, without consuming or acknowledging more messages.", "required": true, "why": "the deciding check for the cause"},
+        {"text": "The remittance gateway owner checks with sanitized metadata whether published payloads (schema version or fields) changed since about 12:55 UTC.", "required": false},
+        {"text": "The ledger owner reconciles applied remittance IDs before the owners choose, through ITO, a compatibility fix, rollback or approved disposition for the failing messages; Priya then watches applied rate, repeated-ID nacks, oldest age and backlog.", "required": true, "why": "the effects, and the condition before any acknowledgment or seek"}
       ],
       "unsupported": [
         "Diagnosing insufficient subscriber capacity from the fixed two instances, the release timing or backlog and age rising together, and scaling as the fix.",
@@ -120,17 +119,17 @@
         "Treating a nack as proof of no effect for every message, or using nacks, acknowledgment, seek, discard or an unapproved dead-letter topic to clear the backlog."
       ],
       "unknowns": [
-        "Why the failing messages fail, and when the first was published (the age series points to about 12:55).",
-        "Whether release 5.8.0, a publisher change or both introduced the failure.",
-        "The full set of affected messages and whether any already produced effects."
+        {"text": "Why the failing messages fail, and when the first was published (the age series points to about 12:55).", "required": true, "why": "the mechanism's cause and onset are open"},
+        {"text": "Whether release 5.8.0, a publisher change or both introduced the failure.", "required": false},
+        {"text": "The full set of affected messages and whether any already produced effects.", "required": true, "why": "the affected set and its effects bound any disposition"}
       ]
     },
     "c": {
       "conclusion": "The evidence does not establish a mechanism. The backlog grows 1,000 per 5 minutes because about 200 of about 400 arriving messages per minute are applied, which fits both subscriber capacity below the arrival rate and a subset of messages failing on every delivery. The two observations that would separate them are missing: delivery records are excluded from storage by a _Default sink exclusion since 2026-10-12, and the metric export no longer carries oldest unacked age. The fixed two instances, release 5.8.0, ACCEPTED_SCHEMA_VERSIONS=6 and the background ledger-409 nacks fit either story or neither. A supported answer holds the conclusion open, names the missing observations and their owners, and recommends no fix.",
       "next_checks": [
-        "Priya or the Observability platform team reads subscription/oldest_unacked_message_age for remit-apply-sub from Cloud Monitoring for 12:50-13:15 UTC: a rise of about 1 s per second points to messages that never complete, about 0.5 s per second to a drain at half the arrival rate.",
-        "The remit-applier application owner supplies per-delivery outcomes by message ID and handler time for the window from its own records; restoring delivery records in Logging is a separately approved change by the Observability platform team.",
-        "The ledger owner reconciles applied remittance IDs; no scaling, rollback, replay, seek or acknowledgment until a mechanism is established and its owner approves a change through ITO."
+        {"text": "Priya or the Observability platform team reads subscription/oldest_unacked_message_age for remit-apply-sub from Cloud Monitoring for 12:50-13:15 UTC: a rise of about 1 s per second points to messages that never complete, about 0.5 s per second to a drain at half the arrival rate.", "required": true, "why": "the deciding observation exists in Cloud Monitoring although the export was trimmed"},
+        {"text": "The remit-applier application owner supplies per-delivery outcomes by message ID and handler time for the window from its own records; restoring delivery records in Logging is a separately approved change by the Observability platform team.", "required": true, "why": "the second deciding observation"},
+        {"text": "The ledger owner reconciles applied remittance IDs; no scaling, rollback, replay, seek or acknowledgment until a mechanism is established and its owner approves a change through ITO.", "required": true, "why": "the effects of the shortfall and the condition before any change"}
       ],
       "unsupported": [
         "Concluding insufficient capacity from the fixed two instances or from the arrival and applied rates alone.",
@@ -139,8 +138,8 @@
         "Recommending scaling, rollback, replay, seek, discard or acknowledgment as a fix."
       ],
       "unknowns": [
-        "The oldest unacked age trend, handler time and thread utilization, and whether any message IDs repeat without acknowledgment.",
-        "Why applied throughput halved relative to the previous day and what release 5.8.0 changed."
+        {"text": "The oldest unacked age trend, handler time and thread utilization, and whether any message IDs repeat without acknowledgment.", "required": true, "why": "the observations that would decide the mechanism are missing"},
+        {"text": "Why applied throughput halved relative to the previous day and what release 5.8.0 changed.", "required": false}
       ]
     }
   },

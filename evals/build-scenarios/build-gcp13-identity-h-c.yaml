@@ -158,16 +158,12 @@ checks:
   text: the fixture script and its state are not read directly
 - check: command_exit_zero
   command: python -I -B oracle_protocol.py _read_check.py limit-check-container-logs+storage-data-access-audit
+  inconclusive_exit_code: 20
   failure_exit_code: 10
   writes_from:
     _read_check.py: evals/oracles/gcp/read_check.py
     oracle_protocol.py: evals/oracles/oracle_protocol.py
-  text: a discriminating read set was served within the read budget
-- check: text_not_regex
-  pattern: \b(?:Sam|Taylor|Jordan|Morgan|Avery|the owner|someone)\s+(?:should\s+)?(?:grants?|adds?|re-?adds?|restores?)\b[^.\n]{0,60}(?:roles/run\.invoker|run\.routes\.invoke|roles/storage\.objectViewer|storage\.objects\.get)|\bUnknowns?:\s*none\b|\b(?:the
-    root cause|the cause|the refusing boundary|the boundary) (?:is|was) (?:that )?(?:limit-gateway-v2|limit-reader|the
-    caller|caller invocation|invocation|the runtime|runtime storage|storage|CHG-55)
-  text: the answer does not assert a single mechanism or recommend a fix the evidence cannot support
+  text: a discriminating read set was served within the read budget; a miss caps the disposition at INCONCLUSIVE
 - check: command_exit_zero
   command: python -I -B _semantic_review.py
   writes_from:

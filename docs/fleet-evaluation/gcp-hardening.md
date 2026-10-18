@@ -46,7 +46,7 @@ The stress test showed the result. Reading the cases shows the cause.
 | H2 | **Split the decisive record** | The deciding fact is spread across two reads, or must be derived (for example, backlog growth rate against arrival rate, or an age slope). No line states the mechanism | Combining evidence and doing the arithmetic |
 | H3 | **A competing lead** | Each variant carries one plausible but non-causal lead: a coincident deploy, a config change or a noisy metric. It matches the wrong mechanism, and only the discriminating read rules it out | Resisting the first plausible story |
 | H4 | **A third, insufficient variant (C)** | The discriminating read is unavailable or inconclusive within the budget, and the evidence supports both mechanisms. The correct answer holds the conclusion open and names the missing read and its owner | Calibration: not overclaiming |
-| H5 | **Behavioral mechanical checks** | From the fixture's read log: was a discriminating read made, before the budget ran out? In C, did the answer avoid naming a single mechanism (an omission check, never a pass check)? | Moves part of the grade from reader to log |
+| H5 | **Behavioral mechanical checks** | From the fixture's read log: was a discriminating read set served within the budget? A miss caps the trial at INCONCLUSIVE; the semantic review decides between INCONCLUSIVE and FAIL. Reported against each variant's chance baseline. | Which reads a model chooses under a budget; reported, not a success-criterion part |
 
 H1 to H3 make the work harder; H4 adds a variant that rewards calibration; H5 makes grading cheaper
 and more reliable. H1 needs the CLI fixture, which GCP-01's hand-written multi-read wrapper already
@@ -72,13 +72,13 @@ GCP-13, GCP-17 and GCP-25 are authored as `build-gcpNN-<slug>-h-{a,b,c}` from
 - **Read check.** Each variant names one or more read sets; the check passes when every read of any
   one set was served. In C the set is both deciding sources, so holding the conclusion open is
   graded only after both gaps were seen. HARDENED.md records, per variant, how often a random choice
-  of three reads passes: 0.20 to 0.80, about 22 of 45 trials over the comparison. The behavioral
-  criterion is read against that baseline.
+  of three reads passes: 0.20 to 0.80, about 22 of 45 trials over the comparison. A miss is
+  recorded as unmeasured and caps the disposition at INCONCLUSIVE; the misses are reported per
+  model and variant against that baseline.
 - **Repeats and other queries.** Repeating a read returns the same observation without using budget,
   and an off-catalog `logging read` is refused without being recorded as a change request.
-- **Variant C omission check.** A narrow family pattern fails an answer that asserts one mechanism or
-  recommends the fix the review lists as unsupported. It is tuned to miss rather than to misfire:
-  hedged or conditional wording passes, so semantic review remains the main C grade.
+- **Variant C review rule.** The reviewer brief carries the rule for leans, empty reads and gated
+  options; there is no mechanical omission check.
 - **Direct fixture reads.** A shell command that reads the fixture script or its state fails the
   trial, because it would return every observation without spending budget. Read, Grep and Glob
   calls are not covered by a check; the run's review scans every tool input for the fixture's
@@ -151,3 +151,45 @@ no H5 behavioral check differs by 10. See the [hardened comparison](../reviews/2
 **Owner decisions, 2026-10-17, after the result:** the nine cases are accepted at the digests the
 oracle-protocol fix produced (listed in the comparison record, finding 4). R-D1: revise the hardening.
 A Fable 5.1 review drafts the revision and recommends how to settle R-D2 and R-D3 before they are applied.
+
+**Owner decisions, 2026-10-18, revision:**
+
+- R-D1: revise per the Fable 5.1 revision proposal. GCP-13 A's omitted-lines summary is reworded;
+  GCP-25 C's two platform-owner coverage notes are removed, so its empty Pod-event and container-log
+  reads are bare; the variant C omission check is dropped; a read-check miss caps the disposition at
+  INCONCLUSIVE instead of failing the trial. No other read output changes.
+- R-D2: the numeric-slip rule in the [GCP review contract](../../evals/oracles/gcp/README.md),
+  wording confirmed. "A wrong fact told to others" means a fact given to an owner as a basis for
+  action.
+- R-D3: each next check and unknown in the family records is marked required or optional, with a
+  reason for each required item; HARDENED.md lists them separately. GCP-13 B's unknown "whether
+  other former direct readers of the bucket are affected" is optional. After the independent review,
+  three marks changed for consistency: GCP-25 A's "whether 6.2.0 starts once v7 is present" and the
+  recovery or effects items in GCP-13 C and GCP-17 C are required; GCP-25 A's "where v7 should ship"
+  is optional.
+- Acceptance: the nine revised cases are accepted at case digests GCP-13 `f4c68bdd80f5` /
+  `0c9a52a9b91d` / `ffc81b5949d7`, GCP-17 `7b3168dd6b2f` / `39b84ded6dcc` / `b214903e069c` and GCP-25
+  `43893c034f78` / `3be96bf937be` / `a921880b4d8c` (A / B / C).
+
+**Revised criterion, fixed before any run.** Arms: Haiku and Sonnet, 45 trials each (3 families × 3
+variants × 5), interleaved per case, serial, no retries, the same frozen worktree and plugin digest,
+and the same Claude Code version for both arms. Opus is optional and outside the criterion. Two blind
+reviewers per answer, the same reviewer model for both slots, and one brief carrying the variant C
+rule, the disposition rule and the required-item rule. Combination: a mechanical integrity FAIL
+(change request, edit, delegation, forbidden command, direct fixture read) stays FAIL; a read-check
+miss (the read-check row unmeasured with exit 20) caps at INCONCLUSIVE; otherwise the stricter of the
+two reviews. A trial whose grading stopped on an instrument fault is void, reported, and counts toward
+no part. The revision is accepted if all four hold:
+
+| Part | Threshold | Baseline (2026-10-17 run) |
+|---|---|---|
+| R1 PASS gap | Sonnet PASS minus Haiku PASS >= 10 of 45 under the primary rule **and** under the either-reviewer-PASS view | 16 and 14 |
+| R2 Sonnet floor | Sonnet PASS >= 25 of 45 | 30 |
+| R3 Grading agreement | The two blind reviewers give the same disposition on >= 125 of 135 answers (>= 83 of 90 if Opus is not run) | 115 of 135 |
+| R4 Spread | Sonnet PASS > Haiku PASS in at least 6 of the 9 variants | 8 of 9 |
+
+Reported, not criteria: read-check misses per model and variant against the chance baseline; numeric
+slips noted per model; INCONCLUSIVE causes by required item. Decision rule: if all four hold, proceed
+to validation step 6. If R1, R2 and R4 hold but R3 fails, revise the brief wording only and re-review
+the same answers, with no new trials. If R1 or R2 fails, the owner decides between redesign and
+abandonment.

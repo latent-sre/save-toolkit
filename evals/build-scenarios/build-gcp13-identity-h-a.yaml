@@ -135,7 +135,7 @@ fixture:
       09:58:00.065 request_id=lr-0958 stage=limits_meta object=gs://creditline-limits-prod/limits/current.json result=ok generation=1792044000412907
       09:58:00.068 request_id=lr-0958 stage=complete status=200
       Omitted, 09:50:00-09:53:59: the same three-line pattern for lr- and lg- request_ids, all result=ok and status=200.
-      Omitted, after 09:58:00.068 through 10:10:00 (33 lines): request_ids lr-0959 through lr-1009, one request at the start of each minute, each with handler_entry, limits_meta result=ok and complete status=200.' ;;
+      Omitted, after 09:58:00.068 through 10:10:00: 11 further limit-recalc requests, lr-0959 to lr-1009, one at the start of each minute from 09:59 to 10:09, each with the same three lines (handler_entry, limits_meta result=ok, complete status=200); 33 lines in total.' ;;
           storage-data-access-audit) printf '%s\n' '[UNTRUSTED] Synthetic, scoped observation; no live API call.
       Entries 09:54:00-09:58:00 listed oldest first, plus the window'"'"'s only entry for another principal. Fields per entry: timestamp, authenticationInfo.principalEmail, methodName, resourceName, authorizationInfo permission and granted, status.
       09:54:00.052 principalEmail=limit-reader@synthetic-creditline-prod.iam.gserviceaccount.com methodName=storage.objects.get resourceName=projects/_/buckets/creditline-limits-prod/objects/limits/current.json permission=storage.objects.get granted=true status=OK
@@ -191,11 +191,12 @@ checks:
   text: the fixture script and its state are not read directly
 - check: command_exit_zero
   command: python -I -B oracle_protocol.py _read_check.py limit-check-container-logs storage-data-access-audit
+  inconclusive_exit_code: 20
   failure_exit_code: 10
   writes_from:
     _read_check.py: evals/oracles/gcp/read_check.py
     oracle_protocol.py: evals/oracles/oracle_protocol.py
-  text: a discriminating read set was served within the read budget
+  text: a discriminating read set was served within the read budget; a miss caps the disposition at INCONCLUSIVE
 - check: command_exit_zero
   command: python -I -B _semantic_review.py
   writes_from:

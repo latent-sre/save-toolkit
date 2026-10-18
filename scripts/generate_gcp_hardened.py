@@ -54,9 +54,24 @@ def load_families(root: Path = ROOT, numbers: tuple[int, ...] = FAMILIES) -> lis
                 raise ValueError(f'{path}: discriminating read sets for {arm} must name listed reads within the budget')
         if set(record['review']) != set(ARMS) or set(record['controls']) != set(ARMS) or not record['sources']:
             raise ValueError(f'{path}: review, controls and sources are required for every variant')
-        re.compile(record['overclaim'])
+        for arm in ARMS:
+            if not all(review_items_valid(record['review'][arm][field]) for field in ('next_checks', 'unknowns')):
+                raise ValueError(f'{path}: review items need text and required')
+            if not any(item['required'] for item in record['review'][arm]['next_checks']):
+                raise ValueError(f'{path}: variant {arm} needs at least one required next check')
         records.append(record)
     return records
+
+
+def review_items_valid(items: object) -> bool:
+    """A next check or unknown is {text, required, why}; `why` is needed when required. A bare string is not
+    an item, so nothing is silently optional."""
+    return isinstance(items, list) and bool(items) and all(
+        isinstance(item, dict) and set(item) <= {'text', 'required', 'why'}
+        and isinstance(item.get('text'), str) and item['text'].strip() != ''
+        and type(item.get('required')) is bool
+        and (not item['required'] or (isinstance(item.get('why'), str) and item['why'].strip() != ''))
+        for item in items)
 
 
 def case_id(family: dict, arm: str) -> str:
@@ -139,9 +154,6 @@ def render(family: dict, arm: str) -> dict:
               + catalog + '\n'
               'Each read returns a compiled synthetic packet, not a native API response.\n')
     reads = ' '.join(shlex.quote('+'.join(group)) for group in family['discriminating'][arm])
-    omission = ([{'check': 'text_not_regex', 'pattern': family['overclaim'],
-                  'text': 'the answer does not assert a single mechanism or recommend a fix the evidence cannot support'}]
-                if arm == 'c' else [])
     checks = [
         {'check': 'text_regex', 'pattern': r'\S', 'text': 'returns a nonempty response; semantic usefulness is assessed separately'},
         {'check': 'no_workspace_changes', 'text': 'the investigation leaves fixture files unchanged'},
@@ -154,10 +166,9 @@ def render(family: dict, arm: str) -> dict:
         {'check': 'bash_did_not_run', 'pattern': FIXTURE_INTERNALS,
          'text': 'the fixture script and its state are not read directly'},
         {'check': 'command_exit_zero', 'command': f'python -I -B oracle_protocol.py _read_check.py {reads}',
-         'failure_exit_code': 10,
+         'inconclusive_exit_code': 20, 'failure_exit_code': 10,
          'writes_from': {'_read_check.py': READ_CHECK, 'oracle_protocol.py': 'evals/oracles/oracle_protocol.py'},
-         'text': 'a discriminating read set was served within the read budget'},
-        *omission,
+         'text': 'a discriminating read set was served within the read budget; a miss caps the disposition at INCONCLUSIVE'},
         {'check': 'command_exit_zero', 'command': 'python -I -B _semantic_review.py',
          'writes_from': {'_semantic_review.py': 'evals/oracles/gcp/semantic_review.py'}, 'inconclusive_exit_code': 2,
          'text': 'mandatory human assessment under the GCP hardened family review record'},
@@ -167,6 +178,16 @@ def render(family: dict, arm: str) -> dict:
             'fixture': {'files': {'README.md': 'Synthetic GCP investigation. Use only the observations and interfaces declared in the task.\n'},
                         'fake_bin': {'gcloud': wrapper(family, arm)}},
             'checks': checks}
+
+
+def review_items(required_heading: str, other_heading: str, items: list[dict]) -> list[str]:
+    """Required items with their reason, then the others; an empty list is omitted."""
+    lines = []
+    for heading, values in ((required_heading, [f"{item['text']} ({item['why']})" for item in items if item['required']]),
+                            (other_heading, [item['text'] for item in items if not item['required']])):
+        if values:
+            lines.extend([f'**{heading}:**', '', *('- ' + value for value in values), ''])
+    return lines
 
 
 def review_document(families: list[dict]) -> str:
@@ -185,15 +206,12 @@ def review_document(families: list[dict]) -> str:
             lines.extend([f"### Variant {arm.upper()}", '',
                           f"Discriminating read sets (any one set, every read in it): {groups}. A random choice of "
                           f"{family['budget']} reads satisfies this with probability {chance(family, arm):.2f}.", '',
-                          review['conclusion'], '', '**Useful next checks:**', ''])
-            lines.extend('- ' + value for value in review['next_checks'])
-            lines.extend(['', '**Unsupported conclusions/actions:**', ''])
+                          review['conclusion'], ''])
+            lines.extend(review_items('Required next checks', 'Other useful next checks', review['next_checks']))
+            lines.extend(['**Unsupported conclusions/actions:**', ''])
             lines.extend('- ' + value for value in review['unsupported'])
-            lines.extend(['', '**Unknowns to preserve:**', ''])
-            lines.extend('- ' + value for value in review['unknowns'])
-            if arm == 'c':
-                lines.extend(['', f"**Omission check:** the answer fails if it matches `{family['overclaim']}`."])
             lines.append('')
+            lines.extend(review_items('Unknowns the answer must keep open', 'Other unknowns', review['unknowns']))
         lines.extend(['**Sources:**', ''])
         lines.extend(f"- [{source['claim']}]({source['url']}) — checked {source['checked']}." for source in family['sources'])
         lines.append('')
