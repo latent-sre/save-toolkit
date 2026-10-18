@@ -125,8 +125,7 @@ acceptance tests, delivery phases and explicit open decisions.
 **Next action:**
 - WP-13: the six branching investigations, in the run plan's order (`agent-engineer`); the GCP-17 C
   and GCP-25 B fix-and-measure, the sleep hold and the
-  [catalog baseline](reviews/2026-10-18-wp13-catalog-baseline.md) are done. The owner rules on the
-  baseline's one borderline disposition (GCP-21 B).
+  [catalog baseline](reviews/2026-10-18-wp13-catalog-baseline.md) are done.
   Haiku's inconsistent `gcp-ops` loading is the remaining limit on that fix.
 - WP-10: the owner disposes of the bound Luna semantic proposals and names the exact candidate
   revision; any further campaign needs a new bounded scope.

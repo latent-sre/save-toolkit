@@ -1,6 +1,6 @@
 # WP-13 catalog regression baseline (2026-10-18)
 
-**Status:** complete; one borderline disposition awaits the owner. It runs step 3 of the
+**Status:** complete; the owner ruled on the one borderline disposition on 2026-10-18. It runs step 3 of the
 [WP-13 run plan](../fleet-evaluation/run-plan-wp13-gcp-native-pilot.md#pilot-outcome-and-revised-direction):
 the 40 catalog cases once each on one candidate, as a reference point for later regressions. It
 records observations of one candidate. It does not accept or reject a model or the candidate.
@@ -14,12 +14,12 @@ records observations of one candidate. It does not accept or reject a model or t
 - [sourced: one blind AI review] **The 10% semantic sample passes 4 of 4.** GCP-06 A, GCP-14 A,
   GCP-21 B and GCP-26 B, drawn with a fixed seed. Notes cover estimates that overstate their data
   (GCP-06 A) and next checks assigned to a different owner than the record names (GCP-26 B).
-- **One borderline for the owner (GCP-21 B).** The answer reaches the record's diagnosis but says
+- **One borderline, ruled PASS by the owner (GCP-21 B).** The answer reaches the record's diagnosis but says
   handoffs succeeded from 08:47; the clearing-gateway observation starts at 09:00. Under the
   [review contract](../../evals/oracles/gcp/README.md)'s numbers rule, a statement describing an event
   no observation shows is a wrong fact, which is FAIL. The reviewer kept PASS because the answer uses
-  the claim only to rule out the migration, and that conclusion stands from 09:00. Recorded as PASS,
-  borderline, until the owner rules.
+  the claim only to rule out the migration, and that conclusion stands from 09:00. The owner ruled
+  PASS on 2026-10-18.
 - [unverified] **Coverage limit.** 36 of the 40 answers have no semantic disposition; mechanical
   cleanliness does not show they are correct.
 
