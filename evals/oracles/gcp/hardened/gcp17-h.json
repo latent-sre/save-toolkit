@@ -83,10 +83,11 @@
     }
   ],
   "discriminating": {
-    "a": ["subscription-metrics", "subscriber-deliveries"],
-    "b": ["subscriber-deliveries"],
-    "c": ["subscription-metrics", "subscriber-deliveries"]
+    "a": [["subscription-metrics"], ["subscriber-deliveries"]],
+    "b": [["subscriber-deliveries"]],
+    "c": [["subscription-metrics", "subscriber-deliveries"]]
   },
+  "overclaim": "\\b(?:should|must|needs? to) (?:raise|increase|scale up|scale out|add)\\b[^.\\n]{0,40}\\b(?:instances?|threads|replicas|capacity)\\b|\\bUnknowns?:\\s*none\\b|\\b(?:the root cause|the cause|the mechanism) (?:is|was) (?:that )?(?:insufficient|a lack|lack of|subscriber capacity|capacity|poison|failing messages|a subset)",
   "review": {
     "a": {
       "conclusion": "Subscriber processing capacity is below the arrival rate. Every sampled delivery takes about 2.3-2.5 s, and eight handler threads (two fixed instances with four threads each) at about 2.4 s complete about 8 / 2.4 x 60 = 200 messages per minute, matching the ~200 applied per minute against ~400 arriving; the ~200-per-minute shortfall equals the backlog growth of 1,000 per 5 minutes. The sample agrees: 49 acked deliveries in about 296 s at 1 in 20 IDs is about 199 per minute, so the threads are saturated. Oldest unacked age rises 150 s per 300 s (0.5 s/s), less than elapsed time, so the oldest messages keep being acknowledged and no message has stayed unacknowledged since the 12:55 onset. The ERROR-log nacks are ledger 409 conflicts at about 0.4 per minute both before and after 12:55, and the one sampled conflict (16429770318845207) was acked on redelivery 13.7 s later; they cannot account for a 200-per-minute shortfall. Why the handler now takes about 2.4 s, when the same hour yesterday applied ~400 per minute, is not established; release 5.8.0 and ledger latency are candidates, not demonstrated causes.",

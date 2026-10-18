@@ -87,10 +87,11 @@
     }
   ],
   "discriminating": {
-    "a": ["pod-events", "container-logs"],
-    "b": ["pod-events", "build-log"],
-    "c": ["pod-events", "container-logs"]
+    "a": [["container-logs"]],
+    "b": [["build-log"]],
+    "c": [["pod-events", "container-logs"]]
   },
+  "overclaim": "(?<!not )(?<!n't )\\b(?:confirms?|proves?|shows?|means?) (?:that )?the container (?:never started|has not started|did not start|never ran)|\\b(?:should|must|needs? to) (?:re-?run|retry|restart) the build|\\b(?:should|must|needs? to) (?:re-?push|roll ?back|delete the Pod|increase the memory)|\\bUnknowns?:\\s*none\\b|\\b(?:the root cause|the cause|the mechanism) (?:is|was) (?:that )?(?:an? )?(?:image[- ]pull|pull|missing (?:tag|image)|OOM|out[- ]of[- ]memory|crash|the methodology|the build)",
   "review": {
     "a": {
       "conclusion": "The 6.2.0 container starts and the application stops itself about 1.2 s later in every cycle, after reporting that /etc/publisher/methodology holds no methodology v7 definition (only v5 and v6). The kubelet keeps restarting it under the capped restart back-off: the logged starts are 302 s apart and the BackOff series has run since 09:31:21. Together these support an application startup failure against its mounted methodology configuration. They do not support an image-pull or registry-access failure, because the container runs and so its image was retrieved. The node's memory pressure cleared at 09:29:55, before the Pod existed, and does not explain identical 1.2 s runs that end in an orderly shutdown; the exit code and termination reason were not observed.",

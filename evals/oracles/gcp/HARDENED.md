@@ -13,7 +13,7 @@ Competing lead: Two coincident changes, both on the shared change calendar, poin
 
 ### Variant A
 
-Discriminating reads: `limit-check-container-logs`, `storage-data-access-audit`
+Discriminating read sets (any one set, every read in it): `limit-check-container-logs` or `storage-data-access-audit`. A random choice of 3 reads satisfies this with probability 0.80.
 
 limit-gateway's failed calls never reach credit-limit-check's handler. The receiver's container log handles limit-recalc every minute and limit-gateway's two earlier requests, each with a successful limits metadata read, but none of the failed request IDs; the Cloud Storage Data Access entries show runtime identity limit-reader@ still granted storage.objects.get after the 09:53:40 bucket change, with no storage access at the failed calls' times. The application does no caller check, so the supported boundary is caller-to-service invocation, after limit-gateway moved to limit-gateway-v2@ under CHG-5521; a missing run.routes.invoke for that identity is probable but not observed. CHG-5530 is coincident and not supported as the cause.
 
@@ -41,9 +41,9 @@ limit-gateway's failed calls never reach credit-limit-check's handler. The recei
 
 ### Variant B
 
-Discriminating reads: `limit-check-container-logs`, `storage-data-access-audit`
+Discriminating read sets (any one set, every read in it): `limit-check-container-logs` or `storage-data-access-audit`. A random choice of 3 reads satisfies this with probability 0.80.
 
-Invocation succeeds: each failed request ID enters credit-limit-check's handler, whose first step, the Cloud Storage metadata read of limits/current.json, returns 403, and the handler returns 403 to the caller. Data Access entries at the same times show runtime identity limit-reader@ denied storage.objects.get on that object, from 09:55:12, about 92 seconds after CHG-5530 removed its direct objectViewer binding; limit-recalc fails the same way from 09:56:00. The boundary is the runtime identity's access to its dependency; limit-gateway's identity change coincides with the onset but is not the refusing layer.
+Invocation succeeds: each failed request ID enters credit-limit-check's handler, whose first step, the Cloud Storage metadata read of limits/current.json, fails, and the handler returns 403 to the caller. Data Access entries at the same times show runtime identity limit-reader@ denied storage.objects.get on that object, from 09:55:12, about 92 seconds after CHG-5530 removed its direct objectViewer binding; limit-recalc fails the same way from 09:56:00. The boundary is the runtime identity's access to its dependency; limit-gateway's identity change coincides with the onset but is not the refusing layer.
 
 **Useful next checks:**
 
@@ -67,7 +67,7 @@ Invocation succeeds: each failed request ID enters credit-limit-check's handler,
 
 ### Variant C
 
-Discriminating reads: `limit-check-container-logs`, `storage-data-access-audit`
+Discriminating read sets (any one set, every read in it): `limit-check-container-logs` + `storage-data-access-audit`. A random choice of 3 reads satisfies this with probability 0.20.
 
 Not determined. Both boundaries remain plausible: limit-gateway began running as limit-gateway-v2@ at 09:55:06 and the 403s began six seconds later, while the bucket's direct runtime binding was removed at 09:53:40, within typical IAM propagation time before the first failure. The two reads that would separate them returned no entries for the whole window, including the minutes before 09:55:12 when the caller recorded 200 responses that the handler must have served, so the absence is a coverage gap, not evidence. It is consistent with Cloud Storage Data Access logging not being enabled, which is the default, and with credit-limit-check's container logs not reaching this view for an unobserved reason.
 
@@ -90,6 +90,8 @@ Not determined. Both boundaries remain plausible: limit-gateway began running as
 - Why the receiver's container logs are absent and whether Cloud Storage Data Access logging is enabled.
 - The current effective access of limit-gateway-v2@ and limit-reader@.
 - Recovery and the disposition of the 26 held orders.
+
+**Omission check:** the answer fails if it matches `\b(?:Sam|Taylor|Jordan|Morgan|Avery|the owner|someone)\s+(?:should\s+)?(?:grants?|adds?|re-?adds?|restores?)\b[^.\n]{0,60}(?:roles/run\.invoker|run\.routes\.invoke|roles/storage\.objectViewer|storage\.objects\.get)|\bUnknowns?:\s*none\b|\b(?:the root cause|the cause|the refusing boundary|the boundary) (?:is|was) (?:that )?(?:limit-gateway-v2|limit-reader|the caller|caller invocation|invocation|the runtime|runtime storage|storage|CHG-55)`.
 
 **Sources:**
 
@@ -115,7 +117,7 @@ Competing lead: Identical, attractive reads point each variant toward the wrong 
 
 ### Variant A
 
-Discriminating reads: `subscription-metrics`, `subscriber-deliveries`
+Discriminating read sets (any one set, every read in it): `subscription-metrics` or `subscriber-deliveries`. A random choice of 3 reads satisfies this with probability 0.80.
 
 Subscriber processing capacity is below the arrival rate. Every sampled delivery takes about 2.3-2.5 s, and eight handler threads (two fixed instances with four threads each) at about 2.4 s complete about 8 / 2.4 x 60 = 200 messages per minute, matching the ~200 applied per minute against ~400 arriving; the ~200-per-minute shortfall equals the backlog growth of 1,000 per 5 minutes. The sample agrees: 49 acked deliveries in about 296 s at 1 in 20 IDs is about 199 per minute, so the threads are saturated. Oldest unacked age rises 150 s per 300 s (0.5 s/s), less than elapsed time, so the oldest messages keep being acknowledged and no message has stayed unacknowledged since the 12:55 onset. The ERROR-log nacks are ledger 409 conflicts at about 0.4 per minute both before and after 12:55, and the one sampled conflict (16429770318845207) was acked on redelivery 13.7 s later; they cannot account for a 200-per-minute shortfall. Why the handler now takes about 2.4 s, when the same hour yesterday applied ~400 per minute, is not established; release 5.8.0 and ledger latency are candidates, not demonstrated causes.
 
@@ -139,7 +141,7 @@ Subscriber processing capacity is below the arrival rate. Every sampled delivery
 
 ### Variant B
 
-Discriminating reads: `subscriber-deliveries`
+Discriminating read sets (any one set, every read in it): `subscriber-deliveries`. A random choice of 3 reads satisfies this with probability 0.50.
 
 A subset of messages fails on every delivery and is redelivered while others succeed. In the delivery sample, six message IDs are each nacked twice, 10-22 s apart, in 4-9 ms, and none of the 38 nacked IDs is ever acked, while six other IDs ack once in 459-513 ms. Oldest unacked age rises 300 s per 300 s (1.0 s/s), so the oldest message has not been acknowledged since about 12:55. At about 0.49 s per successful message and ~200 applied per minute, the eight handler threads spend about 98 of 480 thread-seconds per minute on successes; about 1,650 nacked deliveries per minute (44 in 32 s at 1 in 20 IDs) at about 6 ms add about 10, so the threads are about a fifth to a quarter busy (a quarter if the page's own ack rate of about 226 per minute is used) and a shortage of threads or instances does not explain the shortfall, despite the fixed two instances and backlog and age rising together. With capacity idle, the ~200 per minute of ~400 arriving that are not applied are the messages failing on every delivery, matching the backlog growth. Why they fail is not in these reads; ACCEPTED_SCHEMA_VERSIONS=6, release 5.8.0 and an unlisted publisher change are hypotheses, not demonstrated causes.
 
@@ -163,7 +165,7 @@ A subset of messages fails on every delivery and is redelivered while others suc
 
 ### Variant C
 
-Discriminating reads: `subscription-metrics`, `subscriber-deliveries`
+Discriminating read sets (any one set, every read in it): `subscription-metrics` + `subscriber-deliveries`. A random choice of 3 reads satisfies this with probability 0.20.
 
 The evidence does not establish a mechanism. The backlog grows 1,000 per 5 minutes because about 200 of about 400 arriving messages per minute are applied, which fits both subscriber capacity below the arrival rate and a subset of messages failing on every delivery. The two observations that would separate them are missing: delivery records are excluded from storage by a _Default sink exclusion since 2026-10-12, and the metric export no longer carries oldest unacked age. The fixed two instances, release 5.8.0, ACCEPTED_SCHEMA_VERSIONS=6 and the background ledger-409 nacks fit either story or neither. A supported answer holds the conclusion open, names the missing observations and their owners, and recommends no fix.
 
@@ -184,6 +186,8 @@ The evidence does not establish a mechanism. The backlog grows 1,000 per 5 minut
 
 - The oldest unacked age trend, handler time and thread utilization, and whether any message IDs repeat without acknowledgment.
 - Why applied throughput halved relative to the previous day and what release 5.8.0 changed.
+
+**Omission check:** the answer fails if it matches `\b(?:should|must|needs? to) (?:raise|increase|scale up|scale out|add)\b[^.\n]{0,40}\b(?:instances?|threads|replicas|capacity)\b|\bUnknowns?:\s*none\b|\b(?:the root cause|the cause|the mechanism) (?:is|was) (?:that )?(?:insufficient|a lack|lack of|subscriber capacity|capacity|poison|failing messages|a subset)`.
 
 **Sources:**
 
@@ -208,7 +212,7 @@ Competing lead: Two platform changes land minutes before the 09:31 rollout, and 
 
 ### Variant A
 
-Discriminating reads: `pod-events`, `container-logs`
+Discriminating read sets (any one set, every read in it): `container-logs`. A random choice of 3 reads satisfies this with probability 0.50.
 
 The 6.2.0 container starts and the application stops itself about 1.2 s later in every cycle, after reporting that /etc/publisher/methodology holds no methodology v7 definition (only v5 and v6). The kubelet keeps restarting it under the capped restart back-off: the logged starts are 302 s apart and the BackOff series has run since 09:31:21. Together these support an application startup failure against its mounted methodology configuration. They do not support an image-pull or registry-access failure, because the container runs and so its image was retrieved. The node's memory pressure cleared at 09:29:55, before the Pod existed, and does not explain identical 1.2 s runs that end in an orderly shutdown; the exit code and termination reason were not observed.
 
@@ -233,7 +237,7 @@ The 6.2.0 container starts and the application stops itself about 1.2 s later in
 
 ### Variant B
 
-Discriminating reads: `pod-events`, `build-log`
+Discriminating read sets (any one set, every read in it): `build-log`. A random choice of 3 reads satisfies this with probability 0.50.
 
 The 6.2.0 container has not started. The Pod's newest kubelet events are a continuing image-pull back-off for us-central1-docker.pkg.dev/synthetic-benchmarks-prod/index-images/publisher:6.2.0 (BackOff and ImagePullBackOff series since 09:31:06), with no restart series and no container log entries. Build 7c2e4a91 pushed 6.2.0 to the index-images-staging repository, not to index-images, which the release job referenced. Together these support an image that cannot be pulled from the referenced repository because this build did not publish 6.2.0 there. No application process ran, so there is no crash or OOM to diagnose, and the 09:27 IAM change only swapped CI writer bindings; it did not touch reader access or the node service account.
 
@@ -258,7 +262,7 @@ The 6.2.0 container has not started. The Pod's newest kubelet events are a conti
 
 ### Variant C
 
-Discriminating reads: `pod-events`, `container-logs`
+Discriminating read sets (any one set, every read in it): `pod-events` + `container-logs`. A random choice of 3 reads satisfies this with probability 0.20.
 
 The evidence does not separate an application that starts and exits from an image that cannot be pulled. No Pod events or container log entries exist for the window, and the platform owner reports that event export and log collection from node r7tq both stopped at about 09:30, so their absence says nothing about the container. Build 7c2e4a91 timed out after pushing layers to index-images and before reporting a digest, so whether the referenced tag exists is unknown. The memory and IAM leads are possible but untested. No mechanism is supported and the conclusion stays open.
 
@@ -280,6 +284,8 @@ The evidence does not separate an application that starts and exits from an imag
 - Whether the container has ever started and, if so, why it exits.
 - Whether the referenced 6.2.0 tag exists in index-images.
 - Why event export and node log collection stopped.
+
+**Omission check:** the answer fails if it matches `(?<!not )(?<!n't )\b(?:confirms?|proves?|shows?|means?) (?:that )?the container (?:never started|has not started|did not start|never ran)|\b(?:should|must|needs? to) (?:re-?run|retry|restart) the build|\b(?:should|must|needs? to) (?:re-?push|roll ?back|delete the Pod|increase the memory)|\bUnknowns?:\s*none\b|\b(?:the root cause|the cause|the mechanism) (?:is|was) (?:that )?(?:an? )?(?:image[- ]pull|pull|missing (?:tag|image)|OOM|out[- ]of[- ]memory|crash|the methodology|the build)`.
 
 **Sources:**
 

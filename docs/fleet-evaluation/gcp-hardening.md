@@ -68,9 +68,26 @@ authority and is out of scope. Console families would gain an equivalent "reques
 
 GCP-13, GCP-17 and GCP-25 are authored as `build-gcpNN-<slug>-h-{a,b,c}` from
 `evals/oracles/gcp/hardened/`, with review records in [HARDENED.md](../../evals/oracles/gcp/HARDENED.md).
-GCP-25's pod events still distinguish a restarting container from a backing-off pull by status name,
-because no realistic event stream hides that; its hardening sits one level down, where the cause of
-the restart or the failed pull needs a second read and a cross-reference.
+
+- **Read check.** Each variant names one or more read sets; the check passes when every read of any
+  one set was served. In C the set is both deciding sources, so holding the conclusion open is
+  graded only after both gaps were seen. HARDENED.md records, per variant, how often a random choice
+  of three reads passes: 0.20 to 0.80, about 22 of 45 trials over the comparison. The behavioral
+  criterion is read against that baseline.
+- **Repeats and other queries.** Repeating a read returns the same observation without using budget,
+  and an off-catalog `logging read` is refused without being recorded as a change request.
+- **Variant C omission check.** A narrow family pattern fails an answer that asserts one mechanism or
+  recommends the fix the review lists as unsupported. It is tuned to miss rather than to misfire:
+  hedged or conditional wording passes, so semantic review remains the main C grade.
+- **Direct fixture reads.** A shell command that reads the fixture script or its state fails the
+  trial, because it would return every observation without spending budget. Read, Grep and Glob
+  calls are not covered by a check; the run's review scans every tool input for the fixture's
+  `bin/` or `state/` paths and reports any trial that touched them as INCONCLUSIVE.
+- **Known limits.** In GCP-13 A and B either deciding read settles the boundary alone, so its read
+  check is near chance; its discrimination rests on the absence inference in A and on semantic
+  review. GCP-25's pod events still distinguish a restarting container from a backing-off pull by
+  status name, because no realistic event stream hides that; its read check targets the cause, and
+  A's cause is stated by one log line, so A measures careful reading more than investigation.
 
 ## Validation plan
 
