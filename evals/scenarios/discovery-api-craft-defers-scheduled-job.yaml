@@ -1,0 +1,15 @@
+id: discovery-api-craft-defers-scheduled-job
+max_turns: 4
+split: regression
+prompt: |
+  Our nightly Python batch job reads local settlement files and writes a summary to a local
+  SQLite database. Refactor its duplicated date parsing into one tested function while
+  preserving the existing schedule, accepted formats and output. It does not receive requests
+  or call any HTTP service.
+target: {kind: skill, name: api-craft}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: python-craft}
+success_criteria:
+  - Uses Python implementation guidance for a standalone scheduled job without HTTP work
+  - Does not load HTTP API implementation guidance solely because the job persists data

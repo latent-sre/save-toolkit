@@ -1,0 +1,12 @@
+id: discovery-api-craft-http-api
+max_turns: 4
+split: regression
+prompt: |
+  Add an endpoint to our existing FastAPI service so the on-call UI can acknowledge an incident.
+  Preserve the service's current authentication, error responses and document conventions, and
+  cover callers resending after a lost response. This is a scoped implementation task.
+target: {kind: skill, name: api-craft}
+routing:
+  expect: fire
+success_criteria:
+  - Loads the HTTP API implementation skill for a scoped endpoint change

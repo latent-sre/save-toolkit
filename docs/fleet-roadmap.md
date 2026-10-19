@@ -160,40 +160,21 @@ no real-task runs yet.
 **SRE task:** An SRE building a GUI gets defaults tuned to the kind of GUI the team builds most,
 and a deep reference for the capability they reach for first.
 
-### BACKEND-001 — finish the backend-craft rebuild after the core contract lands
-
-**Status:** `active` (2026-10-11). The owner approved a fresh-start `backend-craft` delivered as a
-core pull request (entrypoint, OpenAPI, FastAPI and Go references, starters, evals) followed by
-capability references ([decision](decisions/2026-10-11-backend-craft.md)). The core carries the
-API-writes, background-work and consuming-APIs references over unchanged.
-**Owner:** The human owner accepts each candidate; `agent-engineer` owns the skill text and its
-build scenarios.
-**Outcome:** Four follow-up references land, each re-derived from an owner decision, a current
-sourced fact or a measured result: operational actions (dry run, blast-radius limits, actor and
-reason), data (PostgreSQL and SQL Server access from both languages), runtime (PCF, Cloud Run,
-systemd hosts, Windows desktops) and security; the three carried-over references are re-derived
-the same way. The plugin stays provider-neutral, so authentication gets no reference of its own:
-the identity rule in [`api-contract.md`](../skills/backend-craft/references/api-contract.md)
-governs, reusing the application's existing authentication integration, failing closed and
-sending authentication changes to independent review.
-**Next action:** The skill owner drafts the actions reference first, since the services take
-actions today.
-**Evidence:** none yet.
-**SRE task:** An SRE building a service that restarts apps or silences alerts gets a dry run, a
-bounded blast radius and an audit trail by default.
-
 ### BACKEND-002 — add go-craft beside python-craft
 
-**Status:** `ready` (2026-10-11). The owner chose a separate Go language skill; `backend-craft`'s
-Go reference covers the HTTP service and defers language idioms to it once it exists
-([decision](decisions/2026-10-11-backend-craft.md)).
+**Status:** `active` (2026-10-18). A single-file `go-craft` candidate is authored and composed with
+`software-engineer`, `api-craft` and `operator-cli`; HTTP-specific Go guidance stays in the API
+reference ([decision](decisions/2026-10-11-backend-craft.md)).
 **Owner:** The human owner accepts the candidate; `agent-engineer` owns the skill.
 **Outcome:** `go-craft` covers writing, refactoring and testing Go across services, CLIs and
-libraries, measured against build scenarios the way `python-craft` is, and `backend-craft` and
+libraries, measured against build scenarios the way `python-craft` is, and `api-craft` and
 `operator-cli` load it for Go changes.
-**Next action:** `agent-engineer` drafts the skill and its first build scenarios after the
-`backend-craft` core merges.
-**Evidence:** none yet.
+**Next action:** Review the candidate and select a bounded language-specific build comparison
+that can test whether its guidance improves Go work beyond the model's baseline.
+**Evidence:** Three authored discovery cases and a required Go-skill load in the existing
+[Go HTTP build](../evals/build-scenarios/build-software-engineer-go-incidents-api.yaml).
+These are unmeasured; the HTTP oracle does not establish Go-language skill benefit. No dedicated
+Go-language build comparison or native routing result exists yet.
 **SRE task:** An SRE changing a Go service or tool gets the team's Go conventions applied without
 asking for them.
 
@@ -247,14 +228,15 @@ datasources alone.
 **Status:** `ready` (2026-10-18); the routing re-check EVAL-009 left owed, kept when EVAL-009 closed.
 **Owner:** The human owner approves the run; `agent-engineer` writes the missing scenarios and runs them.
 **Outcome:** The eleven surviving skills whose description clauses `5c5aa742` replaced with short
-exclusions (akamai-edge, backend-craft, database-reliability, frontend-craft, obs-alerting,
+exclusions (akamai-edge, api-craft, database-reliability, frontend-craft, obs-alerting,
 obs-dashboards, obs-metrics, obs-pipeline, obs-traces, pcf-deploy, pcf-ops) each have at least one
 fire and one not-fire routing scenario, and all of them pass once on current main.
-**Next action:** `agent-engineer` writes the nine missing scenarios: fire and not-fire for
-backend-craft, database-reliability and pcf-ops, which have none; not-fire for akamai-edge,
-obs-alerting and obs-metrics; and fire for pcf-deploy. The owner then approves one run of those and
-the 13 existing scenarios that target the eleven skills (counted 2026-10-18 by `target.name` and
-`routing.expect` across `evals/scenarios/`).
+**Next action:** `agent-engineer` writes the eight missing scenarios: fire and not-fire for
+database-reliability and pcf-ops; not-fire for akamai-edge, obs-alerting and obs-metrics; and fire
+for pcf-deploy. The former backend-craft is now api-craft, with two fire cases and one not-fire
+case defined offline. The owner then approves one run of the completed set, including the
+16 existing scenarios targeting the eleven skills (counted 2026-10-18 by `target.name` and
+`routing.expect` across `evals/scenarios/`). The new API routing cases are not yet measured.
 **Evidence:** none yet; the commit message of `5c5aa742` records the scenarios as owed.
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.

@@ -1,0 +1,14 @@
+id: discovery-go-craft-defers-live-incident
+max_turns: 4
+split: regression
+prompt: |
+  Our Go service on Cloud Run is returning 503s and the on-call bridge is already open.
+  Help the responder decide what runtime evidence to inspect next and prepare an update
+  for the bridge. This is an active incident; no source changes or local builds are requested.
+target: {kind: skill, name: go-craft}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: incident-investigation}
+success_criteria:
+  - Uses incident guidance for operating a running Go service without source changes
+  - Does not load language implementation guidance solely because the service is written in Go

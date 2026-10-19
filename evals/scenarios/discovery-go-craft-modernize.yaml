@@ -1,0 +1,12 @@
+id: discovery-go-craft-modernize
+max_turns: 4
+split: regression
+prompt: |
+  Modernize this Go module using supported standard-library APIs and tooling. Keep its
+  advertised minimum Go version, exported interfaces, and existing JSON file format compatible.
+  Review the available transformations, make the useful changes, and run the affected checks.
+target: {kind: skill, name: go-craft}
+routing:
+  expect: fire
+success_criteria:
+  - Loads Go implementation guidance for module modernization

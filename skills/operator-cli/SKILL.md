@@ -5,7 +5,7 @@ description: >-
   partial failures, machine output, dry runs, and interruption. Triggers: 'build an operator CLI',
   'make this command safe for automation', 'fix this CLI contract'. Not for running an existing
   operational command (production-change-gate; during a live incident, incident-investigation), a
-  web UI (frontend-craft), or the service behind a CLI (backend-craft).
+  web UI (frontend-craft), or the HTTP API behind a CLI (api-craft).
 argument-hint: "[command or operator workflow]"
 ---
 
@@ -14,6 +14,7 @@ argument-hint: "[command or operator workflow]"
 Match existing language, framework, flags, exit codes, and consumers. Load `stack-profile` before
 new tooling choices; the caller retains authority. Before designing effects, establish the target
 API's effect and idempotency contract: can an item be applied twice, and what does a timeout mean?
+For Go implementation, load `go-craft` alongside this command contract.
 
 ## Make the command composable
 

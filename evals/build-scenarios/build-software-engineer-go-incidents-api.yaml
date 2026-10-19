@@ -3,8 +3,8 @@ max_turns: 45
 agent: software-engineer
 tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
 references:
-  - skills/backend-craft/references/api-contract.md
-# The Go half of the backend bar. The fixture README specifies this service's API, document,
+  - skills/api-craft/references/api-contract.md
+# The Go half of the API bar. The fixture README specifies this service's API, document,
 # and server contracts; framework choice remains open.
 # The probe-owned oracle (probe_checks.py, written by the first check, never seen by the agent)
 # builds the candidate's main package, starts it with PORT set, and grades the running service:
@@ -145,4 +145,5 @@ checks:
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}
   - {check: no_new_commits, text: "nothing committed uninvited"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}
-  - {check: skill_loaded, skill: backend-craft, text: "backend-craft was loaded for backend code"}
+  - {check: skill_loaded, skill: api-craft, text: "api-craft was loaded for HTTP API code"}
+  - {check: skill_loaded, skill: go-craft, text: "go-craft was loaded for Go implementation"}

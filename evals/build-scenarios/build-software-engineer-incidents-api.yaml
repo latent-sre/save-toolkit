@@ -3,9 +3,9 @@ max_turns: 39
 agent: software-engineer
 tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
 references:
-  - skills/backend-craft/references/api-contract.md
-# The backend bar with real tools. The fixture README specifies this service's API and document
-# contract; backend-craft should preserve it while supplying implementation judgment. The
+  - skills/api-craft/references/api-contract.md
+# The API bar with real tools. The fixture README specifies this service's API and document
+# contract; api-craft should preserve it while supplying implementation judgment. The
 # probe-owned oracle (probe_checks.py, written by the first check, never seen by the agent) grades
 # pagination, existing problem responses, field isolation, vendor enrichment and failure handling,
 # independent health, and OpenAPI drift detection on the running app.
@@ -237,5 +237,5 @@ checks:
   - {check: changes_within, allowed: ["app", "tests", "README.md", "pyproject.toml", "openapi.json"], text: "surgical: only the service, its tests, its committed OpenAPI document, the README, and the project file changed"}
   - {check: no_new_commits, text: "nothing committed uninvited"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}
-  - {check: skill_loaded, skill: backend-craft, text: "backend-craft was loaded for backend code"}
+  - {check: skill_loaded, skill: api-craft, text: "api-craft was loaded for HTTP API code"}
   - {check: skill_not_loaded, skill: eng-ladder, text: "no ladder load for a scoped change"}

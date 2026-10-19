@@ -137,6 +137,46 @@ The owner judged provider-specific token-verification guidance unsuitable for a 
 dangerous to generate, since a subtle verification error admits the wrong caller without failing
 any test [sourced: owner]. The authentication follow-up named in the delivery sequence and
 Consequences is withdrawn, and no identity provider is recorded for it. Authentication guidance is
-the identity rule in [`api-contract.md`](../../skills/backend-craft/references/api-contract.md):
+the identity rule in [`api-contract.md`](../../skills/api-craft/references/api-contract.md):
 reuse the application's existing authentication integration, fail closed, and send authentication
 changes to independent review. The other follow-up references are unchanged.
+
+## Owner amendment — 2026-10-18: retire the remaining BACKEND-001 expansion
+
+The owner closed BACKEND-001 because the remaining expansion has no demonstrated incremental
+benefit [sourced: owner]. This retires decision 10's separate actions, data, runtime and security
+references and the Consequences commitment to re-derive the three carried-over references; it
+does not record those deliverables as implemented. The existing skill and its safeguards remain.
+
+The references were already revised, as the 2026-10-13 amendment records. The demonstrated loss
+of acknowledged follow-up work is addressed by the durable ownership and restart-recovery rule
+in [background work](../../skills/api-craft/references/background-work.md). The 2026-10-16
+amendment made the old universal API conventions service-specific. Neither historical result
+establishes a remaining need for the proposed reference expansion.
+
+Reconsider a bounded improvement when a concrete service-building task shows behavior the
+current agent fails to apply and evidence supports the correction. Missing prose or a correct
+best-practice description alone does not establish that need. This disposition does not close
+BACKEND-002 or accept an unmeasured candidate.
+
+## Owner amendment — 2026-10-18: narrow the skill to API craft
+
+The owner chose `api-craft` as the name and scope [sourced: owner]: design and implement reliable
+HTTP APIs and their integrations, including webhook receivers, HTTP clients, and durable work
+accepted by an API. This supersedes the broad backend-service scope. Existing framework and
+service-specific contract decisions remain in force; the rename adds no new API conventions.
+
+Standalone workers, schedulers and persistence implementation remain with `software-engineer`,
+which reads the existing write-recovery and background-work references directly when applicable.
+Those references remain in the API bundle for shared use; the recovery safeguards are retained
+without making general worker changes trigger the API skill. Language guidance stays with its
+existing owner. Historical decisions and saved evaluation records retain the names they measured;
+live callers, build-probe skill expectations and generated adapters use `api-craft`.
+
+## Owner amendment — 2026-10-18: current technology, concise guidance
+
+The owner wants up-to-date technology, concise actionable guidance, and no sprawl or added assets
+[sourced: owner]. Keep the existing references; retain decision-changing facts and checks rather
+than generic exposition. Add no bundled assets, starters, templates or helper scripts. For new APIs
+and scoped upgrades, verify the latest compatible stable releases, explain exceptions, and use
+supported native capabilities where suitable. Existing contracts and upgrade scope remain intact.
