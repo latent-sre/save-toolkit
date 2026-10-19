@@ -15,6 +15,15 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   accepted all 64 cases at `9147ff91` after three independent review passes, freezing their
   profiles and partitions under DEC-14 and completing WP-12; no case has produced a model result.
 
+### Changed
+
+- EVAL-005 ran: six Sonnet trials, three each on `main` at `93e52481` and on `2cdcbbba`, after a
+  fresh judge calibration. [verified] In every trial the `observability-engineer` saved the panel
+  through a preflighted write and left the datasource unchanged; every trial is FAIL under the
+  all-checks threshold. The roadmap keeps EVAL-005 for the refusal-wording grader defect, the empty
+  post-write query, and the owner's call on the panel's missing no-data text
+  ([run record](docs/reviews/2026-10-18-eval-005-run.md)).
+
 ## [0.51.2] - 2026-10-16
 
 ### Changed
