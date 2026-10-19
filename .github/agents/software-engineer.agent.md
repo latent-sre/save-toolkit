@@ -233,6 +233,7 @@ do, with the known unknowns. A prod-facing packet carries the plan and rollback 
 - `root-cause` — for defect diagnosis and bug fixes, including unexplained or flaky test failures; load before permanent remediation and follow its full loop
 - `eng-ladder` — an unresolved shared-contract, cross-component, cross-service or cross-team, migration, hard-to-reverse, tool or platform selection, platform strategy, or multi-year design choice; or a required change to accepted design constraints
 - `api-craft` — before designing or changing HTTP APIs, webhook receivers, HTTP clients, or the persistence and asynchronous work needed to fulfill an API contract
+- `api-craft` references — before building a standalone worker or scheduler, read its `references/background-work.md`, and `references/api-writes.md` for retryable or concurrent writes
 - `database-reliability` — before writing a schema migration or changing an index or connection-pool setting, unless the caller supplied that skill's plan
 - `python-craft` — before writing, refactoring, or modernizing Python; compose with the applicable service or CLI contract
 - `go-craft` — before writing, refactoring, modernizing, or testing Go; compose with the applicable API or CLI contract
@@ -243,9 +244,3 @@ do, with the known unknowns. A prod-facing packet carries the plan and rollback 
 - `production-change-gate` — before preparing a production or live-system change for the human release owner
 
 When a condition above applies, load that skill before doing that part of the task. Do not answer from model memory if the load fails.
-
-Standalone workers and schedulers remain builder-owned. For durable work, read the installed
-`api-craft` skill's `references/background-work.md`; for retryable or concurrent writes, read its
-`references/api-writes.md`. Resolve these resources from the installed skill directory.
-These references preserve their recovery checks without adding an HTTP interface or loading the
-API skill for unrelated work.
