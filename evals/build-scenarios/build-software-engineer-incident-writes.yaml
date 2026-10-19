@@ -3,8 +3,8 @@ max_turns: 42
 agent: software-engineer
 tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
 references:
-  - skills/backend-craft/references/api-contract.md
-# backend-craft's API-writes judgment with real tools. The fixture README specifies this service's
+  - skills/api-craft/references/api-contract.md
+# api-craft's API-writes judgment with real tools. The fixture README specifies this service's
 # caller, idempotency responses, and document contract.
 # The probe-owned oracle (probe_checks.py, never seen by the agent) runs the app under uvicorn on a
 # real port against its own SQLite file and grades the outcome: a replay returns the first result
@@ -288,4 +288,4 @@ checks:
   - {check: changes_within, allowed: ["app", "tests", "README.md", "pyproject.toml", "openapi.json"], text: "surgical: only the service, its tests, its committed OpenAPI document, the README, and the project file changed"}
   - {check: no_new_commits, text: "nothing committed uninvited"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}
-  - {check: skill_loaded, skill: backend-craft, text: "backend-craft was loaded for backend code"}
+  - {check: skill_loaded, skill: api-craft, text: "api-craft was loaded for HTTP API code"}

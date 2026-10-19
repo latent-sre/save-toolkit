@@ -8,6 +8,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Added
 
+- A single-file `go-craft` candidate for Go services, CLIs, libraries and workers, composed with
+  `software-engineer`, `api-craft` and `operator-cli`. It covers version boundaries, modernization,
+  data compatibility and concurrent-work ownership, with three authored routing cases and a
+  load check in the existing Go HTTP build. Native routing and language-specific benefit remain
+  unmeasured under BACKEND-002; no bundled assets or helper code are added.
+
 - WP-12's GCP catalog is authored offline: 20 families (40 A/B cases) beyond the 24-case pilot,
   across Cloud Run/migration, observability/identity/network, managed services and GKE, with
   hidden source-bound review records in `evals/oracles/gcp/CATALOG.md`, kept separate from the
@@ -23,6 +29,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   all-checks threshold. The roadmap keeps EVAL-005 for the refusal-wording grader defect, the empty
   post-write query, and the owner's call on the panel's missing no-data text
   ([run record](docs/reviews/2026-10-18-eval-005-run.md)).
+- Rename `backend-craft` to `api-craft` and narrow discovery to HTTP APIs, webhook receivers,
+  HTTP clients and work accepted by an API. Standalone workers keep direct access to the existing
+  durability and write-recovery guidance through `software-engineer`. Prefer researched, current
+  stable technology for new APIs and scoped upgrades. Retire BACKEND-001's
+  remaining reference expansion by owner disposition; BACKEND-002 remains open.
+- Refine `api-craft`'s existing references: correct FastAPI version, test lifespan and Linux
+  prerequisite guidance, Huma error/test behavior, credential-renewal retries and migration
+  ownership. Scope replay recording and broker rules to operations that use them; verify durable
+  routing before completing dispatch. Remove the vendor mini-catalog, repeated delivery/reporting
+  instructions and generic reminders. Retain conditional reference loading, framework-specific
+  traps, webhook-verification, outbound-destination and recovery checks without adding bundled assets.
 
 ## [0.51.2] - 2026-10-16
 

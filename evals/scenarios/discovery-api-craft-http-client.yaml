@@ -1,0 +1,12 @@
+id: discovery-api-craft-http-client
+max_turns: 4
+split: regression
+prompt: |
+  Update the Python client that calls our paging vendor's HTTP API. It needs to follow the
+  vendor's next-page token and return a clear failure when the vendor stalls or sends malformed
+  JSON. Keep the client's existing public interface. This package has no web server or handlers.
+target: {kind: skill, name: api-craft}
+routing:
+  expect: fire
+success_criteria:
+  - Loads the HTTP integration skill for an outbound client change without a server endpoint

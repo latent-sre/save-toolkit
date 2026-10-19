@@ -3,7 +3,7 @@ name: database-reliability
 description: >-
   Diagnose and improve data-layer reliability: slow queries, lock contention, replication lag,
   connection pools, schema migrations, and recovery evidence. Triggers: 'this query is slow',
-  'plan this schema migration', 'the connection pool is exhausted'. Not for app-side triage (pcf-ops), burn alerts (obs-alerting), persistence code (backend-craft).
+  'plan this schema migration', 'the connection pool is exhausted'. Not for app-side triage (pcf-ops), burn alerts (obs-alerting), or persistence implementation (software-engineer).
 argument-hint: "[the database or query symptom]"
 ---
 
@@ -12,8 +12,9 @@ argument-hint: "[the database or query symptom]"
 Keep data **correct, durable, and fast**, and make schema change safe in production. Our apps run on
 PCF and bind to managed relational services (Postgres / MS SQL; a few apps embed SQLite, which is
 not an operated engine — the one rule that matters is in `stack-profile`) — you operate at the
-*application + data* layer, not the DB platform internals. Canonical `backend-craft` owns writing
-persistence and migration code; this skill owns operating it safely, diagnosing it, and proving recovery.
+*application + data* layer, not the DB platform internals. `software-engineer` writes persistence
+and migration code, loading `api-craft` when it serves an HTTP contract; this skill owns operating
+it safely, diagnosing it, and proving recovery.
 
 > **Authority:** inspect only through the lane's granted, output-protected read paths.
 > Live changes use `production-change-gate`, including its current

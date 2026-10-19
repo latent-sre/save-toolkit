@@ -4,7 +4,7 @@ description: >-
   Build or change web applications and SRE interfaces in React or Vue, from one page to a
   complete app integrated with its backend. Triggers: 'build a UI for', 'add a page/form/table/console',
   'make this look less generic', 'wire the UI to the API'. Not for backend implementation
-  (backend-craft) or Grafana dashboards (obs-dashboards to design, grafana to operate).
+  (api-craft) or Grafana dashboards (obs-dashboards to design, grafana to operate).
 argument-hint: "[the GUI to build or change]"
 ---
 
@@ -45,7 +45,7 @@ contract. A read-only app needs no write helper; an unpaged API needs no cursor 
 Get one working end-to-end path through the running backend early, then complete every required
 workflow and its loading, empty, success, error and stale states. Use a typed client for the
 backend's actual contract; generate it from OpenAPI when available. If the backend also needs work, coordinate it through
-`backend-craft`. Mocks and labelled sample data support development and tests; any integration
+`api-craft`. Mocks and labelled sample data support development and tests; any integration
 they replace remains an explicit gap.
 
 - **Recoverable failures.** Route and independent-panel error boundaries contain failures where

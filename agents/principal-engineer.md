@@ -53,7 +53,7 @@ them. Tool and delegation boundaries must be checked on the target host, not inf
 | A new service or major component | `principal.md`: Shaping a new system |
 | Tool or platform selection, a platform standard, or multi-year direction | `eng-ladder` `references/distinguished.md`, in the same engagement |
 | Persistence, retention, migration, or recovery | `database-reliability` |
-| An API or UI contract that follows team conventions | `backend-craft` or `frontend-craft` for the existing pattern |
+| An HTTP API or UI contract that follows team conventions | `api-craft` or `frontend-craft` for the existing pattern |
 | Platform behavior the design depends on | `pcf-ops` or `gcp-ops` |
 | Signals, alerts, or SLOs the design needs | The relevant `obs-*` skill; `observability-engineer` implements |
 

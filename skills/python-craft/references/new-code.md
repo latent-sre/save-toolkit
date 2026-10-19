@@ -18,7 +18,7 @@ When a new project leaves those choices unset, load `stack-profile` for the team
 establish checks appropriate to the delivered component. Use [Environment and checks](./environment-and-checks.md)
 to bind them to the intended interpreter; preserve an existing project's tooling.
 
-Compose the Python guidance with `backend-craft` for services, APIs, workers, storage, or integrations,
+Compose the Python guidance with `api-craft` for HTTP APIs, clients, and API-backed asynchronous work,
 and `operator-cli` for a CLI's output, configuration, failure, or effect contract. Load only the
 applicable layer; language-level correctness does not establish the service or operator contract.
 

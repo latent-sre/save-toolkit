@@ -24,6 +24,9 @@ authenticates via UAA.
 Defaults for new code; a repository's own tooling wins. Rows without an operator statement are fleet
 defaults until the owner records a decision here.
 
+For Go implementation and language migrations, load `go-craft`; HTTP and CLI contracts remain
+with `api-craft` and `operator-cli`.
+
 | Language | Format and lint | Types and analysis | Tests | Environment or runtime |
 |---|---|---|---|---|
 | Python | `ruff` for both lint and format, with the `B` (bugbear) rules selected | `mypy` or `pyright`; prefer `dataclasses`/`pydantic` to loose dicts | `pytest` with `parametrize`, fixtures, `tmp_path`, `monkeypatch`, and an injected clock | `uv` (`poetry` is fine for a published library); never `pip install` into system Python |
@@ -37,7 +40,7 @@ defaults until the owner records a decision here.
 - **Backend:** **FastAPI** is the established framework. Other framework choices remain open;
   choose from the task, existing code, consumer contracts and operating constraints. Huma is an
   available Go option, not the default. **Spring Boot** remains support-only on existing JVM
-  services. `backend-craft` owns engineering guidance; API shapes, identity integration, document
+  services. `api-craft` owns HTTP API and integration guidance; API shapes, identity integration, document
   workflow and verification tools follow each service's requirements.
 - **Frontend:** **React is the focus and Vue is in use**; `frontend-craft` preserves the
   repository's framework and holds the team's frontend choices: the approved, mixable component

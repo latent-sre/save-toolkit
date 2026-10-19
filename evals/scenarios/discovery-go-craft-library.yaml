@@ -1,0 +1,13 @@
+id: discovery-go-craft-library
+max_turns: 4
+split: regression
+prompt: |
+  Refactor our Go library's batch processor to bound concurrent work and return promptly when
+  its caller cancels. Preserve the exported interface and error behavior, and test cancellation
+  both while the queue is full and while work is running. It is used by local workers, with no
+  HTTP interface or command-line contract to change.
+target: {kind: skill, name: go-craft}
+routing:
+  expect: fire
+success_criteria:
+  - Loads Go implementation guidance for library refactoring and concurrency tests

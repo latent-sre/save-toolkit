@@ -457,16 +457,36 @@ return that carries a false `[verified]` claim and an injected instruction:
 [`agent-engineer`](build-scenarios/build-agent-engineer-resumes-after-partial-research.yaml), and
 [`sre-assistant`](build-scenarios/build-sre-assistant-handles-partial-research.yaml).
 
-Three probes measure `backend-craft`, each against the running app with a probe-owned oracle. The
-oracles run the app under uvicorn, as a subprocess for the webhook.
+Four build probes cover `api-craft`, each exercising the app with a probe-owned oracle. The Python
+oracles use TestClient or a uvicorn subprocess; the Go oracle builds and launches the service.
 
 - [`incidents-api`](build-scenarios/build-software-engineer-incidents-api.yaml) covers the core
   HTTP contract.
+- [`go-incidents-api`](build-scenarios/build-software-engineer-go-incidents-api.yaml) covers a Go
+  HTTP service and its document contract.
 - [`incident-writes`](build-scenarios/build-software-engineer-incident-writes.yaml) covers an
   idempotent create. The caller resends on timeout, sometimes while the first request is still
   running.
 - [`pager-webhook`](build-scenarios/build-software-engineer-pager-webhook.yaml) covers a signed
   webhook whose processing outlasts the vendor's 3 s window.
+
+Three discovery cases define the narrowed routing boundary:
+[`HTTP API`](scenarios/discovery-api-craft-http-api.yaml) and
+[`standalone HTTP client`](scenarios/discovery-api-craft-http-client.yaml) changes should load the
+skill; a [`standalone scheduled Python job`](scenarios/discovery-api-craft-defers-scheduled-job.yaml)
+without HTTP work should use `python-craft` instead. These check routing only. Their four-turn
+limits follow the existing short discovery cases and are offline budget choices, not measured
+completion limits. Historical build results measure the earlier `backend-craft` revision; the
+renamed skill and these new routing cases have not been measured in a native campaign.
+
+The separate `go-craft` candidate adds discovery cases for
+[`library refactoring`](scenarios/discovery-go-craft-library.yaml),
+[`module modernization`](scenarios/discovery-go-craft-modernize.yaml), and
+[`deferral during a live incident`](scenarios/discovery-go-craft-defers-live-incident.yaml).
+Their four-turn limits are offline choices following the existing discovery cases, not measured
+completion limits. The Go HTTP build also requires the language skill to load alongside `api-craft`.
+These cases have not run natively; the existing HTTP oracle does not measure language-specific
+benefit. BACKEND-002 still needs a bounded Go build comparison against the model without this skill.
 
 None of the oracle tests makes a model call.
 
