@@ -27,11 +27,10 @@ the command line. `--fail-with-body` returns error 22 for HTTP status 400 or hig
 the response body; check curl's exit status before converting. The converter refuses a JSON without a view body;
 and the converted Markdown is diffed against the rendered page before anything trusts it. That URL
 is Confluence Cloud; Data Center serves the same fields from
-`/rest/api/content/<page-id>?expand=body.view,version` `[unverified: the team's edition is not
-recorded in stack-profile]`. A copy-paste of the rendered page, or the space's HTML export, is
+`/rest/api/content/<page-id>?expand=body.view,version`; the team's edition is not recorded in
+stack-profile yet. A copy-paste of the rendered page, or the space's HTML export, is
 acceptable for one short page: pass `--title` when it has none, and record its lost macros and
-attachment links in the provenance note. *[sourced: Atlassian Confluence REST v2 page API and
-storage-format reference; curl manual on `--user`]*
+attachment links in the provenance note.
 
 ## The converter does the mechanical part
 

@@ -2,10 +2,10 @@
 
 The fleet target is on-prem Moogsoft v9.x, and of that line only **v9.2** (GA 2025-05-15) is a
 currently supported release; v9.1 and v9.0 are past end of support, and a patch release does not
-reset the two-year support cycle *[sourced: docs.moogsoft.com/v9/en/moogsoft-releases.html,
-reviewed 2026-08-19]*. Re-verify the supported line at each Moogsoft upgrade. Its operator object is a **Situation**; cloud product terms differ.
+reset the two-year support cycle. Re-verify the supported line at each Moogsoft upgrade. Its
+operator object is a **Situation**; cloud product terms differ.
 
-`[sourced]` The v9 [clustering guide](https://docs.moogsoft.com/v9/en/clustering-algorithm-guide.html)
+The v9 [clustering guide](https://docs.moogsoft.com/v9/en/clustering-algorithm-guide.html)
 names the Sigalisers **Cookbook** (configured Recipes over alert attributes) and **Tempus** (time
 proximity); the [data-ingestion guide](https://docs.moogsoft.com/v9/en/data-ingestion.html) names the
 event **`signature`** as the deduplication control; the

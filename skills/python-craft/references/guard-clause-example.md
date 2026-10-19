@@ -23,6 +23,3 @@ def process(items, *, limit=None):
 `>= 0` and `< 0`. `if not limit` confuses zero with absence. Invalid limits must fail before
 `process_items` runs; valid ones reach it once, unchanged. Keep the nested form when a guard reads
 worse.
-
-[sourced] [guard clauses](https://refactoring.com/catalog/replaceNestedConditionalWithGuardClauses.html)
-and [Python expression semantics](https://docs.python.org/3/reference/expressions.html).

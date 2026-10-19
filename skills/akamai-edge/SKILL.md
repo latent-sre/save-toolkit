@@ -25,12 +25,10 @@ origin. Not every request reaches the origin; a cache hit can be served at the e
 to distinguish the candidate causes:
 
 1. **An Akamai error page with `Reference #…`** → decode it in Edge Diagnostics' Translate Error
-   String **promptly** — the logs behind a reference number survive roughly 6–24 hours
-   [sourced: techdocs.akamai.com/edge-diagnostics/docs/translate-error-string].
+   String **promptly** — the logs behind a reference number survive roughly 6–24 hours.
 2. **No reference number** → Edge Diagnostics' Get Error Statistics splits errors into the
    client→edge and edge→origin legs per URL/CP code; URL Health Check bundles grep + dig + curl +
-   MTR for one URL in one job [sourced: techdocs.akamai.com/edge-diagnostics/docs/get-error-statistics,
-   …/url-health-check].
+   MTR for one URL in one job.
 3. **Cache behavior in question** → read the cache-status response headers via the debug-header
    mechanism the property actually supports (Enhanced Debug vs legacy Pragma — the reference
    explains which and why it changed).

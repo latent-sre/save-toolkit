@@ -1,9 +1,9 @@
 # OpenTelemetry semantics for reading traces
 
 Use these conventions to interpret a waterfall after applying the parent skill's investigation shape.
-The statements below are sourced from current OpenTelemetry and W3C primary documentation, retrieved
-2026-07-14. The instrumentation library, enabled convention version, propagation, sampler, export path,
-and emitted target attributes remain unverified until inspected in the team's environment.
+The statements below follow current OpenTelemetry and W3C primary documentation. The instrumentation
+library, enabled convention version, propagation, sampler, export path, and emitted target attributes
+remain unverified until inspected in the team's environment.
 
 Primary references:
 
@@ -35,14 +35,10 @@ The default span status is `Unset`; instrumentation generally leaves it unset un
 an error rule. `Ok` means an application developer or operator explicitly validated success. Therefore,
 `Unset` does not mean “healthy,” and `Error` should be interpreted with the applicable semantic convention.
 
-*[sourced: OpenTelemetry Tracing API, Set Status]*
-
 For HTTP, 1xx–3xx normally leave span status unset absent another error. With no extra request context,
 server-side 4xx is normally `Unset`; client-side 4xx should be `Error`. A 5xx should be `Error`. Inspect
 both span status and `http.response.status_code`, because the same HTTP outcome can be classified
 differently by client and server spans.
-
-*[sourced: OpenTelemetry HTTP span semantic conventions, Status; unverified for target instrumentation]*
 
 ## Read stable attributes in context
 
@@ -51,9 +47,6 @@ earlier conventions in its existing major version (the stable sets landed in sem
 HTTP and v1.33.0 for databases), so a valid stable-name query can be empty while a
 legacy field exists. Inventory observed fields rather than silently rewriting queries or treating an
 empty result as proof of no traffic.
-
-*[sourced: current OpenTelemetry HTTP/database conventions and their migration guides; unverified for
-target instrumentation and stability opt-in]*
 
 | Legacy field that may still be emitted | Current stable field |
 |---|---|
@@ -65,8 +58,6 @@ target instrumentation and stability opt-in]*
 
 Existing instrumentation may expose `http` / `http/dup` or `database` / `database/dup` stability opt-in
 modes. Record the active convention and emitted fields; this trace-reading skill does not change them.
-
-*[sourced: OpenTelemetry HTTP and database semantic-convention migration guides; unverified for target]*
 
 Attribute names follow the current OpenTelemetry semantic conventions. `url.full` can contain a
 query string or other sensitive material: before copying it into an evidence packet, redact
@@ -82,6 +73,3 @@ export; the sampled flag does not prove exporter success or backend receipt/rete
 No trace found does not prove the request did not occur. A missing span does not prove the call did
 not occur. Check the sampler, retention, export health, propagation, and instrumentation coverage
 before turning absence into a causal conclusion.
-
-*[sourced: [OpenTelemetry SDK sampling](https://opentelemetry.io/docs/specs/otel/trace/sdk/#sampling),
-checked 2026-10-02; unverified for target sampler, processors, and export path]*

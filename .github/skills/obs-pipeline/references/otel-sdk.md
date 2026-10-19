@@ -6,8 +6,8 @@ The guard denies installs/app execution for `sre-assistant`; unguarded Bash does
 Respect `stack-profile`'s authoring/support boundary: Java source, manual-span and dependency
 changes belong to the application's development owner; this fleet supports its deployed instrumentation.
 
-Commands are `[sourced]` to the linked OpenTelemetry documentation.
-Exact-target behavior remains `[unverified]` until a canary proves it.
+Commands follow the linked OpenTelemetry documentation.
+Exact-target behavior remains unconfirmed until a canary proves it.
 Reading conventions for spans, status, attributes, and sampling are owned by the
 `obs-traces` skill's OpenTelemetry semantics reference; this file owns emit-side instrumentation
 choices and points there rather than restating them.
@@ -34,28 +34,27 @@ instrumentation uses the full method.
    - The library-mode starter (`io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter`,
      versions via `opentelemetry-instrumentation-bom`) fits native images, unacceptable agent
      startup overhead, another incompatible monitoring agent, or `application.yml` configuration
-     (including declarative YAML). Docs list Spring Boot 2.6+/3.1+; upstream also tests Boot 4,
-     reviewed against instrumentation 2.31.1 on 2026-08-24.
+     (including declarative YAML). Docs list Spring Boot 2.6+/3.1+; upstream instrumentation
+     2.31.1 also tests Boot 4.
 
    Use one path. Refer dependency changes to the application's development owner.
-   *[sourced: opentelemetry.io zero-code Java Spring Boot starter pages;
-   opentelemetry-java-instrumentation repo]* Which path the team's services
-   use today is `[unverified]` — read the build file and the buildpack config.
+   Which path the team's services use today is unconfirmed — read the build file and the
+   buildpack config.
 2. **Resource attributes** — set `service.name`, `service.version`, and **`deployment.environment.name`**
    (OTel semantic conventions) so signals are filterable per app/space.
    > ⚠️ **`deployment.environment` is DEPRECATED** — renamed to **`deployment.environment.name`** in
    > semconv **v1.27.0**, and stabilized in v1.41.0. Emit the `.name` form. Well-known values:
    > `development`, `staging`, `production`, `test`.
 
-   An unset `service.name` falls back to **`unknown_service:<executable>`** *[sourced: semconv
-   resource/service]* — an `unknown_service` series in any backend is an instrumentation defect to
+   An unset `service.name` falls back to **`unknown_service:<executable>`** — an
+   `unknown_service` series in any backend is an instrumentation defect to
    file, not a service. Identity is the trio `service.namespace` + `service.name` +
    `service.instance.id`; `deployment.environment.name` deliberately does NOT participate in
    identity (prod and staging with the same trio are "the same service" — filter by environment,
    don't fork the name). Keep `service.name` identical across PCF and Cloud Run while a service
    straddles the migration, with the runtime as a separate resource attribute.
    HTTP semconv has been **stable since v1.23.0** (`url.*`, `client.*`/`server.*` replaced the old
-   `net.*` forms) *[sourced: opentelemetry.io HTTP-conventions-stable announcement]* — new
+   `net.*` forms) — new
    dashboards and queries key on the stable names, and an old exporter emitting pre-stable names is
    a migration flag, not a pattern to copy.
 3. **Traces** — propagate W3C context across services. Change sampling policy/topology only when in scope.
@@ -79,8 +78,7 @@ instrumentation uses the full method.
    >   decision — long or slow traces are exactly the failure mode, and they're the ones you wanted.
    >   The processor's `decision_cache` (sampled/non-sampled LRU) lets a late span inherit an
    >   earlier keep decision — a documented mitigation, not a guarantee; size it and keep watching
-   >   the dropped-too-early metric. *[sourced: opentelemetry-collector-contrib
-   >   `tailsamplingprocessor` README]*
+   >   the dropped-too-early metric.
 4. **Logs and correlation** — structured logs carrying only approved trace/span correlation fields;
    verify metric→trace (exemplars) and trace→log (shared IDs) actually link, not merely coexist.
 

@@ -53,7 +53,7 @@ Do not use `--no-route` to prove a reused app is isolated: the
 [manifest docs](https://docs.cloudfoundry.org/devguide/deploy-apps/manifest-attributes.html) say existing
 routes remain, but the [CLI v8.18.4 tests](https://github.com/cloudfoundry/cli/blob/v8.18.4/integration/v7/push/no_route_test.go#L35)
 expect them removed. This source conflict leaves target behavior `[unverified]`; require the parent's
-bounded non-production evidence for the exact CLI/CAPI versions. *[sources reviewed 2026-09-09]*
+bounded non-production evidence for the exact CLI/CAPI versions.
 
 ## Manifest-name interaction
 
@@ -62,10 +62,8 @@ applies the app-name argument before the rest of the manifest: if that name is a
 manifest contains exactly one application, the CLI renames the stanza to the argument and proceeds;
 if it contains multiple applications, it fails with `AppNotInManifestError`. Check that the approved
 manifest has one stanza before using this command; no separate `manifest-green.yml` is needed for
-that single-app case. *[sourced: `cloudfoundry/cli`
-`actor/v7pushaction/handle_app_name_override.go` at `fcb3492`; reviewed 2026-08-21 —
-`[unverified]` on the deployed CLI/foundation until the human release owner runs it on a bounded
-non-production target and attaches the output]*
+that single-app case. This is unconfirmed on the deployed CLI/foundation until the human release
+owner runs it on a bounded non-production target and attaches the output.
 
 ## Rollback boundaries by phase
 

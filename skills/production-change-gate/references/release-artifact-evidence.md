@@ -26,9 +26,6 @@ For this team's additional tag-protection policy, the matching ruleset must show
 that matches the selected tag, no matching exclusion, and both `update` and `deletion` rules. A prior
 Release's `"immutable": true` is supporting object evidence, never a substitute for the current
 setting for future publication. These repository controls do not replace the selected-release check.
-*[sourced: GitHub [immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)
-and [enabling immutability](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes),
-checked 2026-09-20; repository ruleset contract reviewed 2026-08-23]*
 
 ## Any other distribution path
 

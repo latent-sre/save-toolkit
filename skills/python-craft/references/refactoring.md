@@ -115,11 +115,3 @@ iterator proves neither streaming nor bounded memory.
 Show the benefit through actual callers: a shared policy replaces copies, a calculation works without
 I/O, conversions/layers disappear, or a real change becomes simpler. Profile and benchmark when
 performance motivates the design; compatibility tests alone do not establish improvement.
-
-[sourced] [guard clauses](https://refactoring.com/catalog/replaceNestedConditionalWithGuardClauses.html),
-[Extract Function](https://refactoring.com/catalog/extractFunction.html),
-[expression semantics](https://docs.python.org/3/reference/expressions.html),
-[Hypothesis properties](https://hypothesis.readthedocs.io/en/latest/tutorial/introduction.html),
-[iteration](https://docs.python.org/3.11/library/functions.html),
-[collections](https://docs.python.org/3.11/library/collections.html), and
-[context managers](https://docs.python.org/3.11/library/contextlib.html).

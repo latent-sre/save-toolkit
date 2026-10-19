@@ -21,7 +21,7 @@ Baseline recipe: `gh run list -w <workflow file> -b <default branch> -e <event> 
 --json databaseId,attempt,createdAt,updatedAt` lists comparable runs. For each, `gh api --paginate
 repos/{owner}/{repo}/actions/runs/<id>/jobs` gives job `created_at`/`started_at`/`completed_at` and
 step `started_at`/`completed_at`; queue time is `started_at − created_at`. Compare the median and the
-slow tail, not one run. *[verified: gh 2.94.0 against this fleet's validate workflow]*
+slow tail, not one run.
 
 | Dominant cost | Try first | Check the tradeoff |
 |---|---|---|
@@ -111,8 +111,3 @@ use restricted runner groups and least privilege. Keep untrusted jobs away from 
 with credentials or internal reach. Ephemeral registration alone does not erase files: require
 cleanup/replacement after normal completion, forced cancellation and host loss before reuse.
 Check the action runtime's minimum runner version before upgrading actions.
-
-Sources: [workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax),
-[dependency cache semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching),
-[workflow events](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows),
-and [reusable workflow choices](https://docs.github.com/en/actions/concepts/workflows-and-actions/reusing-workflow-configurations).

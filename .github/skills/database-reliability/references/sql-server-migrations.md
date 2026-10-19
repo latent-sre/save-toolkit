@@ -1,7 +1,7 @@
 # SQL Server migrations
 
 Read only for SQL Server-specific migration mechanics. The compatibility, recovery, authority, and
-output contracts in `../SKILL.md` remain binding. The target edition is `[unverified]` until observed;
+output contracts in `../SKILL.md` remain binding. The target edition is unconfirmed until observed;
 do not plan on an online operation merely because the syntax exists.
 
 ## Bound every lock wait
@@ -19,10 +19,6 @@ Assess the operation's lock phases and bound each wait:
   Do not infer cleanup from `XACT_ABORT` alone; verify the tool's transaction and error behavior.
   `LOCK_TIMEOUT` still waits at normal priority, so keep it to seconds.
 
-*[sourced: SQL Server `ALTER TABLE`, `CREATE INDEX`, `SET LOCK_TIMEOUT`, `SET XACT_ABORT`, and
-[lock-timeout error handling](https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-transaction-locking-and-row-versioning-guide#customize-the-lock-time-out)
-references]*
-
 ## Columns
 
 For a **new** column, SQL Server 2012+ Enterprise can add `NOT NULL DEFAULT <runtime constant>`
@@ -32,20 +28,17 @@ when a row is updated or the table/clustered index is rebuilt. This path exclude
 and CLR user-defined types. It also falls back to an offline operation if the **maximum possible**
 row size exceeds 8,060 bytes, even when current rows are short. A per-row default such as `NEWID()`
 is not a runtime constant. Check type, default, edition/version, and row-size eligibility before
-calling the addition metadata-only; it still needs a schema lock. *[sourced:
-[Microsoft's online-add restrictions](https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-table-transact-sql#add-not-null-columns-as-an-online-operation)]*
+calling the addition metadata-only; it still needs a schema lock.
 
 Tightening an existing nullable column to `NOT NULL` still scans. Backfill in bounded batches and
 alter in a quiet window, or use `ALTER COLUMN ... WITH (ONLINE = ON)` only after confirming the
-edition and roughly twice the free space for the hidden replacement column. *[sourced: SQL Server
-`ALTER TABLE` reference; reviewed 2026-08-21]*
+edition and roughly twice the free space for the hidden replacement column.
 
 ## Index and tool behavior
 
 `CREATE INDEX ... WITH (ONLINE = ON)` needs a supporting edition and short boundary locks.
 Conflicting transactions or long-running queries can delay those locks and form a blocking chain;
-the required locks vary by index operation and phase. *[sourced:
-[online index phases](https://learn.microsoft.com/en-us/sql/relational-databases/indexes/how-online-index-operations-work)]*
+the required locks vary by index operation and phase.
 
 Add the exact edition, row-size and LOB facts, table/index size, open-transaction risk, expected
 duration, space, and cancellation behavior to the migration handoff defined in `../SKILL.md`.

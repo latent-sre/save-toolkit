@@ -1,16 +1,14 @@
 # Splunk saved-search alerting
 
-Sources reviewed 2026-08-07: the official Alerting Manual and the `savedsearches.conf` and
-`alert_actions.conf` references, through indirect retrieval. Exact behaviour on the target Splunk
-version and licence is `[unverified]` until validated there. The parent skill's rules apply
-unchanged: page on symptoms, every alert links a runbook, and an alert never forced to fire and
-resolve is unverified.
+Exact behaviour on the target Splunk version and licence is unconfirmed until validated there. The
+parent skill's rules apply unchanged: page on symptoms, every alert links a runbook, and an alert
+never forced to fire and resolve is unverified.
 
 ## The scheduled-alert contract
 
 Prefer scheduled over real-time: a real-time alert holds a search process open indefinitely, and
-Splunk's own manual says to use a scheduled alert when possible *[sourced: Alerting Manual, alert
-types]*. Reach for real-time only when seconds change the response, and say why in the review.
+Splunk's own manual says to use a scheduled alert when possible. Reach for real-time only when
+seconds change the response, and say why in the review.
 
 ```ini
 # Five-minute windows with an illustrative two-minute indexing allowance.
@@ -23,14 +21,12 @@ dispatch.latest_time = -2m@m
 - **Cover event time and indexing delay.** The parent skill's scheduled-work section owns the
   completeness rule (measured delay allowance, bounded overlap with deduplication, skipped-run
   checks); apply it here with the measured `_indextime - _time` for this source.
-  *[sourced: Splunk alert scheduling tips; unverified for target indexing delay]*
 - **Timezone:** Splunk Cloud evaluates cron in UTC; Splunk Enterprise uses the search head's
-  timezone *[sourced: cron-expressions page]*. Record which applies next to every schedule.
+  timezone. Record which applies next to every schedule.
 - Trigger conditions are `counttype` with `relation` and `quantity`, or `alert_condition`, a
   secondary search that replaces the trio when set; `alert_type`, `alert_comparator`, and
-  `alert_threshold` are the REST API's names and configure nothing in the file *[sourced: Alerting
-  Manual]*. `alert.digest_mode` decides whole-result-set
-  versus per-result actions.
+  `alert_threshold` are the REST API's names and configure nothing in the file.
+  `alert.digest_mode` decides whole-result-set versus per-result actions.
 
 ## Throttling is part of the design
 
@@ -42,22 +38,18 @@ alert.suppress.fields = service,alert_type
 ```
 
 `alert.suppress.fields` scopes the suppression key so one noisy service does not mute the alert
-for every service. `alert.suppress.group_name` can suppress other alerts in the same group only
-when they have the same user owner. For example, alerts A and B owned by the same user can share
-suppression; alert C owned by a different user cannot join it just by using the same group name.
-*[sourced: Splunk Enterprise 10.4
-[savedsearches.conf](https://help.splunk.com/en/splunk-enterprise/administer/admin-manual/10.4/configuration-file-reference/10.4.0-configuration-file-reference/savedsearches.conf),
-re-checked 2026-10-02]* A suppression period longer than the runbook's escalation time-box hides a
-still-burning condition; check the pair together.
+for every service. In Splunk Enterprise 10.4, `alert.suppress.group_name` can suppress other
+alerts in the same group only when they have the same user owner. For example, alerts A and B owned
+by the same user can share suppression; alert C owned by a different user cannot join it just by
+using the same group name. A suppression period longer than the runbook's escalation time-box
+hides a still-burning condition; check the pair together.
 
 ## Actions carry results outward
 
 - **Webhook:** `alert_actions.conf` ships with `enable_allowlist = false`, so without an allowlist the
-  action can post the result payload to any endpoint *[sourced: use-a-webhook-alert-action and
-  alert_actions.conf, re-checked 2026-08-19; exact caution wording unverified]*. Turning the
+  action can post the result payload to any endpoint. Turning the
   allowlist on with the Moogsoft and receiver URLs enumerated is part of the alert's review here.
-- **Email:** restrict allowed recipient domains; results by email is an exfiltration surface
-  *[sourced: email-notification-action]*.
+- **Email:** restrict allowed recipient domains; results by email is an exfiltration surface.
 - Apply the fleet's redaction rules to what the search returns, not only to where it posts.
 
 ## The runbook link

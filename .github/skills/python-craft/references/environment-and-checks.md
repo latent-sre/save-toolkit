@@ -44,8 +44,3 @@ the task's authority; absence of a required interpreter is a gap, not evidence f
 Preserve baseline failures as named gaps. An environment or dependency change can explain a
 different test result; distinguish it from the source change. Report tool/interpreter versions
 when they affect the conclusion, and do not weaken checks to conceal a regression.
-
-[sourced] [uv project locking and syncing](https://docs.astral.sh/uv/concepts/projects/sync/),
-[environment selection](https://docs.astral.sh/uv/pip/environments/), and
-[requirements installation versus synchronization](https://docs.astral.sh/uv/pip/compile/);
-[isolated tool environments](https://docs.astral.sh/uv/guides/tools/).

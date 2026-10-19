@@ -4,11 +4,6 @@ ThousandEyes distinguishes application, DNS, routing, and network-path symptoms 
 vantage points. It locates evidence; a path difference or a correlated time is not a cause, and the
 parent skill's bar for asserting cause applies before any path is blamed.
 
-Sources reviewed 2026-07-14: `[sourced]` [test types](https://docs.thousandeyes.com/product-documentation/tests),
-[agents](https://docs.thousandeyes.com/product-documentation/getting-started/getting-started-with-cloud-and-enterprise-agents),
-[network tests](https://docs.thousandeyes.com/product-documentation/tests/network-tests),
-[API](https://docs.thousandeyes.com/product-documentation/getting-started/getting-started-with-the-thousandeyes-api).
-
 ## Reading results during an incident
 
 1. Bound the time and blast radius: failing agents and regions, healthy controls, test and target,
@@ -46,7 +41,7 @@ monitors (prefix, healthy control, escalation owner) beside this table when they
 
 ## Automation
 
-`[sourced]` The current API guide documents `/v7/tests` and `/v7/agents`; verify account role,
+The current API guide documents `/v7/tests` and `/v7/agents`; verify account role,
 endpoint, schema, and target in the current developer reference before use. Keep only account-group
 labels and repository paths here, never tokens. Creating, updating, or deleting tests is a controlled
 external change for the `software-engineer` agent and a human release owner, not permission granted by

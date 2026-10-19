@@ -27,9 +27,6 @@ until observed. Team decisions for new dashboards are in the
 The group's `preferredVersion` is configuration, not a stability promise: an unpinned read can
 return a different shape from the stored row.
 
-*[sourced: `apps/dashboard/pkg/apis/dashboard/*/register.go`, `pkg/registry/apis/dashboard/mutate.go`,
-and the dashboard schema validation at 13.2.0; target write behavior remains unverified]*
-
 ## Storage and conversion rules
 
 A row has no independent stored-version column; Grafana serializes with the version of the write,
@@ -51,9 +48,6 @@ named in its path.
    source and converted structures; Grafana also emits conversion-loss metrics.
 5. **Legacy `meta.apiVersion` is not storage evidence.** It reports the requested version.
 
-*[sourced: app-platform storage preparation, conversion, browser import and save, and legacy
-import handlers at 13.2.0]*
-
 ## Classic / V1 rules this team keeps
 
 - `uid` is stable, 8–40 characters, never reused or changed after publication; `id` is `null` on
@@ -68,9 +62,6 @@ import handlers at 13.2.0]*
 - On app-platform V1 writes, identity is `metadata.name` and concurrency `metadata.resourceVersion`;
   Grafana strips `spec.uid` and `spec.version`, injects defaults, and mints a distinct
   `metadata.uid`. Diff the stored readback, not the local body.
-
-*[sourced: dashboard JSON model, V1 schema, and app-platform handlers at 13.2.0; target writes
-unverified]*
 
 ### The panel shape, with the fields the checker and the on-call reader need
 
@@ -124,9 +115,6 @@ and preserve that shape. The bundled checker refuses V2; use `dashboard-linter` 
   query API does not expand these macros; see [query verification](./http-api.md#verify-then-record).
   LogQL has its own interval semantics; do not apply the Prometheus rule to Loki targets.
 - Links preserve time and variables; the deprecated `[[var]]` syntax is not used.
-
-*[sourced: Grafana variable, Prometheus template-variable, and dashboard-linter documentation;
-target import round trip unverified]*
 
 A cross-instance export rewrites data sources to `${DS_*}` and adds `__inputs` and `__requires`,
 which only the import endpoint or the import UI resolves; see the import rule in

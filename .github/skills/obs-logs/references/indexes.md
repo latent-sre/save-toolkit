@@ -28,9 +28,9 @@ Concrete values for the `obs-logs` skill. The agent loads this on demand.
 
 ## PCF apps in Splunk
 
-All rows are `[unverified]` placeholders until read from one real event. If the Splunk Firehose
+All rows are unconfirmed placeholders until read from one real event. If the Splunk Firehose
 nozzle feeds Splunk, log lines arrive as sourcetype `cf:logmessage` and HTTP start/stop events as
-`cf:httpstartstop` *[sourced: Splunk Firehose nozzle docs]*; a syslog drain carries whatever its
+`cf:httpstartstop`; a syslog drain carries whatever its
 input sets.
 
 | What | Value | Note |
@@ -41,9 +41,6 @@ input sets.
 | Status / response time | `<status_field>` / `<response_time_field>` | RTR `response_time` is in seconds, not ms |
 | Request id | `<request_id_field>` | RTR `vcap_request_id`, for one-request correlation |
 
-*[sourced: docs.cloudfoundry.org streaming-logs — RTR and APP log types, `response_time` in
-seconds, `vcap_request_id`]*
-
 ## Saved searches & dashboards
 
 | Name | Link | Purpose |
@@ -52,7 +49,7 @@ seconds, `vcap_request_id`]*
 
 ## Loki streams by app
 
-All rows are `[unverified]` placeholders until checked against the target tenant.
+All rows are unconfirmed placeholders until checked against the target tenant.
 
 | App / service | Tenant | Stable selector | Parser |
 |---|---|---|---|

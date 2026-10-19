@@ -9,17 +9,15 @@ known.
 
 Services in the stack use **Java/JVM, Python, JavaScript/TypeScript, and Go**. Bash and PowerShell are
 glue and automation, not service languages. GitHub + GitHub Actions; Bamboo is legacy.
-*[sourced: operator statement 2026-08-21]*
 
 **Java/JVM is support-only:** the team operates and troubleshoots Java/Spring Boot services; it
 does not write Java code, and it does not build, test, or run Java locally. Use the operational
 skills for runtime issues and return source changes to the application's development owner. The
 service inventory is not an authoring-language list.
-*[sourced: operator clarifications 2026-09-09 and 2026-09-28]*
 
 **CI jobs authenticate from GitHub environment secrets**, not GitHub OIDC. This settles the hedge
 the `ci-actions` skill carries: do not design around a GitHub-OIDC→CredHub exchange — CredHub
-authenticates via UAA. *[sourced: operator statement 2026-08-21]*
+authenticates via UAA.
 
 ## Toolchain by language
 
@@ -50,10 +48,9 @@ defaults until the owner records a decision here.
 
 On-prem hosts and self-hosted Actions runners are **RHEL 9+**. GitHub-hosted Linux runners are
 Ubuntu; the house choice for those CI jobs is **`runs-on: ubuntu-latest`**. Preserve that choice
-when authoring or optimizing workflows. *[sourced: operator preference 2026-09-20]*
-Both classes are in active use, so portable shell
-must run on both: the effective **bash floor is 5.1**, past every pre-4.4 workaround.
-*[sourced: operator statement 2026-08-21; confirm exact minor versions on the target]*
+when authoring or optimizing workflows. Both classes are in active use, so portable shell
+must run on both: the effective **bash floor is 5.1**, past every pre-4.4 workaround. Confirm
+exact minor versions on the target.
 
 ## Data stores
 
@@ -63,5 +60,5 @@ rule worth carrying is that a SQLite file behind a multi-instance app on PCF's e
 not shared and not durable. MySQL exists but is minor; **MariaDB and Oracle are not used**.
 A managed cloud database is a possible future addition alongside the GCP migration, but
 nothing is running there now: treat cloud-database guidance as not-yet-applicable rather than
-optional. Engine-specific migration, locking, and failover mechanics remain `[unverified]` per
-target until captured against a real instance. *[sourced: operator statement 2026-08-21]*
+optional. Engine-specific migration, locking, and failover mechanics remain unconfirmed per
+target until captured against a real instance.

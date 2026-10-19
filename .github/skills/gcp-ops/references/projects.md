@@ -1,6 +1,6 @@
 # Local GCP inventory — fill in as the migration lands
 
-Placeholder inventory, the `pcf-ops` foundations.md analog. Every row is `[unverified]` until a
+Placeholder inventory, the `pcf-ops` foundations.md analog. Every row is unconfirmed until a
 human records it; agents read this file, they do not guess values absent from it.
 
 ## Projects

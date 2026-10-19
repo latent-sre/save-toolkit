@@ -23,15 +23,13 @@ one extra instance above target until completion. Confirm quota for that extra c
 `--max-in-flight N` limits how many new instances start simultaneously for rolling and canary work,
 including each canary step. The default is 1. Raising it shortens a large rollout but widens the
 blast radius; retain 1 unless the approved packet explicitly accepts a larger bound.
-*[sourced: Cloud Foundry dev guide, rolling and canary deployments; reviewed 2026-08-21]*
 
 ## Version and target gates
 
 Canary deployment requires cf CLI v8.8.0 or later and CAPI v3.173.0 or later.
 `--instance-steps` additionally requires CAPI v3.189.0 or later and a CLI whose `cf push --help`
 exposes the flag. The human owner records the exact CLI and CAPI versions and a bounded
-non-production result; CLI version alone is insufficient. *[sourced: Cloud Foundry deployment
-documentation and cf CLI source; reviewed 2026-08-24]*
+non-production result; CLI version alone is insufficient.
 
 If either version or target behavior is unknown, keep the strategy `[unverified]` and do not include
 unsupported flags in an approved production plan.
@@ -56,5 +54,4 @@ artifact is still available before approval.
 and the cancel-is-not-rollback rule: the plan must restore every state outside the revision.
 
 These retention and command behaviors remain `[unverified]` for the target until the human release
-owner attaches foundation/version evidence. *[sourced: Cloud Foundry application revisions and cf
-CLI deployment documentation]*
+owner attaches foundation/version evidence.

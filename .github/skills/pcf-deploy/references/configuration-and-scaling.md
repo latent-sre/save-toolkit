@@ -24,7 +24,7 @@ Choose based on who consumes the variable:
   that package; otherwise it runs the current droplet.
   Confirm existing-droplet reuse and no artifact build before fast-path classification; unknown
   package/droplet state blocks that classification. A restart that stages needs the full release
-  and production gates. *[sourced: cloudfoundry/cli `command/v7/restart_command.go`]*
+  and production gates.
 - `cf restage` is required when a buildpack consumes the value during staging because the value
   changes the droplet. Examples include `JBP_CONFIG_*`, `BP_*`, `PIP_INDEX_URL`, and build-time use
   of `NODE_ENV`.

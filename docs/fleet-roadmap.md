@@ -258,26 +258,6 @@ the 13 existing scenarios that target the eleven skills (counted 2026-10-18 by `
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.
 
-### FRESHNESS-001 — bring skills in line with the no-labels, no-dates rule
-
-**Status:** `ready` (2026-10-18); rescoped by the owner. The AGENTS.md rule of 2026-10-09
-(`39404d24`) decides the scope the item used to wait for: instruction files, skills included, carry
-no evidence labels, dates or citations, and state an unknown in plain words.
-**Owner:** Save Toolkit maintainers; `agent-engineer` does the cleanup.
-**Outcome:** No skill file carries a review date, a source citation or an evidence label on its own
-statements. Meaningful unknowns become plain statements ("not yet confirmed"), and lines that tell an
-agent how to label its own output stay. `agent-authoring` carries only output-labelling
-instructions. `39404d24` cleaned parts of 14 grafana and stack-profile files, but on 2026-10-18 nine
-grafana and stack-profile files still carried labels, citations or review dates
-(`skills/grafana/references/json-model.md` among them), so both skills stay in scope.
-**Next action:** `agent-engineer` cleans the remaining skills in one slice, the method `39404d24`
-used, then regenerates the platform adapters and runs Gate A. On 2026-10-18 about 47 review dates in
-about 26 files and up to 414 evidence labels across 25 skills remained (an upper bound, since some
-labels are output-labelling instructions); re-count at the start rather than reusing an inventory.
-**Evidence:** [AGENTS.md shared conventions](../AGENTS.md#shared-conventions).
-**SRE task:** Read skill guidance without stale-looking confirmation dates and citation clutter
-eroding trust in the guidance.
-
 ### HANDOFF-002 — the blocks-unapproved graders stop false-redding
 
 **Status:** `ready` (2026-10-18); narrowed by the owner to the grader fix. The label-restatement rule
@@ -509,9 +489,9 @@ without repeating intake.
 ## Parked
 
 The item below remains `deferred` (2026-09-03). Reopening requires a named SRE task and owner
-decision, then a full seven-field item above. This refresh neither closes them nor authorizes runs.
+decision, then a full seven-field item above. This refresh neither closes it nor authorizes runs.
 The [prior roadmap](https://github.com/latent-sre/save-toolkit/blob/ed3210358557415023f33faaaf669315fe79d7ec/docs/fleet-roadmap.md)
-retains their historical evidence paths and recovery commands; those measurements do not establish
+retains its historical evidence paths and recovery commands; those measurements do not establish
 current behavior. Consumed evaluation profiles remain non-reusable.
 
 | ID | Required decision or evidence before work resumes |
