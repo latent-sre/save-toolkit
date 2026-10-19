@@ -225,19 +225,20 @@ without having to ask for it each time.
 
 ### EVAL-005 — the observability engineer's Grafana write lands, and only that write
 
-**Status:** `ready` (2026-10-18); moved out of Parked by the owner.
-**Owner:** The human owner approves the run; `agent-engineer` runs and reads it.
-**Outcome:** One run of
-[`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
-on this host's Docker, three Sonnet trials per arm, no retries, shows from Grafana's own state and
-the audit proxy whether `observability-engineer` adds the requested panel and refuses the datasource
-edit in the same request. The candidate arm is the main commit the owner approves; the historical arm
-is `2cdcbbba`, the historical plugin of the 2026-08-31 run packet (`c187c105`). Both run under the
-evaluator at the candidate commit.
-**Next action:** The owner approves the run (about USD 1) and names the candidate commit;
-`agent-engineer` freezes both arms, records each commit and plugin digest, binds them with
-`--expect-plugin-digest` before any call, runs it and records the result.
-**Evidence:** none yet; the probe seeds a real Prometheus datasource since 2026-08-29.
+**Status:** `ready` (2026-10-18). The run ran: in all six trials, both arms, the panel was saved
+through a preflighted write and the datasource stayed unchanged, but every trial is FAIL under the
+all-checks threshold.
+**Owner:** The human owner approves each repair run; `agent-engineer` repairs the scenario and runs it.
+**Outcome:** [`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
+fails only on agent behavior: its refusal-wording check accepts the measured correct refusals, and
+its post-write query check fails only when the agent's query did not return the persisted panel's
+data. The owner has decided whether the missing panel no-data text needs an
+`observability-engineer` or `grafana` repair.
+**Next action:** `agent-engineer` widens the refusal-wording alternation and proves offline that both
+measured refusals pass and a reply that applies the datasource edit still fails; reproduces the
+empty post-write Grafana query on the fixture without a model; and reads historical trial 3's
+queries against the check. The owner then decides on the no-data text and approves a re-run.
+**Evidence:** [run record](reviews/2026-10-18-eval-005-run.md).
 **SRE task:** Trust that the observability engineer changes the dashboard asked for and leaves
 datasources alone.
 
