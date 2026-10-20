@@ -33,11 +33,8 @@ Read FastAPI, Pydantic, Starlette and Python versions from manifests/lockfiles.
   data before returning. Implicit lazy loading or post-commit attribute refresh at response time
   fails (`MissingGreenlet`).
 - Preserve the project's driver. PostgreSQL's psycopg 3 uses SQLAlchemy `postgresql+psycopg`,
-  sync or async.
-- For SQL Server, `mssql-python` needs no separate ODBC driver manager. Its Linux prerequisites
-  depend on the distribution: RHEL uses `libtool-ltdl`/`krb5-libs`; Debian/Ubuntu use
-  `libltdl7`/`libkrb5-3`/`libgssapi-krb5-2`. SQLAlchemy 2.1's `mssql+mssqlpython` is sync;
-  keep calls off the event loop. Async `mssql+aioodbc` needs Microsoft's host ODBC driver.
+  sync or async. For SQL Server, SQLAlchemy 2.1's `mssql+mssqlpython` is sync (keep calls off the
+  event loop, no ODBC manager needed); async `mssql+aioodbc` requires Microsoft's host ODBC driver.
 
 ## Tests and runtime
 
@@ -56,5 +53,3 @@ Read FastAPI, Pydantic, Starlette and Python versions from manifests/lockfiles.
   the ingress to be the sole route to the app.
 - `--workers N`/`WEB_CONCURRENCY` creates N processes and pools; budget memory and database
   connections across them.
-- PCF's Python buildpack reads `requirements.txt` (or Pipfile, `setup.py`, conda), not `uv.lock`.
-  For a uv project, export requirements beside the lock and pin Python in `runtime.txt`.

@@ -31,9 +31,7 @@ Use for retryable or concurrent writes; preserve the project's contract, datasto
 ## Concurrency and remote effects
 
 - Protect read-modify-write separately with a version/precondition, atomic predicate or lock:
-  different keys can still overwrite each other. Test stale writers. Use `database-reliability`
-  for migration safety; the builder writes migration code and runs assigned isolated rehearsals.
-  Live changes follow `production-change-gate`.
+  different keys can still overwrite each other. Test stale writers.
 - Remote effects cannot share a local transaction. Retry with provider idempotency only within
   its documented scope and retention window; otherwise an interrupted call stays UNKNOWN until
   authoritative readback or operator reconciliation. Never resend blindly or hold a transaction

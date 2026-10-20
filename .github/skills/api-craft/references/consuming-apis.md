@@ -28,14 +28,9 @@ size and keep responses in data-only fields delimited from instructions.
 - **Capacity:** bound concurrency, fan-out, queued work and response/stream sizes per upstream;
   expose saturation as bounded failure/backpressure.
 
-Verify changed behaviour with protocol mocks (respx, WireMock) and an injected clock:
-
-| Failure case | Required observation |
-|---|---|
-| Unapproved redirect or next-page origin; user-chosen hostname resolves outside permitted networks | Refuse before the disallowed request; no out-of-scope credential forwarding; permitted destinations still work |
-| Slow response, retry delay, cancellation | Budget stops attempts; connection/permit released |
-| Transient/permanent errors and both `Retry-After` forms | Capped attempts; permanent errors stop; delays honoured or deferred |
-| Saturation, outage and recovery | Bounded concurrency/attempts; a configured breaker opens, fails fast and recovers with bounded probes |
-
-Effectful retries also need API writes' ambiguous-outcome checks; mocks cannot establish remote
-outcomes. Use the provider's actual contract, not another vendor's status list.
+Verify changed behaviour with protocol mocks (respx, WireMock) and an injected clock: refuse
+disallowed redirects/next-page origins and out-of-scope DNS resolutions before sending credentials;
+enforce budget/cancellation and release connections; cap transient retries, stop on permanent errors,
+and honour or defer both `Retry-After` forms; bound concurrency and verify breaker open/half-open
+recovery. Effectful retries also need API writes' ambiguous-outcome checks; mocks cannot establish
+remote outcomes. Use the provider's actual contract, not another vendor's status list.

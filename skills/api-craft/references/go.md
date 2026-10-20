@@ -5,13 +5,9 @@ Read versions from `go.mod`; `http.CrossOriginProtection` needs Go 1.25+.
 
 ## Server and data
 
-- A zero `http.Server` has no timeouts. Set header, read, write and idle limits for the workload;
-  streaming handlers need an appropriate per-response write deadline.
+- A zero `http.Server` has no timeouts. Set header (`ReadHeaderTimeout`), read, write and idle
+  limits for the workload; streaming handlers need an appropriate per-response write deadline.
 - Use `signal.NotifyContext` and deadline-bounded `srv.Shutdown` within the host's grace period.
-  Windows Ctrl+C is `os.Interrupt`; console closure gives limited shutdown time.
-- Set container memory headroom deliberately. Go 1.25+ can derive `GOMAXPROCS` from cgroup CPU
-  quotas; a `go` directive of 1.24 or earlier and explicit overrides disable the new defaults.
-  CPU shares are not quotas. Verify effective limits on the target.
 - Enforce authentication, object permissions and browser/host protections across the real chain,
   including routes outside framework middleware.
 - PostgreSQL: `pgx`/`pgxpool` is an option; bound pool connections and propagate cancellation.
