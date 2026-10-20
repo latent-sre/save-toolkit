@@ -34,15 +34,8 @@ Use the repository's durable-work system; load `stack-profile` before choosing a
   boundary during takeover.
 
 Verify applicable boundaries against the configured persistent work store and, where used,
-queue; mocks establish only handler behaviour.
-
-| Failure case | Required observation |
-|---|---|
-| Crash after durable acceptance, before execution; restart against the same work store | Pending work resumes and commits one intended business effect |
-| With a broker: crash after business commit/before publish, after publish/before marking sent, or after consumer commit/before ack | Eventual delivery with one business effect |
-| With a broker: unroutable or rejected publish | Dispatch stays pending or failed, never sent; work remains recoverable |
-| Duplicate/poison item in a partly successful batch | Deduplication, per-item outcomes, bounded retries, durable failed disposition |
-| Shutdown with unfinished work; expired-lease takeover where supported | Recoverable work; stale owner cannot commit |
-
-[Outbox rationale](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html),
-[Celery worker-loss setting](https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-reject-on-worker-lost).
+queue (mocks establish only handler behaviour): crash after acceptance/before execution and restart
+resumes to one effect; broker crash windows (after business commit, after publish, after consumer
+commit) and unroutable/rejected publishes stay recoverable without false `sent` state; partly failed
+batches preserve deduplication, per-item outcomes and dead-letter disposition; shutdown and
+expired-lease takeover fence stale owners from committing.

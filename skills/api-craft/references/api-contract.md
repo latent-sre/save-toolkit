@@ -1,12 +1,14 @@
 # HTTP API contract
 
-Preserve established contracts. For new APIs, choose paths, errors, pagination and identity from
-consumers, the framework and operating environment; no single convention is a team-wide requirement.
-
 ## Contract changes
 
-Describe changed operations and compatibility consequences. [Versioning](./versioning.md) covers
-consumer migration; keep bounded changes out of unrelated contract migrations.
+Describe changed operations and compatibility consequences; keep bounded changes out of unrelated
+contract migrations. For an incompatible change, reuse caller approval or return the decision;
+prefer compatible expansion, use overlapping versions (`Deprecation`/`Sunset`) only when consumers
+cannot migrate together, and agree the overlap, retirement evidence and recovery path before
+removing the old version; an announced `Sunset` alone is not retirement evidence. Scope
+compatibility-gate exceptions (such as `oasdiff` ignore entries) to the accepted break with reason
+and owner.
 
 ## Contract checks
 

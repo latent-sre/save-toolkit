@@ -1,40 +1,24 @@
 # Consume the API
 
-Bind the UI to the actual service contract and reuse an existing typed client.
-Error shapes, pagination, correlation, authentication and replay behavior come from that service.
-The patterns below apply when their contracts match; select only the sections the app needs.
-
-## Contents
-
-- [Typed client](#typed-client)
-- [Problems](#problems)
-- [Cursor pages](#cursor-pages)
-- [Writes](#writes)
-- [Cache and retries](#cache-and-retries)
-- [Live data](#live-data)
-- [Sessions](#sessions)
-- [Contract tests](#contract-tests)
+Bind the UI to the actual service contract and reuse an existing typed client. Select only the
+sections the app needs.
 
 ## Typed client
 
-When OpenAPI is available, use the service's canonical document and pinned revision;
-a consumer copy does not become its source of truth. Otherwise bind typed interfaces and
-runtime validation to the published contract. Keep existing client tooling.
+When OpenAPI is available, generate or bind types from the service's canonical document (`openapi-typescript`,
+`openapi-fetch` and `openapi-react-query` are options; FastAPI 0.134+/0.135+ emits OpenAPI 3.2
+`itemSchema` for JSONL/SSE, which `openapi-typescript` 7.x reads as `unknown` unless `schema` is
+also present). Otherwise bind typed interfaces and runtime validation to the published contract.
+Configure base URL, session credentials and correlation headers.
 
-For an OpenAPI TypeScript client, `openapi-typescript`, `openapi-fetch` and
-`openapi-react-query` are options. Keep generated types synchronized with the chosen document.
-Configure the actual base URL, session credentials and response correlation headers.
-
-For a service using problem bodies, declare applicable statuses in its document. openapi-fetch already
-consumes the body, so use
+With `openapi-fetch` (which already consumes the response body), parse errors via
 `if (error !== undefined || !response.ok) throw problemFromBody(error, response)`.
 Use `readProblem` only for an unread response or clone. The [problem helper](../assets/problem.ts)
-also handles FastAPI's native errors and gateway HTML.
+also normalizes FastAPI native `422`/`HTTPException` shapes and gateway HTML.
 
 ## Problems
 
-Map the service's documented statuses and bodies; this table covers common meanings, with
-idempotency-specific rows applying only to that replay contract.
+Map the service's documented statuses and bodies:
 
 | Status | UI response |
 |---|---|
@@ -44,84 +28,75 @@ idempotency-specific rows applying only to that replay contract.
 | 409 with `Retry-After` | In-flight idempotent write: wait under the same key |
 | 409 without it | Show current state beside the user's conflicting intent |
 | 410 | Explain that the API version retired and the app needs upgrading |
-| 422 | Map `errors[].loc` or FastAPI `detail[].loc` to fields, show `msg`, preserve input |
+| 422 | Map `errors[].loc` or FastAPI `detail[].loc` to fields, show `msg` beside the field (or via `aria-describedby`), preserve input |
 | 429, 503 | Honour `Retry-After` and show the wait |
 | 5xx | Actionable error panel; retry only safe requests |
 
-The error panel shows title, detail/next step, status, time/zone and available
-correlation identity, with log/trace links when configuration provides templates. Keep it inside
-the failing region; never substitute raw JSON, stack traces or a problem `type` URI.
+The error panel shows title, detail/next step, status, time/zone and correlation ID (`request_id`
+or `X-Request-ID`), with log/trace links when configured. Keep it inside the failing region; never
+render raw JSON, stack traces or a problem `type` URI.
 
 ## Cursor pages
 
-For `{ data: [...], next_cursor: "..." | null }`, return the cursor verbatim as `?cursor=`.
-The service caps oversized limits; no total count exists, so show “more” and the loaded count.
-Offer only contract-supported filters/sorts, put shareable values in the URL and send them to the
-server. Deduplicate appended rows by ID. TanStack Query's page rule is:
+For `{ data: [...], next_cursor: "..." | null }`, pass `next_cursor` verbatim as `?cursor=`.
+Show a "Load more" control and loaded count rather than a total count. Offer only
+contract-supported filters/sorts, sync shareable values to the URL and pass them to the server.
+Deduplicate appended rows by ID. In TanStack Query:
 `initialPageParam: undefined, getNextPageParam: (last) => last.next_cursor ?? undefined`.
 
 ## Writes
 
-Follow the service's write contract: native idempotence, preconditions or replay keys.
-For the Idempotency-Key protocol below, use the [idempotent-write helper](../assets/idempotent-write.ts)
-or an equivalent implementation. It expects conflict `422`, in-progress `409` and `Retry-After`.
-Create one `newIntentKey()` per user intent; reuse it
-with `sendIdempotent()` on every send of the unchanged payload. Editing the payload creates a
-new intent/key; reuse with a different payload returns `422`. Disable pending controls and
-turn off automatic mutation retries. Unknown outcomes remain unknown until reconciled.
-Pass replayable, non-stream bodies; the helper rejects `ReadableStream` before sending.
-For an in-flight `409`, honor the full `Retry-After`; if it exceeds the wait budget, retain the
-pending state and reconcile later without an early resend or a fresh key.
+Follow the service's write contract: native idempotence, preconditions (`If-Match` → `412`) or
+replay keys. For the [idempotent-write helper](../assets/idempotent-write.ts) (`422` payload
+mismatch, `409` in-flight with `Retry-After`): mint one `newIntentKey()` per user intent, reuse it
+with `sendIdempotent()` on every retry of the unchanged payload, and mint a new key when the user
+edits the payload. Pass replayable, non-stream bodies (`ReadableStream` is rejected). Disable
+pending controls and automatic mutation retries. Honor `Retry-After` up to `maxWaitMs`; if
+exceeded, keep pending state and reconcile without a fresh key.
 
 For `202`, poll the status resource with backoff, show progress and allow navigation away.
-Cookie-authenticated writes carry the server's CSRF defence through its token/custom header
-(`X-Requested-With` where that is the contract), never a plain form post. Send `If-Match`
-where supported so stale writes receive `412` instead of overwriting newer state.
+Cookie-authenticated writes include the server's CSRF token or custom header (`X-Requested-With`).
 
 ## Cache and retries
 
-Keys include every response-changing input: path, filters, sort, cursor and user/tenant scope.
-Set `staleTime` and refetch-on-mount/focus/reconnect to the workflow; default immediate staleness
-can cause repeated console refetches. Choose one update source per need: polling or streaming.
+Include path, filters, sort, cursor and user/tenant scope in query keys. Set `staleTime` and
+refetch behaviour for the workflow; choose either polling or streaming per resource.
 
-The query layer owns read retries, normally three with backoff; honour `Retry-After` on
-`429`/`503`, skip non-retryable statuses and avoid wrapper-level retries. Show
-`dataUpdatedAt` and stale/disconnected state after refresh failure. Log `Deprecation` or
-`Sunset` once per session. Use application endpoints for user data; platform health probes serve a different purpose.
+Let the query layer own read retries (typically three with backoff, honouring `Retry-After` on
+`429`/`503` and skipping non-retryable statuses). Show `dataUpdatedAt` and stale/disconnected
+state after refresh failure. Log `Deprecation` or `Sunset` once per session.
 
 ## Live data
 
-Default to polling through the cache; use the API's SSE stream for one-way live updates.
-WebSocket fits bidirectional traffic. Native `EventSource` cannot set headers and suits cookie
-sessions; bearer auth needs fetch-based `eventsource`, including `Last-Event-ID` replay.
-Tokens never belong in stream URLs.
+Default to cache polling; use SSE for one-way streams and WebSocket for bidirectional traffic.
+Native `EventSource` suits cookie sessions; bearer auth requires fetch-based `eventsource`
+(including `Last-Event-ID` replay; never put tokens in URLs).
 
-One reconnect owner uses capped backoff/jitter and stops on view/session end or auth failure.
-Show connected, stale and reconnecting states with the last failure's request ID. Refetch after
-a reconnect gap. Filter changes open a new stream with query parameters, retaining visible rows
-until replacement data arrives. Events update the query cache; batch redraws per frame with a
-bounded buffer and a timer flush in hidden tabs. Keep a rolling window and disclose dropped
-history. For cross-tab sharing, BroadcastChannel and Web Locks can elect one connection owner.
+Use one reconnect owner with capped backoff/jitter, stopping on unmount, session end or auth
+failure. Show connected, stale and reconnecting states with the last failure's request ID, and
+refetch after a reconnect gap. Filter changes open a new stream with query parameters while
+retaining visible rows until replacement data arrives. Batch cache updates per animation frame
+with a bounded buffer (plus timer flush in hidden tabs) and a rolling window that discloses
+dropped history.
 
 ## Sessions
 
-Reuse the backend's auth flow. Corporate SSO does not settle the provider, protocol or browser
-session contract; resolve those from the actual integration before implementing a new flow.
-When that contract uses OIDC Authorization Code with PKCE through a backend-for-frontend,
-keep tokens server-side and use a `Secure`, `HttpOnly`, `SameSite` session cookie. Carry the
-actual session and CSRF contract into the UI. Sensitive flows get a `reviewer` pass. If
-JavaScript must hold a bearer token, keep it in memory, never storage or URLs; refresh a `401`
-once and replay only when safe.
+Reuse the backend's auth and CSRF contract. For OIDC Authorization Code with PKCE via a BFF,
+keep tokens server-side behind a `Secure`, `HttpOnly`, `SameSite` cookie. If JavaScript must hold
+a bearer token, keep it in memory only (never storage or URLs); refresh `401` once.
 
-Logout or identity change cancels requests, closes streams and clears/replaces the affected
-cache. Notify other tabs through BroadcastChannel; identity-scoped keys prevent late responses
-from the previous session populating the new one.
+On logout or identity change, cancel requests, close streams, clear or re-scope the cache, and
+notify other tabs via `BroadcastChannel`; identity-scoped keys stop late responses from the
+previous session populating the new one.
 
 ## Contract tests
 
-Use MSW 3 at the network boundary (`setupServer`, `http`, `HttpResponse`) for the contract
-the app consumes. Test errors rendering available correlation IDs, API text remaining text, auth/permission
-failures and session isolation. For forms, verify `422` field mapping with input preserved;
-for paged collections, two pages, deduplication and server filter parameters; for writes, same-key
-retry, waiting on `409`/`Retry-After` and a new key after editing. Live views need reconnect,
-stale and teardown checks.
+Use MSW 3 (`setupServer`, `http`, `HttpResponse`; note MSW 3 renamed `onUnhandledRequest` to
+`onUnhandledFrame` on `server.listen()`/`worker.start()`, though fixtures on MSW 2 still use
+`onUnhandledRequest`). MSW's `sse` handler (`msw/sse`) intercepts `EventSource` only in the
+browser, so use it with `setupWorker` in browser-mode tests; under Node/jsdom, test fetch-based
+streams through an `http` handler returning a `ReadableStream`. Test error panels showing
+`request_id`, API strings rendered as text, auth/permission failures, session isolation (switch
+identity while an old-session response is delayed; none of its data becomes visible), `422`
+field-error mapping with input preserved, cursor pagination and URL-synced server filters,
+same-key `409` `Retry-After` replay vs new-intent keys, and stream reconnect/teardown.
