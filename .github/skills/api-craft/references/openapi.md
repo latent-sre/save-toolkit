@@ -39,8 +39,11 @@ explicit. A schema gate does not establish object authorization, idempotency or 
   `separate_input_output_schemas=False` merges them.
 - Missing and nullable are different. In Pydantic v2, a nullable field without a default is required.
   Check omitted fields and nil versus empty collections against the actual serializer and document.
-- Select the OpenAPI version supported by producer and consumers. Newer-only constructs need
-  end-to-end support; verify stream event types in the generated client.
+- Select the OpenAPI version supported by producer and consumers. Newer-only constructs (such as
+  OpenAPI 3.2 `itemSchema`, emitted by FastAPI 0.134+/0.135+ for JSONL/SSE generators) need
+  end-to-end support; verify stream event types in the generated client (for example,
+  `openapi-typescript` 7.x reads `schema`, not `itemSchema`, and yields `unknown` unless `schema` is
+  also present).
 
 ## CI
 

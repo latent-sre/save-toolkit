@@ -58,8 +58,3 @@ commit:
 
 Offline controls establish assertion behaviour; application tests must establish database
 concurrency and recovery.
-
-[Atomic replay recording](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/),
-[PostgreSQL conflict primitive](https://www.postgresql.org/docs/17/sql-insert.html#SQL-ON-CONFLICT)
-(application owns replay/authorization policy),
-[Idempotency-Key draft](https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/).

@@ -39,7 +39,3 @@ Verify changed behaviour with protocol mocks (respx, WireMock) and an injected c
 
 Effectful retries also need API writes' ambiguous-outcome checks; mocks cannot establish remote
 outcomes. Use the provider's actual contract, not another vendor's status list.
-
-[Phase timeouts](https://www.python-httpx.org/advanced/timeouts/),
-[retry multiplication](https://docs.cloud.google.com/storage/docs/retry-strategy#retry_anti-patterns),
-[Retry-After](https://www.rfc-editor.org/rfc/rfc9110.html#section-10.2.3).

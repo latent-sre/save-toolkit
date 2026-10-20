@@ -43,6 +43,3 @@ queue; mocks establish only handler behaviour.
 | With a broker: unroutable or rejected publish | Dispatch stays pending or failed, never sent; work remains recoverable |
 | Duplicate/poison item in a partly successful batch | Deduplication, per-item outcomes, bounded retries, durable failed disposition |
 | Shutdown with unfinished work; expired-lease takeover where supported | Recoverable work; stale owner cannot commit |
-
-[Outbox rationale](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html),
-[Celery worker-loss setting](https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-reject-on-worker-lost).
