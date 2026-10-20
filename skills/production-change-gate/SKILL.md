@@ -40,6 +40,7 @@ when the incident fast path applies. A later gate consumes the earlier verdict a
 gate: merge | release
 verdict: PASS | BLOCKED
 Candidate commit ID: <exact commit | not applicable>   Artifact identity: <immutable digest or version | not applicable>
+Release only — Target: <environment>   Backout/recovery: <exact rollback, or non-reversible effects and evidenced recovery, with verification and stop conditions>   Watching: <who, which signals>   Abort if: <criteria>
 Blocking items: <the NOs, each with what clears it>   Waivers: <item, approving human, reason>
 ```
 
