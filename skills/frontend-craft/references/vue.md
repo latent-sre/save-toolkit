@@ -1,39 +1,35 @@
 # Vue
 
 Use Vue when the caller or neighbouring apps choose it. The parent skill and
-[design](./design.md), [API](./api.md) and [serving](./serving.md) contracts apply; this reference
-supplies the framework equivalents.
+[design](./design.md), [API](./api.md) and [serving](./serving.md) contracts apply.
 
 ## Toolchain
 
-Vue 3.5, TypeScript and Vite: `npm create vue@latest` with TypeScript, Router, Vitest and ESLint;
-add Pinia only when shared UI state needs it. Keep Vue 3.6/Vapor out of production until stable.
-Use `<script setup lang="ts">` components with `defineModel`, `useTemplateRef` and
-`onWatcherCleanup`. Pin TypeScript 6 while `vue-tsc` needs its compiler API, checking
-compatibility before upgrading. Use Node 22.12 or later, ESLint flat config with
-`eslint-plugin-vue` and `@vue/eslint-config-typescript` type-checked rules, Vitest,
-Vue Test Utils and MSW.
+Vue 3.5, TypeScript and Vite (`npm create vue@latest` with TypeScript, Router, Vitest and ESLint;
+add Pinia only for shared cross-tree UI state; keep Vue 3.6/Vapor out of production until stable).
+Use `<script setup lang="ts">` with `defineModel`, `useTemplateRef` and `onWatcherCleanup`.
+`vue-tsc` 3.3+ supports TypeScript 7 (`>=5.0.0`), while `@vue/eslint-config-typescript` /
+`typescript-eslint` still require TypeScript 6 (`<6.1.0`) for type-checked lint rules. Use Node
+22.12+, ESLint flat config (`eslint-plugin-vue`, `@vue/eslint-config-typescript`), Vitest, Vue
+Test Utils and MSW.
 
 ## Kits
 
 Default: **shadcn-vue**, **Reka UI**, **Tailwind v4**, **motion-v**, **@lucide/vue** and
-**VueUse** composables, all MIT. Optional animated collections: **Inspira UI** (Aceternity/Magic
-designs sharing shadcn-vue tokens) and **Vue Bits**. Full-system alternatives: **Nuxt UI**
-(Reka/Tailwind, MIT, supports plain Vite) and **Vuetify** (MIT; follow its Tailwind guide because
-it owns a reset). **PrimeVue 5** has its own licence requiring a licence decision.
-Apply the [stack mixing rules](./stack.md#mixing-kits) and shared theme tokens.
+**VueUse** (all MIT). Optional animated collections: **Inspira UI** and **Vue Bits**. Full-system
+alternatives: **Nuxt UI** (Reka/Tailwind, MIT, supports plain Vite) and **Vuetify** (MIT; follow
+its Tailwind layer guide). **PrimeVue 5** uses its own licence requiring owner approval. Apply the
+[stack mixing rules](./stack.md#mixing-kits) and shared theme tokens.
 
 ## Data and interactions
 
-- **@tanstack/vue-query** with `openapi-fetch` calls wrapped in `queryOptions`; for generated
-  composables, **@hey-api/openapi-ts** with its TanStack Vue Query plugin, **orval** or **kubb**.
-- **Vue Router** for routes/shareable URL state; **Pinia** for distant components' shared UI
-  state, leaving server data in the query cache.
-- **TanStack Table**'s Vue adapter and **TanStack Virtual**; **VeeValidate** or **TanStack Form**
-  with Zod 4; **date-fns 4** and **@date-fns/tz**; **vue-echarts**; **@vue-flow/core**.
-- **Error boundaries:** use `onErrorCaptured` for a region's error panel and stop propagation;
-  `app.config.errorHandler` reports uncaught failures. Port the React error card's markup.
-- **Untrusted content:** only sanitized HTML reaches `v-html`; bound `:href`/`:src` values
-  pass the parent skill's protocol allowlist.
-- **Vue 2** is past end of life: keep its stack for a feature change and name the upgrade as a
-  separate decision.
+- **@tanstack/vue-query** with `openapi-fetch` wrapped in `queryOptions` (or **@hey-api/openapi-ts**,
+  **orval** or **kubb**).
+- **Vue Router** for routes and URL state; **Pinia** only for shared UI state.
+- **@tanstack/vue-table** v9 (`tableFeatures` + `useTable`, replacing `useVueTable`) and
+  **TanStack Virtual**; **VeeValidate** or **TanStack Form** with Zod 4; **date-fns 4** +
+  **@date-fns/tz**; **vue-echarts**; **@vue-flow/core**.
+- **Error boundaries & safety:** `onErrorCaptured` renders a region error panel and stops
+  propagation; `app.config.errorHandler` reports uncaught failures. Only sanitized HTML reaches
+  `v-html`; bound `:href`/`:src` values enforce the protocol allowlist. Keep legacy Vue 2 apps on
+  their existing stack for feature edits and flag migration separately.

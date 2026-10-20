@@ -1,85 +1,50 @@
 # Build, configure and serve
 
-Use localhost for development; load the PCF section only when PCF delivery is required. Reuse
-equivalent build/hosting facilities. The [serving contract](../assets/serving-contract.mjs) checks
-a served production build; it is separate from the app's component runner.
+Use localhost for development; load PCF only when PCF delivery is required. The
+[serving contract](../assets/serving-contract.mjs) checks a served production build (`vite preview`
+is not a production server and fails the missing-file check).
 
-## Contents
+## Localhost and runtime configuration
 
-- [Localhost](#localhost)
-- [Runtime configuration](#runtime-configuration)
-- [PCF](#pcf)
-- [Security headers and the CSP](#security-headers-and-the-csp)
-- [Caching and rollout](#caching-and-rollout)
-- [Verify](#verify)
+Proxy the API prefix through `server.proxy` in `vite.config.ts` (`API_TARGET`; FastAPI 8000, Go
+8080) so cookies and API calls share one origin without CORS (`ws: true` for WebSockets).
 
-## Localhost
-
-Vite hot-reloads the app and proxies the API prefix to the running service through
-`server.proxy` in `vite.config.ts`. `API_TARGET` selects the backend
-(FastAPI commonly uses 8000, Go 8080). One browser origin keeps cookies and API calls aligned
-without CORS. SSE passes through; WebSockets need `ws: true` on their path. When runtime
-configuration is used, `public/config.json` identifies the environment as `local`.
-
-`vite preview` is for inspecting the build, not production serving: its SPA fallback fails the
-contract's missing-file check. Test the release using its intended server configuration.
-
-## Runtime configuration
-
-When one release is promoted through environments, build once (`vite build`, hashed
-`dist/assets/`) and load environment differences from same-origin `config.json` before first
-render. The [runtime-config helper](../assets/runtime-config.ts) validates it and names missing
-fields in a startup error. Show the environment in the shell/title and destructive confirms,
-production most distinctly. Runtime config and `VITE_*` values reach every browser: no secrets;
-build-time values must be identical across promoted environments.
+When promoting one build (`vite build`, hashed `dist/assets/`) across environments, load
+same-origin `/config.json` before first render with [runtime-config.ts](../assets/runtime-config.ts)
+(`public/config.json` with `environment: "local"` in dev). Render missing-field startup errors
+instead of a blank page, and show the environment badge in the shell and destructive confirms
+(production most distinctly). Never put secrets in `config.json` or `VITE_*`.
 
 ## PCF
 
-Assemble a deploy directory in CI containing `dist/` and these files; do not push the source
-tree. Use the staticfile buildpack:
+Assemble a CI deploy directory with `dist/` and these files (never push the source tree):
 
 | File | Contract |
 |---|---|
-| `Staticfile` | `root: dist`: without it the buildpack moves `nginx/conf` into the served `public/` directory and the include never loads. `pushstate: enabled`; `location_include: includes/*.conf`; `force_https: true` and the `http_strict_transport_security` options |
-| `nginx/conf/includes/spa.conf` | Included inside the buildpack's `location /`: HTML gets `Cache-Control: no-cache`, the CSP below, `nosniff` and the referrer policy, each with `always`; no HSTS, which the buildpack adds there. Nested locations inherit neither those headers nor pushstate's rewrite, so each repeats what it needs: `location ^~ /assets/` immutable for a year without `always` and `try_files $uri =404`; `location = /config.json` `no-cache`; a regex location for file-like extensions answering an uncached `404` |
-| `.profile` | Runs from the app root before nginx starts. Writes `$HOME/public/config.json` from manifest/Apps Manager `UI_*` values through a temporary file and rename; fails startup on a missing required value, a control character, or an API base that is not a root-relative path |
-| `manifest.yml` | `staticfile_buildpack`, 64M memory, HTTP health check on `/`, host route and `UI_*` values |
+| `Staticfile` | `root: dist` (without it `nginx/conf` moves into `public/` and never loads); `pushstate: enabled`; `location_include: includes/*.conf`; `force_https: true` and `http_strict_transport_security` |
+| `nginx/conf/includes/spa.conf` | Inside `location /`: HTML gets `Cache-Control: no-cache`, CSP, `nosniff` and referrer policy with `always` (no HSTS here; the buildpack adds it). Repeat headers in nested locations: `location ^~ /assets/` (`max-age=31536000, immutable`, `try_files $uri =404`), `location = /config.json` (`no-cache`), and a regex location for file extensions returning uncached `404` |
+| `.profile` | Writes `$HOME/public/config.json` atomically from `UI_*` env vars before nginx starts; fails on missing required values, control characters, or non-root-relative API paths |
+| `manifest.yml` | `staticfile_buildpack`, `64M`, HTTP health check on `/`, host route and `UI_*` values |
 
-The API remains a separate app on the same host's context-path route, such as
-`host.domain/v1`; Cloud Foundry chooses that route first and the API serves its prefix.
-`pushstate` alone can return HTML/200 for missing chunks: run the contract on the foundation to
-prove the nested asset locations win. The profile/buildpack pairing also needs that runtime-config
-proof; if the foundation forbids the startup script, use a public, secret-free API config endpoint.
-
-If staticfile options or rewrite precedence cannot satisfy the contract, use the nginx buildpack
-with a complete `nginx.conf`, `{{port}}`, `{{env "NAME"}}`, `buildpack.yml`,
-`try_files $uri /index.html` for client routes and `try_files $uri =404` for assets.
-Deployment belongs to the human release owner under `production-change-gate`; prepare the
-exact push and rollback.
+Serve the API on a context-path route of the same host (e.g. `host.domain/v1`). If `staticfile`
+rewrite precedence cannot satisfy the contract, use `nginx_buildpack` with a full `nginx.conf`
+(`try_files $uri /index.html` for routes, `try_files $uri =404` for assets).
 
 ## Security headers and the CSP
 
 Serve HTML with `X-Content-Type-Options: nosniff`,
-`Referrer-Policy: strict-origin-when-cross-origin` and this starting policy:
+`Referrer-Policy: strict-origin-when-cross-origin` and:
 
 ```text
 default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'
 ```
 
-HSTS belongs at the TLS edge/buildpack option; do not duplicate it in the include. Framing must
-actually be refused: merely having a `frame-ancestors` directive is insufficient.
-A production Vite build needs no inline script permission. Kits such as Sonner, Mantine and
-Emotion-based Material UI insert styles at runtime; a static server cannot mint their
-per-response nonce, hence inline styles in this starting policy. Tighten it when the selected
-kits emit stylesheet files and the served app shows no violations. Never loosen script policy to
-fix styling.
+Set `build.assetsInlineLimit: 0` so small assets emit files; tighten `style-src` when kits emit
+stylesheets. Never loosen `script-src` for styling. Separate API origins require explicit
+`connect-src`, profile and CORS updates.
 
-`build.assetsInlineLimit: 0` keeps small images as files; `data:` covers kit-inlined images.
-The profile rejects absolute `UI_API_BASE_URL` values because `connect-src 'self'` assumes a
-same-origin API. A separate API origin needs a deliberate CSP/profile adjustment, the API's
-CORS/cookie contract and verification of the served result.
-
-To persist the theme before first paint, use a small static boot script, allowed by its exact hash:
+To persist theme before first paint, include this inline script and add its `sha256-...` hash to
+`script-src`:
 
 ```html
 <script>
@@ -92,30 +57,16 @@ To persist the theme before first paint, use a small static boot script, allowed
 </script>
 ```
 
-If the brief chooses a fixed default, substitute it for the OS fallback. Save the exact text
-between the tags as `theme-boot.js`, then add its hash to `script-src`:
+## Caching, rollout and verification
 
-```sh
-node -e 'const s=require("fs").readFileSync("theme-boot.js","utf8");console.log("sha256-"+require("crypto").createHash("sha256").update(s).digest("base64"))'
-```
+HTML and `/config.json` revalidate (`no-cache`); hashed assets cache `immutable` for a year;
+missing assets return uncached `404`. Retain prior chunks during rollout or handle
+`vite:preloadError` with bounded recovery that preserves unsaved input (never reload in a loop).
 
-## Caching and rollout
-
-HTML and config revalidate (`no-cache`); existing hashed assets are immutable for a year.
-Missing assets return `404` without cache headers. Keep the previous release's chunks during
-rollout, or handle `vite:preloadError` with bounded, visible recovery that protects unsaved work;
-never reload in a loop.
-
-## Verify
-
-Run against the built app behind its intended server, locally and after each authorized deploy:
+Verify the served build locally and after deploy:
 
 ```sh
 BASE_URL=https://orders-console.apps.example.internal API_PREFIX=/v1/ RUNTIME_CONFIG_PATH=/config.json node --test serving-contract.mjs
 ```
 
-Enable `API_PREFIX` only for a co-served API and `RUNTIME_CONFIG_PATH` only for runtime
-configuration; unset variables skip those checks. Inspect the served app's browser console for
-CSP violations and missing styles. Keep a tab open across a rollout and visit a lazy-loaded view;
-report unperformed checks as gaps. For required browser telemetry, use mPulse through
-`akamai-edge`; trace/correlation headers through `obs-pipeline`.
+Omit `API_PREFIX` or `RUNTIME_CONFIG_PATH` when not used.
