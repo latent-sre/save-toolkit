@@ -15,9 +15,10 @@ Read FastAPI, Pydantic, Starlette and Python versions from manifests/lockfiles.
 - Keep correlation and browser/host middleware streaming-compatible; avoid buffering whole responses.
 - FastAPI 0.132+ requires JSON `Content-Type` for JSON parsing. For a webhook sender that omits it,
   isolate `APIRouter(strict_content_type=False)` to that endpoint and validate the body explicitly.
-- On FastAPI 0.147+, omitted boolean `Form` fields become `False`, empty scalar `Form` values and
-  unselected `File` inputs count as missing, and omitted parameter defaults skip validation unless
-  `validate_default=True` is set.
+- Form and default handling changed release by release: omitted boolean `Form` fields become
+  `False` (0.147+), omitted defaults skip validation unless `validate_default=True` (0.148+), empty
+  scalar `Form` values count as missing (0.149+), and unselected `File` inputs count as missing
+  (0.150+). Check the pinned version before relying on each.
 - For JSON Lines on FastAPI 0.134+, `yield` items from a handler annotated with
   `AsyncIterable[Item]` or `Iterable[Item]`. For SSE on FastAPI 0.135+, add
   `response_class=EventSourceResponse` (`fastapi.sse`, with `ServerSentEvent` when setting `event`,

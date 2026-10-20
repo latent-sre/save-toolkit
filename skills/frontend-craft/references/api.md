@@ -86,13 +86,17 @@ keep tokens server-side behind a `Secure`, `HttpOnly`, `SameSite` cookie. If Jav
 a bearer token, keep it in memory only (never storage or URLs); refresh `401` once.
 
 On logout or identity change, cancel requests, close streams, clear or re-scope the cache, and
-notify other tabs via `BroadcastChannel`.
+notify other tabs via `BroadcastChannel`; identity-scoped keys stop late responses from the
+previous session populating the new one.
 
 ## Contract tests
 
-Use MSW 3 (`setupServer`, `http`, `HttpResponse`, plus `sse` from `msw/sse` for event streams;
-note MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame` on `server.listen()`/`worker.start()`,
-though fixtures on MSW 2 still use `onUnhandledRequest`). Test error panels showing `request_id`,
-API strings rendered as text, auth/permission failures, `422` field-error mapping with input
-preserved, cursor pagination and URL-synced server filters, same-key `409` `Retry-After` replay vs
-new-intent keys, and stream reconnect/teardown.
+Use MSW 3 (`setupServer`, `http`, `HttpResponse`; note MSW 3 renamed `onUnhandledRequest` to
+`onUnhandledFrame` on `server.listen()`/`worker.start()`, though fixtures on MSW 2 still use
+`onUnhandledRequest`). MSW's `sse` handler (`msw/sse`) intercepts `EventSource` only in the
+browser, so use it with `setupWorker` in browser-mode tests; under Node/jsdom, test fetch-based
+streams through an `http` handler returning a `ReadableStream`. Test error panels showing
+`request_id`, API strings rendered as text, auth/permission failures, session isolation (switch
+identity while an old-session response is delayed; none of its data becomes visible), `422`
+field-error mapping with input preserved, cursor pagination and URL-synced server filters,
+same-key `409` `Retry-After` replay vs new-intent keys, and stream reconnect/teardown.

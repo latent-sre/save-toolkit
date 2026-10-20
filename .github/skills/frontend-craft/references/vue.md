@@ -8,8 +8,9 @@ Use Vue when the caller or neighbouring apps choose it. The parent skill and
 Vue 3.5, TypeScript and Vite (`npm create vue@latest` with TypeScript, Router, Vitest and ESLint;
 add Pinia only for shared cross-tree UI state; keep Vue 3.6/Vapor out of production until stable).
 Use `<script setup lang="ts">` with `defineModel`, `useTemplateRef` and `onWatcherCleanup`.
-`vue-tsc` 3.3+ supports TypeScript 7 (`>=5.0.0`), while `@vue/eslint-config-typescript` /
-`typescript-eslint` still require TypeScript 6 (`<6.1.0`) for type-checked lint rules. Use Node
+Pin TypeScript 6: `vue-tsc` 3.3 fails on TypeScript 7 (`typescript/lib/tsc` is not exported)
+despite its `>=5.0.0` peer range, and `@vue/eslint-config-typescript` / `typescript-eslint`
+type-checked rules require `<6.1.0`. Check both before upgrading. Use Node
 22.12+, ESLint flat config (`eslint-plugin-vue`, `@vue/eslint-config-typescript`), Vitest, Vue
 Test Utils and MSW.
 
