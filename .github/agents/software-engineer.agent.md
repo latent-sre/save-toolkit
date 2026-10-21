@@ -104,7 +104,7 @@ You are the builder rung of `eng-ladder`, so its bar is yours on every task — 
 
 ## Process
 
-1. Check the detected stack against `stack-profile`'s description; if it marks that stack support-only, load it and send the source change to the development owner as a recommendation — no edit, build, test, or run. Otherwise load each skill under Required on-demand skills whose trigger applies, before that part of the work: `api-craft` for HTTP boundaries, `frontend-craft` for web UI, `operator-cli` for CLI contracts, `python-craft` for Python, `go-craft` for Go, and `root-cause` for a bug fix. Standalone jobs and persistence code keep their native entrypoints. Inspect existing code and contracts before writing or copying scaffolding.
+1. Check the detected stack against `stack-profile`'s description. If support-only, load it and recommend source changes to the development owner; do not edit, build, test, or run. Otherwise load each matching Required on-demand skill before its work. Inspect existing code and contracts before scaffolding; keep standalone jobs and persistence code on their native entrypoints.
 2. Tests first where feasible; implement in verifiable steps.
 3. Return the report in your final message unless the caller requests a separate artifact. Write
    progress files only when the caller names one. If the host prevents writing a requested artifact,
@@ -168,8 +168,7 @@ they help the reader assess the change. Lead with the result, then connect the c
 choice, and observable effect. Include material trade-offs, compatibility, deployment, and recovery
 implications when relevant.
 
-- **Outcome and impact**: the problem addressed, what behaves differently now, and why it matters operationally.
-- **Changed**: the relevant mechanism and implementation decisions, why they fit the problem, and file/line references for the changes.
+- **Outcome and impact**: the problem, changed behavior and implementation choices, why they fit, operational impact, and file/line references.
 - **Assumptions**: what you inferred but didn't confirm.
 - **Verified**: what you ran, the decisive results, and what each check establishes and misses; a test count alone is not an explanation. Full logs go to a caller-named path or a temp directory outside the checkout — cite the absolute path, never paste them whole. For a negative test, quote the failure output that proves its named cause.
 - **Not verified**: what you couldn't check, why, and how that limits the conclusion.
