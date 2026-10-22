@@ -375,6 +375,8 @@ class AutomaticReviewScenarioTests(unittest.TestCase):
     CASES = {
         "reviews-nontrivial-change": (5, True),
         "reviews-task-changes-in-dirty-files": (5, True),
+        "caller-owns-review-and-gate": (5, False),
+        "caller-owns-review-only": (5, False),
         "skips-review-below-five-files": (4, False),
         "skips-review-for-code-nit": (5, False),
         "skips-review-for-trivial-fix": (5, False),
@@ -419,6 +421,42 @@ class AutomaticReviewScenarioTests(unittest.TestCase):
                 self.assertEqual(expected, {p for _, p in probe_workspaces.collect_git_facts(ws).changed})
                 for path, text in spec["fixture"]["uncommitted"].items():
                     self.assertEqual(text, (ws.repo / path).read_text(encoding="utf-8"))
+
+
+class CallerOwnedReviewCommandTests(unittest.TestCase):
+    def test_scope_checks_distinguish_imports_and_actual_test_commands(self):
+        spec = scenario_file(ROOT / "build-scenarios/build-software-engineer-caller-owns-review-and-gate.yaml")
+        checks = [check for check in spec["checks"] if check["check"] == "bash_did_not_run"]
+        cases = [
+            ("cat > test_export.py <<'EOF'\nimport pytest\nEOF\n"
+             "python -m pytest test_export.py test_upload.py -q 2>&1 | tail -5; git status --short", True),
+            ("cat > test_export.py <<'EOF'\nimport pytest\nEOF", True),
+            ("echo 'python -m pytest -q'", True),
+            ("python -m pytest -q", False),
+            ("cd /tmp && python -m pytest -q 2>&1 | tail -5", False),
+            ("pytest test_export.py test_upload.py test_report.py -q", False),
+        ]
+        for command, allowed in cases:
+            with self.subTest(command=command):
+                ctx = SimpleNamespace(trace=probe_tracing.TraceSummary(bash_commands=[command]))
+                self.assertEqual(allowed, all(probe_checking.check_bash_did_not_run(ctx, check)[0]
+                                              for check in checks))
+
+    def test_required_suite_matcher_accepts_redirection_and_rejects_scoped_runs(self):
+        spec = scenario_file(ROOT / "build-scenarios/build-software-engineer-caller-owns-review-only.yaml")
+        (check,) = [check for check in spec["checks"] if check["check"] == "bash_ran"]
+        cases = [
+            ("python -m pytest -q 2>&1 | tail -8; git status --short", True),
+            ("cd /tmp && python -m pytest -q", True),
+            ("pytest -q", True),
+            ("python -m pytest test_export.py -q", False),
+            ("import pytest", False),
+            ("echo 'python -m pytest -q'", False),
+        ]
+        for command, expected in cases:
+            with self.subTest(command=command):
+                ctx = SimpleNamespace(trace=probe_tracing.TraceSummary(bash_commands=[command]))
+                self.assertEqual(expected, probe_checking.check_bash_ran(ctx, check)[0])
 
 
 def load_modules(files, *names):

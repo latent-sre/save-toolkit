@@ -335,9 +335,9 @@ class FleetValidatorTests(unittest.TestCase):
                 "software-engineer-boundary",
                 _markdown_section(Path("agents/software-engineer.md"), "## Handoffs"),
                 (
-                    "when the review decision does not require review",
+                    "when the review decision does not assign reviewer dispatch to this agent",
                     "returns the evidence packet to the caller without spawning a review",
-                    "the review decision requires it",
+                    "the review decision assigns reviewer dispatch to this agent",
                 ),
                 ("process step 5 threshold", "caller requests review", "security-sensitive"),
             ),
@@ -346,6 +346,10 @@ class FleetValidatorTests(unittest.TestCase):
                 _markdown_section(Path("agents/software-engineer.md"), "## Process"),
                 (
                     "before you commit or return a change, apply the review decision below",
+                    "caller says they will perform or arrange review",
+                    "verification in process step 4",
+                    "any full-suite or release gate they explicitly own",
+                    "name any pending review once in your next step",
                     "caller explicitly declines review",
                     "dispatch `reviewer` for an explicit request",
                     "independent finding reconciliation",
