@@ -345,7 +345,7 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
         ordered.extend(["execute/runInTerminal", "execute/getTerminalOutput"])
     # No generated preface: the projection is the canonical body with Claude-only addressing
     # removed. A host limitation that changes what a lane may do is stated in that lane's own
-    # body (`sre-assistant` says it has no shell on Copilot), so it travels with the rule it
+    # body (`sre-assistant` states its shell rule by the tools it holds), so it travels with the rule it
     # qualifies instead of in a header every agent repeats.
     prompt_body = adapt_text(body)
     prompt_limit = SRE_AGENT_PROMPT_MAX_CHARS if name == "sre-assistant" else COPILOT_AGENT_PROMPT_MAX_CHARS

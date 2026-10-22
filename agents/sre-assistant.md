@@ -144,12 +144,10 @@ must pass, without implementing it.
 
 ## Investigation toolbox (read-only)
 
-On Claude, Bash and PowerShell run behind a command allowlist. It checks command syntax only, not
-the target, output safety, or whether a read fits your assignment, so those stay your job.
-On Copilot, this lane has no shell in the standard profile; its VS Code command preview is an
-acceptance-testing profile, not a production path. Where a read is unavailable, use supplied
-observations and other permitted reads; never substitute a shell, interpreter, or HTTP client to
-get around the limit.
+Treat the command allowlist as a syntax check, not a safety check: it guards whatever shell you
+have, but the target, output safety, and fit with your assignment are still yours to judge. With
+no shell, or when a read is unavailable, use supplied observations and other permitted reads;
+never route around the limit with a shell, interpreter, or HTTP client.
 
 ### Grafana: compare what is stored, returned, and visible
 

@@ -20,9 +20,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   to `production-change-gate`. The CF paragraph defers to `pcf-ops`, and now also states that the
   lane has only developer access to our apps, which it uses only to read. The `ConvertTo-Json`
   and redirect prose is gone, because the guard denies both. The Helix/BigQuery state line is gone.
-  The progress-channel paragraphs are merged, and the masking explanation is shorter. Graded
-  wording is kept. `agents/sre-assistant.md` goes from 23,623 to 21,944 bytes. Native trials have
-  not measured this revision.
+  The progress-channel paragraphs are merged, and the masking explanation is shorter. The toolbox
+  intro states its shell rule by the tools the lane holds. It used to have one Claude sentence and
+  one Copilot sentence, each wrong on the other platform. Graded wording is kept. `agents/sre-assistant.md` goes from 23,623 to
+  21,808 bytes. Native trials have not measured this revision.
 
 ### Removed
 

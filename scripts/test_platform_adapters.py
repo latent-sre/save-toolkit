@@ -339,7 +339,8 @@ class PlatformAdapterTests(unittest.TestCase):
 
         The preface restated per-host hedges that every agent then repeated. It was removed on the
         owner's call, so a lane whose behavior actually changes on this host states that in its own
-        body: `sre-assistant` says it has no shell on Copilot. This test fails if a preface returns.
+        body: `sre-assistant` states its shell rule by the tools it holds. This test fails if a
+        preface returns.
         """
         preface_markers = (
             "Host adapter contract",
