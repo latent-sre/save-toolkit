@@ -4,12 +4,20 @@ description: >-
   Write a blameless postmortem for a resolved incident: systemic causes, timeline, detection,
   response, and owned action items in the standard structure. Triggers: 'write a postmortem for
   INC-1234', 'draft the retro for the order-router outage', 'apply the postmortem structure'. Direct
-  retrospective writing belongs to scribe, which selects postmortem mode and applies this skill;
-  active incidents route to incident-investigation; ITO runs coordination in the TLC.
+  retrospective authoring uses scribe; authorized callers can make bounded corrections to an
+  existing write-up. Active incidents route to incident-investigation; ITO runs coordination in the TLC.
 argument-hint: "[the resolved incident]"
 ---
 
 # Blameless postmortem
+
+Outside active incidents, unless `scribe` is explicitly requested, a caller already authorized to
+edit documentation may correct contacts, links, or wording in one existing artifact and its affected
+links from supplied evidence. Preserve commands, targets, procedure branches, incident conclusions,
+lifecycle, status, and review/verification records. This grants no new lane authority: no documented command execution
+or live lookup for the correction; local Git and file/link checks stay within the caller's existing
+authority. Return the diff, evidence, and gaps for human review. Use `scribe` for changes beyond this
+correction scope: new or substantially revised procedures and postmortems, or coordinated closeouts.
 
 Whoever applies this skill, scribe's postmortem mode or the main thread, first gathers the
 supplied incident timeline, severity, and the incident record's root-cause evidence (the advisor's
@@ -17,7 +25,9 @@ closeout packet and any `sre-assistant` slices); given only an incident ID, ask 
 drafting placeholders. Preserve every `[verified]`, `[sourced]`, and `[unverified]` label; never
 upgrade one.
 
-Use the [postmortem template](./assets/postmortem-template.md): full for P1/P2 or an explicit full
+For a bounded correction, preserve the existing structure and follow-ups; apply the evidence rules
+below without rebuilding the write-up. For a new or substantially revised postmortem, use the
+[postmortem template](./assets/postmortem-template.md): full for P1/P2 or an explicit full
 review; abbreviated for P3/P4 and near-misses unless policy or the owner requires full depth. Keep unknown
 severity as YAML `null`; draft the full form when the evidenced impact was customer-visible or
 multi-service, otherwise abbreviated, state the choice and its reason, and confirm it with the owner

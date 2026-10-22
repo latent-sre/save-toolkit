@@ -503,6 +503,16 @@ None of the oracle tests makes a model call.
   uses MSW. Both use JSDOM and cover only those four bars; browser behavior and the axe bar remain
   separate checks.
 
+The bounded documentation-correction cases for `software-engineer` and `observability-engineer`
+reuse the contact-closeout artifact oracle and require a local correction without a `scribe`
+dispatch. That oracle checks one owning index row, its lifecycle, contact, and actual service-card
+link; whitespace changes are allowed. The explicit `build-scribe-knowledge-closeout` and
+`build-software-engineer-resumes-after-scribe` assignments retain delegation controls. The new
+cases keep the existing closeout case's 36-turn allowance as an offline bound, not a measured
+completion budget. Trace review must confirm the actual writer, checkout binding, and absence of
+operational execution; the shell regex covers named commands only. Offline passes do not establish
+that either agent selects the new route at runtime.
+
 The researcher/scribe cases add a bounded public-page lookup, private-input rejection with
 zero attempted web calls, a missing-current-version source decision, extended/quick research
 routing, and command provenance classification. The [partial-research case](build-scenarios/build-researcher-partial-research.yaml)

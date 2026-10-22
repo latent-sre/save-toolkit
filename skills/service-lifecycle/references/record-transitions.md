@@ -11,7 +11,7 @@ separately. An unnamed owner is a gap, never inferred from an agent, commit auth
 |---|---|---|---|
 | Change | Named service owner; release owner supplies execution receipts | Compare the previous record with the exact changed version and environment. Identify affected cards, runbooks, index links, and dependencies; hand their proposed updates to `scribe`. | The service owner retains the follow-up until independently reviewed records are read back. A changed deployment invalidates applicability of affected older evidence even inside a freshness window. |
 | Remediation | Named finding owner, with the service owner retaining record ownership | Keep the finding open until the repair's target-bound result is supplied. Route the changed procedure or configuration reference and its result to `scribe`; distinguish a documentation gap from a missing control. | A proposed fix, merged code, or failed drill does not verify the operating procedure. Preserve the old evidence's scope and mark the affected claim stale or `[unverified]`. |
-| Refresh | Existing record owner; a named successor must accept a transfer | Recheck links, ownership, deployment applicability, and aged evidence. Send only supported corrections to `scribe`; a contact correction is a contact diff. | Review can advance `last_reviewed` through the existing review rule. It cannot advance execution verification; unresolved freshness stays visible with owner and next review date. |
+| Refresh | Existing record owner; a named successor must accept a transfer | Recheck links, ownership, deployment applicability, and aged evidence. Use `operational-learning`'s bounded-correction rule for supported contact, link, or wording edits by an authorized caller; other updates go to `scribe`. | Review can advance `last_reviewed` through the existing review rule. It cannot advance execution verification; unresolved freshness stays visible with owner and next review date. |
 | Retirement | Named service owner until each retained resource has an accepting owner | Follow retirement order, then hand execution receipts and retained-resource dispositions to `scribe`. Preserve records as `retired`, update active indexes, and retain historical evidence. | Reviewed record readback plus independent retirement checks are required. Missing recipient acceptance, unknown outcome, or serving traffic keeps the follow-up pending; an old successful resolve cannot prove active status. |
 
 When supporting evidence no longer applies, explicitly identify the stale claim, affected version
@@ -57,7 +57,7 @@ No fixture run proves any real-service transition.
 ## Acceptance on the selected service
 
 Use the owner's selected service, environment, and authorized record repository. For each row,
-retain the original record/revision, named owner, trigger, exact evidence, `scribe` disposition,
+retain the original record/revision, named owner, trigger, exact evidence, documentation disposition,
 independent review/readback, and caller continuation in the existing follow-up. Include a changed
 deployment inside 30 days, failed remediation, document-only refresh, and retirement with a retained
 shared resource. In each negative case the affected claim must stay visibly stale or pending;

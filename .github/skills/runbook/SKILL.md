@@ -5,8 +5,8 @@ description: >-
   failure mode, the living-runbook accretion that grows it after every incident, and importing
   Confluence runbooks into the repo. Triggers: 'help me write a runbook for restarting pricing',
   'update the runbook from this incident', 'import this Confluence runbook', 'apply the runbook
-  structure'. Direct operational-document writing belongs to scribe, which selects runbook mode
-  and applies this skill; retrospectives use postmortem.
+  structure'. New procedures and substantial revisions use scribe; authorized callers can make
+  bounded corrections to existing documents. Retrospectives use postmortem.
 argument-hint: "[service or tool]"
 ---
 
@@ -16,6 +16,14 @@ A runbook covers one alert, task, or failure mode. Active response stays with th
 and `incident-investigation`; this skill documents the procedure.
 
 ## Match the edit
+
+Outside active incidents, unless `scribe` is explicitly requested, a caller already authorized to
+edit documentation may correct contacts, links, or wording in one existing artifact and its affected
+links from supplied evidence. Preserve commands, targets, procedure branches, incident conclusions,
+lifecycle, status, and review/verification records. This grants no new lane authority: no documented command execution
+or live lookup for the correction; local Git and file/link checks stay within the caller's existing
+authority. Return the diff, evidence, and gaps for human review. Use `scribe` for changes beyond this
+correction scope: new or substantially revised procedures and postmortems, or coordinated closeouts.
 
 For a contact, link, or wording-only correction, patch affected text and links from supplied evidence;
 preserve the existing structure, IDs, status and history. Report unrelated gaps without rewriting them.

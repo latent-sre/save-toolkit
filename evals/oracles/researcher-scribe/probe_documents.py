@@ -97,7 +97,12 @@ def check_closeout(root):
         assert "#checkout-operations" in text, "new contact absent from owning artifact"
         assert "#checkout-platform" not in text, "stale contact retained"
         assert "Checkout Operations" in text and "Checkout Platform" not in text, "stale owning team retained"
-    assert "services/checkout.md" in index, "index lost existing service-card target"
+    rows = [[cell.strip() for cell in line.strip().split("|")[1:-1]]
+            for line in index.splitlines() if line.strip().startswith("|")]
+    rows = [row for row in rows if row and row[0] == "checkout"]
+    assert len(rows) == 1 and len(rows[0]) == 5, "missing or duplicate checkout index row"
+    assert rows[0][1:4] == ["active", "Checkout Operations", "#checkout-operations"], "index lifecycle or contact changed"
+    assert re.fullmatch(r"\[[^\]\n]+\]\(services/checkout\.md\)", rows[0][4]), "index lost existing service-card target"
     assert "../../runbooks/checkout.md" in card, "card lost existing procedure target"
     records = labeled_record(card, r"\bAUDIT-73\b", "sourced")
     assert any(re.search(r"\bCheckout Operations\b", line)

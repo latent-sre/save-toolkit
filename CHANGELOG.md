@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Let authorized callers make evidence-backed contact, link, and wording corrections to existing
+  operational documents using the matching skill. Keep new procedures, postmortems, coordinated
+  closeouts, and explicitly delegated work with `scribe`; preserve its tool restrictions and
+  consolidate its return instructions.
+
 - Compress `software-engineer`'s `reviewer`, `scribe`, and `researcher` handoff rows. The reviewer
   row drops the dispatch timing Process step 5 already sets. The scribe row keeps the checkout
   binding `scribe` cannot check itself (`git rev-parse --short=8 HEAD` on `Verified:` plus

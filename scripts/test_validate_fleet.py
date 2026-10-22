@@ -591,16 +591,16 @@ class FleetValidatorTests(unittest.TestCase):
                 with self.subTest(contract=relative.as_posix(), phrase=phrase):
                     self.assertIn(phrase, text)
 
-    def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:
+    def test_observability_engineer_bounds_documentation_corrections(self) -> None:
         agent = _agent("observability-engineer")
         description, body = str(agent.fields["description"]).lower(), agent.body
-        self.assertIn("for runbooks or postmortems use save-toolkit:scribe", description)
-        self.assertNotIn("operational documentation", description)
+        self.assertIn("new procedures, postmortems, and coordinated operational documentation use save-toolkit:scribe", description)
+        self.assertIn("## Bounded documentation corrections", body)
         self.assertNotIn("## Documentation lane", body)
         self.assertNotIn("- `runbook` —", body)
         self.assertNotIn("- `postmortem` —", body)
         self.assertNotIn("documentation output, filled", body)
-        self.assertIn("→ `scribe`", body)
+        self.assertIn("coordinated closeouts to `scribe`", body)
 
     def test_scribe_returns_runbook_link_to_caller_and_preserves_alert_owner(self) -> None:
         body = _agent("scribe").body

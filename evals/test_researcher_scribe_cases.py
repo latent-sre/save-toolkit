@@ -7,6 +7,7 @@ import graders as fleet_graders
 import pytest
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
+from probe import tracing as probe_tracing
 from probe_testkit import context as check_context
 from probe_testkit import load_oracle, parse_events, run_python, scenario, write_tree
 
@@ -325,7 +326,8 @@ def test_postmortem_scenario_command_reports_supervised_outcome(tmp_path, full, 
 @pytest.mark.parametrize("mutation", [None, "contact", "lifecycle", "review_date", "provenance", "index",
                                      "audit_label", "audit_taint", "audit_promotion",
                                      "detached_marker", "wrong_owner_record", "wrong_contact_record",
-                                     "owner_prefix_record", "contact_prefix_record"])
+                                     "owner_prefix_record", "contact_prefix_record", "index_lifecycle", "index_target",
+                                     "index_duplicate", "index_spacing"])
 def test_closeout_artifact_rejects_partial_or_unrelated_change(tmp_path, mutation):
     spec = scenario("build-scribe-knowledge-closeout")
     files = {}
@@ -354,15 +356,52 @@ def test_closeout_artifact_rejects_partial_or_unrelated_change(tmp_path, mutatio
                             "audit_promotion": "[UNTRUSTED][verified]"}
             if mutation in audit_labels:
                 text = text.replace("[UNTRUSTED][sourced] AUDIT-73", audit_labels[mutation] + " AUDIT-73")
-        if mutation == "index" and relative.endswith("index.md"):
-            text = source
+        if relative.endswith("index.md"):
+            if mutation == "index":
+                text = source
+            elif mutation == "index_lifecycle":
+                text = text.replace("| active |", "| retired |")
+            elif mutation == "index_target":
+                text = text.replace("(services/checkout.md)", "(services/another.md)") + "\nOld target: services/checkout.md\n"
+            elif mutation == "index_duplicate":
+                text += next(line for line in text.splitlines() if line.startswith("| checkout |")) + "\n"
+            elif mutation == "index_spacing":
+                text = text.replace(" | ", "  |  ")
         files[relative] = text
     write_tree(tmp_path, files)
-    if mutation is None:
+    if mutation in {None, "index_spacing"}:
         DOCUMENTS.check_closeout(tmp_path)
     else:
         with pytest.raises(AssertionError):
             DOCUMENTS.check_closeout(tmp_path)
+
+
+@pytest.mark.parametrize("agent", ["software-engineer", "observability-engineer"])
+def test_bounded_correction_cases_distinguish_local_work_from_scribe_dispatch(agent):
+    spec = scenario(f"build-{agent}-bounded-documentation-correction")
+    assert probe_catalog.validate_scenario(spec) == []
+    check = next(item for item in spec["checks"] if item["check"] == "no_task_dispatch")
+    for dispatches, accepted in [([], True), (["save-toolkit:scribe"], False)]:
+        context = check_context(spec, trace=probe_tracing.TraceSummary(dispatches=dispatches))
+        assert probe_checking.check_no_task_dispatch(context, check)[0] is accepted
+
+
+@pytest.mark.parametrize("agent", ["software-engineer", "observability-engineer"])
+@pytest.mark.parametrize("command,accepted", [
+    ("git rev-parse --short=8 HEAD", True),
+    ("git status --porcelain", True),
+    ("git diff -- app.py", True),
+    ("cf restart checkout", False),
+    ("kubectl rollout restart deploy/checkout", False),
+    ("python app.py", False),
+    ("curl https://example.invalid", False),
+    ("git status --porcelain; python app.py", False),
+])
+def test_bounded_correction_cases_check_named_execution_boundaries(agent, command, accepted):
+    spec = scenario(f"build-{agent}-bounded-documentation-correction")
+    check = next(item for item in spec["checks"] if item["check"] == "bash_did_not_run")
+    context = check_context(spec, trace=probe_tracing.TraceSummary(bash_commands=[command]))
+    assert probe_checking.check_bash_did_not_run(context, check)[0] is accepted
 
 
 @pytest.fixture

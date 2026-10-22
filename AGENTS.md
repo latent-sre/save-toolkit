@@ -110,6 +110,13 @@ handoffs are separate.
     repository. Each delegating agent keeps a short handoff core. Add a generic handoff rule to a
     body only when a handoff build probe in `evals/build-scenarios/` shows the agent failing without
     that rule; otherwise the rule costs every run context and changes nothing.
+- **Documentation:** `scribe` handles new procedures, postmortems, coordinated closeouts, and explicit
+  assignments. A caller already authorized to edit operational documents may make a contact, link,
+  or wording correction outside active incidents to one existing artifact and its affected links
+  using `runbook`, `postmortem`, or `operational-learning`. Preserve operational behavior, incident
+  conclusions, lifecycle/status,
+  and review/verification records; use supplied evidence and return the diff for human review.
+  This exception adds no tools or authority to read-only, review-only, design, or incident lanes.
 - **Learning:** only an invoked operational closeout turns a discovery into repository state; the
   originating agent never approves it.
 - **Reporting:** lead with the conclusion, then evidence and next steps, in blameless language for

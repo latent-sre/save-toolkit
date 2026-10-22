@@ -80,8 +80,12 @@ reviewed record is read back, and when evidence becomes stale. Reuse the existin
 After onboarding execution—or after retirement's live-resource receipts but before final record
 verification—send `scribe` an evidence-bound handoff for affected cards, index entries, and runbooks.
 Include the authorizing record, exact repository revision, caller's `[verified]` checkout binding,
-receipts, retained evidence labels, and non-actions. Audit findings use the same route. This skill
-never loads `operational-learning` or writes records. Drafts describe proposed knowledge changes;
+receipts, retained evidence labels, and non-actions. Audit findings use the same route. For a
+contact, link, or wording correction to an existing record, a caller already authorized to edit
+documentation may instead load `operational-learning` and follow its bounded-correction rule.
+An audit alone remains read-only; this exception requires a separately authorized correction.
+Read-only or design-only lanes return that correction to their caller. This skill grants no record
+write authority. Drafts describe proposed knowledge changes;
 missing records use its templates. A retirement handoff remains pending until reviewed records and
 final verification are supplied.
 
@@ -89,11 +93,12 @@ final verification are supplied.
 
 Lead with the conclusion, dated in UTC, with the age of the oldest load-bearing evidence. Then, by
 mode: **audit** returns up to three validated fixes in priority order, severity-ranked findings
-with evidence and owner, checks that passed, gaps and prohibited reads not run, and a plain
-statement that nothing was changed; **onboard** and **retire** drafts return the proposed checklist,
+with evidence and owner, checks that passed, gaps and prohibited reads not run. State that nothing
+changed for a read-only audit; report any separately authorized correction with its diff and evidence.
+**Onboard** and **retire** drafts return the proposed checklist,
 `draft — unapproved`, and unresolved identities, approvals, and recovery evidence. Executed work
 returns each surface's row with its result or `UNKNOWN`, every gate verdict and receipt,
-unresolved dependencies, the `scribe` handoff,
+unresolved dependencies, the documentation correction or `scribe` handoff,
 and what was not done. Never report an effect complete while any surface is `BLOCKED`, `UNKNOWN`,
 or merely planned, and close an onboarding by recommending its own audit as owed verification.
 

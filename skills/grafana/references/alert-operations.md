@@ -100,7 +100,7 @@ it can replace the group's rules and change every member's provenance.
    prior definition through the same ownership/concurrency checks. Never overwrite an intervening
    edit. A newly created rule has no prior version: a requested recovery may pause it with an owner
    and deadline; deletion goes to the human/protected executor. Suppressed or sent pages cannot be
-   undone by restoring configuration. Return the record for the normal `scribe` handoff.
+   undone by restoring configuration. Return the record for the agent's documentation disposition and handoff rules.
 
 On a timeout/dropped response after dispatch, record UNKNOWN and do not repeat the POST/PUT. Read
 the chosen UID and compare desired/prior definitions and available history/audit evidence. Account

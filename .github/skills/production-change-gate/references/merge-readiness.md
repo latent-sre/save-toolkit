@@ -14,7 +14,7 @@ be waived, and any other waiver is a recorded human decision.
 | Security | When auth, input handling, secrets, crypto, file or network access, or dependencies changed, the affected risks are assessed and no P0/P1 is open. No credential, token, or key in code, fixtures, artifacts, or logs. |
 | Compatible | Contract changes use expand-then-contract; migrations, API contracts, and UI state are checked for affected interfaces. A web GUI change checks keyboard and WCAG behaviour or records a waiver. |
 | Scoped | Smallest correct change, no dead code or unrelated churn; ask for a split only when size or mixed concerns prevent reliable review. |
-| Docs and ops | Changed behaviour or operations update the docs: a `scribe` handoff for runbooks or postmortems, an `observability-engineer` handoff for dashboards, alerts, or SLOs, or a recorded reason neither is needed. |
+| Docs and ops | Changed behaviour or operations update the docs: a reviewed bounded correction under its documentation skill, or a `scribe` handoff for new procedures, postmortems, and coordinated closeouts. Dashboards, alerts, and SLOs use `observability-engineer`. Record a reason when no documentation or observability work is needed. |
 
 Severity: P0/P1 block; a P2 blocks only when the candidate introduced or worsened it; P3 never
 blocks. Read the candidate repository's active rules (`gh api repos/{owner}/{repo}/rules/branches/{branch}`)
