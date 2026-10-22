@@ -15,6 +15,27 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   the `Changed` section already covers. The researcher row absorbs its separate sanitization
   bullet. `agents/software-engineer.md` goes from 22,823 to 22,607 bytes. Native trials have not
   measured this revision.
+- Trim from `sre-assistant` the text its loaded skills or the guard already cover. The Grafana
+  helper's capability list now defers to `command-access`. The live-change packet fields now defer
+  to `production-change-gate`. The CF paragraph defers to `pcf-ops`, and now also states that the
+  lane has only developer access to our apps, which it uses only to read. The `ConvertTo-Json`
+  and redirect prose is gone, because the guard denies both. The Helix/BigQuery state line is gone.
+  The progress-channel paragraphs are merged, and the masking explanation is shorter. The toolbox
+  intro states its shell rule by the tools the lane holds. It used to have one Claude sentence and
+  one Copilot sentence, each wrong on the other platform. The Evidence section's run of "X does not
+  prove Y" clauses becomes one principle with six canonical examples, and two repeats elsewhere are
+  gone. A second pass tightens wording throughout. It drops Grafana evidence sentences the `grafana`
+  references already state and a causal rule stated twice, and moves the embedded-instructions rule
+  into the untrusted-content section. It also rewords rules whose behavior the live evals grade:
+  caller and recipient, severity, and mitigation state. `agents/sre-assistant.md` goes from 23,623
+  to 20,809 bytes. Native trials have not measured this revision.
+
+### Removed
+
+- The fleet-wide checks on agent body shape: the validator's evidence-label triad and `## Handoffs`
+  heading rules, and the return-template slot test. Also the tests that pinned `sre-assistant`
+  wording: its output-template fields, its `[sourced: <source>]` sentence, and "On Copilot, this
+  lane has no shell". The tool-authority checks remain. No agent text changed.
 
 ### Fixed
 

@@ -339,7 +339,8 @@ class PlatformAdapterTests(unittest.TestCase):
 
         The preface restated per-host hedges that every agent then repeated. It was removed on the
         owner's call, so a lane whose behavior actually changes on this host states that in its own
-        body: `sre-assistant` says it has no shell on Copilot. This test fails if a preface returns.
+        body: `sre-assistant` states its shell rule by the tools it holds. This test fails if a
+        preface returns.
         """
         preface_markers = (
             "Host adapter contract",
@@ -359,11 +360,6 @@ class PlatformAdapterTests(unittest.TestCase):
                     adapters.adapt_text(canonical_body).lstrip("\n"),
                     rendered.split("---\n", 2)[2].lstrip("\n"),
                 )
-        # The one host limitation that changes behavior still reaches its lane, from its own body.
-        self.assertIn(
-            "On Copilot, this lane has no shell",
-            adapters.render_copilot_agent(ROOT / "agents/sre-assistant.md"),
-        )
 
     def test_copilot_agent_prompt_over_30000_characters_is_rejected(self) -> None:
         agent = (
