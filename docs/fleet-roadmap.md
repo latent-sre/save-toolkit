@@ -180,20 +180,25 @@ asking for them.
 
 ### PRECOMMIT-001 — software-engineer reviews a 5-file change before committing, unasked
 
-**Status:** `active` (2026-10-15). The owner raised the threshold from three to five task-changed
+**Status:** `active` (2026-10-21). The owner raised the threshold from three to five task-changed
 files, retaining the nit exemption and explicit-request, finding-reconciliation, security, and
 production-review triggers. The Review decision in software-engineer owns their precedence and
 counts already-dirty paths the task changes, excluding only unrelated pre-existing work. The
-five-file rule and revised scenarios have not been measured in native trials.
+five-file control failed to dispatch a reviewer in one native trial on `07248042`; the wider
+boundary matrix remains unmeasured on that candidate.
 **Owner:** The human owner decides the mechanism; `agent-engineer` owns the software-engineer rule and
 its scenarios.
 **Outcome:** software-engineer dispatches `reviewer` unasked on a five-file feature, including when
 the task edits already-dirty files; it skips a change below five files or made only of nits unless
 another review trigger applies.
-**Next action:** Measure the five-file boundary, overlapping dirty paths, nit controls, and
-explicit-review overrides on the current CLI before claiming native adherence. Keep the historical
-results below separate from the revised contract.
-**Evidence:** Historical three-file trials, not acceptance of the five-file rule: Sonnet on CLI
+**Next action:** Review the [caller-ownership pilot](reviews/2026-10-21-caller-ownership-pilot.md)
+and scope any repair or further native run. The four cases were sampled once; the ownership
+observations depend on trace inspection after two command-grader defects. Keep overlapping dirty
+paths, nit controls, and explicit-review overrides in the broader acceptance scope.
+**Evidence:** [Five-file and caller-ownership pilot](reviews/2026-10-21-caller-ownership-pilot.md),
+Sonnet 5.5 on CLI 2.1.307, candidate `07248042`: default review 0/1; report format failed its strict
+field check; caller ownership was observed in both build traces. Historical three-file trials,
+not acceptance of the five-file rule: Sonnet on CLI
 2.1.294, with the scenarios Codex's PR #332 review made exact (the feature
 case asserts all three files; both nit controls touch three files):
 `build-software-engineer-reviews-nontrivial-change` reviewed 1/3 with #332's original line and 0/3

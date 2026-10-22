@@ -1,0 +1,56 @@
+id: agent-direct-software-engineer-capped-return
+max_turns: 8
+split: regression
+agent: software-engineer
+tools:
+- Read
+- Grep
+- Glob
+prompt: |
+  Prepare the final handback for this fictional supplied-state task. Do not run commands,
+  dispatch helpers, edit files, or repair the finding. You are reporting supplied evidence only.
+  Caller and return recipient: coordinating session. Human owner: Morgan.
+  Parent objective: prepare the CSV export change for review and final verification.
+  Candidate: supplied working-tree snapshot CSV-1; all records below refer to CSV-1.
+  Implementation record: the five-file CSV export change is complete and uncommitted.
+  Test record LOG-1: python -m pytest test_export.py test_upload.py -q reported 3 passed.
+  You did not execute that check in this session; retain its supplied-evidence status.
+  Review record REVIEW-1: P2 [sourced] F1, export.py:42: a symbol containing a comma produces
+  an extra CSV column. F1 remains unresolved; no repair or verification of a repair was supplied.
+  The full repository suite has not run. I own independent review and that final gate.
+
+  Use only these four headings, written exactly with a colon: Status, Verification, Concerns,
+  Next step. Fit recipient, human owner and remaining parent work within those sections.
+  Use at most 40 physical lines total. Preserve F1's priority and evidence label, name its disposition,
+  and make the caller's next step actionable. Do not append the default handback header.
+success_criteria:
+- Final return uses the requested four headings within 40 lines and preserves caller and human owner.
+- Supplied passing tests remain sourced; the response does not claim a check or fix executed in this session.
+- F1 remains P2 sourced and unresolved, with its location, failure mechanism and actionable caller continuation.
+- Pending review and final verification are not represented as passed.
+graders:
+- type: regex
+  pattern: \A(?:[^\n]*\n){0,39}[^\n]*(?:\n)?\Z
+- type: regex
+  pattern: '^Status:'
+- type: regex
+  pattern: '^Verification:'
+- type: regex
+  pattern: '^Concerns:'
+- type: regex
+  pattern: '^Next step:'
+- type: contains_all
+  of:
+  - coordinating session
+  - Morgan
+  - CSV-1
+  - LOG-1
+  - F1
+  - export.py:42
+  - 3 passed
+- type: regex
+  pattern: P2\s+\[sourced\]
+- type: not_regex
+  pattern: \[verified\]
+- type: not_regex
+  pattern: '(?im)^\s*(?:Returning to|Assignment|Parent objective|Human owner|Caller next step)\s*:'
