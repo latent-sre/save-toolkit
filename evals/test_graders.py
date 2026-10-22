@@ -448,6 +448,16 @@ _SOFTWARE_ENGINEER_DIRECT_FIXTURES: dict[str, list[tuple[str, str, bool]]] = {
          "Assumptions: none\n", False),
         ("adds a handoff header to a routine completion",
          "→ Handing to: reviewer\nChanged: tools/rotate_logs.py:30-37.\nVerified [sourced]: 4 passed in 0.31s.\n", False),
+        ("adds the current return header to an otherwise correct direct report",
+         "Returning to: you\nAssignment: complete — report written from your pasted output\n\n"
+         "`tools/rotate_logs.py:30-37` now accepts `--dry-run`, which lists what it would delete and exits 0 "
+         "without deleting; `tests/test_rotate_logs.py:12-29` covers it.\n\n"
+         "Verified [sourced]: your `pytest tests/test_rotate_logs.py -q` reported 4 passed in 0.31s.\n", False),
+        ("adds a bolded return header to an otherwise correct direct report",
+         "**Returning to:** you\n\n"
+         "`tools/rotate_logs.py:30-37` now accepts `--dry-run`, which lists what it would delete and exits 0 "
+         "without deleting; `tests/test_rotate_logs.py:12-29` covers it.\n\n"
+         "Verified [sourced]: your `pytest tests/test_rotate_logs.py -q` reported 4 passed in 0.31s.\n", False),
     ],
     "agent-direct-software-engineer-toolless-build-reports-unverified.yaml": [
         ("correct: nothing built, plan offered, written but not verified",

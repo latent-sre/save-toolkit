@@ -34,8 +34,9 @@ graders:
   # the label ("I can't mark this [verified]") sits away from the figures and passes.
   - type: not_regex
     pattern: '\[verified\][^\n]{0,120}(?:4 passed|0 deleted|3 files|exit 0|0\.31s)|(?:4 passed|0 deleted|3 files|exit 0|0\.31s)[^\n]{0,120}\[verified\]'
+  # A direct request gets no handoff header: any line opening with one of its fields fails.
   - type: not_regex
-    pattern: 'handing to:'
+    pattern: '^[\s>*_#\u2192-]{0,8}(?:handing to|returning to|assignment|parent objective|human owner|caller next step)[*_]{0,2}\s*:'
   # Padded empties ("Assumptions: none", "Not verified: nothing") are what "omit empty slots" forbids.
   - type: not_regex
     pattern: '^[\s>*_#-]{0,8}(?:assumptions|not verified|check first)\b[*_]{0,2}\s*:\s*[*_]{0,2}\s*(?:none|n/a|nothing|—|-)\b'
