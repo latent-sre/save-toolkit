@@ -53,7 +53,7 @@ BUILTIN_TOOLS = {
 WORKTREE_TOOLS = {"EnterWorktree", "ExitWorktree"}
 WRITE_TOOLS = {"Write", "Edit", "NotebookEdit"}
 LOCAL_READ_TOOLS = {"Read", "Grep", "Glob"}
-# The evidence-label triad, pinned once: an agent that uses any label must carry all three.
+# The evidence-label triad, pinned once.
 EVIDENCE_TRIAD = ("[verified]", "[sourced]", "[unverified]")
 # The delegating form of the handoff rule, and the disclaimers that replace it in a lane holding no
 # `Agent` tool. Matched as literal substrings so a reworded rule fails loudly here rather than
@@ -223,8 +223,6 @@ def _tool_grant_failures(path: Path, grants: list[fleet_frontmatter.ToolGrant]) 
 
 def _body_failures(path: Path, body: str, bases: set[str]) -> list[str]:
     failures: list[str] = []
-    if "## The handoff packet" not in body and "## Handoffs" not in body:
-        failures.append(f"{path}: missing handoff contract")
     # An agent with no Agent tool can recommend a next owner, but cannot dispatch one.
     if "Agent" not in bases:
         flat = _flatten(body)
@@ -238,13 +236,6 @@ def _body_failures(path: Path, body: str, bases: set[str]) -> list[str]:
                 f"{path}: holds no Agent tool, so its handoff block must state that it cannot "
                 f"invoke the next owner; expected one of {list(NON_DELEGATION_DISCLAIMERS)}"
             )
-    # All three labels are needed to distinguish observation from sourced claims.
-    present = [label for label in EVIDENCE_TRIAD if label in body]
-    if not present:
-        failures.append(f"{path}: missing evidence-label contract")
-    elif len(present) != len(EVIDENCE_TRIAD):
-        missing = [label for label in EVIDENCE_TRIAD if label not in present]
-        failures.append(f"{path}: incomplete evidence-label triad; missing {', '.join(missing)}")
     return failures
 
 

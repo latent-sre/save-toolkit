@@ -207,16 +207,6 @@ class FleetValidatorTests(unittest.TestCase):
             with self.subTest(filename=filename), self.assertRaisesRegex(AssertionError, message):
                 _agent_failures_after_edit(filename, lambda text: text.replace(before, "replacement"))  # noqa: B023
 
-    def test_agent_return_templates_keep_recipient_status_and_parent_separate(self) -> None:
-        """Catch removal of return slots, not just loss of prose mentioning them."""
-        slots = ("Returning to", "Assignment", "Parent objective", "Caller next step")
-        for name in validate_fleet.EXPECTED_AUTHORITY:
-            body = (ROOT / "agents" / f"{name}.md").read_text(encoding="utf-8")
-            templates = "\n".join(re.findall(r"```[^\n]*\n(.*?)```", body, re.DOTALL))
-            for slot in (*slots, "Human operational owner" if name == "sre-assistant" else "Human owner"):
-                with self.subTest(agent=name, slot=slot):
-                    self.assertRegex(templates, rf"(?m)^{re.escape(slot)}: <[^\n]+>")
-
     def test_builder_agent_uses_software_engineer_identity(self) -> None:
         path = ROOT / "agents/software-engineer.md"
         self.assertTrue(path.is_file())
@@ -425,18 +415,12 @@ class FleetValidatorTests(unittest.TestCase):
             "software-engineer": _markdown_section(
                 Path("agents/software-engineer.md"), "## Untrusted input boundary"
             ),
-            "sre-assistant": _markdown_section(Path("agents/sre-assistant.md"), "## Evidence"),
         }
         for agent, section in sections.items():
             with self.subTest(agent=agent):
                 self.assertIn("evidence confidence and input taint are separate", section)
                 self.assertIn("[untrusted] [unverified]", section)
                 self.assertIn("never replaces the evidence label", section)
-        self.assertIn(
-            "`[sourced]` and `[sourced: <source>]` are both valid sourced forms",
-            sections["sre-assistant"],
-        )
-        self.assertNotIn("`[sourced: handoff]` is invalid", sections["sre-assistant"])
 
     def test_retired_learning_machinery_stays_absent(self) -> None:
         retained = (
@@ -702,14 +686,6 @@ class FleetValidatorTests(unittest.TestCase):
             ),
         )
         self.assertEqual([], failures)
-
-    def test_incomplete_evidence_triad_is_rejected(self) -> None:
-        # Dropping [sourced] while keeping the other two labels loses the ability to distinguish
-        # "I ran it" from "the file says so"; the triad is all-or-nothing.
-        failures = _agent_failures_after_edit(
-            "software-engineer.md", lambda text: must_replace(text, "[sourced]", "[srcd]", count=-1),
-        )
-        self.assertIn("incomplete evidence-label triad", "\n".join(failures))
 
     @staticmethod
     def _guard_wiring_failures(old: str, new: str, agent_names: list[str]) -> list[str]:

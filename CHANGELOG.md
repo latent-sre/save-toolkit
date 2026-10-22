@@ -16,6 +16,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   bullet. `agents/software-engineer.md` goes from 22,823 to 22,607 bytes. Native trials have not
   measured this revision.
 
+### Removed
+
+- The fleet-wide checks on agent body shape: the validator's evidence-label triad and `## Handoffs`
+  heading rules, and the return-template slot test. Also the tests that pinned `sre-assistant`
+  wording: its output-template fields, its `[sourced: <source>]` sentence, and "On Copilot, this
+  lane has no shell". The tool-authority checks remain. No agent text changed.
+
 ### Fixed
 
 - `software-engineer` treats a push or tag push as a CI submission: the commit row now routes it

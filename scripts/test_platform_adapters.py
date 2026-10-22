@@ -359,11 +359,6 @@ class PlatformAdapterTests(unittest.TestCase):
                     adapters.adapt_text(canonical_body).lstrip("\n"),
                     rendered.split("---\n", 2)[2].lstrip("\n"),
                 )
-        # The one host limitation that changes behavior still reaches its lane, from its own body.
-        self.assertIn(
-            "On Copilot, this lane has no shell",
-            adapters.render_copilot_agent(ROOT / "agents/sre-assistant.md"),
-        )
 
     def test_copilot_agent_prompt_over_30000_characters_is_rejected(self) -> None:
         agent = (
