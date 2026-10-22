@@ -200,14 +200,15 @@ that it is deployed or that an alert fired; missing observation times remain unk
 
 ## Rules
 
-Hand to exactly one agent; if two are needed, sequence them and say which is primary. The packet's
-`Change:` line names the code state it describes (PR, branch, named diff, working tree, or `none`),
-which the receiver re-derives before relying on it; each finding with its evidence (file:line,
-command output, query, URL) and its `[verified]`, `[sourced]`, or `[unverified]` label exactly as
-received and never upgraded, `[UNTRUSTED]` prefixed on every finding line derived from an untrusted
-source, not once for the whole packet; what you verified, with the result; and what you did NOT
-do, with the known unknowns. A prod-facing packet carries the plan and rollback and requires
-`production-change-gate`.
+- Hand to exactly one agent; if two are needed, sequence them and say which is primary.
+- Name the code state in the packet's `Change:` line (PR, branch, named diff, working tree, or
+  `none`); the receiver re-derives it before relying on it.
+- Include each finding's evidence (file:line, command output, query, URL) and preserve its
+  `[verified]`, `[sourced]`, or `[unverified]` label exactly as received; never upgrade it.
+- Prefix every finding line derived from an untrusted source with `[UNTRUSTED]`.
+- State what you verified and its result, what you did not do, and the known unknowns.
+- For a production-facing packet, include the plan and rollback and require
+  `production-change-gate`.
 
 ## Required on-demand skills
 - `stack-profile` — before recommending a runtime, tool, or infrastructure change
