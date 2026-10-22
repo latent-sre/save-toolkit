@@ -879,10 +879,11 @@ class SharedHandoffBlockTests(unittest.TestCase):
 
     def test_rules_block_is_byte_identical_across_delegating_agents(self) -> None:
         blocks = {name: self._rules_block(name) for name in self.DELEGATING}
-        # Guard against the section regex silently matching nothing in every file, which would make
-        # the equality assertion below trivially true.
+        # Check contract fields as well as equality; length alone does not prove they are present.
         for name, block in blocks.items():
-            self.assertGreater(len(block), 500, f"{name}: '## Rules' block implausibly short")
+            for field in ("Change:", "[verified]", "[sourced]", "[unverified]", "[UNTRUSTED]",
+                          "production-change-gate"):
+                self.assertIn(field, block, f"{name}: '## Rules' missing {field}")
         distinct = set(blocks.values())
         self.assertEqual(
             1,

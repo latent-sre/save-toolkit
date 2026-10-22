@@ -324,13 +324,12 @@ def test_resumed_backoff_oracle_passes_the_repair_and_fails_wrong_or_exiting_cod
     assert result.returncode == code, result.stdout + result.stderr
 
 
-def test_inline_python_checks_import_only_the_standard_library_or_pyyaml_by_name():
+def _assert_inline_python_imports(scenarios):
     """An inline `python -c` check is invisible to the inventory above; one that imported candidate
     code would let an early exit 0 pass unsupervised, so it must use an oracle file instead. This
     reads import statements only: a dynamic import (importlib, __import__, runpy) or a workspace
     module shadowing an allowed name on `-c`'s sys.path is not caught, and needs review."""
-    inline = 0
-    for scenario in (ROOT / "build-scenarios").glob("*.yaml"):
+    for scenario in scenarios:
         for check in yaml.safe_load(scenario.read_text(encoding="utf-8")).get("checks", []):
             command = check.get("command", "") if check.get("check") in ("command_exit_zero", "command_output_regex") else ""
             if not command.lstrip().startswith(("python ", "python3 ")):
@@ -339,7 +338,6 @@ def test_inline_python_checks_import_only_the_standard_library_or_pyyaml_by_name
             flag = next((i for i, arg in enumerate(argv) if arg.startswith("-") and arg.endswith("c")
                          and not arg.startswith("--")), None)
             if flag is not None:
-                inline += 1
                 tree = ast.parse(argv[flag + 1])
                 imported = {alias.name.split(".")[0] for node in ast.walk(tree) if isinstance(node, ast.Import)
                             for alias in node.names}
@@ -347,7 +345,32 @@ def test_inline_python_checks_import_only_the_standard_library_or_pyyaml_by_name
                              if isinstance(node, ast.ImportFrom) and node.module}
                 allowed = sys.stdlib_module_names | {"yaml"}
                 assert imported <= allowed, (scenario.name, imported - allowed)
-    assert inline >= 7
+
+
+def test_inline_python_checks_import_only_the_standard_library_or_pyyaml_by_name():
+    _assert_inline_python_imports((ROOT / "build-scenarios").glob("*.yaml"))
+
+
+@pytest.mark.parametrize("kind,command,forbidden", [
+    ("command_exit_zero", "python -c 'import json, yaml; from pathlib import Path'", None),
+    ("command_output_regex", "python3 -Ic 'import yaml'", None),
+    ("command_exit_zero", "python -c 'import json, candidate'", "candidate"),
+    ("command_output_regex", "python3 -c 'from app.orders import latest'", "app"),
+    ("command_exit_zero", "python check_example.py", None),
+    ("bash_ran", "python -c 'import candidate'", None),
+])
+def test_inline_python_inventory_checks_imports_without_a_catalog_size_requirement(tmp_path, kind, command, forbidden):
+    scenario = tmp_path / "case.yaml"
+    scenario.write_text(yaml.safe_dump({"checks": [{"check": kind, "command": command}]}), encoding="utf-8")
+    if forbidden:
+        with pytest.raises(AssertionError, match=forbidden):
+            _assert_inline_python_imports([scenario])
+    else:
+        _assert_inline_python_imports([scenario])
+
+
+def test_inline_python_inventory_allows_retiring_all_inline_commands():
+    _assert_inline_python_imports([])
 
 
 def test_ui_report_distinguishes_assertion_failure_from_runner_crash():
