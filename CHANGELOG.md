@@ -22,8 +22,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   and redirect prose is gone, because the guard denies both. The Helix/BigQuery state line is gone.
   The progress-channel paragraphs are merged, and the masking explanation is shorter. The toolbox
   intro states its shell rule by the tools the lane holds. It used to have one Claude sentence and
-  one Copilot sentence, each wrong on the other platform. Graded wording is kept. `agents/sre-assistant.md` goes from 23,623 to
-  21,808 bytes. Native trials have not measured this revision.
+  one Copilot sentence, each wrong on the other platform. The Evidence section's run of "X does not
+  prove Y" clauses becomes one principle with six canonical examples, and two repeats elsewhere are
+  gone. Graded wording is kept. `agents/sre-assistant.md` goes from 23,623 to 21,682 bytes. Native
+  trials have not measured this revision.
 
 ### Removed
 
