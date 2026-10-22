@@ -23,6 +23,18 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Trim `software-engineer` to a leaner core for dispatched work (issue #403): the opening routing
+  list, the CLI-contract bullet that `operator-cli` owns, the separate "Own local design" rule (now
+  the forks table's minor-and-reversible row), and repeated verification, escalation, and
+  reporting prose are removed; the caller's named verification scope, caller-owned review, a
+  caller's format or length cap, the final message as the report, the per-unit commit rhythm,
+  scratch-copy mutations, and a supplied investigation map stay first-class. The packet's named
+  `Changed` slot, which eight build scenarios grade, is restored after an earlier trim folded it
+  into `Outcome and impact`. Validator-pinned phrases, the shared `## Rules` block, frontmatter,
+  and the skill-load list are byte-for-byte unchanged; `agents/software-engineer.md` goes from
+  25,408 to 23,215 bytes. No `model:` pin is added: the frontmatter reference keeps authority lanes
+  inheriting, so callers pass `model` per dispatch. Native trials have not measured this revision.
+
 - EVAL-005 ran: six Sonnet trials, three each on `main` at `93e52481` and on `2cdcbbba`, after a
   fresh judge calibration. [verified] In every trial the `observability-engineer` saved the panel
   through a preflighted write and left the datasource unchanged; every trial is FAIL under the
