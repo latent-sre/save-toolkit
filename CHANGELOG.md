@@ -6,6 +6,16 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Changed
+
+- Compress `software-engineer`'s `reviewer`, `scribe`, and `researcher` handoff rows. The reviewer
+  row drops the dispatch timing Process step 5 already sets. The scribe row keeps the checkout
+  binding `scribe` cannot check itself (`git rev-parse --short=8 HEAD` on `Verified:` plus
+  `git status --porcelain`, taken in the checkout `scribe` will read) and drops the `Change:` field
+  the `Changed` section already covers. The researcher row absorbs its separate sanitization
+  bullet. `agents/software-engineer.md` goes from 22,823 to 22,607 bytes. Native trials have not
+  measured this revision.
+
 ### Fixed
 
 - `software-engineer` treats a push or tag push as a CI submission: the commit row now routes it

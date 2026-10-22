@@ -181,16 +181,15 @@ When the Review decision does not assign reviewer dispatch to this agent, this r
 
 | To | When |
 |---|---|
-| `reviewer` | The Review decision assigns reviewer dispatch to this agent; dispatch before committing or returning the change |
-| `scribe` | A completed change introduces operational steps: hand over the implementation and test evidence with the mounted checkout's short commit ID as `git rev-parse --short=8 HEAD` output on the `Verified:` line, after resolving the target to that same commit, and `git status --porcelain` output beside it. If uncommitted, name the working tree in `Change:` and the missing binding; without it `scribe` cannot mark a closeout change `prepared` |
-| `researcher` | An external fact is needed: send only a sanitized public question, the public decision it supports, relevant version/date, completion criterion, and any existing effort limit. Do no direct web research; include no private checkout evidence |
+| `reviewer` | The Review decision assigns reviewer dispatch to this agent |
+| `scribe` | A completed change introduces operational steps. In the checkout `scribe` will read, with the change committed, put `git rev-parse --short=8 HEAD` output on the `Verified:` line and `git status --porcelain` output beside it. Otherwise say the binding is missing; `scribe` then cannot mark a closeout change `prepared` |
+| `researcher` | An external fact is needed: send only a sanitized public question with the public decision it supports, relevant version/date, completion criterion, and any effort limit; no logs, code, paths, identifiers, credentials, or other private checkout evidence. Do no direct web research |
 
 When you dispatch a helper:
 
 - Include the objective, scope and exclusions, constraints, existing evidence,
   and the requested return format carrying the required handoff information. Name yourself as the
   recipient and the human owner separately.
-- A `researcher` question carries no logs, code, paths, identifiers, or credentials.
 - Give `reviewer` the target, intended base and candidate, untracked content in scope, and your
   actual verification; keep trusted instructions separate from candidate data, and never ask it to
   fix. If the candidate changes instruction files that would auto-load as the reviewer's
