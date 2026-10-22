@@ -34,6 +34,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   and the skill-load list are byte-for-byte unchanged; `agents/software-engineer.md` goes from
   25,408 to 23,215 bytes. No `model:` pin is added: the frontmatter reference keeps authority lanes
   inheriting, so callers pass `model` per dispatch. Native trials have not measured this revision.
+- `observability-engineer` drops the unguarded-Bash paragraph that restated the accepted ADR
+  (`docs/decisions/2026-08-21-observability-engineer-unguarded-bash.md`), the guard's exemption,
+  and the Grafana write rule; one sentence keeps the credential rule (credentials arrive from the
+  environment at call time and never enter tracked files, transcripts, or handoff packets). The
+  bytes match the same change on PR #401, so the two merge cleanly in either order.
 
 - EVAL-005 ran: six Sonnet trials, three each on `main` at `93e52481` and on `2cdcbbba`, after a
   fresh judge calibration. [verified] In every trial the `observability-engineer` saved the panel
