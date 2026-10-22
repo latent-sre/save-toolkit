@@ -6,6 +6,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+## [0.51.3] - 2026-10-22
+
 ### Added
 
 - A single-file `go-craft` candidate for Go services, CLIs, libraries and workers, composed with
@@ -22,6 +24,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   profiles and partitions under DEC-14 and completing WP-12; no case has produced a model result.
 
 ### Changed
+
+- Clarify `software-engineer`'s caller-format handling, review definitions, and finding
+  dispositions. Keep shared handoff rules identical in `software-engineer` and
+  `observability-engineer` and remove repeated guidance; support-only stack restrictions remain
+  in `stack-profile`.
 
 - Trim `software-engineer` to a leaner core for dispatched work (issue #403): the opening routing
   list, the CLI-contract bullet that `operator-cli` owns, the separate "Own local design" rule (now
@@ -58,6 +65,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   routing before completing dispatch. Remove the vendor mini-catalog, repeated delivery/reporting
   instructions and generic reminders. Retain conditional reference loading, framework-specific
   traps, webhook-verification, outbound-destination and recovery checks without adding bundled assets.
+
+### Fixed
+
+- Replace the stale oracle-command count and arbitrary inline-command and handoff-length
+  thresholds with contract checks, preserving failure-code, supervisor-binding, import, and
+  handoff-field validation.
 
 ## [0.51.2] - 2026-10-16
 
