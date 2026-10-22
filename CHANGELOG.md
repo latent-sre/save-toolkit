@@ -24,8 +24,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   intro states its shell rule by the tools the lane holds. It used to have one Claude sentence and
   one Copilot sentence, each wrong on the other platform. The Evidence section's run of "X does not
   prove Y" clauses becomes one principle with six canonical examples, and two repeats elsewhere are
-  gone. Graded wording is kept. `agents/sre-assistant.md` goes from 23,623 to 21,682 bytes. Native
-  trials have not measured this revision.
+  gone. A second pass tightens wording throughout. It drops Grafana evidence sentences the `grafana`
+  references already state and a causal rule stated twice, and moves the embedded-instructions rule
+  into the untrusted-content section. It also rewords rules whose behavior the live evals grade:
+  caller and recipient, severity, and mitigation state. `agents/sre-assistant.md` goes from 23,623
+  to 20,809 bytes. Native trials have not measured this revision.
 
 ### Removed
 
