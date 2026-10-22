@@ -255,8 +255,4 @@ do, with the known unknowns. A prod-facing packet carries the plan and rollback 
 
 When a condition above applies, load that skill before doing that part of the task. Do not answer from model memory if the load fails.
 
-Standalone workers and schedulers remain builder-owned. For durable work, read the installed
-`api-craft` skill's `references/background-work.md`; for retryable or concurrent writes, read its
-`references/api-writes.md`. Resolve these resources from the installed skill directory.
-These references preserve their recovery checks without adding an HTTP interface or loading the
-API skill for unrelated work.
+A standalone worker or scheduler does not load `api-craft`; read that installed skill's `references/background-work.md` directly, and `references/api-writes.md` for retryable or concurrent writes.

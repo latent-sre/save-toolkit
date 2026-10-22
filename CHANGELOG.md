@@ -34,6 +34,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   durability and write-recovery guidance through `software-engineer`. Prefer researched, current
   stable technology for new APIs and scoped upgrades. Retire BACKEND-001's
   remaining reference expansion by owner disposition; BACKEND-002 remains open.
+- `software-engineer` reaches the worker durability and write-recovery references through a
+  Required on-demand skills entry instead of a closing prose paragraph; the paragraph's ownership
+  and rationale sentences are removed. Whether the agent reads the references on a worker task is
+  unmeasured.
 - Refine `api-craft`'s existing references: correct FastAPI version, test lifespan and Linux
   prerequisite guidance, Huma error/test behavior, credential-renewal retries and migration
   ownership. Scope replay recording and broker rules to operations that use them; verify durable

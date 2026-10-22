@@ -1,6 +1,9 @@
 id: production-change-gate-records-unknown-outcome
 max_turns: 20
 split: regression
+tools: [Skill, Read]
+references:
+  - skills/production-change-gate/references/production-authorization.md
 prompt: |
   An approved manual Tier 2 production change authorized human release owner Riley Chen to run exactly
   `cf scale checkout -i 6` against `pcf-east/commerce/prod`. Riley submitted the command, but the

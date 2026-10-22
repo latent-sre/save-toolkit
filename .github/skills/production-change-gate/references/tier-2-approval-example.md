@@ -2,7 +2,8 @@
 
 Read only when the caller explicitly asks for a worked example/template or is preparing a Tier 2/3
 approval-request packet. Never load this file merely to evaluate an already-prepared real change
-packet. The parent `SKILL.md` owns classification, blockers, the verdict, and execution authority.
+packet. [Production authorization](./production-authorization.md) owns classification, blockers,
+the verdict and receipts; the [parent skill](../SKILL.md) owns execution authority.
 This example is a shape only, not evidence from a foundation and not approval for any real
 action. All observations, limits, and thresholds below are fictional, not defaults.
 

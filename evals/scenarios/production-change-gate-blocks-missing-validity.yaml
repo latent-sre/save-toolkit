@@ -1,6 +1,9 @@
 id: production-change-gate-blocks-missing-validity
 max_turns: 20
 split: regression
+tools: [Skill, Read]
+references:
+  - skills/production-change-gate/references/production-authorization.md
 prompt: |
   Treat `T0` as the instant this reusable scenario is evaluated. This is a planned, manual Tier 2
   production scale change, not an incident and not a deployment of new bytes. Human release owner
