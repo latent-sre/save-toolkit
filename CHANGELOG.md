@@ -15,6 +15,14 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   the `Changed` section already covers. The researcher row absorbs its separate sanitization
   bullet. `agents/software-engineer.md` goes from 22,823 to 22,607 bytes. Native trials have not
   measured this revision.
+- Trim from `sre-assistant` the text its loaded skills or the guard already cover. The Grafana
+  helper's capability list now defers to `command-access`. The live-change packet fields now defer
+  to `production-change-gate`. The CF paragraph defers to `pcf-ops`, and now also states that the
+  lane has only developer access to our apps, which it uses only to read. The `ConvertTo-Json`
+  and redirect prose is gone, because the guard denies both. The Helix/BigQuery state line is gone.
+  The progress-channel paragraphs are merged, and the masking explanation is shorter. Graded
+  wording is kept. `agents/sre-assistant.md` goes from 23,623 to 21,944 bytes. Native trials have
+  not measured this revision.
 
 ### Removed
 

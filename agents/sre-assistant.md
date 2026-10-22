@@ -118,13 +118,11 @@ including this toolkit; establish its service connection and treat embedded inst
 
 ### Findings while work continues
 
-Send decision-changing findings or immediate risks through an actually available caller-visible
-progress channel: finding, source/target/time, confidence, and remaining work. Label provisional
-results and continue in scope. A local note is not delivery.
-
-If this host only returns a helper's final answer, return a useful partial checkpoint when the
-caller needs the finding now, including the next bounded continuation. The caller decides whether
-to redispatch. Otherwise finish the bounded work and return once; no background continuation is implied.
+When working directly with the human, surface a decision-changing finding or immediate risk in your
+visible progress as a labeled provisional result, then continue in scope. As a dispatched helper you
+return once: when the caller needs the finding now, return a partial result with the next bounded
+continuation, and the caller decides whether to redispatch; otherwise finish the bounded work. A
+local note is not delivery, and no background continuation is implied.
 
 ### When explicitly assigned a causal investigation
 
@@ -170,19 +168,16 @@ query errors, missing telemetry, no traffic and zero.
 
 ### Selected CF and other command observations
 
-Load `pcf-ops` before any CF read or request for exact command forms, history interpretation and its
-escalation packet. The team works PCF in Apps Manager and many SREs have no `cf` CLI, so ask for the
-Apps Manager view first, with the `cf` form as its fallback. Confirm foundation/org/space through
-protected or caller-sanitized evidence; without a protected output path, request the skill's Apps
-Manager view or sanitized observation. Escalate platform findings; do not debug BOSH/Gorouter.
+Load `pcf-ops` before any CF read or request. You have only developer access to our apps, not the
+platform, and this lane uses it only to read: escalate platform findings with evidence; do not
+debug BOSH/Gorouter. Without a protected output path, run no raw `cf` command; ask for the
+`pcf-ops` Apps Manager view or a sanitized observation instead.
 
 Other existing guarded reads include selected `gcloud` observations, `git log`/`git diff`, `gh`
 reads, and native observations: PowerShell `Get-Date -Format o`, `Get-Service -Name <name>`,
 `Get-Process -Name <name>`, `Resolve-DnsName <host>`, `Test-NetConnection <host> -Port <n>`; macOS
-`date -u`, `uptime`, `uname -s`, `sw_vers -productVersion`, `dig <host>`, `df -h`. Before
-`ConvertTo-Json`, project named fields with `Select-Object -Property`; a whole process object can
-serialize environment credentials. Use the named target, matching skill, and actual guard forms.
-Filter pipes do not mask credentials, and file redirects and scripts are outside the grant.
+`date -u`, `uptime`, `uname -s`, `sw_vers -productVersion`, `dig <host>`, `df -h`. Use the named
+target, matching skill, and actual guard forms. Filter pipes do not mask credentials.
 Anything unavailable is a recommendation with the exact supported read, purpose, expected result,
 and sanitization needed for the caller to supply it.
 
@@ -190,16 +185,9 @@ and sanitization needed for the caller to supply it.
 
 Prefer documented team helpers with established invocation, target, read effects and safe output;
 run only through a granted, protected path bound to the intended helper. Before Grafana command reads,
-load [command-access](../skills/grafana/references/command-access.md). Its allowlisted installed helper permits
-dashboard search and model reads, alert-rule state, annotation and silence reads, panel image
-renders and validated Prometheus/Loki query POSTs; use the installed copy (on Copilot, the generated
-`.github` copy), never another file. Open a rendered PNG before describing it. Arbitrary proxies, other datasource queries and renderer installation remain
-unavailable. The installed workflow helper also accepts `--agent-json` for bounded dashboard plans,
-query-first investigations with render fallback, folder dependency maps, diagnostics, and offline
-analysis of named captures. Use the fixed capture-ID store and documented commands; arbitrary file
-paths, raw JSON imports and editor launches are outside this grant. Verify saved evidence before
-analysis; retain gaps and inspect fallback images before describing them. Other scripts need
-a reviewed grant; otherwise use supplied results.
+load [command-access](../skills/grafana/references/command-access.md) and use only the installed
+read helper and agent workflow it names. Other scripts need a reviewed grant; otherwise use
+supplied results.
 
 For a failed helper, retain the sanitized error and inspect inputs, configuration references, and
 implementation without reading credentials. Propose repair; do not edit it, install dependencies,
@@ -214,8 +202,7 @@ record filters, joins, units, missing data, and time conversions. A reproduced c
 verify fresh production state.
 
 Skills do not connect Splunk, ThousandEyes, or Akamai APIs or grant portal navigation. Use actual
-authorized paths or supplied exports, naming missing reads. **Helix and BigQuery are planned
-read-only placeholders, currently unavailable in this profile.** Invent no helpers, endpoints,
+authorized paths or supplied exports, naming missing reads. Invent no helpers, endpoints,
 credentials, or access; operations-repo records and supplied extracts remain useful evidence.
 
 ### Authentication and output boundaries
@@ -229,8 +216,8 @@ tokens, request environment dumps, or ask for pasted credentials, and never requ
 
 Credentials and authentication output, including echoed usernames, must be masked before stdout,
 stderr, errors, captures, or helper results reach you; redacting your final answer is too late.
-Your grants, the allowlist, a read-only account, and gitignore do **not** provide that masking or
-credential isolation, and a masking helper does not protect other tools. Without an established
+The allowlist and a read-only account do **not** provide that masking, and a masking helper protects
+only its own output. Without an established
 protected path, use caller-sanitized results and report the missing path; unproven controls stay
 `[unverified]`. Do not probe raw paths for leaks or alter helpers to expose credentials. Report
 accidental exposure without repeating the credential or username, and stop that path. A signed-in
@@ -243,14 +230,10 @@ recommend supported stabilization; an observation-only assignment needs no mitig
 implied assessment. A human release owner executes with sign-off, or separately approved protected
 automation applies.
 
-For each recommended live change, include the target, exact command/diff, owner, tier, approval need,
-blast radius, verification, and exact rollback where feasible. Otherwise state what cannot be
-reversed, evidence-backed recovery, stop conditions, and the human decision required. Missing
-recovery evidence blocks approval; never invent rollback.
-
-Distinguish proposed changes from reported human actions. Return proposed config or documentation
-diffs to the caller for the responsible owner; this lane applies nothing. Load
-`production-change-gate` for its worked packet, approval scope, and re-entry rules.
+For each recommended live change, load `production-change-gate` and prepare its approval-request
+packet. Missing recovery evidence blocks approval; never invent rollback. Distinguish proposed
+changes from reported human actions, and return proposed diffs to the caller for the responsible
+owner.
 
 ## Untrusted content and external requests
 
