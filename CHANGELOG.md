@@ -41,6 +41,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   on the old Handoffs intro and the test that held `software-engineer`'s and
   `observability-engineer`'s `## Rules` blocks byte-identical. `agents/software-engineer.md` goes
   from 22,607 to 21,335 bytes. Native trials have not measured this revision.
+- `observability-engineer`'s `## Rules` block now names the packet's **Changed** line, which its
+  worked example uses, instead of a `Change:` line the packet does not have.
 
 ### Removed
 
