@@ -29,6 +29,12 @@ correctness repairs add 733 bytes, for a net canonical reduction of 817 bytes.
 175 tests and 587 subtests. `incident-investigation` and its generated bundle remain unchanged
 against the merged base. Earlier evidence below remains bound to its recorded source candidate.
 
+[verified] The integrated follow-up retains #416's toil entrypoint and applies the audit's
+independent worked-example consolidation. Its canonical skill reduction remains 1,168 bytes,
+including Akamai. Combined new-PR pruning is 2,718 bytes before the 733-byte correctness additions;
+already-merged reductions are not counted again. Parser, test and scenario files are unchanged
+from the original follow-up candidate; fresh integrated verification is reported in the PR.
+
 ## Scope and baseline
 
 [verified] Audited revision: `2ed156b12ec48c384b5f7baeb5ad50569ec9bf02`, observed on 2026-10-23.
@@ -434,3 +440,29 @@ binds the source scope separately from the subsequent documentation update.
 unmeasured. Existing incident/reliability/principal/lifecycle acceptance gaps stay with their
 current roadmap owners; this pass neither repairs incident investigation nor launches a new
 evaluation campaign.
+
+## Final duplicate-prose follow-up
+
+[verified] After committing the preceding batch as `0f70e0d4`, the continuation reconciled the
+original audit against the implemented changes. Akamai's first-look diagnostic summary remained
+duplicated in its already-required triage reference. The entrypoint now retains edge/origin
+orientation, prompt reference decoding and a direct reference pointer. Diagnostics, retention,
+debug-header mechanisms, DataStream fields, query ownership, coverage and offload detail remain
+in the unchanged reference. Frontmatter, authority rules, reference routing and handoffs are
+unchanged, including human-only production debug requests.
+
+[verified] `akamai-edge/SKILL.md` shrinks from 5,099 to 4,373 bytes: 726 bytes removed. With the
+earlier 1,631-byte and 442-byte consolidations, the three pruning passes remove 2,799 net canonical
+skill bytes. This excludes the separate initial correctness repairs and does not measure runtime
+context consumption. Incident investigation's seven canonical files and seven generated files
+remain byte-identical to `48f98777`.
+
+[verified] The adapters were regenerated. `scripts/test_platform_adapters.py` and
+`scripts/test_skill_assets.py` passed 60 tests and 344 subtests; independent source comparison
+found no lost requirement. No live model evaluation was run.
+
+The remaining GCP filtering and OTel naming proposals largely relocate unique detail and change
+loading behavior. The signal-reference output receipts total only 117 bytes and change a reporting
+obligation; the small PCF orientation section retains information that still needs a home. These
+remain unselected tradeoffs rather than automatic next edits. The current evidence supports no
+whole-skill retirement. Existing runtime acceptance gaps stay with their existing owners.

@@ -26,7 +26,8 @@ records do not re-queue work.
 ### SKILLS-001 — reduce unnecessary skill content without lowering standards
 
 **Status:** `ready` (2026-10-23); four initial source repairs, the three-skill consolidation,
-and the approved remaining fixes are implemented. Incident investigation is explicitly excluded.
+the approved remaining fixes and Akamai duplicate-prose cleanup are implemented. Incident
+investigation is explicitly excluded.
 **Owner:** `agent-engineer` prepares the candidate; the human owner accepts its exact revision.
 **Outcome:** Repeated skill instructions and stale guidance are reduced while domain boundaries,
 evidence, recovery, authorization and meaningful verification remain intact.
@@ -35,8 +36,9 @@ do not include `incident-investigation`. No whole-skill retirement or new live e
 is selected. Existing behavioral acceptance gaps remain with their current roadmap owners.
 **Evidence:** [Full skills audit and follow-ups](reviews/2026-10-23-skills-audit.md): all 30 shipped
 skills covered; the first consolidation removes 1,631 net canonical bytes and the remaining pass
-removes another 442. Fence regression, conditional-output scenarios, regenerated adapters and the
-passing default suite are recorded; live behavioral gaps remain explicit.
+removes another 442; Akamai consolidation removes 726 more (2,799 total). Fence regression,
+conditional-output scenarios, regenerated adapters and passing default/focused suites are recorded;
+live behavioral gaps remain explicit.
 **SRE task:** Load less repeated guidance and receive task-sized help without losing the checks
 that make operational advice and engineering changes trustworthy.
 

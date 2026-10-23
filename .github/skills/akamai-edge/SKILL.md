@@ -21,20 +21,10 @@ with evidence, not something to debug past the portal.
 ## The first question: which side of the edge?
 
 Establish which parts of the request path were exercised: client/DNS/TLS, edge/cache/WAF, and
-origin. Not every request reaches the origin; a cache hit can be served at the edge. Use evidence
-to distinguish the candidate causes:
-
-1. **An Akamai error page with `Reference #…`** → decode it in Edge Diagnostics' Translate Error
-   String **promptly** — the logs behind a reference number survive roughly 6–24 hours.
-2. **No reference number** → Edge Diagnostics' Get Error Statistics splits errors into the
-   client→edge and edge→origin legs per URL/CP code; URL Health Check bundles grep + dig + curl +
-   MTR for one URL in one job.
-3. **Cache behavior in question** → read the cache-status response headers via the debug-header
-   mechanism the property actually supports (Enhanced Debug vs legacy Pragma — the reference
-   explains which and why it changed).
-4. **Sustained, fleet-wide or regional questions** → DataStream 2 fields (`statusCode`,
-   `cacheStatus`, `turnAroundTimeMSec`, `errorCode`, `country`) in the log backend `stack-profile`
-   records, with `obs-logs` writing the query, and Traffic by Hostname for offload trends.
+origin. Not every request reaches the origin; a cache hit can be served at the edge. Decode any
+`Reference #…` promptly while its edge logs remain available. Use [edge triage](./references/edge-triage.md)
+for the matching diagnostics, property-specific debug-header mechanism, DataStream 2 fields and
+coverage limits, and offload reports.
 
 Edge-side evidence (WAF deny, cache misconfiguration, edge 5xx) stays in this skill's lanes.
 Route origin-side findings through [Handoffs](#handoffs).
