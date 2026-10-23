@@ -322,16 +322,6 @@ class FleetValidatorTests(unittest.TestCase):
                 ("reviewer",),
             ),
             (
-                "software-engineer-boundary",
-                _markdown_section(Path("agents/software-engineer.md"), "## Handoffs"),
-                (
-                    "when the review decision does not assign reviewer dispatch to this agent",
-                    "returns the evidence packet to the caller without spawning a review",
-                    "the review decision assigns reviewer dispatch to this agent",
-                ),
-                ("process step 5 threshold", "caller requests review", "security-sensitive"),
-            ),
-            (
                 "software-engineer-precommit-review",
                 _markdown_section(Path("agents/software-engineer.md"), "## Process"),
                 (
@@ -830,42 +820,6 @@ class NonDelegatingHandoffTests(unittest.TestCase):
         _, failures = validate_fleet.validate_agents(ROOT)
         self.assertFalse(
             any("repository-investigator" in f and "cannot invoke" in f for f in failures), failures
-        )
-
-
-class SharedHandoffBlockTests(unittest.TestCase):
-    """The delegating agents' inline or predicate-loaded rules stay byte-identical.
-
-    It was NOT identical: `observability-engineer` carried two straight quotes where `software-engineer`
-    has curly ones. Harmless in itself, diagnostic in aggregate — something edited one copy of a
-    duplicated block and the other copies did not move, which is the same mechanism that produced
-    the reviewer contradiction above. The next divergence may not be punctuation. `sre-assistant`
-    carries its own `## Handoffs` section rather than this shared block and is not compared here.
-    """
-
-    DELEGATING = ("software-engineer", "observability-engineer")
-
-    @staticmethod
-    def _rules_block(name: str) -> str:
-        relative = Path("agents") / f"{name}.md"
-        text = (ROOT / relative).read_text(encoding="utf-8")
-        match = re.search(r"^## Rules\n(.*?)(?=\n## |\Z)", text, re.S | re.M)
-        assert match is not None, f"{name}: no '## Rules' section"
-        return match.group(1)
-
-    def test_rules_block_is_byte_identical_across_delegating_agents(self) -> None:
-        blocks = {name: self._rules_block(name) for name in self.DELEGATING}
-        # Check contract fields as well as equality; length alone does not prove they are present.
-        for name, block in blocks.items():
-            for field in ("Change:", "[verified]", "[sourced]", "[unverified]", "[UNTRUSTED]",
-                          "production-change-gate"):
-                self.assertIn(field, block, f"{name}: '## Rules' missing {field}")
-        distinct = set(blocks.values())
-        self.assertEqual(
-            1,
-            len(distinct),
-            "delegating agents' '## Rules' blocks have drifted: "
-            + ", ".join(f"{n}={len(b)}B" for n, b in blocks.items()),
         )
 
 

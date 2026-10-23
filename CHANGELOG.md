@@ -29,6 +29,18 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   into the untrusted-content section. It also rewords rules whose behavior the live evals grade:
   caller and recipient, severity, and mitigation state. `agents/sre-assistant.md` goes from 23,623
   to 20,809 bytes. Native trials have not measured this revision.
+- Trim from `software-engineer` the text its other sections already carry. The `## Rules` section
+  is gone: it told the agent to name the code state in a `Change:` line the packet does not have
+  (the field is `Changed`), and its other bullets repeated the untrusted-input boundary, the return
+  fields, and the deploy row. Its one bullet with its own content, hand to one agent at a time,
+  moves into the Handoffs intro, which no longer restates the Review decision. The `sre-assistant`
+  recommendation paragraph is gone; the untrusted-input boundary, Verifiable goals, and the deploy
+  row state its three rules. The Effect authority intro drops the Claude-only tripwire note, the
+  boundary bullet drops a restatement of the Effect table, and the undefined "investigation map"
+  becomes "the files or evidence the caller names". `scripts/test_validate_fleet.py` drops the pin
+  on the old Handoffs intro and the test that held `software-engineer`'s and
+  `observability-engineer`'s `## Rules` blocks byte-identical. `agents/software-engineer.md` goes
+  from 22,607 to 21,335 bytes. Native trials have not measured this revision.
 
 ### Removed
 
