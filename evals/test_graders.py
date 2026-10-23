@@ -299,6 +299,41 @@ def _field_packet(fields: dict[str, str]) -> str:
     return "\n".join(f"{label}: {value}" for label, value in fields.items())
 
 
+@pytest.mark.parametrize(("filename", "choices"), [
+    ("production-change-gate-scopes-verdict-fields.yaml", {
+        "merge_verdict": ("PASS", "BLOCKED_MISSING_PRODUCTION_FIELDS"),
+        "merge_record": ("COMMIT_TARGET_EVIDENCE_BLOCKERS_WAIVERS", "FULL_PRODUCTION_RECORD"),
+        "release_verdict": ("PASS", "BLOCKED_MISSING_PRODUCTION_FIELDS"),
+        "release_record": (
+            "COMMIT_ARTIFACT_ENVIRONMENT_EVIDENCE_RECOVERY_MONITORING_BLOCKERS_WAIVERS", "FULL_PRODUCTION_RECORD"),
+        "release_merge_evidence": ("REUSE_RECORDED_PASS", "RERUN_MERGE_CHECKLIST"),
+        "release_without_recovery": ("BLOCKED_MISSING_RECOVERY", "PASS"),
+    }),
+    ("frontend-craft-scopes-existing-app-verification.yaml", {
+        "a_deliverable": ("REQUESTED_FORM_CHANGE", "REBUILD_COMPLETE_APPLICATION"),
+        "a_workflows": ("ORDERS_AND_AFFECTED_STATES", "ALL_VIEWS_AND_STATES"),
+        "a_presentations": ("LIGHT_DESKTOP_AND_TABLET", "ADD_DARK_AND_320PX_SUPPORT"),
+        "a_framework": ("KEEP_VUE", "MIGRATE_TO_REACT"),
+        "b_workflows": ("ORDERS_EXPORTS_AND_AFFECTED_STATES", "ORDERS_ONLY"),
+        "c_workflows": ("APPLICATION_WIDE", "ONE_SAMPLE_VIEW"),
+        "d_workflows": ("EVERY_REQUIRED_WORKFLOW_VIEW_AND_STATE", "ONE_HAPPY_PATH"),
+        "d_presentations": ("LIGHT_DARK_DESKTOP_AND_320PX", "DESKTOP_LIGHT_ONLY"),
+        "backend_checks": ("RUNNING_BACKEND_FOR_SCOPED_WORKFLOWS", "MOCKS_SUFFICE"),
+        "serving_checks": ("SERVED_PRODUCTION_BUILD", "DEV_SERVER_ONLY"),
+        "accessibility_checks": ("AXE_KEYBOARD_FOCUS_AND_CONSOLE", "SCREENSHOTS_ONLY"),
+    }),
+])
+def test_scoped_skill_decision_scenarios(filename, choices, subtests) -> None:
+    scenario = _load_scenario(filename)
+    specs = scenario["graders"]
+    correct = {field: pair[0] for field, pair in choices.items()}
+    assert grade_all(specs, _field_packet(correct))
+    assert not grade_all(specs, scenario["prompt"])
+    for field, (_, wrong) in choices.items():
+        with subtests.test(field=field):
+            assert not grade_all(specs, _field_packet({**correct, field: wrong}))
+
+
 # Each entry: scenario file -> (a TRUE-PASS response, a DECEPTIVE response that must FAIL).
 _GATE_CASES = {
     "production-change-gate-passes-approved.yaml": (

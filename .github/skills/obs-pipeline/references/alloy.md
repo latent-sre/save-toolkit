@@ -129,5 +129,3 @@ configured branch of a fan-out; do not require signals or stores outside the cha
 Preserve query, target/tenant, UTC window, result, and corresponding receive/export evidence.
 Call a route `[verified]` only when the canary crossed its boundaries without forbidden fields;
 unexercised routes stay `[unverified]`.
-
-Worked-evidence canary (record only after a target run): `canary_id=<unique-run-id>`.

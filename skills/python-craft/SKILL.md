@@ -44,7 +44,7 @@ scoped; report material adjacent findings separately.
 | Interpreter/dependencies uncertain or changing | [Environment and checks](./references/environment-and-checks.md) |
 | Calls, functions, modules, data, or resource ownership | [Writing Python](./references/writing-python.md) |
 | Structural improvement, a multi-module migration, or Pythonic replacements | [Refactoring](./references/refactoring.md) |
-| Need a worked comparison for flattening nested control flow | [Guard-clause example](./references/guard-clause-example.md) |
+| Need a worked comparison for flattening nested control flow | [Guard-clause example](./references/refactoring.md#guard-clause-example) |
 | Library adoption or dependency/runtime migration | [Libraries and modernization](./references/libraries-and-modernization.md) |
 | Automated transformations, lint fixes, or unused-code detection | [Refactoring tools](./references/refactoring-tools.md) |
 | Bug hunting, review, or a suspected failure | [Finding defects](./references/finding-defects.md) |

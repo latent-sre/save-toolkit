@@ -10,7 +10,9 @@ is [SKILLS-001](../fleet-roadmap.md#skills-001--reduce-unnecessary-skill-content
 The four source defects have since been repaired; see the
 [repair follow-up](#repair-follow-up). The approved first trimming pass is recorded in the
 [three-skill consolidation](#three-skill-consolidation). Inventory counts and original findings
-describe the audit baseline, not the later candidates.
+describe the audit baseline, not the later candidates. The subsequent approved
+[remaining fixes](#remaining-fixes-with-incident-investigation-excluded) explicitly exclude the
+incident investigation bundle.
 
 ## PR integration on the merged base
 
@@ -98,10 +100,10 @@ deleting an entire repeated-looking section without checking its exceptions woul
    around them. PCF deployment similarly repeats plan fields across authority, planning and
    handoff sections. Keep one plan checklist plus concise execution conditions.
 4. **Remove small fragments when their unique content has a clear existing home.** [verified]
-   The 851-byte [Python guard-clause example](../../skills/python-craft/references/guard-clause-example.md)
+   The 851-byte [Python guard-clause example](../../skills/python-craft/references/refactoring.md#guard-clause-example)
    repeats semantics in [refactoring](../../skills/python-craft/references/refactoring.md),
    lines 28–41. It can be merged there while preserving the worked comparison, NaN/zero distinction
-   and effect order. The short [Grafana tooling reference](../../skills/grafana/references/agent-tooling.md)
+   and effect order. The short [Grafana tooling reference](../../skills/grafana/references/http-api.md#credentials-and-effective-scope)
    can move into existing API/tooling guidance if its overwrite warning survives. Remove the empty
    worked-evidence canary stub at the end of the [Alloy reference](../../skills/obs-pipeline/references/alloy.md),
    keeping the preceding actual canary contract. These are reference-level candidates, not skill mergers.
@@ -365,5 +367,70 @@ working-tree source review of the four canonical files found no actionable issue
 projections and documentation were outside that review and covered by the caller's checks.
 
 [unverified] No live model evaluation was run for this prose consolidation; source preservation
-and passing contracts do not prove identical model behavior. The reference mergers, task-sized
-gate/frontend output changes and broader skill retirement remain outside this approved pass.
+and passing contracts do not prove identical model behavior. Reference mergers and task-sized
+output changes were outside that pass and are recorded separately below. No skill retirement is
+included.
+
+## Remaining fixes with incident investigation excluded
+
+[verified] The human approved the remaining listed fixes while excluding `incident-investigation`.
+This pass is based on `48f98777da46006e02d268bdd80594fece27227f`. Its entire canonical incident
+bundle and generated copy remain byte-for-byte unchanged; all changed skill frontmatter is also
+unchanged. No agent body, tool grant, production action or incident fast-path rule was changed.
+
+| Finding | Implemented result and retained standard |
+|---|---|
+| Markdown fence mismatch | The checker retains opening marker type and length. Shorter/different markers and a potential closer with trailing non-whitespace remain literal. Real headings after the block are visible, fake headings inside it are not. The SPL catalog can again link directly to its owning section. |
+| Production-shaped output for every gate | Merge returns common decision/evidence fields; release adds artifact, recovery and monitoring; production also includes approval, expiry, actor, binding and execution-boundary fields. Each gate still requires its full applicable checklist, and UNKNOWN reconciliation is unchanged. |
+| Full-app scope for small frontend changes | The deliverable follows the request. Existing-app verification covers affected workflows, states and supported presentations, expands to shared-component consumers and application-wide changes, and preserves real integration, serving and accessibility checks. New apps retain full verification. |
+| Optional lifecycle detail loaded during ordinary work | Resolver details and acceptance guidance move intact to `resolved-context.md`, loaded for resolver/producer use. Ordinary transitions retain ownership and the distinction between catalog freshness, document review and successful execution. The sidecar is unchanged. |
+| Repeated operational guidance | Runbook readback, operational-learning binding reminders, principal return/done checks and toil calculations are consolidated. Standalone runbook safeguards, checkout binding/dirty-path protection, complete principal record/example and toil interview/return behavior remain. |
+| Small reference fragments | The Python guard example moves into refactoring guidance with identical executable examples; Grafana tooling policy moves into API guidance with adoption and overwrite restrictions intact. Their two old files are removed. Alloy's empty stub is removed while its canary procedure stays intact. |
+| Broad stack loading | Ordinary stack inventories load application/data and observability facts. The existing Copilot-specific trigger owns model detail. No stack fact changed. |
+
+[verified] Canonical skills shrink by a net 442 bytes in this pass. Two reference files were
+merged away and one conditional lifecycle reference added, leaving 166 tracked canonical bundle
+files once the changes are recorded. New conditional-output guidance adds 850 bytes across the
+gate and frontend entrypoints; the other consolidations offset that growth. This measures file
+size, not token consumption, latency or model quality.
+
+[sourced] The fence fix follows the same-marker, sufficient-length and trailing-whitespace closing
+rules in the [CommonMark fenced-block specification](https://spec.commonmark.org/0.31.2/#fenced-code-blocks).
+The existing checker remains a bounded Markdown checker; this change does not claim complete
+CommonMark parsing.
+
+[verified] Before changing the parser, the regression reproduced four embedded-marker failures
+and an unterminated-block failure. After repair, `scripts/test_check_links.py` passed 50 tests and
+21 subtests. Its first whole-file run also caught the audit links to the newly removed references;
+those links were retargeted to the surviving sections, then the suite passed.
+
+[verified] Two new decision scenarios cover gate-specific fields and frontend local/shared/global/
+new-app verification scope. Offline grader tests accept the intended decisions, reject a prompt
+echo, and reject each of 17 harmful alternatives. No grader implementation changed. These tests
+establish the grading contract, not live model conformance.
+
+[verified] Final verification on the combined source candidate:
+
+- `.venv/bin/python scripts/local_tests.py`: **3,449 passed, 82 skipped, 4,198 subtests passed**;
+  exit 0 in 26.344 seconds. Receipt: `.git/local-test-runs/20261023T130755Z-58b4cfc2`.
+  Skips cover opt-in UI/browser fixtures, Windows/PowerShell checks, external `sre-context`
+  integration, and opt-in container/host checks. The default suite excludes the heavy suite.
+- `.venv/bin/python evals/build_probe.py validate`: **375 valid scenarios**, including 108
+  contracts; no live scenario execution.
+- Ruff lint passed for the changed Python files; configured mypy passed all 35 source files.
+  An explicit-path formatter call flagged the existing hand-formatted grader test; honoring the
+  repository's configured test exclusion with `--force-exclude` requires no unrelated reformat.
+- Generated adapters were refreshed from canonical sources, including removal of obsolete copies
+  and addition of the new conditional reference. Gate A passed both structural steps;
+  `git diff --check` passed.
+- Independent parser/scenario and skill-contract source reviews found no actionable issues.
+
+The 23 changed source/test/scenario paths, including deletions represented by empty content, have
+combined SHA-256 `f0d0fcfc2091abbc0a1190803362aea5759cdeaffaa00f29e6db62779ab27fc4` using the same
+sorted path/NUL/bytes/NUL encoding. The full-suite receipt records a dirty checkout; this digest
+binds the source scope separately from the subsequent documentation update.
+
+[unverified] Live model behavior, actual work saved and real-service resolver compatibility remain
+unmeasured. Existing incident/reliability/principal/lifecycle acceptance gaps stay with their
+current roadmap owners; this pass neither repairs incident investigation nor launches a new
+evaluation campaign.

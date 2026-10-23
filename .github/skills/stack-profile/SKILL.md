@@ -45,7 +45,7 @@ backends.
 
 | If the request involves… | Read first |
 |---|---|
-| A broad inventory or cross-domain comparison, including "what's our stack" | All three: [Observability stack](./references/observability-stack.md), [Application and data stack](./references/application-and-data-stack.md), and [Copilot models](./references/copilot-models.md) |
+| A broad inventory or cross-domain comparison, including "what's our stack" | [Observability stack](./references/observability-stack.md) and [Application and data stack](./references/application-and-data-stack.md); Copilot model details follow the model-specific row below |
 | An observability backend, signal, query language, vendor lifecycle, GCP observability choice, or edge/CDN/WAF/RUM product | [Observability stack](./references/observability-stack.md) |
 | A service language, framework, CI platform, tooling, or authentication design, runner/host assumption, or data-store choice | [Application and data stack](./references/application-and-data-stack.md) |
 | Selecting or recording the team's current Copilot model and fallbacks | [Copilot models](./references/copilot-models.md) |

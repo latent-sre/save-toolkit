@@ -32,7 +32,7 @@ permissions, resource identity, and ownership before relying on them.
 | Classic/V1/V2 models, panel JSON, variables, or portability | [Dashboard JSON](./references/json-model.md) |
 | Check an exported Classic/V1 dashboard offline, with text or JSON findings | [Read-only review](./references/read-only-review.md) and [dashboard_hygiene.py](./scripts/dashboard_hygiene.py); guarded agents use workflow `analyze --analysis hygiene` on a named capture |
 | Grafana provisioning, evaluation settings, rule groups, contact points, or policies | [Alerting configuration](./references/grafana-alerting.md) |
-| A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [Agent tooling](./references/agent-tooling.md); none is adopted |
+| A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [HTTP API tooling and scope](./references/http-api.md#credentials-and-effective-scope); none is adopted |
 | Viewer/Editor workflows, sharing, annotations, or ownership-aware restore | [Viewer/editor workflows](./references/viewer-editor-workflows.md) |
 | Wavefront/Splunk plugins or entitlement | [Wavefront and Splunk data sources](./references/wavefront-legacy.md) |
 | Team dashboard conventions: folders, names, uids, tags, time, variables | [Dashboard conventions](./references/dashboard-conventions.md) |
