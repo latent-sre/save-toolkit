@@ -71,6 +71,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   from its window section; `skill-portability.md` states the portable six in one sentence.
   `skills/agent-authoring/SKILL.md` goes from 12,730 to 11,123 bytes and the references from
   37,498 to 35,471.
+- Trim `pcf-ops` to the PCF facts its readers lack. The `sre-assistant` paragraph keeps the
+  five-read grant and the guard's limit and defers the output-path, masking, and credential rules to
+  the agent body that states them; the Orient section becomes a `cf apps` row in the drill-in
+  table; Secrets keeps the rule and drops the explanation; State-changing defers per-command effects
+  to its reference and the approval packet to `production-change-gate`; the first-look box drops the
+  fleet-wide untrusted-text sentence and Tips drops the port-2222 bullet the escalation packet
+  already carries. `skills/pcf-ops/SKILL.md` goes from 10,086 to 9,138 bytes.
 
 ### Removed
 
