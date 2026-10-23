@@ -1,7 +1,8 @@
 # Context and handoffs
 
-Compression, compaction, and handoff are the easiest places to silently upgrade a label; the
-entrypoint's label rules apply at each.
+Compression, compaction, and handoff are the easiest places to silently upgrade a label.
+[verified], [sourced], and [unverified] travel with their claims, [UNTRUSTED] taint survives every
+hop, and no rewrite upgrades either.
 
 ## Sending
 
@@ -21,10 +22,7 @@ missing evidence and continue independent work. Escalate a material decision, un
 capability, or exhausted budget with the precise gap. UNKNOWN effects require reconciliation before
 retry. Finish with one synthesized answer against the original objective.
 
-## Managing the window
+## Replaying the window
 
-- **Fork or rewind only when replay is defined.** A checkpoint before a failed path gives a clean
-  retry only when the runtime defines replay and effect semantics. Never replay an external side
-  effect by assumption; otherwise correct in place and record the divergence.
-- **Clearing old tool results is not lossless.** Clear only after retaining their load-bearing
-  facts and only when the source can be read safely again.
+Fork or rewind only when the runtime defines replay and effect semantics. Never replay an external
+side effect by assumption; otherwise correct in place and record the divergence.
