@@ -2,9 +2,9 @@
 
 [verified] Target: `agents/observability-engineer.md` at `8b4f9b785e520944319e04fd8e5018d4545b6800`, inspected on 2026-10-23. The complete 176-line / 13,103-byte agent and both generated projections were inspected; `cmp` confirms identical projection bytes. Audited sources remain unchanged.
 
-## Conclusion and finding
+## Conclusion and findings
 
-[sourced] The three Grafana-write branches have clear prerequisites and failure handling. One material inconsistency remains in the shared dashboard rollback procedure they consume. **Specification: partial** because the scope contract is coherent but its rollback recipe conflicts with it. **Engineering: fail for the bounded finding below; runtime assurance remains partial.** This is not a release or promotion decision.
+[sourced] The three Grafana-write branches have clear prerequisites and failure handling. A material inconsistency remains in the shared dashboard rollback procedure they consume; the subsequent pipeline audit also found a shared P3 validation-description defect. **Specification: partial** because the scope contract is coherent but its rollback recipe conflicts with it. **Engineering: fail for the bounded findings below; runtime assurance remains partial.** This is not a release or promotion decision.
 
 ### AUDIT-GRAFANA-001 — P2 / medium: dashboard restore recipe can erase an intervening editor's changes
 
@@ -12,7 +12,11 @@
 
 Concrete trigger: saved state is query `Q0`, title `T0`; this operation changes only the query to `Q1`; another editor changes the title to `T1`. The literal rollback recipe constructs `Q0/T0` using the latest token, removing the unrelated title edit. The token contract at HTTP API lines 107–110 detects changes after the latest read, not changes already incorporated in that read. This is a static consequence of the prescribed construction, **not an observed live overwrite**.
 
-The limiting counterevidence matters: [agent lines 45–53](../../../../agents/observability-engineer.md) require an established requested effect and full diff; dashboard step 4 preserves scope. Those rules do **not** authorize erasing `T1`. The defect is conflicting restoration guidance requiring the operator to infer the missing drift check. Textual confidence is high; actual model failure is unverified. The smallest repair belongs in the shared reference: compare live state with the state this operation wrote; stop on intervening edits or prepare a scoped inverse preserving them. [Alert rollback](../../../../skills/grafana/references/alert-operations.md), lines 99–101, already states this invariant. The later Grafana bundle audit should reconcile this same finding ID, not count it again. No other material finding was validated.
+The limiting counterevidence matters: [agent lines 45–53](../../../../agents/observability-engineer.md) require an established requested effect and full diff; dashboard step 4 preserves scope. Those rules do **not** authorize erasing `T1`. The defect is conflicting restoration guidance requiring the operator to infer the missing drift check. Textual confidence is high; actual model failure is unverified. The smallest repair belongs in the shared reference: compare live state with the state this operation wrote; stop on intervening edits or prepare a scoped inverse preserving them. [Alert rollback](../../../../skills/grafana/references/alert-operations.md), lines 99–101, already states this invariant. The completed [Grafana bundle audit](../skills/grafana.md) reconciles the same finding and extends its affected surface to the folder restore recipe; it is not counted again.
+
+### AUDIT-PIPELINE-002 — shared P3: Alloy validation behavior is described incorrectly
+
+[verified] Agent lines 96–98 repeats the pipeline reference's claim that Alloy validation resolves remote imports and may fetch their contents. [sourced] The [pipeline audit](../skills/obs-pipeline.md) traces tagged Alloy 1.18.1 code to the static validator, which registers imported namespaces but does not resolve or validate imported contents by default. That version-specific rationale is wrong and obscures an import-validation gap. This does not change the existing guard denial, authorize execution, or invalidate the isolated self-contained-config recipe. The pipeline report owns the evidence and minimal repair direction; this is one shared finding.
 
 ## Contract coverage
 
@@ -29,7 +33,7 @@ The limiting counterevidence matters: [agent lines 45–53](../../../../agents/o
 
 [sourced] [EVAL-005](../../2026-10-18-eval-005-run.md) records six historical trials at candidate `93e52481`: allowed dashboard writes landed and datasource writes were avoided, but every trial failed the overall checks. Missing no-data presentation, missing evidence labels, query uncertainty and a refusal-grader defect remain tracked. This is neither a new finding nor current-revision acceptance. The build fixtures cover platform-owned rule refusal, not successful Grafana rule/silence mutation, pause recovery, concurrent rollback, or replacement-ID reconciliation.
 
-[unverified] Source checks do not establish host enforcement, real helper return/resumption, claim-level taint retention, notification delivery, or successful rollback. Visual access may be unavailable and must be reported. No live Grafana/API/credential access, network, installs, paid evals or test reruns occurred. Existing broad-check evidence is reused with the receipt limitations documented in [the preceding report](agent-engineer.md). No external question is needed to establish the finding; target/version behavior still requires the established host acceptance work.
+[unverified] Source checks do not establish host enforcement, real helper return/resumption, claim-level taint retention, notification delivery, or successful rollback. Visual access may be unavailable and must be reported. No live Grafana or credential access, target network operations, installs, paid evals or test reruns occurred. Existing broad-check evidence is reused with the receipt limitations documented in [the preceding report](agent-engineer.md). The original rollback finding requires no external fact; the later shared Alloy finding uses the versioned primary evidence in the pipeline report; target/version behavior still requires the established host acceptance work.
 
 ## Inspection manifest
 

@@ -18,16 +18,18 @@ Each item is read in full together with its bundled files and relevant callers, 
 
 ## Progress
 
-Resumed at the human requester's instruction after the `go-craft` checkpoint: **24 of 42 items documented; 18 remain**. All ten canonical agents and the first fourteen canonical skill bundles are complete. Those skill bundles contain 102 fully inspected canonical files.
+Paused at the human requester's instruction after the `obs-traces` checkpoint: **27 of 42 items documented; 15 remain**. All ten canonical agents and the first seventeen canonical skill bundles are complete. Those skill bundles contain 114 fully inspected canonical files.
 
-The next item is `obs-metrics`, followed by the remaining pending rows in order. Grafana’s complete bundle review is documented, including repeatable helper evidence. The requester chose to finish the full audit before repairs; audited sources remain unchanged. The nineteen-report checkpoint is recorded on `audit/agents-skills-20261023`; the earlier five fixes are separately published in PR #419. Continue the remaining audit before repairs, as requested.
+Resume with the in-progress `operational-learning` audit, then the remaining pending rows in order. Its supporting oracle reconciliation is unfinished, so it is not included in the completed count. No subsequent item was started. The requester chose to finish the full audit before repairs; audited sources remain unchanged.
+
+Checkpoints `dabc3d3b` and `143cca77` preserve the earlier 19- and 24-report states. The earlier five repairs remain separately published in PR #419. Work is paused; continuation requires the requester's instruction.
 
 ### Canonical agents
 
 | Item | Report and disposition |
 |---|---|
 | `agent-engineer` | [Complete](agents/agent-engineer.md); no material defect validated; behavioral/host evidence partial |
-| `observability-engineer` | [Complete](agents/observability-engineer.md); shared P2 AUDIT-GRAFANA-001; runtime evidence partial |
+| `observability-engineer` | [Complete](agents/observability-engineer.md); shared P2 AUDIT-GRAFANA-001 and P3 AUDIT-PIPELINE-002; runtime evidence partial |
 | `principal-engineer` | [Complete](agents/principal-engineer.md); no new material defect validated; acceptance remains deferred |
 | `reliability-engineer` | [Complete](agents/reliability-engineer.md); shared P3 AUDIT-EVAL-DOC-001; behavior assurance partial |
 | `repository-investigator` | [Complete](agents/repository-investigator.md); no material defect validated; current-host assurance partial |
@@ -55,10 +57,10 @@ The next item is `obs-metrics`, followed by the remaining pending rows in order.
 | `obs-alerting` | [Complete](skills/obs-alerting.md); no new finding; arithmetic and vendor checks bounded |
 | `obs-dashboards` | [Complete](skills/obs-dashboards.md); no new finding; design and live-operation evidence kept distinct |
 | `obs-logs` | [Complete](skills/obs-logs.md); P3 AUDIT-LOGS-001 in overall-rate query fallback |
-| `obs-metrics` | Pending |
-| `obs-pipeline` | Pending |
-| `obs-traces` | Pending |
-| `operational-learning` | Pending |
+| `obs-metrics` | [Complete](skills/obs-metrics.md); P3 AUDIT-METRICS-001 in assumed Grafana authentication path |
+| `obs-pipeline` | [Complete](skills/obs-pipeline.md); P3 AUDIT-PIPELINE-001/002 in eval criterion and Alloy validation guidance |
+| `obs-traces` | [Complete](skills/obs-traces.md); P3 AUDIT-TRACES-001 in eval attribute maturity |
+| `operational-learning` | [Partial checkpoint](skills/operational-learning.md); source reads saved, contract/oracle reconciliation unfinished |
 | `operator-cli` | Pending |
 | `pcf-deploy` | Pending |
 | `pcf-ops` | Pending |
@@ -98,5 +100,9 @@ The next item is `obs-metrics`, followed by the remaining pending rows in order.
 | AUDIT-GRAFANA-004 — symlinked output parent fails after successful package creation | P3 | [Grafana](skills/grafana.md); [reproductions](evidence/grafana-transport-reproductions.md) |
 | AUDIT-GRAFANA-005 — broken overwrite regex accepts unsafe conflict advice | P3 | [Grafana](skills/grafana.md) |
 | AUDIT-LOGS-001 — overall deploy-rate fallback loops back to a class-grouped query | P3 | [Logs](skills/obs-logs.md) |
+| AUDIT-METRICS-001 — GCP query guidance assumes an unestablished Grafana syncer | P3 | [Metrics](skills/obs-metrics.md) |
+| AUDIT-PIPELINE-001 — naming eval retains a blanket no-plurals criterion | P3 | [Pipeline](skills/obs-pipeline.md) |
+| AUDIT-PIPELINE-002 — Alloy validation guidance misstates remote-import behavior | P3 | [Pipeline](skills/obs-pipeline.md); [observability engineer](agents/observability-engineer.md) |
+| AUDIT-TRACES-001 — semantics eval calls a Development attribute stable | P3 | [Traces](skills/obs-traces.md) |
 
 Findings are recorded in the individual reports and deduplicated here as the audit proceeds. The [fleet roadmap](../../fleet-roadmap.md) remains the sole live backlog; this evidence packet does not authorize fixes or promotion.
