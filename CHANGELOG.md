@@ -59,6 +59,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   reference; the incident-response section points at the terms reference for ITO and the TLC. The
   description drops its authoring note. `references/copilot-models.md` no longer claims the core
   owns the model-alias rules. `skills/stack-profile/SKILL.md` goes from 7,690 to 6,225 bytes.
+- Trim `toil-reduction`'s restatements: the label-definition sentence (the loading agent defines
+  them), three closing meta sentences, the toil/accepted-work/enduring-value explanation that the
+  Classification field already defines, and the four-bullet measurement list the formula and the
+  Calculation field already name. The graded interview, counting, economics, and return-shape text
+  is unchanged. `skills/toil-reduction/SKILL.md` goes from 10,723 to 9,980 bytes.
 
 ### Removed
 

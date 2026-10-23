@@ -65,10 +65,8 @@ the task's natural cycle — a monthly batch, a release cadence, a seasonal peak
 cannot and label the baseline partial. Report total human effort over the window, not only
 effort per occurrence.
 
-Distinguish repeated maintenance of the same state from engineering that creates lasting value.
-Necessary judgment, a rare recovery exercise or a one-off task is not automatically toil. A repeated
-restart may expose a service defect; use `root-cause` for that diagnosis and `resilience-analysis`
-for its failure path rather than immediately automating the restart.
+A repeated restart may expose a service defect; use `root-cause` for that diagnosis and
+`resilience-analysis` for its failure path rather than immediately automating the restart.
 
 ## Compare options
 
@@ -81,14 +79,9 @@ Explicit acceptance is a decision, not an omission: name its owner, the residual
 accepts per window, and the revisit trigger (a date, a volume or effort change, or a related
 incident) that reopens the comparison.
 
-Measure or clearly label estimates for:
-
-- Frequency and human effort per occurrence, including interruptions, rework and approvals.
-- One-time design, implementation, testing, migration and training effort.
-- Residual handling, review, failures, maintenance and support across all affected teams.
-- User impact, error reduction, recoverability, access requirements and maintenance ownership.
-
-For comparable time windows, show units and assumptions:
+Measure or label as estimates: effort per occurrence including interruptions, rework and
+approvals; one-time effort including testing, migration and training; residual handling and
+maintenance across every affected team. For comparable time windows, show units and assumptions:
 
 ```text
 baseline effort = occurrences per window * effort per occurrence
@@ -145,13 +138,9 @@ Verification: <before/after comparison under comparable demand, and what remains
 Uncertainty: <material unknowns and what evidence would settle them>
 ```
 
-Use `[verified]` for directly observed bounded facts,
-`[sourced]` for supplied records and `[unverified]` for assumptions or unavailable results; preserve
-`[UNTRUSTED]` taint. Write no durable operational records through this method; requested accepted
-knowledge goes to `scribe` through the caller.
+Write no durable operational records through this method; requested accepted knowledge goes to
+`scribe` through the caller.
 
 Primary method: [Google SRE: Eliminating Toil](https://sre.google/workbook/eliminating-toil/), for
-measurement, option selection and maintenance economics. Recheck when adapting the
-method or resolving disputed guidance. Organization-specific targets in that source are not fleet
-policy. The examples here are fictional and the method's native effectiveness remains unverified
-until evaluated on the accepted candidate.
+measurement, option selection and maintenance economics; its organization-specific targets are not
+fleet policy.
