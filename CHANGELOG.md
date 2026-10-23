@@ -52,6 +52,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   into the Signal-is-data row and the alerts bullet carries the code state. `agents/observability-engineer.md`
   goes from 16,705 to 13,102 bytes. Native trials have not measured this revision; the
   dashboard-write probes need a Docker host.
+- Trim `stack-profile`'s core to the stack facts. The evidence-label paragraph, the Model rule
+  section (plugin-authoring policy the frontmatter reference and validator own), and the
+  document-lane trivia are gone; the Kubernetes and GKE rules appear once, under Runtime; the
+  observability section keeps the responder's tool order and defers the inventory to its
+  reference; the incident-response section points at the terms reference for ITO and the TLC. The
+  description drops its authoring note. `references/copilot-models.md` no longer claims the core
+  owns the model-alias rules. `skills/stack-profile/SKILL.md` goes from 7,690 to 6,225 bytes.
 - Trim `agent-authoring` to the method and the fleet's decisions. The core drops the fleet-wide
   taint and label sentences, the Platform traps table (its frontmatter rows already live in the
   frontmatter reference; its MCP output-cap row moves there as a new section), two duplicate

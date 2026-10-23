@@ -201,7 +201,10 @@ frontmatter `hooks`, so a gate belongs in `hooks/hooks.json`. The options are a 
 keyed to `software-engineer`, with a `Stop` twin filtered on `agent_type` for `--agent` sessions, that blocks
 the return when the task changed five or more files and no `reviewer` call completed, the caller
 dispatching `reviewer` after the return (the caller-ownership pilot's mode), or a recommendation-only
-default with the scenario's expectation changed to match. The taint defect below needs the same
+default with the scenario's expectation changed to match. The hook option is designed in
+[the review-gate hook ADR](decisions/2026-10-23-review-gate-hook.md): a block-once gate on `Stop`
+and `SubagentStop` with a start snapshot, fail-open posture, nine offline red/green cases, and a
+paired-eval acceptance bar; it waits on the four owner decisions listed there. The taint defect below needs the same
 kind of decision: a structured return field, or a grader that accepts prose. Keep overlapping dirty
 paths, nit controls, and explicit-review overrides in the broader acceptance scope.
 **Evidence:** 2026-10-22, Sonnet 5.5 (`claude-sonnet-5-5`) on CLI 2.1.309, runs under
