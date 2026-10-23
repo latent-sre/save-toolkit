@@ -73,7 +73,7 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
             before = digest()
             replacements = {
                 "build_probe.py": ("raise SystemExit(cli.main())", "raise SystemExit(cli.main() or 0)"),
-                "probe/checking.py": ("ok = ctx.git.commit_count == ctx.ws.baseline_commits", "ok = True"),
+                "probe/checking.py": ("new = ctx.git.commit_ids - ctx.ws.baseline_commit_ids", "new = frozenset()"),
                 "probe/outcomes.py": ('EVIDENCE_LIMIT: Final = 600', 'EVIDENCE_LIMIT: Final = 601'),
                 "graders.py": ("return (not missing,", "return (False,"),
                 "judge.py": ("Distinguish the assistant's own voice", "Ignore the assistant's own voice"),

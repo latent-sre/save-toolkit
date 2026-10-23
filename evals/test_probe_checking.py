@@ -226,7 +226,7 @@ class WorkspaceAndCheckTests(TempRootTestCase):
                 outcome = probe_checking.CHECKS[name](ctx, params)
                 self.assertEqual((probe_outcomes.State.INCONCLUSIVE, True), (outcome.state, outcome.machinery),
                                  outcome.evidence)
-        self.assertTrue(probe_checking.check_no_new_commits(ctx, {}).passed, "the commit count does not read the index")
+        self.assertTrue(probe_checking.check_no_new_commits(ctx, {}).passed, "commit reachability does not read the index")
 
     def test_a_regrade_does_not_read_changes_the_live_run_could_not_list_as_none(self) -> None:
         spec = tiny_spec(checks=[{"check": "changes_within", "allowed": ["pkg/"], "text": "stays in pkg"}])

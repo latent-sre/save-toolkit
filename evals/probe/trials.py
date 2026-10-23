@@ -71,6 +71,12 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
     following = layout.next_number(history)
     current = (_attempt_number(target) or following) if target.exists() else None
     number = max(following, (current or 0) + 1)
+    for folder in target.parent.iterdir():
+        if folder.is_dir() and layout.hidden_slot(folder.name) == run_number:
+            hidden_number = _attempt_number(folder)
+            if hidden_number is None:
+                raise RuntimeError(f"{folder} has no readable attempt identity; resolve it before retrying this slot")
+            number = max(number, hidden_number + 1)
     attempt = _new_attempt_dir(target)
     _write_attempt(attempt, number, AttemptState.FINAL)
     started_at = records.utc_now()
@@ -123,7 +129,10 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
             # Each step is best effort and its failure is only warned of; no timing.json leaves the
             # cost unknown, which the cap refuses.
             for warning, step in (
-                ("no cost recorded for the incomplete attempt", functools.partial(_record_raised_cost, attempt)),
+                (
+                    "no cost recorded for the incomplete attempt",
+                    functools.partial(_record_raised_cost, attempt, settings.model),
+                ),
                 ("no record for the incomplete attempt", functools.partial(record, incomplete=reason)),
                 (
                     "could not keep the incomplete attempt",
@@ -152,6 +161,10 @@ def _new_attempt_dir(target: Path) -> Path:
 
 def _attempt_number(run_dir: Path) -> int | None:
     number = (layout.read_object(run_dir / "attempt.json") or {}).get("attempt")
+    if type(number) is int and number > 0:
+        return number
+    attempt = (layout.read_object(run_dir / "record.json") or {}).get("attempt")
+    number = attempt.get("number") if isinstance(attempt, dict) else None
     return number if type(number) is int and number > 0 else None
 
 
@@ -185,6 +198,80 @@ def kept_attempt_costs(
     return costs
 
 
+def batch_attempt_costs(
+    out_dir: Path,
+    label: str,
+    scenario_ids: Iterable[str],
+    model: str | None,
+    summary: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Count persisted attempts and summary rows once, including interrupted publications.
+
+    The slot/attempt number survives publication and archival renames. Legacy rows without an
+    attempt number can match a sole persisted attempt. Multiple folders claiming one identity,
+    or ambiguous or conflicting evidence, leave the cost incomplete rather than assuming a copy.
+    """
+    selected = set(scenario_ids)
+    costs: dict[tuple[str, int, int | str], dict[str, Any]] = {}
+
+    def add(key: tuple[str, int, int | str], source: Mapping[str, Any]) -> None:
+        known = records.known_usd(source.get("known_cost_usd"))
+        cost = {
+            "known_cost_usd": known or 0.0,
+            "cost_complete": source.get("cost_complete") is True and known is not None,
+        }
+        previous = costs.get(key)
+        if previous is not None and previous != cost:
+            cost = {"known_cost_usd": max(previous["known_cost_usd"], cost["known_cost_usd"]), "cost_complete": False}
+        costs[key] = cost
+
+    for scenario_id in sorted(selected):
+        directory = layout.case_dir(out_dir, scenario_id) / label
+        folders = [
+            (folder, slot, _attempt_number(folder)) for folder, slot in layout.numbered(directory, layout.SLOT_PREFIX)
+        ]
+        folders += list(layout.kept_attempts(directory))
+        if directory.is_dir():
+            folders += [
+                (folder, slot, _attempt_number(folder))
+                for folder in sorted(directory.iterdir())
+                if folder.is_dir() and (slot := layout.hidden_slot(folder.name)) is not None
+            ]
+        for folder, slot, number in folders:
+            timing = layout.read_object(folder / "timing.json")
+            record = layout.read_object(folder / "record.json")
+            requested = _requested_model(timing, record)
+            if requested is not _UNKNOWN and requested != model:
+                continue
+            if number is None:
+                recorded = (record or {}).get("attempt")
+                candidate = recorded.get("number") if isinstance(recorded, dict) else None
+                number = candidate if type(candidate) is int and candidate > 0 else None
+            cost = timing or {}
+            if requested is _UNKNOWN:
+                cost = {**cost, "cost_complete": False}
+            key = (scenario_id, slot, number if number is not None else str(folder))
+            if key in costs:
+                cost = {**cost, "cost_complete": False}
+            add(key, cost)
+
+    for entry in summary:
+        entry_scenario, slot = entry.get("scenario"), entry.get("run")
+        if not isinstance(entry_scenario, str) or entry_scenario not in selected or type(slot) is not int or slot <= 0:
+            continue
+        number = entry.get("attempt")
+        number = number if type(number) is int and number > 0 else None
+        key = (entry_scenario, slot, number if number is not None else "summary")
+        same_slot = [saved for saved in costs if saved[:2] == key[:2]]
+        if key not in costs and same_slot and (number is None or any(isinstance(saved[2], str) for saved in same_slot)):
+            if len(same_slot) != 1:
+                add((entry_scenario, slot, "unbound-summary"), {})
+                continue
+            key = same_slot[0]
+        add(key, entry)
+    return list(costs.values())
+
+
 _UNKNOWN = object()
 
 
@@ -201,7 +288,7 @@ def _requested_model(timing: dict[str, Any] | None, record: dict[str, Any] | Non
     return _UNKNOWN
 
 
-def _record_raised_cost(attempt: Path) -> None:
+def _record_raised_cost(attempt: Path, model: str | None) -> None:
     """Write what an attempt that raised is known to have cost, as a graded trial's `timing.json` does:
     nothing for the CLI when it never started, else what all invocation traces report, which is
     unknown if any invocation lacks a result event; plus any judge call its grading made."""
@@ -215,6 +302,7 @@ def _record_raised_cost(attempt: Path) -> None:
     layout.write_json(
         attempt / "timing.json",
         {
+            "requested_model": model,
             "trial_cost_usd": records.known_usd(trial_usd),
             "total_cost_usd": cost["cost_usd"],
             "known_cost_usd": cost["known_cost_usd"],
@@ -374,6 +462,11 @@ def _saved_summary(
         "run_end": grading.get("run_end"),
         **tracing.to_saved(ctx.trace),
         "commits_before_after": [ws.baseline_commits, git.commit_count],
+        **(
+            {"commit_ids_before_after": [sorted(ws.baseline_commit_ids), sorted(git.commit_ids)]}
+            if ws.baseline_commit_ids is not None and git.commit_ids is not None
+            else {}
+        ),
         "branch": git.branch,
         "changed_files": git.changed,
         **({"git_problem": git.problem} if git.problem else {}),

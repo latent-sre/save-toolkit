@@ -442,12 +442,28 @@ class PlatformAdapterTests(unittest.TestCase):
         for source in sorted((ROOT / "agents").glob("*.md")):
             with self.subTest(agent=source.stem):
                 name = f"{source.stem}.agent.md"
-                self.assertEqual(outputs[adapters.COPILOT_AGENTS / name],
-                                 outputs[adapters.COPILOT_PLUGIN_AGENTS / name])
+                workspace = outputs[adapters.COPILOT_AGENTS / name].decode("utf-8")
+                installed = outputs[adapters.COPILOT_PLUGIN_AGENTS / name].decode("utf-8")
+                # The same prompt/tool contract uses each layout's own skill location.
+                self.assertEqual(workspace, installed.replace("](../../skills/", "](../skills/"))
         self.assertEqual(json.loads((ROOT / adapters.COPILOT_HOOKS_SOURCE).read_text(encoding="utf-8")),
                          json.loads(outputs[adapters.COPILOT_PLUGIN_HOOKS]))
         self.assertFalse(any(path.is_relative_to(adapters.COPILOT_PLUGIN_COMPONENTS / "skills")
                              for path in outputs), "1.0 reads canonical skills/, not a copy")
+
+    def test_agent_resource_links_resolve_in_both_copilot_layouts(self) -> None:
+        root = self._canonical_root()
+        adapters.write_generated_outputs(root)
+        for directory in (adapters.COPILOT_AGENTS, adapters.COPILOT_PLUGIN_AGENTS):
+            links_checked = 0
+            for agent in sorted((root / directory).glob("*.agent.md")):
+                for target in re.findall(r"\]\((\.{1,2}/[^)\s]+)\)", agent.read_text(encoding="utf-8")):
+                    with self.subTest(agent=agent.relative_to(root).as_posix(), target=target):
+                        resource = (agent.parent / target.split("#", 1)[0]).resolve()
+                        self.assertTrue(resource.is_relative_to(root), resource)
+                        self.assertTrue(resource.is_file(), f"missing bundled resource: {resource}")
+                    links_checked += 1
+            self.assertGreater(links_checked, 0, f"no resource links exercised in {directory}")
 
     def test_plugin_commands_preserve_the_canonical_inventory_and_adr_preflight(self) -> None:
         root = self._canonical_root()
