@@ -204,7 +204,7 @@ that it is deployed or that an alert fired; missing observation times remain unk
 ## Rules
 
 - Hand to exactly one agent; if two are needed, sequence them and say which is primary.
-- Name the code state in the packet's `Change:` line (PR, branch, named diff, working tree, or
+- Name the code state on the packet's **Changed** line (PR, branch, named diff, working tree, or
   `none`); the receiver re-derives it before relying on it.
 - Include each finding's evidence (file:line, command output, query, URL) and preserve its
   `[verified]`, `[sourced]`, or `[unverified]` label exactly as received; never upgrade it.
