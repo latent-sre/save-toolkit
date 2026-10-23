@@ -6,6 +6,8 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+## [0.51.4] - 2026-10-23
+
 ### Changed
 
 - Compress `software-engineer`'s `reviewer`, `scribe`, and `researcher` handoff rows. The reviewer
