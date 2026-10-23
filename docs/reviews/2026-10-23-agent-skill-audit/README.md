@@ -18,9 +18,9 @@ Each item is read in full together with its bundled files and relevant callers, 
 
 ## Progress
 
-Resumed at the human requester's instruction after the `go-craft` checkpoint: **19 of 42 items documented; 23 remain**. All ten canonical agents and the first nine canonical skill bundles are complete. Those skill bundles contain 52 fully inspected canonical files.
+Resumed at the human requester's instruction after the `go-craft` checkpoint: **24 of 42 items documented; 18 remain**. All ten canonical agents and the first fourteen canonical skill bundles are complete. Those skill bundles contain 102 fully inspected canonical files.
 
-The next item is `grafana`, followed by the remaining pending rows in order. No Grafana bundle audit has started. The requester chose to finish the full audit before repairs; audited sources remain unchanged. The nineteen-report checkpoint is recorded on `audit/agents-skills-20261023`; the earlier five fixes are separately published in PR #419. Continue the remaining audit before repairs, as requested.
+The next item is `obs-metrics`, followed by the remaining pending rows in order. Grafana’s complete bundle review is documented, including repeatable helper evidence. The requester chose to finish the full audit before repairs; audited sources remain unchanged. The nineteen-report checkpoint is recorded on `audit/agents-skills-20261023`; the earlier five fixes are separately published in PR #419. Continue the remaining audit before repairs, as requested.
 
 ### Canonical agents
 
@@ -50,11 +50,11 @@ The next item is `grafana`, followed by the remaining pending rows in order. No 
 | `frontend-craft` | [Complete](skills/frontend-craft.md); P3 AUDIT-FRONTEND-001/002/003 in bundled helpers/checks |
 | `gcp-ops` | [Complete](skills/gcp-ops.md); P2 AUDIT-GCP-001 in Pub/Sub causal inference |
 | `go-craft` | [Complete](skills/go-craft.md); no new finding; shared AUDIT-API-001 and known BACKEND-002 limits |
-| `grafana` | Pending |
-| `incident-investigation` | Pending |
-| `obs-alerting` | Pending |
-| `obs-dashboards` | Pending |
-| `obs-logs` | Pending |
+| `grafana` | [Complete](skills/grafana.md); shared P2 AUDIT-GRAFANA-001, new P3 002/003/004/005 |
+| `incident-investigation` | [Complete](skills/incident-investigation.md); no new finding; existing behavioral acceptance gaps remain |
+| `obs-alerting` | [Complete](skills/obs-alerting.md); no new finding; arithmetic and vendor checks bounded |
+| `obs-dashboards` | [Complete](skills/obs-dashboards.md); no new finding; design and live-operation evidence kept distinct |
+| `obs-logs` | [Complete](skills/obs-logs.md); P3 AUDIT-LOGS-001 in overall-rate query fallback |
 | `obs-metrics` | Pending |
 | `obs-pipeline` | Pending |
 | `obs-traces` | Pending |
@@ -83,7 +83,7 @@ The next item is `grafana`, followed by the remaining pending rows in order. No 
 
 | Finding | Severity | Evidence |
 |---|---|---|
-| AUDIT-GRAFANA-001 — dashboard rollback guidance can erase intervening edits | P2 | [Observability engineer](agents/observability-engineer.md); Grafana bundle validation pending |
+| AUDIT-GRAFANA-001 — dashboard/folder rollback guidance can erase intervening edits | P2 | [Observability engineer](agents/observability-engineer.md); [Grafana bundle](skills/grafana.md) |
 | AUDIT-EVAL-DOC-001 — evaluation guide retains a superseded reliability deferral | P3 | [Reliability engineer](agents/reliability-engineer.md) |
 | AUDIT-RESEARCH-001 — exact GitHits grant retains replaced grep method name | P2 | [Researcher](agents/researcher.md); [provider registry evidence](evidence/githits-tool-catalog.json) |
 | AUDIT-AUTHORING-001 — workspace projection strips namespaces from Claude teaching examples | P3 | [Agent authoring](skills/agent-authoring.md) |
@@ -93,5 +93,10 @@ The next item is `grafana`, followed by the remaining pending rows in order. No 
 | AUDIT-FRONTEND-002 — serving predicate overclaims cache freshness | P3 | [Frontend craft](skills/frontend-craft.md) |
 | AUDIT-FRONTEND-003 — nonfinite retry counts disable the attempt bound | P3 | [Frontend craft](skills/frontend-craft.md) |
 | AUDIT-GCP-001 — oldest-message age slope overstates acknowledgment/causal evidence | P2 | [GCP operations](skills/gcp-ops.md) |
+| AUDIT-GRAFANA-002 — review instructions skip available guarded hygiene analysis | P3 | [Grafana](skills/grafana.md) |
+| AUDIT-GRAFANA-003 — truncation recovery reintroduces masked authentication values | P3 | [Grafana](skills/grafana.md); [reproductions](evidence/grafana-transport-reproductions.md) |
+| AUDIT-GRAFANA-004 — symlinked output parent fails after successful package creation | P3 | [Grafana](skills/grafana.md); [reproductions](evidence/grafana-transport-reproductions.md) |
+| AUDIT-GRAFANA-005 — broken overwrite regex accepts unsafe conflict advice | P3 | [Grafana](skills/grafana.md) |
+| AUDIT-LOGS-001 — overall deploy-rate fallback loops back to a class-grouped query | P3 | [Logs](skills/obs-logs.md) |
 
 Findings are recorded in the individual reports and deduplicated here as the audit proceeds. The [fleet roadmap](../../fleet-roadmap.md) remains the sole live backlog; this evidence packet does not authorize fixes or promotion.
