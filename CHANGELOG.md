@@ -71,6 +71,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   from its window section; `skill-portability.md` states the portable six in one sentence.
   `skills/agent-authoring/SKILL.md` goes from 12,730 to 11,123 bytes and the references from
   37,498 to 35,471.
+- Trim `toil-reduction`'s restatements: the label-definition sentence (the loading agent defines
+  them), three closing meta sentences, the toil/accepted-work/enduring-value explanation that the
+  Classification field already defines, and the four-bullet measurement list the formula and the
+  Calculation field already name. The graded interview, counting, economics, and return-shape text
+  is unchanged. `skills/toil-reduction/SKILL.md` goes from 10,723 to 9,980 bytes.
 - Trim `pcf-ops` to the PCF facts its readers lack. The `sre-assistant` paragraph keeps the
   five-read grant and the guard's limit and defers the output-path, masking, and credential rules to
   the agent body that states them; the Orient section becomes a `cf apps` row in the drill-in
