@@ -59,6 +59,18 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   reference; the incident-response section points at the terms reference for ITO and the TLC. The
   description drops its authoring note. `references/copilot-models.md` no longer claims the core
   owns the model-alias rules. `skills/stack-profile/SKILL.md` goes from 7,690 to 6,225 bytes.
+- Trim `agent-authoring` to the method and the fleet's decisions. The core drops the fleet-wide
+  taint and label sentences, the Platform traps table (its frontmatter rows already live in the
+  frontmatter reference; its MCP output-cap row moves there as a new section), two duplicate
+  reference-table rows, and the production handoff bullet. The references drop what a tool-less
+  Sonnet reproduces unprompted, measured by an 18-question probe: `agent-security.md` keeps the
+  fleet's enforcement order, the no-untrusted-runner rule, the escaping policy, the five questions
+  and the output shape and loses the trifecta lesson and the generic controls; `artifact.md` keeps
+  its graded loop policy and loses the intro and the generic tool-contract bullets; `context.md`
+  now states the label rule itself, since the core no longer does, and keeps only the replay rule
+  from its window section; `skill-portability.md` states the portable six in one sentence.
+  `skills/agent-authoring/SKILL.md` goes from 12,730 to 11,123 bytes and the references from
+  37,498 to 35,471.
 - Trim `toil-reduction`'s restatements: the label-definition sentence (the loading agent defines
   them), three closing meta sentences, the toil/accepted-work/enduring-value explanation that the
   Classification field already defines, and the four-bullet measurement list the formula and the
