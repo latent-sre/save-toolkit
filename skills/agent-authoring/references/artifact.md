@@ -1,9 +1,5 @@
 # Artifact altitude — author and optimize one LLM-facing artifact
 
-For a repair, first locate the owning layer (the entrypoint's rule 2). When the artifact owns it,
-edit it like code: reproduce, minimal fix, verify. New work starts from the requested behavior
-and success criteria, without an invented failure.
-
 ## The bounds on the loop
 
 Before the first iteration, write down every row:
@@ -55,16 +51,11 @@ Remove a behavioral instruction only when representative task evidence or an enf
 supports the removal; known facts and reliable execution are different claims. A rule the model
 reads and does not apply ships as a copied test or asset, not a stronger sentence.
 
-Prefer a small, diverse set of canonical examples over an edge-case list, count chosen by
-evaluation. No vague qualifiers: state the threshold ("≤150 words, no preamble").
+Canonical examples, their count chosen by evaluation, over an edge-case list; thresholds, never
+vague qualifiers.
 
 ## Tool contracts
 
-A tool's name, description, inputs, and output shape are the interface the model reasons over.
-
-- Namespace by domain (`cf_restart_app`, `splunk_search`) so intent is unambiguous; the
-  description carries the capability and when to call it.
-- Bound output with pagination, range selection, and filters, and make errors steer the next call.
 - Promote a shell command to a dedicated tool when the action needs gating, auditing, staleness
   checks, or rendering; start with the shell for breadth.
 - Tool sprawl has no portable threshold: load coherent sets on demand or split authority across

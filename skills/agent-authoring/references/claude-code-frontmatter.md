@@ -8,6 +8,7 @@ code.claude.com/docs/en/skills) the docs win — update this file and re-verify 
 
 - Agents
 - Skills
+- Tool output caps
 - Fleet decisions on unused fields
 - Quote description scalars that contain a colon
 
@@ -90,6 +91,15 @@ conditional detail out of `SKILL.md` reduces invoked context and what survives c
 discovery-listing cost — and there is no per-invocation truncation to design around: a body-size
 screen, a discovery-listing measurement, and a description-routing edit are three separate decisions
 with three verification rules.
+
+## Tool output caps
+
+Claude Code caps an MCP tool result at 25,000 tokens by default (`MAX_MCP_OUTPUT_TOKENS`). A
+successful foreground call returning text only is saved to a file and replaced by its path once over
+50,000 characters, whatever that token setting; a server raises one tool's threshold with
+`_meta["anthropic/maxResultSizeChars"]`, up to 500,000. A call moved to a background task reports
+through its task notification instead. Other hosts differ: bound output with pagination and filters
+rather than relying on a cap.
 
 ## Fleet decisions on unused fields
 

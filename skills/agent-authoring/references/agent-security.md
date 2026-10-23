@@ -6,87 +6,55 @@ prose, and label every runtime boundary you did not probe `[unverified]`: prose 
 enforcement. The fleet's current tool postures live in the `AGENTS.md` roster; verify them against
 agent frontmatter and the guard's tests, not against this file.
 
-An LLM cannot reliably separate trusted instructions from untrusted data; both arrive as one token
-stream, so any text an agent reads can try to become a command. This is architectural. You contain
-it; you do not patch it.
+## The lethal trifecta, as this fleet cuts it
 
-## Contents
-
-- [Trifecta](#the-lethal-trifecta)
-- [Trust boundaries](#trust-boundaries-that-always-apply)
-- [Controls](#controls-that-hold)
-- [Review questions](#the-review-in-five-questions)
-- [Output](#output)
-
-## The lethal trifecta
-
-A single injected prompt can exploit an agent that combines all three:
-
-1. **Access to sensitive data** (secrets, private repos, prod systems, customer data)
-2. **Exposure to untrusted content** (webhook/PR/issue text, CI logs, scraped pages, user files)
-3. **The ability to act externally** (send data out, write to prod, open network calls)
-
-No prompt wording fixes a complete trifecta; "ignore malicious instructions" is a mitigation, never
-a control. Cut a leg structurally, in descending robustness:
-
-1. **Remove exfiltration**: no network, write, or posting tools; a fixed local report channel. The
-   report stays [UNTRUSTED] and must minimize private excerpts.
-2. **Remove the private data**: run the untrusted-content step in a separate agent with no
-   credentials or repo access and pass forward only a structured summary.
-3. **Remove the untrusted content**: pin the inputs to a vetted set instead of fetching whatever a
-   link points at.
-4. **Rule of Two, as the last resort**: an agent running without a human in the loop holds at most
-   two of the three; wanting all three means a human approves the sensitive step, validating the
-   concrete action, content, destination, and rollback while treating model output and
-   attacker-influenced evidence as [UNTRUSTED].
-
-Breaking one leg interrupts the high-impact chain; it does not eliminate injection or lower-impact
-harm, so defense in depth stays required.
+An agent that holds sensitive data, reads untrusted content, and can act externally is exploitable
+by one injected prompt, and no wording fixes that. Cut a leg structurally, in this order of
+robustness: remove exfiltration (no network, write, or posting tools; a fixed local report channel
+whose report stays [UNTRUSTED] and minimizes private excerpts); remove the private data (the
+untrusted-content step runs in a separate agent with no credentials or repo access and passes
+forward only a structured summary); remove the untrusted content (pin inputs to a vetted set). Last
+resort, the Rule of Two: an agent running without a human in the loop holds at most two legs, and
+wanting all three means a human approves the sensitive step, validating the concrete action,
+content, destination, and rollback while treating model output and attacker-influenced evidence as
+[UNTRUSTED]. Breaking one leg interrupts the high-impact chain; defense in depth stays required.
 
 ## Trust boundaries that always apply
 
-- **No trust escalation between agents.** Content derived from an untrusted source keeps its taint
-  through every handoff. Mark it [UNTRUSTED] in the packet so the receiver never promotes a quoted
-  attacker string to an instruction.
-- **Evaluate the trifecta per agent and across the handoff.** A subagent gets its own context
-  window, not its own trust domain: its output returns to the parent as trusted narration, so an
-  injection that reaches a credential-free child can steer a parent holding the missing legs.
-  Structure return values with a schema (findings with `file:line`, a verdict enum); instructions
-  are far harder to smuggle through a schema than through prose.
-- **Delegation is not isolation.** Handing an untrusted checkout to a more capable agent moves the
-  execution risk; running its tests, build hooks, or package scripts executes attacker-controlled
-  code. The Save Toolkit fleet provides no credential-free untrusted-code runner; use independently
-  established isolated CI or label the result `[unverified]`.
-- **Validate at the action boundary.** Check identity, input, target, approval, and source state
-  where the effect happens, and fail closed on absence, ambiguity, or mismatch. A mutable path is
-  not an exemption boundary: a checkout can replace the file at an allowed path, so privileged
-  admission binds reviewed bytes by content hash.
+- Taint survives every handoff. Content from an untrusted source stays [UNTRUSTED] in the packet,
+  and a subagent's output returns to its parent as narration the parent must not promote: a child
+  gets its own context window, not its own trust domain. Structure returns with a schema (findings
+  with `file:line`, a verdict enum); instructions are far harder to smuggle through a schema than
+  through prose.
+- Delegation is not isolation. Running an untrusted checkout's tests, build hooks, or package
+  scripts executes attacker-controlled code wherever it runs. This fleet provides no
+  credential-free untrusted-code runner; use independently established isolated CI or label the
+  result `[unverified]`.
+- Validate at the action boundary (identity, input, target, approval, source state) and fail closed
+  on absence, ambiguity, or mismatch. A mutable path is not an exemption boundary: a checkout can
+  replace the file at an allowed path, so privileged admission binds reviewed bytes by content hash.
+- A suspected active production compromise stops ordinary remediation: preserve state and forensic
+  evidence and route coordination to the human security incident owner.
 
-For a suspected active production compromise, stop ordinary remediation, preserve state and
-forensic evidence, and route coordination to the human security incident owner.
+## Controls this fleet relies on
 
-## Controls that hold
-
-- **Least privilege and allowlisted egress.** Give an agent only the data and reach its task needs,
-  gate every send step, and prefer dedicated auditable tools over raw `bash`/`curl` the harness
-  cannot inspect.
-- **Secrets stay out of model context.** Inject at the boundary (a credential proxy); never paste a
-  token where injected text could read it back.
-- **Envelope tool results; preserve evidence.** Fence with a named source (`<untrusted_tool_result source="web_fetch">`)
-  and escape forged sentinels. Keep originals under access/redaction rules as evidence. The model
-  reads only a derived view in which every [default-ignorable](https://www.unicode.org/reports/tr44/#Default_Ignorable_Code_Point)
-  code point (zero-width, bidi-control, tag, and variation-selector characters) appears as a
-  code-point escape, including inside emoji tag sequences; record the transformation. Escape rather
-  than strip: [legitimate text](https://www.unicode.org/reports/tr51/#Emoji_Sequences) and attack
-  evidence depend on these characters, and the original keeps them.
-  Envelopes, escaping, and injection matchers do not establish trust.
-- **Know what each Claude Code layer does.** Denying `WebFetch` does not stop access through Bash,
-  and a Bash deny rule matches the command text, not the network call; only sandbox network
-  isolation or host network controls enforce an egress allowlist. The fleet's enforcement order, tool absence
-  then the hook allowlist then host network controls, is this principle applied.
-- **An MCP server is a dependency with your privileges.** A `stdio` server runs as the client;
-  review its launch command like `curl | sh`. A remote server must not accept, or forward, a token not
-  issued to it; its OAuth metadata URL is an SSRF vector, and scopes start minimal.
+- Enforcement order: tool absence, then the hook allowlist, then host network controls. Denying
+  `WebFetch` does not stop Bash, and a Bash deny rule matches command text, not the network call;
+  only sandbox or host network isolation enforces an egress allowlist. Prefer dedicated auditable
+  tools over raw `bash`/`curl` the harness cannot inspect.
+- Secrets stay out of model context: inject at the boundary; never paste a token where injected
+  text could read it back.
+- Envelope tool results with a named source (`<untrusted_tool_result source="web_fetch">`) and
+  escape forged sentinels. The model reads a derived view in which every
+  [default-ignorable](https://www.unicode.org/reports/tr44/#Default_Ignorable_Code_Point) code
+  point (zero-width, bidi-control, tag, and variation-selector characters) appears as a code-point
+  escape, including inside emoji tag sequences; record the transformation and keep the original as
+  evidence, because [legitimate text](https://www.unicode.org/reports/tr51/#Emoji_Sequences) and
+  attack evidence both depend on those characters. Envelopes, escaping, and matchers do not
+  establish trust.
+- An MCP server is a dependency with your privileges: review a `stdio` launch like `curl | sh`; a
+  remote server must not accept or forward a token not issued to it, its OAuth metadata URL is an
+  SSRF vector, and scopes start minimal.
 
 ## The review, in five questions
 
