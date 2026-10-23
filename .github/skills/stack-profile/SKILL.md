@@ -1,23 +1,19 @@
 ---
 name: stack-profile
 description: >-
-  The single stack-definition point — what this team runs today, which stacks it authors versus
-  only supports, the stay-in-lane rule, and the platform boundary. Load before editing code in a
-  support-only stack (Java/JVM), before recommending any runtime, tool, or infrastructure change,
-  and when choosing between observability backends. Triggers: "what's our stack", "should we use X for this",
-  "can we move this to Kubernetes / the cloud", "which backend do I query". This skill bundle changes
-  when the ground shifts.
+  What this team runs today: the current stack, which stacks it authors versus only supports, the
+  stay-in-lane rule, and the platform boundary. Load before editing code in a support-only stack
+  (Java/JVM), before recommending any runtime, tool, or infrastructure change, and when choosing
+  between observability backends. Triggers: "what's our stack", "should we use X for this", "can we
+  move this to Kubernetes / the cloud", "which backend do I query".
 argument-hint: "[the runtime, tool, or infrastructure question]"
 ---
 
 # Stack profile — current facts, not aspirations
 
 Phrased as what is true today. When the ground shifts, update this canonical skill bundle and
-regenerate its projections; no other canonical stack definition should change.
-Use only `[verified]`, `[sourced]`, and `[unverified]` evidence labels, and keep each claim's state
-intact in transit; describe an inference in prose and label it `[unverified]` rather than inventing a
-fourth state. A planned or candidate technology is never a current-stack fact until a human owner
-records the decision here.
+regenerate its projections; no other canonical stack definition should change. A planned or
+candidate technology is never a current-stack fact until a human owner records the decision here.
 
 ## The business
 The firm is a stock trading firm; use trading examples (orders, accounts, markets, exchanges),
@@ -32,22 +28,18 @@ a fallback, and the `sre-assistant` agent says when `cf` is absent where it runs
 have observed the platform. **GCP migration is in progress**: GCP is an approved target, arriving (as planned) as
 reference files inside the obs skills plus the `gcp-ops` triage skill, not as a restructure. The
 landing runtime is **decision-pending** (Cloud Run is the primary candidate for TAS-shaped apps;
-GKE only if a workload demands it) — do not present either as decided. The runtime decision is not
-recorded yet; record it here when a human owner accepts it. **No self-managed Kubernetes**; on-prem
-stays Kubernetes-free.
+GKE only if a workload demands it) — do not present either as decided or propose GKE; flag the need
+instead. Record the decision here when a human owner accepts it. **No self-managed Kubernetes**
+anywhere; on-prem stays Kubernetes-free.
 
 ## Observability decision
 
 The incumbent and additive observability stacks coexist as first-class; no listed backend is retired
-by team decision. Read the conditional observability reference for the signal inventory, query
-languages, lifecycle evidence, and GCP additions.
-
-During an incident the responder's tools are, in order: Apps Manager for what changed and instance
-state, **Grafana** for the service's dashboards, panels, and alert state, Splunk for logs beyond
-the last minutes, and **Wavefront and PCF App Metrics** for application metrics. Grafana's Mimir,
-Loki, and Tempo backends are the additive stack for services instrumented with OpenTelemetry; GCP
-workloads add Cloud Logging, Cloud Monitoring and Cloud Trace (see the observability-stack
-reference).
+by team decision. During an incident the responder opens, in order: Apps Manager for what changed
+and instance state, **Grafana** for dashboards and alert state, Splunk for logs beyond the last
+minutes, and **Wavefront and PCF App Metrics** for application metrics. The observability-stack
+reference holds the signal inventory, query languages, lifecycle evidence, and the additive and GCP
+backends.
 
 ## Read only the conditional stack facts the request needs
 
@@ -64,12 +56,9 @@ the app/ops lane, settle a pending decision, authorize a platform change, or rep
 verification. The entrypoint rules remain authoritative after a reference is loaded.
 
 ## Incident response
-A formal on-call rotation is in place.
-The team investigates and recommends fixes. An existing bridge or TLC (Techline Chat) is the
-coordination channel, not a request to open another.
-ITO (IT Operations) runs the TLC once one is open: it asks for updates, pages teams, and approves
-changes, and does not run the investigation. There is no standing incident lead or commander.
-`incident-investigation` owns technical advice, the
+A formal on-call rotation is in place. The team investigates and recommends fixes. An existing
+bridge or TLC (Techline Chat) is the coordination channel, not a request to open another; ITO runs
+it, and the terms reference defines both roles. `incident-investigation` owns technical advice, the
 investigation board, and recommendations based on supplied impact and policy. Who sets severity is
 not recorded yet.
 
@@ -84,17 +73,13 @@ documentation and is actively being drained into the repo — one direction, imp
 therefore exist today, but they are not co-equal homes: a page in Confluence is a source to import,
 not a destination to write to.
 
-What follows for the document lanes: `scribe` authors into the repository (it has no web tools and
-could not reach Confluence anyway), `runbook` owns the import path, and
-`skills/runbook/scripts/confluence_to_runbook.py` is live working software, not a migration
-leftover. Never write new operational documentation into Confluence.
+For the document lanes: `scribe` authors into the repository and `runbook` owns the import path.
+Never write new operational documentation into Confluence.
 
 ## Stay in lane
 Stay in the app/ops lane; hand platform-internal problems to the platform team. GCP managed
-services are now in-lane **for the migration** (Cloud Run, Cloud Logging/Monitoring/Trace,
-Secret Manager); do not propose self-managed Kubernetes anywhere, and do not propose GKE while the
-landing-runtime decision is pending — flag the need instead. On-prem/PCF infra-layer fixes remain
-out of lane.
+services are in-lane **for the migration** (Cloud Run, Cloud Logging/Monitoring/Trace, Secret
+Manager). On-prem/PCF infra-layer fixes remain out of lane.
 
 ## The platform boundary
 We own our apps up to the platform edge; we do not operate the platform. On PCF: BOSH, Ops Manager,
@@ -106,11 +91,3 @@ project scope sit with the cloud platform owner. Treat that split
 as unconfirmed until recorded here; the `gcp-ops` skill carries the working boundary rules. Akamai
 delivery and WAF config is team-owned change-managed work (see the `akamai-edge` skill); Akamai the
 platform — the edge network itself — is Akamai's.
-
-## Model rule
-
-No agent sets `model:` today; inheriting the session model remains the default. A Claude agent may
-use a generation alias (`haiku`, `sonnet`, `opus`, `fable`, or `inherit`) only when its lane's cost
-or latency profile justifies tiering, and never a full model ID. When a task needs the team's current
-Copilot picker order or fallback sequence, load the conditional model reference and preserve its
-verification state; that host inventory does not select a Claude agent alias.
