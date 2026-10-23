@@ -23,6 +23,23 @@ records do not re-queue work.
 
 ## Repository work
 
+### SKILLS-001 — reduce unnecessary skill content without lowering standards
+
+**Status:** `ready` (2026-10-23); four source repairs and the first three-skill consolidation
+are implemented; other audit candidates remain proposed.
+**Owner:** `agent-engineer` prepares the candidate; the human owner accepts its exact revision.
+**Outcome:** Repeated skill instructions and stale guidance are reduced while domain boundaries,
+evidence, recovery, authorization and meaningful verification remain intact.
+**Next action:** The human owner selects any further reduction from the audit. Small reference
+consolidations and output/loading-policy changes remain separate candidates; no whole-skill
+retirement or new live evaluation campaign is selected. Reuse the stack-profile trim already in
+`bebbc116` and the completed CI/agent-authoring/PCF-deploy consolidation.
+**Evidence:** [Full skills audit and follow-ups](reviews/2026-10-23-skills-audit.md): all 30 shipped
+skills covered; four defects repaired and the first consolidation removes 1,631 net canonical
+bytes. Adapters regenerated and matching checks passed; live behavioral gaps remain recorded.
+**SRE task:** Load less repeated guidance and receive task-sized help without losing the checks
+that make operational advice and engineering changes trustworthy.
+
 ### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
 
 **Status:** `active` (2026-10-02); comprehensive product specification and delivery planning.
