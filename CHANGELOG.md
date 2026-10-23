@@ -41,8 +41,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   on the old Handoffs intro and the test that held `software-engineer`'s and
   `observability-engineer`'s `## Rules` blocks byte-identical. `agents/software-engineer.md` goes
   from 22,607 to 21,335 bytes. Native trials have not measured this revision.
-- `observability-engineer`'s `## Rules` block now names the packet's **Changed** line, which its
-  worked example uses, instead of a `Change:` line the packet does not have.
+- Trim from `observability-engineer` the text its skills and its other sections already carry. The
+  operating principles become one paragraph and Method steps 1–5 become one step, both pointing at
+  `obs-alerting` and `obs-dashboards`, which own that method. The Dashboard branch keeps its
+  authority and every gate the carve-out probe grades and drops the procedure recital that
+  `grafana`'s dashboard-operations reference owns. The three UNKNOWN rules become one. The two
+  production-gate paragraphs merge. The output contract now says a caller's requested format wins,
+  which the JSON and `Label: value` contract cases already require. The worked example, the two
+  inbound handoff bullets, and the `## Rules` block are gone; the `[UNTRUSTED]` prefix rule moves
+  into the Signal-is-data row and the alerts bullet carries the code state. `agents/observability-engineer.md`
+  goes from 16,705 to 13,102 bytes. Native trials have not measured this revision; the
+  dashboard-write probes need a Docker host.
 
 ### Removed
 
