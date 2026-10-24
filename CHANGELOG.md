@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `eng-ladder` references: 18,747 to 14,725 bytes. Remove generic builder/career framing and
+  repeated process; preserve tier routing, consultation ownership, security review,
+  consumer/recovery evidence and human acceptance. Keep the twelve-slot design record and full
+  labelled example unchanged. Principal contract/case/judgment checks pass: 26 tests and 180
+  subtests. The separate career-feedback branch is unchanged.
 - Review `ci-actions` references: 29,984 to 24,474 bytes. Remove generic optimization/security
   narration and repeated deployment explanations; retain runner choice, credential and event trust,
   artifact identity, exact dispatch binding and UNKNOWN recovery. PCF example/asset checks pass: 33
