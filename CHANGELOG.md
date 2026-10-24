@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `ci-actions` references: 29,984 to 24,474 bytes. Remove generic optimization/security
+  narration and repeated deployment explanations; retain runner choice, credential and event trust,
+  artifact identity, exact dispatch binding and UNKNOWN recovery. PCF example/asset checks pass: 33
+  tests. All fenced executable examples remain byte-identical; no remote CI was dispatched.
 - Review `python-craft` references: 32,476 to 22,508 bytes. Move unique entrypoint, byte-boundary
   and borrowed-stream checks into writing guidance; remove basic tutorials and repeated process.
   Preserve environment, lock, concurrency, dynamic-consumer and effect-order contracts. Redirect the

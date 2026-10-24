@@ -1,113 +1,79 @@
 # Execution and optimization
 
-Read for workflow speed, cost, matrices, caching, concurrency, artifacts or runners. Optimize the
-measured bottleneck while preserving the project's required coverage and execution authority.
-
-## Contents
-
-- Measure before choosing the lever
-- Jobs, matrices and failure behavior
-- Caches are accelerators, artifacts are outputs
-- Events, required checks and cancellation
-- Runner choice
+Preserve required coverage and the [parent execution boundaries](../SKILL.md).
 
 ## Measure before choosing the lever
 
-Separate queue delay from execution. From comparable run attempts, record the critical path,
-checkout/setup/install/test/upload durations, cache hit/miss, retries, runner class and concurrency.
-Compare normal and slow runs rather than treating one warm-cache run as the baseline.
+Compare queue time, critical path, setup/install/test/upload, cache hits/misses, retries, runner
+class and concurrency across normal and slow attempts. Separate elapsed time from total runner use.
 
-Baseline recipe: `gh run list -w <workflow file> -b <default branch> -e <event> -s success -L 20
---json databaseId,attempt,createdAt,updatedAt` lists comparable runs. For each, `gh api --paginate
-repos/{owner}/{repo}/actions/runs/<id>/jobs` gives job `created_at`/`started_at`/`completed_at` and
-step `started_at`/`completed_at`; queue time is `started_at − created_at`. Compare the median and the
-slow tail, not one run.
+`gh run list -w <workflow file> -b <default branch> -e <event> -s success -L 20
+--json databaseId,attempt,createdAt,updatedAt` selects comparable runs. For each, `gh api --paginate
+repos/{owner}/{repo}/actions/runs/<id>/jobs` supplies job/step timings; queue delay is job
+`started_at − created_at`. Compare median and slow tail, not one warm-cache run.
 
-| Dominant cost | Try first | Check the tradeoff |
-|---|---|---|
-| Queue time | Remove duplicate event runs; cancel superseded validation; adjust concurrency or capacity | More workers may raise cost without reducing serial work |
-| Checkout/setup | Default shallow checkout unless history is needed; avoid unnecessary submodules, LFS and repeated installs | Versioning, changelog and diff tools may require history |
-| Dependency/build work | Lock-aware package cache or compatible compiler/build cache | Restore/upload may cost more than rebuilding; warm and cold runs must agree |
-| One long test job | Duration-balanced shards or independent suites | All tests must still run; isolate shared state and cap service/runner pressure |
-| Large matrix | Remove unsupported combinations; run invariant lint once; separate experimental coverage | Retain the supported OS/runtime contract and required-check identities |
-| Uploads | Narrow paths, compress according to data, shorten retention where appropriate | Keep failure evidence and release/recovery artifacts for their required lifetime |
-
-Do not promise a percentage improvement without before/after measurements on comparable code,
-events and runners. A shorter critical path can consume more total runner minutes.
+| Bottleneck | Candidate change and constraint |
+|---|---|
+| Queue | Remove duplicate runs/cancel superseded validation; more capacity cannot shorten serial work |
+| Checkout/setup | Avoid unnecessary history/submodules/LFS, retaining history needed by version/diff tools |
+| Dependencies/build | Compatible lock-aware cache only when restore/upload costs less than rebuilding |
+| Tests | Duration-balanced shards with complete coverage, isolated shared state and bounded pressure |
+| Matrix | Remove unsupported axes; retain supported targets and required-check identities |
+| Uploads | Narrow paths/compression/retention while preserving failure and release/recovery evidence |
 
 ## Jobs, matrices and failure behavior
 
-- Use `needs` only when a job consumes another job's result or the dependency intentionally avoids
-  expensive work after an early failure. More jobs are not automatically faster: each starts fresh.
-- Derive matrix axes from supported versions/platforms. Use `include`/`exclude` for meaningful
-  exceptions rather than a Cartesian product by habit. Use `max-parallel` to bound runner and
-  downstream service pressure.
-- Collapse only checks proved invariant. Type checking can depend on Python version and platform;
-  keep those targets covered even when formatting and version-independent lint run once.
-- Choose `fail-fast` deliberately: cancellation saves work after a blocking failure; disabling it
-  gathers the remaining compatibility results. Mark an experimental leg non-blocking only when
-  that is the agreed policy; keep ordinary failures visible.
-- Give every job a timeout based on observed slow runs. Preserve the failing exit code through
-  wrappers and pipelines. Retry known transient operations with a bound, not the entire suite
-  until green; track flakes instead of converting them to success.
+- `needs` represents a consumed result or intentional early-failure gate; each extra job repeats setup.
+- Derive axes from supported runtimes/platforms, exceptions with `include`/`exclude`, pressure with
+  `max-parallel`. Collapse only invariant checks: type checking may depend on Python/OS even if lint does not.
+- Choose `fail-fast` for cancellation versus remaining compatibility evidence. Only agreed experimental
+  legs are non-blocking; ordinary failures stay visible.
+- Base job timeouts on slow-run evidence. Preserve exit codes through wrappers/pipes. Retry bounded
+  known-transient operations, never the whole suite until green; track flakes explicitly.
 
 ## Caches are accelerators, artifacts are outputs
 
-Use the package manager's download store or supported compiler/build cache. Build outputs can be
-cached when the tool's invalidation covers their inputs; a cache is never the authoritative release
-artifact. Include relevant OS, architecture, toolchain/runtime, lockfile and configuration identity
-in keys. Do not duplicate a setup action's existing cache with another cache of the same paths.
+Cache package downloads or tool-supported build outputs with input-aware invalidation. Keys include
+relevant OS/architecture, runtime/toolchain, lock and configuration identity. Do not duplicate setup-action
+caches. Restore prefixes require compatible states; always perform the lock-enforcing install/sync.
+Whole environments/workspaces need proven relocation/invalidation. Measure hit rate, size and transfer
+cost; a miss must still build correctly, and a cache is never the release artifact.
 
-Use restore prefixes only across compatible states. After restoring dependencies, still perform
-the lock-enforcing install/sync; a hit is not proof the environment is complete. Avoid caching a
-whole virtual environment or workspace unless its relocation and invalidation are established.
-Measure cache size, hit rate and restore/save time; remove a cache that makes runs slower.
+No credentials, auth homes or private data in caches. Fork PRs can read eligible base caches;
+ordinary PR-created caches belong to the merge ref. Analyze privileged-event/custom-cache readers
+and writers separately; untrusted output must not poison privileged consumers. Preserve setup-action
+security defaults unless event/cache scope is reviewed. Where supported, caller `cache-mode: read`
+bounds reusable-workflow callee access; low-trust defaults alone do not. Do not grant write to silence
+a warning: use a trusted producer. Check server/validator support for newer syntax.
 
-No credentials, authentication homes or private data belong in caches. Fork PRs can read eligible
-base-branch caches; ordinary PR-created caches are scoped to their merge ref. Privileged events
-and custom external caches need separate writer/reader trust analysis. Do not let untrusted code
-poison a cache later used by a privileged job. Retain setup-action security defaults unless the
-changed event and cache scope have been reviewed.
-Where the target supports `cache-mode`, an explicit `read` limit on a reusable-workflow caller
-prevents its callee from requesting cache writes. Low-trust defaults alone are not that explicit
-limit. Do not add `write` to silence a cache warning; retain the restricted mode and let a trusted
-producer refresh the cache. Check server and validator support before adding newer syntax.
-
-Use artifacts to move test reports and built release bytes between jobs. Give matrix artifacts
-unique names; fail when a required release artifact is absent. Tune compression for the actual
-data (already-compressed bundles rarely benefit), and retain diagnostics and releases according to
-their purpose. Bind promotion to the producing run and artifact digest, never an ambiguous latest
-artifact; do not rebuild a different binary in the deploy job.
+Give matrix artifacts unique names and fail on a missing required release artifact. Tune compression
+for the data and retention for its purpose. Promote the producing run's digest-bound bytes, never
+ambiguous latest artifacts or a deploy-job rebuild.
 
 ## Events, required checks and cancellation
 
-Avoid redundant push/PR runs for the same intended validation, without losing default-branch or
-release coverage. Include `merge_group` when the repository's merge queue needs those checks.
-Path filters can leave required workflow checks pending. A conditionally skipped job can report
-success. If using change detection and a stable required summary job, evaluate every required
-dependency result explicitly: tolerate only the intentionally skipped work, and fail on unexpected
-failure, cancellation or missing coverage. Test affected and unaffected paths and a failed dependency.
+Avoid duplicate push/PR runs without losing default-branch/release coverage; include `merge_group`
+for merge-queue checks. Path-filtered required workflows can remain pending, while skipped jobs can
+report success. A stable summary job must explicitly check every required dependency, tolerating
+only intended skips and rejecting failure/cancellation/missing coverage. Test changed/unchanged paths
+and a failed dependency.
 
-Cancel superseded work at workflow level only for a validation-only workflow. In a mixed workflow,
-keep cancelling groups on validation jobs. Include workflow/ref and job or matrix dimensions as
-needed; reusable calls need a caller-job/target key distinct from the caller's group. Keep deployment
-groups stable per target with automatic cancellation off. Choose whether superseded pending
-deployments may be dropped: the default `queue: single` replaces an existing pending run even with
-`cancel-in-progress: false`. Where supported, `queue: max` retains up to 100 pending runs and cannot
-be combined with `cancel-in-progress: true`. FIFO is by when work starts waiting, not dispatch or
-commit order; a full queue cancels excess arrivals. Check server/validator support and reconcile
-the candidate before promotion rather than treating concurrency as a durable deployment ledger.
+Workflow-level cancellation is for validation-only workflows; mixed workflows cancel validation jobs
+only. Keys need workflow/ref and relevant job/matrix dimensions; reusable calls need a caller-job/target
+key distinct from the caller's group. Deploy groups stay stable per target, automatic cancellation off.
+`queue: single` still replaces pending work with `cancel-in-progress: false`; where supported,
+`queue: max` retains up to 100 pending runs and forbids `cancel-in-progress: true`. FIFO follows
+entry into waiting, not dispatch/commit order; a full queue cancels excess arrivals. Verify server/
+validator support and reconcile the candidate before promotion: concurrency is not a deployment ledger.
 
 ## Runner choice
 
-Follow the project's runner policy. New GitHub-hosted Linux jobs in this fleet use
-**`ubuntu-latest`** (`stack-profile`); keep an existing job's label, and do not substitute a fixed OS
-release as routine hardening. Record the resolved image when diagnosing failures; a runner label
-is not an immutable image. Use a reviewed container digest when the workload needs fixed userspace.
-Larger runners, local caches and self-hosting need measured benefit or a network/hardware requirement.
+This fleet's new GitHub-hosted Linux jobs use **`ubuntu-latest`** under `stack-profile`; preserve
+existing labels rather than substituting fixed OS versions as routine hardening. Diagnose with the
+resolved image; labels are mutable. A reviewed container digest can fix userspace. Larger/self-hosted
+runners need measured benefit or a network/hardware requirement.
 
-For self-hosted runners, load the team's stack boundary, record the owner and network access, and
-use restricted runner groups and least privilege. Keep untrusted jobs away from persistent runners
-with credentials or internal reach. Ephemeral registration alone does not erase files: require
-cleanup/replacement after normal completion, forced cancellation and host loss before reuse.
-Check the action runtime's minimum runner version before upgrading actions.
+For self-hosting, confirm stack boundary, owner/network scope, restricted groups and least privilege.
+Keep untrusted jobs off persistent runners with credentials/internal reach. Ephemeral registration
+does not erase files: require cleanup/replacement after completion, forced cancellation and host loss
+before reuse. Check minimum runner compatibility when upgrading actions.
