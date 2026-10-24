@@ -21,10 +21,10 @@ inspect-ai==0.3.263
 inspect-swe==0.2.70
 jsonschema==4.26.0
 langgraph==1.2.11
-langgraph-checkpoint-sqlite==3.1.1
+langgraph-checkpoint-sqlite==3.1.2
 mypy==2.4.0
 orjson==3.12.0
-pillow==12.3.0
+pillow==13.0.0
 polars==2.0.0
 promql-parser==0.11.0
 pydantic==2.13.5
