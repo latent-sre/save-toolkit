@@ -8,6 +8,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Reduce `toil-reduction`'s reference from 4,000 to 1,593 bytes: one cost comparison retains hidden
+  maintenance, estimate uncertainty, useful-life limits and negative savings. Remove the interview
+  script and guidance already in the skill. Reliability contracts pass: 23 tests and 220 subtests.
 - Trim `service-lifecycle`'s resolved-context reference from 2,356 to 1,925 bytes, retaining exact
   freshness boundaries, retired-state marking and fixture/authority limits. Local contract checks
   pass; external producer compatibility remains unverified.

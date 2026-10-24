@@ -99,7 +99,7 @@ and who accepted it. Break-even also assumes
 the workflow and its demand survive unchanged: when the payback approaches the workflow's expected
 useful life, or adoption ramps slowly, compare cumulative effort over that horizon instead of
 quoting a break-even month. Read
-[worked examples](references/worked-examples.md) when evaluating economics or recurring restarts.
+[worked cost comparison](references/worked-examples.md) for maintenance and payback sensitivity.
 
 ## Design and verify the improvement
 
