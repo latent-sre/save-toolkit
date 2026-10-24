@@ -27,7 +27,23 @@ async function get(path) {
   };
 }
 
-const revalidates = (r) => /\bno-cache\b|\bno-store\b|\bmax-age=0\b/.test(r.cache);
+// Require an unqualified directive: max-age=0 alone permits shared-cache/stale reuse,
+// and field-qualified no-cache does not require the whole response to revalidate.
+const revalidates = (r) => {
+  // Consume complete directives, keeping commas and escaped quotes inside quoted values.
+  // Sticky matching also refuses malformed syntax anywhere, including after a valid directive.
+  const directive = /[ \t]*([!#$%&'*+.^_`|~0-9a-z-]+)([ \t]*=[ \t]*(?:[!#$%&'*+.^_`|~0-9a-z-]+|"(?:[^"\\\x00-\x08\x0a-\x1f\x7f]|\\[\t\x20-\x7e\x80-\xff])*"))?[ \t]*(,|$)/gy;
+  let fresh = false;
+  let offset = 0;
+  while (offset < r.cache.length) {
+    const part = directive.exec(r.cache);
+    if (!part) return false;
+    if (part[2] === undefined && (part[1] === "no-cache" || part[1] === "no-store")) fresh = true;
+    offset = directive.lastIndex;
+    if (part[3] === "," && offset === r.cache.length) return false;
+  }
+  return fresh;
+};
 // Policies are enforced together; within each policy only the first duplicate directive applies.
 // Require the explicit no-framing policy, not a source list that allows some ancestor origins.
 const refusesFraming = (csp) => csp.split(",").some((policy) => {

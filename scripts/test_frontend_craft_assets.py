@@ -142,6 +142,53 @@ def test_each_named_break_fails_its_own_check(breaks: dict[str, object], expecte
     assert failed_checks(result) == expected, result.stdout
 
 
+@pytest.mark.parametrize(
+    "policy",
+    [
+        "max-age=0, s-maxage=31536000",
+        "max-age=0, stale-while-revalidate=31536000",
+        "max-age=0",
+        'no-cache="set-cookie"',
+        "x-no-cache",
+        'private="x,no-cache,y", max-age=31536000',
+        'private="x,no-store,y", max-age=31536000',
+        'private="x, no-cache, y", max-age=31536000',
+        'no-cache, private="unterminated',
+        'no-store, private="value"junk',
+        'no-cache, private=unquoted"value"',
+        'no-cache, private="trailing\\',
+    ],
+)
+@pytest.mark.parametrize("target", ["index_cache", "config_cache"])
+def test_freshness_requires_an_unqualified_cache_directive(policy: str, target: str) -> None:
+    with serving(**{target: policy}) as base:
+        result = run_contract(BASE_URL=base, API_PREFIX="/v1/", RUNTIME_CONFIG_PATH="/config.json")
+    expected = (
+        ["runtime configuration is fresh JSON"]
+        if target == "config_cache"
+        else ["a deep link serves the app and revalidates", "index.html is the app and revalidates"]
+    )
+    assert result.returncode != 0, result.stdout
+    assert failed_checks(result) == expected, result.stdout
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        "no-store",
+        "public, NO-CACHE",
+        "no-cache, max-age=0",
+        'private="x,no-cache,y", no-cache',
+        'no-store, private="x,no-cache,y"',
+        'private="x,\\\"no-cache,y", no-cache',
+    ],
+)
+def test_unqualified_freshness_policies_pass(policy: str) -> None:
+    with serving(index_cache=policy, config_cache=policy) as base:
+        result = run_contract(BASE_URL=base, API_PREFIX="/v1/", RUNTIME_CONFIG_PATH="/config.json")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_unset_optional_checks_are_skipped() -> None:
     with serving(api_routed=False, config_cache=None) as base:
         result = run_contract(BASE_URL=base)
@@ -191,7 +238,7 @@ def node_version() -> tuple[int, int]:
 
 @pytest.mark.parametrize(
     ("suite", "cases"),
-    [("problem.test.ts", 9), ("idempotent-write.test.ts", 12), ("runtime-config.test.ts", 7)],
+    [("problem.test.ts", 9), ("idempotent-write.test.ts", 14), ("runtime-config.test.ts", 8)],
 )
 def test_the_typescript_helper_contracts_pass(suite: str, cases: int) -> None:
     # Type stripping runs .ts files without a build from Node 22.18; CI's runner image ships 22.23.

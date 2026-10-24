@@ -121,9 +121,13 @@ limit before recommending a bump; the current service template may describe a la
 A growing Pub/Sub backlog looks the same on backlog size alone whether subscribers are too slow for
 the arrival rate or a subset of messages fails on every delivery. Before choosing, read
 `subscription/oldest_unacked_message_age` beside `num_undelivered_messages`: an oldest age rising as
-fast as wall-clock time means some messages are never acknowledged; a slower rise with a growing
-backlog means messages complete, but too slowly. Repeated message IDs that are never acknowledged
-confirm a failing subset. When an export, sink or view lacks one of these, name the missing
+fast as wall-clock time shows that the oldest cohort has not cleared during that window, not why.
+A large same-publish-time cohort can keep age rising at wall-clock rate while acknowledgements
+succeed; a long-running leased message can do the same. Slower age growth alone does not prove
+completion either: retention expiry can advance the oldest timestamp. Compare acknowledgement/
+completion rates with ingress and backlog trends, then inspect handler failures, lease behavior,
+and repeated message IDs with failed delivery or acknowledgement evidence before assigning a
+failing subset or capacity cause. When an export, sink or view lacks one of these, name the missing
 observation and who can read it from Cloud Monitoring; do not infer the cause from the other alone.
 
 For `ImagePullBackOff` or `ErrImagePull` on GKE, establish that the referenced image address and tag

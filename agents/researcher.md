@@ -20,7 +20,7 @@ tools:
   - mcp__plugin_githits_githits__search_status
   - mcp__plugin_githits_githits__get_example
   - mcp__plugin_githits_githits__list
-  - mcp__plugin_githits_githits__code_grep
+  - mcp__plugin_githits_githits__grep
   - mcp__plugin_githits_githits__read
   - mcp__plugin_githits_githits__pkg_info
   - mcp__plugin_githits_githits__pkg_deps

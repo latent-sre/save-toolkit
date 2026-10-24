@@ -1,6 +1,6 @@
 # Agent and skill audit
 
-[verified] Review target: `8b4f9b785e520944319e04fd8e5018d4545b6800`, the candidate in [PR #419](https://github.com/latent-sre/save-toolkit/pull/419). The human requested a complete, careful audit with each item documented before moving to the next. This branch changes review documents, not the audited prompts or helpers.
+[verified] Review target: `8b4f9b785e520944319e04fd8e5018d4545b6800`, the candidate in [PR #419](https://github.com/latent-sre/save-toolkit/pull/419). The human requested a complete, careful audit with each item documented before moving to the next. The audit-only checkpoint is `7b07806e`. Subsequent authorized source repairs are recorded separately below; the original reports retain their audited revision.
 
 ## Scope and method
 
@@ -18,11 +18,11 @@ Each item is read in full together with its bundled files and relevant callers, 
 
 ## Progress
 
-**42 of 42 items documented; no audit items remain.** All ten canonical agents, thirty canonical skill bundles (167 tracked files), the eight-file sandbox workflow candidate, and the 38-file retired Fleet Atlas snapshot have completed source-bound reports. Independent Sol passes were explicitly selected after the requester resumed work on 2026-10-24. Findings remain unrepaired, as requested; source review completion is not behavioral acceptance or promotion.
+**42 of 42 items documented; no audit items remain.** All ten canonical agents, thirty canonical skill bundles (167 tracked files), the eight-file sandbox workflow candidate, and the 38-file retired Fleet Atlas snapshot have completed source-bound reports. Independent Sol passes were explicitly selected after the requester resumed work on 2026-10-24. The first ten findings have been repaired and locally verified; see the [repair follow-up](repairs-first-ten.md). Source review completion is not behavioral acceptance or promotion.
 
-The ledger contains **25 distinct findings: 23 in shipped material and two in the unpromoted sandbox candidate**. Three are P2 and 22 are P3. Retired Fleet Atlas's historical findings and two dormant extractor limitations are described separately and do not reopen its backlog. Checkpoints `dabc3d3b`, `143cca77`, `719f8af9` and `296fb3f5` preserve earlier review stages. PR #419 contains the earlier five repairs, not these audit-only reports.
+The ledger contains **25 distinct findings: 23 in shipped material and two in the unpromoted sandbox candidate**. Three are P2 and 22 are P3. Retired Fleet Atlas's historical findings and two dormant extractor limitations are described separately and do not reopen its backlog. Checkpoints `dabc3d3b`, `143cca77`, `719f8af9` and `296fb3f5` preserve earlier review stages. PR #419 contains the earlier five repairs; this follow-up has not been published there.
 
-Final checks cover report coverage/links, active structural gates, unchanged audited sources and archive hashes. Existing same-source test evidence is reused; no source fixes, new live model campaigns, production changes, archive execution or promotion occurred. The managed Codex Security scan remains unavailable as described above; this completion is the agent/skill source audit.
+The audit checkpoint checks covered report coverage/links, active structural gates, unchanged audited sources and archive hashes. Existing same-source test evidence was reused for that checkpoint; no source fixes, live model campaigns, production changes, archive execution or promotion occurred during the audit. Repairs require their own fresh evidence. The managed Codex Security scan remains unavailable as described above; this completion is the agent/skill source audit.
 
 ### Canonical agents
 
@@ -83,38 +83,38 @@ Final checks cover report coverage/links, active structural gates, unchanged aud
 
 ## Findings and disposition
 
-| Finding | Severity | Evidence |
-|---|---|---|
-| AUDIT-GRAFANA-001 — dashboard/folder rollback guidance can erase intervening edits | P2 | [Observability engineer](agents/observability-engineer.md); [Grafana bundle](skills/grafana.md) |
-| AUDIT-EVAL-DOC-001 — evaluation guide retains a superseded reliability deferral | P3 | [Reliability engineer](agents/reliability-engineer.md) |
-| AUDIT-RESEARCH-001 — exact GitHits grant retains replaced grep method name | P2 | [Researcher](agents/researcher.md); [provider registry evidence](evidence/githits-tool-catalog.json) |
-| AUDIT-AUTHORING-001 — workspace projection strips namespaces from Claude teaching examples | P3 | [Agent authoring](skills/agent-authoring.md) |
-| AUDIT-API-001 — Go timeout oracle accepts lexical presence without effective timeout | P3 | [API craft](skills/api-craft.md) |
-| AUDIT-CI-001 — deployment-target oracle accepts commented commands | P3 | [CI actions](skills/ci-actions.md) |
-| AUDIT-FRONTEND-001 — sentinel collision admits a protocol-relative config URL | P3 | [Frontend craft](skills/frontend-craft.md) |
-| AUDIT-FRONTEND-002 — serving predicate overclaims cache freshness | P3 | [Frontend craft](skills/frontend-craft.md) |
-| AUDIT-FRONTEND-003 — nonfinite retry counts disable the attempt bound | P3 | [Frontend craft](skills/frontend-craft.md) |
-| AUDIT-GCP-001 — oldest-message age slope overstates acknowledgment/causal evidence | P2 | [GCP operations](skills/gcp-ops.md) |
-| AUDIT-GRAFANA-002 — review instructions skip available guarded hygiene analysis | P3 | [Grafana](skills/grafana.md) |
-| AUDIT-GRAFANA-003 — truncation recovery reintroduces masked authentication values | P3 | [Grafana](skills/grafana.md); [reproductions](evidence/grafana-transport-reproductions.md) |
-| AUDIT-GRAFANA-004 — symlinked output parent fails after successful package creation | P3 | [Grafana](skills/grafana.md); [reproductions](evidence/grafana-transport-reproductions.md) |
-| AUDIT-GRAFANA-005 — broken overwrite regex accepts unsafe conflict advice | P3 | [Grafana](skills/grafana.md) |
-| AUDIT-LOGS-001 — overall deploy-rate fallback loops back to a class-grouped query | P3 | [Logs](skills/obs-logs.md) |
-| AUDIT-METRICS-001 — GCP query guidance assumes an unestablished Grafana syncer | P3 | [Metrics](skills/obs-metrics.md) |
-| AUDIT-PIPELINE-001 — naming eval retains a blanket no-plurals criterion | P3 | [Pipeline](skills/obs-pipeline.md) |
-| AUDIT-PIPELINE-002 — Alloy validation guidance misstates remote-import behavior | P3 | [Pipeline](skills/obs-pipeline.md); [observability engineer](agents/observability-engineer.md) |
-| AUDIT-TRACES-001 — semantics eval calls a Development attribute stable | P3 | [Traces](skills/obs-traces.md) |
-| AUDIT-PCF-001 — resize payload is rejected by the controller at its advertised minimum | P3 | [PCF operations](skills/pcf-ops.md); [deployment](skills/pcf-deploy.md) |
-| AUDIT-GATE-001 — approval calibration omits required validity evidence | P3 | [Production gate](skills/production-change-gate.md) |
-| AUDIT-PYTHON-001 — package oracle misses closure of a borrowed generator | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) |
-| AUDIT-PYTHON-002 — identical schema-batch inputs conceal reordered results | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) |
-| AUDIT-GRAPH-001 — candidate effect-key formula omits logical request identity | P3 | [Sandbox workflow graph](nonshipping/workflow-graph-engineering.md); unpromoted |
-| AUDIT-GRAPH-002 — candidate UNKNOWN retry exception conflicts with its invariant | P3 | [Sandbox workflow graph](nonshipping/workflow-graph-engineering.md); unpromoted |
+| Finding | Severity | Evidence | Repair disposition |
+|---|---|---|---|
+| AUDIT-GRAFANA-001 — dashboard/folder rollback guidance can erase intervening edits | P2 | [Observability engineer](agents/observability-engineer.md); [Grafana bundle](skills/grafana.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
+| AUDIT-EVAL-DOC-001 — evaluation guide retains a superseded reliability deferral | P3 | [Reliability engineer](agents/reliability-engineer.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
+| AUDIT-RESEARCH-001 — exact GitHits grant retains replaced grep method name | P2 | [Researcher](agents/researcher.md); [provider registry evidence](evidence/githits-tool-catalog.json) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
+| AUDIT-AUTHORING-001 — workspace projection strips namespaces from Claude teaching examples | P3 | [Agent authoring](skills/agent-authoring.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
+| AUDIT-API-001 — Go timeout oracle accepts lexical presence without effective timeout | P3 | [API craft](skills/api-craft.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
+| AUDIT-CI-001 — deployment-target oracle accepts commented commands | P3 | [CI actions](skills/ci-actions.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
+| AUDIT-FRONTEND-001 — sentinel collision admits a protocol-relative config URL | P3 | [Frontend craft](skills/frontend-craft.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
+| AUDIT-FRONTEND-002 — serving predicate overclaims cache freshness | P3 | [Frontend craft](skills/frontend-craft.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
+| AUDIT-FRONTEND-003 — nonfinite retry counts disable the attempt bound | P3 | [Frontend craft](skills/frontend-craft.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
+| AUDIT-GCP-001 — oldest-message age slope overstates acknowledgment/causal evidence | P2 | [GCP operations](skills/gcp-ops.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
+| AUDIT-GRAFANA-002 — review instructions skip available guarded hygiene analysis | P3 | [Grafana](skills/grafana.md) | Awaiting disposition |
+| AUDIT-GRAFANA-003 — truncation recovery reintroduces masked authentication values | P3 | [Grafana](skills/grafana.md); [reproductions](evidence/grafana-transport-reproductions.md) | Awaiting disposition |
+| AUDIT-GRAFANA-004 — symlinked output parent fails after successful package creation | P3 | [Grafana](skills/grafana.md); [reproductions](evidence/grafana-transport-reproductions.md) | Awaiting disposition |
+| AUDIT-GRAFANA-005 — broken overwrite regex accepts unsafe conflict advice | P3 | [Grafana](skills/grafana.md) | Awaiting disposition |
+| AUDIT-LOGS-001 — overall deploy-rate fallback loops back to a class-grouped query | P3 | [Logs](skills/obs-logs.md) | Awaiting disposition |
+| AUDIT-METRICS-001 — GCP query guidance assumes an unestablished Grafana syncer | P3 | [Metrics](skills/obs-metrics.md) | Awaiting disposition |
+| AUDIT-PIPELINE-001 — naming eval retains a blanket no-plurals criterion | P3 | [Pipeline](skills/obs-pipeline.md) | Awaiting disposition |
+| AUDIT-PIPELINE-002 — Alloy validation guidance misstates remote-import behavior | P3 | [Pipeline](skills/obs-pipeline.md); [observability engineer](agents/observability-engineer.md) | Awaiting disposition |
+| AUDIT-TRACES-001 — semantics eval calls a Development attribute stable | P3 | [Traces](skills/obs-traces.md) | Awaiting disposition |
+| AUDIT-PCF-001 — resize payload is rejected by the controller at its advertised minimum | P3 | [PCF operations](skills/pcf-ops.md); [deployment](skills/pcf-deploy.md) | Awaiting disposition |
+| AUDIT-GATE-001 — approval calibration omits required validity evidence | P3 | [Production gate](skills/production-change-gate.md) | Awaiting disposition |
+| AUDIT-PYTHON-001 — package oracle misses closure of a borrowed generator | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) | Awaiting disposition |
+| AUDIT-PYTHON-002 — identical schema-batch inputs conceal reordered results | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) | Awaiting disposition |
+| AUDIT-GRAPH-001 — candidate effect-key formula omits logical request identity | P3 | [Sandbox workflow graph](nonshipping/workflow-graph-engineering.md); unpromoted | Awaiting disposition |
+| AUDIT-GRAPH-002 — candidate UNKNOWN retry exception conflicts with its invariant | P3 | [Sandbox workflow graph](nonshipping/workflow-graph-engineering.md); unpromoted | Awaiting disposition |
 
 Findings are recorded in the individual reports and deduplicated here as the audit proceeds. The [fleet roadmap](../../fleet-roadmap.md) remains the sole live backlog; this evidence packet does not authorize fixes or promotion.
 
 ## Disposition after the audit
 
-The human requester can now disposition the findings before repairs. Address the three P2 items first: preserve intervening Grafana edits during rollback; reconcile the exact GitHits grant with the actual installed provider; and correct the Pub/Sub causal inference. P3 work separates helper behavior, evaluation assertions, missing query guidance and version-specific instructions so each repair can use the smallest relevant regression check. Candidate-only graph changes require their own promote-or-retire decision; archived limitations require no active repair or restoration under this audit.
+The requester authorized findings 1–10 in ledger order, including all three P2 items; all ten are repaired and locally verified. The [repair follow-up](repairs-first-ten.md) records their changes and verification; findings 11–25 await disposition. P3 work separates helper behavior, evaluation assertions, missing query guidance and version-specific instructions so each repair can use the smallest relevant regression check. Candidate-only graph changes require their own promote-or-retire decision; archived limitations require no active repair or restoration under this audit.
 
 [unverified] Native provider grants, model routing/adherence, production APIs, telemetry delivery, cross-platform optional checks and external producer acceptance retain the limits documented per item. Passing structural gates and finite scratch reproductions do not close these gaps.

@@ -59,7 +59,9 @@ To persist theme before first paint, include this inline script and add its `sha
 
 ## Caching, rollout and verification
 
-HTML and `/config.json` revalidate (`no-cache`); hashed assets cache `immutable` for a year;
+HTML and `/config.json` revalidate (unqualified `no-cache`) or prevent storage (`no-store`);
+`max-age=0` alone is insufficient because shared-cache and stale-reuse directives can override freshness.
+Hashed assets cache `immutable` for a year;
 missing assets return uncached `404`. Retain prior chunks during rollout or handle
 `vite:preloadError` with bounded recovery that preserves unsaved input (never reload in a loop).
 

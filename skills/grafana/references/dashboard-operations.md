@@ -33,8 +33,9 @@ below does not apply to a review. Read-only results cannot verify write concurre
    Metric names, labels, folder uids, and data-source uids come from the target. On every create,
    apply the [team dashboard conventions](./dashboard-conventions.md).
 3. **For an edit, read the live model at its stored API version and export it.** The export is rollback content,
-   not a replayable request: a write advances the concurrency token, so rollback rebases the saved
-   spec onto a fresh read. Stop if the dashboard is provisioned or managed by another tool. A create
+   not a replayable request: retain the verified operation-written state too. Rollback first compares
+   a fresh read with that state and stops on intervening edits or missing comparison evidence,
+   then uses the fresh concurrency token as described in [HTTP API rollback](./http-api.md#rollback). Stop if the dashboard is provisioned or managed by another tool. A create
    has no prior model or concurrency token: choose its stable uid, name the human or protected
    executor who owns recovery if removal is needed, and author the requested model only.
 4. **Author only the requested change.** On an edit preserve unknown fields and the existing schema; use
