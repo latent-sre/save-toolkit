@@ -1,27 +1,28 @@
-# Operational learning skill audit — partial checkpoint
+# Operational learning skill audit
 
-[verified] Target: `skills/operational-learning/` at `8b4f9b785e520944319e04fd8e5018d4545b6800`. All five canonical files (384 lines) were read completely. The user requested a pause during source assessment; this report preserves the current position without extending the review.
+[verified] Target: `skills/operational-learning/` at `8b4f9b785e520944319e04fd8e5018d4545b6800`. Specification: partial; engineering quality: partial. No material source-contract finding confirmed. Static coverage supports the bounded documentation method; live host/model behavior and human approval remain unverified.
 
-## Status and provisional observations
+## Contract and findings
 
-**Incomplete: source reads complete; contract reconciliation, callers, projections and evaluation coverage remain pending.** No material finding has been validated at this checkpoint. That is not a no-findings verdict or acceptance of the item.
+[verified] The entrypoint separates ownership reads from closeout, forbids active-incident preparation, gates `prepared` on an actual authorized diff and caller-supplied checkout binding/status, and excludes pre-existing dirty paths. Policy fallback roots, outside-root rejection, source/API provisioning ownership, dispositions, retirement propagation, unresolved owners and follow-up persistence agree with the entrypoint. Review stamps require separately supplied review or exact-version execution evidence; a failing drill cannot verify its repair.
 
-[verified] The entrypoint distinguishes read-only ownership questions from documentation closeout. It requires a caller-supplied checkout/revision binding before `prepared`, retains dirty-path exclusions, reserves approval/review to the human process, and prohibits promoting operational content into fleet authority. The disposition policy separates proposed/blocked work from a prepared diff and provides bounded documentation roots. Templates link authoritative definitions rather than duplicate configuration or runbook commands.
+[verified] The templates' `sourced | unverified` card metadata/provenance examples do not override the explicit requirement to retain incoming verified observations. A document sourced to an observation does not itself become operationally verified. This provisional concern is not a finding. Scribe's tool/body constraints and mode selection preserve the same boundary; service-lifecycle supplies the checkout binding and receipts, and incident-investigation orders postmortem then knowledge closeout after resolution.
 
-[unverified] These observations have not yet been reconciled with all callers, actual tool limits or tests. One question to examine on resume is how the templates' `sourced | unverified` metadata/provenance choices interact with the entrypoint's requirement to preserve incoming `[verified]` labels. No contradiction or behavioral failure has been established; the distinction between a supplied verified observation and a documentation claim sourced to that observation may resolve it.
+## Requirement and evidence coverage
 
-## Remaining work on resume
+| Risk | Evidence | Result |
+|---|---|---|
+| Unapproved or unbound KB preparation | Entrypoint, policy and scribe body; existing closeout fixtures | [verified] Explicit boundary; no live execution assurance |
+| Duplicate configuration or evidence upgrade | All templates and policy; root's independent artifact/oracle review | [sourced] Bounded exact owner/contact, locator/version and claim-bound label checks |
+| Lost retirement or follow-up state | Policy event map/state transitions; lifecycle caller | [verified] Records retained, indexes updated, owner named; live removal outside scope |
+| Routing or host permission behavior | Three discovery fixtures and two build fixtures reviewed by coordinator | [sourced] Fixture intent only; no new live model run |
 
-- Complete source-contract assessment, including incoming evidence labels, disposition-state transitions, review/verification stamps, retirement propagation and unresolved-owner behavior.
-- Trace the scribe, lifecycle and incident closeout callers against the templates and policy.
-- Compare generated projections and check relative links.
-- Incorporate the coordinator's independent test/evaluation coverage and known roadmap dispositions.
-- Produce the final specification/engineering verdict, validated findings or an explicit no-findings conclusion, then check the completed report.
+[sourced] Coordinator read full `evals/oracles/researcher-scribe/probe_documents.py` (159 lines), including closeout 87–108 and alert closeout 109–149; bounded calibration `evals/test_researcher_scribe_cases.py` 304–435; full discovery owner-lookup/defers-retrospective/defers-fleet-failure fixtures and build-scribe-knowledge-closeout/build-scribe-alert-definition-closeout fixtures; bounded `scripts/test_validate_fleet.py` 409–561 and `scripts/test_skill_assets.py` 35–62. Oracle checks cover unchanged lifecycle/review/source revision, exact owner/contact, taint labels, source vs API identity, absent version and index ownership. Negative mutations include detached labels, wrong owner, prefix decoys and stale recovery/export revision. These are artifact checks, not proof of every prose, approval or target behavior.
 
-## Read and change manifest
+## Read and verification manifest
 
-[verified] Complete canonical reads: `skills/operational-learning/SKILL.md`; `references/disposition-policy.md`; `assets/service-card-template.md`; `assets/alert-card-template.md`; `assets/knowledge-index-template.md`. Shared trusted repository guidance from prior items remains applicable. No supporting test, caller or generated file was reviewed by this reviewer before the pause.
+[verified] Full canonical reads: `SKILL.md`, `references/disposition-policy.md`, `assets/service-card-template.md`, `assets/alert-card-template.md`, `assets/knowledge-index-template.md` (five files, 384 lines). Full supporting reads: `agents/scribe.md`, `skills/service-lifecycle/SKILL.md`. Bounded supporting reads: incident-investigation closeout/caller search; generated skill references and entrypoint comparison; trusted AGENTS/CONTRIBUTING guidance. Coordinator evidence above is attributed, not represented as this reviewer's full reads.
 
-[sourced] Coordinator support at the pause: full entrypoint; `evals/scenarios/discovery-operational-learning-{owner-lookup,defers-retrospective,defers-fleet-failure}.yaml`; `evals/build-scenarios/build-scribe-knowledge-closeout.yaml` and `build-scribe-alert-definition-closeout.yaml` read; bounded `scripts/test_validate_fleet.py` 409–561 and `scripts/test_skill_assets.py` 35–62. The coordinator located `probe_documents`'s `check_closeout` 87–108 and `check_alert_closeout` 109–149 but did not read their bodies. Final oracle reconciliation remains unfinished; no new finding was confirmed. Completed inventory is 27/42, while committed checkpoint `143cca77` contains 24/42; committing the paused state belongs to the coordinator.
+[verified] `/home/hawkfire/save-toolkit/.venv/bin/python /tmp/audit_bundle_check.py` exited 0: all relative bundle links resolve; all four supporting files equal `.github/skills/operational-learning/` copies byte for byte; canonical source diff against the target revision is empty. The coordinator independently compared the entrypoint too: it is byte-identical, so all five workspace files match. The coordinator's unchanged-source passing suite is reused; no new tests or live evals ran.
 
-[verified] This partial report is the only path changed by this item's work. No canonical source, test or configuration was edited; no test, model call, live operation, installation or repair ran. Operator-cli and pcf-deploy have not been started. Final audit validation remains pending; the coordinator owns the paused checkpoint.
+[verified] Only this report changed for this item. No canonical source, tests, configuration, production state, installation, commit, push or repair was performed. Remaining assurance: live loading, model adherence, target-specific evidence and human acceptance. No acceptance or promotion is implied.

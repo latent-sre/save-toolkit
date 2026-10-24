@@ -18,11 +18,9 @@ Each item is read in full together with its bundled files and relevant callers, 
 
 ## Progress
 
-Paused at the human requester's instruction after the `obs-traces` checkpoint: **27 of 42 items documented; 15 remain**. All ten canonical agents and the first seventeen canonical skill bundles are complete. Those skill bundles contain 114 fully inspected canonical files.
+Resumed on 2026-10-24 at the requester's instruction, with explicitly selected Sol review assistance. **33 of 42 items documented; 9 remain**. All ten canonical agents and 23 canonical skill bundles are complete; these bundles contain 137 fully inspected canonical files.
 
-Resume with the in-progress `operational-learning` audit, then the remaining pending rows in order. Its supporting oracle reconciliation is unfinished, so it is not included in the completed count. No subsequent item was started. The requester chose to finish the full audit before repairs; audited sources remain unchanged.
-
-Checkpoints `dabc3d3b` and `143cca77` preserve the earlier 19- and 24-report states. The earlier five repairs remain separately published in PR #419. Work is paused; continuation requires the requester's instruction.
+The next item is `python-craft`. Each item is documented and checked before proceeding. Repairs remain deferred until the audit is complete. Checkpoints `dabc3d3b`, `143cca77`, and `719f8af9` preserve the earlier 19-, 24-, and 27-report states. The earlier five repairs remain separately published in PR #419.
 
 ### Canonical agents
 
@@ -60,12 +58,12 @@ Checkpoints `dabc3d3b` and `143cca77` preserve the earlier 19- and 24-report sta
 | `obs-metrics` | [Complete](skills/obs-metrics.md); P3 AUDIT-METRICS-001 in assumed Grafana authentication path |
 | `obs-pipeline` | [Complete](skills/obs-pipeline.md); P3 AUDIT-PIPELINE-001/002 in eval criterion and Alloy validation guidance |
 | `obs-traces` | [Complete](skills/obs-traces.md); P3 AUDIT-TRACES-001 in eval attribute maturity |
-| `operational-learning` | [Partial checkpoint](skills/operational-learning.md); source reads saved, contract/oracle reconciliation unfinished |
-| `operator-cli` | Pending |
-| `pcf-deploy` | Pending |
-| `pcf-ops` | Pending |
-| `postmortem` | Pending |
-| `production-change-gate` | Pending |
+| `operational-learning` | [Complete](skills/operational-learning.md); no new finding; evidence and disposition contracts reconciled |
+| `operator-cli` | [Complete](skills/operator-cli.md); no new finding; bounded fault-injection oracle assessed |
+| `pcf-deploy` | [Complete](skills/pcf-deploy.md); shared AUDIT-PCF-001; other version claims qualified |
+| `pcf-ops` | [Complete](skills/pcf-ops.md); P3 AUDIT-PCF-001 in version-bound resize recipe; target runtime unverified |
+| `postmortem` | [Complete](skills/postmortem.md); no new finding; artifact checks distinguished from narrative quality |
+| `production-change-gate` | [Complete](skills/production-change-gate.md); P3 AUDIT-GATE-001 in approval-expiry calibration |
 | `python-craft` | Pending |
 | `resilience-analysis` | Pending |
 | `root-cause` | Pending |
@@ -104,5 +102,7 @@ Checkpoints `dabc3d3b` and `143cca77` preserve the earlier 19- and 24-report sta
 | AUDIT-PIPELINE-001 — naming eval retains a blanket no-plurals criterion | P3 | [Pipeline](skills/obs-pipeline.md) |
 | AUDIT-PIPELINE-002 — Alloy validation guidance misstates remote-import behavior | P3 | [Pipeline](skills/obs-pipeline.md); [observability engineer](agents/observability-engineer.md) |
 | AUDIT-TRACES-001 — semantics eval calls a Development attribute stable | P3 | [Traces](skills/obs-traces.md) |
+| AUDIT-PCF-001 — resize payload is rejected by the controller at its advertised minimum | P3 | [PCF operations](skills/pcf-ops.md); [deployment](skills/pcf-deploy.md) |
+| AUDIT-GATE-001 — approval calibration omits required validity evidence | P3 | [Production gate](skills/production-change-gate.md) |
 
 Findings are recorded in the individual reports and deduplicated here as the audit proceeds. The [fleet roadmap](../../fleet-roadmap.md) remains the sole live backlog; this evidence packet does not authorize fixes or promotion.
