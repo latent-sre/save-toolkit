@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `obs-alerting` references: 13,055 to 10,168 bytes. Remove repeated teaching and handoff
+  lists; retain paired-window AND, budget units, example-only thresholds, actual routing, Splunk
+  suppression, maintenance semantics and synthetic evidence boundaries. Calculator and alert-
+  predicate checks pass: 18 tests and 46 subtests. Local links and diff checks pass.
 - Review `akamai-edge` references: 18,765 to 15,687 bytes. Remove generic explanations and Sandbox-
   first policy; qualify debug-key format through the property schema. Retain timing attribution,
   sampling/delivery limits, token handling, activation/WAF authority and fallback/purge conditions.

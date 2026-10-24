@@ -1,25 +1,20 @@
 # Cisco ThousandEyes synthetics and network paths
 
-ThousandEyes distinguishes application, DNS, routing, and network-path symptoms from multiple
-vantage points. It locates evidence; a path difference or a correlated time is not a cause, and the
-parent skill's bar for asserting cause applies before any path is blamed.
+Use application, DNS, BGP and path evidence under the [parent causal and access boundaries](../SKILL.md).
+A changed path or matching timestamp alone establishes no cause.
 
 ## Reading results during an incident
 
-1. Bound the time and blast radius: failing agents and regions, healthy controls, test and target,
-   first and last timestamps, and whether the failure tracks an inside or an outside vantage point.
-2. Path Visualization locates new loss or latency by hop; the BGP view shows reachability and route
-   changes. Keep the healthy comparison and the collection cadence.
-3. Correlate the same timestamps with `cf app` health and events and the application logs for the
-   affected route or dependency. Say whether the app is healthy at the platform edge and whether
-   user-facing errors agree with the synthetic.
-4. Separate the observed layer from ownership: network evidence goes to the network or platform
-   team; a clean path with app errors stays in the application lane.
+- Bind test/agent IDs, target, first/last times and collection cadence; compare failing and healthy
+  regions/vantages, including inside versus outside.
+- Use Path Visualization for hop loss/latency and BGP for reachability/route changes. Preserve
+  healthy controls, hop/AS deltas and DNS observations.
+- Compare the same window with `cf app`, events and app logs for the route/dependency. Keep
+  platform-edge health separate from user-facing errors and synthetic results.
+- Send network evidence to network/platform owners; a clean path with app errors remains an app
+  investigation. Observed layer does not prove fault ownership.
 
-Hand incident evidence to the responder, or the `sre-assistant` slice they dispatched, with test and
-agent IDs, target, time range, failing and healthy vantages, hop or AS and loss or latency deltas, DNS
-and BGP observations, `cf app` and log excerpts, timestamps, blast radius, and every alternative that
-remains unverified.
+Return these observations, scope and unresolved alternatives to the responder or dispatched SRE helper.
 
 ## Designing checks
 
@@ -41,8 +36,7 @@ monitors (prefix, healthy control, escalation owner) beside this table when they
 
 ## Automation
 
-The current API guide documents `/v7/tests` and `/v7/agents`; verify account role,
-endpoint, schema, and target in the current developer reference before use. Keep only account-group
-labels and repository paths here, never tokens. Creating, updating, or deleting tests is a controlled
-external change for the `software-engineer` agent and a human release owner, not permission granted by
-this reference.
+For `/v7/tests` and `/v7/agents`, verify account role, endpoint/schema and target before use.
+Record account-group labels and repository paths, never tokens. Test creation/update/deletion is
+controlled external work for `software-engineer` and a human release owner; this reference grants
+no execution authority.
