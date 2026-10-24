@@ -8,6 +8,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Trim `operational-learning`'s disposition reference from 6,965 to 5,419 bytes, consolidating
+  repeated event/evidence rules while preserving record fields, checkout/approval boundaries and
+  durable follow-ups. Fleet and closeout artifact checks pass.
 - Reduce `toil-reduction`'s reference from 4,000 to 1,593 bytes: one cost comparison retains hidden
   maintenance, estimate uncertainty, useful-life limits and negative savings. Remove the interview
   script and guidance already in the skill. Reliability contracts pass: 23 tests and 220 subtests.
