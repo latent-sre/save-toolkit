@@ -25,19 +25,17 @@ records do not re-queue work.
 
 ### SKILLS-002 — clean skill references sequentially
 
-**Status:** `active` (2026-10-24); the owner selected all canonical references, one skill at a time
+**Status:** `ready` (2026-10-24); the owner selected all canonical references, one skill at a time
 and one commit per skill. The series starts from PR #427's observability cleanup.
 **Owner:** Current session prepares and verifies each skill; the human owner accepts the candidate.
 **Outcome:** Review all 104 references across 23 skill bundles. Remove generic explanations,
 duplication, unsupported team rules and stale claims while retaining operational details,
 established decisions, audited safeguards and meaningful verification. The four skills without
 reference files need no reference cleanup.
-**Next action:** Continue with `incident-investigation`; 22 of 23 reference-bearing skills are
-committed (80,959 reference bytes removed). Completed: `akamai-edge`, `api-craft`, `ci-actions`,
-`database-reliability`, `eng-ladder`, `frontend-craft`, `gcp-ops`, `grafana`, `obs-alerting`, `obs-
-analysis`, `obs-pipeline`, `operational-learning`, `pcf-deploy`, `pcf-ops`, `production-change-
-gate`, `python-craft`, `resilience-analysis`, `runbook`, `service-lifecycle`, `stack-profile`,
-`toil-reduction`, `agent-authoring`.
+**Next action:** Human review of the 23 per-skill commits on `work/skill-reference-cleanup`; decide
+acceptance and merge. All 104 original references were reviewed; one redundant reference was
+retired, with 85,724 canonical reference bytes removed. Existing native/runtime acceptance gaps
+remain unverified.
 Only necessary entrypoint links, tests and generated projections accompany a reference change.
 **Evidence:** [Existing agent/skill audit baseline](reviews/2026-10-23-agent-skill-audit/README.md);
 per-skill commits record the cleanup and verification, and [the changelog](../CHANGELOG.md) records progress.

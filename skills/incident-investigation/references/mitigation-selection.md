@@ -1,8 +1,8 @@
 # Mitigation selection
 
-Use for mitigation selection or readback of an attempted change.
-Prepare a recommendation for ITO's approval and the human release owner, with the approval
-packet below. This reference neither takes command nor executes a change.
+Recommend mitigation or reconcile an attempted change; the responder owns the investigation,
+ITO approves in the existing TLC, and the human release owner executes. This reference grants
+neither incident command nor execution authority.
 
 ## Contents
 
@@ -14,10 +14,6 @@ Suspected compromise, data integrity loss, or another security event is excluded
 and follow the human security incident owner's exact direction instead.
 
 ## Pick the fastest safe, reversible action
-
-Stopping user pain comes before root cause. Prefer an action that can be undone in seconds and make
-the decision explicit. The responder, advised by `incident-investigation`, recommends; `sre-assistant`
-reports evidence and stops; a human release owner executes.
 
 Start in Apps Manager: open the app from its foundation, org, and space, and match that identity to
 the approved packet. The human paths below are conditional navigation from the TAS 2.12 guide;
@@ -35,10 +31,10 @@ fast-path classification, not other confirmed already-live rollback options.
 
 | Situation | Mitigation | Human path | CLI or pipeline fallback — release owner confirms first |
 |---|---|---|---|
-| Errors begin at a bad deploy and the previously live app still exists | Remap the production route to the previous app | Inspect both apps' **Routes**, including hostname, domain, path, and current mappings; use the confirmed map/unmap controls | `cf map-route <previous-app> <domain> --hostname <app>` then `cf unmap-route <current-app> …`; first identify the live and previous apps, not assumed blue/green names |
+| Errors begin at a bad deploy and the previously live app still exists | Remap the production route to the previous app | Inspect both apps' **Routes**, including hostname, domain, path, and current mappings; use the confirmed map/unmap controls | `cf map-route <previous-app> <domain> --hostname <app>` then `cf unmap-route <current-app> …`; identify the live/previous apps without assuming blue/green names |
 | Bad deploy with revisions enabled | Revision rollback | Inspect **Revisions** and the last good row; use **Redeploy** only when the owner confirms it performs the intended rollback | `cf revisions <app>` — pick a row marked `deployable` — then `cf rollback <app> --version <n>`. Rollback redeploys that revision's droplet, environment variables, and start command as a NEW revision described `Rolled back to revision <n>`, so it also reverts any variable changed since `<n>` (including a mid-incident `set-env`); it does not touch service bindings, routes, or instance count |
 | Rolling or canary deployment is still in progress | Abort the active deployment | Have the release owner confirm the active deployment and its pipeline cancellation path; a revisions list alone does not prove deployment completion | `cf cancel-deployment <app>` only while active (a rollback in progress is itself an active deployment — cancelling it puts the bad droplet back); after completion use revision rollback. Cancellation does not revert variables or service bindings |
-| Instances are hung, wedged, or leaking with no recent change | Restart as a time-buying stopgap | Inspect the affected process/instance on **Overview**; use a per-instance restart control if the console exposes one — the console **Restart** is believed to be whole-app, which is unconfirmed, so otherwise ask the release owner for the per-instance path. Do not substitute **Restage** | `cf restart-app-instance <app> <i> --process <process-type>` for the affected instance (preferred when the remaining instances have serving headroom for the restarted instance's share, which keeps rule 2's held-back instance possible; a single-instance app or already-saturated survivors have no such headroom — then any restart is an outage for its duration and needs ITO's explicit approval, not a fast-path classification). `<i>` is the zero-based instance index: `cf app` counts from 0, and the console's instance table probably does too, which is unconfirmed — confirm which row "instance #3" means before restarting. Whole-app `cf restart <app>` stops every instance before starting any — downtime for the whole start-up window; every v8 CLI supports `--strategy rolling`, which rolls `web` only; state that blast radius in the packet. Confirm existing-droplet reuse and preserve or disposition diagnostic state under rule 2 |
+| Instances are hung, wedged, or leaking with no recent change | Restart as a time-buying stopgap | On **Overview**, confirm the affected process/instance and whether the control restarts one instance or the whole app; otherwise request the release owner's per-instance path. Do not substitute **Restage** | `cf restart-app-instance <app> <i> --process <process-type>` for the affected instance (preferred when the remaining instances have serving headroom for the restarted instance's share, which keeps rule 2's held-back instance possible; a single-instance app or already-saturated survivors have no such headroom — then any restart is an outage for its duration and needs ITO's explicit approval, not a fast-path classification). `<i>` is zero-based; confirm the console row's matching CLI index rather than assuming "instance #3" means index 3. Whole-app `cf restart <app>` stops every instance before starting any — downtime for the whole start-up window; every v8 CLI supports `--strategy rolling`, which rolls `web` only; state that blast radius in the packet. Confirm existing-droplet reuse and preserve or disposition diagnostic state under rule 2 |
 | Bad variable read only at process start | Revert and restart | Human executor uses **Settings** privately for the exact approved variable, then the confirmed restart path; carry no secret value into the incident packet | `cf set-env <app> KEY <old>` then `cf restart <app> --strategy rolling` (a plain restart stops every instance first — see the restart row); first confirm the consumer and package/droplet state |
 | Bad buildpack or staging-time configuration | Revert and restage through the full release gates | Human executor uses the approved configuration/pipeline path; a **Restage** control creates new staged bytes | `cf set-env <app> KEY <old>` then `cf restage <app>`; unknown consumer blocks the restart/restage choice |
 | Load or capacity saturation | Scale out | On **Overview**, select the affected process's **Scale** control and approved **Instances** count, if exposed | `cf scale <app> --process <process-type> -i <approved-count>`; preserve the selected process because the CLI defaults to `web` |
@@ -52,52 +48,45 @@ revision's description, not that the current revision number equals the target. 
 rollback is another rollback: redeploy the revision that was live before it, which stays in
 **Revisions** while its droplet is retained, or roll forward with a fix through the full gate.
 
-After any attempt, obtain timestamped state and affected-user readback from the human or an
-assigned `sre-assistant` read (rule 3). Readback is evidence, not the executor's receipt; reconcile
-uncertain outcomes under [Read back an interrupted attempt](#read-back-an-interrupted-attempt).
+After every attempt, obtain timestamped effective-state and affected-user readback from the human
+or a bounded `sre-assistant` read. Readback does not replace execution evidence; a receipt alone
+does not establish user recovery. Reconcile uncertainty
+under [Read back an interrupted attempt](#read-back-an-interrupted-attempt).
 
 ## Decision rules
 
 1. **Reversible first.** Prefer route remap or flag flip over a change that cannot be undone quickly.
-2. **Name the perishable evidence before the action destroys it.** Restart and restage discard
-   heap, thread, and connection state; scale-in discards the instance holding it; rollback
-   discards the running bad build. None of it is recoverable later, so the incident can end with
-   service restored and the cause permanently unprovable. State what the chosen action destroys,
-   then either capture it or record it as knowingly traded for speed with the deciding human
-   named. When the action is instance-scoped, holding one instance back unrestarted preserves
-   the evidence for the cost of one instance's recovery. A whole-app restart forecloses that choice.
-   Confirm serving headroom before any restart; unknown headroom blocks it.
-3. **One change at a time.** The responder, or another authorized human, watches the golden
-   signals for 1–2 minutes before the next action, so the response can attribute it. That
-   attribution pause is not the recovery criterion: recovery is the agreed user-outcome signal —
-   for example the 5xx rate by route — holding below its baseline over the agreed window, and one
-   green point or one quiet minute is not recovery. A
-   dispatched `sre-assistant` read covers the guarded read-only reads its contract allows —
-   instance state, events, recent logs, routes, and revisions — so the rollback and route rows'
-   readback can be dispatched to it; it never executes a change.
+2. **Disposition perishable evidence.** Restart/restage discard heap, thread and connection state;
+   scale-in removes the instance; rollback discards the running bad build. Capture affected evidence
+   or name the human deciding to forgo it. An instance-scoped restart can hold one instance back for
+   diagnosis; whole-app restart cannot. Confirm serving headroom; unknown headroom blocks restart.
+3. **One change at a time.** Have the responder or another authorized human watch the relevant
+   signals before the next action so its effect can be attributed. Recovery requires the agreed
+   user-outcome signal holding for its agreed window, not one green point or quiet minute.
+   `sre-assistant` may return permitted read-only instance state, events, recent logs, routes and
+   revisions; it never executes the change.
 4. **Restart is not root-cause closure.** If restart restores service, preserve the leak, poison
    input, or dependency hypothesis and continue investigation with the human on-call, advised by
    `incident-investigation`.
 5. **Record every decision and result using the parent skill's time rule** in the investigation board; prepare the technical
    update for the existing bridge/TLC.
-6. **Confirm before executing.** The packet names the exact target, change, command, blast radius,
-   verification window, rollback, human executor, and approving decider. It also records the
-   perishable diagnostic evidence captured or knowingly forgone — recorded, never gating. Missing
-   diagnostic capture does not delay the approved reversible mitigation; required target, artifact,
-   approval, and safety evidence still gates it. The `production-change-gate` incident fast path
-   remains the closed list of what blocks covered execution.
+6. **Bind the approval packet.** Name the exact target, artifact/configuration, change/command,
+   blast radius, verification window and stop criteria, rollback, human executor, monitoring owner,
+   and approving decider. Record diagnostics captured or knowingly forgone; unavailable capture
+   does not delay approved covered mitigation. Required target, artifact, approval and safety
+   evidence still gates it.
 
-The approval shape is the `production-change-gate` incident fast path: human confirmation of the
-exact command or a bounded envelope ITO approves in the TLC, blast radius, backout, and named
-decider. Other gate records reconcile after resolution and never delay a reversible mitigation.
-Shipping a new artifact, and every destructive or access-path action, remain on the full gate with
-required recovery evidence.
+`production-change-gate`'s incident fast path owns the closed list of execution blockers for a
+**declared incident**. ITO's TLC approval may cover an exact command or bounded envelope: retain
+its validity period/end condition and recheck target/action/actor/identity binding before each
+attempt. Reuse approval within that envelope; expiry, mismatch or an outside action needs new
+approval. Already-live rollback reuses its artifact records; deferred administrative records
+reconcile after resolution. New artifacts and destructive/access-path actions remain on the full
+gate with required recovery evidence.
 
-After mitigation, confirm user impact has ended but keep the incident open through the sustained
-recovery window. The human on-call continues root-cause work with `incident-investigation`
-(dispatching the typed `sre-assistant` agent for a bounded read-only slice), the human release
-owner owns any fix-forward execution, and the responder owns recovery evidence; `observability-engineer`
-owns detection changes after resolution.
+Keep the incident open through sustained recovery. The responder owns recovery evidence; the
+human on-call continues causal work, the human release owner executes fixes, and
+`observability-engineer` owns detection changes after resolution.
 
 ## Read back an interrupted attempt
 

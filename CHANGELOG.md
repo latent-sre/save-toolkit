@@ -8,6 +8,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `incident-investigation` references: 32,592 to 27,827 bytes. Remove repeated
+  intake/dialogue, fixed attribution timing and speculative console claims. Preserve ITO/TLC
+  ownership, bounded helpers, comparable evidence, artifact/headroom exclusions, approval reuse,
+  UNKNOWN reconciliation and sustained recovery. Incident grader/closing-field checks: 101 tests and
+  327 subtests pass; scenario validation: 381 specs and 2158 expectations. Independent source review
+  found no material issues.
 - Review `agent-authoring` references: 35,471 to 31,221 bytes. Retain tool grants, qualified
   delegation examples, isolation/taint, loop budgets and exact-revision human acceptance. Remove
   duplicate explanations, unconfirmed context arithmetic and speculative host enforcement; move the

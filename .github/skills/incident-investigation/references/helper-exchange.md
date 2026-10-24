@@ -1,9 +1,8 @@
 # Helper exchange
 
-Read before writing an `sre-assistant` assignment or reconciling its return. The parent skill owns
-human-facing advice and the board; the helper may interpret an assigned investigation but never
-coordinates the incident. The examples are fictional (September 14, 2026; source exports in UTC):
-their names and values are never defaults or incident facts.
+The parent skill owns advice and the board; `sre-assistant` owns only its assigned read-only
+question. Examples below are fictional (September 14, 2026; exports in UTC), never incident facts
+or defaults.
 
 ## Contents
 
@@ -12,8 +11,6 @@ their names and values are never defaults or incident facts.
 - [Bounded investigation](#example-a-bounded-investigation)
 
 ## Assignment and reconciliation rules
-
-Give the helper one compact assignment:
 
 - Name yourself as invoking caller and return recipient, and the human operational owner separately
   (or unknown). State the question or decision the result will inform.
@@ -30,36 +27,26 @@ Give the helper one compact assignment:
   limits; available commands or a cropped excerpt do not prove the historical question can be
   answered.
 
-Request useful early findings during an investigation only when the host can deliver interim
-updates to this caller. Otherwise ask for a partial return at the next useful boundary and dispatch
-the next bounded slice within the remaining task and budget. An acknowledgment or a running helper
-is not evidence of a result. Do not promise live progress on an unverified channel.
+Request interim findings only when the host can deliver them to this caller; otherwise request a
+partial return at a useful boundary, then dispatch within the remaining task/budget. A running
+helper or acknowledgment is not a result; do not promise progress on an unverified channel.
 
 Reconcile each return against its assignment and source evidence; preserve labels, taint and
 unknown times/state. Use supported findings, reject unsupported conclusions, and continue the parent
 task without making the human relay the packet or approve routine continuation. For a partial,
 blocked or unavailable helper, retain what was learned and use an accessible alternative or continue
 independent work; name the missing observation and owner when human access is needed. Helper
-completion neither closes the incident nor transfers coordination or change authority. If a helper
-overstates cause, coverage or current state, compare it with the examples below before adopting
-its claims.
+completion neither closes the incident nor transfers coordination or change authority.
 
 ## Example: before an assignment exists
 
-**Human:** "I would like to do a test drill with our new agents and skills. We have issues with Orders."
+“We have issues with Orders; let's run a drill” names no source or symptom. Keep intake with the
+advisor: ask for the simulated symptom/window or offer a labelled fictional scenario. A runbook or
+service card naming a dashboard permits a read for the reported window, in a drill or live incident.
 
-**Advisor:** "Let's treat this as a simulated incident. What is going wrong with Orders — errors,
-slowness, or something else — and when did it start? Are you providing the scenario, or would you
-like me to create a fictional one?"
-
-No helper is dispatched yet: nothing names a source to read. If the Orders runbook or service card
-listed a Grafana dashboard, the advisor would send the helper to read it for the reported window —
-in a drill as in a live incident.
-
-By contrast, "Read the selected exercise exports E1/E2 and compare crashes with the update" is a
-bounded assignment and can dispatch immediately. Unknown impact or human-owner identity need
-not block that read. Likewise, an authorized runbook step naming a dashboard, question and window
-can dispatch without another delegation approval.
+“Read selected exercise exports E1/E2 and compare crashes with the update” is bounded and can
+dispatch immediately. Unknown impact or human-owner identity need not block that read; an authorized
+runbook step naming a dashboard, question and window needs no extra delegation approval.
 
 ## Example: a bounded investigation
 
@@ -108,10 +95,9 @@ Follow-ups: Events access/owner unconfirmed; obtain missing timestamps and user-
   agree recovery criterion; owners/due times unknown.
 ```
 
-The advisor continues from the returned facts; Riley does not carry a message between agents.
-If another slice fits the existing task and remaining caller limits and the helper has access,
-the advisor dispatches it with its own named sources and completion condition. Otherwise the
-console request states exactly which evidence Riley can obtain.
+Dispatch a further slice only within the existing task, remaining limits and helper access, with
+named sources and completion evidence. Otherwise give Riley the exact console evidence request;
+do not make Riley relay packets between agents.
 
 For a **lookup** instead — “return E1's reported crash count and CPU; do not assess the cause” —
 the helper returns two crashes and 25% aggregate CPU, their labels and missing capture/crash times.
