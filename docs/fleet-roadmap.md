@@ -416,18 +416,18 @@ or an untimed aggregate for evidence of incident recovery or cause.
 
 **Status:** `deferred` (2026-10-16); CONTEXT-001 merged in. Consumer and producer repairs are
 verified and independently reviewed against fixtures; no real-service records exist to accept
-them against.
+them against. The owner removed the retirement-order and record-transition references on
+2026-10-24 because existing team processes cover that work; their acceptance campaign is dropped.
 **Owner:** Save Toolkit maintainers; `agent-engineer` owns consumer requirements and
 `software-engineer` owns producer/resolver implementation.
 **Outcome:** Explicit team, service, environment, and deployment selectors produce the smallest
 schema-valid context projection, failing closed on missing or ambiguous context and granting no
-authority. Change, remediation, refresh, and retirement each have an owner who keeps the service
-record current or visibly marks it stale.
+authority. Record maintenance and retirement remain with the team's existing processes.
 **Next action:** None. Reopens when the owner selects a critical service, environment and record
 repository. Then review and integrate the `sre-context` candidate `3433f98e` on
 `work/lifecycle-001-status-projection`, based on `be29c942` (seven unmerged prerequisite commits
 ahead of producer main `903ac830`), with this consumer, and verify navigation, freshness,
-ownership, and change/remediation/refresh/retirement readback on that service. Fixture-only
+and ownership on that service. Fixture-only
 resolution grants no live authority; catalog dates do not establish `last_verified`. The candidate
 was committed on 2026-09-30; rebase it onto producer main and rerun its tests before review.
 **Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md),

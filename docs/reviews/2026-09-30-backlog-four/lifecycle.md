@@ -5,6 +5,12 @@ This evidence is retained for the open [LIFECYCLE-001](../../fleet-roadmap.md#li
 and CONTEXT-001 acceptance decisions. **Partial implementation and fixture verification; no
 real-service acceptance or promotion.**
 
+[sourced] Owner disposition, 2026-10-24: retirement sequencing and record transitions use the
+team's existing processes. Their bundled references and transition-reference test were removed;
+the historical guidance remains in Git at `6bd9f7da`. The producer compatibility evidence below
+remains relevant to the optional context consumer; the four-transition acceptance campaign is
+no longer planned.
+
 ## Change and reason
 
 [verified] The original service-lifecycle entrypoint covered onboarding and retirement handoffs but
@@ -13,13 +19,13 @@ declared `v1alpha2` forbidden paths and `P30D`. Producer inspection additionally
 and ownership metadata were discarded from its projection; repairing that shared output requires
 a new immutable resolved schema, not a skill-local lifecycle schema.
 
-The [conditional record guidance](../../../skills/service-lifecycle/references/record-transitions.md)
-now assigns all four transitions, keeps accountability with the service/finding owner until
-reviewed readback, and distinguishes catalog freshness, document review, and execution verification.
-It requires visibly stale or pending claims after changes, failed remediation, document-only refresh,
-and unresolved retirement transfers. It preserves existing `scribe`, review, and production gates.
-The entrypoint grows by 400 UTF-8 bytes (8,623 to 9,023); the conditional reference adds 6,393 bytes.
-The detail is loaded only for transitions or freshness-sensitive lookup.
+The then-current `record-transitions.md` assigned all four transitions, kept accountability with
+the service/finding owner until reviewed readback, and distinguished catalog freshness, document
+review, and execution verification. It required visibly stale or pending claims after changes,
+failed remediation, document-only refresh, and unresolved retirement transfers, preserving the
+existing `scribe`, review, and production gates. The entrypoint grew by 400 UTF-8 bytes
+(8,623 to 9,023); the conditional reference added 6,393 bytes, loaded only for transitions or
+freshness-sensitive lookup.
 
 ## Fresh verification
 

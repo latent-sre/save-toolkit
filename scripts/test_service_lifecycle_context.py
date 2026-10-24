@@ -26,16 +26,6 @@ PRODUCER = os.environ.get("SRE_CONTEXT_ROOT")
 
 
 class LifecycleContractTests(unittest.TestCase):
-    def test_transition_guidance_is_reachable_and_has_each_owner(self) -> None:
-        reference = "./references/record-transitions.md"
-        self.assertIn(reference, (SKILL / "SKILL.md").read_text(encoding="utf-8"))
-        text = (SKILL / reference).read_text(encoding="utf-8")
-        for transition in ("Change", "Remediation", "Refresh", "Retirement"):
-            row = next(line for line in text.splitlines() if line.startswith(f"| {transition} |"))
-            cells = [cell.strip() for cell in row.strip("|").split("|")]
-            self.assertEqual(len(cells), 4)
-            self.assertTrue(all(cells), transition)
-
     def test_deployment_freshness_is_bounded_without_becoming_mandatory(self) -> None:
         spec = yaml.safe_load((SKILL / "context-requirements.yaml").read_text(encoding="utf-8"))["spec"]
         self.assertIn("/target/deployment", spec["optional"])

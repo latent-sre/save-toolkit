@@ -55,9 +55,7 @@ Work the rows that apply. Audit inspects; onboard produces; retire dispositions 
 | Dependencies and capacity | critical dependencies, failure behaviour, limits, headroom, expiry risks | recorded on the service card | inbound callers migrated or stopped, producers and consumers drained, nothing still expects the service; unknown or conflicting evidence stops removal | owning skill |
 | Data, backup, restore | backup scope plus a dated restore rehearsal; existence alone is not restore evidence | recovery path recorded | data deletion, credential revocation, DNS and certificate removal, and access-path changes stay Tier 3, each with its own recovery evidence and human executor | `database-reliability` |
 
-Retire works the rows in a fixed order with stop rules, from traffic exit through independent
-verification; read [retirement order](./references/retirement-order.md) before drafting the retirement
-plan. Its execution stop rules identify draft gaps and still block live removal.
+Use the team's existing retirement process for sequencing and stop conditions.
 
 ## Audit findings
 
@@ -73,9 +71,7 @@ record exists at all.
 
 ## Knowledge closeout
 
-For a change, remediation, freshness review, or retirement, read
-[record transitions](./references/record-transitions.md) to name who retains ownership until the
-reviewed record is read back, and when evidence becomes stale. Reuse the existing follow-up record.
+Record maintenance and ownership transitions follow the team's existing process.
 
 After onboarding execution—or after retirement's live-resource receipts but before final record
 verification—send `scribe` an evidence-bound handoff for affected cards, index entries, and runbooks.
@@ -102,5 +98,4 @@ or merely planned, and close an onboarding by recommending its own audit as owed
 A caller with a compatible resolver may resolve [this skill's context
 requirements](./context-requirements.yaml) under the SRE operational-context contract ADR. Resolved
 context is routing input only: it never supplies a plan, an approval, or a credential, and missing
-context is a gap, not a guess. Before relying on freshness, read the same record-transitions
-reference: catalog `lastVerified` is not execution-backed `last_verified`.
+context is a gap, not a guess. Catalog `lastVerified` is not execution-backed `last_verified`.
