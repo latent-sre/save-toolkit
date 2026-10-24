@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Trim all seven `api-craft` references from 23,127 to 19,916 bytes. Remove repeated contract
+  checklists and framework release chronology while retaining authentication, upstream validation,
+  retry/recovery, concurrency, lifecycle and schema-consumer boundaries. Gate A and 61 API oracle
+  regression tests pass; native model compliance remains unmeasured.
 - Remove unconfirmed observability team mandates for dashboard naming, folders, variables,
   refresh, ingestion ownership, and instrumentation selection. Burn-rate thresholds and Splunk
   lookup wiring are examples; target conventions and reviewed service rules determine the choice.

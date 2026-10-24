@@ -7,29 +7,24 @@ Read FastAPI, Pydantic, Starlette and Python versions from manifests/lockfiles.
 - A returned `Response` bypasses validation/serialization: enforce its contract explicitly.
 - Put authentication dependencies on protected routers and authorize objects/collections using
   the trusted caller. Authentication setup alone protects no route.
-- Use `lifespan=` to own shared clients/pools on `app.state`; close them after `yield`.
-  `on_event` handlers do not run with `lifespan`. Avoid `FastAPI(root_path=...)` (deprecated in
-  0.146+; configure the server `--root-path` instead).
+- Shared clients/pools belong to `lifespan=` on `app.state`, closed after `yield`;
+  `on_event` handlers do not run with `lifespan`. Configure proxy root paths through the server's
+  supported `--root-path` option.
 - Map failures to the service's error contract. For RFC 9457, cover Starlette's `HTTPException`
   (including router 404/405), `RequestValidationError` and unexpected exceptions; redact internal details.
 - Keep correlation and browser/host middleware streaming-compatible; avoid buffering whole responses.
-- FastAPI 0.132+ requires JSON `Content-Type` for JSON parsing. For a webhook sender that omits it,
-  isolate `APIRouter(strict_content_type=False)` to that endpoint and validate the body explicitly.
-- Form and default handling changed release by release: omitted boolean `Form` fields become
-  `False` (0.147+), omitted defaults skip validation unless `validate_default=True` (0.148+), empty
-  scalar `Form` values count as missing (0.149+), and unselected `File` inputs count as missing
-  (0.150+). Check the pinned version before relying on each.
-- For JSON Lines on FastAPI 0.134+, `yield` items from a handler annotated with
-  `AsyncIterable[Item]` or `Iterable[Item]`. For SSE on FastAPI 0.135+, add
-  `response_class=EventSourceResponse` (`fastapi.sse`, with `ServerSentEvent` when setting `event`,
-  `id`, `retry`, `comment` or `raw_data`); it sends keep-alive comments after 15 s silence and sets
-  `Cache-Control: no-cache` and `X-Accel-Buffering: no`. Verify buffering, reconnects and event
-  types through the actual proxy/client chain; headers alone do not establish streaming delivery.
+- Where strict JSON content-type checks are enabled, a sender omitting the header needs an
+  endpoint-scoped exception (`APIRouter(strict_content_type=False)` when supported) and explicit
+  body validation; do not relax unrelated routes.
+- Form/file missing-value normalization and default validation depend on the pinned versions.
+  Test omitted booleans, empty scalar forms, unselected files and invalid defaults on upgrades.
+- Use native typed JSONL/SSE support when the pinned framework and client support it. Verify
+  buffering, reconnects and event types through the actual proxy/client chain; response headers
+  alone do not establish streaming delivery. Check the generated schema under [OpenAPI](./openapi.md).
 
 ## Concurrency and data
 
-- Awaitable libraries use `async def`; blocking libraries use plain `def` routes/dependencies
-  in the thread pool. Blocking inside `async def` stalls the worker.
+- Keep blocking library calls off the event loop; plain `def` routes/dependencies use the thread pool.
 - SQLAlchemy: one `AsyncSession` per request/task with `expire_on_commit=False`; load serialization
   data before returning. Implicit lazy loading or post-commit attribute refresh at response time
   fails (`MissingGreenlet`).
@@ -42,7 +37,6 @@ Read FastAPI, Pydantic, Starlette and Python versions from manifests/lockfiles.
 - `with TestClient(app) as client:` runs lifespan; bare `TestClient(app)` does not.
   HTTPX `ASGITransport` also skips it: use `asgi_lifespan.LifespanManager`.
   Assert startup and cleanup.
-- Persistence changes use a disposable real datastore.
 - For in-process [OpenAPI checks](./openapi.md), use
   `schemathesis.openapi.from_asgi(schema_path, app)` with the service's actual schema URL path, or
   `schemathesis.openapi.from_dict(app.openapi())` with `case.call_and_validate(app=app)` inside

@@ -1,7 +1,5 @@
 # API writes
 
-Use for retryable or concurrent writes; preserve the project's contract, datastore and auth.
-
 ## Choose the contract
 
 - Choose native idempotence, client-chosen resource IDs, atomic preconditions or a replay key
@@ -10,15 +8,13 @@ Use for retryable or concurrent writes; preserve the project's contract, datasto
 
 ## When recording replay keys
 
-- Document missing-key, conflicting-intent and in-progress responses; choose statuses, retry
-  hints and error shapes with consumers. A state conflict is distinct from schema validation.
-  Never replace or replay a conflicting result.
+- Define missing-key, conflicting-intent and in-progress responses with consumers; never replace
+  or replay a conflicting result. State conflicts are distinct from schema validation.
 - Scope keys by authenticated caller/tenant and operation. Fingerprint normalized, validated
   payload, target and API version.
-- Replay the committed identity and documented status, body and headers, including any agreed
-  replay indicator. Pending work waits a bounded time or returns in-progress, never completion
-  before commit. Store business data, not credentials,
-  cookies or per-attempt trace headers.
+- Replay the committed identity, status, body and agreed headers. Bound pending waits or return
+  in-progress; never claim completion before commit. Store business data, not credentials, cookies
+  or per-attempt trace headers.
 - Publish key retention and post-expiry reconciliation. Keep durable business uniqueness beyond
   that window; never expire unresolved work into permission to run again.
 - For local mutations, claim a unique scoped key in the database and commit or roll back the
@@ -39,20 +35,17 @@ Use for retryable or concurrent writes; preserve the project's contract, datasto
 
 ## Verify the boundary
 
-Test the chosen write contract with the project's native tests. Inspect authoritative effects
-and stored business state independently of receipt/response caches; matching IDs alone miss
-corruption.
+Inspect authoritative effects and stored business state independently of receipt/response caches;
+matching IDs alone miss corruption.
 
-Cover duplicates and authorization-scope isolation; for recorded replay, include conflicting
-payloads and the promised response. An idempotent `PUT` or natural-key upsert needs a duplicate-request
-test; where duplicates/lost responses have a business effect, also test crashes on both sides of
-commit:
+Test duplicates (including idempotent `PUT`/upsert), authorization isolation, replay conflicts and
+the promised replay response.
+Where duplicates/lost responses affect business state, test both sides of commit:
 
 - Make the second request reach server arbitration before the first commits.
 - Prove the failpoint ran and the killed worker exited; overlapping calls or caught exceptions
   prove neither.
-- Restart workers/clients against the same storage, with bounded waits and disposable targets.
+- Restart against the same disposable storage with bounded waits.
 - Add applicable expiry, revoked-authorization and stale-update cases.
 
-Offline controls establish assertion behaviour; application tests must establish database
-concurrency and recovery.
+Offline controls do not establish database concurrency or recovery.

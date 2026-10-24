@@ -2,8 +2,6 @@
 
 Use the repository's durable-work system; load `stack-profile` before choosing another.
 
-- **Acceptance:** follow the producer/consumer acknowledgement contract. HTTP `202` with a
-  status resource is one pattern for long-running work. Acceptance is not completion.
 - **Work owed after acknowledgement:** persist pending work atomically with the state that
   creates the obligation; workers resume it at startup and while running. `BackgroundTasks` and
   in-memory threads die with the process, and an acknowledged sender cannot be relied on to
@@ -22,7 +20,7 @@ Use the repository's durable-work system; load `stack-profile` before choosing a
   effects follow API-write recovery. Verify queue persistence, acknowledgement and worker-loss
   settings: Celery `acks_late` alone acknowledges worker-process death; redelivery requires
   `task_reject_on_worker_lost`, which can loop on a message that kills workers.
-- **Failures:** bound execution/retries with backoff and jitter. Persist each batch item's outcome,
+- **Failures:** bound execution/retries. Persist each batch item's outcome,
   retry eligible failures with stable identities, and reconcile UNKNOWN effects. Never acknowledge
   a partly failed batch as complete. Permanent failures need durable failed/dead-letter state,
   redacted cause and operator disposition. Fix the cause and check prior effects before redrive;
@@ -33,9 +31,7 @@ Use the repository's durable-work system; load `stack-profile` before choosing a
   idempotent under one scheduler. Reuse coordination and fence stale lease owners at the write
   boundary during takeover.
 
-Verify applicable boundaries against the configured persistent work store and, where used,
-queue (mocks establish only handler behaviour): crash after acceptance/before execution and restart
-resumes to one effect; broker crash windows (after business commit, after publish, after consumer
-commit) and unroutable/rejected publishes stay recoverable without false `sent` state; partly failed
-batches preserve deduplication, per-item outcomes and dead-letter disposition; shutdown and
-expired-lease takeover fence stale owners from committing.
+Use the configured persistent store/queue, not handler mocks, to check: restart after acceptance
+but before execution; crashes after business commit, publish and consumer commit; rejected/unroutable
+dispatch; partly failed batches; shutdown and expired-lease takeover. Verify one effect, recoverable
+work, honest sent/completion state, retained deduplication/outcomes and stale-writer fencing.

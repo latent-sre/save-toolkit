@@ -10,16 +10,14 @@ Read versions from `go.mod`; `http.CrossOriginProtection` needs Go 1.25+.
 - Use `signal.NotifyContext` and deadline-bounded `srv.Shutdown` within the host's grace period.
 - Enforce authentication, object permissions and browser/host protections across the real chain,
   including routes outside framework middleware.
-- PostgreSQL: `pgx`/`pgxpool` is an option; bound pool connections and propagate cancellation.
-  Cancellation can close the underlying connection.
+- With PostgreSQL `pgx`/`pgxpool`, cancellation can close the underlying connection; propagate it
+  and bound pool connections.
 - SQL Server: `github.com/microsoft/go-mssqldb` needs no ODBC. Configure encryption and certificate
   validation explicitly. With `database/sql`, bound open/idle connections and connection lifetime.
   `sqlc` supports PostgreSQL, not SQL Server.
 
 ## When using Huma
 
-- `humago` integrates with `http.ServeMux`. Match the selected API contract: stable operation IDs,
-  paths, security declarations and returned error statuses.
 - To omit default `$schema`/`Link` additions, remove the schema-link create hook
   (`config.CreateHooks = nil` for an otherwise unmodified `huma.DefaultConfig`).
 - Huma already uses RFC 9457 errors. Override `huma.NewError` only for a custom contract, before
@@ -29,7 +27,7 @@ Read versions from `go.mod`; `http.CrossOriginProtection` needs Go 1.25+.
   chosen media type.
 - Inputs/outputs use structs with `path:`, `query:`, `header:` tags and `Body` (non-body parameter
   fields cannot be pointers; Huma panics at registration).
-  Validation tags drive schema and validation. Put cross-field checks and required
+  Put cross-field checks and required
   present-but-empty query rejection in `Resolve(huma.Context) []error` (or
   `Resolve(huma.Context, *huma.PathBuffer) []error` on reusable nested types); Huma treats empty
   query values as absent.
@@ -41,11 +39,11 @@ Read versions from `go.mod`; `http.CrossOriginProtection` needs Go 1.25+.
 
 ## Verification
 
-Use `httptest` against the full handler chain; test changed lifecycle behavior.
+Use `httptest` against the full handler chain; test lifecycle changes. Prove header-read timeouts
+against the serving listener with an incomplete request, not by finding a field in source.
 `go-craft` owns language checks.
 
-For [OpenAPI checks](./openapi.md), Schemathesis can run against an `httptest` server.
-`PYTHONUTF8=1` avoids Windows pipe decoding mismatches. Required CI checks must fail when their
-tooling is unavailable.
+For Schemathesis [OpenAPI checks](./openapi.md) against `httptest`, `PYTHONUTF8=1` avoids Windows
+pipe decoding mismatches. Missing required tooling must fail CI.
 `humatest.New(t, config)` accepts configuration but creates a test router. `humatest.Wrap(t, api)`
 exercises the existing adapter/router; separately test outer middleware with the full handler.
