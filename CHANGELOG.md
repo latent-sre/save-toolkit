@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `production-change-gate` references: 13,421 to 11,446 bytes. Remove repeated checklist
+  narration; preserve approval, recovery, UNKNOWN and immutable tested-byte requirements. Additional
+  tag rules follow actual repository policy. Gate contract checks pass: 3 tests and 64 subtests; the
+  updated release-evidence contract also passes. Independent source review found no material issues.
 - Reduce `resilience-analysis` references from 10,848 to 6,133 bytes. Consolidate repeated examples
   into one slow-dependency contrast, retaining effective-timeout, admission, slot-release and
   recovery evidence. Reliability contracts pass: 23 tests and 220 subtests.

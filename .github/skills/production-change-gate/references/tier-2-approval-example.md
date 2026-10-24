@@ -1,10 +1,8 @@
 # Tier 2 approval example
 
-Read only when the caller explicitly asks for a worked example/template or is preparing a Tier 2/3
-approval-request packet. Never load this file merely to evaluate an already-prepared real change
-packet. The parent `SKILL.md` owns classification, blockers, the verdict, and execution authority.
-This example is a shape only, not evidence from a foundation and not approval for any real
-action. All observations, limits, and thresholds below are fictional, not defaults.
+Use only for a requested template or Tier 2/3 approval packet, not to evaluate an existing packet.
+The [parent gate](../SKILL.md) owns classification, blockers, verdict and authority. Every observation,
+limit and threshold here is fictional: this is neither foundation evidence nor real approval.
 
 > **Requesting approval for a human release owner to apply a Tier 2 change.** No declared incident,
 > so the full production checklist applies.
@@ -14,7 +12,6 @@ action. All observations, limits, and thresholds below are fictional, not defaul
 > limit and queued requests grew; 502s reached 2% and request p95 reached 600 ms. Sampled downstream
 > calls held p95 at 100 ms, and the dependency owner confirmed tested throughput headroom for six
 > app instances. This supports app capacity as a mitigation target; 502s alone would not.
-> **Change**: scale from 4 -> 6 instances to absorb the 502 burst while the root cause is investigated.
 > **Exact command**: Apps Manager -> the `order-router` app's **Overview** page -> **Scale**, instances
 > 4 -> 6 (`cf scale order-router -i 6` where the CLI is installed).
 > **Valid until**: `<UTC>` — after this deadline the change re-enters approval.
@@ -36,10 +33,8 @@ action. All observations, limits, and thresholds below are fictional, not defaul
 > **Timing/comms**: outside the market-open peak and any freeze; on-call and the owning team are
 > told before and after.
 >
-> This is Tier 2 (reversible live change), so a human release owner needs explicit approval for this
-> specific apply. Immediately before execution, that owner rechecks the target, command, actor, and
-> current configuration identity against the approval. After the attempt, the owner returns an
-> `executed`, `not executed`, or `UNKNOWN` receipt.
-> I do not apply live changes. A read-only readback I run after the attempt is evidence for the
-> reconciliation owner, who alone resolves `UNKNOWN` and grants any retry.
-> Meanwhile I'll continue the Tier 0 investigation of what changed, which needs no approval.
+> **Execution**: the human release owner needs explicit approval for this apply and rechecks target,
+> command, actor and configuration identity immediately before it. The owner returns an `executed`,
+> `not executed`, or `UNKNOWN` receipt. The agent never applies the change; its authorized readback
+> only informs the reconciliation owner, who resolves UNKNOWN and grants any retry.
+> Authorized Tier 0 investigation may continue.
