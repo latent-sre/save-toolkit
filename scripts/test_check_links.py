@@ -329,6 +329,25 @@ class LinkCheckerTests(Fixture):
         )
         self.assertEqual([], [item for item in check_links.check(self.root) if "anchor" in item])
 
+    def test_shorter_or_nonclosing_fences_do_not_expose_code_headings(self):
+        for opening, embedded, closing in (
+            ("````spl", "```SPL comment```", "`````"),
+            ("````spl", "```", "````"),
+            ("~~~text", "```", "~~~~"),
+            ("```text", "```not-a-closing-fence", "```"),
+        ):
+            with self.subTest(opening=opening, embedded=embedded):
+                self.write("docs/target.md", f"# Target\n{opening}\n{embedded}\n"
+                           f"## Hidden code heading\n{closing}\n## Visible heading\n")
+                self.write("docs/source.md", "# Source\n[valid](target.md#visible-heading) "
+                           "[invalid](target.md#hidden-code-heading)\n")
+                failures = [item for item in check_links.check(self.root) if "dead anchor" in item]
+                self.assertEqual(["docs/source.md: dead anchor 'target.md#hidden-code-heading'"], failures)
+
+    def test_overall_spl_heading_remains_visible_after_spl_comments(self):
+        self.assertIn("overall-deploy-error-rate", check_links._heading_anchors(
+            ROOT / "skills/obs-logs/references/spl.md"))
+
     def test_unrendered_and_miscased_anchors_are_rejected(self):
         self.write(
             "docs/target.md",

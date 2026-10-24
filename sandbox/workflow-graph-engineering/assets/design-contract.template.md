@@ -84,7 +84,7 @@ Conclusion: <what the graph is for, its riskiest edge, what remains unresolved>.
 
 ## 9. Effects: idempotency, receipt, retention, `UNKNOWN`, reconciliation, compensation
 
-| Effect node | Operation / target / tenant | Key construction | Attempt identity | Mismatched-intent rejection | Receipt store and atomic coupling | Retention | `UNKNOWN` handling | Reconciliation query and owner | Compensation |
+| Effect node | Operation / target / tenant | Persisted logical request ID and key construction | Separate attempt identity | Immutable payload digest binding and mismatch rejection | Receipt store and atomic coupling | Retention | `UNKNOWN` handling | Reconciliation query and owner | Compensation |
 |---|---|---|---|---|---|---|---|---|---|
 
 ## 10. Approval, durability, resume, cancellation, supersession, restart, replay/fork, compatibility
@@ -93,6 +93,8 @@ Conclusion: <what the graph is for, its riskiest edge, what remains unresolved>.
 |---|---|
 | Approval binding (approver, action, target, candidate identity, expiry, rejection, timeout, resumed-state check) | |
 | Run / thread / checkpoint identity | |
+| Logical request ID allocation, pre-dispatch persistence and retry/replay continuity | |
+| UNKNOWN recovery | No automatic redispatch while unresolved, even with native dedupe; reconcile to success or definitive non-application before bounded retry |
 | State and checkpoint schema version | |
 | Durability mode and checkpoint boundary | |
 | Recovery model (checkpoint resume or event-history replay) | |

@@ -688,8 +688,14 @@ def parse_args(argv):
         raise reader.SafeError('output_required')
     if args.command == 'open-report' and args.open_vscode:
         raise reader.SafeError('invalid_arguments')
-    if args.output_dir and (args.output_dir.exists() or args.output_dir.is_symlink()):
-        raise reader.SafeError('output_directory_exists')
+    if args.output_dir:
+        if args.output_dir.exists() or args.output_dir.is_symlink():
+            raise reader.SafeError('output_directory_exists')
+        # Match capture readback's no-indirection policy before collection or creation.
+        for parent in args.output_dir.absolute().parents:
+            if parent.is_symlink() or (parent.exists() and (
+                    not parent.is_dir() or getattr(parent.lstat(), 'st_file_attributes', 0) & 0x400)):
+                raise reader.SafeError('output_directory_unavailable')
     return args
 
 
@@ -769,6 +775,13 @@ def _prepare_response(args, execution, destination, environ):
                       ['--package-dir', str(evidence_path)])
             result['recovery'] = {'arguments': ['inspect', *source, '--agent-json'],
                                   'selection': 'Follow evidence_ref with --pointer; page with --offset and --limit.'}
+    if client is not None:
+        recovery = result.get('recovery')
+        if recovery and client.mask(recovery['arguments']) != recovery['arguments']:
+            recovery.pop('arguments')
+            recovery['error'] = 'recovery_arguments_masked'
+        # Recovery metadata is part of the same model-facing credential boundary.
+        result = client.mask(result)
     return result
 
 

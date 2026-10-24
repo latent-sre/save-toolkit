@@ -35,6 +35,6 @@ graders:
   - type: regex
     pattern: '\b200\b'
   - type: not_regex
-    pattern: '(?im)^(?:(?!never|do not|don.t|must not|not )[^\n])*?(?:use|set|switch to|retry with|send|change to)\s+`?overwrite'':?\s*[:=]\s*`?true'
+    pattern: '(?im)^(?:(?!never|do not|don.t|must not|not )[^\n])*?(?:use|set|switch to|retry with|send|change to)\s+[`"'']?overwrite[`"'']?\s*[:=]\s*`?true'
   - type: not_regex
     pattern: '(?im)^\s*C[:.].*overwrite\s*[:=]\s*true'

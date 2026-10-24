@@ -525,6 +525,19 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertNotIn("save-toolkit:pcf-deploy", workspace)
         self.assertIn("/pcf-deploy", workspace)
 
+    def test_platform_authoring_references_preserve_the_original_host_syntax(self) -> None:
+        outputs = adapters.expected_outputs(ROOT)
+        for name, example in (
+            ("claude-code-frontmatter.md", "Agent(save-toolkit:reviewer, save-toolkit:scribe)"),
+            ("copilot-frontmatter.md", "Agent(save-toolkit:reviewer)"),
+        ):
+            relative = Path("agent-authoring/references") / name
+            with self.subTest(reference=name):
+                source = (ROOT / "skills" / relative).read_text(encoding="utf-8")
+                projected = outputs[adapters.COPILOT_SKILLS / relative].decode("utf-8")
+                self.assertIn(example, projected)
+                self.assertEqual(source, projected)
+
     def test_each_platform_manifest_is_required(self) -> None:
         manifests = (
             Path(".claude-plugin/plugin.json"),

@@ -150,3 +150,22 @@ test("an abort during the wait rejects with the abort reason and sends nothing m
   );
   assert.equal(s.calls.length, 1);
 });
+
+test("invalid attempt counts are refused before sending or waiting", async () => {
+  for (const maxAttempts of [NaN, Infinity, -Infinity, 1.5, 0, -1, Number.MAX_SAFE_INTEGER + 1]) {
+    const s = server(inFlight("0"), inFlight("0"), ok);
+    await assert.rejects(sendIdempotent("/v1/orders", { method: "POST" }, "invalid-count", { ...s, maxAttempts }), RangeError);
+    assert.equal(s.calls.length, 0);
+    assert.deepEqual(s.waits, []);
+  }
+});
+
+test("default and single-attempt bounds return the final pending response", async () => {
+  for (const maxAttempts of [undefined, 1]) {
+    const s = server(...Array.from({ length: 6 }, () => inFlight("0")));
+    const response = await sendIdempotent("/v1/orders", { method: "POST" }, "bounded", { ...s, maxAttempts });
+    assert.equal(response.status, 409);
+    assert.equal(s.calls.length, maxAttempts ?? 5);
+    assert.equal(s.waits.length, (maxAttempts ?? 5) - 1);
+  }
+});

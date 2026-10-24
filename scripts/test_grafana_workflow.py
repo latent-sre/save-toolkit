@@ -561,3 +561,51 @@ def test_agent_grammar_rejects_ambiguous_flags_and_capture_paths(arguments):
     workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
     output = io.StringIO()
     assert workflow.main(arguments, environ={}, transport=HTTP(), output=output) == 2
+
+
+@pytest.mark.parametrize('destination_kind', ['path', 'capture_id', 'safe_capture_id'])
+def test_truncated_authenticated_output_omits_masked_recovery(tmp_path, monkeypatch, destination_kind):
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    username = 'synthetic-user'
+    http = HTTP(sample_panel(title='x' * 600000))
+    monkeypatch.setattr(workflow, '_capture_path', lambda identifier, **kwargs: tmp_path / identifier)
+    destination = (['--output-dir', str(tmp_path / username)] if destination_kind == 'path' else
+                   ['--capture-id', 'saved' if destination_kind == 'safe_capture_id' else username])
+    output = io.StringIO()
+    code = workflow.main(['plan', '--uid', 'board', '--from', '1000', '--to', '2000',
+                          *destination, '--agent-json'],
+                         environ={'GRAFANA_URL': 'https://example.test', 'GRAFANA_ORG_ID': '1',
+                                  'GRAFANA_USERNAME': username, 'GRAFANA_PASSWORD': 'synthetic-password'},
+                         transport=http, output=output)
+    assert code == 0, output.getvalue()
+    response = json.loads(output.getvalue())
+    assert response['status'] == 'output_truncated'
+    assert username not in output.getvalue()
+    if destination_kind == 'safe_capture_id':
+        recovery = response['recovery']['arguments']
+        assert recovery == ['inspect', '--source-id', 'saved', '--agent-json']
+        assert workflow.main(recovery, environ={}, output=io.StringIO()) == 0
+    else:
+        assert 'arguments' not in response['recovery']
+        assert response['recovery']['error'] == 'recovery_arguments_masked'
+    assert len(http.calls) == 2
+
+
+def test_symlinked_output_parent_is_rejected_before_collection(tmp_path):
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    (tmp_path / 'actual').mkdir()
+    try:
+        (tmp_path / 'linked').symlink_to(tmp_path / 'actual', target_is_directory=True)
+    except OSError:
+        pytest.skip('directory symlinks unavailable')
+    destination = tmp_path / 'linked' / 'capture'
+    http = HTTP()
+    output = io.StringIO()
+    code = workflow.main(['plan', '--uid', 'board', '--from', '1000', '--to', '2000',
+                          '--output-dir', str(destination), '--agent-json'],
+                         environ=ENV, transport=http, output=output)
+    assert code == 2
+    assert json.loads(output.getvalue()) == {'ok': False, 'error': 'output_directory_unavailable'}
+    assert not http.calls
+    assert not destination.exists()
+    assert not list((tmp_path / 'actual').iterdir())

@@ -39,8 +39,9 @@ containers start. It is also a human-only credential-bearing read — `pcf-ops` 
 ## Scale effects and rollback
 
 Horizontal scaling changes instance count. `cf scale -m/-k/-l` stops the whole app and then starts
-it: an outage for the start-up window. For a no-downtime web resize, use the existing-droplet
-deployment in `pcf-ops`; a `cf push -m/-k` is a new artifact. Memory or disk changes can affect
+it: an outage for the start-up window. A no-downtime resize requires a target-supported procedure
+and confirmed current-droplet reuse; `pcf-ops` supplies the prerequisites, not a verified generic
+recipe. A `cf push -m/-k` is a new artifact and needs the full release gates. Memory or disk changes can affect
 placement or quota. Record current and proposed values, capacity/quota evidence, expected restart
 behavior, health thresholds, and the exact command that restores the prior scale. Revision rollback
 does not restore scale, so scale recovery must be a separate step.

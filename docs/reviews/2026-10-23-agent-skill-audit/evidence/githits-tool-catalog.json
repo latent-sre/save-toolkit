@@ -1,0 +1,31 @@
+{
+  "recorded_at_utc": "2026-10-23 17:12:17 UTC",
+  "retrieval_scope": "Tool registry exposed to the parent Codex audit session; native Claude installation was not exercised.",
+  "requested_tool_name_in_source": "mcp__plugin_githits_githits__code_grep",
+  "exposed_githits_names": [
+    "mcp__githits__code_diff",
+    "mcp__githits__get_example",
+    "mcp__githits__grep",
+    "mcp__githits__list",
+    "mcp__githits__pkg_changelog",
+    "mcp__githits__pkg_deps",
+    "mcp__githits__pkg_info",
+    "mcp__githits__pkg_upgrade_review",
+    "mcp__githits__pkg_vulns",
+    "mcp__githits__quick_start",
+    "mcp__githits__read",
+    "mcp__githits__research",
+    "mcp__githits__resolve_target",
+    "mcp__githits__search",
+    "mcp__githits__search_status"
+  ],
+  "grep_description": "Find regex or literal matches across source and documentation. Search ordered package, repository, and site targets; packages include selected hosted docs. Replaces code_grep. Defaults: RE2 regex, case-sensitive, zero context. Use `list` for paths, `search` for topics, and `read` for more context. Text groups matches by file/page with read locators. Indexed matches may be partial; coverage limits and a continuation cursor remain visible.",
+  "quick_start_observation": {
+    "call": "mcp__githits__quick_start({})",
+    "retrieved_in_this_session": true,
+    "exact_retrieval_time": "not supplied by tool",
+    "question": "Find a known regex or literal in source or documentation",
+    "tool": "grep"
+  },
+  "limitation": "Different host namespace prefixes are expected. The observed method-name replacement establishes compatibility risk for a Claude host using this updated GitHits surface, not an observed failure of the user's Claude host."
+}

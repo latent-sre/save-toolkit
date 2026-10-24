@@ -90,8 +90,6 @@ CF = r"(?:^|[\s;&|(`])(?:[\w./~-]*/)?cf\s+(?:-\S+\s+)*"
 CF_PUSH = re.compile(CF + r"push\b")
 CF_AUTH = re.compile(CF + r"auth\b(.*)$", re.MULTILINE)
 CF_LOGIN = re.compile(CF + r"login\b")
-CF_API = re.compile(CF + r"api\b")
-CF_TARGET = re.compile(CF + r"target\b[^\n]*\s-o\s[^\n]*\s-s\s|" + CF + r"target\b[^\n]*\s-s\s[^\n]*\s-o\s")
 CF_ROLLBACK = re.compile(r"(?:^|[\s;&|(`\"'])(?:[\w./~-]*/)?cf\s+(?:-\S+\s+)*rollback\b")  # also inside an echoed or quoted string
 STABLE_EXPR = re.compile(r"\$\{\{\s*github\.(?:workflow|repository|job)\s*\}\}")
 SECRET_EXPR = re.compile(r"^\s*\$\{\{\s*secrets\.\w+\s*\}\}\s*$")
@@ -528,14 +526,35 @@ def _cf_auth(job: dict, wf: dict) -> str | None:
 
 
 def _cf_target(job: dict, wf: dict) -> str | None:
-    text = "\n".join(run_steps(job))
-    push = CF_PUSH.search(text)
-    before = text[: push.start()] if push else text
-    if not CF_API.search(before):
-        return "no `cf api` before the push; a persistent runner keeps its last endpoint"
-    if not CF_TARGET.search(before):
-        return "no `cf target -o ... -s ...` before the push; a persistent runner keeps its last org and space"
-    return None
+    api, target = False, False
+    for step in steps(job):
+        if not isinstance(step.get("run"), str):
+            continue
+        env = {**as_dict(wf.get("env")), **as_dict(job.get("env")), **as_dict(step.get("env"))}
+        try:
+            commands = _promotion_commands(step["run"], env)
+        except ValueError as error:
+            return str(error)
+        for command in commands:
+            if command[:2] in (["cf", "api"], ["cf", "target"]):
+                try:
+                    command = command[:2] + [_promotion_word(word, env) for word in command[2:]]
+                except ValueError as error:
+                    return str(error)
+            if command[:2] == ["cf", "push"]:
+                if not api:
+                    return "no executable `cf api <endpoint>` before the push"
+                if not target:
+                    return "no executable `cf target -o ... -s ...` before the push"
+                return None
+            if command[:2] == ["cf", "api"] and len(command) == 3:
+                api = bool(command[2].strip("\"'")) and not command[2].startswith("-")
+                target = False  # changing the foundation invalidates an earlier target
+            if command[:2] == ["cf", "target"]:
+                args = command[2:]
+                target = (len(args) == 4 and set(args[::2]) == {"-o", "-s"}
+                          and all(value.strip("\"'") and not value.startswith("-") for value in args[1::2]))
+    return "no supported cf push command"
 
 
 def _secrets_via_env(job: dict, wf: dict) -> str | None:

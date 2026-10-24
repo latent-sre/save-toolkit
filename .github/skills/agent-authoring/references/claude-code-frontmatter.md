@@ -38,7 +38,7 @@ main` passes a `Bash(git push *)` deny ([Bash rule limits](https://code.claude.c
 The fleet's `PreToolUse` hook supplies its agent-specific command policy through `readonly-guard.py`;
 how that guard scopes itself is maintainer detail in the Save Toolkit repository's `CONTRIBUTING.md`.
 
-Canonical plugin delegation grants use full names: `Agent(reviewer, scribe)`.
+Canonical plugin delegation grants use full names: `Agent(save-toolkit:reviewer, save-toolkit:scribe)`.
 Bare targets did not match plugin agent identities on the hosts tested; the
 generator projects the same targets to bare Copilot names. The validator rejects unqualified or
 foreign-plugin grants.

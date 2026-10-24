@@ -23,6 +23,7 @@ Section 10 of the artifact states:
 | Field | What it must say |
 |---|---|
 | Run / thread / checkpoint identity | Distinct IDs; a resumed run keeps its run ID and gains a new attempt ID |
+| Logical request identity and binding | Persist logical request ID, key and immutable payload digest before first dispatch; retain across retries, resume and replay, independently of attempt IDs |
 | State and checkpoint schema version | Versioned independently of the code build |
 | Durability mode | `none`, `in-memory`, `persist per node`, `persist per effect boundary`, or `event history` |
 | Checkpoint boundary | Whether the checkpoint lands before or after each node class — an effect node checkpointed only after dispatch is the at-least-once window |
@@ -58,9 +59,10 @@ that mixes the vocabulary is treated as undecided, not as covering both.
 
 ## Fork and supersession
 
-- **Fork** creates a new run from an existing checkpoint with a new run ID; the parent's effects
-  are not the child's, and an effect key must include enough of the run identity that a fork does
-  not silently dedupe against its parent — or the design says that it deliberately does.
+- **Fork** creates a new run from an existing checkpoint with a new run ID. New effect operations
+  get new persisted logical request IDs, even for identical payloads. Deliberate cross-run dedupe
+  must explicitly preserve the parent's logical request ID and immutable payload binding; a new
+  run ID alone neither requires a new operation nor proves an old one complete.
 - **Supersession** replaces a run with a newer one for the same intent. The old run must be
   durably cancelled before the new one may dispatch effects; two live runs for one intent is the
   duplicate-effect case with a different name.
@@ -85,6 +87,10 @@ State both, always:
 - Pause is a durable state that stops dispatch without ending the run; resume re-checks admission,
   approval expiry, and compatibility before dispatching.
 - Restart after a process loss follows the recovery model above; it does not create a new run.
+- Resume, restart, replay and supersession never clear an unresolved effect: no automatic
+  redispatch is allowed while unresolved, even with an unchanged key or native dedupe. Reconcile
+  to success or definitive non-application before considering a bounded retry; durable cancel
+  alone cannot establish non-application of an in-flight effect.
 - Every resumed or restarted run records the attempt lineage so an operator can see how many times
   a node ran.
 

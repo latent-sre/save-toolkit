@@ -59,7 +59,9 @@ empty result as proof of no traffic.
 Existing instrumentation may expose `http` / `http/dup` or `database` / `database/dup` stability opt-in
 modes. Record the active convention and emitted fields; this trace-reading skill does not change them.
 
-Attribute names follow the current OpenTelemetry semantic conventions. `url.full` can contain a
+Attribute names follow the current OpenTelemetry semantic conventions. In semconv v1.44.0,
+`service.instance.id`, `server.address`, `http.route`, and `db.collection.name` are Stable;
+`messaging.destination.name` is Development. A valid name does not imply stable maturity. `url.full` can contain a
 query string or other sensitive material: before copying it into an evidence packet, redact
 userinfo credentials and scrub known tokens, secrets, personal data, and sensitive query values;
 retain only the minimum URL detail needed for the investigation.

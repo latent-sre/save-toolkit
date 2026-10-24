@@ -16,7 +16,7 @@ export type ReplayableRequestInit = Omit<RequestInit, "body"> & {
 
 export interface SendOptions {
   fetch?: typeof fetch;
-  /** Total sends, the first one included. */
+  /** Positive safe-integer total sends, the first one included. Invalid counts throw before sending. */
   maxAttempts?: number;
   /** Wait when an in-flight 409 carries an unreadable Retry-After. */
   defaultWaitMs?: number;
@@ -80,7 +80,10 @@ export async function sendIdempotent(
   }
   const doFetch = options.fetch ?? fetch;
   const sleep = options.sleep ?? defaultSleep;
-  const maxAttempts = Math.max(1, options.maxAttempts ?? 5);
+  const maxAttempts = options.maxAttempts ?? 5;
+  if (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1) {
+    throw new RangeError("maxAttempts must be a positive safe integer");
+  }
   const defaultWaitMs = options.defaultWaitMs ?? 1000;
   const maxWaitMs = options.maxWaitMs ?? 30_000;
   const headers = new Headers(init.headers);

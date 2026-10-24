@@ -89,3 +89,10 @@ test("environment names classify for the badge, production most distinctly", () 
   assert.equal(environmentTone("local"), "development");
   assert.equal(environmentTone("dr-site"), "other");
 });
+
+test("authority-form paths cannot collide with the validator's dummy origin", () => {
+  for (const value of ["//same-origin.invalid/v1", "///same-origin.invalid/v1", "/\t/same-origin.invalid/v1", "/\n/same-origin.invalid/v1", "/\r/same-origin.invalid/v1"]) {
+    assert.equal(isUrlLike(value), false, JSON.stringify(value));
+    assert.throws(() => validateConfig(schema, { apiBaseUrl: value, environment: "prod" }), RuntimeConfigError);
+  }
+});
