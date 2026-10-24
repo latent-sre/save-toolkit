@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `pcf-deploy` references: 9,540 to 7,929 bytes. Retain exact commands, target/artifact
+  identity, cutover checks, recovery phases and quota/version conditions. Replace the unverified
+  rollback GA-version claim with installed-capability verification. Deploy-resize regression, local
+  links and diff checks pass; live deployment behavior remains unverified.
 - Review `pcf-ops` references: 14,214 to 12,086 bytes. Retain Apps Manager and CLI pairs,
   JVM/health/router distinctions, target identity and package/droplet effects. Remove repeated
   diagnostic explanation; process-stats access is explicitly human-only. Resize regression, local
