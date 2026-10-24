@@ -335,10 +335,12 @@ def test_unexpected_success_is_not_a_passing_candidate_suite():
 def test_installed_timeout_distinguishes_candidate_and_instrument(monkeypatch, tmp_path, active, error):
     monkeypatch.syspath_prepend(str(ROOT / "oracles"))
     oracle = load_oracle(ROOT / "oracles/python-craft/check_package_refactor.py")
+
     def timeout(command, **kwargs):
         assert command[1:4] == ["-I", "-S", "-B"]
         Path(command[command.index("--child") + 2]).write_bytes(bytes([int(active)]))
         raise subprocess.TimeoutExpired(command, 30)
+
     monkeypatch.setattr(oracle.subprocess, "run", timeout)
     with pytest.raises(error, match="timed out"):
         oracle.checked_process(tmp_path / "oracle.py", tmp_path, "test")
@@ -364,3 +366,38 @@ def test_scenario_scope_and_supervised_binding():
     allowed = next(c["allowed"] for c in checks if c["check"] == "changes_within")
     assert "release-files.txt" in allowed and "tests/" in allowed
     assert "build_release.py" not in allowed and "clients/" not in allowed
+
+
+@pytest.mark.parametrize("module", ["calculation", "preview"])
+def test_forwarding_generator_must_preserve_borrowed_input_after_validation_failure(module):
+    files = reference()
+    filename = f"order_report/{module}.py"
+    if module == "calculation":
+        files[filename] = POLICY.replace(
+            "    for line in lines:",
+            "    def forwarded():\n        yield from lines\n    for line in forwarded():",
+        )
+    else:
+        files[filename] = PREVIEW.replace(
+            "    return calculation.total_from_lines(lines)",
+            "    def forwarded():\n        yield from lines\n    return calculation.total_from_lines(forwarded())",
+        )
+    result = run_artifact(files)
+    assert result.returncode == 10, result.stdout + result.stderr
+    assert "borrowed generator" in result.stderr
+
+
+@pytest.mark.parametrize("module", ["calculation", "preview"])
+def test_forwarding_without_generator_close_delegation_preserves_contract(module):
+    files = reference()
+    filename = f"order_report/{module}.py"
+    forwarder = "    def forwarded():\n        for line in lines:\n            yield line\n"
+    if module == "calculation":
+        files[filename] = POLICY.replace("    for line in lines:", forwarder + "    for line in forwarded():")
+    else:
+        files[filename] = PREVIEW.replace(
+            "    return calculation.total_from_lines(lines)",
+            forwarder + "    return calculation.total_from_lines(forwarded())",
+        )
+    result = run_artifact(files)
+    assert result.returncode == 0, result.stdout + result.stderr

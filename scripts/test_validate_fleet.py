@@ -643,6 +643,17 @@ class FleetValidatorTests(unittest.TestCase):
                 for message in messages:
                     self.assertIn(message, rendered)
 
+    def test_external_researcher_grants_current_grep_and_rejects_legacy_name(self) -> None:
+        current = "mcp__plugin_githits_githits__grep"
+        legacy = "mcp__plugin_githits_githits__code_grep"
+        self.assertIn(current, _granted_tools("researcher"))
+        self.assertNotIn(legacy, _granted_tools("researcher"))
+        failures = _agent_failures_after_edit(
+            "researcher.md", lambda text: must_replace(text, current, legacy),
+        )
+        self.assertIn("MCP authority is not exact-approved", "\n".join(failures))
+        self.assertIn(f"missing required tool(s): {current}", "\n".join(failures))
+
     def test_external_researcher_can_load_githits_guidance_without_skills(self) -> None:
         grants = _granted_tools("researcher")
         bootstrap = "mcp__plugin_githits_githits__quick_start"

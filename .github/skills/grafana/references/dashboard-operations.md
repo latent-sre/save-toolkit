@@ -21,8 +21,10 @@ resources. The edit loop does not apply; reads cannot verify write concurrency o
    proves nothing about instance contents. Metric names, labels, folders, and data-source uids come
    from the target.
 3. **Read and export before editing.** Follow [read and export](./http-api.md#read-and-export) at
-   the stored API version; stop for provisioned or tool-managed dashboards. The export is rollback
-   content, not a replayable request: [rollback](./http-api.md#rollback) rebases it onto a fresh read.
+   the stored API version; stop for provisioned or tool-managed dashboards. Retain both the
+   pre-change export and verified operation-written state. Rollback first compares a fresh read
+   with that state and stops on intervening edits or missing comparison evidence, then uses the
+   fresh token under [HTTP API rollback](./http-api.md#rollback).
    A create has no prior model or token: choose its stable uid, name the human or protected executor
    who owns recovery if removal is needed, and author only the requested model.
 4. **Make only the requested change.** Preserve unknown fields and the existing schema on edits;

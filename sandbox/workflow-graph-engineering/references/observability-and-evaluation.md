@@ -34,7 +34,7 @@ reviewed 2026-08-23]*
 | Guardrail | which guardrail, at which boundary, decision, and what it blocked |
 | Approval | approver identity, candidate identity, decision, expiry, resumed-state check result |
 | Checkpoint | checkpoint ID, schema version, boundary, write confirmation |
-| Effect | key, attempt, dispatch, receipt, reconciliation result, `UNKNOWN` age |
+| Effect | logical request ID, payload digest, key, separate attempt, dispatch, receipt, reconciliation result, `UNKNOWN` age |
 | Admission and shed | queue, tenant, priority, decision, reason |
 | Cancel | cooperative signal time, durable persist time, in-flight disposition |
 

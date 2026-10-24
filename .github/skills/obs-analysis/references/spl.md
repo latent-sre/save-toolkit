@@ -126,13 +126,15 @@ a tight window; it covers public indexes, not internal `_*`, and may miss role-r
 Use equal absolute windows and one completion event per eligible request/attempt. The denominator
 must count all requests in a phase before grouping by error classification:
 
-```spl
+### Overall deploy error rate
+
+````spl
 index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<before_start_epoch> latest=<after_end_epoch>
 | eval phase=if(_time < <deploy_epoch>, "before", "after")
 | eval status=if(match(status, "^[1-5][0-9]{2}$"), tonumber(status), null())
 | stats count AS total, count(status) AS classified, count(eval(status>=500 AND status<600)) AS errors by phase
 | eval error_rate=if(total>0 AND classified=total, errors/total, null())
-```
+````
 
 The overall rate needs no `error_type`. For an optional class breakdown, verify its extraction
 and replace only the `stats` line above with these two lines, keeping the final rate calculation:

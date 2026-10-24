@@ -11,8 +11,12 @@ prompt: |
   at one alignment and vanishes at another; what must accompany any screenshot as
   evidence? B: at what granularity do system metrics commonly arrive, and what does
   that hide? C: a log-based metric was created today; what does its flat history
-  before creation prove?
+  before creation prove? D: Grafana has no data while the console works; the target
+  datasource and authentication path are unknown. For D, choose exactly one token:
+  discover_datasource_and_auth_then_select_path | investigate_syncer_first.
+  Return D as "D: <chosen_token>" with no additional text on that line.
 success_criteria:
+  - Discovers the datasource plugin and authentication path before selecting a syncer investigation.
   - Records alignment, states the sampling granularity limit, and never reads pre-creation history as health.
 graders:
   - type: regex
@@ -21,3 +25,5 @@ graders:
     pattern: '(?i)60s|60 seconds|one minute|one-minute|1-minute|minute aggregat|minute-level|per minute|minute samples'
   - type: regex
     pattern: '(?i)not retroactive|creation|nothing|no data before'
+  - type: regex
+    pattern: '(?m)^D:[ \t]*discover_datasource_and_auth_then_select_path[ \t]*$'

@@ -44,7 +44,10 @@ rewriting a query or treating an empty stable-name query as no traffic.
 Existing instrumentation may expose `http` / `http/dup` or `database` / `database/dup` stability opt-in
 modes. Record the active convention and emitted fields; this trace-reading skill does not change them.
 
-`url.full` can include userinfo credentials and sensitive query parameters; redact before copying it.
+In semconv v1.44.0, `service.instance.id`, `server.address`, `http.route`, and
+`db.collection.name` are Stable; `messaging.destination.name` is Development. A valid name does
+not imply stable maturity. `url.full` can include userinfo credentials and sensitive query
+parameters; redact before copying it.
 
 ## Sampling makes absence weak evidence
 

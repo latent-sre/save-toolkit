@@ -12,6 +12,7 @@ it does not know which attempt is talking to it.
 - Idempotency key construction
 - Receipt, journal, and reconciliation
 - The `UNKNOWN` state machine
+- Bounded review probes
 - Compensation
 - The approval gate
 - Failure modes this section exists to catch
@@ -35,8 +36,9 @@ Section 9 of the artifact carries one row per effect node. A row is complete whe
 |---|---|
 | Operation and target | The exact remote operation, target system, and resource scope; "the API" is not a target |
 | Caller and tenant | Which actor identity dispatches, under which credential scope, on behalf of which tenant |
-| Intent digest | The canonical payload the key binds to — normalised field order, units, and identifiers |
-| Key construction | `key = H(caller, operation, target, tenant, intent digest)`; deterministic from state, never from wall-clock or a random value |
+| Logical request ID | Caller-supplied or allocated once and persisted before first dispatch; stable across retries, resume and replay; distinct for each new operation even with identical payload |
+| Intent digest | Canonical payload digest immutably bound to the scoped logical request ID — normalised field order, units, and identifiers |
+| Key construction | `key = H(caller, operation, target, tenant, logical request ID)`; deterministic from persisted state; never regenerate the ID per attempt |
 | Attempt identity | A per-dispatch attempt ID distinct from the key, so a journal can show three attempts under one key |
 | Replay-safety class | `pure`, `idempotent-by-key`, `idempotent-by-target` (the target dedupes natively), or `non-idempotent` |
 | Timeout owner | Which layer times the call out and what the layer records when it does |
@@ -49,8 +51,13 @@ Section 9 of the artifact carries one row per effect node. A row is complete whe
 
 ## Idempotency key construction
 
-- Bind the key to **intent**, not to the node. Two dispatches of the same node with different
-  payloads must produce different keys; the same intent on retry must produce the same key.
+- Bind the key to the **logical operation**, not just its payload or node. Two intentional sends
+  of the same reminder get distinct logical request IDs and keys; retrying either keeps its ID
+  and key. A caller token or an ID allocated once (including a UUID) is valid only if persisted
+  before first dispatch and recovered rather than regenerated after a crash.
+- Store the canonical payload digest against the scoped logical request ID before dispatch. A
+  changed payload with that ID is a conflict, not a new key; a new operation needs a new ID.
+  Compare and reserve this binding atomically so concurrent first attempts cannot bind it twice.
 - Reject reuse with mismatched intent **before dispatch**: if the journal already holds this key
   with a different intent digest, the node fails closed and reports the conflict. Silently
   proceeding would either duplicate the effect or return a stale result for a different request.
@@ -72,17 +79,35 @@ operator cannot tell a lost result from a call that never happened.
 
 ```
 PENDING -> DISPATCHED -> SUCCEEDED
-                      -> FAILED (definitive, retry owner may retry)
+                      -> FAILED (definitive non-application, retry owner may retry)
                       -> UNKNOWN (timeout, crash, ambiguous response)
 UNKNOWN -> RECONCILING -> SUCCEEDED | FAILED | STILL_UNKNOWN
 STILL_UNKNOWN -> manual repair owner decides; no automatic replay
 ```
 
 - `UNKNOWN` is a persisted state with an owner and an age; it is not a log line.
-- Automatic retry from `UNKNOWN` is prohibited unless the class is `idempotent-by-key` and the
-  key is unchanged, and even then the retry is recorded as a new attempt under the same key.
+- No automatic redispatch is allowed while unresolved, including `RECONCILING` and `STILL_UNKNOWN`.
+  An unchanged key, an idempotent class, or documented native dedupe with valid retention does
+  not bypass reconciliation. A durable target receipt can establish `SUCCEEDED`; only definitive
+  non-application with no in-flight or late commit possible establishes retryable `FAILED`.
+  A missing eventually consistent read is insufficient. After resolution to `FAILED`, the one
+  retry owner may dispatch within budget, with a new attempt ID under the same logical ID/key,
+  matching digest, retained binding/receipt, and valid approval. Otherwise stop with uncertainty.
 - The graph must be able to terminate with an effect still `UNKNOWN`, surfacing it in the terminal
   evidence, rather than hanging or lying.
+
+## Bounded review probes
+
+Use these cases to check a proposed design; they do not establish runtime behaviour.
+
+| Reconciliation evidence | Native dedupe proof | Required decision |
+|---|---|---|
+| Unresolved timeout | Missing | Hold; no redispatch |
+| Unresolved timeout | Same key, expired retention | Hold; no redispatch |
+| Unresolved timeout | Exact target, same key, matching digest, valid retention | Hold; no redispatch |
+| Missing eventually consistent read | Exact target, same key, matching digest, valid retention | Hold; no redispatch |
+| Durable target success receipt | Not needed for resolution | Record success; no redispatch |
+| Definitive non-application, no in-flight or late commit possible | Retained logical ID/key and matching digest | Retry owner may retry within budget and valid approval, with a new attempt ID |
 
 ## Compensation
 
@@ -114,7 +139,8 @@ where a human can be shown the plan and rollback before anything moves.
 | Defect | Symptom in the design | Correction |
 |---|---|---|
 | Checkpoint-equals-exactly-once | "The checkpoint guarantees the payment runs once" | Add the effect row; classify replay safety; add reconciliation |
-| Key built from node or timestamp | Same intent retried produces a new key and a duplicate effect | Derive the key from caller/operation/target/tenant/intent |
+| Key built from node or timestamp | Same intent retried produces a new key and a duplicate effect | Derive the key from caller/operation/target/tenant/persisted logical request ID |
+| Identical payload, distinct operations | Second intentional reminder returns the first receipt | Allocate a distinct persisted logical request ID for each new operation |
 | Reused key, different intent | Second request returns the first request's result | Reject mismatched intent before dispatch |
 | Retention shorter than the retry window | A late retry finds no tombstone and re-executes | Retention ≥ retry window + ambiguity window + late-arrival slack |
 | Automatic replay while `UNKNOWN` | Retry loop hides a committed remote write | Persist `UNKNOWN`; reconcile before any retry |

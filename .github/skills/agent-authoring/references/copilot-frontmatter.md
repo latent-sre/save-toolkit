@@ -37,7 +37,7 @@ why one file serves both targets.
 | `metadata` | GitHub only; not used by VS Code or other IDE custom agents. Unused |
 | `infer` | **Retired** — replaced by `user-invocable` and `disable-model-invocation`. Never emit |
 
-Claude grants use full plugin names (`Agent(reviewer)`); the generator projects the
+Claude grants use full plugin names (`Agent(save-toolkit:reviewer)`); the generator projects the
 same targets to bare Copilot names, removing only this plugin's namespace without widening the target set. The `AGENTS.md` roster owns the edge list.
 
 ## Handoff entries

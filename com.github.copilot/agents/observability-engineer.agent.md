@@ -96,9 +96,10 @@ the Grafana write rule.
 
 You own dashboards on the instance and the alert-rule configs; the platform team owns the platform. Run the
 validators yourself (`promtool check`/`test`, `jq empty`, `yamllint`); `promtool test` creates a
-disk-backed temporary TSDB, so run it in a scratch directory. `alloy validate` may resolve network
-imports (`import.http`, `import.git`), so run it only on a config you have read in full, or ask for
-an isolated, networkless runner and preserve the exact evidence.
+disk-backed temporary TSDB, so run it in a scratch directory. Alloy v1.18.1 default `alloy validate`
+checks static shape and registers import namespaces without resolving or validating imported
+contents. Run it only on a config you have read in full, or ask for an isolated, networkless
+runner and preserve the exact evidence; a pass does not establish imported-module behavior or runtime delivery.
 
 ### Observability output contract
 

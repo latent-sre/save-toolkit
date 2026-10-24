@@ -45,6 +45,8 @@ export function isUrlLike(value: string): boolean {
   try {
     if (value.startsWith("/")) {
       // "//host/x" and "/\\host/x" both resolve to another origin once the URL parser normalises them.
+      // The parser strips ASCII tabs/newlines; reject authority syntax even at the dummy host.
+      if (value.replace(/[\t\n\r]/g, "").startsWith("//")) return false;
       const resolved = new URL(value, SAME_ORIGIN);
       return resolved.origin === SAME_ORIGIN && !value.includes("\\");
     }
