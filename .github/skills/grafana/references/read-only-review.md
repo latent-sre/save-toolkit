@@ -17,8 +17,11 @@ not change the read-only scope.
    model. `provisioned: true` or `canSave: false` permits review but excludes an API edit. A recovery
    copy alone does not establish provisioning ownership. Preserve Classic/V1/V2 shapes; a converted
    read is not evidence that storage migrated.
-4. **Check offline.** Run the bundled hygiene helper on a local export; `sre-assistant`'s guard
-   denies it, so that lane records the check as not run. Its fixed-UID findings are
+4. **Check offline.** Run the bundled hygiene helper on a local export when the lane permits it.
+   `sre-assistant`'s guard denies that direct script execution; use the installed
+   [workflow](./investigation-workflows.md#agent-collection-and-follow-up)'s
+   `analyze --source-id <capture-id> --analysis hygiene --agent-json` on a named capture instead.
+   If that path is unavailable, record the check as not run. The helper's fixed-UID findings are
    portability checks: on a provisioned target, resolve the UIDs before calling them broken. Its
    `_total` check is a name heuristic, not metric metadata; counts, presence checks, resets, and
    lifetime totals can be intentional. V2 is explicitly unsupported by this helper. Use a

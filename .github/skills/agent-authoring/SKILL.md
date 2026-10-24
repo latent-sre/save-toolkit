@@ -80,16 +80,10 @@ instructions, context assembly, tool/output schema, orchestration, wrapper/model
 evaluator — and fix it there: strict schema for machine-consumed shape, code or a tool gate for
 fixed branches and effects, the harness for context selection.
 
-**3. Four themes decide every artifact or roster change.**
-
-| Theme | Owns |
-|---|---|
-| Prompt Engineering | Which owner is selected, its instructions, its output/tool shape |
-| Context Engineering | The smallest trusted state that owner sees |
-| Loop Engineering | Its work, verification, budgets, termination |
-| Graph Engineering | Ownership transitions |
-
-Apply all four to the same work unit. A skill deepens the current node while its owner and authority
+**3. For each artifact or roster change, check all four themes together:** Prompt Engineering owns owner selection,
+instructions and output/tool shape; Context Engineering owns the smallest trusted state; Loop
+Engineering owns work, verification, budgets and termination; Graph Engineering owns ownership
+transitions. A skill deepens the current node while its owner and authority
 stay correct. Invoke another agent only for a change of ownership, authority, isolation,
 independent verification, justified parallel breadth, or additional context capacity. A new roster
 role needs a distinct tool posture, durable domain lane, or routing split the current agents cannot

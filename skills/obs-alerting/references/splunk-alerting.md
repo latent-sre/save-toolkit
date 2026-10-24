@@ -18,9 +18,9 @@ dispatch.earliest_time = -7m@m
 dispatch.latest_time = -2m@m
 ```
 
-- **Cover event time and indexing delay.** The parent skill's scheduled-work section owns the
-  completeness rule (measured delay allowance, bounded overlap with deduplication, skipped-run
-  checks); apply it here with the measured `_indextime - _time` for this source.
+- **Cover event time and indexing delay.** Choose the indexing allowance from measured
+  `_indextime - _time` for this source. Cover late arrivals with bounded overlap and deduplication;
+  check for skipped runs and uncovered event-time intervals before claiming complete coverage.
 - **Timezone:** Splunk Cloud evaluates cron in UTC; Splunk Enterprise uses the search head's
   timezone. Record which applies next to every schedule.
 - Trigger conditions are `counttype` with `relation` and `quantity`, or `alert_condition`, a
