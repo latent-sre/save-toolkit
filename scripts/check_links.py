@@ -254,20 +254,21 @@ YAML_NON_STRING = re.compile(
 
 def _strip_fences(text: str) -> str:
     kept = []
-    fence = None
+    fence: tuple[str, int] | None = None
     for line in text.splitlines(keepends=True):
-        match = re.match(r"^[ \t]*(```+|~~~+)", line)
-        if match:
-            marker = match.group(1)[0]
-            if fence is None:
-                fence = marker
-            elif fence == marker:
+        match = re.match(r"^[ \t]*(`{3,}|~{3,})(.*)$", line)
+        if fence is not None:
+            # Closing fences use the same character, at least the opening length, and no
+            # info string. SPL's shorter backtick comments are content, not Markdown fences.
+            if (match and match.group(1)[0] == fence[0] and len(match.group(1)) >= fence[1]
+                    and not match.group(2).strip()):
                 fence = None
             kept.append("\n" if line.endswith(("\n", "\r")) else "")
-        elif fence is None:
-            kept.append(line)
-        else:
+        elif match and not (match.group(1)[0] == "`" and "`" in match.group(2)):
+            fence = (match.group(1)[0], len(match.group(1)))
             kept.append("\n" if line.endswith(("\n", "\r")) else "")
+        else:
+            kept.append(line)
     return "".join(kept)
 
 

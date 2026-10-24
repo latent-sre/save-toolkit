@@ -17,9 +17,10 @@ not change the read-only scope.
    model. `provisioned: true` or `canSave: false` permits review but excludes an API edit. A recovery
    copy alone does not establish provisioning ownership. Preserve Classic/V1/V2 shapes; a converted
    read is not evidence that storage migrated.
-4. **Check offline.** Run the bundled hygiene helper on a local export; `sre-assistant`'s guard
-   denies it, so that lane records the check as not run. Its fixed-UID findings are
-   portability checks: on a provisioned target, resolve the UIDs before calling them broken. Its
+4. **Check offline.** Run the bundled hygiene helper on a local export. For `sre-assistant`, use
+   workflow analysis on an existing eligible named capture as shown below; if none is available,
+   record the check as not run. Direct standalone helper execution remains denied for that lane.
+   Its fixed-UID findings are portability checks: on a provisioned target, resolve the UIDs before calling them broken. Its
    `_total` check is a name heuristic, not metric metadata; counts, presence checks, resets, and
    lifetime totals can be intentional. V2 is explicitly unsupported by this helper. Use a
    V2-capable validator on the actual V2 model or record that gap.
@@ -44,8 +45,17 @@ warning, presentation improvement, or unverified heuristic. Missing descriptions
 without blocking working queries. Report counts by category rather than calling every emitted
 "violation" an operational failure. `canSave: true` does not override `provisioned: true` ownership.
 
-For automation, invoke the installed checker with `--format json`. Keep its bundled Python
-helpers beside it when installing or relocating the skill.
+For guarded named-capture analysis, use the managed workflow in the project environment:
+
+```text
+python -I "<absolute-installed-path>/grafana_workflow.py" analyze --source-id capture-one --analysis hygiene --agent-json
+```
+
+Replace `capture-one` with the existing eligible capture ID. Inspect the returned coverage and
+errors; an unavailable or unsupported capture is a review gap, not a clean hygiene result.
+
+For unguarded automation on a local export, invoke the installed checker with `--format json`.
+Keep its bundled Python helpers beside it when installing or relocating the skill.
 
 ```text
 python "<absolute-installed-path>/dashboard_hygiene.py" dashboard.json --format json

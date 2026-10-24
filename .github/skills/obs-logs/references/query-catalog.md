@@ -70,7 +70,8 @@ when the question requires quiet periods and a trailing baseline.
 - **Owner:** `<service on-call>`
 - **Verified:** [unverified: target index, status field, and deploy-epoch substitution]
 
-The query is owned by the Compare before vs after a deploy section of [SPL](./spl.md);
+Use the [overall deploy error-rate query](./spl.md#overall-deploy-error-rate), which groups only
+by phase and requires no error classification;
 use it with this entry's population. Missing or invalid status leaves the rate null; no traffic or
 a missing phase is not healthy zero.
 

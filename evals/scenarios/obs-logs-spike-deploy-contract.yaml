@@ -26,6 +26,7 @@ prompt: |
   flat_baseline: material_increase_still_detectable | suppress_when_sd_zero
   deploy_denominator: phase_wide_eligible_requests | by_phase_and_error_class
   unclassified_status: rate_stays_null | count_as_zero_errors
+  absent_error_taxonomy: overall_by_phase | require_error_type
   summarized_search: state_mode_complete_fallback | summarized_only_unrecorded
   slow_search_first_step: inspector_scan_vs_result | rewrite_base_search_first
 success_criteria:
@@ -40,5 +41,6 @@ graders:
       flat_baseline: material_increase_still_detectable
       deploy_denominator: phase_wide_eligible_requests
       unclassified_status: rate_stays_null
+      absent_error_taxonomy: overall_by_phase
       summarized_search: state_mode_complete_fallback
       slow_search_first_step: inspector_scan_vs_result

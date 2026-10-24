@@ -18,7 +18,7 @@ Each item is read in full together with its bundled files and relevant callers, 
 
 ## Progress
 
-**42 of 42 items documented; no audit items remain.** All ten canonical agents, thirty canonical skill bundles (167 tracked files), the eight-file sandbox workflow candidate, and the 38-file retired Fleet Atlas snapshot have completed source-bound reports. Independent Sol passes were explicitly selected after the requester resumed work on 2026-10-24. The first ten findings have been repaired and locally verified; see the [repair follow-up](repairs-first-ten.md). Source review completion is not behavioral acceptance or promotion.
+**42 of 42 items documented; no audit items remain.** All ten canonical agents, thirty canonical skill bundles (167 tracked files), the eight-file sandbox workflow candidate, and the 38-file retired Fleet Atlas snapshot have completed source-bound reports. Independent Sol passes were explicitly selected after the requester resumed work on 2026-10-24. The first twenty findings have been repaired and locally verified; see [findings 1–10](repairs-first-ten.md) and [findings 11–20](repairs-second-ten.md). Source review completion is not behavioral acceptance or promotion.
 
 The ledger contains **25 distinct findings: 23 in shipped material and two in the unpromoted sandbox candidate**. Three are P2 and 22 are P3. Retired Fleet Atlas's historical findings and two dormant extractor limitations are described separately and do not reopen its backlog. Checkpoints `dabc3d3b`, `143cca77`, `719f8af9` and `296fb3f5` preserve earlier review stages. PR #419 contains the earlier five repairs; this follow-up has not been published there.
 
@@ -95,16 +95,16 @@ The audit checkpoint checks covered report coverage/links, active structural gat
 | AUDIT-FRONTEND-002 — serving predicate overclaims cache freshness | P3 | [Frontend craft](skills/frontend-craft.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
 | AUDIT-FRONTEND-003 — nonfinite retry counts disable the attempt bound | P3 | [Frontend craft](skills/frontend-craft.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
 | AUDIT-GCP-001 — oldest-message age slope overstates acknowledgment/causal evidence | P2 | [GCP operations](skills/gcp-ops.md) | [Repaired locally](repairs-first-ten.md); runtime limits retained |
-| AUDIT-GRAFANA-002 — review instructions skip available guarded hygiene analysis | P3 | [Grafana](skills/grafana.md) | Awaiting disposition |
-| AUDIT-GRAFANA-003 — truncation recovery reintroduces masked authentication values | P3 | [Grafana](skills/grafana.md); [reproductions](evidence/grafana-transport-reproductions.md) | Awaiting disposition |
-| AUDIT-GRAFANA-004 — symlinked output parent fails after successful package creation | P3 | [Grafana](skills/grafana.md); [reproductions](evidence/grafana-transport-reproductions.md) | Awaiting disposition |
-| AUDIT-GRAFANA-005 — broken overwrite regex accepts unsafe conflict advice | P3 | [Grafana](skills/grafana.md) | Awaiting disposition |
-| AUDIT-LOGS-001 — overall deploy-rate fallback loops back to a class-grouped query | P3 | [Logs](skills/obs-logs.md) | Awaiting disposition |
-| AUDIT-METRICS-001 — GCP query guidance assumes an unestablished Grafana syncer | P3 | [Metrics](skills/obs-metrics.md) | Awaiting disposition |
-| AUDIT-PIPELINE-001 — naming eval retains a blanket no-plurals criterion | P3 | [Pipeline](skills/obs-pipeline.md) | Awaiting disposition |
-| AUDIT-PIPELINE-002 — Alloy validation guidance misstates remote-import behavior | P3 | [Pipeline](skills/obs-pipeline.md); [observability engineer](agents/observability-engineer.md) | Awaiting disposition |
-| AUDIT-TRACES-001 — semantics eval calls a Development attribute stable | P3 | [Traces](skills/obs-traces.md) | Awaiting disposition |
-| AUDIT-PCF-001 — resize payload is rejected by the controller at its advertised minimum | P3 | [PCF operations](skills/pcf-ops.md); [deployment](skills/pcf-deploy.md) | Awaiting disposition |
+| AUDIT-GRAFANA-002 — review instructions skip available guarded hygiene analysis | P3 | [Grafana](skills/grafana.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
+| AUDIT-GRAFANA-003 — truncation recovery reintroduces masked authentication values | P3 | [Grafana](skills/grafana.md); [reproductions](evidence/grafana-transport-reproductions.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
+| AUDIT-GRAFANA-004 — symlinked output parent fails after successful package creation | P3 | [Grafana](skills/grafana.md); [reproductions](evidence/grafana-transport-reproductions.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
+| AUDIT-GRAFANA-005 — broken overwrite regex accepts unsafe conflict advice | P3 | [Grafana](skills/grafana.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
+| AUDIT-LOGS-001 — overall deploy-rate fallback loops back to a class-grouped query | P3 | [Logs](skills/obs-logs.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
+| AUDIT-METRICS-001 — GCP query guidance assumes an unestablished Grafana syncer | P3 | [Metrics](skills/obs-metrics.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
+| AUDIT-PIPELINE-001 — naming eval retains a blanket no-plurals criterion | P3 | [Pipeline](skills/obs-pipeline.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
+| AUDIT-PIPELINE-002 — Alloy validation guidance misstates remote-import behavior | P3 | [Pipeline](skills/obs-pipeline.md); [observability engineer](agents/observability-engineer.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
+| AUDIT-TRACES-001 — semantics eval calls a Development attribute stable | P3 | [Traces](skills/obs-traces.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
+| AUDIT-PCF-001 — resize payload is rejected by the controller at its advertised minimum | P3 | [PCF operations](skills/pcf-ops.md); [deployment](skills/pcf-deploy.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
 | AUDIT-GATE-001 — approval calibration omits required validity evidence | P3 | [Production gate](skills/production-change-gate.md) | Awaiting disposition |
 | AUDIT-PYTHON-001 — package oracle misses closure of a borrowed generator | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) | Awaiting disposition |
 | AUDIT-PYTHON-002 — identical schema-batch inputs conceal reordered results | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) | Awaiting disposition |
@@ -115,6 +115,6 @@ Findings are recorded in the individual reports and deduplicated here as the aud
 
 ## Disposition after the audit
 
-The requester authorized findings 1–10 in ledger order, including all three P2 items; all ten are repaired and locally verified. The [repair follow-up](repairs-first-ten.md) records their changes and verification; findings 11–25 await disposition. P3 work separates helper behavior, evaluation assertions, missing query guidance and version-specific instructions so each repair can use the smallest relevant regression check. Candidate-only graph changes require their own promote-or-retire decision; archived limitations require no active repair or restoration under this audit.
+The requester authorized two ten-finding batches in ledger order. Findings 1–20, including all three P2 items, are repaired and locally verified; [first-batch evidence](repairs-first-ten.md) and [second-batch evidence](repairs-second-ten.md) record their changes and limits. Findings 21–25 await disposition. P3 work separates helper behavior, evaluation assertions, missing query guidance and version-specific instructions so each repair can use the smallest relevant regression check. Candidate-only graph changes require their own promote-or-retire decision; archived limitations require no active repair or restoration under this audit.
 
 [unverified] Native provider grants, model routing/adherence, production APIs, telemetry delivery, cross-platform optional checks and external producer acceptance retain the limits documented per item. Passing structural gates and finite scratch reproductions do not close these gaps.

@@ -75,11 +75,11 @@ deployment flag, and canary result remain unconfirmed for the target environment
 ## Debugging a running Alloy
 
 - **`alloy validate <config>`** is a documented CLI command (alongside `run`, `fmt`, `convert`) —
-  validate before any `/-/reload`. It is not allowed by the read-only guard: validation resolves
-  `import.http` and `import.git`, so an untrusted config can initiate outbound requests (including
-  a URL assembled from environment-backed expressions). Ask a human or use an isolated,
-  networkless runner; `alloy fmt -w`, `alloy run`, and `alloy tools` also stay denied. This CLI
-  behavior is as described in Alloy v1.18.1.
+  validate before any `/-/reload`. In Alloy v1.18.1, default validation checks static configuration
+  shape and registers import namespaces; it does not resolve or validate imported contents.
+  A passing result therefore does not establish that remote modules load or work at runtime.
+  The command remains denied by the read-only guard. Ask a human or use an isolated, networkless
+  runner; `alloy fmt -w`, `alloy run`, and `alloy tools` also stay denied.
 - **Docker is the local fallback when the Alloy binary is unavailable.** Assemble the exact
   self-contained config being reviewed, replace `<pinned-version>` with the deployed Alloy version
   (never `latest` for retained evidence), and validate it without network access. With a local Docker

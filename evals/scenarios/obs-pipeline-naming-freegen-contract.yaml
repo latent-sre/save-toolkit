@@ -10,9 +10,11 @@ prompt: |
   Answer with names only, one per labelled line, no explanation; do not edit files.
   A: the metric name and unit for HTTP server request duration under current
   OpenTelemetry conventions. B: how the HTTP method of a request is recorded.
-  C: whether a requests counter name is pluralized, and its shape.
+  C: a custom unitless Counter counting discrete jobs, named jobs.processed or job.processed.
+  D: a custom UpDownCounter counting active jobs, named jobs.active or job.active.
 success_criteria:
-  - Uses the current duration name and unit, records method as a dimension value, and does not pluralize nouns.
+  - Uses the current duration name and unit and records method as a dimension value.
+  - Pluralizes discrete unitless Counter countables (jobs.processed), keeps unit-bearing names singular, and keeps UpDownCounter names singular (job.active).
 graders:
   - type: regex
     pattern: 'http\.server\.request\.duration'
@@ -20,3 +22,7 @@ graders:
     pattern: 'seconds|\bs\b'
   - type: regex
     pattern: '(?i)dimension|label|tag|attribute'
+  - type: regex
+    pattern: '(?m)^C:\s*jobs\.processed\s*$'
+  - type: regex
+    pattern: '(?m)^D:\s*job\.active\s*$'
