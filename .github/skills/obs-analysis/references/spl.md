@@ -1,13 +1,5 @@
 # SPL dialect for log investigation
 
-## Contents
-
-- [Comments](#spl-comments), [scope](#start-narrow), [freshness](#is-the-source-current)
-- [Time buckets](#read-it-over-time), [top offenders](#top-offenders)
-- [Spike baseline](#spot-a-spike-vs-the-baseline-anomaly-detection)
-- [Correlation](#correlate-one-request-across-services), [deploy comparison](#compare-before-vs-after-a-deploy)
-- [Scale](#fast-paths-at-scale--tstats-data-models-termprefix), [defaults](#tips--gotchas-splunk-specific--where-the-default-bites)
-
 Resolve index, sourcetype, correlation and extraction placeholders through [local inventory](./indexes.md).
 Syntax basis: Splunk Enterprise 10.4 references for
 [comments](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.4/use-the-search-app/add-comments-to-searches),
@@ -36,8 +28,8 @@ can make a predicate return nothing.
 | eval since_last_event_s=now()-last_event, since_last_indexed_s=now()-last_indexed
 ```
 
-This covers only events whose `_time` lies within four hours. At 12:00, an event timestamped 05:50
-but indexed at 11:59 is excluded: old `last_indexed` or a missing host cannot prove ingestion stopped.
+This covers only events whose `_time` lies within four hours, excluding older events indexed recently.
+Old `last_indexed` or a missing host therefore cannot prove ingestion stopped.
 `max(_indextime)` in `tstats` is unconfirmed; if rejected, use `stats` over a raw search.
 Check a bounded index-time window with event-time bounds covering plausible delay/backfill/skew:
 
@@ -51,22 +43,6 @@ Index-time modifiers still intersect event time; record both resolved UTC window
 coverage makes absence inconclusive. Splunk's exhaustive **All Time** range needs a separate scope/cost
 decision. Recent indexing proves arrival for returned events only; measure per-event delay with
 `eval delay_s=_indextime-_time`, comparing timestamps before assigning cause.
-
-## Read it over time
-
-```spl
-index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<start_epoch> latest=<end_epoch>
-| timechart span=1m count AS total count(status) AS classified count(eval(status>=500 AND status<600)) AS errors
-```
-
-`classified<total` exposes incomplete status extraction. For every status class rather than the
-default top ten series:
-
-```spl
-index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<start_epoch> latest=<end_epoch>
-| eval status_class=if(match(status, "^[1-5][0-9]{2}$"), substr(status, 1, 1)."xx", "invalid")
-| timechart span=1m limit=0 count by status_class
-```
 
 ## Top offenders
 
@@ -123,8 +99,8 @@ a tight window; it covers public indexes, not internal `_*`, and may miss role-r
 
 ## Compare before vs after a deploy
 
-Use equal absolute windows and one completion event per eligible request/attempt. The denominator
-must count all requests in a phase before grouping by error classification:
+Use equal absolute windows and one completion event per eligible request/attempt. Count the whole
+phase population before any optional error-class grouping.
 
 ### Overall deploy error rate
 
@@ -153,11 +129,7 @@ not zero-fill. Without usable error classification, use the overall query above.
 
 ## Fast paths at scale — tstats, data models, TERM/PREFIX
 
-`tstats` reads indexed metadata (tsidx), not raw events:
-
-```spl
-| tstats count FROM datamodel=<model>.<root_dataset> WHERE earliest=-4h BY <dataset>.<field> _time span=5m
-```
+`tstats` reads indexed metadata (tsidx), not raw events.
 
 - `summariesonly=t` silently omits unsummarized data, including recent incident events when
   acceleration lags. Default `f` includes the unsummarized remainder at additional cost. Record
@@ -173,8 +145,7 @@ not zero-fill. Without usable error classification, use the overall query above.
 
 ## Tips & gotchas (Splunk-specific — where the default bites)
 
-- Explicit `earliest`/`latest` avoids inherited picker or saved-job ranges. `_time` displays in
-  search timezone, not necessarily the event's.
+- `_time` displays in search timezone, not necessarily the event's.
 - `timechart`/`chart ... by <field>` defaults to the top ten series and folds others into `OTHER`.
   Use `limit=0`, or state the limit, when rare codes/hosts matter.
 - `transaction` groups events at substantial cost; prefer `stats by <id>` for correlation when

@@ -1,10 +1,5 @@
 # WQL dialect for metric investigation
 
-Wavefront continues as DX OpenExplore; Tanzu Observability's end-of-availability did not retire
-WQL. `docs.wavefront.com` is frozen at 2024-09; newer syntax belongs to DX OpenExplore TechDocs.
-Proxy 14.0+ is not built from the read-only public repository: updates/security fixes come from
-Broadcom. `stack-profile` owns the team's current deployment facts.
-
 Primary references:
 
 - [WQL reference](https://docs.wavefront.com/query_language_reference.html)
@@ -26,8 +21,7 @@ characters: use a target-validated WQL literal encoder for those values, or stop
 identifier. Inspect the rendered query after any additional client encoding.
 
 WQL regex patterns use `/.../`; backslashes escape special characters, and `^`/`$` anchors are
-unsupported. Do not copy PromQL's `=~` syntax or treat anchoring as escaping. Prefer exact matching
-for copied identifiers rather than constructing a regex from their contents.
+unsupported. Do not copy PromQL's `=~` syntax or treat anchoring as escaping.
 
 ## Query shapes — guardrails
 

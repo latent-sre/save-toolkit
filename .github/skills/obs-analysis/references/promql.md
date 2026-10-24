@@ -23,18 +23,11 @@ or stop for a sanitized identifier; never concatenate raw input.
 
 Confirm deployed versions and flags before adopting these features.
 
-- Recording rules use `level:metric:operations`; choose explicit `without (…)` dimensions to
-  preserve labels alert consumers need, such as `job`.
-- **Native histograms are stable but optional** from v3.8 (the old feature flag is a no-op from
-  v3.9; scraping is enabled per job via `scrape_native_histograms`). Whether the deployed chain has
-  them enabled must be checked: `histogram_quantile` over a native histogram uses no
-  `_bucket` series or `le` label, so the classic p95 shape silently matches nothing against a
-  native-only metric. Check which representation the target scrapes before declaring no data.
-- **Newer PromQL surface is version-gated**: duration arithmetic from v3.4; later duration helpers
-  flag-gated through v3.13 and default-on from v3.14; extended range selectors
-  (`promql-extended-range-selectors`, which change `rate()` extrapolation) from v3.7 and still
-  experimental in v3.14. Keep both out of shared rules until the deployed version and flags are
-  confirmed.
+- **Histogram representation matters:** native `histogram_quantile` inputs use neither `_bucket`
+  nor `le`; classic aggregation must retain `le`. Check the scraped representation before treating
+  a classic query's empty result as no data. Apply `rate()` before aggregation for request quantiles.
+- Duration helpers and extended range selectors depend on deployed versions/flags; check their
+  availability and extrapolation semantics before using them in shared rules.
 - **Sustained `prometheus_remote_storage_*` failures** mean the query may be missing recent samples
   at the receiving end, a finding for the `obs-pipeline` skill, not a query rewrite.
 - **After a Mimir ≥3.2 upgrade**, a query whose cost or result shape changed may now be sharded

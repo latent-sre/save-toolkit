@@ -8,6 +8,12 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `obs-analysis` references: 53,174 to 46,592 bytes. Review all 15 references, leaving six
+  compact methods/inventories unchanged. Remove elementary query examples and catalog boilerplate;
+  preserve remaining recipes, audited denominators, GCP authentication discovery, OTel semantics and
+  missing-data rules. Correct configurable TraceQL windows and private-preview alerting. Telemetry
+  audit checks pass: 5 tests; 16 remaining fenced recipes are byte-identical. Independent source
+  review found no material issues.
 - Review `obs-pipeline` references: 13,989 to 9,511 bytes. Remove syntax tutorials and duplicated
   instrumentation/validation narration; retain SDK and wiring traps, trace sampling limits, preview
   flags, credential boundaries, WAL loss caveats and canary evidence. Telemetry audit checks pass: 5

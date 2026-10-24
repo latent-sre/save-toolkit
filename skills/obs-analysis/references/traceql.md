@@ -12,14 +12,14 @@ braces must match the same span; spansets joined with `&&` may match different s
 
 ## Beyond the basic shapes — version-gated TraceQL
 
-Version-sensitive features include structural operators (`>` direct child, `>>` descendant,
-`<<` ancestor, `~` sibling), TraceQL metrics functions
-(`rate`, `count_over_time`, `quantile_over_time`, `compare`, `topk`), `select()`, and `event:` /
-`link:` / `instrumentation:` scopes. TraceQL metrics are GA from Tempo 3.0, but **alerting on a
-TraceQL metrics query remains experimental**, is limited to a 24-hour query window, and is not a
-Grafana Managed Alerts data source. Other operators/scopes remain version- or block-format-gated
-(some need vParquet5+). Confirm the deployed Tempo version before using any of them in a shared
-query.
+Structural operators (`>` child, `>>` descendant, `<<` ancestor, `~` sibling), metrics functions,
+`select()` and event/link/instrumentation scopes depend on the deployed version and block format.
+Check those capabilities before using them in shared queries.
+
+Metrics query windows are configurable (`query_frontend.metrics.max_duration` and tenant
+`max_metrics_duration`), not an immutable 24-hour ceiling. Grafana documents direct TraceQL alerting
+behind the `tempoAlerting` private-preview flag; do not assume production support or enable it
+through an analysis task. Alert design stays with `obs-alerting`.
 
 ## Limits and discard reasons — absence causes
 
