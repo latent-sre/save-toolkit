@@ -1,20 +1,18 @@
 # Query-plan safety
 
-Read only when selecting or interpreting a database execution plan. Start with plan-only evidence;
-an actual/analyzed plan is execution: classify its effects and load under `../SKILL.md`'s authority rule.
+Default to plan-only evidence. Classify actual/analyzed execution's effects and load under the
+[parent authority rule](../SKILL.md).
 
 | Engine | Plan only | Executes the statement |
 |---|---|---|
 | PostgreSQL | `EXPLAIN <statement>` | `EXPLAIN ANALYZE <statement>` |
 | SQL Server | estimated plan / `SET SHOWPLAN_XML ON` | actual plan / `SET STATISTICS XML ON` |
 
-On a `SELECT`, the executing form creates load. On `INSERT`, `UPDATE`, `DELETE`, or `MERGE`, it makes
-the data change. Default to the plan-only column. Use an executing form only after confirming the
-statement and side effects. Prefer an isolated copy; a read replica suits compatible read-only queries.
-On production, the existing DBA-authorized read path and load bounds cover executing read-only
-statements only. Executing a mutating statement there is a live change even inside a rolled-back
-transaction: it takes row locks, fires triggers, consumes sequences, and writes WAL. It uses
-`production-change-gate` with the DBA's sign-off.
+Executing `SELECT` creates load; executing `INSERT`/`UPDATE`/`DELETE`/`MERGE` changes data. Check
+side effects first; prefer an isolated copy, or a read replica for compatible read-only queries.
+Production read-only execution needs the existing DBA-authorized path and load bounds. Mutating
+execution requires `production-change-gate` and DBA sign-off even with rollback: row locks,
+triggers, sequence consumption and WAL still occur.
 
 On an isolated copy, or inside an approved production change, PostgreSQL documents this pattern for
 measuring ordinary mutating DML:
@@ -25,13 +23,11 @@ EXPLAIN ANALYZE <the INSERT/UPDATE/DELETE>;
 ROLLBACK;
 ```
 
-That rollback is not a blanket safety net. It does not undo sequence/`nextval` consumption or effects
-that escape the transaction, such as independently committed `dblink` writes or external effects
-from `COPY TO PROGRAM`. FDW behavior depends on the wrapper: `postgres_fdw` aborts its corresponding
-remote transaction when the local transaction aborts.
-Confirm volatile functions, triggers, and external transaction boundaries before execution. Treat SQL
-Server `STATISTICS XML` exactly like running the statement, including permissions, load, mutation,
-and session-option cleanup.
+Rollback does not undo `nextval`/sequence consumption, independently committed `dblink` writes or
+external effects such as `COPY TO PROGRAM`. FDW behavior is wrapper-specific: `postgres_fdw` aborts
+its corresponding remote transaction on local abort. Check volatile functions, triggers and
+external transaction boundaries before executing. SQL Server `STATISTICS XML` requires the same
+permissions/load/mutation assessment as statement execution, plus session-option cleanup.
 
 Return the plan kind, target/environment, execution and mutation risk, approvals, observations, and
 measured before/after result. Keep assumptions `[unverified]`.

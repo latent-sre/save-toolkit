@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `database-reliability` references: 14,739 to 12,412 bytes. Remove repeated explanations and
+  tooling examples; retain version-specific DDL, locks, invalid-index cleanup, plan execution
+  effects, recovery watermarks and authority. Local links and diff checks pass; no live database
+  behavior was tested.
 - Review `production-change-gate` references: 13,421 to 11,446 bytes. Remove repeated checklist
   narration; preserve approval, recovery, UNKNOWN and immutable tested-byte requirements. Additional
   tag rules follow actual repository policy. Gate contract checks pass: 3 tests and 64 subtests; the

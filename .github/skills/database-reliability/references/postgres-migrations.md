@@ -1,39 +1,33 @@
 # PostgreSQL migrations
 
-Read only for PostgreSQL-specific migration mechanics. The compatibility, recovery, authority, and
-output contracts in `../SKILL.md` remain binding. Confirm the deployed major with
-`SHOW server_version;`; it is unconfirmed until observed.
+Apply the [parent migration and authority rules](../SKILL.md). Confirm the deployed major with
+`SHOW server_version;` before selecting version-dependent DDL.
 
 ## Bound every lock wait
 
-Blocking depends on the requested lock. `ADD COLUMN`, `ADD CHECK`/`NOT NULL`, `SET NOT NULL`, and
-`ALTER … TYPE` take `ACCESS EXCLUSIVE`; a waiting request can queue later reads and writes.
-`ADD FOREIGN KEY` takes `SHARE ROW EXCLUSIVE` on both tables, conflicting with writers but not
-ordinary `SELECT`. `CREATE INDEX CONCURRENTLY` and `VALIDATE CONSTRAINT` use `SHARE UPDATE EXCLUSIVE`,
-which permits ordinary reads and writes but conflicts with some maintenance and DDL. For these
-table locks, inspect the actual blockers (`pg_stat_activity`, `pg_locks`, through the DBA), not
-merely all open transactions. Run those statements with
-`SET lock_timeout = '<seconds, below the app's request timeout>'` (session or `SET LOCAL`, never
-`postgresql.conf`) and retry with backoff on timeout.
+`ADD COLUMN`, `ADD CHECK`/`NOT NULL`, `SET NOT NULL`, and `ALTER … TYPE` take `ACCESS EXCLUSIVE`;
+a waiting request can queue reads/writes. `ADD FOREIGN KEY` takes `SHARE ROW EXCLUSIVE` on both
+tables, conflicting with writers but not ordinary `SELECT`. `CREATE INDEX CONCURRENTLY` and
+`VALIDATE CONSTRAINT` use `SHARE UPDATE EXCLUSIVE`: ordinary reads/writes proceed, some maintenance
+and DDL conflict. Have the DBA inspect actual blockers through `pg_stat_activity`/`pg_locks`.
+Bound waits with `SET lock_timeout = '<seconds, below the app's request timeout>'` (session or
+`SET LOCAL`, never `postgresql.conf`), with backoff on timeout. Concurrent indexing needs the
+separate treatment below.
 
-`CREATE INDEX CONCURRENTLY` also waits for transactions, not only for its lock: before each of its
-two table scans for those that modified the table, and after the second scan for every transaction
-whose snapshot predates it, including ones that touch only other tables. A seconds-scale
-`lock_timeout` cancels those waits after the scans and leaves an INVALID index, and each retry fails
-the same way while the old transaction lives. Before starting it, have the DBA check the whole
-database for long-running transactions (`pg_stat_activity` `xact_start` and `backend_xmin`); run it
-without a short `lock_timeout`, since its waiting lock blocks no ordinary reads or writes (it does
-hold off vacuum and other DDL on that table), and have the DBA watch the waits and cancel the build
-at a DBA-agreed deadline. A failed or cancelled build may leave an INVALID index. Inspect the catalog and
-migration record first; use `DROP INDEX CONCURRENTLY` only for the invalid index created by that
-failed attempt, before retrying. Do not drop a pre-existing valid index merely because creation
-failed.
+`CREATE INDEX CONCURRENTLY` waits before both scans for transactions that modified the table,
+and after the second for older snapshots, including transactions touching only other tables.
+A seconds-scale `lock_timeout` cancels those waits, leaving an INVALID index; retries repeat the
+failure while the old transaction lives. Have the DBA inspect database-wide `xact_start` and
+`backend_xmin` in `pg_stat_activity`. Avoid a short `lock_timeout` for this build: ordinary
+reads/writes proceed, but vacuum and other table DDL wait. The DBA monitors and cancels at an
+agreed deadline. After failure/cancellation, inspect catalog and migration records; use
+`DROP INDEX CONCURRENTLY` only for the INVALID index created by that attempt, never a pre-existing
+valid index, before retrying.
 
 ## Constraints and columns
 
-Adding `NOT NULL` to an existing column can scan the table while validating every row. Do not run a
-direct `ALTER COLUMN ... SET NOT NULL` against a hot, large table without the exact target facts and
-lock assessment.
+Existing-column `SET NOT NULL` can scan the table; assess exact-target locking before using it on
+a hot, large table.
 
 `NOT VALID` skips the initial scan, not enforcement on subsequent inserts and updates. An unrelated
 field update still fails if the resulting row retains a legacy NULL. First make every insert supply
@@ -67,7 +61,6 @@ behavior.
 
 - Prefer `CREATE INDEX CONCURRENTLY` for a hot table and `ADD COLUMN` without a volatile default, but
   verify lock acquisition, runtime, partial-failure cleanup, and the migration tool's transaction mode.
-- Run migrations through the repository's migration tooling (Flyway, Liquibase, Alembic, or
-  `migrate` as applicable), not ad-hoc production SQL.
-- Add production-scale scan/rewrite behavior, replication/log impact, cancellation, and retry
-  identity to the migration handoff defined in `../SKILL.md`.
+- Use the repository's migration tooling, not ad-hoc production SQL.
+- Add production-scale scan/rewrite, replication/log impact, cancellation and retry identity to the
+  parent migration handoff.
