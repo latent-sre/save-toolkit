@@ -2,21 +2,9 @@
 
 Numbers below are fictional inputs, not thresholds or promises of benefit.
 
-## Positive time saving with ongoing costs
-
-A representative month has 24 interventions at 15 minutes each: 360 minutes, or 6 hours.
-The proposal needs 40 hours to build and validate, then 2 hours/month of residual handling plus
-2 hours/month of maintenance. Net saving is 6 - 2 - 2 = 2 hours/month. Time-only break-even is
-40 / 2 = 20 months, assuming comparable demand and no omitted costs. Record uncertainty and
-alternative simpler changes before recommending the investment.
-
-If one-time effort varies from 30 to 50 hours and net savings from 1 to 3 hours/month, the bounds
-are 10 to 50 months; the inputs and dependence between estimates matter more than a single precise
-date. Treat any claimed reduction in mistakes or customer impact as a separate benefit to verify.
-
 ## Automation that increases total work
 
-The same 6-hour baseline is replaced by 3 hours/month of residual handling and 4 hours/month of
+A 6-hour monthly baseline is replaced by 3 hours/month of residual handling and 4 hours/month of
 maintenance elsewhere. Net saving is -1 hour/month: no positive time-saving break-even, regardless
 of build cost. Explain the transfer of work and consider simplification or accepting the current
 process. If a demonstrated safety benefit is the purpose, present that tradeoff explicitly rather
@@ -71,3 +59,8 @@ until residual and maintenance match the prediction.
 Uncertainty: maintenance estimate is the proposer's, accepted unadjusted above; the
 workflow's expected useful life is unstated, so the horizon comparison remains open.
 ```
+
+The calculation assumes comparable demand and no omitted costs. If one-time effort varies from
+30 to 50 hours and net savings from 1 to 3 hours/month, the bounds are 10 to 50 months; the inputs
+and dependence between estimates matter more than a single precise date. Treat any claimed
+reduction in mistakes or customer impact as a separate benefit to verify.

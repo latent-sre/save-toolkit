@@ -371,6 +371,37 @@ class LinkCheckerTests(Fixture):
             failures,
         )
 
+    def test_long_fences_keep_short_markers_and_trailing_text_literal(self):
+        for opening, embedded, closing in (
+            ("````spl", "```SPL comment```", "````"),
+            ("````", "```", "`````"),
+            ("~~~~text", "~~~", "~~~~~"),
+            ("````", "````not a closing fence", "```` \t"),
+            ("````", "~~~~", "````"),
+        ):
+            with self.subTest(opening=opening, embedded=embedded, closing=closing):
+                self.write(
+                    "docs/target.md",
+                    f"# Target\n\n{opening}\n{embedded}\n## Code heading\n"
+                    f"[literal](missing.md)\n{closing}\n\n## Real heading\n",
+                )
+                self.write(
+                    "docs/source.md",
+                    "# Source\n\n[real](target.md#real-heading) [code](target.md#code-heading)\n",
+                )
+                self.assertEqual(
+                    ["docs/source.md: dead anchor 'target.md#code-heading'"],
+                    check_links.check(self.root),
+                )
+
+    def test_short_closer_does_not_expose_unterminated_fence_content(self):
+        self.write("docs/target.md", "# Target\n\n````spl\n```\n## Code heading\n")
+        self.write("docs/source.md", "# Source\n\n[code](target.md#code-heading)\n")
+        self.assertEqual(
+            ["docs/source.md: dead anchor 'target.md#code-heading'"],
+            check_links.check(self.root),
+        )
+
     def test_a_review_packet_citing_a_deleted_packet_is_a_dead_link(self):
         """Retained evidence cites retained evidence: a retention pass that keeps the citing packet
         and deletes the cited one leaves an active item's chain ending nowhere, and did so behind a

@@ -254,14 +254,18 @@ YAML_NON_STRING = re.compile(
 
 def _strip_fences(text: str) -> str:
     kept = []
-    fence = None
+    fence: tuple[str, int] | None = None
     for line in text.splitlines(keepends=True):
         match = re.match(r"^[ \t]*(```+|~~~+)", line)
         if match:
-            marker = match.group(1)[0]
+            marker = match.group(1)
             if fence is None:
-                fence = marker
-            elif fence == marker:
+                fence = (marker[0], len(marker))
+            elif (
+                marker[0] == fence[0]
+                and len(marker) >= fence[1]
+                and not line[match.end():].strip(" \t\r\n")
+            ):
                 fence = None
             kept.append("\n" if line.endswith(("\n", "\r")) else "")
         elif fence is None:

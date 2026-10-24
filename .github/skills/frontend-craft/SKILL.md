@@ -10,8 +10,9 @@ argument-hint: "[the GUI to build or change]"
 
 # Frontend craft
 
-Deliver a complete application with runnable code, real backend integration and verified user
-workflows. Use the caller's requirements and repository facts first; defaults fill open decisions.
+Deliver the caller's requested UI change or application with runnable code, verified required
+workflows and the real backend integration they need. Use the caller's requirements and repository
+facts first; defaults fill open decisions.
 
 In an existing app, keep its framework, kit, router, libraries and conventions; never migrate them
 as a side effect. Write a [design brief](./references/design.md) for a new app, a new area, or a
@@ -70,12 +71,19 @@ Run typecheck, lint, component tests and a production build. Adapt helper assert
 existing runner: the `.test.ts` assets use `node:test` and must not be copied raw into Vitest.
 Do not add a second test runner. Cover applicable [API cases](./references/api.md#contract-tests).
 
-Exercise required workflows against the running backend and run the serving contract on a served
-production build. Use the host's Playwright MCP server (or ask the caller when unavailable) to
-inspect every view and state in light and dark at desktop width and 320 px; run axe, test keyboard
-navigation, and check the console for CSP violations and missing styles. Do not install Playwright
-packages or download browsers for MCP verification. Report the brief, workflows, added
-dependencies/licences, verification results, screenshots and any unverified gaps.
+Choose browser verification scope from the change:
+
+- **New app:** every required workflow, view and state in light and dark at desktop width and 320 px.
+- **Existing app:** affected workflows, views and relevant states in its supported themes and
+  viewports. Shared-component changes cover their consuming workflows; global styling, routing or
+  other application-wide changes expand verification across the app.
+
+Within that scope, exercise workflows against the running backend and use the host's Playwright
+MCP server (or ask the caller when unavailable) to inspect the UI, run axe, test keyboard navigation,
+and check the console for CSP violations and missing styles. For both new and existing apps, run
+the serving contract on a served production build. Do not install Playwright packages or download
+browsers for MCP verification. Report the brief when required, workflows, added dependencies/licences,
+verification scope and results, screenshots and any unverified gaps.
 
 ## Starting code
 

@@ -25,18 +25,20 @@ records do not re-queue work.
 
 ### SKILLS-001 — reduce unnecessary skill content without lowering standards
 
-**Status:** `ready` (2026-10-23); four source repairs and the first three-skill consolidation
-are implemented; other audit candidates remain proposed.
+**Status:** `ready` (2026-10-23); four initial source repairs, the three-skill consolidation,
+the approved remaining fixes and Akamai duplicate-prose cleanup are implemented. Incident
+investigation is explicitly excluded.
 **Owner:** `agent-engineer` prepares the candidate; the human owner accepts its exact revision.
 **Outcome:** Repeated skill instructions and stale guidance are reduced while domain boundaries,
 evidence, recovery, authorization and meaningful verification remain intact.
-**Next action:** The human owner selects any further reduction from the audit. Small reference
-consolidations and output/loading-policy changes remain separate candidates; no whole-skill
-retirement or new live evaluation campaign is selected. Reuse the stack-profile trim already in
-`bebbc116` and the completed CI/agent-authoring/PCF-deploy consolidation.
+**Next action:** Review the combined candidate. Further pruning needs a separately selected scope;
+do not include `incident-investigation`. No whole-skill retirement or new live evaluation campaign
+is selected. Existing behavioral acceptance gaps remain with their current roadmap owners.
 **Evidence:** [Full skills audit and follow-ups](reviews/2026-10-23-skills-audit.md): all 30 shipped
-skills covered; four defects repaired and the first consolidation removes 1,631 net canonical
-bytes. Adapters regenerated and matching checks passed; live behavioral gaps remain recorded.
+skills covered; the first consolidation removes 1,631 net canonical bytes and the remaining pass
+removes another 442; Akamai consolidation removes 726 more (2,799 total). Fence regression,
+conditional-output scenarios, regenerated adapters and passing default/focused suites are recorded;
+live behavioral gaps remain explicit.
 **SRE task:** Load less repeated guidance and receive task-sized help without losing the checks
 that make operational advice and engineering changes trustworthy.
 

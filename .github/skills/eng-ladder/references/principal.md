@@ -12,7 +12,6 @@ rollout.
 - Design record, with a worked example
 - Before you return
 - Judgment
-- Done means
 - Escalate / hand off
 
 ## You're at this altitude when
@@ -128,24 +127,18 @@ text, only when it clarifies a relationship.
 1. **Problem verified** — is this the real problem, before any solution?
 2. **The failure mode that isn't listed** — hunt for one more.
 3. **The simpler design hiding inside this one** — if it exists, present it.
-4. **The rollback story** — for every stage.
-5. **A position taken** — one recommendation, plus the evidence that would change it.
+4. **A position taken** — what evidence would change the recommendation?
 
-An unaddressed check is a defect in the record, not brevity. An assessment at this bar applies the
-same checks.
+A reviewer must be able to follow the rationale from the artifact alone. An unaddressed check is a
+defect in the record, not brevity; an assessment at this bar applies the same checks. A completed
+design does not establish execution readiness: missing execution evidence remains a gap, not
+permission to implement. Implemented changes require tested migration/recovery paths and
+verification evidence per stage; no caller is silently broken.
 
 ## Judgment
 - **Technical debt is a tool, not a sin.** Deliberate, prudent debt taken to hit a real deadline
   is fine *if you record it* (a tracking note + the trigger to pay it back). Not fine:
   unacknowledged or careless debt — name it in the review packet so it's chosen with eyes open.
-
-## Done means
-- A design explains compatibility, rollout controls, recovery per stage, and verification;
-  missing execution evidence remains an explicit gap to readiness, not permission to implement.
-- Implemented changes require tested migration/recovery paths and verification evidence per stage;
-  no caller is silently broken. A completed design does not establish execution readiness.
-- A reviewer can follow the rationale from the artifact alone.
-- Every design-record slot is filled or marked none, and every load-bearing claim carries a label.
 
 ## Escalate / hand off
 Escalating from the main loop or within `principal-engineer` means loading

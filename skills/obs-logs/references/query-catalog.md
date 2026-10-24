@@ -70,7 +70,7 @@ when the question requires quiet periods and a trailing baseline.
 - **Owner:** `<service on-call>`
 - **Verified:** [unverified: target index, status field, and deploy-epoch substitution]
 
-Use the **Compare before vs after a deploy** section of [SPL](./spl.md) with this entry's population.
+Use [SPL's deploy comparison](./spl.md#compare-before-vs-after-a-deploy) with this entry's population.
 Its overall rate needs no `error_type`; the optional class breakdown keeps the phase-wide denominator.
 Missing or invalid status leaves the rate null; no traffic or a missing phase is not healthy zero.
 
