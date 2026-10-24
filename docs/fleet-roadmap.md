@@ -25,20 +25,21 @@ records do not re-queue work.
 
 ### SKILLS-001 — reduce unnecessary skill content without lowering standards
 
-**Status:** `ready` (2026-10-23); four initial source repairs, the three-skill consolidation,
-the approved remaining fixes and Akamai duplicate-prose cleanup are implemented. Incident
-investigation is explicitly excluded.
+**Status:** `ready` (2026-10-24); the audit repairs and pruning merged in #420/#421.
+Targeted live evaluations are complete; the resulting retirement-role clarification is ready for
+review. Incident investigation remains explicitly excluded.
 **Owner:** `agent-engineer` prepares the candidate; the human owner accepts its exact revision.
 **Outcome:** Repeated skill instructions and stale guidance are reduced while domain boundaries,
 evidence, recovery, authorization and meaningful verification remain intact.
-**Next action:** Review the combined candidate. Further pruning needs a separately selected scope;
-do not include `incident-investigation`. No whole-skill retirement or new live evaluation campaign
-is selected. Existing behavioral acceptance gaps remain with their current roadmap owners.
-**Evidence:** [Full skills audit and follow-ups](reviews/2026-10-23-skills-audit.md): all 30 shipped
-skills covered; the first consolidation removes 1,631 net canonical bytes and the remaining pass
-removes another 442; Akamai consolidation removes 726 more (2,799 total). Fence regression,
-conditional-output scenarios, regenerated adapters and passing default/focused suites are recorded;
-live behavioral gaps remain explicit.
+**Next action:** Review the retirement-role clarification and its before/after evidence. Further
+pruning needs a separately selected scope; do not include `incident-investigation`. No whole-skill
+retirement is selected. Existing behavioral acceptance gaps remain with their current owners.
+**Evidence:** [Full skills audit and follow-ups](reviews/2026-10-23-skills-audit.md), including the
+[targeted live probes](reviews/2026-10-23-skills-audit.md#targeted-live-probes-and-retirement-role-repair).
+The merged pruning contributed 2,718 canonical bytes before correctness additions, preserving the
+separate already-merged trims. The new conditional reference adds 191 bytes for the observed role
+inference defect; the entrypoint does not grow. Structural, decision, reference-read and manual
+semantic results are reported separately; passing fields alone missed the approval-role error.
 **SRE task:** Load less repeated guidance and receive task-sized help without losing the checks
 that make operational advice and engineering changes trustworthy.
 

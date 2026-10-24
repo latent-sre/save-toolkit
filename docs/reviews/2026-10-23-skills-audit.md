@@ -466,3 +466,68 @@ loading behavior. The signal-reference output receipts total only 117 bytes and 
 obligation; the small PCF orientation section retains information that still needs a home. These
 remain unselected tradeoffs rather than automatic next edits. The current evidence supports no
 whole-skill retirement. Existing runtime acceptance gaps stay with their existing owners.
+
+
+## Targeted live probes and retirement-role repair
+
+[verified] The owner selected targeted live verification after #420/#421 merged. The baseline was
+`e797823795949afd248a8a03b5c8f29f4ff3b39c`, plugin SHA-256
+`46959add0f0709add0ec9b13ba25679eb5b79433460b2299dceb9354bde1e931`. All trials used requested
+`sonnet`, observed `claude-sonnet-5-5`, Claude Code 2.1.310, native unelevated Linux, and only Skill
+and Read tools. Three trials per case, a 180-second timeout and $3 scheduling cap per invocation
+bounded execution. No production system or incident-investigation scenario was exercised.
+
+| Measurement | Result and limit |
+|---|---|
+| Existing frontend scope and gate-field cases | 3/3 PASS each. Gate references were explicitly requested, so those reads do not establish spontaneous loading. |
+| Ordinary lifecycle policy versus resolver integration | Correct decisions and intended optional-file selection in all six trials; no follow-on ownership/freshness read. Decision tasks alone did not establish actual workflow compliance. |
+| Broad stack inventory | Both inventory references read and Copilot skipped in 3/3. Automated output check failed 3/3: extra prose repeated the Runtime and Observability labels before the exact fields. Failures remain recorded. |
+| Copilot selection | 3/3 PASS; only the model reference read, with team-license evidence still unconfirmed. |
+| Separately identified structured-only stack request | 3/3 output PASS, no reference reads. Its initial broad-reference read criteria therefore failed 3/3. The classifications are in the core; this narrower task does not replace the original inventory-loading evidence or prove a skill repair. |
+| Actual retirement draft | Required retirement-order and record-transitions reads in 3/3, resolver files skipped; exact fields passed. Prose nevertheless inferred approval authority in two outputs and contradicted itself in one. |
+| Actual freshness assessment | 3/3 PASS; record-transitions, resolved-context and context-requirements read in all three. Catalog-window freshness did not establish procedure B execution; document review did not advance execution verification. |
+| Same retirement draft after repair | 3/3 exact-field PASS and required reads; manual inspection found explicit approver/executor gaps in all three. |
+
+Counts and trace observations are [verified]. The invoking assistant performed the prose review;
+this was not an independent human review or calibrated rubric. The six added scenarios retain
+structural decision checks, while reference-read and prose judgments remain separate assessments.
+Their `success_criteria` descriptions do not make those judgments automatically enforced checks.
+
+[verified] Baseline retirement run 1 said “Maya is the approver of record”; run 3 said “Maya Chen
+approves.” The supplied packet established service ownership and discovery/draft authorization,
+not release-approval authority. Run 2 assigned Maya “classification and approval” but also called
+the approver a gap. All three passed the exact-field grader, demonstrating why that result alone
+cannot establish correct role assignment.
+
+The repair adds 191 bytes to the conditional
+[retirement-order reference](../../skills/service-lifecycle/references/retirement-order.md): name
+service owner, release approver and executor from supplied role evidence; service ownership alone
+establishes neither approval nor execution authority. Unprovided roles remain gaps. The core skill,
+frontmatter, tool grants, and incident-investigation bundle are unchanged. Its generated copy is
+regenerated. This clarifies the existing authority boundary rather than adding an approval process.
+
+[verified] The repaired plugin SHA-256 is
+`de30f3ff10ddd48768babd61c9e6388912833bd310c1420af64ef05f6a73c2ac`. Live records identify a dirty
+working-tree candidate at the baseline commit; the digest binds its actual plugin bytes. The same
+retirement scenario ran before and after without changing its prompt or grading identity:
+`1b2585b4800235828ae7f65ece58b7133c6a96efa937ea32e0bbac3a25bde1b1`. Runner SHA-256:
+`bc0f325b74ef57d9aad80443c24e63140c59a5349e2b2c32b3701159da6ae1e5`.
+
+[verified] Offline verification: 381 valid scenarios / 2,154 graded expectations; catalog/grader
+suite 68 tests and 1,098 subtests passed; asset/adapter suite 61 tests and 354 subtests passed;
+Gate A passed both structural steps. The six new exact-field cases were calibrated with intended
+answers, rejected prompt echoes and all 22 harmful alternative decisions. No evaluator or runtime
+code changed; the full suite was not repeated for these prose and scenario-data changes.
+
+Private raw traces, exact scenario snapshots, pre-run read criteria, complete missing-read results,
+manual role assessments and the candidate patch remain under
+`.eval-runs/skills-audit-behavior-20261023/` and `.eval-runs/skills-audit-followup-20261023/`.
+The first campaign ran 18 trials (15 automated PASS, three FAIL), with $1.131529 reported cost.
+The follow-up ran 12 trials (all automated PASS, but separate read/prose limits above), with
+$0.998443 reported cost. These complete list-price estimates are not subscription bills.
+No original result was overwritten or reclassified as a pass.
+
+[unverified] Small samples do not establish universal reliability, whole-document quality,
+real-service compatibility, token savings or improvement on the original ambiguous prompt.
+Only the retirement case provides an unchanged-scenario before/after comparison. Human acceptance
+of the exact candidate remains separate from these measurements.

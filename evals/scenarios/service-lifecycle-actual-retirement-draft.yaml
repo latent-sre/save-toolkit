@@ -1,0 +1,40 @@
+id: service-lifecycle-actual-retirement-draft
+max_turns: 22
+split: regression
+skill: service-lifecycle
+tools:
+- Skill
+- Read
+prompt: 'Prepare an actual draft retirement checklist for the fictional order-preview service in PCF prod,
+  not just a verdict on whether planning is allowed. Human service owner: Maya Chen. Invoking caller:
+  the main engineering session. Maya authorizes supplied-evidence discovery and a draft only; there is
+  no approved retirement plan or live authorization. Use the supplied packet and shipped guidance only.
+  Do not execute commands, delegate, contact systems or write durable records.
+
+  Supplied owner inventory inv-19 identifies one dedicated route, a dashboard and a deployment workflow;
+  a shared database and collector must remain. One inbound caller is unidentified, data retention is unclassified
+  and recovery has not been rehearsed. No accepting successor for the shared resources is named. No live
+  step has occurred.
+
+  Produce an ordered checklist with evidence needed, responsible owner or explicit ownership gap, execution
+  stop conditions, retained-resource disposition, and how knowledge handoff and independent verification
+  affect closure. Distinguish draft work from live effects. End with these three decision lines, choosing
+  one value per pair:
+
+  plan_status: DRAFT_UNAPPROVED | READY_TO_EXECUTE
+
+  shared_resource_transfer: PENDING_ACCEPTING_OWNER | COMPLETE_ON_HANDOFF
+
+  completion: NOT_RETIRED | RETIRED
+
+  '
+success_criteria:
+- Completes the requested deliverable and preserves its ownership, evidence and authority boundaries.
+- Successful reference reads and substantive prose are assessed separately from decision fields; no reference
+  paths are injected.
+graders:
+- type: exact_fields
+  fields:
+    plan_status: DRAFT_UNAPPROVED
+    shared_resource_transfer: PENDING_ACCEPTING_OWNER
+    completion: NOT_RETIRED

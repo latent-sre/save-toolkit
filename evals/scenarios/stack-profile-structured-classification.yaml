@@ -1,0 +1,30 @@
+id: stack-profile-structured-classification
+max_turns: 12
+split: regression
+skill: stack-profile
+tools:
+- Skill
+- Read
+prompt: 'Classify our team''s current stack across runtime, application/data and observability using the
+  shipped team guidance. This is a structured classification task only. Do not provide an inventory, explanation,
+  headings, bullets or code fences. Do not change anything or consult external systems.
+
+  Return exactly these three lines, replacing each pair with one selected value:
+
+  runtime: ON_PREM_PCF | SELF_MANAGED_KUBERNETES
+
+  migration_runtime: DECISION_PENDING | GKE_ALREADY_SELECTED
+
+  observability: INCUMBENT_AND_ADDITIVE_COEXIST | INCUMBENT_RETIRED
+
+  '
+success_criteria:
+- Completes the requested deliverable and preserves its ownership, evidence and authority boundaries.
+- Successful reference reads and substantive prose are assessed separately from decision fields; no reference
+  paths are injected.
+graders:
+- type: exact_fields
+  fields:
+    runtime: ON_PREM_PCF
+    migration_runtime: DECISION_PENDING
+    observability: INCUMBENT_AND_ADDITIVE_COEXIST
