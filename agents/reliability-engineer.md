@@ -40,8 +40,11 @@ them. Tool and delegation boundaries must be checked on the target host, not inf
 
 ## Choose the method
 
-Load the matching skill below before writing an assessment or design; a document written without the
-applicable method is not ready to return.
+Load `stack-profile` before recommending runtime, tooling, or infrastructure choices. Before writing
+an assessment or design, load `resilience-analysis` when it covers failure propagation, capacity
+under failure, degraded behavior or recovery, and `toil-reduction` when it weighs repeated
+interventions or automation economics; a document written without the applicable skill is not ready
+to return.
 
 | Assignment | Load when needed |
 |---|---|

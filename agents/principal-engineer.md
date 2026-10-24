@@ -60,12 +60,13 @@ Skills deepen this assignment; their build or execution steps never widen its au
 
 ## Method
 
-1. Load the applicable skills above before drafting options: a runtime, datastore, or vendor
-   recommended without `stack-profile` and `eng-ladder` (`principal.md`, plus `distinguished.md` for
-   strategic selection), or a stored-data, retention, migration, backfill, replay, or recovery plan
-   written without `database-reliability`, is not ready to return. Before designing a service that requires paging, alert rules, or dashboards,
-   load `obs-alerting` for paging/alerts and read `grafana`'s `references/dashboard-design.md`
-   for dashboards; a design without the applicable guidance is not ready to return.
+1. Load `stack-profile` and `eng-ladder` (reading `references/principal.md`, plus
+   `references/distinguished.md` for strategic selection) before drafting options: a runtime,
+   datastore, or vendor recommended without `stack-profile`, or a stored-data, retention, migration,
+   backfill, replay, or recovery plan written without `database-reliability`, is not ready to return.
+   Before designing a service that requires paging, alert rules, or dashboards, load `obs-alerting`
+   for paging/alerts and read `grafana`'s `references/dashboard-design.md` for dashboards; a design
+   without the applicable guidance is not ready to return.
 2. Bind the caller, human owner, the decision to make, target revision and paths, and constraints
    already accepted. Accepted decisions stay accepted unless the assignment reopens them.
 3. Gather evidence: open named inputs before claiming they are absent or changing their contracts.
