@@ -1,8 +1,8 @@
 # Claude Code frontmatter — agents & skills
 
-The fleet's single source of truth for Claude Code frontmatter facts: platform facts live here and
-only here. On conflict with the live docs (code.claude.com/docs/en/sub-agents,
-code.claude.com/docs/en/skills) the docs win — update this file and re-verify after CLI upgrades.
+Claude frontmatter contracts live here. Re-verify after CLI upgrades against the
+[subagent](https://code.claude.com/docs/en/sub-agents) and
+[skill](https://code.claude.com/docs/en/skills) docs and the installed host.
 
 ## Contents
 
@@ -22,7 +22,7 @@ either inert in a plugin or decided against below.
 |---|---|
 | `name`, `description` | Required; `description` is the trigger and is capped at **1,024 UTF-8 bytes** by `validate_fleet.py` |
 | `tools` | Allowlist for built-ins **and MCP tools**. **Omitting it inherits every tool**; a list in which no entry resolves to a tool usually fails to launch with an error naming the entries, so never rely on an empty list for a zero-tool agent. Exact MCP names are `mcp__<server>__<tool>`; `mcp__<server>` and `mcp__<server>__*` silently acquire tools the server adds later — grant exact entries and include `ToolSearch` when approved MCP tools may be deferred. `Agent(worker)` scoping enforces only for a main-thread agent (`claude --agent`); a subagent ignores the type list. Shell-command restrictions are separate from this tool list; see below. **Removed from every subagent regardless of `tools:`** — `AskUserQuestion`, `EndConversation`, `EnterPlanMode`, `ExitPlanMode` (unless the subagent's `permissionMode` is `plan`), `ScheduleWakeup`, `WaitForMcpServers`, `Workflow`; and `Agent` at the depth limit. A **background** subagent keeps `Agent` below that limit and `TaskStop`, subject to its grants; its other built-ins are filtered as listed in [Available tools](https://code.claude.com/docs/en/sub-agents#available-tools). A **fork** skips tool filtering entirely and receives the main conversation's exact pool, so a fork is not a way to bound authority |
-| `model` | Generation aliases `haiku \| sonnet \| opus \| fable \| inherit` only — `validate_fleet.py` rejects a full ID (a dated pin goes stale silently). No agent pins one today; tiering a routine lane down is allowed when its cost profile justifies it. Tier down mechanical, high-volume lanes (graders, routing trials); keep review, root-cause, and authority lanes inheriting; a pin states its reason in the same change. Resolution order: the call's `model`, then frontmatter `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the session model; a family alias in the call or frontmatter resolves to the session's exact model when it is that family. `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` ignores the first two, so check both variables before attributing a lane result to the session model. A fork always runs on the session model. Generated Copilot adapters carry no `model` |
+| `model` | Generation aliases `haiku \| sonnet \| opus \| fable \| inherit` only — `validate_fleet.py` rejects full IDs. No agent pins one. Cost-justified tiering may lower mechanical, high-volume lanes; review, root-cause, and authority lanes inherit. State a pin's reason in the same change. Resolution order: the call's `model`, then frontmatter `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the session model; a family alias in the call or frontmatter resolves to the session's exact model when it is that family. `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` ignores the first two, so check both variables before attributing a lane result to the session model. A fork always runs on the session model. Generated Copilot adapters carry no `model` |
 | `hooks`, `mcpServers`, `permissionMode` | Plugin-packaged agents **ignore** all three. The fleet ships `hooks/hooks.json` session-wide, self-scoped to exact guarded `agent_type` values; canonical frontmatter containing `hooks` fails validation |
 | `initialPrompt` | Ignored for plugin subagents |
 | `omitClaudeMd` | Launches the subagent without user, project, and local CLAUDE.md files. A candidate for `reviewer`, whose trusted-base review cannot stop a candidate's fleet guide from auto-loading; plugin-subagent behavior is unknown, and adopting it needs a `validate_fleet.py` key decision |
@@ -51,10 +51,8 @@ host execution capability, not a promise that Bash is installed.
 
 ## Skills
 
-Plugin skills are namespaced (`plugin:name`) and always load beside personal and project skills,
-even under the same name. A fleet skill that "never
-fires" usually lost to a personal or other-plugin skill with overlapping triggers, or had its
-description dropped from the discovery listing (see the listing budget below).
+Plugin skills use `plugin:name` and coexist with same-named personal/project skills. For missed
+invocations, inspect overlapping triggers and discovery-listing omissions separately.
 
 | Field | Disposition here |
 |---|---|
@@ -75,22 +73,16 @@ description dropped from the discovery listing (see the listing budget below).
 
 ### Discovery and invoked-content budgets are different contracts
 
-The discovery listing (every model-invocable name and description together) is one budget: 1% of
-the model's context window by default (`skillListingBudgetFraction`), or a fixed character count
-from `SLASH_COMMAND_TOOL_CHAR_BUDGET`; 8,000 characters is only the fallback. On overflow every
-name stays and the least-invoked skills lose their descriptions, visible only in the `/context`
-Skills row, `/doctor`, or the `--debug` log. The CLI computes about 6,000 characters for a 200K-window model and
-30,000 for 1M (undocumented and unconfirmed); the fleet's descriptions
-alone exceed 6,000, so on a 200K host some drop. An
-invoked skill body is a separate contract: it loads whole into the conversation as a single message
-and stays there across later turns. The 5,000-tokens-per-skill / 25,000-combined figures apply only
-when a summary compacts the conversation — Claude Code then re-attaches the most recent invocation
-of each skill, keeping only the first 5,000 tokens of each, with re-attached skills sharing a
-combined 25,000-token budget. So moving
-conditional detail out of `SKILL.md` reduces invoked context and what survives compaction, not
-discovery-listing cost — and there is no per-invocation truncation to design around: a body-size
-screen, a discovery-listing measurement, and a description-routing edit are three separate decisions
-with three verification rules.
+Discovery names/descriptions share a budget: 1% of the context window by default
+(`skillListingBudgetFraction`), or a fixed character count from `SLASH_COMMAND_TOOL_CHAR_BUDGET`;
+8,000 characters is only the fallback. On overflow names remain but least-invoked descriptions
+are dropped; inspect the `/context` Skills row, `/doctor`, or `--debug` log on the actual host.
+
+An invoked body loads whole as one message and persists across turns. The 5,000-token per-skill /
+25,000-token combined limits apply to reattachment after summary compaction: the most recent
+invocation of each skill is reattached, truncated to those budgets. Moving conditional detail to
+references reduces invoked context, not discovery cost; do not treat compaction limits as
+per-invocation truncation.
 
 ## Tool output caps
 
@@ -102,8 +94,6 @@ through its task notification instead. Other hosts differ: bound output with pag
 rather than relying on a cap.
 
 ## Fleet decisions on unused fields
-
-Considered, not overlooked; reopen only with a reason.
 
 | Field | Decision |
 |---|---|
@@ -117,5 +107,4 @@ Considered, not overlooked; reopen only with a reason.
 A plain (unquoted) `description:` containing `: ` or a colon-bearing token such as
 `save-toolkit:<name>` parses in the runtime and in `validate_fleet.py` but fails `claude plugin tag`
 with "Unexpected token", blocking the release path.
-**Double-quote the whole scalar**; the rendered string is identical, so routing and evals are
-unaffected. Internal `\"` escapes are fine.
+**Double-quote the whole scalar**; internal `\"` escapes are fine.

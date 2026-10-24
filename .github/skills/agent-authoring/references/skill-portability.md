@@ -1,11 +1,9 @@
 # Skill portability — which frontmatter survives off Claude Code
 
-A skill has two audiences. The portable Agent Skills specification
-accepts six fields; Claude Code accepts those plus a Claude-only set. A Claude-only field is
-**rejected** by Anthropic's packaging script when publishing to the portable spec, and silently
-dropped by a host that ignores it. This fleet ships a Claude plugin *and* generates Copilot/VS Code
-adapters; the generator absorbs the difference, and this file maps what it has to absorb.
-`claude-code-frontmatter.md` owns what each field *does*; this file records where it is honored.
+Use this cross-host checklist alongside the field contracts in
+[Claude frontmatter](./claude-code-frontmatter.md) and
+[Copilot frontmatter](./copilot-frontmatter.md). Host-specific fields may be rejected by packaging
+or ignored at runtime; do not assume a control survives projection.
 
 ## The portable six
 
@@ -16,22 +14,17 @@ as one single-line scalar so the local gate measures its 500-character limit exa
 
 ## Claude-only fields
 
-"Claude-only" means the portable spec, not every host; VS Code has its own Claude-dialect support.
-Verify against the host you ship to.
+“Claude-only” here means outside the portable specification, not unsupported by every other host.
 
-| Field | Fleet use | Off-Claude behavior |
-|---|---|---|
-| `argument-hint` | Every skill | Dropped by the portable spec; recognized by VS Code |
-| `disable-model-invocation` | `pcf-deploy` | Dropped by the portable spec, so the side-effect gate does **not** travel there; VS Code honors it (default `false`), which makes the Copilot copies explicit-only |
-| `user-invocable` | not used | Dropped by the portable spec; recognized by VS Code (default `true`) |
-| `disallowed-tools` | not used | Dropped by the portable spec and absent from VS Code's skill header; VS Code's `disallowedTools` applies only to Claude-format agent files |
-| `context`, `agent`, `background` | not used | Dropped; `context: fork` exists in VS Code behind an experimental setting |
-| `paths`, `shell`, `model`, `effort`, `hooks`, `when_to_use`, `arguments` | not used | Dropped by the portable spec; VS Code recognizes `hooks` on agent files |
+- `argument-hint` is used on every fleet skill; VS Code recognizes it, the portable spec does not.
+- `disable-model-invocation` makes `pcf-deploy` explicit-only on Claude and VS Code; that invocation
+  gate does not travel in portable metadata.
+- Other nonportable fields are unused here. VS Code recognizes `user-invocable` and experimental
+  `context: fork`; its `disallowedTools` and `hooks` support on agent files does not establish
+  support for skill-header restrictions. See the owning host tables before adopting a field.
 
-**The portable set can only grant, never restrict.** Authority expressed through a field the target
-host ignores vanishes silently at publication. A field a host happens to honor is a convenience,
-never a control you may cite — VS Code's tool list is user-overridable, so even a recognized
-restricting field is a default there.
+Portable `allowed-tools` preapproves tools; it does not restrict them. Ignored fields remove their
+controls, and VS Code tool lists are user-overridable defaults, not an enforcement boundary.
 
 ## Host size limits are not interchangeable
 
@@ -43,6 +36,5 @@ restricting field is a default there.
 
 ## Checking a skill before publishing to the portable spec
 
-Strip it to the portable six and confirm the body still carries the behavior any dropped field
-enforced. A skill whose safety depended on `disable-model-invocation` or `disallowed-tools` must
-state that boundary in its own prose — off Claude, nothing else holds it.
+Strip to the portable six and preserve dropped invocation/authority boundaries in the body.
+Prose remains cooperative; it does not replace a host control lost during publication.

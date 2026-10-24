@@ -353,7 +353,7 @@ class FleetValidatorTests(unittest.TestCase):
                 "agent-authoring",
                 _markdown_section(
                     Path("skills/agent-authoring/references/artifact.md"),
-                    "## Learn from an encountered failure",
+                    "# Artifact altitude — author and optimize one LLM-facing artifact",
                 ),
                 ("human acceptance of the exact candidate revision is promotion",),
                 ("pr approval on the exact candidate revision is promotion",),

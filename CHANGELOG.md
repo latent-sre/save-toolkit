@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `agent-authoring` references: 35,471 to 31,221 bytes. Retain tool grants, qualified
+  delegation examples, isolation/taint, loop budgets and exact-revision human acceptance. Remove
+  duplicate explanations, unconfirmed context arithmetic and speculative host enforcement; move the
+  existing promotion test to its canonical contract table. Fleet/adapter/link/hook checks: 163
+  passed, 2 skipped, 490 subtests; Ruff passes. Independent source review found no material issues.
 - Review `stack-profile` references: 10,501 to 7,985 bytes. Preserve recorded stack choices, support
   boundaries, frontend/CI/auth policies and ITO/TLC roles. Remove unconfirmed named Copilot
   ordering; retain the accepted selection rule and require actual picker/license evidence. Platform-
