@@ -1,21 +1,11 @@
 # Akamai edge triage — evidence surfaces and how to read them
 
-Values here were not byte-checked against the official `techdocs.akamai.com` pages. Re-verify
-byte-exact values against the live page before treating any of them as `[verified]` for the target
-account.
-
-## Contents
-
-- Edge Diagnostics (Control Center → Test & troubleshoot)
-- Cache status via debug headers — know which mechanism the property supports
-- DataStream 2 — the sustained/fleet-wide evidence
-- Offload and error reports (Control Center → Reporting)
-- App & API Protector (WAF) — "is the WAF blocking real users?"
+Apply the [parent read/credential boundaries](../SKILL.md). Confirm exact values and available
+features against official documentation and the target account; these descriptions are not live evidence.
 
 ## Edge Diagnostics (Control Center → Test & troubleshoot)
 
-The read-only triage suite; it also has an API (Edge Diagnostics API). The four tools that matter
-mid-incident:
+Control Center and the Edge Diagnostics API expose:
 
 - **Translate Error String** — paste the error reference from an Akamai error page (for
   "Reference #9.6f64d440.1318965461.2f2b078" enter `#9.6f64d440.1318965461.2f2b078`, letters
@@ -33,12 +23,10 @@ mid-incident:
 
 ## Cache status via debug headers — know which mechanism the property supports
 
-**The mechanism changed in 2024.** The modern path is the **Enhanced Debug** Property Manager
-behavior: requests carry an `Akamai-Debug` header with a **time-limited token** generated from the
-property's configured 64-byte hex debug key, and the behavior's *Disable Pragma Debugging* option
-defaults to disabling the legacy unauthenticated `Pragma` headers. Whether legacy `Pragma` still
-answers on a property that never adopted Enhanced Debug is property-dependent and unconfirmed;
-test per property, don't assume.
+**Enhanced Debug** uses an `Akamai-Debug` header with a time-limited token from the property's
+configured debug key; check the exact key format in its schema, not a byte/hex-length assumption.
+*Disable Pragma Debugging* defaults to disabling legacy unauthenticated `Pragma` headers.
+Legacy support on other properties remains unconfirmed; check the actual property.
 
 - `Akamai-Debug: <auth-token> cache` → returns `X-Cache`, `X-Cache-Remote`, `X-Check-Cacheable`, `X-Cache-Key`,
   `X-True-Cache-Key`, `Edge-Cache-Tag`, `Akamai-Cache-Status` and related headers.
@@ -79,10 +67,8 @@ headers. Other observations follow the invoking agent's granted, scoped, output-
 
 ## DataStream 2 — the sustained/fleet-wide evidence
 
-DataStream 2 streams edge request logs to a destination (Splunk, S3, GCS, Elasticsearch, custom
-HTTPS, and others). Which one ours uses is `stack-profile`'s edge row; hand the query to
-`obs-analysis`, whose team query catalog holds the hostname and region error/cache-share shape, rather
-than inventing an index. The fields that answer triage questions:
+Resolve the destination from `stack-profile`'s edge row; do not invent an index. `obs-analysis`'s
+query catalog supplies hostname/region error and cache-share shapes. Relevant DataStream 2 fields:
 
 - `cacheStatus` — `0` means the object was absent from cache; `1` means present. Cached negative
   responses or stale objects can still be served from upstream, so presence alone does not prove
@@ -98,37 +84,32 @@ than inventing an index. The fields that answer triage questions:
 
 Field availability on the target stream is unconfirmed until observed there.
 
-Two completeness caveats that change conclusions:
+Completeness limits:
 
-- **Latency profile trade-off**: "low latency" streams deliver *less complete* data within ~5
-  minutes; "log completeness" delivery is fuller within ~60 minutes. **Absence of log lines in the
-  first minutes is not absence of traffic.**
-- **Delivery drops are real**: upload failures can exhaust retries, and DataStream keeps
-  no backup. Alert on upload failures; missing lines do not prove missing traffic. The
-  [FAQ](https://techdocs.akamai.com/datastream2/docs/faq) and
+- Low-latency delivery (~5 minutes) is less complete than log-completeness delivery (~60 minutes);
+  absent early lines do not establish absent traffic.
+- Upload failures can exhaust retries without backup. Monitor them rather than interpreting missing
+  lines as missing traffic. [FAQ](https://techdocs.akamai.com/datastream2/docs/faq) and
   [troubleshooting](https://techdocs.akamai.com/datastream2/docs/troubleshooting) disagree on retry
-  budgets; the failure-specific retry count is unconfirmed.
+  budgets; the applicable count remains unconfirmed.
 
 ## Offload and error reports (Control Center → Reporting)
 
-Use **Traffic by Hostname** in Control Center. The legacy **Traffic report** is discontinued;
-do not describe its retired filters as current UI controls. The offload arithmetic
-`(edge − origin) / edge × 100` is a working
-definition, not a quoted formula — the API defines `offloadedHitsPercentage` in prose. The
-Reporting API v2 exposes the data as `delivery/traffic/current`; the CP-code filter is
-**optional** — omitted, the report covers all available CP codes.
+Use **Traffic by Hostname**, not the discontinued Traffic report's filters. Reporting API v2 uses
+`delivery/traffic/current`; omitted CP-code filtering covers all available CP codes. Offload
+`(edge − origin) / edge × 100` is a working formula, not a quotation: the API defines
+`offloadedHitsPercentage` in prose.
 
-An offload drop with rising origin traffic and no config change is a cache-key or TTL question —
-check recent property activations *before* blaming origin capacity.
+For falling offload/rising origin traffic, compare property activations, cache keys and TTL before
+attributing capacity trouble.
 
 ## App & API Protector (WAF) — "is the WAF blocking real users?"
 
 Read-only triage path:
 
-1. **Web Security Analytics** (Security Center) — unified security events, drill-down by
-   dimension, pivot views, and **sampled request-level logs** with headers and the attack types
-   each request triggered. False-positive shape: ordinary-looking requests from real users
-   triggering the same rule.
+1. **Web Security Analytics** (Security Center): dimensions/pivots and sampled request logs with
+   headers and triggered attack types. Repeated rules on ordinary-looking user requests are a
+   false-positive lead, not proof.
 2. **Events report / WAF activity by attack group** — applied actions, targeted
    hostnames/policies, source geographies.
 3. What the client saw: the standard deny is an **HTTP 403**, but properties may use **custom deny

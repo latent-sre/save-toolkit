@@ -1,21 +1,11 @@
 # Akamai Property Manager as code — versions, activation, rollback
 
-Values here were not byte-checked against the official `techdocs.akamai.com` pages. Re-verify
-timings and API shapes against the live pages for the target contract before relying on them.
-
-## Contents
-
-- The change unit: a property version
-- Rollback — check eligibility as well as time
-- Property change packet
-- Cache purge
-- Config-as-code paths
-- Review checklist for a property diff
+Apply the [parent activation/authority rules](../SKILL.md), including staging approval and human
+execution. Check timings, API shapes and eligibility against the target contract before relying on them.
 
 ## The change unit: a property version
 
-Properties are versioned; editing never touches live traffic — **activation** does. Activate a
-version to **staging** or **production**:
+Editing a property version prepares it; activation changes staging or production:
 
 - **Staging** activations "usually finish within 3 minutes" — smaller network, no end-user
   traffic. The human resolves the staging edge hostname (the edge hostname with `-staging` before
@@ -43,14 +33,12 @@ version to **staging** or **production**:
 
 ## Property change packet
 
-The packet states: the version diff, staging evidence, blast radius (hostnames/CP codes on the
-property), verification (the exact debug-header or report check), **which rollback applies right
-now**, and its expected duration. Prepare recovery before activation; afterward confirm current
-fallback eligibility, version, and expiry. Production activation is Tier 2 minimum, with a human
-release owner through `production-change-gate`; a WAF/security-config change has its own owner.
-Origin, hostname, or security-config activations are Tier 3 access-path changes (proxy and
-firewall in the gate's Tier 3 row); the recovery path must fit the change: eligible Fast Fallback
-inside its window, a tested previous-version activation, or another proven path when neither exists.
+Include version diff, staging evidence, hostname/CP-code blast radius, exact verification check,
+applicable rollback and expected duration. Prepare recovery before activation; recheck fallback
+eligibility/version/expiry afterward. Production activation needs the human release owner and
+`production-change-gate` (Tier 2 minimum); WAF/security changes retain their security owner.
+Origin/hostname/security activations are Tier 3 access-path changes. Recovery must be eligible
+Fast Fallback, tested previous-version activation, or another proven path.
 
 ## Cache purge
 
@@ -74,19 +62,15 @@ and not yet confirmed: after invalidate, a server that held the object answers `
 
 ## Config-as-code paths
 
-- **PAPI** (Property Manager API) — the programmatic interface for rule trees, versions, and
-  activations; everything else is built on it.
-- **Terraform** — the actively versioned path: the Akamai provider's property provisioning
-  requires rule format ≥ `v2023-01-05`, and **`cli-terraform` exports an existing property to
-  Terraform config plus an import script** — an import path for a property maintained in the
-  UI. No official page crowns Terraform as "the" recommended path over the Property Manager
-  CLI, as far as checked; choose per team and record the choice.
+- **PAPI** manages rule trees, versions and activations.
+- **Terraform:** property provisioning requires rule format ≥ `v2023-01-05`; `cli-terraform`
+  exports an existing property to configuration plus an import script. Select tooling with the
+  owning team; this is an option, not a mandated replacement for Property Manager CLI.
 - **Akamai CLI `property-manager`** — local snippet-based editing and the multi-environment
   pipeline workflow; current maintenance status unconfirmed.
-- **Akamai Sandbox** — an isolated environment to test a development version of a property before
-  any activation: the Sandbox CLI builds it from the property's rule tree and the local Sandbox
-  Client serves it at `http://localhost:<connector_port>`. Sandbox-first beats staging-first for
-  iteration; staging remains the pre-production gate.
+- **Akamai Sandbox:** tests a development rule tree before activation through a local Sandbox
+  Client at `http://localhost:<connector_port>`. It can support iteration; it does not replace
+  approved staging validation.
 
 ## Review checklist for a property diff
 

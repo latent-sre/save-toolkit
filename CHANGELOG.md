@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `akamai-edge` references: 18,765 to 15,687 bytes. Remove generic explanations and Sandbox-
+  first policy; qualify debug-key format through the property schema. Retain timing attribution,
+  sampling/delivery limits, token handling, activation/WAF authority and fallback/purge conditions.
+  Local links and diff checks pass; target-account behavior remains unverified.
 - Review `gcp-ops` references: 7,987 to 6,240 bytes. Retain pending runtime/ownership decisions and
   credential, singleton, retry and traffic-tag boundaries. Correct non-GPU startup-probe scope and
   Direct VPC sizing/NAT qualifications against official Google documentation. Local links and diff
