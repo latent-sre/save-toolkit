@@ -56,7 +56,38 @@ def run_cli(
         raise
 
 
-def _stop_cli(process: subprocess.Popen[bytes]) -> None:
+def run_command(command: str, *, cwd: str, env: dict[str, str], timeout: float) -> subprocess.CompletedProcess[str]:
+    """Capture a grading command while owning its ordinary children through timeout or interruption."""
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        env=env,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        start_new_session=sys.platform != "win32",
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except BaseException:
+        try:
+            _stop_cli(process)
+        except Exception as exc:
+            raise RuntimeError(f"grading process-tree cleanup failed for PID {process.pid}") from exc
+        raise
+    finally:
+        # communicate closes pipes on success; close them explicitly on an interrupted read too.
+        if process.stdout is not None:
+            process.stdout.close()
+        if process.stderr is not None:
+            process.stderr.close()
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
+def _stop_cli(process: subprocess.Popen[bytes] | subprocess.Popen[str]) -> None:
     try:
         if sys.platform == "win32":
             # Do this before killing/reaping the parent: taskkill needs it to find children.

@@ -21,6 +21,8 @@ installed-host checks live in [VS Code plugin acceptance](vscode-plugin-acceptan
   and takes Copilot agents and hooks from `com.github.copilot/`. Without that schema VS Code ranks
   `.claude-plugin/plugin.json` first and loads the Claude agents instead; see
   [manifest format detection](vscode-plugin-acceptance.md#manifest-format-detection).
+- Agent resource links resolve from their generated location: workspace agents use
+  `.github/skills/`, while installed agents use root `skills/`.
 
 ## Body budgets
 

@@ -31,7 +31,7 @@ import clean_room
 import graders as fleet_graders
 import judge as rubric_judge
 
-from . import backing, constants, tracing, workspaces
+from . import backing, constants, invocation, tracing, workspaces
 from .backing import Service, ServiceUnavailable
 from .constants import ROOT, SHELL_TOOLS
 from .outcomes import Outcome, Polarity, instrument, unmeasured, verdict, violation
@@ -87,7 +87,7 @@ class Need(enum.StrEnum):
     TRACE = "trace"  # calls, call counts, loads and dispatches: the trace summary restores these
     RAW_TRACE = "raw trace"  # completed returns, reads and the plugin namespace: only the raw trace holds them
     ORDERED_TRACE = "ordered trace"  # completion order, which only the raw trace holds
-    CHANGES = "workspace changes"  # commit count, changed paths and `.agents/`, as the summary records them
+    CHANGES = "workspace changes"  # commit identities, changed paths and `.agents/`, as the summary records them
     STATE = "state files"  # the fixture's state directory, as the summary records it
     CHECKOUT = "live checkout"  # the workspace's files, commands or path, deleted after the run
     SERVICE = "backing service"
@@ -274,14 +274,9 @@ def grading_env(ctx: Context) -> dict[str, str]:
 
 def _run(ctx: Context, command: str, timeout: int = 180) -> subprocess.CompletedProcess[str]:
     """Execute model-written code for grading on the host, under the clean-room env."""
-    return subprocess.run(
+    return invocation.run_command(
         command,
         cwd=str(ctx.ws.repo),
-        shell=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
         timeout=timeout,
         env=grading_env(ctx),
     )
@@ -423,8 +418,13 @@ def check_text_not_contains(ctx: Context, p: Params) -> Outcome:
 
 @declare("no_new_commits", Polarity.FORBIDS, needs={Need.CHANGES})
 def check_no_new_commits(ctx: Context, p: Params) -> Outcome:
-    ok = ctx.git.commit_count == ctx.ws.baseline_commits
-    return verdict(ok, f"commits {ctx.ws.baseline_commits} -> {ctx.git.commit_count}")
+    counts = f"commits {ctx.ws.baseline_commits} -> {ctx.git.commit_count}"
+    if ctx.ws.baseline_commit_ids is not None and ctx.git.commit_ids is not None:
+        new = ctx.git.commit_ids - ctx.ws.baseline_commit_ids
+        return verdict(not new, f"{counts}; newly reachable: {', '.join(sorted(new)) or 'none'}")
+    if ctx.git.commit_count > ctx.ws.baseline_commits:
+        return verdict(False, counts)
+    return unmeasured(f"{counts}; reachable commit identities missing or invalid; re-run the trial")
 
 
 @declare("no_agents_dir", Polarity.FORBIDS, needs={Need.CHANGES})

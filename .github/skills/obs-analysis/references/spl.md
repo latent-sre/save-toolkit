@@ -130,9 +130,16 @@ must count all requests in a phase before grouping by error classification:
 index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<before_start_epoch> latest=<after_end_epoch>
 | eval phase=if(_time < <deploy_epoch>, "before", "after")
 | eval status=if(match(status, "^[1-5][0-9]{2}$"), tonumber(status), null())
+| stats count AS total, count(status) AS classified, count(eval(status>=500 AND status<600)) AS errors by phase
+| eval error_rate=if(total>0 AND classified=total, errors/total, null())
+```
+
+The overall rate needs no `error_type`. For an optional class breakdown, verify its extraction
+and replace only the `stats` line above with these two lines, keeping the final rate calculation:
+
+```spl
 | eventstats count AS total, count(status) AS classified by phase
 | stats count(eval(status>=500 AND status<600)) AS errors, max(total) AS total, max(classified) AS classified by phase, error_type
-| eval error_rate=if(total>0 AND classified=total, errors/total, null())
 ```
 
 Acceptance case: one class has 1/100 failures before and 10/100 after: rates must be 0.01 and 0.10.
@@ -140,7 +147,7 @@ Counting denominators inside `by phase, error_type` instead yields 1/1 and 10/10
 carry the class. Successful events without `error_type` still count in `eventstats`.
 Missing/invalid status (including `0`, `700`, fractions) makes the rate null; verify one three-digit
 status per completion. Missing phase/class rows require traffic, extraction and window checks,
-not zero-fill.
+not zero-fill. Without usable error classification, use the overall query above.
 
 ## Fast paths at scale — tstats, data models, TERM/PREFIX
 

@@ -59,6 +59,7 @@ An onset shortlist, not a complete baseline. Check extraction/ingestion; use
 | Verified | Unverified: population, status extraction and deploy epoch |
 
 Use [SPL's deploy comparison](./spl.md#compare-before-vs-after-a-deploy) with this population.
+Its overall rate needs no `error_type`; the optional class breakdown keeps the phase denominator.
 Missing/invalid status leaves the ratio null; no traffic or a missing phase is not healthy zero.
 
 ### Where did one request fail across services?

@@ -317,7 +317,9 @@ def _description(fields: Mapping[str, object], source: Path) -> str:
     return description.strip()
 
 
-def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
+def render_copilot_agent(
+    source: Path, *, command_preview: bool = False, skill_root: str = "../skills"
+) -> str:
     parsed = fleet_frontmatter.parse_file(source)
     fields, body = parsed.fields, parsed.body
     if PLUGIN_BANNER_RE.search(body):
@@ -347,7 +349,9 @@ def render_copilot_agent(source: Path, *, command_preview: bool = False) -> str:
     # removed. A host limitation that changes what a lane may do is stated in that lane's own
     # body (`sre-assistant` states its shell rule by the tools it holds), so it travels with the rule it
     # qualifies instead of in a header every agent repeats.
-    prompt_body = adapt_text(body)
+    # Workspace agents read the projected skills; installed agents read root-level skills.
+    # Rebase only Markdown resource links, retaining fragments and the rest of the prompt.
+    prompt_body = re.sub(r"(?<=\]\()\.\./skills/", f"{skill_root}/", adapt_text(body))
     prompt_limit = SRE_AGENT_PROMPT_MAX_CHARS if name == "sre-assistant" else COPILOT_AGENT_PROMPT_MAX_CHARS
     if len(prompt_body) > prompt_limit:
         raise ValueError(
@@ -464,9 +468,14 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
     for source in agents:
         if _is_link_or_reparse(source):
             raise ValueError(f"{source}: canonical source must not be a link/reparse point")
-        agent = render_copilot_agent(source).encode("utf-8")
-        outputs[COPILOT_AGENTS / f"{source.stem}.agent.md"] = agent
-        outputs[COPILOT_PLUGIN_AGENTS / f"{source.stem}.agent.md"] = agent
+        for agent_dir, skill_dir in (
+            (COPILOT_AGENTS, COPILOT_SKILLS),
+            (COPILOT_PLUGIN_AGENTS, Path("skills")),
+        ):
+            skill_root = Path(os.path.relpath(skill_dir, agent_dir)).as_posix()
+            outputs[agent_dir / f"{source.stem}.agent.md"] = render_copilot_agent(
+                source, skill_root=skill_root
+            ).encode("utf-8")
     command_root = root / "commands"
     _assert_no_indirection_below(root, command_root, "canonical source")
     commands = sorted(command_root.glob("*.md"))

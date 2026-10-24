@@ -56,6 +56,8 @@ Work the rows that apply. Audit inspects; onboard produces; retire dispositions 
 | Data, backup, restore | backup scope plus a dated restore rehearsal; existence alone is not restore evidence | recovery path recorded | data deletion, credential revocation, DNS and certificate removal, and access-path changes stay Tier 3, each with its own recovery evidence and human executor | `database-reliability` |
 
 Use the team's existing retirement process for sequencing and stop conditions.
+Name the service owner, release approver, and executor from supplied role evidence. Service
+ownership alone establishes neither approval nor execution authority; unprovided roles stay gaps.
 
 ## Audit findings
 
@@ -95,7 +97,7 @@ or merely planned, and close an onboarding by recommending its own audit as owed
 
 ## Optional resolved context
 
-A caller with a compatible resolver may resolve [this skill's context
-requirements](./context-requirements.yaml) under the SRE operational-context contract ADR. Resolved
-context is routing input only: it never supplies a plan, an approval, or a credential, and missing
-context is a gap, not a guess. Catalog `lastVerified` is not execution-backed `last_verified`.
+Only when configuring, using, or validating a resolver/producer integration, read
+[resolved-context integration](./references/resolved-context.md) and
+[this skill's context requirements](./context-requirements.yaml). Resolved context is routing input
+only: it never supplies a plan, an approval, or a credential, and missing context is a gap, not a guess.

@@ -813,6 +813,33 @@ class EndToEndStubTests(TempRootTestCase):
         self.assertTrue(all(record["cost"]["complete"] for record in records))
         self.assertFalse((out / "eval-tiny" / "l" / "run-3").exists())
 
+    def test_published_trial_cost_survives_loss_of_the_batch_summary(self) -> None:
+        out = self.root / "interrupted-batch"
+        self._batch(out, stub_cli(self.root, cost=0.5), [stub_spec()], "--scenario", "tiny", "--trials", "1")
+        (out / "summary-l-default.json").unlink()
+        code, calls, printed = self._batch(out, stub_cli(self.root, cost=0.1), [stub_spec()],
+                                          "--scenario", "tiny", "--trials", "1", "--run-offset", "1",
+                                          "--max-batch-usd", "0.5")
+        self.assertEqual((2, []), (code, calls))
+        self.assertIn("reached the USD 0.5 cap", printed)
+        self.assertFalse((out / "eval-tiny" / "l" / "run-2").exists())
+
+    def test_same_slot_retry_reserves_a_new_number_after_a_hidden_paid_attempt(self) -> None:
+        out = self.root / "hidden-retry"
+        self._batch(out, stub_cli(self.root, cost=0.3), [stub_spec()], "--scenario", "tiny", "--trials", "1")
+        label = out / "eval-tiny" / "l"
+        (label / "run-1").rename(label / ".run-1-attempt-interrupted")
+        (out / "summary-l-default.json").unlink()
+        code, calls, printed = self._batch(out, stub_cli(self.root, cost=0.3), [stub_spec()],
+                                          "--scenario", "tiny", "--trials", "1", "--max-batch-usd", "0.5")
+        self.assertEqual((0, [("tiny", 1)]), (code, calls), printed)
+        self.assertEqual(2, read_json(label / "run-1" / "attempt.json")["attempt"])
+        code, calls, printed = self._batch(out, stub_cli(self.root, cost=0.1), [stub_spec()],
+                                          "--scenario", "tiny", "--trials", "1", "--run-offset", "1",
+                                          "--max-batch-usd", "0.5")
+        self.assertEqual((2, []), (code, calls), printed)
+        self.assertIn("reached the USD 0.5 cap", printed)
+
     def test_unpriced_cli_result_stops_the_runner_and_its_resume(self) -> None:
         out = self.root / "unpriced-batch"
         code, calls, printed = self._batch(out, stub_cli(self.root), [stub_spec()],

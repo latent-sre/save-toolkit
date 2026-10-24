@@ -60,16 +60,32 @@ short checklist replaces the production table below.
 
 ## Verdict
 
+Record only the requested gate, with its checklist evidence and the earlier verdicts it consumes.
+Use these common fields; a merge verdict needs no additional fields.
+
 ```text
 gate: merge | release | production
 verdict: PASS | BLOCKED | APPROVED
-Tier: <0|1|2|3 | not applicable>   Target: <exact target>   Actor: <human or protected automation>
-Candidate commit ID: <exact commit | not applicable>   Artifact identity: <immutable digest or version | not applicable>
+Target: <PR and base branch | release environment | exact production target>
+Candidate commit ID: <exact commit | not applicable>
+Evidence: <checklist evidence, including reused verdict records>
+Blocking items: <the NOs, each with what clears it>   Waivers: <item, approving human, reason>
+```
+
+For release or production, also record:
+
+```text
+Artifact identity: <immutable digest or version | not applicable>
+Backout/recovery: <exact rollback, or non-reversible effects and evidenced recovery>   Watching: <who, which signals>   Abort if: <criteria>
+```
+
+For production only, add the authorization fields:
+
+```text
+Tier: <0|1|2|3>   Actor: <human or protected automation>
 Approved by: <human>   When: <UTC>   Valid until: <UTC | not applicable for Tier 0/1>
 Execution-time binding: <rechecked target/action/actor/identity at UTC | pending>
-Backout/recovery: <exact rollback, or non-reversible effects and evidenced recovery>   Watching: <who, which signals>   Abort if: <criteria>
 Production execution boundary: <protected environment or least-privilege executor evidence | missing>
-Blocking items: <the NOs, each with what clears it>   Waivers: <item, approving human, reason>
 ```
 
 ## Execution result

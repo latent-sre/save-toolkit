@@ -605,7 +605,7 @@ class SpendCapAttemptTests(TempRootTestCase):
                     (run_out / "stdout.jsonl").write_text(trace, encoding="utf-8")
                 raise exc
             cost = {"known_cost_usd": step or 0.0, "cost_complete": step is not None}
-            (run_out / "timing.json").write_text(json.dumps(cost), encoding="utf-8")
+            (run_out / "timing.json").write_text(json.dumps({**cost, "requested_model": settings.model}), encoding="utf-8")
             return {"scenario": spec["id"], "label": settings.label, "run": run_number, "status": "PASS", "passed": 1,
                     "total": 1, "models": ["m"], "runtime": self.RUNTIME, "plugin_source_sha256": "0" * 64,
                     "scenario_sha256": probe_fingerprints.scenario_digest(spec), **cost}
@@ -630,6 +630,111 @@ class SpendCapAttemptTests(TempRootTestCase):
         self._main([0.4], "--overwrite")  # the USD 0.30 attempt is now kept as superseded
         code, calls, out = self._main([0.35, 0.35], "--run-offset", "1", "--max-batch-usd", "1")
         self.assertEqual((2, 1), (code, calls), "USD 0.40 published and 0.30 superseded: room for one more")
+
+    def test_published_and_hidden_costs_survive_a_missing_batch_summary(self) -> None:
+        for destination in ("run-1", ".run-1-attempt-deadbeef", ".run-1-previous-deadbeef"):
+            for cost in (1.2, None):
+                with self.subTest(destination=destination, cost=cost):
+                    self._start_over()
+                    self._main([cost])
+                    label = self.out / "eval-tiny" / "l"
+                    if destination != "run-1":
+                        (label / "run-1").rename(label / destination)
+                    (self.out / "summary-l-default.json").unlink()
+                    code, calls, output = self._main([0.2], "--run-offset", "1", "--max-batch-usd", "1")
+                    self.assertEqual((2, 0), (code, calls), output)
+                    self.assertIn("cap", output)
+
+    def test_stale_summary_and_archived_copy_count_once_beside_new_publication(self) -> None:
+        self._main([0.3])
+        summary = self.out / "summary-l-default.json"
+        previous = summary.read_bytes()
+        self._main([0.4], "--overwrite")
+        summary.write_bytes(previous)  # publication completed before the batch checkpoint survived
+        code, calls, output = self._main([0.2], "--run-offset", "1", "--max-batch-usd", "0.7")
+        self.assertEqual((2, 0), (code, calls), output)
+
+    def test_equal_cost_persisted_identity_collision_cannot_support_a_cap(self) -> None:
+        for with_summary in (False, True):
+            with self.subTest(with_summary=with_summary):
+                self._start_over()
+                self._main([0.3])
+                label = self.out / "eval-tiny" / "l"
+                shutil.copytree(label / "run-1", label / ".run-1-attempt-collision")
+                if not with_summary:
+                    (self.out / "summary-l-default.json").unlink()
+                code, calls, output = self._main([0.1], "--run-offset", "1", "--max-batch-usd", "0.5")
+                self.assertEqual((2, 0), (code, calls), output)
+                self.assertIn("an earlier attempt's cost is unknown", output)
+
+    def test_recovered_costs_remain_scoped_to_the_requested_model_scenarios_and_label(self) -> None:
+        self._main([4.0], "--model", "opus")
+        for label in (self.out / "eval-other" / "l", self.out / "eval-tiny" / "other-label"):
+            (label / ".run-1-attempt-unpriced").mkdir(parents=True)
+        code, calls, output = self._main([0.2], "--model", "sonnet", "--run-offset", "1", "--max-batch-usd", "1")
+        self.assertEqual((0, 1), (code, calls), output)
+
+    def test_an_unpriced_hidden_attempt_blocks_the_cap_without_a_summary(self) -> None:
+        (self.out / "eval-tiny" / "l" / ".run-1-attempt-unpriced").mkdir(parents=True)
+        code, calls, output = self._main([0.2], "--run-offset", "1", "--max-batch-usd", "1")
+        self.assertEqual((2, 0), (code, calls), output)
+        self.assertIn("an earlier attempt's cost is unknown", output)
+
+    def test_missing_or_malformed_model_and_timing_refuse_capped_recovery(self) -> None:
+        for damage in ("missing-model", "malformed-model", "malformed-timing"):
+            with self.subTest(damage=damage):
+                self._start_over()
+                self._main([0.3])
+                timing = self.out / "eval-tiny" / "l" / "run-1" / "timing.json"
+                saved = read_json(timing)
+                if damage == "missing-model":
+                    del saved["requested_model"]
+                else:
+                    saved["requested_model"] = []
+                timing.write_text("not JSON" if damage == "malformed-timing" else json.dumps(saved), encoding="utf-8")
+                code, calls, output = self._main([0.2], "--run-offset", "1", "--max-batch-usd", "1")
+                self.assertEqual((2, 0), (code, calls), output)
+                self.assertIn("an earlier attempt's cost is unknown", output)
+
+    def test_legacy_summary_matches_one_publication_without_charging_it_twice(self) -> None:
+        self._main([0.3])
+        summary = self.out / "summary-l-default.json"
+        rows = read_json(summary)
+        del rows[0]["attempt"]
+        summary.write_text(json.dumps(rows), encoding="utf-8")
+        code, calls, output = self._main([0.2, 0.2], "--run-offset", "1", "--max-batch-usd", "0.7")
+        self.assertEqual((0, 2), (code, calls), output)
+
+    def test_ambiguous_or_conflicting_cost_receipts_do_not_support_a_cap(self) -> None:
+        for conflict in ("legacy-summary", "timing"):
+            with self.subTest(conflict=conflict):
+                self._start_over()
+                self._main([0.3])
+                self._main([0.4], "--overwrite")
+                if conflict == "legacy-summary":
+                    summary = self.out / "summary-l-default.json"
+                    rows = read_json(summary)
+                    del rows[0]["attempt"]
+                    summary.write_text(json.dumps(rows), encoding="utf-8")
+                else:
+                    timing = self.out / "eval-tiny" / "l" / "run-1" / "timing.json"
+                    timing.write_text(json.dumps({"known_cost_usd": 0.1, "cost_complete": True}), encoding="utf-8")
+                code, calls, output = self._main([0.2], "--run-offset", "1", "--max-batch-usd", "1")
+                self.assertEqual((2, 0), (code, calls), output)
+                self.assertIn("an earlier attempt's cost is unknown", output)
+
+    def test_completed_trial_is_checkpointed_before_the_next_trial_starts(self) -> None:
+        original = probe_trials.run_trial
+        checkpoints = []
+
+        def inspect_before_next(spec, **kwargs):
+            if kwargs["run_number"] == 2:
+                checkpoints.extend(read_json(self.out / "summary-l-default.json"))
+            return original(spec, **kwargs)
+
+        with mock.patch.object(probe_trials, "run_trial", side_effect=inspect_before_next):
+            self._main([0.2, 0.2])
+        self.assertEqual([1], [entry["run"] for entry in checkpoints])
 
     def test_an_attempt_that_raised_counts_what_it_is_known_to_have_cost(self) -> None:
         auth = clean_room.AuthUnavailable("Not logged in")

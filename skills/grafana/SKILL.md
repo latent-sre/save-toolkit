@@ -31,7 +31,7 @@ supported tool/API calls to an authorized agent. Missing access leaves an unappl
 | Review or upgrade assessment; check exported Classic/V1 JSON | [Read-only review](./references/read-only-review.md), [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
 | API versions, concurrency, history, recovery; model/variable details | [HTTP API](./references/http-api.md), [Dashboard JSON](./references/json-model.md) |
 | Grafana provisioning, evaluation settings, rule groups, contact points, or policies | [Alerting configuration](./references/grafana-alerting.md) |
-| A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [Agent tooling](./references/agent-tooling.md); none is adopted |
+| A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [HTTP API tooling and scope](./references/http-api.md#credentials-and-effective-scope); none is adopted |
 | Wavefront/Splunk plugins or entitlement | [Wavefront and Splunk data sources](./references/wavefront-legacy.md) |
 | Repair or interpret a query | `obs-analysis` and its matching signal/backend references |
 

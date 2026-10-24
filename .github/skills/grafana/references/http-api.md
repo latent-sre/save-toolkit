@@ -12,7 +12,7 @@ dashboards (410) by default.
 
 ## Contents
 
-- [Credentials and scope](#credentials-and-effective-scope)
+- [Tooling, credentials, and scope](#credentials-and-effective-scope)
 - [API families and stored version](#two-api-families-one-stored-version)
 - [Preflight](#preflight-once-per-target-and-after-every-upgrade)
 - [Read and export](#read-and-export)
@@ -23,6 +23,13 @@ dashboards (410) by default.
 - [Decisions](#decisions-grafana-forces)
 
 ## Credentials and effective scope
+
+This fleet adopts no Grafana MCP server, `gcx`, vendor skill package, or Foundation SDK. Never
+install or adopt a tool as part of a task: adoption is a `stack-profile` decision. Do not write
+with `gcx` or an MCP server unless `stack-profile` records its adoption. If `grafana/mcp-grafana`
+is present, never use its patch-mode `update_dashboard` for a live write: it saves with
+`overwrite: true`, defeating the concurrency rule. For renderer/browser capability use
+[visual verification](./visual-verification.md).
 
 Read `$GRAFANA_URL` and `$GRAFANA_SA_TOKEN` at call time; never print the token, use `curl -v`, or
 put it in an evidence packet. Prefer folder-scoped grants; an organization Editor role is not least

@@ -260,8 +260,10 @@ def context(
     """A complete check context for a test that reads only part of it: unless the test supplies its
     own, a workspace that does not exist and a repository with no commits and no changes."""
     gone = Path(tempfile.gettempdir()) / "no-such-probe-workspace"
-    ws = ws or workspaces.Workspace(gone, gone / "repo", gone / "bin", gone / "state", 0, "main")
-    git = git or workspaces.GitFacts(0, "main", [], "")
+    ws = ws or workspaces.Workspace(
+        gone, gone / "repo", gone / "bin", gone / "state", 0, "main", baseline_commit_ids=frozenset()
+    )
+    git = git or workspaces.GitFacts(0, "main", [], "", commit_ids=frozenset())
     return checking.Context(spec, ws, trace or tracing.TraceSummary(), git, **fields)
 
 
@@ -361,10 +363,12 @@ def saved_grade(
 
 def saved_summary(**changes: Any) -> dict[str, Any]:
     """The trace summary a saved build run holds when nothing happened: no state files, commits,
-    changes, skills, dispatches or commands. Changed keys keep their place; new ones follow."""
+    changes, skills, dispatches or commands. Overriding counts requires supplying corresponding
+    identities explicitly; otherwise those overrides describe legacy count-only evidence."""
     return {
         "state_files": {}, "commits_before_after": [1, 1], "branch": "main", "changed_files": [],
         "skills": [], "dispatches": [], "bash_commands": [], "agents_dir": False, "inconclusive": None,
+        **({"commit_ids_before_after": [["a" * 40], ["a" * 40]]} if "commits_before_after" not in changes else {}),
         **changes,
     }  # fmt: skip
 

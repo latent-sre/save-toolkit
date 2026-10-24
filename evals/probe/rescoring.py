@@ -51,6 +51,16 @@ def _saved_tool_counts(value: object) -> dict[str, int] | None:
     return dict(value)
 
 
+def _saved_commit_ids(value: object, count: int) -> frozenset[str] | None:
+    """A complete saved reachability set; legacy counts alone cannot rule out a rewrite."""
+    if not isinstance(value, list) or not all(
+        isinstance(sha, str) and re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", sha) for sha in value
+    ):
+        return None
+    ids = frozenset(value)
+    return ids if len(ids) == len(value) == count else None
+
+
 def native_regrade_problem(
     run_dir: Path, spec: Spec, plugin_root: Path, *, recorded_plugin_sha: str | None = None
 ) -> str | None:
@@ -247,12 +257,15 @@ def _regrade_run(
     else:
         trace = tracing.from_saved({**summary, "tool_counts": saved_counts or {}}, text)
     before, after = summary.get("commits_before_after") or [0, 0]
+    saved_ids = summary.get("commit_ids_before_after")
+    before_ids, after_ids = saved_ids if isinstance(saved_ids, list) and len(saved_ids) == 2 else (None, None)
     git = GitFacts(
         int(after),
         str(summary.get("branch") or ""),
         [tuple(x) for x in summary.get("changed_files") or []],
         "",
         str(summary["git_problem"]) if summary.get("git_problem") else None,
+        commit_ids=_saved_commit_ids(after_ids, int(after)),
     )
     with tempfile.TemporaryDirectory(prefix="regrade-") as tmp:
         state = Path(tmp) / "state"
@@ -267,6 +280,7 @@ def _regrade_run(
             int(before),
             "main",
             command_repo=recorded_workspace,
+            baseline_commit_ids=_saved_commit_ids(before_ids, int(before)),
         )
         if summary.get("agents_dir"):
             (ws.repo / ".agents").mkdir(parents=True)

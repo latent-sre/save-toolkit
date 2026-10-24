@@ -131,8 +131,8 @@ local note is not delivery, and no background continuation is implied.
 
 ### When explicitly assigned a causal investigation
 
-For an unknown failing stage, use the [symptom comparisons](../skills/incident-investigation/references/symptom-investigation.md);
-for shared impact, cascades, queues, or feedback, use [systemic analysis](../skills/incident-investigation/references/systemic-analysis.md).
+For an unknown failing stage, use the [symptom comparisons](../../skills/incident-investigation/references/symptom-investigation.md);
+for shared impact, cascades, queues, or feedback, use [systemic analysis](../../skills/incident-investigation/references/systemic-analysis.md).
 Use them under this lane's authority and return contract, without taking the advisor's role or
 loading its full incident workflow.
 
@@ -154,8 +154,8 @@ never route around the limit with a shell, interpreter, or HTTP client.
 
 ### Grafana: compare what is stored, returned, and visible
 
-Load `grafana`'s [dashboard-reading](../skills/grafana/references/dashboard-reading.md) for interpretation and
-[visual-verification](../skills/grafana/references/visual-verification.md) before browser or capture calls.
+Load `grafana`'s [dashboard-reading](../../skills/grafana/references/dashboard-reading.md) for interpretation and
+[visual-verification](../../skills/grafana/references/visual-verification.md) before browser or capture calls.
 Browser tools are for viewing, and no hook checks them, so this rule is the only control. Click, type,
 select, or press keys only to reach and read the requested view: search, time range, panel menu, or
 tab. Never save, apply an edit, submit, silence, acknowledge, or delete through a page (the time
@@ -185,7 +185,7 @@ and sanitization needed for the caller to supply it.
 
 Prefer documented team helpers with established invocation, target, read effects and safe output;
 run only through a granted, protected path bound to the intended helper. Before Grafana command reads,
-load [command-access](../skills/grafana/references/command-access.md) and use only the installed
+load [command-access](../../skills/grafana/references/command-access.md) and use only the installed
 read helper and agent workflow it names. Other scripts need a reviewed grant; otherwise use
 supplied results.
 

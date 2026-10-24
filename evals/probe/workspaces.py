@@ -39,20 +39,25 @@ class Workspace:
     # The repository path the trial's commands name. Only a regrade sets it: its checkout is gone, so
     # `repo` is a placeholder there, but a `cd "<repo>" && <suite>` receipt still names the real path.
     command_repo: Path | None = None
+    baseline_commit_ids: frozenset[str] | None = None
 
 
 def _git(
     repo: Path, *args: str, check: bool = True, env: Mapping[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
+    proc = subprocess.run(
         ["git", *GIT_IDENTITY, *args],
         cwd=str(repo),
         capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
         check=check,
         env=env,
+    )
+    # Text-mode pipes normalize CR/CRLF, including those bytes inside NUL-delimited filenames.
+    return subprocess.CompletedProcess(
+        proc.args,
+        proc.returncode,
+        proc.stdout.decode("utf-8", errors="strict" if "-z" in args else "replace"),
+        proc.stderr.decode("utf-8", errors="replace"),
     )
 
 
@@ -109,9 +114,9 @@ def seed_workspace(spec: Mapping[str, Any], root: Path) -> Workspace:
     branch = fixture.get("checkout") or "main"
     _git(repo, "checkout", "-q", branch)
     _write_files(repo, fixture.get("uncommitted") or {})
-    count = int(_git(repo, "rev-list", "--count", "--all").stdout.strip())
+    commit_ids = frozenset(_git(repo, "rev-list", "--all", "HEAD").stdout.splitlines())
     sha = _git(repo, "rev-parse", "HEAD").stdout.strip()
-    return Workspace(root, repo, bin_dir, state_dir, count, branch, sha)
+    return Workspace(root, repo, bin_dir, state_dir, len(commit_ids), branch, sha, baseline_commit_ids=commit_ids)
 
 
 ISOLATED_HOME_KEYS = (
@@ -181,10 +186,12 @@ class GitFacts:
     patch: str
     # Why the changed paths could not be listed: a git command failed, so they are unknown, not none.
     problem: str | None = None
+    commit_ids: frozenset[str] | None = None
 
 
 def collect_git_facts(ws: Workspace) -> GitFacts:
-    count = int(_git(ws.repo, "rev-list", "--count", "--all").stdout.strip())
+    commit_ids = frozenset(_git(ws.repo, "rev-list", "--all", "HEAD").stdout.splitlines())
+    count = len(commit_ids)
     branch = _git(ws.repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
     # Diff against the fixture baseline, not the current HEAD: changes the agent committed must
     # stay visible to the surgical-change and content checks.
@@ -201,18 +208,26 @@ def collect_git_facts(ws: Workspace) -> GitFacts:
         ("add", "-A"),
         # --no-renames: a file moved out of the allowed set must show as a deletion, not vanish into
         # an R line whose only reported path is the destination.
-        ("diff", "--cached", "--no-renames", "--name-status", base),
+        ("diff", "--cached", "--no-renames", "--name-status", "-z", base),
         ("diff", "--cached", base),
     ):
-        proc = _git(ws.repo, *args, check=False, env=env)
+        try:
+            proc = _git(ws.repo, *args, check=False, env=env)
+        except UnicodeDecodeError:
+            return GitFacts(count, branch, [], "", "git paths contain non-UTF-8 bytes", commit_ids)
         if proc.returncode != 0:
             return GitFacts(
-                count, branch, [], "", f"git {args[0]} exited {proc.returncode}: {proc.stderr.strip()[:200]}"
+                count,
+                branch,
+                [],
+                "",
+                f"git {args[0]} exited {proc.returncode}: {proc.stderr.strip()[:200]}",
+                commit_ids,
             )
         outputs.append(proc.stdout)
-    rows = [line.split("\t") for line in outputs[1].splitlines()]
-    changed = [(parts[0][:1], parts[-1].replace("\\", "/")) for parts in rows if len(parts) >= 2]
-    return GitFacts(count, branch, changed, outputs[2])
+    fields = outputs[1].split("\0")[:-1]
+    changed = [(status[:1], path) for status, path in zip(fields[::2], fields[1::2], strict=True)]
+    return GitFacts(count, branch, changed, outputs[2], commit_ids=commit_ids)
 
 
 def remove_tree(root: Path) -> None:
