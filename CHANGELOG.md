@@ -76,6 +76,13 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
   Classification field already defines, and the four-bullet measurement list the formula and the
   Calculation field already name. The graded interview, counting, economics, and return-shape text
   is unchanged. `skills/toil-reduction/SKILL.md` goes from 10,723 to 9,980 bytes.
+- Trim `pcf-ops` to the PCF facts its readers lack. The `sre-assistant` paragraph keeps the
+  five-read grant and the guard's limit and defers the output-path, masking, and credential rules to
+  the agent body that states them; the Orient section becomes a `cf apps` row in the drill-in
+  table; Secrets keeps the rule and drops the explanation; State-changing defers per-command effects
+  to its reference and the approval packet to `production-change-gate`; the first-look box drops the
+  fleet-wide untrusted-text sentence and Tips drops the port-2222 bullet the escalation packet
+  already carries. `skills/pcf-ops/SKILL.md` goes from 10,086 to 9,138 bytes.
 
 ### Removed
 
