@@ -1,0 +1,25 @@
+id: obs-analysis-correlation-id-contract
+max_turns: 4
+split: regression
+skill: obs-analysis
+tools: [Skill, Read]
+references:
+  - skills/obs-analysis/references/log-analysis.md
+prompt: |
+  Follow correlation id 7f3c9a2e-51d4-4b8e-9c0a-2d6f1e8b4a17 through order-router and ledger.
+  The customer error page calls this a correlation id; no trace id or mapping has been supplied.
+  This is a bounded lookup, not an incident. Do not query a system; choose the initial lookup
+  and whether a trace can be fetched using this identifier now.
+
+  Return exactly one line per field, formatted Label: value, choosing from these alternatives:
+  - First lookup: logs | traces
+  - Identifier: correlation_id | trace_id
+  - Trace lookup: requires_mapping | ready_now
+success_criteria:
+  - Starts in logs and requires evidence mapping the correlation id to a real trace id.
+graders:
+  - type: exact_fields
+    fields:
+      First lookup: logs
+      Identifier: correlation_id
+      Trace lookup: requires_mapping

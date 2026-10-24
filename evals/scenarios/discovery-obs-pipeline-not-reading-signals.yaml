@@ -12,6 +12,6 @@ routing:
   expect: not_fire
   expected_alternative:
     kind: skill
-    name: obs-traces
+    name: obs-analysis
 success_criteria:
 - Keeps analysis of already-collected signals with the reading skill rather than loading the emission-and-export lane

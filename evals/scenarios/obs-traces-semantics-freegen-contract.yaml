@@ -1,10 +1,10 @@
 id: obs-traces-semantics-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-traces
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-traces/references/otel-semantics.md
+  - skills/obs-analysis/references/otel-semantics.md
 prompt: |
   Read the OpenTelemetry-semantics reference. Answer with attribute names only, one per
   labelled line, no explanation; do not run queries or edit files. Using current stable

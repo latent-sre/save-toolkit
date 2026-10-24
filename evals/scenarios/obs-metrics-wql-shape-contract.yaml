@@ -1,11 +1,11 @@
 id: obs-metrics-wql-shape-contract
 max_turns: 17
 split: regression
-skill: obs-metrics
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-metrics/references/wql.md
-  - skills/obs-metrics/references/promql.md
+  - skills/obs-analysis/references/wql.md
+  - skills/obs-analysis/references/promql.md
 prompt: |
   Read the WQL and PromQL references. Assess this supplied-state metric work; do not run
   queries or edit files. A teammate drafted Wavefront queries for checkout, a PCF app.

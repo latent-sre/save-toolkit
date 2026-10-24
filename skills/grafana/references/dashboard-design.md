@@ -11,8 +11,8 @@ Name the audience, operational question, backend, and next decision. For order-r
 show error ratio beside request volume and latency percentiles, compare the same population with
 a known-normal window, and drill into the affected route's logs and traces. For scheduled position
 sync, show age of last success against its schedule, latest outcome, and failing-stage logs.
-Use `stack-profile` for backends and flag vendor-plugin requirements; use `obs-metrics`, `obs-logs`,
-or `obs-traces` for query semantics. Do not infer counter type from a `_total` suffix.
+Use `stack-profile` for backends and flag vendor-plugin requirements; use `obs-analysis` for query
+semantics. Do not infer counter type from a `_total` suffix.
 
 Distinguish no traffic, zero, missing telemetry, and query failure. Never fill an error ratio or
 its numerator with zero (`or vector(0)` or null-to-zero); put request rate beside every ratio.

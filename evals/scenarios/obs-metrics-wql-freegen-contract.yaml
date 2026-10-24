@@ -1,11 +1,11 @@
 id: obs-metrics-wql-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-metrics
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-metrics/references/wql.md
-  - skills/obs-metrics/references/promql.md
+  - skills/obs-analysis/references/wql.md
+  - skills/obs-analysis/references/promql.md
 prompt: |
   Read the WQL and PromQL references. Write queries only, with no explanation; do not run
   queries or edit files. Checkout is a PCF app in prod. It emits per-instance histogram

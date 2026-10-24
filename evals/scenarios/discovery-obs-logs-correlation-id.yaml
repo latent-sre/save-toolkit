@@ -10,6 +10,6 @@ success_criteria:
 - Treats the correlation id as a quoted, untrusted log field value rather than a trace id
 target:
   kind: skill
-  name: obs-logs
+  name: obs-analysis
 routing:
   expect: fire

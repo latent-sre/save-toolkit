@@ -1,10 +1,10 @@
 id: obs-metrics-promql-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-metrics
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-metrics/references/promql.md
+  - skills/obs-analysis/references/promql.md
 prompt: |
   Read the PromQL reference. Write queries only, with no explanation; do not run queries
   or edit files. Checkout runs against Mimir with http_requests_total labelled env and

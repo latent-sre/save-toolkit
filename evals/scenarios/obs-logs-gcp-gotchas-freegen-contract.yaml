@@ -1,10 +1,10 @@
 id: obs-logs-gcp-gotchas-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-logs
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-logs/references/gcp-logging.md
+  - skills/obs-analysis/references/gcp-logging.md
 prompt: |
   Read the Cloud Logging reference. Answer with short labelled lines only, no
   explanation; do not run queries or edit files. A: how long does the _Required log

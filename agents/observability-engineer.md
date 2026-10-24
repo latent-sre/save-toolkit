@@ -163,9 +163,7 @@ that it is deployed or that an alert fired; missing observation times remain unk
 ## Required on-demand skills
 - `stack-profile` — before recommending a runtime, tool, or infrastructure change
 - `production-change-gate` — before preparing any Tier 2 or Tier 3 request
-- `obs-logs` — when log evidence or a log-derived SLI or alert is required
-- `obs-metrics` — when metric evidence or a metric-derived SLI or alert is required
-- `obs-traces` — when trace evidence or trace-derived coverage is required
+- `obs-analysis` — when log, metric, or trace evidence is required, including signal-derived SLIs or alerts; read only the applicable method and backend references
 - `grafana` — when reading or changing Grafana dashboards, folders, alert rules, or silences
 - `obs-alerting` — when defining SLOs, error budgets, alert rules, correlation, paging policy, or synthetic checks
 - `obs-pipeline` — when telemetry collection, transformation, routing, or storage must change, or a signal is missing at a pipeline boundary

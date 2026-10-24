@@ -1,11 +1,11 @@
 id: obs-traces-traceql-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-traces
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-traces/references/traceql.md
-  - skills/obs-traces/references/otel-semantics.md
+  - skills/obs-analysis/references/traceql.md
+  - skills/obs-analysis/references/otel-semantics.md
 prompt: |
   Read the TraceQL and OpenTelemetry-semantics references. Write queries only, with no
   explanation; do not run queries or edit files. Assume OpenTelemetry attributes: the

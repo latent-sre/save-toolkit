@@ -81,7 +81,7 @@ headers. Other observations follow the invoking agent's granted, scoped, output-
 
 DataStream 2 streams edge request logs to a destination (Splunk, S3, GCS, Elasticsearch, custom
 HTTPS, and others). Which one ours uses is `stack-profile`'s edge row; hand the query to
-`obs-logs`, whose team query catalog holds the hostname and region error/cache-share shape, rather
+`obs-analysis`, whose team query catalog holds the hostname and region error/cache-share shape, rather
 than inventing an index. The fields that answer triage questions:
 
 - `cacheStatus` — `0` means the object was absent from cache; `1` means present. Cached negative

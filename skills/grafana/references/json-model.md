@@ -88,7 +88,7 @@ Copy structure from the target and replace only the metric and labels with disco
 }
 ```
 
-The unit comes from the instrumentation (`s` for seconds, `ms` for milliseconds); `obs-metrics`
+The unit comes from the instrumentation (`s` for seconds, `ms` for milliseconds); `obs-analysis`
 owns query construction beyond this shape.
 
 ## V2 differences

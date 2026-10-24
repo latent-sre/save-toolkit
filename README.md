@@ -76,7 +76,7 @@ The skills, by area (each `skills/<name>/SKILL.md` carries its own description a
 
 - **Incident and operations** — `incident-investigation`, `root-cause`, `postmortem`, `runbook`,
   `operational-learning`, `service-lifecycle` (audit, onboard, and retire modes)
-- **Observability** — `obs-logs`, `obs-metrics`, `obs-traces`, `obs-alerting`,
+- **Observability** — `obs-analysis` (logs, metrics, and traces), `obs-alerting`,
   `obs-pipeline`, `grafana` (dashboard design and Grafana UI/API operations)
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `production-change-gate`
@@ -118,7 +118,7 @@ agents/ + skills/ (canonical)
   rule. The [`grafana`](skills/grafana/SKILL.md) skill covers operational reads and alert/silence
   procedures, dashboard design and implementation. A handoff alone does not authorize a write.
 - **The team's own inventories are not in this repository.** The log-index, metrics, PCF-foundation,
-  and GCP-project references under `skills/obs-logs`, `skills/obs-metrics`, `skills/pcf-ops`, and
+  and GCP-project references under `skills/obs-analysis`, `skills/pcf-ops`, and
   `skills/gcp-ops` ship as `<app>`/`<index>` placeholders, and service cards, alert cards, and
   runbooks are read from `operations/`, `runbooks/`, and `postmortems/` under the team's knowledge
   repository root. Until those

@@ -273,17 +273,19 @@ datasources alone.
 
 **Status:** `ready` (2026-10-18); the routing re-check EVAL-009 left owed, kept when EVAL-009 closed.
 **Owner:** The human owner approves the run; `agent-engineer` writes the missing scenarios and runs them.
-**Outcome:** The ten surviving skills whose description clauses `5c5aa742` replaced with short
+**Outcome:** The eight surviving skills whose description clauses `5c5aa742` replaced with short
 exclusions (akamai-edge, api-craft, database-reliability, frontend-craft, obs-alerting,
-obs-metrics, obs-pipeline, obs-traces, pcf-deploy, pcf-ops), plus grafana as the successor to
-obs-dashboards, each have at least one fire and one not-fire routing scenario, and all pass once
-on current main.
-**Next action:** `agent-engineer` writes the eight missing scenarios: fire and not-fire for
-database-reliability and pcf-ops; not-fire for akamai-edge, obs-alerting and obs-metrics; and fire
+obs-pipeline, pcf-deploy, pcf-ops), plus grafana as the successor to obs-dashboards and obs-analysis
+for the consolidated signal skills, each have at least one fire and one not-fire routing
+scenario, and all pass once on current main.
+**Next action:** `agent-engineer` writes the seven missing scenarios: fire and not-fire for
+database-reliability and pcf-ops; not-fire for akamai-edge and obs-alerting; and fire
 for pcf-deploy. The former backend-craft is now api-craft, with two fire cases and one not-fire
 case defined offline. Dashboard design and the application-UI exclusion now target grafana;
-their existing scenario IDs retain the historical names. The owner then approves one run of
-the completed set. The new API cases and migrated dashboard routing are not yet measured.
+their existing scenario IDs retain the historical names. Signal discovery and interpretation
+now target obs-analysis; correlation-ID versus trace-ID selection is an internal method contract.
+The owner then approves one run of the completed set. The new API cases, migrated dashboard/signal
+routing, and trimmed obs-analysis guidance are not yet measured natively.
 **Evidence:** none yet; the commit message of `5c5aa742` records the scenarios as owed.
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.

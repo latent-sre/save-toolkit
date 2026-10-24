@@ -271,7 +271,7 @@ incident nor transfers change authority, and an acknowledgment or a running help
 | A read-only lookup or cross-source/causal investigation | `sre-assistant` agent, with the question, scope and completion condition |
 | A read-only visual dashboard or panel check | `sre-assistant` agent, with the exact dashboard URL, panel scope, absolute time window, timezone, and authentication expectation |
 | Platform faults, revisions, instances, platform logs | `pcf-ops` / `gcp-ops` |
-| Logs / metrics / traces; edge/cache; database | `obs-logs` / `obs-metrics` / `obs-traces`; `akamai-edge`; `database-reliability` |
+| Logs / metrics / traces; edge/cache; database | `obs-analysis`; `akamai-edge`; `database-reliability` |
 | External synthetic failure, alert storm, or a Moogsoft Situation | `obs-alerting`, including its `thousandeyes` and `moogsoft` references |
 | Deeper causal method once the symptom is confirmed | `root-cause` |
 | Grafana dashboard interpretation, alert-rule state, or a temporary silence | `grafana`; live Grafana changes belong to `observability-engineer` |

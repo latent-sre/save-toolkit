@@ -33,7 +33,7 @@ supported tool/API calls to an authorized agent. Missing access leaves an unappl
 | Grafana provisioning, evaluation settings, rule groups, contact points, or policies | [Alerting configuration](./references/grafana-alerting.md) |
 | A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [Agent tooling](./references/agent-tooling.md); none is adopted |
 | Wavefront/Splunk plugins or entitlement | [Wavefront and Splunk data sources](./references/wavefront-legacy.md) |
-| Repair or interpret a query | Load `obs-metrics`, `obs-logs`, or `obs-traces` for that signal |
+| Repair or interpret a query | `obs-analysis` and its matching signal/backend references |
 
 Read only matching references. Use [grafana_workflow.py](./scripts/grafana_workflow.py) for query-first
 evidence and reuse verified captures; guarded hygiene uses `analyze --analysis hygiene` on a named

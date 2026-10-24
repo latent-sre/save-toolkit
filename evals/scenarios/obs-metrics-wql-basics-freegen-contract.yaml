@@ -1,10 +1,10 @@
 id: obs-metrics-wql-basics-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-metrics
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-metrics/references/wql.md
+  - skills/obs-analysis/references/wql.md
 prompt: |
   Read the WQL reference. Write queries only, with no explanation; do not run queries
   or edit files. Checkout is a Wavefront app in prod with point tags app, env, and

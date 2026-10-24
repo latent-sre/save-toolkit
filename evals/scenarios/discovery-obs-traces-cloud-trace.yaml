@@ -12,6 +12,6 @@ success_criteria:
 - Uses the critical path without double-counting and bounds the comparison and sampling claims
 target:
   kind: skill
-  name: obs-traces
+  name: obs-analysis
 routing:
   expect: fire

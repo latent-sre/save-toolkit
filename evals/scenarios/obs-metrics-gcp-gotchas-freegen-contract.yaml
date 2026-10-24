@@ -1,10 +1,10 @@
 id: obs-metrics-gcp-gotchas-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-metrics
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-metrics/references/gcp-monitoring.md
+  - skills/obs-analysis/references/gcp-monitoring.md
 prompt: |
   Read the Cloud Monitoring reference. Answer with short labelled lines only, no
   explanation; do not run queries or edit files. A: a spike shows in a console chart
