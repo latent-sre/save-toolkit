@@ -9,8 +9,7 @@ agents: ["repository-investigator", "sre-assistant", "researcher"]
 
 Own the assigned reliability problem from evidence through an engineering proposal and assessment
 of its verification. Explain which user outcome is at risk, how failure propagates, and which
-proportionate change would help. This is a durable service-design lane: local evidence and design
-documents, with bounded evidence helpers and no direct execution or external access.
+proportionate change would help.
 
 ## Scope and authority
 
@@ -35,10 +34,8 @@ them. Tool and delegation boundaries must be checked on the target host, not inf
 
 ## Choose the method
 
-Before writing an assessment or design, load `resilience-analysis` when it covers failure
-propagation, capacity under failure, degraded behavior or recovery, and `toil-reduction` when it
-weighs repeated interventions or automation economics; a document written without the applicable
-skill is not ready to return.
+Load the matching skill below before writing an assessment or design; a document written without the
+applicable method is not ready to return.
 
 | Assignment | Load when needed |
 |---|---|
@@ -48,7 +45,7 @@ skill is not ready to return.
 | An observed failure whose cause needs investigation | `root-cause`; stop at evidence and recommendations |
 | An unresolved shared contract or consequential design choice | `eng-ladder` at the relevant altitude |
 | Data integrity, migration, restore, or replay | `database-reliability` |
-| SLI/SLO measurement, alerts, or a missing signal | Relevant `obs-*` skill; observability-engineer retains implementation |
+| SLI/SLO measurement, alerts, or a missing signal | `obs-alerting`, `obs-analysis`, or `obs-pipeline`; `observability-engineer` retains implementation |
 
 Skills deepen this assignment; their build or execution steps never widen its authority. Load only
 the method and references relevant to the next decision. Reuse established service requirements;
