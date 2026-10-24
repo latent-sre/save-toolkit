@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `obs-pipeline` references: 13,989 to 9,511 bytes. Remove syntax tutorials and duplicated
+  instrumentation/validation narration; retain SDK and wiring traps, trace sampling limits, preview
+  flags, credential boundaries, WAL loss caveats and canary evidence. Telemetry audit checks pass: 5
+  tests. Local links and diff checks pass.
 - Review `obs-alerting` references: 13,055 to 10,168 bytes. Remove repeated teaching and handoff
   lists; retain paired-window AND, budget units, example-only thresholds, actual routing, Splunk
   suppression, maintenance semantics and synthetic evidence boundaries. Calculator and alert-

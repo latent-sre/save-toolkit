@@ -1,91 +1,58 @@
 # OTel SDK instrumentation method
 
 Installs, agent flags and app launches belong to `software-engineer` or the human build/deploy owner.
-The guard denies installs/app execution for `sre-assistant`; unguarded Bash does not give
-`observability-engineer` ownership of service builds.
-Respect `stack-profile`'s authoring/support boundary: Java source, manual-span and dependency
-changes belong to the application's development owner; this fleet supports its deployed instrumentation.
-
-Commands follow the linked OpenTelemetry documentation.
-Exact-target behavior remains unconfirmed until a canary proves it.
-Reading conventions for spans, status, attributes, and sampling are owned by the
-`obs-analysis` skill's OpenTelemetry semantics reference; this file owns emit-side instrumentation
-choices and points there rather than restating them.
-
-## Contents
-
-- [Steps](#steps)
-- [Done](#done)
+The SRE guard denies them; observability's unguarded Bash does not transfer build ownership.
+Under `stack-profile`, Java source, manual spans and dependencies remain with the application
+owner; this fleet supports deployed instrumentation. Target behavior needs canary evidence.
+`obs-analysis` owns span/status/attribute/sampling interpretation; this reference covers emission.
 
 ## Steps
 
-Scoped fixes apply only steps affecting the changed path in the existing setup; service-wide
-instrumentation uses the full method.
+Apply only changed-path steps for scoped fixes; service-wide work uses the full method.
 
-1. **Identify the existing instrumentation path before choosing an approach.** Compare supported
-   zero-code instrumentation with library/manual instrumentation for the application's coverage,
-   compatibility and overhead needs; preserve the existing path unless a change is justified.
-   For Python, use the repository's managed environment and lock workflow; never install into
-   system Python, and review the dependency/lock diff before deployment.
+1. **Inspect existing instrumentation before selecting a path.** Compare zero-code versus
+   library/manual coverage, compatibility and overhead; preserve the existing path unless change
+   is justified. Python uses the managed environment/lock workflow, never system installation;
+   review dependency/lock diffs before deployment.
 
-   **Spring Boot: identify the installed path before troubleshooting.**
+   For Spring Boot, inspect build and buildpack configuration, not an assumed team standard:
+   - `-javaagent` instruments bytecode at startup with broad library coverage. PCF can inject it;
+     check for duplicate agents.
+   - `io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter` with
+     `opentelemetry-instrumentation-bom` suits native images, unacceptable agent overhead,
+     incompatible agents or `application.yml`/declarative YAML configuration. Docs list Boot
+     2.6+/3.1+; instrumentation 2.31.1 also tests Boot 4.
+   Use one path; application owners handle dependency changes.
 
-   - `-javaagent` instruments bytecode at startup without source changes and has the widest
-     library coverage. PCF's Java buildpack can inject it; check buildpack config for duplicates.
-   - The library-mode starter (`io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter`,
-     versions via `opentelemetry-instrumentation-bom`) fits native images, unacceptable agent
-     startup overhead, another incompatible monitoring agent, or `application.yml` configuration
-     (including declarative YAML). Docs list Spring Boot 2.6+/3.1+; upstream instrumentation
-     2.31.1 also tests Boot 4.
+2. **Resource identity:** emit `service.name`, `service.version`, `deployment.environment.name`.
+   The latter replaces deprecated `deployment.environment` (semconv 1.27.0, stable 1.41.0);
+   standard values include `development`, `staging`, `production`, `test`.
 
-   Use one path. Refer dependency changes to the application's development owner.
-   Which path the team's services use today is unconfirmed — read the build file and the
-   buildpack config.
-2. **Resource attributes** — set `service.name`, `service.version`, and **`deployment.environment.name`**
-   (OTel semantic conventions) so signals are filterable per app/space.
-   > ⚠️ **`deployment.environment` is DEPRECATED** — renamed to **`deployment.environment.name`** in
-   > semconv **v1.27.0**, and stabilized in v1.41.0. Emit the `.name` form. Well-known values:
-   > `development`, `staging`, `production`, `test`.
+   Unset names fall back to `unknown_service:<executable>`; investigate that as missing identity.
+   Identity combines `service.namespace`, `service.name`, `service.instance.id`, excluding
+   environment. Filter by environment rather than forking the name. Keep the same logical
+   `service.name` across PCF/Cloud Run, with runtime in a separate resource attribute.
+   Stable HTTP conventions (since 1.23.0) use `url.*`, `client.*`/`server.*` instead of old `net.*`
+   forms; pre-stable output needs migration assessment, not copying into new queries/dashboards.
 
-   An unset `service.name` falls back to **`unknown_service:<executable>`** — an
-   `unknown_service` series in any backend is an instrumentation defect to
-   file, not a service. Identity is the trio `service.namespace` + `service.name` +
-   `service.instance.id`; `deployment.environment.name` deliberately does NOT participate in
-   identity (prod and staging with the same trio are "the same service" — filter by environment,
-   don't fork the name). Keep `service.name` identical across PCF and Cloud Run while a service
-   straddles the migration, with the runtime as a separate resource attribute.
-   HTTP semconv has been **stable since v1.23.0** (`url.*`, `client.*`/`server.*` replaced the old
-   `net.*` forms) — new
-   dashboards and queries key on the stable names, and an old exporter emitting pre-stable names is
-   a migration flag, not a pattern to copy.
-3. **Traces** — propagate W3C context across services. Change sampling policy/topology only when in scope.
-   Where **Collector tail sampling** is used, explicit policies (status=error, latency threshold)
-   **prioritize** error/slow traces, subject to every constraint below:
-   > ⚠️ **Tail sampling does NOT guarantee you keep all error traces.** It is best-effort under capacity
-   > limits. Check these conditions:
-   > - **Upstream sampling:** record the effective SDK/head sampler and propagated parent decision.
-   >   A collector cannot recover spans never exported by the SDK. Check this before tuning tail
-   >   policies; do not increase sampling outside the authorized scope.
-   > - **Routing:** *all spans of a trace MUST reach the same collector instance*, or policies evaluate
-   >   on a fragment. One sampling collector needs no extra routing tier. When scaling to multiple
-   >   sampling collectors, preserve trace-ID affinity; upstream recommends a **load-balancing
-   >   exporter** layer in front of the sampling layer. A plain round-robin LB can split a trace.
-   >   See [tail-sampling scaling guidance](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/tailsamplingprocessor/README.md#scaling-collectors-with-the-tail-sampling-processor).
-   > - **Capacity:** `num_traces` (default **50,000**) is how many traces are held in memory. *"When a
-   >   new trace arrives, the oldest trace is removed"* — it can be **dropped before it is ever
-   >   sampled**. **Watch `otelcol_processor_tail_sampling_sampling_trace_dropped_too_early`**; that
-   >   metric is how the "guarantee" visibly fails.
-   > - **Decision window:** `decision_wait` (default **30s**). Spans arriving after it miss the
-   >   decision — long or slow traces are exactly the failure mode, and they're the ones you wanted.
-   >   The processor's `decision_cache` (sampled/non-sampled LRU) lets a late span inherit an
-   >   earlier keep decision — a documented mitigation, not a guarantee; size it and keep watching
-   >   the dropped-too-early metric.
-4. **Logs and correlation** — structured logs carrying only approved trace/span correlation fields;
-   verify metric→trace (exemplars) and trace→log (shared IDs) actually link, not merely coexist.
+3. **Traces:** propagate W3C context; change sampling/topology only within scope. Tail policies
+   prioritize errors/slow traces but cannot guarantee retention:
+   - Check effective SDK/head sampler and parent decision first: collectors cannot recover spans
+     never exported. Do not increase sampling beyond the assignment.
+   - All trace spans must reach the same sampling collector. One needs no routing tier; multiple
+     collectors require trace-ID affinity, not round-robin. Upstream recommends a load-balancing
+     exporter before the sampling tier; see [scaling guidance](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/tailsamplingprocessor/README.md#scaling-collectors-with-the-tail-sampling-processor).
+   - `num_traces` defaults to 50,000 in memory; new arrivals can evict oldest traces before sampling.
+     Watch `otelcol_processor_tail_sampling_sampling_trace_dropped_too_early`.
+   - `decision_wait` defaults to 30s; late spans miss the decision. The sampled/non-sampled LRU
+     `decision_cache` can preserve an earlier keep decision for late spans, not guarantee it.
+     Size capacity/cache and monitor drops rather than promising every error trace.
+
+4. **Correlation:** emit structured logs with approved trace/span fields; verify actual exemplar
+   metric→trace and shared-ID trace→log links, not merely signal coexistence.
 
 ## Done
 
-Scoped fix: bounded test/canary proof of the changed boundary, with target limits and untested stages.
-This proves no service-wide coverage.
-Service-wide design: RED on critical request journeys, USE on constrained resources, propagated
-traces correlated to logs, **no unbounded metric label**, and an SLI computable from emitted signals.
+A scoped fix needs bounded canary/test proof at the changed boundary, with target limits and
+untested stages; it establishes no service-wide coverage. Service-wide design covers RED journeys,
+USE resources, propagated traces/log correlation, bounded metric labels and a computable SLI.
