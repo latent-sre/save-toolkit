@@ -1,10 +1,10 @@
 id: obs-logs-logql-parsers-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-logs
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-logs/references/logql.md
+  - skills/obs-analysis/references/logql.md
 prompt: |
   Read the LogQL reference. Write queries only, with no explanation; do not run queries
   or edit files. Checkout logs to Loki in prod, streams labelled app and env. Half the

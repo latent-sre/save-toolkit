@@ -11,6 +11,6 @@ success_criteria:
 - Returns a bounded command for the correct resource/service and surfaces the empty-result assumption
 target:
   kind: skill
-  name: obs-logs
+  name: obs-analysis
 routing:
   expect: fire

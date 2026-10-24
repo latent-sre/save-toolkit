@@ -346,7 +346,7 @@ class LinkCheckerTests(Fixture):
 
     def test_overall_spl_heading_remains_visible_after_spl_comments(self):
         self.assertIn("overall-deploy-error-rate", check_links._heading_anchors(
-            ROOT / "skills/obs-logs/references/spl.md"))
+            ROOT / "skills/obs-analysis/references/spl.md"))
 
     def test_unrendered_and_miscased_anchors_are_rejected(self):
         self.write(

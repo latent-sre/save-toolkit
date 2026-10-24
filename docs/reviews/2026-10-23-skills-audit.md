@@ -72,7 +72,7 @@ These findings are source-confirmed. Their effect on an actual model response re
 
 | Priority and confidence | Finding and consequence | Smallest repair |
 |---|---|---|
-| Medium; high confidence | [verified] [SPL](../../skills/obs-logs/references/spl.md), lines 165–188, groups deploy comparisons by `error_type` and sends readers without that field to a catalog fallback. The [catalog](../../skills/obs-logs/references/query-catalog.md), lines 65–75, sends them back to the same query. The promised overall-rate fallback is absent. | Keep one canonical overall-rate recipe with an optional class breakdown. Preserve eligible-request denominators, status validity, equal windows and explicit missing-data behavior. Remove the circular direction. |
+| Medium; high confidence | [verified] [SPL](../../skills/obs-analysis/references/spl.md), lines 165–188, groups deploy comparisons by `error_type` and sends readers without that field to a catalog fallback. The [catalog](../../skills/obs-analysis/references/query-catalog.md), lines 65–75, sends them back to the same query. The promised overall-rate fallback is absent. | Keep one canonical overall-rate recipe with an optional class breakdown. Preserve eligible-request denominators, status validity, equal windows and explicit missing-data behavior. Remove the circular direction. |
 | Low; high confidence | [verified] [Grafana read-only review](../../skills/grafana/references/read-only-review.md), lines 20–25, tells `sre-assistant` to record hygiene as not run. Direct standalone execution is indeed denied, but the [entrypoint](../../skills/grafana/SKILL.md), line 33, and [workflow reference](../../skills/grafana/references/investigation-workflows.md), lines 60–68, provide a guarded `analyze --analysis hygiene` route on a named capture. | Point to the supported capture workflow when its prerequisites are met. Preserve the restriction on arbitrary standalone execution and the distinction between static hygiene and live correctness. |
 | Low; high confidence | [verified] [Splunk alerting](../../skills/obs-alerting/references/splunk-alerting.md), lines 21–23, assigns indexing-delay, overlap/deduplication and skipped-run completeness rules to the parent's scheduled-work section. The [parent](../../skills/obs-alerting/SKILL.md), lines 47–57, instead covers job freshness and shared detection failures. | Make the existing short completeness rule self-contained in the Splunk reference; remove its inaccurate ownership claim. Keep the distinct job-freshness guidance. |
 | Low; high confidence | [verified] [Frontend error-helper comments](../../skills/frontend-craft/assets/problem.ts), lines 2–8, still describe a universal house API contract. The [accepted owner amendment](../decisions/2026-10-11-frontend-craft-generalized.md#owner-amendment--2026-10-16-service-specific-api-contracts) explicitly makes shared error and replay shapes service-specific. | Describe supported input shapes rather than asserting a universal service policy. Keep the adapter behavior and its tests. |
@@ -132,7 +132,7 @@ Three further reductions change selection or output behavior and should be separ
   for shared components or global styling. Keep full application verification for new apps and
   preserve accessibility, integration and serving standards. Actual work saved is unverified.
 - **Load optional details only for their task.** [verified]
-  [Lifecycle record transitions](../../skills/service-lifecycle/references/record-transitions.md),
+  `record-transitions.md` (historical source at `014909bb`),
   lines 34–69, mixes resolver-version and acceptance details into a reference used for ordinary
   changes. Resolver use is optional in the entrypoint. Make these details conditional while
   retaining ownership and the three distinct freshness/review/execution dates. Similarly, the
@@ -159,11 +159,11 @@ preparing, not that the skill is unnecessary or its revised behavior has passed 
 | [grafana](../../skills/grafana/SKILL.md) | Trim | Repair the hygiene path and consolidate small tooling/review fragments. Keep guarded helpers, ownership, concurrency, readback, query verification and UNKNOWN reconciliation. |
 | [incident-investigation](../../skills/incident-investigation/SKILL.md) | Trim | Consolidate repeated phase/advice prose; retain the board, evidence windows, mitigation constraints, helper reconciliation and sustained recovery. |
 | [obs-alerting](../../skills/obs-alerting/SKILL.md) | Trim | Consolidate the repeated readiness reminder; fix the Splunk pointer. Keep paired burn windows, freshness, independent detection and fire/resolve/delivery evidence. |
-| [obs-dashboards](../../skills/obs-dashboards/SKILL.md) | Keep | Compact dashboard-design guidance; separate from Grafana implementation and authorization. Keep denominator, population and missing-data distinctions. |
-| [obs-logs](../../skills/obs-logs/SKILL.md) | Trim | Repair the overall-rate fallback; remove the output requirement to name the reference read while retaining dialect loading and query/source evidence. Keep extraction and coverage rules. |
-| [obs-metrics](../../skills/obs-metrics/SKILL.md) | Keep | Specialized quantile, rate-before-sum, population and missing-data semantics across distinct dialects. Naming the reference read is an optional micro-trim. |
+| [obs-dashboards](https://github.com/latent-sre/save-toolkit/blob/014909bb/skills/obs-dashboards/SKILL.md) | Keep | Compact dashboard-design guidance; separate from Grafana implementation and authorization. Keep denominator, population and missing-data distinctions. |
+| [obs-logs](../../skills/obs-analysis/SKILL.md) | Trim | Repair the overall-rate fallback; remove the output requirement to name the reference read while retaining dialect loading and query/source evidence. Keep extraction and coverage rules. |
+| [obs-metrics](https://github.com/latent-sre/save-toolkit/blob/014909bb/skills/obs-metrics/SKILL.md) | Keep | Specialized quantile, rate-before-sum, population and missing-data semantics across distinct dialects. Naming the reference read is an optional micro-trim. |
 | [obs-pipeline](../../skills/obs-pipeline/SKILL.md) | Trim | Move detailed OTel naming grammar to its existing SDK reference; remove the empty canary stub. Preserve signal-path boundaries, cardinality and real canary verification. |
-| [obs-traces](../../skills/obs-traces/SKILL.md) | Keep | Distinct critical-path, nesting, asynchronous-link, sampling and protocol semantics; already permits bounded span interpretation. |
+| [obs-traces](https://github.com/latent-sre/save-toolkit/blob/014909bb/skills/obs-traces/SKILL.md) | Keep | Distinct critical-path, nesting, asynchronous-link, sampling and protocol semantics; already permits bounded span interpretation. |
 | [operational-learning](../../skills/operational-learning/SKILL.md) | Trim | Consolidate repeated binding/prepared explanations; retain authorized roots, dirty-path protection, evidence provenance and review-versus-execution dates. |
 | [operator-cli](../../skills/operator-cli/SKILL.md) | Keep | Capability-based requirements already scale to read-only versus effectful commands; retain machine output, real dry runs, interruption and per-item UNKNOWN. |
 | [pcf-deploy](../../skills/pcf-deploy/SKILL.md) | Trim | Consolidate plan fields; retain explicit invocation, human execution, artifact/target identity, approval reuse and phase-specific recovery. Keep separate from read-only PCF operations. |
@@ -500,7 +500,7 @@ the approver a gap. All three passed the exact-field grader, demonstrating why t
 cannot establish correct role assignment.
 
 The repair adds 191 bytes to the conditional
-[retirement-order reference](../../skills/service-lifecycle/references/retirement-order.md): name
+`retirement-order.md` (historical source at `014909bb`): name
 service owner, release approver and executor from supplied role evidence; service ownership alone
 establishes neither approval nor execution authority. Unprovided roles remain gaps. The core skill,
 frontmatter, tool grants, and incident-investigation bundle are unchanged. Its generated copy is

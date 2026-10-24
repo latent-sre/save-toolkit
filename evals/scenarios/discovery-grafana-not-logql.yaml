@@ -12,6 +12,6 @@ routing:
   expect: not_fire
   expected_alternative:
     kind: skill
-    name: obs-logs
+    name: obs-analysis
 success_criteria:
 - Keeps query construction with the logs skill rather than loading platform operations

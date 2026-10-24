@@ -4,9 +4,9 @@ split: regression
 skill: grafana
 tools: [Skill, Read]
 references:
-  - skills/grafana/references/viewer-editor-workflows.md
+  - skills/grafana/references/dashboard-reading.md
 prompt: |
-  Read the viewer/editor workflows reference. Write short labelled answers only,
+  Read the dashboard-reading reference's sharing, access, and editor changes section. Write short labelled answers only,
   no explanation; do not edit files. A: which Grafana roles can view, edit, and
   administer organization resources, and how do dashboard permissions relate to
   their folder? B: a teammate wants to share a dashboard's current state with an

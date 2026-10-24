@@ -1,10 +1,10 @@
 id: obs-logs-logql-metadata-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-logs
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-logs/references/logql.md
+  - skills/obs-analysis/references/logql.md
 prompt: |
   Read the LogQL reference. Write the query and the short answer labelled A, with no
   other explanation; do not run queries or edit files. Checkout logs to Loki 3.x in

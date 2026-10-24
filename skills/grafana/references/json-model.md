@@ -5,7 +5,7 @@ a model. Request and concurrency shapes are in [http-api](./http-api.md); generi
 advice is deliberately absent. The guidance below comes from Grafana 13.2.0 source and docs, not
 from the target; write, import, concurrency, and rollback behavior on the target is unconfirmed
 until observed. Team decisions for new dashboards are in the
-[team dashboard conventions](./dashboard-conventions.md).
+[team dashboard conventions](./dashboard-design.md#new-dashboard-conventions).
 
 ## Contents
 
@@ -88,7 +88,7 @@ Copy structure from the target and replace only the metric and labels with disco
 }
 ```
 
-The unit comes from the instrumentation (`s` for seconds, `ms` for milliseconds); `obs-metrics`
+The unit comes from the instrumentation (`s` for seconds, `ms` for milliseconds); `obs-analysis`
 owns query construction beyond this shape.
 
 ## V2 differences

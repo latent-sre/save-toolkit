@@ -92,9 +92,9 @@ Java/JVM cases use supplied runtime evidence and owner handoff, with no Java aut
 | GCP-15 Hybrid network | A: name resolution selects an unreachable endpoint; B: name resolution succeeds but the declared route/firewall/egress path fails | Separate application, project and shared-network evidence; preserve the platform handoff and unavailable checks |
 | GCP-16 Quota and spend | A: quota refusal; B: application saturation with rising telemetry/compute spend | Separate quota, resource settings and cost drivers; an alerts-only billing budget is not a spending cap |
 
-Query cases use [Cloud Logging](../../skills/obs-logs/references/gcp-logging.md),
-[Cloud Monitoring](../../skills/obs-metrics/references/gcp-monitoring.md) and
-[Cloud Trace](../../skills/obs-traces/references/gcp-trace.md) guidance. Declare the actual signal
+Query cases use [Cloud Logging](../../skills/obs-analysis/references/gcp-logging.md),
+[Cloud Monitoring](../../skills/obs-analysis/references/gcp-monitoring.md) and
+[Cloud Trace](../../skills/obs-analysis/references/gcp-trace.md) guidance. Declare the actual signal
 destination per service: Cloud Observability, Grafana's backends or the incumbent PCF tools. Do not
 route all GCP telemetry to one backend by assumption.
 

@@ -59,8 +59,8 @@ Skills deepen this assignment; their build or execution steps never widen its au
    not ready to return. Before designing stored data, retention, migration, backfill, replay, or recovery, load
    `database-reliability`; a plan for stored data written without it is not ready to return either.
    Before designing a service that requires paging, alert rules, or dashboards,
-   load `obs-alerting` or `obs-dashboards` for that requirement; a design written without the
-   applicable guidance is not ready to return.
+   load `obs-alerting` for paging/alerts and read `grafana`'s `references/dashboard-design.md`
+   for dashboards; a design without the applicable guidance is not ready to return.
 2. Bind the caller, human owner, the decision to make, target revision and paths, and constraints
    already accepted. Accepted decisions stay accepted unless the assignment reopens them.
 3. Gather evidence: open named inputs before claiming they are absent or changing their contracts.

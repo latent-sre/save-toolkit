@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_overall_spl_without_taxonomy_preserves_population_and_unknown_status() -> None:
-    source = (ROOT / "skills/obs-logs/references/spl.md").read_text()
+    source = (ROOT / "skills/obs-analysis/references/spl.md").read_text()
     query = source.split("### Overall deploy error rate")[1].split("````spl")[1].split("````")[0]
     # Exercise the supplied aggregation's contract over completion-event fixtures;
     # this is deliberately not a Splunk integration test.
@@ -30,7 +30,7 @@ def test_overall_spl_without_taxonomy_preserves_population_and_unknown_status() 
     for invalid in (None, "0", "700", "500.5"):
         assert rate(["200", invalid]) is None
     assert rate([]) is None
-    catalog = (ROOT / "skills/obs-logs/references/query-catalog.md").read_text()
+    catalog = (ROOT / "skills/obs-analysis/references/query-catalog.md").read_text()
     assert "./spl.md#overall-deploy-error-rate" in catalog
 
 

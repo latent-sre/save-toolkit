@@ -1,7 +1,7 @@
 # Wavefront and Splunk data sources
 
 Read this for Wavefront/Splunk-backed dashboards and their plugin entitlement. The team's naming,
-folder, time, and variable decisions are in [dashboard conventions](./dashboard-conventions.md).
+folder, time, and variable decisions are in [dashboard conventions](./dashboard-design.md#new-dashboard-conventions).
 Discover names, uids, owners, and installed plugins from the target.
 
 ## Licence and lifecycle facts

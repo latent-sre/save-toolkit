@@ -5,7 +5,7 @@ description: >-
   revisions, gcloud logging reads, what-changed correlation against revision deploys, and the
   project-vs-platform boundary. Triggers: 'the Cloud Run service is 503ing', 'read the GCP logs',
   'container failed to listen on PORT', 'roll back the Cloud Run service to the previous
-  revision'. Related owners: `stack-profile` (boundary and runtime decisions), obs-logs
+  revision'. Related owners: `stack-profile` (boundary and runtime decisions), obs-analysis
   (log-query dialects), pcf-ops (the PCF side while both runtimes coexist).
 compatibility: Requires read access to the target Cloud Run service and logs; use Cloud Console or an installed gcloud CLI
 argument-hint: "[the GCP service or symptom]"
@@ -32,7 +32,7 @@ account identity and credential properties are excluded; configuration can conta
 | Question | Cloud Console | `gcloud` equivalent |
 |---|---|---|
 | Service details? | Select the service to open its details | `gcloud run services describe <service> --region <region> --project <project>` |
-| All requests or some, since when, at max instances? | Service → **Metrics**: request count, request latencies, container instance count, memory utilization | No GA `gcloud` read; `request_count` by `response_code_class` through obs-metrics' Cloud Monitoring reference |
+| All requests or some, since when, at max instances? | Service → **Metrics**: request count, request latencies, container instance count, memory utilization | No GA `gcloud` read; `request_count` by `response_code_class` through obs-analysis' Cloud Monitoring reference |
 | Which revisions exist? | Service → **Revision history** | `gcloud run revisions list --service <service> --region <region> --project <project>` |
 | Recent request/container errors? | Service → **Logs**; select the last hour | `gcloud run services logs read <service> --freshness=1h --limit=100 --region <region> --project <project>` |
 
@@ -88,7 +88,7 @@ Distinguish the requested filter/window/limit from the returned export's demonst
 record unknown truncation or sampling instead of assuming the request was applied.
 
 For historical UTC windows, other filter shapes, shell restrictions or log bucket/view selection,
-load `obs-logs` and its **Cloud Logging dialect** reference; it owns those mechanics and sources.
+load `obs-analysis` and its **Cloud Logging dialect** reference; it owns those mechanics and sources.
 
 ## Reading failures
 

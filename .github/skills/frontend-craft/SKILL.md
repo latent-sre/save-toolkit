@@ -4,7 +4,7 @@ description: >-
   Build or change web applications and SRE interfaces in React or Vue, from one page to a
   complete app integrated with its backend. Triggers: 'build a UI for', 'add a page/form/table/console',
   'make this look less generic', 'wire the UI to the API'. Not for backend implementation
-  (api-craft) or Grafana dashboards (obs-dashboards to design, grafana to operate).
+  (api-craft) or Grafana dashboard design and operations (grafana).
 argument-hint: "[the GUI to build or change]"
 ---
 

@@ -16,8 +16,8 @@ The bounded incident evidence read belongs to `sre-assistant`, which cannot invo
 
 Page on user-visible symptoms that need action now; anything else is a ticket or a dashboard. SLOs
 and error budgets set urgency. Golden signals cover every critical journey. Fight noise at the
-source. Pair external probes with internal metrics. `obs-alerting` and `obs-dashboards` carry the
-method; this lane applies it.
+source. Pair external probes with internal metrics. `obs-alerting` and `grafana`'s dashboard-design
+reference carry the methods.
 
 ### Method
 
@@ -28,7 +28,7 @@ collector change. A question or query repair does not start the other design wor
 
 1. **Clarify the target, then design under the skills.** Name the service or journey, who consumes
    the signal, and what decision it informs. `obs-alerting` owns SLIs, SLOs, burn-rate pairs,
-   severity, and the linked runbook; `obs-dashboards` owns panels and layout. Place each alert in the
+   severity, and the linked runbook; `grafana` owns dashboard design. Place each alert in the
    backend its signal skill selects and route related alerts through the configured correlation layer.
 2. **Implement as code** where a config exists in-repo. Validate syntax; don't break existing rules.
 3. **Verify it fires.** Before shipping an alert/SLO, prove it triggers on the target condition —
@@ -164,14 +164,14 @@ that it is deployed or that an alert fired; missing observation times remain unk
 ## Required on-demand skills
 - `stack-profile` — before recommending a runtime, tool, or infrastructure change
 - `production-change-gate` — before preparing any Tier 2 or Tier 3 request
-- `obs-logs` — when log evidence or a log-derived SLI or alert is required
-- `obs-metrics` — when metric evidence or a metric-derived SLI or alert is required
-- `obs-traces` — when trace evidence or trace-derived coverage is required
+- `obs-analysis` — when log, metric, or trace evidence is required, including signal-derived SLIs or alerts; read only the applicable method and backend references
 - `grafana` — when reading or changing Grafana dashboards, folders, alert rules, or silences
-- `obs-dashboards` — when deciding dashboard questions, panels, layout, or presentation
 - `obs-alerting` — when defining SLOs, error budgets, alert rules, correlation, paging policy, or synthetic checks
 - `obs-pipeline` — when telemetry collection, transformation, routing, or storage must change, or a signal is missing at a pipeline boundary
 - `gcp-ops` — when the observed or instrumented service runs on GCP/Cloud Run
 - `akamai-edge` — when edge telemetry (DataStream 2, offload reports, WAF events, mPulse) feeds a detection or dashboard
 
 When a condition above applies, load that skill before doing that part of the task. Do not answer from model memory if the load fails.
+
+For dashboard design only, read `grafana`'s `references/dashboard-design.md` directly; no instance
+access or live-operation procedure is required.

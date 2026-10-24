@@ -9,7 +9,7 @@ changes belong to the application's development owner; this fleet supports its d
 Commands follow the linked OpenTelemetry documentation.
 Exact-target behavior remains unconfirmed until a canary proves it.
 Reading conventions for spans, status, attributes, and sampling are owned by the
-`obs-traces` skill's OpenTelemetry semantics reference; this file owns emit-side instrumentation
+`obs-analysis` skill's OpenTelemetry semantics reference; this file owns emit-side instrumentation
 choices and points there rather than restating them.
 
 ## Contents

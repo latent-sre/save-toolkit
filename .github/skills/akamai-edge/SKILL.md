@@ -5,7 +5,7 @@ description: >-
   status, WAF denials, DataStream 2), delivery config (Property Manager versions, staging-first
   activation, fast fallback), and mPulse RUM (network-side vs app-side slowdowns). Triggers: 'is
   it the CDN or the origin', 'an Akamai error page with Reference #<n>.<hex>.<epoch>.<hex>', 'is
-  the WAF blocking real users', 'mPulse shows slow pages'. Not for backend log queries (obs-logs)
+  the WAF blocking real users', 'mPulse shows slow pages'. Not for backend log queries (obs-analysis)
   or a firing alert (incident-investigation).
 compatibility: Requires Akamai Control Center access; DataStream 2 queries run in the configured log backend
 argument-hint: "[the edge, CDN, WAF, or RUM problem]"
@@ -60,8 +60,7 @@ The responder with `incident-investigation` retains the overall live investigati
 turnaround) within its assigned question, targets and access; return the leg finding, exact source,
 timestamps, alternatives and gaps to its invoking caller. A related lead does not grant new access
 or transfer incident ownership.
-Origin leg outside an incident: `pcf-ops` or `gcp-ops` for the origin app, `obs-traces` or
-`obs-metrics` for origin latency.
+Origin leg outside an incident: `pcf-ops` or `gcp-ops` for the origin app, `obs-analysis` for origin latency.
 A recurring query, missing alert, or detection gap goes to `observability-engineer`. For a proposed
 property change, send the human release owner the prepared version and
 [property change packet](./references/property-config.md#property-change-packet). New durable

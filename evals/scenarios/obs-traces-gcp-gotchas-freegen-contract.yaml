@@ -1,10 +1,10 @@
 id: obs-traces-gcp-gotchas-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-traces
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-traces/references/gcp-trace.md
+  - skills/obs-analysis/references/gcp-trace.md
 prompt: |
   Read the Cloud Trace reference. Answer with short labelled lines only, no
   explanation; do not run queries or edit files. A: can the team change Cloud Run's

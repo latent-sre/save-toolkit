@@ -1,51 +1,44 @@
 ---
 name: grafana
 description: >-
-  Operate Grafana: find, explain, create, and edit dashboards; inspect alert state and notification paths;
-  create or update Grafana-managed alert rules, and manage temporary silences. Triggers:
-  'explain this Grafana dashboard', 'create a Grafana alert', 'silence this alert',
-  'edit this Grafana dashboard'. Dashboard design uses obs-dashboards; alert/SLO design
-  uses obs-alerting. Active-incident diagnosis belongs to incident-investigation.
+  Design, explain, create, and edit Grafana dashboards; inspect alert state and notification paths;
+  operate Grafana-managed alert rules and temporary silences. Triggers: 'design a dashboard',
+  'edit this Grafana dashboard', 'create a Grafana alert', 'silence this alert'. Alert/SLO design
+  uses obs-alerting; application UI dashboards use frontend-craft; active diagnosis uses
+  incident-investigation.
 argument-hint: "[Grafana instance, dashboard, alert rule, silence, or requested change]"
 ---
 
 # Grafana operations
 
-Help the human use the console and the agent use available APIs or tools for the same bounded job.
-Before a change, an upgrade, or a version-dependent API choice, load `stack-profile` for the team's
-Grafana version and recovery-copy facts. Discover the actual instance, organization,
-permissions, resource identity, and ownership before relying on them.
+Match the requested job. Design or explanation does not start a live workflow. Before a change,
+upgrade, or version-dependent API choice, load `stack-profile`; discover the actual instance,
+organization, permissions, resource identity, and ownership. Give console steps to the human and
+supported tool/API calls to an authorized agent. Missing access leaves an unapplied procedure.
 
 ## Choose the work
 
 | Request | Method |
 |---|---|
-| Explain a dashboard or compare a change | [Dashboard interpretation](./references/dashboard-reading.md) |
-| Investigate panel data, preflight queries, analyze or compare captured evidence, preview a threshold, or trace configuration dependencies | [Investigation workflows](./references/investigation-workflows.md); bounded agent JSON, query-first with render fallback |
-| Inspect actual appearance, render a panel, or diagnose unavailable screenshots | [Visual verification](./references/visual-verification.md) |
+| Design panels/layout or choose team conventions | [Dashboard design](./references/dashboard-design.md); design-only callers may read it directly |
+| Explain a dashboard, share evidence, or help a Viewer/Editor | [Dashboard reading](./references/dashboard-reading.md) |
+| Investigate data, compare captures, preview a threshold, or trace dependencies | [Investigation workflows](./references/investigation-workflows.md) |
+| Inspect appearance or render a panel | [Visual verification](./references/visual-verification.md) |
 | Inspect, create, update, pause, or resume an alert rule; explain missing notifications | [Alert operations](./references/alert-operations.md); load `obs-alerting` for design decisions |
 | Create, inspect, update, or end a temporary silence | [Silence operations](./references/silences.md) |
-| Read Grafana from a terminal: scoped/paged search, a dashboard or selected panel, alert definitions/state, exact silences, annotations, bounded Prometheus/Loki data, or a rendered panel image | [Command access](./references/command-access.md): the bundled [grafana_read.py](./scripts/grafana_read.py) and its [PowerShell wrapper](./scripts/grafana_read.ps1) |
-| Create/edit/import a dashboard or folder | [Dashboard operation loop](./references/dashboard-operations.md); use `obs-dashboards` when design decisions are needed |
-| Review existing dashboards or assess an upgrade without writes | [Read-only review](./references/read-only-review.md) |
-| Dashboard/folder API discovery, concurrency, history, or rollback | [HTTP API](./references/http-api.md) |
-| Classic/V1/V2 models, panel JSON, variables, or portability | [Dashboard JSON](./references/json-model.md) |
-| Check an exported Classic/V1 dashboard offline, with text or JSON findings | [Read-only review](./references/read-only-review.md) and [dashboard_hygiene.py](./scripts/dashboard_hygiene.py); guarded agents use workflow `analyze --analysis hygiene` on a named capture |
+| Terminal reads: search, models, alert state, silences, annotations, bounded queries, images | [Command access](./references/command-access.md): [Python helper](./scripts/grafana_read.py) and [PowerShell wrapper](./scripts/grafana_read.ps1) |
+| Create/edit/import a dashboard or create/update a folder | [Dashboard operations](./references/dashboard-operations.md) |
+| Review or upgrade assessment; check exported Classic/V1 JSON | [Read-only review](./references/read-only-review.md), [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
+| API versions, concurrency, history, recovery; model/variable details | [HTTP API](./references/http-api.md), [Dashboard JSON](./references/json-model.md) |
 | Grafana provisioning, evaluation settings, rule groups, contact points, or policies | [Alerting configuration](./references/grafana-alerting.md) |
 | A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [HTTP API tooling and scope](./references/http-api.md#credentials-and-effective-scope); none is adopted |
-| Viewer/Editor workflows, sharing, annotations, or ownership-aware restore | [Viewer/editor workflows](./references/viewer-editor-workflows.md) |
 | Wavefront/Splunk plugins or entitlement | [Wavefront and Splunk data sources](./references/wavefront-legacy.md) |
-| Team dashboard conventions: folders, names, uids, tags, time, variables | [Dashboard conventions](./references/dashboard-conventions.md) |
-| Repair or interpret a query | Load `obs-metrics`, `obs-logs`, or `obs-traces` for that signal |
+| Repair or interpret a query | `obs-analysis` and its matching signal/backend references |
 
-Read only the matching references. An explanation does not start a change workflow. Give console
-steps when the human is operating; use supported API/tool calls when the invoked agent has access.
-Missing access means an unapplied procedure, never a fabricated observation.
-
-Use [grafana_workflow.py](./scripts/grafana_workflow.py) for query-first evidence and coverage gaps;
-open fallback images before visual claims. Reuse verified captures for follow-up. HTML and the
-[VS Code opener](./scripts/grafana_vscode.py) are optional views. The command reference owns the
-managed-environment launch.
+Read only matching references. Use [grafana_workflow.py](./scripts/grafana_workflow.py) for query-first
+evidence and reuse verified captures; guarded hygiene uses `analyze --analysis hygiene` on a named
+capture. Open fallback images before visual claims. HTML and the [VS Code opener](./scripts/grafana_vscode.py)
+are optional; command access owns the managed-environment launch.
 
 Bundled helpers: [evidence](./scripts/grafana_evidence.py),
 [threshold preview](./scripts/grafana_alert_preview.py), [dependencies](./scripts/grafana_dependencies.py),

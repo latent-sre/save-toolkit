@@ -11,6 +11,6 @@ success_criteria:
 - Produces valid ratio/histogram shapes and explains population, labels, and zero-traffic semantics
 target:
   kind: skill
-  name: obs-metrics
+  name: obs-analysis
 routing:
   expect: fire

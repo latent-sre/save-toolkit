@@ -4,7 +4,7 @@ description: >-
   What ships telemetry where — instrument a service with OTel and route metrics, traces, and
   structured logs through Alloy/collectors to Loki, Mimir, and Tempo. Triggers:
   'instrument this service', 'add telemetry', 'logs are not reaching Loki',
-  'configure the Alloy exporter'. Not for reading signals (obs-logs, obs-metrics, obs-traces)
+  'configure the Alloy exporter'. Not for reading signals (obs-analysis)
   or Grafana datasource/dashboard configuration (grafana).
 argument-hint: "[service, missing signal, or telemetry route]"
 ---
@@ -29,7 +29,7 @@ app → SDK/agent → collector/Alloy → backend
 | Traces | spans with propagated W3C trace context | OTLP receiver → sampling/batch → route | Tempo |
 
 Splunk and Wavefront/PCF App Metrics are fed by the PCF platform, not by anything this
-skill wires: 'logs are not in Splunk' is a `pcf-ops` and `obs-logs` question.
+skill wires: 'logs are not in Splunk' is a `pcf-ops` and `obs-analysis` question.
 
 GCP backends are landing with the migration: the documented ingest is OTLP to the Telemetry API
 (`telemetry.googleapis.com` — all three signals) through the same otelcol exporter slot. Log

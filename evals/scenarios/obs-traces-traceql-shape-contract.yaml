@@ -1,11 +1,11 @@
 id: obs-traces-traceql-shape-contract
 max_turns: 17
 split: regression
-skill: obs-traces
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-traces/references/traceql.md
-  - skills/obs-traces/references/otel-semantics.md
+  - skills/obs-analysis/references/traceql.md
+  - skills/obs-analysis/references/otel-semantics.md
 prompt: |
   Read the TraceQL and OpenTelemetry-semantics references. Assess this supplied-state
   trace work; do not run queries or edit files. A teammate drafted Tempo work for

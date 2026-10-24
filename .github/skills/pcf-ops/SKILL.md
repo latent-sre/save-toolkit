@@ -84,7 +84,7 @@ alignment alone is not proof.
 
 RTR lines carry status code and response time per request; APP lines are app stdout/stderr; `cf logs`
 without `--recent` live-tails both and is outside the SRE grant. The buffer and the **Logs** pane hold only minutes; for history
-go to **Splunk** (`obs-logs` has the query shapes) with the timestamp and correlation ID.
+go to **Splunk** (`obs-analysis` has the query shapes) with the timestamp and correlation ID.
 
 ## Read only the detail the symptom needs
 

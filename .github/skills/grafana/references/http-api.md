@@ -104,7 +104,7 @@ dashboard version to restore, and this lane has no deletion authority.
 sources (`POST /api/dashboards/import` with `overwrite: false`, `folderUid`, and an `inputs[]`
 binding). Raw `POST /api/dashboards/db` stores the literal placeholder and produces a
 missing-data-source panel. After import, apply the data-source rule in the
-[team dashboard conventions](./dashboard-conventions.md) and save the corrected model.
+[team dashboard conventions](./dashboard-design.md#new-dashboard-conventions) and save the corrected model.
 
 **Update** shows a stable diff (`jq -S` both specs), then writes once with the family's fresh
 concurrency token and a save message, which cannot be added later. Changing a dashboard's folder

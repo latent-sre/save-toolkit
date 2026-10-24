@@ -1,10 +1,10 @@
 id: obs-logs-spl-extract-freegen-contract
 max_turns: 17
 split: regression
-skill: obs-logs
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-logs/references/spl.md
+  - skills/obs-analysis/references/spl.md
 prompt: |
   Read the SPL reference. Write one Splunk search only, with no explanation; do not run
   queries or edit files. Raw application lines for settlement-api (index=<app_index>)

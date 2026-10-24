@@ -49,15 +49,15 @@ Work the rows that apply. Audit inspects; onboard produces; retire dispositions 
 | Runtime and health | versioned deployment definition, health check, instance or revision health, crash history | `manifest.yml` or pinned Cloud Run config; a workload-appropriate health check; justified instance target, scale-to-zero preserved unless the SLO needs minimums | workloads, routes, schedules, bindings removed only after quiescence is verified | `pcf-ops` or `gcp-ops` |
 | Delivery and recovery | CI promotion controls, exact rollback or roll-forward path, last recovery evidence | build and deploy via Actions with promotion gates on | deployment workflows and environment bindings disabled; access removal routed to the identity owner | `ci-actions` |
 | Telemetry pipeline | structured logs, RED metrics, traces, collector path, one arrival query per signal | OTel SDK wired, cardinality reviewed, collector routing to the selected destinations, arrival proven with one quoted query per signal | collection stopped after the evidence needed to verify the decommission is retained; shared collectors left in place are listed | `obs-pipeline` |
-| Dashboards | service health overview, drill-downs, owner, verification evidence | the service page: health at the top, drill-down below | removed only as authorized; shared dashboards listed | `obs-dashboards` for design; `grafana` for implementation |
+| Dashboards | service health overview, drill-downs, owner, verification evidence | the service page: health at the top, drill-down below | removed only as authorized; shared dashboards listed | `grafana` |
 | Alerts and SLOs | SLI formula, target and window, symptom-based paging, saturation coverage, runbook link, notification-path evidence | a burn-rate alert on the SLI for request-based services or a freshness, completion, or failure alert for scheduled work, a saturation alert where the signal exists, each linked to a runbook; SLI formula, target, and window recorded where the team keeps them | paging alerts and SLO evaluation retired first, in dependency order | `obs-alerting` for design; `grafana` for Grafana operations |
 | Operations knowledge | current runbook, service and alert records, escalation procedure | a check, restart, recover runbook on-call can find | records marked `retired`, never deleted; active indexes updated | `runbook` |
 | Dependencies and capacity | critical dependencies, failure behaviour, limits, headroom, expiry risks | recorded on the service card | inbound callers migrated or stopped, producers and consumers drained, nothing still expects the service; unknown or conflicting evidence stops removal | owning skill |
 | Data, backup, restore | backup scope plus a dated restore rehearsal; existence alone is not restore evidence | recovery path recorded | data deletion, credential revocation, DNS and certificate removal, and access-path changes stay Tier 3, each with its own recovery evidence and human executor | `database-reliability` |
 
-Retire works the rows in a fixed order with stop rules, from traffic exit through independent
-verification; read [retirement order](./references/retirement-order.md) before drafting the retirement
-plan. Its execution stop rules identify draft gaps and still block live removal.
+Use the team's existing retirement process for sequencing and stop conditions.
+Name the service owner, release approver, and executor from supplied role evidence. Service
+ownership alone establishes neither approval nor execution authority; unprovided roles stay gaps.
 
 ## Audit findings
 
@@ -73,9 +73,7 @@ record exists at all.
 
 ## Knowledge closeout
 
-For a change, remediation, freshness review, or retirement, read
-[record transitions](./references/record-transitions.md) to name who retains ownership until the
-reviewed record is read back, and when evidence becomes stale. Reuse the existing follow-up record.
+Record maintenance and ownership transitions follow the team's existing process.
 
 After onboarding execution—or after retirement's live-resource receipts but before final record
 verification—send `scribe` an evidence-bound handoff for affected cards, index entries, and runbooks.

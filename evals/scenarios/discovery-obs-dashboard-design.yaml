@@ -2,12 +2,12 @@ id: discovery-obs-dashboard-design
 max_turns: 4
 split: regression
 prompt: |
-  Design a service-health dashboard for the checkout on-call engineer. Which panels and drill-downs
+  Design a service-health dashboard for the order-router on-call engineer. Which panels and drill-downs
   should it contain, and how should missing telemetry appear? We are deciding the layout and
   information hierarchy only; do not connect to an instance or create resources.
 target:
   kind: skill
-  name: obs-dashboards
+  name: grafana
 routing:
   expect: fire
 success_criteria:

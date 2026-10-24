@@ -107,7 +107,7 @@ class RoutingGradeTests(unittest.TestCase):
         self.assertFalse(silent, "an empty response is not a passing inline answer")
 
     def test_not_fire_with_a_named_alternative_requires_that_alternative(self) -> None:
-        spec = {"id": "r", "prompt": "p", "target": {"kind": "skill", "name": "obs-logs"},
+        spec = {"id": "r", "prompt": "p", "target": {"kind": "skill", "name": "obs-analysis"},
                 "routing": {"expect": "not_fire",
                             "expected_alternative": {"kind": "skill", "name": "obs-alerting"}}}
         passed, _ = probe_assessment.grade_routing(

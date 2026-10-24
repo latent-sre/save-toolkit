@@ -1,11 +1,11 @@
 id: obs-logs-spike-deploy-contract
 max_turns: 17
 split: regression
-skill: obs-logs
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-logs/references/spl.md
-  - skills/obs-logs/references/query-catalog.md
+  - skills/obs-analysis/references/spl.md
+  - skills/obs-analysis/references/query-catalog.md
 prompt: |
   Read the SPL and query-catalog references. Assess this supplied-state log work; do not
   run queries or edit files. A teammate drafted Splunk searches for settlement-api over

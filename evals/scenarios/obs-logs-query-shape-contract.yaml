@@ -1,11 +1,11 @@
 id: obs-logs-query-shape-contract
 max_turns: 17
 split: regression
-skill: obs-logs
+skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-logs/references/spl.md
-  - skills/obs-logs/references/gcp-logging.md
+  - skills/obs-analysis/references/spl.md
+  - skills/obs-analysis/references/gcp-logging.md
 prompt: |
   Read the SPL and Cloud Logging references. Assess this supplied-state log work; do not run
   queries or edit files. The on-call responder dispatched you to review a teammate's searches for

@@ -1,8 +1,8 @@
 # Resolved-context integration
 
 Read only when configuring, using, or validating a resolver/producer integration under the SRE
-operational-context contract ADR. Apply [record ownership and freshness](./record-transitions.md)
-before relying on resolved dates or transition claims.
+operational-context contract ADR. Catalog `lastVerified` records mapping freshness, not document
+review, procedure execution, or transition completion.
 
 The optional resolver must support the unchanged `v1alpha2` consumer requirements, including
 `forbidden` and `freshness`; unsupported contracts are a gap, not permission to remove those fields.
@@ -27,16 +27,6 @@ transition completion stays `[unverified]`. The fixture-only producer retains
 `source.nonOperational: true` and `target.actionSelection: prohibited` in every state.
 No fixture run proves any real-service transition.
 
-## Acceptance on the selected service
-
-Use the owner's selected service, environment, and authorized record repository. For each row,
-retain the original record/revision, named owner, trigger, exact evidence, `scribe` disposition,
-independent review/readback, and caller continuation in the existing follow-up. Include a changed
-deployment inside 30 days, failed remediation, document-only refresh, and retirement with a retained
-shared resource. In each negative case the affected claim must stay visibly stale or pending;
-then verify closure only after the missing evidence or accepting owner actually arrives.
-
 The source repository's compatibility checks exercise the actual producer CLI against temporary
 synthetic catalogs and this consumer's requirements. Skipped external tests mean unverified
-compatibility. Human acceptance of the exact candidate and actual service transitions remains
-separate from these checks.
+compatibility. These checks do not establish operational acceptance.

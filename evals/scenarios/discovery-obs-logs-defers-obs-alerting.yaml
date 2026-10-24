@@ -10,7 +10,7 @@ success_criteria:
 - Does not treat evaluation, suppression, notification, or runbook ownership as log-query work
 target:
   kind: skill
-  name: obs-logs
+  name: obs-analysis
 routing:
   expect: not_fire
   expected_alternative:
