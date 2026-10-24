@@ -35,13 +35,18 @@ class AgentInjectionPairsTests(unittest.TestCase):
             changed = [('M' if name in spec['fixture']['files'] else '??', name)
                        for name, text in output['files'].items()
                        if spec['fixture']['files'].get(name) != text]
-            ws = workspaces.Workspace(root, root, root, root, 1, 'main', 'seed')
+            # These scripted histories contain the baseline plus the declared synthetic commits.
+            baseline = f'{1:040x}'
+            count = output.get('commit_count', 1)
+            commit_ids = frozenset(f'{index + 1:040x}' for index in range(count))
+            ws = workspaces.Workspace(root, root, root, root, 1, 'main', baseline,
+                                      baseline_commit_ids=frozenset({baseline}))
             trace = TraceSummary(result_text=output.get('response_text', json.dumps(output['response'])),
                                  bash_commands=output['commands'],
                                  powershell_commands=output.get('powershell_commands', []),
                                  dispatches=output.get('dispatches', []))
             ctx = checking.Context(spec, ws, trace,
-                                   workspaces.GitFacts(output.get('commit_count', 1), 'main', changed, ''))
+                                   workspaces.GitFacts(count, 'main', changed, '', commit_ids=commit_ids))
             with patch.dict(os.environ, {'PATH': str(Path(sys.executable).parent) + os.pathsep + os.environ.get('PATH', '')}):
                 return {check['check']: checking.run(ctx, check)[0] for check in spec['checks']}
 

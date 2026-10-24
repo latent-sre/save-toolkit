@@ -392,10 +392,9 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
     auth_failed = False
     planned = [(spec, i) for spec in scenarios for i in range(args.trials)]
     selected_ids = {spec["id"] for spec in scenarios}
-    # Every attempt of the label was paid for, and each counts once: the summary's rows, those this
-    # --overwrite replaces included, and the superseded and incomplete attempts kept beside them.
-    paid = [e for e in existing if e.get("scenario") in selected_ids]
-    paid += trials.kept_attempt_costs(out, args.label, selected_ids, args.model)
+    # Publication can survive a crash before the batch summary is checkpointed. Count the saved
+    # attempts themselves too, matching their identities so stale rows and archives count once.
+    paid = trials.batch_attempt_costs(out, args.label, selected_ids, args.model, existing)
     spent = sum(records.known_usd(e.get("known_cost_usd")) or 0.0 for e in paid)
     if args.max_batch_usd is not None and any(e.get("cost_complete") is not True for e in paid):
         # An earlier attempt without a known cost leaves the batch's spend unknown; the cap cannot hold.
@@ -442,6 +441,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
                 # The candidate changed under the batch; the attempt is kept, the batch stops.
                 blocked = f"plugin inputs could not be measured: {exc}"
                 break
+            layout.write_json(summary_path, batches.merge_summary_entries(existing, results), ascii_only=True)
             machinery = results[-1].get("grader_error") or results[-1].get("service_error")
             if machinery:
                 machinery_stopped[spec["id"]] = machinery
