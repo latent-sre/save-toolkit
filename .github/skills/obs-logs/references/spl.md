@@ -169,7 +169,8 @@ one event per eligible request/attempt; an application index containing debug or
 is not a request denominator. Establish that population and coverage before interpreting a rate.
 ### Overall deploy error rate
 
-When error classification is absent, group only by phase; no `error_type` field is required:
+For the overall error rate, group only by phase; `error_type` is not required. The denominator
+is all eligible requests in that phase:
 
 ````spl
 index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<before_start_epoch> latest=<after_end_epoch>
@@ -179,20 +180,12 @@ index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<before_st
 | eval error_rate=if(total>0 AND classified=total, errors/total, null())
 ````
 
-Missing or invalid status leaves the phase rate null. No traffic or a missing phase is not
-healthy zero; confirm traffic, extraction, and complete equal-window coverage before interpreting.
-
-### Deploy error rate by class
-
-The denominator below is all eligible requests in the phase, independent of error classification:
+For an optional error-class breakdown, first verify `error_type` extraction on this source.
+Replace only the `stats` line above with these two lines, keeping the final rate calculation:
 
 ````spl
-index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<before_start_epoch> latest=<after_end_epoch>
-| eval phase=if(_time < <deploy_epoch>, "before", "after")
-| eval status=if(match(status, "^[1-5][0-9]{2}$"), tonumber(status), null())
 | eventstats count AS total, count(status) AS classified by phase
 | stats count(eval(status>=500 AND status<600)) AS errors, max(total) AS total, max(classified) AS classified by phase, error_type
-| eval error_rate=if(total>0 AND classified=total, errors/total, null())
 ````
 
 For one error class, 1 failure among 100 eligible requests before and 10 among 100 after must
@@ -202,7 +195,7 @@ status (including `0`, `700`, or fractional codes) leaves the rate null. This as
 three-digit HTTP status per completion event; verify that source contract. A missing phase/class
 row is not a zero: confirm traffic, extraction,
 and window coverage. Successful requests without `error_type` still count in `eventstats` before
-the class grouping. Use the [overall deploy error rate](#overall-deploy-error-rate) when no error classification is available.
+the optional class grouping. Without usable error classification, use the overall query above.
 
 ## Fast paths at scale — tstats, data models, TERM/PREFIX
 

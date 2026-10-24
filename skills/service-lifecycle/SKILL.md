@@ -99,8 +99,7 @@ or merely planned, and close an onboarding by recommending its own audit as owed
 
 ## Optional resolved context
 
-A caller with a compatible resolver may resolve [this skill's context
-requirements](./context-requirements.yaml) under the SRE operational-context contract ADR. Resolved
-context is routing input only: it never supplies a plan, an approval, or a credential, and missing
-context is a gap, not a guess. Before relying on freshness, read the same record-transitions
-reference: catalog `lastVerified` is not execution-backed `last_verified`.
+Only when configuring, using, or validating a resolver/producer integration, read
+[resolved-context integration](./references/resolved-context.md) and
+[this skill's context requirements](./context-requirements.yaml). Resolved context is routing input
+only: it never supplies a plan, an approval, or a credential, and missing context is a gap, not a guess.

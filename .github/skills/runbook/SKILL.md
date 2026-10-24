@@ -69,12 +69,7 @@ the first unsupported decision is a finding. Check direct branch entry and inher
 inspection before destruction, and repeat-safe rollback. For a bounded correction, check only the
 changed claim and links.
 
-Four questions that surface most of them:
-
-- **Can you paste each command?** Every variable names its source command or panel.
-- **What partly worked?** Each expected-output line gives the next step for partial/failed results.
-- **When do you stop?** Bound time/attempts and name the escalation or alternate path.
-- **Who answers at 3 a.m.?** Confirm the escalation contact is staffed, not an unmonitored alias.
+Apply the authoring rules above and confirm the escalation contact is staffed, not an unmonitored alias.
 
 ## Living runbooks — every incident leaves the runbook better
 

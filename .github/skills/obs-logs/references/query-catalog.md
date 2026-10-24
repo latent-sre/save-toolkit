@@ -70,10 +70,9 @@ when the question requires quiet periods and a trailing baseline.
 - **Owner:** `<service on-call>`
 - **Verified:** [unverified: target index, status field, and deploy-epoch substitution]
 
-Use the [overall deploy error-rate query](./spl.md#overall-deploy-error-rate), which groups only
-by phase and requires no error classification;
-use it with this entry's population. Missing or invalid status leaves the rate null; no traffic or
-a missing phase is not healthy zero.
+Use [SPL's deploy comparison](./spl.md#overall-deploy-error-rate) with this entry's population.
+Its overall rate needs no `error_type`; the optional class breakdown keeps the phase-wide denominator.
+Missing or invalid status leaves the rate null; no traffic or a missing phase is not healthy zero.
 
 ### Where did one request fail across services?
 

@@ -15,7 +15,9 @@ prompt: |
   including the candidate bucket, and their draft suppresses any spike whose baseline
   standard deviation is zero. Their deploy comparison groups failures and the request
   denominator together by phase and error class, and treats events whose status was
-  never extracted as zero-error requests. To make a slow search faster they switched
+  never extracted as zero-error requests. This source has no usable error-class field;
+  decide whether an overall before/after rate still works without that classification.
+  To make a slow search faster they switched
   a metadata search to return summarized data only during a live incident, without
   recording which mode produced the result, and began rewriting the base search
   before inspecting why the original was slow.
@@ -25,13 +27,14 @@ prompt: |
   spike_baseline: preceding_valid_buckets_candidate_excluded | whole_period_including_candidate
   flat_baseline: material_increase_still_detectable | suppress_when_sd_zero
   deploy_denominator: phase_wide_eligible_requests | by_phase_and_error_class
+  missing_error_class: compare_overall_by_phase | require_error_class_before_any_comparison
   unclassified_status: rate_stays_null | count_as_zero_errors
-  absent_error_taxonomy: overall_by_phase | require_error_type
   summarized_search: state_mode_complete_fallback | summarized_only_unrecorded
   slow_search_first_step: inspector_scan_vs_result | rewrite_base_search_first
 success_criteria:
   - Builds spikes on complete buckets with a trailing baseline that excludes the candidate.
   - Keeps deploy denominators phase-wide and leaves unclassified populations unknown, not zero.
+  - Uses the overall phase comparison when error-class extraction is unavailable.
   - States the summarized-search mode and diagnoses slowness before rewriting.
 graders:
   - type: exact_json
@@ -40,7 +43,7 @@ graders:
       spike_baseline: preceding_valid_buckets_candidate_excluded
       flat_baseline: material_increase_still_detectable
       deploy_denominator: phase_wide_eligible_requests
+      missing_error_class: compare_overall_by_phase
       unclassified_status: rate_stays_null
-      absent_error_taxonomy: overall_by_phase
       summarized_search: state_mode_complete_fallback
       slow_search_first_step: inspector_scan_vs_result

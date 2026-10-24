@@ -4,6 +4,7 @@
 
 - Choose the transformation
 - Simplify control flow and iteration
+- Guard-clause example
 - Preserve consumers and integrate
 - Stage a large or multi-module change
 - Characterization pitfalls
@@ -36,15 +37,39 @@ points; remove generic machinery that contributes neither.
 | Repeated or dynamic cleanup | `with`/`async with`, `ExitStack`/`AsyncExitStack` | Ownership, partial acquisition, cleanup order, cancellation, suppression |
 
 Choose by meaning; a clear loop or conditional may remain best. Name a predicate when it explains a
-decision, not every comparison. Invert the original guard before changing comparisons: `not (x >= 0)`
-and `x < 0` differ for NaN; truthiness is not an explicit `None` check.
-For a worked comparison when needed, see [Guard-clause example](./guard-clause-example.md).
+decision, not every comparison.
 
 An extracted `return` does not return from its caller; preserve moved `break`/`continue` effects.
 Comprehension iteration variables do not leak like loop variables. Generator expressions evaluate
 the outermost iterable immediately; generator-function bodies wait for resumption. Neither can
 consume a file closed by its producer. `mapping.get(key, expensive_default())` evaluates the default
 even on a hit; dispatch tables should store callables rather than their results.
+
+### Guard-clause example
+
+`None` means no limit; zero is a valid limit. Before:
+
+```python
+def process(items, *, limit=None):
+    if limit is None or limit >= 0:
+        result = process_items(items, limit=limit)
+        return result
+    raise ValueError("negative limit")
+```
+
+After, inverting the original condition so the invalid case fails first:
+
+```python
+def process(items, *, limit=None):
+    if not (limit is None or limit >= 0):
+        raise ValueError("negative limit")
+    return process_items(items, limit=limit)
+```
+
+`limit is not None and limit < 0` is equivalent only for integers or `None`: NaN fails both
+`>= 0` and `< 0`. `if not limit` confuses zero with absence. Invalid limits must fail before
+`process_items` runs; valid ones reach it once, unchanged. Keep the nested form when a guard reads
+worse.
 
 ## Preserve consumers and integrate
 

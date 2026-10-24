@@ -85,9 +85,8 @@ same read belongs to `incident-investigation`.
 
 ## Required invariants
 
-- `prepared` means an actual reviewable documentation diff exists at an authorized target path and
-  comes from the checkout named by the required revision binding. It never means approved, reviewed,
-  merged, deployed, or live-verified.
+- `prepared` means an actual reviewable documentation diff exists under step 1's path and checkout
+  requirements. It never means approved, reviewed, merged, deployed, or live-verified.
 - A paging alert without an approved runbook target remains `proposed`; an alert card never
   substitutes for the runbook or copies its commands.
 - A service card links authoritative configuration and alert definitions; it does not become a
@@ -120,6 +119,6 @@ link it when the recipient can access it, otherwise include the needed rows. The
 5. limitations and one tracked next action;
 6. explicit non-actions: no execution, external lookup, delegation, approval, or verification inferred.
 
-Step 1's binding gates `prepared`; an evidenced `duplicate` needs no checkout. Do not invent a
-persistent packet, schema, procedure, or approval. Honor a caller-supplied bounded output shape,
+An evidenced `duplicate` needs no checkout. Do not invent a persistent packet, schema, procedure,
+or approval. Honor a caller-supplied bounded output shape,
 but it grants no authority and is not stored as a parallel record.

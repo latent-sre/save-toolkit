@@ -16,6 +16,24 @@ Each item is read in full together with its bundled files and relevant callers, 
 
 [unverified] Skips include optional UI calibration, Windows/PowerShell, external service-context producer acceptance and opt-in Docker checks. The separate Codex Security deep scan could not start because the session lacked its required managed filesystem permission profile. This audit does not substitute a completed deep security scan.
 
+## PR integration verification
+
+[verified] Integrated `origin/main` at `e797823795949afd248a8a03b5c8f29f4ff3b39c` before
+publication. The earlier repair PR #419 is already merged. Both live roadmap entries were retained;
+overlapping Grafana hygiene and SPL repairs were consolidated, the overall-query anchor retained,
+and the duplicate taxonomy eval field removed in favor of main's supplied-state case. Both fence
+regression suites remain, with strict closing-fence and opening-info handling. Generated adapters
+were refreshed from the combined canonical sources. Independent Sol review found no material
+issue in these resolutions; its source review does not establish runtime acceptance.
+
+[verified] The combined default-plus-heavy suite passed **4,359 tests and 4,985 subtests**, with
+84 skips, exit 0 in 80.480 seconds (4,443 collected). Command: `python scripts/local_tests.py --heavy`.
+Receipt: `/home/hawkfire/save-toolkit/.git/local-test-runs/20261024T121452Z-54b098c6/run.json`.
+Tracked source state was identical before and after execution; only this verification note changed
+afterward. Gate A, configured Ruff lint/format, isolated oracle syntax/name lint, mypy (35 files),
+and validation of 375 scenarios / 2,145 expectations passed. The skip/runtime limits in the repair
+reports still apply. This integrated result supersedes their earlier suite counts for publication.
+
 ## Progress
 
 **42 of 42 items documented; no audit items remain.** All ten canonical agents, thirty canonical skill bundles (167 tracked files), the eight-file sandbox workflow candidate, and the 38-file retired Fleet Atlas snapshot have completed source-bound reports. Independent Sol passes were explicitly selected after the requester resumed work on 2026-10-24. All 25 findings have been repaired and locally verified; see [findings 1–10](repairs-first-ten.md), [findings 11–20](repairs-second-ten.md), and [findings 21–25](repairs-final-five.md). Source review completion is not behavioral acceptance or promotion.

@@ -1,15 +1,16 @@
 // problem.ts — read a failed API response into something the UI can show.
-// The team's FastAPI and Go services answer errors as RFC 9457 `application/problem+json` with the
-// house extensions `request_id` (also sent as the X-Request-ID header) and `errors[]` of
-// `{ loc, msg }` on validation failures. A FastAPI service without the house error handler answers
-// its native shapes instead: `{ detail: [{ loc, msg, type }] }` for a 422 and `{ detail: "..." }`
-// for an HTTPException. A gateway in front of either can answer HTML or nothing. All of them come
-// out of readProblem() as one Problem, so the error card always has a title, a status and a request
-// ID to show. Write this file beside the API client; run `node --test problem.test.ts`
+// Supports RFC 9457 `application/problem+json`, including optional `request_id` and `errors[]`
+// extensions with `{ loc, msg }` validation entries. It also reads native FastAPI shapes:
+// `{ detail: [{ loc, msg, type }] }` for a 422 and `{ detail: "..." }` for an HTTPException,
+// plus a JSON `message` or an HTML/empty gateway fallback. Match the client's handling to the
+// service's actual contract; these supported shapes are not requirements for every service.
+// readProblem() returns one Problem with a title, status and request ID from the supported body
+// field or X-Request-ID header, or "unknown" when unavailable. Write this file beside the API
+// client; run `node --test problem.test.ts`
 // (Node 22.18+ or 24+, no packages).
 
 export interface FieldError {
-  /** Where the invalid value sits: FastAPI's ["body", "owner", "email"] or ["body", "legs", 0, "qty"]; Go services usually ["email"]. */
+  /** Where the invalid value sits: for example ["body", "owner", "email"], ["body", "legs", 0, "qty"], or ["email"]. */
   loc: Array<string | number>;
   msg: string;
 }
@@ -22,7 +23,7 @@ export interface Problem {
   /** What happened and what to do, for people. */
   detail?: string;
   instance?: string;
-  /** The key to the log line. Never "unknown" when the server did its job. */
+  /** Correlation value from a supported body field or response header; "unknown" when unavailable. */
   request_id: string;
   errors?: FieldError[];
 }
@@ -89,7 +90,7 @@ function fromProblemBody(raw: Record<string, unknown>, fallback: Problem): Probl
   return problem;
 }
 
-// FastAPI without the house handler: `detail` is a list of validation errors or a plain message.
+// Native FastAPI shapes: `detail` is a list of validation errors or a plain message.
 function fromPlainJson(raw: Record<string, unknown>, fallback: Problem): Problem {
   if (Array.isArray(raw.detail)) {
     const errors = raw.detail.filter(isFieldError);
