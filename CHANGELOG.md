@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `pcf-ops` references: 14,214 to 12,086 bytes. Retain Apps Manager and CLI pairs,
+  JVM/health/router distinctions, target identity and package/droplet effects. Remove repeated
+  diagnostic explanation; process-stats access is explicitly human-only. Resize regression, local
+  links and diff checks pass; no foundation was accessed.
 - Review `database-reliability` references: 14,739 to 12,412 bytes. Remove repeated explanations and
   tooling examples; retain version-specific DDL, locks, invalid-index cleanup, plan execution
   effects, recovery watermarks and authority. Local links and diff checks pass; no live database
