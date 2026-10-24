@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `gcp-ops` references: 7,987 to 6,240 bytes. Retain pending runtime/ownership decisions and
+  credential, singleton, retry and traffic-tag boundaries. Correct non-GPU startup-probe scope and
+  Direct VPC sizing/NAT qualifications against official Google documentation. Local links and diff
+  checks pass; no live cloud behavior was tested.
 - Review `pcf-deploy` references: 9,540 to 7,929 bytes. Retain exact commands, target/artifact
   identity, cutover checks, recovery phases and quota/version conditions. Replace the unverified
   rollback GA-version claim with installed-capability verification. Deploy-resize regression, local

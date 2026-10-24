@@ -32,10 +32,10 @@ and one commit per skill. The series starts from PR #427's observability cleanup
 duplication, unsupported team rules and stale claims while retaining operational details,
 established decisions, audited safeguards and meaningful verification. The four skills without
 reference files need no reference cleanup.
-**Next action:** Continue with `gcp-ops`; 10 of 23 reference-bearing skills are committed (22,109
-reference bytes removed). Completed: `api-craft`, `database-reliability`, `operational-learning`,
-`pcf-ops`, `production-change-gate`, `resilience-analysis`, `runbook`, `service-lifecycle`, `toil-
-reduction`, `pcf-deploy`.
+**Next action:** Continue with `akamai-edge`; 11 of 23 reference-bearing skills are committed
+(23,856 reference bytes removed). Completed: `api-craft`, `database-reliability`, `operational-
+learning`, `pcf-deploy`, `pcf-ops`, `production-change-gate`, `resilience-analysis`, `runbook`,
+`service-lifecycle`, `toil-reduction`, `gcp-ops`.
 Only necessary entrypoint links, tests and generated projections accompany a reference change.
 **Evidence:** [Existing agent/skill audit baseline](reviews/2026-10-23-agent-skill-audit/README.md);
 per-skill commits record the cleanup and verification, and [the changelog](../CHANGELOG.md) records progress.
