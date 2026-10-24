@@ -1,15 +1,7 @@
 # Verify rendered panels
 
-Use this when the question depends on what the reader actually sees, or when checking a dashboard
-change. Query data, rendering capability, an image response, and an inspected image are separate
-evidence. A successful API read cannot substitute for a visual check.
-
-## Contents
-
-- [Available paths](#pick-an-available-path)
-- [Browser investigation](#sre-browser-investigation)
-- [Query and image evidence](#bind-query-and-image-evidence)
-- [Record and diagnose](#record-and-diagnose)
+Use when appearance matters. Query data, rendering capability, an image response and an inspected
+image are separate evidence; API success is not visual inspection.
 
 ## Pick an available path
 
@@ -43,28 +35,27 @@ Never pass `filename` to the Playwright capture tools: an explicit name can over
 file. Read a fresh snapshot after each interaction; a text snapshot shows structure, and graph
 interpretation needs image inspection.
 
-1. Reuse the authenticated page supplied to the task; in native VS Code, that is a page the human
-   shared through **Share with Agent**, because an agent-opened page has no sign-in. Navigate only
+1. Reuse the authenticated page; native VS Code needs the human's **Share with Agent** page,
+   because agent-opened pages have no sign-in. Navigate only
    to the assigned HTTPS Grafana origin and dashboard; never follow a panel link to a new origin,
    fill authentication fields, or ask for credentials. A login redirect or expired session goes to
    the human.
 2. Keep the session to the requested Grafana context. Freeze the window as absolute UTC instants,
    record timezone and variables, and change only unsaved view controls; an Apply button is fine for
    the time picker, a save or mutation dialog is not.
-3. Expand collapsed rows, scroll with navigation keys, hover for values, and inspect panel query and
-   data through read-only menus. Do not enter dashboard editing to reach a missing inspector.
+3. Inspect rows, values and query/data through read-only controls. Do not enter dashboard editing
+   to reach a missing inspector.
 4. Compare those observations with the stored model and query results at matching selections. The
    bundled [read helper](./command-access.md#bundled-read-helper) supports dashboard models, bounded
    Prometheus/Loki queries and single-panel renders. `query` has no path for other datasource types,
    but `render` and the browser still show their panels.
-5. Report what was actually inspected. Never save dashboards, add annotations, create snapshots,
+5. Never save dashboards, add annotations, create snapshots,
    change alerts or silences, or invoke deployment controls. Stop at unavailable protections or
    tools; do not replace a denied tool with another execution channel.
 
-Passwords, cookies and tokens must never reach results. A signed-in display name in Grafana's page
-header may appear in a snapshot; never repeat it in an answer. If a login error, console output or
-page shows a credential, stop that path and report the gap without repeating it. Never inspect
-credential files or copy session cookies to manufacture another access path.
+Keep passwords, cookies and tokens out of results; never repeat a signed-in display name from a
+snapshot. If a page/error exposes credentials, stop that path and report the gap without repeating
+them. Never inspect credential files or copy cookies to manufacture access.
 
 ## Bind query and image evidence
 
@@ -89,18 +80,17 @@ credential files or copy session cookies to manufacture another access path.
    dimensions can change Grafana's calculated query interval, so re-check the query context when
    comparing images at another size. Use the browser for unsupported view controls.
    The known 526×202 stock error-image size is rejected even when requested; use another size.
-4. Open the image. HTTP 200 or a PNG signature alone is not visual success. Check the expected
-   title, axes, units, legends, time window, displayed values, clipping, and missing-data or error
-   presentation. Reject a login page, loading or error state, wrong panel, stale window, or Grafana's
+4. Open the image; HTTP 200 or a PNG signature is insufficient. Check panel identity, values,
+   axes, units, legends, window, clipping and missing-data presentation. Reject login/loading/error
+   states, wrong panels, stale windows, or Grafana's
    stock "rendering limit" or "renderer not installed" image.
 5. Compare visible values with the matching query results after transformations and reductions,
    allowing for late samples and distinct evaluation times; explain any mismatch before calling the
    panel correct. A threshold drawn on a graph is not a measurement, and a color is not an alert
    verdict.
 
-A full-dashboard layout check needs the browser, including lower rows and variable controls; the
-helper renders single panels only, and a solo panel verifies neither layout nor interactions such as
-variable selection and drill-down navigation.
+A full layout/interaction check needs the browser, including lower rows and variable controls;
+single-panel renders do not establish either.
 
 ## Record and diagnose
 
@@ -108,11 +98,9 @@ Return the dashboard/panel link, configuration identity, absolute window and var
 evidence, image location, actual visual observations, and unchecked scope. Keep images private
 because they contain queried data; never create a public Grafana snapshot instead.
 
-On failure, distinguish permission or authentication, a missing renderer, callback connectivity,
-timeout or resource pressure, and query or plugin errors. A 403 is not proof of a missing renderer,
-and a timeout does not justify raising concurrency or disabling TLS checks. Prepare a deployment
-diagnosis for the owner when server configuration is involved. The helper's `render` errors narrow
-this down:
+Distinguish auth/permission, renderer/callback, timeout/capacity and query/plugin failures. A 403
+does not prove a missing renderer; timeouts do not justify concurrency increases or TLS bypass.
+Server configuration goes to its owner. Helper errors narrow the check:
 
 | Error | Usual cause |
 |---|---|

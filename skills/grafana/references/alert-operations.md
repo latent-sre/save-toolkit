@@ -5,30 +5,21 @@ query, evaluation history, labels, health, and notification destination. For a m
 trace evaluation → instance state → selected Alertmanager → matching route → silence/mute/inhibition
 → grouping/timers → delivery evidence. Reading a contact point does not prove a message arrived.
 
-## Contents
-
-- [Read current state](#read-current-state)
-- [Bind the rule and owner](#bind-the-rule-and-owner)
-- [Apply the requested change](#apply-the-requested-change)
-- [Evidence and scope](#evidence-and-scope)
 
 ## Read current state
 
-Read definitions and evaluation state separately. On the documented Grafana-managed path,
-`GET /api/v1/provisioning/alert-rules` supplies definitions and provenance, while
-`GET /api/prometheus/grafana/api/v1/rules` supplies groups, rule health/state, and instances. Discover
-which paths and fields the target serves; record permission failures rather than treating them as
-an empty inventory. Bound the sample when examining instance labels or history.
+Separate definitions/provenance (`GET /api/v1/provisioning/alert-rules`) from evaluation/groups/
+instances (`GET /api/prometheus/grafana/api/v1/rules`). Discover served paths/fields; permission
+failure is not empty inventory. Bound label/history samples.
 
 For a known rule, use the bundled helper's `alerts --uid <rule-uid>` for its exact definition, then
 `alerts --folder-uid <folder-uid>` for evaluation state. Match the rule UID across both reads;
 names are not unique. Preserve `configuration_only` on the definition and the state read's
 truncation/instance limits. A missing sampled instance does not prove a rule is inactive.
 
-Report total visible rules, evaluation-health errors, paused rules, pending/firing rules, and the
-scope/time of the read separately. `health: ok` means the evaluator reports no execution error;
-it does not mean the condition is healthy. A firing rule can have healthy evaluation. A rule with
-multiple label sets can have several instances, so rule counts are not alert-instance counts.
+Report visible rule totals, evaluation errors, paused/pending/firing counts and scope/time
+separately. `health: ok` means no evaluation error, not a healthy condition; a firing rule can be
+`ok`. Multiple label sets produce multiple instances, not additional rules.
 
 For a missing page, inspect the relevant instance's effective labels, selected Alertmanager,
 silence/inhibition associations, existing route, and timers without sending a test message. List
@@ -48,11 +39,9 @@ and differs, so a header-less write silently converts a UI-created rule to API-m
 console then treats as read-only. Send the header for an unmanaged rule, omit it for an API-owned
 rule, and never change provenance as a side effect.
 
-For an agent, discover the target's served API/schema. The helper uses the deprecated legacy rule
-provisioning API below. Confirm the target still serves it; an unavailable route is a compatibility
-gap, not an empty rule inventory. Do not invent App Platform paths or transplant dashboard
-concurrency fields into an alert request. Pin the selected API family and confirm its target
-behavior before writing.
+The helper uses the deprecated legacy provisioning API below. Discover/pin the target's served
+API/schema; unavailable routes are compatibility gaps, not empty inventory. Never invent App
+Platform paths or transplant dashboard concurrency fields. Confirm target behavior before writing.
 
 | Operation | Legacy rule provisioning API |
 |---|---|
@@ -67,10 +56,9 @@ it can replace the group's rules and change every member's provenance.
 
 ## Apply the requested change
 
-1. Establish the human-requested rule, effect, environment, and existing authorization. A pause
-   requires a reason, resume deadline, and named resume owner; it stops evaluation and does not
-   auto-expire. For temporary notification suppression use the silence procedure instead. Resume
-   can immediately generate notifications. Do not pause merely to hide an error or failed check.
+1. Bind the human-requested rule/effect/environment and authorization. Pause stops evaluation and
+   never auto-expires: require reason, resume deadline and owner. Resume can notify immediately;
+   do not pause to hide failures. Temporary suppression instead uses the silence procedure.
 2. Capture the existing rule and relevant group/route state. For creation prove UID absence with
    sufficient read grants, read the intended existing group to prove it exists, and name recovery
    ownership. A POST with a mistyped `ruleGroup` silently creates a new group with the default
@@ -81,10 +69,9 @@ it can replace the group's rules and change every member's provenance.
    settings. Resolve queries against real datasource metadata; dashboard variables/macros must
    become explicit alert-compatible expressions. Show notification impact, including label changes
    that could create new instances or select another existing route.
-4. Validate the body and query on bounded healthy/bad windows where available; verify the intended
-   existing destination. A paging rule needs an owner and approved runbook target. Show the full
-   before/after diff, target, expected effect, and recovery before dispatch. Do not send a test
-   notification to a production receiver as part of validation.
+4. Validate body/query on bounded healthy/bad windows where available and verify the existing
+   destination. Paging requires an owner/approved runbook. Show full diff, target, effect and recovery;
+   never validate by sending a test notification to production.
 5. Use an enforced version/precondition when the selected API supports it. The legacy contract does
    not promise a dashboard-style compare-and-swap. Without an enforced precondition, establish a
    coordinated single-writer window with the resource owner; re-read immediately before dispatch

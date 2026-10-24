@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `grafana` references: 106,321 to 94,561 bytes. Remove repeated UI/process narration while
+  retaining helper commands and API constraints. Preserve existing short UIDs, validate new IDs
+  against the selected API, and require fresh-state/single-writer checks before silence recovery.
+  Focused Grafana checks: 460 passed, 10 skipped, 88 subtests. All 12 command blocks in the
+  helper/workflow slice are unchanged. Independent source review found no material issues.
 - Review `obs-analysis` references: 53,174 to 46,592 bytes. Review all 15 references, leaving six
   compact methods/inventories unchanged. Remove elementary query examples and catalog boilerplate;
   preserve remaining recipes, audited denominators, GCP authentication discovery, OTel semantics and

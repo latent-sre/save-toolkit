@@ -1,19 +1,15 @@
 # Temporary silences
 
-A silence suppresses matching notifications for a fixed window; evaluation continues. Recurring
-mute timings change scheduled notification behavior; pausing a rule stops evaluation. Do not
-substitute one for another. Ending a silence can allow still-firing alerts to notify again.
+Silences suppress notifications temporarily, not evaluation. Recurring mute schedules and rule
+pauses are different operations. Ending a silence can notify still-firing alerts again.
 
-Console: Alerts & IRM → Alerting → Silences. Select the Alertmanager before creating or editing a
-silence. Inspect matching firing instances in the preview, set start/end, and add an owner/reason.
-Use Unsilence to end it early. The preview only shows currently firing instances: future alerts
-whose labels match will also be suppressed during the window.
+Console: Alerts & IRM → Alerting → Silences. Select Alertmanager, preview matches, set start/end
+and owner/reason; Unsilence ends early. Preview shows only current firing instances, not every
+future alert the matchers will suppress.
 
-For the built-in Grafana Alertmanager, the helper's `silences` lists visible objects and
-`silences --id <uuid>` reads one exact object for preflight or readback. Keep the selected
-Alertmanager with the evidence: these commands cannot verify an external Alertmanager's silence.
-Inspect returned matchers, window and status; an active object alone does not establish that the
-target alert matched it or that notification delivery stopped.
+The helper's `silences` and `silences --id <uuid>` read the built-in Grafana Alertmanager, not
+external ones. Retain Alertmanager identity, matchers/window/status. An active object proves
+neither target association nor stopped delivery.
 
 ## Prepare, apply, verify
 
@@ -42,8 +38,10 @@ target alert matched it or that notification delivery stopped.
    For suppression, check matching instances' silence association when available; for early expiry,
    verify expired state and inspect overlapping silences before claiming notifications can resume.
    Neither result proves delivery or service recovery.
-6. Return the ID/link, intended effect, observed state, expiry, and recovery owner. To undo a
-   create, expire the returned ID. To undo an edit that returned a new ID, expire that ID, verify
+6. Return ID/link, intended effect, observed state, expiry and recovery owner. Preserve verified
+   operation-written state from step 5. Before recovery, compare fresh state with that record and
+   reuse step 4's single-writer checks; stop for the named owner on intervening edits or missing
+   comparison evidence. A fresh read alone authorizes no overwrite. To undo a create, expire the returned ID. To undo an edit that returned a new ID, expire that ID, verify
    the original ID's state, and recreate the prior scope as a new silence only while its window is
    still valid and authorized. To undo an in-place edit, re-apply the captured body under the same
    ID within its still-valid window. An expired silence cannot be unexpired. Lost notifications

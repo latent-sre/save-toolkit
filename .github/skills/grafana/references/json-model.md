@@ -1,20 +1,9 @@
 # Dashboard JSON model — storage, conversion, and safe edits
 
-Read this when holding dashboard JSON: exporting, diffing, adding a panel or variable, or authoring
-a model. Request and concurrency shapes are in [http-api](./http-api.md); generic visualization
-advice is deliberately absent. The guidance below comes from Grafana 13.2.0 source and docs, not
-from the target; write, import, concurrency, and rollback behavior on the target is unconfirmed
-until observed. For new-dashboard choices, use
-[dashboard design](./dashboard-design.md#new-dashboard-conventions).
+Use [HTTP API](./http-api.md) for requests/concurrency and [dashboard design](./dashboard-design.md#new-dashboard-conventions)
+for new-dashboard choices. These shapes describe Grafana 13.2.0 source/docs; target writes, imports,
+concurrency and rollback remain unconfirmed until observed.
 
-## Contents
-
-- [Versions and shapes](#six-served-versions-three-shapes)
-- [Storage and conversion](#storage-and-conversion-rules)
-- [Classic / V1](#classic--v1-edits)
-- [V2](#v2-differences)
-- [Variables and portability](#variables-and-portability)
-- [Checks](#check-before-writing)
 
 ## Six served versions, three shapes
 
@@ -24,8 +13,7 @@ until observed. For new-dashboard choices, use
 | `v1`, `v1beta1` | Classic | migrates to final V1 `schemaVersion` 42 and validates; `v1beta1` reports `v1` |
 | `v2alpha1`, `v2beta1`, `v2` | V2 `elements` and `layout` | validates; no `schemaVersion`; later versions restructure data-source references and transformations |
 
-The group's `preferredVersion` is configuration, not a stability promise: an unpinned read can
-return a different shape from the stored row.
+`preferredVersion` is configuration, not stability or stored-shape evidence.
 
 ## Storage and conversion rules
 
@@ -50,8 +38,10 @@ named in its path.
 
 ## Classic / V1 edits
 
-- `uid` is stable, 8–40 characters, never reused or changed after publication; `id` is `null` on
-  create and dropped from portable exports; `schemaVersion` stays at the exported value (42 is
+- Preserve published `uid` values, including existing IDs shorter than eight characters; never
+  reuse or rename them during an edit. The legacy validator limits length to 40 and permits letters,
+  digits, hyphens and underscores; validate new IDs against the selected API's name rules.
+  `id` is `null` on create and dropped from portable exports; `schemaVersion` stays at the exported value (42 is
   final for V1 in Grafana 13); `version` is the legacy concurrency token. Review copied tags for
   the new dashboard's actual purpose and owner.
 - An edit preserves `editable` and `timezone`. Preserve the requested `time` window; do not
@@ -65,31 +55,10 @@ named in its path.
 
 ### Example panel shape
 
-Copy structure from the target and replace only the metric and labels with discovered values:
-
-```json
-{
-  "id": 42,
-  "type": "timeseries",
-  "title": "Is checkout p99 latency breaching target?",
-  "description": "99th percentile request latency; target 300 ms.",
-  "gridPos": {"x": 0, "y": 24, "w": 12, "h": 8},
-  "datasource": {"type": "prometheus", "uid": "${datasource}"},
-  "targets": [{
-    "refId": "A",
-    "datasource": {"type": "prometheus", "uid": "${datasource}"},
-    "expr": "histogram_quantile(0.99, sum by (le) (rate(<discovered_metric>_bucket{<verified_labels>}[$__rate_interval])))",
-    "legendFormat": "p99"
-  }],
-  "fieldConfig": {
-    "defaults": {"unit": "s", "min": 0, "noValue": "no data"},
-    "overrides": []
-  }
-}
-```
-
-The unit comes from the instrumentation (`s` for seconds, `ms` for milliseconds); `obs-analysis`
-owns query construction beyond this shape.
+Copy the target's panel structure with discovered metrics/labels. Keep both panel and query-target
+`datasource` references typed and bound to the intended source; an example's panel ID, layout or
+threshold is not a team default. Units come from instrumentation (`s` versus `ms`);
+`obs-analysis` owns the query.
 
 ## V2 differences
 
