@@ -15,4 +15,4 @@ routing:
   expect: not_fire
   expected_alternative:
     kind: skill
-    name: obs-dashboards
+    name: grafana

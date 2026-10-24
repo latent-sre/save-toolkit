@@ -56,7 +56,8 @@ class PrincipalJudgmentTests(unittest.TestCase):
         self.assertIn("Before designing a service that requires", body)
         prerequisite = body.split("Before designing a service that requires", 1)[1].split("\n2.", 1)[0]
         self.assertIn("paging, alert rules, or dashboards", prerequisite)
-        self.assertIn("load `obs-alerting` or `obs-dashboards`", prerequisite)
+        self.assertIn("load `obs-alerting`", prerequisite)
+        self.assertIn("read `grafana`'s `references/dashboard-design.md`", prerequisite)
         self.assertIn("not ready to return", prerequisite)
 
     def test_both_arms_receive_identical_tasks_fixtures_and_checks(self):

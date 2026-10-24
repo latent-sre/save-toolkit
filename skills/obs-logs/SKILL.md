@@ -5,8 +5,8 @@ description: >-
   request across services, compare before/after a deploy. Backends: Splunk (SPL), Loki
   (LogQL), and Cloud Logging on GCP — the reference teaches the dialect. Triggers: 'search
   the logs', 'why are there 500s', 'write a log query', 'follow this correlation id'. Ownership
-  map only: obs-metrics owns metrics, obs-dashboards owns dashboard design, grafana owns
-  Grafana operations, and obs-alerting owns alert design. Deciding what a live page means or
+  map only: obs-metrics owns metrics, grafana owns dashboard design and operations,
+  and obs-alerting owns alert design. Deciding what a live page means or
   what to do next belongs to incident-investigation, which routes query work here.
 argument-hint: "[service, symptom, or log question]"
 ---

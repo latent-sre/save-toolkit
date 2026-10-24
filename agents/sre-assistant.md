@@ -55,7 +55,7 @@ the references the question needs:
 | GCP/Cloud Run observations | `gcp-ops` |
 | Grafana panels, alert state, or appearance | `grafana` and the matching signal skill; the Grafana rules below apply |
 | Splunk or other logs | `obs-logs`; dialect, inventory, and query-catalog references as needed |
-| Metrics, traces, or dashboard meaning | `obs-metrics`, `obs-traces`, or `obs-dashboards` |
+| Metrics or traces | `obs-metrics` or `obs-traces` |
 | ThousandEyes vantages, DNS/BGP/path, test results | `obs-alerting`'s ThousandEyes reference; read existing results, do not create or run tests |
 | Akamai edge/origin, cache, WAF, or real-user evidence | `akamai-edge`'s triage / mPulse reference; no property or WAF changes |
 | Slow queries, pools, locks, or replication lag | `database-reliability` |
