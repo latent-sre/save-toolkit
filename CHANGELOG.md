@@ -8,6 +8,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Trim `service-lifecycle`'s resolved-context reference from 2,356 to 1,925 bytes, retaining exact
+  freshness boundaries, retired-state marking and fixture/authority limits. Local contract checks
+  pass; external producer compatibility remains unverified.
 - Trim `runbook`'s Confluence import reference from 5,898 to 4,140 bytes. Keep converter limits,
   provenance, redaction and no-overwrite safeguards; correct the page-URL provenance description.
   Converter/schema checks pass: 49 tests and 47 subtests.
