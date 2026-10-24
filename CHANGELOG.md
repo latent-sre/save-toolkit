@@ -8,6 +8,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Reduce `resilience-analysis` references from 10,848 to 6,133 bytes. Consolidate repeated examples
+  into one slow-dependency contrast, retaining effective-timeout, admission, slot-release and
+  recovery evidence. Reliability contracts pass: 23 tests and 220 subtests.
 - Trim `operational-learning`'s disposition reference from 6,965 to 5,419 bytes, consolidating
   repeated event/evidence rules while preserving record fields, checkout/approval boundaries and
   durable follow-ups. Fleet and closeout artifact checks pass.

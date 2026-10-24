@@ -32,9 +32,9 @@ and one commit per skill. The series starts from PR #427's observability cleanup
 duplication, unsupported team rules and stale claims while retaining operational details,
 established decisions, audited safeguards and meaningful verification. The four skills without
 reference files need no reference cleanup.
-**Next action:** Continue with `resilience-analysis`; five bundles are committed: `api-craft`,
-`runbook`, `service-lifecycle`, `toil-reduction`, `operational-learning` (9,353 reference bytes
-removed). Then review the remaining 17 bundles sequentially.
+**Next action:** Continue with `production-change-gate`; six bundles are committed: `api-craft`,
+`runbook`, `service-lifecycle`, `toil-reduction`, `operational-learning`, `resilience-analysis`
+(14,068 reference bytes removed). Then review the remaining 16 bundles sequentially.
 Only necessary entrypoint links, tests and generated projections accompany a reference change.
 **Evidence:** [Existing agent/skill audit baseline](reviews/2026-10-23-agent-skill-audit/README.md);
 per-skill commits record the cleanup and verification, and [the changelog](../CHANGELOG.md) records progress.
