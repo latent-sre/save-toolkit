@@ -17,8 +17,9 @@ Any of these is a request-changes finding on its own:
 | Finding | What to look for | Required correction |
 |---|---|---|
 | Checkpoint-equals-exactly-once | Any sentence in which a checkpoint, cache, or successful model turn is offered as proof an effect ran once | Effect row with replay-safety class, receipt, and reconciliation |
-| Automatic replay of an unknown effect | Retry, resume, or replay path that re-dispatches while an effect is `UNKNOWN` | Persist `UNKNOWN`; reconcile before any retry |
-| Reused key with mismatched intent accepted | Key derived from node or run alone; no intent digest comparison before dispatch | Intent-bound key; reject mismatch before dispatch |
+| Automatic replay of an unknown effect | Retry, resume, or replay path that re-dispatches while an effect is `UNKNOWN` | Persist `UNKNOWN`; no automatic redispatch while unresolved, even with native dedupe; reconcile to success or definitive non-application |
+| Distinct operations deduped by payload | Two new identical requests share a key, or retries regenerate their logical ID | Persist distinct logical request IDs for new operations; preserve each across retries |
+| Reused key with mismatched intent accepted | Key derived from node or run alone; no intent digest comparison before dispatch | Persist a logical request ID; bind its payload digest and reject mismatch before dispatch |
 | Retention shorter than the retry or ambiguity window | Tombstone TTL below the longest retry schedule plus reconciliation delay | Retention ≥ retry window + ambiguity window + late-arrival slack |
 | Approval not bound to exact action and state | Approval carries no target, candidate identity, expiry, or resumed-state check | Bind all five; re-check on resume |
 | Admission without capacity, fairness, backpressure, or liveness | A queue with no bound, no tenant rule, no shed policy, or no heartbeat/lease | Complete the scheduling contract |

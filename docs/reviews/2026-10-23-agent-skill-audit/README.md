@@ -18,7 +18,7 @@ Each item is read in full together with its bundled files and relevant callers, 
 
 ## Progress
 
-**42 of 42 items documented; no audit items remain.** All ten canonical agents, thirty canonical skill bundles (167 tracked files), the eight-file sandbox workflow candidate, and the 38-file retired Fleet Atlas snapshot have completed source-bound reports. Independent Sol passes were explicitly selected after the requester resumed work on 2026-10-24. The first twenty findings have been repaired and locally verified; see [findings 1–10](repairs-first-ten.md) and [findings 11–20](repairs-second-ten.md). Source review completion is not behavioral acceptance or promotion.
+**42 of 42 items documented; no audit items remain.** All ten canonical agents, thirty canonical skill bundles (167 tracked files), the eight-file sandbox workflow candidate, and the 38-file retired Fleet Atlas snapshot have completed source-bound reports. Independent Sol passes were explicitly selected after the requester resumed work on 2026-10-24. All 25 findings have been repaired and locally verified; see [findings 1–10](repairs-first-ten.md), [findings 11–20](repairs-second-ten.md), and [findings 21–25](repairs-final-five.md). Source review completion is not behavioral acceptance or promotion.
 
 The ledger contains **25 distinct findings: 23 in shipped material and two in the unpromoted sandbox candidate**. Three are P2 and 22 are P3. Retired Fleet Atlas's historical findings and two dormant extractor limitations are described separately and do not reopen its backlog. Checkpoints `dabc3d3b`, `143cca77`, `719f8af9` and `296fb3f5` preserve earlier review stages. PR #419 contains the earlier five repairs; this follow-up has not been published there.
 
@@ -105,16 +105,21 @@ The audit checkpoint checks covered report coverage/links, active structural gat
 | AUDIT-PIPELINE-002 — Alloy validation guidance misstates remote-import behavior | P3 | [Pipeline](skills/obs-pipeline.md); [observability engineer](agents/observability-engineer.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
 | AUDIT-TRACES-001 — semantics eval calls a Development attribute stable | P3 | [Traces](skills/obs-traces.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
 | AUDIT-PCF-001 — resize payload is rejected by the controller at its advertised minimum | P3 | [PCF operations](skills/pcf-ops.md); [deployment](skills/pcf-deploy.md) | [Repaired locally](repairs-second-ten.md); runtime limits retained |
-| AUDIT-GATE-001 — approval calibration omits required validity evidence | P3 | [Production gate](skills/production-change-gate.md) | Awaiting disposition |
-| AUDIT-PYTHON-001 — package oracle misses closure of a borrowed generator | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) | Awaiting disposition |
-| AUDIT-PYTHON-002 — identical schema-batch inputs conceal reordered results | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) | Awaiting disposition |
-| AUDIT-GRAPH-001 — candidate effect-key formula omits logical request identity | P3 | [Sandbox workflow graph](nonshipping/workflow-graph-engineering.md); unpromoted | Awaiting disposition |
-| AUDIT-GRAPH-002 — candidate UNKNOWN retry exception conflicts with its invariant | P3 | [Sandbox workflow graph](nonshipping/workflow-graph-engineering.md); unpromoted | Awaiting disposition |
+| AUDIT-GATE-001 — approval calibration omits required validity evidence | P3 | [Production gate](skills/production-change-gate.md) | [Repaired locally](repairs-final-five.md); runtime limits retained |
+| AUDIT-PYTHON-001 — package oracle misses closure of a borrowed generator | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) | [Repaired locally](repairs-final-five.md); runtime limits retained |
+| AUDIT-PYTHON-002 — identical schema-batch inputs conceal reordered results | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) | [Repaired locally](repairs-final-five.md); runtime limits retained |
+| AUDIT-GRAPH-001 — candidate effect-key formula omits logical request identity | P3 | [Sandbox workflow graph](nonshipping/workflow-graph-engineering.md); unpromoted | [Repaired locally](repairs-final-five.md); runtime limits retained |
+| AUDIT-GRAPH-002 — candidate UNKNOWN retry exception conflicts with its invariant | P3 | [Sandbox workflow graph](nonshipping/workflow-graph-engineering.md); unpromoted | [Repaired locally](repairs-final-five.md); runtime limits retained |
 
 Findings are recorded in the individual reports and deduplicated here as the audit proceeds. The [fleet roadmap](../../fleet-roadmap.md) remains the sole live backlog; this evidence packet does not authorize fixes or promotion.
 
 ## Disposition after the audit
 
-The requester authorized two ten-finding batches in ledger order. Findings 1–20, including all three P2 items, are repaired and locally verified; [first-batch evidence](repairs-first-ten.md) and [second-batch evidence](repairs-second-ten.md) record their changes and limits. Findings 21–25 await disposition. P3 work separates helper behavior, evaluation assertions, missing query guidance and version-specific instructions so each repair can use the smallest relevant regression check. Candidate-only graph changes require their own promote-or-retire decision; archived limitations require no active repair or restoration under this audit.
+The requester authorized all 25 findings in three batches. All are repaired and locally verified;
+[first-batch evidence](repairs-first-ten.md), [second-batch evidence](repairs-second-ten.md), and
+[final-batch evidence](repairs-final-five.md) record the changes, regression controls, and limits.
+No original finding remains unrepaired. Human acceptance of the exact candidate and merge
+remain pending. Sandbox repairs do not promote the candidate: GRAPH-007 stays deferred, and
+archived limitations require no active repair or restoration under this audit.
 
 [unverified] Native provider grants, model routing/adherence, production APIs, telemetry delivery, cross-platform optional checks and external producer acceptance retain the limits documented per item. Passing structural gates and finite scratch reproductions do not close these gaps.

@@ -107,9 +107,7 @@ def summarize(lines):
     return totals
 """
 
-BROKEN_SOURCE_ERROR_CSV = CSV.replace(
-    "        if source_errors and exc is source_errors[0]:\n            raise\n", ""
-)
+BROKEN_SOURCE_ERROR_CSV = CSV.replace("        if source_errors and exc is source_errors[0]:\n            raise\n", "")
 BORROWED_CLOSING_CSV = CSV.replace("for line in lines:\n                yield line", "yield from lines")
 
 
@@ -262,9 +260,11 @@ def test_early_failure_must_not_close_borrowed_generator():
 @pytest.mark.parametrize("active,error", [(True, AssertionError), (False, RuntimeError)])
 def test_bare_runtime_timeout_distinguishes_candidate_and_instrument(monkeypatch, active, error):
     oracle = load_oracle(ORACLE)
+
     def timeout(command, **kwargs):
         Path(command[command.index("--child") + 2]).write_bytes(bytes([int(active)]))
         raise subprocess.TimeoutExpired(command, 45)
+
     monkeypatch.setattr(oracle.subprocess, "run", timeout)
     with pytest.raises(error, match="timed out"):
         oracle.bare_csv()
@@ -361,8 +361,10 @@ def validate_payload(schema, payload):
     [
         (CSV.replace("Decimal(row[1])", "Decimal(float(row[1]))"), "money totals disagree"),
         (
-            CSV.replace("reader = csv.reader(observed_lines(), strict=True)",
-                        "reader = csv.reader(list(observed_lines()), strict=True)"),
+            CSV.replace(
+                "reader = csv.reader(observed_lines(), strict=True)",
+                "reader = csv.reader(list(observed_lines()), strict=True)",
+            ),
             "stream retention",
         ),
         (
@@ -512,3 +514,28 @@ def test_candidate_suite_errors_skips_and_exits_are_not_regression_evidence(mode
     result = artifact(mode, files)
     assert result.returncode == 10, result.stderr
     assert diagnostic in result.stderr
+
+
+@pytest.mark.parametrize("when", ["always", "replacement only", "sorted"])
+def test_schema_batch_preserves_distinct_input_and_replacement_result_order(when):
+    eligible_schema_runtime()
+    source = """import validation
+def load(schema, payloads):
+    pairs = [(payload, validation.validate_payload(schema, payload)) for payload in payloads]
+    results = [result for payload, result in pairs]
+    REVERSE
+    return results
+"""
+    reverse = (
+        "results.reverse()"
+        if when == "always"
+        else ("if any(result is not payload for payload, result in pairs):\n        results.reverse()")
+    )
+    if when == "sorted":
+        reverse = (
+            "if all(isinstance(payload, dict) and 'name' in payload for payload, result in pairs):\n"
+            "        results = [result for payload, result in sorted(pairs, key=lambda pair: pair[0]['name'])]"
+        )
+    result = artifact("schema", correct("schema") | {"batch.py": source.replace("REVERSE", reverse)})
+    assert result.returncode == 10, result.stdout + result.stderr
+    assert "batch order" in result.stderr

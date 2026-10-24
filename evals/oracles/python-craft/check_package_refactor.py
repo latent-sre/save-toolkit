@@ -12,6 +12,7 @@ from oracle_protocol import candidate_call
 
 import builtins
 import contextlib
+import gc
 from decimal import Decimal, InvalidOperation
 import importlib
 import io
@@ -74,6 +75,27 @@ def borrowed_contract(function):
         with CHECK.assertRaises(error_type):
             candidate_call(function, source)
         CHECK.assertFalse(source.closed, "borrowed source closed on invalid input")
+    # Retain the actual generator: a wrapper's close flag cannot observe
+    # GeneratorExit forwarded by a candidate's temporary yield-from adapter.
+    for text, error_type in [("malformed\n", ValueError), ("posted,invalid,2\n", InvalidOperation)]:
+        closed = []
+
+        def resumable():
+            try:
+                yield text
+                yield "posted,1,2\n"
+            finally:
+                closed.append(True)
+
+        source = resumable()
+        try:
+            with CHECK.assertRaises(error_type):
+                candidate_call(function, source)
+            gc.collect()
+            CHECK.assertFalse(closed, "borrowed generator closed on validation failure")
+            CHECK.assertEqual(next(source, None), "posted,1,2\n", "borrowed generator lost remaining input")
+        finally:
+            source.close()
     for error in (OSError("late borrowed read failure"), ValueError("source value error")):
         def failed():
             yield "posted,1,0.10\n"

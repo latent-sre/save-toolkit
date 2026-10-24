@@ -25,12 +25,12 @@ records do not re-queue work.
 
 ### FLEET-AUDIT-20261023 — audit each agent and skill against its complete contract
 
-**Status:** `decision-needed` (2026-10-24); findings 1–20 repaired and locally verified, with five findings and merge disposition remaining. All 42 agent/skill audit reports are complete: ten agents, thirty shipped skills and two nonshipping surfaces. The ledger records 25 distinct findings (23 shipped, two sandbox); repairs and native/runtime acceptance remain separate.
-**Owner:** Human requester accepts dispositions; the current session owns findings 11–20 repairs and verification.
+**Status:** `decision-needed` (2026-10-24); all 25 findings repaired and locally verified; exact-candidate acceptance and merge disposition remain pending. All 42 agent/skill audit reports are complete: ten agents, thirty shipped skills and two nonshipping surfaces. The ledger records 25 distinct findings (23 shipped, two sandbox); repairs and native/runtime acceptance remain separate.
+**Owner:** Human requester accepts dispositions; the current session owns final repairs and verification.
 **Outcome:** All ten canonical agents, thirty canonical skill bundles and the two nonshipping skill
 surfaces have source-bound reports covering routing, authority, workflow, platform projections,
 bundled resources and meaningful test/eval coverage, with actionable findings and explicit gaps.
-**Next action:** Human requester dispositions findings 21–25 and the repair candidate. See [first-batch evidence](reviews/2026-10-23-agent-skill-audit/repairs-first-ten.md) and [second-batch evidence](reviews/2026-10-23-agent-skill-audit/repairs-second-ten.md). Do not promote the sandbox candidate or restore retired Fleet Atlas without a separate owner decision. The original audit is source-bound; repair evidence is tracked in its linked follow-up.
+**Next action:** Human requester accepts or returns the complete repair candidate and decides merge disposition; no original finding remains unrepaired. See [first-batch evidence](reviews/2026-10-23-agent-skill-audit/repairs-first-ten.md), [second-batch evidence](reviews/2026-10-23-agent-skill-audit/repairs-second-ten.md), and [final-batch evidence](reviews/2026-10-23-agent-skill-audit/repairs-final-five.md). Do not promote the sandbox candidate or restore retired Fleet Atlas without a separate owner decision. The original audit is source-bound; repair evidence is tracked in its linked follow-up.
 **Evidence:** [Agent and skill audit](reviews/2026-10-23-agent-skill-audit/README.md).
 **SRE task:** Select an agent or skill with a clear account of its supported work, boundaries and
 remaining reliability gaps.
