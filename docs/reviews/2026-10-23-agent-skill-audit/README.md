@@ -6,7 +6,7 @@
 
 [verified] The shipped fleet contains 10 canonical agents and 30 canonical skills. The skill bundles contain 167 files, including references, templates, scripts and test assets. Generated Claude and Copilot surfaces are checked against their canonical source. Two additional reports distinguish the sandbox workflow-graph candidate and retired Fleet Atlas guidance from shipped capabilities.
 
-Each item is read in full together with its bundled files and relevant callers, platform projections, authority rules and tests. The report separates specification consistency, engineering quality and actual behavioral evidence. A defect needs a concrete trigger, observable consequence and source evidence; documented limitations and accepted team decisions are not automatically findings. The next item starts only after the preceding report is saved and checked.
+Each item is read in full together with its bundled files and relevant callers, platform projections, authority rules and tests. The report separates specification consistency, engineering quality and actual behavioral evidence. A defect needs a concrete trigger, observable consequence and source evidence; documented limitations and accepted team decisions are not automatically findings. Reports were produced in inventory order; independent source, oracle and public-source passes were reconciled before each item was marked complete.
 
 [unverified] Offline checks and prompt inspection do not establish live model routing, instruction-following, installed-host enforcement or production behavior. Paid live evals and production actions are outside this audit. Material vendor facts needing current verification are recorded as source questions rather than silently assumed.
 
@@ -18,9 +18,11 @@ Each item is read in full together with its bundled files and relevant callers, 
 
 ## Progress
 
-Resumed on 2026-10-24 at the requester's instruction, with explicitly selected Sol review assistance. **33 of 42 items documented; 9 remain**. All ten canonical agents and 23 canonical skill bundles are complete; these bundles contain 137 fully inspected canonical files.
+**42 of 42 items documented; no audit items remain.** All ten canonical agents, thirty canonical skill bundles (167 tracked files), the eight-file sandbox workflow candidate, and the 38-file retired Fleet Atlas snapshot have completed source-bound reports. Independent Sol passes were explicitly selected after the requester resumed work on 2026-10-24. Findings remain unrepaired, as requested; source review completion is not behavioral acceptance or promotion.
 
-The next item is `python-craft`. Each item is documented and checked before proceeding. Repairs remain deferred until the audit is complete. Checkpoints `dabc3d3b`, `143cca77`, and `719f8af9` preserve the earlier 19-, 24-, and 27-report states. The earlier five repairs remain separately published in PR #419.
+The ledger contains **25 distinct findings: 23 in shipped material and two in the unpromoted sandbox candidate**. Three are P2 and 22 are P3. Retired Fleet Atlas's historical findings and two dormant extractor limitations are described separately and do not reopen its backlog. Checkpoints `dabc3d3b`, `143cca77`, `719f8af9` and `296fb3f5` preserve earlier review stages. PR #419 contains the earlier five repairs, not these audit-only reports.
+
+Final checks cover report coverage/links, active structural gates, unchanged audited sources and archive hashes. Existing same-source test evidence is reused; no source fixes, new live model campaigns, production changes, archive execution or promotion occurred. The managed Codex Security scan remains unavailable as described above; this completion is the agent/skill source audit.
 
 ### Canonical agents
 
@@ -64,20 +66,20 @@ The next item is `python-craft`. Each item is documented and checked before proc
 | `pcf-ops` | [Complete](skills/pcf-ops.md); P3 AUDIT-PCF-001 in version-bound resize recipe; target runtime unverified |
 | `postmortem` | [Complete](skills/postmortem.md); no new finding; artifact checks distinguished from narrative quality |
 | `production-change-gate` | [Complete](skills/production-change-gate.md); P3 AUDIT-GATE-001 in approval-expiry calibration |
-| `python-craft` | Pending |
-| `resilience-analysis` | Pending |
-| `root-cause` | Pending |
-| `runbook` | Pending |
-| `service-lifecycle` | Pending |
-| `stack-profile` | Pending |
-| `toil-reduction` | Pending |
+| `python-craft` | [Complete](skills/python-craft.md); P3 AUDIT-PYTHON-001/002 reproduced in package/schema oracles |
+| `resilience-analysis` | [Complete](skills/resilience-analysis.md); no new finding; design and runtime evidence remain distinct |
+| `root-cause` | [Complete](skills/root-cause.md); no new finding; retry behavior and diagnostic-quality evidence separated |
+| `runbook` | [Complete](skills/runbook.md); no new finding; converter and bounded safeguard checks reviewed |
+| `service-lifecycle` | [Complete](skills/service-lifecycle.md); no new finding; external producer acceptance remains unverified |
+| `stack-profile` | [Complete](skills/stack-profile.md); no new finding; team inventory assertions kept distinct from public facts |
+| `toil-reduction` | [Complete](skills/toil-reduction.md); no new finding; supplied economics distinguished from realized benefit |
 
 ### Nonshipping skill surfaces
 
 | Item | Report and disposition |
 |---|---|
-| `sandbox/workflow-graph-engineering` | Pending; candidate remains unpromoted |
-| `archive/fleet-atlas` | Pending; retired guidance remains historical |
+| `sandbox/workflow-graph-engineering` | [Complete](nonshipping/workflow-graph-engineering.md); P3 AUDIT-GRAPH-001/002; remains unpromoted |
+| `archive/fleet-atlas` | [Complete](nonshipping/fleet-atlas.md); custody verified; historical/dormant limitations remain nonshipping |
 
 ## Findings and disposition
 
@@ -104,5 +106,15 @@ The next item is `python-craft`. Each item is documented and checked before proc
 | AUDIT-TRACES-001 — semantics eval calls a Development attribute stable | P3 | [Traces](skills/obs-traces.md) |
 | AUDIT-PCF-001 — resize payload is rejected by the controller at its advertised minimum | P3 | [PCF operations](skills/pcf-ops.md); [deployment](skills/pcf-deploy.md) |
 | AUDIT-GATE-001 — approval calibration omits required validity evidence | P3 | [Production gate](skills/production-change-gate.md) |
+| AUDIT-PYTHON-001 — package oracle misses closure of a borrowed generator | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) |
+| AUDIT-PYTHON-002 — identical schema-batch inputs conceal reordered results | P3 | [Python craft](skills/python-craft.md); [reproductions](evidence/python-oracle-reproductions.md) |
+| AUDIT-GRAPH-001 — candidate effect-key formula omits logical request identity | P3 | [Sandbox workflow graph](nonshipping/workflow-graph-engineering.md); unpromoted |
+| AUDIT-GRAPH-002 — candidate UNKNOWN retry exception conflicts with its invariant | P3 | [Sandbox workflow graph](nonshipping/workflow-graph-engineering.md); unpromoted |
 
 Findings are recorded in the individual reports and deduplicated here as the audit proceeds. The [fleet roadmap](../../fleet-roadmap.md) remains the sole live backlog; this evidence packet does not authorize fixes or promotion.
+
+## Disposition after the audit
+
+The human requester can now disposition the findings before repairs. Address the three P2 items first: preserve intervening Grafana edits during rollback; reconcile the exact GitHits grant with the actual installed provider; and correct the Pub/Sub causal inference. P3 work separates helper behavior, evaluation assertions, missing query guidance and version-specific instructions so each repair can use the smallest relevant regression check. Candidate-only graph changes require their own promote-or-retire decision; archived limitations require no active repair or restoration under this audit.
+
+[unverified] Native provider grants, model routing/adherence, production APIs, telemetry delivery, cross-platform optional checks and external producer acceptance retain the limits documented per item. Passing structural gates and finite scratch reproductions do not close these gaps.

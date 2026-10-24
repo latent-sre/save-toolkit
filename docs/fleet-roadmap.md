@@ -25,12 +25,12 @@ records do not re-queue work.
 
 ### FLEET-AUDIT-20261023 — audit each agent and skill against its complete contract
 
-**Status:** `active` (2026-10-24), resumed at the owner's request with Sol review assistance. All ten canonical agents and 23 canonical skill bundles are complete (33/42); 9 items remain.
+**Status:** `decision-needed` (2026-10-24); audit complete, findings and merge disposition pending. All 42 agent/skill audit reports are complete: ten agents, thirty shipped skills and two nonshipping surfaces. The ledger records 25 distinct findings (23 shipped, two sandbox); repairs and native/runtime acceptance remain separate.
 **Owner:** Human requester accepts dispositions; the current audit session owns evidence collection.
 **Outcome:** All ten canonical agents, thirty canonical skill bundles and the two nonshipping skill
 surfaces have source-bound reports covering routing, authority, workflow, platform projections,
 bundled resources and meaningful test/eval coverage, with actionable findings and explicit gaps.
-**Next action:** Continue with `python-craft`, finish the remaining audit, then reconcile findings for owner disposition. The owner chose to finish the audit before repairs; no audited source changes or promotion occur during this phase.
+**Next action:** The human requester dispositions the findings for repair. Prioritize the three P2 items; do not promote the sandbox candidate or restore retired Fleet Atlas without a separate owner decision. No audited source was changed during this phase.
 **Evidence:** [Agent and skill audit](reviews/2026-10-23-agent-skill-audit/README.md).
 **SRE task:** Select an agent or skill with a clear account of its supported work, boundaries and
 remaining reliability gaps.
