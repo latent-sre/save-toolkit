@@ -8,6 +8,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Trim `runbook`'s Confluence import reference from 5,898 to 4,140 bytes. Keep converter limits,
+  provenance, redaction and no-overwrite safeguards; correct the page-URL provenance description.
+  Converter/schema checks pass: 49 tests and 47 subtests.
 - Trim all seven `api-craft` references from 23,127 to 19,916 bytes. Remove repeated contract
   checklists and framework release chronology while retaining authentication, upstream validation,
   retry/recovery, concurrency, lifecycle and schema-consumer boundaries. Gate A and 61 API oracle
