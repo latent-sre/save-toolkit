@@ -3,6 +3,9 @@
 Read in retire mode when drafting or reviewing the plan. The surfaces
 table names what each row dispositions; this file fixes the order and the stop rules.
 
+Name the service owner, release approver, and executor from supplied role evidence. Service
+ownership alone establishes neither approval nor execution authority; unprovided roles stay gaps.
+
 Draft in this order, marking missing evidence and its owner. Read-only inventory may continue to
 resolve gaps; execution stops at the first unproven row and requires the parent skill's approvals:
 

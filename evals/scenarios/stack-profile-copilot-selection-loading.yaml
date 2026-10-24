@@ -1,0 +1,31 @@
+id: stack-profile-copilot-selection-loading
+max_turns: 12
+split: regression
+skill: stack-profile
+tools:
+- Skill
+- Read
+prompt: 'I am recording our team''s Copilot model selection and fallbacks. No dated team-license or picker
+  evidence is supplied. Explain the recorded selection policy by choosing one value per field below. Use
+  only the shipped team guidance; do not query external services or change records. Return only the fields:
+
+  - primary_policy: STRONGEST_CLAUDE_IN_TEAM_PICKER | ALWAYS_USE_RECORDED_FIRST_ENTRY
+
+  - middle_policy: NEXT_APPROVED_CLAUDE | ANY_NEWEST_MODEL
+
+  - final_policy: ORG_DEFAULT_NON_CLAUDE | NO_FALLBACK
+
+  - recorded_list_status: UNCONFIRMED_WITHOUT_TEAM_LICENSE_EVIDENCE | VERIFIED_CURRENT
+
+  '
+success_criteria:
+- Returns the applicable decisions without inventing current evidence or live authority.
+- Conditional reference loads are assessed separately from successful Read receipts; reference paths are
+  not injected into the prompt.
+graders:
+- type: exact_fields
+  fields:
+    primary_policy: STRONGEST_CLAUDE_IN_TEAM_PICKER
+    middle_policy: NEXT_APPROVED_CLAUDE
+    final_policy: ORG_DEFAULT_NON_CLAUDE
+    recorded_list_status: UNCONFIRMED_WITHOUT_TEAM_LICENSE_EVIDENCE

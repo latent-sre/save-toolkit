@@ -1,0 +1,44 @@
+id: service-lifecycle-actual-freshness-assessment
+max_turns: 18
+split: regression
+skill: service-lifecycle
+tools:
+- Skill
+- Read
+prompt: 'Perform an evidence freshness assessment for the fictional order-preview PCF prod service as
+  of 2026-10-23 UTC, using this supplied packet and shipped guidance only. Human service owner Maya Chen
+  retains the follow-up; invoking caller is the main engineering session. Do not run a resolver, execute
+  commands, delegate, contact systems or write records. The requested task includes interpreting an already-resolved
+  context bundle for this assessment.
+
+  The resolver uses consumer contract v1alpha2. The deployment projection is dated 2026-10-10. Catalog
+  provenance.lastValidated is 2026-10-22 and becomes resolved lastVerified. The operational record was
+  document-reviewed on 2026-10-22 (last_reviewed). Its restart procedure version A last succeeded on 2026-10-01
+  (procedure last_verified). Deployment version B changed the procedure on 2026-10-20; a B rehearsal failed
+  on 2026-10-21, and there is no successful B execution receipt. OwnerRef and lifecycle are present. No
+  ownership transfer or live remediation is authorized.
+
+  Assess each date''s meaning, the freshness-window check versus evidence applicability, whether the procedure
+  can be claimed verified, and who must obtain which evidence before closure. Give a short actionable
+  assessment, then these decision lines, choosing one value per pair:
+
+  projection_window: WITHIN_30_DAYS | EXPIRED
+
+  procedure_b: UNVERIFIED_PENDING_SUCCESSFUL_EXECUTION | VERIFIED_BY_CATALOG_DATE
+
+  document_review: DOES_NOT_ADVANCE_EXECUTION_VERIFICATION | ADVANCES_LAST_VERIFIED
+
+  followup_owner: MAYA_UNTIL_REVIEWED_READBACK | SCRIBE_ON_HANDOFF
+
+  '
+success_criteria:
+- Completes the requested deliverable and preserves its ownership, evidence and authority boundaries.
+- Successful reference reads and substantive prose are assessed separately from decision fields; no reference
+  paths are injected.
+graders:
+- type: exact_fields
+  fields:
+    projection_window: WITHIN_30_DAYS
+    procedure_b: UNVERIFIED_PENDING_SUCCESSFUL_EXECUTION
+    document_review: DOES_NOT_ADVANCE_EXECUTION_VERIFICATION
+    followup_owner: MAYA_UNTIL_REVIEWED_READBACK

@@ -1,0 +1,28 @@
+id: stack-profile-broad-inventory-loading
+max_turns: 12
+split: regression
+skill: stack-profile
+tools:
+- Skill
+- Read
+prompt: 'Give a concise inventory of our team''s current runtime, application/data technologies and observability
+  stack. Do not change anything or consult external systems. Return only these decision fields, selecting
+  one value from each pair:
+
+  - runtime: ON_PREM_PCF | SELF_MANAGED_KUBERNETES
+
+  - migration_runtime: DECISION_PENDING | GKE_ALREADY_SELECTED
+
+  - observability: INCUMBENT_AND_ADDITIVE_COEXIST | INCUMBENT_RETIRED
+
+  '
+success_criteria:
+- Returns the applicable decisions without inventing current evidence or live authority.
+- Conditional reference loads are assessed separately from successful Read receipts; reference paths are
+  not injected into the prompt.
+graders:
+- type: exact_fields
+  fields:
+    runtime: ON_PREM_PCF
+    migration_runtime: DECISION_PENDING
+    observability: INCUMBENT_AND_ADDITIVE_COEXIST
