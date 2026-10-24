@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `stack-profile` references: 10,501 to 7,985 bytes. Preserve recorded stack choices, support
+  boundaries, frontend/CI/auth policies and ITO/TLC roles. Remove unconfirmed named Copilot
+  ordering; retain the accepted selection rule and require actual picker/license evidence. Platform-
+  selection contract passes: 1 test and 10 subtests. Local links and diff checks pass; no live
+  inventory claimed.
 - Review `eng-ladder` references: 18,747 to 14,725 bytes. Remove generic builder/career framing and
   repeated process; preserve tier routing, consultation ownership, security review,
   consumer/recovery evidence and human acceptance. Keep the twelve-slot design record and full
