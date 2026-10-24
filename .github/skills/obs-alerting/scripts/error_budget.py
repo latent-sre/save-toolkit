@@ -25,8 +25,8 @@ from decimal import Decimal, InvalidOperation, localcontext
 # Keep evaluated annotations: string annotations (`from __future__`) would
 # make the dataclasses below require their module to be registered when loaded from a file path.
 
-# Google SRE Workbook: each long/short pair selects its own threshold and action. No pair lends its
-# window or threshold to another.
+# Google SRE Workbook 30-day examples, not team alert policy. Each pair selects its own threshold
+# and action; no pair lends its window or threshold to another.
 WINDOW_PAIRS = {
     ("1h", "5m"): (14.4, "PAGE (fast burn)"),
     ("6h", "30m"): (6.0, "PAGE (slow burn)"),
@@ -304,7 +304,7 @@ def main(argv=None) -> int:
 
     # Burn rate: a pair selects one threshold, and both windows must cross it.
     if inputs.sli_long is not None:
-        print("  alert policy: fixed 30-day example thresholds; --window-days does not rescale them")
+        print("  example thresholds: fixed 30-day Google SRE examples; --window-days does not rescale them")
         burn_long = burn_rate(inputs.slo, inputs.sli_long)
         print(f"  burn ({inputs.long_window}):  SLI {float(inputs.sli_long)}%  ->  {burn_long:.2f}x")
 

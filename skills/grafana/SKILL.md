@@ -20,7 +20,7 @@ supported tool/API calls to an authorized agent. Missing access leaves an unappl
 
 | Request | Method |
 |---|---|
-| Design panels/layout or choose team conventions | [Dashboard design](./references/dashboard-design.md); design-only callers may read it directly |
+| Design panels/layout | [Dashboard design](./references/dashboard-design.md); design-only callers may read it directly |
 | Explain a dashboard, share evidence, or help a Viewer/Editor | [Dashboard reading](./references/dashboard-reading.md) |
 | Investigate data, compare captures, preview a threshold, or trace dependencies | [Investigation workflows](./references/investigation-workflows.md) |
 | Inspect appearance or render a panel | [Visual verification](./references/visual-verification.md) |

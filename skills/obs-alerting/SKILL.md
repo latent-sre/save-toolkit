@@ -12,7 +12,7 @@ argument-hint: "[service, SLO, alert, storm, or synthetic check]"
 
 Page on user-visible symptoms that require action now. Use an SLI and error budget to distinguish a
 significant sustained burn from a transient component signal; use correlation and synthetics to rank
-where responders should look, never to manufacture a root cause. Every alert links a runbook.
+where responders should look, never to manufacture a root cause. Every paging alert links a runbook.
 
 For a bounded check or explanation, answer from the supplied rule and evidence; name its limits.
 Design and verification steps below apply only to the artifact or readiness work requested.
@@ -42,7 +42,7 @@ Read only the row needed for the task:
 | Splunk saved-search alerts, cron/window pairing, throttling, or webhook/email actions | [Splunk alerting](./references/splunk-alerting.md) |
 | Alert storm, event correlation, deduplication, or Moogsoft | [Moogsoft correlation](./references/moogsoft.md) |
 | Synthetic test, DNS, BGP, path, or external reachability | [ThousandEyes synthetics](./references/thousandeyes.md) |
-| Calculate budget status or a permitted burn-rate pair | [error_budget.py](./scripts/error_budget.py) |
+| Calculate budget status or a supported example burn-rate pair | [error_budget.py](./scripts/error_budget.py) |
 
 ## Scheduled work — alert on staleness, not errors
 
@@ -73,7 +73,7 @@ review may be handed off with the missing proof explicitly `[unverified]`:
   human and preserves the exact output. A rule that has only ever evaluated false is
   unverified; so is one never observed resolving after recovery.
 - The notification route delivered to the intended contact point.
-- The runbook link in the alert resolves to a runbook that exists — a dead link at 3 a.m. is a
+- A paging alert's runbook link resolves to a runbook that exists — a dead link at 3 a.m. is a
   design defect, not a docs chore.
 
 ## The bar for asserting cause
@@ -87,7 +87,8 @@ leading hypothesis and keep the alternatives open.
 
 - Don't choose extra nines because they sound reliable; every nine raises operating cost. Match the
   target to user need and what the team can actually defend.
-- Don't call an alert ready without an owner, tested notification route, actionable summary, and runbook.
+- A paging alert needs an owner, tested notification route, actionable summary, and runbook before
+  it is ready. Informational rules do not become paging alerts by using this method.
 
 ## Handoff
 

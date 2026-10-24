@@ -2,9 +2,10 @@
 
 ## Query in PromQL
 
-- **MQL is deprecated.** Google Cloud customer support for MQL ended **2025-07-22**, and MQL can
-  no longer be used for new charts, dashboards, or alerting policies in the console; existing MQL
-  assets keep working. Do not author new MQL; translate on touch.
+- **MQL is no longer recommended.** Customer support for writing MQL has ended, and the console
+  cannot create new MQL charts, dashboards, or alerting policies. Existing assets still work and
+  can be edited; the Monitoring API still supports creating them. Prefer PromQL for new work;
+  touching an existing MQL asset does not require migrating it.
 - Cloud Monitoring system, Kubernetes, log-based and custom metrics support PromQL; use the
   [PromQL reference](./promql.md) for the dialect.
 
@@ -40,6 +41,6 @@ human when the lane lacks an authorized read path; Grafana query verification fo
 
 ## Gotchas
 
-- Wavefront and Mimir remain first-class while workloads coexist; a service migrating runtimes
-  should keep emitting to the incumbent path until cutover is recorded in `stack-profile` —
-  double-emit beats a telemetry gap.
+- Wavefront and Mimir remain in use while workloads coexist. Preserve existing emission paths
+  unless the task includes an agreed cutover; verify telemetry continuity and ownership before
+  removing a feed. Dual emission is a migration choice, not an automatic requirement.

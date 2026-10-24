@@ -76,6 +76,17 @@ def test_all_analysis_is_offline_and_hygiene_structured(monkeypatch):
     assert any(g["code"] == "alert_definitions_not_captured" for g in report["dependencies"]["gaps"])
 
 
+def test_hygiene_preserves_advisory_and_review_severity():
+    source = capture()
+    source["dashboard_capture"]["dashboard"]["panels"][0]["targets"][0]["expr"] = "requests_total"
+    result = load_module().analyze_capture(source, analysis="hygiene")["hygiene"]["dashboards"][0]
+    findings = {finding["rule"]: finding for finding in result["findings"]}
+    assert findings["panel-units"]["severity"] == "advisory"
+    assert findings["target-counter-agg"]["severity"] == "review"
+    assert result["ok"] and result["coverage"] == "static_hygiene_only"
+    assert all(pointer(source, finding["evidence_ref"]) for finding in findings.values())
+
+
 def test_missing_result_is_gap_never_converted_to_no_data():
     source = capture()
     source["panels"][0]["targets"][0].pop("result")

@@ -39,6 +39,18 @@ def grade_scenario(name: str, response: str) -> bool:
     return all(run_grader(spec, response)[0] for spec in data["graders"])
 
 
+def test_alloy_actual_graders_distinguish_default_from_retention_guarantee() -> None:
+    wiring = "forward_to prometheus.remote_write otelcol.receiver.otlp\n"
+    answer = "A: default=8h; guaranteed_outage_retention=no; depends on WAL truncation and send lag.\nB: drops the batch"
+    assert grade_scenario("obs-pipeline-alloy", wiring + answer)
+    for wrong in (
+        answer.replace("retention=no", "retention=yes"),
+        answer.replace("default=8h", "default=2h"),
+        "A: 8h of guaranteed outage retention.\nB: drops the batch",
+    ):
+        assert not grade_scenario("obs-pipeline-alloy", wiring + wrong)
+
+
 def test_trace_actual_graders_reject_each_wrong_maturity() -> None:
     lines = [
         "A: service.instance.id Stable",

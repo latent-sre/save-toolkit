@@ -28,8 +28,9 @@ app → SDK/agent → collector/Alloy → backend
 | Metrics | OTel instruments with bounded attributes | OTLP receiver → resource/attribute processing → route | Mimir |
 | Traces | spans with propagated W3C trace context | OTLP receiver → sampling/batch → route | Tempo |
 
-Splunk and Wavefront/PCF App Metrics are fed by the PCF platform, not by anything this
-skill wires: 'logs are not in Splunk' is a `pcf-ops` and `obs-analysis` question.
+Identify the affected Splunk or Wavefront/PCF App Metrics feed and its owner before changing it.
+Confirmed PCF-platform-owned feeds stay with that owner; use `pcf-ops` and `obs-analysis` for
+platform-side and query evidence. The backend name alone does not establish the ingestion route.
 
 GCP backends are landing with the migration: the documented ingest is OTLP to the Telemetry API
 (`telemetry.googleapis.com` — all three signals) through the same otelcol exporter slot. Log

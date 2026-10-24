@@ -947,7 +947,7 @@ class PlatformAdapterTests(unittest.TestCase):
             capture_output=True, text=True, timeout=20,
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-        self.assertIn("0 violation(s)", result.stdout)
+        self.assertIn("0 review-required, 0 advisory finding(s)", result.stdout)
 
 if __name__ == "__main__":
     unittest.main()

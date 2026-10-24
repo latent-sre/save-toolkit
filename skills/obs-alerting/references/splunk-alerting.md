@@ -1,7 +1,7 @@
 # Splunk saved-search alerting
 
 Exact behaviour on the target Splunk version and licence is unconfirmed until validated there. The
-parent skill's rules apply unchanged: page on symptoms, every alert links a runbook, and an alert
+parent skill's rules apply unchanged: page on symptoms, every paging alert links a runbook, and an alert
 never forced to fire and resolve is unverified.
 
 ## The scheduled-alert contract
@@ -48,26 +48,27 @@ hides a still-burning condition; check the pair together.
 
 - **Webhook:** `alert_actions.conf` ships with `enable_allowlist = false`, so without an allowlist the
   action can post the result payload to any endpoint. Turning the
-  allowlist on with the Moogsoft and receiver URLs enumerated is part of the alert's review here.
+  allowlist on with only the actual approved receiver URLs enumerated is part of the alert's review here.
 - **Email:** restrict allowed recipient domains; results by email is an exfiltration surface.
 - Apply the fleet's redaction rules to what the search returns, not only to where it posts.
 
 ## The runbook link
 
-The parent skill requires every alert to link a runbook; in Splunk the mechanism is a lookup at the
-end of the alert search, a derived pattern rather than an official example:
+Every paging alert needs a runbook link. Discover how the existing alert and notification route
+carry it before changing that mechanism. A lookup is one possible pattern, not an assumed deployed
+team resource or an official example:
 
 ```spl
 ... | lookup instructions_lookup alert_type OUTPUT runbook_url
 ```
 
-Keep `instructions_lookup` under version control with the runbook inventory so a renamed runbook
-updates every alert at once.
+If this pattern is selected, use the actual lookup name and keep its mapping with the versioned
+runbook inventory so renamed links can be updated together.
 
 ## Verification, Splunk-shaped
 
 Force the condition with a test search or fixture events and observe trigger, throttle, and action
 delivery end to end; a green "search ran" is not delivery evidence. Check both per-alert throttling
-and any same-owner suppression group, including its effect on other member alerts. Moogsoft owns
-cross-alert dedup and correlation in this team's stack; coordinate Splunk suppression with that
-policy so the same storm is not hidden twice.
+and any same-owner suppression group, including its effect on other member alerts. Discover the
+existing correlation layers and owners; Moogsoft may be one of them. Coordinate Splunk suppression
+with those layers so the same storm is not hidden twice.

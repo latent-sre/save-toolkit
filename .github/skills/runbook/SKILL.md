@@ -98,6 +98,7 @@ keep the source page URL, version, and dates it writes into References.
 
 Link every paging alert to its runbook; the service card links one runbook per failure mode.
 Return the runbook path and paging-alert names
-to the caller; recommend `observability-engineer` for alert-definition changes. Store the link in
-the backend's native field: Splunk lookup, Grafana `runbook_url`, Wavefront runbook link, or Moogsoft
-enrichment. Missing or contradicted runbooks follow the closeout path above.
+to the caller; recommend `observability-engineer` for alert-definition changes. Use the existing
+alert or notification route's runbook-link mechanism. Grafana commonly uses `runbook_url`; a Splunk
+lookup or Moogsoft enrichment is an option only when that route uses it. Missing or contradicted
+runbooks follow the closeout path above.

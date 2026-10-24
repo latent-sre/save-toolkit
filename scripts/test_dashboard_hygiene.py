@@ -385,6 +385,37 @@ class JsonReportTest(unittest.TestCase):
                                 "mode": "text_heuristic", "gaps": ["promql_template_unresolved"]}],
         }, report)
 
+    def test_advisory_only_dashboard_exits_zero_with_severity(self) -> None:
+        model = clean_model()
+        panel = model["panels"][0]
+        panel.update(title="", description="", datasource={"type": "prometheus", "uid": "fixed"})
+        panel["fieldConfig"] = {"defaults": {}, "overrides": [
+            {"matcher": {"id": "byName", "options": "value"},
+             "properties": [{"id": "unit", "value": "s"}]}]}
+        model.update(tags=[])
+        model["templating"]["list"][1]["allValue"] = ""
+        report = self._report(json.dumps(model), 0)
+        self.assertEqual({"panel-title", "panel-description", "panel-units", "panel-no-value",
+                          "panel-datasource", "dashboard-tags", "template-all-value"},
+                         {finding["rule"] for finding in report["findings"]})
+        self.assertEqual({"advisory"}, {finding["severity"] for finding in report["findings"]})
+        units = next(f for f in report["findings"] if f["rule"] == "panel-units")
+        self.assertIn("overrides", units["detail"])
+        all_value = next(f for f in report["findings"] if f["rule"] == "template-all-value")
+        self.assertNotIn("set one", all_value["detail"])
+
+    def test_query_and_missing_target_require_review_not_a_defect_verdict(self) -> None:
+        for targets, rule in (([], "panel-no-targets"),
+                              ([{"refId": "A", "expr": "requests_total"}], "target-counter-agg"),
+                              ([{"refId": "A", "expr": "rate(requests_total[5m])"}],
+                               "target-rate-interval")):
+            with self.subTest(rule=rule):
+                model = clean_model_with(("panels", 0, "targets"), targets)
+                report = self._report(json.dumps(model), 1)
+                finding = next(f for f in report["findings"] if f["rule"] == rule)
+                self.assertEqual("review", finding["severity"])
+                self.assertTrue(report["ok"])
+
     def test_stdlib_only_cli_reports_the_unavailable_parser_without_failing(self) -> None:
         model = clean_model_with(("panels", 0, "targets", 0, "expr"), "up")
         report = self._report(json.dumps(model), 0)
@@ -393,17 +424,18 @@ class JsonReportTest(unittest.TestCase):
                            "mode": "text_heuristic", "gaps": ["dependency_unavailable_promql_parser"]}],
                          report["query_analysis"])
 
-    def test_violations_are_structured_and_quiet_keeps_the_complete_report(self) -> None:
+    def test_advisories_are_structured_and_quiet_keeps_the_complete_report(self) -> None:
         model = clean_model()
         model["panels"][0].pop("description")
-        report = self._report(json.dumps(model), 1)
+        report = self._report(json.dumps(model), 0)
         self.assertTrue(report["ok"])
         self.assertEqual([], report["errors"])
         self.assertEqual([{
             "rule": "panel-description", "where": model["panels"][0]["title"],
-            "detail": "no description; it renders as the panel's tooltip",
+            "detail": "no description; add a tooltip if interpretation needs context",
+            "severity": "advisory",
         }], report["findings"])
-        self.assertEqual(report, self._report(json.dumps(model), 1, "--quiet"))
+        self.assertEqual(report, self._report(json.dumps(model), 0, "--quiet"))
 
     def test_invalid_and_unsupported_inputs_return_json_errors(self) -> None:
         for content, code, detail in (
@@ -434,7 +466,7 @@ class JsonReportTest(unittest.TestCase):
         model["panels"][0]["title"] = 'Panel \u2192 "errors"\n\U0001f680'
         model["panels"][0].pop("description")
         result = self._check(json.dumps(model), "--format", "json")
-        self.assertEqual(1, result.returncode, result.stderr)
+        self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("", result.stderr)
         self.assertTrue(result.stdout.isascii())
         report = json.loads(result.stdout)
@@ -445,14 +477,14 @@ class JsonReportTest(unittest.TestCase):
         model = clean_model()
         model["panels"][0].pop("description")
         expected = (
-            "panel-description: Is checkout error ratio breaching target?\n"
-            "    no description; it renders as the panel's tooltip\n\n"
-            "'Checkout / Health': 1 violation(s) across 1 panel(s)\n"
+            "panel-description [advisory]: Is checkout error ratio breaching target?\n"
+            "    no description; add a tooltip if interpretation needs context\n\n"
+            "'Checkout / Health': 0 review-required, 1 advisory finding(s) across 1 panel(s)\n"
         )
         for options in ((), ("--format", "text")):
             with self.subTest(options=options):
                 result = self._check(json.dumps(model), *options)
-                self.assertEqual(1, result.returncode, result.stderr)
+                self.assertEqual(0, result.returncode, result.stderr)
                 self.assertEqual("", result.stderr)
                 self.assertEqual(expected, result.stdout)
         quiet = self._check(json.dumps(model), "--format", "text", "--quiet")
@@ -460,7 +492,7 @@ class JsonReportTest(unittest.TestCase):
 
 
 class ExitCodeTest(unittest.TestCase):
-    """The exit codes are the contract a CI step keys on: 0 clean, 1 violations, 2 uncheckable."""
+    """CI contract: 0 no review findings, 1 review required, 2 uncheckable."""
 
     def _process(self, path: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run([sys.executable, "-I", "-S", str(MODULE), str(path), "--quiet"],
@@ -481,9 +513,9 @@ class ExitCodeTest(unittest.TestCase):
     def test_clean_exits_zero(self) -> None:
         self.assertEqual(0, self._run(clean_model()))
 
-    def test_violations_exit_one(self) -> None:
+    def test_review_required_exits_one(self) -> None:
         model = clean_model()
-        model["panels"][0].pop("description")   # any real rule will do; this one is stable
+        model["panels"][0]["targets"] = []
         self.assertEqual(1, self._run(model))
 
     def test_v2_dashboard_is_refused_not_silently_passed(self) -> None:
@@ -571,18 +603,18 @@ class ExitCodeTest(unittest.TestCase):
                 self.assertEqual(1, len(result.stderr.splitlines()), result.stderr)
                 self.assertEqual("", result.stdout)
 
-    def test_optional_null_fields_keep_existing_hygiene_outcomes(self) -> None:
+    def test_optional_null_fields_distinguish_advisories_from_review(self) -> None:
         for path, expected in (
             (("panels",), 0),
             (("panels", 0, "type"), 0),
-            (("panels", 0, "title"), 1),
-            (("panels", 0, "description"), 1),
-            (("panels", 0, "fieldConfig"), 1),
-            (("panels", 0, "fieldConfig", "defaults"), 1),
+            (("panels", 0, "title"), 0),
+            (("panels", 0, "description"), 0),
+            (("panels", 0, "fieldConfig"), 0),
+            (("panels", 0, "fieldConfig", "defaults"), 0),
             (("panels", 0, "targets"), 1),
             (("templating",), 0),
             (("templating", "list"), 0),
-            (("templating", "list", 1, "allValue"), 1),
+            (("templating", "list", 1, "allValue"), 0),
         ):
             with self.subTest(path=path):
                 self.assertEqual(expected, self._run(clean_model_with(path, None)))

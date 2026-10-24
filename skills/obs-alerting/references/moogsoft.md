@@ -1,9 +1,9 @@
 # Moogsoft Onprem correlation and noise reduction
 
-The fleet target is on-prem Moogsoft v9.x, and of that line only **v9.2** (GA 2025-05-15) is a
-currently supported release; v9.1 and v9.0 are past end of support, and a patch release does not
-reset the two-year support cycle. Re-verify the supported line at each Moogsoft upgrade. Its
-operator object is a **Situation**; cloud product terms differ.
+The recorded stack uses Moogsoft Onprem v9.x. Confirm the installed release and applicable support
+contract against the vendor's [product notices](https://docs.moogsoft.com/v9/en/product-notices.html)
+before recommending an upgrade; the major version alone does not establish support status.
+Its operator object is a **Situation**; cloud product terms differ.
 
 The v9 [clustering guide](https://docs.moogsoft.com/v9/en/clustering-algorithm-guide.html)
 names the Sigalisers **Cookbook** (configured Recipes over alert attributes) and **Tempus** (time
