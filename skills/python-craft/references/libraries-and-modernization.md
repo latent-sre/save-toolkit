@@ -1,8 +1,7 @@
 # Libraries and modernization
 
-Actively evaluate supported libraries when they remove substantial custom machinery or improve
-correctness, capability, clarity, or maintenance. Compare the standard library, dependencies already
-present, and suitable new packages against the actual problem. Release recency alone is not quality.
+Compare standard-library, existing and new dependencies against the maintenance/correctness benefit;
+release recency alone is not quality.
 
 ## Choose and migrate
 
@@ -16,35 +15,19 @@ present, and suitable new packages against the actual problem. Release recency a
 4. Replace through callers under the project's dependency workflow. Keep developer tools out of
    runtime dependencies, keep the previous state installable, and remove obsolete helpers once unused.
 
-Verify that real callers use the replacement. A small compatibility adapter may be necessary;
-retaining a second full implementation needs a concrete reason. Count removed maintenance work,
-not imports added or versions advanced.
-
 Library adoption within an authorized improvement is ordinary implementation when it fits the
 project's compatibility, licensing, dependency, and execution constraints. Seek direction for material
 runtime, framework, public-contract, or external-effect changes only when not already authorized.
 Verify intentional behavior changes separately from behavior-preserving restructuring.
 
-## Worked decision: order intake validation
-
-An API and import tool share order validation; Pydantic is already used.
-
-| Decision | Apply to this case |
-|---|---|
-| Reuse | Use the existing validation dependency; a dataclass alone does not validate inputs. |
-| Contract | Nonempty symbol, positive integer quantity; reject booleans and numeric strings. Check Python-object and JSON entrypoints separately; strict-mode acceptance can differ. |
-| Ownership | One shared model/parser; transport-specific errors stay in adapters. |
-| Verify and retire | Exercise both callers' input, error and serialization contracts; remove obsolete validators after migration. |
-
 ## Examples of migration differences
 
-These examples illustrate what to investigate, not a package shortlist. Select candidates for the
-actual problem and recheck their current contracts at adoption; keep version pins in dependency files.
+These are migration traps, not a package shortlist; recheck the installed/proposed contracts.
 
 - **Validation:** Pydantic strict and coercing modes accept different inputs. Major-version changes
   can alter missing/nullable fields and validator exception handling. Check a valid input, missing,
-  null, coercible, and invalid input; assert serialization separately. Do not silently tighten a
-  previously accepted interface under a cleanup task.
+  null, coercible, and invalid input; strict Python-object and JSON acceptance can differ. Assert
+  serialization separately; do not silently tighten accepted inputs during cleanup.
 - **HTTP:** HTTPX and Requests differ in redirects, timeout defaults, and exception types. Make
   relevant choices explicit; verify changed redirect, timeout, failure, and stream cleanup paths.
   Preserve the integration's overall deadline and retry contract, not just each call's options.
@@ -52,9 +35,6 @@ actual problem and recheck their current contracts at adoption; keep version pin
   stop condition does not interrupt an already-blocking call. Preserve one retry owner or account
   for all physical attempts. Establish eligibility, idempotency, deadlines, and provider-specific
   retry hints. Configure the final exception behavior intentionally.
-- **Dependencies:** library compatibility requirements and a reproducible application environment
-  serve different purposes. Preserve the project's packaging workflow; a new lock format does not
-  justify replacing the package manager during unrelated work.
 
 ## Modernize for a benefit
 
@@ -67,9 +47,8 @@ below that floor, removing the import or the quotes raises `NameError` when the 
 Runtime readers see strings under that import and evaluated objects otherwise. Avoid rewriting
 syntax merely because a newer spelling exists.
 
-Use the [refactoring reference](./refactoring.md) to assess control-flow, collection, and iteration
-replacements. For data and async changes, [Writing Python](./writing-python.md) covers ownership and
-interface differences. Features such as dataclass slots or keyword-only construction need consumer
+For semantic replacements use [refactoring](./refactoring.md); for data/async ownership use
+[Writing Python](./writing-python.md). Dataclass slots or keyword-only construction need consumer
 checks: inherited instance dictionaries may remain, while supported attribute access or positional
 calls can break. A feature's availability does not establish equivalence.
 

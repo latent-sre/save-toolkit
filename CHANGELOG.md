@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `python-craft` references: 32,476 to 22,508 bytes. Move unique entrypoint, byte-boundary
+  and borrowed-stream checks into writing guidance; remove basic tutorials and repeated process.
+  Preserve environment, lock, concurrency, dynamic-consumer and effect-order contracts. Redirect the
+  one active eval readpath and pin historical guard-example evidence. Focused checks: 10 tests and
+  21 subtests pass; scenario validation: 381 specs and 2158 expectations. No code or assets changed.
 - Review `frontend-craft` references: 22,633 to 20,581 bytes. Remove generic HTTP/UI process,
   optional menus and release chronology. Retain approved design choices and serving/security
   contracts; correct MSW 3 imports and remove universal retry/status/CSRF, port and memory

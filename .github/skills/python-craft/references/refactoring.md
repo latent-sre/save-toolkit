@@ -1,43 +1,19 @@
 # Improving existing Python
 
-## Contents
-
-- Choose the transformation
-- Simplify control flow and iteration
-- Guard-clause example
-- Preserve consumers and integrate
-- Stage a large or multi-module change
-- Characterization pitfalls
-- Verify behavior and benefit
-
 ## Choose the transformation
 
-Follow a representative operation through its data, decisions, and effects. Address the cause of
-complexity: parallel values may need records, repeated scans an index, contradictory flags clearer
-states, and forwarding layers removal. Compare construction, conversion, and memory costs with
-work removed. For function and module choices, see [Writing Python](./writing-python.md).
-
-Share a policy when callers require the same rule; identical fragments can evolve independently.
-Check purpose, inputs, and failure behavior before unifying them. A helper beside copies still in
-use does not establish shared ownership. Keep meaningful single-caller boundaries and real extension
-points; remove generic machinery that contributes neither.
+Share a policy only when callers need the same rule; identical fragments may evolve independently.
+A helper beside copies still in use does not establish shared ownership. Judge a transformation
+through callers, including construction/conversion costs and memory, not its shorter spelling.
 
 ## Simplify control flow and iteration
 
-| Situation | Consider | Preserve or check |
-|---|---|---|
-| Nesting obscures the main operation | Guard clauses; a named domain predicate | Condition/effect order, cleanup, and distinctions among `None`, zero, false, and empty |
-| A flag/list only answers a question | `any`, `all`, or `next` over a generator | Short-circuiting skips work/errors; empty `any` is false, empty `all` true; distinguish no match from a valid `None` with a sentinel |
-| Simple mapping/filtering | Comprehension; a loop for multi-step work or per-item handling | Order, duplicates, mutation, scope; avoid side-effect-only or dense nested comprehensions |
-| Indexes only retrieve items | Iteration, unpacking, `enumerate`, `zip` | Needed positions and shape; `zip` truncates, `strict=True` raises on mismatch (3.10+) |
-| Counting, grouping, repeated searches | `Counter`, `defaultdict`, dict/set index | Equality/hashability, duplicates, order, missing-key insertion, result type, memory |
-| Exact-key call selection | Dictionary of callables | Unknown keys, key equality, lazy calls; keep ordered/range predicates as conditionals |
-| Structured-data cases | `match` when clearer (3.10+) | Case/guard order, unmatched input; bare names capture, dotted constants compare |
-| Temporary collection with one consumer | Generator/streaming | Deferred work/errors, repeatability, indexing, partial consumption, resource lifetime |
-| Repeated or dynamic cleanup | `with`/`async with`, `ExitStack`/`AsyncExitStack` | Ownership, partial acquisition, cleanup order, cancellation, suppression |
-
-Choose by meaning; a clear loop or conditional may remain best. Name a predicate when it explains a
-decision, not every comparison.
+- Short-circuit replacements can skip effects/errors; use a sentinel when `None` is a valid result.
+- `zip` truncates unless strict; indexing/grouping replacements can change duplicate handling,
+  equality/hashability, ordering, missing-key insertion and result types.
+- Dispatch tables do not preserve ordered/range predicates; `match` bare names capture rather than compare.
+- Lazy replacements move work/errors and may lose repeatability. Cleanup restructuring must preserve
+  partial acquisition, release order, cancellation and exception suppression.
 
 An extracted `return` does not return from its caller; preserve moved `break`/`continue` effects.
 Comprehension iteration variables do not leak like loop variables. Generator expressions evaluate
@@ -47,29 +23,10 @@ even on a hit; dispatch tables should store callables rather than their results.
 
 ### Guard-clause example
 
-`None` means no limit; zero is a valid limit. Before:
-
-```python
-def process(items, *, limit=None):
-    if limit is None or limit >= 0:
-        result = process_items(items, limit=limit)
-        return result
-    raise ValueError("negative limit")
-```
-
-After, inverting the original condition so the invalid case fails first:
-
-```python
-def process(items, *, limit=None):
-    if not (limit is None or limit >= 0):
-        raise ValueError("negative limit")
-    return process_items(items, limit=limit)
-```
-
-`limit is not None and limit < 0` is equivalent only for integers or `None`: NaN fails both
-`>= 0` and `< 0`. `if not limit` confuses zero with absence. Invalid limits must fail before
-`process_items` runs; valid ones reach it once, unchanged. Keep the nested form when a guard reads
-worse.
+For an accepted condition `limit is None or limit >= 0`, reject with
+`not (limit is None or limit >= 0)`. Substituting `limit is not None and limit < 0` changes NaN
+behavior: both comparisons are false. `if not limit` confuses zero with absence. Invalid inputs
+must fail before the effect; valid inputs reach it once, unchanged.
 
 ## Preserve consumers and integrate
 
@@ -85,25 +42,20 @@ import-time effects, and public patch points. An explicit `lazy import` (3.15) d
 module's import-time effects until first use; adding or removing one moves them. Add compatibility
 adapters only for actual supported consumers.
 
-Avoid leaving callers with repeated shape conversions or copies of moved policy. A moved function
-is not an integrated change until its real consumers use the new owner.
-
 ## Stage a large or multi-module change
 
 Map consumers before choosing the boundary, including release inputs and non-code consumers such as
 configured names and package data. For an unresolved rollout, compatibility, or recovery design,
 use the project's design workflow; load `eng-ladder` for principal-level design guidance.
 
-1. Map each material risk to an existing check or a missing regression before changing structure.
-2. Complete one path through a real consumer before widening, then migrate the rest in coherent
-   stages. Move the rule's ownership, not just its text: dormant helpers and duplicated decisions
-   can pass tests while callers still use the old copy.
-3. Add compatibility bridges only when supported consumers, mixed versions, or persisted data need
+1. Complete a real consumer path before widening; dormant helpers can pass tests while callers
+   still use old policy.
+2. Add compatibility bridges only when supported consumers, mixed versions, or persisted data need
    them, and define when each can be removed. Mark a bridge with
    `warnings.deprecated` (3.13+; `typing_extensions.deprecated` before that): it warns at runtime,
    and type checkers can list remaining callers; mypy does so only with its `deprecated` error code
    enabled.
-4. Retire superseded code and dependencies after callers and release inputs use the replacement.
+3. Retire superseded code and dependencies after callers and release inputs use the replacement.
    Find leftovers with an instrument and read its hits as leads: the type checker and text searches
    for callers, `vulture` for unreferenced definitions, `deptry` for declared dependencies nothing
    imports. Entry points, registries, and dynamic lookups look unused to static tools; confirm a
@@ -112,8 +64,7 @@ use the project's design workflow; load `eng-ladder` for principal-level design 
    artifact and exercise an installation outside the source checkout. Check imports, configured
    lookups, and bundled resources there; checkout tests can conceal missing release files.
 
-Choose checkpoints by risk, not file counts; a small atomic replacement may be safer than a
-compatibility layer. Report the checks completed and any installation or downstream coverage missing.
+Choose checkpoints by risk, not file counts; a small atomic replacement may be safer than a bridge.
 
 ## Characterization pitfalls
 
@@ -123,9 +74,8 @@ outcomes raised rather than returning error strings. Record known bugs separatel
 
 ## Verify behavior and benefit
 
-Establish that tests exercise affected behavior; characterize material gaps. Use coverage or a
-reversible mutation when reach/sensitivity is uncertain, not as a universal prerequisite. Working
-behavior needs no red-first test; a bug fix needs an independent expected result.
+Use coverage or reversible mutation when reach/sensitivity is uncertain, not universally. Working
+behavior needs no red-first test; bug fixes need independent expectations.
 
 Compare fresh equivalent inputs and controlled time, randomness, effects, and caches. Check relevant
 values/types, serialization, aliasing/mutation, call forms, errors, and effect order. Preserve the
@@ -133,7 +83,6 @@ exception object when propagating it. Pair differential checks with independent 
 old bug cannot count as correctness. Use fresh processes for relevant import orders, cycles, and
 registries. Exercise existing entrypoints; retain behavioral assertions when retiring test wiring.
 
-Exhaust small domains; consider property-based/stateful tests for larger ones with a bounded budget.
 For streaming, check progress before full consumption and cleanup after a prefix; returning an
 iterator proves neither streaming nor bounded memory.
 

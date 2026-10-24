@@ -4,7 +4,6 @@ split: regression
 skill: python-craft
 tools: [Skill, Read]
 references:
-  - skills/python-craft/references/new-code.md
   - skills/python-craft/references/writing-python.md
 prompt: |-
   Assess these independent new Python implementation cases; do not edit code. The supplied

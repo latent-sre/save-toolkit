@@ -1,13 +1,10 @@
 # Python environment and checks
 
-Read when the interpreter, dependency environment, or check workflow needs establishing or changing.
-Use the target project's workflow and supported versions; a script, application, and published
-library need not use the same package manager, test runner, or dependency policy.
+Use the target project's supported runtimes and dependency workflow, not the host's newest Python.
 
 ## Bind the environment before the baseline
 
-Inspect the runtime floor, CI matrix, `.python-version`, manifests, lock/constraint files, and
-existing virtual environment. A developer's newest Python is not necessarily a supported target.
+Inspect the runtime floor, CI matrix, `.python-version`, manifests, locks/constraints and existing venv.
 Record the selected interpreter's `sys.executable` and `sys.version`; run baseline and candidate
 checks through that same environment. Bare `python`, `py`, `pip`, and an editor may select different
 installations. Invoke the project's test runner through the intended environment; for pytest,
@@ -38,9 +35,3 @@ the task's authority; absence of a required interpreter is a gap, not evidence f
   A formatter can be standalone; a type/import check must see the intended environment.
 - Review manifest/lock changes separately from source cleanup. No `uv init`, dependency upgrade,
   new lock format, or runtime-floor change is implied by a refactoring request.
-
-## Compare useful evidence
-
-Preserve baseline failures as named gaps. An environment or dependency change can explain a
-different test result; distinguish it from the source change. Report tool/interpreter versions
-when they affect the conclusion, and do not weaken checks to conceal a regression.

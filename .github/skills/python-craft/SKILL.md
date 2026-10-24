@@ -40,7 +40,7 @@ scoped; report material adjacent findings separately.
 
 | Task | Read |
 |---|---|
-| Starting a new script, module, library, or service | [New code](./references/new-code.md) |
+| Starting a script, module, library, or service | [Writing Python](./references/writing-python.md), including entrypoint and byte-boundary checks |
 | Interpreter/dependencies uncertain or changing | [Environment and checks](./references/environment-and-checks.md) |
 | Calls, functions, modules, data, or resource ownership | [Writing Python](./references/writing-python.md) |
 | Structural improvement, a multi-module migration, or Pythonic replacements | [Refactoring](./references/refactoring.md) |
