@@ -43,9 +43,12 @@ comes first and a runtime is selected later against it, not the other way round.
    A remote write can commit before its result or the next checkpoint is durable, so retry, resume,
    replay, and cancel can each run a handler again.
 2. `UNKNOWN` is a real outcome. An interrupted dispatch stays `UNKNOWN` until reconciliation or
-   target-native idempotency resolves it, and it is never replayed automatically while unknown.
-3. Every effect defines its idempotency key deterministically from caller, operation, target,
-   tenant, and canonical intent/payload; reuse with different intent is rejected before dispatch;
+   a target receipt resolves it; no automatic redispatch is allowed while unresolved, even with
+   an unchanged key or claimed target-native idempotency.
+3. Every effect has a logical request ID persisted before first dispatch, stable across retries
+   and distinct for each new operation, even with identical payload. Its key binds caller, operation,
+   target, tenant, and that ID; the ID is immutably bound to a canonical payload digest and reuse
+   with different intent is rejected before dispatch;
    the result or tombstone stays available through the full retry and ambiguity window; the receipt
    is coupled atomically to the mutation where the target supports it, else reconciliation is
    mandatory.

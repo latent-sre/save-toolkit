@@ -870,9 +870,10 @@ The native helper conversation checks actual dispatch and parent continuation st
 requires manual review of its evidence synthesis and corrected follow-up. The routing overlaps
 probe lifecycle, causal diagnosis, small arithmetic, a full toil assessment and accepted
 implementation separately. Offline checks calibrate fixtures and graders; they do not run a model,
-prove host containment, or establish operational benefit. `RELIABILITY-001` is deferred: on
-2026-10-08 the owner kept the lane unaccepted after a reviewed two-trial native comparison, and it
-reopens only when a source repair for retry-count ambiguity and timeout sums is approved.
+prove host containment, or establish operational benefit. The 2026-10-08 two-trial native
+comparison left the lane unaccepted. See [RELIABILITY-001](../docs/fleet-roadmap.md#reliability-001--measure-the-timing-repair-on-claude-then-decide-on-the-reliability-lane)
+for the current status, landed timing repair, bounded comparison, and human run-approval and
+acceptance requirements; this guide does not duplicate its live status.
 
 `build-principal-engineer-contract-change` and its identical incumbent arm
 `build-software-engineer-contract-change-baseline` grade a shared-contract design: an exact consumer

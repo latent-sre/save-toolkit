@@ -167,6 +167,8 @@ finding — recommend adding one through the `software-engineer` agent.
 Use equal, absolute windows around the deploy. Select a request-completion sourcetype with exactly
 one event per eligible request/attempt; an application index containing debug or lifecycle events
 is not a request denominator. Establish that population and coverage before interpreting a rate.
+### Overall deploy error rate
+
 For the overall error rate, group only by phase; `error_type` is not required. The denominator
 is all eligible requests in that phase:
 

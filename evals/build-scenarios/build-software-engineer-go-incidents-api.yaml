@@ -55,7 +55,7 @@ fixture:
         operationIds, bearer security declarations, and problem+json error declarations. Document
         the item route as `/v1/incidents/{id}`. Include a `go test` drift check that fails with a
         stale document and passes with the generated document.
-      - Listen on `PORT` and bound header reads with `http.Server.ReadHeaderTimeout`.
+      - Listen on `PORT` and bound header reads with `http.Server.ReadHeaderTimeout` of at most 10 seconds.
 
       Go is installed on this machine and modules come from the public proxy. Build and test from
       the repo root:
@@ -139,7 +139,7 @@ checks:
   - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py no_leak", timeout: 600, text: "oracle: internal_note never crosses the API boundary", failure_exit_code: 10}
   - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py document", timeout: 120, text: "oracle: openapi.json is committed at the root: 3.1, lowerCamel operationIds, security, problem+json errors", failure_exit_code: 10}
   - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py drift_gate", timeout: 900, text: "oracle: go test fails when openapi.json drifts from the code and passes when it matches", failure_exit_code: 10}
-  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py server_timeouts", timeout: 120, text: "oracle: the http.Server sets ReadHeaderTimeout", failure_exit_code: 10}
+  - {check: command_exit_zero, command: "python oracle_protocol.py probe_checks.py server_timeouts", timeout: 600, text: "oracle: the running server closes incomplete headers within 11 seconds and still serves requests", failure_exit_code: 10}
   - {check: command_exit_zero, command: "go test -count=1 ./...", timeout: 600, text: "suite is green when the probe runs it"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}changed\b', text: "packet: Changed slot"}
   - {check: text_regex, pattern: '^[\s>*_#-]{0,8}verified\b', text: "packet: Verified slot"}

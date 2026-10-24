@@ -53,6 +53,12 @@ RETIRED_GENERATED_ROOTS = (
 )
 # Prose/data assets projected through adapt_text (token rewriting) AND normalized to LF by read_text.
 ADAPT_TEXT_SUFFIXES = {".md", ".txt", ".yaml", ".yml", ".json"}
+# These teach literal platform syntax, including Claude examples inside the Copilot reference.
+# Preserve their original dialect; they are reference data, not runtime invocation instructions.
+PLATFORM_SYNTAX_REFERENCES = {
+    Path("agent-authoring/references/claude-code-frontmatter.md"),
+    Path("agent-authoring/references/copilot-frontmatter.md"),
+}
 # Code assets projected verbatim EXCEPT for line endings: a CRLF checkout (Windows with a
 # late-applied .gitattributes) would otherwise byte-copy CRLF into a generated file and read as
 # phantom drift against a fresh LF generation. Normalized to LF but NOT token-adapted.
@@ -502,7 +508,8 @@ def expected_outputs(root: Path) -> dict[Path, bytes]:
         suffix = source.suffix.lower()
         if suffix in ADAPT_TEXT_SUFFIXES:
             text = source.read_text(encoding="utf-8")
-            outputs[COPILOT_SKILLS / relative] = adapt_text(text).encode("utf-8")
+            projected = text if relative in PLATFORM_SYNTAX_REFERENCES else adapt_text(text)
+            outputs[COPILOT_SKILLS / relative] = projected.encode("utf-8")
         elif suffix in NORMALIZED_CODE_SUFFIXES:
             # Verbatim except line endings — read_text() normalizes CRLF/CR to LF via universal
             # newlines. No adapt_text: a script's tokens and shebang must survive unrewritten. A

@@ -6,23 +6,24 @@ tools: [Skill, Read]
 references:
   - skills/obs-traces/references/otel-semantics.md
 prompt: |
-  Read the OpenTelemetry-semantics reference. Answer with attribute names only, one per
-  labelled line, no explanation; do not run queries or edit files. Using current stable
-  OpenTelemetry semantic conventions, name the attribute that identifies: A: one
+  Read the OpenTelemetry-semantics reference. Answer with attribute name and maturity
+  (Stable or Development), one per labelled line formatted exactly as
+  "Label: <attribute> <maturity>" (space-separated, no extra punctuation or explanation);
+  do not run queries or edit files. Using OpenTelemetry semantic conventions v1.44.0, identify: A: one
   concrete instance of a service, distinct from the service name; B: the downstream
   server address a client span called; C: the route template of an HTTP operation;
   D: the database collection or table a database span touched; E: the messaging
   destination of a messaging span.
 success_criteria:
-  - Names current stable attributes for instance, peer, route, database target, and messaging destination.
+  - Names Stable instance, peer, route, and database-target attributes; labels messaging.destination.name Development.
 graders:
   - type: regex
-    pattern: 'service\.instance\.id'
+    pattern: '(?m)^A:[ \t]*service\.instance\.id[ \t]+Stable[ \t]*$'
   - type: regex
-    pattern: 'server\.address'
+    pattern: '(?m)^B:[ \t]*server\.address[ \t]+Stable[ \t]*$'
   - type: regex
-    pattern: 'http\.route'
+    pattern: '(?m)^C:[ \t]*http\.route[ \t]+Stable[ \t]*$'
   - type: regex
-    pattern: 'db\.collection\.name'
+    pattern: '(?m)^D:[ \t]*db\.collection\.name[ \t]+Stable[ \t]*$'
   - type: regex
-    pattern: 'messaging\.destination\.name'
+    pattern: '(?m)^E:[ \t]*messaging\.destination\.name[ \t]+Development[ \t]*$'

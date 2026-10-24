@@ -29,14 +29,16 @@ to [PromQL](./promql.md); confirm the target's metric and access contract.
 - **Non-PromQL API queries** of Prometheus-ingested metrics use monitored-resource type
   `prometheus_target`.
 
-## Grafana against Cloud Monitoring — how our dashboards keep working
+## Grafana against Cloud Monitoring — discover the integration
 
-Grafana queries Managed Prometheus/Cloud Monitoring through the **data source syncer**: Google
-Cloud APIs require OAuth2, Grafana's Prometheus data source doesn't do OAuth2 for service
-accounts, so the syncer refreshes a service-account token into the data source every ~10 minutes
-(tokens live 1 hour). The service account needs **Monitoring Viewer** on the scoping project.
-Triage implication: Grafana panels going all-no-data against GCP while the console works =
-suspect the syncer/token path before the metrics.
+Confirm the target datasource plugin, endpoint, authentication path, scoping project, and query
+context before diagnosing Grafana-only no-data. The deployed integration is unconfirmed.
+A Prometheus datasource may use Google's **data source syncer** to refresh an OAuth2
+service-account token; inspect syncer/token refresh only when that path is observed.
+The native Google Cloud Monitoring datasource supports other authentication paths; inspect its
+configured authentication and permissions instead. A service account needs **Monitoring Viewer**
+on the scoping project. Console success alone does not establish Grafana's identity, project,
+query context, or a syncer deployment.
 
 ## Terminal reads
 

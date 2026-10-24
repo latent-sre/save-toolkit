@@ -316,11 +316,38 @@ def check_drift_gate():
     ok("go test fails when openapi.json drifts from the code and passes when it matches")
 
 
+# The fixture requires a header-read bound no longer than ten seconds. Allow one extra
+# second for scheduling; measure the launched listener, never candidate source text.
+HEADER_TIMEOUT_LIMIT = 11
+
+
 def check_server_timeouts():
-    sources = [p for p in WORKSPACE.rglob("*.go") if not p.name.endswith("_test.go")]
-    if not any("ReadHeaderTimeout" in p.read_text(encoding="utf-8", errors="replace") for p in sources):
-        fail("no http.Server sets ReadHeaderTimeout: the zero server has no timeouts")
-    ok("the server sets ReadHeaderTimeout")
+    with Service() as svc:
+        with socket.create_connection(("127.0.0.1", svc.port), timeout=2) as peer:
+            deadline = time.monotonic() + HEADER_TIMEOUT_LIMIT
+            peer.sendall(b"GET /v1/incidents HTTP/1.1\r\nHost: localhost\r\nX-Incomplete: ")
+            try:
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise socket.timeout()
+                    peer.settimeout(remaining)
+                    if not peer.recv(4096):
+                        break
+            except socket.timeout:
+                fail("the running server kept incomplete headers open beyond %s s" % HEADER_TIMEOUT_LIMIT)
+            except ConnectionResetError:
+                pass  # a reset also releases the incomplete-header connection
+        if svc.proc.poll() is not None:
+            fail("the service exited while reading incomplete headers")
+        # A process failure or a listener that simply stopped serving is not a timeout pass.
+        try:
+            status, _, _ = svc.request("GET", "/v1/incidents")
+            if status != 200:
+                fail("the service does not answer a complete authorized collection request with 200")
+        except (OSError, urllib.error.URLError):
+            fail("the service no longer answers complete requests after the header-read check")
+    ok("the running server closes incomplete headers within %s s and still serves requests" % HEADER_TIMEOUT_LIMIT)
 
 
 CHECKS = {name[len("check_"):]: fn for name, fn in globals().items() if name.startswith("check_")}

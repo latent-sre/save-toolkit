@@ -141,8 +141,11 @@ grant applies. Folder API behavior on the target is unconfirmed until observed.
   current `metadata.resourceVersion`, the existing parent annotation, and `spec.title`. Moving a
   folder can change inherited access, so it needs a separately authorized path. `404` is an absent
   target; `409` or `412 version-mismatch` is a concurrent update. Keep the pre-change fields as
-  rollback content; a restore reads the current folder and applies those saved fields with its
-  fresh token.
+  rollback content. Save the successful operation-written folder state too. Before restoring,
+  compare the fresh folder read with that operation-written state, including title and parent.
+  Stop on intervening edits or missing comparison evidence; do not overwrite another editor's
+  changes. Only an unchanged state permits restoring the saved fields with the fresh token.
+  A parent move still requires its separately authorized path.
   In either case stop, fresh-read, and re-diff; do not force.
 - **Outcome:** folder writes have no dashboard version-history or dashboard save-message record.
   Preserve the successful write receipt, then fresh-read the uid: it must match the intended uid,
@@ -188,10 +191,18 @@ grant applies. Folder API behavior on the target is unconfirmed until observed.
 
 ## Rollback
 
-Your own write makes the export's token stale, so never replay the export. Read the live object
-again, put the saved spec into that current envelope, drop `status`, and apply it like any other
-update; the legacy path takes `dashboard.version` from the fresh read the same way. Provisioned or
-tool-managed rollback belongs to that owner. Grafana keeps 20 versions by default.
+Your own write makes the export's token stale, so never replay the export. Save the successful
+operation-written state from verified readback separately from the pre-change export. Before
+restoring, compare a fresh live read with that operation-written state: spec, folder, and other
+editable fields must match; a changed concurrency token also requires reconciliation. Stop on
+intervening edits or missing comparison evidence; a fresh token alone does not authorize replacing
+another editor's changes. For example, restoring query Q0 after writing Q1 must not erase a later
+title T1. Hand off the drift and proposed scoped inverse for review under the existing authority.
+Only after the comparison passes, put the saved spec into the current envelope, drop `status`,
+and apply it like any other update with the fresh concurrency token; the legacy path takes
+`dashboard.version` from that fresh read. Re-diff the complete restore, preserve scope, and stop
+on conflict. Provisioned or tool-managed rollback belongs to that owner. Grafana keeps 20 versions
+by default.
 
 ## Decisions Grafana forces
 

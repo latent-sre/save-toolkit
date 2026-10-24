@@ -134,6 +134,15 @@ def schema_behavior(owner, api, batch):
         else:
             rejected(batch.load, schema, iter([payload]), message="invalid payload")
         CHECK.assertEqual((schema, payload), before, "schema or payload mutated")
+    schema = {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}}}
+    first, second, third = {"name": "beta"}, {"name": "gamma"}, {"name": "alpha"}
+    payloads = [first, second, first, third]
+    before = copy.deepcopy((schema, payloads))
+    result = candidate_call(batch.load, schema, iter(payloads))
+    CHECK.assertEqual(len(result), 4, "batch order or duplicates lost")
+    for actual, expected in zip(result, payloads):
+        CHECK.assertIs(actual, expected, "batch order or payload identity lost")
+    CHECK.assertEqual((schema, payloads), before, "schema or payload mutated")
     for schema in ({"type": "unknown"}, {"required": "name"}, {"required": [1]},
                    {"minItems": -1}, {"properties": {"x": {"type": "unknown"}}},
                    {"oneOf": []}, {"type": ["string", 1]}, 12):
@@ -145,19 +154,21 @@ def schema_behavior(owner, api, batch):
 
 
 def schema_callers(owner, api, batch):
-    sentinel = object()
-    schema, payload = {"type": "integer"}, {"otherwise": "invalid"}
+    sentinel, other, last = object(), object(), object()
+    schema = {"type": "integer"}
+    payload, second, third = {"name": "beta"}, {"name": "gamma"}, {"name": "alpha"}
     calls = []
 
     def replacement(actual_schema, actual_payload):
         calls.append((actual_schema, actual_payload))
-        return sentinel
+        return sentinel if actual_payload is payload else other if actual_payload is second else last
 
     with mock.patch.object(owner, "validate_payload", replacement):
         CHECK.assertIs(candidate_call(api.submit, schema, payload), sentinel, "API bypassed owner")
-        CHECK.assertEqual(candidate_call(batch.load, schema, [payload, payload]), [sentinel, sentinel],
-                          "batch bypassed owner")
-    CHECK.assertEqual(calls, [(schema, payload)] * 3, "caller duplicated shared policy")
+        CHECK.assertEqual(candidate_call(batch.load, schema, iter([payload, second, payload, third])),
+                          [sentinel, other, sentinel, last], "batch order changed or bypassed owner")
+    CHECK.assertEqual(calls, [(schema, payload), (schema, payload), (schema, second), (schema, payload), (schema, third)],
+                      "batch order changed or caller duplicated shared policy")
     failure = ValueError("replaced owner failure")
     with mock.patch.object(owner, "validate_payload", side_effect=failure):
         for function, argument in ((api.submit, payload), (batch.load, [payload])):
