@@ -1,15 +1,12 @@
 # Consume the API
 
-Bind the UI to the actual service contract and reuse an existing typed client. Select only the
-sections the app needs.
+Reuse the service's client and contract; load only applicable sections.
 
 ## Typed client
 
-When OpenAPI is available, generate or bind types from the service's canonical document (`openapi-typescript`,
-`openapi-fetch` and `openapi-react-query` are options; FastAPI 0.134+/0.135+ emits OpenAPI 3.2
-`itemSchema` for JSONL/SSE, which `openapi-typescript` 7.x reads as `unknown` unless `schema` is
-also present). Otherwise bind typed interfaces and runtime validation to the published contract.
-Configure base URL, session credentials and correlation headers.
+Use the canonical OpenAPI document when available; verify the selected generator handles streaming
+`itemSchema`, not just ordinary `schema`, without degrading event types to `unknown`. Otherwise bind
+types and runtime validation to the published contract. Configure base URL, credentials and correlation.
 
 With `openapi-fetch` (which already consumes the response body), parse errors via
 `if (error !== undefined || !response.ok) throw problemFromBody(error, response)`.
@@ -18,29 +15,21 @@ also normalizes FastAPI native `422`/`HTTPException` shapes and gateway HTML.
 
 ## Problems
 
-Map the service's documented statuses and bodies:
+Use documented status/body semantics. Auth refresh must not loop; permission denial is not retryable
+and must leave other regions usable. A `409`/retry hint means in-flight replay only under that
+contract; other conflicts show current state beside intent. `410` does not necessarily mean API-version
+retirement. Honour documented `Retry-After`; retry failures only for safe requests.
 
-| Status | UI response |
-|---|---|
-| 401 | Auth-client sign-in or session refresh; no loop |
-| 403 | Explain the denied permission; no retry; other regions keep working |
-| 404 | Designed missing/empty state |
-| 409 with `Retry-After` | In-flight idempotent write: wait under the same key |
-| 409 without it | Show current state beside the user's conflicting intent |
-| 410 | Explain that the API version retired and the app needs upgrading |
-| 422 | Map `errors[].loc` or FastAPI `detail[].loc` to fields, show `msg` beside the field (or via `aria-describedby`), preserve input |
-| 429, 503 | Honour `Retry-After` and show the wait |
-| 5xx | Actionable error panel; retry only safe requests |
+For field errors, map `errors[].loc` or FastAPI `detail[].loc`, preserve input and associate `msg`
+with the field (`aria-describedby` where needed). Missing resources get a designed missing/empty state.
 
-The error panel shows title, detail/next step, status, time/zone and correlation ID (`request_id`
-or `X-Request-ID`), with log/trace links when configured. Keep it inside the failing region; never
-render raw JSON, stack traces or a problem `type` URI.
+Show errors inside the failing region with next step, status, time/zone and correlation ID
+(`request_id` or `X-Request-ID`); never dump raw JSON, stack traces or a problem `type` URI.
 
 ## Cursor pages
 
 For `{ data: [...], next_cursor: "..." | null }`, pass `next_cursor` verbatim as `?cursor=`.
-Show a "Load more" control and loaded count rather than a total count. Offer only
-contract-supported filters/sorts, sync shareable values to the URL and pass them to the server.
+Do not invent a total count. Use contract-supported server filters/sorts and shareable URL state.
 Deduplicate appended rows by ID. In TanStack Query:
 `initialPageParam: undefined, getNextPageParam: (last) => last.next_cursor ?? undefined`.
 
@@ -55,16 +44,17 @@ pending controls and automatic mutation retries. Honor `Retry-After` up to `maxW
 exceeded, keep pending state and reconcile without a fresh key.
 
 For `202`, poll the status resource with backoff, show progress and allow navigation away.
-Cookie-authenticated writes include the server's CSRF token or custom header (`X-Requested-With`).
+Cookie-authenticated writes follow the server's validated CSRF token/header contract; an arbitrary
+custom header is not a substitute.
 
 ## Cache and retries
 
 Include path, filters, sort, cursor and user/tenant scope in query keys. Set `staleTime` and
 refetch behaviour for the workflow; choose either polling or streaming per resource.
 
-Let the query layer own read retries (typically three with backoff, honouring `Retry-After` on
-`429`/`503` and skipping non-retryable statuses). Show `dataUpdatedAt` and stale/disconnected
-state after refresh failure. Log `Deprecation` or `Sunset` once per session.
+Let the query layer own bounded read retries, honouring `Retry-After` and skipping non-retryable
+statuses. Show `dataUpdatedAt` and stale/disconnected state after refresh failure; surface applicable
+deprecation notices without repeated noise.
 
 ## Live data
 
@@ -91,9 +81,8 @@ previous session populating the new one.
 
 ## Contract tests
 
-Use MSW 3 (`setupServer`, `http`, `HttpResponse`; note MSW 3 renamed `onUnhandledRequest` to
-`onUnhandledFrame` on `server.listen()`/`worker.start()`, though fixtures on MSW 2 still use
-`onUnhandledRequest`). MSW's `sse` handler (`msw/sse`) intercepts `EventSource` only in the
+For MSW 3, import `http`/`HttpResponse` from `msw/http`; `server.listen()`/`worker.start()` use
+`onUnhandledFrame` rather than MSW 2's `onUnhandledRequest`. Its `sse` handler (`msw/sse`) intercepts `EventSource` only in the
 browser, so use it with `setupWorker` in browser-mode tests; under Node/jsdom, test fetch-based
 streams through an `http` handler returning a `ReadableStream`. Test error panels showing
 `request_id`, API strings rendered as text, auth/permission failures, session isolation (switch

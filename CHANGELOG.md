@@ -8,6 +8,11 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `frontend-craft` references: 22,633 to 20,581 bytes. Remove generic HTTP/UI process,
+  optional menus and release chronology. Retain approved design choices and serving/security
+  contracts; correct MSW 3 imports and remove universal retry/status/CSRF, port and memory
+  assumptions. Frontend asset checks pass: 106 tests. Official MSW, typescript-eslint and OWASP
+  documentation checked; no assets changed.
 - Review `grafana` references: 106,321 to 94,561 bytes. Remove repeated UI/process narration while
   retaining helper commands and API constraints. Preserve existing short UIDs, validate new IDs
   against the selected API, and require fresh-state/single-writer checks before silence recovery.

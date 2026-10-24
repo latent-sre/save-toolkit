@@ -1,7 +1,6 @@
 # Design: an identity for every app
 
-Choose an identity for the app from its audience and work. Honour a caller-supplied brand or
-design system; otherwise record a short brief before styling:
+Honour a supplied design system; otherwise record the app's identity in a short brief:
 
 1. **Audience and job:** who uses the app, for which workflows, and under what pressure.
 2. **Archetype:** the nearest row below, or a named blend.
@@ -13,23 +12,19 @@ design system; otherwise record a short brief before styling:
 6. **Signature and motion budget:** distinguishing composition, animated transitions and
    reduced-motion behaviour.
 
-One identity per app. Set [theme.css](../assets/theme.css) knobs from the brief and build the
-shell around the first real workflow.
+Set [theme.css](../assets/theme.css) knobs from that brief, not a fleet-wide house theme.
 
 ## Catch unchosen defaults
 
 Replace accidental defaults that conflict with the brief:
 
-- **Type:** unchosen Inter, Geist, Space Grotesk, Plus Jakarta Sans, Poppins, DM Sans or system
-  stack; tracked uppercase eyebrows everywhere; gradient headlines; decorative monospace.
-- **Colour:** stock purple/blue gradients, neon on near-black, all-slate surfaces, cream/terracotta,
-  pastel washes, or brand colours indistinguishable from status colours.
-- **Layout & chrome:** centred hero + three cards regardless of the job; bento grids or metric
-  tiles as the only hierarchy; glass, card lifts/glows, scroll entrances, gradient borders, dotted
-  grids, arrows on every link, or emoji replacing a coherent icon set.
-- **Words:** marketing filler ("Welcome back", "Powerful", "Seamless"), generic "Submit" buttons,
-  apologetic errors and placeholder content. Use sentence case and active verbs ("Cancel order"
-  stays "Cancel order" through confirm and toast).
+- **Type:** unchosen stock fonts; tracked uppercase eyebrows, gradient headlines or decorative mono.
+- **Colour:** stock purple/blue gradients, neon/near-black, all-slate or pastel/terracotta palettes;
+  brand colours that collide with status colours.
+- **Layout:** automatic hero/three-card or bento layouts; decorative glass, glows, entrances,
+  gradients/dots and emoji that substitute for an intentional hierarchy/icon system.
+- **Words:** marketing filler, generic "Submit", apologetic errors and placeholders. Keep action names
+  consistent through control, confirmation and outcome (for example "Cancel order").
 
 ## Archetypes
 
@@ -49,19 +44,13 @@ fixed ok, warn, critical, info and unknown hues paired with text/icons; categori
 stay distinct. Prioritize the worst state in status lists. Right-align numeric columns with
 `tabular-nums`.
 
-Font pairings (options, variable where available):
-**IBM Plex Sans + IBM Plex Mono** (consoles/workbenches) · **Source Sans 3 + Source Code Pro**
-(compact data/forms) · **Public Sans + JetBrains Mono** (status/catalogs) · **Atkinson
-Hyperlegible Next + Commit Mono** (shared screens) · **Hanken Grotesk + Martian Mono**
-(dashboards) · **Instrument Sans + Instrument Serif** or **Fraunces/Newsreader + Source Sans 3**
-(editorial) · **Schibsted Grotesk + Fira Code** (timelines) · **Bricolage Grotesque + Albert Sans**
-(display) · **Red Hat Text + Red Hat Display** (guided workflows).
+Optional pairings: IBM Plex Sans/Mono for a workbench, Public Sans/JetBrains Mono for a catalog,
+or Instrument Sans/Serif for editorial content. Choose for the brief; these are not required fonts.
 
 ## Actions and motion
 
-Put one primary action per view where the user looks. Row/card actions appear on hover and focus
-and remain touch-accessible. Icon-only controls require accessible names and tooltips. Provide
-immediate pressed, pending and completion feedback.
+Row/card actions must work on hover, focus and touch. Icon-only controls need accessible names
+and tooltips; show pending/completed state at the action.
 
 Use theme durations (120–280 ms on opacity/transform): CSS transitions for hover/press/focus;
 `@starting-style` + `transition-behavior: allow-discrete` (or kit primitives) for dialogs/popovers;
