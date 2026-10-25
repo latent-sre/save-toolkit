@@ -95,14 +95,14 @@ class ScenarioSpecTests(unittest.TestCase):
 class ScenarioKindValidationTests(unittest.TestCase):
     def test_a_routing_scenario_may_not_pin_an_agent(self) -> None:
         spec = {"id": "r", "prompt": "unrelated", "agent": "sre-assistant",
-                "target": {"kind": "skill", "name": "runbook"},
+                "target": {"kind": "skill", "name": "operational-docs"},
                 "routing": {"expect": "fire"}}
         problems = probe_catalog.validate_scenario(spec)
         self.assertTrue(any("must not pin" in p for p in problems), problems)
 
     def test_a_routing_prompt_may_not_name_its_target(self) -> None:
-        spec = {"id": "r", "prompt": "Use the runbook skill please.",
-                "target": {"kind": "skill", "name": "runbook"},
+        spec = {"id": "r", "prompt": "Use the operational-docs skill please.",
+                "target": {"kind": "skill", "name": "operational-docs"},
                 "routing": {"expect": "fire"}}
         problems = probe_catalog.validate_scenario(spec)
         self.assertTrue(any("byte-for-byte unhinted" in p for p in problems), problems)

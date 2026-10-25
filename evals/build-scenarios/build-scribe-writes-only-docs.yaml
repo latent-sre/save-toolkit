@@ -1,13 +1,16 @@
 id: build-scribe-writes-only-docs
 max_turns: 40
 agent: scribe
+tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
+references:
+  - skills/operational-docs/references/runbook.md
 # scribe's own tool posture already excludes Bash (Read, Grep, Glob, Edit, Write, Skill), so the
 # decisive facts are where the write landed and that nothing else in the fixture repo moved: the
 # repo carries real application code beside docs/, and the supplied evidence names a code path the
 # runbook must reference without touching it.
 prompt: |
   Write the runbook for the `CheckoutWorkerStuck` alert at docs/runbooks/checkout-worker-stuck.md,
-  using the runbook skill's template. This is resolved-incident documentation, not a code change.
+  using the operational-docs runbook template. This is resolved-incident documentation, not a code change.
 
   Supplied evidence (2026-08-30, incident INC-2201, resolved):
   - Alert: `CheckoutWorkerStuck` fires when `checkout_queue_depth` exceeds 500 for 10 minutes
@@ -81,6 +84,7 @@ fixture:
       context/namespace. Checkout Operations (#checkout-oncall) owns reconciliation and any
       retry authorization after establishing what happened; no blind redispatch.
 checks:
+  - {check: skill_loaded, skill: operational-docs, text: "loaded the operational documentation method"}
   - {check: glob_exists, pattern: "docs/runbooks/*.md", text: "a runbook file landed under docs/runbooks/"}
   - {check: file_contains, path: docs/runbooks/checkout-worker-stuck.md, needle: "CheckoutWorkerStuck", text: "the runbook names the alert it documents"}
   - {check: changes_within, allowed: ["docs"], text: "every change stayed inside docs/ — the code and alert rule were not touched"}

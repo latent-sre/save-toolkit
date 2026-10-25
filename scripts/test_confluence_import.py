@@ -1,4 +1,4 @@
-"""Offline tests for skills/runbook/scripts/confluence_to_runbook.py.
+"""Offline tests for skills/operational-docs/scripts/confluence_to_runbook.py.
 
 The converter turns a human-supplied Confluence export (view/export HTML preferred; storage-format
 XHTML best-effort) into a DRAFT runbook in the template shape. The contract under test:
@@ -34,13 +34,13 @@ from unittest.mock import patch
 from testkit import frontmatter_block, load_path
 
 ROOT = Path(__file__).resolve().parents[1]
-CONVERTER = ROOT / "skills" / "runbook" / "scripts" / "confluence_to_runbook.py"
+CONVERTER = ROOT / "skills" / "operational-docs" / "scripts" / "confluence_to_runbook.py"
 # The published `schemas/runbook-frontmatter-v1.schema.json` was removed in the 2026-09-02
 # retention pass, so the template is the frontmatter contract now (see test_runbook_schema.py).
 # Pinning the converter to the template is the stronger binding anyway: the template is the file a
 # human copies, so a converter that agrees with it agrees with what runbooks actually look like.
-TEMPLATE_PATH = ROOT / "skills" / "runbook" / "assets" / "runbook-template.md"
-IMPORT_REFERENCE = ROOT / "skills" / "runbook" / "references" / "confluence-import.md"
+TEMPLATE_PATH = ROOT / "skills" / "operational-docs" / "assets" / "runbook-template.md"
+IMPORT_REFERENCE = ROOT / "skills" / "operational-docs" / "references" / "confluence-import.md"
 
 def template_frontmatter_keys() -> list[str]:
     """Top-level keys between the runbook template's first two `---` fences."""

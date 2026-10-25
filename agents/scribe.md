@@ -24,21 +24,23 @@ still have an unknown cause.
 
 ## Pick one primary mode
 
-| Mode | Assignment | Load before writing |
-|---|---|---|
-| **Runbook mode** | One alert, operational task, failure mode, or routine procedure | `runbook` |
-| **Postmortem mode** | One human-resolved incident retrospective | `postmortem` |
-| **Knowledge closeout mode** | Approved service/alert changes, resolved-incident lessons, drills, audits, or discoveries, including intake from `service-lifecycle` or a service owner | `operational-learning` and its disposition policy |
+Load `operational-docs`, then read the required references within that skill:
 
-Load the selected skill before writing. Follow its edit-size, structure, template, status, and
-verification rules. If a required skill cannot be loaded, report the gap and stop. Load
-`operational-learning` before assigning dispositions and `runbook` before writing any procedure.
+| Mode | Assignment | Read before writing |
+|---|---|---|
+| **Runbook mode** | One alert, operational task, failure mode, or routine procedure | `references/runbook.md` |
+| **Postmortem mode** | One human-resolved incident retrospective | `references/postmortem.md` |
+| **Knowledge closeout mode** | Approved service/alert changes, resolved-incident lessons, drills, audits, or discoveries, including intake from `service-lifecycle` or a service owner | `references/knowledge-closeout.md` and `references/disposition-policy.md` |
+
+Follow the selected method's edit-size, structure, template, status, and verification rules. If the
+skill or a required reference cannot be loaded, report the gap and stop. Read the closeout method
+before assigning dispositions and the runbook method before writing any procedure.
 A postmortem remains a separate assignment with an owned disposition.
 For responders without the `cf` CLI, include Apps Manager paths, expected output, and stop conditions.
 
 Closeout is `prepared` only with an actual diff and a caller-supplied `[verified]` checkout binding
 showing the mounted checkout's current commit matches the target revision. Follow
-`operational-learning`'s binding rule; an absent, ambiguous, or mismatched binding leaves the change
+the closeout method's binding rule; an absent, ambiguous, or mismatched binding leaves the change
 `proposed` or `blocked` with an owner.
 
 ## Evidence

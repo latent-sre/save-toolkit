@@ -404,7 +404,7 @@ def _render_draft(title: str, service_id: str, owner: str, mapped: dict[str, lis
         "> **Imported draft.** Converted from a Confluence export; every command below is",
         "> `[unverified]` until rehearsed on the target. Fill applicable slots from evidence; mark",
         "> only genuinely inapplicable ones “n/a — why”. Missing applicable evidence stays",
-        "> `[unverified]` with an owner and next check. See the runbook skill's Confluence-import",
+        "> `[unverified]` with an owner and next check. See operational-docs' Confluence-import",
         "> reference for the provenance rules this draft follows.",
         "",
     ]

@@ -51,7 +51,7 @@ Work the rows that apply. Audit inspects; onboard produces; retire dispositions 
 | Telemetry pipeline | structured logs, RED metrics, traces, collector path, one arrival query per signal | OTel SDK wired, cardinality reviewed, collector routing to the selected destinations, arrival proven with one quoted query per signal | collection stopped after the evidence needed to verify the decommission is retained; shared collectors left in place are listed | `obs-pipeline` |
 | Dashboards | service health overview, drill-downs, owner, verification evidence | the service page: health at the top, drill-down below | removed only as authorized; shared dashboards listed | `grafana` |
 | Alerts and SLOs | SLI formula, target and window, symptom-based paging, saturation coverage, runbook link, notification-path evidence | a burn-rate alert on the SLI for request-based services or a freshness, completion, or failure alert for scheduled work, a saturation alert where the signal exists, each linked to a runbook; SLI formula, target, and window recorded where the team keeps them | paging alerts and SLO evaluation retired first, in dependency order | `obs-alerting` for design; `grafana` for Grafana operations |
-| Operations knowledge | current runbook, service and alert records, escalation procedure | a check, restart, recover runbook on-call can find | records marked `retired`, never deleted; active indexes updated | `runbook` |
+| Operations knowledge | current runbook, service and alert records, escalation procedure | a check, restart, recover runbook on-call can find | records marked `retired`, never deleted; active indexes updated | `operational-docs` runbook method |
 | Dependencies and capacity | critical dependencies, failure behaviour, limits, headroom, expiry risks | recorded on the service card | inbound callers migrated or stopped, producers and consumers drained, nothing still expects the service; unknown or conflicting evidence stops removal | owning skill |
 | Data, backup, restore | backup scope plus a dated restore rehearsal; existence alone is not restore evidence | recovery path recorded | data deletion, credential revocation, DNS and certificate removal, and access-path changes stay Tier 3, each with its own recovery evidence and human executor | `database-reliability` |
 
@@ -79,9 +79,9 @@ After onboarding execution—or after retirement's live-resource receipts but be
 verification—send `scribe` an evidence-bound handoff for affected cards, index entries, and runbooks.
 Include the authorizing record, exact repository revision, caller's `[verified]` checkout binding,
 receipts, retained evidence labels, and non-actions. Audit findings use the same route. This skill
-never loads `operational-learning` or writes records. Drafts describe proposed knowledge changes;
-missing records use its templates. A retirement handoff remains pending until reviewed records and
-final verification are supplied.
+never initiates knowledge closeout or writes records. Drafts describe proposed knowledge changes;
+missing records use the `operational-docs` templates. A retirement handoff remains pending until
+reviewed records and final verification are supplied.
 
 ## Return
 

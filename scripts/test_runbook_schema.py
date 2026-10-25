@@ -1,6 +1,6 @@
 """The runbook-frontmatter contract: the template is the shape, the exemplar obeys it.
 
-The runbook template (skills/runbook/assets/runbook-template.md) carries machine-linkable YAML
+The runbook template (skills/operational-docs/assets/runbook-template.md) carries machine-linkable YAML
 frontmatter so alert->runbook links, KB indexes, and staleness watches can key on a published
 shape. A separate `schemas/runbook-frontmatter-v1.schema.json` published that shape until the
 2026-09-02 retention pass removed it along with `schemas/catalog-v1.json` (recover either with
@@ -31,8 +31,8 @@ from pathlib import Path
 from testkit import frontmatter_block
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE_PATH = ROOT / "skills" / "runbook" / "assets" / "runbook-template.md"
-EXAMPLE_PATH = ROOT / "skills" / "runbook" / "assets" / "runbook-example.md"
+TEMPLATE_PATH = ROOT / "skills" / "operational-docs" / "assets" / "runbook-template.md"
+EXAMPLE_PATH = ROOT / "skills" / "operational-docs" / "assets" / "runbook-example.md"
 
 
 def frontmatter_keys(path: Path) -> list[str]:

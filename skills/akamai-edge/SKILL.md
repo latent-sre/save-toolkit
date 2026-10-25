@@ -64,4 +64,4 @@ Origin leg outside an incident: `pcf-ops` or `gcp-ops` for the origin app, `obs-
 A recurring query, missing alert, or detection gap goes to `observability-engineer`. For a proposed
 property change, send the human release owner the prepared version and
 [property change packet](./references/property-config.md#property-change-packet). New durable
-operational facts route to `scribe` through the operational-learning disposition path.
+operational facts route to `scribe` through the `operational-docs` knowledge-closeout method.

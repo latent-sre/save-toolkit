@@ -53,7 +53,7 @@ flattened tables, uncopied images and unusable destinations in stdout and Refere
 and image references survive, but relative files must be transferred or paths repaired. Inspect
 missing diagrams, attachments and source sections beyond the reported counts; rendered export may
 already have omitted them. Complete missing expected outcomes, recovery and escalation from evidence
-under the parent skill's authoring rules.
+under the [runbook method](./runbook.md#procedure-requirements).
 
 ## Provenance rules
 

@@ -890,18 +890,18 @@ class PlatformAdapterTests(unittest.TestCase):
             except AttributeError as exc:
                 return f"<crashed: {exc}>"
 
-        bare = describe("skills/runbook")
-        explicit = describe("skills/runbook/SKILL.md")
-        nested = describe("skills/runbook/references/x.md")
+        bare = describe("skills/operational-docs")
+        explicit = describe("skills/operational-docs/SKILL.md")
+        nested = describe("skills/operational-docs/references/x.md")
         self.assertEqual(bare, explicit, "the two spellings of the skill itself must agree")
-        self.assertIn("`runbook` skill", bare)
+        self.assertIn("`operational-docs` skill", bare)
         self.assertIn("references/x.md", nested)
         self.assertNotEqual(bare, nested)
 
     def test_plugin_root_script_commands_require_an_installed_resource_link(self) -> None:
         for command in (
-            'python ${CLAUDE_PLUGIN_ROOT}/skills/runbook/scripts/y.py input.html',
-            'py -3 "$env:CLAUDE_PLUGIN_ROOT/skills/runbook/scripts/y.py" input.html',
+            'python ${CLAUDE_PLUGIN_ROOT}/skills/operational-docs/scripts/y.py input.html',
+            'py -3 "$env:CLAUDE_PLUGIN_ROOT/skills/operational-docs/scripts/y.py" input.html',
         ):
             with self.subTest(command=command), self.assertRaisesRegex(ValueError, "relative Markdown link"):
                 adapters.adapt_text(command)

@@ -414,21 +414,24 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_retired_learning_machinery_stays_absent(self) -> None:
         retained = (
-            Path("skills/operational-learning/SKILL.md"),
-            Path("skills/operational-learning/references/disposition-policy.md"),
-            Path("skills/operational-learning/assets/service-card-template.md"),
-            Path("skills/operational-learning/assets/alert-card-template.md"),
-            Path("skills/operational-learning/assets/knowledge-index-template.md"),
+            Path("skills/operational-docs/SKILL.md"),
+            Path("skills/operational-docs/references/disposition-policy.md"),
+            Path("skills/operational-docs/assets/service-card-template.md"),
+            Path("skills/operational-docs/assets/alert-card-template.md"),
+            Path("skills/operational-docs/assets/knowledge-index-template.md"),
         )
         retired = (
+            Path("skills/operational-learning/SKILL.md"),
+            Path("skills/runbook/SKILL.md"),
+            Path("skills/postmortem/SKILL.md"),
             Path("schemas/evidence-envelope-v1.schema.json"),
-            Path("skills/operational-learning/assets/knowledge-update-v1.schema.json"),
-            Path("skills/operational-learning/assets/knowledge-update-v2.schema.json"),
-            Path("skills/operational-learning/assets/knowledge-update-v3.schema.json"),
-            Path("skills/operational-learning/scripts/knowledge_update.py"),
-            Path("skills/operational-learning/scripts/migrate_v1_to_v2.py"),
-            Path("skills/operational-learning/scripts/migrate_v2_to_v3.py"),
-            Path("skills/operational-learning/scripts/packet_drift.py"),
+            Path("skills/operational-docs/assets/knowledge-update-v1.schema.json"),
+            Path("skills/operational-docs/assets/knowledge-update-v2.schema.json"),
+            Path("skills/operational-docs/assets/knowledge-update-v3.schema.json"),
+            Path("skills/operational-docs/scripts/knowledge_update.py"),
+            Path("skills/operational-docs/scripts/migrate_v1_to_v2.py"),
+            Path("skills/operational-docs/scripts/migrate_v2_to_v3.py"),
+            Path("skills/operational-docs/scripts/packet_drift.py"),
             Path("skills/agent-authoring/assets/fleet-improvement-v1.schema.json"),
             Path("skills/agent-authoring/references/improvement-lifecycle.md"),
             Path("scripts/validate_improvements.py"),
@@ -440,11 +443,17 @@ class FleetValidatorTests(unittest.TestCase):
         for relative in retired:
             with self.subTest(retired=relative.as_posix()):
                 self.assertFalse((ROOT / relative).exists())
-        examples = ROOT / "skills/operational-learning/assets/examples"
+        examples = ROOT / "skills/operational-docs/assets/examples"
         self.assertEqual([], sorted(examples.glob("*.json")))
         self.assertEqual([], sorted((ROOT / "evals/improvements").glob("*/record.json")))
 
-        skill = (ROOT / "skills/operational-learning/SKILL.md").read_text(encoding="utf-8").lower()
+        skill = "\n".join(
+            (ROOT / relative).read_text(encoding="utf-8")
+            for relative in (
+                "skills/operational-docs/SKILL.md",
+                "skills/operational-docs/references/knowledge-closeout.md",
+            )
+        ).lower()
         for obsolete_term in ("knowledge-update", "packet drift", "sha-256"):
             with self.subTest(obsolete_term=obsolete_term):
                 self.assertNotIn(obsolete_term, skill)
@@ -472,16 +481,16 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_operational_templates_use_reviewable_provenance_not_retired_ids(self) -> None:
         expected_provenance = {
-            Path("skills/operational-learning/assets/service-card-template.md"): (
+            Path("skills/operational-docs/assets/service-card-template.md"): (
                 "| Date | PR / revision / evidence reference | Change | Reviewer |"
             ),
-            Path("skills/operational-learning/assets/alert-card-template.md"): (
+            Path("skills/operational-docs/assets/alert-card-template.md"): (
                 "| Date | PR / revision / evidence reference | Change | Reviewer |"
             ),
-            Path("skills/operational-learning/assets/knowledge-index-template.md"): (
+            Path("skills/operational-docs/assets/knowledge-index-template.md"): (
                 "| PR / revision / evidence reference | Trigger | Summary | Dispositions | Reviewed change |"
             ),
-            Path("skills/runbook/assets/runbook-template.md"): (
+            Path("skills/operational-docs/assets/runbook-template.md"): (
                 "- Provenance: <PR, target revision, and evidence references>"
             ),
         }
@@ -496,8 +505,8 @@ class FleetValidatorTests(unittest.TestCase):
     def test_prepared_requires_verified_checkout_revision_binding(self) -> None:
         contract_paths = (
             Path("agents/scribe.md"),
-            Path("skills/operational-learning/SKILL.md"),
-            Path("skills/operational-learning/references/disposition-policy.md"),
+            Path("skills/operational-docs/references/knowledge-closeout.md"),
+            Path("skills/operational-docs/references/disposition-policy.md"),
         )
         for relative in contract_paths:
             text = normalized((ROOT / relative).read_text(encoding="utf-8"))
@@ -508,7 +517,7 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertIn("`blocked`", text)
 
     def test_closeout_accepts_short_ids_without_guessing_checkout_identity(self) -> None:
-        text = _markdown_section(Path("skills/operational-learning/SKILL.md"), "## Close the loop")
+        text = _markdown_section(Path("skills/operational-docs/references/knowledge-closeout.md"), "## Close the loop")
         for phrase in (
             "`git rev-parse --short=8 head`",
             "uniqueness",
@@ -529,13 +538,13 @@ class FleetValidatorTests(unittest.TestCase):
 
     def test_closeout_contracts_bind_sender_roots_and_disposition_homes(self) -> None:
         expectations = {
-            Path("skills/operational-learning/SKILL.md"): (
-                "never derives the binding from `.git/` contents",
+            Path("skills/operational-docs/references/knowledge-closeout.md"): (
+                "never derives binding from `.git/` contents",
                 "never `agents/`, `skills/`, `hooks/`, `.github/`, `.claude/`, or a fleet guide",
-                "the `[verified]` checkout binding or its absence",
+                "target, revision, checkout binding or its absence",
                 "alert changes disposition the alert card, service card, knowledge index, and runbook",
             ),
-            Path("skills/operational-learning/references/disposition-policy.md"): (
+            Path("skills/operational-docs/references/disposition-policy.md"): (
                 "an audit finds an operational gap on an otherwise unchanged component",
                 "open knowledge gaps",
                 "whenever no such diff can be prepared",
@@ -544,7 +553,7 @@ class FleetValidatorTests(unittest.TestCase):
                 "fill only from the evidence that moves `last_reviewed`",
                 "authorized roots only when the caller names none",
             ),
-            Path("skills/operational-learning/assets/knowledge-index-template.md"): (
+            Path("skills/operational-docs/assets/knowledge-index-template.md"): (
                 "| service | lifecycle | owner |",
                 "| exact alert name | status | service |",
             ),
@@ -587,7 +596,7 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("only that owner updates the definition", body)
 
     def test_runbook_template_does_not_upgrade_last_verified_without_evidence(self) -> None:
-        template = (ROOT / "skills/runbook/assets/runbook-template.md").read_text(
+        template = (ROOT / "skills/operational-docs/assets/runbook-template.md").read_text(
             encoding="utf-8"
         )
         self.assertNotIn("bump `last_verified`", template)

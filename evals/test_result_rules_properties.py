@@ -348,7 +348,7 @@ class RescoreDiffProperties(unittest.TestCase):
 
 
 TOOL_INPUTS = {
-    "Skill": {"skill": "save-toolkit:runbook"}, "Bash": {"command": "python -m pytest -q"},
+    "Skill": {"skill": "save-toolkit:operational-docs"}, "Bash": {"command": "python -m pytest -q"},
     "PowerShell": {"command": "Get-ChildItem"}, "Task": {"subagent_type": "save-toolkit:scribe"},
     "Agent": {"subagent_type": "save-toolkit:researcher"}, "Read": {"file_path": "/tmp/notes.md"},
     "Grep": {"pattern": "todo", "path": "."}, "Glob": {"pattern": "*.py"}, "Write": {"file_path": "a.py"},
@@ -463,7 +463,7 @@ class GradingHelperProperties(unittest.TestCase):
 BUILD = {"id": "case", "agent": "software-engineer", "prompt": "do the thing", "max_turns": 20,
          "fixture": {"files": {"README.md": "# tiny\n"}}, "checks": [{"check": "no_new_commits"}]}
 CONTRACT = {"id": "case", "agent": "sre-assistant", "prompt": "p", "max_turns": 20, "graders": [{"type": "contains_any", "of": ["x"]}]}
-ROUTING = {"id": "case", "prompt": "Latency tripled on checkout.", "max_turns": 20, "target": {"kind": "skill", "name": "runbook"},
+ROUTING = {"id": "case", "prompt": "Latency tripled on checkout.", "max_turns": 20, "target": {"kind": "skill", "name": "operational-docs"},
            "routing": {"expect": "fire"}}
 NATIVE = {"id": "case", "agent": "reliability-engineer", "prompt": "Help me investigate.", "max_turns": 20,
           "tools": ["Skill", "Read", "Task"], "fixture": {"files": {"evidence.md": "x"}},
@@ -496,7 +496,7 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
      ["case: missing key 'prompt'", "case: prompt must be a non-empty string"]),
     ("unsafe id", _changed(BUILD, id="Eval One"), ["case: id must be a canonical lowercase slug, got 'Eval One'"]),
     ("build without an agent", _changed(BUILD, agent=DROP), ["case: a build scenario must pin `agent`"]),
-    ("agent and skill", _changed(BUILD, skill="runbook"), ["case: pin `agent` or `skill`, not both"]),
+    ("agent and skill", _changed(BUILD, skill="operational-docs"), ["case: pin `agent` or `skill`, not both"]),
     ("empty tools", _changed(BUILD, tools=[]), ["case: tools must be a non-empty list of tool names"]),
     ("unknown split", _changed(BUILD, split="train"), ["case: split must be one of ['calibration', 'regression']"]),
     ("empty success criteria", _changed(BUILD, success_criteria=[]),
@@ -618,9 +618,9 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
      ["case: a scenario with `references` must grant the Read tool in `tools`"]),
     ("escaping reference", _changed(CONTRACT, references=["../x.md"], tools=["Read"]),
      ["case: references must be a non-empty list of repo-relative paths"]),
-    ("target without routing", _changed(CONTRACT, target={"kind": "skill", "name": "runbook"}),
+    ("target without routing", _changed(CONTRACT, target={"kind": "skill", "name": "operational-docs"}),
      ["case: `target` belongs to a routing scenario"]),
-    ("routing prompt names its target", _changed(ROUTING, prompt="Use the runbook."),
+    ("routing prompt names its target", _changed(ROUTING, prompt="Use operational-docs."),
      ["case: routing prompt names its target; it must be byte-for-byte unhinted"]),
     ("routing pins an agent", _changed(ROUTING, agent="sre-assistant"),
      ["case: a routing scenario runs the main session and must not pin `agent`"]),
@@ -631,7 +631,7 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
     ("lowered threshold on a negative", _changed(ROUTING, routing={"expect": "not_fire", "expected_alternative": "inline"},
                                                  threshold=0.5),
      ["case: not_fire scenarios are zero-tolerance; threshold must be 1 (it applies to positives only)"]),
-    ("unknown target key", _changed(ROUTING, target={"kind": "skill", "name": "runbook", "x": 1}),
+    ("unknown target key", _changed(ROUTING, target={"kind": "skill", "name": "operational-docs", "x": 1}),
      ["case: target has unknown key(s): x"]),
     ("unknown routing key", _changed(ROUTING, routing={"expect": "fire", "why": 1}),
      ["case: routing has unknown key(s): why"]),
