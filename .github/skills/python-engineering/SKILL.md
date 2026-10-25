@@ -1,6 +1,6 @@
 ---
 name: python-engineering
-description: "Build, change, refactor, or modernize Python with verified results: new scripts, CLIs, services, libraries, and components; restructuring, decomposition, and cross-module moves; dependency, packaging, and toolchain changes; typing, testing, and code-quality improvements; reviews of Python code or design; and explanations of what Python code does. Load before writing or editing Python source, tests, pyproject.toml, requirements, or lockfiles. Triggers: 'refactor this Python module', 'start a new Python CLI', 'replace this hand-written code with a library', 'upgrade our Python dependencies'. Not for operating or troubleshooting a running service, or for code in other languages."
+description: "Build, change, refactor, or modernize Python with verified results: new scripts, CLIs, services, libraries, and components; restructuring, decomposition, and cross-module moves; dependency, packaging, and toolchain changes; typing, testing, and code-quality improvements; and reviews of Python code or design. Load before writing or editing Python source, tests, pyproject.toml, requirements, or lockfiles. Triggers: 'refactor this Python module', 'start a new Python CLI', 'replace this hand-written code with a library', 'upgrade our Python dependencies'. Not for operating or troubleshooting a running service, or for code in other languages."
 ---
 
 # Python engineering

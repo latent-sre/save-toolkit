@@ -11,8 +11,9 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 - Replace `python-craft` with `python-engineering`, a skill that covers new code, deliberate
   improvement of existing code, and the refactoring process, with routed references for starting
   code, a 19-recipe refactoring playbook, transformation tools, dependencies, and quality gates.
-  `software-engineer` now loads it for Python. Port python-craft's 13 build cases, 6 routing cases,
-  and 2 judgment scenarios to the new skill (build prompts now name the skill to load); keep their
+  `software-engineer` now loads it for Python. Port python-craft's 13 build cases, 5 routing cases,
+  and 2 judgment scenarios to the new skill; retire `discovery-python-explanation`, which failed
+  0/3 with python-craft on main as well (build prompts now name the skill to load); keep their
   oracles and calibration tests. Add 12 build cases and 6 routing cases with calibrated oracles.
   Sonnet bake-off with a neutral agent, 2 trials per case (6 on two cases): python-engineering
   46/58, python-craft 43/58, placebo 42/58, excluding the `verification_completed` timing check.
