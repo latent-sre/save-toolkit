@@ -36,6 +36,11 @@ the convenient one. Source-only work can establish a conditional risk, not curre
 3. Trace **trigger -> component behavior -> propagation -> user effect -> protection -> recovery**.
    Record the existing controls and seek counter-evidence: overall deadlines, cancellation,
    admission limits, replay/deduplication, failover capacity, or a deliberately accepted degraded mode.
+   For retrying code, explain which returns reach another call and which exceptions exit or are
+   handled. Count total calls separately from retries. Distinguish requested timeouts from enforced
+   durations; check backoff and cancellation before claiming a time or slot-occupancy bound.
+   A timeout sum alone proves neither bound.
+   If client behavior is unknown, give the conditional paths instead of assuming a timeout retries.
 4. Choose the smallest observation or controlled experiment that distinguishes the remaining
    explanations. An inaccessible source or failed query leaves a gap. Do not claim an alternative
    ruled out because it was not observed, nor trigger a production fault to demonstrate a risk.
@@ -76,10 +81,8 @@ independent change review and live execution retain their existing owners.
 For calculations, show units, measured versus assumed inputs, the equation, uncertainty and validity
 conditions. Account for shared demand and failure capacity. Use existing permitted calculators when
 available; no tool capability may be invented. A model estimate is not measured load-test evidence.
-For retry timing, distinguish retries from total attempts and requested timeouts from enforced
-durations. Trace false returns, exceptions, backoff and cancellation before claiming a time bound;
-a timeout sum alone bounds neither elapsed time nor slot occupancy. A concurrency limit protects
-shared capacity only if admission or waiting does not retain the slots being reserved.
+A concurrency limit protects shared capacity only if admission or waiting does not retain the
+slots being reserved.
 
 Verification names the target/version, stimulus, expected user and resource behavior, discriminating
 measurements, bounds/stop conditions, and recovery checks. To verify an admission or isolation control,

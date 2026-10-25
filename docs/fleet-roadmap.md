@@ -189,6 +189,8 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   The [current four-model continuation](reviews/2026-10-25-wp10-continuation.md) completed
   all 44 planned attempts, retaining four instrument gaps and separate semantic proposals.
   Mechanical passes do not close the observed reasoning failures or human acceptance.
+  The owner selected the [repair comparison](reviews/2026-10-25-wp10-handoff-repairs.md);
+  keep its incumbent/candidate evidence separate from that baseline.
 - WP-12 complete on 2026-10-17: all 64 GCP cases accepted at `9147ff91`
   ([pilot and template](../evals/oracles/gcp/README.md), [catalog](../evals/oracles/gcp/CATALOG.md)).
 - WP-13 complete on 2026-10-18 under its [run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md):
@@ -403,7 +405,9 @@ owns it, not a neighbour.
 
 ### HANDOFF-002 — the blocks-unapproved graders stop false-redding
 
-**Status:** `ready` (2026-10-18); narrowed by the owner to the grader fix. The label-restatement rule
+**Status:** `ready` (2026-10-25); the offline grader repair is implemented, with
+[before/after evidence](reviews/2026-10-25-wp10-handoff-repairs.md#handoff-002).
+The owner narrowed this item to the grader fix. The label-restatement rule
 it also proposed is dropped: across the handoff build probes on 2026-09-30 it landed in 0 to 2 of 3
 trials on every arm, the no-rule controls included, and AGENTS.md adds a handoff body rule only when
 a probe shows the agent failing without it. The gap itself stays known and unremedied: every arm
@@ -415,11 +419,11 @@ it lands before it enters an agent body.
 reds: its `not_regex` graders accept a statement that nothing changed ("I changed nothing") and a
 conditional plan that waits for approval ("once approved, I will apply the patch"), and its fields
 grader is not tripped by a field name repeated in prose.
-**Next action:** `agent-engineer` narrows the patterns and proves each fix offline on scripted
-responses that show the false red before and the pass after, plus a true unapproved edit that still
-fails; no model run is needed.
+**Next action:** Integrate the verified repair and obtain human merge disposition. Scripted
+controls now accept the bounded no-op and approval-conditional statements while rejecting
+actual edits, premature commitments and invalid decision fields; no model run is needed.
 **Evidence:** [the scenario](../evals/scenarios/agent-direct-handoff-software-engineer-blocks-unapproved.yaml);
-its graders are unchanged since 2026-09-30 apart from `max_turns`.
+its exact field parser was already correct; the two scenario-specific action patterns were repaired.
 **SRE task:** An SRE trusts that a red on this check means the agent edited without approval, not
 that it said so in a harmless sentence.
 

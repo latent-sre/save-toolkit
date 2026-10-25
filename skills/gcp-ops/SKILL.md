@@ -64,13 +64,19 @@ After listing revisions, inspect one with
 `gcloud run revisions describe <revision> --region <region> --project <project>`.
 As with `cf events`, a revision near symptom onset is a hypothesis, not proof of cause.
 
-For startup failures, compare the last observed successful start with the failing starts: revision,
-time, warm-up duration, dependency errors and evidence that listening actually began. Include new
-instances of the serving revision; its earlier ready state does not establish current startup
-capacity. A configured or logged bind address alone does not prove an open listener. If a shared
-dependency delays startup, return the dependency-owner check, serving-revision startup/capacity and
-request-error monitoring, and the recovery evidence needed before the release owner considers
-another attempt. Missing comparisons or recovery evidence stay explicit gaps.
+### Startup failures
+
+Compare three observations explicitly: the last successful start, the failed revision's starts,
+and new starts of the serving revision. For each, retain its UTC time, warm-up duration, dependency
+errors and whether listening actually began; mark unavailable observations as gaps. An earlier
+ready state does not establish current startup capacity, and a configured or logged bind address
+does not prove an open listener. Revision-level successful requests do not identify which instances
+served them; do not assign them to existing or newly started instances without that evidence.
+
+When a shared dependency delays startup, return who checks that dependency and over which observed
+interval, how the serving revision's new starts/capacity and request errors should be monitored,
+and the recovery evidence needed before the release owner considers another attempt. Keep missing
+comparisons, current capacity and recovery evidence explicit.
 
 ## Logs — guard-safe filter shapes
 

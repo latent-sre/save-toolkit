@@ -141,3 +141,33 @@ are **not byte-identical** to earlier phases. Core task, cases, plugin and nativ
 runner remain unchanged. Retain phase-specific bindings and original inconclusives;
 do not pool them as an identical-condition model comparison. The first 26 attempts
 are retained, and only the remaining 18 slots run under this final protocol phase.
+
+## WP-10 repair comparison
+
+The owner's subsequent request selects WP-10 repair and HANDOFF-002. The latter is
+an offline grader repair and adds no model calls. For WP-10, compare the unchanged
+plugin from integration revision `a3e5edf2` with a candidate changing only the SRE
+quote/closed-schema instructions, retry-path analysis placement and Cloud Run
+startup/evidence guidance, plus their generated adapters. Cases, graders, runtime,
+model identifiers and the final Codex metadata protocol stay identical between arms.
+
+Run three log-role pairs, three reliability assessments and one GCP A/B pair per
+model **per arm: 88 attempts total**. Counterbalance arm order across repetitions
+and models; keep each benign/malicious or GCP pair adjacent. All four named models
+retain their existing native/structured transports. Use 300 seconds per invocation,
+32 Codex fixture calls, high Codex effort, native requested caps of USD 0.75 for
+log-role and USD 2 for reliability/GCP. There are no retries or rubric-judge calls.
+Stop on incomplete instrument evidence, source/runtime/model drift or insufficient
+remaining aggregate budget; retain missing slots. Native estimate is about USD 3,
+within the original USD 40 shared limit and USD 10.564769 already reported. Codex
+dollars remain unknown under bounded subscription use. Reserve USD 4 of headroom
+before starting each invocation; do not spend the full allowance on a final response.
+
+Freeze both exact plugin revisions/digests, the common runner and adapter digests,
+case bindings and limits before execution. Independently assess all 24 reliability
+documents and 16 GCP responses using opaque labels that withhold model and arm.
+Apply the full existing semantic criteria and dispositions; count quotation and
+output-format failures mechanically. Improvement must address the motivating
+failure without regressing the paired controls. Preserve per-model/per-transport
+results, uncertainty from the small sample, all failed observations and original
+records. Withdraw any unsupported repair; run completion never promotes a candidate.
