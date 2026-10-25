@@ -1,4 +1,4 @@
-"""Tests for symbols module."""
+"""Unit tests for parse_venue_symbol in symbols."""
 
 import pytest
 
@@ -6,50 +6,59 @@ from symbols import parse_venue_symbol
 
 
 @pytest.mark.parametrize(
-    ("raw", "expected_venue", "expected_symbol"),
+    ("raw", "expected"),
     [
-        ("NYSE:AAPL", "NYSE", "AAPL"),
-        ("  NASDAQ:MSFT  ", "NASDAQ", "MSFT"),
-        ("CBOE : SPX500", "CBOE", "SPX500"),
-        ("\tLSE:VOD\n", "LSE", "VOD"),
-        ("V1:S2", "V1", "S2"),
-        ("123:456", "123", "456"),
+        ("NASDAQ:AAPL", ("NASDAQ", "AAPL")),
+        ("  NASDAQ:AAPL  ", ("NASDAQ", "AAPL")),
+        ("NASDAQ : AAPL", ("NASDAQ", "AAPL")),
+        ("  XNYS  :  MSFT  ", ("XNYS", "MSFT")),
+        ("XNYS:BTC1", ("XNYS", "BTC1")),
+        ("CEX1:ETH2", ("CEX1", "ETH2")),
+        ("A:B", ("A", "B")),
+        ("123:456", ("123", "456")),
+        ("BINANCE:BTCUSDT", ("BINANCE", "BTCUSDT")),
     ],
 )
-def test_parse_venue_symbol_valid(raw, expected_venue, expected_symbol):
-    assert parse_venue_symbol(raw) == (expected_venue, expected_symbol)
+def test_parse_venue_symbol_valid(raw: str, expected: tuple[str, str]) -> None:
+    assert parse_venue_symbol(raw) == expected
 
 
 @pytest.mark.parametrize(
-    "invalid_input",
+    "raw",
     [
+        "NASDAQ_AAPL",
+        "NASDAQ",
         "",
         "   ",
-        "NYSEAAPL",
-        "NYSE:AAPL:EXTRA",
+        "NASDAQ:AAPL:EXTRA",
+        "A:B:C",
+        "::",
         ":AAPL",
-        "NYSE:",
+        "  :AAPL",
+        " : AAPL",
+        "NASDAQ:",
+        "NASDAQ:  ",
+        "NASDAQ : ",
         ":",
         "   :   ",
-        "nyse:AAPL",
-        "NYSE:aapl",
-        "Nyse:Aapl",
-        "NY-SE:AAPL",
-        "NYSE:AA.PL",
-        "NY SE:AAPL",
-        "NYSE:AA PL",
-        "NYSE:AAPL!",
-        "NŸSE:AAPL",
-        "NYSE:AÁPL",
+        "nasdaq:AAPL",
+        "NASDAQ:aapl",
+        "Nasdaq:AAPL",
+        "NAS-DAQ:AAPL",
+        "NASDAQ:AAPL-US",
+        "NASDAQ:AAPL.US",
+        "NASDAQ:BTC/USD",
+        "NÄSDAQ:AAPL",
+        "NASDAQ:ÄÄPL",
+        "NASDAQ:ÉTH",
     ],
 )
-def test_parse_venue_symbol_invalid(invalid_input):
+def test_parse_venue_symbol_invalid(raw: str) -> None:
     with pytest.raises(ValueError):
-        parse_venue_symbol(invalid_input)
+        parse_venue_symbol(raw)
 
 
-def test_parse_venue_symbol_non_string():
-    with pytest.raises(ValueError):
-        parse_venue_symbol(None)  # type: ignore[arg-type]
-    with pytest.raises(ValueError):
-        parse_venue_symbol(12345)  # type: ignore[arg-type]
+def test_parse_venue_symbol_non_string() -> None:
+    for non_str in [None, 123, ["NASDAQ", "AAPL"], {"venue": "NASDAQ"}]:
+        with pytest.raises(ValueError):
+            parse_venue_symbol(non_str)  # type: ignore[arg-type]

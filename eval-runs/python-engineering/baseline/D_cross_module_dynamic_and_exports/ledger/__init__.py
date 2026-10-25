@@ -1,4 +1,4 @@
-"""Ledger package."""
+"""Ledger package exports."""
 
 from ledger.core import AccountLedger
 from ledger.reconciliation import Discrepancy, reconcile_positions

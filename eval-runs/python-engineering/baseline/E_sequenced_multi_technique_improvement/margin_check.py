@@ -1,76 +1,56 @@
-from collections.abc import Sequence
-from dataclasses import dataclass
-from decimal import Decimal
+"""Margin calculation and concentration check utilities."""
 
-_MARGIN_ALERTS: list[str] = []
+from decimal import Decimal
+from typing import Any
 
 MARGIN_RATES: dict[str, Decimal] = {
-    'EQUITY': Decimal('0.25'),
-    'OPTION': Decimal('0.50'),
-    'FUTURE': Decimal('0.10'),
+    "EQUITY": Decimal("0.25"),
+    "OPTION": Decimal("0.50"),
+    "FUTURE": Decimal("0.10"),
 }
 
+CONCENTRATION_THRESHOLD = Decimal("0.50")
 
-@dataclass(frozen=True)
-class Position:
-    symbol: str
-    instrument_type: str
-    quantity: Decimal
-    price: Decimal
-
-    @property
-    def notional(self) -> Decimal:
-        return abs(self.quantity) * self.price
+# Kept for backward compatibility; calls to evaluate_csv_lines remain isolated.
+_MARGIN_ALERTS: list[str] = []
 
 
-def parse_csv_line(line: str) -> Position:
-    parts = [p.strip() for p in line.split(',')]
-    if len(parts) != 4:
-        raise ValueError(f'malformed row: {line}')
-    sym, kind, qty_s, price_s = parts
-    return Position(
-        symbol=sym,
-        instrument_type=kind,
-        quantity=Decimal(qty_s),
-        price=Decimal(price_s),
-    )
+def evaluate_csv_lines(lines: list[str], account_equity: Decimal) -> dict[str, Any]:
+    """Evaluate CSV position lines and calculate margin requirements.
 
+    Args:
+        lines: List of CSV lines formatted as 'symbol,instrument_type,quantity,price'.
+        account_equity: Total account equity as Decimal.
 
-def parse_csv_lines(lines: Sequence[str]) -> list[Position]:
-    return [parse_csv_line(line) for line in lines]
+    Returns:
+        dict containing 'required_margin', 'Excess', and 'alerts'.
 
+    Raises:
+        ValueError: If a row is malformed or an instrument type is unsupported.
+    """
+    alerts: list[str] = []
+    required = Decimal("0.00")
 
-class MarginEvaluator:
-    def __init__(self) -> None:
-        self.alerts: list[str] = []
+    for line in lines:
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) != 4:
+            raise ValueError(f"malformed row: {line}")
 
-    def evaluate_positions(
-        self, positions: Sequence[Position], account_equity: Decimal
-    ) -> dict[str, object]:
-        self.alerts.clear()
-        required = Decimal('0.00')
-        concentration_threshold = account_equity * Decimal('0.50')
+        sym, kind, qty_s, price_s = parts
 
-        for pos in positions:
-            rate = MARGIN_RATES.get(pos.instrument_type)
-            if rate is None:
-                raise ValueError(f'unsupported instrument_type: {pos.instrument_type}')
-            req = pos.notional * rate
-            required += req
-            if req > concentration_threshold:
-                self.alerts.append(f'CONCENTRATION:{pos.symbol}')
+        rate = MARGIN_RATES.get(kind)
+        if rate is None:
+            raise ValueError(f"unsupported instrument_type: {kind}")
 
-        return {
-            'required_margin': required,
-            'Excess': account_equity - required,
-            'alerts': list(self.alerts),
-        }
+        notional = abs(Decimal(qty_s)) * Decimal(price_s)
+        req = notional * rate
+        required += req
 
+        if req > account_equity * CONCENTRATION_THRESHOLD:
+            alerts.append(f"CONCENTRATION:{sym}")
 
-def evaluate_csv_lines(lines: list[str], account_equity: Decimal) -> dict[str, object]:
-    positions = parse_csv_lines(lines)
-    evaluator = MarginEvaluator()
-    result = evaluator.evaluate_positions(positions, account_equity)
-    _MARGIN_ALERTS.clear()
-    _MARGIN_ALERTS.extend(evaluator.alerts)
-    return result
+    return {
+        "required_margin": required,
+        "Excess": account_equity - required,
+        "alerts": alerts,
+    }

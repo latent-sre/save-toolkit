@@ -1,55 +1,76 @@
-"""Order payload validation schema using Pydantic v2."""
-
-from __future__ import annotations
+"""Order payload validation schema."""
 
 from decimal import Decimal
 from typing import Any
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictInt
-
-__all__ = ["Order", "validate_order"]
-
-
-class Order(BaseModel):
-    """Validated order model.
-
-    Rejects extra fields, non-positive quantities, non-positive or overly precise
-    limit prices, and naive datetimes.
-    """
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    order_id: str = Field(min_length=1, description="Unique identifier for the order")
-    symbol: str = Field(min_length=1, description="Ticker symbol")
-    quantity: StrictInt = Field(
-        gt=0, description="Order quantity, strictly positive integer"
-    )
-    limit_price: Decimal = Field(
-        gt=Decimal(0),
-        decimal_places=2,
-        description="Limit price, strictly positive with max 2 decimal places",
-    )
-    submitted_at: AwareDatetime = Field(
-        description="Submission timestamp, must include timezone info",
-    )
-    tags: list[str] = Field(
-        default_factory=list,
-        description="List of tag strings associated with the order",
-    )
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictInt,
+    field_validator,
+)
 
 
-def validate_order(payload: str | bytes | dict[str, Any]) -> Order:
-    """Validate incoming JSON order payload.
+class OrderPayload(BaseModel):
+    """Validated order payload data structure."""
 
-    Args:
-        payload: JSON-encoded string, UTF-8 bytes, or pre-parsed dictionary.
+    model_config = ConfigDict(frozen=True)
 
-    Returns:
-        Validated immutable Order instance.
+    order_id: str
+    symbol: str
+    quantity: StrictInt = Field(gt=0)
+    limit_price: Decimal = Field(gt=0, decimal_places=2)
+    submitted_at: AwareDatetime
+    tags: list[str]
+
+    @field_validator("order_id")
+    @classmethod
+    def validate_order_id(cls, v: str) -> str:
+        if not isinstance(v, str):
+            raise ValueError("order_id must be a string")
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("order_id cannot be empty or whitespace-only")
+        return stripped
+
+    @field_validator("symbol")
+    @classmethod
+    def validate_symbol(cls, v: str) -> str:
+        if not isinstance(v, str):
+            raise ValueError("symbol must be a string")
+        if not v or not v.isascii() or not v.isupper():
+            raise ValueError("symbol must be non-empty uppercase ASCII")
+        return v
+
+    @field_validator("limit_price", mode="before")
+    @classmethod
+    def reject_float_limit_price(cls, v: object) -> object:
+        if isinstance(v, float):
+            raise ValueError("limit_price must not be a binary float")
+        return v
+
+    def __getitem__(self, item: str) -> Any:
+        try:
+            return getattr(self, item)
+        except AttributeError:
+            raise KeyError(item) from None
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return getattr(self, key, default)
+
+    def __contains__(self, key: object) -> bool:
+        return isinstance(key, str) and hasattr(self, key)
+
+
+def validate_order_payload(payload: dict[str, object]) -> OrderPayload:
+    """Validate incoming order payload against schema rules.
 
     Raises:
-        pydantic.ValidationError: If payload fails validation constraints.
+        TypeError: If payload is not a dict.
+        pydantic.ValidationError: If payload violates schema constraints.
     """
-    if isinstance(payload, (str, bytes)):
-        return Order.model_validate_json(payload)
-    return Order.model_validate(payload)
+    if not isinstance(payload, dict):
+        raise TypeError(f"payload must be a dict, got {type(payload).__name__}")
+    return OrderPayload.model_validate(payload)

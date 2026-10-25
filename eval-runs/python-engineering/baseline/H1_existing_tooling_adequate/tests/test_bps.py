@@ -5,32 +5,34 @@ import pytest
 from bps import clamp_bps
 
 
-def test_clamp_bps_within_ceiling() -> None:
-    assert clamp_bps(0) == 0
-    assert clamp_bps(100) == 100
-    assert clamp_bps(499) == 499
+def test_clamp_below_ceiling() -> None:
+    assert clamp_bps(250) == 250
+
+
+def test_clamp_at_ceiling() -> None:
     assert clamp_bps(500) == 500
 
 
-def test_clamp_bps_exceeding_ceiling() -> None:
-    assert clamp_bps(501) == 500
-    assert clamp_bps(1000) == 500
+def test_clamp_above_ceiling() -> None:
+    assert clamp_bps(750) == 500
 
 
-def test_clamp_bps_custom_ceiling() -> None:
-    assert clamp_bps(50, ceiling=200) == 50
-    assert clamp_bps(250, ceiling=200) == 200
+def test_clamp_with_custom_ceiling() -> None:
+    assert clamp_bps(150, ceiling=100) == 100
+    assert clamp_bps(50, ceiling=100) == 50
 
 
-def test_clamp_bps_negative_value_raises() -> None:
-    with pytest.raises(ValueError, match="value must be non-negative"):
+def test_clamp_zero_value() -> None:
+    assert clamp_bps(0) == 0
+
+
+def test_clamp_negative_value_raises() -> None:
+    with pytest.raises(ValueError, match="non-negative"):
         clamp_bps(-1)
-    with pytest.raises(ValueError, match="value must be non-negative"):
-        clamp_bps(-100)
 
 
-def test_clamp_bps_non_positive_ceiling_raises() -> None:
-    with pytest.raises(ValueError, match="ceiling must be positive"):
+def test_clamp_zero_or_negative_ceiling_raises() -> None:
+    with pytest.raises(ValueError, match="strictly positive"):
         clamp_bps(100, ceiling=0)
-    with pytest.raises(ValueError, match="ceiling must be positive"):
-        clamp_bps(100, ceiling=-50)
+    with pytest.raises(ValueError, match="strictly positive"):
+        clamp_bps(100, ceiling=-10)

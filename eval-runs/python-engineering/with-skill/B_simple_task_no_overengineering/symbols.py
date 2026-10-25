@@ -1,52 +1,53 @@
-"""Symbol parsing utilities."""
+"""Symbol parsing and validation utilities."""
 
 from __future__ import annotations
 
-import string
-
 __all__ = ["parse_venue_symbol"]
 
-_VALID_CHARS = frozenset(string.ascii_uppercase + string.digits)
+
+def _is_uppercase_ascii_alnum(value: str) -> bool:
+    """Return True if value is a non-empty uppercase ASCII alphanumeric string."""
+    return bool(value) and value.isascii() and value.isalnum() and value.isupper()
 
 
 def parse_venue_symbol(raw: str) -> tuple[str, str]:
-    """Parse and validate a 'VENUE:SYMBOL' string.
+    """Parse a venue-qualified symbol of the form `'VENUE:SYMBOL'`.
 
-    Splits the string on a single colon, strips surrounding whitespace from both
-    parts, and validates that both parts are non-empty uppercase ASCII alphanumeric
-    strings.
+    Splits on a single colon, strips surrounding whitespace from both parts,
+    and validates that both venue and symbol are non-empty uppercase ASCII
+    alphanumeric strings.
 
-    Parameters:
-        raw: Input string in 'VENUE:SYMBOL' format.
+    Args:
+        raw: Input string formatted as `'VENUE:SYMBOL'`.
 
     Returns:
-        A tuple of (venue, symbol).
+        A tuple of `(venue, symbol)`.
 
     Raises:
-        ValueError: If input is not a string, does not contain exactly one colon,
-            or either part is empty or contains non-uppercase ASCII alphanumeric characters.
+        ValueError: If `raw` does not contain exactly one colon, or either part
+            fails the non-empty uppercase ASCII alphanumeric validation.
     """
     try:
         parts = raw.split(":")
-    except (AttributeError, TypeError) as err:
-        raise ValueError(f"Expected string input, got {type(raw).__name__}") from err
+    except AttributeError as err:
+        raise ValueError(f"Input must be a string, got {type(raw).__name__}") from err
 
     if len(parts) != 2:
         raise ValueError(
-            f"Expected a single colon separating venue and symbol, got {len(parts) - 1} colons in {raw!r}"
+            f"Invalid venue symbol format, expected exactly one colon separator: {raw!r}"
         )
 
     venue = parts[0].strip()
     symbol = parts[1].strip()
 
-    if not venue or not all(c in _VALID_CHARS for c in venue):
+    if not _is_uppercase_ascii_alnum(venue):
         raise ValueError(
-            f"Venue must be a non-empty uppercase ASCII alphanumeric string, got {venue!r}"
+            f"Venue must be a non-empty uppercase ASCII alphanumeric string, got: {venue!r}"
         )
 
-    if not symbol or not all(c in _VALID_CHARS for c in symbol):
+    if not _is_uppercase_ascii_alnum(symbol):
         raise ValueError(
-            f"Symbol must be a non-empty uppercase ASCII alphanumeric string, got {symbol!r}"
+            f"Symbol must be a non-empty uppercase ASCII alphanumeric string, got: {symbol!r}"
         )
 
     return venue, symbol

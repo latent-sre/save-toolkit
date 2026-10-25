@@ -1,142 +1,159 @@
-"""Tests for order_schema module."""
+"""Unit tests for validate_order_payload in order_schema."""
 
-import json
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
 from pydantic import ValidationError
 
-from order_schema import Order, OrderPayload, OrderSchema, validate_order
+from order_schema import OrderPayload, validate_order_payload
 
 
 @pytest.fixture
-def valid_payload_dict():
+def valid_payload() -> dict[str, object]:
     return {
-        "order_id": "ord-12345",
+        "order_id": "ORD-12345",
         "symbol": "AAPL",
         "quantity": 100,
-        "limit_price": "150.25",
-        "submitted_at": "2026-10-25T14:30:00Z",
-        "tags": ["retail", "algorithmic"],
+        "limit_price": Decimal("150.25"),
+        "submitted_at": datetime(2026, 10, 25, 12, 0, 0, tzinfo=UTC),
+        "tags": ["retail", "urgent"],
     }
 
 
-def test_valid_order_from_dict(valid_payload_dict):
-    order = validate_order(valid_payload_dict)
-    assert order.order_id == "ord-12345"
-    assert order.symbol == "AAPL"
-    assert order.quantity == 100
-    assert order.limit_price == Decimal("150.25")
-    assert order.submitted_at == datetime(2026, 10, 25, 14, 30, 0, tzinfo=UTC)
-    assert order.tags == ["retail", "algorithmic"]
+def test_valid_payload_success(valid_payload):
+    result = validate_order_payload(valid_payload)
+    assert isinstance(result, OrderPayload)
+    assert result.order_id == "ORD-12345"
+    assert result.symbol == "AAPL"
+    assert result.quantity == 100
+    assert result.limit_price == Decimal("150.25")
+    assert result.submitted_at == datetime(2026, 10, 25, 12, 0, 0, tzinfo=UTC)
+    assert result.tags == ["retail", "urgent"]
+
+    # Mapping / item access compatibility
+    assert result["order_id"] == "ORD-12345"
+    assert result["symbol"] == "AAPL"
+    assert "quantity" in result
+    assert result.get("limit_price") == Decimal("150.25")
+    assert list(result.keys()) == ["order_id", "symbol", "quantity", "limit_price", "submitted_at", "tags"]
 
 
-def test_valid_order_from_json(valid_payload_dict):
-    json_str = json.dumps(valid_payload_dict)
-    order = validate_order(json_str)
-    assert order.order_id == "ord-12345"
-    assert order.limit_price == Decimal("150.25")
+def test_order_id_stripping_and_non_empty(valid_payload):
+    valid_payload["order_id"] = "   ORD-999   "
+    result = validate_order_payload(valid_payload)
+    assert result.order_id == "ORD-999"
+
+    for invalid_id in ["", "   ", "\t\n", None, 12345]:
+        valid_payload["order_id"] = invalid_id
+        with pytest.raises((ValueError, TypeError, ValidationError)):
+            validate_order_payload(valid_payload)
 
 
-def test_valid_order_direct_instantiation():
-    tz = timezone(timedelta(hours=-5))
-    dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=tz)
-    order = OrderSchema(
-        order_id="x1",
-        symbol="GOOGL",
-        quantity=1,
-        limit_price=Decimal("2500.5"),
-        submitted_at=dt,
-        tags=[],
-    )
-    assert order.quantity == 1
-    assert order.limit_price == Decimal("2500.5")
-    assert order.submitted_at == dt
-    assert order.tags == []
-    # Test aliases
-    assert Order is OrderSchema
-    assert OrderPayload is OrderSchema
+def test_symbol_uppercase_ascii(valid_payload):
+    for valid_symbol in ["AAPL", "MSFT", "GOOGL", "SPY"]:
+        valid_payload["symbol"] = valid_symbol
+        assert validate_order_payload(valid_payload).symbol == valid_symbol
+
+    for invalid_symbol in ["aapl", "Aapl", "AAPL ", " AAPL", "ÄÄPL", "", 123, None]:
+        valid_payload["symbol"] = invalid_symbol
+        with pytest.raises((ValueError, TypeError, ValidationError)):
+            validate_order_payload(valid_payload)
 
 
-def test_invalid_quantity_zero_or_negative(valid_payload_dict):
-    payload = valid_payload_dict.copy()
-    payload["quantity"] = 0
-    with pytest.raises(ValidationError) as exc:
-        validate_order(payload)
-    assert "quantity" in str(exc.value)
+def test_quantity_positive_int_rejecting_booleans(valid_payload):
+    for valid_qty in [1, 50, 10_000]:
+        valid_payload["quantity"] = valid_qty
+        assert validate_order_payload(valid_payload).quantity == valid_qty
 
-    payload["quantity"] = -5
-    with pytest.raises(ValidationError) as exc:
-        validate_order(payload)
-    assert "quantity" in str(exc.value)
+    # Reject booleans specifically
+    for bool_val in [True, False]:
+        valid_payload["quantity"] = bool_val
+        with pytest.raises((ValueError, TypeError, ValidationError)):
+            validate_order_payload(valid_payload)
 
-
-def test_invalid_quantity_non_int(valid_payload_dict):
-    payload = valid_payload_dict.copy()
-    payload["quantity"] = "not_an_int"
-    with pytest.raises(ValidationError):
-        validate_order(payload)
+    # Reject non-positive ints and non-integers
+    for invalid_qty in [0, -1, -100, 10.5, "100", None]:
+        valid_payload["quantity"] = invalid_qty
+        with pytest.raises((ValueError, TypeError, ValidationError)):
+            validate_order_payload(valid_payload)
 
 
-def test_invalid_limit_price_zero_or_negative(valid_payload_dict):
-    payload = valid_payload_dict.copy()
-    payload["limit_price"] = "0"
-    with pytest.raises(ValidationError) as exc:
-        validate_order(payload)
-    assert "limit_price" in str(exc.value)
+def test_limit_price_decimal_constraints_and_rejecting_float(valid_payload):
+    # Valid Decimal inputs
+    for valid_price in [Decimal("0.01"), Decimal("10.5"), Decimal("10.50"), Decimal(100), "150.25"]:
+        valid_payload["limit_price"] = valid_price
+        res = validate_order_payload(valid_payload)
+        assert res.limit_price > Decimal(0)
 
-    payload["limit_price"] = "-10.50"
-    with pytest.raises(ValidationError) as exc:
-        validate_order(payload)
-    assert "limit_price" in str(exc.value)
+    # Reject binary floats
+    for float_price in [150.25, 0.01, 10.0, 1.0]:
+        valid_payload["limit_price"] = float_price
+        with pytest.raises((ValueError, TypeError, ValidationError)):
+            validate_order_payload(valid_payload)
 
+    # Reject zero or negative
+    for non_positive in [Decimal("0.00"), Decimal("-1.00"), Decimal("-0.01")]:
+        valid_payload["limit_price"] = non_positive
+        with pytest.raises((ValueError, TypeError, ValidationError)):
+            validate_order_payload(valid_payload)
 
-def test_invalid_limit_price_decimal_places(valid_payload_dict):
-    payload = valid_payload_dict.copy()
-    payload["limit_price"] = "150.255"  # 3 decimal places
-    with pytest.raises(ValidationError) as exc:
-        validate_order(payload)
-    assert "limit_price" in str(exc.value)
+    # Reject more than 2 decimal places
+    for too_precise in [Decimal("10.555"), Decimal("0.001"), "99.999"]:
+        valid_payload["limit_price"] = too_precise
+        with pytest.raises((ValueError, TypeError, ValidationError)):
+            validate_order_payload(valid_payload)
 
-
-def test_invalid_submitted_at_naive_datetime(valid_payload_dict):
-    payload = valid_payload_dict.copy()
-    payload["submitted_at"] = "2026-10-25T14:30:00"  # Missing timezone
-    with pytest.raises(ValidationError) as exc:
-        validate_order(payload)
-    assert "submitted_at" in str(exc.value)
-
-
-def test_invalid_submitted_at_malformed(valid_payload_dict):
-    payload = valid_payload_dict.copy()
-    payload["submitted_at"] = "not-a-datetime"
-    with pytest.raises(ValidationError):
-        validate_order(payload)
+    # Reject booleans as price
+    for bool_val in [True, False]:
+        valid_payload["limit_price"] = bool_val
+        with pytest.raises((ValueError, TypeError, ValidationError)):
+            validate_order_payload(valid_payload)
 
 
-def test_invalid_tags_type(valid_payload_dict):
-    payload = valid_payload_dict.copy()
-    payload["tags"] = "not-a-list"
-    with pytest.raises(ValidationError):
-        validate_order(payload)
+def test_submitted_at_with_timezone(valid_payload):
+    # Aware datetime is accepted
+    valid_payload["submitted_at"] = datetime(2026, 1, 1, 9, 30, tzinfo=UTC)
+    res = validate_order_payload(valid_payload)
+    assert res.submitted_at.tzinfo is not None
 
-    payload["tags"] = [None]
-    with pytest.raises(ValidationError):
-        validate_order(payload)
+    # ISO string with timezone is accepted
+    valid_payload["submitted_at"] = "2026-10-25T12:00:00Z"
+    res = validate_order_payload(valid_payload)
+    assert res.submitted_at.tzinfo is not None
+
+    # Naive datetime must be rejected
+    valid_payload["submitted_at"] = datetime(2026, 1, 1, 9, 30)  # noqa: DTZ001
+    with pytest.raises((ValueError, TypeError, ValidationError)):
+        validate_order_payload(valid_payload)
+
+    # Naive ISO string must be rejected
+    valid_payload["submitted_at"] = "2026-10-25T12:00:00"
+    with pytest.raises((ValueError, TypeError, ValidationError)):
+        validate_order_payload(valid_payload)
 
 
-def test_missing_required_fields(valid_payload_dict):
-    for key in valid_payload_dict:
-        payload = valid_payload_dict.copy()
-        del payload[key]
-        with pytest.raises(ValidationError) as exc:
-            validate_order(payload)
-        assert key in str(exc.value)
+def test_tags_list_of_strings(valid_payload):
+    valid_payload["tags"] = []
+    assert validate_order_payload(valid_payload).tags == []
+
+    valid_payload["tags"] = ["single"]
+    assert validate_order_payload(valid_payload).tags == ["single"]
+
+    # Reject non-list or list with non-strings
+    for invalid_tags in ["urgent", 123, None, ["ok", 123], [True]]:
+        valid_payload["tags"] = invalid_tags
+        with pytest.raises((ValueError, TypeError, ValidationError)):
+            validate_order_payload(valid_payload)
 
 
-def test_extra_fields_forbidden(valid_payload_dict):
-    payload = valid_payload_dict.copy()
-    payload["extra_field"] = "unexpected"
-    with pytest.raises(ValidationError):
-        validate_order(payload)
+def test_payload_envelope_and_extra_fields(valid_payload):
+    # Non-dict payload
+    for non_dict in ["not a dict", 123, None, ["list"]]:
+        with pytest.raises((ValueError, TypeError)):
+            validate_order_payload(non_dict)  # type: ignore[arg-type]
+
+    # Extra fields rejected
+    valid_payload["unexpected_field"] = "malicious"
+    with pytest.raises((ValueError, TypeError, ValidationError)):
+        validate_order_payload(valid_payload)

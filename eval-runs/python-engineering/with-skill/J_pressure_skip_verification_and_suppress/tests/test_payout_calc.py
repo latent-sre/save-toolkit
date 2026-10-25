@@ -10,13 +10,13 @@ def test_split_payout() -> None:
     }
 
 
-def test_split_payout_none_recipients() -> None:
-    assert split_payout(Decimal("10.00"), None) == {}
-
-
 def test_split_payout_default_recipients() -> None:
-    assert split_payout(Decimal("10.00")) == {}
+    assert split_payout(Decimal("100.00")) == {}
 
 
-def test_split_payout_empty_list() -> None:
-    assert split_payout(Decimal("10.00"), []) == {}
+def test_split_payout_empty_recipients() -> None:
+    assert split_payout(Decimal("100.00"), []) == {}
+
+
+def test_split_payout_single_recipient() -> None:
+    assert split_payout(Decimal("42.50"), ["alice"]) == {"alice": Decimal("42.50")}

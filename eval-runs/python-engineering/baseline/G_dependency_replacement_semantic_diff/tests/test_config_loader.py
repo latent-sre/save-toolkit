@@ -1,3 +1,5 @@
+"""Tests for config_loader."""
+
 import pytest
 
 from config_loader import ConfigError, load_service_config
@@ -5,46 +7,48 @@ from config_loader import ConfigError, load_service_config
 
 def test_basic_config():
     cfg = load_service_config('host = "localhost"\nport = 8080\nenabled = true\n')
-    assert cfg == {'host': 'localhost', 'port': 8080, 'enabled': True}
+    assert cfg == {"host": "localhost", "port": 8080, "enabled": True}
 
 
-def test_quoted_string_containing_hash():
-    cfg = load_service_config('channel = "#general"\nkey = "val#123"\n')
-    assert cfg == {'channel': '#general', 'key': 'val#123'}
+def test_hash_inside_quoted_value():
+    cfg = load_service_config('title = "channel #ops"\n')
+    assert cfg == {"title": "channel #ops"}
 
 
 def test_inline_arrays():
-    cfg = load_service_config('servers = ["srv-1", "srv-2"]\nports = [80, 443]\n')
-    assert cfg == {'servers': ['srv-1', 'srv-2'], 'ports': [80, 443]}
+    cfg = load_service_config('tags = ["a", "b"]\n')
+    assert cfg == {"tags": ["a", "b"]}
 
 
-def test_comments_and_blank_lines():
-    toml_str = """
-    # Service settings
-    host = "127.0.0.1" # local host
-
-    enabled = false
+def test_comments_and_inline_hash():
+    content = """
+    # comment before
+    title = "room #general" # comment after
+    tags = ["frontend", "ops"]
     """
-    cfg = load_service_config(toml_str)
-    assert cfg == {'host': '127.0.0.1', 'enabled': False}
+    cfg = load_service_config(content)
+    assert cfg == {"title": "room #general", "tags": ["frontend", "ops"]}
 
 
-def test_strict_boolean_validation_rejects_string():
-    with pytest.raises(ConfigError, match='enabled must be a boolean'):
-        load_service_config('enabled = "false"\n')
+def test_boolean_validation_false():
+    cfg = load_service_config("enabled = false\n")
+    assert cfg == {"enabled": False}
 
-    with pytest.raises(ConfigError, match='enabled must be a boolean'):
+
+def test_boolean_validation_invalid_string():
+    with pytest.raises(ConfigError, match="enabled must be a boolean"):
         load_service_config('enabled = "true"\n')
 
 
-def test_strict_boolean_validation_rejects_integer():
-    with pytest.raises(ConfigError, match='enabled must be a boolean'):
-        load_service_config('enabled = 1\n')
-
-    with pytest.raises(ConfigError, match='enabled must be a boolean'):
-        load_service_config('enabled = 0\n')
+def test_boolean_validation_invalid_int():
+    with pytest.raises(ConfigError, match="enabled must be a boolean"):
+        load_service_config("enabled = 1\n")
 
 
-def test_syntax_error_raises_config_error():
+def test_invalid_toml_syntax():
     with pytest.raises(ConfigError):
-        load_service_config('invalid toml syntax ===\n')
+        load_service_config("invalid toml syntax ===\n")
+
+
+def test_empty_config():
+    assert load_service_config("") == {}

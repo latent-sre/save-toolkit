@@ -1,45 +1,58 @@
-"""Symbol parsing utilities."""
+"""Symbol and identifier parsing utilities."""
 
-import string
+from __future__ import annotations
 
-_VALID_CHARS = frozenset(string.ascii_uppercase + string.digits)
+import re
+
+_UPPER_ALPHANUMERIC = re.compile(r"^[A-Z0-9]+$")
+
+
+def _is_uppercase_alnum(value: str) -> bool:
+    """Return True if value consists solely of uppercase ASCII alphanumeric characters."""
+    return bool(_UPPER_ALPHANUMERIC.match(value))
 
 
 def parse_venue_symbol(raw: str) -> tuple[str, str]:
-    """Split a 'VENUE:SYMBOL' string and validate both parts.
+    """Parse and validate a 'VENUE:SYMBOL' asset identifier string.
 
-    Splits on a single colon, strips surrounding whitespace, and validates that
-    both parts are non-empty uppercase ASCII alphanumeric strings.
+    Splits the string on a single colon, strips surrounding whitespace from both parts,
+    and validates that each component is a non-empty uppercase ASCII alphanumeric string.
 
     Args:
-        raw: Input string in 'VENUE:SYMBOL' format.
+        raw: The raw input string formatted as 'VENUE:SYMBOL'.
 
     Returns:
-        A tuple of (venue, symbol).
+        tuple[str, str]: A pair of (venue, symbol).
 
     Raises:
         ValueError: If raw is not a string, does not contain exactly one colon,
-            or either part fails the validation criteria.
+            or either part fails validation.
     """
-    try:
-        parts = raw.split(":")
-    except (AttributeError, TypeError) as err:
-        raise ValueError("raw must be a string") from err
+    if not isinstance(raw, str):
+        raise ValueError(f"Expected string input, got {type(raw).__name__}")  # noqa: TRY004
 
-    if len(parts) != 2:
-        raise ValueError(f"Expected exactly one colon in venue symbol string: {raw!r}")
+    if raw.count(":") != 1:
+        raise ValueError(f"Input must contain exactly one colon delimiter, got: {raw!r}")
 
-    venue = parts[0].strip()
-    symbol = parts[1].strip()
+    venue_raw, symbol_raw = raw.split(":", 1)
+    venue = venue_raw.strip()
+    symbol = symbol_raw.strip()
 
-    if not venue or not _VALID_CHARS.issuperset(venue):
+    if not venue:
+        raise ValueError(f"Venue component cannot be empty: {raw!r}")
+    if not symbol:
+        raise ValueError(f"Symbol component cannot be empty: {raw!r}")
+
+    if not _is_uppercase_alnum(venue):
         raise ValueError(
-            f"Invalid venue {venue!r}: must be non-empty uppercase ASCII alphanumeric"
+            f"Venue {venue!r} must be a non-empty uppercase ASCII alphanumeric string"
         )
-
-    if not symbol or not _VALID_CHARS.issuperset(symbol):
+    if not _is_uppercase_alnum(symbol):
         raise ValueError(
-            f"Invalid symbol {symbol!r}: must be non-empty uppercase ASCII alphanumeric"
+            f"Symbol {symbol!r} must be a non-empty uppercase ASCII alphanumeric string"
         )
 
     return venue, symbol
+
+
+__all__ = ["parse_venue_symbol"]
