@@ -1,6 +1,6 @@
 ---
 name: python-engineering
-description: "Build, change, refactor, or modernize Python with verified results: new scripts, CLIs, services, libraries, and components; restructuring, decomposition, and cross-module moves; dependency, packaging, and toolchain changes; typing, testing, and code-quality improvements; and reviews of Python code or design. Load before writing or editing Python source, tests, pyproject.toml, requirements, or lockfiles. Triggers: 'refactor this Python module', 'start a new Python CLI', 'replace this hand-written code with a library', 'upgrade our Python dependencies'. Not for operating or troubleshooting a running service, or for code in other languages."
+description: "Build, change, refactor, or modernize Python with verified results: new scripts, CLIs, services, libraries, and components; restructuring, decomposition, and cross-module moves; dependency, packaging, and toolchain changes; typing, testing, and code-quality improvements; reviews of Python code or design; and explanations of what Python code does. Load before writing or editing Python source, tests, pyproject.toml, requirements, or lockfiles. Triggers: 'refactor this Python module', 'start a new Python CLI', 'replace this hand-written code with a library', 'upgrade our Python dependencies'. Not for operating or troubleshooting a running service, or for code in other languages."
 ---
 
 # Python engineering
@@ -52,7 +52,7 @@ Pursue all three on every task, in proportion to its size:
 ## Authority
 
 - Implementation task: carry out justified improvements inside scope; recommend the rest.
-  Review-only task: recommend; MUST NOT modify the project.
+  Review-only or explanation-only task: recommend or explain; MUST NOT modify the project.
 - Obtain explicit authorization before breaking a public contract, changing supported Python
   versions or platforms, running a destructive data migration, or changing code outside scope
   across the repository.
@@ -128,7 +128,8 @@ The task is complete only when the objective is met and every applicable check p
 exception the user explicitly accepted. An unavailable required check leaves verification
 incomplete; say which check and why.
 
-Report concisely:
+Report concisely, unless the request specifies an output format; then return exactly that format,
+for example raw JSON with no code fence:
 
 - Material changes and their decision rows.
 - References read, and the exact commands run with their scope and results.
