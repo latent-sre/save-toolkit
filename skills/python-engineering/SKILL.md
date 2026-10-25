@@ -50,17 +50,16 @@ Every task MUST enforce three equally binding responsibilities:
 
 ## Mandatory Reference Routing
 
-Consult every matching reference before selecting an implementation or transformation approach.
-Every code, refactoring, dependency, tooling, or review task MUST consult
-[quality-gates.md](references/quality-gates.md) (applicable risk-to-check rows) alongside its
-task-specific reference(s); MUST NOT load unrelated references for completeness.
+Route based on **what `A. Inspect` reveals in the code and `pyproject.toml`**, not only the user's
+prompt wording. Every task MUST consult [quality-gates.md](references/quality-gates.md) (applicable
+risk-to-check rows) alongside its task-specific reference(s); MUST NOT load unrelated references.
 
-| Trigger condition | Required action |
+| Trigger condition (from prompt or `A. Inspect`) | Required action |
 |---|---|
-| Establishing a new project, a new module, or implementing new code where structure/packaging is decided | Read [starting-code.md](references/starting-code.md) |
-| Refactoring, decomposing, removing abstractions, replacing an existing component/parser, or reviewing a refactoring proposal | Read [refactoring-playbook.md](references/refactoring-playbook.md) (decision table + full applicable recipes) |
-| Cross-module automated transformations, symbol-aware moves/renames, or bulk codemods | Read [refactoring-tools.md](references/refactoring-tools.md) |
-| Adding, replacing (including custom-to-stdlib/library), upgrading, or reorganizing dependencies or packaging | Read [dependencies.md](references/dependencies.md) |
+| Creating a new project, a new module, or implementing new code in a stub module where layout/packaging is decided | Read [starting-code.md](references/starting-code.md) |
+| Refactoring, cleaning up, decomposing, splitting modules, moving symbols across modules, or extending existing code with structural smells (long functions, mixed responsibilities, duplication, mutable globals, pass-through class hierarchies, or ad-hoc parsers), or reviewing a refactoring proposal | Read [refactoring-playbook.md](references/refactoring-playbook.md) (decision table + full applicable recipes) |
+| Moving or renaming symbols across modules, splitting modules, updating package exports, or applying bulk/automated transformations | Read [refactoring-tools.md](references/refactoring-tools.md) alongside [refactoring-playbook.md](references/refactoring-playbook.md) |
+| Adding, replacing, or upgrading packages, or when `A. Inspect` finds `pyproject.toml` libraries or a custom parser/validator/client that stdlib (`tomllib`, etc.) or an installed package (`pydantic`, etc.) should replace | Read [dependencies.md](references/dependencies.md) |
 | Selecting or running verification checks for any task, or configuring/improving project quality gates | Read [quality-gates.md](references/quality-gates.md) (applicable risk-to-check entries) |
 
 If a required reference is unavailable, disclose the gap and MUST NOT claim its procedures were
