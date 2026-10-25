@@ -58,7 +58,7 @@ class ScenarioSpecTests(unittest.TestCase):
             c["writes_from"]["probe_runbook_slots.py"] for c in spec["checks"] if c.get("writes_from")
         )
         oracle = load_oracle(ROOT / source)
-        template = (ROOT / "skills" / "runbook" / "assets" / "runbook-template.md").read_text(encoding="utf-8")
+        template = (ROOT / "skills" / "operational-docs" / "assets" / "runbook-template.md").read_text(encoding="utf-8")
         self.assertEqual(set(re.findall(r"<[^<>\n]*>", template)), set(oracle.TEMPLATE_LITERALS))
 
 

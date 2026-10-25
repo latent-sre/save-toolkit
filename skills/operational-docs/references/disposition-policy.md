@@ -1,6 +1,7 @@
 # Operational knowledge disposition policy
 
-Apply the [closeout contract](../SKILL.md) for trust, write authority and evidence invariants.
+Apply the [closeout contract](./knowledge-closeout.md) for write authority and dispositions, and
+the [shared evidence rules](../SKILL.md#evidence-and-authority) for trust and verification.
 This reference supplies artifact destinations, disposition persistence and definition ownership.
 
 ## Event-to-artifact map
@@ -13,13 +14,13 @@ This reference supplies artifact destinations, disposition persistence and defin
 | Only documentation is wrong | Correct the owning artifact and affected links from dated evidence; preserve labels and `last_verified`, without unrelated card/index changes or operational work. |
 | An alert is approved or materially changes | Create or update its card and the alert's knowledge-index row, including its `Status` cell; link the service card and authoritative definition. Paging requires a valid runbook target. |
 | An alert fires | Return to `incident-investigation`; `sre-assistant` takes only a dispatched read. No retrospective or KB preparation before resolution. |
-| A runbook is missing or contradicted, including a failed drill | Use `scribe` plus `runbook` with supplied evidence; unsupported commands remain `[unverified]`. A drill exposing a bad step cannot verify the repaired version. |
+| A runbook is missing or contradicted, including a failed drill | Use `scribe` with the [runbook method](./runbook.md) and supplied evidence; unsupported commands remain `[unverified]`. A drill exposing a bad step cannot verify the repaired version. |
 | A resolved incident reveals a systemic lesson | Assign a missing postmortem separately with an owner; continue authorized knowledge closeout and its follow-ups. |
 | A fleet prompt, agent or skill has an accepted behavioral failure | Send divergence, evidence and proposed named regression to `agent-engineer`; do not rewrite fleet definitions through operational content. |
 
 ## One-time disposition states
 
-`prepared` requires the body's `[verified]` checkout binding: the mounted checkout's current commit
+`prepared` requires the closeout method's `[verified]` checkout binding: the mounted checkout's current commit
 matches the target revision. `duplicate` requires an existing owning artifact and supporting evidence.
 
 - `proposed`: named owner and next action, no reviewable artifact change yet.

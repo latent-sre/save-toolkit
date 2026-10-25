@@ -8,6 +8,10 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Consolidate `operational-learning`, `runbook`, and `postmortem` into `operational-docs`, reducing
+  the fleet from 27 skills to 25. Keep task-specific methods, all six assets, importer behavior,
+  evidence safeguards and historical audit records. Remove 1,219 canonical bundle bytes and 983
+  discovery-description bytes. See the [verification and native routing evidence](docs/reviews/2026-10-24-operational-docs-consolidation.md), including failed trials and remaining limits.
 - Review `incident-investigation` references: 32,592 to 27,827 bytes. Remove repeated
   intake/dialogue, fixed attribution timing and speculative console claims. Preserve ITO/TLC
   ownership, bounded helpers, comparable evidence, artifact/headroom exclusions, approval reuse,

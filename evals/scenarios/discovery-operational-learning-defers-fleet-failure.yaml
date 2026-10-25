@@ -21,7 +21,7 @@ success_criteria:
 - Routes the misbehaviour to the agent-engineer lane with the transcript as the evidence
 target:
   kind: skill
-  name: operational-learning
+  name: operational-docs
 routing:
   expect: not_fire
   expected_alternative:

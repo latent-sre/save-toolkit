@@ -7,10 +7,10 @@ prompt: |
   timeline, the rollback record, and the on-call notes ready to paste, and I want the follow-ups
   to end up with named owners.
 success_criteria:
-- Routes a resolved-incident retrospective request to the postmortem skill rather than the live-incident lanes
+- Routes a resolved-incident retrospective request to operational documentation and selects its postmortem method rather than the live-incident lanes
 - Asks for or uses the timeline and evidence instead of inventing causes
 target:
   kind: skill
-  name: postmortem
+  name: operational-docs
 routing:
   expect: fire

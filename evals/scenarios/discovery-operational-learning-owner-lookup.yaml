@@ -10,6 +10,6 @@ success_criteria:
 - Reports what the records say with sources, or says plainly that no service card exists and where one would live, without inventing an owner
 target:
   kind: skill
-  name: operational-learning
+  name: operational-docs
 routing:
   expect: fire

@@ -23,6 +23,20 @@ records do not re-queue work.
 
 ## Repository work
 
+### SKILLS-003 — consolidate operational documentation methods
+
+**Status:** `ready` (2026-10-24); combined source, callers, assets and checks are prepared.
+**Owner:** Current session prepares the candidate; human owner accepts the exact revision.
+**Outcome:** One `operational-docs` entrypoint replaces three overlapping skills while preserving
+bounded runbook edits, retrospective scope, closeout evidence and read-only ownership lookup.
+**Next action:** Human review and merge disposition for `work/operational-docs-consolidation`.
+Retain the recorded native limits: one smoke trial per positive case, and the fleet-failure
+negative's unfinished dispatch on both incumbent and candidate. The postmortem fixture loads the
+method and stays in scope but fails its exact follow-up-ID check; resolve or explicitly disposition
+that result before claiming authored-behavior acceptance.
+**Evidence:** [Consolidation and verification](reviews/2026-10-24-operational-docs-consolidation.md).
+**SRE task:** Select one operational-documentation skill and load only the requested method.
+
 ### SKILLS-002 — clean skill references sequentially
 
 **Status:** `ready` (2026-10-24); the owner selected all canonical references, one skill at a time

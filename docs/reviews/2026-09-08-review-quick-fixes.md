@@ -12,7 +12,7 @@ accept a release, prove installed-host behavior, or judge answer quality.
 
 | Review finding | Change | Where |
 |---|---|---|
-| Three documentation skills describe a fleet handshake, not the user's words (rec 7) | Descriptions lead with the capability and a human phrasing; the scribe-mode clause is last | [`runbook`](../../skills/runbook/SKILL.md), [`postmortem`](../../skills/postmortem/SKILL.md), [`operational-learning`](../../skills/operational-learning/SKILL.md) |
+| Three documentation skills describe a fleet handshake, not the user's words (rec 7) | Descriptions lead with the capability and a human phrasing; the scribe-mode clause is last | [`runbook`](https://github.com/latent-sre/save-toolkit/blob/ad8f345c906468a9252aa370fb27bff97d7984d5/skills/runbook/SKILL.md), [`postmortem`](https://github.com/latent-sre/save-toolkit/blob/ad8f345c906468a9252aa370fb27bff97d7984d5/skills/postmortem/SKILL.md), [`operational-learning`](https://github.com/latent-sre/save-toolkit/blob/ad8f345c906468a9252aa370fb27bff97d7984d5/skills/operational-learning/SKILL.md) |
 | No route for "which team owns payments" (rec 7) | `operational-learning` offers ownership and dependency lookup from the service cards and gains a read-path section that reports `[sourced]` from `docs/operations/` or says the card is missing | same skill, "Answer an ownership or dependency question" |
 | Blast radius, golden signals, and the human roles are undefined (rec 8) | New `stack-profile` reference behind its own routing row; the two rotas nobody has recorded are labelled `[unverified]` | [`terms-and-roles.md`](../../skills/stack-profile/references/terms-and-roles.md) |
 | `ci-actions` is the only skill with no exclusion (§4.2) | "Not for a failing application deploy (pcf-ops, gcp-ops) or a runtime bug (root-cause)" | [`ci-actions`](../../skills/ci-actions/SKILL.md) |
@@ -41,8 +41,8 @@ of 45,000 bytes; moving it behind its own routing row returned that path to 44,8
 The description-change rule owes an after-run on each changed skill's targeting scenarios.
 `ci-actions` and `runbook` already had one; `postmortem` and `operational-learning` had none, so
 two routing scenarios were added for the new phrasing:
-[`discovery-postmortem-write-for-incident`](../../evals/scenarios/discovery-postmortem-write-for-incident.yaml)
-and [`discovery-operational-learning-owner-lookup`](../../evals/scenarios/discovery-operational-learning-owner-lookup.yaml).
+[`discovery-postmortem-write-for-incident`](https://github.com/latent-sre/save-toolkit/blob/ad8f345c906468a9252aa370fb27bff97d7984d5/evals/scenarios/discovery-postmortem-write-for-incident.yaml)
+and [`discovery-operational-learning-owner-lookup`](https://github.com/latent-sre/save-toolkit/blob/ad8f345c906468a9252aa370fb27bff97d7984d5/evals/scenarios/discovery-operational-learning-owner-lookup.yaml).
 Method as in PR #241's advisor on-call trigger record (not on this branch): detached arms,
 `--model sonnet --trials 3 --timeout 600`, `CLAUDE_CONFIG_DIR` credential-only, workspaces under
 `F:\iso-tmp` so no ancestor `CLAUDE.md` is discovered.
