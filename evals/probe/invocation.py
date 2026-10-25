@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import math
 import os
 import re
 import signal
@@ -26,8 +27,8 @@ from .constants import BUILD_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
 from .outcomes import CutShort, Stop
 from .tracing import TraceSummary
 
-# A native conversation's spend guard, per invocation: the CLI stops there, and a trace that reports
-# more allows no follow-up.
+# A native conversation's requested CLI limit, per invocation; a response may overrun the limit.
+# A trace that reports more allows no follow-up.
 NATIVE_SPEND_CAP_USD = 0.75
 # Account skills synced from claude.ai download in the background at session start and reached 7 of 8
 # unisolated probe sessions; this setting kept them out of 16 of 16 (WP-02 gap 1).
@@ -107,6 +108,15 @@ def _stop_cli(process: subprocess.Popen[bytes] | subprocess.Popen[str]) -> None:
         process.wait(timeout=10)
 
 
+def effective_invocation_limit(requested: float | None, *, persistent: bool) -> float | None:
+    """The requested CLI budget, not a hard billing bound or a batch scheduling limit."""
+    if requested is not None and (isinstance(requested, bool) or not math.isfinite(requested) or requested <= 0):
+        raise ValueError("--max-invocation-usd must be finite and > 0")
+    if persistent:
+        return min(requested, NATIVE_SPEND_CAP_USD) if requested is not None else NATIVE_SPEND_CAP_USD
+    return requested
+
+
 def build_command(
     executable: str,
     plugin_root: Path,
@@ -119,7 +129,9 @@ def build_command(
     persistent: bool = False,
     resume: str | None = None,
     max_turns: int | None = None,
+    max_invocation_usd: float | None = None,
 ) -> list[str]:
+    spend_limit = effective_invocation_limit(max_invocation_usd, persistent=persistent)
     tools = tuple(tools)
     denied = [t for t in clean_room.DENIED_TOOLS if t not in tools]
     command = fingerprints.executable_argv(executable)
@@ -156,13 +168,13 @@ def build_command(
             "--restricted",
             "--add-dir",
             str(plugin_root.resolve()),
-            "--max-budget-usd",
-            str(NATIVE_SPEND_CAP_USD),
             "--prompt-suggestions",
             "false",
         ]
         if resume:
             command += ["--resume", resume]
+    if spend_limit is not None:
+        command += ["--max-budget-usd", str(spend_limit)]
     if (agent and pre_approve) or persistent:
         # Build tools and the native conversation's explicitly read-only inventory are pre-approved.
         # Ordinary routing/contract trials keep their existing permission behavior.

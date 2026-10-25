@@ -202,6 +202,10 @@ test generation, selected terminal tasks, GCP managed-service/migration and GKE 
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
 **Next action:**
+- Execute the owner's [follow-through plan](fleet-evaluation/run-plan-followthrough.md): shared
+  Sonnet/Sol/Luna/Terra testing support first, then WP-04 on Linux and Windows, EVAL-005,
+  ROUTE-007, HANDOVER-001, WP-09 and WP-10. The owner approved USD 40 aggregate testing
+  spend; exact runtime evidence, human tabletops and candidate acceptance remain distinct.
 - WP-08: review the implementation candidate and complex-case/run-plan amendment, then prove hard
   quota support on the already selected Windows Docker Desktop Linux engine. Freeze
   the accepted dataset/selection, licences, CLI, plugin and image identities using the
@@ -221,7 +225,8 @@ acceptance tests, delivery phases and explicit open decisions.
 - Runner follow-ups, not blocking: unittest `--option=value` spellings and SHA-spelled Git ranges
   fail their detectors (0/303 and 0/909 in saved traces).
 
-This item authorizes no model spend, lab provisioning or production change.
+The follow-through request authorizes its bounded testing within USD 40 total. It does not
+authorize lab provisioning or production change.
 **Evidence:** [Specification](fleet-evaluation/README.md); per-package records are linked under Status.
 Integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
@@ -347,8 +352,8 @@ fails only on agent behavior: its refusal-wording check accepts the measured cor
 its post-write query check fails only when the agent's query did not return the persisted panel's
 data. The owner has decided whether the missing panel no-data text needs an
 `observability-engineer` or `grafana` repair.
-**Next action:** `agent-engineer` widens the refusal-wording alternation and proves offline that both
-measured refusals pass and a reply that applies the datasource edit still fails; reproduces the
+**Next action:** The [offline refusal repair](reviews/2026-10-25-eval-005-repair.md) accepts both
+retained measured fragments and preserves rejection of an actual datasource edit. `agent-engineer` reproduces the
 empty post-write Grafana query on the fixture without a model; and reads historical trial 3's
 queries against the check. The owner then decides on the no-data text and approves a re-run.
 **Evidence:** [run record](reviews/2026-10-18-eval-005-run.md).
@@ -372,6 +377,10 @@ their existing scenario IDs retain the historical names. Signal discovery and in
 now target obs-analysis; correlation-ID versus trace-ID selection is an internal method contract.
 The owner then approves one run of the completed set. The new API cases, migrated dashboard/signal
 routing, and trimmed obs-analysis guidance are not yet measured natively.
+The [current preparation](reviews/2026-10-25-route-007-preparation.md) adds the six valid missing
+automatic-routing cases and lists the bounded run selection. The seventh, `pcf-deploy` fire,
+requires an explicit-human-invocation measurement because its current skill forbids automatic
+invocation; do not change that authority to make discovery pass.
 **Evidence:** none yet; the commit message of `5c5aa742` records the scenarios as owed.
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.
@@ -600,7 +609,10 @@ open items and whether work could continue, as the
 AC-35's human-handover half.
 **Next action:** None until scheduled. The owner names the responders and dates; the facilitator picks
 the two cases from the accepted catalog.
-**Evidence:** none yet.
+The [prepared tabletop packet](fleet-evaluation/handover-tabletops.md) now selects accepted
+migration/hybrid and GKE reachability cases, with separate responder handouts and worksheets.
+Human execution and usefulness results remain unmeasured.
+**Evidence:** [Offline preparation and exact case identities](fleet-evaluation/handover-tabletops.md).
 **SRE task:** A responder taking over a board mid-incident continues from the handed-over record
 without repeating intake.
 

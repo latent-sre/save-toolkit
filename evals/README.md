@@ -15,6 +15,17 @@ the short routing specs. The runner does not care which one a spec came from.
 
 ## Run it
 
+The [multi-model testing block](../docs/fleet-evaluation/multi-model-testing.md) freezes
+matched Sonnet, Sol, Luna and Terra controls through the existing native and structured
+Codex runners. It keeps their identities, verdicts and unknown costs separate. The
+[current follow-through plan](../docs/fleet-evaluation/run-plan-followthrough.md) binds
+the aggregate testing budget and the requested Linux/Windows WP-04 coverage.
+
+`--max-invocation-usd` optionally supplies Claude's USD limit on each invocation.
+Persistent sessions retain the tighter of that value and their existing USD 0.75 limit.
+This is separate from `--max-batch-usd` scheduling, and may overrun by a final response;
+neither flag establishes a provider-side hard cap across multiple campaigns.
+
 The separate [`codex_probe.py`](codex_probe.py) adapter admits fifteen named artifact cases:
 the twelve structured WP-10 injection cases, `--pair reliability` for the single proportionate-options
 assessment, and `--pair gcp01` for startup A/B. It stages canonical guidance and serves scoped tools

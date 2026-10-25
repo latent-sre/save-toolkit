@@ -1,0 +1,15 @@
+id: discovery-obs-alerting-defers-signal-query
+max_turns: 4
+split: regression
+prompt: |
+  Write a PromQL query against the order-router metrics we already collect in Mimir to show
+  its request error ratio over five minutes, grouped by route. Explain how to interpret an
+  empty result when there is no request traffic. We are exploring historical signals; do not
+  define an SLO, a paging threshold, an evaluation rule, a notification route or a dashboard.
+target: {kind: skill, name: obs-alerting}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: obs-analysis}
+success_criteria:
+  - Selects existing-signal query and interpretation guidance
+  - Does not treat a metric ratio query as an alert-rule design request
