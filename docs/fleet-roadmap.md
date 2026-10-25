@@ -186,6 +186,9 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
   [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
   exact quotation, the reliability exception-path explanation and GCP-01 B's factual findings open.
+  The [current four-model continuation](reviews/2026-10-25-wp10-continuation.md) completed
+  all 44 planned attempts, retaining four instrument gaps and separate semantic proposals.
+  Mechanical passes do not close the observed reasoning failures or human acceptance.
 - WP-12 complete on 2026-10-17: all 64 GCP cases accepted at `9147ff91`
   ([pilot and template](../evals/oracles/gcp/README.md), [catalog](../evals/oracles/gcp/CATALOG.md)).
 - WP-13 complete on 2026-10-18 under its [run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md):
@@ -224,8 +227,9 @@ acceptance tests, delivery phases and explicit open decisions.
   exact-candidate/model/spend acceptance; Harbor is already the selected Terminal-Bench runner.
 - WP-13: none; complete. Use its cases as a regression check when a skill or agent changes.
   Haiku's inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
-- WP-10: the owner disposes of the bound Luna semantic proposals and names the exact candidate
-  revision; any further campaign needs a new bounded scope.
+- WP-10: the owner disposes of the historical and current bound semantic proposals,
+  selects the next quotation/reliability/GCP repair or broader qualification scope,
+  and names the exact candidate revision; any further campaign needs a new bounded scope.
 - Before any rubric-graded campaign: one owner-approved judge recalibration, because the clean-room
   auth-failure fix (`1d92654f`) changed the judge identity.
 - Runner follow-ups, not blocking: unittest `--option=value` spellings and SHA-spelled Git ranges

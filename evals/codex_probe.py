@@ -181,21 +181,61 @@ def model_matches(session: str, thread: str, expected: str) -> bool:
 
 
 def metadata_only_query(source: str) -> bool:
-    """Recognize pure tool-catalog reads, never execute or broadly trust JavaScript."""
-    if re.fullmatch(r"\s*text\(\s*ALL_TOOLS\s*\)\s*;?\s*", source):
+    """Validate a closed catalog-only grammar without evaluating JavaScript."""
+    if len(source) > 4096:
+        return False
+    identifier = r"[A-Za-z_$][A-Za-z0-9_$]*"
+    wrapped = re.fullmatch(r"\s*text\(\s*(.*?)\s*\)\s*;?\s*", source, re.DOTALL)
+    alias = re.fullmatch(r"\s*const\s+(" + identifier + r")\s*=\s*(.*?);\s*text\(\s*\1\s*\)\s*;?\s*", source, re.DOTALL)
+    if alias and alias[1] not in {"text", "ALL_TOOLS", "tools"}:
+        catalog_source = alias[2].strip()
+    elif wrapped:
+        catalog_source = wrapped[1].strip()
+    else:
+        return False
+    if catalog_source == "ALL_TOOLS":
         return True
+    # Projection fields are fixed; every access must use this map callback's own variable.
+    projection = (
+        r"(?:\s*\.map\(\s*(?P<project>" + identifier + r")\s*=>\s*\(\s*\{\s*"
+        r"name\s*:\s*(?P=project)\.name\s*,\s*description\s*:\s*(?P=project)\.description"
+        r"\s*\}\s*\)\s*\))?"
+    )
     query = re.fullmatch(
-        r"\s*text\(\s*ALL_TOOLS\.filter\(\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*=>\s*(.*?)\s*\)\s*\)\s*;?\s*",
-        source,
-        re.DOTALL,
+        r"ALL_TOOLS\.filter\(\s*(" + identifier + r")\s*=>\s*(.*?)\s*\)" + projection, catalog_source, re.DOTALL
     )
     if not query:
         return False
-    # Only string literals and conjunctions over the two catalog string fields.
-    # No template interpolation, computed arguments, blocks, assignments or extra calls.
     literal = r"""(?:"(?:[^"\\\r\n]|\\.)*"|'(?:[^'\\\r\n]|\\.)*')"""
-    term = re.escape(query[1]) + r"\.(?:name|description)\.includes\(\s*" + literal + r"\s*\)"
-    return re.fullmatch(term + r"(?:\s*&&\s*" + term + r")*", query[2]) is not None
+    atom = re.escape(query[1]) + r"\.(?:name|description)\.includes\(\s*" + literal + r"\s*\)"
+    token = re.compile(r"\s*(?:(?P<atom>" + atom + r")|(?P<operator>&&|\|\||[()]))")
+    position = depth = count = 0
+    operand = True
+    expression = query[2].strip()
+    while position < len(expression):
+        match = token.match(expression, position)
+        count += 1
+        if not match or count > 256:
+            return False
+        position = match.end()
+        operator = match["operator"]
+        if operator == "(":
+            if not operand or depth >= 16:
+                return False
+            depth += 1
+        elif operator == ")":
+            if operand or not depth:
+                return False
+            depth -= 1
+        elif operator in {"&&", "||"}:
+            if operand:
+                return False
+            operand = True
+        else:
+            if not operand:
+                return False
+            operand = False
+    return not operand and depth == 0
 
 
 def empty_resource_query(source: str) -> bool:
@@ -559,11 +599,14 @@ def prepare(
         'For Code Mode, use one literal file call per exec cell: text(await tools.mcp__fixture__read_file({"path":"README.md"})); '
         'or text(await tools.mcp__fixture__write_file({"path":"orders.py","content":"..."})); '
         "Use JSON arguments and the task's actual paths. Direct MCP calls are also supported. "
-        "Metadata discovery is limited to pure ALL_TOOLS catalog reads (optionally filtered by literal "
-        "name/description includes) and text(await tools.list_mcp_resources({})); "
+        "Metadata discovery is limited to pure ALL_TOOLS catalog reads: literal name/description includes "
+        "predicates joined by &&/|| and balanced parentheses, with optional fixed name+description map projection "
+        "using its bound callback variable, and optional one const alias followed by text(alias). "
+        "Catalog cells are limited to 4096 characters, 256 predicate/operator tokens and 16 grouping levels. "
+        "Also supported: text(await tools.list_mcp_resources({})); "
         "only an exact empty resources catalog is measurable. The fixed text-only content.map projection "
         "of this resource-listing call is also recognized. Resource reads and server-scoped enumeration remain unsupported; "
-        "variables, loops, and other JS wrappers remain unsupported.\n"
+        "Other variables, loops, and JS wrappers remain unsupported.\n"
         + "Fixture paths: "
         + ", ".join(spec["fixture"]["files"])
         + "\n"
