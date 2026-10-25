@@ -450,12 +450,11 @@ under [`oracles/python-engineering`](oracles/python-engineering):
 [`test_python_engineering_oracles.py`](test_python_engineering_oracles.py) calibrates each oracle:
 a correct artifact passes, and the seed and named counterexamples fail as candidate failures.
 
-The build prompts tell the agent to load the skill, so they measure skill content; the routing
-cases measure activation. They pin `software-engineer`, whose committed body loads `python-craft`,
-so run them as a matched pair. Stage two plugin roots, each a committed Git checkout of the
-candidate with `skills/python-craft` removed and the agent's Python load line pointed at
-`python-engineering`. Give the control root a placebo `python-engineering`: the same frontmatter,
-a one-line body, and no references. Run each root with
+The build prompts, these and the earlier `build-python-...` cases alike, tell the agent to load
+the skill, so they measure skill content; the routing cases measure activation. To measure uplift,
+run them as a matched pair. Stage two plugin roots, each a committed Git checkout of the candidate.
+Give the control root a placebo `python-engineering`: the same frontmatter, a one-line body, and no
+references. Run each root with
 `--plugin-root <root> --label <arm> --model sonnet`, and run the routing cases against the
 candidate root only. Reference reads, sequencing, and decision rationale are not graded. Review
 the raw traces, and grep them for `python-engineering/references/` before attributing behavior to
@@ -521,7 +520,7 @@ Three discovery cases define the narrowed routing boundary:
 [`HTTP API`](scenarios/discovery-api-craft-http-api.yaml) and
 [`standalone HTTP client`](scenarios/discovery-api-craft-http-client.yaml) changes should load the
 skill; a [`standalone scheduled Python job`](scenarios/discovery-api-craft-defers-scheduled-job.yaml)
-without HTTP work should use `python-craft` instead. These check routing only. Their four-turn
+without HTTP work should use `python-engineering` instead. These check routing only. Their four-turn
 limits follow the existing short discovery cases and are offline budget choices, not measured
 completion limits. Historical build results measure the earlier `backend-craft` revision; the
 renamed skill and these new routing cases have not been measured in a native campaign.

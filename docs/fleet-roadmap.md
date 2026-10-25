@@ -253,7 +253,7 @@ and a deep reference for the capability they reach for first.
 reference ([decision](decisions/2026-10-11-backend-craft.md)).
 **Owner:** The human owner accepts the candidate; `agent-engineer` owns the skill.
 **Outcome:** `go-craft` covers writing, refactoring and testing Go across services, CLIs and
-libraries, measured against build scenarios the way `python-craft` is, and `api-craft` and
+libraries, measured against build scenarios the way `python-engineering` is, and `api-craft` and
 `operator-cli` load it for Go changes.
 **Next action:** Review the candidate and select a bounded language-specific build comparison
 that can test whether its guidance improves Go work beyond the model's baseline.

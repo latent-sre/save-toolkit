@@ -9,7 +9,7 @@ prompt: |
 target: {kind: skill, name: api-craft}
 routing:
   expect: not_fire
-  expected_alternative: {kind: skill, name: python-craft}
+  expected_alternative: {kind: skill, name: python-engineering}
 success_criteria:
   - Uses Python implementation guidance for a standalone scheduled job without HTTP work
   - Does not load HTTP API implementation guidance solely because the job persists data

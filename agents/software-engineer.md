@@ -215,7 +215,7 @@ an inconclusive check, or a stale candidate.
 - `eng-ladder` — an unresolved shared-contract, cross-component, cross-service or cross-team, migration, hard-to-reverse, tool or platform selection, platform strategy, or multi-year design choice; or a required change to accepted design constraints
 - `api-craft` — before designing or changing HTTP APIs, webhook receivers, HTTP clients, or the persistence and asynchronous work needed to fulfill an API contract
 - `database-reliability` — before writing a schema migration or changing an index or connection-pool setting, unless the caller supplied that skill's plan
-- `python-craft` — before writing, refactoring, or modernizing Python; compose with the applicable service or CLI contract
+- `python-engineering` — before writing, refactoring, or modernizing Python; compose with the applicable service or CLI contract
 - `go-craft` — before writing, refactoring, modernizing, or testing Go; compose with the applicable API or CLI contract
 - `frontend-craft` — before writing web UI code
 - `operator-cli` — before building or changing a CLI's output, configuration, failure, or effect contract

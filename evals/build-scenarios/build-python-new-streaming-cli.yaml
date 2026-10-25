@@ -3,6 +3,7 @@ max_turns: 20
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
+  Load the `python-engineering` skill before you start.
   Build a small standard-library-only Python 3.11+ tool from scratch in this reviewed,
   team-authored fixture. Create outcome_counts.py with public summarize(rows) and
   main(argv=None) -> int. summarize accepts a borrowed iterable of mappings whose status
@@ -32,7 +33,7 @@ fixture:
   files:
     .gitignore: "__pycache__/\n"
 checks:
-  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded for greenfield code"}
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded for greenfield code"}
   - {check: changes_within, allowed: [outcome_counts.py, tests/], text: "only the requested tool and tests were created"}
   - {check: no_new_commits, text: "no commits"}
   # A later shell call conservatively makes this ordering evidence INCONCLUSIVE.

@@ -123,7 +123,7 @@ class RoutingGradeTests(unittest.TestCase):
         """The main session doing the work itself may load craft skills; `inline` forbids them."""
         spec = {"id": "r", "prompt": "p", "target": {"kind": "agent", "name": "reliability-engineer"},
                 "routing": {"expect": "not_fire", "expected_alternative": "main_session"}}
-        kept, detail = probe_assessment.grade_routing(spec, _trace(skills=["save-toolkit:python-craft"]), self.plugin_root)
+        kept, detail = probe_assessment.grade_routing(spec, _trace(skills=["save-toolkit:python-engineering"]), self.plugin_root)
         self.assertTrue(kept, detail)
         handed, _ = probe_assessment.grade_routing(spec, _trace(agents=["save-toolkit:principal-engineer"]), self.plugin_root)
         self.assertFalse(handed, "a hand-off to another agent is not the main session keeping the work")

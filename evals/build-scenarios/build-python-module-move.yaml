@@ -3,6 +3,7 @@ max_turns: 50
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
+  Load the `python-engineering` skill before you start.
   Refactor this reviewed, team-authored Python 3.11+ fixture by moving format_label's
   implementation from reports.py into a new formatting.py module. Preserve reports.format_label
   and reports.render as public interfaces, including keyword-only prefix, outputs, and errors.
@@ -41,7 +42,7 @@ fixture:
           return formatter(name, prefix=prefix)
     settings.json: '{"formatter": "reports.format_label"}'
 checks:
-  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
   - {check: changes_within, allowed: [reports.py, formatting.py, tests/test_reports.py], text: "existing consumers and configuration stay unchanged"}
   - {check: no_new_commits, text: "no commits"}
   - check: command_exit_zero

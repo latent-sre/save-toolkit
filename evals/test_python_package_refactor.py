@@ -358,7 +358,7 @@ def test_scenario_scope_and_supervised_binding():
     checks = SPEC["checks"]
     assert SPEC["max_turns"] == 73
     assert any(c["check"] == "verification_completed" and c["runner"] == "unittest" for c in checks)
-    assert any(c["check"] == "skill_loaded" and c["skill"] == "python-craft" for c in checks)
+    assert any(c["check"] == "skill_loaded" and c["skill"] == "python-engineering" for c in checks)
     check = next(c for c in checks if c["check"] == "command_exit_zero")
     assert check["failure_exit_code"] == 10
     assert check["command"] == "python -I -B oracle_protocol.py _python_package_oracle.py"

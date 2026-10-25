@@ -395,7 +395,7 @@ class CliTests(unittest.TestCase):
         assert outcome[0]["writes_from"] == {"_python_new_oracle.py": "evals/oracles/python-craft/check_new_code.py", "oracle_protocol.py": "evals/oracles/oracle_protocol.py"}
         assert next(c for c in checks if c["check"] == "changes_within")["allowed"] == ["outcome_counts.py", "tests/"]
         assert any(c["check"] == "no_new_commits" for c in checks)
-        assert any(c["check"] == "skill_loaded" and c["skill"] == "python-craft" for c in checks)
+        assert any(c["check"] == "skill_loaded" and c["skill"] == "python-engineering" for c in checks)
         assert any(c["check"] == "verification_completed" and c["runner"] == "unittest" for c in checks)
 
 

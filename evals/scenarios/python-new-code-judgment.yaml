@@ -1,10 +1,10 @@
 id: python-new-code-judgment
 max_turns: 17
 split: regression
-skill: python-craft
+skill: python-engineering
 tools: [Skill, Read]
 references:
-  - skills/python-craft/references/writing-python.md
+  - skills/python-engineering/references/starting-code.md
 prompt: |-
   Assess these independent new Python implementation cases; do not edit code. The supplied
   requirements are complete except for the explicitly unresolved failure policy in case D.

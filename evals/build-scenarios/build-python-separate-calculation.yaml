@@ -3,6 +3,7 @@ max_turns: 50
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
+  Load the `python-engineering` skill before you start.
   Refactor totals.py in this reviewed, team-authored Python 3.11+ fixture. The calculation is
   trapped inside file handling: preview callers and calculation tests must create files today.
   Make the same rule usable through total_from_lines(lines), accepting a one-pass iterable of
@@ -27,7 +28,7 @@ fixture:
                       total += int(line)
               return total
 checks:
-  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
   - {check: changes_within, allowed: [totals.py, tests/test_totals.py], text: "changes stay within the authorized calculation seam"}
   - {check: no_new_commits, text: "no commits"}
   - check: command_exit_zero

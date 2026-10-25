@@ -3,6 +3,7 @@ max_turns: 50
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
+  Load the `python-engineering` skill before you start.
   Refactor batch.py in this reviewed, team-authored Python 3.11+ fixture. Simplify the nested
   conditions and extract meaningful calculations where useful, preserving process(values, *,
   limit=None, emit) and its behavior. Values are a list of integers or None. Skip None and negative
@@ -28,7 +29,7 @@ fixture:
               return result
           raise ValueError("negative limit")
 checks:
-  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
   - {check: changes_within, allowed: [batch.py, tests/test_batch.py], text: "changes stay in the requested module and tests"}
   - {check: no_new_commits, text: "no commits"}
   - check: command_exit_zero

@@ -263,7 +263,7 @@ class HelperTests(unittest.TestCase):
             'oracle_protocol.py': 'evals/oracles/oracle_protocol.py'})
         self.assertEqual(next(c['allowed'] for c in checks if c['check'] == 'changes_within'),
                          ['selection.py', 'tests/test_selection.py'])
-        self.assertTrue(any(c['check'] == 'skill_loaded' and c['skill'] == 'python-craft' for c in checks))
+        self.assertTrue(any(c['check'] == 'skill_loaded' and c['skill'] == 'python-engineering' for c in checks))
         self.assertTrue(any(c['check'] == 'no_new_commits' for c in checks))
         self.assertTrue(any(c['check'] == 'verification_completed' and c['runner'] == 'unittest' for c in checks))
         self.assertEqual(set(SPEC['fixture']['files']), {

@@ -1,11 +1,11 @@
 id: python-refactoring-judgment
 max_turns: 17
 split: regression
-skill: python-craft
+skill: python-engineering
 tools: [Skill, Read]
 references:
-  - skills/python-craft/references/refactoring.md
-  - skills/python-craft/references/writing-python.md
+  - skills/python-engineering/references/refactoring-playbook.md
+  - skills/python-engineering/references/starting-code.md
   - skills/eng-ladder/references/builder.md
 prompt: |-
   Assess these independent Python improvement cases; do not edit code. The supplied consumer

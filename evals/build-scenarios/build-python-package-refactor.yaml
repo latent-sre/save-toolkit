@@ -3,6 +3,7 @@ max_turns: 73
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
+  Load the `python-engineering` skill before you start.
   Refactor this reviewed, team-authored, standard-library-only Python 3.12+ package.
   Discover its consumers and release inputs before editing. Extract the duplicated order
   calculation into order_report/calculation.py with public total_from_lines(lines), the
@@ -149,7 +150,7 @@ fixture:
                   path.write_text("", encoding="utf-8")
                   self.assertEqual(order_report.total_from_file(path), Decimal("0"))
 checks:
-  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded for package refactoring"}
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded for package refactoring"}
   - check: changes_within
     allowed: [order_report/calculation.py, order_report/reporting.py, order_report/preview.py, order_report/_legacy.py, release-files.txt, tests/]
     text: "changes preserve the existing consumers, release builder and configuration"

@@ -5,7 +5,7 @@ prompt: |
   Our Python worker is failing in production right now and the backlog is growing. I am the
   responder and only have Apps Manager and logs. Help me decide what to check next; no source
   changes are requested.
-target: {kind: skill, name: python-craft}
+target: {kind: skill, name: python-engineering}
 routing:
   expect: not_fire
   expected_alternative: {kind: skill, name: incident-investigation}

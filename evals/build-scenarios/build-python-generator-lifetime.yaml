@@ -3,6 +3,7 @@ max_turns: 50
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
+  Load the `python-engineering` skill before you start.
   Fix records.py in this reviewed, team-authored Python 3.11+ fixture. iter_records(path) must
   return a closeable iterator yielding each UTF-8 line stripped of surrounding whitespace.
   The caller consumes it after the function returns. Keep processing incremental for large
@@ -20,7 +21,7 @@ fixture:
           with open(path, encoding="utf-8") as source:
               return (line.strip() for line in source)
 checks:
-  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
   - {check: changes_within, allowed: [records.py, tests/test_records.py], text: "changes stay in the requested module and tests"}
   - {check: no_new_commits, text: "no commits"}
   - check: command_exit_zero

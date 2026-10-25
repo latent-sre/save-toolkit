@@ -3,6 +3,7 @@ max_turns: 73
 agent: software-engineer
 tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
 prompt: |
+  Load the `python-engineering` skill before you start.
   Refactor this reviewed, team-authored Python 3.11+ fixture so the order policy has one owner.
   Three intake entrypoints, api.submit(payload), cli.run(line), and batch.load(rows), each embed
   their own copy of the same normalization and validation rules, and they have drifted. This
@@ -176,7 +177,7 @@ fixture:
           def test_empty_input(self):
               self.assertEqual(batch.load([]), [])
 checks:
-  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded"}
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
   - {check: changes_within, allowed: [api.py, cli.py, batch.py, policy.py, legacy.py, tests], text: "consumers, registry, and configuration stay unchanged"}
   - {check: no_new_commits, text: "no commits"}
   - {check: bash_ran, pattern: "unittest|pytest", text: "the fixture suite was run at least once"}

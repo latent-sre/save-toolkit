@@ -7,7 +7,7 @@ prompt: |
   Make it clearer and more reliable. Use suitable existing libraries where they genuinely help,
   update related callers and tests, and explain the important improvements. There is no live
   service, deployment, or command-line interface change involved.
-target: {kind: skill, name: python-craft}
+target: {kind: skill, name: python-engineering}
 routing: {expect: fire}
 # Routing only: implementation quality requires the separate artifact checks and review.
 success_criteria:

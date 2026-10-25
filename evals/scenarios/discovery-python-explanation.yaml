@@ -11,7 +11,7 @@ prompt: |
 
   Show what list(positive_values([-2, 0, 3, 5])) produces, then suggest one small exercise
   I could try next. I only want an explanation; do not create or edit files.
-target: {kind: skill, name: python-craft}
+target: {kind: skill, name: python-engineering}
 routing: {expect: fire}
 # The automated verdict checks routing only; assess the response criteria manually.
 success_criteria:

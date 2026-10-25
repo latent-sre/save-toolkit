@@ -494,7 +494,7 @@ def rejected_notional(fills):
                     "_python_oracle.py": "evals/oracles/python-craft/check_contracts.py",
                     "oracle_protocol.py": "evals/oracles/oracle_protocol.py",
                 })
-                self.assertTrue(any(check["check"] == "skill_loaded" and check["skill"] == "python-craft"
+                self.assertTrue(any(check["check"] == "skill_loaded" and check["skill"] == "python-engineering"
                                     for check in spec["checks"]))
         self.assertTrue(any(check["check"] == "no_workspace_changes"
                             for check in scenario("unchanged")["checks"]))

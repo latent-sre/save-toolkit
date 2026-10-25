@@ -82,7 +82,7 @@ The skills, by area (each `skills/<name>/SKILL.md` carries its own description a
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `production-change-gate`
 - **Reliability improvement** — `resilience-analysis`, `toil-reduction`; existing readiness coverage stays in `service-lifecycle`
-- **Engineering craft** — `api-craft`, `python-craft`, `python-engineering`, `go-craft`,
+- **Engineering craft** — `api-craft`, `python-engineering`, `go-craft`,
   `frontend-craft`, `operator-cli`, `ci-actions`, `database-reliability`, `eng-ladder`
 - **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`
 
