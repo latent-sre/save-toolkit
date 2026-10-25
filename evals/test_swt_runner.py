@@ -148,7 +148,7 @@ def test_admission_reopens_digest_bound_actual_smoke(tmp_path, damage):
 
 
 def test_combined_binding_keeps_shared_and_dependency_identity(tmp_path, monkeypatch):
-    shared = {"adapter_sha256": "shared-v1"}
+    shared = {"adapter_sha256": "shared-v1", "host_runtime": {"identity": {"elevated": False}}}
     monkeypatch.setattr(runner, "runtime_binding", lambda *a: copy.deepcopy(shared))
     monkeypatch.setattr(runner, "adapter_digest", lambda: "swt")
     requirements = tmp_path / "requirements-swt.txt"
@@ -335,3 +335,12 @@ def test_trial_publishes_the_exact_accepted_binding(tmp_path, monkeypatch):
     record = json.loads((folder / "record.json").read_text())
     assert published == binding
     assert record["runner"]["runner_source_sha256"] == binding["adapter_sha256"]
+
+
+@pytest.mark.parametrize("elevated", [True, None, 0, "false"])
+def test_live_binding_refuses_elevated_or_unknown_accounts_before_adapter_setup(monkeypatch, elevated):
+    monkeypatch.setattr(runner, "runtime_binding", lambda *args: {
+        "adapter_sha256": "shared", "host_runtime": {"identity": {"elevated": elevated}}})
+    monkeypatch.setattr(runner, "adapter_digest", lambda: pytest.fail("unsafe host reached adapter setup"))
+    with pytest.raises(ValueError, match="unelevated"):
+        runner.live_binding({}, {}, {"instance_id": "org__repo-1"}, None)

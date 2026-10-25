@@ -365,7 +365,17 @@ def run_trial(
                 proxy.close()
             except Exception:
                 problem = problem or "model proxy cleanup failed"
-        cleanup = resources.cleanup()
+                cleanup.append(
+                    {
+                        "kind": "proxy",
+                        "name": resources.prefix + "-proxy",
+                        "bind": config["proxy_bind"],
+                        "port": proxy.port,
+                        "present": None,
+                        "removed": False,
+                    }
+                )
+        cleanup.extend(resources.cleanup())
         cleanup_ok = bool(cleanup) and all(item.get("present") is False for item in cleanup)
         (run / "cleanup.json").write_text(json.dumps(cleanup, indent=2) + "\n")
         (run / "billing.json").write_text(

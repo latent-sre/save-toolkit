@@ -266,7 +266,8 @@ def run_upstream(
         patch_sha256=admission["patch_sha256"],
         upstream_revision=UPSTREAM_REVISION,
         verifier_actor="independent-swt",
-        agent_executed_tests=False,
+        # Independent verification cannot establish what the author executed.
+        agent_executed_tests=None,
         image_id=image,
         docker_engine_id=engine_id,
         variants=variants,

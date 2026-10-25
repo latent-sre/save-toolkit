@@ -80,6 +80,8 @@ def live_binding(
     config: dict[str, Any], manifest: dict[str, Any], row: dict[str, Any], docker: Docker
 ) -> dict[str, Any]:
     binding = runtime_binding(config, manifest, docker)
+    if binding["host_runtime"]["identity"]["elevated"] is not False:
+        raise ValueError("live evaluation requires an observed unelevated account")
     shared_digest = binding["adapter_sha256"]
     swt_digest = adapter_digest()
     requirements_digest = hashlib.sha256(SWT_REQUIREMENTS.read_bytes()).hexdigest()

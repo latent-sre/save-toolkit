@@ -807,3 +807,13 @@ def test_supported_verifier_assessment_survives_late_container_cleanup(setup, mo
         assert receipt["cleanup"][0]["present"] is False
     with pytest.raises(ValueError):
         runner.run_batch(setup.config, setup.manifest, setup.rows, setup.output, setup.key_file, setup.smoke)
+
+
+@pytest.mark.parametrize("elevated", [True, None, 0, "false"])
+def test_shared_host_binding_requires_unelevated_account_before_docker(monkeypatch, elevated):
+    monkeypatch.setattr(configuration, "binding", lambda *args: {})
+    monkeypatch.setattr(runner.fingerprints, "host_identity", lambda: {
+        "hostname": "host", "account_id": "account", "elevated": elevated})
+    docker = SimpleNamespace(call=lambda *args, **kwargs: pytest.fail("unsafe host reached Docker"))
+    with pytest.raises(ValueError, match="unelevated"):
+        runner.runtime_binding({}, {}, docker)

@@ -146,7 +146,7 @@ def test_native_output_secret_rejected_before_persistence(environment, monkeypat
     assert not (tmp_path / 'secret-output').exists()
 
 
-@pytest.mark.parametrize('late_failure', [None, 'billing', 'cleanup', 'incomplete', 'author_error', 'process_error', 'auth'])
+@pytest.mark.parametrize('late_failure', [None, 'billing', 'cleanup', 'proxy_close', 'incomplete', 'author_error', 'process_error', 'auth'])
 def test_owned_lifecycle_uses_real_sdk_and_preserves_results(task, tmp_path, monkeypatch, late_failure):
 
     manifest = load_manifest(Path(__file__).parent / 'manifests/wp09-terminal-complex5.json')
@@ -186,7 +186,9 @@ def test_owned_lifecycle_uses_real_sdk_and_preserves_results(task, tmp_path, mon
         auth_failed = late_failure == 'auth'
         def __init__(self, *a, **kw): self.count = 0
         def start(self): pass
-        def close(self): pass
+        def close(self):
+            if late_failure == "proxy_close":
+                raise RuntimeError("shutdown unconfirmed")
         def usage(self):
             self.count += 1
             if self.count > 1 and late_failure == 'billing':
@@ -258,10 +260,22 @@ def test_owned_lifecycle_uses_real_sdk_and_preserves_results(task, tmp_path, mon
     verifier_run = next(e for e in docker.events if e[0] == 'run' and e[e.index('--name')+1].endswith('-verifier'))
     assert verifier_run[verifier_run.index('--network')+1] == 'none'
     assert '--storage-opt' in verifier_run
-    assert bool((output/'harbor-pending.json').exists()) == (late_failure == 'cleanup')
+    assert bool((output/'harbor-pending.json').exists()) == (late_failure in {'cleanup', 'proxy_close'})
     if late_failure:
         assert record['verdict']['after_assessment']
     report = build_report(output, manifest, 'candidate')
     attempt = report['cases'][case['local_case_id']]['slots'][0]['attempts'][0]
     assert attempt['valid'], attempt['problems']
     assert attempt['verdict']['status'] == 'PASS'
+    if late_failure == 'proxy_close':
+        cleanup = json.loads((run/'cleanup.json').read_text())
+        entry = next(item for item in cleanup if item['kind'] == 'proxy')
+        assert entry['present'] is None and entry['removed'] is False
+        assert entry['bind'] == config['proxy_bind'] and entry['port'] == Proxy.port
+        assert attempt['dimensions']['cleanup']['status'] == 'unresolved'
+        monkeypatch.setattr(runner, 'read_key', lambda p: pytest.fail('reuse reached credentials'))
+        with pytest.raises(ValueError, match='cleanup reconciliation'):
+            runner.run_trial(config_path=tmp_path/'config', manifest=manifest, case=case, source=tmp_path,
+                             admission_path=tmp_path/'admission', key_file=tmp_path/'key', output=output,
+                             label='second', docker=docker)
+        assert not (output / ('eval-'+case['local_case_id']) / 'second').exists()

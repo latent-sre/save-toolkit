@@ -211,6 +211,7 @@ def test_real_upstream_loader_scripts_parser_and_grader(tmp_path, monkeypatch, m
         "sha256:" + "b" * 64,
         "offline-engine",
     )
+    assert result["agent_executed_tests"] is None
     assert result["mechanical"] == expected
     assert result["verdict"] == ("INCONCLUSIVE" if mode == "valid" else "FAIL")
     assert result["cleanup_complete"] and not containers

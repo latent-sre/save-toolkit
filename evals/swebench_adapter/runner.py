@@ -110,10 +110,10 @@ def runtime_binding(config: Mapping[str, Any], manifest: Mapping[str, Any], dock
     if (
         not host.get("hostname")
         or not host.get("account_id")
-        or type(host.get("elevated")) is not bool
+        or host.get("elevated") is not False
         or host.get("problem")
     ):
-        raise ValueError("host runtime identity is unavailable")
+        raise ValueError("host runtime requires complete identity and an unelevated account")
     try:
         contexts = json.loads(docker.call(["context", "inspect"]).stdout)
         if not isinstance(contexts, list) or len(contexts) != 1:
