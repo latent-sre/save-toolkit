@@ -27,6 +27,8 @@ include = [
     "evals/compare_runs.py",
     "evals/turn_counts.py",
     "evals/probe/**/*.py",
+    "evals/swebench_adapter/**/*.py",
+    "evals/swebench_repair.py",
     "evals/graders.py",
     "evals/inspect_pilot.py",
     "evals/test_*.py",
@@ -60,6 +62,7 @@ python_version = "3.12"
 files = [
     "evals/probe", "evals/build_probe.py", "evals/compare_runs.py", "evals/turn_counts.py", "evals/graders.py",
     "evals/inspect_pilot.py",
+    "evals/swebench_adapter", "evals/swebench_repair.py",
     # A file joins once it is clean.
     "evals/codex_probe.py", "evals/codex_fixture_tools.py", "evals/codex_gcp_queries.py",
     "scripts/readonly-guard.py", "scripts/guard-session-preflight.py", "scripts/gate_a.py", "scripts/check_links.py",

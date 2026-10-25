@@ -295,6 +295,17 @@
             }
           ]
         },
+        "execution_profile": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionProfile"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "turn_limit": {
           "anyOf": [
             {
@@ -446,6 +457,27 @@
       ],
       "title": "Ending",
       "type": "string"
+    },
+    "ExecutionProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "authentication": {
+          "minLength": 1,
+          "title": "Authentication",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "authentication"
+      ],
+      "title": "ExecutionProfile",
+      "type": "object"
     },
     "HostIdentity": {
       "additionalProperties": false,

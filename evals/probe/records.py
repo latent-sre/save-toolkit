@@ -122,10 +122,16 @@ class Runtime(_Section):
     )
 
 
+class ExecutionProfile(_Section):
+    name: str = Field(min_length=1)
+    authentication: str = Field(min_length=1)
+
+
 class Conditions(_Section):
     requested_model: str | None
     observed_models: list[str] | None
     runtime: Runtime | None
+    execution_profile: ExecutionProfile | None = None
     turn_limit: PositiveInt | None
     wall_clock_seconds: PositiveInt
 

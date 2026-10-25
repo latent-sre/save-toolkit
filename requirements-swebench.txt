@@ -1,0 +1,6 @@
+# Optional WP-08 evaluation environment, approved by its run plan.
+-c requirements-dev.txt
+swebench
+docker
+pydantic
+pyyaml
