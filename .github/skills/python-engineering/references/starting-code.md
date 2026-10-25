@@ -15,7 +15,7 @@ supports its execution, import, and testing boundaries:
 
 | Deliverable type | Required layout decision | Packaging rule |
 |---|---|---|
-| Standalone script | Single `<name>.py` file with a `main(argv: Sequence[str] | None = None) -> int` entry point and `if __name__ == "__main__":` guard | MUST NOT force package directories, `src/` scaffolding, or build backends onto a single-file script unless distribution or multi-module growth is required. Optionally use inline script metadata ([PEP 723](https://peps.python.org/pep-0723/)) when isolated script dependencies are needed |
+| Standalone script or single-module utility | Single `<name>.py` file with focused functions (and a `main(argv: Sequence[str] | None = None) -> int` entry point if CLI-invoked) | MUST NOT create `pyproject.toml`, package directories, `src/` scaffolding, or build backends for a standalone script or isolated single-module utility that has no existing `pyproject.toml`. Optionally use inline script metadata ([PEP 723](https://peps.python.org/pep-0723/)) when isolated script dependencies are needed |
 | CLI application | Importable package (`<pkg>/` or `src/<pkg>/`) separating argument parsing/IO from core domain logic, plus `[project.scripts]` entry point | Configure `[build-system]` and `[project]` in `pyproject.toml` ([PyPA pyproject.toml](https://packaging.python.org/en/latest/specifications/pyproject-toml/)) |
 | Service or worker | Package separating transport/framework wiring, configuration loading, and pure domain/policy modules | Manage runtime vs. development dependencies and lockfiles for reproducible deployment ([dependencies.md](dependencies.md)) |
 | Reusable library | `src/<pkg>/` layout (prevents accidental uninstalled local imports during testing), explicit `__all__`, and `py.typed` marker ([PEP 561](https://peps.python.org/pep-0561/)) | Define compatibility ranges in `requires-python` and `[project.dependencies]` without pinning consumer applications |
@@ -53,15 +53,25 @@ Execute these actions in order when creating a new project or substantial compon
 8. **Review the first slice before scaling.** Inspect the slice for leaking abstractions, awkward
    call signatures, hidden global state, or untestable IO coupling. Correct the structure before
    repeating the pattern across remaining features.
-9. **Persist durable decisions.** Record supported Python version, dependency groups, linter/type
-   settings, and test commands in `pyproject.toml` and existing repository documentation so future
-   runs enforce the same standards automatically.
+9. **Persist durable decisions (when `pyproject.toml` exists or a multi-module package is created).**
+   When the workspace already has `pyproject.toml` or requires package distribution, record supported
+   Python version, dependency groups, linter/type settings, and test commands in `pyproject.toml`.
+   MUST NOT create a new `pyproject.toml` for a standalone script or isolated single-module task
+   that has no existing project configuration.
 
 ## Type and Boundary Design Rules
 
 - **Prefer concrete data structures over untyped mappings.** Replace ad-hoc `dict[str, Any]`
   records crossing module boundaries with `@dataclass(slots=True)`, `NamedTuple`, `TypedDict`, or
   validated schema models.
+- **Guard Python type-coercion and Unicode traps at boundaries.**
+  - In Python, `isinstance(True, int)` is `True`; integer validators MUST explicitly reject `bool`
+    (`isinstance(val, bool)` or Pydantic `StrictInt`).
+  - Monetary/decimal boundaries (`Decimal`) MUST reject binary `float` inputs (`isinstance(val, float)`)
+    to prevent float precision drift before quantization.
+  - ASCII identifier checks MUST enforce `.isascii()` alongside `.isalnum()`/`.isupper()` because
+    Python's `.isalnum()` and `.isupper()` accept non-ASCII Unicode characters (such as `'ＮAＳＤＡＱ'`
+    or `'²'`).
 - **Inject volatile dependencies explicitly.** Pass clocks (`Callable[[], float] = time.monotonic`),
   random generators, file paths/streams, or client interfaces as parameters with sensible defaults
   rather than hardcoding globals or requiring `unittest.mock.patch` on internal imports.

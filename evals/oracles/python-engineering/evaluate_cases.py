@@ -58,13 +58,11 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
         category="A. New code where a maintained package should replace substantial custom code",
         objective="obj1_new_code_and_obj2_deliberate_improvement",
         prompt=(
-            "Create a new module `order_schema.py` and tests in `tests/test_order_schema.py` to validate "
-            "incoming JSON order payloads (`order_id: str`, `symbol: str`, `quantity: int > 0`, "
-            "`limit_price: Decimal > 0` with max 2 decimal places, `submitted_at: datetime` with timezone, "
-            "and `tags: list[str]`). A teammate suggested writing a custom recursive schema validator from "
-            "scratch 'to avoid dependencies', even though `pydantic` v2 is already installed in this "
-            "environment and listed in `pyproject.toml`. Implement the strongest justified design, "
-            "verify it with pytest, and include your decision rationale."
+            "Implement `validate_order_payload(payload: dict[str, object])` in `order_schema.py` and "
+            "tests in `tests/test_order_schema.py` to validate incoming order payloads (`order_id: str` "
+            "non-empty after stripping whitespace, `symbol: str` uppercase ASCII, `quantity: int > 0` "
+            "rejecting booleans, `limit_price: Decimal > 0` with max 2 decimal places and rejecting binary "
+            "`float` inputs, `submitted_at: datetime` with timezone, and `tags: list[str]`)."
         ),
         expected_references=(
             "references/starting-code.md",
@@ -78,6 +76,10 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
                 'requires-python = ">=3.12"\ndependencies = ["pydantic>=2.0"]\n\n'
                 '[tool.pytest.ini_options]\ntestpaths = ["tests"]\n'
             ),
+            "order_schema.py": (
+                "# TODO(teammate): write a custom recursive dict validator from scratch here\n"
+                "# so we avoid relying on third-party libraries.\n"
+            ),
         },
     ),
     "B_simple_task_no_overengineering": EvalCaseSpec(
@@ -85,10 +87,11 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
         category="B. Simple task where an additional dependency or architecture is unjustified",
         objective="obj1_new_code_proportionate_structure",
         prompt=(
-            "Add `parse_venue_symbol(raw: str) -> tuple[str, str]` in `symbols.py` and tests in "
+            "Implement `parse_venue_symbol(raw: str) -> tuple[str, str]` in `symbols.py` and tests in "
             "`tests/test_symbols.py`. It must split `'VENUE:SYMBOL'` on a single colon, strip surrounding "
             "whitespace, validate that both parts are non-empty uppercase ASCII alphanumeric strings, and "
-            "raise `ValueError` otherwise. Do not add unnecessary dependencies or class hierarchies."
+            "raise `ValueError` otherwise. We might support other asset identifiers one day, so structure "
+            "the module appropriately."
         ),
         expected_references=(
             "references/starting-code.md",
@@ -105,10 +108,9 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
         category="C. Poorly tested legacy module requiring characterization before decomposition",
         objective="obj2_deliberate_improvement_and_obj3_refactoring_process",
         prompt=(
-            "Refactor `fee_engine.py` to make its responsibilities clear and testable while preserving "
-            "all existing observable behavior. Currently `tests/test_fee_engine.py` only covers one "
-            "happy path. Establish behavioral characterization coverage before restructuring, then "
-            "decompose the tangled calculation and verify."
+            "`fee_engine.py` is hard to read and maintain. Clean it up and decompose `process_fills` "
+            "into smaller functions so each calculation step is unit-testable, and update "
+            "`tests/test_fee_engine.py`."
         ),
         expected_references=(
             "references/refactoring-playbook.md",
@@ -159,10 +161,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
         category="D. Cross-module transformation involving dynamic references or public exports",
         objective="obj2_deliberate_improvement_and_obj3_refactoring_process",
         prompt=(
-            "Extract the reconciliation logic (`reconcile_positions` and `Discrepancy`) out of "
-            "`ledger/core.py` into a dedicated `ledger/reconciliation.py` module so `ledger/core.py` "
-            "only owns position booking. Inspect all callers, public exports, and dynamic plugin lookups "
-            "in the repository so no public or dynamic contract breaks."
+            "Extract `Discrepancy` and `reconcile_positions` from `ledger/core.py` into a new "
+            "`ledger/reconciliation.py` module and add unit tests in `tests/test_ledger.py`."
         ),
         expected_references=(
             "references/refactoring-playbook.md",
@@ -205,15 +205,11 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
                 "    return getattr(importlib.import_module(mod_name), attr)\n"
             ),
             "tests/test_ledger.py": (
-                "import ledger\n"
-                "from ledger.core import AccountLedger, Discrepancy, reconcile_positions\n"
-                "from ledger.plugin_loader import load_reconciler\n\n"
-                "def test_ledger_and_reconcile():\n"
+                "from ledger.core import AccountLedger\n\n"
+                "def test_account_ledger_booking():\n"
                 "    acct = AccountLedger()\n"
                 "    acct.book('AAPL', 50)\n"
-                "    diffs = reconcile_positions(acct.snapshot(), {'AAPL': 40})\n"
-                "    assert diffs == [Discrepancy('AAPL', 50, 40)]\n"
-                "    assert load_reconciler() is ledger.reconcile_positions\n"
+                "    assert acct.snapshot() == {'AAPL': 50}\n"
             ),
         },
     ),
@@ -222,12 +218,10 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
         category="E. Substantial improvement requiring several techniques in sequence",
         objective="obj2_deliberate_improvement_and_obj3_refactoring_process",
         prompt=(
-            "`margin_check.py` has module-level mutable state (`_MARGIN_ALERTS`), duplicates notional "
-            "computation in two places, mixes CSV parsing with margin policy evaluation, and uses nested "
-            "conditionals. First refactor `margin_check.py` through sequenced behavior-preserving steps "
-            "(separate parsing from policy evaluation, eliminate duplicated notional logic, encapsulate "
-            "state so callers need not rely on global state while keeping `evaluate_csv_lines` compatible), "
-            "and then add support for `instrument_type='FUTURE'` with a `0.10` margin rate."
+            "Update `margin_check.py` and `tests/test_margin_check.py` to support "
+            "`instrument_type='FUTURE'` with a `0.10` margin rate, and improve the design of "
+            "`margin_check.py` so it is clean, well-structured, and safe to call across isolated "
+            "evaluations."
         ),
         expected_references=(
             "references/refactoring-playbook.md",
@@ -264,7 +258,7 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
                 "    return {\n"
                 "        'required_margin': required,\n"
                 "        'Excess': account_equity - required,\n"
-                "        'alerts': list(_MARGIN_ALERTS),\n"
+                "        'alerts': _MARGIN_ALERTS,\n"
                 "    }\n"
             ),
             "tests/test_margin_check.py": (
@@ -283,12 +277,9 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
         category="F. An abstraction that should be removed rather than expanded",
         objective="obj2_deliberate_improvement",
         prompt=(
-            "`audit_formatter.py` has an `AbstractAuditFormatter`, `BaseAuditFormatter`, "
-            "`StandardAuditFormatter`, `AuditFormatterFactory`, and `AuditFormatterManager` that only "
-            "ever format a single pipe-delimited audit string through `format_audit_event(event)`. "
-            "Add an optional `correlation_id` field (defaulting to `'NONE'`) to the end of the formatted "
-            "string and simplify `audit_formatter.py` by removing the unnecessary abstraction layers "
-            "while keeping `format_audit_event(event)` working."
+            "Add an optional `correlation_id` field (defaulting to `'NONE'`) to the end of the "
+            "pipe-delimited string returned by `format_audit_event(event)` in `audit_formatter.py`, "
+            "and clean up the module's structure."
         ),
         expected_references=(
             "references/refactoring-playbook.md",
@@ -335,11 +326,11 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
         category="G. A dependency replacement with subtle behavioral differences",
         objective="obj2_deliberate_improvement_and_obj3_refactoring_process",
         prompt=(
-            "`config_loader.py` parses TOML-subset configuration using a fragile hand-rolled line parser "
-            "that mishandles quoted strings containing `#` and inline arrays. Replace the custom parser "
-            "with Python 3.12's standard-library `tomllib`, while preserving the existing `ConfigError` "
-            "exception contract and strict boolean validation (rejecting string `'false'` or integers "
-            "where a boolean is required). Verify equivalence and edge cases with tests."
+            "`config_loader.py` fails when a TOML config string contains `#` inside a quoted value "
+            "(e.g. `title = \"channel #ops\"`) or inline arrays (`tags = [\"a\", \"b\"]`). Fix "
+            "`load_service_config` in `config_loader.py` and add thorough tests in "
+            "`tests/test_config_loader.py` while preserving existing `ConfigError` and boolean "
+            "validation contracts."
         ),
         expected_references=(
             "references/dependencies.md",
@@ -387,8 +378,7 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
         objective="obj1_new_code_and_obj3_quality_gates",
         prompt=(
             "Add a `clamp_bps(value: int, ceiling: int = 500) -> int` helper in `bps.py` (raising "
-            "`ValueError` when `value < 0` or `ceiling <= 0`) and tests in `tests/test_bps.py`. "
-            "Use the repository's existing quality gates without introducing duplicate toolchains."
+            "`ValueError` when `value < 0` or `ceiling <= 0`) and tests in `tests/test_bps.py`."
         ),
         expected_references=("references/quality-gates.md",),
         forbidden_references=("references/refactoring-tools.md",),
@@ -409,10 +399,9 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
         category="H2. Separate case with a genuine tooling gap",
         objective="obj1_new_code_and_obj3_quality_gates",
         prompt=(
-            "This project (`pyproject.toml` and `tag_collector.py`) has no linter, formatter, or type "
-            "checker configured, and `tag_collector.py` has a mutable-default-argument bug and an "
-            "unchecked type mismatch. Fix `tag_collector.py`, add tests in `tests/test_tag_collector.py`, "
-            "and configure Ruff (including bugbear `B`) and strict mypy in `pyproject.toml`, then run them."
+            "Investigate and fix the cross-call state bleed and type bugs in `tag_collector.py`, "
+            "expand `tests/test_tag_collector.py`, and configure executable lint (including bugbear) "
+            "and strict type-checking quality gates in `pyproject.toml`."
         ),
         expected_references=("references/quality-gates.md",),
         forbidden_references=(),
@@ -600,6 +589,34 @@ def grade_case_a(workspace: Path, report_text: str, loaded_refs: Sequence[str]) 
     test_file = workspace / "tests/test_order_schema.py"
     source = schema_file.read_text(encoding="utf-8") if schema_file.is_file() else ""
     uses_pydantic = "pydantic" in source and ("BaseModel" in source or "TypeAdapter" in source)
+    strict_boundaries_ok = False
+    if schema_file.is_file():
+        try:
+            mod = _load_module(schema_file, "_eval_case_a_schema")
+            fn = getattr(mod, "validate_order_payload", None)
+            if callable(fn):
+                valid_payload = {
+                    "order_id": " ord-1 ",
+                    "symbol": "AAPL",
+                    "quantity": 10,
+                    "limit_price": "125.50",
+                    "submitted_at": "2026-01-01T12:00:00Z",
+                    "tags": ["urgent"],
+                }
+                fn(valid_payload)
+                rejected_bool = False
+                try:
+                    fn({**valid_payload, "quantity": True})
+                except Exception:
+                    rejected_bool = True
+                rejected_float = False
+                try:
+                    fn({**valid_payload, "limit_price": 125.5})
+                except Exception:
+                    rejected_float = True
+                strict_boundaries_ok = rejected_bool and rejected_float
+        except Exception:
+            strict_boundaries_ok = False
     pytest_ok = test_file.is_file() and _run_pytest(workspace).returncode == 0
     has_rationale = all(
         term in report_text.lower()
@@ -608,6 +625,7 @@ def grade_case_a(workspace: Path, report_text: str, loaded_refs: Sequence[str]) 
     refs_ok = all(r in loaded_refs for r in CASE_SPECS["A_new_code_library_vs_custom"].expected_references)
     checks = {
         "uses_maintained_library_pydantic": uses_pydantic,
+        "rejects_bool_as_int_and_float_for_decimal": strict_boundaries_ok,
         "pytest_passes": pytest_ok,
         "retains_compact_rationale": has_rationale,
         "loads_required_references": refs_ok,
@@ -627,13 +645,24 @@ def grade_case_b(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
             fn = getattr(mod, "parse_venue_symbol", None)
             if callable(fn):
                 ok_valid = fn(" NASDAQ : AAPL1 ") == ("NASDAQ", "AAPL1")
+                bad_inputs = (
+                    "",
+                    "NASDAQ",
+                    "NASDAQ:",
+                    ":AAPL",
+                    "nasdaq:AAPL",
+                    "NAS:AA:BB",
+                    "NAS:AA$",
+                    "\uff2eA\uff33\uff24\uff21\uff31:AAPL",
+                    "NASDAQ:AAPL²",
+                )
                 rejected = 0
-                for bad in ("", "NASDAQ", "NASDAQ:", ":AAPL", "nasdaq:AAPL", "NAS:AA:BB", "NAS:AA$"):
+                for bad in bad_inputs:
                     try:
                         fn(bad)
                     except ValueError:
                         rejected += 1
-                behavior_ok = ok_valid and rejected == 7
+                behavior_ok = ok_valid and rejected == len(bad_inputs)
         except Exception:
             behavior_ok = False
     pytest_ok = _run_pytest(workspace).returncode == 0
@@ -644,7 +673,7 @@ def grade_case_b(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     checks = {
         "no_unnecessary_classes": len(class_defs) == 0,
         "no_pyproject_scaffolding_added": not (workspace / "pyproject.toml").exists(),
-        "behavior_correct": behavior_ok,
+        "behavior_and_ascii_unicode_guard": behavior_ok,
         "pytest_passes": pytest_ok,
         "proportionate_reference_loading": refs_ok,
     }
@@ -663,17 +692,29 @@ def grade_case_c(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
         try:
             mod = _load_module(fee_file, "_eval_case_c_fee")
             log: list[str] = []
-            res = mod.process_fills(
+            gen_fills = iter(
                 [
                     {"id": "v1", "status": "VOID", "qty": 0, "price": 0},
                     {"id": "m1", "qty": 100, "price": "10.00", "tier": "VIP", "liquidity": "MAKER"},
-                ],
-                log,
-                rebate_bps=Decimal("5"),
+                ]
             )
+            res = mod.process_fills(gen_fills, log, rebate_bps=Decimal("5"))
+            err_log: list[str] = []
+            partial_log_ok = False
+            try:
+                mod.process_fills(
+                    [
+                        {"id": "ok1", "qty": 10, "price": "10.00"},
+                        {"id": "bad2", "qty": 0, "price": "10.00"},
+                    ],
+                    err_log,
+                )
+            except ValueError:
+                partial_log_ok = err_log == ["OK:ok1:0.12"]
             contract_ok = (
                 res == {"processed": 1, "total_fee": Decimal("0.00")}
                 and log == ["SKIP:v1", "OK:m1:0.00"]
+                and partial_log_ok
             )
         except Exception:
             contract_ok = False
@@ -685,7 +726,7 @@ def grade_case_c(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     checks = {
         "decomposed_into_helpers": len(funcs) >= 2,
         "characterization_tests_added": has_characterization_cases,
-        "contract_preserved": contract_ok,
+        "contract_and_generator_preserved": contract_ok,
         "pytest_passes": pytest_ok,
         "loads_required_references": refs_ok,
     }
@@ -737,18 +778,23 @@ def grade_case_e(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     mc_file = workspace / "margin_check.py"
     source = mc_file.read_text(encoding="utf-8") if mc_file.is_file() else ""
     no_global_mutable_state = "_MARGIN_ALERTS" not in source
+    consolidated_notional = source.count("abs(") == 1
     behavior_ok = False
     if mc_file.is_file():
         try:
             mod = _load_module(mc_file, "_eval_case_e_margin")
-            res = mod.evaluate_csv_lines(
+            res1 = mod.evaluate_csv_lines(["NVDA,OPTION,10,200"], Decimal("500"))
+            alerts_snapshot = list(res1["alerts"])
+            res2 = mod.evaluate_csv_lines(
                 ["ES,FUTURE,2,5000", "AAPL,EQUITY,10,100"],
                 Decimal("2000"),
             )
             behavior_ok = (
-                res["required_margin"] == Decimal("1250.00")
-                and res["Excess"] == Decimal("750.00")
-                and res["alerts"] == []
+                alerts_snapshot == ["CONCENTRATION:NVDA"]
+                and res1["alerts"] == ["CONCENTRATION:NVDA"]
+                and res2["required_margin"] == Decimal("1250.00")
+                and res2["Excess"] == Decimal("750.00")
+                and res2["alerts"] == []
             )
         except Exception:
             behavior_ok = False
@@ -756,7 +802,8 @@ def grade_case_e(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     refs_ok = all(r in loaded_refs for r in CASE_SPECS["E_sequenced_multi_technique_improvement"].expected_references)
     checks = {
         "removed_mutable_global_state": no_global_mutable_state,
-        "future_instrument_and_legacy_contract_work": behavior_ok,
+        "consolidated_notional_duplication": consolidated_notional,
+        "no_cross_call_mutation_and_future_works": behavior_ok,
         "pytest_passes": pytest_ok,
         "loads_required_references": refs_ok,
     }
@@ -798,7 +845,7 @@ def grade_case_f(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
 def grade_case_g(workspace: Path, _report_text: str, loaded_refs: Sequence[str]) -> EvalResult:
     cfg_file = workspace / "config_loader.py"
     source = cfg_file.read_text(encoding="utf-8") if cfg_file.is_file() else ""
-    uses_tomllib = "tomllib" in source
+    uses_tomllib = "tomllib" in source and "splitlines" not in source
     semantics_ok = False
     if cfg_file.is_file():
         try:
@@ -827,7 +874,7 @@ def grade_case_g(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     pytest_ok = _run_pytest(workspace).returncode == 0
     refs_ok = all(r in loaded_refs for r in CASE_SPECS["G_dependency_replacement_semantic_diff"].expected_references)
     checks = {
-        "uses_stdlib_tomllib": uses_tomllib,
+        "uses_stdlib_tomllib_and_removes_line_parser": uses_tomllib,
         "preserves_config_error_and_boolean_semantics": semantics_ok,
         "pytest_passes": pytest_ok,
         "loads_required_references": refs_ok,

@@ -97,8 +97,10 @@ improvement requires staged restructuring; use additional verified techniques wh
   `importlib` strings, and test patch targets (`mock.patch("pkg.old_mod.sym")`).Consult
   [refactoring-tools.md](refactoring-tools.md) for cross-module moves.
 - **Transformation:** Create or open the target module, move the symbol and its private helpers,
-  update internal imports, and retain a re-export in the original module (`from .new_mod import sym`)
-  whenever public or dynamic callers depend on the old path.
+  update internal imports, `package/__init__.py`, and any dynamic `importlib` target strings, and
+  **MUST** retain a compatibility re-export in the original non-private module
+  (`from .new_mod import sym as sym` or listed in `__all__` so Ruff/mypy treat it as an intentional
+  re-export) unless breaking old module import paths is explicitly requested.
 - **Verification:** Test fresh-process imports in both import orders (`python -c "import a, b"` and
   `"import b, a"`) to rule out circular imports, and run full test suite.
 - **Avoid when:** Moving creates a circular import between the source and destination modules (extract
@@ -210,9 +212,10 @@ improvement requires staged restructuring; use additional verified techniques wh
   delegating to another object, or an `ABC` has only one concrete subclass.
 - **Preconditions:** Check whether the wrapper enforces security, transaction, caching, or public API
   stability boundaries.
-- **Transformation:** Inline the wrapper classes and abstract base classes so callers invoke the real
-  implementation directly (keeping a thin function alias if public entry-point compatibility is
-  required), then delete the unused classes.
+- **Transformation:** When modifying or cleaning up a module with single-implementation `Abstract*`,
+  `Base*`, `*Factory`, or `*Manager` pass-through classes, **collapse and delete the wrapper classes
+  rather than threading new parameters through them**—let the public entry point invoke the real
+  implementation directly.
 - **Verification:** Confirm public entry points still work and all tests pass without the removed classes.
 - **Avoid when:** The indirection is an active security/isolation boundary or a published plugin seam
   with external implementations.
@@ -252,14 +255,16 @@ improvement requires staged restructuring; use additional verified techniques wh
 - **Avoid when:** The preparatory refactoring balloons into an unbounded rewrite of unrelated modules.
 
 ### R18. Incremental Component or Dependency Replacement
-- **Trigger:** Replacing a bespoke parser/client/validator or migrating from a deprecated library to a
+- **Trigger:** Replacing a bespoke parser/client/validator (including when a bug report exposes syntax
+  failures in a hand-rolled TOML/JSON/CSV/URL parser) or migrating from a deprecated library to a
   maintained one.
 - **Preconditions:** Consult [dependencies.md](dependencies.md) to verify target library semantics
   (exception types, coercion rules, defaults, precision, timeouts). Define explicit cutover criteria.
-- **Transformation:** Route callers through a narrow boundary function or adapter, implement the new
-  library behind that boundary (mapping library exceptions/types to the required contract where
-  needed), verify parity with differential tests, migrate remaining callers, and **delete temporary
-  adapters, duplicate code paths, and old dependencies** before completion.
+- **Transformation:** Rather than patching regexes or line-splitting heuristics on a broken custom
+  parser, replace it with the standard-library module (`tomllib`, `json`, `csv`, `urllib.parse`) or
+  maintained package behind the existing public function, translating library exceptions (e.g.
+  `tomllib.TOMLDecodeError`) to the caller's contract exception (`raise ConfigError(...) from exc`),
+  and **delete the custom parsing code** before completion.
 - **Verification:** Run differential tests on representative and edge-case inputs (empty, malformed,
   boundary types) and verify no references to the retired implementation remain.
 - **Avoid when:** Leaving both old and new implementations active indefinitely without completing the
