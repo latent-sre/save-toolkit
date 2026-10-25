@@ -172,6 +172,8 @@ def load_config(path: Path) -> dict[str, Any]:
     for name in ("storage_quota", "api_key_helper"):
         if type(config[name]) is not bool:
             raise ValueError(f"invalid configuration {name}")
+    if config["storage_quota"] is not True:
+        raise ValueError("a hard storage quota is required")
     config.update(plugin_root=str(plugin), cli_path=str(cli))
     return config
 

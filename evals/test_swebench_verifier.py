@@ -211,7 +211,7 @@ def test_command_launches_this_adapter_with_project_interpreter(tmp_path):
     command = verifier.verifier_command(tmp_path / "task", tmp_path / "patch", tmp_path / "output", RUN_ID, IMAGE)
     assert command == [sys.executable, str(Path(verifier.__file__).resolve()),
                        "--task", str(tmp_path / "task"), "--patch", str(tmp_path / "patch"),
-                       "--output", str(tmp_path / "output"), "--run-id", RUN_ID, "--image-digest", IMAGE]
+                       "--output", str(tmp_path / "output"), "--run-id", RUN_ID, "--image-digest", IMAGE, "--storage-quota"]
 
 
 def test_pass_receipt_binds_identity_and_factory_removes_privileges(boundary):
@@ -239,7 +239,7 @@ def test_pass_receipt_binds_identity_and_factory_removes_privileges(boundary):
         "command": "tail -f /dev/null", "cap_drop": ["ALL"],
         "security_opt": ["no-new-privileges:true"], "nano_cpus": 2_000_000_000,
         "mem_limit": "2g", "memswap_limit": "2g", "pids_limit": 256,
-        "network_disabled": True, "privileged": False,
+        "network_disabled": True, "privileged": False, "storage_opt": {"size": "10G"},
     }]
     spec, _, _, options = boundary.harness.calls[0]
     assert spec.image == IMAGE
@@ -501,3 +501,30 @@ def test_verifier_storage_or_monitor_limit_is_inconclusive_before_candidate(boun
     assert receipt["outcome"] == "INCONCLUSIVE"
     assert boundary.client.killed and not boundary.client.candidate_executed
     assert receipt["cleanup"][0]["present"] is False
+
+
+@pytest.mark.parametrize("quota", [False, None, 1, "true"])
+def test_verifier_rejects_missing_hard_quota_before_execution(boundary, quota):
+    with pytest.raises(ValueError, match="hard storage quota"):
+        verifier.verify(boundary.task_path, boundary.patch_path, boundary.output, RUN_ID, IMAGE,
+                        storage_quota=quota, engine_id=ENGINE, docker_host=ENDPOINT)
+    assert boundary.client.options == []
+    assert not boundary.client.candidate_executed
+    assert not boundary.output.exists()
+
+
+@pytest.mark.parametrize("quota", [False, None, 1, "true"])
+def test_factory_cannot_bypass_hard_quota(boundary, quota):
+    with pytest.raises(ValueError, match="hard storage quota"):
+        verifier._container_factory(IMAGE, "root", task()["base_commit"], {}, storage_quota=quota)
+    assert boundary.client.options == []
+
+
+def test_cli_requires_hard_quota_flag_before_execution(boundary):
+    command = verifier.verifier_command(boundary.task_path, boundary.patch_path, boundary.output, RUN_ID, IMAGE)
+    command.remove("--storage-quota")
+    with pytest.raises(SystemExit) as error:
+        verifier.main(command[2:])
+    assert error.value.code == 2
+    assert not boundary.client.options
+    assert not boundary.output.exists()

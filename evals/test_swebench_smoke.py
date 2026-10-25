@@ -28,7 +28,7 @@ def evidence():
                 {'Destination': '/opt/claude', 'RW': False}, {'Destination': '/opt/fleet', 'RW': False}]},
         'network': {'Internal': True, 'EnableIPv6': False, 'Options': {
             'com.docker.network.bridge.gateway_mode_ipv4': 'isolated'}},
-        'storage': {'stop': 'storage_limit', 'quota_rejected': False},
+        'storage': {'stop': None, 'quota_rejected': True},
     }
 
 
@@ -133,3 +133,9 @@ def test_storage_probe_reaches_binary_docker_quota_without_allocating_disk(monke
     else:
         assert 10_737_418_240 < result['written'] <= 10_842_275_840
         assert sleeps == [90]
+
+
+def test_watchdog_detection_does_not_establish_hard_containment():
+    observed = evidence()
+    observed["storage"] = {"stop": "storage_limit", "quota_rejected": False}
+    assert not assess_smoke(observed, [{"present": False}])["storage_cap"]

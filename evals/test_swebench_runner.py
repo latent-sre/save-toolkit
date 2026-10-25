@@ -433,14 +433,15 @@ def test_setup_failure_keeps_record_billing_and_cleanup(setup):
     assert not setup.docker.resources and FakeProxy.instances[0].closed
 
 
-def test_storage_watchdog_stop_is_inconclusive_and_retains_cleanup(setup):
+def test_missing_hard_quota_is_inconclusive_and_retains_cleanup(setup):
     setup.config["storage_quota"] = False
     setup.smoke["binding"] = runner.runtime_binding(setup.config, setup.manifest, setup.docker)
     setup.docker.running = True
     setup.docker.size = 10_737_418_241
     result = trial(setup)
     assert result["status"] == "INCONCLUSIVE"
-    assert "storage_limit" in result["reason"] and result["cleanup_ok"]
+    assert result["cleanup_ok"]
+    assert not setup.docker.resources
 
 
 def test_wall_clock_stop_is_inconclusive_and_retains_cleanup(setup, monkeypatch):

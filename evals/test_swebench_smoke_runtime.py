@@ -431,13 +431,11 @@ def test_guard_wrapper_unavailable_cannot_satisfy_expected_credential_denial(run
     assert receipt["checks"]["cleanup"]
 
 
-def test_storage_watchdog_stop_comes_from_real_execute_and_still_cleans(runtime):
+def test_missing_hard_quota_blocks_smoke_before_candidate_execution(runtime):
     runtime.config["storage_quota"] = False
     receipt = run(runtime)
-    assert observations(runtime)["storage"] == {"stop": "storage_limit", "quota_rejected": False}
-    assert receipt["checks"]["storage_cap"] and receipt["checks"]["cleanup"]
-    assert runtime.docker.processes[0].killed
-    assert any(args[:3] == ["inspect", "--size", "--format"] for args, _ in runtime.docker.calls)
+    assert not receipt["checks"]["storage_cap"]
+    assert not runtime.docker.processes
     assert not runtime.docker.resources
 
 

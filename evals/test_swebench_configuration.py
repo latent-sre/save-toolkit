@@ -80,6 +80,7 @@ def test_config_resolves_paths_checks_actual_cli_bytes_and_defaults_helper(confi
         ("proxy_bind", "::1"),
         ("proxy_target", "evil.test"),
         ("storage_quota", 1),
+        ("storage_quota", False),
         ("api_key_helper", "false"),
         ("images", {}),
         ("images", {"case": {"reference": "image:latest", "image_id": "sha256:" + "b" * 64}}),

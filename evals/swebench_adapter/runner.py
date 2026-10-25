@@ -228,9 +228,11 @@ def verify_patch(
     docker: Docker,
     *,
     baseline: bool = False,
-    storage_quota: bool = False,
+    storage_quota: bool = True,
 ) -> dict[str, Any]:
     """Run a fresh verifier process with private host-only inputs and no model environment."""
+    if storage_quota is not True:
+        raise ValueError("a hard storage quota is required")
     output.mkdir(mode=0o700, parents=True, exist_ok=True)
     if any(
         (output / name).exists()

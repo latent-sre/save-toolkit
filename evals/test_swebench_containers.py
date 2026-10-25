@@ -72,7 +72,7 @@ def agent(setup, **kwargs):
         resources.internal_network()
     return resources.start_agent("wp08-attempt-network", DIGEST, cli, plugin,
         {"ANTHROPIC_AUTH_TOKEN": "attempt-placeholder", "ANTHROPIC_API_KEY": ""}, "172.30.0.2",
-        storage_quota=kwargs.get("storage_quota", False))
+        storage_quota=kwargs.get("storage_quota", True))
 
 
 def test_docker_wrapper_uses_argv_and_sanitizes_failure(monkeypatch):
@@ -139,7 +139,7 @@ def test_agent_launch_has_only_readonly_tool_mounts_and_fixed_network(setup):
 def test_mutable_or_invalid_image_is_rejected_before_allocating(setup, image):
     docker, resources, cli, plugin = setup
     with pytest.raises(ValueError):
-        resources.start_agent("network", image, cli, plugin, {}, "172.30.0.2", storage_quota=False)
+        resources.start_agent("network", image, cli, plugin, {}, "172.30.0.2", storage_quota=True)
     assert docker.calls == []
 
 
@@ -148,7 +148,7 @@ def test_real_credential_markers_are_refused_before_launch(setup, value):
     docker, resources, cli, plugin = setup
     with pytest.raises(ValueError):
         resources.start_agent("network", DIGEST, cli, plugin, {"ANTHROPIC_AUTH_TOKEN": value},
-                              "172.30.0.2", storage_quota=False)
+                              "172.30.0.2", storage_quota=True)
     assert docker.calls == []
 
 
@@ -370,6 +370,9 @@ def test_failed_agent_creation_is_still_owned_for_cleanup(setup):
     docker.fail_create = True
     with pytest.raises(RuntimeError):
         agent(setup)
+    launches = [args for args, *_ in docker.calls if args[0] == "run"]
+    assert len(launches) == 1
+    assert launches[0][launches[0].index("--storage-opt") + 1] == "size=10G"
     assert [entry["kind"] for entry in resources.cleanup()] == ["container", "network"]
     assert docker.present == set()
 
@@ -426,7 +429,7 @@ def test_all_owned_commands_and_exec_stay_on_bound_daemon_after_context_changes(
     proxy_ip = resources.start_relay(network, "host.docker.internal", 40000)
     name = resources.start_agent(network, DIGEST, cli, plugin,
                                 {"ANTHROPIC_AUTH_TOKEN": "attempt-placeholder"}, proxy_ip,
-                                storage_quota=False)
+                                storage_quota=True)
     resources.setup_repository(name, BASE)
     process_calls = fake_process(monkeypatch, FakeProcess())
     result = resources.execute(name, ["/opt/claude", "--version"], storage_quota=False)
@@ -446,3 +449,11 @@ def test_watchdog_accepts_the_exact_binary_docker_quota(setup, monkeypatch):
     result = resources.execute(name, ["command"], storage_quota=False)
     assert result.stop is None
     assert not process.killed
+
+
+@pytest.mark.parametrize("quota", [False, None, 1, "true"])
+def test_agent_rejects_missing_hard_quota_before_docker(setup, quota):
+    docker, resources, cli, plugin = setup
+    with pytest.raises(ValueError, match="hard storage quota"):
+        resources.start_agent("network", DIGEST, cli, plugin, {}, "172.30.0.2", storage_quota=quota)
+    assert docker.calls == []
