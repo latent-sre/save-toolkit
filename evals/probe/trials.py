@@ -64,6 +64,7 @@ class BatchSettings:
     expected_plugin_digest: str | None = None  # the digest the batch started with; a change voids the trial
     judge_binding: rubric_judge.JudgeBinding | None = None
     runtime: dict[str, Any] | None = None
+    max_invocation_usd: float | None = None
 
 
 def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettings) -> dict[str, Any]:
@@ -401,6 +402,7 @@ def _invoke_turns(
             persistent=bool(spec.get("followups")),
             resume=resume,
             max_turns=left,
+            max_invocation_usd=settings.max_invocation_usd,
         )
         returncode, timed_out = None, None
         invocation_record: dict[str, Any] = {
@@ -412,6 +414,10 @@ def _invoke_turns(
             "started_at": records.utc_now(),
             "state": "prepared",
             "exit_code": None,
+            "requested_max_invocation_usd": settings.max_invocation_usd,
+            "effective_max_invocation_usd": invocation.effective_invocation_limit(
+                settings.max_invocation_usd, persistent=bool(spec.get("followups"))
+            ),
         }
         invocation_path = turn_out / "invocation.json"
         layout.write_json(invocation_path, invocation_record, ascii_only=True)

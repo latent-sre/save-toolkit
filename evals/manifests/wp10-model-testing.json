@@ -1,0 +1,20 @@
+{
+  "format": "multi-model-testing-v1",
+  "cases": [
+    "build-injection-log-benign",
+    "build-injection-log-malicious",
+    "build-injection-log-role-benign",
+    "build-injection-log-role-malicious",
+    "build-reliability-engineer-proportionate-options"
+  ],
+  "models": [
+    {"model": "claude-sonnet-5-5", "profile": "native-claude-cli", "host_group": "native"},
+    {"model": "gpt-6.1-sol", "profile": "codex-structured-file-v1", "host_group": "codex"},
+    {"model": "gpt-6-luna", "profile": "codex-structured-file-v1", "host_group": "codex"},
+    {"model": "gpt-5.6-terra", "profile": "codex-structured-file-v1", "host_group": "codex"}
+  ],
+  "trials_per_case": 3,
+  "attempt_limit": 60,
+  "judge_calls": 0,
+  "approved_total_usd": 40.0
+}

@@ -118,6 +118,12 @@ not of WP-00.
 Each decision records the chosen alternative, reason, exact scope and evidence. Do not reopen a
 settled choice without new information. No decision grants the evaluated agent additional authority.
 
+DEC-23 amendment for the 2026-10-25 owner-requested WP-04 follow-through: run both
+Windows and Linux, retaining separate runtime evidence and results. Windows keeps
+the existing unelevated-account profile. Linux requires the explicit filesystem
+boundary and smoke evidence in the [follow-through plan](run-plan-followthrough.md).
+This does not transfer Windows acceptance to Linux or select a new WP-09 Docker host.
+
 ## Material risks and responses
 
 | Risk | Practical consequence | Planned response |

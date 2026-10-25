@@ -186,6 +186,13 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
   [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
   exact quotation, the reliability exception-path explanation and GCP-01 B's factual findings open.
+  The [current four-model continuation](reviews/2026-10-25-wp10-continuation.md) completed
+  all 44 planned attempts, retaining four instrument gaps and separate semantic proposals.
+  Mechanical passes do not close the observed reasoning failures or human acceptance.
+  The [88-attempt repair comparison](reviews/2026-10-25-wp10-handoff-repairs.md) is complete
+  at run and AI-review level. Retry reasoning improved on Sonnet/Luna in the sample;
+  Terra remains unresolved, and the unsupported GCP rewrite was withdrawn. Keep its
+  incumbent/candidate evidence separate from the earlier baseline and human acceptance.
 - WP-12 complete on 2026-10-17: all 64 GCP cases accepted at `9147ff91`
   ([pilot and template](../evals/oracles/gcp/README.md), [catalog](../evals/oracles/gcp/CATALOG.md)).
 - WP-13 complete on 2026-10-18 under its [run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md):
@@ -202,6 +209,16 @@ test generation, selected terminal tasks, GCP managed-service/migration and GKE 
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
 **Next action:**
+- Execute the owner's [follow-through plan](fleet-evaluation/run-plan-followthrough.md): shared
+  Sonnet/Sol/Luna/Terra testing support first, then WP-04 on Linux and Windows, EVAL-005,
+  ROUTE-007, HANDOVER-001, WP-09 and WP-10. The owner approved USD 40 aggregate testing
+  spend; exact runtime evidence, human tabletops and candidate acceptance remain distinct.
+  The owner subsequently deferred Windows WP-04 and Docker-based WP-09 execution;
+  Linux WP-04 and independent local preparation continue. Bounded Codex subscription
+  runs are explicitly approved, with dollar costs remaining unknown.
+  [Follow-through evidence](reviews/2026-10-25-followthrough.md) records the four-model
+  smoke and five-case Linux WP-04 pilot, preserving technical failures, mapping gaps
+  and unmeasured upstream/human assessments.
 - WP-08: review the implementation candidate and complex-case/run-plan amendment, then prove hard
   quota support on the already selected Windows Docker Desktop Linux engine. Freeze
   the accepted dataset/selection, licences, CLI, plugin and image identities using the
@@ -214,14 +231,16 @@ acceptance tests, delivery phases and explicit open decisions.
   exact-candidate/model/spend acceptance; Harbor is already the selected Terminal-Bench runner.
 - WP-13: none; complete. Use its cases as a regression check when a skill or agent changes.
   Haiku's inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
-- WP-10: the owner disposes of the bound Luna semantic proposals and names the exact candidate
-  revision; any further campaign needs a new bounded scope.
+- WP-10: review the retained repair candidate and bound 88-attempt comparison. Resolve the
+  remaining Terra, GCP B and quotation/instrument gaps or select broader qualification;
+  human acceptance names the exact candidate. No further campaign is scheduled automatically.
 - Before any rubric-graded campaign: one owner-approved judge recalibration, because the clean-room
   auth-failure fix (`1d92654f`) changed the judge identity.
 - Runner follow-ups, not blocking: unittest `--option=value` spellings and SHA-spelled Git ranges
   fail their detectors (0/303 and 0/909 in saved traces).
 
-This item authorizes no model spend, lab provisioning or production change.
+The follow-through request authorizes its bounded testing within USD 40 total. It does not
+authorize lab provisioning or production change.
 **Evidence:** [Specification](fleet-evaluation/README.md); per-package records are linked under Status.
 Integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
@@ -338,7 +357,10 @@ without having to ask for it each time.
 
 ### EVAL-005 — the observability engineer's Grafana write lands, and only that write
 
-**Status:** `ready` (2026-10-18). The run ran: in all six trials, both arms, the panel was saved
+**Status:** `active` (2026-10-25). Offline refusal grading is repaired and the candidate now
+makes its no-value display requirement explicit. Live fixture reproduction is unavailable on
+the current Linux host without Docker; original trial-3 traces remain on Windows.
+In the historical six trials, both arms, the panel was saved
 through a preflighted write and the datasource stayed unchanged, but every trial is FAIL under the
 all-checks threshold.
 **Owner:** The human owner approves each repair run; `agent-engineer` repairs the scenario and runs it.
@@ -347,8 +369,8 @@ fails only on agent behavior: its refusal-wording check accepts the measured cor
 its post-write query check fails only when the agent's query did not return the persisted panel's
 data. The owner has decided whether the missing panel no-data text needs an
 `observability-engineer` or `grafana` repair.
-**Next action:** `agent-engineer` widens the refusal-wording alternation and proves offline that both
-measured refusals pass and a reply that applies the datasource edit still fails; reproduces the
+**Next action:** The [offline refusal repair](reviews/2026-10-25-eval-005-repair.md) accepts both
+retained measured fragments and preserves rejection of an actual datasource edit. `agent-engineer` reproduces the
 empty post-write Grafana query on the fixture without a model; and reads historical trial 3's
 queries against the check. The owner then decides on the no-data text and approves a re-run.
 **Evidence:** [run record](reviews/2026-10-18-eval-005-run.md).
@@ -357,28 +379,37 @@ datasources alone.
 
 ### ROUTE-007 — re-check routing for the descriptions trimmed on 2026-09-02
 
-**Status:** `ready` (2026-10-18); the routing re-check EVAL-009 left owed, kept when EVAL-009 closed.
+**Status:** `active` (2026-10-25); the 20-case automatic-routing baseline completed with
+12 PASS, seven FAIL and one INCONCLUSIVE. Two small wording candidates were withdrawn
+after a 30-attempt paired comparison did not demonstrate improvement. Failures remain open.
 **Owner:** The human owner approves the run; `agent-engineer` writes the missing scenarios and runs them.
 **Outcome:** The eight surviving skills whose description clauses `5c5aa742` replaced with short
 exclusions (akamai-edge, api-craft, database-reliability, frontend-craft, obs-alerting,
 obs-pipeline, pcf-deploy, pcf-ops), plus grafana as the successor to obs-dashboards and obs-analysis
 for the consolidated signal skills, each have at least one fire and one not-fire routing
 scenario, and all pass once on current main.
-**Next action:** `agent-engineer` writes the seven missing scenarios: fire and not-fire for
-database-reliability and pcf-ops; not-fire for akamai-edge and obs-alerting; and fire
-for pcf-deploy. The former backend-craft is now api-craft, with two fire cases and one not-fire
-case defined offline. Dashboard design and the application-UI exclusion now target grafana;
-their existing scenario IDs retain the historical names. Signal discovery and interpretation
-now target obs-analysis; correlation-ID versus trace-ID selection is an internal method contract.
-The owner then approves one run of the completed set. The new API cases, migrated dashboard/signal
-routing, and trimmed obs-analysis guidance are not yet measured natively.
-**Evidence:** none yet; the commit message of `5c5aa742` records the scenarios as owed.
+**Next action:** Use the [retained failures and comparison](reviews/2026-10-25-followthrough.md#route-007-baseline-and-bounded-repair-comparison)
+to choose a further measured remedy; do not repeat unproven wording changes or erase the
+original failures. Preserve the explicit-human-only deployment boundary. A separately
+instrumented native canary proves user-command expansion on CLI 2.1.310, with all model
+tools disabled; it is not automatic-discovery or original-method acceptance evidence.
+The former backend-craft is now api-craft. Dashboard design and the application-UI exclusion
+target grafana; signal discovery and interpretation target obs-analysis. Historical scenario
+IDs remain unchanged; correlation-ID versus trace-ID selection is an internal method contract.
+The [current preparation](reviews/2026-10-25-route-007-preparation.md) adds the six valid missing
+automatic-routing cases and lists the bounded run selection. The seventh, `pcf-deploy` fire,
+requires an explicit-human-invocation measurement because its current skill forbids automatic
+invocation; do not change that authority to make discovery pass.
+**Evidence:** [Follow-through baseline, comparison and capability canary](reviews/2026-10-25-followthrough.md);
+the commit message of `5c5aa742` records the original scenarios as owed.
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.
 
 ### HANDOFF-002 — the blocks-unapproved graders stop false-redding
 
-**Status:** `ready` (2026-10-18); narrowed by the owner to the grader fix. The label-restatement rule
+**Status:** `ready` (2026-10-25); the offline grader repair is implemented, with
+[before/after evidence](reviews/2026-10-25-wp10-handoff-repairs.md#handoff-002).
+The owner narrowed this item to the grader fix. The label-restatement rule
 it also proposed is dropped: across the handoff build probes on 2026-09-30 it landed in 0 to 2 of 3
 trials on every arm, the no-rule controls included, and AGENTS.md adds a handoff body rule only when
 a probe shows the agent failing without it. The gap itself stays known and unremedied: every arm
@@ -390,18 +421,20 @@ it lands before it enters an agent body.
 reds: its `not_regex` graders accept a statement that nothing changed ("I changed nothing") and a
 conditional plan that waits for approval ("once approved, I will apply the patch"), and its fields
 grader is not tripped by a field name repeated in prose.
-**Next action:** `agent-engineer` narrows the patterns and proves each fix offline on scripted
-responses that show the false red before and the pass after, plus a true unapproved edit that still
-fails; no model run is needed.
+**Next action:** Integrate the verified repair and obtain human merge disposition. Scripted
+controls now accept the bounded no-op and approval-conditional statements while rejecting
+actual edits, premature commitments and invalid decision fields; no model run is needed.
 **Evidence:** [the scenario](../evals/scenarios/agent-direct-handoff-software-engineer-blocks-unapproved.yaml);
-its graders are unchanged since 2026-09-30 apart from `max_turns`.
+its exact field parser was already correct; the two scenario-specific action patterns were repaired.
 **SRE task:** An SRE trusts that a red on this check means the agent edited without approval, not
 that it said so in a harmless sentence.
 
 ### RELIABILITY-001 — measure the timing repair on Claude, then decide on the reliability lane
 
-**Status:** `ready` (2026-10-18); facts corrected by the owner. The source repair the deferral waited
-for has landed, and nothing has measured it on Claude.
+**Status:** `ready` (2026-10-25); the source repair has landed, but the specified native
+helper-return comparison remains unrun. The separate
+[WP-10 assessment-document comparison](reviews/2026-10-25-wp10-handoff-repairs.md#reliability-proposals)
+measures newer retry guidance on Claude and Codex; it does not replace this profile's acceptance.
 - [verified] The 2026-10-08 comparison: candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt
   byte-identically from its commit, ran one native trial each on `claude-sonnet-5-5` for USD 0.70 in
   all. Both pass the three structural checks.
@@ -600,7 +633,10 @@ open items and whether work could continue, as the
 AC-35's human-handover half.
 **Next action:** None until scheduled. The owner names the responders and dates; the facilitator picks
 the two cases from the accepted catalog.
-**Evidence:** none yet.
+The [prepared tabletop packet](fleet-evaluation/handover-tabletops.md) now selects accepted
+migration/hybrid and GKE reachability cases, with separate responder handouts and worksheets.
+Human execution and usefulness results remain unmeasured.
+**Evidence:** [Offline preparation and exact case identities](fleet-evaluation/handover-tabletops.md).
 **SRE task:** A responder taking over a board mid-incident continues from the handed-over record
 without repeating intake.
 

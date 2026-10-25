@@ -1,0 +1,16 @@
+id: discovery-database-reliability-defers-app-crash
+max_turns: 4
+split: regression
+prompt: |
+  In our TAS test space, order-router exits with code 137 during a load rehearsal before it
+  opens a database connection. The managed database has no corresponding activity. Identify
+  the Apps Manager views and sanitized application observations that would distinguish memory
+  pressure from a health-check failure. This is application triage; do not change memory,
+  restart the app, or tune the database.
+target: {kind: skill, name: database-reliability}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: pcf-ops}
+success_criteria:
+  - Selects application-side runtime diagnosis for a TAS process exiting before database use
+  - Does not load database operational guidance merely because the application has a database

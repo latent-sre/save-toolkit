@@ -65,14 +65,14 @@ def _threshold(value: str) -> float:
     return number
 
 
-def _budget(value: str) -> float:
+def _budget(value: str, *, flag: str = "--max-batch-usd") -> float:
     """A spend cap: finite and above zero. NaN compares false against everything, so it would never stop."""
     try:
         number = float(value)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"--max-batch-usd must be a number, got {value!r}") from None
+        raise argparse.ArgumentTypeError(f"{flag} must be a number, got {value!r}") from None
     if not math.isfinite(number) or number <= 0:
-        raise argparse.ArgumentTypeError(f"--max-batch-usd must be finite and > 0, got {value!r}")
+        raise argparse.ArgumentTypeError(f"{flag} must be finite and > 0, got {value!r}")
     return number
 
 
@@ -137,6 +137,14 @@ def _run_options(parser: argparse.ArgumentParser, *, required: bool) -> None:
         default=None,
         metavar="USD",
         help="stop scheduling trials once this batch's known spend reaches USD, or once a trial's cost is unknown",
+    )
+    parser.add_argument(
+        "--max-invocation-usd",
+        type=functools.partial(_budget, flag="--max-invocation-usd"),
+        default=None,
+        metavar="USD",
+        help="request a Claude CLI budget per invocation (may overrun by a response); native conversations "
+        "retain their lower USD 0.75 limit. Separate from the batch scheduling cap",
     )
     parser.add_argument(
         "--out", type=Path, required=required, help="iteration directory for the reviewer/aggregator layout"
@@ -420,6 +428,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
         expected_plugin_digest=provenance["plugin_source_sha256"],
         judge_binding=judge_binding,
         runtime=runtime,
+        max_invocation_usd=args.max_invocation_usd,
     )
     release_sleep_hold = _hold_off_idle_sleep()
     try:

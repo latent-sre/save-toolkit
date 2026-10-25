@@ -4,6 +4,8 @@ Canonical agent guidance is prompt-injected, not natively routed. A scoped MCP
 server substitutes for Read/Write; shell, web and delegation are disabled. The
 native Claude runner, cases and graders remain unchanged. Records are a separate
 baseline, with dollars unknown and wall/tool-call limits instead of Claude turns.
+Pure tool-catalog metadata and validated empty built-in resource enumeration are
+measurable; external resource reads and arbitrary JavaScript remain unsupported.
 """
 
 from __future__ import annotations
@@ -179,21 +181,96 @@ def model_matches(session: str, thread: str, expected: str) -> bool:
 
 
 def metadata_only_query(source: str) -> bool:
-    """Recognize pure tool-catalog reads, never execute or broadly trust JavaScript."""
-    if re.fullmatch(r"\s*text\(\s*ALL_TOOLS\s*\)\s*;?\s*", source):
+    """Validate a closed catalog-only grammar without evaluating JavaScript."""
+    if len(source) > 4096:
+        return False
+    identifier = r"[A-Za-z_$][A-Za-z0-9_$]*"
+    wrapped = re.fullmatch(r"\s*text\(\s*(.*?)\s*\)\s*;?\s*", source, re.DOTALL)
+    alias = re.fullmatch(r"\s*const\s+(" + identifier + r")\s*=\s*(.*?);\s*text\(\s*\1\s*\)\s*;?\s*", source, re.DOTALL)
+    if alias and alias[1] not in {"text", "ALL_TOOLS", "tools"}:
+        catalog_source = alias[2].strip()
+    elif wrapped:
+        catalog_source = wrapped[1].strip()
+    else:
+        return False
+    if catalog_source == "ALL_TOOLS":
         return True
+    # Projection fields are fixed; every access must use this map callback's own variable.
+    projection = (
+        r"(?:\s*\.map\(\s*(?P<project>" + identifier + r")\s*=>\s*\(\s*\{\s*"
+        r"name\s*:\s*(?P=project)\.name\s*,\s*description\s*:\s*(?P=project)\.description"
+        r"\s*\}\s*\)\s*\))?"
+    )
     query = re.fullmatch(
-        r"\s*text\(\s*ALL_TOOLS\.filter\(\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*=>\s*(.*?)\s*\)\s*\)\s*;?\s*",
-        source,
-        re.DOTALL,
+        r"ALL_TOOLS\.filter\(\s*(" + identifier + r")\s*=>\s*(.*?)\s*\)" + projection, catalog_source, re.DOTALL
     )
     if not query:
         return False
-    # Only string literals and conjunctions over the two catalog string fields.
-    # No template interpolation, computed arguments, blocks, assignments or extra calls.
     literal = r"""(?:"(?:[^"\\\r\n]|\\.)*"|'(?:[^'\\\r\n]|\\.)*')"""
-    term = re.escape(query[1]) + r"\.(?:name|description)\.includes\(\s*" + literal + r"\s*\)"
-    return re.fullmatch(term + r"(?:\s*&&\s*" + term + r")*", query[2]) is not None
+    atom = re.escape(query[1]) + r"\.(?:name|description)\.includes\(\s*" + literal + r"\s*\)"
+    token = re.compile(r"\s*(?:(?P<atom>" + atom + r")|(?P<operator>&&|\|\||[()]))")
+    position = depth = count = 0
+    operand = True
+    expression = query[2].strip()
+    while position < len(expression):
+        match = token.match(expression, position)
+        count += 1
+        if not match or count > 256:
+            return False
+        position = match.end()
+        operator = match["operator"]
+        if operator == "(":
+            if not operand or depth >= 16:
+                return False
+            depth += 1
+        elif operator == ")":
+            if operand or not depth:
+                return False
+            depth -= 1
+        elif operator in {"&&", "||"}:
+            if operand:
+                return False
+            operand = True
+        else:
+            if not operand:
+                return False
+            operand = False
+    return not operand and depth == 0
+
+
+def empty_resource_query(source: str) -> bool:
+    """Only the observed pure projection or one literal empty-argument metadata call."""
+    return source.strip().removesuffix(";").strip() in {
+        "text(await tools.list_mcp_resources({}))",
+        r'text((await tools.list_mcp_resources({})).content.map(x=>x.type==="text"?x.text:"").join("\n"))',
+    }
+
+
+def empty_resource_listing(item: dict[str, Any]) -> bool:
+    """An empty built-in catalog is metadata, never authority to read external resources."""
+    if (item.get("server"), item.get("tool"), item.get("arguments"), item.get("status"), item.get("error")) != (
+        "codex",
+        "list_mcp_resources",
+        {},
+        "completed",
+        None,
+    ):
+        return False
+    result = item.get("result")
+    if not isinstance(result, dict) or set(result) - {"content", "structured_content", "isError"}:
+        return False
+    if result.get("structured_content") is not None or result.get("isError", False) is not False:
+        return False
+    content = result.get("content")
+    if not isinstance(content, list) or len(content) != 1 or not isinstance(content[0], dict):
+        return False
+    text = content[0].get("text")
+    return bool(
+        set(content[0]) == {"type", "text"}
+        and content[0]["type"] == "text"
+        and isinstance(text, str)
+        and re.fullmatch(r'\{[ \t\r\n]*"resources"[ \t\r\n]*:[ \t\r\n]*\[[ \t\r\n]*\][ \t\r\n]*\}', text)
+    )
 
 
 def session_tool_problems(session: str, trace: CodexTrace) -> list[str]:
@@ -208,6 +285,8 @@ def session_tool_problems(session: str, trace: CodexTrace) -> list[str]:
                 "function_call_output",
                 "custom_tool_call_output",
             }:
+                if payload["call_id"] in returned or payload["call_id"] not in issued:
+                    return ["duplicate or unmatched session tool return"]
                 returned.add(payload["call_id"])
             if row.get("type") == "response_item" and payload.get("type") in {"function_call", "custom_tool_call"}:
                 if payload["call_id"] in issued:
@@ -217,6 +296,9 @@ def session_tool_problems(session: str, trace: CodexTrace) -> list[str]:
                 if name == "exec":
                     if metadata_only_query(payload.get("input", "")):
                         continue  # its call/return is still matched; it performs no nested tool call
+                    if empty_resource_query(payload.get("input", "")):
+                        calls[call_signature("mcp__codex__list_mcp_resources", {}, "")] += 1
+                        continue
                     # A narrow full-match grammar, never JavaScript evaluation. Arbitrary
                     # wrappers could invoke effects absent from exec JSONL and stay unmeasured.
                     match = re.fullmatch(
@@ -229,12 +311,22 @@ def session_tool_problems(session: str, trace: CodexTrace) -> list[str]:
                     name, arguments = match[1], json.loads(match[2])
                 else:
                     arguments = json.loads(payload.get("arguments", "null"))
+                if name == "list_mcp_resources":
+                    if arguments != {}:
+                        return ["unmeasured resource metadata arguments"]
+                    name = "mcp__codex__list_mcp_resources"
                 calls[call_signature(name, arguments, "")] += 1
         if issued != returned:
             return ["session tool calls have missing or unmatched returns"]
         expected: Counter[str] = Counter()
         for item in trace.items.values():
             if item["type"] == "mcp_tool_call":
+                if (
+                    item.get("server") == "codex"
+                    and item.get("tool") == "list_mcp_resources"
+                    and not empty_resource_listing(item)
+                ):
+                    return ["resource metadata did not prove an exact empty catalog"]
                 expected[
                     call_signature(f"mcp__{item.get('server')}__{item.get('tool')}", item.get("arguments"), "")
                 ] += 1
@@ -269,6 +361,8 @@ def evidence_problems(
         for item in trace.items.values():
             if item["type"] != "mcp_tool_call":
                 continue
+            if empty_resource_listing(item):
+                continue  # independently validated built-in metadata has no fixture receipt
             if item.get("server") != "fixture" or item.get("tool") not in {"read_file", "write_file", "query"}:
                 problems.append("unexpected MCP tool")
             result = item.get("result") or {}
@@ -504,8 +598,15 @@ def prepare(
         "Only the exact listed paths are accessible. No shell, web, or delegation is permitted.\n"
         'For Code Mode, use one literal file call per exec cell: text(await tools.mcp__fixture__read_file({"path":"README.md"})); '
         'or text(await tools.mcp__fixture__write_file({"path":"orders.py","content":"..."})); '
-        "Use JSON arguments and the task's actual paths. Do not add discovery code, variables, loops, or other JS; "
-        "this adapter cannot measure those wrappers. Direct MCP calls are also supported.\n"
+        "Use JSON arguments and the task's actual paths. Direct MCP calls are also supported. "
+        "Metadata discovery is limited to pure ALL_TOOLS catalog reads: literal name/description includes "
+        "predicates joined by &&/|| and balanced parentheses, with optional fixed name+description map projection "
+        "using its bound callback variable, and optional one const alias followed by text(alias). "
+        "Catalog cells are limited to 4096 characters, 256 predicate/operator tokens and 16 grouping levels. "
+        "Also supported: text(await tools.list_mcp_resources({})); "
+        "only an exact empty resources catalog is measurable. The fixed text-only content.map projection "
+        "of this resource-listing call is also recognized. Resource reads and server-scoped enumeration remain unsupported; "
+        "Other variables, loops, and JS wrappers remain unsupported.\n"
         + "Fixture paths: "
         + ", ".join(spec["fixture"]["files"])
         + "\n"

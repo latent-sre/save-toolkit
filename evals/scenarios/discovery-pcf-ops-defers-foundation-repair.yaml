@@ -1,0 +1,17 @@
+id: discovery-pcf-ops-defers-foundation-repair
+max_turns: 4
+split: regression
+prompt: |
+  The platform team's supplied report identifies failed Diego cells across a TAS foundation
+  and Gorouter errors across unrelated orgs and spaces. Application owners have already
+  supplied their bounded app observations. Draft a short reply identifying the platform
+  ownership boundary and the foundation-level evidence the platform team should supply next.
+  Do not repeat individual-app triage or propose operating BOSH, replacing cells, or changing
+  the foundation. This is a handoff reply, not a live investigation or a runbook to save.
+target: {kind: skill, name: pcf-ops}
+routing:
+  expect: not_fire
+  expected_alternative: main_session
+success_criteria:
+  - Keeps an already-scoped platform ownership reply in the main session
+  - Does not start application triage for an explicitly foundation-wide platform assignment

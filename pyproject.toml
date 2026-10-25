@@ -26,6 +26,8 @@ include = [
     "evals/codex_gcp_queries.py",
     "evals/compare_runs.py",
     "evals/campaign_report.py",
+    "evals/testing_block.py",
+    "evals/wp04_linux_cli.py",
     "evals/itbench_adapter/**/*.py",
     "evals/itbench_pilot.py",
     "evals/itbench_testkit.py",
@@ -69,7 +71,7 @@ ignore = ["E501"]  # the formatter owns line length; long messages and patterns 
 python_version = "3.12"
 files = [
     "evals/probe", "evals/build_probe.py", "evals/compare_runs.py", "evals/turn_counts.py", "evals/graders.py",
-    "evals/inspect_pilot.py", "evals/campaign_report.py",
+    "evals/inspect_pilot.py", "evals/campaign_report.py", "evals/testing_block.py", "evals/wp04_linux_cli.py",
     "evals/itbench_adapter", "evals/itbench_pilot.py",
     "evals/swt_adapter", "evals/swt_pilot.py",
     "evals/harbor_adapter", "evals/harbor_pilot.py",

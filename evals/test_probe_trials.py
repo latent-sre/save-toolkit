@@ -192,7 +192,7 @@ class NativeConversationRunTests(unittest.TestCase):
 
     def run_native(self, root, *, wrong_session=False, bad_runtime=False, bad_initial=False, credential=False,
                    wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05, runtime=None, child_events=None,
-                   turns=(3, 2), initial_subtype="success", incomplete_followup=False):
+                   turns=(3, 2), initial_subtype="success", incomplete_followup=False, max_invocation_usd=None):
         calls, environments = [], []
 
         @contextlib.contextmanager
@@ -234,8 +234,22 @@ class NativeConversationRunTests(unittest.TestCase):
         with mock.patch.object(probe_invocation, "run_cli", side_effect=launch):
             summary = probe_trials.run_trial(self.SPEC, run_number=1, settings=probe_trials.BatchSettings(
                 plugin_root=ROOT, label="native", model="stub-model", out_dir=root, timeout=60,
-                executable="native-stub", keep_workspace=False, env_factory=environment, runtime=runtime))
+                executable="native-stub", keep_workspace=False, env_factory=environment, runtime=runtime,
+                max_invocation_usd=max_invocation_usd))
         return summary, root / "eval-native-conversation/native/run-1", calls, environments
+
+    def test_explicit_invocation_limit_reaches_each_native_turn_and_metadata(self):
+        for requested, effective in ((0.2, 0.2), (2.0, 0.75)):
+            with self.subTest(requested=requested), tempfile.TemporaryDirectory() as tmp:
+                _summary, run, calls, _envs = self.run_native(Path(tmp), max_invocation_usd=requested)
+                self.assertEqual(2, len(calls))
+                for folder, call in zip((run, run / "followup"), calls, strict=True):
+                    argv = call[0]
+                    self.assertEqual(1, argv.count("--max-budget-usd"))
+                    self.assertEqual(effective, float(argv[argv.index("--max-budget-usd") + 1]))
+                    metadata = read_json(folder / "invocation.json")
+                    self.assertEqual(requested, metadata["requested_max_invocation_usd"])
+                    self.assertEqual(effective, metadata["effective_max_invocation_usd"])
 
     def test_raised_native_attempt_accounts_for_followup_cost(self):
         for incomplete in (False, True):
@@ -1504,6 +1518,63 @@ class TurnReasonTests(unittest.TestCase):
         cut = probe_outcomes.CutShort("timed out after 60s", probe_outcomes.Stop.WALL_CLOCK)
         self.assertEqual("native credential marker detected; no follow-up allowed",
                          self._reason(timed_out=cut, marker=True)[0])
+
+
+class InvocationSpendLimitTests(TempRootTestCase):
+    def test_cli_passes_the_limit_to_trial_settings(self):
+        spec = tiny_spec()
+        with mock.patch.object(probe_catalog, "load_all_scenarios", return_value=[spec]), \
+                mock.patch.object(probe_cli, "_preflight", return_value=(None, {"plugin_source_sha256": "0" * 64}, STUB_RUNTIME)), \
+                mock.patch.object(probe_trials, "run_trial", side_effect=RuntimeError("settings captured")) as trial, \
+                contextlib.redirect_stdout(io.StringIO()), self.assertRaisesRegex(RuntimeError, "settings captured"):
+            probe_cli.main(["run", "--scenario", spec["id"], "--label", "bounded", "--out", str(self.root / "it"),
+                            "--max-invocation-usd", "0.2", "--max-batch-usd", "4"])
+        self.assertEqual(0.2, trial.call_args.kwargs["settings"].max_invocation_usd)
+
+    def test_cli_accepts_a_positive_limit_and_rejects_invalid_values_before_launch(self):
+        common = ["run", "--label", "bounded", "--out", str(self.root / "it")]
+        args = probe_cli._command_parser().parse_args([*common, "--max-invocation-usd", "0.2"])
+        self.assertEqual(0.2, args.max_invocation_usd)
+        self.assertIsNone(probe_cli._command_parser().parse_args(common).max_invocation_usd)
+        for bad in ("nan", "inf", "-inf", "0", "-1", "true", "false"):
+            with self.subTest(bad=bad), contextlib.redirect_stderr(io.StringIO()) as err, self.assertRaises(SystemExit) as exc:
+                probe_cli._command_parser().parse_args([*common, f"--max-invocation-usd={bad}"])
+            self.assertEqual(3, exc.exception.code)
+            self.assertIn("--max-invocation-usd", err.getvalue())
+
+    def test_command_limits_cover_routing_contract_build_and_native_shapes(self):
+        shapes = (
+            {"agent": None, "pre_approve": False},
+            {"agent": "save-toolkit:sre-assistant", "pre_approve": False},
+            {"agent": "save-toolkit:software-engineer", "pre_approve": True},
+            {"agent": None, "persistent": True},
+            {"agent": "save-toolkit:reliability-engineer", "persistent": True, "resume": "session"},
+        )
+        for shape in shapes:
+            for requested in (None, 0.2, 2.0):
+                with self.subTest(shape=shape, requested=requested):
+                    command = probe_invocation.build_command(
+                        "claude", ROOT, prompt="p", model="sonnet", max_invocation_usd=requested, **shape)
+                    expected = min(requested or 0.75, 0.75) if shape.get("persistent") else requested
+                    self.assertEqual(int(expected is not None), command.count("--max-budget-usd"))
+                    if expected is not None:
+                        self.assertEqual(expected, float(command[command.index("--max-budget-usd") + 1]))
+
+    def test_direct_command_rejects_boolean_and_nonpositive_or_nonfinite_limits(self):
+        for bad in (True, False, 0, -1, float("nan"), float("inf")):
+            with self.subTest(bad=bad), self.assertRaisesRegex(ValueError, "--max-invocation-usd"):
+                probe_invocation.build_command("claude", ROOT, None, "p", None, max_invocation_usd=bad)
+
+    def test_nonpersistent_trial_records_the_requested_and_effective_limit(self):
+        spec = tiny_spec()
+        probe_trials.run_trial(spec, run_number=1, settings=probe_trials.BatchSettings(
+            plugin_root=ROOT, label="bounded", model=None, out_dir=self.root / "it", timeout=60,
+            executable=stub_cli(self.root), keep_workspace=False, env_factory=plain_env_factory(),
+            max_invocation_usd=0.2))
+        metadata = read_json(self.root / "it" / "eval-tiny" / "bounded" / "run-1" / "invocation.json")
+        self.assertEqual(0.2, metadata["requested_max_invocation_usd"])
+        self.assertEqual(0.2, metadata["effective_max_invocation_usd"])
+        self.assertEqual("0.2", metadata["argv"][metadata["argv"].index("--max-budget-usd") + 1])
 
 
 class TurnLimitTests(TempRootTestCase):

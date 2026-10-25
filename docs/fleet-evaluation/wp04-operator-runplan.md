@@ -1,5 +1,13 @@
 # WP04 offline preparation and gated native plan
 
+The owner's 2026-10-25 follow-through request selects **both Linux and Windows**
+execution. The [follow-through plan](run-plan-followthrough.md) adds a separately
+measured Linux read-only namespace profile and a shared USD 40 testing budget.
+The Windows commands below remain the Windows arm; their results are not pooled
+with Linux. The earlier pending-budget statements below are superseded only for
+this requested campaign; source, runtime, hidden-answer boundaries and independent
+assessment still need their actual evidence.
+
 [verified] [The adapter](../../evals/itbench_pilot.py) validates, fetches exact pinned public files,
 stages observed-only workspaces, prepares native fixtures, collects explicit submissions, exports
 upstream input and performs separately labelled local assessment. It never invokes a candidate,
@@ -43,8 +51,9 @@ available for a standalone evidence workspace and writes its receipt separately:
 
 [unverified] Before any model call, the owner must admit the exact source-supported cases, then bind exact incumbent/candidate and runner revisions/digests, the native CLI version,
 observed concrete model, host/account/elevation, authentication class, output path, spend exposure
-and runtime boundary evidence. Preserve DEC-23: the owner's everyday **unelevated Windows account**;
-Linux preparation is not an approved native execution host. Preserve DEC-17's `sonnet` default and
+and runtime boundary evidence. The Windows arm preserves DEC-23's everyday **unelevated Windows account**;
+the separately authorized Linux arm uses the follow-through plan's measured namespace boundary.
+Preserve DEC-17's `sonnet` default and
 record actual resolved model identity. No credentials are provisioned or printed by this adapter.
 
 [verified] The prepared profile pins `sre-assistant`, declares only Read/Grep/Glob/Skill, prohibits
