@@ -349,7 +349,10 @@ without having to ask for it each time.
 
 ### EVAL-005 — the observability engineer's Grafana write lands, and only that write
 
-**Status:** `ready` (2026-10-18). The run ran: in all six trials, both arms, the panel was saved
+**Status:** `active` (2026-10-25). Offline refusal grading is repaired and the candidate now
+makes its no-value display requirement explicit. Live fixture reproduction is unavailable on
+the current Linux host without Docker; original trial-3 traces remain on Windows.
+In the historical six trials, both arms, the panel was saved
 through a preflighted write and the datasource stayed unchanged, but every trial is FAIL under the
 all-checks threshold.
 **Owner:** The human owner approves each repair run; `agent-engineer` repairs the scenario and runs it.
@@ -368,26 +371,29 @@ datasources alone.
 
 ### ROUTE-007 — re-check routing for the descriptions trimmed on 2026-09-02
 
-**Status:** `ready` (2026-10-18); the routing re-check EVAL-009 left owed, kept when EVAL-009 closed.
+**Status:** `active` (2026-10-25); the 20-case automatic-routing baseline completed with
+12 PASS, seven FAIL and one INCONCLUSIVE. Two small wording candidates were withdrawn
+after a 30-attempt paired comparison did not demonstrate improvement. Failures remain open.
 **Owner:** The human owner approves the run; `agent-engineer` writes the missing scenarios and runs them.
 **Outcome:** The eight surviving skills whose description clauses `5c5aa742` replaced with short
 exclusions (akamai-edge, api-craft, database-reliability, frontend-craft, obs-alerting,
 obs-pipeline, pcf-deploy, pcf-ops), plus grafana as the successor to obs-dashboards and obs-analysis
 for the consolidated signal skills, each have at least one fire and one not-fire routing
 scenario, and all pass once on current main.
-**Next action:** `agent-engineer` writes the seven missing scenarios: fire and not-fire for
-database-reliability and pcf-ops; not-fire for akamai-edge and obs-alerting; and fire
-for pcf-deploy. The former backend-craft is now api-craft, with two fire cases and one not-fire
-case defined offline. Dashboard design and the application-UI exclusion now target grafana;
-their existing scenario IDs retain the historical names. Signal discovery and interpretation
-now target obs-analysis; correlation-ID versus trace-ID selection is an internal method contract.
-The owner then approves one run of the completed set. The new API cases, migrated dashboard/signal
-routing, and trimmed obs-analysis guidance are not yet measured natively.
+**Next action:** Use the [retained failures and comparison](reviews/2026-10-25-followthrough.md#route-007-baseline-and-bounded-repair-comparison)
+to choose a further measured remedy; do not repeat unproven wording changes or erase the
+original failures. Preserve the explicit-human-only deployment boundary. A separately
+instrumented native canary proves user-command expansion on CLI 2.1.310, with all model
+tools disabled; it is not automatic-discovery or original-method acceptance evidence.
+The former backend-craft is now api-craft. Dashboard design and the application-UI exclusion
+target grafana; signal discovery and interpretation target obs-analysis. Historical scenario
+IDs remain unchanged; correlation-ID versus trace-ID selection is an internal method contract.
 The [current preparation](reviews/2026-10-25-route-007-preparation.md) adds the six valid missing
 automatic-routing cases and lists the bounded run selection. The seventh, `pcf-deploy` fire,
 requires an explicit-human-invocation measurement because its current skill forbids automatic
 invocation; do not change that authority to make discovery pass.
-**Evidence:** none yet; the commit message of `5c5aa742` records the scenarios as owed.
+**Evidence:** [Follow-through baseline, comparison and capability canary](reviews/2026-10-25-followthrough.md);
+the commit message of `5c5aa742` records the original scenarios as owed.
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.
 

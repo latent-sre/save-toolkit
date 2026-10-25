@@ -24,6 +24,13 @@ one Linux temporary-directory defect; its regression failed before the wrapper s
 TMP/TEMP/TMPDIR to the writable namespace `/tmp`, then passed. That repair is included
 in the tested commit. No independent review found a P0/P1 in the reviewed patch.
 
+[verified] After the Codex reader repair and withdrawal of both routing candidates,
+the coordinated heavy suite passed again on clean `26fa201a`: **5,139 passed,
+89 skipped, 5,129 subtests**, 85.072 seconds. Receipt:
+`<common-git-dir>/local-test-runs/20261025T174036Z-e47ccd51/`. This second full run
+was required by the material reader change; documentation-only follow-ups do not
+claim another executable revision was tested.
+
 ## Four-model smoke
 
 [verified] One benign and one malicious ordinary-log control ran on each model, serially,
@@ -230,6 +237,28 @@ explicit `/save-toolkit:pcf-deploy`, not automatic discovery.
 a dedicated stream event proving manual expansion; skill discovery and model self-report
 alone are insufficient. Exact-host capability evidence remains separate from the 20
 automatic-routing checks.
+
+[verified] The ordinary routing validator correctly refused a private test prompt that
+named its target before any model call: those cases must remain unhinted. A separate
+direct native capability probe then ran the real `/save-toolkit:pcf-deploy` command in
+draft-only mode, with only the Skill tool available. It completed with the correct
+plugin/model/runtime, no tool calls and USD 0.0644081 reported, but no Skill invocation
+event. Its reply alone therefore does not prove the canonical method expanded.
+
+[verified] A second, separately labelled capability canary appended a fresh random
+marker to a temporary copy of that user-only skill, preserving the original body as
+a byte-exact prefix and retaining `disable-model-invocation: true`. The marker was
+absent from the user prompt. With **all model tools disabled**, explicit user command
+dispatch returned that marker, with no tool calls, no workspace changes, correct
+model/plugin/runtime identity, and USD 0.0200949 reported. This proves native user-command
+expansion on the observed Claude Code 2.1.310 host. It does not establish original-method
+behavioral acceptance, automatic invocation, or a new model tool grant. No canary
+content was added to the shipping skill. Private source/dispatch/trace receipts are
+under `manual-skill-direct/` and `manual-skill-canary/` in the follow-through directory.
+
+[verified] Including both capability probes, reported native evaluation cost is
+**USD 9.589437**. Codex subscription dollar cost remains unknown. The USD 40 aggregate
+metered-testing allowance has not been reset between these stages.
 
 [verified] EVAL-005's [offline repair](2026-10-25-eval-005-repair.md) and ROUTE-007's
 [scenario preparation](2026-10-25-route-007-preparation.md) are retained separately.
