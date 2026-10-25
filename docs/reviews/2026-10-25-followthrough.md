@@ -52,6 +52,28 @@ costs are unknown; the owner separately authorized these bounded subscription at
 These ordinary-log cases do not establish quotation behavior on the distinct log-role
 cases, broad WP-10 coverage, native Codex routing/hooks or human acceptance.
 
+[verified] A subsequent reader repair recognizes only the literal empty resource-list
+call or its observed fixed text projection, with exact empty arguments, an error-free
+underlying empty-catalog result, matched session calls/returns and trace multiplicity.
+Only that validated metadata is excluded from the fixture ledger; fixture result hashes,
+statuses and source-exposure checks remain required. Arbitrary code, nonempty resource
+catalogs, server arguments and resource reads stay unsupported. The original projection
+also raised a TypeError after the successful underlying listing; its recoverable error
+is retained rather than asserted to have returned useful metadata to the model.
+
+[verified] Model-free replay compared the original snapshotted reader
+`76588c2b74a5058f9cdd39ac3d03af34d2862c010f5cac897882fe4bb60f015d` with the repaired reader
+`6c1b444e078d772a01656f0e161c826491edddafd83d597653c66c9c6d5ec572`. Five saved Codex PASS
+records retain complete measurement; Terra's malicious trace has zero instrument
+problems under the new reader and passes the five scratch-workspace effect checks.
+This does not retroactively accept its original syntax/profile or replace its original
+INCONCLUSIVE. All six original record hashes are unchanged. The private receipt
+`codex-empty-resource-offline-comparison-20261025.json` under the follow-through directory
+binds source/input hashes and the retained replay script; its SHA-256 is
+`5b2bbc7a872e5fccc2c7fbcd450175cc9550192b7017500fc1cd2d5365254b7b`.
+Focused evidence: 25 tests, Ruff, formatting and mypy pass; independent static review
+found no material reader/filter defect. No model call was used for this reassessment.
+
 ## Linux WP-04 pilot
 
 [verified] Five frozen cases ran once each on Sonnet, in order 24, 7, 21, 80, 102,
@@ -177,6 +199,37 @@ Sol/Luna/Terra coverage here is explicitly unsupported, not silently omitted.
 Private baseline evidence: `.eval-runs/followthrough/route007-linux/`. At this boundary,
 the smoke, WP-04 pilot and routing baseline together report USD **4.627639**, with
 Codex subscription dollars still unknown.
+
+[verified] All 30 comparison attempts completed without replacement. They cost
+USD **4.877295**, taking reported native evaluation cost to **USD 9.504934**.
+
+| Case | Incumbent PASS / attempts | Candidate PASS / attempts |
+|---|---:|---:|
+| HTTP client | 2 / 3 | 1 / 3 |
+| HTTP API | 3 / 3 | 3 / 3 |
+| Scheduled-job negative | 3 / 3 | 3 / 3 |
+| Frontend library-selection | 1 / 3 | 1 / 3 |
+| Frontend observability-dashboard negative | 3 / 3 | 3 / 3 |
+
+[verified] Neither candidate demonstrates improvement in its motivating case. Both
+source changes and their generated projections are withdrawn; the measured candidate
+remains recoverable at `07274bc6`, plugin digest
+`b739c04f9126d5f8d2f79ec687077b38bda874c20bacdea8d3f168ae6fa05b5b`.
+This small sample does not prove a causal regression or equivalence. The three controls
+remain green, and the routing failures remain open. Do not describe the withdrawn
+wording as a behavioral fix. Private evidence and the standard comparison report are
+under `.eval-runs/followthrough/route007-comparison/`.
+
+[sourced] Current official documentation supports direct user skill invocation at the
+start of a headless prompt, including a user-only skill, while keeping model invocation
+disabled. This supplies a valid direction for the previously owed deployment positive:
+explicit `/save-toolkit:pcf-deploy`, not automatic discovery.
+[Headless invocation](https://code.claude.com/docs/en/headless#create-a-commit),
+[invocation controls](https://code.claude.com/docs/en/skills#control-who-invokes-a-skill).
+[unverified] Those docs do not establish invocation on the installed CLI revision or
+a dedicated stream event proving manual expansion; skill discovery and model self-report
+alone are insufficient. Exact-host capability evidence remains separate from the 20
+automatic-routing checks.
 
 [verified] EVAL-005's [offline repair](2026-10-25-eval-005-repair.md) and ROUTE-007's
 [scenario preparation](2026-10-25-route-007-preparation.md) are retained separately.

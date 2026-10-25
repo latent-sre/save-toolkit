@@ -52,6 +52,10 @@ PASS also requires separate review of the assessment's reasoning.
 The Code Mode path accepts one literal scoped file or query call per wrapper, or a metadata-only
 `text(ALL_TOOLS)` query, optionally filtered by literal `name.includes`/`description.includes` terms
 joined by `&&`. Calls still require matching returns; arbitrary JavaScript stays unmeasured.
+The reader also recognizes the built-in `list_mcp_resources({})` call only when its
+completed result proves an exact empty catalog and its session call/return matches.
+The literal text call and observed fixed text-only projection are supported; nonempty
+catalogs, resource reads, server arguments and arbitrary wrappers remain unmeasured.
 Subscription dollar cost is unknown; wall time, tool limits and token usage are recorded.
 
 Use the latest **Python 3.14** patch for development and component-test CI. The repository-wide

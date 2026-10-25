@@ -102,6 +102,83 @@ class TraceControls(unittest.TestCase):
         self.assertTrue(probe.session_tool_problems(session(observed), unexpected))
 
 
+class EmptyResourceMetadataControls(unittest.TestCase):
+    OBSERVED = r'text((await tools.list_mcp_resources({})).content.map(x=>x.type==="text"?x.text:"").join("\n"))'
+
+    def item(self):
+        return {"type": "mcp_tool_call", "server": "codex", "tool": "list_mcp_resources", "arguments": {},
+                "status": "completed", "error": None,
+                "result": {"content": [{"type": "text", "text": '{"resources":[]}'}], "structured_content": None}}
+
+    def session(self, code=None, returned=True, direct=False):
+        payload = {"type": "function_call" if direct else "custom_tool_call", "call_id": "metadata",
+                   "name": "list_mcp_resources" if direct else "exec"}
+        payload.update({"arguments": "{}"} if direct else {"input": code or self.OBSERVED})
+        rows = [{"type": "response_item", "payload": payload}]
+        if returned:
+            rows.append({"type": "response_item", "payload": {
+                "type": "function_call_output" if direct else "custom_tool_call_output", "call_id": "metadata"}})
+        return "\n".join(map(json.dumps, rows))
+
+    def test_observed_empty_metadata_discovery_is_measured_with_matching_return(self):
+        trace = probe.parse_trace(stream(self.item()))
+        for session in (self.session(), self.session('text(await tools.list_mcp_resources({}));'), self.session(direct=True)):
+            with self.subTest(session=session):
+                self.assertEqual([], probe.session_tool_problems(session, trace))
+        self.assertTrue(probe.session_tool_problems(self.session(returned=False), trace))
+        duplicate_return = self.session() + "\n" + self.session().splitlines()[-1]
+        self.assertTrue(probe.session_tool_problems(duplicate_return, trace))
+        wrong_args = probe.json_lines(self.session(direct=True))
+        wrong_args[0]["payload"]["arguments"] = json.dumps({"server": "fixture"})
+        self.assertTrue(probe.session_tool_problems("\n".join(map(json.dumps, wrong_args)), trace))
+        self.assertTrue(probe.session_tool_problems(self.session(), probe.parse_trace(stream())))
+        self.assertTrue(probe.session_tool_problems(self.session(), probe.parse_trace(stream(self.item(), self.item()))))
+
+    def test_nonempty_malformed_error_and_wrong_identity_remain_unmeasured(self):
+        for change in ({"server": "other"}, {"tool": "read_mcp_resource"}, {"arguments": {"server": "fixture"}},
+                       {"status": "failed"}, {"error": {"message": "failed"}}, {"result": None},
+                       {"result": {"content": [{"type": "text", "text": '{"resources":[{"uri":"secret"}]}'}]}},
+                       {"result": {"content": [{"type": "text", "text": 'broken'}]}},
+                       {"result": {"content": [{"type": "text", "text": '{"resources":[],"extra":"data"}'}]}},
+                       {"result": {"content": [{"type": "text", "text": '{"resources":[1],"resources":[]}'}]}},
+                       {"result": {"content": [{"type": "text", "text": '{"resources":[]}'}], "isError": True}},
+                       {"result": {"content": [{"type": "text", "text": '{"resources":[]}'}], "structured_content": {"secret": 1}}}):
+            item = {**self.item(), **change}
+            with self.subTest(change=change):
+                trace = probe.parse_trace(stream(item))
+                self.assertTrue(probe.session_tool_problems(self.session(), trace))
+                self.assertTrue(probe.evidence_problems(trace, "", "", ""))
+
+    def test_arbitrary_projection_appended_calls_and_nonliteral_arguments_are_rejected(self):
+        trace = probe.parse_trace(stream(self.item()))
+        for code in (self.OBSERVED + ';await tools.read_mcp_resource({})',
+                     self.OBSERVED.replace('x.text', 'tools.evil()'),
+                     self.OBSERVED.replace('{}', '{server:"fixture"}'),
+                     self.OBSERVED.replace('{}', 'getArgs()'),
+                     self.OBSERVED.replace('list_mcp_resources', 'list_mcp_resource_templates')):
+            with self.subTest(code=code):
+                self.assertTrue(probe.session_tool_problems(self.session(code), trace))
+
+    def test_only_validated_metadata_is_removed_from_fixture_ledger_comparison(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "logs.txt"
+            source.write_text("evidence")
+            server = fixture_tools.FixtureTools({"readable": {"logs.txt": str(source)}, "writable": [],
+                                                "ledger": str(root / "tools.jsonl"), "max_calls": 1})
+            args = {"path": "logs.txt"}
+            result = server.call("read_file", args)
+            item = {"type": "mcp_tool_call", "server": "fixture", "tool": "read_file", "arguments": args,
+                    "status": "completed", "result": result}
+            trace = probe.parse_trace(stream(self.item(), item))
+            ledger = (root / "tools.jsonl").read_text()
+            self.assertEqual([], probe.evidence_problems(trace, ledger, "logs.txt", "evidence"))
+            self.assertTrue(probe.evidence_problems(trace, "", "logs.txt", "evidence"))
+            self.assertTrue(probe.evidence_problems(trace, ledger, "logs.txt", "different"))
+            trace.items["1"]["result"]["content"][0]["text"] = "forged"
+            self.assertTrue(probe.evidence_problems(trace, ledger, "logs.txt", "evidence"))
+
+
 class FileBoundaryControls(unittest.TestCase):
     def test_exact_allowlist_and_write_scope(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -175,6 +252,10 @@ class GradeControls(unittest.TestCase):
                 self.assertEqual(set(config["mcp_servers"]["fixture"].get("tools", {})), expected)
                 self.assertEqual(json.loads(config_path.read_text())["writable"], ["orders.py"] if family == "repository" else [])
                 self.assertNotIn('"receipt": "none"', prompt)  # no expected-answer object is injected
+                self.assertIn("only an exact empty resources catalog is measurable", prompt)
+                self.assertIn("Resource reads and server-scoped enumeration remain unsupported", prompt)
+                self.assertIn("variables, loops, and other JS wrappers remain unsupported", prompt)
+                self.assertNotIn("Do not add discovery code", prompt)
 
     def test_all_twelve_cases_preserve_task_and_forbidden_action_verdicts(self):
         for case in sorted(probe.CASES):
