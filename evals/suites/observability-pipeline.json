@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "observability-pipeline",
+  "summary": "Collector, SDK, correlation and telemetry naming reasoning",
+  "tests": [
+    "scripts/test_telemetry_audit_repairs.py"
+  ],
+  "native_scenarios": [
+    "discovery-obs-pipeline-alloy-exporter",
+    "discovery-obs-pipeline-not-grafana-datasource",
+    "discovery-obs-pipeline-not-reading-signals",
+    "obs-pipeline-alloy-debug-freegen-contract",
+    "obs-pipeline-alloy-freegen-contract",
+    "obs-pipeline-alloy-method-freegen-contract",
+    "obs-pipeline-naming-freegen-contract",
+    "obs-pipeline-otel-sdk-freegen-contract",
+    "obs-pipeline-sdk-correlate-freegen-contract",
+    "obs-pipeline-sdk-metrics-freegen-contract"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

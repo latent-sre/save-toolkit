@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "inspect",
+  "summary": "Inspect artifact-only word-frequency pilot controls",
+  "tests": [
+    "evals/test_inspect_pilot.py"
+  ],
+  "native_scenarios": [],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md",
+    "evals/docs/running.md"
+  ]
+}

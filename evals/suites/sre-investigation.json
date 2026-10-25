@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "id": "sre-investigation",
+  "summary": "Bounded operational lookup, unavailable evidence and investigation authority",
+  "tests": [
+    "evals/test_agent_scope_alignment.py",
+    "evals/test_wider_fleet_cases.py",
+    "scripts/test_readonly_guard.py"
+  ],
+  "native_scenarios": [
+    "agent-direct-handoff-sre-assistant-recommend-only",
+    "agent-direct-sre-assistant-cross-source-investigation",
+    "agent-direct-sre-assistant-dispatch-coverage",
+    "agent-direct-sre-assistant-exact-lookup",
+    "agent-direct-sre-assistant-readonly-triage",
+    "agent-direct-sre-assistant-returns-partial-slice-to-caller",
+    "agent-direct-sre-assistant-unavailable-credential-helper",
+    "build-sre-assistant-active-incident-guarded-triage",
+    "build-sre-assistant-guard-denies-script-canary",
+    "build-sre-assistant-handles-partial-research",
+    "build-sre-assistant-redelivery-baseline",
+    "build-sre-assistant-suspected-compromise-preserves-evidence",
+    "discovery-active-alert-does-not-dispatch-assistant",
+    "discovery-sre-assistant-dispatched-read",
+    "discovery-sre-assistant-staging-runbook-read"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

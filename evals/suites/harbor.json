@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "harbor",
+  "summary": "Harbor terminal task static-authoring and verification adapter controls",
+  "tests": [
+    "evals/test_harbor_adapter.py",
+    "evals/test_harbor_runner.py",
+    "evals/test_harbor_sdk.py",
+    "evals/test_harbor_smoke.py",
+    "evals/test_harbor_transfer.py"
+  ],
+  "native_scenarios": [],
+  "campaigns": [
+    {
+      "id": "terminal-complex-five",
+      "entrypoint": "evals/harbor_pilot.py",
+      "selection": "evals/manifests/wp09-terminal-complex5.json",
+      "guide": "docs/fleet-evaluation/wp09-terminal-runplan.md"
+    }
+  ],
+  "guides": [
+    "docs/fleet-evaluation/wp09-terminal-runplan.md",
+    "evals/docs/coverage.md"
+  ]
+}

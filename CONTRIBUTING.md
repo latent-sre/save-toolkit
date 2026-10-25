@@ -171,6 +171,17 @@ importing them. Mixed marker expressions keep pytest's normal marker evaluation.
 Use `python -m pytest <affected files>` for focused work; use the coordinated runner once for the
 final suite and retain its timing evidence.
 
+For recurring focused checks, `python scripts/local_tests.py --list-suites` lists named groups and
+`python scripts/local_tests.py --suite python-craft` resolves their explicit test paths. Repeat
+`--suite` to combine groups. Pytest filters remain available and are recorded as filtered runs;
+extra positional test paths cannot be combined with a suite. Named suites do not replace the final
+suite requirements above. The [eval catalog](evals/README.md#find-and-run-checks) also lists native
+cases and links existing benchmark campaigns without executing them. Run `python evals/catalog.py
+check` when editing suite membership or the track index; `coverage` exposes unassigned cases and
+test files. Add new root tests and native scenarios to explicit capability suites in the same change.
+Finalize definitions before exporting fingerprints for a new
+campaign; keep historical result identities intact.
+
 On POSIX, substitute `.venv/bin/python`. Installing `requirements-test.txt` honors its
 `requirements-dev.txt` constraints; it is a selected test set, not a complete environment export
 for `uv pip sync`. CI retains its setup-python/pip workflow in a job-owned environment.

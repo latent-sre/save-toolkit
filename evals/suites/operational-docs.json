@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "operational-docs",
+  "summary": "Runbooks, postmortems, service cards, lifecycle and knowledge disposition",
+  "tests": [
+    "evals/test_postmortem_tracking_links.py",
+    "evals/test_researcher_scribe_cases.py",
+    "evals/test_runbook_safeguards.py",
+    "scripts/test_confluence_import.py",
+    "scripts/test_runbook_schema.py",
+    "scripts/test_service_lifecycle_context.py"
+  ],
+  "native_scenarios": [
+    "agent-direct-handoff-scribe-blocks-unapproved",
+    "agent-direct-scribe-command-evidence",
+    "agent-direct-scribe-contradictory-record",
+    "build-scribe-alert-definition-closeout",
+    "build-scribe-knowledge-closeout",
+    "build-scribe-postmortem-evidence",
+    "build-scribe-postmortem-unknown-metadata",
+    "build-scribe-writes-only-docs",
+    "discovery-active-alert-stays-with-advisor",
+    "discovery-operational-learning-defers-fleet-failure",
+    "discovery-operational-learning-defers-retrospective",
+    "discovery-operational-learning-owner-lookup",
+    "discovery-postmortem-write-for-incident",
+    "discovery-runbook-incident-update",
+    "discovery-scribe-defers-live-incident",
+    "discovery-service-lifecycle-audit",
+    "discovery-service-lifecycle-decommission-request",
+    "service-lifecycle-actual-freshness-assessment",
+    "service-lifecycle-actual-retirement-draft",
+    "service-lifecycle-resolver-integration-loading",
+    "service-lifecycle-unapproved-retirement-draft",
+    "skill-direct-service-lifecycle-retire-unknown-outcome"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

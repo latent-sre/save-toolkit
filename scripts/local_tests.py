@@ -8,6 +8,7 @@ Logs and receipts live in the common Git directory, outside the measured plugin 
 
 from __future__ import annotations
 
+import argparse
 import contextlib
 import errno
 import hashlib
@@ -22,7 +23,7 @@ import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import pytest
@@ -83,9 +84,10 @@ def source_state(root: Path) -> dict[str, object]:
 
 
 class RunSettings:
-    def __init__(self) -> None:
+    def __init__(self, expected_paths: list[str] | None = None) -> None:
         self.effective: dict[str, object] = {}
         self.results: dict[str, object] = {}
+        self.expected_paths = expected_paths
 
     def pytest_configure(self, config: pytest.Config) -> None:
         self.effective = {
@@ -106,19 +108,32 @@ class RunSettings:
             "stepwise_skip": config.getoption("stepwise_skip", default=False),
             "selected_paths": list(config.args),
         }
+        if self.expected_paths is not None:
+            import pytest  # noqa: PLC0415 -- pytest is initialized only by the lease owner
+
+            actual = [str((config.invocation_params.dir / arg).resolve()) for arg in config.args]
+            expected = [str((config.invocation_params.dir / arg).resolve()) for arg in self.expected_paths]
+            if actual != expected:
+                raise pytest.UsageError("--suite cannot be combined with explicit test paths")
+            filtered = any(self.effective[key] for key in (
+                "marker", "keyword", "collect_only", "ignored_paths", "ignored_globs", "deselected_nodes",
+                "last_failed", "stepwise", "stepwise_skip"))
+            self.effective["suite_filtered"] = filtered
+            if filtered:
+                print("Named suite run is filtered; this is not the complete suite.", flush=True)
 
     def pytest_sessionfinish(self, session: pytest.Session) -> None:
         self.results = {"collected": session.testscollected, "failed": session.testsfailed}
 
 
-def run(root: Path, arguments: list[str]) -> int:
+def run(root: Path, arguments: list[str], *, suite_selection: dict[str, Any] | None = None) -> int:
     shared = common_git_dir(root)
     with suite_lease(shared / "local-tests.lock"):
         started = datetime.now(UTC)
         output = shared / "local-test-runs" / f"{started:%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
         output.mkdir(parents=True)
         args = ["-q", "--durations=20", *arguments, f"--junitxml={output / 'junit.xml'}"]
-        settings = RunSettings()
+        settings = RunSettings([item["path"] for item in suite_selection["items"]] if suite_selection else None)
         record: dict[str, object] = {
             "started_utc": started.isoformat(), "pid": os.getpid(), "worktree": str(root),
             "source_before": source_state(root), "command": [sys.executable, "-m", "pytest", *args],
@@ -126,6 +141,8 @@ def run(root: Path, arguments: list[str]) -> int:
             "versions": {name: importlib.metadata.version(name) for name in ("pytest", "pytest-xdist")},
             "exit_code": None,
         }
+        if suite_selection is not None:
+            record["suite_selection"] = suite_selection
         receipt = output / "run.json"
         receipt.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
         print(f"Local tests: {output}\nFollow pytest.log for progress.", flush=True)
@@ -148,18 +165,68 @@ def run(root: Path, arguments: list[str]) -> int:
             log_path = output / "pytest.log"
             if log_path.is_file():
                 print("\n".join(log_path.read_text(encoding="utf-8").splitlines()[-50:]))
+            if settings.effective.get("suite_filtered"):
+                print("Named suite run was filtered; inspect effective settings in run.json.")
             print(f"Local tests: exit {exit_code} in {record['elapsed_seconds']}s; evidence {output}")
         return exit_code
+
+
+def resolve_suites(root: Path, arguments: list[str]) -> tuple[list[str], dict[str, Any] | None, bool]:
+    """Resolve only our flags; let pytest parse its options and their values."""
+    parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+    parser.add_argument("--suite", action="append", default=[])
+    parser.add_argument("--list-suites", action="store_true")
+    args, remainder = parser.parse_known_args(arguments)
+    if not args.suite and not args.list_suites:
+        return arguments, None, False
+    if args.list_suites and (args.suite or remainder):
+        raise ValueError("--list-suites cannot be combined with test arguments")
+    names = sorted(set(args.suite))
+    command = [sys.executable, str(root / "evals/catalog.py"), "suites" if args.list_suites else "tests", "--json"]
+    for name in names:
+        command.extend(["--suite", name])
+    completed = subprocess.run(command, cwd=root, capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if completed.returncode:
+        raise ValueError(completed.stderr.strip() or "catalog lookup failed")
+    result = json.loads(completed.stdout)
+    expected_view = "suites" if args.list_suites else "tests"
+    if (not isinstance(result, dict) or type(result.get("schema_version")) is not int
+            or result["schema_version"] != 1 or result.get("view") != expected_view
+            or not isinstance(result.get("items"), list)):
+        raise ValueError("unsupported catalog response")
+    if args.list_suites:
+        for suite in result["items"]:
+            print(f"{suite['id']}: {suite['summary']}")
+        return [], None, True
+    paths: list[str] = []
+    for item in result["items"]:
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str):
+            raise ValueError("invalid catalog test entry")
+        relative = item["path"]
+        path = Path(relative)
+        if (path.is_absolute() or len(path.parts) != 2 or path.parts[0] not in {"scripts", "evals"}
+                or not path.name.startswith("test_") or path.suffix != ".py" or "\\" in relative
+                or ":" in relative or any((root / Path(*path.parts[:i])).is_symlink() for i in (1, 2))
+                or not (root / path).is_file()):
+            raise ValueError("invalid catalog test path")
+        paths.append(relative)
+    if not paths or len(paths) != len(set(paths)):
+        raise ValueError("suite must resolve to nonempty unique test paths")
+    return [*paths, *remainder], {"names": names, "items": result["items"]}, False
 
 
 def main() -> int:
     try:
         # The script's checkout owns configuration and discovery, regardless of launch cwd.
         os.chdir(ROOT)
-        return run(ROOT, sys.argv[1:])
+        arguments, selection, listed = resolve_suites(ROOT, sys.argv[1:])
+        return 0 if listed else run(ROOT, arguments, suite_selection=selection)
     except SuiteBusy as exc:
         print(f"Local tests: {exc}", file=sys.stderr)
         return 2
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        print(f"Local tests: {exc}", file=sys.stderr)
+        return 3
 
 
 if __name__ == "__main__":

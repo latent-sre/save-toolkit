@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "api-craft",
+  "summary": "HTTP API artifacts, pagination, problems, writes and OpenAPI controls",
+  "tests": [
+    "evals/test_api_ci_oracle_regressions.py",
+    "evals/test_backend_problem_oracles.py",
+    "evals/test_incident_writes_oracle.py",
+    "evals/test_incidents_api_oracle.py",
+    "evals/test_openapi_document_oracle.py"
+  ],
+  "native_scenarios": [
+    "build-software-engineer-go-incidents-api",
+    "build-software-engineer-incident-writes",
+    "build-software-engineer-incidents-api",
+    "discovery-api-craft-defers-scheduled-job",
+    "discovery-api-craft-http-api",
+    "discovery-api-craft-http-client"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

@@ -20,6 +20,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import campaign_report
 import clean_room
 import judge
 from probe import assessment as probe_assessment
@@ -794,6 +795,30 @@ class EndToEndStubTests(TempRootTestCase):
                 contextlib.redirect_stdout(io.StringIO()) as printed:
             code = probe_cli.main(["run", "--label", "l", "--out", str(out), "--executable", stub, *extra])
         return code, calls, printed.getvalue()
+
+    def test_frozen_selection_runs_and_resumes_exact_slots_with_reported_missing_work(self) -> None:
+        spec = stub_spec()
+        manifest = {"schema_version": 1, "profile": "native-selection-v1", "trials": 3,
+                    "tasks": [{"instance_id": spec["id"], "case_sha256": probe_fingerprints.case_digest(spec)}],
+                    "source": {"git_revision": None, "dirty": None, "suites": []}}
+        source = self.root / "selection.json"
+        source.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        out = self.root / "selected"
+        stub = stub_cli(self.root, cost=0.0)
+        code, calls, _ = self._batch(out, stub, [spec], "--selection", str(source), "--trials", "1")
+        self.assertEqual(0, code)
+        self.assertEqual([(spec["id"], 1)], calls)
+        saved = next((out / "selections").glob("*.json"))
+        self.assertEqual(source.read_bytes(), saved.read_bytes())
+        report = campaign_report.build_report(out, manifest, "l")
+        self.assertEqual((3, 1, 2), tuple(report["counts"][k] for k in ("expected_slots", "started_slots", "missing_slots")))
+        source.unlink()
+        code, calls, _ = self._batch(out, stub, [spec], "--selection", str(saved), "--run-offset", "1")
+        self.assertEqual(0, code)
+        self.assertEqual([(spec["id"], 2), (spec["id"], 3)], calls)
+        report = campaign_report.build_report(out, manifest, "l")
+        self.assertEqual((3, 3, 0), tuple(report["counts"][k] for k in ("expected_slots", "started_slots", "missing_slots")))
+        self.assertEqual({"PASS": 3, "FAIL": 0, "INCONCLUSIVE": 0}, report["verdict_counts"])
 
     def test_a_trial_that_fails_its_identity_check_stops_the_batch(self) -> None:
         """Codex on PR #328 and WP-02's stop rule: a wrong tool inventory, plugin or model stops the batch,

@@ -25,7 +25,7 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, batches, catalog, fingerprints, layout, records, rescoring, trials
+from . import assessment, batches, catalog, fingerprints, layout, records, rescoring, selection, trials
 from .constants import ROOT
 from .exits import ExitCode, UsageParser
 from .outcomes import State
@@ -86,8 +86,11 @@ def _whole_number(value: str, *, flag: str, minimum: int, why: str) -> int:
     return number
 
 
-def _scenario_option(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--scenario", default="all", help="scenario id under evals/build-scenarios, or 'all'")
+def _scenario_option(parser: argparse.ArgumentParser, *, frozen: bool = False) -> None:
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--scenario", default="all", help="exact native scenario ID, or 'all'")
+    if frozen:
+        group.add_argument("--selection", type=Path, help="frozen native-selection-v1 JSON with exact case digests")
 
 
 def _threshold_option(parser: argparse.ArgumentParser) -> None:
@@ -100,8 +103,20 @@ def _threshold_option(parser: argparse.ArgumentParser) -> None:
     )
 
 
+class _ExplicitTrials(argparse.Action):
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        setattr(namespace, self.dest, values)
+        namespace.trials_explicit = True
+
+
 def _run_options(parser: argparse.ArgumentParser, *, required: bool) -> None:
-    _scenario_option(parser)
+    _scenario_option(parser, frozen=required)
     parser.add_argument(
         "--plugin-root",
         type=Path,
@@ -119,6 +134,7 @@ def _run_options(parser: argparse.ArgumentParser, *, required: bool) -> None:
     )
     parser.add_argument(
         "--trials",
+        action=_ExplicitTrials,
         type=functools.partial(_whole_number, flag="--trials", minimum=1, why="an empty batch is not a green batch"),
         default=1,
     )
@@ -169,7 +185,7 @@ def _command_parser() -> argparse.ArgumentParser:
     _run_options(
         commands.add_parser("run", help="run trials of the selected scenarios and publish each attempt"), required=True
     )
-    _scenario_option(commands.add_parser("validate", help="validate scenario specs and exit"))
+    _scenario_option(commands.add_parser("validate", help="validate scenario specs and exit"), frozen=True)
     regrade = commands.add_parser(
         "regrade", help="re-score saved runs with the current checks, beside each run (no model)"
     )
@@ -259,6 +275,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         scenarios = [s for s in scenarios if s["id"] == args.scenario]
         if not scenarios:
             print(f"no scenario named {args.scenario!r}", file=sys.stderr)
+            return ExitCode.REFUSED
+    if getattr(args, "selection", None) is not None:
+        try:
+            args.frozen_selection = selection.load(args.selection, scenarios)
+            scenarios = args.frozen_selection.scenarios
+            if command == "run":
+                args.trials = selection.trial_count(
+                    args.frozen_selection,
+                    args.run_offset,
+                    args.trials if getattr(args, "trials_explicit", False) else None,
+                )
+        except (OSError, ValueError) as exc:
+            print(f"invalid native selection: {exc}", file=sys.stderr)
             return ExitCode.REFUSED
     if command == "validate":
         return validate(scenarios)
@@ -379,6 +408,23 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
         return prepared
     judge_binding, provenance, runtime = prepared
     out = args.out.resolve()
+    frozen = getattr(args, "frozen_selection", None)
+    if frozen is not None:
+        try:
+            retained_selection = selection.retain(args.out, frozen)
+        except (OSError, ValueError) as exc:
+            print(f"cannot retain native selection: {exc}", file=sys.stderr)
+            return ExitCode.REFUSED
+        _emit(
+            {
+                "selection_file_sha256": frozen.file_sha256,
+                "selection_path": str(retained_selection),
+                "selected_ids": [spec["id"] for spec in scenarios],
+                "total_trials": frozen.trials,
+                "first_slot": args.run_offset + 1,
+                "last_slot": args.run_offset + args.trials,
+            }
+        )
     out.mkdir(parents=True, exist_ok=True)
     summary_path = out / f"summary-{args.label}-{args.model or 'default'}.json"
     existing = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else []

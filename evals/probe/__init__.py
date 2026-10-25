@@ -11,6 +11,7 @@
 - `fingerprints`: what a result is bound to (runner source, plugin, CLI and host, case);
 - `checking`: the checks, each declared with what it asserts and what it reads;
 - `catalog`: scenario kinds, prompts and tool grants, and validation;
+- `selection`: admit finalized native case identities and retain frozen selection bytes;
 - `records`: what an attempt cost, and the v1 result record;
 - `invocation`: one `claude -p` call, and whether its trace may be graded;
 - `assessment`: the one grading loop, shared by live grades and regrades;

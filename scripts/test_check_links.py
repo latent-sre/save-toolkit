@@ -566,6 +566,11 @@ class LiveDocLinkTests(Fixture):
             failures,
         )
 
+    def test_moved_eval_guides_are_checked(self) -> None:
+        self.write("evals/docs/running.md", "See [missing](missing.md).\n")
+        failures = check_links._check_live_doc_links(self.root)
+        self.assertTrue(any("evals/docs/running.md" in item and "dead link" in item for item in failures), failures)
+
     def test_a_symlinked_root_does_not_make_every_link_escape(self) -> None:
         """The containment test must canonicalize the root before comparing against it.
 

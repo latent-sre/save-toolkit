@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "id": "release-and-ci",
+  "summary": "Production approval validity, release boundaries and CI contract preservation",
+  "tests": [
+    "evals/test_api_ci_oracle_regressions.py",
+    "evals/test_production_approval_validity.py",
+    "scripts/test_pcf_deploy_example.py"
+  ],
+  "native_scenarios": [
+    "agent-direct-software-engineer-deploy-stays-with-release-owner",
+    "build-pcf-deploy-unapproved-planning-body",
+    "build-production-change-gate-classifies-restart-and-restage",
+    "build-software-engineer-adds-pcf-deploy-job",
+    "build-software-engineer-deploy-stays-with-release-owner",
+    "ci-actions-optimization-preserves-contract",
+    "discovery-ci-actions-defers-live-incident",
+    "discovery-ci-actions-harden-workflow",
+    "discovery-ci-actions-slow-pipeline",
+    "discovery-manual-deploy-does-not-autofire",
+    "discovery-production-change-gate-merge-readiness",
+    "discovery-production-change-gate-release-readiness",
+    "discovery-production-change-unknown-outcome",
+    "pcf-deploy-requires-gate",
+    "production-change-gate-blocks-missing-execution-authority",
+    "production-change-gate-blocks-missing-validity",
+    "production-change-gate-passes-approved",
+    "production-change-gate-records-unknown-outcome",
+    "production-change-gate-release-preserves-recovery",
+    "production-change-gate-scopes-verdict-fields"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

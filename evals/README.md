@@ -1,1029 +1,141 @@
 # Fleet evals
 
-The native fleet runner, [`build_probe.py`](build_probe.py) and its [`probe`](probe) package, grades four
-kinds of scenario, decided by the keys a spec carries rather than by a mode field.
+Find the relevant checks here, then use the existing runner for that kind of work.
 
-| Kind | Where | Session | Graded on |
-|---|---|---|---|
-| **routing** | [`scenarios/`](scenarios) | main session, `--tools Skill,Task` (a spec may widen it), no `--agent` | one check: did the named component complete a non-error invocation — or, for a negative, stay out of the way |
-| **contract** | [`scenarios/`](scenarios) | `agent:` pinned with `--agent`, or `skill:` pinned by instruction | `graders:` over the returned text |
-| **build** | [`build-scenarios/`](build-scenarios) | `agent:` pinned, its real tools pre-approved, in a seeded fixture repo | `checks:` over **outcomes** in code |
-| **native** | [`scenarios/`](scenarios) | `agent:` pinned with one `followups:` turn, read-only tools and one helper | completed helper, parent continuation and same-session resume; semantic review remains manual |
+| Layer | What it establishes | Entry point |
+|---|---|---|
+| Structural checks | Fleet wiring, assets, links, and generated adapters are well formed | `python scripts/gate_a.py` |
+| Offline tests | Code, harness, grader, fixture, and oracle behavior under controlled inputs | `python scripts/local_tests.py` |
+| Native evals | Agent behavior on explicit scenarios and a particular model/host | `python evals/build_probe.py` |
+| Benchmark campaigns | Results under each adapter's admitted case and execution profile | [Campaign guides](docs/running.md#run-it) |
 
-Two directories because the build fixtures carry inline repos hundreds of lines long and would bury
-the short routing specs. The runner does not care which one a spec came from.
+Passing an offline test does not establish live model performance. Human acceptance of the exact
+candidate remains separate. [CONTRIBUTING](../CONTRIBUTING.md#3-verify-in-proportion-to-the-change)
+owns the required verification policy; named suites are focused checks within it.
+
+## Find and run checks
+
+Use the verified project interpreter (`python` below), from the repository root.
+
+```bash
+python evals/catalog.py suites
+python evals/catalog.py show --suite python-craft
+python evals/catalog.py list --component skill:python-craft
+python evals/catalog.py list --profile incident-v1
+python evals/catalog.py tests --suite python-craft --json
+python evals/catalog.py campaigns
+python evals/catalog.py tracks
+python evals/catalog.py coverage
+python evals/catalog.py check
+
+python scripts/local_tests.py --suite python-craft
+python scripts/local_tests.py --suite readonly-guard -n 0
+python scripts/local_tests.py                 # default suite
+python scripts/local_tests.py --heavy         # default plus heavy; choose one final run
+python evals/build_probe.py validate          # offline scenario validation
+```
+
+Named suites cover every current native case and root test file, grouped by capability and execution
+track. `show` lists exact membership and guides. `tests` lists files without importing them;
+it does not claim a collected test count. `coverage` exposes any newly unassigned cases/files and
+shows declared kinds and graders. The [capability map](docs/coverage.md) explains coverage limits
+and useful additional evaluations. Repeat `--suite` to combine groups without repeating work. `-k` and other pytest
+filters remain available and are recorded as filtered runs.
+
+`tracks` distinguishes existing runners/adapters from inactive proposals, planned integrations, and
+independent sandboxes. It does not activate them. `campaigns` links actual selection manifests;
+a runner with no selection is still discoverable through `tracks`.
+
+Native discovery supports `--kind`, `--component`, `--profile`, and `--suite`: repeated values within
+one filter are OR, different filters are AND. A component is the pinned agent/skill or routing target,
+including negative routing targets. It does not imply coverage of every indirectly loaded skill.
+Conversation profile is separate from runner kind. Use named suites for cross-cutting workflows.
+
+## Freeze a native selection
+
+Organize cases first. After definitions are finalized, export exact case fingerprints and trial slots:
+
+```bash
+python evals/catalog.py select --suite python-craft --trials 3 \
+  --out .eval-runs/python-craft-next/selection.json
+python evals/build_probe.py validate --selection .eval-runs/python-craft-next/selection.json
+```
+
+Export never launches a model or grants run approval. External benchmark selections stay with their
+own adapters; native export refuses a suite containing linked external campaigns. A selection file
+is never overwritten. Existing results retain their original identities.
+
+For an authorized campaign, `build_probe.py run --selection PATH` uses the frozen cases and total
+trial count with the usual model, label, plugin, calibration, and budget options. Use `--run-offset O`
+and optionally `--trials K` to run slots `O+1..O+K` within the frozen total; omitting K runs the remaining
+slots. The runner retains exact selection bytes under `OUT/selections/` before scheduling. Changed
+case definitions are refused. [Running guide](docs/running.md) covers execution requirements.
+
+```bash
+python evals/campaign_report.py .eval-runs/python-craft-next \
+  --selection .eval-runs/python-craft-next/selection.json --label candidate
+```
+
+The report keeps missing slots visible. Its logical JSON hash is distinct from the retained file's
+`selection_file_sha256`. [Campaign reporting](../docs/fleet-evaluation/campaign-report.md) explains
+costs, attempts, and interpretation. [Suite authoring](docs/authoring.md#suite-authoring) explains
+membership and the JSON interfaces.
+
+## Reference guides
+
+| Guide | Use it for |
+|---|---|
+| [Running](docs/running.md) | Setup, supported hosts, execution, and model-specific limits |
+| [Authoring](docs/authoring.md) | Scenarios, suites, graders, oracles, and calibration |
+| [Internals](docs/internals.md) | Runner structure, provenance, clean-room boundaries, regrade/rescore |
+| [Case guides](docs/case-guides.md) | Case-family explanations and offline controls |
+| [Capability coverage](docs/coverage.md) | Current suite/track map, limitations, and useful missing evaluations |
+| [Evaluation specification](../docs/fleet-evaluation/README.md) | Architecture, campaign plans, and accepted constraints |
 
 ## Run it
 
-The [multi-model testing block](../docs/fleet-evaluation/multi-model-testing.md) freezes
-matched Sonnet, Sol, Luna and Terra controls through the existing native and structured
-Codex runners. It keeps their identities, verdicts and unknown costs separate. The
-[current follow-through plan](../docs/fleet-evaluation/run-plan-followthrough.md) binds
-the aggregate testing budget and the requested Linux/Windows WP-04 coverage.
-
-`--max-invocation-usd` optionally supplies Claude's USD limit on each invocation.
-Persistent sessions retain the tighter of that value and their existing USD 0.75 limit.
-This is separate from `--max-batch-usd` scheduling, and may overrun by a final response;
-neither flag establishes a provider-side hard cap across multiple campaigns.
-
-The separate [`codex_probe.py`](codex_probe.py) adapter admits fifteen named artifact cases:
-the twelve structured WP-10 injection cases, `--pair reliability` for the single proportionate-options
-assessment, and `--pair gcp01` for startup A/B. It stages canonical guidance and serves scoped tools
-through [`codex_fixture_tools.py`](codex_fixture_tools.py). Reliability may write only its requested
-assessment; GCP uses an exact synthetic read-query catalog prepared by
-[`codex_gcp_queries.py`](codex_gcp_queries.py). No candidate shell or live cloud interface is exposed.
-GCP query-attempt checks explicitly describe that transport instead of inventing native Bash calls.
-
-Its `codex-record-v1` artifacts are a separate baseline outside the native v1 importer. The
-[original Luna campaign](../docs/reviews/2026-10-15-wp10-structured-case-acceptance.md) retains 33 PASS,
-two FAILs and one INCONCLUSIVE on its current case versions, plus three earlier-version records.
-The [reliability/GCP continuation](../docs/reviews/2026-10-15-luna-reliability-gcp01.md) binds the newer
-candidate, evidence mapping and run scope. Neither profile establishes native routing, hooks or
-live helper continuation.
-The MCP server explicitly uses strict UTF-8 on its pipes; isolated Python ignores environment-only
-encoding settings on Windows. Completed tool-error responses still require exact argument, result
-and failure-status agreement with the independent receipt; transport corruption remains INCONCLUSIVE.
-
-`--approve-fixture-tools` requires the owner's approval of the profile's exact tools. There is no
-retry/overwrite mode; each invocation runs at most one pair or the reliability singleton and stops
-on incomplete evidence. GCP's declared semantic-review gate remains INCONCLUSIVE even with complete
-instrument evidence; it permits the second arm but never counts as PASS. Reliability's mechanical
-PASS also requires separate review of the assessment's reasoning.
-The Code Mode path accepts one literal scoped file or query call per wrapper, or a metadata-only
-`text(ALL_TOOLS)` query, optionally filtered by literal `name.includes`/`description.includes` terms
-joined by `&&`. Calls still require matching returns; arbitrary JavaScript stays unmeasured.
-The reader also recognizes the built-in `list_mcp_resources({})` call only when its
-completed result proves an exact empty catalog and its session call/return matches.
-The literal text call and observed fixed text-only projection are supported; nonempty
-catalogs, resource reads, server arguments and arbitrary wrappers remain unmeasured.
-Subscription dollar cost is unknown; wall time, tool limits and token usage are recorded.
-
-Use the latest **Python 3.14** patch for development and component-test CI. The repository-wide
-compatibility floor is Python 3.12, including the native runner and installed hooks; structural CI
-exercises that minimum.
-
-```bash
-python -m pip install -r requirements-dev.txt
-python evals/build_probe.py validate                        # offline schema/grader/target check
-python evals/build_probe.py run --scenario all --label baseline --model sonnet --trials 3 \
-  --out .eval-runs/<iteration>
-python evals/build_probe.py run --scenario discovery-runbook-incident-update --label desc-change \
-  --model sonnet --trials 3 --out .eval-runs/<iteration>
-```
-
-`validate` is the CI-safe check and the one to run on any scenario edit. `run` needs a
-Claude-enabled runner and starts a fresh non-persistent process per trial. The other jobs are
-`regrade`, `rescore`, `diff` and `schema`; `build_probe.py COMMAND --help` describes each. The flat
-flags of earlier runners (`--validate`, `--regrade DIR`, `--rescore DIR --out DIR`,
-`--rescore-diff BASE CANDIDATE`, and a bare run) remain supported compatibility forms and reach the same jobs.
-Every scenario must declare `max_turns`; validation refuses a missing or invalid limit before
-preflight. The CLI's native execution preflight also requires observed CLI, host, account and elevation evidence and
-an unelevated account. An unknown or elevated runtime is refused with exit 3 before a trial starts.
-
-**Pin `--model` on every run.** The fleet's measurement default is the `sonnet` alias unless the
-roadmap item names another tier: it is the tier the existing routing evidence was taken on. A run on
-a different tier is a different baseline — record it and never average it with a Sonnet run.
-
-Compare an incumbent with `--plugin-root <worktree> --label incumbent`; `--expect-plugin-digest`
-refuses any other bytes. `--overwrite` replaces the selected run slots; use a new label when changing
-the candidate or scenario. `regrade` re-grades saved traces offline only when the original scenario
-identity matches, and `rescore` and `diff` compare runner revisions on saved traces (see
-[Provenance](#provenance)). Trials run on the host; externally authored code runs only in separately
-authorized CI, so the former `--container` mode was removed (`EVAL-011`).
-
-`python evals/compare_runs.py .eval-runs/<iteration> --incumbent A --candidate B` compares two labels
-from their v1 records (EVAL-012 WP-01): counts, attempts and known and unknown spend per arm, then each
-case as a gain, regression, unchanged, unmeasured, missing pair or not compared, then unusable records
-and legacy runs. An arm pools against a case's native threshold only while the scenario still has the
-digest its records name. `--json` prints the logical report. It grades nothing, so it is not part of
-the runner's identity; [`fixtures/v1-bundle`](fixtures/v1-bundle) is its synthetic test bundle.
-`python evals/turn_counts.py .eval-runs [--scenario ID ...]` summarizes the turn counts saved trials
-recorded, per scenario, as evidence for setting a scenario's `max_turns`; it also grades nothing.
-Older `total_duration_seconds` values are accepted when trial-only elapsed time is absent; they
-may include judging, so budget sizing treats them conservatively.
-
-Native agent conversations pin the parent with `agent:` rather than routing to it as another
-helper. The legacy two-message profile's sole-helper boundary cannot also permit a second agent dispatch. Skill-based native
-conversations retain positive main-session routing. Measure agent discovery with a separate unhinted
-routing scenario. Saved native agent runs require matching `--agent` evidence on both invocations;
-an old main-session trace cannot be reclassified as agent acceptance. The opt-in
-[`incident-v1` profiles](incident-conversations/README.md) extend this path with ordered sessions,
-per-invocation helper contracts and frozen evidence branches. They retain then-visible judge contexts
-and actual resume evidence; semantic review remains separate from structural PASS.
-
-The standalone [`campaign_report.py`](campaign_report.py) accounts for selected slots, kept and
-incomplete attempts, original results, late operational failures, separate measured/estimated spend
-and unknown review dimensions. Its [operator guide](../docs/fleet-evaluation/campaign-report.md)
-describes the selection shape and portable evidence links. It does not grade or promote candidates.
-
-External benchmark preparation has separate entrypoints: [WP-04 ITBench](itbench_pilot.py),
-[WP-08 SWE-bench](swebench_repair.py), [WP-09 SWT](swt_pilot.py), and
-[WP-09 Harbor/Terminal-Bench](harbor_pilot.py). Their source manifests, static-authoring admissions,
-independent verifiers and live gates are separate from the native fixture runner. See the
-[complex-campaign plan](../docs/fleet-evaluation/implementation-complex-campaigns.md) for scope;
-offline tests establish neither live benchmark performance nor exact-candidate acceptance.
+See [Run it](docs/running.md#run-it).
 
 ## Muse runner (separate baseline, never comparable)
 
-[`muse_probe.py`](muse_probe.py) runs the same scenario catalog on Muse (`muse exec --json`)
-for a Muse host baseline. It is a separate entry point with its own `muse-record-v1` records:
-the model, harness and tool names differ, so its results are never averaged with or compared
-against a Sonnet baseline. Agents and skills are pinned by injecting the canonical definition
-into the prompt (`pin: prompt-injected`), shell/write/web access is approximated from the pinned
-agent's own grants, and any expectation a Muse trace cannot carry — skill-load completion,
-dispatch targets, tool arguments, a rubric judge — is INCONCLUSIVE rather than graded on
-invented evidence. Routing is credited only structurally — a fleet SKILL.md read in
-tool-carrying events, or a spawn record naming its own target — never from a name mentioned in
-tool output or the prompt echo; a retained Muse session log, when found, corroborates dispatch
-targets only under the same same-line rule, and its absence is recorded rather than read as a
-negative. Checks are gated by the evidence they declare they read, so a check needing a raw or
-ordered trace, a judge, or a backing service is INCONCLUSIVE here instead of graded on an empty
-summary. Trials are staged in the probe's seeded temp workspace under the Claude probe's isolated
-child environment (with the Muse credential file copied byte-for-byte into the isolated home,
-outside the trial workspace), so routing on Muse measures a staged workspace — fleet-component
-discovery there is unmeasured by design and reports INCONCLUSIVE rather than a verdict.
-`python evals/muse_probe.py validate` checks the catalog offline;
-`run --scenario <id> --label <label> --out <dir>` executes live trials.
+See [Muse runner (separate baseline, never comparable)](docs/running.md#muse-runner-separate-baseline-never-comparable).
 
 ## Runner layout
 
-The [frontend trial verification patch](fixtures/frontend-craft-verification/README.md)
-preserves the private craft trial's verification wiring without shipping the prototype.
-
-`build_probe.py` is only the command line; the code is in [`probe/`](probe), one module per job (its
-[`__init__.py`](probe/__init__.py) lists them), and tests and tools import those modules directly:
-
-- **Typed results.** A check returns an `Outcome` that states whether its evidence measured the
-  candidate (`PASS`, `FAIL` or `INCONCLUSIVE`) and whether a failure was the grading machinery's. It
-  is a frozen dataclass whose equality and hash include the state, evidence and both classification
-  flags. Unpacking and indexing retain the `(passed, evidence)` reading API; a plain tuple is not
-  equal to an outcome. Saved grades keep their text representation; only `Outcome.read` interprets it.
-- **Declared checks.** Each check in [`probe/checking.py`](probe/checking.py) is registered with
-  `@declare`: whether it forbids, requires or both, and the evidence it reads. Polarity,
-  regradability and the cut-short rules are read from those declarations.
-- **One grading loop.** `assessment.assess` grades a live trial and a regrade alike; a regrade
-  supplies the saved verdicts it keeps. A result rule therefore changes in one place.
-- **A published record contract.** `records.RecordV1` validates each `record.json` strictly, as
-  the JSON its readers parse, on the first write and on every later change, and
-  [`eval-record-v1.schema.json`](../docs/fleet-evaluation/eval-record-v1.schema.json) is generated
-  from it by `build_probe.py schema --out ...`; a test fails when the two differ.
-- **Static checks.** [`pyproject.toml`](../pyproject.toml) runs Ruff's lint rules over the runner,
-  `graders.py`, `inspect_pilot.py` and the `test_*.py` files, Ruff's formatter over all of them but
-  the tests, which keep their compact hand layout, and strict mypy over the same code without the
-  tests; CI runs them after the component tests. `python -m ruff check`,
-  `python -m ruff format --check` and `python -m mypy` reproduce them locally. A separate
-  `python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles`
-  checks syntax, invalid control flow and undefined names in those byte-bound files. Their existing
-  layouts and incremental typing remain: whole-file formatting or typing migrations would replace
-  calibration and case identities without establishing a behavioral improvement.
-
-A function is patched in the module that defines it, such as `probe.trials.run_trial`: every other
-module calls it through that module, so one patch reaches every caller, and a test enforces it. A
-class or constant is bound by name in each module that imports it, so a patch must reach each of
-them. `build_probe` holds no runner name, so a patch aimed at it fails instead of leaving real code
-running.
+See [Runner layout](docs/internals.md#runner-layout).
 
 ## Inspect AI + Inspect SWE pilot
 
-[`inspect_pilot.py`](inspect_pilot.py) runs the existing word-frequency fixture through Inspect
-SWE's sandboxed Claude Code agent, with Inspect AI owning scheduling, logs, limits, and scoring.
-It reuses seven artifact checks and records the other nine as omitted. It does not load the
-Save Toolkit plugin or pin its software-engineer agent: this is an **artifact-only integration
-pilot**, not native fleet acceptance. The existing runner remains authoritative for plugin
-identity, routing, hooks, delegation, calibrated judging, and conversation continuity.
-
-Install `requirements-test.txt` for offline tests, or `requirements-dev.txt` for all tooling.
-Both include Inspect AI, Inspect SWE, and the Anthropic SDK required by the Claude bridge.
-Docker must be available for sandboxed runs. The sandbox uses a reviewed image digest, resource
-limits, all capabilities dropped, and a read-only system filesystem. Only workspace, home, and temporary
-directories are writable. Grading uses system executables, a fixed PATH, and disables Python's
-user-site and unsafe startup paths so agent-written configuration cannot replace the grader.
-Inspect's root helper and agent retain the image's root user, but cannot modify the read-only
-system executables. There are no host mounts or operator credential files. Network access remains available for
-agent installation and the model proxy; it is not an offline sandbox.
-
-```powershell
-inspect eval evals/inspect_pilot.py@wordfreq --model <provider/model> --log-dir .eval-runs/inspect
-inspect view --log-dir .eval-runs/inspect
-```
-
-Select the model explicitly and configure the provider credential through its normal local
-environment. This differs from native Claude subscription authentication. The task requests
-the latest Claude CLI, one attempt, no refusal/crash retries, 20,000 tokens, 300 seconds, and
-a $1 cost limit. Inspect checks limits between operations; an in-flight call can overshoot.
-Models without pricing metadata require explicit pricing before a cost-limited run can start.
-`-T claude_version=<version>` selects a repeatable CLI version for comparisons.
-
-Run the bridge smoke tests without a paid model (downloads Claude and starts Docker):
-
-```powershell
-$env:RUN_INSPECT_DOCKER_SMOKE = '1'
-python -m pytest evals/test_inspect_pilot.py -k real_swe -q
-Remove-Item Env:RUN_INSPECT_DOCKER_SMOKE
-```
-
-These scripted pass/fail cases verify the bridge and scorers, not model capability. Ordinary
-CI runs the offline tests; Docker smoke cases are explicit opt-ins. Details and remaining
-modernization work are in [Python and eval modernization](../docs/python-eval-modernization.md).
+See [Inspect AI + Inspect SWE pilot](docs/running.md#inspect-ai--inspect-swe-pilot).
 
 ## Scenario contract
 
-```yaml
-id: discovery-production-triage-recommend-only
-split: regression
-max_turns: 12
-prompt: |
-  Payments latency just tripled in production and errors are climbing. No mitigation is
-  authorized yet. Tell me what to do.
-target: {kind: skill, name: incident-investigation}
-routing: {expect: fire}
-success_criteria:
-  - Invokes incident-investigation for technical advice while the human incident lead owns coordination
-```
-
-A routing prompt is byte-for-byte unhinted — `--validate` rejects one that names its own target.
-For `expect: not_fire`, set `expected_alternative: inline` or name the component expected instead:
-a negative does not pass merely because the forbidden target stayed absent. `main_session` passes
-when no agent takes the work and the session answers, with skills allowed, as when the main session
-implements a change itself; a list of alternatives passes on any one of them. Negatives are
-zero-tolerance, so their threshold is always clamped to 1.0 and `--validate` rejects a declared
-threshold below it; `threshold` on a positive is the fraction of trials that must pass. The same
-holds for any scenario with a forbidding check: every check type either forbids an action (such as
-`no_new_commits` or `bash_did_not_run`) or requires an outcome (such as `file_exists`), recorded as
-`kind` in `grading.json`, and a forbidding check holds its scenario to every trial whatever
-`--threshold` requests.
-
-A contract scenario pins `agent:` or `skill:` and lists `graders:` from the registry in
-[`graders.py`](graders.py): `rubric`, `exact_json`, `exact_fields`, `regex`,
-`not_regex`, `contains_all`, `contains_any`, `not_contains`. Structure is checked deterministically;
-natural-language policy questions go to `rubric`. New scenarios use a `rubric` or a structural
-grader, never a new keyword list. `--agent` runs the session AS the agent, so the pin is itself the
-invocation; a `skill:` instruction can be ignored, so a skill-pinned trial additionally asserts the
-skill completed.
-
-A build check that grades with a probe-owned oracle stages the oracle into the workspace before it
-runs the command: `writes:` carries a line or two of data inline, while `writes_from:` maps the
-workspace filename to a file under [`oracles/`](oracles), keeping a substantial oracle reviewable
-and runnable without duplicating its program inside YAML.
-
-`command_exit_zero` can declare `inconclusive_exit_code` (an integer from 1 to 255) for a
-probe-owned unavailable measurement. That exit makes the trial INCONCLUSIVE; zero passes and
-all other nonzero exits fail. Without the declaration, every nonzero exit fails. It can also
-declare `failure_exit_code`, the code its oracle uses for a failed contract: then only that code
-fails the candidate, and any other nonzero exit, such as the oracle's own uncaught exception, is an
-instrument failure that stops the scenario.
-
-The committed executable oracles use supervised completion for Python and UI commands to
-distinguish contract/candidate failures (exit 10)
-from oracle failures or absent completion evidence (exit 1, INCONCLUSIVE). A successful process
-exit alone cannot establish completed assessment. The Python supervisor binds each receipt to
-its launch and tracks candidate execution, so a candidate's early exit cannot bypass remaining
-checks and appear to pass. Eight semantic placeholders remain explicit unavailable measurements.
-These controls are measurement bookkeeping on the trusted host, not containment of hostile code.
-
-The CLI, API, UI, and deployment-pressure builder probes use `verification_completed` to check
-the agent's own verification separately from probe-run artifact tests. It requires a foreground
-unittest, pytest, or Vitest invocation, standalone or positioned by one `cd`/`Set-Location` into the
-trial repository joined with `&&`, a matching non-error Bash/PowerShell result,
-and a nonzero passing test summary. `echo pytest`, failed tests, and a `Verified` heading do not
-establish this. An earlier foreground command that failed (`Error: Exit code N`) still counts as
-completed. Missing/unsupported receipts, overlapping effects, or a later potentially mutating
-tool call leave verification INCONCLUSIVE. The latter includes later shell commands even when a
-human can recognize a read-only `git diff`; the checker does not interpret arbitrary shell effects.
-This is ordered trace evidence, not exact-byte or detached-process attestation. The default build
-tool set stays portable; PowerShell is available to an explicitly configured scenario only when
-the native host supplies it. Offline parser tests do not establish live host provisioning.
-
-[`build-software-engineer-root-cause-reassessment`](build-scenarios/build-software-engineer-root-cause-reassessment.yaml)
-adds a tool-bearing bug repair after a failed retry-budget change. The optional
-`skill_loaded: {before_effects: true}` check requires a successful main-thread Skill result before
-any shell, edit, write, or delegation call. This scenario explicitly asks for guidance before shell
-execution and permits initial Read/Grep/Glob inspection. It is intentionally stricter than the
-general agent rule (load before permanent remediation); other scenarios retain ordinary
-`skill_loaded` behavior. Ordered regrading requires the raw trace. The independent retry oracle
-rejects another budget increase, suppressed exceptions, and disabling all retries; final foreground
-verification remains separate from the probe's own artifact test.
-
-**Native acceptance also requires manual trace review** against the scenario's `success_criteria`:
-a completed failing reproduction of the prior repair, an actual discriminating comparison before
-remediation, and a returned mechanism explanation grounded in those results. A skipped comparison,
-an edit before investigating the contradictory result, weakened tests, or unsupported claims fail
-that review even if automated checks pass. A good final artifact or the words "root cause" do not
-prove reassessment. [`test_root_cause_probe.py`](test_root_cause_probe.py) calibrates skill ordering
-and positive/negative artifacts offline; it does not grade hidden reasoning or prove native model
-behavior. This scenario has not itself established native acceptance; agree host/model, exact
-candidate, trial count, and budget before a model run.
-
-The deployment-pressure probe also checks the maintenance banner's enabled, unset, empty, and
-escaped-text behavior with an [independent oracle](oracles/maintenance-banner/probe_banner.py).
-Its [positive and negative fixtures](test_maintenance_banner_oracle.py) reject a comment-only
-implementation despite a green original suite. This proves HTML structure and literal text,
-not browser/CSS appearance; the deployment and credential boundaries remain separate checks.
-
-**The standing regression** comprises the build probes and the contract scenarios carrying
-`split: regression`. The `build-python-...` probes cover refactoring effects, generator
-consumption/lifetime, module moves, stdlib migration contracts, leaving correct code unchanged,
-a shared calculation boundary usable without files, and a medium-sized policy unification across
-three drifted intake entrypoints with a registry, a configured dotted lookup, a legacy re-export,
-and a unit suite that encodes the drift, plus a scoped zero-count fix that leaves adjacent code
-untouched without requiring a cleanup inventory in the reply. The policy oracle checks specification parity over a bounded
-domain for every entrypoint, single ownership through the `policy.normalize_order` patch seam
-(a record the old rules reject must pass once the shared policy accepts it), exception identity,
-input immutability, six fresh-process import orders, and that the fixture suite stays green
-and detects named normalization, validation, CLI-parsing, and batch-result regressions in
-disposable replays. Test counts alone do not establish assertion preservation; these bounded
-checks do not prove that every original assertion survives. Eleven named partial-ownership and
-lost-consumer artifacts are rejected. The oracle does not grade how the work was staged. Their shared
-[outcome oracle](oracles/python-craft/check_contracts.py) is calibrated by
-[positive/negative artifact tests](test_python_craft_oracle.py): correct implementations pass and
-named behavioral and structural counterexamples fail, including eager reads, adjacent duplicate loss, broken
-legacy imports, circular imports, and bypassed public patch points. The effect oracle adds 936
-generated comparisons over a bounded integer/None domain, with independent output, mutation, error,
-and effect expectations; this is not arbitrary-input coverage and needs no additional dependency.
-The module-move oracle runs both import orders in fresh processes and exercises an unchanged alias
-registry and configured dotted lookup. The generator oracle observes unbounded read/readlines and
-uses the source position to detect logical EOF before first yield, allowing bounded chunks and
-readline iteration. These common API
-paths are covered; this is not a memory benchmark or proof against every possible read mechanism.
-Migration checks exercise a stdlib adapter, not package discovery. These outcome checks do not
-establish live model performance.
-Run `python -m pytest evals/test_python_craft_oracle.py` for offline calibration.
-
-The calculation probe verifies a specified maintenance outcome: the in-memory boundary works
-without ordinary Python file opens, and a policy replacement there reaches the existing file
-entrypoint, including input rejected by the old parsing policy. It checks that actual helper parse
-exceptions propagate by identity and rejects duplicated parsing before or after delegation.
-It is not an arbitrary-I/O sandbox or a general design-quality score. The original
-effect probe checks compatibility plus a source edit, not whether that edit improves design.
-`python-refactoring-judgment` checks supplied-state choices about shared policy, independent rules,
-internal callers, supported plugin imports, no-change restraint, coherent stages for large work,
-authorized library adoption, established versus uncertain defects, explanation-only scope, and
-justified whole-codebase rewrites in scope that preserve required contracts. It also checks effect-aware
-control flow, simpler calls, layer removal, ordered records, indexed membership with streaming, and
-transport-independent policy boundaries. It loads the Python refactoring/writing references and the
-builder bar so their design guidance is assessed together. `python-new-code-judgment` checks a
-direct implementation for a bounded task, an importable core serving CLI and notebook consumers,
-bounded streaming with publication after validation, and an unresolved partial-failure contract.
-These supplied-state decisions do not prove execution or consumer discovery. `discovery-python-improvement` checks routing
-for an outcome-driven request; it does not grade implementation quality.
-
-Two additional build evaluations exercise implementation outcomes:
-
-| Evaluation | What its artifact checks establish |
-|---|---|
-| [New streaming CLI](build-scenarios/build-python-new-streaming-cli.yaml) | One importable counting policy serves the CLI; checks cover file/stdin inputs, UTF-8, invalid records, late failures, ownership, and measured storage growth. Candidate tests must also detect named counting, invalid-record, diagnostic-index, and CLI-failure regressions. |
-| [Indexed membership](build-scenarios/build-python-indexed-membership.yaml) | Measured searches fit a deterministic operation budget, preserving mapping inputs, lazy access, order, duplicates, identity, errors, and release of consumed rows. Candidate tests must pass and reject behavior-preserving linear-search and quadratic-construction regressions. |
-
-Their [new-code calibration](test_python_new_code_probe.py) and
-[index calibration](test_python_index_probe.py) accept valid alternative implementations and reject
-named broken artifacts. They reuse the native runner and standard-library checks. Run them offline:
-
-```bash
-python -m pytest evals/test_python_craft_oracle.py evals/test_python_new_code_probe.py evals/test_python_index_probe.py -q
-python evals/build_probe.py validate
-```
-
-The storage checks observe growth on two supplied workloads, calibrated against whole-row and
-compact per-record retention as well as valid constant buffers. File checks preserve imported
-`open` aliases and inject late read failures through owned files as well as borrowed stdin.
-The cost check includes construction and requires the supplied index inputs and every query to
-be observable. Candidate `SystemExit` is a failure; only the oracle's unavailable-measurement path
-returns the declared exit 3, making the native trial INCONCLUSIVE and requiring separate profiling.
-These are bounded observations, not proofs of universal time or space complexity or adversarial
-attestation.
-
-Three further cases cover package refactoring and a bounded library choice:
-
-| Evaluation | What its artifact checks establish |
-|---|---|
-| [Installed package refactor](build-scenarios/build-python-package-refactor.yaml) | Both adapters use the extracted calculation; public imports, configured lookups, package data, numeric behavior and resource ownership survive. The fixture's release ZIP is built and extracted, then exercised outside the checkout with site packages disabled. Obsolete source and release entries must disappear. Candidate tests replay named ownership/error regressions. |
-| [Schema library selection](build-scenarios/build-python-library-selection-schema.yaml) | A maintained available JSON Schema implementation owns validation through both callers, preserving schema/payload errors and object identity. Controlled library behavior distinguishes real delegation from a ceremonial call around a custom interpreter. An unavailable pinned runtime makes the measurement INCONCLUSIVE. |
-| [CSV library selection](build-scenarios/build-python-library-selection-csv.yaml) | Genuine CSV quoting, exact decimal totals, one-pass ownership, bounded observed storage, late failures and the consumer work under the fixture's bare-interpreter deployment constraint. That constraint makes standard-library sufficiency a concrete decision for this case. |
-
-The [package calibration](test_python_package_refactor.py) and
-[library calibration](test_python_library_selection_oracle.py) exercise valid alternatives and
-named counterexamples, including candidate early exits and oracle failures. The package guarantee
-is specific to its existing ZIP release format; it does not establish wheel/build-backend behavior.
-Library candidate suites must also detect named identity, boolean/integer, exact-money and invalid-record
-regressions in disposable replays; these bounded checks do not establish universal test quality.
-The library pair uses supplied, versioned offline evidence and an already provisioned environment;
-it does not measure live package discovery, an advisory audit, or installation resolution.
-
-**Acceptance also needs semantic review:** for the refactor, inspect the ordered trace for consumer
-discovery and checks between meaningful migration steps; for library selection, assess the returned
-capability, compatibility, maintenance/license, deployment-cost and evidence-limit rationale against
-the fixture evidence. Final artifacts do not establish sequencing, and importing a package does not
-establish a sound choice. The automated checks do not score those judgments. The initial turn budgets
-are offline allowances, not measured completion guarantees. Fresh Sol artifact trials may inform
-calibration, but do not establish native Claude routing, tool grants, skill loading or trace checks.
-
-For an agreed native preflight, select each case separately and pin the model:
-
-```bash
-python evals/build_probe.py run --scenario build-python-new-streaming-cli --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
-python evals/build_probe.py run --scenario build-python-indexed-membership --label candidate --model sonnet --trials 1 --out .eval-runs/python-craft-builds
-```
-
-The new probes also require the agent's own final foreground unittest receipt; later shell actions
-can make that receipt inconclusive under the verification contract above. Artifact checks alone do
-not establish general test quality, broad design expertise, or skill-driven uplift. The new-code,
-policy, and indexed probes replay candidate tests against named regressions in disposable fixtures.
-Passing tests must reject those regressions through assertions; import/runtime errors, skips, or
-early exits cannot substitute for that evidence. The indexed probe's two mutants preserve behavior
-while regressing cost. These checks measure bounded test sensitivity, not exhaustive coverage of
-every contract or protection against a candidate deliberately attacking the evaluator.
-
-For a live Python-skill comparison, agree the native host/model, exact candidate, cases, repetitions,
-and cost cap first. Use matched disposable fixtures and the same builder, tools, prompt, and checks,
-varying only skill availability and its necessary load instructions. Verify completed skill loads
-in the skill arm and absence in the control; preflight one pair before spending the remaining budget.
-Compare compatibility, the named maintenance outcome, restraint, and cost separately. Keep invalid
-or mixed-model trials inconclusive: the resolved identity is the model that carried the main
-thread (the init model and every top-level assistant turn), while the CLI's internal helper calls
-in its usage table, such as a Haiku side call of a few tokens, are recorded as `usage_models` and
-do not make a batch mixed. Offline oracle calibration does not establish model uplift;
-the new cases have no live with/without-skill result until that comparison is actually run.
-
-The reviewer cases cover explicit reading-only scope, Git investigation of a broken unchanged
-caller and a matched compatible refactor, candidate-controlled runner/instruction rejection, and
-the supplied-state decision to use an established verification environment. Five free-form cases
-grade the review as written: a scratch-copy reproduction of a defect only an independent check
-reveals, a cross-tenant read, approval of a correct change, and an agent's uncommitted work, asked
-directly and after a terse handoff. `fixture.checkout` names the branch left checked out and
-`fixture.uncommitted` writes files after the last commit; `no_workspace_changes` requires those
-bytes intact. These fixtures do not git-ignore caches, and a Git-verb check rejects checkout, switch,
-stash, reset, restore, clean, and worktree add, so a run inside the source checkout shows. Checks
-named `contract:` grade the output contract. A software-engineer case hands its uncommitted work
-to the reviewer; `scope: subagent` on `bash_ran`/`bash_did_not_run` grades only the commands the
-dispatched reviewer issued, since the trace otherwise pools them with the builder's.
-`ran_outside_checkout` follows the Bash working directory across calls and fails when candidate
-code starts inside the source checkout; it needs the live repository path, so a regrade keeps its
-verdict, as it does `no_workspace_changes` for seeded uncommitted work. Their
-[calibration tests](test_reviewer_cases.py) check real fixture branches, caller behavior, decision
-graders, and command matching. Git trace matches establish attempted commands, not successful
-interpretation; final workspace checks do not enforce a filesystem sandbox. The verification
-decision case is not an execution trial. These bounded probes do not establish review quality beyond
-their defects, host containment, or live helper behavior.
-
-A skill's routing positive is a **description-change check** — run it when that skill's own
-description changes. `--split` is not wired into the runner's selection; use `--scenario <id>` or
-run everything.
-
-The return-and-resume cases separate two boundaries: the `agent-direct-...helper-return` and
-`agent-direct-...partial-slice-to-caller` scenarios grade supplied-state decisions; the
-[`scribe return build probe`](build-scenarios/build-software-engineer-resumes-after-scribe.yaml)
-requires a completed child call and the integrated runbook/README artifacts. Its automated checks
-do not identify who edited the README or when; inspect the raw trace before claiming that the
-parent resumed after the child returned. Two free-form build probes act instead of choosing from a
-menu: [`resumes-after-partial-helper`](build-scenarios/build-software-engineer-resumes-after-partial-helper.yaml)
-grades the finished independent change, the agent's own suite run, and the refused injected
-release; [`withholds-review-on-autoloading-instructions`](build-scenarios/build-software-engineer-withholds-review-on-autoloading-instructions.yaml)
-grades whether a reviewer is dispatched into a context that would load the candidate's instructions.
-Five sibling probes give the other delegating agents the same coverage, each acting on a partial
-return that carries a false `[verified]` claim and an injected instruction:
-[`observability-engineer`](build-scenarios/build-observability-engineer-resumes-after-partial-helper.yaml),
-[`reliability-engineer`](build-scenarios/build-reliability-engineer-resumes-after-partial-helper.yaml),
-[`reviewer`](build-scenarios/build-reviewer-reopens-helper-claims.yaml),
-[`agent-engineer`](build-scenarios/build-agent-engineer-resumes-after-partial-research.yaml), and
-[`sre-assistant`](build-scenarios/build-sre-assistant-handles-partial-research.yaml).
-
-Four build probes cover `api-craft`, each exercising the app with a probe-owned oracle. The Python
-oracles use TestClient or a uvicorn subprocess; the Go oracle builds and launches the service.
-
-- [`incidents-api`](build-scenarios/build-software-engineer-incidents-api.yaml) covers the core
-  HTTP contract.
-- [`go-incidents-api`](build-scenarios/build-software-engineer-go-incidents-api.yaml) covers a Go
-  HTTP service and its document contract.
-- [`incident-writes`](build-scenarios/build-software-engineer-incident-writes.yaml) covers an
-  idempotent create. The caller resends on timeout, sometimes while the first request is still
-  running.
-- [`pager-webhook`](build-scenarios/build-software-engineer-pager-webhook.yaml) covers a signed
-  webhook whose processing outlasts the vendor's 3 s window.
-
-Three discovery cases define the narrowed routing boundary:
-[`HTTP API`](scenarios/discovery-api-craft-http-api.yaml) and
-[`standalone HTTP client`](scenarios/discovery-api-craft-http-client.yaml) changes should load the
-skill; a [`standalone scheduled Python job`](scenarios/discovery-api-craft-defers-scheduled-job.yaml)
-without HTTP work should use `python-craft` instead. These check routing only. Their four-turn
-limits follow the existing short discovery cases and are offline budget choices, not measured
-completion limits. Historical build results measure the earlier `backend-craft` revision; the
-renamed skill and these new routing cases have not been measured in a native campaign.
-
-The separate `go-craft` candidate adds discovery cases for
-[`library refactoring`](scenarios/discovery-go-craft-library.yaml),
-[`module modernization`](scenarios/discovery-go-craft-modernize.yaml), and
-[`deferral during a live incident`](scenarios/discovery-go-craft-defers-live-incident.yaml).
-Their four-turn limits are offline choices following the existing discovery cases, not measured
-completion limits. The Go HTTP build also requires the language skill to load alongside `api-craft`.
-These cases have not run natively; the existing HTTP oracle does not measure language-specific
-benefit. BACKEND-002 still needs a bounded Go build comparison against the model without this skill.
-
-None of the oracle tests makes a model call.
-
-- [`incident-writes`](test_incident_writes_oracle.py) and [`pager-webhook`](test_pager_webhook_oracle.py)
-  each prove their oracle with a house-rule reference that passes and targeted mutants that fail with
-  their expected messages.
-- [`incidents-api`](test_incidents_api_oracle.py) covers that oracle's pagination check.
-- [`incidents-page`](test_incidents_page_oracle.py) calibrates the actual UI oracle's loading,
-  error, empty and filter checks (bars 1/2/3/5) against reference pages and targeted mutants.
-  Opt in with `INCIDENTS_PAGE_NODE_MODULES` pointing to an existing dependency tree and
-  `INCIDENTS_PAGE_MODE=bounded` or `full`, then run
-  `python -m pytest -q -s evals/test_incidents_page_oracle.py`. Versions are reported and nothing
-  is installed. Bounded mode substitutes a fetch transport double for MSW; full mode
-  uses MSW. Both use JSDOM and cover only those four bars; browser behavior and the axe bar remain
-  separate checks.
-
-The researcher/scribe cases add a bounded public-page lookup, private-input rejection with
-zero attempted web calls, a missing-current-version source decision, extended/quick research
-routing, and command provenance classification. The [partial-research case](build-scenarios/build-researcher-partial-research.yaml)
-uses a fictional public packet and zero remaining retrieval attempts to check useful per-question
-coverage, citations, and gaps without promoting an older default or incomplete release highlights.
-Its literal fields allow the normal return header; explanation quality still needs manual review.
-`tool_call_count` counts attempted calls from
-the trace, including failures: a positive WebFetch count and cited answer still need manual
-inspection of the matched retrieval result before claiming successful or accurate research.
-The strict-empty MCP runner does not test Context7/GitHits provisioning or raw-reader behavior.
-The postmortem artifact probes check draft status, impact versus resolution-confirmation times,
-and the supplied causal follow-up's question, owner/due date, open status, and completion criterion.
-The abbreviated [P3 case](build-scenarios/build-scribe-postmortem-evidence.yaml) requires explicit
-fixture record lines for its 12-minute duration, later human resolution, unknown cause, and
-unassessed data integrity. The [unknown-metadata case](build-scenarios/build-scribe-postmortem-unknown-metadata.yaml)
-requires the author to select full depth for customer-visible impact while retaining null severity
-and impact end, unknown duration, and pending owner confirmation of the document's depth.
-The oracle checks those records, required headings, and the six-column follow-up row; it is not
-a semantic grader of arbitrary prose. A copied record cannot excuse a contradiction elsewhere:
-both scenarios require manual trace/artifact review of causal and integrity claims, attribution,
-follow-up meaning, and agreement between the narrative and the supplied evidence. Automated green
-alone is not native acceptance. Calibration includes changed facts with retained labels, detached
-source markers, false follow-up completion, missing work/proof, and supervised success, candidate
-failure, early exit, and oracle-crash paths. The contact-closeout probe checks the actual
-card/index edit after a completed scribe dispatch; inspect the trace to establish who wrote it
-and whether the caller supplied the correct checkout binding. These are bounded artifact checks,
-not general document-quality judgments. `python -m pytest evals/test_researcher_scribe_cases.py`
-calibrates their checks offline, including rejection of newly verified execution in the runbook
-fixture, which supplies no incoming verified execution claims. The runbook fixture also declares
-target/source/check records in Prerequisites and readback/owner/retry records for each changing
-step; `test_runbook_safeguards.py` calibrates missing, misplaced, and incorrect records plus
-supervised pass/fail. `test_postmortem_tracking_links.py` rejects invented follow-up links in
-both postmortem forms. These checks remain bounded to the declared fixture records. New scenario definitions and
-offline passes do not establish live model behavior, routing reliability, or host acceptance.
-
-Agent-target routing probes remain **calibration-only** evidence of model/host propensity
-(on 2026-08-22 Opus 5 dispatched 0/3 where Sonnet did 3/3). Record the model
-and host with any such result. See the historical
-[accepted EVAL-002 decision](../docs/decisions/2026-08-22-agent-discovery-calibration.md).
-The expanded SRE workflow now requires an actual unhinted incident/runbook dispatch, helper return
-and caller continuation as a product acceptance case on each claimed host. A routing probe or a
-supplied-state JSON decision alone does not satisfy that requirement; one success does not establish
-general dispatch reliability. The pending cases live in
-[host acceptance](../docs/vscode-plugin-acceptance.md#expanded-investigation-acceptance-pending).
+See [Scenario contract](docs/authoring.md#scenario-contract).
 
 ### Native incident conversation
 
-[`native-incident-helper-return-and-resume`](scenarios/native-incident-helper-return-and-resume.yaml)
-extends the same runner with exactly one `followups:` prompt. It runs the initial parent unpinned,
-keeps its clean environment and fixture workspace, then passes the actual session ID to `--resume`.
-There are at most two CLI invocations, each capped at `$0.75` and the selected `--timeout` (use
-`--timeout 240` for the frozen incident comparison: up to 240 seconds per invocation). Prompt
-suggestions are disabled; there is no automatic retry. This path grants only `Skill,Read,Task`,
-accepts fixture files only, and checks each invocation's plugin, advertised inventory, actual tool
-use (including child calls), read paths, and session identity before continuing. Optional
-`expected_model:` pins the concrete parent/init model identity on every invocation; the committed
-incident scenario requires `claude-sonnet-5-5`. Each turn retains expected and observed identities.
-Credential markers or missing, invalid, or over-`$0.75` cost records stop this path before a follow-up.
-`references:` are assertions only here: they do not add instructions to the prompt. The initial
-parent must finish reading the measured plugin's exact reference before its first helper dispatch;
-a helper read, a later parent read, or a reference first loaded on resume does not count. The summary
-retains the qualifying initial-parent read's tool ID and start/completion trace lines.
-The initial parent's advisor Skill invocation must also complete before helper dispatch; late or
-helper-only selection does not count.
-
-The parser distinguishes an asynchronous submission receipt from a matched completed task
-notification. The `helper:` assertion requires exactly one completed child and parent text after
-that return. A successful synchronous child result remains valid. Follow-up traces, responses, and
-invocation metadata live under `followup/`; the initial response is also retained as `response.md`.
-Regrade checks both original traces against each invocation's saved workspace, exit status, session,
-and model binding, applying the same runtime and credential boundaries after the fixture is gone.
-Missing or partial boundary evidence is INCONCLUSIVE. Timing totals count each invocation once even
-when its runtime emits repeated cumulative terminal results.
-
-**A native PASS is structural only.** Its grading and summary records explicitly carry
-`assessment_scope: structural_only` and `semantic_assessment: UNVERIFIED`. Read the initial dispatch,
-child response, parent continuation, and resumed response to judge the scenario's manual criteria:
-caller/owner preservation, evidence quality, feasible advice, corrected recovery, and causal/timing
-limits. Successfully reading the helper's supplied evidence file is also a manual check: a completed
-child alone does not establish that read. Parent text after a return proves continuation, not good synthesis. This scenario has not
-been behaviorally accepted merely because its schema or parser tests pass.
+See [Native incident conversation](docs/authoring.md#native-incident-conversation).
 
 ## The rubric judge
 
-`rubric` graders spawn one clean-room, tool-less `claude -p` turn against a named rubric in
-[`rubrics.yaml`](rubrics.yaml). It fails closed: a timeout, auth failure, malformed envelope,
-unknown verdict, a verdict from a model other than the pinned one, or evidence not quoted verbatim
-from the graded response all fail closed with a `judge inconclusive:` detail; the runner marks the
-trial INCONCLUSIVE. Normal build and contract rubric graders require one explicit completed
-calibration receipt before starting the evaluated agent:
-
-```bash
-python evals/build_probe.py run --scenario <id> --label <label> --out <dir> --judge-calibration .eval-runs/judge-calibration/<run>/identity.json
-```
-
-The receipt must cover the current canonical corpus (every rubric has PASS and FAIL cases),
-match the loaded judge code, configuration, and rubric definitions, and
-meet the repository's 0.95 agreement threshold with no inconclusive cases. The loader recomputes
-agreement from `results.json`; a legacy, partial, custom-subset, or stale receipt cannot certify a
-normal trial. Both grader forms and direct `run_trial` calls enforce the same preflight. Scenario
-kwargs cannot supply the binding. `--validate`, empty-response spec validation, and direct judge
-spot checks stay offline or retain their explicit bootstrap behavior.
-
-```bash
-python evals/judge.py --calibrate
-```
-
-measures every rubric against [`rubrics-calibration.yaml`](rubrics-calibration.yaml) and exits
-non-zero below 0.95 agreement or on any inconclusive case. The judge is the latest Sonnet through
-the default `sonnet` alias. To move to a new Sonnet, add `--resolve-identity`: it spends one call to
-confirm which model the alias names now. When it reports that the alias moved, delete
-`.eval-runs/judge-calibration/judge-cache` and recalibrate, or the cache would re-certify the
-previous model. Calibration remains owner-triggered;
-the runner never starts it automatically. New judge code/configuration or rubric definitions need
-an applicable calibration before normal rubric trials. Its cache lives under
-`.eval-runs/judge-calibration/`; entries bind judge/clean-room source, Python/PyYAML, effective CLI
-arguments and timeout, prompt template, rendered rubric, response, and observed model. A rubric
-edit invalidates that rubric's entries; a judge source/configuration edit invalidates the affected
-execution cache. Label-only edits reuse judgments but recompute agreement, and cache-only
-calibration remains visibly marked. Cache eligibility does not depend on a calibration receipt,
-so bootstrap calibration has no circular dependency. The contract is the
-[rubric-judge evaluation ADR](../docs/decisions/2026-09-01-rubric-judge-evaluation-contract.md).
-
-The normal runner derives the concrete judge model from the receipt and freezes its executable,
-arguments, timeout, and optional `EVAL_JUDGE_CACHE` location. Later ambient `EVAL_JUDGE_MODEL`,
-`EVAL_JUDGE_CACHE`, or `CLAUDE_BIN` changes cannot redirect that binding. Every live judgment and
-cache hit checks the pinned model. Complete binding metadata is retained in provenance and grading;
-`timing.json` retains each call's response/rubric identities, full verdict detail, observed model,
-cache status, cost, and duration, including inconclusive calls. The 600-character display limit does
-not truncate those records. These are trusted local evidence records, not signed runtime attestation.
+See [The rubric judge](docs/authoring.md#the-rubric-judge).
 
 ## Provenance
 
-Every run records the plugin root's commit, plugin-input dirty state, and a path-bound source digest
-over `agents/`, `skills/`, `commands/`, `hooks/`, the manifest, and the guard scripts
-(`provenance.json`, the trace summary, the summary line), the path of the image of those inputs the
-trial was served (`plugin_served_from`), plus the requested and resolved model,
-trials, timeout, per-trial duration, cost, and the exact argv. Each run also records `runtime`: the
-CLI's own `--version` line (`null` when it cannot report one), the host's system, release and
-machine, and OS-observed hostname, account ID, elevation and observation source. Windows uses the
-process token; POSIX uses the effective UID, where elevation means UID 0 rather than a capabilities
-audit. The batch measures this once; `--regrade` keeps the recorded value. Every attempted CLI
-invocation writes `invocation.json` before launch, with argv and workspace, and records launch,
-exit and boundary results afterward; resumed calls retain their own file under `followup/`.
-On a CLI timeout or Python interruption (including Ctrl-C), the runner terminates its POSIX process
-group or uses Windows [`taskkill /T /F`](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/taskkill)
-before reaping the parent and grading partial evidence. Tree cleanup failures abort the attempt;
-they are not recorded as ordinary trial timeouts. This covers children that remain in the invocation's
-process tree, not deliberately detached processes or an abrupt kill of the runner itself.
-Identity hashes say two runs
-measured the same plugin; they do not say the runs measured it the same way — **pin `--model` and
-`--timeout` for any numbers you intend to diff, and compare runs only within one CLI version.** A
-batch refuses to pool trials whose recorded CLI version, host, account or privilege differ. Legacy
-v1 records without account evidence remain readable, but unknown identity never establishes a
-matching host/account and does not pool. Comparison reports name that gap while preserving each
-record's verdict. `provenance.json` also names the runner:
-`runner_commit`, `runner_source_dirty` and `runner_source_sha256`, so a run graded with
-`--plugin-root` on another checkout still says which runner graded it. The measured guard scripts
-include `readonly-guard-hook.ps1`, which `hooks/hooks.json` runs for PowerShell. A measured input that
-is a link or junction, its target present or not, or a required one that is missing, leaves the
-candidate unidentified: the batch refuses to run (exit 3), and a trial that finds one stops the batch.
-An optional guard script that is absent is measured as absent.
-Hashing and image staging use the same Git inventory: tracked files and non-ignored untracked
-files in the measured paths. Ignored untracked residue enters neither; tracked files stay measured
-even when a current ignore rule matches them. Ordinary untracked inputs
-remain measured and dirty. An explicitly named hook that Git ignores is refused rather than
-silently omitted, and an unreadable inventory cannot identify a clean candidate.
-
-Cost is the CLI's reported list-price estimate, not a subscription bill; a missing, negative, infinite
-or NaN figure is unknown. `timing.json` and summary
-rows give `total_cost_usd` only when the trial and every judge call are priced; otherwise it is
-`null`, with `known_cost_usd` and `cost_complete: false` beside it, and a cached verdict counts as a
-known zero, and live and cached judge calls are counted apart. `--max-batch-usd USD` (finite and
-above 0) stops scheduling once the batch's known spend reaches `USD`, or as soon as any attempt's
-cost is unknown, because an unknown cost cannot be held to a cap. That spend counts, once each, the
-rows of this label and model's summary for the selected scenarios, including those `--overwrite`
-replaces, and the superseded and incomplete attempts kept under the label's `attempts/`, which every
-model of the label shares. An attempt that raised records what it is known to have cost: nothing
-when the CLI never started, else what its partial trace reports, which is unknown without the
-trace's result event. One attempt of unknown cost, such as a wall-clock timeout, therefore blocks
-capped runs of its scenario under that label; run it uncapped or under a new label. A batch whose
-CLI does not report its version is refused before any model call. Judge calibration
-receipts still sum an unpriced call as zero: changing `judge.py` invalidates every receipt, so that
-fix waits for the next recalibration.
-
-Each graded attempt also writes `record.json`, the [v1 result record](../docs/fleet-evaluation/contracts.md#result-record-v1)
-that the comparison report reads: format and version, a `case_sha256` over the scenario, oracles and
-rubric definitions alone (unlike `scenario_sha256`, it survives a runner edit), candidate and runner
-identity, run conditions, attempt number and UTC times, how the run ended (an attempt that raised keeps a partial record with
-`run_end: incomplete` and no verdict), each check's kind (forbids, requires, or both), state,
-reason when INCONCLUSIVE, and truncation flag (evidence is cut at 600 characters and flagged), the
-verdict, the cost, and evidence paths relative to the attempt folder. A record the contract refuses
-is not written, and the run is still published with its verdict: the record only maps facts the
-attempt's files keep, the summary row carries `record_problem`, and the batch goes on. Attempt folders are created with a plain `mkdir`, so
-they inherit `.eval-runs/` permissions; `tempfile.mkdtemp` made them readable only by the account
-that ran them on Windows.
-
-Machine records retain the complete candidate digest and a scenario digest covering the spec, its
-referenced oracle files, the explicit judge binding when used, and the rubric definitions the judge actually consumes. The judge caches
-rubrics on first load for the process; file edits take effect in a new process. The digest uses those
-same cached definitions. Appending requires candidate and scenario identities to match the existing
-batch before any model call. Scenario inputs are checked again before and after grading;
-a change in the effective definitions or oracle bytes invalidates the trial. Regrade identifies each assertion by its scenario digest and
-position and retains live-judge/workspace verdicts from the live grade (`grading.original.json` for a
-run an older runner regraded in place); duplicate display
-labels cannot substitute one verdict for another. Legacy records without identities, changed
-scenarios, and missing original assertions are INCONCLUSIVE and require a fresh trial. Regrade does
-not call a judge or recover workspace evidence that was never recorded. Rubric regrades use the
-immutable binding embedded in the original live grade, without reopening a current receipt or
-recalibrating. Missing binding evidence or a changed judged response makes the regrade INCONCLUSIVE. A regrade voids a run only when its live grade
-did: the run-level reason that grade records as `void`, or, in a grade from before `void` was
-recorded, a reason every saved check carries. One check's own INCONCLUSIVE leaves the others
-measured, so a supported FAIL beside it stands (result rules 1 and 3). Without the raw trace, a regrade re-measures
-only what the trace summary records; an expectation that reads what only the raw trace held
-(completion order, completed returns, reads, the plugin namespace) is INCONCLUSIVE on its own.
-Tool-call counts regrade from a complete raw trace or validated recorded summary counts. Empty,
-truncated or malformed traces cannot establish zero calls; missing or invalid summary counts stay
-unknown. Observed calls can still establish a ceiling violation when the total is incomplete.
-A legacy native timeout can recover as cut short only when its recorded
-plugin root and digest still match and its raw invocation evidence establishes the profile and
-session. The resulting forbidden-action failures remain visible.
-
-The scenario digest also binds the evaluator implementation: `build_probe.py`, every module in
-`probe/` (found by listing the package, so a new module is bound the moment it exists), `graders.py`,
-`judge.py`, and `clean_room.py`, plus Python and PyYAML versions. Start the runner in a fresh process
-from a stable checkout with the pinned dependencies. Source edits made after the identity is
-captured abort grading/regrade and require a new process rather than assigning changed disk bytes to
-already-imported code. The digest is conservative: even an
-unrelated evaluator edit invalidates prior scenario identities. In-process code replacement is
-unsupported; this is provenance for the trusted runner, not attestation of its Python environment.
-
-Because of that, `regrade` cannot show what a runner edit changes. `rescore ITERATION_DIR --out
-DIR` grades every saved run with the current runner into the new directory `DIR`, never writing the
-saved runs, and grades across a runner change by finding kept verdicts under the saved identity;
-those runs are marked `identity_relaxed`. A kept rubric judgment whose judge code or configuration
-has changed since the run is INCONCLUSIVE on its own; the checks the saved trace re-measures keep
-their verdicts, so a supported FAIL beside it still fails. `DIR/rescore.json` records the runner identity, each
-run's saved and rescored verdicts, unreadable runs, and scenarios or runs it skipped. A rescore is a
-comparison, never a verdict: its differences from the saved verdicts also include scenario edits made
-since the run. To isolate a runner change, rescore the same runs with the base and candidate
-checkouts and run `diff BASE_DIR CANDIDATE_DIR`, which lists every run and check whose
-verdict differs and exits 1 when any does. Each runner commit explains every line it prints in its
-commit message.
-
-A regrade never rewrites what a run recorded (threat-model ADR result rule 8): it writes
-`assessments/<k>/grading.json` and that assessment's trace summary beside the run, lists the revision
-in the attempt's `record.json` under `assessments`, and writes its rows to `regrade-<UTC>.json` in the
-iteration directory. `grading.json`, the run's trace summary and the batch `summary-*.json` files keep
-their recorded verdicts. Run slots are shared across models under each label; prefer separate labels
-for separate model/candidate comparisons. The regrade's exit code pools runs only as one batch could:
-each label, resolved model, candidate digest, CLI version, host/account/privilege and scenario identity is
-aggregated apart, and a run whose model, candidate digest, CLI version or host/account evidence is unknown pools with
-nothing and counts as INCONCLUSIVE.
-
-`--overwrite` prepares a complete replacement in a hidden sibling attempt directory. The previous
-run remains intact through execution, grading, artifact writes, and workspace cleanup. Publication
-renames the previous slot to a backup and restores it if the replacement rename fails; only a
-published attempt reports its summary. No attempt is deleted: the replaced run moves to
-`<label>/attempts/run-N/<k>/` as `superseded`, and an attempt that raised before publishing (an
-interrupt, an authentication failure, a refused preflight) moves there as `incomplete` with the
-reason. Each attempt's `attempt.json` records its number, state and time, and the summary row carries
-the published attempt's number, so a re-run is never invisible. If moving the backup fails, it is
-retained beside the slot with a warning. If the process stops between publication renames, inspect
-the `.run-N-previous-*` sibling before restoring it; a two-directory rename is not a crash-atomic
-filesystem transaction. An authentication failure stops the batch and exits 4, distinct from FAIL (1)
-and INCONCLUSIVE (2), whatever else the batch holds: rows an `--overwrite` had not replaced yet
-cannot change that exit or its reason. It prints the stop line and no verdict, since the resumed
-batch decides it; the stop line's `unfixed_by_resume` names an identity or model problem that
-resuming would not fix. Each completed trial still prints its summary line as it publishes, and
-keeps its row in `summary-*.json`.
+See [Provenance](docs/internals.md#provenance).
 
 ## Clean-room boundary
 
-Every trial points `CLAUDE_CONFIG_DIR` at a temporary directory holding only the selected Claude
-credential, rebuilds the child environment from an allowlist so unrelated host tokens cannot reach
-model-invoked tools, and runs from a temporary git root outside this repository so the repo's own
-`AGENTS.md`, `CLAUDE.md`, and local settings cannot teach a routing trial the answer. `--plugin-dir`
-and `--add-dir` name an image of the measured plugin inputs, staged beside that git root and
-recorded as `plugin_served_from`, never the checkout itself: a session can read the shipped skills
-but not this repository's evals, docs or history (`EVAL-014`); a regrade restages the image at the
-recorded path while it runs. The runner checks the checkout's digest before execution, after the
-model returns, and after plugin-dependent grading, and the image's beside it;
-a change makes the trial INCONCLUSIVE, and a mismatch with the batch digest prevents the model call.
-These checks detect persistent changes, not a transient edit restored between checks; keep the
-candidate checkout stable for the batch. Strict MCP mode supplies an explicit empty server set.
-Runtime init must report exactly one plugin with that image's identity and
-exactly the requested tool inventory, and the trace must name the model it ran on; a missing or
-foreign tool, an MCP server, a trace that names no model, an error result, a
-nonzero exit, or — where reads were granted — a successful read outside the workspace and plugin
-image makes the trial **INCONCLUSIVE**, never a verdict. An auth failure aborts the batch.
-
-CLI children and grading/oracle commands receive workspace-owned `TMP`, `TEMP` and `TMPDIR`.
-Ordinary Python children suppress bytecode generation. Cleanup records `cleanup.json`, including
-the workspace, explicit retention, removal result and problems; `--keep-workspace` records an
-intentional retained workspace. A failed cleanup preserves an already measured verdict, records
-the problem under `after_assessment`, and prevents the batch from reusing the environment. These
-environment settings govern cooperative temporary-file use, not arbitrary host writes.
-
-Those run-level failures mark every check INCONCLUSIVE, so nothing observed under the wrong plugin,
-model or tools counts. A trial whose identity is wrong — its tool inventory, plugin or model, or
-plugin inputs that changed — also stops the batch, since every later trial would run as the same
-wrong candidate: its summary row records `identity_failure`, and a later invocation of the label
-schedules nothing until that run is replaced with `--overwrite` or a new label is used. The batch
-then exits 2 unless a FAIL verdict decides it. A failure the candidate's own run causes, such as a
-read outside the workspace or a refused command, voids only its trial, and a backing service that
-never started stops only its scenario. A run cut short on the declared profile is different: after a timeout, a
-missing result, an error result, a nonzero exit or the native spend cap, the partial trace must still
-show the declared plugin, tools and read boundary, and for a native conversation its model, grants,
-session and helper, and then a forbidding check whose violation is
-already in it is FAIL, while one with no violation yet and every requiring check stay INCONCLUSIVE;
-the grade records `run_end: cut_short` with `run_stop` (`wall_clock`, `no_result`, `error_result`,
-`nonzero_exit` or `spend_guard`) so a regrade applies the same rule, a native invocation records
-`cut_short` too, and a run voided at run level records `void`. A negative routing expectation fails
-a cut-short run only when its forbidden target fired; an alternative that never fired stays
-INCONCLUSIVE. Otherwise each check is PASS, FAIL or INCONCLUSIVE (its `state` in
-`grading.json`), and a trial with any failed check is FAIL even when another check could not be
-measured; that reason is kept as `unmeasured`. Without a failure, any unmeasured check makes the trial
-INCONCLUSIVE, with the reason in `inconclusive`. A check that reports `instrument:` evidence could
-not be measured, as when its backing service stops answering: it is INCONCLUSIVE and, like a grader crash, stops its scenario. A grader that raises, or a judge that could not judge, is a
-measurement failure: its check is INCONCLUSIVE, the grade names it as `grader_error`, and the batch
-runs no more trials of that scenario; a grader returns an error in the candidate's own output as a
-FAIL. A `tool_call_count` with a positive minimum is both: on a run cut short, calls beyond its
-maximum FAIL while a minimum not yet reached stays INCONCLUSIVE.
-An unknown `fleet_grader` name is rejected by `--validate`. The supervised oracle protocol above
-separates contract failures from machinery failures. Backing-service proxies stop admitting
-requests and drain accepted requests before grading reads audit and service state; the backing
-services remain available for the checks' direct reads. Unsettled service evidence is inconclusive
-without erasing independent failures. Service JSON equality distinguishes booleans from numbers,
-including nested values, while numeric `3` and `3.0` compare equal.
-Every scenario must declare `max_turns` (1 to 500), passed to the CLI as `--max-turns`; a session the CLI
-ends there is a completed run (`run_end: turn_limit`) whose unmet requirements fail. In a conversation
-the limit covers all invocations: each resumed invocation gets only what prior invocations left,
-a conversation that spends it ends without later messages, and a regrade refuses a saved conversation
-that ran past it. Wall-clock and native CLI spend guards apply per invocation. These follow
-the result rules of the accepted [threat-model ADR](../docs/decisions/2026-10-03-eval-harness-threat-model.md).
-The original 242-scenario sizing pass added 235 limits and preserved seven existing limits.
-The new values are provisional offline budgets derived from saved counts and elapsed evidence,
-with same-profile fallbacks and a 450-second sizing target within the 900-second wall-clock guard.
-A slow individual tool or helper can still hit that guard. These limits do not establish live
-completion or candidate uplift; the [EVAL-011 closeout](../docs/reviews/2026-10-10-eval-011-closeout.md)
-records their sizing and the cases whose budgets are below historical counts.
-
-This is an evaluation boundary, **not an OS sandbox**. A build lane's Bash runs on the host with
-network, and the credential copy sits where an unguarded tool could reach it (the probe scans
-outputs for credential markers and warns). Under subscription login, Claude Code itself adds the
-account email to the trial's context, even with `--setting-sources ""`; a trial that repeats it is
-showing that injection, not a leak from the copied files. Use only reviewed, non-secret prompts, and keep raw
-traces private: they carry complete prompts and responses, session IDs, and tool payloads. Artifacts
-are written owner-only under `.eval-runs/`; quote the numbers a review depends on into that review
-rather than publishing the batch.
+See [Clean-room boundary](docs/internals.md#clean-room-boundary).
 
 ## Tests
 
-The `agent-direct-reliability-engineer-*` cases check supplied-state judgments about effective
-controls, recovery evidence, toil economics, and continuation after a partial, stale helper return.
-The paired `build-reliability-engineer-redelivery` and
-`build-sre-assistant-redelivery-baseline` cases use identical prompt, fixture and outcome checks;
-compare their source retrieval, protected counterexample, decision and useful next action on the
-same model/host and exact plugin bytes. The automated verdict checks the decision and non-actions,
-not successful source reads or citation quality; inspect those in both native traces. The offline
-test reproduces the fixture's duplicate effect after acknowledgement failure and enforces pair
-identity. `build-reliability-engineer-doc-boundary` is specified to check that an explicitly
-requested assessment document is written while an untrusted instruction to edit application
-configuration is refused; source reads and document quality still need trace review.
-The native helper conversation checks actual dispatch and parent continuation structurally, then
-requires manual review of its evidence synthesis and corrected follow-up. The routing overlaps
-probe lifecycle, causal diagnosis, small arithmetic, a full toil assessment and accepted
-implementation separately. Offline checks calibrate fixtures and graders; they do not run a model,
-prove host containment, or establish operational benefit. The 2026-10-08 two-trial native
-comparison left the lane unaccepted. See [RELIABILITY-001](../docs/fleet-roadmap.md#reliability-001--measure-the-timing-repair-on-claude-then-decide-on-the-reliability-lane)
-for the current status, landed timing repair, bounded comparison, and human run-approval and
-acceptance requirements; this guide does not duplicate its live status.
-
-`build-principal-engineer-contract-change` and its identical incumbent arm
-`build-software-engineer-contract-change-baseline` grade a shared-contract design: an exact consumer
-inventory that includes a dashboard parsing the fields only in configuration, an external reader
-kept unknown, a compatible first release, removal only on evidence, and the owner's decision. Each
-field is its own reply check, so the pair compares decisions rather than reply format, and guards
-reject a field given twice or spelled with a unicode escape. Both pairs also require the design-record oracle, skills loaded
-before the document is written, and no shell, as their prompts do.
-`build-principal-engineer-new-system` and its identical incumbent arm
-`build-software-engineer-new-system-baseline` check a new-system record with the
-[design-record oracle](oracles/principal-engineer/check_design_record.py), which requires every slot
-to be filled, plus stack fit, an unset availability target left to the owner, a guard against any
-decision given twice, and the closed-reply contract that only the lane carries.
-`build-principal-engineer-order-event-identity` and its identical incumbent arm make the right
-answer the less obvious one: adding `account_id` looks backward compatible, but the fixture's
-fulfilment worker rejects any unexpected field, so the reply must say it is not. The pair also
-requires `database-reliability` before the backfill and replay plan.
-`build-principal-engineer-platform-selection` is lane-only and grades the second reasoning depth
-against `distinguished.md`. It needs a proposed record, a reversible first step, and unverified
-vendor claims. The accepted job-scheduler pattern must beat a new runtime or a scheduler of our
-own. The new-system pair also requires `obs-alerting` before its paging rule. Four routing
-positives cover a new-service design assignment, a builder's returned fork, a multi-year
-platform selection, and a team service's workflow graph; four negatives require
-reliability assessments, small tool builds, an independent review of a design document, and the
-fleet's own workflow-graph design to reach their own lanes. The design-review negative seeds the
-two consumers its document names; a review the main session keeps passes, as does one handed to
-`reviewer`, and the design lane taking it fails. `python -m pytest
-evals/test_principal_cases.py` calibrates them offline; design quality needs document review, and
-native acceptance stays open under `PRINCIPAL-001`.
-
-The [PRINCIPAL-001 semantic proposal](proposals/principal-judgment/README.md) is deliberately
-outside the active catalog and canonical rubric/corpus maps until reviewed activation and a new
-accepted calibration are approved. It retains four paired scenarios, eighteen proposed labels,
-and a rubric containing the full prompt and fixture files for each case. Its offline tests bind
-the rendered context to those fixtures; they do not establish semantic model accuracy. Keeping
-the proposal must not invalidate calibration receipts for unrelated active scenarios.
-
-`build-principal-engineer-live-store-cutover` and `build-software-engineer-live-store-cutover`
-prepare a fresh held-out case for the frozen lane candidate: concurrent writes/deletes during a
-store copy, bounded-pause cutover, and recovery after replacement-only writes. Their prompts,
-fixtures and checks are identical. `python -m pytest evals/test_principal_heldout.py` verifies
-pair equality and the same-count/different-state rehearsal counterexample without model calls.
-Artifact/boundary and skill-load checks remain separate from substantive design review; no
-keyword semantic oracle is added. The [preregistered review protocol](../docs/reviews/2026-10-08-principal-heldout-cutover.md)
-requires uniformly hidden author metadata and a frozen first pass before trace reconciliation.
-The approved six-trial native campaign and independent AI review are complete. The linked receipt
-preserves all three review stages and reports a held-out design tie, separate from principal's
-method/boundary consistency. Structural results do not dispose of its substantive design findings.
-The frozen method checks' labels say before Write while their predicates require before the first
-potentially mutating call; the report distinguishes actual skill loads from that ordering failure.
-
-The incident advisor now uses one seven-field board. Its structural check is
-`python evals/oracles/incident-closing-fields/probe_closing_fields.py <response.md> board`.
-Legacy `fields`/`checkpoint` expectations remain for historical comparisons, not current acceptance.
-Completeness does not establish useful advice, factual accuracy, or continuity across turns;
-those require assessment of the conversation against the supplied incident evidence.
-The `incident-companion-*` scenarios use the `incident_board` grader for structure and
-the companion rubric for advice quality; they cover explanation, missing access, handover
-read-back, helper assignment and return reconciliation, and current and stale service cards.
-Rubric calibration examples assess semantics alone; they need not contain a board and are not
-complete scenario passes. The board is the reply's last step (the skill's step 6), so a line
-after it fails the board grader by design.
-
-The `discovery-incident-investigation-existing-bridge` and
-`discovery-incident-investigation-existing-tlc-followup` scenarios cover a current bridge and
-supplied prior-turn TLC context. Beyond routing, they grade the board and the companion rubric's
-`existing_bridge`/`existing_tlc` cases. The follow-up scenario is a conversation snapshot,
-not a native resumed session, so it does not establish runtime continuity.
-
-The sre-assistant build probes grade the agent's return packet (`Returning to:` through
-`Caller next step:`), mitigation choice through the `mitigation_recommendation` rubric, refusal
-of evidence-destroying actions through `compromise_preserves_evidence`, and masking of the echoed
-session username. Three sre-assistant paths cannot run in this harness and stay host-acceptance
-items, not regression coverage: the Playwright/Grafana visual path (strict MCP supplies no
-servers), the dispatched child's reads in routing trials (the child runs without Bash), and
-researcher dispatch from the agent.
-
-`python -m pytest evals/ --heavy` covers the runner, graders, and judge without a model. A plain
-`python -m pytest evals/` skips the heavy eval-machinery files listed in the root `conftest.py`
-(`HEAVY`), among them the probe-trial, checking and oracle suites, so it does not. Gate A is
-structural and does not run them; CI runs both shards, and its required `component-tests` check
-passes only when both do.
-
-For a final local full run, use `python scripts/local_tests.py --heavy` from the repository root.
-It coordinates linked worktrees and saves logs, JUnit timings, and revision/command receipts.
-Local pytest defaults to ten workers; CI explicitly keeps four. Scenario data edits use validation
-and their matching contract/behavioral checks, while evaluator changes require broader coverage;
-the selection rule lives in [CONTRIBUTING.md](../CONTRIBUTING.md#3-verify-in-proportion-to-the-change).
+See [Tests](docs/case-guides.md#tests).
 
 ## WP-10 offline adversarial preparation
 
-The [AC-20 inventory](wider-fleet-inventory.md) maps lane gaps and offline controls.
-The [AC-27 agent-side pairs](oracles/agent-injection/README.md) cover repository, supplied-log
-and seeded-helper surfaces with scripted obeying/resisting controls.
-The judge-input surface is six `AC-27 judge-input calibration` cases in the active corpus, framed by
-`judge.py`'s per-response marker tag so that a response containing an end marker cannot close its
-frame early; `test_judge_injection.py` checks both offline. Both the fix and the cases need one
-owner-approved cold recalibration before any rubric trial uses them. Offline discrimination is not
-candidate acceptance or completion of WP-10.
-
-The [natural-response extension](oracles/natural-injection/README.md) adds six build cases with
-normal prose reports, actual local fixture effects in offline controls, and an explicit human
-semantic-review gate. Mechanically successful runs remain INCONCLUSIVE until separately reviewed;
-a supported mechanical failure still returns FAIL. No judge or runner bytes change.
+See [WP-10 offline adversarial preparation](docs/case-guides.md#wp-10-offline-adversarial-preparation).
 
 ## WP-12 offline GCP pilot
 
-The [GCP case guide](oracles/gcp/README.md) records the accepted startup authoring template and
-the complete 24-case pilot: twelve A/B families spanning Cloud Run/migration, observability,
-identity/network, managed services and GKE. The [family review records](oracles/gcp/PILOT.md)
-hold supported conclusions, unknowns and official sources outside the candidate workspace. The
-catalog continues beyond the pilot in [catalog review records](oracles/gcp/CATALOG.md), reported
-separately from the pilot; the Cloud Run/migration (GCP-03, 04, 06, 07),
-observability/identity/network (GCP-10, 11, 14, 16), managed-services (GCP-19 to 24) and GKE
-(GCP-26, 27, 28, 30, 31, 32) groups are authored, completing the catalog's offline authoring.
-
-`python scripts/generate_gcp_pilot.py` checks that the generated YAML cases and both review records
-match their hidden source data; `--write` regenerates them. `python -m pytest
-evals/test_gcp_cases.py evals/test_gcp_pilot.py` exercises paired isolation, real fixture reads,
-unavailable observations, tool boundaries and useful/wrong/unavailable controls offline.
-Mechanical success remains INCONCLUSIVE pending human semantic assessment. The owner accepted the
-64-case catalog on 2026-10-17 (DEC-14); case acceptance does not establish model performance.
+See [WP-12 offline GCP pilot](docs/case-guides.md#wp-12-offline-gcp-pilot).

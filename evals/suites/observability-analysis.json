@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "observability-analysis",
+  "summary": "Log, metric and trace reasoning across supported backends",
+  "tests": [
+    "scripts/test_telemetry_audit_repairs.py"
+  ],
+  "native_scenarios": [
+    "discovery-obs-logs-cloud-logging",
+    "discovery-obs-logs-correlation-id",
+    "discovery-obs-logs-defers-live-page",
+    "discovery-obs-logs-defers-obs-alerting",
+    "discovery-obs-metrics-cloud-monitoring",
+    "discovery-obs-traces-cloud-trace",
+    "obs-analysis-correlation-id-contract",
+    "obs-logs-gcp-gotchas-freegen-contract",
+    "obs-logs-gcp-logging-freegen-contract",
+    "obs-logs-logql-freegen-contract",
+    "obs-logs-logql-metadata-freegen-contract",
+    "obs-logs-logql-parsers-freegen-contract",
+    "obs-logs-logql-surge-freegen-contract",
+    "obs-logs-query-shape-contract",
+    "obs-logs-spike-deploy-contract",
+    "obs-logs-spl-extract-freegen-contract",
+    "obs-logs-spl-freegen-contract",
+    "obs-metrics-gcp-gotchas-freegen-contract",
+    "obs-metrics-promql-freegen-contract",
+    "obs-metrics-wql-basics-freegen-contract",
+    "obs-metrics-wql-freegen-contract",
+    "obs-metrics-wql-shape-contract",
+    "obs-traces-context-freegen-contract",
+    "obs-traces-gcp-gotchas-freegen-contract",
+    "obs-traces-semantics-freegen-contract",
+    "obs-traces-traceql-freegen-contract",
+    "obs-traces-traceql-shape-contract"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

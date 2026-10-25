@@ -135,3 +135,56 @@ def test_linked_worktrees_share_one_lease_and_busy_runs_do_not_start_pytest(repo
         assert result.returncode == 2
         assert "another coordinated test run" in result.stderr
         assert not (repository / ".git/local-test-runs").exists()
+
+
+@pytest.fixture
+def suite_repository(repository):
+    (repository / "evals/suites").mkdir(parents=True)
+    shutil.copyfile(ROOT / "evals/catalog.py", repository / "evals/catalog.py")
+    (repository / "scripts/test_named.py").write_text(
+        "def test_good(): pass\ndef test_other(): pass\n", encoding="utf-8")
+    (repository / "test_sample.py").write_text("def test_outside(): assert False\n", encoding="utf-8")
+    (repository / "evals/suites/named.json").write_text(json.dumps({
+        "schema_version": 1, "id": "named", "summary": "named fixture", "tests": ["scripts/test_named.py"],
+        "native_scenarios": [], "campaigns": [], "guides": [],
+    }), encoding="utf-8")
+    return repository
+
+
+def test_named_suite_runs_only_its_paths_and_records_resolution(suite_repository):
+    result = invoke(suite_repository, "--suite", "named", "--suite", "named", "-n", "0")
+    assert result.returncode == 0, result.stdout + result.stderr
+    receipt = json.loads(next((suite_repository / ".git/local-test-runs").glob("*/run.json")).read_text())
+    assert receipt["results"] == {"collected": 2, "failed": 0}
+    assert receipt["suite_selection"]["names"] == ["named"]
+    assert receipt["suite_selection"]["items"] == [{"path": "scripts/test_named.py", "selected_by": ["named"]}]
+    assert receipt["effective"]["selected_paths"] == ["scripts/test_named.py"]
+
+
+def test_suite_narrowing_is_visible_and_pytest_values_are_not_extra_paths(suite_repository):
+    result = invoke(suite_repository, "--suite", "named", "-n", "0", "-k", "good")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "filtered" in result.stdout.lower()
+    receipt = json.loads(next((suite_repository / ".git/local-test-runs").glob("*/run.json")).read_text())
+    assert receipt["results"]["collected"] == 1
+    assert receipt["effective"]["keyword"] == "good"
+
+
+def test_extra_positional_paths_are_refused_before_collection(suite_repository):
+    result = invoke(suite_repository, "--suite", "named", "-n", "0", "test_sample.py")
+    assert result.returncode == 4, result.stdout + result.stderr
+    assert "explicit test paths" in result.stdout + result.stderr
+    assert "test_outside" not in result.stdout
+
+
+def test_unknown_suite_does_not_acquire_lease_or_create_run_receipt(suite_repository):
+    result = invoke(suite_repository, "--suite", "missing", "-n", "0")
+    assert result.returncode == 3, result.stdout + result.stderr
+    assert not (suite_repository / ".git/local-test-runs").exists()
+    assert not (suite_repository / ".git/local-tests.lock").exists()
+
+
+def test_inherited_filter_and_zero_collection_remain_visible(suite_repository):
+    result = invoke(suite_repository, "--suite", "named", "-n", "0", inherited_options="-k nonexistent")
+    assert result.returncode == 5, result.stdout + result.stderr
+    assert "filtered" in result.stdout.lower()
