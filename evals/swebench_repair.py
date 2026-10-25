@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from swebench_adapter.artifacts import screen, store_json
+from swebench_adapter.complex_selection import REVISION as COMPLEX_REVISION
+from swebench_adapter.complex_selection import propose
 from swebench_adapter.configuration import binding, dependency_problems, load_config, selection_committed, smoke_problem
 from swebench_adapter.selection import resolve_task, select_tasks
 
@@ -43,6 +45,10 @@ def _parser() -> argparse.ArgumentParser:
     select.add_argument("--licences", type=Path, required=True)
     select.add_argument("--dataset", type=Path, required=True, help="pinned full-row cache; fetched if absent")
     select.add_argument("--out", type=Path, required=True)
+    complex_case = commands.add_parser("propose-complex", help="prepare the separate hard-case proposal; no calls")
+    complex_case.add_argument("--licences", type=Path, required=True)
+    complex_case.add_argument("--dataset", type=Path, required=True)
+    complex_case.add_argument("--out", type=Path, required=True)
     for name in ("preflight", "smoke", "trial", "batch"):
         command = commands.add_parser(name)
         command.add_argument("--selection", type=Path, required=True)
@@ -59,6 +65,12 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        if args.command == "propose-complex":
+            rows = _dataset(args.dataset, COMPLEX_REVISION)
+            manifest = propose(rows, read_object(args.licences))
+            store_json(args.out.parent, args.out.name, manifest)
+            print(json.dumps({"selection": str(args.out), "admission": manifest["admission"], "tasks": 10}))
+            return 0
         if args.command == "select":
             if not args.dataset.exists():
                 # The approved swebench evaluation environment supplies datasets transitively.
@@ -86,10 +98,12 @@ def main(argv: list[str] | None = None) -> int:
         config = load_config(args.config)
         ids = [entry["instance_id"] for entry in manifest["tasks"]]
         for instance_id in ids:
-            resolve_task(manifest, rows, instance_id)
+            resolve_task(manifest, rows, instance_id, allow_proposed=args.command == "preflight")
         if set(config["images"]) != set(ids):
             raise ValueError("configuration images must match exactly the frozen task selection")
         problems = dependency_problems()
+        if manifest.get("admission") == "pending-human-acceptance":
+            problems.append("complex selection and run-plan amendment require human acceptance")
         if not selection_committed(args.selection):
             problems.append("selection must be committed unchanged before owner-started execution")
         if args.command == "preflight":

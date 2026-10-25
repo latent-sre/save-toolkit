@@ -110,10 +110,10 @@ def runtime_binding(config: Mapping[str, Any], manifest: Mapping[str, Any], dock
     if (
         not host.get("hostname")
         or not host.get("account_id")
-        or type(host.get("elevated")) is not bool
+        or host.get("elevated") is not False
         or host.get("problem")
     ):
-        raise ValueError("host runtime identity is unavailable")
+        raise ValueError("host runtime requires complete identity and an unelevated account")
     try:
         contexts = json.loads(docker.call(["context", "inspect"]).stdout)
         if not isinstance(contexts, list) or len(contexts) != 1:
@@ -261,6 +261,7 @@ def verify_patch(
         "report_path": "verifier-report.json",
         "evaluated_at": datetime.now(UTC).isoformat(),
         "outcome": "INCONCLUSIVE",
+        "after_assessment": None,
         "reason": "verifier process did not establish a result",
         "cleanup": [],
     }
@@ -374,12 +375,20 @@ def verify_patch(
                 or any(
                     not isinstance(item, dict)
                     or item.get("name") != name
-                    or item.get("present") is not False
-                    or item.get("removed") is not True
+                    or (item.get("present") is not None and type(item.get("present")) is not bool)
+                    or type(item.get("removed")) is not bool
+                    or (item.get("removed") is True and item.get("present") is not False)
                     for item in cleanup
                 )
             ):
-                raise ValueError("verifier cleanup is not established")
+                raise ValueError("verifier cleanup evidence is malformed")
+            late_problem = observed.get("after_assessment")
+            if late_problem is not None and (not isinstance(late_problem, str) or not late_problem.strip()):
+                raise ValueError("verifier post-assessment evidence is malformed")
+            if observed["outcome"] in ("PASS", "FAIL") and any(
+                item.get("present") is not False or item.get("removed") is not True for item in cleanup
+            ):
+                observed["after_assessment"] = "verifier container cleanup is unresolved"
             if observed["outcome"] == "PASS" and verifier._classify(raw, task)[0] != "PASS":
                 raise ValueError("verifier PASS lacks complete expected-test evidence")
             total_read = 0
@@ -406,13 +415,17 @@ def verify_patch(
             host_process.update(present=False, removed=True)
         receipt.update(host_cleanup_complete=host_cleanup_complete, stop=host_stop, host_process=host_process)
         cleanup = _clean_named(docker, name, owned)
+        receipt["verifier_cleanup"] = receipt.get("cleanup", [])
         receipt["cleanup"] = [cleanup]
         if not host_cleanup_complete:
             receipt["cleanup"].append(host_process)
             receipt.update(outcome="INCONCLUSIVE", reason="verifier host process cleanup is unresolved")
             artifacts.store_json(output, "host-process-cleanup.json", host_process)
         if cleanup["present"] is not False:
-            receipt.update(outcome="INCONCLUSIVE", reason="verifier cleanup is unresolved")
+            if receipt["outcome"] in ("PASS", "FAIL"):
+                receipt["after_assessment"] = "verifier cleanup is unresolved"
+            else:
+                receipt["reason"] = "verifier cleanup is unresolved"
         for relative, data in files:
             artifacts.store_bytes(output, relative, data)
         artifacts.store_json(output, "verifier-report.json", raw)
@@ -495,6 +508,13 @@ def _runtime(docker: Docker, container: str, version: str) -> dict[str, Any]:
     }
 
 
+def _post_run_problem(summary: dict[str, Any], problem: str) -> None:
+    """Keep the assessed result; a later operational failure blocks reuse separately."""
+    earlier = summary.get("after_assessment")
+    summary["after_assessment"] = f"{earlier}; {problem}" if earlier else problem
+    summary["environment_failure"] = True
+
+
 def run_trial(
     config: Mapping[str, Any],
     manifest: Mapping[str, Any],
@@ -538,6 +558,7 @@ def run_trial(
         "budget_exhausted": False,
         "interrupted": False,
         "cleanup_ok": False,
+        "after_assessment": None,
         "record_path": str(run / "record.json"),
     }
     runtime: dict[str, Any] = {"cli_version": None, "host_platform": {}, "host_identity": None}
@@ -711,6 +732,8 @@ def run_trial(
                             environment_failure=verified["outcome"] == "INCONCLUSIVE",
                             interrupted=verified["interrupted"],
                         )
+                        if verified.get("after_assessment"):
+                            _post_run_problem(summary, verified["after_assessment"])
                         evidence.update(
                             verifier="verifier/verifier-receipt.json", verifier_report="verifier/verifier-report.json"
                         )
@@ -740,7 +763,7 @@ def run_trial(
             try:
                 proxy.close()
             except Exception:
-                summary.update(status="INCONCLUSIVE", reason="model proxy cleanup failed")
+                _post_run_problem(summary, "model proxy cleanup failed")
                 cleanup.append({"kind": "proxy", "name": prefix, "present": None, "removed": False})
         cleanup.extend(resources.cleanup())
         # Inspect even resources whose creation was attempted but failed before tracking returned.
@@ -757,15 +780,15 @@ def run_trial(
             (output / "pending-cleanup.json").unlink(missing_ok=True)
         else:
             _pending(output, [item for item in cleanup if item.get("present") is not False])
-            summary.update(status="INCONCLUSIVE", reason="attempt cleanup is unresolved", environment_failure=True)
+            _post_run_problem(summary, "attempt cleanup is unresolved")
         measured = _measured(before, after)
         if isinstance(after, dict) and not _budget(after):
             summary["budget_exhausted"] = True
         summary.update(measured_usd=measured, billing_known=measured is not None)
         if measured is None:
-            summary.update(status="INCONCLUSIVE", reason="measured key usage is unavailable", environment_failure=True)
+            _post_run_problem(summary, "measured key usage is unavailable")
         if summary["auth_failed"]:
-            summary.update(status="INCONCLUSIVE", reason="model proxy reported authentication failure")
+            _post_run_problem(summary, "model proxy reported authentication failure")
         artifacts.store_json(
             run,
             "billing.json",
@@ -813,6 +836,7 @@ def run_trial(
             stop=summary["stop"],
             estimated_cost=estimate,
             evidence=evidence,
+            after_assessment=summary["after_assessment"],
         )
         artifacts.store_json(run, "record.json", record, secrets=(key,))
         artifacts.store_json(run, "summary.json", summary, secrets=(key,))
@@ -876,6 +900,7 @@ def run_batch(
             or summary.get("identity_mismatch")
             or summary.get("budget_exhausted")
             or summary.get("interrupted")
+            or summary.get("after_assessment")
         ):
             raise ValueError
     except (ValueError, OSError, TypeError, KeyError):
@@ -888,6 +913,7 @@ def run_batch(
         environments = environments + 1 if current["environment_failure"] else 0
         if (
             current["auth_failed"]
+            or current.get("after_assessment")
             or current["interrupted"]
             or current["identity_mismatch"]
             or current["budget_exhausted"]

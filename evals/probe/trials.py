@@ -25,7 +25,18 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, backing, catalog, fingerprints, invocation, layout, records, tracing, workspaces
+from . import (
+    assessment,
+    backing,
+    catalog,
+    conversations,
+    fingerprints,
+    invocation,
+    layout,
+    records,
+    tracing,
+    workspaces,
+)
 from .backing import Service, ServiceUnavailable
 from .checking import Context
 from .constants import ROOT
@@ -347,7 +358,19 @@ def _invoke_turns(
     identity_failure: str | None = None
     resume = None
     done: list[TraceSummary] = []
-    for turn, prompt in enumerate([catalog.scenario_prompt(spec, served), *spec.get("followups", [])]):
+    incident = conversations.enabled(spec)
+    messages: list[dict[str, str]] = []
+    if incident:
+        layout.write_json(
+            run_out / "conversation.json",
+            {
+                "profile": conversations.PROFILE,
+                "invocations": conversations.count(spec),
+                "guard_scope": "per invocation",
+            },
+        )
+    prompts = [catalog.scenario_prompt(spec, served), *spec.get("followups", [])]
+    for turn, update in enumerate(prompts):
         left = invocation.turns_left(spec, done)
         if left is not None and left <= 0:
             break  # the conversation spent its declared limit: a completed run (result rule 4)
@@ -357,8 +380,16 @@ def _invoke_turns(
         if inconclusive:
             identity_failure = identity_failure or inconclusive
             break
-        turn_out = run_out if turn == 0 else run_out / "followup"
-        turn_out.mkdir(exist_ok=True)
+        turn_out = conversations.folders(run_out, spec)[turn] if spec.get("followups") else run_out
+        turn_out.mkdir(parents=True, exist_ok=True)
+        previous = done[-1].result_text if done else ""
+        selected = conversations.resolve(update, previous) if incident else {"selected": "fixed", "text": update}
+        if turn == 0:
+            selected["selected"] = "initial"
+        prompt = selected["text"]
+        if incident:
+            messages.append({"role": "user", "content": prompt})
+            conversations.release(turn_out, turn, selected, messages, previous, spec["fixture"]["files"])
         command = invocation.build_command(
             settings.executable,
             served,
@@ -407,7 +438,7 @@ def _invoke_turns(
             current,
             returncode,
             timed_out,
-            spec,
+            conversations.turn_spec(spec, turn),
             served,
             plugin_sha,
             ws.repo,
@@ -431,14 +462,17 @@ def _invoke_turns(
             break
         resume = current.session_id
         done.append(current)
+        if incident:
+            messages.append({"role": "assistant", "content": current.result_text})
     return inconclusive, identity_failure
 
 
 def _warn_on_credentials(run_out: Path, trace: TraceSummary) -> None:
     """Name any credential-shaped marker in the final text or either invocation's raw trace."""
     markers = invocation.credential_markers(trace.result_text, run_out / "stdout.jsonl")
-    if (run_out / "followup" / "stdout.jsonl").is_file():
-        markers += invocation.credential_markers("", run_out / "followup" / "stdout.jsonl")
+    for folder in conversations.saved_folders(run_out)[1:]:
+        if (folder / "stdout.jsonl").is_file():
+            markers += invocation.credential_markers("", folder / "stdout.jsonl")
     if markers:
         print(f"WARNING: credential-shaped content in {run_out}: {markers}", file=sys.stderr, flush=True)
 

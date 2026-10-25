@@ -1,0 +1,386 @@
+{
+  "format": "wp04-original-binding-metadata",
+  "version": 1,
+  "dataset_revision": "d0916b08ba421ce5e672e9ad68aa947d938dfef0",
+  "license": "Apache-2.0",
+  "cases": {
+    "wp04-7": {
+      "source_path": "snapshots/sre/v0.2-B96DF826-4BB2-4B62-97AB-6D84254C53D7/Scenario-7/ground_truth.yaml",
+      "ground_truth_sha256": "5f0c42d08bb44540584eb75d4c68beaf79be7c529c8bd5404cdff25895e8fce4",
+      "groups": [
+        {
+          "id": "flagd-config",
+          "kind": "ConfigMap",
+          "name": "flagd-config",
+          "namespace": "otel-demo",
+          "root_cause": true
+        },
+        {
+          "id": "payment-service-1",
+          "kind": "Service",
+          "filter": [
+            "payment\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "checkout-service-1",
+          "kind": "Service",
+          "filter": [
+            "checkout\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-service-1",
+          "kind": "Service",
+          "filter": [
+            "frontend\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-proxy-service-1",
+          "kind": "Service",
+          "filter": [
+            "frontend-proxy\\b"
+          ],
+          "namespace": "otel-demo"
+        }
+      ],
+      "propagations": [
+        {
+          "source": "flagd-config",
+          "target": "payment-service-1"
+        },
+        {
+          "source": "payment-service-1",
+          "target": "checkout-service-1"
+        },
+        {
+          "source": "checkout-service-1",
+          "target": "frontend-service-1"
+        },
+        {
+          "source": "frontend-service-1",
+          "target": "frontend-proxy-service-1"
+        }
+      ]
+    },
+    "wp04-21": {
+      "source_path": "snapshots/sre/v0.2-B96DF826-4BB2-4B62-97AB-6D84254C53D7/Scenario-21/ground_truth.yaml",
+      "ground_truth_sha256": "310361ed158bd7eea970fec28e8b547b5fa6327c446ce35276cafd71cc5ac7a7",
+      "groups": [
+        {
+          "id": "otel-demo-valkey-memory-stress",
+          "kind": "StressChaos",
+          "filter": [
+            "otel-demo-valkey-memory-stress"
+          ],
+          "namespace": "chaos-mesh",
+          "root_cause": true
+        },
+        {
+          "id": "valkey-cart-pod-1",
+          "kind": "Pod",
+          "filter": [
+            "valkey-cart-.*"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "valkey-cart-service-1",
+          "kind": "Service",
+          "filter": [
+            "valkey-cart\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "cart-service-1",
+          "kind": "Service",
+          "filter": [
+            "cart\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-service-1",
+          "kind": "Service",
+          "filter": [
+            "frontend\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "checkout-service-1",
+          "kind": "Service",
+          "filter": [
+            "checkout\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-proxy-service-1",
+          "kind": "Service",
+          "filter": [
+            "frontend-proxy\\b"
+          ],
+          "namespace": "otel-demo"
+        }
+      ],
+      "propagations": [
+        {
+          "source": "otel-demo-valkey-memory-stress",
+          "target": "valkey-cart-pod-1"
+        },
+        {
+          "source": "valkey-cart-pod-1",
+          "target": "valkey-cart-service-1"
+        },
+        {
+          "source": "valkey-cart-service-1",
+          "target": "cart-service-1"
+        },
+        {
+          "source": "cart-service-1",
+          "target": "frontend-service-1"
+        },
+        {
+          "source": "cart-service-1",
+          "target": "checkout-service-1"
+        },
+        {
+          "source": "frontend-service-1",
+          "target": "frontend-proxy-service-1"
+        }
+      ]
+    },
+    "wp04-24": {
+      "source_path": "snapshots/sre/v0.2-B96DF826-4BB2-4B62-97AB-6D84254C53D7/Scenario-24/ground_truth.yaml",
+      "ground_truth_sha256": "16bd2ca11922ed886b29deeb6f5a43171262c6df740407404b6d68cdcf15e000",
+      "groups": [
+        {
+          "id": "checkout-deployment",
+          "kind": "Deployment",
+          "filter": [
+            "checkout\\b"
+          ],
+          "namespace": "otel-demo",
+          "root_cause": true
+        },
+        {
+          "id": "checkout-pod-1",
+          "kind": "Pod",
+          "filter": [
+            "checkout-.*"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "checkout-service-1",
+          "kind": "Service",
+          "filter": [
+            "checkout\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "kafka-service-1",
+          "kind": "Service",
+          "filter": [
+            "kafka\\b"
+          ],
+          "namespace": "otel-demo"
+        }
+      ],
+      "propagations": [
+        {
+          "source": "checkout-deployment",
+          "target": "checkout-pod-1"
+        },
+        {
+          "source": "checkout-pod-1",
+          "target": "checkout-service-1"
+        },
+        {
+          "source": "checkout-service-1",
+          "target": "kafka-service-1"
+        }
+      ]
+    },
+    "wp04-80": {
+      "source_path": "snapshots/sre/v0.2-B96DF826-4BB2-4B62-97AB-6D84254C53D7/Scenario-80/ground_truth.yaml",
+      "ground_truth_sha256": "3d88f95658251e4b95189fe6cd519cf82b73ab59acdbdba8bb54c7fdf2fda6b9",
+      "groups": [
+        {
+          "id": "otel-demo-checkout-kafka-network-partition",
+          "kind": "NetworkChaos",
+          "filter": [
+            "otel-demo-checkout-kafka-network-partition"
+          ],
+          "namespace": "chaos-mesh",
+          "root_cause": true
+        },
+        {
+          "id": "checkout-pod-1",
+          "kind": "Pod",
+          "filter": [
+            "checkout-.*"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "checkout-service-1",
+          "kind": "Service",
+          "filter": [
+            "checkout\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "kafka-service-1",
+          "kind": "Service",
+          "filter": [
+            "kafka\\b"
+          ],
+          "namespace": "otel-demo"
+        }
+      ],
+      "propagations": [
+        {
+          "source": "otel-demo-checkout-kafka-network-partition",
+          "target": "checkout-pod-1"
+        },
+        {
+          "source": "checkout-pod-1",
+          "target": "checkout-service-1"
+        },
+        {
+          "source": "checkout-service-1",
+          "target": "kafka-service-1"
+        }
+      ]
+    },
+    "wp04-102": {
+      "source_path": "snapshots/sre/v0.2-B96DF826-4BB2-4B62-97AB-6D84254C53D7/Scenario-102/ground_truth.yaml",
+      "ground_truth_sha256": "775f6572803b8bf566f0924542e1f4f47fdf0bb21b212b0f9726e3daa3863e65",
+      "groups": [
+        {
+          "id": "otel-demo-namespace-1",
+          "kind": "Namespace",
+          "filter": [
+            "otel-demo"
+          ],
+          "root_cause": true
+        },
+        {
+          "id": "ad-pod-1",
+          "kind": "Pod",
+          "filter": [
+            "ad-.*"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "ad-service-1",
+          "kind": "Service",
+          "filter": [
+            "ad\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "ad-deployment-1",
+          "kind": "Deployment",
+          "filter": [
+            "ad\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "ad-replicaset-1",
+          "kind": "ReplicaSet",
+          "filter": [
+            "ad-.*"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-service-1",
+          "kind": "Service",
+          "filter": [
+            "frontend\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-pod-1",
+          "kind": "Pod",
+          "filter": [
+            "frontend-.*"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-proxy-service-1",
+          "kind": "Service",
+          "filter": [
+            "frontend-proxy\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "frontend-proxy-pod-1",
+          "kind": "Pod",
+          "filter": [
+            "frontend-proxy-.*"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "flagd-service-1",
+          "kind": "Service",
+          "filter": [
+            "flagd\\b"
+          ],
+          "namespace": "otel-demo"
+        },
+        {
+          "id": "flagd-pod-1",
+          "kind": "Pod",
+          "filter": [
+            "flagd-.*"
+          ],
+          "namespace": "otel-demo"
+        }
+      ],
+      "propagations": [
+        {
+          "source": "otel-demo-namespace-1",
+          "target": "ad-deployment-1"
+        },
+        {
+          "source": "ad-deployment-1",
+          "target": "ad-replicaset-1"
+        },
+        {
+          "source": "ad-replicaset-1",
+          "target": "ad-pod-1"
+        },
+        {
+          "source": "ad-pod-1",
+          "target": "ad-service-1"
+        },
+        {
+          "source": "ad-service-1",
+          "target": "frontend-service-1"
+        },
+        {
+          "source": "frontend-service-1",
+          "target": "frontend-proxy-service-1"
+        }
+      ]
+    }
+  }
+}

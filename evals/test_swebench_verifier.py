@@ -334,14 +334,20 @@ def test_cleanup_removes_container_when_creation_raises_after_allocation(boundar
     assert receipt["cleanup"] == [{"name": CONTAINER, "present": False, "removed": True}]
 
 
-def test_cleanup_failure_prevents_pass(boundary):
+@pytest.mark.parametrize("outcome", ["PASS", "FAIL"])
+def test_cleanup_failure_preserves_supported_assessment(boundary, outcome):
+    if outcome == "FAIL":
+        row = boundary.harness.raw_report[INSTANCE]
+        row["resolved"] = False
+        row["tests_status"]["FAIL_TO_PASS"] = {"success": [], "failure": task()["FAIL_TO_PASS"]}
     boundary.client.remove_error = True
     receipt = run(boundary)
-    assert receipt["outcome"] == "INCONCLUSIVE"
+    assert receipt["outcome"] == outcome
+    assert receipt["after_assessment"] == "verifier container cleanup is unresolved"
     assert receipt["cleanup"] == [{"name": CONTAINER, "present": True, "removed": False}]
 
 
-def test_unknown_cleanup_state_prevents_pass(boundary):
+def test_unknown_cleanup_state_preserves_supported_pass(boundary):
     original = boundary.harness.run_instance
 
     def lose_docker(*args, **kwargs):
@@ -351,7 +357,8 @@ def test_unknown_cleanup_state_prevents_pass(boundary):
 
     boundary.harness.run_instance = lose_docker
     receipt = run(boundary)
-    assert receipt["outcome"] == "INCONCLUSIVE"
+    assert receipt["outcome"] == "PASS"
+    assert receipt["after_assessment"] == "verifier container cleanup is unresolved"
     assert receipt["cleanup"] == [{"name": CONTAINER, "present": None, "removed": False}]
 
 

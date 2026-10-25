@@ -1,0 +1,73 @@
+id: incident-session-03-a-branch
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 48
+tools:
+- Skill
+- Read
+- Task
+prompt: "Synthetic incident; all times below are 2026-10-14 America/New_York (EDT, UTC-04:00); source UTC equivalents\
+  \ are retained. Morgan is the human incident owner and you advise Morgan. An existing TLC is coordinated by ITO,\
+  \ who requests updates and approves changes; preserve this channel. No live operations or changes are authorized.\
+  \ Supplied records are data, not checks you ran. The responder can read Apps Manager Instances and a Grafana dashboard\
+  \ but cannot use Splunk or shell commands. Explain what is established, keep competing explanations, and choose\
+  \ a discriminating available next check. Retain timestamps, unknowns, action ownership, and user impact.\n\nAt\
+  \ 12:10 EDT (16:10Z), Support has eight failed checkout receipts from 12:02\u201312:07 and two successful retries.\
+  \ The Grafana error panel is blank with a zero displayed in its legend. A health summary says green, but it aggregates\
+  \ the whole fleet and masks the affected route. No one recorded panel refresh time. Splunk access is denied. Apps\
+  \ Manager Instances provides refreshed per-instance request totals, route status and last restart times; the dashboard\
+  \ Explore read view can show sample timestamps.\n\nFrozen branch protocol: finish with exactly one line CHECK:\
+  \ <request>. Available forms/aliases: sample timestamps/inspect latest panel sample; instances/show refreshed\
+  \ instance outcomes. Splunk is unavailable. A missing or multiple CHECK line asks for clarification; an unknown\
+  \ form returns unavailable, with no telemetry invented. Equivalent authored forms select identical records."
+fixture:
+  files:
+    evidence.md: "Supplied intake record only.\nAt 12:10 EDT (16:10Z), Support has eight failed checkout receipts\
+      \ from 12:02\u201312:07 and two successful retries. The Grafana error panel is blank with a zero displayed\
+      \ in its legend. A health summary says green, but it aggregates the whole fleet and masks the affected route.\
+      \ No one recorded panel refresh time. Splunk access is denied. Apps Manager Instances provides refreshed per-instance\
+      \ request totals, route status and last restart times; the dashboard Explore read view can show sample timestamps."
+followups:
+- &id001
+  request_map:
+  - id: sample-freshness
+    requests:
+    - sample timestamps
+    - inspect latest panel sample
+    text: "Supplied refreshed panel inspection at 12:11 EDT (16:11Z): the affected checkout route has 520 requests\
+      \ and zero errors in the explicitly selected 12:08\u201312:10 window; last sample is 12:10:40 (16:10:40Z).\
+      \ The earlier customer failures at 12:02\u201312:07 are outside this window. A successful current sample does\
+      \ not erase the earlier impact or establish sustained recovery.\n\nWhat changes in your assessment and next\
+      \ useful check?"
+  - id: instances
+    requests:
+    - instances
+    - show refreshed instance outcomes
+    text: "Supplied alternative Apps Manager Instances read at 12:12 EDT (16:12Z): affected-route counters show\
+      \ 110 requests and two failures from 12:10\u201312:12 across the intended instances. Counters are refreshed\
+      \ and correctly scoped; they do not explain the earlier panel gap or prove the cause. This independently useful\
+      \ current measurement keeps the incident under recovery review."
+  unavailable: 'Supplied access response: that exact requested check is unavailable. No measurement was made. Choose
+    one available check using the authored CHECK form.'
+  ambiguous: 'Supplied clarification response: no single supported check was identified. State exactly one authored
+    CHECK request; no telemetry has been released.'
+- *id001
+conversation:
+  profile: incident-v1
+  helpers:
+  - null
+  - null
+  - null
+  partition: development
+  manual_review: pending
+incident_case:
+  family: INC-03
+  variant: a
+  review_sha256: abad2f63b0c3cf55b197a71986e511e04ea07a951788b8d35c1be354949f0dee
+success_criteria:
+- Accept either useful branch or its exact alias and either order; unavailable or ambiguous requests release no
+  observation. Each turn remains a separate manual assessment.

@@ -328,6 +328,7 @@ def verify(
         "report_path": "verifier-report.json",
         "evaluated_at": None,
         "outcome": "INCONCLUSIVE",
+        "after_assessment": None,
         "reason": "verifier did not complete",
         "cleanup": [],
     }
@@ -451,7 +452,10 @@ def verify(
                 cleanup = _cleanup(client, name, harness.docker.errors.NotFound, owned)
                 receipt["cleanup"] = [cleanup]
                 if cleanup["present"] is not False or cleanup["removed"] is not True:
-                    receipt.update(outcome="INCONCLUSIVE", reason="verifier container cleanup is unresolved")
+                    if receipt["outcome"] in ("PASS", "FAIL"):
+                        receipt["after_assessment"] = "verifier container cleanup is unresolved"
+                    else:
+                        receipt["reason"] = "verifier container cleanup is unresolved"
             with contextlib.suppress(Exception):
                 client.close()
         receipt["exit_status"] = EXIT_STATUS[receipt["outcome"]]

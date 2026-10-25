@@ -1,0 +1,154 @@
+{
+  "profile": "incident-v1",
+  "synthetic": true,
+  "case_acceptance": "pending exact-case human review",
+  "live_run": "not authorized or measured",
+  "independent_families": 6,
+  "paired_pilot_cases": 12,
+  "held_out_families": [
+    "INC-05",
+    "INC-06"
+  ],
+  "reviews": [
+    {
+      "family": "INC-01",
+      "path": "review/INC-01.json",
+      "sha256": "1965d84631b4e0c7e2229cc7af4a7ac0ed2f531a285b5afb6788d57e4469d600"
+    },
+    {
+      "family": "INC-02",
+      "path": "review/INC-02.json",
+      "sha256": "bc1d471fff247524c86e266ed485c3c209f90695d925a743b98015d59f0c853f"
+    },
+    {
+      "family": "INC-03",
+      "path": "review/INC-03.json",
+      "sha256": "abad2f63b0c3cf55b197a71986e511e04ea07a951788b8d35c1be354949f0dee"
+    },
+    {
+      "family": "INC-04",
+      "path": "review/INC-04.json",
+      "sha256": "8a6e13a12501c2685eaae52ab5a644f63159ff95443705a273fe81a583c348e4"
+    },
+    {
+      "family": "INC-05",
+      "path": "review/INC-05.json",
+      "sha256": "e85b1ee498aea5dd8fc7c39a7994f474ded9ca547e149a58eee2eea4647d61b0"
+    },
+    {
+      "family": "INC-06",
+      "path": "review/INC-06.json",
+      "sha256": "8534131fca7256f9e9df520cab70bcf3e351f87464830a4ad43434aeb7b10c40"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "incident-session-01-a",
+      "path": "../scenarios/incident-session-01-a.yaml",
+      "sha256": "72c03bb4ba4b61036dd5c1258493d59b80c275eae731a219cb3d32cce0698419",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-01-b",
+      "path": "../scenarios/incident-session-01-b.yaml",
+      "sha256": "e4b22841fe48e5bbf097013c509250a4ead786c0c651548324feed9243620e2f",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-02-a",
+      "path": "../scenarios/incident-session-02-a.yaml",
+      "sha256": "3f7d7c6da252392cb6e0599afd9b179e407970f2b1a6621b08a79dcecad1b1ba",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-02-b",
+      "path": "../scenarios/incident-session-02-b.yaml",
+      "sha256": "3937332bf8e31e9a55826db60a4633b77665674ee181b9720e97688e4db83dd7",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-03-a",
+      "path": "../scenarios/incident-session-03-a.yaml",
+      "sha256": "3e7a418ab387c9e106d133c6b49ca764c64899392702b258b11c420dbd62ebfe",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-03-b",
+      "path": "../scenarios/incident-session-03-b.yaml",
+      "sha256": "ab5d94c2bf45300c7b7062aa4ba8fe8f8b67f5a7bcfd071e27364cd90a2946f4",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-04-a",
+      "path": "../scenarios/incident-session-04-a.yaml",
+      "sha256": "8b7a30b9a7aeab41d3251d09dcaab171df23c61b8ecf3b2dafec98df668a1ddd",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-04-b",
+      "path": "../scenarios/incident-session-04-b.yaml",
+      "sha256": "f246d2f965a9ae59978c2bc8f4426dbb9dce22f5df5a6eefeb22bd4507e2d3bf",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-05-a",
+      "path": "../scenarios/incident-session-05-a.yaml",
+      "sha256": "87d77e2738fe9d3b6e4b771103031c4a25db737c90b44e2b07f3b222253f2125",
+      "partition": "held-out"
+    },
+    {
+      "id": "incident-session-05-b",
+      "path": "../scenarios/incident-session-05-b.yaml",
+      "sha256": "22c7d0769d88ef19ba358a337710736f9672cf3123b9c8a8a0d8fe9ed11617c2",
+      "partition": "held-out"
+    },
+    {
+      "id": "incident-session-06-a",
+      "path": "../scenarios/incident-session-06-a.yaml",
+      "sha256": "05c1fd604992eeea03376afc6ee038a7c4c5591d22b035ceaee177a375045459",
+      "partition": "held-out"
+    },
+    {
+      "id": "incident-session-06-b",
+      "path": "../scenarios/incident-session-06-b.yaml",
+      "sha256": "3d829e4ea561a1e4b2a49e2855b19fdbff7dd356fe39e875390c6e078d89736b",
+      "partition": "held-out"
+    },
+    {
+      "id": "incident-session-worked-six",
+      "path": "../scenarios/incident-session-worked-six.yaml",
+      "sha256": "6462498f9a724bc3ecb54d16753a0b85bc2011d5e32cdfc7379deaf9bde5401e",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-worked-real-helper",
+      "path": "../scenarios/incident-session-worked-real-helper.yaml",
+      "sha256": "18e5de75208184c2ed152cb261edac83ebb7fb8cb33003f26445cec07dc8a66d",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-01-a-branch",
+      "path": "../scenarios/incident-session-01-a-branch.yaml",
+      "sha256": "efa89189007852d55ce4436e1406dd94f53cf08f50c359553110fc2a5508daf2",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-01-b-branch",
+      "path": "../scenarios/incident-session-01-b-branch.yaml",
+      "sha256": "a055ee84655be2c269c48123f968e58d58e6744eb9ad728c86d8e406fd031dd0",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-03-a-branch",
+      "path": "../scenarios/incident-session-03-a-branch.yaml",
+      "sha256": "a6e9edc1556d6c4f4eddd50d1c09ffbb258f1ad70a31c0859ef843fd331e165e",
+      "partition": "development"
+    },
+    {
+      "id": "incident-session-03-b-branch",
+      "path": "../scenarios/incident-session-03-b-branch.yaml",
+      "sha256": "6c66f82df4bc77b7f1aae595160ca91ae5ca5135c96e1254867f30a229042ec4",
+      "partition": "development"
+    }
+  ]
+}

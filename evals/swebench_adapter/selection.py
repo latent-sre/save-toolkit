@@ -197,12 +197,18 @@ def resolve_task(
     manifest: Mapping[str, Any],
     rows: Iterable[Mapping[str, Any]],
     instance_id: str,
+    *,
+    allow_proposed: bool = False,
 ) -> dict[str, Any]:
     """Validate the strict manifest and frozen selection, returning a full row copy.
 
     Recomputing selection also refuses a changed population that would change the
     approved draw. Licence evidence is supplied by the frozen public manifest.
     """
+    if isinstance(manifest, Mapping) and manifest.get("schema_version") == 2:
+        from .complex_selection import resolve  # noqa: PLC0415
+
+        return resolve(manifest, rows, instance_id, allow_proposed=allow_proposed)
     if not isinstance(manifest, Mapping) or set(manifest) != _MANIFEST_KEYS:
         raise ValueError("invalid selection manifest fields")
     if type(manifest["schema_version"]) is not int or manifest["schema_version"] != 1:

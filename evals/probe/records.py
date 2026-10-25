@@ -361,6 +361,7 @@ def write_record(
                 "invocation.json",
                 "followup/invocation.json",
                 "cleanup.json",
+                *_conversation_evidence(run_dir),
             )
             if (run_dir / name).is_file()
         },
@@ -387,3 +388,25 @@ def _store(path: Path, fields: Mapping[str, Any]) -> dict[str, Any]:
     record = RecordV1.model_validate_json(json.dumps(fields)).model_dump(mode="json", exclude_unset=True)
     layout.write_json(path, record)
     return record
+
+
+def _conversation_evidence(run_dir: Path) -> list[str]:
+    from . import conversations  # noqa: PLC0415 -- avoid the records/tracing import cycle
+
+    if not (run_dir / "conversation.json").is_file():
+        return []
+    return [
+        "conversation.json",
+        *(
+            str((folder / name).relative_to(run_dir)).replace("\\", "/")
+            for folder in conversations.saved_folders(run_dir)
+            for name in (
+                "invocation.json",
+                "stdout.jsonl",
+                "response.md",
+                "input.md",
+                "release.json",
+                "judge-context.json",
+            )
+        ),
+    ]
