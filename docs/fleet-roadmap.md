@@ -189,8 +189,10 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   The [current four-model continuation](reviews/2026-10-25-wp10-continuation.md) completed
   all 44 planned attempts, retaining four instrument gaps and separate semantic proposals.
   Mechanical passes do not close the observed reasoning failures or human acceptance.
-  The owner selected the [repair comparison](reviews/2026-10-25-wp10-handoff-repairs.md);
-  keep its incumbent/candidate evidence separate from that baseline.
+  The [88-attempt repair comparison](reviews/2026-10-25-wp10-handoff-repairs.md) is complete
+  at run and AI-review level. Retry reasoning improved on Sonnet/Luna in the sample;
+  Terra remains unresolved, and the unsupported GCP rewrite was withdrawn. Keep its
+  incumbent/candidate evidence separate from the earlier baseline and human acceptance.
 - WP-12 complete on 2026-10-17: all 64 GCP cases accepted at `9147ff91`
   ([pilot and template](../evals/oracles/gcp/README.md), [catalog](../evals/oracles/gcp/CATALOG.md)).
 - WP-13 complete on 2026-10-18 under its [run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md):
@@ -229,9 +231,9 @@ acceptance tests, delivery phases and explicit open decisions.
   exact-candidate/model/spend acceptance; Harbor is already the selected Terminal-Bench runner.
 - WP-13: none; complete. Use its cases as a regression check when a skill or agent changes.
   Haiku's inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
-- WP-10: the owner disposes of the historical and current bound semantic proposals,
-  selects the next quotation/reliability/GCP repair or broader qualification scope,
-  and names the exact candidate revision; any further campaign needs a new bounded scope.
+- WP-10: review the retained repair candidate and bound 88-attempt comparison. Resolve the
+  remaining Terra, GCP B and quotation/instrument gaps or select broader qualification;
+  human acceptance names the exact candidate. No further campaign is scheduled automatically.
 - Before any rubric-graded campaign: one owner-approved judge recalibration, because the clean-room
   auth-failure fix (`1d92654f`) changed the judge identity.
 - Runner follow-ups, not blocking: unittest `--option=value` spellings and SHA-spelled Git ranges
@@ -429,8 +431,10 @@ that it said so in a harmless sentence.
 
 ### RELIABILITY-001 — measure the timing repair on Claude, then decide on the reliability lane
 
-**Status:** `ready` (2026-10-18); facts corrected by the owner. The source repair the deferral waited
-for has landed, and nothing has measured it on Claude.
+**Status:** `ready` (2026-10-25); the source repair has landed, but the specified native
+helper-return comparison remains unrun. The separate
+[WP-10 assessment-document comparison](reviews/2026-10-25-wp10-handoff-repairs.md#reliability-proposals)
+measures newer retry guidance on Claude and Codex; it does not replace this profile's acceptance.
 - [verified] The 2026-10-08 comparison: candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt
   byte-identically from its commit, ran one native trial each on `claude-sonnet-5-5` for USD 0.70 in
   all. Both pass the three structural checks.
