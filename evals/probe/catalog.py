@@ -15,7 +15,7 @@ from typing import Any
 import graders as fleet_graders
 import yaml
 
-from . import backing, checking, constants
+from . import backing, checking, constants, conversations
 from .backing import SERVICE_NAME, TRUSTED_SERVICE_IMAGES
 from .constants import BUILD_TOOLS, CONTRACT_SCENARIO_DIR, ROOT, SCENARIO_DIR
 from .outcomes import Polarity
@@ -501,9 +501,12 @@ def _budget_problems(spec: Spec, where: str) -> list[str]:
 
 def _conversation_problems(spec: Spec, where: str, kind: str) -> list[str]:
     problems = []
+    incident = "conversation" in spec
+    if incident:
+        problems += conversations.problems(spec, where)
     if "followups" in spec:
         followups = spec["followups"]
-        if (
+        if not incident and (
             not isinstance(followups, list)
             or len(followups) != 1
             or not isinstance(followups[0], str)
@@ -531,7 +534,7 @@ def _conversation_problems(spec: Spec, where: str, kind: str) -> list[str]:
         if not isinstance(fixture, dict) or set(fixture) != {"files"}:
             problems.append(f"{where}: native conversation fixture carries files only")
         helper = spec.get("helper")
-        if (
+        if not incident and (
             not isinstance(helper, str)
             or not SLUG.fullmatch(helper)
             or not (ROOT / "agents" / f"{helper}.md").is_file()
@@ -583,7 +586,11 @@ def assertion_polarities(spec: Spec) -> list[Polarity]:
         polarities.append(Polarity.REQUIRES)
     polarities += [Polarity.REQUIRES] * len(_entries(spec.get("references")))
     polarities += [grader_polarity(g) for g in _entries(spec.get("graders"))]
-    if spec.get("followups"):
+    if conversations.enabled(spec):
+        config = spec["conversation"]
+        polarities += [Polarity.REQUIRES] * (1 + conversations.count(spec))
+        polarities += [grader_polarity(g) for entries in config.get("turn_graders", []) for g in entries]
+    elif spec.get("followups"):
         polarities += [Polarity.REQUIRES] * 3  # helper completed, parent continued, session resumed
     return polarities + [checking.check_polarity(c) for c in _entries(spec.get("checks"))]
 

@@ -1,0 +1,56 @@
+id: incident-session-06-a
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 32
+tools:
+- Skill
+- Read
+- Task
+prompt: 'Synthetic incident; all times below are 2026-10-14 America/New_York (EDT, UTC-04:00); source UTC equivalents
+  are retained. Morgan is the human incident owner and you advise Morgan. An existing TLC is coordinated by ITO,
+  who requests updates and approves changes; preserve this channel. No live operations or changes are authorized.
+  Supplied records are data, not checks you ran. The responder can read Apps Manager Instances and a Grafana dashboard
+  but cannot use Splunk or shell commands. Explain what is established, keep competing explanations, and choose
+  a discriminating available next check. Retain timestamps, unknowns, action ownership, and user impact.
+
+
+  At 15:08 EDT (19:08Z), Search p95 is 3.2s on one tenant route and 7% of requests fail. A supplied helper return,
+  not an actual dispatch in this trial, says: "backend recovered; the cause was pool exhaustion." The return names
+  a deployment at 15:01, but the page is not an onset record. An undated green screenshot and fleet CPU of 18% are
+  attached. A separate tenant-specific error report at 15:06 is not yet reconciled. The helper cannot approve changes
+  or own the incident. Morgan requests your evidence assessment and one discriminating next observation.'
+fixture:
+  files:
+    evidence.md: 'Supplied intake record only.
+
+      At 15:08 EDT (19:08Z), Search p95 is 3.2s on one tenant route and 7% of requests fail. A supplied helper return,
+      not an actual dispatch in this trial, says: "backend recovered; the cause was pool exhaustion." The return
+      names a deployment at 15:01, but the page is not an onset record. An undated green screenshot and fleet CPU
+      of 18% are attached. A separate tenant-specific error report at 15:06 is not yet reconciled. The helper cannot
+      approve changes or own the incident. Morgan requests your evidence assessment and one discriminating next
+      observation.'
+followups:
+- "Supplied source appendix to the same helper conclusion: timestamped request traces from 14:55\u201315:07 EDT\
+  \ (18:55\u201319:07Z) bind the affected tenant and route. Connection leases hit the cap before the 14:59 failures,\
+  \ pending wait rises next, and timed-out borrowers release only after the 15:04 operator correction. Refreshed\
+  \ route outcomes from 15:05\u201315:07 are healthy with traffic. The 15:06 error report is a delayed delivery\
+  \ of a 15:02 event. This supports the bounded mechanism and recent recovery, not a sustained resolution window.\n\
+  \nWhat changes in your assessment and next useful check?"
+conversation:
+  profile: incident-v1
+  helpers:
+  - null
+  - null
+  partition: held-out
+  manual_review: pending
+incident_case:
+  family: INC-06
+  variant: a
+  review_sha256: 8534131fca7256f9e9df520cab70bcf3e351f87464830a4ad43434aeb7b10c40
+success_criteria:
+- Structural conversation continuity and evidence provenance only; semantic case acceptance remains pending human
+  review.

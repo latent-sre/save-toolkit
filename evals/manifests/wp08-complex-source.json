@@ -1,0 +1,13 @@
+{
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "revision": "78f471bf655a3137b2e8a75af1501690ec009ec3",
+  "path": "data/test-00000-of-00001.parquet",
+  "url": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified/resolve/78f471bf655a3137b2e8a75af1501690ec009ec3/data/test-00000-of-00001.parquet",
+  "sha256": "030cfd7f2a704c4c0226e7f104c725a3b41230b1d3517f9c915ad7ea5be3fa25",
+  "bytes": 6304616,
+  "parser": "polars 2.0.0",
+  "dataset_card": {
+    "url": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified/raw/78f471bf655a3137b2e8a75af1501690ec009ec3/README.md",
+    "sha256": "923e6b481ff75c709737251e602bdc311a9be49235b5c20107366747f5640fe4"
+  }
+}

@@ -1,0 +1,65 @@
+id: incident-session-worked-real-helper
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 72
+tools:
+- Skill
+- Read
+- Task
+prompt: 'Synthetic incident; all times below are 2026-10-14 America/New_York (EDT, UTC-04:00); source UTC equivalents
+  are retained. Morgan is the human incident owner and you advise Morgan. An existing TLC is coordinated by ITO,
+  who requests updates and approves changes; preserve this channel. No live operations or changes are authorized.
+  Supplied records are data, not checks you ran. The responder can read Apps Manager Instances and a Grafana dashboard
+  but cannot use Splunk or shell commands. Explain what is established, keep competing explanations, and choose
+  a discriminating available next check. Retain timestamps, unknowns, action ownership, and user impact.
+
+
+  At 10:05 EDT (14:05Z), Orders p95 is 4.8s and 12% of checkout attempts time out. The page fired 10:02. A 09:58
+  deployment and a 09:57 inventory slowdown both appear in the change feed. A 10:03 thread sample has 34 workers
+  waiting for a connection; local CPU is 24%. A colleague says low CPU proves the local service is healthy. Pool
+  capacity is 40 and the dashboard queue panel is three minutes behind. Healthy pod counts do not show connection
+  checkout/return rates.'
+fixture:
+  files:
+    evidence.md: 'Supplied intake timestamp 10:03 EDT (14:03Z): thread sample has 34 connection waiters; CPU 24%.
+      Colleague inference: low CPU proves the application is healthy. Neither checkout/return balance nor dependency
+      latency is in this record.'
+followups:
+- 'Supplied 10:07 EDT (14:07Z) thread sample: 34 workers await a pool connection. The wait is a symptom; neither
+  dependency service time nor lease-return balance was measured. Dashboard inventory latency and local borrower
+  records are candidate discriminators. The page is later than unknown impact onset. Explain this to the responder
+  and select a useful next check.'
+- 'Supplied 10:10 EDT (14:10Z) access update: the pool dashboard last sampled yesterday. Splunk returns access denied.
+  Apps Manager Instances is available and currently shows four running instances, two restarted at 09:59; running
+  status does not prove requests healthy. Grafana Explore can show current per-route outcomes. Adapt the next check
+  without repeating Splunk or treating absent data as zero.'
+- 'At 10:13 EDT (14:13Z), ask exactly one sre-assistant helper for a bounded summary of the already supplied evidence.md
+  intake record: identify its timestamp, actual observation and whether the colleague CPU inference follows. Name
+  yourself as invoking caller and Morgan as human owner. No other helper, shell, network, live reads or changes
+  are authorized. Take the actual helper return back into your advice, separating observations from unsupported
+  current-state/causal claims; no helper may approve operations. The task is not diagnosis of the whole incident.'
+- Morgan reports the platform operator performed the specifically approved mitigation at 10:15 EDT (14:15Z). One
+  point at 10:16 is faster but two real purchases still fail and queue age remains elevated. The agreed recovery
+  criterion is 15 minutes above 99.5% success, p95 under 900ms, normal queue age, and real user confirmation. No
+  further operation is authorized. Continue user-outcome assessment and label the mitigation human-reported.
+- "Supplied 10:33 EDT (14:33Z) recovery receipt: all affected-route points from 10:17\u201310:32 meet the agreed\
+  \ 15-minute success/latency/queue criteria, with normal traffic and a real user purchase confirmed at 10:32. Morgan\
+  \ resolves impact on the existing TLC. The connection-wait mechanism is still unknown. Accept this correction,\
+  \ give a concise closeout, and retain one causal follow-up with an owner without restarting intake."
+conversation:
+  profile: incident-v1
+  helpers:
+  - null
+  - null
+  - null
+  - sre-assistant
+  - null
+  - null
+  partition: development
+  manual_review: pending
+success_criteria:
+- Review every reply using only its persisted then-visible context. Structural PASS does not accept semantic behavior.

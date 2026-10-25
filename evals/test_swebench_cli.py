@@ -41,7 +41,7 @@ def test_smoke_error_is_not_a_successful_cli_exit(monkeypatch, tmp_path):
     monkeypatch.setattr(cli, 'read_object', lambda path: manifest)
     monkeypatch.setattr(cli, '_dataset', lambda *args: [])
     monkeypatch.setattr(cli, 'load_config', lambda path: {'images': {'one': {}}})
-    monkeypatch.setattr(cli, 'resolve_task', lambda *args: {})
+    monkeypatch.setattr(cli, 'resolve_task', lambda *args, **kwargs: {})
     monkeypatch.setattr(cli, 'dependency_problems', lambda: [])
     monkeypatch.setattr(cli, 'selection_committed', lambda path: True)
     monkeypatch.setattr(smoke, 'run_smoke', lambda *args: {

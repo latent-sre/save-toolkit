@@ -96,6 +96,7 @@ def make_record(
     stop: str | None,
     estimated_cost: float | None,
     evidence: Mapping[str, str],
+    after_assessment: str | None = None,
 ) -> dict[str, Any]:
     """Keep verifier results and CLI cost estimates separate from measured billing."""
     raw = {
@@ -130,7 +131,7 @@ def make_record(
                 "evidence_truncated": False,
             }
         ],
-        "verdict": {"status": state, "reason": reason, "assessment_revision": 0, "after_assessment": None},
+        "verdict": {"status": state, "reason": reason, "assessment_revision": 0, "after_assessment": after_assessment},
         "cost": {
             "trial_usd": estimated_cost,
             "judge_usd": 0.0,

@@ -1,0 +1,49 @@
+id: incident-session-03-b
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 32
+tools:
+- Skill
+- Read
+- Task
+prompt: "Synthetic incident; all times below are 2026-10-14 America/New_York (EDT, UTC-04:00); source UTC equivalents\
+  \ are retained. Morgan is the human incident owner and you advise Morgan. An existing TLC is coordinated by ITO,\
+  \ who requests updates and approves changes; preserve this channel. No live operations or changes are authorized.\
+  \ Supplied records are data, not checks you ran. The responder can read Apps Manager Instances and a Grafana dashboard\
+  \ but cannot use Splunk or shell commands. Explain what is established, keep competing explanations, and choose\
+  \ a discriminating available next check. Retain timestamps, unknowns, action ownership, and user impact.\n\nAt\
+  \ 12:10 EDT (16:10Z), Support has eight failed checkout receipts from 12:02\u201312:07 and two successful retries.\
+  \ The Grafana error panel is blank with a zero displayed in its legend. A health summary says green, but it aggregates\
+  \ the whole fleet and masks the affected route. No one recorded panel refresh time. Splunk access is denied. Apps\
+  \ Manager Instances provides refreshed per-instance request totals, route status and last restart times; the dashboard\
+  \ Explore read view can show sample timestamps."
+fixture:
+  files:
+    evidence.md: "Supplied intake record only.\nAt 12:10 EDT (16:10Z), Support has eight failed checkout receipts\
+      \ from 12:02\u201312:07 and two successful retries. The Grafana error panel is blank with a zero displayed\
+      \ in its legend. A health summary says green, but it aggregates the whole fleet and masks the affected route.\
+      \ No one recorded panel refresh time. Splunk access is denied. Apps Manager Instances provides refreshed per-instance\
+      \ request totals, route status and last restart times; the dashboard Explore read view can show sample timestamps."
+followups:
+- "Supplied refreshed panel inspection at 12:11 EDT (16:11Z): the affected checkout route has no samples in the\
+  \ explicitly selected 12:08\u201312:10 window; last sample is yesterday at 12:10:40 (16:10:40Z). The legend renders\
+  \ the empty series as zero. The earlier customer failures at 12:02\u201312:07 are outside this window. A blank\
+  \ series does not establish current recovery.\n\nWhat changes in your assessment and next useful check?"
+conversation:
+  profile: incident-v1
+  helpers:
+  - null
+  - null
+  partition: development
+  manual_review: pending
+incident_case:
+  family: INC-03
+  variant: b
+  review_sha256: abad2f63b0c3cf55b197a71986e511e04ea07a951788b8d35c1be354949f0dee
+success_criteria:
+- Structural conversation continuity and evidence provenance only; semantic case acceptance remains pending human
+  review.

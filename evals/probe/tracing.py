@@ -16,6 +16,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Final, NotRequired, TypedDict, cast
 
+from . import conversations
 from .constants import DISPATCH_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
 
 
@@ -120,6 +121,7 @@ class TraceSummary:
     main_skills_before_effects: list[str] = field(default_factory=list)
     agent_returns: list[AgentReturn] = field(default_factory=list)
     conversation_sessions: list[str] = field(default_factory=list)
+    invocation_evidence: list[dict[str, Any]] = field(default_factory=list)
     parent_reads_before_dispatch: list[ParentRead] = field(default_factory=list)
     parent_skills_before_dispatch: list[str] = field(default_factory=list)
     main_models: list[str] = field(default_factory=list)
@@ -567,16 +569,24 @@ MERGED_FROM_LAST = (
     "runtime_plugins",
     "effect_calls",
 )
-MERGED_SPECIALLY = ("tool_counts", "tool_counts_complete", "conversation_sessions")
+MERGED_SPECIALLY = ("tool_counts", "tool_counts_complete", "conversation_sessions", "invocation_evidence")
 
 
 def parse_trial_trace(run_dir: Path) -> TraceSummary:
     """Merge invocation evidence, charging only the last cumulative result within each invocation."""
-    traces = [parse_trace(run_dir / "stdout.jsonl")]
-    followup = run_dir / "followup" / "stdout.jsonl"
-    if followup.is_file():
-        traces.append(parse_trace(followup))
+    folders = [folder for folder in conversations.saved_folders(run_dir) if (folder / "stdout.jsonl").is_file()]
+    traces = [parse_trace(folder / "stdout.jsonl") for folder in folders] or [TraceSummary()]
     merged = replace(traces[-1], conversation_sessions=[trace.session_id for trace in traces])
+    merged.invocation_evidence = [
+        {
+            "response": trace.result_text,
+            "dispatches": trace.dispatches,
+            "agents": trace.agents,
+            "returns": trace.agent_returns,
+            "has_result": trace.has_result,
+        }
+        for trace in traces
+    ]
     for name in MERGED_FROM_FIRST:
         setattr(merged, name, getattr(traces[0], name))
     for name in MERGED_IN_ORDER:
@@ -599,6 +609,7 @@ def parse_trial_trace(run_dir: Path) -> TraceSummary:
 # names when the raw trace is gone.
 SUMMARY_FIELDS: Final = {
     "conversation_sessions": "conversation_sessions",
+    "invocation_evidence": "invocation_evidence",
     "agent_returns": "agent_returns",
     "initial_parent_reference_reads": "parent_reads_before_dispatch",
     "initial_parent_skills_before_dispatch": "parent_skills_before_dispatch",

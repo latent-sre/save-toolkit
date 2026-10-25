@@ -1,0 +1,42 @@
+{
+  "astropy__astropy-13398": {
+    "url": "https://raw.githubusercontent.com/astropy/astropy/6500928dc0e57be8f06d1162eacc3ba5e2eff692/LICENSE.rst",
+    "sha256": "a86d75ead6df0886dcbc04230ffcd971c66a4a6746ca559ddf768865370637f5"
+  },
+  "django__django-13344": {
+    "url": "https://raw.githubusercontent.com/django/django/e39e727ded673e74016b5d3658d23cbe20234d11/LICENSE",
+    "sha256": "b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669"
+  },
+  "django__django-16631": {
+    "url": "https://raw.githubusercontent.com/django/django/9b224579875e30203d079cc2fee83b116d98eb78/LICENSE",
+    "sha256": "b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669"
+  },
+  "pydata__xarray-6992": {
+    "url": "https://raw.githubusercontent.com/pydata/xarray/45c0a114e2b7b27b83c9618bc05b36afac82183c/LICENSE",
+    "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+  },
+  "pylint-dev__pylint-4551": {
+    "url": "https://raw.githubusercontent.com/pylint-dev/pylint/99589b08de8c5a2c6cc61e13a37420a868c80599/LICENSE",
+    "sha256": "f97b14080de8b8490d60eb3d620ebc419943e0779466d1dd0d5d6f68fe195dcd"
+  },
+  "pytest-dev__pytest-5787": {
+    "url": "https://raw.githubusercontent.com/pytest-dev/pytest/955e54221008aba577ecbaefa15679f6777d3bf8/LICENSE",
+    "sha256": "4be38574daf05665b6194e4fd84c5ef6ce7c3a2810308a5222d5cdffc2d04d18"
+  },
+  "pytest-dev__pytest-10356": {
+    "url": "https://raw.githubusercontent.com/pytest-dev/pytest/3c1534944cbd34e8a41bc9e76818018fadefc9a1/LICENSE",
+    "sha256": "ca836a5f9ecca3b2f350230faa20a48fb8b145653b5568d784862df864706b9b"
+  },
+  "scikit-learn__scikit-learn-25102": {
+    "url": "https://raw.githubusercontent.com/scikit-learn/scikit-learn/f9a1cf072da9d7375d6c2163f68a6038b13b310f/COPYING",
+    "sha256": "e39bf18719108f9e94b578020077dae2c8f0cede14cd7caa11e9a13c44b5e5ab"
+  },
+  "sphinx-doc__sphinx-7590": {
+    "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/2e506c5ab457cba743bb47eb5b8c8eb9dd51d23d/LICENSE",
+    "sha256": "5004de7c0e86d9f3b7fa059807719c62b06ee5a30b8358081433f28c3b9ac9c9"
+  },
+  "sympy__sympy-13878": {
+    "url": "https://raw.githubusercontent.com/sympy/sympy/7b127bdf71a36d85216315f80c1b54d22b060818/LICENSE",
+    "sha256": "b8fd72e9cdac9dc5028ec9c4623945971cdff1ce71fda381d5f5419ffe0ab587"
+  }
+}

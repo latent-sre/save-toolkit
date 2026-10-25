@@ -22,7 +22,7 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, catalog, checking, fingerprints, invocation, layout, outcomes, records, tracing
+from . import assessment, catalog, checking, conversations, fingerprints, invocation, layout, outcomes, records, tracing
 from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_IDENTITY, HARNESS_SOURCE_SHA256
@@ -70,9 +70,14 @@ def native_regrade_problem(
     run unmeasured under a reason that names it; a defect in the runner raises instead of being
     reported as the saved run's fault.
     """
+    if conversations.enabled(spec):
+        problem = conversations.replay_problem(run_dir, spec, catalog.scenario_prompt(spec, plugin_root))
+        if problem:
+            return problem
     resume, workspace = None, None
     done: list[TraceSummary] = []
-    for folder in (run_dir, run_dir / "followup"):
+    for index, folder in enumerate(conversations.folders(run_dir, spec)):
+        current_spec = conversations.turn_spec(spec, index)
         left = invocation.turns_left(spec, done)
         if left is not None and left <= 0:  # the conversation spent its limit, so no follow-up started
             return (
@@ -111,6 +116,13 @@ def native_regrade_problem(
         argv = metadata.get("argv")
         if not isinstance(argv, list) or not all(isinstance(arg, str) for arg in argv):
             return "native invocation agent command evidence missing; re-run the trial"
+        if conversations.enabled(spec):
+            for flag, expected in (("--resume", [resume] if resume else []), ("--max-turns", [str(left)])):
+                observed = [argv[i + 1] if i + 1 < len(argv) else None for i, arg in enumerate(argv) if arg == flag]
+                if observed != expected:
+                    return "incident saved resume or cumulative turn-budget command differs"
+            if "--no-session-persistence" in argv or "--restricted" not in argv:
+                return "incident saved command did not persist a restricted session"
         pins = [argv[i + 1] if i + 1 < len(argv) else None for i, arg in enumerate(argv) if arg == "--agent"]
         pin = catalog.agent_pin(spec)
         if pins != ([pin] if pin else []):
@@ -126,11 +138,11 @@ def native_regrade_problem(
                 problem = (
                     fingerprints.plugin_drift_problem(plugin_root, recorded_plugin_sha)
                     or invocation.profile_problem(trace, spec, plugin_root, recorded_workspace)
-                    or invocation.native_identity_problem(trace, spec, resume, complete=False)
+                    or invocation.native_identity_problem(trace, current_spec, resume, complete=False)
                 )
             else:
                 problem = invocation.invocation_problem(
-                    trace, metadata["exit_code"], spec, plugin_root, recorded_workspace, resume
+                    trace, metadata["exit_code"], current_spec, plugin_root, recorded_workspace, resume
                 )
         except (OSError, json.JSONDecodeError) as exc:
             return _unreadable_root(plugin_root, exc)

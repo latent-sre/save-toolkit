@@ -693,11 +693,12 @@ def test_total_verifier_artifact_limit_is_checked_before_any_artifact_read(setup
     assert not list((setup.tmp / "total").glob("large-*.log"))
 
 
-def test_unknown_after_usage_is_inconclusive_and_stops_batch(setup, monkeypatch):
+def test_unknown_after_usage_preserves_assessment_and_stops_batch(setup, monkeypatch):
     monkeypatch.setattr(FakeProxy, "usage_rows", [
         {"usage": 1, "limit": 30, "limit_remaining": 29}, ValueError("unavailable usage")])
     result = trial(setup)
-    assert result["status"] == "INCONCLUSIVE" and not result["billing_known"]
+    assert result["status"] == "PASS" and not result["billing_known"]
+    assert "usage" in result["after_assessment"]
     with pytest.raises(ValueError, match="first"):
         runner.run_batch(setup.config, setup.manifest, setup.rows, setup.output, setup.key_file, setup.smoke)
 
@@ -748,3 +749,61 @@ def test_unresolved_host_process_cleanup_blocks_batch_and_future_trials(setup, m
                          setup.output, setup.key_file, setup.smoke)
     assert len(FakeProxy.instances) == before
     assert not any(args[0] == "host_process" or host["name"] in args for args, _ in setup.docker.calls)
+
+
+@pytest.mark.parametrize("expected", ["PASS", "FAIL"])
+@pytest.mark.parametrize("late_problem", ["cleanup", "billing", "proxy_close"])
+def test_supported_assessment_survives_late_instrument_failure(setup, monkeypatch, expected, late_problem):
+    if expected == "FAIL":
+        setup.docker.patch = b""
+    if late_problem == "cleanup":
+        setup.docker.cleanup_error = True
+    elif late_problem == "billing":
+        monkeypatch.setattr(FakeProxy, "usage_rows", [
+            {"usage": 1, "limit": 30, "limit_remaining": 29}, ValueError("unavailable usage")])
+    else:
+        def failed_close(self):
+            self.closed = True
+            raise RuntimeError("closure could not be confirmed")
+        monkeypatch.setattr(FakeProxy, "close", failed_close)
+    result = trial(setup)
+    record = RecordV1.model_validate_json((folder(setup) / "record.json").read_text())
+    assert result["status"] == expected
+    assert record.verdict.status == expected
+    assert record.checks[0].state == expected
+    assert record.verdict.after_assessment == result["after_assessment"]
+    assert record.verdict.after_assessment
+    assert result["environment_failure"]
+    with pytest.raises(ValueError):
+        runner.run_batch(setup.config, setup.manifest, setup.rows, setup.output, setup.key_file, setup.smoke)
+
+
+@pytest.mark.parametrize("recovered", [False, True])
+def test_supported_verifier_assessment_survives_late_container_cleanup(setup, monkeypatch, recovered):
+    original = runner.run_bounded
+
+    def late_cleanup(args, **kwargs):
+        result = original(args, **kwargs)
+        out = Path(args[args.index("--output") + 1])
+        path = out / "verifier-receipt.json"
+        receipt = json.loads(path.read_text())
+        receipt["cleanup"][0].update(present=True, removed=False)
+        receipt["after_assessment"] = "verifier container cleanup is unresolved"
+        dump(path, receipt)
+        if not recovered:
+            setup.docker.cleanup_error = True
+        return result
+
+    monkeypatch.setattr(runner, "run_bounded", late_cleanup)
+    result = trial(setup)
+    assert result["status"] == "PASS"
+    assert result["after_assessment"]
+    assert result["environment_failure"] is True
+    record = RecordV1.model_validate_json((folder(setup) / "record.json").read_text())
+    assert record.verdict.status == "PASS" and record.verdict.after_assessment
+    receipt = json.loads((folder(setup) / "verifier/verifier-receipt.json").read_text())
+    assert receipt["verifier_cleanup"][0]["present"] is True
+    if recovered:
+        assert receipt["cleanup"][0]["present"] is False
+    with pytest.raises(ValueError):
+        runner.run_batch(setup.config, setup.manifest, setup.rows, setup.output, setup.key_file, setup.smoke)
