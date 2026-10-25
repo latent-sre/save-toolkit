@@ -4,14 +4,14 @@ Read this when holding dashboard JSON: exporting, diffing, adding a panel or var
 a model. Request and concurrency shapes are in [http-api](./http-api.md); generic visualization
 advice is deliberately absent. The guidance below comes from Grafana 13.2.0 source and docs, not
 from the target; write, import, concurrency, and rollback behavior on the target is unconfirmed
-until observed. Team decisions for new dashboards are in the
-[team dashboard conventions](./dashboard-design.md#new-dashboard-conventions).
+until observed. For new-dashboard choices, use
+[dashboard design](./dashboard-design.md#new-dashboard-conventions).
 
 ## Contents
 
 - [Versions and shapes](#six-served-versions-three-shapes)
 - [Storage and conversion](#storage-and-conversion-rules)
-- [Classic / V1](#classic--v1-rules-this-team-keeps)
+- [Classic / V1](#classic--v1-edits)
 - [V2](#v2-differences)
 - [Variables and portability](#variables-and-portability)
 - [Checks](#check-before-writing)
@@ -48,22 +48,22 @@ named in its path.
    source and converted structures; Grafana also emits conversion-loss metrics.
 5. **Legacy `meta.apiVersion` is not storage evidence.** It reports the requested version.
 
-## Classic / V1 rules this team keeps
+## Classic / V1 edits
 
 - `uid` is stable, 8–40 characters, never reused or changed after publication; `id` is `null` on
   create and dropped from portable exports; `schemaVersion` stays at the exported value (42 is
-  final for V1 in Grafana 13); `version` is the legacy concurrency token; never copy `tags` while
-  duplicating.
+  final for V1 in Grafana 13); `version` is the legacy concurrency token. Review copied tags for
+  the new dashboard's actual purpose and owner.
 - An edit preserves `editable` and `timezone`. Preserve the requested `time` window; do not
   `refresh` faster than the data changes.
-- A new panel takes `max(existing id) + 1` and goes below the last row at `max(y + h)` on the
-  24-column grid; unrelated panels are not renumbered or moved, because panel ids are link and render
-  targets and a duplicate silently retargets consumers.
+- A new panel needs an unused ID; `max(existing id) + 1` is one way to allocate it. Place it in
+  the requested layout without renumbering or moving unrelated panels. Panel IDs are link and
+  render targets; duplicates can retarget consumers.
 - On app-platform V1 writes, identity is `metadata.name` and concurrency `metadata.resourceVersion`;
   Grafana strips `spec.uid` and `spec.version`, injects defaults, and mints a distinct
   `metadata.uid`. Diff the stored readback, not the local body.
 
-### The panel shape, with the fields the checker and the on-call reader need
+### Example panel shape
 
 Copy structure from the target and replace only the metric and labels with discovered values:
 
@@ -124,11 +124,13 @@ their provenance and distinguish them from the fresh live export used to prepare
 ## Check before writing
 
 `dashboard_hygiene.py` is bundled, stdlib-only, and offline; it accepts a bare Classic/V1 model, an
-app-platform wrapper, or a legacy GET body, exits 0 when no implemented rule fired, 1 on violations,
-2 when uncheckable, and refuses V2 rather than reporting zero panels. `dashboard-linter lint
+app-platform wrapper, or a legacy GET body. It exits 0 with no review-required findings (advisories
+may remain), 1 when a query or missing-target finding needs review, and 2 when uncheckable. It
+refuses V2 rather than reporting zero panels. `dashboard-linter lint
 --strict`, when installed, validates more of the real Grafana, PromQL, and LogQL contract; scoped
 exclusions need a reason. PromQL heuristics require a datasource reference typed `prometheus`;
 untyped references remain unchecked for query semantics. Treat fixed-UID and counter-name findings
 as review prompts as explained in [read-only review](./read-only-review.md). On an edit, check the
-live model first and block only confirmed violations this diff introduces. A clean result never proves target permissions, query data, rendering,
+live model first and block only confirmed defects this diff introduces. Presentation and portability
+advice does not block a write. A clean result never proves target permissions, query data, rendering,
 concurrency, or the durable save record; [http-api](./http-api.md) verifies those.

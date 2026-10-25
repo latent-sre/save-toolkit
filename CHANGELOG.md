@@ -6,6 +6,17 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ## [Unreleased]
 
+### Changed
+
+- Remove unconfirmed observability team mandates for dashboard naming, folders, variables,
+  refresh, ingestion ownership, and instrumentation selection. Burn-rate thresholds and Splunk
+  lookup wiring are examples; target conventions and reviewed service rules determine the choice.
+  Correct MQL capabilities, Alloy retention claims, and unsupported Moogsoft/ThousandEyes claims.
+- Classify dashboard presentation and portability findings as advisory in text and JSON reports,
+  including capture analysis. Advisory-only checks now exit 0; query and missing-target checks
+  still require review (exit 1), and unsupported or malformed input still exits 2. Preserve query
+  analysis gaps, live-change authority, concurrency, UNKNOWN reconciliation, and rollback checks.
+
 ## [0.51.4] - 2026-10-23
 
 ### Changed

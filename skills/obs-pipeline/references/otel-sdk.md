@@ -22,10 +22,11 @@ choices and points there rather than restating them.
 Scoped fixes apply only steps affecting the changed path in the existing setup; service-wide
 instrumentation uses the full method.
 
-1. **For service-wide instrumentation, auto-instrument first** with the SDK's zero-code entry
-   points, then add **manual** spans for critical operations. For Python, use the repository's
-   managed environment and lock workflow; never install into system Python, and review the
-   dependency/lock diff before deployment.
+1. **Identify the existing instrumentation path before choosing an approach.** Compare supported
+   zero-code instrumentation with library/manual instrumentation for the application's coverage,
+   compatibility and overhead needs; preserve the existing path unless a change is justified.
+   For Python, use the repository's managed environment and lock workflow; never install into
+   system Python, and review the dependency/lock diff before deployment.
 
    **Spring Boot: identify the installed path before troubleshooting.**
 

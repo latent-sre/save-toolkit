@@ -69,8 +69,9 @@ deployment flag, and canary result remain unconfirmed for the target environment
   unbounded identity in labels. Sharing a processor across signals is safe only when its data
   model and drop policy hold for every connected signal; this rule is not yet confirmed.
 - **Exporters**: map each configured signal to its actual destination, protocol, and failure policy
-  (LGTM, Google Telemetry API, or a verified gateway). Existing PCF-owned Splunk and Wavefront feeds
-  remain platform responsibilities; verify or hand off gaps without wiring new exporters for them.
+  (LGTM, Google Telemetry API, or a verified gateway). Confirm each feed's route and owner;
+  PCF-platform-owned Splunk and Wavefront feeds remain platform responsibilities, so hand their
+  gaps to that owner rather than wiring replacement exporters.
 
 ## Debugging a running Alloy
 
@@ -100,10 +101,11 @@ deployment flag, and canary result remain unconfirmed for the target environment
   is unconfirmed until run.
 ## Backpressure and loss — where data quietly dies
 
-- **`prometheus.remote_write`** buffers in a WAL: defaults `truncate_frequency = "2h"`,
-  `min_keepalive_time = "5m"`, `max_keepalive_time = "8h"`. An unreachable endpoint grows disk
-  until truncation, and samples older than max keepalive are force-purged — an outage longer than
-  ~8h loses the tail silently.
+- **`prometheus.remote_write`** buffers in a WAL. Upstream defaults include
+  `truncate_frequency = "2h"`, `min_keepalive_time = "5m"`, `max_keepalive_time = "8h"`; inspect the
+  deployed settings. Eight hours is not guaranteed outage retention: segment truncation and send
+  lag affect which unsent samples survive, and truncation can discard the oldest unsent samples.
+  Check WAL/send progress and loss evidence rather than inferring a safe outage duration from defaults.
 - **`loki.write`** retries with backoff (defaults: 500ms → 5m, 10 retries, retry on 429) and then
   **drops the batch**, logging "final error sending batch, no retries left, dropping data" — that
   log line is the loss evidence to grep for.

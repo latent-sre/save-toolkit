@@ -11,12 +11,14 @@ prompt: |
   /var/log/app/*.log processed and written to Loki at http://loki:3100; (2) a
   Prometheus scrape forwarded to Mimir remote_write at http://mimir:9009/api/v1/push;
   (3) an OTLP receiver on the standard ports, batched, exported to an OTLP backend.
-  A: how long does prometheus.remote_write retain buffered samples before purging
-  them when the endpoint is unreachable? B: what does loki.write do once its retries
-  are exhausted?
+  A: what is the upstream default max_keepalive_time for prometheus.remote_write,
+  and does that guarantee outage retention? Use `A: default=<duration>;
+  guaranteed_outage_retention=<yes|no>` followed by a brief reason.
+  B: what does loki.write do once its retries are exhausted?
 success_criteria:
   - Wires loki/prometheus components with forward_to and otelcol components with output blocks.
-  - States the remote_write retention purge horizon and the loki.write drop behaviour.
+  - Distinguishes the default max_keepalive_time from a guaranteed outage duration; actual retention depends on deployed settings, WAL truncation and send lag.
+  - States the loki.write drop behaviour after retries are exhausted.
 graders:
   - type: regex
     pattern: 'forward_to'
@@ -25,6 +27,6 @@ graders:
   - type: regex
     pattern: 'prometheus\.remote_write'
   - type: regex
-    pattern: '8h|8 hours|eight hours'
+    pattern: '^A:\s*default\s*=\s*(?:8h|8 hours|eight hours);\s*guaranteed_outage_retention\s*=\s*no\b'
   - type: regex
     pattern: 'drop'

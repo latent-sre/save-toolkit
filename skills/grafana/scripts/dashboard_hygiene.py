@@ -3,7 +3,7 @@
 
 Offline, with a stdlib-only fallback. Uses bounded PromQL AST inspection when promql-parser is
 installed and the expression contains no unresolved Grafana variables. Otherwise textual checks
-retain explicit query_analysis gaps; values are never guessed or substituted. A clean result means
+retain explicit query_analysis gaps; values are never guessed or substituted. No findings means
 no implemented rule fired, not that the dashboard is correct. PromQL checks run only for a model
 reference whose type is `prometheus`; other or untyped references need their dialect's query
 validation. Findings need human review:
@@ -17,9 +17,10 @@ Which model shapes it accepts:
   * V2 (`elements`/`layout`) is DETECTED AND REFUSED rather than half-checked: its panels live in a
     different structure, and silently checking zero panels would be worse than saying so.
 
-Exit codes: 0 clean, 1 violations found, 2 the input could not be checked.
+Exit codes: 0 no review-required findings (advisories may remain), 1 review required,
+2 the input could not be checked. Findings are heuristics, not proven defects.
 Use --format json for one ASCII-escaped JSON report on stdout, including input errors.
-The report's ok means checked, not violation-free; coverage is static_hygiene_only.
+The report's ok means checked, not finding-free; coverage is static_hygiene_only.
 --quiet affects text only: JSON always includes every finding. CLI usage errors remain argparse text.
 """
 
@@ -49,18 +50,29 @@ COUNTER_NAME = re.compile(r"\b(\w+_total)\b")
 RANGE_SELECTOR = re.compile(r"\[([^\]]*)\]")
 # A datasource reference that is a literal uid rather than a variable.
 BUILTIN_DS = frozenset({"-- Grafana --", "-- Mixed --", "-- Dashboard --", "grafana"})
+ADVISORY_RULES = frozenset({
+    "panel-title", "panel-description", "panel-units", "panel-no-value",
+    "panel-datasource", "dashboard-tags", "template-all-value",
+})
 
 
 class InputShapeError(ValueError):
-    """The checker cannot traverse this input; this is not a hygiene violation."""
+    """The checker cannot traverse this input; it has not assessed its hygiene."""
 
 
 class Finding(NamedTuple):
-    """One violation. Still a plain (rule, where, detail) tuple for callers that unpack it."""
+    """One heuristic finding; preserve three-field unpacking for existing callers."""
 
     rule: str
     where: str
     detail: str
+
+    @property
+    def severity(self) -> str:
+        return "advisory" if self.rule in ADVISORY_RULES else "review"
+
+    def as_report(self) -> dict[str, str]:
+        return {**self._asdict(), "severity": self.severity}
 
 
 def require_shape(value, expected, where, *, nullable=False):
@@ -127,7 +139,7 @@ def rate_call_spans(expr):
 
     * "does the expression contain $__rate_interval anywhere" passes
       `rate(a_total[$__rate_interval]) + rate(b_total[5m])`, whose second call is exactly what the
-      rule exists to reject;
+      rule should flag for review;
     * "count parentheses before the metric" decides `sum(rate(a[$__rate_interval])) / sum(b_total)`
       has `b_total` inside a rate call, because it cannot see that the earlier call already closed.
     """
@@ -165,22 +177,23 @@ def locate_spec(model: dict) -> tuple[dict, str]:
 
 
 def panel_findings(panel: dict, where: str):
-    """What a reader needs to interpret the panel: a title, a description, a unit, and for a
-    querying panel a query and a "No value" text."""
+    """Suggest presentation checks and flag missing targets for review."""
     defaults = (panel.get("fieldConfig") or {}).get("defaults") or {}
     ptype = panel.get("type")
     querying = ptype not in NON_QUERYING
 
     if not (panel.get("title") or "").strip():
-        yield Finding("panel-title", where, "panel has no title; a title states the question it answers")
+        yield Finding("panel-title", where, "no title; consider whether the panel needs a visible label")
     if not (panel.get("description") or "").strip():
-        yield Finding("panel-description", where, "no description; it renders as the panel's tooltip")
+        yield Finding("panel-description", where, "no description; add a tooltip if interpretation needs context")
     if ptype in UNIT_BEARING and not defaults.get("unit"):
-        yield Finding("panel-units", where, f"{ptype} panel has no unit set")
+        yield Finding("panel-units", where,
+                      f"{ptype} panel has no default unit; inspect field overrides and rendered units")
     if querying and not (panel.get("targets") or []):
-        yield Finding("panel-no-targets", where, "panel has no query")
+        yield Finding("panel-no-targets", where, "panel has no targets; review its data source and intended behavior")
     if querying and "noValue" not in defaults:
-        yield Finding("panel-no-value", where, "no 'No value' text; an empty panel must not read as healthy")
+        yield Finding("panel-no-value", where,
+                      "no default 'No value' text; inspect rendered empty-data behavior before changing it")
 
 
 def datasource_findings(panel: dict, where: str):
@@ -198,8 +211,8 @@ def datasource_findings(panel: dict, where: str):
         uid = datasource.get("uid")
         if isinstance(uid, str) and not uid.startswith("$") and uid not in BUILTIN_DS:
             yield Finding("panel-datasource", where,
-                          f"{scope} names a hard-coded data-source uid {uid!r}; use a datasource "
-                          f"variable so the model is portable")
+                          f"{scope} names a literal data-source uid {uid!r}; verify its binding "
+                          f"if cross-instance portability is required")
 
 
 def _counter_finding(name, location):
@@ -272,18 +285,18 @@ def template_findings(spec: dict):
     for variable in (spec.get("templating") or {}).get("list") or []:
         if variable.get("includeAll") and not (variable.get("allValue") or "").strip():
             yield Finding("template-all-value", f"${variable.get('name', '?')}",
-                          "'Include All' with no custom all value; the expanded expression can grow "
-                          "unbounded — set one such as '.+'")
+                          "'Include All' has no custom all value; inspect expansion size and query "
+                          "semantics before choosing a dialect-appropriate value")
 
 
 def tag_findings(spec: dict):
     # Tags support discovery regardless of whether the dashboard is provisioned or UI-managed.
     if not (spec.get("tags") or []):
-        yield Finding("dashboard-tags", "dashboard", "no tags; search and the dashboard list rely on them")
+        yield Finding("dashboard-tags", "dashboard", "no tags; add them only if useful for discovery or required by local policy")
 
 
 def check(spec: dict, *, query_analysis=None) -> list[Finding]:
-    """Return a Finding (rule, where, detail) for every violation, panel by panel, then dashboard-wide.
+    """Return heuristic Findings, panel by panel, then dashboard-wide.
 
     Run validate_shape() first: the shared walk checks only the shapes it traverses, not the fields
     inside a panel (title, fieldConfig, targets) or the templating list.
@@ -311,7 +324,7 @@ def print_json_report(*, title=None, panel_count=None, findings=(), errors=(), q
         "coverage": "static_hygiene_only",
         "title": title if isinstance(title, str) else None,
         "panel_count": panel_count,
-        "findings": [finding._asdict() for finding in findings],
+        "findings": [finding.as_report() for finding in findings],
         "query_analysis": list(query_analysis),
         "errors": list(errors),
     }, ensure_ascii=True))
@@ -319,7 +332,7 @@ def print_json_report(*, title=None, panel_count=None, findings=(), errors=(), q
 
 def main(argv: list[str] | None = None) -> int:
     # The report echoes dashboard and panel titles; captured stdout (an agent's Bash, CI, `> log`)
-    # may default to a legacy code page that cannot encode them, and exit 1 must mean violations.
+    # may default to a legacy code page that cannot encode them; exit 1 must mean review findings.
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
@@ -357,24 +370,26 @@ def main(argv: list[str] | None = None) -> int:
             return cannot_check("unsupported_model", "no `panels` key: this does not look like a Classic/V1 dashboard model")
         panels = validate_shape(spec, root_path)
         query_analysis = []
-        violations = _check_panels(spec, panels, query_analysis=query_analysis)
+        findings = _check_panels(spec, panels, query_analysis=query_analysis)
         panel_count = len(panels)
     except (InputShapeError, RecursionError) as exc:  # rows nested past the recursion limit overflow the walk
         code = "input_too_deep" if isinstance(exc, RecursionError) else "invalid_shape"
         return cannot_check(code, f"cannot check {args.path}: {exc}")
 
     title = spec.get("title", "<untitled>")
+    review_count = sum(finding.severity == "review" for finding in findings)
     if args.format == "json":
-        print_json_report(title=title, panel_count=panel_count, findings=violations,
+        print_json_report(title=title, panel_count=panel_count, findings=findings,
                           query_analysis=query_analysis)
-        return 1 if violations else 0
+        return 1 if review_count else 0
     if not args.quiet:
-        for rule, where, detail in violations:
-            print(f"{rule}: {where}\n    {detail}")
-        if violations:
+        for finding in findings:
+            print(f"{finding.rule} [{finding.severity}]: {finding.where}\n    {finding.detail}")
+        if findings:
             print()
-    print(f"{title!r}: {len(violations)} violation(s) across {panel_count} panel(s)")
-    return 1 if violations else 0
+    print(f"{title!r}: {review_count} review-required, {len(findings) - review_count} advisory "
+          f"finding(s) across {panel_count} panel(s)")
+    return 1 if review_count else 0
 
 
 if __name__ == "__main__":

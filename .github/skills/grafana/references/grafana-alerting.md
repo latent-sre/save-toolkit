@@ -28,8 +28,8 @@ owner per rule and never duplicate a rule in both paths.
   **`keepFiringFor`**.
   Verify the running rule's state, not the YAML, before trusting the filter.
 - **Recovery threshold** is hysteresis from the query side: a rule that fires above 1000 ms and
-  recovers only below 900 ms cannot oscillate on a value hovering at 1000. Set it on every noisy
-  latency or ratio rule; leave it off a step-function signal.
+  recovers only below 900 ms cannot oscillate on a value hovering at 1000. Consider it when
+  threshold oscillation causes noise; choose the recovery condition from the signal and response intent.
 - **No-data and execution-error states** are a decision per rule: for a paging burn-rate rule,
   silent telemetry mapped to Normal is the false all-clear, and an erroring query mapped to Normal
   disarms the alert invisibly. In file-provisioning YAML "Normal" is spelled `OK`
@@ -60,9 +60,9 @@ inventory:
 |---|---|---|---|---|---|
 | `<service-slo>` | `<uid>` | `<interval>` | `<uid>` / `<burn pair>` | `<repo path>` | `<Grafana or backend>` |
 
-Every rule carries a `runbook_url` annotation plus service, owner, and severity labels sufficient to
-route and investigate it. Never place a token or other secret in a rule, label, annotation, or
-tracked provider file.
+Paging rules carry a usable runbook link, normally in `runbook_url`. Use the labels and annotations
+required by the actual notification route; this reference does not establish a team-wide label schema.
+Never place a token or other secret in a rule, label, annotation, or tracked provider file.
 
 ## Contact points and notification policies
 

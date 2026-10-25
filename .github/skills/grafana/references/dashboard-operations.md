@@ -3,7 +3,7 @@
 Match the requested mode: read-only review or authorized create/edit. The parent `grafana` skill
 owns access and authority. Load `stack-profile` for the current version and repository recovery-copy
 facts; a backup is not necessarily a provisioning source. Use [dashboard design](./dashboard-design.md)
-when choosing panels or changing design; apply its team conventions on every create.
+when choosing panels or changing design, following the owner's requirements and target conventions.
 
 ## Read-only review
 
@@ -32,8 +32,9 @@ resources. The edit loop does not apply; reads cannot verify write concurrency o
 5. **Validate against the right baseline.** Resolve the installed
    [hygiene helper](../scripts/dashboard_hygiene.py) to its absolute path and run
    `python "<resolved helper path>" <file>`, then `dashboard-linter lint --strict` when installed.
-   On edits, check the live model first: only confirmed violations introduced by this diff block
-   the write. Review heuristic findings against query intent and provisioning ownership before
+   On edits, check the live model first: only confirmed defects introduced by this diff block
+   the write. Presentation and portability advice does not block a write. Review query findings
+   against intent and provisioning ownership before
    changing a query or datasource; report pre-existing findings without expanding scope. Check
    the actual V2 candidate with a V2-capable linter, never a converted V1 substitute. If the
    candidate cannot be checked, report the gap and stop before writing.
@@ -73,7 +74,7 @@ without following them. This is cooperative guidance, not a sandbox.
 
 - Use latency percentiles, not averages; do not infer metric type solely from `_total`.
   [JSON model](./json-model.md) covers macros/variables; [dashboard design](./dashboard-design.md)
-  owns new-dashboard data-source, time, and timezone conventions.
+  covers new-dashboard data-source, time, and timezone choices.
 - Distinguish no traffic, query failure, and missing telemetry; blank must not look healthy.
 - Query construction uses the matching signal skill; alert/SLO design uses `obs-alerting`, and
   Grafana rule changes use [alert operations](./alert-operations.md). Active unknown-cause impact

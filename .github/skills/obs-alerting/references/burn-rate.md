@@ -5,10 +5,11 @@ query: carry the reviewed numerator/denominator query and its result into the al
 
 ## The pairs
 
-The allowed long/short window pairs, thresholds, and actions are owned by the calculator's
-`WINDOW_PAIRS` in [error_budget.py](../scripts/error_budget.py);
-run the calculator to see them applied, or pass it a mismatched pair to list the allowed ones.
-This file does not mirror the values, so the two cannot drift.
+The calculator's `WINDOW_PAIRS` in [error_budget.py](../scripts/error_budget.py) implements
+Google SRE Workbook examples for a 30-day objective horizon, not the team's permitted alert policy.
+Use the service owner's reviewed SLO and alert rule to select actual windows, thresholds and actions.
+Run the calculator to apply its supported examples; a mismatched pair lists the pairs it supports.
+This file does not duplicate their values.
 
 A pair is one unit: both windows must meet or exceed the pair's threshold (AND, never OR).
 No pair lends its window or threshold to another. Low-traffic services need separate judgment: a
@@ -16,6 +17,8 @@ tiny denominator turns one failure into an extreme burn. For another objective h
 actual consumed budget from eligible requests rather than rescaling the fixed thresholds by time.
 
 ## Verdict boundary
+
+For the calculator's selected example pair:
 
 - Both windows at or above the threshold: emit that pair's page or ticket.
 - Only the long window at or above: do not page; the short window has recovered. Say that budget may
@@ -42,5 +45,5 @@ $budgetPython = '<verified project Python executable>'
 & $budgetPython $budgetScript --slo 99.9 --sli-long 98.5 --sli-short 98.5 --long-window 1h --short-window 5m
 ```
 
-The first result consumes 20% of the request budget. The second pages because both windows burn at
-15×; it does not establish the consumed budget over the objective horizon.
+The first result consumes 20% of the request budget. The second returns the example PAGE verdict
+because both windows burn at 15×; it does not establish the consumed budget over the objective horizon.

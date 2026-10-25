@@ -42,9 +42,9 @@ not change the read-only scope.
    and notification delivery need separate evidence; read-only success does not establish them.
 
 Classify each checker result before proposing a repair: confirmed query/model defect, portability
-warning, presentation improvement, or unverified heuristic. Missing descriptions can be useful improvements
-without blocking working queries. Report counts by category rather than calling every emitted
-"violation" an operational failure. `canSave: true` does not override `provisioned: true` ownership.
+warning, presentation improvement, or unverified heuristic. Presentation and portability findings
+are advisory; query and missing-target findings require review, not an automatic rewrite.
+Report counts by category. `canSave: true` does not override `provisioned: true` ownership.
 
 For guarded named-capture analysis, use the managed workflow in the project environment:
 
@@ -63,13 +63,14 @@ python "<absolute-installed-path>/dashboard_hygiene.py" dashboard.json --format 
 ```
 
 Text remains the default. JSON reports `ok` (whether input was checked), `coverage`, `title`,
-`panel_count`, structured `findings` (`rule`, `where`, `detail`), `query_analysis`, and `errors`.
+`panel_count`, structured `findings` (`rule`, `where`, `detail`, `severity`), `query_analysis`, and `errors`.
+Severity is `advisory` for presentation/portability advice or `review` for query/missing-target checks.
 Each query analysis names its location, analysis mode and gaps: resolved expressions use the
 bounded PromQL parser when available; unresolved templates or unavailable parsing use text
 heuristics, and over-limit expressions are marked `not_checked`. Inspect these gaps even when no
-finding fires. `ok: true` can still
-have findings; use the exit code: 0 means no implemented rule fired, 1 means findings, and 2 means
-the input could not be checked. JSON keeps all findings even with `--quiet`. A clean report is
+finding fires. `ok: true` can still have findings; use the exit code: 0 means no review-required
+findings (advisories may remain), 1 means review-required findings, and 2 means the input could not
+be checked. JSON keeps all findings even with `--quiet`. A clean report is
 static hygiene evidence, not schema, query, render or live-service validation. V2 remains unsupported.
 
 ## Grafana 13.2 checks

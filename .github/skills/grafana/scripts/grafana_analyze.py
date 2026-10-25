@@ -88,7 +88,7 @@ def _hygiene(captures):
             query_analysis = []
             findings = hygiene.check(spec, query_analysis=query_analysis)
             item.update(ok=True, panel_count=len(checked), finding_count=len(findings),
-                        findings=[{**finding._asdict(), "evidence_ref": pointer + "/dashboard"}
+                        findings=[{**finding.as_report(), "evidence_ref": pointer + "/dashboard"}
                                   for finding in findings[:MAX_FINDINGS]],
                         query_analysis_count=len(query_analysis),
                         query_analysis=[{**query, "evidence_ref": pointer + "/dashboard"}

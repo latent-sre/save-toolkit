@@ -1,7 +1,7 @@
 # Wavefront and Splunk data sources
 
-Read this for Wavefront/Splunk-backed dashboards and their plugin entitlement. The team's naming,
-folder, time, and variable decisions are in [dashboard conventions](./dashboard-design.md#new-dashboard-conventions).
+Read this for Wavefront/Splunk-backed dashboards and their plugin entitlement. For new dashboards,
+use [dashboard design](./dashboard-design.md#new-dashboard-conventions).
 Discover names, uids, owners, and installed plugins from the target.
 
 ## Licence and lifecycle facts
@@ -13,6 +13,6 @@ Catalogue guidance is not entitlement evidence. Confirm edition, the installed p
   continues as Broadcom DX OpenExplore; support against the team's tenant is unconfirmed.
   Wavefront is the live metrics UI for this team's PCF applications today.
 - Splunk uses SPL through `grafana-splunk-datasource` and has the same Enterprise-entitlement check.
-- ThousandEyes has no Grafana data-source plugin; never invent a plugin type or uid. That its
-  OpenTelemetry signals land in an installed Prometheus/Mimir, Tempo, or Loki backend is
-  unconfirmed; discover the backend before querying it.
+- ThousandEyes documents an OpenTelemetry integration with Grafana Cloud. The team's deployed
+  integration and receiving backend are unconfirmed; discover installed plugins and the actual
+  telemetry route before querying. Never invent a plugin type or uid.
