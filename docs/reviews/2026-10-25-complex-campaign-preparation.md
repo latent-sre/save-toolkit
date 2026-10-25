@@ -66,18 +66,23 @@ issues were reproduced and repaired before final integration:
 
 ## Verification
 
-[verified] The first combined working-tree run used the managed Python 3.14.8 interpreter:
+[verified] The final combined run used the managed Python 3.14.8 interpreter on clean committed
+source `152c255ec0585500f2cad34ecae45c28b8cdc2a2`:
 
 ```text
 /home/hawkfire/save-toolkit/.venv/bin/python scripts/local_tests.py --heavy
-5101 passed, 89 skipped, 5056 subtests passed; exit 0 in 79.255 seconds
-receipt: 20261025T114711Z-3bdbd058
+5105 passed, 89 skipped, 5056 subtests passed; exit 0 in 85.533 seconds
+receipt: 20261025T115754Z-983446d0
 ```
 
 The receipt is under the common Git directory's `local-test-runs/`, with pytest output, JUnit and
-runtime/revision metadata. It records a dirty pre-commit working tree and precedes the final SymPy
-control repair. A final combined run on the repaired committed source is pending at this point;
-this earlier receipt must not be attributed to that repair.
+runtime/revision metadata. Both before/after snapshots name that commit and a clean tree. The earlier
+working-tree receipt `20261025T114711Z-3bdbd058` is retained as pre-repair history, not substituted for
+this final run. Subsequent evidence-document updates do not change the tested product or test code.
+
+[verified] Targeted immutable source re-reviews closed all reported findings: report/WP-04 repairs
+at `eb0be82e` and the final SWT framework repair at `152c255e`, reusing the unchanged earlier scopes.
+Those were source reviews; test execution evidence belongs to the named runs, not the reviewers.
 
 [verified] Ruff check, Ruff format check (61 files), strict mypy (68 source files), `git diff --check`
 and Gate A passed. The native catalog validates 399 scenarios. New Python modules are registered
@@ -87,7 +92,7 @@ in the shared lint/type scopes; optional SWT/Harbor dependencies retain exact is
 the isolated Harbor SDK suite passed 71 checks; its seven owned-lifecycle/report checks passed again
 after the campaign-report repairs. Four SWT controls exercised the actual pinned upstream code with
 Windows import guards active and Docker boundaries doubled. These are API/runner checks, not live
-task executions. Focused repair checks include 54 ITBench tests, 50 SWT tests and 60 combined
+task executions. Focused repair checks include 54 ITBench tests, 54 SWT tests and 60 combined
 report/comparison checks. The 89 full-suite skips include unavailable optional dependencies and
 platform paths; they are not counted as passes.
 
