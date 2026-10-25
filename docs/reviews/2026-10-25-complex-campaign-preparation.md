@@ -67,21 +67,25 @@ issues were reproduced and repaired before final integration:
 ## Verification
 
 [verified] The final combined run used the managed Python 3.14.8 interpreter on clean committed
-source `152c255ec0585500f2cad34ecae45c28b8cdc2a2`:
+source `07d2b48d126ca6f62f18171f4529f5b98fafd87b`:
 
 ```text
 /home/hawkfire/save-toolkit/.venv/bin/python scripts/local_tests.py --heavy
-5105 passed, 89 skipped, 5056 subtests passed; exit 0 in 85.533 seconds
-receipt: 20261025T115754Z-983446d0
+5113 passed, 89 skipped, 5056 subtests passed; exit 0 in 86.113 seconds
+receipt: 20261025T121931Z-47972811
 ```
 
 The receipt is under the common Git directory's `local-test-runs/`, with pytest output, JUnit and
 runtime/revision metadata. Both before/after snapshots name that commit and a clean tree. The earlier
-working-tree receipt `20261025T114711Z-3bdbd058` is retained as pre-repair history, not substituted for
-this final run. Subsequent evidence-document updates do not change the tested product or test code.
+working-tree receipt `20261025T114711Z-3bdbd058` and clean-source receipt
+`20261025T115754Z-983446d0` are retained as pre-review-repair history, not substituted for this final run. Subsequent evidence-document updates do not change the tested product or test code.
 
 [verified] Targeted immutable source re-reviews closed all reported findings: report/WP-04 repairs
 at `eb0be82e` and the final SWT framework repair at `152c255e`, reusing the unchanged earlier scopes.
+A later automated PR review found three WP-09 issues, repaired and independently source-approved
+at `07d2b48d`: failed proxy shutdown now remains in cleanup evidence and blocks Harbor reuse; SWT
+leaves author test execution unknown pending policy review; SWT and the shared WP-08 binding refuse
+elevated or unknown host accounts before Docker access. Red/green regressions cover each path.
 Those were source reviews; test execution evidence belongs to the named runs, not the reviewers.
 
 [verified] Ruff check, Ruff format check (61 files), strict mypy (68 source files), `git diff --check`
@@ -90,7 +94,9 @@ in the shared lint/type scopes; optional SWT/Harbor dependencies retain exact is
 
 [verified] Optional upstream integration evidence supplements the default environment's skips:
 the isolated Harbor SDK suite passed 71 checks; its seven owned-lifecycle/report checks passed again
-after the campaign-report repairs. Four SWT controls exercised the actual pinned upstream code with
+after the campaign-report repairs. After the later PR repairs, all 18 real-SDK checks passed,
+including unresolved-proxy cleanup and refusal of a second attempt before credential access.
+Four SWT controls exercised the actual pinned upstream code with
 Windows import guards active and Docker boundaries doubled. These are API/runner checks, not live
 task executions. Focused repair checks include 54 ITBench tests, 54 SWT tests and 60 combined
 report/comparison checks. The 89 full-suite skips include unavailable optional dependencies and
