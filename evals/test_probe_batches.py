@@ -815,6 +815,34 @@ class RecordContractTests(unittest.TestCase):
                          (record["attempt"]["state"], record["run_end"]["kind"], record["verdict"]["status"],
                           record["verdict"]["reason"]))
 
+    def test_execution_profile_is_optional_and_preserves_legacy_records(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            legacy = self._record(Path(tmp))
+        self.assertNotIn("execution_profile", legacy["conditions"])
+        parsed = probe_records.RecordV1.model_validate_json(json.dumps(legacy))
+        self.assertIsNone(parsed.conditions.execution_profile)
+        self.assertEqual(legacy, parsed.model_dump(mode="json", exclude_unset=True))
+        for profile in (None, {"name": "static-repair-independently-verified-dec13",
+                               "authentication": "openrouter-host-proxy"}):
+            with self.subTest(profile=profile):
+                record = json.loads(json.dumps(legacy))
+                record["conditions"]["execution_profile"] = profile
+                parsed = probe_records.RecordV1.model_validate_json(json.dumps(record))
+                self.assertEqual(record, parsed.model_dump(mode="json", exclude_unset=True))
+
+    def test_execution_profile_requires_two_nonempty_strings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            record = self._record(Path(tmp))
+        for profile in ({}, {"name": "repair"}, {"authentication": "proxy"},
+                        {"name": "", "authentication": "proxy"},
+                        {"name": "repair", "authentication": ""},
+                        {"name": 1, "authentication": "proxy"},
+                        {"name": "repair", "authentication": True},
+                        {"name": "repair", "authentication": "proxy", "extra": "unknown"}, "repair"):
+            with self.subTest(profile=profile), self.assertRaises(ValueError):
+                record["conditions"]["execution_profile"] = profile
+                probe_records.RecordV1.model_validate_json(json.dumps(record))
+
     def test_the_contract_refuses_what_it_rules_out(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             valid = self._record(Path(tmp))

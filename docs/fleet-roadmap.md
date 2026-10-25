@@ -145,7 +145,7 @@ part of the incident, without delegating deployment or remediation authority.
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-18). The owner accepted [specification](fleet-evaluation/README.md)
+**Status:** `active` (2026-10-25). The owner accepted [specification](fleet-evaluation/README.md)
 revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion boundary on
 2026-10-18. By work package:
 - WP-01 complete: `evals/compare_runs.py`, merged in
@@ -153,6 +153,9 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
 - WP-02 complete on 2026-10-09: [run record](reviews/2026-10-08-wp02-native-readiness.md); the
   [EVAL-011 closeout](reviews/2026-10-10-eval-011-closeout.md) binds the repaired native
   measurement contract.
+- WP-08 implementation candidate prepared: adapter, host credential proxy, independent verifier,
+  smoke gates and offline tests; [implementation and verification evidence](reviews/2026-10-25-wp08-adapter.md).
+  Live smoke and paid trials have not run; exact-candidate acceptance remains with the owner.
 - WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md) and its
   [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
   [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
@@ -173,9 +176,12 @@ test generation, selected terminal tasks, GCP managed-service/migration and GKE 
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
 **Next action:**
-- WP-08: build the adapter and host proxy in the approved
-  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md), then the model-free smoke, one paid
-  trial on the first task, then the other nine Claude tasks; other models follow under their own approvals; WP-09 follows WP-08.
+- WP-08: review the implementation candidate, select a Docker-capable evaluation host, and freeze
+  the dataset/selection, licences, CLI, plugin and image identities using the
+  [operator commands](fleet-evaluation/wp08-operator.md). Then start the approved
+  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md)'s model-free smoke, first paid trial
+  and remaining nine Claude tasks as separate owner-started steps. Other models retain their own
+  approvals; WP-09 follows WP-08.
 - WP-13: none; complete. Use its cases as a regression check when a skill or agent changes.
   Haiku's inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
 - WP-10: the owner disposes of the bound Luna semantic proposals and names the exact candidate
