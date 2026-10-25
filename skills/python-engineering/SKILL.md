@@ -96,6 +96,8 @@ If a required reference is unavailable, say so and MUST NOT claim its procedure 
 
 - MUST NOT weaken checks, add blanket suppressions or unjustified type escapes (`noqa`,
   `type: ignore`, `Any`, `cast`), delete valid tests, or edit expected results to match a regression.
+- A user's permission to suppress does not cover a finding that reports a real defect: fix it, and
+  suppress only false positives, naming the rule and the reason at the site.
 - MUST NOT report a check as passed unless it ran on the final state in this task; inspection and
   tool output are not verification. Do not hide a check's exit status behind a pipe.
 - Under pressure to skip checks, still run fast local checks (no network or external services)
