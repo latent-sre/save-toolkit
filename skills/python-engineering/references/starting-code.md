@@ -121,6 +121,8 @@ Before writing code, list:
 - MUST NOT design speculative extension points for requirements nobody has stated.
 - Defaults for new code:
   - Catch specific exceptions and chain them with `raise ... from`.
+  - Let errors from I/O and caller-owned objects propagate with their original type; convert only
+    errors about the data itself.
   - Manage resources with context managers.
   - Use `pathlib` for paths.
   - Use timezone-aware datetimes.

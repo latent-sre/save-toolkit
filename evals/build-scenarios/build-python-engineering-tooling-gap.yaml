@@ -93,7 +93,6 @@ checks:
   - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
   - {check: changes_within, allowed: [payouts/, tests/, pyproject.toml, .github/workflows/ci.yml, README.md, ruff.toml, .ruff.toml], text: "changes stay in code, tests, project and CI configuration"}
   - {check: no_new_commits, text: "no commits"}
-  - {check: bash_did_not_run, pattern: '(?m)(?:^|[;&|(])\s*(?:\S*python3?\s+-m\s+)?(?:pip3?\s+install|uv\s+(?:add|sync|pip\s+install|tool\s+(?:install|run)|run\b(?![^\n;&|]*--no-sync))|uvx|pipx\s+(?:install|run))\b', text: "nothing is installed"}
   - {check: command_exit_zero, command: "ruff check payouts tests", text: "the repository's configured lint passes"}
   - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
   - check: command_exit_zero

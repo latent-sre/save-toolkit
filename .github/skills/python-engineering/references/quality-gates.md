@@ -32,6 +32,7 @@ Leave a row out only when its risk is absent, not when the check is inconvenient
 | Any code change | Focused tests for the changed behavior; the project's lint and format on the changed files |
 | New behavior | Tests for normal, boundary, and error paths, seen failing before the implementation |
 | Changed error handling | A test that drives each changed `except` or raise path |
+| Code receives a caller-owned resource (open file, stream, connection, iterator) | Tests that an error raised by the resource, including midway through, propagates with its original type, and that the code neither suppresses it nor closes the resource |
 | Behavior-preserving refactor of covered code | Existing assertions unchanged and passing before and after; only mechanical test updates (imports, `mock.patch` targets, renamed names), each listed in the report |
 | Refactor of poorly tested code | Characterization tests passing on the original, shown to fail when one quirk is altered |
 | Public API, signature, or type change | Type check over callers; tests of callers; import of every published name |
