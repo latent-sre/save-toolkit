@@ -1,0 +1,4 @@
+{
+  "report": "Added clamp_bps(value: int, ceiling: int = 500) -> int in bps.py that clamps non-negative values to an upper ceiling and raises ValueError if value < 0 or ceiling <= 0. Added unit tests in tests/test_bps.py verifying standard clamping, boundary values, custom ceilings, negative values, and non-positive ceilings.\n\nVerification: Verified using the repository's configured quality gates (pytest, ruff, mypy strict mode). All 5 pytest tests pass, ruff reports no issues, and mypy passes with 0 issues.",
+  "loaded_references": []
+}

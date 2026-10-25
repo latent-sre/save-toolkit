@@ -1,0 +1,4 @@
+{
+  "report": "Replaced the custom line-based TOML parser in config_loader.py with Python's standard-library tomllib.loads. Preserved the ConfigError exception contract by wrapping tomllib.TOMLDecodeError, and preserved strict boolean validation to ensure 'enabled' (including nested tables) must be a strict boolean, rejecting string representations like 'false' or numeric representations like 0 or 1.\n\nVerification: Added comprehensive tests covering basic configs, quoted strings containing '#' characters, inline arrays, inline/full comments, strict boolean rejections, and TOML syntax errors. All 7 pytest tests pass and ruff check passes cleanly.",
+  "loaded_references": []
+}

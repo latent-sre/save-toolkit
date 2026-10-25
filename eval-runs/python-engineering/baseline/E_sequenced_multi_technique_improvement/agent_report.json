@@ -1,0 +1,4 @@
+{
+  "report": "Refactored margin_check.py in sequenced steps:\n1. Separated CSV parsing into Position dataclass and parse_csv_line/parse_csv_lines functions.\n2. Eliminated duplicated notional computation by adding a notional property on Position.\n3. Replaced nested conditionals with a MARGIN_RATES mapping dispatch.\n4. Encapsulated evaluation state into MarginEvaluator to remove reliance on global mutable state, while preserving backwards compatibility in evaluate_csv_lines and _MARGIN_ALERTS.\n5. Added support for instrument_type='FUTURE' with a 0.10 margin rate.\n\nVerification: Added comprehensive tests covering equities, options, futures, concentration alerts, malformed input, and direct MarginEvaluator use. All 6 pytest tests pass and ruff check passes cleanly.",
+  "loaded_references": []
+}
