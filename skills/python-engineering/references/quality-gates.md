@@ -33,7 +33,13 @@ match the task:
    introduced by your work.
 2. **Use the repository's actual interpreter and commands.** Run checks using the project's virtual
    environment (`.venv/bin/python` or `.venv\Scripts\python.exe` / `uv run`) and configured flags in
-   `pyproject.toml` or CI workflows.
+   `pyproject.toml` or CI workflows. Record the selected `sys.executable` and `sys.version`, run
+   baseline and final checks through that same interpreter, and invoke tools as
+   `<python> -m pytest` / `-m mypy` so an unrelated `PATH` install is not used.
+   - For uv projects, use `uv run --locked` (fails on a stale lock); `--frozen` skips the freshness
+     check and `--no-sync` can run stale dependencies, so neither is stronger validation.
+   - MUST NOT run `uv pip sync` with a sparse requirements file against a shared environment; it
+     removes every package outside its input.
 3. **Iterate with fast, focused checks.** During step-by-step refactoring or vertical-slice
    implementation, run `python -m pytest <affected_test_file>` and `python -m ruff check <affected_files>`
    after each step to catch regressions immediately.

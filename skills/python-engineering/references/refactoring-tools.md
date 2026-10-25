@@ -55,6 +55,9 @@ Every automated transformation MUST satisfy these controls:
   `F401`), or applying safe simplifications (`SIM`).
 - **Required practice:**
   - Scope rules to target files and project `--target-version` (e.g., `py312`).
+  - For check-only runs, use `ruff check --no-fix --no-fix-only <paths>`: an inherited
+    `fix-only = true` otherwise applies fixes and hides remaining violations. `ruff check --diff`
+    implies fix-only, so a clean diff does not prove a clean lint run.
   - Keep formatting (`ruff format`) separate from semantic refactoring commits or steps.
   - Check `__init__.py` and plugin registration modules before removing "unused" imports (`F401`) that
     exist for re-export or import-time registration side effects.
@@ -69,9 +72,11 @@ Every automated transformation MUST satisfy these controls:
 ### Rope for Symbol-Aware Refactoring
 - **Use when:** Moving functions/classes across modules or renaming symbols with many static import
   sites where Rope is available or justified in development tooling.
-- **Required practice:** Always inspect `changes.get_description()` prior to `project.do(changes)`,
-  remove any temporary `.ropeproject/` directory before committing, and manually check dynamic
-  `importlib` / string references that Rope cannot see.
+- **Required practice:** Call `project.validate(project.root)` before constructing each refactoring
+  (edits made outside Rope leave its analysis stale), inspect `changes.get_description()` prior to
+  `project.do(changes)`, close the project with `project.close()` in a `finally` block, remove any
+  temporary `.ropeproject/` directory before committing, and manually check dynamic `importlib` /
+  string references that Rope cannot see. MUST NOT accept all "unsure" rename occurrences wholesale.
 
 ### Standard-Library `ast` Analysis
 - **Use when:** Auditing symbol definitions, verifying all functions carry return annotations, finding

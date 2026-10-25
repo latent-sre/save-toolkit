@@ -273,7 +273,10 @@ improvement requires staged restructuring; use additional verified techniques wh
 ### R19. Remove Dead Code After Checking Static and Dynamic Usage
 - **Trigger:** Uncalled functions, unused classes, obsolete feature flags, or retired migration shims.
 - **Preconditions:** Search static references across the repo AND check dynamic mechanisms (`getattr`,
-  `globals()`, `__all__`, entry points, templates, config files, serialization registries).
+  `globals()`, `__all__`, entry points, templates, config files, serialization registries). When
+  available, use `vulture` (unreferenced definitions) and `deptry` (declared-but-unimported
+  dependencies) as leads only: confirm the detector reports a known leftover before trusting a clean
+  run, and treat entry points, registries, and dynamic lookups as false "unused" hits.
 - **Transformation:** Delete the dead symbol, its dead imports, and obsolete tests that only tested the
   deleted internal shim.
 - **Verification:** Run test suite, linter (`F401`/`F841`), type checker, and package import checks.
@@ -310,6 +313,19 @@ Check these language-specific failure modes before and after every transformatio
 - **Async cancellation, concurrency, and resource lifetimes:** Moving file/socket/lock acquisition out
   of a function must preserve deterministic context-manager (`with` / `async with`) lifetimes and
   propagate `asyncio.CancelledError` without swallowing it in broad `except BaseException:` blocks.
+- **`TaskGroup` migrations (3.11+):** `asyncio.TaskGroup` is not a drop-in `gather` replacement or a
+  concurrency limit. Failures arrive as `ExceptionGroup`, so `except ValueError` misses them; handle
+  inside each task or use `except*` (whose handler cannot `return`, `break`, or `continue`). Wrap the
+  whole operation in one deadline (`asyncio.timeout()`), not a fresh timeout per `await`.
+- **Guard-clause and truthiness inversion:** Negate an accepted condition literally
+  (`not (limit is None or limit >= 0)`); rewriting it as `limit is not None and limit < 0` lets
+  `float("nan")` through because both comparisons are false. `if not x` conflates `0`, `""`, empty
+  collections, and `None`. Computed slices need edge checks: `items[-n:]` returns everything when
+  `n == 0`. Test zero, one, empty, NaN, and more-than-available inputs after the rewrite.
+- **Annotation evaluation:** Removing `from __future__ import annotations` or unquoting forward
+  references is safe only when every supported runtime is 3.14+ (deferred evaluation); below that
+  floor it raises `NameError` at definition time, and runtime annotation readers (Pydantic,
+  dataclasses, `typing.get_type_hints`) see strings vs. objects differently.
 
 ## Sequencing Mixed Work and Incremental Migrations
 
@@ -319,5 +335,9 @@ Check these language-specific failure modes before and after every transformatio
 - **Stage large restructurings through a target design.** Define the target module/data design, execute
   coherent steps that keep tests runnable between steps, and never substitute a blind from-scratch
   rewrite for understanding existing edge-case contracts.
+- **Mark compatibility bridges that must outlive the task.** Decorate them with
+  `warnings.deprecated` (3.13+; `typing_extensions.deprecated` below that floor) so runtime warnings
+  fire and type checkers list remaining callers (mypy requires its `deprecated` error code enabled),
+  and record the removal condition.
 - **Finish the migration.** Remove temporary compatibility shims, duplicate old helpers, and unused
   imports in the same task once all in-scope callers are migrated and cutover criteria are met.
