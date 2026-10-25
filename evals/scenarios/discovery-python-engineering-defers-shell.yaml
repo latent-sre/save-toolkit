@@ -1,0 +1,11 @@
+id: discovery-python-engineering-defers-shell
+max_turns: 4
+split: calibration
+prompt: |
+  Give me a bash one-liner that lists files over 1 GB under /var/log, largest first.
+target: {kind: skill, name: python-engineering}
+routing:
+  expect: not_fire
+  expected_alternative: main_session
+success_criteria:
+  - Answers a shell question without loading Python guidance

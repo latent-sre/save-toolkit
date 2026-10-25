@@ -1,0 +1,11 @@
+id: discovery-python-engineering-new-project
+max_turns: 4
+split: calibration
+prompt: |
+  Start a new Python command-line tool that reads our deployment manifests and reports image tags
+  that drifted from the release list. Set the project up so it stays maintainable.
+target: {kind: skill, name: python-engineering}
+routing:
+  expect: fire
+success_criteria:
+  - Loads Python engineering guidance before establishing a new project

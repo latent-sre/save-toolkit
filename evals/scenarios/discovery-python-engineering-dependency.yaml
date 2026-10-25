@@ -1,0 +1,11 @@
+id: discovery-python-engineering-dependency
+max_turns: 4
+split: calibration
+prompt: |
+  Replace the hand-written retry loop in our Python service's HTTP client with a maintained retry
+  library, and update pyproject.toml and the uv lockfile to match.
+target: {kind: skill, name: python-engineering}
+routing:
+  expect: fire
+success_criteria:
+  - Loads Python engineering guidance for a dependency change that replaces custom code

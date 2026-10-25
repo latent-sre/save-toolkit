@@ -1,0 +1,12 @@
+id: discovery-python-engineering-defers-incident
+max_turns: 4
+split: calibration
+prompt: |
+  Our Python payments service started returning 500s in production ten minutes ago and the bridge
+  is open. No code changes are requested yet; what should I check first?
+target: {kind: skill, name: python-engineering}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: incident-investigation}
+success_criteria:
+  - Uses incident guidance for a running Python service without loading implementation guidance

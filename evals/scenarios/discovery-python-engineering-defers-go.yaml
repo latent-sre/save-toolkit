@@ -1,0 +1,12 @@
+id: discovery-python-engineering-defers-go
+max_turns: 4
+split: calibration
+prompt: |
+  Refactor our Go worker package to remove its package-level logger and pass a logger into the
+  worker constructor instead. Keep the exported API compatible for one release.
+target: {kind: skill, name: python-engineering}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: go-craft}
+success_criteria:
+  - Does not load Python guidance for a Go change

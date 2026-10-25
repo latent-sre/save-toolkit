@@ -1,0 +1,107 @@
+id: build-python-engineering-tooling-gap
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+# Case H (gap): CI runs only the tests, and an undefined name in an untested error path shipped.
+# Ruff is installed on the trial host. The oracle requires a lint step in CI that catches the
+# class of defect, no duplicate linter toolchain, the defect fixed, and candidate tests that
+# catch the original defect.
+max_turns: 40
+prompt: |
+  Load the `python-engineering` skill before you start.
+  INC-2291: last release crashed with a NameError in an error path our tests never exercised. Make
+  sure our checks would catch this class of problem before merge from now on, and fix whatever they
+  find. CI configuration is in scope. Work offline with the tools already on this machine; do not
+  install anything or commit. Report what you changed and how you verified it.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n.ruff_cache/\n"
+    README.md: |
+      # payouts
+
+      Refund and payout helpers for the billing service. Runs on Python 3.12+.
+
+      Tests are unittest, run from the repo root:
+
+          python -m unittest discover -s tests -t . -v
+    pyproject.toml: |
+      [project]
+      name = "payouts"
+      version = "0.9.2"
+      requires-python = ">=3.12"
+      dependencies = []
+    .github/workflows/ci.yml: |
+      name: ci
+      on: [pull_request]
+      jobs:
+        test:
+          runs-on: ubuntu-latest
+          steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              with:
+                python-version: "3.12"
+            - run: python -m unittest discover -s tests -t . -v
+    payouts/__init__.py: ""
+    payouts/refunds.py: |
+      """Refunds against captured payments."""
+
+      import logging
+      import os
+
+      log = logging.getLogger(__name__)
+
+
+      class RefundError(Exception):
+          """A refund the payment cannot cover."""
+
+
+      def refund(payment: dict, amount: int) -> dict:
+          if amount > payment["amount"]:
+              log.warning("refund rejected for %s", payment["id"])
+              raise RefundError(f"refund {amount} exceeds payment {payment['id']} of {paymnet['amount']}")
+          return {"payment": payment["id"], "amount": amount, "currency": payment["currency"]}
+    payouts/batch.py: |
+      """Batch payouts."""
+
+      from payouts.refunds import refund
+
+
+      def refund_all(payments: list[dict], amount: int) -> list[dict]:
+          results = []
+          for payment in payments:
+              try:
+                  results.append(refund(payment, amount))
+              except ValueError as exc:
+                  results.append({"payment": payment["id"], "error": f"invalid payment"})
+          return results
+    tests/__init__.py: ""
+    tests/test_refunds.py: |
+      import unittest
+
+      from payouts.refunds import refund
+
+
+      class RefundTests(unittest.TestCase):
+          def test_partial_refund(self) -> None:
+              payment = {"id": "p-1", "amount": 50, "currency": "USD"}
+              self.assertEqual({"payment": "p-1", "amount": 20, "currency": "USD"}, refund(payment, 20))
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
+  - {check: changes_within, allowed: [payouts/, tests/, pyproject.toml, .github/workflows/ci.yml, README.md, ruff.toml, .ruff.toml], text: "changes stay in code, tests, project and CI configuration"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: bash_did_not_run, pattern: '(?m)(?:^|[;&|(])\s*(?:\S*python3?\s+-m\s+)?(?:pip3?\s+install|uv\s+(?:add|sync|pip\s+install|tool\s+(?:install|run)|run\b(?![^\n;&|]*--no-sync))|uvx|pipx\s+(?:install|run))\b', text: "nothing is installed"}
+  - {check: command_exit_zero, command: "ruff check payouts tests", text: "the repository's configured lint passes"}
+  - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
+  - check: command_exit_zero
+    command: "python -I -B oracle_protocol.py _lint_gap_oracle.py"
+    writes_from: {_lint_gap_oracle.py: evals/oracles/python-engineering/check_lint_gap.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    failure_exit_code: 10
+    text: "CI lints for undefined names with one toolchain, the defect is fixed, and tests catch the original"
+success_criteria:
+  - Adds one executable lint gate to CI rather than relying on written guidance
+  - Fixes the findings and adds a test for the error path
+  - Does not introduce a second, overlapping linter

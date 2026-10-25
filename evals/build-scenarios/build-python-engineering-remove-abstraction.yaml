@@ -1,0 +1,146 @@
+id: build-python-engineering-remove-abstraction
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+# Case F: an abstraction that should be removed rather than expanded. One email channel sits
+# behind a base class, two factory classes, a provider and a manager; the README rules out other
+# channels. The oracle requires the cc feature, unchanged default messages and app.py, and the
+# indirection layers gone.
+max_turns: 40
+prompt: |
+  Load the `python-engineering` skill before you start.
+  Alerts need a cc list: `send_alert(..., cc=[...])` should add a Cc header. Also, the alerts
+  package takes five modules and six classes to send one email, and whoever touches it next has to
+  trace through all of them. Make the change and leave the package in better shape. Do not commit.
+  Report what you changed and how you verified it.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    README.md: |
+      # incident-pager
+
+      Sends on-call alert emails. `alerts.send_alert` is the only entry point; `app.py` is the
+      only caller. Email is the only channel and there are no plans for others (paging goes
+      through the email-to-pager gateway).
+
+      Tests are unittest, run from the repo root:
+
+          python -m unittest discover -s tests -t . -v
+    app.py: |
+      import alerts
+
+
+      def page_on_call(transport, problem: str) -> None:
+          alerts.send_alert(transport, "oncall@example.com", f"ALERT: {problem}", "See the dashboard.")
+    alerts/__init__.py: |
+      from .factory import DefaultNotifierFactory
+      from .manager import NotificationManager
+      from .provider import NotifierProvider
+
+      __all__ = ["send_alert"]
+
+
+      def send_alert(transport, recipient, subject, body):
+          manager = NotificationManager(NotifierProvider(DefaultNotifierFactory()))
+          return manager.notify(transport, recipient, subject, body)
+    alerts/base.py: |
+      from abc import ABC, abstractmethod
+
+
+      class Notifier(ABC):
+          @abstractmethod
+          def send(self, recipient, subject, body):
+              raise NotImplementedError
+    alerts/email_notifier.py: |
+      from email.message import EmailMessage
+
+      from .base import Notifier
+
+      SENDER = "alerts@example.com"
+
+
+      class EmailNotifier(Notifier):
+          def __init__(self, transport):
+              self._transport = transport
+
+          def send(self, recipient, subject, body):
+              message = EmailMessage()
+              message["From"] = SENDER
+              message["To"] = recipient
+              message["Subject"] = subject
+              message.set_content(body)
+              self._transport.send_message(message)
+              return message
+    alerts/factory.py: |
+      from abc import ABC, abstractmethod
+
+      from .email_notifier import EmailNotifier
+
+
+      class NotifierFactory(ABC):
+          @abstractmethod
+          def create(self, transport):
+              raise NotImplementedError
+
+
+      class DefaultNotifierFactory(NotifierFactory):
+          def create(self, transport):
+              return EmailNotifier(transport)
+    alerts/provider.py: |
+      class NotifierProvider:
+          def __init__(self, factory):
+              self._factory = factory
+
+          def get(self, transport):
+              return self._factory.create(transport)
+    alerts/manager.py: |
+      class NotificationManager:
+          def __init__(self, provider):
+              self._provider = provider
+
+          def notify(self, transport, recipient, subject, body):
+              return self._provider.get(transport).send(recipient, subject, body)
+    tests/__init__.py: ""
+    tests/test_alerts.py: |
+      import unittest
+
+      import alerts
+      import app
+
+
+      class FakeTransport:
+          def __init__(self) -> None:
+              self.sent = []
+
+          def send_message(self, message) -> None:
+              self.sent.append(message)
+
+
+      class AlertTests(unittest.TestCase):
+          def test_send_alert(self) -> None:
+              transport = FakeTransport()
+              alerts.send_alert(transport, "ops@example.com", "Disk full", "db-3 at 97%")
+              (message,) = transport.sent
+              self.assertEqual("ops@example.com", message["To"])
+              self.assertEqual("Disk full", message["Subject"])
+
+          def test_app_pages_on_call(self) -> None:
+              transport = FakeTransport()
+              app.page_on_call(transport, "replica lag")
+              self.assertEqual("ALERT: replica lag", transport.sent[0]["Subject"])
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
+  - {check: changes_within, allowed: [alerts/, tests/, README.md], text: "app.py and the rest stay unchanged"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
+  - check: command_exit_zero
+    command: "python -I -B oracle_protocol.py _alerts_oracle.py"
+    writes_from: {_alerts_oracle.py: evals/oracles/python-engineering/check_alerts_simplified.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    failure_exit_code: 10
+    text: "cc works, default messages and app.py unchanged, and the single-implementation layers are removed"
+success_criteria:
+  - Removes the base class, factories, provider and manager instead of threading cc through each layer
+  - Keeps send_alert's existing behavior and its only caller unchanged

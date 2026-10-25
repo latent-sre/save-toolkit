@@ -1,0 +1,99 @@
+id: build-python-engineering-tooling-adequate
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+# Case H (adequate): the project's Ruff and unittest setup already covers the change. The agent
+# should use the repository's own commands and leave the toolchain alone: no new linters,
+# formatters, type-checker configuration or CI edits.
+max_turns: 30
+prompt: |
+  Load the `python-engineering` skill before you start.
+  Add `restock_candidates(items, threshold)` to `inventory/stock.py`: return the SKUs of items whose
+  quantity is below `threshold`, ordered by quantity and then SKU. Make sure it meets our quality
+  bar. Do not commit. Report what you changed and how you verified it.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n.ruff_cache/\n"
+    README.md: |
+      # inventory
+
+      Stock helpers for the warehouse service.
+
+      Quality bar (CI runs exactly these):
+
+          ruff check .
+          ruff format --check .
+          python -m unittest discover -s tests -t . -v
+    pyproject.toml: |
+      [project]
+      name = "inventory"
+      version = "2.1.0"
+      requires-python = ">=3.12"
+      dependencies = []
+
+      [tool.ruff]
+      line-length = 100
+
+      [tool.ruff.lint]
+      select = ["E", "F", "W", "B", "I", "UP", "SIM", "RUF"]
+    .github/workflows/ci.yml: |
+      name: ci
+      on: [pull_request]
+      jobs:
+        check:
+          runs-on: ubuntu-latest
+          steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-python@v5
+              with:
+                python-version: "3.12"
+            - run: pip install ruff==0.17.0
+            - run: ruff check .
+            - run: ruff format --check .
+            - run: python -m unittest discover -s tests -t . -v
+    inventory/__init__.py: ""
+    inventory/stock.py: |
+      """Stock levels for warehouse items."""
+
+      from collections.abc import Iterable
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True, slots=True)
+      class Item:
+          sku: str
+          quantity: int
+
+
+      def total_units(items: Iterable[Item]) -> int:
+          return sum(item.quantity for item in items)
+    tests/__init__.py: ""
+    tests/test_stock.py: |
+      import unittest
+
+      from inventory.stock import Item, total_units
+
+
+      class StockTests(unittest.TestCase):
+          def test_total_units(self) -> None:
+              self.assertEqual(7, total_units([Item("A", 3), Item("B", 4)]))
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
+  - {check: changes_within, allowed: [inventory/stock.py, tests/], text: "the toolchain, configuration and CI stay unchanged"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: bash_ran, pattern: '\bruff\s+check\b', text: "ran the project's lint command"}
+  - {check: bash_ran, pattern: '\bruff\s+format\b', text: "ran the project's format check"}
+  - {check: command_exit_zero, command: "ruff check inventory tests", text: "lint passes when the probe runs it"}
+  - {check: command_exit_zero, command: "ruff format --check inventory tests", text: "formatting passes when the probe runs it"}
+  - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
+  - check: command_exit_zero
+    command: "python -I -B oracle_protocol.py _restock_oracle.py"
+    writes_from: {_restock_oracle.py: evals/oracles/python-engineering/check_restock.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    failure_exit_code: 10
+    text: "restock_candidates filters, orders and accepts any iterable"
+success_criteria:
+  - Uses the repository's documented checks rather than introducing another toolchain
+  - Does not change lint, format or CI configuration for a feature change

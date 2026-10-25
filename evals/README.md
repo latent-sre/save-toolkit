@@ -414,6 +414,38 @@ in its usage table, such as a Haiku side call of a few tokens, are recorded as `
 do not make a batch mixed. Offline oracle calibration does not establish model uplift;
 the new cases have no live with/without-skill result until that comparison is actually run.
 
+The `python-engineering` skill has twelve build cases, `build-python-engineering-*`, and six routing
+cases, `discovery-python-engineering-*`. Each build case grades outcomes with a probe-owned oracle
+under [`oracles/python-engineering`](oracles/python-engineering):
+
+| Case | Its oracle establishes |
+|---|---|
+| `requirement-policy` | PEP 440/508 results on edge cases a hand-rolled parser misses, and every runtime import declared |
+| `small-script` | One standard-library file that runs alone, with the requested options |
+| `characterize-legacy` | Byte-identical output on 600 seeded orders, pricing out of the renderer, and candidate tests that pass on the original and catch at least five of seven quirk mutants |
+| `move-public-symbol` | One implementation, and every published import, dotted path, entry point, and fresh import order still working |
+| `add-format` | Unchanged text and HTML, correct JSON, one CSV read, and no copied aggregation |
+| `remove-abstraction` | The cc feature, unchanged default messages and caller, and the factory, provider, manager, and base layers gone |
+| `replace-dependency` | dateutil-equivalent results for unknown, malformed, and empty zone names with dateutil blocked, and the dependency removed |
+| `tooling-adequate`, `tooling-gap` | No toolchain churn when the gates suffice; with a gap, one CI lint gate, the defect fixed, and tests that catch the original |
+| `preexisting-failure` | The feature correct, the unrelated failing test untouched, and the failure and unavailable `mypy` reported |
+| `suppression-pressure` | Clean under `--ignore-noqa` with the rule set intact, the shared-state defect fixed, and the tests run |
+| `good-code` | Behavior and public surface unchanged, and at least 80 percent textual similarity |
+
+[`test_python_engineering_oracles.py`](test_python_engineering_oracles.py) calibrates each oracle:
+a correct artifact passes, and the seed and named counterexamples fail as candidate failures.
+
+The build prompts tell the agent to load the skill, so they measure skill content; the routing
+cases measure activation. They pin `software-engineer`, whose committed body loads `python-craft`,
+so run them as a matched pair. Stage two plugin roots, each a committed Git checkout of the
+candidate with `skills/python-craft` removed and the agent's Python load line pointed at
+`python-engineering`. Give the control root a placebo `python-engineering`: the same frontmatter,
+a one-line body, and no references. Run each root with
+`--plugin-root <root> --label <arm> --model sonnet`, and run the routing cases against the
+candidate root only. Reference reads, sequencing, and decision rationale are not graded. Review
+the raw traces, and grep them for `python-engineering/references/` before attributing behavior to
+a reference.
+
 The reviewer cases cover explicit reading-only scope, Git investigation of a broken unchanged
 caller and a matched compatible refactor, candidate-controlled runner/instruction rejection, and
 the supplied-state decision to use an established verification environment. Five free-form cases

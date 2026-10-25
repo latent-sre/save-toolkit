@@ -1,0 +1,154 @@
+id: build-python-engineering-good-code
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+# Case K: good existing code that should stay substantially unchanged. The module is typed,
+# validated, clock-injected and tested; its thread-safety boundary is documented. The oracle
+# requires identical behavior, the same public surface and at least 80 percent textual similarity.
+max_turns: 30
+prompt: |
+  Load the `python-engineering` skill before you start.
+  Can you improve `ratelimit/token_bucket.py`? It's going into our new API gateway and I want it
+  to be solid. Do not commit. Report what you changed, or why you didn't, and how you verified it.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n.ruff_cache/\n"
+    README.md: |
+      # ratelimit
+
+      Request admission for the API gateway. Each gateway worker runs one asyncio event loop and
+      owns its buckets; nothing is shared across threads or processes.
+
+      Checks (CI runs exactly these):
+
+          ruff check .
+          ruff format --check .
+          python -m unittest discover -s tests -t . -v
+    pyproject.toml: |
+      [project]
+      name = "ratelimit"
+      version = "1.2.0"
+      requires-python = ">=3.12"
+      dependencies = []
+
+      [tool.ruff]
+      line-length = 100
+
+      [tool.ruff.lint]
+      select = ["E", "F", "W", "B", "I", "UP", "SIM", "RUF"]
+    ratelimit/__init__.py: ""
+    ratelimit/token_bucket.py: |
+      """Token-bucket rate limiting for request admission.
+
+      Not thread-safe: the gateway calls it from a single event-loop thread per worker.
+      """
+
+      import time
+      from collections.abc import Callable
+      from dataclasses import dataclass, field
+
+
+      @dataclass(slots=True)
+      class TokenBucket:
+          """Admit up to `capacity` units at once, refilling at `rate` units per second."""
+
+          rate: float
+          capacity: int
+          clock: Callable[[], float] = time.monotonic
+          _tokens: float = field(init=False)
+          _updated: float = field(init=False)
+
+          def __post_init__(self) -> None:
+              if self.rate <= 0:
+                  raise ValueError(f"rate must be positive, got {self.rate}")
+              if self.capacity <= 0:
+                  raise ValueError(f"capacity must be positive, got {self.capacity}")
+              self._tokens = float(self.capacity)
+              self._updated = self.clock()
+
+          @property
+          def available(self) -> float:
+              self._refill()
+              return self._tokens
+
+          def try_acquire(self, units: int = 1) -> bool:
+              """Take `units` tokens if all are available; never takes a partial amount."""
+              if not 0 < units <= self.capacity:
+                  raise ValueError(f"units must be in 1..{self.capacity}, got {units}")
+              self._refill()
+              if self._tokens < units:
+                  return False
+              self._tokens -= units
+              return True
+
+          def _refill(self) -> None:
+              now = self.clock()
+              elapsed = max(0.0, now - self._updated)
+              self._tokens = min(float(self.capacity), self._tokens + elapsed * self.rate)
+              self._updated = max(self._updated, now)
+    tests/__init__.py: ""
+    tests/test_token_bucket.py: |
+      import unittest
+
+      from ratelimit.token_bucket import TokenBucket
+
+
+      class FakeClock:
+          def __init__(self) -> None:
+              self.now = 0.0
+
+          def __call__(self) -> float:
+              return self.now
+
+
+      class TokenBucketTests(unittest.TestCase):
+          def setUp(self) -> None:
+              self.clock = FakeClock()
+              self.bucket = TokenBucket(rate=2.0, capacity=4, clock=self.clock)
+
+          def test_starts_full_and_refuses_beyond_capacity(self) -> None:
+              self.assertTrue(self.bucket.try_acquire(4))
+              self.assertFalse(self.bucket.try_acquire())
+
+          def test_refills_at_rate_up_to_capacity(self) -> None:
+              self.bucket.try_acquire(4)
+              self.clock.now = 1.0
+              self.assertAlmostEqual(2.0, self.bucket.available)
+              self.clock.now = 60.0
+              self.assertAlmostEqual(4.0, self.bucket.available)
+
+          def test_refusal_takes_nothing(self) -> None:
+              self.bucket.try_acquire(3)
+              self.assertFalse(self.bucket.try_acquire(2))
+              self.assertAlmostEqual(1.0, self.bucket.available)
+
+          def test_clock_going_backwards_does_not_refill(self) -> None:
+              self.bucket.try_acquire(4)
+              self.clock.now = -5.0
+              self.assertAlmostEqual(0.0, self.bucket.available)
+
+          def test_rejects_invalid_configuration_and_units(self) -> None:
+              for rate, capacity in ((0, 1), (1, 0), (-1, 1)):
+                  with self.assertRaises(ValueError):
+                      TokenBucket(rate=rate, capacity=capacity, clock=self.clock)
+              for units in (0, -1, 5):
+                  with self.assertRaises(ValueError):
+                      self.bucket.try_acquire(units)
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
+  - {check: changes_within, allowed: [ratelimit/token_bucket.py, tests/, README.md], text: "no new modules, dependencies or configuration"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: command_exit_zero, command: "ruff check ratelimit tests", text: "lint passes when the probe runs it"}
+  - {check: command_exit_zero, command: "ruff format --check ratelimit tests", text: "formatting passes when the probe runs it"}
+  - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
+  - check: command_exit_zero
+    command: "python -I -B oracle_protocol.py _token_bucket_oracle.py"
+    writes_from: {_token_bucket_oracle.py: evals/oracles/python-engineering/check_token_bucket.py, _token_bucket_original.py: evals/oracles/python-engineering/token_bucket_original.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    failure_exit_code: 10
+    text: "behavior and public surface unchanged, module substantially the same"
+success_criteria:
+  - Assesses the module and reports that no material change is warranted, or makes only small justified edits
+  - Does not add locks, abstractions, configuration or dependencies the documented constraints rule out

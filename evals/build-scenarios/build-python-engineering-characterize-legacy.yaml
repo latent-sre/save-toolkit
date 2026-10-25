@@ -1,0 +1,102 @@
+id: build-python-engineering-characterize-legacy
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+# Case C: a poorly tested legacy function that needs characterization before decomposition. The
+# oracle compares output with the original on 600 seeded orders, requires the pricing rules to
+# leave render_invoice, and replays the candidate's own suite against the original (must pass)
+# and seven single-quirk mutants of it (at least five must fail).
+max_turns: 50
+prompt: |
+  Load the `python-engineering` skill before you start.
+  `billing.invoice.render_invoice(order)` is the riskiest code we own: nobody wants to touch it,
+  and next sprint we have to add region-specific coupon rules. Restructure it so the pricing rules
+  (line totals, discounts, tax) can be tested and changed without going through the text
+  rendering. Its output must stay byte-for-byte identical for every order it handles today, and
+  `billing.invoice.render_invoice(order)` stays the entry point. Do not commit. Report what you
+  changed and how you verified it.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    README.md: |
+      # billing
+
+      Invoice rendering for the order service. `billing.invoice.render_invoice(order)` returns the
+      plain-text invoice the mailer sends; finance reconciles against that text, so its exact
+      format matters.
+
+      Tests are unittest, run from the repo root:
+
+          python -m unittest discover -s tests -t . -v
+    billing/__init__.py: ""
+    billing/invoice.py: |
+      def render_invoice(order):
+          lines = []
+          subtotal = 0
+          for item in order["items"]:
+              qty = item.get("qty", 1)
+              if qty < 0:
+                  qty = 0
+              price = item["price"]
+              if item.get("sku", "").startswith("GIFT-"):
+                  price = 0
+              line_total = qty * price
+              subtotal += line_total
+              lines.append("%-20s %3d x %8.2f = %9.2f" % (item["name"][:20], qty, price, line_total))
+          discount = 0
+          code = order.get("coupon")
+          if code == "SAVE10":
+              discount = subtotal * 0.10
+          elif code == "BULK" and subtotal > 500:
+              discount = 50
+          elif code and code.startswith("PCT"):
+              try:
+                  discount = subtotal * int(code[3:]) / 100
+              except ValueError:
+                  discount = 0
+          if discount > subtotal:
+              discount = subtotal
+          taxable = subtotal - discount
+          region = order.get("region", "US")
+          if region == "US":
+              tax = taxable * 0.07
+          elif region == "EU":
+              tax = taxable * 0.20
+          else:
+              tax = 0
+          total = round(taxable + tax, 2)
+          lines.append("Subtotal: %.2f" % subtotal)
+          if discount:
+              lines.append("Discount: -%.2f" % discount)
+          lines.append("Tax: %.2f" % tax)
+          lines.append("Total: %.2f" % total)
+          return "\n".join(lines)
+    tests/__init__.py: ""
+    tests/test_invoice.py: |
+      import unittest
+
+      from billing.invoice import render_invoice
+
+
+      class InvoiceTests(unittest.TestCase):
+          def test_simple_us_order(self) -> None:
+              order = {"items": [{"name": "Widget", "qty": 2, "price": 10.0}], "region": "US"}
+              self.assertIn("Total: 21.40", render_invoice(order))
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
+  - {check: changes_within, allowed: [billing/, tests/, README.md], text: "changes stay in billing, its tests and README"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
+  - check: command_exit_zero
+    command: "python -I -B oracle_protocol.py _invoice_oracle.py"
+    writes_from: {_invoice_oracle.py: evals/oracles/python-engineering/check_invoice_characterization.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    failure_exit_code: 10
+    timeout: 300
+    text: "identical output and errors, pricing separated from rendering, and tests that characterize the original's quirks"
+success_criteria:
+  - Adds characterization tests that pass against the original before restructuring it
+  - Separates pricing from rendering without changing output, including float formatting and quirks
+  - Records discovered questionable behavior separately instead of changing it

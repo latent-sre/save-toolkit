@@ -1,0 +1,178 @@
+id: build-python-engineering-move-public-symbol
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+# Case D: a cross-module move with public re-exports, an entry point, a configuration dotted path
+# and a dynamic registry. The oracle requires one implementation in ledger/money.py, every
+# published path still working (old dotted string included), internal callers updated, and fresh
+# imports of each module in any order.
+max_turns: 45
+prompt: |
+  Load the `python-engineering` skill before you start.
+  `ledger/helpers.py` has become a grab bag. Move the money functions, `format_amount` and
+  `parse_amount`, into a new module `ledger/money.py` and update the codebase to use it. This ships
+  in our next minor release. Do not commit. Report what you changed and how you verified it.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    README.md: |
+      # ledger
+
+      Decimal ledger helpers shared by the payments services, published to our internal index
+      under semantic versioning.
+
+      Published API: `ledger.Ledger`, `ledger.format_amount`, `ledger.parse_amount`, and
+      `ledger.helpers.format_amount` / `ledger.helpers.parse_amount`, which older services import
+      directly. Deployed services also choose formatters by dotted path in their own `ledger.toml`
+      (see the sample in this repo) and through the `ledger.formatters` entry-point group.
+
+      Tests are unittest, run from the repo root:
+
+          python -m unittest discover -s tests -t . -v
+    pyproject.toml: |
+      [project]
+      name = "ledger"
+      version = "1.4.0"
+      requires-python = ">=3.12"
+      dependencies = []
+
+      [project.entry-points."ledger.formatters"]
+      plain = "ledger.helpers:format_amount"
+
+      [build-system]
+      requires = ["setuptools>=69"]
+      build-backend = "setuptools.build_meta"
+    ledger.toml: |
+      # Sample service configuration: the formatter used for statements.
+      formatter = "ledger.helpers:format_amount"
+    ledger/__init__.py: |
+      """Decimal ledger helpers for the payments services."""
+
+      from .core import Ledger
+      from .helpers import format_amount, parse_amount
+
+      __all__ = ["Ledger", "format_amount", "parse_amount"]
+    ledger/helpers.py: |
+      """Shared helpers."""
+
+      import re
+      from collections.abc import Iterable, Iterator
+      from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+
+      CENT = Decimal("0.01")
+
+
+      def format_amount(amount: Decimal) -> str:
+          """Two places with thousands separators, rounding half up."""
+          return f"{amount.quantize(CENT, rounding=ROUND_HALF_UP):,.2f}"
+
+
+      def parse_amount(text: str) -> Decimal:
+          """Parse user-entered text such as ' 1,234.50 '."""
+          try:
+              return Decimal(text.strip().replace(",", ""))
+          except InvalidOperation:
+              raise ValueError(f"not an amount: {text!r}") from None
+
+
+      def chunked(items: Iterable[str], size: int) -> Iterator[list[str]]:
+          batch: list[str] = []
+          for item in items:
+              batch.append(item)
+              if len(batch) == size:
+                  yield batch
+                  batch = []
+          if batch:
+              yield batch
+
+
+      def slugify(text: str) -> str:
+          return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    ledger/core.py: |
+      from decimal import Decimal
+
+      from .helpers import format_amount, parse_amount
+
+
+      class Ledger:
+          def __init__(self) -> None:
+              self._entries: list[Decimal] = []
+
+          def add(self, text: str) -> "Ledger":
+              self._entries.append(parse_amount(text))
+              return self
+
+          def total(self) -> str:
+              return format_amount(sum(self._entries, Decimal(0)))
+    ledger/report.py: |
+      from decimal import Decimal
+
+      from ledger import helpers
+
+
+      def summary_line(label: str, amounts: list[str]) -> str:
+          total = sum((helpers.parse_amount(text) for text in amounts), Decimal(0))
+          return f"{helpers.slugify(label)}: {helpers.format_amount(total)}"
+    ledger/plugins.py: |
+      """Formatter plugins named by dotted path (`module:attribute`)."""
+
+      import importlib
+      from importlib.metadata import entry_points
+
+      BUILTIN = {"plain": "ledger.helpers:format_amount"}
+
+
+      def resolve(spec: str):
+          module_name, _, attribute = spec.partition(":")
+          return getattr(importlib.import_module(module_name), attribute)
+
+
+      def formatter(name: str):
+          """Built-in formatters first, then installed `ledger.formatters` entry points."""
+          if name in BUILTIN:
+              return resolve(BUILTIN[name])
+          for entry in entry_points(group="ledger.formatters"):
+              if entry.name == name:
+                  return entry.load()
+          raise LookupError(name)
+    tests/__init__.py: ""
+    tests/test_ledger.py: |
+      import tomllib
+      import unittest
+      from decimal import Decimal
+      from pathlib import Path
+
+      from ledger import Ledger, plugins
+      from ledger.report import summary_line
+
+
+      class LedgerTests(unittest.TestCase):
+          def test_total(self) -> None:
+              self.assertEqual("1,003.50", Ledger().add("3.5").add("1,000").total())
+
+          def test_summary_line(self) -> None:
+              self.assertEqual("q3-fees: 12.00", summary_line("Q3 fees", ["10", "2.00"]))
+
+          def test_builtin_formatter(self) -> None:
+              self.assertEqual("5.00", plugins.formatter("plain")(Decimal("5")))
+
+          def test_sample_config_resolves(self) -> None:
+              spec = tomllib.loads(Path("ledger.toml").read_text(encoding="utf-8"))["formatter"]
+              self.assertEqual("5.00", plugins.resolve(spec)(Decimal("5")))
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
+  - {check: changes_within, allowed: [ledger/, tests/, pyproject.toml, ledger.toml, README.md, CHANGELOG.md], text: "changes stay in the package, its tests, metadata and docs"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
+  - check: command_exit_zero
+    command: "python -I -B oracle_protocol.py _money_oracle.py"
+    writes_from: {_money_oracle.py: evals/oracles/python-engineering/check_money_move.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    failure_exit_code: 10
+    text: "one implementation in ledger/money.py; every published import, dotted path and entry point still resolves; internal callers moved"
+success_criteria:
+  - Inventories static callers, re-exports, the entry point, the config dotted path and the registry before moving
+  - Keeps the published helpers paths working for a minor release instead of breaking them
+  - Leaves exactly one implementation of the money functions

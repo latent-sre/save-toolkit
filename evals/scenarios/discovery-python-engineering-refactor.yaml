@@ -1,0 +1,12 @@
+id: discovery-python-engineering-refactor
+max_turns: 4
+split: calibration
+prompt: |
+  Our Python ingestion worker has a 400-line function that parses, validates, and writes records.
+  Break it apart so the validation rules can be tested on their own, without changing what it
+  writes or the errors it raises.
+target: {kind: skill, name: python-engineering}
+routing:
+  expect: fire
+success_criteria:
+  - Loads Python engineering guidance for a behavior-preserving refactor

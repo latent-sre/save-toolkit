@@ -1,0 +1,78 @@
+id: build-python-engineering-replace-dependency
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+# Case G: a dependency replacement with subtle behavioral differences. dateutil's gettz returns
+# None for unknown or malformed names (the code falls back to UTC); zoneinfo raises
+# ZoneInfoNotFoundError or ValueError instead. The oracle runs the original as the reference with
+# the candidate's dateutil import blocked.
+max_turns: 40
+prompt: |
+  Load the `python-engineering` skill before you start.
+  We're dropping python-dateutil from the scheduler's service image. Replace its use in
+  `schedule/tz.py` with the standard library and remove the dependency. Callers rely on the current
+  behavior of `localize()` and `describe()`. Do not commit. Report what you changed and how you
+  verified it.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    README.md: |
+      # scheduler
+
+      Turns job schedules into local times for each team's time zone. Runs on Python 3.12+.
+      Zone names come from team settings that users type by hand.
+
+      Tests are unittest, run from the repo root:
+
+          python -m unittest discover -s tests -t . -v
+    requirements.txt: |
+      python-dateutil==2.9.0
+    schedule/__init__.py: ""
+    schedule/tz.py: |
+      from datetime import datetime
+
+      from dateutil import parser, tz
+
+
+      def localize(timestamp: str, zone_name: str) -> datetime:
+          """Convert an ISO 8601 timestamp to the named zone; unknown zones fall back to UTC.
+
+          Timestamps without an offset are UTC.
+          """
+          zone = tz.gettz(zone_name) or tz.UTC
+          moment = parser.isoparse(timestamp)
+          if moment.tzinfo is None:
+              moment = moment.replace(tzinfo=tz.UTC)
+          return moment.astimezone(zone)
+
+
+      def describe(timestamp: str, zone_name: str) -> str:
+          return localize(timestamp, zone_name).strftime("%Y-%m-%d %H:%M %Z")
+    tests/__init__.py: ""
+    tests/test_tz.py: |
+      import unittest
+
+      from schedule.tz import describe
+
+
+      class TzTests(unittest.TestCase):
+          def test_new_york(self) -> None:
+              self.assertEqual("2024-07-01 08:00 EDT", describe("2024-07-01T12:00:00Z", "America/New_York"))
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
+  - {check: changes_within, allowed: [schedule/, tests/, requirements.txt, README.md], text: "changes stay in the module, its tests, requirements and README"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: bash_did_not_run, pattern: '(?m)(?:^|[;&|(])\s*(?:\S*python3?\s+-m\s+)?(?:pip3?\s+install|uv\s+(?:add|sync|pip\s+install|tool\s+(?:install|run)|run\b(?![^\n;&|]*--no-sync))|uvx|pipx\s+(?:install|run))\b', text: "nothing is installed"}
+  - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
+  - check: command_exit_zero
+    command: "python -I -B oracle_protocol.py _tz_oracle.py"
+    writes_from: {_tz_oracle.py: evals/oracles/python-engineering/check_tz_replacement.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    failure_exit_code: 10
+    text: "standard-library replacement matches dateutil's fallback, parsing and error behavior; dependency removed"
+success_criteria:
+  - Compares dateutil and zoneinfo semantics (unknown and malformed zone names, parsing, errors) before replacing
+  - Preserves the UTC fallback for every unresolvable zone name
+  - States any behavior the standard library cannot reproduce instead of hiding it

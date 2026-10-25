@@ -38,6 +38,7 @@ HEAVY = frozenset({
     "evals/test_probe_checking.py",
     "evals/test_probe_trials.py",
     "evals/test_python_craft_oracle.py",
+    "evals/test_python_engineering_oracles.py",
     "evals/test_python_index_probe.py",
     "evals/test_python_library_selection_oracle.py",
     "evals/test_python_new_code_probe.py",

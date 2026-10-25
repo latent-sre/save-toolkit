@@ -1,0 +1,121 @@
+id: build-python-engineering-add-format
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+# Case E: a substantial improvement that needs several techniques in sequence (characterize,
+# split phase, replace the flag argument, then add the feature). The oracle compares text and HTML
+# with the original on seeded CSVs, checks the JSON values, and rejects a copied aggregation.
+max_turns: 50
+prompt: |
+  Load the `python-engineering` skill before you start.
+  Add JSON output to the sales report: `--format json` on the CLI, alongside the existing text and
+  HTML output (`--format text|html|json`). Shape: `{"regions": [{"region": ..., "total": ...}],
+  "grand_total": ...}`, where every total is a JSON number equal to the value the text report
+  shows. `report.py` has grown awkward; leave it so the next format is easy to add. Text and HTML
+  output must not change, and `--html` must keep working for existing scripts. Do not commit.
+  Report what you changed and how you verified it.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    README.md: |
+      # sales
+
+      Regional sales summaries from the nightly CSV export (`id,region,status,amount`).
+
+          python -m sales.cli export.csv [--html] [--top N]
+
+      Tests are unittest, run from the repo root:
+
+          python -m unittest discover -s tests -t . -v
+    sales/__init__.py: ""
+    sales/report.py: |
+      import csv
+
+      _cache = {}
+
+
+      def build_report(path, html=False, top=None):
+          if path in _cache:
+              rows = _cache[path]
+          else:
+              rows = []
+              with open(path, newline="") as f:
+                  for r in csv.DictReader(f):
+                      rows.append(r)
+              _cache[path] = rows
+          totals = {}
+          for r in rows:
+              if r["status"] != "paid":
+                  continue
+              totals[r["region"]] = totals.get(r["region"], 0) + float(r["amount"])
+          items = sorted(totals.items(), key=lambda kv: (-kv[1], kv[0]))
+          if top:
+              items = items[:top]
+          if html:
+              out = "<table>\n"
+              out += "<tr><th>Region</th><th>Total</th></tr>\n"
+              for region, total in items:
+                  out += "<tr><td>%s</td><td>%.2f</td></tr>\n" % (region, total)
+              out += "</table>"
+              grand = sum(t for _, t in items)
+              out += "\n<p>Grand total: %.2f</p>" % grand
+              return out
+          else:
+              out = "Region      Total\n"
+              for region, total in items:
+                  out += "%-10s %8.2f\n" % (region, total)
+              grand = sum(t for _, t in items)
+              out += "Grand total: %.2f" % grand
+              return out
+    sales/cli.py: |
+      import argparse
+      import sys
+
+      from sales.report import build_report
+
+
+      def main(argv=None):
+          parser = argparse.ArgumentParser(prog="sales")
+          parser.add_argument("path")
+          parser.add_argument("--html", action="store_true")
+          parser.add_argument("--top", type=int)
+          args = parser.parse_args(argv)
+          print(build_report(args.path, html=args.html, top=args.top))
+          return 0
+
+
+      if __name__ == "__main__":
+          sys.exit(main())
+    tests/__init__.py: ""
+    tests/test_report.py: |
+      import tempfile
+      import unittest
+      from pathlib import Path
+
+      from sales.report import build_report
+
+
+      class ReportTests(unittest.TestCase):
+          def test_text_report(self) -> None:
+              with tempfile.TemporaryDirectory() as tmp:
+                  path = Path(tmp) / "export.csv"
+                  path.write_text("id,region,status,amount\n1,north,paid,10\n2,south,refunded,5\n", encoding="utf-8")
+                  self.assertEqual("Region      Total\nnorth         10.00\nGrand total: 10.00", build_report(str(path)))
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
+  - {check: changes_within, allowed: [sales/, tests/, README.md], text: "changes stay in sales, its tests and README"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
+  - check: command_exit_zero
+    command: "python -I -B oracle_protocol.py _report_oracle.py"
+    writes_from: {_report_oracle.py: evals/oracles/python-engineering/check_report_formats.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    failure_exit_code: 10
+    timeout: 300
+    text: "text/HTML unchanged, JSON correct, and the formats share one read and one aggregation"
+success_criteria:
+  - Characterizes text and HTML output before restructuring
+  - Separates parsing and aggregation from rendering before adding JSON, rather than adding a third copied branch
+  - Reports the stale module cache and unescaped HTML as discovered issues instead of silently changing them

@@ -1,0 +1,133 @@
+id: build-python-engineering-requirement-policy
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+# Case A: new code where a maintained package should replace substantial custom code. The policy
+# file uses ordinary requirement syntax; `packaging` is installed in the trial interpreter and
+# implements it. The probe-owned oracle grades PEP 440/508 edge cases a hand-rolled parser misses
+# and requires every runtime import to be declared in pyproject.toml.
+max_turns: 40
+prompt: |
+  Load the `python-engineering` skill before you start.
+  Add a `check` command to depcheck: `depcheck check <inventory.json> <policy.txt>`. The platform
+  team writes the policy file in the same requirement syntax they use in requirements files, one
+  requirement per line, for example `requests>=2.31,<3` or `urllib3!=2.0.*`. For each installed
+  package that does not satisfy its requirement, print one line to stdout starting with the package
+  name as it appears in the inventory, then exit 1; exit 0 when nothing violates. Packages the
+  policy names but the inventory lacks are not violations. Add tests. depcheck is maintained
+  long-term, so build this the way you would want to maintain it. Work offline with what this
+  environment already has: do not install anything, commit, or touch anything outside this repo.
+  Report what you changed and how you verified it.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    README.md: |
+      # depcheck
+
+      Audits the packages installed in a deployment image against the platform team's version
+      policy. `depcheck list <inventory.json>` prints the inventory: a JSON object mapping each
+      installed distribution name to its version, as the image build records them.
+
+      Tests are unittest, run from the repo root:
+
+          python -m unittest discover -s tests -t . -v
+    pyproject.toml: |
+      [project]
+      name = "depcheck"
+      version = "0.3.0"
+      description = "Audit installed packages against a version policy"
+      requires-python = ">=3.12"
+      dependencies = []
+
+      [project.scripts]
+      depcheck = "depcheck.cli:main"
+
+      [build-system]
+      requires = ["setuptools>=69"]
+      build-backend = "setuptools.build_meta"
+    depcheck/__init__.py: ""
+    depcheck/inventory.py: |
+      """Read an installed-package inventory."""
+
+      import json
+      from pathlib import Path
+
+
+      def load_inventory(path: str | Path) -> dict[str, str]:
+          data = json.loads(Path(path).read_text(encoding="utf-8"))
+          if not isinstance(data, dict) or not all(
+              isinstance(name, str) and isinstance(version, str) for name, version in data.items()
+          ):
+              raise ValueError(f"{path}: inventory must map package names to version strings")
+          return data
+    depcheck/cli.py: |
+      """Command-line entry point for depcheck."""
+
+      import argparse
+      import sys
+
+      from .inventory import load_inventory
+
+
+      def main(argv: list[str] | None = None) -> int:
+          parser = argparse.ArgumentParser(prog="depcheck")
+          commands = parser.add_subparsers(dest="command", required=True)
+          list_command = commands.add_parser("list", help="print the installed inventory")
+          list_command.add_argument("inventory")
+          args = parser.parse_args(argv)
+          if args.command == "list":
+              for name, version in sorted(load_inventory(args.inventory).items()):
+                  print(f"{name} {version}")
+              return 0
+          return 2
+
+
+      if __name__ == "__main__":
+          sys.exit(main())
+    tests/__init__.py: ""
+    tests/test_inventory.py: |
+      import contextlib
+      import io
+      import json
+      import tempfile
+      import unittest
+      from pathlib import Path
+
+      from depcheck.cli import main
+      from depcheck.inventory import load_inventory
+
+
+      class InventoryTests(unittest.TestCase):
+          def test_list_prints_sorted_inventory(self) -> None:
+              with tempfile.TemporaryDirectory() as tmp:
+                  path = Path(tmp) / "inventory.json"
+                  path.write_text(json.dumps({"b": "2.0", "a": "1.0"}), encoding="utf-8")
+                  out = io.StringIO()
+                  with contextlib.redirect_stdout(out):
+                      self.assertEqual(0, main(["list", str(path)]))
+              self.assertEqual("a 1.0\nb 2.0\n", out.getvalue())
+
+          def test_rejects_non_string_versions(self) -> None:
+              with tempfile.TemporaryDirectory() as tmp:
+                  path = Path(tmp) / "inventory.json"
+                  path.write_text(json.dumps({"a": 1}), encoding="utf-8")
+                  with self.assertRaises(ValueError):
+                      load_inventory(path)
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
+  - {check: changes_within, allowed: [depcheck/, tests/, pyproject.toml, README.md], text: "changes stay in the package, its tests, its metadata and its README"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: bash_did_not_run, pattern: '(?m)(?:^|[;&|(])\s*(?:\S*python3?\s+-m\s+)?(?:pip3?\s+install|uv\s+(?:add|sync|pip\s+install|tool\s+(?:install|run)|run\b(?![^\n;&|]*--no-sync))|uvx|pipx\s+(?:install|run))\b', text: "nothing is installed"}
+  - {check: command_exit_zero, command: "python -m unittest discover -s tests -t . -v", text: "the repo's suite is green when the probe runs it"}
+  - check: command_exit_zero
+    command: "python -I -B oracle_protocol.py _policy_oracle.py"
+    writes_from: {_policy_oracle.py: evals/oracles/python-engineering/check_requirement_policy.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    failure_exit_code: 10
+    text: "requirement semantics match PEP 440/508 on probe-owned edge cases and runtime imports are declared"
+success_criteria:
+  - Evaluates the installed maintained requirement parser before writing a custom one
+  - Declares any new runtime dependency in [project].dependencies
+  - Adds behavioral tests that cover requirement edge cases, not only a happy path

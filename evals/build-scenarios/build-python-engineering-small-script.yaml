@@ -1,0 +1,104 @@
+id: build-python-engineering-small-script
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+# Case B: a simple change where a new dependency, packaging, or extra architecture is unjustified.
+# The README states the deployment constraint (one file, bare python3). The oracle requires a
+# standard-library single file that runs alone, plus the requested behavior.
+max_turns: 30
+prompt: |
+  Load the `python-engineering` skill before you start.
+  Add two options to tools/prune_backups.py. `--older-than DAYS`: an archive is deleted only if it
+  falls outside the newest --keep archives AND its modification time is more than DAYS days ago.
+  `--dry-run`: print `would delete <path>` for each archive that would be deleted, and delete
+  nothing. Add tests for both. Do not commit. Report what you changed and how you verified it.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+    README.md: |
+      # backup-tools
+
+      Maintenance scripts for the backup hosts. Each script in `tools/` is copied as a single file
+      to hosts that have only the distribution's `python3` (3.12 or later) and its standard
+      library: no virtualenv, no package installs.
+
+      Tests are unittest, run from the repo root:
+
+          python -m unittest discover -s tests -t . -v
+    tools/prune_backups.py: |
+      #!/usr/bin/env python3
+      """Delete old backup archives, keeping the newest ones."""
+
+      import argparse
+      import sys
+      from pathlib import Path
+
+
+      def backups(directory: Path) -> list[Path]:
+          return sorted(directory.glob("*.tar.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
+
+
+      def prune(directory: Path, keep: int) -> list[Path]:
+          doomed = backups(directory)[keep:]
+          for path in doomed:
+              path.unlink()
+          return doomed
+
+
+      def main(argv: list[str] | None = None) -> int:
+          parser = argparse.ArgumentParser(description=__doc__)
+          parser.add_argument("directory", type=Path)
+          parser.add_argument("--keep", type=int, default=7, help="newest archives to keep (default 7)")
+          args = parser.parse_args(argv)
+          if args.keep < 0:
+              parser.error("--keep must be zero or more")
+          for path in prune(args.directory, args.keep):
+              print(f"deleted {path}")
+          return 0
+
+
+      if __name__ == "__main__":
+          sys.exit(main())
+    tests/__init__.py: ""
+    tests/test_prune_backups.py: |
+      import os
+      import sys
+      import tempfile
+      import time
+      import unittest
+      from pathlib import Path
+
+      sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+
+      import prune_backups
+
+
+      class PruneTests(unittest.TestCase):
+          def test_keeps_newest(self) -> None:
+              with tempfile.TemporaryDirectory() as tmp:
+                  root = Path(tmp)
+                  now = time.time()
+                  for age, name in enumerate(["new.tar.gz", "mid.tar.gz", "old.tar.gz"]):
+                      path = root / name
+                      path.write_bytes(b"x")
+                      os.utime(path, (now - age * 60, now - age * 60))
+                  deleted = prune_backups.prune(root, keep=2)
+                  self.assertEqual(["old.tar.gz"], [p.name for p in deleted])
+                  self.assertEqual({"new.tar.gz", "mid.tar.gz"}, {p.name for p in root.iterdir()})
+
+
+      if __name__ == "__main__":
+          unittest.main()
+checks:
+  - {check: skill_loaded, skill: python-engineering, text: "Python engineering guidance was loaded"}
+  - {check: changes_within, allowed: [tools/prune_backups.py, tests/, README.md], text: "no new modules, packaging, or dependency files"}
+  - {check: no_new_commits, text: "no commits"}
+  - {check: bash_did_not_run, pattern: '(?m)(?:^|[;&|(])\s*(?:\S*python3?\s+-m\s+)?(?:pip3?\s+install|uv\s+(?:add|sync|pip\s+install|tool\s+(?:install|run)|run\b(?![^\n;&|]*--no-sync))|uvx|pipx\s+(?:install|run))\b', text: "nothing is installed"}
+  - {check: verification_completed, runner: unittest, text: "the agent finished with a passing unittest run"}
+  - check: command_exit_zero
+    command: "python -I -B oracle_protocol.py _prune_oracle.py"
+    writes_from: {_prune_oracle.py: evals/oracles/python-engineering/check_prune_script.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    failure_exit_code: 10
+    text: "single standard-library file; --keep, --older-than and --dry-run behave as specified"
+success_criteria:
+  - Keeps the script a standalone standard-library file with no new dependency or package layout
+  - Adds no classes, layers, or modules the two options do not need
