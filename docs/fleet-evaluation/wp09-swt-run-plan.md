@@ -149,6 +149,11 @@ of answer/source-text oracles, and the author's static-execution policy trace.
 
 ## Verification scope
 
+Smoke controls use Django `unittest.TestCase` methods only for Django; the other selected projects
+receive module-level test functions. SymPy's custom runner does not discover the Django class form.
+Regression checks execute the collection loop from SymPy's exact selected base
+`58e78209c8577b9890e957b624466e5beed7eb08`, alongside the real unittest discovery checks.
+
 [verified] Focused controls exercise selection/filter roles, inaccessible hidden fields, upstream
 exports, patch admission, mechanical/relevance separation, native prompt/admission, v1 reporting,
 quota arguments, cleanup ordering, smoke composition and Windows import guards. Four additional

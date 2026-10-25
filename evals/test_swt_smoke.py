@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import ast
+import hashlib
+import inspect
 import json
 import re
 import types
@@ -105,7 +107,7 @@ def test_smoke_runs_gold_and_three_negative_verifiers_then_keeps_acceptance_pend
     [("assert False", False, 0), ("assert True", True, 0), ("import wp09_missing_unrelated_dependency", False, 1)],
 )
 def test_controls_are_actually_collected_by_unittest(tmp_path, body, success, errors):
-    patch = smoke.control_patch("tests/prefetch_related/", body)
+    patch = smoke.control_patch("tests/prefetch_related/", body, repo="django/django")
     source = (
         "\n".join(line[1:] for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++")) + "\n"
     )
@@ -119,6 +121,46 @@ def test_controls_are_actually_collected_by_unittest(tmp_path, body, success, er
     assert len(result.errors) == errors
 
 
+def test_sympy_control_is_a_callable_module_test_without_source_cache():
+    patch = smoke.control_patch("sympy/matrices/expressions/tests/", "assert True", repo="sympy/sympy")
+    generated = "\n".join(line[1:] for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++"))
+    module = types.ModuleType("test_wp09_control")
+    exec(compile(generated, "test_wp09_control.py", "exec"), module.__dict__)
+    assert inspect.isfunction(module.test_wp09_control)
+    module.test_wp09_control()
+
+
+@pytest.mark.parametrize("body,error", [("assert False", AssertionError), ("assert True", None),
+                                      ("import wp09_missing_unrelated_dependency", ModuleNotFoundError)])
+def test_controls_are_collected_by_pinned_sympy_function_collector(tmp_path, body, error):
+    source = Path(__file__).parents[1] / ".eval-runs/complex-campaigns/wp09-sympy-collection-source/sympy/utilities/runtests.py"
+    if not source.exists():
+        pytest.skip("pinned SymPy collection source required")
+    # Exact selected SymPy base: 58e78209c8577b9890e957b624466e5beed7eb08.
+    assert hashlib.sha1(b"blob " + str(len(source.read_bytes())).encode() + b"\0" + source.read_bytes()).hexdigest() == "aad9783e97f011ad4cd056ad000285e1dbe5cd3a"
+    tree = ast.parse(source.read_text())
+    cls = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "SymPyTests")
+    method = next(node for node in cls.body if isinstance(node, ast.FunctionDef) and node.name == "test_file")
+    collector = next(node for node in ast.walk(method) if isinstance(node, ast.For)
+                     and isinstance(node.target, ast.Name) and node.target.id == "f"
+                     and isinstance(node.iter, ast.Name) and node.iter.id == "gl")
+    patch = smoke.control_patch("sympy/matrices/expressions/tests/", body, repo="sympy/sympy")
+    generated = "\n".join(line[1:] for line in patch.splitlines() if line.startswith("+") and not line.startswith("+++")) + "\n"
+    filename = tmp_path / "test_wp09_control.py"
+    filename.write_text(generated)
+    module = types.ModuleType("test_wp09_control")
+    exec(compile(generated, str(filename), "exec"), module.__dict__)
+    scope = {"gl": module.__dict__, "inspect": inspect, "filename": str(filename), "funcs": []}
+    # Execute the actual pinned collection loop, not a reimplementation of its predicate.
+    exec(compile(ast.Module(body=[collector], type_ignores=[]), str(source), "exec"), scope)
+    assert len(scope["funcs"]) == 1
+    if error is None:
+        scope["funcs"][0]()
+    else:
+        with pytest.raises(error):
+            scope["funcs"][0]()
+
+
 def test_pinned_django_test_directive_matches_collectable_module(tmp_path, monkeypatch):
     source = Path(__file__).parents[1] / ".eval-runs/complex-campaigns/wp09-swt-source/src/utils.py"
     if not source.exists():
@@ -129,7 +171,7 @@ def test_pinned_django_test_directive_matches_collectable_module(tmp_path, monke
     )
     scope = {"re": re, "NON_TEST_EXTS": []}
     exec(compile(ast.Module(body=[method], type_ignores=[]), str(source), "exec"), scope)
-    patch = smoke.control_patch("tests/prefetch_related/", "assert True")
+    patch = smoke.control_patch("tests/prefetch_related/", "assert True", repo="django/django")
     targets = scope["get_test_directives"](patch, "django/django")
     assert targets == ["prefetch_related.test_wp09_control"]
     package = tmp_path / "prefetch_related"

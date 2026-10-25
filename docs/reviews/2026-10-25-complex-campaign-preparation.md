@@ -53,7 +53,9 @@ issues were reproduced and repaired before final integration:
   selected first trial at 0/1; their evidence and spending remain visible.
 - SWT admission ignored retained smoke files. It now reopens digest-bound evidence before key access.
 - Generic SWT smoke functions were not collected by Django's unittest runner. Compatible test classes
-  are now collected and executed, including the pinned Django target-generation boundary.
+  are now used for Django, with module functions retained for pytest and SymPy. A follow-up caught
+  that the class-only repair broke SymPy's custom collector; regressions now execute the collection
+  loop from its exact selected base as well as Django's target-generation/discovery boundary.
 - SWT publication dropped shared adapter identity. Admission, saved binding and v1 provenance now
   share one digest that includes shared code, SWT code and its dependency file.
 - WP-04's Scenario-102 bindings included four unrelated load-generator resources in ad-service
@@ -64,7 +66,7 @@ issues were reproduced and repaired before final integration:
 
 ## Verification
 
-[verified] The combined working-tree run used the managed Python 3.14.8 interpreter:
+[verified] The first combined working-tree run used the managed Python 3.14.8 interpreter:
 
 ```text
 /home/hawkfire/save-toolkit/.venv/bin/python scripts/local_tests.py --heavy
@@ -73,9 +75,9 @@ receipt: 20261025T114711Z-3bdbd058
 ```
 
 The receipt is under the common Git directory's `local-test-runs/`, with pytest output, JUnit and
-runtime/revision metadata. It records a dirty pre-commit working tree; it is not itself proof of
-execution at an immutable commit. No product code changed after that combined run. Final source
-review and publication identify the committed candidate separately.
+runtime/revision metadata. It records a dirty pre-commit working tree and precedes the final SymPy
+control repair. A final combined run on the repaired committed source is pending at this point;
+this earlier receipt must not be attributed to that repair.
 
 [verified] Ruff check, Ruff format check (61 files), strict mypy (68 source files), `git diff --check`
 and Gate A passed. The native catalog validates 399 scenarios. New Python modules are registered

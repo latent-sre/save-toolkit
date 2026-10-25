@@ -20,15 +20,21 @@ from swebench_adapter.containers import Docker
 from swt_adapter import core, runner, verifier
 
 
-def control_patch(root: str, body: str) -> str:
+def control_patch(root: str, body: str, *, repo: str) -> str:
     path = root + "test_wp09_control.py"
-    lines = [
-        "import unittest",
-        "",
-        "class WP09Control(unittest.TestCase):",
-        "    def test_wp09_control(self):",
-        "        " + body,
-    ]
+    # Django uses unittest discovery; SymPy's custom runner accepts only
+    # module-level test functions. The other selected projects use pytest.
+    lines = (
+        [
+            "import unittest",
+            "",
+            "class WP09Control(unittest.TestCase):",
+            "    def test_wp09_control(self):",
+            "        " + body,
+        ]
+        if repo == "django/django"
+        else ["def test_wp09_control():", "    " + body]
+    )
     return (
         f"diff --git a/{path} b/{path}\nnew file mode 100644\n--- /dev/null\n+++ b/{path}\n"
         f"@@ -0,0 +1,{len(lines)} @@\n" + "\n".join("+" + line for line in lines) + "\n"
@@ -79,7 +85,9 @@ def run_smoke(
     ) -> dict[str, Any]:
         # The shared smoke's two verifier slots become real SWT gold and always-fail controls.
         name = "always-fail" if kwargs.get("baseline") else "gold"
-        submitted = control_patch(roots[0], "assert False") if name == "always-fail" else row["test_patch"]
+        submitted = (
+            control_patch(roots[0], "assert False", repo=row["repo"]) if name == "always-fail" else row["test_patch"]
+        )
         receipt = verify(name, submitted)
         controls["always_fail_rejected" if name == "always-fail" else "reference_reproduces"] = receipt.get(
             "mechanical"
@@ -124,10 +132,12 @@ def run_smoke(
                 ("pass-both", "assert True", "pass_both_rejected"),
                 ("unrelated-import", "import wp09_missing_unrelated_dependency", "unrelated_import_rejected"),
             ]:
-                receipt = verify(name, control_patch(roots[0], body))
+                receipt = verify(name, control_patch(roots[0], body, repo=row["repo"]))
                 controls[key] = receipt.get("mechanical") == "FAIL"
         controls["patch_text_rejected"] = (
-            core.admit_patch(control_patch(roots[0], 'assert "fixed" in inspect.getsource(target)'), roots)["state"]
+            core.admit_patch(
+                control_patch(roots[0], 'assert "fixed" in inspect.getsource(target)', repo=row["repo"]), roots
+            )["state"]
             == "FAIL"
         )
         controls["code_fix_rejected"] = core.admit_patch(row["patch"], roots)["state"] == "FAIL"
