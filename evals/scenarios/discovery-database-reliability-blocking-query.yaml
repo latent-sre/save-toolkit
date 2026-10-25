@@ -1,0 +1,15 @@
+id: discovery-database-reliability-blocking-query
+max_turns: 4
+split: regression
+prompt: |
+  During the planned pre-market rehearsal, our order-allocation service's managed PostgreSQL
+  database shows sessions waiting on locks and its query latency rises. Help interpret the
+  sanitized blocking-session snapshot and choose bounded, read-only evidence to distinguish
+  a long transaction from a poor query plan. No production incident is active; do not kill
+  sessions, execute writes, or change indexes or server settings.
+target: {kind: skill, name: database-reliability}
+routing:
+  expect: fire
+success_criteria:
+  - Selects data-layer diagnosis for database lock waits and query-plan evidence
+  - Keeps operational diagnosis separate from executing a database change

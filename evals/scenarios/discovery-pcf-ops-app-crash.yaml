@@ -1,0 +1,15 @@
+id: discovery-pcf-ops-app-crash
+max_turns: 4
+split: regression
+prompt: |
+  The quotes-api application in our TAS test foundation restarts during a pre-market load
+  rehearsal with exit code 137. Other apps in the same space are stable. Show the first
+  Apps Manager checks, and the equivalent cf v8 read commands where available, to establish
+  the target, instance state, recent changes and covered log window. We need an investigation
+  plan only; do not restart, restage or resize anything.
+target: {kind: skill, name: pcf-ops}
+routing:
+  expect: fire
+success_criteria:
+  - Selects application-side TAS diagnosis for one crashing application
+  - Keeps the initial investigation read-only and distinguishes target confirmation from evidence

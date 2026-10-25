@@ -1,0 +1,15 @@
+id: discovery-akamai-edge-defers-backend-log-query
+max_turns: 4
+split: regression
+prompt: |
+  Write a Splunk query over our existing order-router application logs to count backend
+  validation failures by error code and five-minute bucket for yesterday's market-open window.
+  Requests arrived directly over the internal service network and did not traverse a CDN.
+  This is a historical log query only; no alert, dashboard or edge configuration is requested.
+target: {kind: skill, name: akamai-edge}
+routing:
+  expect: not_fire
+  expected_alternative: {kind: skill, name: obs-analysis}
+success_criteria:
+  - Selects existing-signal query guidance for backend application logs
+  - Does not load CDN guidance for traffic that did not traverse an edge service
