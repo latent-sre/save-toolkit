@@ -1,0 +1,4 @@
+{
+  "report": "Replaced the brittle line-by-line parser in `config_loader.py` with standard library `tomllib.loads` to properly handle quoted values containing `#` (e.g. `title = \"channel #ops\"`) and inline arrays (`tags = [\"a\", \"b\"]`). Preserved semantic contracts by translating `tomllib.TOMLDecodeError` and `TypeError` into `ConfigError`, and maintaining strict boolean validation on the `enabled` field. Added thorough unit tests in `tests/test_config_loader.py` covering valid configs, `#` in quoted values, inline arrays, inline comments, boolean validation for strings/integers, invalid TOML syntax, and empty inputs. Verification passed: 9/9 tests passing in pytest, ruff check clean, and mypy clean.",
+  "loaded_references": []
+}
