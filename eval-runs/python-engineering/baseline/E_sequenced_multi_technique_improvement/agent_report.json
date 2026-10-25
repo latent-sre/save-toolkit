@@ -1,0 +1,4 @@
+{
+  "report": "Updated `margin_check.py` to support `instrument_type='FUTURE'` with a 0.10 margin rate via a clean MARGIN_RATES mapping. Refactored `evaluate_csv_lines` to eliminate shared mutable global state (`_MARGIN_ALERTS`), ensuring isolated evaluation calls each produce independent alert lists without side effects or race conditions. Preserved backward compatibility for dictionary keys ('required_margin', 'Excess', 'alerts'). Added comprehensive unit tests in `tests/test_margin_check.py` covering EQUITY, OPTION, FUTURE, concentration alerts, isolated evaluations, malformed lines, and unsupported instruments. Verification passed: 6/6 tests passing in pytest, ruff check clean, and mypy clean.",
+  "loaded_references": []
+}
