@@ -27,7 +27,7 @@ dirhash==0.5.0
 distro==1.9.0
 fastapi==0.162.0
 fastuuid==0.14.0
-filelock==3.32.7
+filelock==4.2.1
 frozenlist==1.8.0
 fsspec==2026.9.0
 h11==0.16.0

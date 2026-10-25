@@ -13,12 +13,12 @@ anthropic==1.4.0
 agent-framework-a2a==1.0.0b260821
 agent-framework-core==1.16.0
 autogen-agentchat==0.7.5
-datasets==4.8.4
+datasets==5.0.1
 deepdiff==9.1.0
 docker==7.2.0
 editdistance==0.8.1
 fastapi==0.141.1
-GitPython==3.1.47
+GitPython==3.2.1
 harbor==0.24.0
 httpx==0.28.1
 hypothesis==6.168.5

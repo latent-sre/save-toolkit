@@ -15,6 +15,34 @@ from swebench_adapter.limits import ProcessResult
 from swt_adapter import core, verifier
 
 
+def swt_runtime_pins():
+    requirements = Path(__file__).parents[1] / "requirements-swt.txt"
+    return dict(line.split("==") for line in requirements.read_text().splitlines() if "==" in line)
+
+
+def test_runtime_accepts_declared_swt_versions(monkeypatch):
+    monkeypatch.setattr(verifier.metadata, "version", swt_runtime_pins().__getitem__)
+    assert verifier.runtime_problems() == []
+
+
+@pytest.mark.parametrize(
+    "package", ["docker", "unidiff", "editdistance", "GitPython", "tqdm", "datasets", "python-dotenv", "requests"]
+)
+@pytest.mark.parametrize("missing", [False, True])
+def test_runtime_rejects_wrong_or_missing_dependency(monkeypatch, package, missing):
+    pins = swt_runtime_pins()
+
+    def installed_version(name):
+        if name == package:
+            if missing:
+                raise verifier.metadata.PackageNotFoundError(name)
+            return "0.0.0"
+        return pins[name]
+
+    monkeypatch.setattr(verifier.metadata, "version", installed_version)
+    assert verifier.runtime_problems() == [f"{package}=={pins[package]} is required"]
+
+
 def test_six_variant_contract_preserves_roles_and_fresh_execution():
     calls = []
 

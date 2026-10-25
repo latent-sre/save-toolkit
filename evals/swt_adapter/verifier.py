@@ -36,9 +36,9 @@ def runtime_problems() -> list[str]:
         "docker": "7.2.0",
         "unidiff": "0.7.5",
         "editdistance": "0.8.1",
-        "GitPython": "3.1.47",
+        "GitPython": "3.2.1",
         "tqdm": "4.67.3",
-        "datasets": "4.8.4",
+        "datasets": "5.0.1",
         "python-dotenv": "1.2.2",
         "requests": "2.33.1",
     }
