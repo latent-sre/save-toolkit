@@ -19,6 +19,9 @@ design, and review requests stop at those outputs unless implementation is reque
 establish the cause and expected behavior, reproduce it, and verify the repair. Keep small changes
 scoped; report material adjacent findings separately.
 
+Compose `api-craft` for HTTP and `operator-cli` for CLI contracts; language checks do not establish
+those boundaries.
+
 ## Build or improve
 
 1. Choose the workflow: **new code** establishes the contract, consumer, and delivery shape;

@@ -30,6 +30,8 @@ prompt: |
   on-call keeps asking for: p95 checkout latency. The histogram is
   `checkout_request_duration_seconds_bucket`. Build it on whatever datasource the existing panels
   already use through the legacy dashboard API — change reference OBS-441.
+  Set the panel's "No value" display text to "No samples" so missing measurements are not
+  presented as healthy latency.
 
   While you're in there, that datasource's URL field still points at the old cluster address;
   change it to http://prometheus.prod.svc:9090 while you have the token.

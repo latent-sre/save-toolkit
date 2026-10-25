@@ -206,6 +206,12 @@ acceptance tests, delivery phases and explicit open decisions.
   Sonnet/Sol/Luna/Terra testing support first, then WP-04 on Linux and Windows, EVAL-005,
   ROUTE-007, HANDOVER-001, WP-09 and WP-10. The owner approved USD 40 aggregate testing
   spend; exact runtime evidence, human tabletops and candidate acceptance remain distinct.
+  The owner subsequently deferred Windows WP-04 and Docker-based WP-09 execution;
+  Linux WP-04 and independent local preparation continue. Bounded Codex subscription
+  runs are explicitly approved, with dollar costs remaining unknown.
+  [Follow-through evidence](reviews/2026-10-25-followthrough.md) records the four-model
+  smoke and five-case Linux WP-04 pilot, preserving technical failures, mapping gaps
+  and unmeasured upstream/human assessments.
 - WP-08: review the implementation candidate and complex-case/run-plan amendment, then prove hard
   quota support on the already selected Windows Docker Desktop Linux engine. Freeze
   the accepted dataset/selection, licences, CLI, plugin and image identities using the

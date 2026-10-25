@@ -45,10 +45,12 @@ next bounded invocation and its possible overrun. Reserve the majority of the bu
 for WP-04 and later requested campaigns; do not exhaust it on smoke repetitions.
 
 Codex's existing subscription adapter reports tokens and bounded time/tool calls,
-but no USD cost. Its dollar cost remains unknown, never zero. The testing block's
-accounting must expose that gap and cannot certify an aggregate dollar total from
-these records. Bounded subscription execution versus mandatory dollar metering is
-an explicit owner decision; no API credential or paid fallback is introduced here.
+but no USD cost. Its dollar cost remains unknown, never zero. The owner explicitly
+selected bounded subscription runs for these models. The testing block's accounting
+still exposes that gap and cannot certify an aggregate dollar total from these records;
+its conservative `ready_for_further_spend` field remains false. This owner decision
+permits the named bounded subscription attempts, not an unbounded schedule. No API
+credential or paid fallback is introduced here; metered testing shares the USD 40 cap.
 
 Before each run, bind the candidate plugin digest, scenario/oracle digest, runner
 digest, CLI, model, host/account and invocation limits. Keep raw records private
@@ -71,6 +73,9 @@ plugin load, advertised tools, source reads and output collection remain separat
 live checks. Failure of any boundary or identity check stops the pilot. The wrapper
 does not change Windows behavior or authorize non-read-only native profiles.
 
+The owner subsequently deferred Windows WP-04 and Docker-based WP-09 execution
+because no Windows connection is available in this session. Their prepared packets
+and required evidence remain intact; they are not completed benchmark outcomes.
 The Windows run packet retains its unelevated-account and runtime-boundary checks.
 Both hosts use the same manifest, observations and candidate bytes; host-specific
 runtime receipts are recorded separately. A missing Windows connection or Docker

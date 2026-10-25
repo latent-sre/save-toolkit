@@ -30,8 +30,7 @@
 
 ## Entrypoints and byte boundaries
 
-Compose `api-craft` for HTTP and `operator-cli` for CLI contracts; language checks do not establish
-those boundaries. Use [environment checks](./environment-and-checks.md) for interpreter/dependencies
+Use [environment checks](./environment-and-checks.md) for interpreter/dependencies
 and `stack-profile` only where project choices are unset.
 
 A UTF-8 file and redirected stdin can use different decoders. Establish encoding, framing and

@@ -102,6 +102,12 @@ than against a substitute or missing host binary, under
 Live evals run from `evals/build_probe.py` in a manual clean room, not CI. Raw traces and the batch
 summary stay private under `.eval-runs/`; quote the numbers you rely on into the PR or review that
 uses them.
+Behavioral campaign plans include Sonnet, Sol, Luna and Terra coverage. Start with the
+[four-model testing block](docs/fleet-evaluation/multi-model-testing.md) to check the supported
+paths, then name the exact models, cases and limits for the campaign. Record unsupported profile
+coverage explicitly; a structured Codex artifact result does not establish native routing,
+hooks or helper continuation. Keep model and host results separate. This coverage requirement
+does not authorize automatic model calls, extra trials or spend beyond the owner's campaign budget.
 Every active scenario declares `max_turns`; missing or invalid limits are refused before calls.
 Use saved counts and timing evidence to size a change, retain its rationale, and distinguish an
 offline budget choice from measured live completion. Runner edits retain the saved-run rescore/diff
