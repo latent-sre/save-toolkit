@@ -1,0 +1,14 @@
+id: discovery-python-engineering-new-component
+max_turns: 14
+split: regression
+prompt: |
+  Build a new Python 3.12 CLI package in `pyproject.toml` that validates order intake files at the
+  boundary, writes behavioral pytest cases first, enforces strict typing on public interfaces, and
+  wires ruff and mypy quality gates before expanding the module layout.
+success_criteria:
+  - Activates Python engineering workflow when starting a new Python component with tests, types, and quality gates.
+target:
+  kind: skill
+  name: python-engineering
+routing:
+  expect: fire
