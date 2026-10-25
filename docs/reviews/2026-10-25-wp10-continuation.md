@@ -162,6 +162,14 @@ regressions reproduced the defect before repair. No model call was needed.
 
 ## Remaining decision
 
+[verified] Final coordinated heavy-suite verification passed on clean executable
+revision `e67c36fd`: **5,147 passed, 89 skipped, 5,162 subtests**, 82.879 seconds.
+Receipt: `<common-git-dir>/local-test-runs/20261025T193120Z-5234a1cb/`.
+Both before/after source snapshots are clean and bind the same commit. The 34 focused
+tests and 80 subtests, Ruff, formatting, mypy and Gate A also pass. Independent
+static review found no material defect after the duplicate-session repair.
+This receipt addition and cross-reference are documentation-only follow-ups.
+
 [verified] This continuation covers three IDs from the original 27-case native
 matrix (two log-role arms and reliability), plus the GCP pair. The other 24 IDs
 have no fresh result on this baseline. Historical accepted coverage remains valid

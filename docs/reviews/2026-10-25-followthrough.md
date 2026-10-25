@@ -268,3 +268,8 @@ The [human tabletop packets](../fleet-evaluation/handover-tabletops.md) are prep
 but responders, facilitator and dates are not selected and no human exercise has run.
 Docker-based WP-09 is deferred by the owner. WP-10's log-role, reliability and GCP-01
 semantic findings are not resolved by the four-model ordinary-log smoke.
+
+[verified] The subsequent [44-attempt WP-10 continuation](2026-10-25-wp10-continuation.md)
+is complete at run and AI-review level. It retains observed failures and pending
+human assessment. Its USD 0.975332 native estimate brings follow-through reported
+usage to **USD 10.564769**, with Codex subscription dollars still unknown.
