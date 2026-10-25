@@ -1,23 +1,19 @@
 # Application and data stack
 
-Read when the request needs a service language, framework, CI platform, tooling, or authentication
-design, runner/host assumption, or data-store choice. The parent `SKILL.md` owns the current-runtime
-and platform boundaries. These facts do not authorize a migration or make a target-specific version
-known.
+The [parent profile](../SKILL.md) owns runtime/platform boundaries. Inventory is neither migration
+authority nor evidence of a target's exact version.
 
 ## Languages and CI
 
 Services in the stack use **Java/JVM, Python, JavaScript/TypeScript, and Go**. Bash and PowerShell are
 glue and automation, not service languages. GitHub + GitHub Actions; Bamboo is legacy.
 
-**Java/JVM is support-only:** the team operates and troubleshoots Java/Spring Boot services; it
-does not write Java code, and it does not build, test, or run Java locally. Use the operational
-skills for runtime issues and return source changes to the application's development owner. The
-service inventory is not an authoring-language list.
+**Java/JVM is support-only:** operate/troubleshoot Java/Spring Boot, but do not write, build, test
+or run Java locally. Return source changes to the application owner; service inventory does not
+grant authoring authority.
 
-**CI jobs authenticate from GitHub environment secrets**, not GitHub OIDC. This settles the hedge
-the `ci-actions` skill carries: do not design around a GitHub-OIDC→CredHub exchange — CredHub
-authenticates via UAA.
+**CI uses GitHub environment secrets, not GitHub OIDC.** Do not design a GitHub-OIDC→CredHub
+exchange; CredHub authenticates through UAA.
 
 ## Toolchain by language
 
@@ -37,31 +33,21 @@ with `api-craft` and `operator-cli`.
 
 ## Frameworks
 
-- **Backend:** **FastAPI** is the established framework. Other framework choices remain open;
-  choose from the task, existing code, consumer contracts and operating constraints. Huma is an
-  available Go option, not the default. **Spring Boot** remains support-only on existing JVM
-  services. `api-craft` owns HTTP API and integration guidance; API shapes, identity integration, document
-  workflow and verification tools follow each service's requirements.
-- **Frontend:** **React is the focus and Vue is in use**; `frontend-craft` preserves the
-  repository's framework and holds the team's frontend choices: the approved, mixable component
-  kits, the per-app identity rule, typed integration with each service's actual contract, and
-  serving on localhost and PCF.
+- **Backend:** FastAPI is established; other frameworks remain task/repository/contract choices.
+  Huma is a Go option, not the default; Spring Boot remains support-only. `api-craft` owns HTTP/
+  integration guidance, with identity, document workflows and verification selected per service.
+- **Frontend:** React is the focus; Vue is in use. `frontend-craft` owns approved mixable kits,
+  per-app identity, typed service integration and localhost/PCF serving; preserve the repository's framework.
 
 ## Hosts and runners
 
-On-prem hosts and self-hosted Actions runners are **RHEL 9+**. GitHub-hosted Linux runners are
-Ubuntu; the house choice for those CI jobs is **`runs-on: ubuntu-latest`**. Preserve that choice
-when authoring or optimizing workflows. Both classes are in active use, so portable shell
-must run on both: the effective **bash floor is 5.1**, past every pre-4.4 workaround. Confirm
-exact minor versions on the target.
+On-prem hosts/self-hosted Actions runners use **RHEL 9+**; GitHub-hosted Linux uses
+**`runs-on: ubuntu-latest`**. Preserve that choice. Both are active, so portable shell targets
+both with **Bash 5.1** as the floor; confirm exact target minors.
 
 ## Data stores
 
-**PostgreSQL and SQL Server** are the operated engines, **all on-prem today**. Some applications
-embed **SQLite**; treat it as something to be aware of, not an engine the team operates — the one
-rule worth carrying is that a SQLite file behind a multi-instance app on PCF's ephemeral disk is
-not shared and not durable. MySQL exists but is minor; **MariaDB and Oracle are not used**.
-A managed cloud database is a possible future addition alongside the GCP migration, but
-nothing is running there now: treat cloud-database guidance as not-yet-applicable rather than
-optional. Engine-specific migration, locking, and failover mechanics remain unconfirmed per
-target until captured against a real instance.
+Operated engines are **PostgreSQL and SQL Server, on-prem**. MySQL is minor; **MariaDB/Oracle are
+not used**. Embedded SQLite is not team-operated; a file on PCF ephemeral disk is neither shared
+across app instances nor durable. Managed cloud databases are future candidates, not current estate:
+their guidance is not yet applicable. Migration/locking/failover behavior needs exact-target evidence.

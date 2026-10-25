@@ -1,18 +1,17 @@
 # Release readiness
 
-Read only for "is this build ready to ship to an environment". Owned by a human release owner. For
-production this establishes readiness only; authorization is the parent `SKILL.md`'s production
-section, later, using this record.
+The human release owner assesses readiness; the [parent production gate](../SKILL.md#production-authorization)
+separately authorizes production using this record.
 
 | Item | Passes when |
 |---|---|
-| Merge verdict | A recorded merge-gate PASS (`gate: merge`, `verdict: PASS`) exists for the exact candidate commit. |
-| One immutable artifact | The version and release notes identify the candidate, and the exact artifact tested in lower environments is the one shipping: build once, promote. Prove immutability through the distribution path's own controls; the [artifact evidence reference](./release-artifact-evidence.md) has the GitHub Release commands and the rule for other paths. |
-| Migrations | Schema/config changes preserve compatibility with supported consumers at each stage. Expand before dependent code; remove old shapes only after their consumers are confirmed retired. Every stage has tested recovery preserving accepted writes and data. |
-| Consumer retirement | Retirement evidence is a prerequisite for contraction. After confirmed retirement, do not require those old readers to work or block release on their incompatibility. Validate the remaining supported consumers and any versions the chosen recovery path actually needs; before retirement, old readers still need compatibility evidence. |
-| Flags | Risky behaviour is flag-gated with safe defaults, and the flag transition is tested. |
-| Backout / recovery | Exact rollback where feasible; otherwise name non-reversible effects and an evidenced recovery path preserving accepted writes and data. Record commands, verification and stop conditions. On PCF the chosen method and foundation behaviour stay `[unverified]` until foundation evidence is attached. |
-| Monitoring and comms | Success and failure signals and abort criteria are defined before the release, with evidence from `observability-engineer` that alerts and SLOs cover the new behaviour and that new paging alerts have operator guidance; stakeholders and on-call know the window and update cadence. |
+| Merge verdict | `gate: merge`, `verdict: PASS` exists for the exact candidate commit. |
+| One immutable artifact | Version/release notes identify the candidate. Build once, promote the exact lower-environment-tested artifact; prove its byte identity and immutability using [distribution-specific evidence](./release-artifact-evidence.md). |
+| Migrations | Schema/config stays compatible with supported consumers at each stage. Expand before dependent code; contract only after old consumers retire. Each stage has tested recovery preserving accepted writes/data. |
+| Consumer retirement | Confirm retirement before contraction. Then validate remaining consumers and versions needed for recovery, without requiring retired readers to remain compatible. Before retirement, old readers still need compatibility evidence. |
+| Flags | Risky behaviour is flag-gated with safe defaults and a tested transition. |
+| Backout / recovery | Exact rollback where feasible; otherwise identify non-reversible effects and evidenced recovery preserving accepted writes/data. Record commands, verification and stops. PCF method/foundation behaviour stays `[unverified]` until foundation evidence is attached. |
+| Monitoring and comms | Define success/failure signals and abort criteria before release. `observability-engineer` supplies coverage evidence for new behaviour, including operator guidance for new paging alerts. Stakeholders/on-call know the window and update cadence. |
 
-A release without evidenced rollback or recovery does not pass; uncovered migration stages block it. `ci-actions` owns the workflow that
-produces the artifact; this checklist consumes its provenance evidence and never invokes it.
+Missing recovery evidence or uncovered migration stages block release. `ci-actions` owns artifact
+production; this checklist consumes provenance without invoking that workflow.

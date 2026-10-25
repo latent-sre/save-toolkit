@@ -1,32 +1,26 @@
 # Saturation triage
 
-Read only for a DB-driven incident involving connection, lock, replication, storage, or recent-change
-signals. Diagnose read-only under `../SKILL.md`'s authority rule. Pool changes, query kills, failover,
-scaling, and other live mitigations use `production-change-gate`; reuse its incident envelope only
-for actions it covers. The human owner or approved protected automation applies them.
+Diagnose through the [parent's read-only authority](../SKILL.md). Pool changes, query kills, failover
+and scaling require `production-change-gate` and the human/protected executor; incident envelopes
+cover only their named actions.
 
-Name the engine/version, database, affected app, UTC window, and available access. Start in the
-app's pool dashboard: active/idle connections, pending borrowers, wait time and timeouts over the
-same window. If unavailable, request that slice from the app owner; missing metrics are unknown.
-For DB-side blocking, ask the DBA for a bounded, sanitized session/wait snapshot for that database:
-PostgreSQL `pg_stat_activity` with `pg_blocking_pids`, or SQL Server `sys.dm_exec_requests` with
-`sys.dm_os_waiting_tasks`. Include transaction age and blocker IDs; omit SQL literals and credentials.
-A helper without permitted SQL tools returns this request instead of executing it.
+Bind engine/version, database, app, UTC window and access. Start with same-window pool active/idle
+connections, pending borrowers, wait time and timeouts; request missing metrics from the app owner; absence stays unknown.
+For blocking, request a bounded sanitized DBA snapshot: PostgreSQL `pg_stat_activity` plus
+`pg_blocking_pids`, or SQL Server `sys.dm_exec_requests` plus `sys.dm_os_waiting_tasks`. Include
+transaction age and blocker IDs, omit SQL literals/credentials. Without permitted SQL tools,
+return the request rather than executing it.
 
-Use the first evidence to choose the next discriminator:
+Choose the next discriminator from the evidence:
 
-- **Connections:** pool occupancy, wait time, timeouts, database-session limits, and leak evidence.
-  Separate an undersized pool from leaked or long-held connections before recommending a change.
-- **Locks/blocking:** blocked duration, transaction age, and the head blocker. Identifying a blocker
-  is diagnosis; killing it is a state-changing action with its own blast radius and recovery plan.
-- **Replication lag:** current lag, freshness impact, and failover risk. Hand SLO/burn evidence to
-  `observability-engineer` with raw windows, thresholds, and measurements.
-- **Disk, IOPS, and temp:** capacity, latency, growth, and runaway sort/spill evidence.
-- **Recent migrations and deploys:** correlate times with the symptom and give the evidence to the
-  responder with `incident-investigation` without upgrading correlation into root cause.
+| Signal | Distinguish/check |
+|---|---|
+| Connections | Pool occupancy/waits/timeouts, DB session limits and leak evidence; undersizing versus leaked or long-held connections |
+| Blocking | Blocked duration, transaction age and head blocker; identification never authorizes killing it, which needs its own blast radius/recovery plan |
+| Replication lag | Current lag, freshness impact and failover risk; send SLO/burn windows, thresholds and measurements to `observability-engineer` |
+| Disk/IOPS/temp | Capacity, latency, growth and runaway sorts/spills |
+| Recent migrations/deploys | Compare symptom timing and return evidence to `incident-investigation`; correlation does not establish cause |
 
-Return current impact, verified signals, competing hypotheses, the next read-only discriminator, and
-the named owner. Requests that timed out may still have committed their effects, so report their
-effect state as unknown and have the effect's owner reconcile it before any retry or replay. If
-mitigation is requested, reference the applicable gate record and
-report its approval state and gaps; never execute mitigation.
+Return impact, verified signals, competing hypotheses, next read-only discriminator and owner.
+Timed-out requests may have committed: mark effect state unknown and have its owner reconcile before
+retry/replay. Requested mitigation returns the applicable gate's approval state and gaps, never execution.

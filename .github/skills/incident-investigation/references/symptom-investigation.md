@@ -1,59 +1,38 @@
 # Start from the symptom
 
-Help the human locate the failure without requiring a platform or telemetry stack. The parent
-skill owns evidence, mitigation, escalation, and recovery rules.
-
 ## Choose a comparison
 
-Pick the impact's row. For a known PCF app, the default first read is Apps Manager → the app → Events
-for the impact window — what changed and when. Use a comparison below first when the supplied
-evidence makes it more useful or urgent, and explain that choice. Start with an accessible
-ticket, safe excerpt, or console view.
+For known PCF apps, start with Apps Manager → app → Events unless supplied evidence makes a
+comparison below more useful or urgent; explain that choice. Use an accessible ticket, safe excerpt
+or console view without requiring the responder to know the telemetry stack.
 
 | What the person sees | A useful first distinction | What the result would change |
 |---|---|---|
-| "Users cannot log in" | Where does an affected attempt stop: reaching the login page, submitting credentials, returning from sign-in, or opening a protected action? Compare with a working attempt if one exists. | Failure to reach the page suggests a reachability check. Submission/MFA and callback failures need distinct checks; denial after successful sign-in focuses the permissions/session path. The stage or error wording alone does not prove a cause. |
-| "It fails sometimes" | Compare one failed and one successful attempt for the same operation and interval: user cohort, route, region, version, or request identifier, using only available fields. | Differences are leads to confirm; attributes shared by success and failure do not discriminate. No difference leaves the cause open. Green aggregates do not clear an affected minority. |
-| "Requests are slow" | Which operation is slow, for whom, and compared with what usual duration? Use available request timing to distinguish waiting before work, work itself, and downstream time. | A slow segment selects its next check; total duration alone does not locate the bottleneck. With no breakdown, obtain one affected sample through its owner before prescribing scaling. |
-| "An external monitor or correlation Situation says we are down" | Split the failing vantage points from the passing ones (which agents or regions fail, which pass), then compare with the platform's own view of the apps; read the Situation's scope and first-alert time once, as a hypothesis. | Failures only from outside with the in-network check passing point at the edge, DNS, or network path rather than the apps; running instances do not prove successful requests. Declare when the impact is multi-service or customer-visible and route the path evidence to the edge/network owners; a restart of healthy apps adds impact. |
-| "The data is old or wrong" | Compare one affected record's source value/version with the processing result and user-visible value; use timestamps only when their meanings and time zones are known. | The first differing stage narrows investigation to ingestion, processing, publication, or serving. A successful job does not prove fresh/correct data; missing stages and possible integrity loss remain explicit. |
-| "The job never finished" | Separate when the run is due (time zone), dated dispatch/start/progress, and required output/delivery. | Not yet due does not settle an earlier promised delivery. Missing history leaves execution unknown; a stalled run needs processing/dependency checks. A completion flag without a matching output leaves processing, publication, and delivery unconfirmed. Reconcile duplicate/partial effects before any rerun. |
+| "Users cannot log in" | Compare failing/working attempts by stage: page reachability, submission/MFA, callback, protected action. | Each stage selects a different check; denial after sign-in focuses permissions/session. Stage/error wording alone does not prove cause. |
+| "It fails sometimes" | Compare failure/success for the same operation and interval by available cohort, route, region, version or request ID. | Differences are leads; shared attributes do not discriminate. No difference leaves the cause open; green aggregates do not clear a minority. |
+| "Requests are slow" | Separate pre-work wait, processing and downstream time for the affected operation/cohort against its usual duration. | Total time does not locate a bottleneck. Without a breakdown, obtain an affected sample through its owner before prescribing scaling. |
+| "An external monitor or Situation says we are down" | Compare failing/passing vantages with in-network requests and platform state. Treat Situation scope/first-alert time as a hypothesis. | External-only failure points toward edge/DNS/network; running instances do not prove working requests. Name multi-service/customer impact and send path evidence to edge/network owners; restarting healthy apps adds impact. |
+| "The data is old or wrong" | Compare one record's source, processing result and visible value/version; timestamp meaning and zone must be known. | The first difference narrows the stage. Job success does not prove freshness/correctness; missing stages and integrity risk stay explicit. |
+| "The job never finished" | Compare due time/zone, dated dispatch/start/progress and required output/delivery. | Not-yet-due does not settle earlier promised delivery. Missing history leaves execution unknown; a stalled run needs processing/dependency checks. Completion without matching output leaves processing, publication and delivery unconfirmed. Reconcile partial/duplicate effects before rerun. |
 
-Compare like scopes and time windows. One affected recipient versus many establishes impact scope;
-processing and delivery faults can each affect either scope. Locate the failing stage by comparing
-the same run's input, correct output, handoff, and recipient evidence. If there is no working
-comparison, keep that gap and ask for one affected observation. Flat traffic does not establish unchanged request mix; a report window
-does not establish onset. Avoid asking the person to reproduce a destructive or sensitive action.
-Login evidence excludes passwords, tokens, cookies, and full authentication payloads.
+Compare like populations and time windows. Recipient count establishes scope, not whether processing
+or delivery failed; either can affect one or many. Compare the same run's input, correct output,
+handoff and recipient evidence. Without a working
+comparison, retain the gap and request an affected observation. Flat traffic does not prove unchanged
+request mix; a report window is not onset. Never request destructive/sensitive reproduction or login
+passwords, tokens, cookies or full authentication payloads.
 
 ## Turn the result into the next step
 
-State what changed and remains open; give one feasible check with outcome meanings. Blocked access
-needs another source or owner. Use platform skills for known-platform navigation/commands.
+Use platform skills for navigation/commands; blocked access needs another source or owner.
 
-Example:
+**Successful import, stale customer view:** a newer processed record with an older visible version
+focuses publication/serving. If both are old, compare source against consumed/produced versions;
+ingestion and processing remain open. A summary count cannot locate the failed stage: ask the import
+owner for one safe record's source, processed and published versions rather than repeating the count.
 
-Human: "The import says successful, but customers see yesterday's data. I only have its summary
-and the customer view."
-
-Advisor: "Success is what the job reported; it does not establish fresh customer data. For one
-affected record, compare the processed version or timestamp in that summary with the customer
-view, if those fields exist. A newer processed version with an older visible version focuses the
-next check on publication/serving. If both are old, compare the source version with what processing
-consumed and produced; ingestion and processing remain open. Missing record detail goes to that
-owner. Bring back the values and what each timestamp means."
-
-Human: "The summary only shows a total count; no record details."
-
-Advisor: "The count cannot locate where freshness stopped. Keep that unknown. Give the import
-owner one safe record identifier and ask which source version was processed and what was published.
-We already know the summary lacks that detail; there is no reason to repeat that check."
-
-Job example: "It finished at 08:00; the recipient read it at 08:20."
-
-"Matching recipient readback of the correct output confirms it reached that recipient. Its delivery
-time and path remain unknown. These endpoints do not locate a twenty-minute delivery delay. Ask the job owner for this output's
-provider-acceptance and delivery events, with their meanings and clocks. Acceptance at 08:02 and
-inbox delivery at 08:07 on comparable clocks would establish that five-minute interval, not its
-cause. Missing timing does not reopen confirmed receipt or permit a rerun; without output/recipient
-evidence, delivery remains open."
+**Job finished at 08:00; recipient read at 08:20:** matching readback proves receipt of that correct
+output, not its delivery time/path or a twenty-minute delay. Ask for this output's provider-acceptance
+and delivery events with clock meanings. Acceptance at 08:02 and delivery at 08:07 on comparable
+clocks establishes that five-minute interval, not its cause. Missing timing neither reopens confirmed
+receipt nor permits a rerun; absent output/recipient evidence leaves delivery open.

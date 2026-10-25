@@ -1,8 +1,7 @@
 # State-changing command effects
 
-Read before recommending, classifying, or approving a state-changing `cf` command or a memory/disk
-resize. The parent `SKILL.md` owns human-only execution and the evidence packet; this reference
-supplies each command's serving impact and artifact class for the gate's blast radius.
+Use before recommending or classifying a CF write/resize. The [parent](../SKILL.md) requires
+human execution and exact approval; these effects determine blast radius and artifact class.
 
 ## Effects on cf CLI v8 (CAPI V3)
 
@@ -19,14 +18,12 @@ supplies each command's serving impact and artifact class for the gate's blast r
 
 ## Existing-droplet resize prerequisites
 
-No supported no-downtime resize procedure is established here. Do not send memory or disk values
-as deployment options merely because the API supports rolling deployments. Before proposing a
-resize command, obtain the target API schema and a platform-owner-supported procedure that reuses
-the current droplet. Establish its web and non-web restart behavior, capacity/quota needs,
-verification and rollback, then hand the exact scoped proposal to the human release owner.
-Missing support or impact evidence blocks a no-downtime claim. Keep the whole-app effect of
-`cf scale -m/-k/-l` explicit; do not substitute `cf push`, which creates a new artifact and needs
-the full release gates.
+No supported no-downtime resize procedure is established here. Rolling-deployment support does
+not imply memory/disk deployment options. Obtain the target API schema and a platform-owner-supported
+procedure reusing the current droplet; establish web/non-web effects, capacity/quota, verification
+and rollback before handing the exact proposal to the human release owner. Missing support/impact
+blocks a no-downtime claim. `cf scale -m/-k/-l` remains whole-app; substituting `cf push` creates a
+new artifact requiring full release gates.
 
 ## Deployment lock
 

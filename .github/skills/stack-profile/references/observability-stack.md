@@ -1,9 +1,7 @@
 # Observability stack
 
-Read when the request involves an observability backend, signal, query language, vendor lifecycle,
-GCP observability choice, or an edge, CDN, WAF, or RUM product. The parent `SKILL.md` owns the
-current-runtime truth, additive-stack rule, stay-in-lane boundary, decision status, and evidence
-labels; this inventory settles none of those rules by itself.
+Use the [parent profile](../SKILL.md) for runtime, coexistence and authority boundaries; this is the
+signal/product inventory, not a platform-selection decision.
 
 ## Two stacks, coexisting (churn is an axiom, not an event)
 
@@ -21,9 +19,6 @@ Grafana recovery copies are saved in the team's repositories. That does not esta
 provisioning ownership, backup freshness, or a tested restore; confirm those separately for the
 target. A saved copy does not authorize a live write.
 
-The team's entitlement basis for DX
-OpenExplore under Broadcom is not yet recorded; the stack owner adds it here when known. As GCP
-workloads land, Cloud Logging / Cloud Monitoring / Cloud Trace join as additional backends via
-reference files in the obs skills — additive, same as everything else in the right column. For PCF applications the incumbent column is
-what the responder opens first; the additive column is not a replacement until a service is
-instrumented into it.
+DX OpenExplore entitlement remains unrecorded. Cloud Logging/Monitoring/Trace join additively as
+GCP workloads land. For PCF, incumbent tools come first; new backends are usable for a service only
+after instrumentation, not an assumed replacement.

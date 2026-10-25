@@ -1,46 +1,42 @@
 # Incident fast path
 
-During a declared incident, use this checklist for reversible Tier 0–2 mitigation or rollback to
-an already-live artifact. It replaces the full production checklist for covered actions. The
-parent `SKILL.md` still owns classification and execution authority.
+For a declared incident, this replaces the full production checklist only for covered reversible
+Tier 0–2 mitigation or rollback to an already-live artifact. The [parent gate](../SKILL.md) retains
+classification and execution authority.
 
 ## Scope
 
-Covered actions include route remaps, revision rollback, instance-count scale, flags, and
-per-instance or rolling restarts with confirmed serving headroom and existing-droplet reuse without
-staging. Unknown package/droplet state or a whole-app stop/start does not qualify; a memory, disk,
-or log-rate scale stops and starts the whole app, so it does not qualify either. Use the
-mitigation-selection reference in `incident-investigation` for selection. While a deployment is
-deploying or paused, scaling the `web` process fails: wait for it, or cancel it knowingly.
-New artifacts (including restage) retain the full release and production gates. Tier 3 destructive
-or access-path actions retain the full gate and proven backup/recovery requirement.
-Suspected compromise or integrity loss exits this path: preserve evidence and follow the human
-security owner's direction.
+Covered: route remaps, revision rollback, instance-count scale, flags, and per-instance/rolling
+restarts with confirmed serving headroom and existing-droplet reuse without staging. Excluded:
+unknown package/droplet state, whole-app stop/start, and memory/disk/log-rate scale that stops and
+starts the whole app. Use `incident-investigation`'s mitigation-selection reference to choose.
+While deployment is deploying or paused, `web` scaling fails: wait or cancel knowingly.
+
+New artifacts, including restage, require full release and production gates. Tier 3 retains the
+full gate and proven recovery/backup. Suspected compromise or integrity loss exits this path:
+preserve evidence and follow the human security owner's direction.
 
 ## Before execution
 
-Record together in the incident timeline:
+Record in the incident timeline:
 
-- **Scope and approval:** tier, exact target, command and artifact/configuration identity, human
-  executor or separately approved protected automation, and approving human. Approval covers the
-  exact command or a bounded envelope ITO approves in the TLC, with `Valid until` UTC or an
-  explicit incident-lifecycle end. Before each attempt the executor checks that approval is current
-  and target, action, actor and identity still match. No repeat approval within that envelope;
-  expiry, mismatch or action outside it requires new approval.
-- **Effect and recovery:** blast radius, backout, verification window, stop criteria and human
-  monitoring owner. Capture perishable diagnostic evidence or record the named human's decision
-  to forgo unavailable capture for this reversible reliability mitigation.
+- **Approval:** tier, exact target, command, artifact/configuration identity, human executor or
+  separately approved protected automation, and approver. ITO may approve a bounded envelope in
+  the TLC. Record `Valid until` UTC or explicit incident-lifecycle end. Before each attempt the
+  executor checks current approval and target/action/actor/identity binding; no repeat approval
+  inside that envelope, but expiry, mismatch or out-of-envelope action requires new approval.
+- **Recovery:** blast radius, backout, verification window, stop criteria and human monitoring owner.
+  Capture perishable diagnostics or record the named human's decision to forgo unavailable capture.
 
-The human release owner or approved protected automation executes; the agent does not. After every
-attempt, record the executor, time (UTC), receipt and observed effect. An UNKNOWN outcome needs a
-reconciliation owner and read-after-write check; do not retry until reconciled.
+Only the human release owner or approved protected automation executes. Record executor, UTC time,
+receipt and observed effect after every attempt. UNKNOWN needs a reconciliation owner and
+read-after-write check; no retry until reconciled.
 
 ## After resolution
 
-Reconcile deferred readiness/artifact records for covered actions, execution-boundary evidence,
-timing/freeze documentation, suppression records, and the formal change system and record ID.
-Already-live rollback reuses existing artifact records. No deployment-control or credential/role
-API check sits on the recovery path. Existing incident roles and communications cover monitoring
-and notification. These administrative records and unavailable diagnostic capture do not delay an
-approved covered mitigation; effect-outcome reconciliation is never deferred. Give the completed
-timeline to `scribe`.
+Reconcile deferred readiness/artifact records, execution-boundary evidence, timing/freeze documents,
+suppression records, and formal change system/record ID. Already-live rollback reuses its records.
+No deployment-control or credential/role API check sits on the recovery path. Existing incident
+roles/communications cover monitoring and notification. These administrative records and unavailable
+diagnostic capture never delay approved covered mitigation; effect-outcome reconciliation is never
+deferred. Give the completed timeline to `scribe`.

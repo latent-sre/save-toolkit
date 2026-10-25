@@ -1,45 +1,41 @@
 # Operational knowledge disposition policy
 
-`../SKILL.md` carries the learning contract, trust rules, and required invariants; they are not
-restated here. This file owns what the body leaves open: the event→artifact map, the remaining
-disposition-state definitions, default paths, and the evidence rules.
+Apply the [closeout contract](../SKILL.md) for trust, write authority and evidence invariants.
+This reference supplies artifact destinations, disposition persistence and definition ownership.
 
 ## Event-to-artifact map
 
 | Observed event | Required disposition |
 |---|---|
-| An application, service, worker, job, datastore, platform, or other component is approved or materially changes | Create or update its component card and knowledge index; propose missing alert, runbook, ownership, dependency, backup/restore, or SLO work. |
-| A component is decommissioned | Move its component card to `lifecycle: retired` and set its knowledge-index lifecycle cell to `retired` with it, dated and citing the authorizing record in `Lifecycle since / record`; move dependent alert cards to `status: retired` and their knowledge-index `Status` cells to `retired`, and its runbooks to `status: retired` rather than deleting any of them; name every artifact and dependent component still referencing it. Removing live alerts, telemetry, dashboards, or platform resources is a production change under the existing gate, never a documentation disposition. |
-| An audit finds an operational gap on an otherwise unchanged component | Disposition affected cards, index and runbook; propose missing operational work under one owner. Record the dated verdict in the component card's open-gaps table and index's recent-updates row. This is document review, at most `[sourced]` to the audit, never moving `last_verified`; retain incoming finding labels. |
-| Only documentation is wrong, such as a stale contact found in an audit or drill | Correct the owning artifact and affected links from dated evidence; no unrelated cards, index rows, or operational work. Preserve evidence labels and `last_verified`. |
-| An alert is approved or materially changes | Create or update the alert card and the alert's knowledge-index row, including its `Status` cell; link its service card and authoritative alert definition; and require a valid runbook target before paging. |
-| An alert fires | Active event: route investigation to the responder with `incident-investigation` (`sre-assistant` only for a dispatched read); prepare no retrospective or KB change until resolution. |
-| A runbook is missing or contradicted by evidence | Create or update it through `scribe` plus `runbook`; retain unsupported commands as `[unverified]`. |
-| A drill exposes a bad or missing step | Update the runbook from the supplied drill record; change `last_verified` only when evidence binds artifact/version, target, actor, time, and a passing outcome on the version being stamped; the drill that exposed the bad step does not move it. |
-| A resolved incident reveals a systemic lesson | Disposition a missing postmortem to a separate postmortem-mode assignment with an owner; continue the authorized knowledge closeout and its affected follow-ups. |
-| A fleet prompt, agent, or skill has an accepted behavioral failure | Route the observed divergence, evidence, and proposed named regression to `agent-engineer`; operational content never rewrites fleet definitions directly. |
+| A component is approved or materially changes | Create or update its card and knowledge index; propose missing alert, runbook, ownership, dependency, recovery or SLO work. |
+| A component is decommissioned | Set its card's `lifecycle` and index lifecycle to `retired`, with date and authorizing record in `Lifecycle since / record`. Set dependent alert cards to `status: retired`, their knowledge-index `Status` cells to `retired`, and runbooks to `status: retired`; do not delete them. Name remaining artifact/component references. Live-resource removal remains a separately gated production change. |
+| An audit finds an operational gap on an otherwise unchanged component | Disposition affected cards, index and runbook; assign missing work. Put the dated verdict in the card's open gaps and index's recent updates. The document is at most `[sourced]` to the audit; preserve incoming finding labels and never advance `last_verified`. |
+| Only documentation is wrong | Correct the owning artifact and affected links from dated evidence; preserve labels and `last_verified`, without unrelated card/index changes or operational work. |
+| An alert is approved or materially changes | Create or update its card and the alert's knowledge-index row, including its `Status` cell; link the service card and authoritative definition. Paging requires a valid runbook target. |
+| An alert fires | Return to `incident-investigation`; `sre-assistant` takes only a dispatched read. No retrospective or KB preparation before resolution. |
+| A runbook is missing or contradicted, including a failed drill | Use `scribe` plus `runbook` with supplied evidence; unsupported commands remain `[unverified]`. A drill exposing a bad step cannot verify the repaired version. |
+| A resolved incident reveals a systemic lesson | Assign a missing postmortem separately with an owner; continue authorized knowledge closeout and its follow-ups. |
+| A fleet prompt, agent or skill has an accepted behavioral failure | Send divergence, evidence and proposed named regression to `agent-engineer`; do not rewrite fleet definitions through operational content. |
 
 ## One-time disposition states
 
-`prepared` requires the `[verified]` checkout binding in the body's step 1: the mounted checkout's
-current commit matches the target revision. `duplicate`
-requires the existing owning artifact and supporting evidence. The rest:
+`prepared` requires the body's `[verified]` checkout binding: the mounted checkout's current commit
+matches the target revision. `duplicate` requires an existing owning artifact and supporting evidence.
 
-- `proposed` — the owner and next action are named, but no reviewable artifact change exists.
-- `blocked` — the missing evidence, authority, dependency, or owner is named.
-- `not_applicable` — the reason this artifact class does not apply is explicit.
+- `proposed`: named owner and next action, no reviewable artifact change yet.
+- `blocked`: named missing evidence, authority, dependency or owner.
+- `not_applicable`: explicit reason the artifact class does not apply.
 
-A `proposed` or `blocked` disposition becomes repository state only when it lands. When a diff is
-prepared under the checkout binding, that same diff adds the row to the index's Open knowledge gaps
-table — or to the component card's open-gaps table when the target index has none — carrying gap,
-artifact, status, owner, tracking link, and evidence label, never the blocking excerpt. Whenever no
-such diff can be prepared — no binding, a mismatched binding, or another named blocker — the
-handoff's `Follow-up:` line carries a caller-supplied tracker reference or names the owner who
-files it.
+A proposed/blocked disposition becomes repository state only when it lands. A bound prepared diff
+records it in **Open knowledge gaps** in the index, or the component card's open-gaps table if the
+index has none. Keep gap, artifact, status, owner, tracking link and evidence label, not the blocking
+excerpt. Whenever no such diff can be prepared, the handoff's `Follow-up:` supplies the caller's
+tracker reference or names who will file it.
 
 ## Default paths when the repository has no convention
 
-Prefer the target repository's existing documented paths and index. When none exist, use:
+Use existing documented paths/index first. Otherwise these defaults are the authorized roots only
+when the caller names none, relative to the knowledge repository:
 
 - `operations/index.md`
 - `operations/services/<component>.md`
@@ -47,34 +43,27 @@ Prefer the target repository's existing documented paths and index. When none ex
 - `runbooks/<runbook>.md`
 - `postmortems/<yyyy-mm-dd>-<incident>.md`
 
-These defaults are the authorized roots only when the caller names none. They are relative to the
-knowledge-repository root; `operations/`, `runbooks/`, and `postmortems/` are permitted fallback
-roots. Reject absolute paths, parent traversal, URLs as write targets, and paths outside the
-caller-authorized documentation roots. Update an existing stable identifier
-instead of creating a second record.
+Fallback roots are `operations/`, `runbooks/`, and `postmortems/`. Reject absolute paths, parent
+traversal, URLs as write targets and paths outside caller-authorized documentation roots. Reuse
+stable identifiers rather than creating duplicate records.
 
 ## Evidence and review rules
 
-1. Configuration authority follows the established provisioning owner. For source-managed
-   definitions, link the owning repository path and exact revision (a uniquely resolved short or
-   full commit ID). For API-owned alerts, link the authoritative target/resource locator and UID
-   with the supplied state/readback receipt and version evidence; an absent version stays
-   `[unverified]`, not an invented commit or version. A captured export is evidence or recovery
-   material unless it actually owns provisioning. KB cards summarize and link the owning definition
-   rather than copy details that will drift. This identity does not replace the separate KB checkout
-   binding, human closeout approval, or dirty-path controls, and grants no live lookup to scribe.
-2. Prefer evidence for the exact target revision. If sources disagree, retain both labels, describe
-   the conflict, mark the affected claim `[unverified]`, and assign one owner to resolve it.
-3. `last_reviewed` and `last_verified` follow `../SKILL.md`'s invariants. The distinction they
-   protect: document review does not prove a procedure works; only bound execution evidence does,
-   and `last_verified` belongs only to rehearsed operational procedures. `Reviewer` and
-   `Reviewed change` cells fill only from the evidence that moves `last_reviewed`; otherwise they
-   stay blank.
-4. Credential checks are defense in depth, not proof of absence. Store only the minimum evidence.
+- Link the actual provisioning owner: source-managed definitions need the repository path and
+  exact uniquely resolved short/full revision; API-owned alerts need resource locator/UID plus
+  supplied state/readback receipt and version evidence. An absent API version stays `[unverified]`.
+  An export is evidence/recovery material unless it owns provisioning. Cards summarize and link
+  definitions rather than copying configuration. Definition identity does not replace KB checkout
+  binding, human closeout approval or dirty-path controls, and grants scribe no live lookup.
+- Prefer exact-target-revision evidence. For conflicts, retain both labels, explain the disagreement,
+  mark the affected claim `[unverified]` and assign a resolution owner.
+- Review/execution stamps follow the parent invariants: `last_verified` belongs only to rehearsed
+  procedures with passing evidence bound to artifact/version, target, actor and time. `Reviewer` and
+  `Reviewed change` cells fill only from the evidence that moves `last_reviewed`; otherwise leave blank.
+- Store minimal evidence. Credential checks cannot prove secrets absent.
 
 ## Recommended course of action
 
-Every closeout names the documentation change or open question, owner, and proof still needed.
-A production-facing recommendation also carries urgency, change tier, approval need, verification,
-and rollback or recovery. Keep these with the existing follow-up instead of repeating a packet.
-The closeout recommends; it never grants authority or performs the action.
+Keep the change/open question, owner and missing proof in the existing follow-up. For a production
+recommendation include urgency, change tier, approval need, verification and rollback/recovery.
+A closeout neither authorizes nor executes it.

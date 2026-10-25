@@ -1,7 +1,6 @@
 # Stack: toolchain, kits and libraries
 
-Reuse repository conventions first; select only capabilities the app needs, verify registry
-compatibility before pinning, and record added dependencies and licences in the handoff.
+Preserve repository choices; verify compatibility and licences for added capabilities.
 
 ## React toolchain
 
@@ -27,8 +26,8 @@ For Vue apps, use [Vue](./vue.md).
 
 ## Component kits
 
-Any approved kit may start an app or join one; there is no house ban and no one-kit-per-app limit.
-One base kit owns global reset, tokens and providers; additional kits follow the mixing rules.
+Approved kits may start or join an app. One base kit owns reset/tokens/providers; additions follow
+the mixing rules, not a one-kit limit.
 
 | Kit | Fit and integration | Licence |
 |---|---|---|
@@ -45,8 +44,8 @@ One base kit owns global reset, tokens and providers; additional kits follow the
 | **React Bits** | Text/background effects (`@react-bits/…`), CSS/Tailwind, Motion/GSAP/three.js | MIT with Commons Clause (+ GSAP standard licence) |
 | **Motion** | Animation engine `motion/react`; `LazyMotion` limits bundle size | MIT |
 
-After `shadcn init` (pass `-p` with a preset name such as `nova`, `vega`, `maia`, `lyra`, `mira`,
-`luma`, `sera`, `rhea` or a `shadcn/create` preset code), align the font import with `--font-sans: var(--font-ui)`,
+After `shadcn init` (`-p` selects a named or `shadcn/create` preset), align the font import with
+`--font-sans: var(--font-ui)`,
 replace generated `:root`/`.dark` blocks with the [theme bridge](../assets/theme.css), and set
 `@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));`.
 
@@ -58,12 +57,12 @@ Use one icon set (Lucide, Tabler or Material Symbols). Prefer base-kit drawers o
 1. **One global owner:** declare CSS layers once before imports
    (`@layer theme, base, mantine, mui, components, utilities;`, dropping unused names); use
    Mantine `styles.layer.css` and MUI `enableCssLayer` so `utilities` stays last.
-2. **Bridge tokens:** map [theme.css](../assets/theme.css) brand/surface colours, radius and fonts
-   into shadcn's CSS bridge and any second kit's theme provider (`MantineProvider`, MUI theme).
+2. **Bridge tokens:** map [theme.css](../assets/theme.css) into shadcn's bridge and additional
+   kit providers, including colours, radius and fonts.
 3. **One interaction system per primitive:** keep a single owner for dialogs/modals, tooltips,
    toasts, icons and dates across the app to avoid competing focus traps and portal roots.
-4. **Avoid class collisions and measure cost:** prefix daisyUI or Tailwind classes when needed;
-   weigh bundle growth and a second styling/provider runtime against building on the existing kit.
+4. **Avoid collisions:** prefix daisyUI/Tailwind where needed; weigh bundle/provider cost against
+   the existing kit.
 5. **Bridge animated collections:** provide `cn` and shadcn token variables when mounting
    shadcn-registry animations on another base kit.
 

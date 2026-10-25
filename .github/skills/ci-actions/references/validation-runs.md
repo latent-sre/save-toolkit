@@ -1,8 +1,7 @@
 # Bounded CI runs
 
-Read before submitting or rerunning remote validation. Use the caller's authorized scope and
-current agent/host permissions. An existing request covering the run is sufficient; do not ask
-for the same approval again. Local-edit or local-test permission alone does not authorize a remote run.
+Before remote validation/reruns, bind caller authorization and host permissions. Reuse an existing
+request covering the run; local edit/test permission alone does not authorize remote execution.
 
 1. **Bind the target and effects.** Inspect the repository, workflow, selected ref and resolved
    commit, inputs, jobs, called workflows/actions, runner access, permissions, credential scopes
@@ -10,8 +9,7 @@ for the same approval again. Local-edit or local-test permission alone does not 
    candidate removes them: their branch filters select the upstream run, not the consumer's source.
    Follow their called workflows/actions at the revisions GitHub will actually use; same-repository
    relative reusable workflows use the caller's commit, while explicit `@ref` calls use that ref.
-   Reuse matching established evidence rather than
-   re-auditing unchanged dependencies. Every reachable effect must be authorized validation,
+   Reuse matching evidence for unchanged dependencies. Every reachable effect must be authorized validation,
    CI artifacts or status reporting. Deployment, release/package publication, environment approval,
    protection changes and privileged untrusted-code execution are outside this permission; hand
    off without submitting. Unknown effects or unavailable definitions leave submission pending;
@@ -37,8 +35,6 @@ for the same approval again. Local-edit or local-test permission alone does not 
    without a receipt leaves submission UNKNOWN: reconcile run history before retrying and return
    the gap if the outcome cannot be established. Keep retries within the authorized scope.
 
-Report execution and required-check eligibility separately. A green `workflow_dispatch` run can
-validate the candidate without satisfying the PR's required status check in a branch ruleset;
-check the triggering event and actual PR/ruleset result before claiming that gate passed. A CI-only
-run is not production-deployment evidence. The human release owner retains deployment and
-publication execution under the existing process.
+Report execution separately from required-check eligibility: green `workflow_dispatch` may not
+satisfy the PR ruleset. Check event and actual PR/ruleset result before claiming passage. CI validation
+is not deployment evidence; the human release owner retains deployment/publication execution.

@@ -1,15 +1,8 @@
 # LogQL dialect for log investigation
 
-## Contents
-
-- [Selectors](#stream-selectors-and-label-discipline), [parsers and metadata](#line-filters-versus-parsers)
-- [Rates and buckets](#metric-queries-rates-and-complete-buckets), [deploy comparison](#compare-before-and-after-a-deploy)
-- [Correlation](#follow-one-request), [limits](#errors-that-are-limits-not-bugs)
-
 Syntax references: [LogQL](https://grafana.com/docs/loki/latest/query/),
 [metric queries](https://grafana.com/docs/loki/latest/query/metric_queries/), and
 [string quoting](https://grafana.com/docs/loki/latest/query/log_queries/).
-Confirm target version, tenant, labels, parsers and ruler behavior before relying on these shapes.
 
 ## Stream selectors and label discipline
 
@@ -46,7 +39,7 @@ structured metadata and only accelerates filters preceding parsers; confirm avai
 ## Metric queries: rates and complete buckets
 
 `rate` counts lines/second; `count_over_time` counts lines per stream. Aggregate streams for service
-totals. Evaluate fixed five-minute ranges with coverage state. An absent error series may become
+totals; retain coverage state for the selected range. An absent error series may become
 zero only after independent proof of selector, freshness, parsing and eligible population, plus an
 emission contract that absence means no errors. Retain a separate missing-telemetry path.
 
@@ -83,7 +76,7 @@ classification and duration across numerator, denominator and phases.
 
 ## Follow one request
 
-For an id in line text, prefilter before parsing, then match the exact parsed field:
+For line text, prefilter before parsing, then match the parsed ID exactly:
 
 ```logql
 {env="prod", app=~"checkout|payments"} |= "<validated_and_logql_escaped_id>" | json | request_id="<validated_and_logql_escaped_id>"
@@ -95,8 +88,6 @@ that emits a LogQL literal and inspect the rendered query. Sorting/cross-service
 client-side.
 
 ## Errors that are limits, not bugs
-
-Preserve the query error as evidence; narrow queries instead of raising limits during an incident.
 
 | Error or pressure | Relevant limit and response |
 |---|---|

@@ -1,14 +1,11 @@
 # Terms and roles
 
-Defined once here; other skills use these words without restating them. A responder who meets one
-of them in `production-change-gate`, `incident-investigation`, or an alert can read this file alone.
-
-| Term or role | What it means on this team |
+| Term or role | Team meaning and boundary |
 |---|---|
-| Blast radius | The set of users, requests, services, or environments a change or failure can reach. State it as named targets and counts ("all `checkout` instances in prod", "one region"), never as an adjective. `production-change-gate` records it as required impact evidence after the tier is chosen from the action's reversibility and access-path effects; a small blast radius never lowers a tier. |
-| Golden signals | Latency, traffic, errors, saturation (the Google SRE four). RED (rate, errors, duration) is the request-driven subset for a service; USE (utilization, saturation, errors) is the resource view for a host, pool, or queue. |
-| Human release owner | The human assigned to execute a production change and own its rollback; named on the change record where the process requires one (the incident fast path defers that record without removing the role). The team has not recorded a default holder or rota here; record it when a human owner does. |
-| The platform team | The team that operates the PCF foundation itself (BOSH, Ops Manager, Diego cells, Gorouter, CredHub/UAA, upgrades) — see "The platform boundary" in the skill entrypoint. Symptoms on their side are escalated with evidence, not debugged. |
-| The human security incident owner | The person paged for a suspected compromise or abuse. No fleet agent owns security incident response; a reliability responder who suspects compromise escalates to this person and preserves evidence rather than restarting. No rota or title is recorded yet; record it here. |
-| ITO (IT Operations) | Runs the TLC once one is open. Asks the responder for updates, pages the teams the responder names, and approves changes during the incident; does not run the investigation or set its direction. The team has no standing incident lead or commander. |
-| TLC (Techline Chat) / bridge call | The existing conversation used to coordinate an incident. Carry it forward when supplied; give findings and requests for specialists there without telling the responder to open another or take command. During an incident, ITO gives change approval in the TLC. |
+| Blast radius | Reach across users/requests/services/environments; name targets and counts. Small scope never lowers a production-change tier, which follows reversibility and access-path effects. |
+| Golden signals | Latency, traffic, errors, saturation. RED: rate/errors/duration for requests; USE: utilization/saturation/errors for resources. |
+| Human release owner | Assigned production executor and rollback owner; named on the change record when required. Incident fast path may defer that record, not the role. Default holder/rota remains unrecorded. |
+| Platform team | Operates PCF internals under the parent platform boundary. Escalate evidence; the fleet does not operate the foundation. |
+| Human security incident owner | Receives suspected compromise/abuse escalation. Preserve evidence instead of restarting; no fleet agent owns security response. Title/rota remains unrecorded. |
+| ITO (IT Operations) | Runs the open TLC: requests updates, pages responder-named teams and approves incident changes. It does not investigate or direct investigation. The team has no standing incident lead or commander. |
+| TLC (Techline Chat) / bridge | Existing incident coordination channel. Carry it forward; provide findings/specialist requests there without opening another channel or assigning command to the responder. ITO approves incident changes there. |

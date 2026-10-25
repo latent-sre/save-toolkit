@@ -1,24 +1,15 @@
 # Grafana 13 unified alerting as code
 
-Alert rules are independent operational resources, not legacy per-panel dashboard alerts. Rule
-groups, notification routing, and runbook metadata get the same review as application code.
+Alert rules are independent resources, not legacy per-panel dashboard alerts.
 
-## Contents
-
-- [Evaluation knobs](#the-four-evaluation-knobs-and-the-spellings-that-fail-to-load)
-- [Provisioning](#provisioning-paths)
-- [Rule groups](#rule-groups-as-code)
-- [Notification policies](#contact-points-and-notification-policies)
-- [Review and rollback](#review-and-rollback)
 
 `stack-profile` owns the current minor. Confirm the exact target patch against the current vendor
 advisory before a security verdict; neither a major/minor label nor an old QA result establishes a
 security floor. Inspect alert-author and datasource grants separately; version evidence alone does
 not establish which data an author can query.
 
-Grafana-managed rules are the documented recommendation and are evaluated by Grafana; data
-source-managed rules are stored and evaluated in a Prometheus-family backend. Choose one evaluation
-owner per rule and never duplicate a rule in both paths.
+Grafana evaluates Grafana-managed rules; Prometheus-family backends store/evaluate datasource-managed
+rules. Keep one evaluation owner per rule, without duplicate rules across paths.
 
 ## The four evaluation knobs, and the spellings that fail to load
 
@@ -27,9 +18,8 @@ owner per rule and never duplicate a rule in both paths.
   HTTP API body spells it **`keep_firing_for`**; file-provisioning YAML and the YAML/JSON export use
   **`keepFiringFor`**.
   Verify the running rule's state, not the YAML, before trusting the filter.
-- **Recovery threshold** is hysteresis from the query side: a rule that fires above 1000 ms and
-  recovers only below 900 ms cannot oscillate on a value hovering at 1000. Consider it when
-  threshold oscillation causes noise; choose the recovery condition from the signal and response intent.
+- **Recovery threshold** supplies query-side hysteresis. Choose it from the signal/response intent
+  when threshold oscillation causes noise.
 - **No-data and execution-error states** are a decision per rule: for a paging burn-rate rule,
   silent telemetry mapped to Normal is the false all-clear, and an erroring query mapped to Normal
   disarms the alert invisibly. In file-provisioning YAML "Normal" is spelled `OK`
@@ -66,10 +56,8 @@ Never place a token or other secret in a rule, label, annotation, or tracked pro
 
 ## Contact points and notification policies
 
-**Notification templates are the message; annotations are the facts.** A template assigned to a
-contact point shapes what Slack or email shows; the runbook link and the measured value live in the
-rule's annotations so every channel gets them. A template that computes facts is a second source of
-truth that drifts from the rule.
+Keep runbook links/measured values in rule annotations; contact-point templates format those facts
+rather than recomputing them independently.
 
 **Full-tree warning.** Grafana treats the notification policy tree as one resource:
 applying a provisioned tree overwrites every policy in it. Export the full current tree immediately
@@ -86,9 +74,8 @@ not prove notification delivery.
 
 ## Review and rollback
 
-For a read-only review, inspect rule definitions and current evaluation state without forcing a
-condition or sending a notification. Successful rule reads and healthy evaluations do not prove
-firing/resolution or delivery. Record those checks as `[unverified]` until separately exercised.
+Read-only review never forces conditions or sends notifications. Definitions and healthy evaluation
+do not prove fire/resolve or delivery; keep those checks `[unverified]` until exercised.
 
 For individual live Grafana-managed rule changes, use [alert operations](./alert-operations.md);
 who may write is set in the parent skill's [Access and authority](../SKILL.md#access-and-authority).

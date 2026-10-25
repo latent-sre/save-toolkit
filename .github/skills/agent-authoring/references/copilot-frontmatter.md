@@ -1,25 +1,13 @@
 # Copilot & VS Code frontmatter — agents & skills
 
-The fleet's single source of truth for VS Code / GitHub Copilot frontmatter facts. Check live docs
-and the installed host; when they disagree, record the version and evidence instead of assuming
-the documented field is enforced. Re-verify after host upgrades.
-
-`RELEASE-001` owns installed-host verification; treat a key's presence here as permission to
-author, never as proof it enforces.
-
-## Contents
-
-- Agents
-- Handoff entries
-- Tool aliases
-- Skills
+Check documented fields against the installed host after upgrades. Record version/evidence on
+disagreement; `RELEASE-001` owns host verification. A supported header is not proof of enforcement.
 
 ## Agents
 
 VS Code loads agent `.md` files from `.github/agents/` in a workspace and from
 `com.github.copilot/agents/` in an Agent Plugins 1.0 plugin; the fleet emits the same
-`<name>.agent.md` to both. A key the host does not support is **ignored, not rejected**, which is
-why one file serves both targets.
+`<name>.agent.md` to both. Unsupported keys are **ignored, not rejected**.
 
 | Field | Disposition here |
 |---|---|
@@ -28,9 +16,9 @@ why one file serves both targets.
 | `agents` | Agent names available as subagents; `*` allows all, `[]` prevents any. Emitted from the canonical `Agent(...)` grant. It scopes discovery on the observed host; deterministic invocation and nested-edge enforcement stay unverified until `RELEASE-001` observes a real allowed and forbidden call on the exact build |
 | `handoffs` | Human-selected ownership transfer — **VS Code only**; explicitly *"not supported for Copilot cloud agent on GitHub.com"*. Emitted for the six lanes in `COPILOT_HANDOFFS_BY_SOURCE`, independently of `Agent(...)` grants. A handoff is a user-selected context transition, not a subagent call, approval, or delegation authority; every write-capable receiver re-checks approval and target binding, and `researcher` is never a target because handoffs carry conversation context. Neither `agents:` nor `handoffs:` is a sandbox |
 | `argument-hint` | **VS Code only**; unsupported on Copilot cloud alongside `handoffs`. Not emitted on agents; the fleet uses it on all skills |
-| `model` | Single model name; VS Code also accepts a prioritized array. Unused — no fleet agent pins one; dated pins go stale silently |
+| `model` | Single model name; VS Code also accepts a prioritized array. Unused; Claude generation aliases are not Copilot model display names |
 | `user-invocable` | Boolean, default `true`; `false` hides the agent from the chat dropdown. Unused — every fleet lane is meant to be reachable by the human SRE |
-| `disable-model-invocation` | Boolean, default `false`. In VS Code it prevents the agent being invoked **as a subagent by other agents**; on GitHub it stops Copilot cloud agent from selecting the agent automatically. Unused on agents pending host verification, and the one host key that could turn the delegation graph's inbound edges into enforcement rather than documented intent |
+| `disable-model-invocation` | Boolean, default `false`. In VS Code it prevents the agent being invoked **as a subagent by other agents**; on GitHub it stops Copilot cloud agent from selecting the agent automatically. Unused on agents; enforcement remains unverified |
 | `target` | `vscode` or `github-copilot`. Only the exported SRE command profile sets `vscode`; standard projections leave it unset |
 | `mcp-servers` | MCP server config JSON for Copilot targets. Unused pending host verification — `researcher`'s exact Claude MCP grants collapse to bare `web`, so the cited-research lane is materially weaker here than on Claude |
 | `hooks` | Agent-scoped hooks; the loader requires `chat.useHooks`, workspace trust, and permitted hook sources. Do not prescribe the older `chat.useCustomAgentHooks` setting. Emitted only in the separately exported SRE command profile; global `hooks/copilot-hooks.json` stays empty |
@@ -42,7 +30,7 @@ same targets to bare Copilot names, removing only this plugin's namespace withou
 
 ## Handoff entries
 
-Each entry in `handoffs`. VS Code only — the whole key is inert on Copilot cloud.
+VS Code only; entries in `handoffs`:
 
 | Field | Disposition here |
 |---|---|
@@ -78,13 +66,12 @@ detail in the Save Toolkit repository's `docs/copilot-projection.md`.
 Copilot discovers workspace skills from `.github/skills`, `.claude/skills`, and `.agents/skills`,
 and personal skills from `~/.copilot/skills`, `~/.claude/skills`, and `~/.agents/skills`. This fleet's
 workspace projection lives at `.github/skills/`; the installed plugin reads canonical `skills/`
-under Agent Plugins 1.0. The directory is tracked and regenerated from canonical `skills/`.
-Installed plugin skills keep their `save-toolkit:` names; the `.github/` workspace copies use bare
+under Agent Plugins 1.0. Installed plugin skills keep their `save-toolkit:` names; the `.github/` workspace copies use bare
 names.
 
 The [VS Code skill header reference](https://code.visualstudio.com/docs/agent-customization/agent-skills#_header-required)
 documents invocation behavior; the [Agent Skills specification](https://agentskills.io/specification)
-defines portable metadata. A valid header does not prove installed-plugin discovery or runtime enforcement.
+defines portable metadata. Verify installed-plugin discovery separately.
 
 | Field | Disposition here |
 |---|---|
@@ -95,8 +82,8 @@ defines portable metadata. A valid header does not prove installed-plugin discov
 | `disable-model-invocation` | Optional, default `false`. `true` disables automatic loading; used by `pcf-deploy` for manual-only invocation. Setting this to `true` together with `user-invocable: false` disables both entry paths |
 | `context` | **Experimental**, unused; no current adoption requirement. Default is inline; `fork` runs the skill in a dedicated subagent context and returns only its final result to the parent. Requires `github.copilot.chat.skillTool.enabled`; adopt only after a bounded host check of the skill's ownership and evidence-return contract |
 | `compatibility` | Optional portable metadata, 1–500 characters describing environment requirements. Used for host and access prerequisites (for example `pcf-deploy`); descriptive, not an access check |
-| `metadata` | Optional portable string-to-string mapping. Unused; no fleet requirement for per-skill author/version metadata |
-| `license` | Optional. Unused — the plugin manifest already carries MIT, and the field would repeat across every projected bundle |
+| `metadata` | Optional portable string-to-string mapping. Unused |
+| `license` | Optional. Unused; the plugin manifest carries MIT |
 | `allowed-tools` | Experimental in the portable specification: a space-separated list of pre-approved tools, with implementation-dependent support. VS Code's skill-header table does not document it; Copilot enforcement is unverified. Fleet policy avoids tool preapproval: **do not use**; do not treat it as a restricting allowlist |
 
 Hook entry shape, PreToolUse decisions, launcher behavior, and manifest format detection are host

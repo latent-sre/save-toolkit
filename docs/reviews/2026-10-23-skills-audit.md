@@ -106,8 +106,8 @@ deleting an entire repeated-looking section without checking its exceptions woul
    around them. PCF deployment similarly repeats plan fields across authority, planning and
    handoff sections. Keep one plan checklist plus concise execution conditions.
 4. **Remove small fragments when their unique content has a clear existing home.** [verified]
-   The 851-byte [Python guard-clause example](../../skills/python-craft/references/refactoring.md#guard-clause-example)
-   repeats semantics in [refactoring](../../skills/python-craft/references/refactoring.md),
+   The 851-byte [Python guard-clause example](https://github.com/latent-sre/save-toolkit/blob/afbb1026607d841600e19c9e68184eae3f8ee871/skills/python-craft/references/refactoring.md#guard-clause-example)
+   repeats semantics in [refactoring](https://github.com/latent-sre/save-toolkit/blob/afbb1026607d841600e19c9e68184eae3f8ee871/skills/python-craft/references/refactoring.md),
    lines 28–41. It can be merged there while preserving the worked comparison, NaN/zero distinction
    and effect order. The short [Grafana tooling reference](../../skills/grafana/references/http-api.md#credentials-and-effective-scope)
    can move into existing API/tooling guidance if its overwrite warning survives. Remove the empty

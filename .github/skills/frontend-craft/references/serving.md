@@ -1,19 +1,17 @@
 # Build, configure and serve
 
-Use localhost for development; load PCF only when PCF delivery is required. The
-[serving contract](../assets/serving-contract.mjs) checks a served production build (`vite preview`
-is not a production server and fails the missing-file check).
+Use PCF guidance only for PCF delivery. Run the [serving contract](../assets/serving-contract.mjs)
+against a served production build; `vite preview` fails its missing-file check.
 
 ## Localhost and runtime configuration
 
-Proxy the API prefix through `server.proxy` in `vite.config.ts` (`API_TARGET`; FastAPI 8000, Go
-8080) so cookies and API calls share one origin without CORS (`ws: true` for WebSockets).
+Proxy the actual API through Vite `server.proxy` (`API_TARGET`, `ws: true` for WebSockets) to
+keep cookies/calls on one origin; discover its port rather than assuming a framework default.
 
 When promoting one build (`vite build`, hashed `dist/assets/`) across environments, load
 same-origin `/config.json` before first render with [runtime-config.ts](../assets/runtime-config.ts)
-(`public/config.json` with `environment: "local"` in dev). Render missing-field startup errors
-instead of a blank page, and show the environment badge in the shell and destructive confirms
-(production most distinctly). Never put secrets in `config.json` or `VITE_*`.
+(`public/config.json` in dev). Render startup errors and show the environment in the shell and
+destructive confirms. Never put secrets in `config.json` or `VITE_*`.
 
 ## PCF
 
@@ -24,7 +22,7 @@ Assemble a CI deploy directory with `dist/` and these files (never push the sour
 | `Staticfile` | `root: dist` (without it `nginx/conf` moves into `public/` and never loads); `pushstate: enabled`; `location_include: includes/*.conf`; `force_https: true` and `http_strict_transport_security` |
 | `nginx/conf/includes/spa.conf` | Inside `location /`: HTML gets `Cache-Control: no-cache`, CSP, `nosniff` and referrer policy with `always` (no HSTS here; the buildpack adds it). Repeat headers in nested locations: `location ^~ /assets/` (`max-age=31536000, immutable`, `try_files $uri =404`), `location = /config.json` (`no-cache`), and a regex location for file extensions returning uncached `404` |
 | `.profile` | Writes `$HOME/public/config.json` atomically from `UI_*` env vars before nginx starts; fails on missing required values, control characters, or non-root-relative API paths |
-| `manifest.yml` | `staticfile_buildpack`, `64M`, HTTP health check on `/`, host route and `UI_*` values |
+| `manifest.yml` | `staticfile_buildpack`, workload-appropriate memory, HTTP health check on `/`, host route and `UI_*` values |
 
 Serve the API on a context-path route of the same host (e.g. `host.domain/v1`). If `staticfile`
 rewrite precedence cannot satisfy the contract, use `nginx_buildpack` with a full `nginx.conf`

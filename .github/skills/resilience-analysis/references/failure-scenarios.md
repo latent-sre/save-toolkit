@@ -1,30 +1,22 @@
 # Select the scenarios the service exposes
 
-Start with the critical user outcome and its dependency path. Use this table to generate leads,
-then confirm effective behavior and existing protections before reporting a finding.
+Use applicable rows as leads, not findings.
 
-| Condition | Inspect | Discriminating evidence |
-|---|---|---|
-| Dependency latency rises | End-to-end deadline, per-attempt timeout, cancellation, retries, pool occupancy and isolation | Whether abandoned work retains scarce resources or degrades unrelated requests |
-| Demand exceeds service rate | Admission limits, queue bounds, load shedding, quotas and scaling delay | Accepted work, useful throughput and queue growth during overload; backlog drain and return to normal afterward |
-| An instance/failure domain disappears | Placement, shared dependencies, failover path, remaining capacity and cold-start behavior | Whether surviving capacity supports the required outcome under representative demand |
-| Work partially completes | Commit versus acknowledgement, idempotency scope, deduplication retention, replay and reconciliation | Whether timeout/redelivery repeats a business effect or loses accepted work |
-| Old and new versions coexist | API/schema compatibility, configuration precedence, rollout order and accepted writes | Old/new consumer behavior and a recovery path that preserves data |
-| Data must be restored | Restore scope, recovery dependencies, credentials/access, schema compatibility and business checks | Measured recovery time/data loss and a successful business transaction, not only restore command success |
-| A control plane or vendor fails | Ability to keep serving, obtain configuration, renew credentials, resolve names and recover | Which steady-state and recovery paths depend on the unavailable system |
-| Telemetry is lost or misleading | Signal freshness, sampling, coverage, missing-series behavior and independent user signals | Whether silence is distinguishable from health and whether the important failure is detectable |
-| Operators execute the procedure | Available access, exact target, ambiguous steps, reversibility, escalation and rare expertise | A bounded walkthrough or rehearsal by the intended operator with gaps recorded |
+| Condition | Evidence that distinguishes failure from effective protection |
+|---|---|
+| Slow dependency | Effective deadlines, retries and cancellation release scarce resources; unrelated requests retain capacity |
+| Overload | Exercise admission/overflow, queue bounds, quotas and scaling delay; measure useful throughput, queue growth and subsequent drain |
+| Lost instance/failure domain | Surviving capacity meets the outcome under demand, including cold starts and shared failover dependencies |
+| Partial completion | Commit/acknowledgement, idempotency scope, deduplication retention and reconciliation prevent redelivery from duplicating effects or losing accepted work |
+| Mixed versions | Old/new consumers, effective configuration and rollout order preserve compatibility and accepted writes through recovery |
+| Restore | Access, dependencies and schema permit recovery within required time/data-loss bounds; a business transaction succeeds, not just the restore command |
+| Control-plane/vendor loss | Serving and recovery paths still obtain required configuration, credentials and name resolution |
+| Missing/misleading telemetry | Freshness, sampling and coverage checks distinguish silence from health against independent user signals |
+| Operator procedure | The intended operator rehearses with actual access and targets; ambiguous steps, rare expertise, reversal and escalation gaps remain explicit |
 
-Capacity estimates must distinguish configured maxima, actual demand, startup allocation and
-observed bottlenecks. Multiplying instances by per-instance pool size gives potential demand,
-not proof that every connection is opened. Independence cannot be assumed merely because replicas
-have different names. Include shared databases, quotas, network paths and control planes.
+Configured pool maxima multiplied by instance count are potential demand, not opened connections.
+Distinguish startup allocation, actual demand and observed bottlenecks. Replica names do not prove
+independence: inspect shared databases, quotas, network paths and control planes.
 
 For pipeline and scheduled work, inspect freshness, completeness, correctness, duplication and
 deadline completion. For request workloads inspect useful responses, latency and degraded quality.
-The human owner determines acceptable tradeoffs; a generic availability target cannot substitute.
-
-Experiments require a hypothesis and conditions that could refute it. Define scope, expected
-behavior, observation window appropriate to the mechanism, stop conditions, recovery and applying
-owner. The analysis skill only proposes experiments; staging is not automatically harmless and
-production authorization is never inferred from a request for analysis.

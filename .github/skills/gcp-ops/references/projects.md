@@ -1,7 +1,7 @@
 # Local GCP inventory — fill in as the migration lands
 
-Placeholder inventory, the `pcf-ops` foundations.md analog. Every row is unconfirmed until a
-human records it; agents read this file, they do not guess values absent from it.
+Human-maintained placeholders, not discovered targets. Ask for missing project/service/region
+values; do not infer them from examples. Record names and locators, never credentials.
 
 ## Projects
 

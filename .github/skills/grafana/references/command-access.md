@@ -1,13 +1,6 @@
 # Grafana command access — Windows and macOS
 
-Use when the SRE agent has terminal tools and no Grafana MCP. This reference grants no write
-authority.
-
-## Contents
-
-- Bundled read helper
-- Query modes, macros and result summaries
-- Grafana resource reads
+For an SRE agent with terminal tools; no write authority is granted.
 
 ## Bundled read helper
 
@@ -22,13 +15,11 @@ arguments (single-quote literals instead), `--flag=value`, pipes, redirection in
 own timeout. If Python or the helper is missing on the execution host, report it; never install
 tools or switch shells to get around a denial.
 
-For multi-panel investigation, prefer the installed
-[agent workflow](./investigation-workflows.md#agent-collection-and-follow-up) with `--agent-json`.
-It returns structured data first and falls back to rendering when query evidence is incomplete.
-The guard admits its fixed commands and capture IDs, not arbitrary filesystem paths or editor
-launches. The workflow uses `python -I` with its managed analysis dependencies; the read helper
-continues to require `python -I -S`. On Windows PowerShell, embedded double quotes in native arguments are rejected because
-the shell can change their values; do not retry through another shell to bypass a denial.
+For multi-panel investigation use the [agent workflow](./investigation-workflows.md#agent-collection-and-follow-up)
+with `--agent-json`. Its grant admits fixed commands/capture IDs, not arbitrary paths or editor
+launches. It uses managed dependencies under `python -I`; the read helper requires `python -I -S`.
+Windows PowerShell native arguments with embedded double quotes are denied because the shell can
+change them; do not switch shells to bypass a denial.
 
 The helper loads `GRAFANA_URL`, `GRAFANA_ORG_ID` and a token (or Basic credentials) from the
 environment or, when the environment names none of them, from the human-written
@@ -39,8 +30,7 @@ and never ask for credentials. A missing or unusable setup is a gap to report:
 `image_path_masked` when a Basic-auth username or password appears in the capture path; use a
 service-account token. Every request carries `X-Grafana-Org-Id`, and the helper checks
 `/api/org` first, failing closed on a mismatch. It masks the configured credentials in its JSON and
-returns static error codes; masking covers only its own output, and the telemetry it returns stays
-private evidence.
+returns static errors. Masking covers its own output only; returned telemetry remains private.
 
 Substitute the installed path and discovered UIDs; times are examples, not the incident window.
 Every form except a raw `--expr` query works in both shells:
@@ -100,15 +90,14 @@ Reading results:
   `next_page`; a full page means more results may exist, not that they do. Stop at the task's cap
   and retain `truncated` even when page 100 has no permitted next page. Search is not a stable
   snapshot: concurrent dashboard changes can cause duplicates or omissions across pages.
-- A selected panel retains its stored targets, transformations, field configuration and dashboard
-  variable/time context. Saved variable selections may differ from the viewer's current selections;
-  datasource references and macros are not resolved, and no query or transformation is executed.
+- Selected panels retain stored targets, transformations, field configuration and dashboard context,
+  not necessarily the viewer's current selections. References/macros remain unresolved; no query or
+  transformation runs.
 - `alerts --uid` reads configuration, not evaluation health or notification delivery. Pair it with
   the folder's state read. `silences --id` verifies only the built-in Grafana Alertmanager's object;
   it does not inspect an external Alertmanager or prove an alert is suppressed.
-- Resolve dashboard variables from the actual selections first. The helper handles only the
-  built-in macros below and does not run Grafana expressions or panel transformations. Missing
-  points or events cannot rule out failures outside the sampled coverage.
+- Resolve variables from actual selections; only the built-ins below expand. Grafana expressions
+  and transformations do not run; missing points cannot rule out failures beyond sampled coverage.
 - Without `--var`, `render` uses the dashboard's saved variable defaults. Open and inspect the PNG
   before describing it (`coverage: image_uninspected`), and bind it to a query over the same window.
 - Missing authentication or an unsupported datasource is a gap: continue with browser or supplied
@@ -154,23 +143,18 @@ bound. Both explicit intervals are capped at 86,400,000 ms, and the rate interva
 unresolved interval macros fail before authentication. The result records original/resolved
 expressions and substitutions; inspect them before claiming equivalence with the panel.
 
-Every successful query includes a `summary`. `--output summary` omits raw `results` while retaining
-the summary, provenance, requested settings and expression evidence. Numeric summaries include
-finite minima/maxima, the last returned value, last finite value and null counts; they do not apply
-Grafana reductions or infer metric semantics. Log summaries count rows and timestamps without
-copying log lines. Detailed numeric-series entries are capped at 100, with explicit truncation.
-Keep empty, all-null, zero and unsupported frames distinct. A partial/unsupported summary is not
-evidence of no data, and a complete summary describes parsing completeness, not service health.
-Encoded frame values and numeric tables whose series identities live in row labels are not decoded
-by this summarizer; use full output to retain them for a capable reader instead of trusting raw
-placeholder values or aggregating different series together.
+Queries include a `summary`; `--output summary` omits raw `results`, retaining provenance, settings
+and expressions. Numeric summaries report finite minima/maxima, last returned/finite values and null
+counts, without Grafana reductions or metric interpretation. Logs report counts/timestamps, not lines.
+Detailed series cap at 100 with explicit truncation. Empty, all-null, zero and unsupported remain
+distinct; complete means parsed, not healthy. Encoded frames and numeric tables with row-label series
+identities are unsupported: retain full output for a capable reader rather than interpreting
+placeholders or merging different series.
 
-Read actual returned timestamp bounds and counts alongside the requested `from`/`to` and `limits`.
-`maxDataPoints` is a backend request hint, not an enforced response count: step alignment can return
-extra points or extend timestamps slightly beyond the requested window. The helper reports these
-differences without silently clipping samples. The 2 MiB response-size cap remains enforced.
-Retain `coverage: not_established` until the caller assesses the actual result and its gaps;
-compact output does not establish complete log history or notification delivery.
+Compare actual timestamp bounds/counts with requested `from`/`to` and `limits`. `maxDataPoints` is a
+hint: alignment may return extra/out-of-window points, reported without clipping. The 2 MiB cap is
+enforced. Retain `coverage: not_established` until results/gaps are assessed; compact output proves
+neither complete history nor notification delivery.
 
 ## Grafana resource reads
 

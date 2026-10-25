@@ -1,40 +1,34 @@
 # Release artifact evidence
 
-Read only when release readiness must prove that the shipping artifact is the immutable one that
-was tested. The parent `SKILL.md` owns the release checklist and the verdict.
+For release readiness, bind the shipping artifact to the immutable bytes tested below production.
+The [release checklist](./release-readiness.md) and [parent verdict](../SKILL.md#verdict) still apply.
 
 ## GitHub Release as the distribution path
 
-Bind evidence to the selected release and its exact tested asset:
-
 ```sh
 gh api repos/{owner}/{repo}/releases/tags/{tag}       # selected release: require "immutable": true
-gh api repos/{owner}/{repo}/immutable-releases        # require "enabled": true for publication policy
-gh api repos/{owner}/{repo}/rulesets                  # list candidate rulesets
-gh api repos/{owner}/{repo}/rulesets/{ruleset_id}     # fetch the one matching the tag
+gh api repos/{owner}/{repo}/immutable-releases        # new publication: require "enabled": true
+gh api repos/{owner}/{repo}/rulesets                  # when repository policy requires additional tag rules
+gh api repos/{owner}/{repo}/rulesets/{ruleset_id}     # inspect the applicable tag rule
 ```
 
-Record the selected release ID, tag, candidate commit, asset identity, and verified release
-attestation where available. Require the shipping asset's checked digest to match the digest in
-the exact candidate's lower-environment test evidence; a matching filename or tag is insufficient.
-An attestation must bind that repository, release/tag, commit, and asset digest. Missing byte binding
-blocks readiness even when the release is immutable. Enabling immutability affects future releases
-only; current settings do not establish protection for an older candidate.
+Record release ID, tag, candidate commit, asset identity and verified release attestation where
+available. The shipping asset's checked digest must match the exact candidate's lower-environment test evidence;
+a filename/tag match is insufficient. Attestations must bind repository, release/tag, commit and
+digest. Missing byte binding blocks readiness even for an immutable release.
 
-For this team's additional tag-protection policy, the matching ruleset must show `target: tag`,
-`enforcement: active`, a `ref_name.include` pattern
-that matches the selected tag, no matching exclusion, and both `update` and `deletion` rules. A prior
-Release's `"immutable": true` is supporting object evidence, never a substitute for the current
-setting for future publication. These repository controls do not replace the selected-release check.
+Current publication settings do not prove an older release immutable; check the selected object.
+For new publication, also check the current setting. GitHub's immutable release already locks its
+tag and assets. If the repository's release policy requires additional tag rules, check `target: tag`,
+`enforcement: active`, matching `ref_name.include`, no matching exclusion, and both `update` and
+`deletion` rules. These policy checks do not replace the selected-release and tested-byte evidence.
 
 ## Any other distribution path
 
-Attach the platform's equivalent immutable digest or non-replaceable object or version identity and
-prove it resolves to the tested bytes: a container image digest, a signed package checksum, a
-versioned object with deletion protection. Do not require GitHub Release controls for a path that
-does not use them.
+Attach an immutable digest or non-replaceable object/version identity and prove it resolves to the
+tested bytes: container image digest, signed package checksum, or versioned object with deletion
+protection. Do not require GitHub Release controls for other distribution paths.
 
 ## What this does not prove
 
-Immutability proves the bytes cannot change after promotion. It does not prove they were tested;
-that is the lower-environment evidence in the release checklist, and the two are attached together.
+Immutability does not prove testing; attach both protection and exact-byte test evidence.

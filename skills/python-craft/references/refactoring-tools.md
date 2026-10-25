@@ -1,11 +1,9 @@
 # Refactoring tools
 
-Use a tool when it makes the scoped transformation easier to inspect or more reliable. It does not
-choose the right design or prove application behavior. Inspect existing tooling before adding one.
+Use existing tools where they improve the scoped transformation; none proves application behavior.
 
 | Change | Suitable approach | Limit |
 |---|---|---|
-| Small local transformation | Direct edit | Inspect callers and semantic differences |
 | Symbol-aware rename, move, extract, inline | Rope or an existing capable editor | Dynamic/uncertain references still need review |
 | Repeated source migration across files | LibCST codemod | Matching rules and the transformation need their own tests |
 | Pattern search or one-off rewrite across files | ast-grep | Matches syntax patterns, not resolved names; aliases and dynamic access need review |
@@ -30,9 +28,7 @@ can undo a refactoring, but retain the task's recoverable Git state and preserve
 
 ## LibCST
 
-Use a codemod when the same well-defined edit repeats enough to justify automation. LibCST retains
-concrete syntax details such as comments and whitespace; qualified-name/scope metadata can improve
-matching. Neither formatting preservation nor metadata proves semantic equivalence.
+LibCST preserves comments/whitespace and provides scope metadata; neither proves semantic equivalence.
 
 Test intended matches, already-migrated/no-op code, aliases, shadowed names, and comments affected by
 the transformation. Use its codemod test facilities where appropriate. For an idempotent migration,
@@ -54,10 +50,9 @@ unsafe-fix opt-ins and rule-specific applicability overrides; use `--no-unsafe-f
 only safe fixes. Keep formatting/import cleanup separate from semantic changes when it obscures
 review. Run the configured type checker against public callers after signature or module changes.
 
-AST parsing/unparsing is useful for structural work but can change source representation, and a
-successful parse does not establish executable validity. Prefer a source-preserving transformation
-when comments and formatting matter. `2to3` and `lib2to3` were removed from Python in 3.13; do not
-assume older refactoring recipes still run on the target toolchain.
+AST unparsing can change source representation; a successful parse does not establish executable
+validity. Use source-preserving tools when comments/formatting matter. `2to3`/`lib2to3` are absent
+from Python 3.13+; check older recipes against the actual toolchain.
 
 ## Tool verification
 

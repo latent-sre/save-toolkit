@@ -3,21 +3,13 @@
 For PCF deployment-job authoring. `SKILL.md` owns authority; load `stack-profile` before runner,
 infrastructure, runtime or identity recommendations.
 
-## Contents
-
-- [Preconditions](#preconditions-and-design)
-- [Planning skeleton](#planning-skeleton)
-- [Verification and rollback](#verification-and-rollback-handoff)
 
 ## Preconditions and design
 
-- A self-hosted runner in an approved runner group with network access to the foundation, selected
-  by that group and its labels (labels alone match any runner the repository can reach with them;
-  take the group name from the runner owner, never invent one), and a pinned cf CLI v8 installation
-  from an approved, checksum-verified source. The runner also supplies an approved pinned Python 3
-  interpreter as `python3`, with PyYAML pinned in its managed environment for manifest validation.
-  The steps run `python3 -I`, which ignores user site-packages and `PYTHONPATH`, so only that
-  environment counts. Discovery uses the standard library.
+- An owner-confirmed runner group with foundation access, selected by group and labels; labels
+  alone do not restrict the eligible group. Supply checksum-verified pinned cf CLI v8 and approved
+  pinned `python3` with pinned PyYAML in its managed environment. `python3 -I` ignores user-site
+  packages and `PYTHONPATH`; discovery itself uses only stdlib.
 - A GitHub environment whose required reviewers and environment-scoped credentials for a
   least-privilege PCF service account are configured and available on this repository's plan.
   Naming the environment in YAML does not establish that protection.
@@ -177,18 +169,14 @@ alone does not erase the filesystem. Record that cleanup evidence before runner 
 
 ## Verification and rollback handoff
 
-The authored job must name the post-deploy health checks and the rollback action, as the example's
-discovery, `Verify health` and `Recovery handoff` steps do; it prints recovery commands and
-never runs them. Before credential use, require the reviewed manifest's sole application name to
-equal `APP_NAME`; pass that identity to discovery, [push](https://cli.cloudfoundry.org/en-US/v8/push.html),
-inspection and recovery. This example expects a direct HTTP 200 from the app's readiness endpoint;
-adapt the URL and success contract to the service, including response content when required.
-Redirects fail, response bodies stay out of logs, and every failure, including a curl error, reaches
-the `::error::` annotation. Transient failures retain curl's retries, bounded in count and, through
-`--retry-max-time`, in total wait, because a server's `Retry-After` overrides `--retry-delay`.
-`--disable` prevents a runner's curl configuration from silently changing that behavior, and works
-only as curl's first argument; `--fail` alone accepts redirects. See
-[curl's options](https://curl.se/docs/manpage.html).
+Keep explicit health checks and nonexecuting recovery advice, as in `Verify health`/`Recovery handoff`.
+Before credentials, bind the sole manifest app to `APP_NAME`; use that identity in discovery,
+[push](https://cli.cloudfoundry.org/en-US/v8/push.html), inspection and recovery. Adapt readiness URL/
+success contract (including content when needed). This example requires direct HTTP 200, rejects
+redirects, suppresses bodies and annotates curl failures. Retries are count/time-bounded:
+`Retry-After` overrides `--retry-delay`, so retain `--retry-max-time`. First-argument `--disable`
+prevents runner curl config changing behavior; `--fail` alone accepts redirects. See
+[curl options](https://curl.se/docs/manpage.html).
 A successful, complete empty app list establishes a first deploy; lookup errors,
 malformed responses, multiple apps, or missing/non-deployable/multiple current revisions stop
 before `cf push`. First-deploy approval must include recovery without revision rollback (for example,

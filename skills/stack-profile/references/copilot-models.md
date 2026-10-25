@@ -6,6 +6,5 @@ host inventory neither selects nor justifies a Claude agent alias.
 Selection rule: primary = the strongest Claude model in the team's Copilot picker at ship time;
 middle fallback = the next approved Claude model; final fallback = the org's default non-Claude model.
 
-Recorded ordered list: Claude Sonnet 5 (copilot) → Claude Opus 4.8 (copilot) → GPT-5.4 (copilot).
-This list is unconfirmed against team-license evidence; re-record the complete ordered list from
-dated team-license evidence when it changes.
+The current ordered model names are unconfirmed. Record them from dated team-picker and license
+evidence, not vendor availability or examples. Copilot display names never become native Claude aliases.

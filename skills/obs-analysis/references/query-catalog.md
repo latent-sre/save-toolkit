@@ -1,42 +1,16 @@
-# Team query catalog — cataloged starting queries
+# Log query starting points
 
-## Contents
+Selectors and field names below are examples/placeholders, not established team targets. Resolve
+through [inventory](./indexes.md); use [SPL](./spl.md) for dialect semantics. A maintained entry
+records its purpose, owner and target/query/window/result evidence from a named authorized executor.
+Running an example does not make it accepted team policy. Keep sensitive parameters in an
+access-controlled saved search rather than this catalog.
 
-- [Execution](#who-runs-a-catalog-entry), [entry fields](#entry-shape)
-- [Error onset](#which-errors-started-at-the-same-time-as-the-impact), [deploy comparison](#did-error-rate-change-across-the-deploy)
-- [Request path](#where-did-one-request-fail-across-services), [caller load](#which-callers-are-driving-the-current-load)
-- [Akamai](#is-the-akamai-edge-failing-or-missing-cache-for-one-hostname-or-region)
-
-Use [SPL](./spl.md) for dialect rules and [inventory](./indexes.md) for actual selectors/fields.
-Entries remain unverified until a named human validates them on the target and records the date;
-catalog presence is not production evidence. Store only names, locators and query text, never
-credentials, session/user identifiers, customer data or raw payloads. Link an access-controlled
-saved search if its sensitive parameters cannot be represented here.
-
-## Who runs a catalog entry
-
-Use only the invoked lane's permitted diagnostic API, browser or reviewed helper with its
-credential/output protections. The standard SRE profile has no Splunk query execution path: return
-the query and expected interpretation, then continue other authorized work. A CLI is not required.
-A diagnostic search grants no permission to persist results, edit saved searches or perform writes.
-
-## Entry shape
-
-Keep question, Applies to, Reads as, Healthy looks like, Owner, Verified, and the query or its
-canonical reference. These interpretation fields apply to proposed queries too. Inventory values
-stay placeholders until resolved; parent scope/window/coverage and evidence rules apply.
-
-## Splunk (SPL)
+Use the invoked lane's permitted query path and output protections. The standard SRE profile has
+no Splunk execution path: return the query for an authorized executor. Diagnostic reads do not
+permit saved-search edits or other writes.
 
 ### Which errors started at the same time as the impact?
-
-| Field | Value |
-|---|---|
-| Applies to | Structured service errors |
-| Reads as | Error-class counts per populated minute, newest first; quiet buckets absent |
-| Healthy looks like | Counts match known-normal comparison; missing buckets/classes are not health |
-| Owner | `<service on-call>` |
-| Verified | Unverified: index, sourcetype, `error_type` extraction |
 
 ```spl
 index=<app_index> sourcetype=<error_sourcetype> earliest=<start_epoch> latest=<end_epoch>
@@ -50,27 +24,14 @@ An onset shortlist, not a complete baseline. Check extraction/ingestion; use
 
 ### Did error rate change across the deploy?
 
-| Field | Value |
-|---|---|
-| Applies to | Known deploy time; one completion event per eligible request/attempt |
-| Reads as | Failure/request ratio in equal windows, not raw counts |
-| Healthy looks like | After ratio within normal before variation despite traffic changes |
-| Owner | `<service on-call>` |
-| Verified | Unverified: population, status extraction and deploy epoch |
-
-Use [SPL's deploy comparison](./spl.md#overall-deploy-error-rate) with this population.
+Use [SPL's deploy comparison](./spl.md#overall-deploy-error-rate) on one completion event per
+eligible request/attempt, with equal windows around the known deploy time.
 Its overall rate needs no `error_type`; the optional class breakdown keeps the phase denominator.
 Missing/invalid status leaves the ratio null; no traffic or a missing phase is not healthy zero.
 
 ### Where did one request fail across services?
 
-| Field | Value |
-|---|---|
-| Applies to | Services with a shared correlation field |
-| Reads as | Ordered request path, one row per logged service hop |
-| Healthy looks like | Every expected hop present, ending in success |
-| Owner | `<service on-call>` |
-| Verified | Unverified: correlation field per inventory |
+Resolve the shared correlation field on each service; logged hops are not a complete call graph.
 
 ```spl
 index=<app_index> <correlation_field>="<validated_and_spl_escaped_id>" earliest=<start_epoch> latest=<end_epoch>
@@ -84,13 +45,8 @@ missing hops remain telemetry gaps until explained independently.
 
 ### Which callers are driving the current load?
 
-| Field | Value |
-|---|---|
-| Applies to | Request-completion access logs |
-| Reads as | Largest caller request counts |
-| Healthy looks like | Usual caller mix; no new dominant caller |
-| Owner | `<service on-call>` |
-| Verified | Unverified: completion population and caller field |
+Use request-completion events and a discovered caller field; compare the top counts with the
+usual caller mix rather than treating a large caller as a fault.
 
 ```spl
 index=<app_index> sourcetype=<request_completion_sourcetype> earliest=-30m latest=now
@@ -103,13 +59,9 @@ index=<app_index> sourcetype=<request_completion_sourcetype> earliest=-30m lates
 
 ### Is the Akamai edge failing or missing cache for one hostname or region?
 
-| Field | Value |
-|---|---|
-| Applies to | DataStream 2 JSON client-request logs, only when `stack-profile` records Splunk as destination |
-| Reads as | Five-minute hostname buckets: requests, 5xx share, not-in-cache share (`cacheStatus=0`); quiet buckets absent |
-| Healthy looks like | Same-host shares near normal; missing buckets may be delivery gaps |
-| Owner | `<edge on-call>` |
-| Verified | Unverified: destination, selectors, client population and field extraction |
+Use DataStream 2 JSON client-request logs only when `stack-profile` records Splunk as the destination.
+The query measures five-minute hostname shares; `cacheStatus=0` means not in cache. Missing buckets
+may be delivery gaps, not healthy zero.
 
 With midgress enabled, emit `isMidgress` and select `0` (client-to-edge), excluding `1` (internal
 edge-to-edge). Omit that predicate only for an independently verified client-only stream lacking

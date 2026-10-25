@@ -23,6 +23,24 @@ records do not re-queue work.
 
 ## Repository work
 
+### SKILLS-002 — clean skill references sequentially
+
+**Status:** `ready` (2026-10-24); the owner selected all canonical references, one skill at a time
+and one commit per skill. The series starts from PR #427's observability cleanup.
+**Owner:** Current session prepares and verifies each skill; the human owner accepts the candidate.
+**Outcome:** Review all 104 references across 23 skill bundles. Remove generic explanations,
+duplication, unsupported team rules and stale claims while retaining operational details,
+established decisions, audited safeguards and meaningful verification. The four skills without
+reference files need no reference cleanup.
+**Next action:** Human review of the 23 per-skill commits on `work/skill-reference-cleanup`; decide
+acceptance and merge. All 104 original references were reviewed; one redundant reference was
+retired, with 85,724 canonical reference bytes removed. Existing native/runtime acceptance gaps
+remain unverified.
+Only necessary entrypoint links, tests and generated projections accompany a reference change.
+**Evidence:** [Existing agent/skill audit baseline](reviews/2026-10-23-agent-skill-audit/README.md);
+per-skill commits record the cleanup and verification, and [the changelog](../CHANGELOG.md) records progress.
+**SRE task:** Load concise, current operational references without inheriting invented team policy.
+
 ### FLEET-AUDIT-20261023 — audit each agent and skill against its complete contract
 
 **Status:** `decision-needed` (2026-10-24); all 25 findings repaired and locally verified; exact-candidate acceptance and merge disposition remain pending. All 42 agent/skill audit reports are complete: ten agents, thirty shipped skills and two nonshipping surfaces. The ledger records 25 distinct findings (23 shipped, two sandbox); repairs and native/runtime acceptance remain separate.

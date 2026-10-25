@@ -1,8 +1,7 @@
 # Manifest and blue-green deployment
 
-Read this reference only when the plan creates or changes a manifest, uses parallel blue-green
-apps/routes, or needs stable-name rotation and route rollback. The authority, approval, rollback,
-and evidence rules in `SKILL.md` still apply.
+Apply the [parent plan, approval and recovery rules](../SKILL.md). Commands below are for the
+human release owner, not agent execution.
 
 ## Declarative manifest
 
@@ -20,17 +19,16 @@ applications:
       SPRING_PROFILES_ACTIVE: prod
 ```
 
-Keep secrets out of the manifest; use approved service bindings or the foundation credential
-service. Manifest and binding behavior on the exact foundation remain `[unverified]` until captured
-there. If a project-owned manifest exists, adapt it narrowly; the example above is the starter only
-when the repository owns neither a manifest nor a starter.
+Use approved bindings/credential service for secrets, never manifest values. Target manifest/binding
+behavior stays `[unverified]` until observed. Adapt an existing project manifest narrowly; this
+example applies only when the repository has neither manifest nor starter.
 
 ## Classic blue-green plan
 
-Before each push, resolve both app names, identities, and route mappings. The live app must be
-`order-router`; never reuse a production-serving `order-router-green` as the candidate. Reconcile an
-interrupted or unknown delete/rename outcome under the approved recovery plan before restarting
-this sequence. Rotate names after soak to restore that starting state.
+Before each push, resolve both identities and routes. This sequence requires live `order-router`
+and a non-production-serving `order-router-green`; never overwrite a serving candidate. Reconcile
+UNKNOWN delete/rename outcomes under the approved recovery plan before restarting. Post-soak name
+rotation restores this starting state.
 
 ```bash
 cf push order-router-green -f manifest.yml --no-route
@@ -45,9 +43,8 @@ cf delete order-router -f
 cf rename order-router-green order-router
 ```
 
-The human release owner runs only commands named in the approved packet. Before the production map,
-verify the candidate on its test route. During the shared-route transition, confirm traffic and
-telemetry before unmapping the old app. Keep the old app running through the soak.
+The human runs only approved commands. Verify green on the test route before production mapping;
+confirm shared-route traffic/telemetry before unmapping the old app, retaining it through soak.
 
 Do not use `--no-route` to prove a reused app is isolated: the
 [manifest docs](https://docs.cloudfoundry.org/devguide/deploy-apps/manifest-attributes.html) say existing
@@ -57,13 +54,11 @@ bounded non-production evidence for the exact CLI/CAPI versions.
 
 ## Manifest-name interaction
 
-The example manifest pins `name: order-router`, while the playbook pushes `order-router-green`. The v7+ CLI
-applies the app-name argument before the rest of the manifest: if that name is absent and the
-manifest contains exactly one application, the CLI renames the stanza to the argument and proceeds;
-if it contains multiple applications, it fails with `AppNotInManifestError`. Check that the approved
-manifest has one stanza before using this command; no separate `manifest-green.yml` is needed for
-that single-app case. This is unconfirmed on the deployed CLI/foundation until the human release
-owner runs it on a bounded non-production target and attaches the output.
+The manifest names `order-router`, but push names `order-router-green`. In CLI v7+, when the requested
+app name is absent from the manifest, it overrides a single stanza's name; multiple stanzas cause
+`AppNotInManifestError`. Confirm one stanza before using this sequence; no separate green manifest
+is needed for that case. The human release owner must attach bounded non-production evidence for
+the deployed CLI/foundation before treating this behavior as verified.
 
 ## Rollback boundaries by phase
 
@@ -75,4 +70,4 @@ owner runs it on a bounded non-production target and attaches the output.
 - After the stable app is deleted or green is renamed: route remapping is no longer enough. Recovery
   requires a fresh push of the previous artifact and restoration of every non-revision setting.
 
-No phase reverses data/schema changes or external effects; `SKILL.md` owns that rollback truth.
+No phase reverses data/schema changes or external effects; the parent recovery rules apply.

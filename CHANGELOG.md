@@ -8,6 +8,103 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Review `incident-investigation` references: 32,592 to 27,827 bytes. Remove repeated
+  intake/dialogue, fixed attribution timing and speculative console claims. Preserve ITO/TLC
+  ownership, bounded helpers, comparable evidence, artifact/headroom exclusions, approval reuse,
+  UNKNOWN reconciliation and sustained recovery. Incident grader/closing-field checks: 101 tests and
+  327 subtests pass; scenario validation: 381 specs and 2158 expectations. Independent source review
+  found no material issues.
+- Review `agent-authoring` references: 35,471 to 31,221 bytes. Retain tool grants, qualified
+  delegation examples, isolation/taint, loop budgets and exact-revision human acceptance. Remove
+  duplicate explanations, unconfirmed context arithmetic and speculative host enforcement; move the
+  existing promotion test to its canonical contract table. Fleet/adapter/link/hook checks: 163
+  passed, 2 skipped, 490 subtests; Ruff passes. Independent source review found no material issues.
+- Review `stack-profile` references: 10,501 to 7,985 bytes. Preserve recorded stack choices, support
+  boundaries, frontend/CI/auth policies and ITO/TLC roles. Remove unconfirmed named Copilot
+  ordering; retain the accepted selection rule and require actual picker/license evidence. Platform-
+  selection contract passes: 1 test and 10 subtests. Local links and diff checks pass; no live
+  inventory claimed.
+- Review `eng-ladder` references: 18,747 to 14,725 bytes. Remove generic builder/career framing and
+  repeated process; preserve tier routing, consultation ownership, security review,
+  consumer/recovery evidence and human acceptance. Keep the twelve-slot design record and full
+  labelled example unchanged. Principal contract/case/judgment checks pass: 26 tests and 180
+  subtests. The separate career-feedback branch is unchanged.
+- Review `ci-actions` references: 29,984 to 24,474 bytes. Remove generic optimization/security
+  narration and repeated deployment explanations; retain runner choice, credential and event trust,
+  artifact identity, exact dispatch binding and UNKNOWN recovery. PCF example/asset checks pass: 33
+  tests. All fenced executable examples remain byte-identical; no remote CI was dispatched.
+- Review `python-craft` references: 32,476 to 22,508 bytes. Move unique entrypoint, byte-boundary
+  and borrowed-stream checks into writing guidance; remove basic tutorials and repeated process.
+  Preserve environment, lock, concurrency, dynamic-consumer and effect-order contracts. Redirect the
+  one active eval readpath and pin historical guard-example evidence. Focused checks: 10 tests and
+  21 subtests pass; scenario validation: 381 specs and 2158 expectations. No code or assets changed.
+- Review `frontend-craft` references: 22,633 to 20,581 bytes. Remove generic HTTP/UI process,
+  optional menus and release chronology. Retain approved design choices and serving/security
+  contracts; correct MSW 3 imports and remove universal retry/status/CSRF, port and memory
+  assumptions. Frontend asset checks pass: 106 tests. Official MSW, typescript-eslint and OWASP
+  documentation checked; no assets changed.
+- Review `grafana` references: 106,321 to 94,561 bytes. Remove repeated UI/process narration while
+  retaining helper commands and API constraints. Preserve existing short UIDs, validate new IDs
+  against the selected API, and require fresh-state/single-writer checks before silence recovery.
+  Focused Grafana checks: 460 passed, 10 skipped, 88 subtests. All 12 command blocks in the
+  helper/workflow slice are unchanged. Independent source review found no material issues.
+- Review `obs-analysis` references: 53,174 to 46,592 bytes. Review all 15 references, leaving six
+  compact methods/inventories unchanged. Remove elementary query examples and catalog boilerplate;
+  preserve remaining recipes, audited denominators, GCP authentication discovery, OTel semantics and
+  missing-data rules. Correct configurable TraceQL windows and private-preview alerting. Telemetry
+  audit checks pass: 5 tests; 16 remaining fenced recipes are byte-identical. Independent source
+  review found no material issues.
+- Review `obs-pipeline` references: 13,989 to 9,511 bytes. Remove syntax tutorials and duplicated
+  instrumentation/validation narration; retain SDK and wiring traps, trace sampling limits, preview
+  flags, credential boundaries, WAL loss caveats and canary evidence. Telemetry audit checks pass: 5
+  tests. Local links and diff checks pass.
+- Review `obs-alerting` references: 13,055 to 10,168 bytes. Remove repeated teaching and handoff
+  lists; retain paired-window AND, budget units, example-only thresholds, actual routing, Splunk
+  suppression, maintenance semantics and synthetic evidence boundaries. Calculator and alert-
+  predicate checks pass: 18 tests and 46 subtests. Local links and diff checks pass.
+- Review `akamai-edge` references: 18,765 to 15,687 bytes. Remove generic explanations and Sandbox-
+  first policy; qualify debug-key format through the property schema. Retain timing attribution,
+  sampling/delivery limits, token handling, activation/WAF authority and fallback/purge conditions.
+  Local links and diff checks pass; target-account behavior remains unverified.
+- Review `gcp-ops` references: 7,987 to 6,240 bytes. Retain pending runtime/ownership decisions and
+  credential, singleton, retry and traffic-tag boundaries. Correct non-GPU startup-probe scope and
+  Direct VPC sizing/NAT qualifications against official Google documentation. Local links and diff
+  checks pass; no live cloud behavior was tested.
+- Review `pcf-deploy` references: 9,540 to 7,929 bytes. Retain exact commands, target/artifact
+  identity, cutover checks, recovery phases and quota/version conditions. Replace the unverified
+  rollback GA-version claim with installed-capability verification. Deploy-resize regression, local
+  links and diff checks pass; live deployment behavior remains unverified.
+- Review `pcf-ops` references: 14,214 to 12,086 bytes. Retain Apps Manager and CLI pairs,
+  JVM/health/router distinctions, target identity and package/droplet effects. Remove repeated
+  diagnostic explanation; process-stats access is explicitly human-only. Resize regression, local
+  links and diff checks pass; no foundation was accessed.
+- Review `database-reliability` references: 14,739 to 12,412 bytes. Remove repeated explanations and
+  tooling examples; retain version-specific DDL, locks, invalid-index cleanup, plan execution
+  effects, recovery watermarks and authority. Local links and diff checks pass; no live database
+  behavior was tested.
+- Review `production-change-gate` references: 13,421 to 11,446 bytes. Remove repeated checklist
+  narration; preserve approval, recovery, UNKNOWN and immutable tested-byte requirements. Additional
+  tag rules follow actual repository policy. Gate contract checks pass: 3 tests and 64 subtests; the
+  updated release-evidence contract also passes. Independent source review found no material issues.
+- Reduce `resilience-analysis` references from 10,848 to 6,133 bytes. Consolidate repeated examples
+  into one slow-dependency contrast, retaining effective-timeout, admission, slot-release and
+  recovery evidence. Reliability contracts pass: 23 tests and 220 subtests.
+- Trim `operational-learning`'s disposition reference from 6,965 to 5,419 bytes, consolidating
+  repeated event/evidence rules while preserving record fields, checkout/approval boundaries and
+  durable follow-ups. Fleet and closeout artifact checks pass.
+- Reduce `toil-reduction`'s reference from 4,000 to 1,593 bytes: one cost comparison retains hidden
+  maintenance, estimate uncertainty, useful-life limits and negative savings. Remove the interview
+  script and guidance already in the skill. Reliability contracts pass: 23 tests and 220 subtests.
+- Trim `service-lifecycle`'s resolved-context reference from 2,356 to 1,925 bytes, retaining exact
+  freshness boundaries, retired-state marking and fixture/authority limits. Local contract checks
+  pass; external producer compatibility remains unverified.
+- Trim `runbook`'s Confluence import reference from 5,898 to 4,140 bytes. Keep converter limits,
+  provenance, redaction and no-overwrite safeguards; correct the page-URL provenance description.
+  Converter/schema checks pass: 49 tests and 47 subtests.
+- Trim all seven `api-craft` references from 23,127 to 19,916 bytes. Remove repeated contract
+  checklists and framework release chronology while retaining authentication, upstream validation,
+  retry/recovery, concurrency, lifecycle and schema-consumer boundaries. Gate A and 61 API oracle
+  regression tests pass; native model compliance remains unmeasured.
 - Remove unconfirmed observability team mandates for dashboard naming, folders, variables,
   refresh, ingestion ownership, and instrumentation selection. Burn-rate thresholds and Splunk
   lookup wiring are examples; target conventions and reviewed service rules determine the choice.

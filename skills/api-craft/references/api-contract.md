@@ -2,40 +2,34 @@
 
 ## Contract changes
 
-Describe changed operations and compatibility consequences; keep bounded changes out of unrelated
-contract migrations. For an incompatible change, reuse caller approval or return the decision;
-prefer compatible expansion, use overlapping versions (`Deprecation`/`Sunset`) only when consumers
-cannot migrate together, and agree the overlap, retirement evidence and recovery path before
-removing the old version; an announced `Sunset` alone is not retirement evidence. Scope
-compatibility-gate exceptions (such as `oasdiff` ignore entries) to the accepted break with reason
-and owner.
+Keep bounded changes out of unrelated contract migrations. Reuse approval for an incompatible
+change or return the decision. When consumers cannot migrate together, agree version overlap,
+retirement evidence and recovery before removing the old contract; `Sunset` alone is not retirement
+evidence. Compatibility-gate exceptions need the accepted break, reason and owner.
 
 ## Contract checks
 
 | Boundary | What to settle and verify |
 |---|---|
-| Inputs and results | Typed, validated boundaries; explicit missing/null and invalid-input behavior; avoid leaking internal fields. |
-| Errors | Consistent machine-readable errors and meaningful HTTP status codes. RFC 9457 is an option when it fits consumers. Cover validation, router and unexpected failures; redact submitted secrets and exception text. |
+| Response exposure | Exclude internal fields from consumer responses. |
+| Errors | Use the consumer's error contract, including validation, router and unexpected failures; redact submitted secrets and exception text. RFC 9457 is optional. |
 | Correlation | Carry the service's request/trace identity through responses, failures and logs; trust supplied IDs only through an established ingress policy. |
-| Collections | Bound results and allowlist filters/sorts. Choose pagination for the access pattern; cursor traversal needs deterministic ordering with a unique tie-breaker. |
+| Collections | Bound results and allowlist filters/sorts; cursor traversal needs deterministic ordering with a unique tie-breaker. |
 | Identity | Reuse the application's authentication/session integration, including corporate SSO where established. Internal network access grants no permissions. Enforce object/tenant authorization and fail closed when verification is unavailable. Authentication changes get independent review. |
 | Webhook receiver | Use the existing/provider-supported verifier before acceptance or effects. Preserve original bytes for raw-body signatures and enforce the provider's signed-timestamp policy where supplied. Freshness does not deduplicate delivery; use authenticated event identity with [Background work](./background-work.md). |
 | Writes | Choose native idempotence, preconditions or replay keys for the effect; follow [API writes](./api-writes.md). Accepted background work needs durable ownership and observable completion under [Background work](./background-work.md). |
 | Browser boundary | Apply CSRF and origin/host checks for the actual browser/session model; scope CORS deliberately. Loopback tools reject untrusted hosts. |
-| Dependencies and streams | Bound waits, buffers and reconnects; define degraded versus failed responses. Choose polling, SSE or bidirectional transport from the interaction. |
+| Streams | Bound waits, buffers and reconnects; distinguish degraded from failed responses. |
 
-Document the consumer-facing contract. For a service using OpenAPI, follow
-[OpenAPI](./openapi.md); schema and client tooling must agree with actual responses.
+For document/client checks, use [OpenAPI](./openapi.md).
 
 ## Operation and verification
 
-Bind to the deployment interface and configured port; desktop-only tools bind loopback. Separate
-process health from readiness where traffic withdrawal helps; choose probe paths, access and
-checks with the host. Health output must not reveal secrets or dependency internals.
+Desktop-only tools bind loopback; deployed services use the configured interface/port. Health
+responses must not expose secrets or dependency internals; readiness follows the host's traffic policy.
 
-For operational endpoints, bound targets and preserve actor attribution.
-Test the real handler chain for success, invalid inputs, denied and intended access, dependency
-failure and applicable retry/concurrency cases.
+Operational endpoints bound targets and preserve actor attribution. Test access and failure paths
+through the real handler chain, including middleware; cover invalid inputs and dependency failure.
 
 For signed webhooks, test missing/invalid signatures, a changed body with the original signature,
 and stale timestamps where supported: rejection creates no accepted work. Authentic redelivery

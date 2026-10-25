@@ -1,23 +1,20 @@
 # SQL Server migrations
 
-Read only for SQL Server-specific migration mechanics. The compatibility, recovery, authority, and
-output contracts in `../SKILL.md` remain binding. The target edition is unconfirmed until observed;
-do not plan on an online operation merely because the syntax exists.
+Apply the [parent migration and authority rules](../SKILL.md). Confirm edition/version before
+planning online DDL; supported syntax alone does not establish eligibility.
 
 ## Bound every lock wait
 
-Normal-priority DDL can form a blocking chain when its requested lock conflicts with other work.
-Assess the operation's lock phases and bound each wait:
+Conflicting normal-priority DDL can form a blocking chain. Bound each lock phase:
 
 - Index create on 2022+ and online index rebuild on 2014+: `WITH (ONLINE = ON (WAIT_AT_LOW_PRIORITY
   (MAX_DURATION = <n ≥ 1> MINUTES, ABORT_AFTER_WAIT = SELF)))`. Never use `BLOCKERS`: it kills user
   transactions, which is a query kill needing its own approval.
-- Online `ALTER COLUMN` rejects `WAIT_AT_LOW_PRIORITY`. For it, for `ADD` column/constraint, other
-  offline DDL, and index builds before 2022, run `SET LOCK_TIMEOUT <ms>` and `SET XACT_ABORT ON` in
-  the migration session. Handle lock timeout (error 1222) in the migration tool's error path;
-  roll back any still-open migration transaction and confirm cleanup before retrying with backoff.
-  Do not infer cleanup from `XACT_ABORT` alone; verify the tool's transaction and error behavior.
-  `LOCK_TIMEOUT` still waits at normal priority, so keep it to seconds.
+- Online `ALTER COLUMN` rejects `WAIT_AT_LOW_PRIORITY`. For it, `ADD` column/constraint, other
+  offline DDL and pre-2022 index builds, use session `SET LOCK_TIMEOUT <ms>` and `SET XACT_ABORT ON`.
+  On error 1222, the migration tool must roll back any open transaction and confirm cleanup before
+  backoff/retry. `XACT_ABORT` alone does not prove cleanup. `LOCK_TIMEOUT` waits at normal priority:
+  keep it to seconds and verify the tool's transaction/error behavior.
 
 ## Columns
 
@@ -36,10 +33,7 @@ edition and roughly twice the free space for the hidden replacement column.
 
 ## Index and tool behavior
 
-`CREATE INDEX ... WITH (ONLINE = ON)` needs a supporting edition and short boundary locks.
-Conflicting transactions or long-running queries can delay those locks and form a blocking chain;
-the required locks vary by index operation and phase.
-
-Add the exact edition, row-size and LOB facts, table/index size, open-transaction risk, expected
-duration, space, and cancellation behavior to the migration handoff defined in `../SKILL.md`.
-Run the change through the repository's migration tooling rather than ad-hoc production SQL.
+`CREATE INDEX ... WITH (ONLINE = ON)` needs a supporting edition and short boundary locks, varying by
+operation/phase. Conflicting transactions or long queries can delay them and form a blocking chain.
+Include edition, row-size/LOB facts, table/index size, transaction risk, duration, space and cancellation
+in the parent handoff. Use repository migration tooling, not ad-hoc production SQL.

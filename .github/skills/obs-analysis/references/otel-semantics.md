@@ -13,25 +13,23 @@ Primary references:
 
 ## Span kinds
 
-Do not treat every parent/child pair as a network hop. Confirm the kinds on both sides, and expect links
-or separated timelines for deferred work. A missing counterpart remains an instrumentation/propagation
-hypothesis until another signal verifies the call.
+Confirm both span kinds before treating parent/child as a network hop. Deferred work can use links
+or separate timelines; a missing counterpart needs another signal to establish the call.
 
 ## Span status is not the protocol status
 
 `Unset` is the default, not proof of health. `Ok` means explicit success validation by the application
 or operator; interpret `Error` under the active semantic convention.
 
-For HTTP, 1xx–3xx normally leave span status unset absent another error. With no extra request context,
-server-side 4xx is normally `Unset`; client-side 4xx should be `Error`. A 5xx should be `Error`. Inspect
-both span status and `http.response.status_code`, because the same HTTP outcome can be classified
-differently by client and server spans.
+HTTP 1xx–3xx normally leaves status unset absent another error. Without extra request context,
+server 4xx is normally `Unset`; client 4xx and either-side 5xx should be `Error`. Inspect status alongside
+`http.response.status_code`; client/server classification differs.
 
 ## Read stable attributes in context
 
-Stable HTTP conventions landed in semconv v1.23.x, database conventions in v1.33.0. Older
-instrumentation can retain legacy names within its major version; inspect emitted fields before
-rewriting a query or treating an empty stable-name query as no traffic.
+HTTP conventions stabilized in v1.23.x, database in v1.33.0. Older instrumentation may retain
+legacy fields within its major version; inspect emitted fields before rewriting queries or
+interpreting an empty stable-name query as no traffic.
 
 | Legacy field that may still be emitted | Current stable field |
 |---|---|
@@ -51,7 +49,6 @@ parameters; redact before copying it.
 
 ## Sampling makes absence weak evidence
 
-Recording and sampling are separate. `RECORD_ONLY` sets `IsRecording=true` and `Sampled=false`:
-the span records data and reaches processors (for example, local latency calculations), while the
-SDK normally excludes it from export. `RECORD_AND_SAMPLE` makes a recording span eligible for
-export; the sampled flag does not prove exporter success or backend receipt/retention.
+`RECORD_ONLY` sets `IsRecording=true`, `Sampled=false`: processors receive recorded data but normal
+SDK export excludes it. `RECORD_AND_SAMPLE` permits export; the flag proves neither exporter
+success nor backend receipt/retention.

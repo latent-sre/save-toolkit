@@ -1,19 +1,14 @@
 # Signal patterns
 
-Read when interpreting a pasted metric, log, thread dump, dashboard, or timing. Each pattern moves a
-candidate up or down and names the check that settles it; none is a diagnosis on its own. For
-multi-service impact or degradation that outlives its trigger, also read
-[systemic analysis](./systemic-analysis.md).
+Patterns change candidate ranking, not establish diagnoses. For multi-service impact or harm
+outliving its trigger, also read [systemic analysis](./systemic-analysis.md).
 
 ## Dependencies
-
-Test the dependency candidate early with its team.
 
 - errors or timeouts on calls to one dependency while other calls stay healthy point at that
   dependency or at the app's client for it (its pool, timeout, or credentials): split the caller's
   errors and latency by downstream target before blaming either;
-- several services failing together often share one dependency: find what they all call before
-  chasing each one; other teams reporting the same issue is the same signal;
+- several services failing together suggest a shared dependency; verify their common calls;
 - a dependency that is fast from the caller's side, for the failing requests, is not slow however
   many times it is called — count the calls instead; its own flat dashboard clears only the series
   it covers, so it stays open until timings split by the failing region, route, or account type
@@ -23,8 +18,6 @@ Test the dependency candidate early with its team.
   rose: check its status, recent changes, and certificate dates with its team;
 - retries against a struggling dependency multiply its load and can keep it down after the trigger
   is gone: compare the caller's retry rate with the dependency's load;
-- a dependency's maintenance window or change can land as your incident: ask its team what changed
-  and when, and compare that with observed onset;
 - a normal status code and latency do not prove correct content: a stale quote, wrong price, or
   wrong position can come back fast with a 200 — check the content itself.
 
@@ -49,7 +42,5 @@ Test the dependency candidate early with its team.
   check the affected requests' waits and the instance's CPU limit or per-core usage;
 - an old last-event time or an empty view is a missing observation: it proves neither staleness,
   a broken pipeline, nor health — check coverage and signal arrival;
-- the trigger is gone — rolled back, flag off — and the service is still degraded: confirm the
-  removal took effect, then test for a self-sustaining mechanism (retries, a queue backlog, cold
-  caches, a control loop reacting to its own effect): did load on the dependency fall when the
-  trigger was removed?
+- degradation after rollback/flag-off: confirm effective removal, then test sustaining mechanisms
+  under [systemic analysis](./systemic-analysis.md). Did dependency load actually fall?

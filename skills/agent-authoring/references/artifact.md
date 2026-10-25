@@ -13,12 +13,11 @@ Before the first iteration, write down every row:
 | Success termination | Failure repair: incumbent demonstrates the named failure and candidate passes on identical cases and conditions. New behavior: candidate meets the frozen criterion. Existing passing regressions stay green |
 | No-progress termination | A tie, or a missing or inconclusive candidate result, stops the loop; neither is success |
 | Safety/authority stop | Any safety, authority, or existing-regression regression stops the loop and retains the incumbent |
-| Promotion authority | Human acceptance of the exact candidate PR revision; never the loop itself |
+| Promotion authority | Human acceptance of the exact candidate revision is promotion; never the loop itself |
 | Durable evidence | The regression case, incumbent and winning revisions, per-case results, cost, and decision in the PR |
 
-Keep decision evidence, including failed or inconclusive results still needed by an unresolved
-decision or current regression, under the fleet's retention rule (Save Toolkit `CONTRIBUTING.md`). Discard disposable drafts when
-no current dependency remains.
+Apply `CONTRIBUTING.md` retention: keep failed/inconclusive evidence while a decision or regression
+depends on it; discard drafts with no current dependency.
 
 ## Evidence, review, and promotion
 
@@ -35,8 +34,7 @@ prevents.
   durable.
 - If it should: one named regression case, plus another only for a specific adjacent risk, with
   its scoring rule frozen before any edit, then the bounded loop above.
-- Human acceptance of the exact candidate revision is promotion; the authoring agent never merges,
-  deploys, or changes a live system through this loop.
+- This loop authorizes no merge, deployment or live-system change.
 - Unfinished work goes in `docs/fleet-roadmap.md` with one owner (elsewhere, the owning repository's
   tracker). A reusable rejected approach gets a short dated decision only when rediscovery is likely.
 - Independent review is conditional — a finding needing independent reconciliation, a
@@ -45,14 +43,13 @@ prevents.
 
 ## Writing the artifact
 
-Omit explanations the model already knows; retain the team's choices, missing facts, and
-decision-changing instructions. A tools-off knowledge answer does not establish task compliance.
+Retain choices and instructions that change decisions, not known explanations. A tools-off knowledge
+answer does not establish task compliance.
 Remove a behavioral instruction only when representative task evidence or an enforced replacement
 supports the removal; known facts and reliable execution are different claims. A rule the model
 reads and does not apply ships as a copied test or asset, not a stronger sentence.
 
-Canonical examples, their count chosen by evaluation, over an edge-case list; thresholds, never
-vague qualifiers.
+Use evaluated examples and concrete thresholds rather than edge-case lists or vague qualifiers.
 
 ## Tool contracts
 
@@ -61,17 +58,9 @@ vague qualifiers.
 - Tool sprawl has no portable threshold: load coherent sets on demand or split authority across
   lanes. Never hide unrelated contracts behind one giant `action` enum to reduce the count.
 
-## Structural beats behavioral
-
-A load-bearing rule gets the mechanical control, and says so: explicit tool scope, strict schemas,
-generated projections, protected environments, gates, validators, regression fixtures. Prose
-guardrails are for cooperative behavior. Prompt-only formatting only where the host cannot enforce a
-schema or the output is intentionally free-form.
-
 ## In this fleet
 
-- Add an eval scenario only for a gradeable outcome — a gate blocks, routing lands, a refusal
-  happens. No tautological prose evals.
+- Add scenarios for gradeable outcomes, not tautological prose checks.
 - Measure the boundary that changed: activation/routing, artifact behavior, tool choice and
   arguments, handoff/path, and final outcome are separate results. A harness denied a linked
   reference proves activation, not reference-dependent behavior.

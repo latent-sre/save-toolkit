@@ -1,8 +1,7 @@
 # Rolling, canary, and application revisions
 
-Read this reference only when the plan uses rolling/canary deployment, instance steps,
-`--max-in-flight`, app revisions, `cf rollback`, or `cf cancel-deployment`. The authority, approval,
-rollback, and evidence rules in `SKILL.md` still apply.
+Apply the [parent approval and recovery rules](../SKILL.md). These are human-run plan examples,
+never agent execution authority.
 
 ## Built-in strategies
 
@@ -13,16 +12,13 @@ cf continue-deployment order-router
 cf cancel-deployment order-router
 ```
 
-A canary can advance through `--instance-steps 5,10,20`, where values are successive percentages of
-the web process instances. Deployment pauses at each step for `cf continue-deployment` or
-`cf cancel-deployment`; continuing after the final step completes the rolling deployment. For each
-additional canary instance created after the first, one pre-deployment instance is removed; a step
-that adds several canary instances can therefore remove several old instances. The deployment holds
-one extra instance above target until completion. Confirm quota for that extra capacity.
+`--instance-steps 5,10,20` sets successive web-instance percentages. Each step pauses for continue
+or cancel; continuing after the final step completes rollout. Each canary instance after the first
+removes one old instance, so a multi-instance step removes several. Quota must cover the one extra
+instance held above target until completion.
 
-`--max-in-flight N` limits how many new instances start simultaneously for rolling and canary work,
-including each canary step. The default is 1. Raising it shortens a large rollout but widens the
-blast radius; retain 1 unless the approved packet explicitly accepts a larger bound.
+`--max-in-flight N` limits simultaneous new starts, including within canary steps. Default 1 limits
+blast radius; a larger bound needs explicit acceptance in the approved packet.
 
 ## Version and target gates
 
@@ -42,16 +38,12 @@ With application revisions enabled:
 cf rollback order-router --version <n>
 ```
 
-Revisions and rollback are GA in cf CLI v8.10.0 and later; older v8 releases label them
-experimental. A revision captures a droplet, start command, and environment variables.
+Confirm revision/rollback support for the installed CLI and foundation before using this command.
+A revision captures a droplet, start command, and environment variables.
 
-The useful rollback window is bounded by staged droplets, not the visible revision count. Cloud
-Foundry retains five recent staged droplets while CAPI can retain up to 100 revisions by default; a
-revision without its droplet cannot restore the prior code. Confirm that the intended previous
-artifact is still available before approval.
+Default retention differs: five staged droplets versus up to 100 CAPI revisions. A revision without
+its droplet cannot restore code; confirm the intended artifact is retained before approval.
 
-`cf rollback` creates a new revision; it does not rewind history. `SKILL.md` owns the rollback truth
-and the cancel-is-not-rollback rule: the plan must restore every state outside the revision.
-
-These retention and command behaviors remain `[unverified]` for the target until the human release
-owner attaches foundation/version evidence.
+`cf rollback` creates a new revision, not a history rewind. Under the parent recovery rules, restore
+non-revision state separately; cancellation is not rollback. Retention/command behavior stays
+`[unverified]` until the human release owner attaches foundation/version evidence.
