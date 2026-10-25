@@ -25,8 +25,18 @@ include = [
     "evals/codex_fixture_tools.py",
     "evals/codex_gcp_queries.py",
     "evals/compare_runs.py",
+    "evals/campaign_report.py",
+    "evals/itbench_adapter/**/*.py",
+    "evals/itbench_pilot.py",
+    "evals/itbench_testkit.py",
+    "evals/swt_adapter/**/*.py",
+    "evals/swt_pilot.py",
+    "evals/harbor_adapter/**/*.py",
+    "evals/harbor_pilot.py",
     "evals/turn_counts.py",
     "evals/probe/**/*.py",
+    "evals/swebench_adapter/**/*.py",
+    "evals/swebench_repair.py",
     "evals/graders.py",
     "evals/inspect_pilot.py",
     "evals/test_*.py",
@@ -59,7 +69,11 @@ ignore = ["E501"]  # the formatter owns line length; long messages and patterns 
 python_version = "3.12"
 files = [
     "evals/probe", "evals/build_probe.py", "evals/compare_runs.py", "evals/turn_counts.py", "evals/graders.py",
-    "evals/inspect_pilot.py",
+    "evals/inspect_pilot.py", "evals/campaign_report.py",
+    "evals/itbench_adapter", "evals/itbench_pilot.py",
+    "evals/swt_adapter", "evals/swt_pilot.py",
+    "evals/harbor_adapter", "evals/harbor_pilot.py",
+    "evals/swebench_adapter", "evals/swebench_repair.py",
     # A file joins once it is clean.
     "evals/codex_probe.py", "evals/codex_fixture_tools.py", "evals/codex_gcp_queries.py",
     "scripts/readonly-guard.py", "scripts/guard-session-preflight.py", "scripts/gate_a.py", "scripts/check_links.py",
@@ -73,5 +87,11 @@ plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 # Typing these would change the bytes the judge calibration receipt binds (see the header).
 module = ["clean_room", "judge"]
+follow_imports = "skip"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Optional pinned SDK is verified in its isolated environment, not installed in the native runner.
+module = ["harbor", "harbor.*"]
 follow_imports = "skip"
 ignore_missing_imports = true

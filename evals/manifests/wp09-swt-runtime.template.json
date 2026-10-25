@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "plugin_root": null,
+  "cli_path": null,
+  "cli_sha256": null,
+  "cli_version": null,
+  "model": "anthropic/claude-sonnet-5.5",
+  "haiku_model": null,
+  "images": {
+    "astropy__astropy-13579": {
+      "reference": null,
+      "image_id": null
+    },
+    "django__django-15957": {
+      "reference": null,
+      "image_id": null
+    },
+    "sympy__sympy-17630": {
+      "reference": null,
+      "image_id": null
+    },
+    "sphinx-doc__sphinx-11510": {
+      "reference": null,
+      "image_id": null
+    },
+    "pylint-dev__pylint-8898": {
+      "reference": null,
+      "image_id": null
+    }
+  },
+  "proxy_bind": "127.0.0.1",
+  "proxy_target": "host.docker.internal",
+  "storage_quota": true,
+  "api_key_helper": false
+}

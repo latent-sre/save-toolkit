@@ -23,6 +23,20 @@ records do not re-queue work.
 
 ## Repository work
 
+### SKILLS-003 — consolidate operational documentation methods
+
+**Status:** `ready` (2026-10-24); combined source, callers, assets and checks are prepared.
+**Owner:** Current session prepares the candidate; human owner accepts the exact revision.
+**Outcome:** One `operational-docs` entrypoint replaces three overlapping skills while preserving
+bounded runbook edits, retrospective scope, closeout evidence and read-only ownership lookup.
+**Next action:** Human review and merge disposition for `work/operational-docs-consolidation`.
+Retain the recorded native limits: one smoke trial per positive case, and the fleet-failure
+negative's unfinished dispatch on both incumbent and candidate. The postmortem fixture loads the
+method and stays in scope but fails its exact follow-up-ID check; resolve or explicitly disposition
+that result before claiming authored-behavior acceptance.
+**Evidence:** [Consolidation and verification](reviews/2026-10-24-operational-docs-consolidation.md).
+**SRE task:** Select one operational-documentation skill and load only the requested method.
+
 ### SKILLS-002 — clean skill references sequentially
 
 **Status:** `ready` (2026-10-24); the owner selected all canonical references, one skill at a time
@@ -145,7 +159,7 @@ part of the incident, without delegating deployment or remediation authority.
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-18). The owner accepted [specification](fleet-evaluation/README.md)
+**Status:** `active` (2026-10-25). The owner accepted [specification](fleet-evaluation/README.md)
 revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion boundary on
 2026-10-18. By work package:
 - WP-01 complete: `evals/compare_runs.py`, merged in
@@ -153,6 +167,21 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
 - WP-02 complete on 2026-10-09: [run record](reviews/2026-10-08-wp02-native-readiness.md); the
   [EVAL-011 closeout](reviews/2026-10-10-eval-011-closeout.md) binds the repaired native
   measurement contract.
+- WP-08 implementation candidate prepared: adapter, host credential proxy, independent verifier,
+  smoke gates and offline tests; [implementation and verification evidence](reviews/2026-10-25-wp08-adapter.md).
+  Live smoke and paid trials have not run; exact-candidate acceptance remains with the owner.
+- Complex-campaign preparation is in progress under the [implementation plan](fleet-evaluation/implementation-complex-campaigns.md):
+  WP-08 has a separate [ten-case hard-task proposal](fleet-evaluation/wp08-complex-proposal.md);
+  WP-04 has a pinned [source/admission packet](fleet-evaluation/wp04-case-review.md);
+  WP-05 has [18 authored execution profiles over six incident families](../evals/incident-conversations/README.md),
+  with native ordered-session support and offline controls. WP-09 has separate
+  [five-case SWT](fleet-evaluation/wp09-swt-run-plan.md) and
+  [five-case Harbor/Terminal-Bench](fleet-evaluation/wp09-terminal-runplan.md) proposals,
+  native author/independent verifier adapters and executable model-free smoke commands. The standalone
+  [campaign report](fleet-evaluation/campaign-report.md) preserves measurement, billing and review gaps.
+  [Integrated preparation evidence](reviews/2026-10-25-complex-campaign-preparation.md) records the
+  offline controls and repaired review findings. These are preparation milestones, not accepted
+  benchmark outcomes; exact-case acceptance and live gates remain open.
 - WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md) and its
   [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
   [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
@@ -173,9 +202,16 @@ test generation, selected terminal tasks, GCP managed-service/migration and GKE 
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
 **Next action:**
-- WP-08: build the adapter and host proxy in the approved
-  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md), then the model-free smoke, one paid
-  trial on the first task, then the other nine Claude tasks; other models follow under their own approvals; WP-09 follows WP-08.
+- WP-08: review the implementation candidate and complex-case/run-plan amendment, then prove hard
+  quota support on the already selected Windows Docker Desktop Linux engine. Freeze
+  the accepted dataset/selection, licences, CLI, plugin and image identities using the
+  [operator commands](fleet-evaluation/wp08-operator.md). Then start the approved
+  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md)'s model-free smoke, first paid trial
+  and remaining nine Claude tasks as separate owner-started steps. Other models retain their own
+  approvals; WP-09 follows WP-08.
+- WP-04/05: complete exact case/review admission and bounded native run conditions after integrated
+  offline verification. WP-09 requires pinned compatible images and per-case model-free smoke before
+  exact-candidate/model/spend acceptance; Harbor is already the selected Terminal-Bench runner.
 - WP-13: none; complete. Use its cases as a regression check when a skill or agent changes.
   Haiku's inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
 - WP-10: the owner disposes of the bound Luna semantic proposals and names the exact candidate

@@ -73,7 +73,8 @@ documentation and is actively being drained into the repo — one direction, imp
 therefore exist today, but they are not co-equal homes: a page in Confluence is a source to import,
 not a destination to write to.
 
-For the document lanes: `scribe` authors into the repository and `runbook` owns the import path.
+For the document lanes: `scribe` authors into the repository; the `operational-docs` runbook method
+owns the import path.
 Never write new operational documentation into Confluence.
 
 ## Stay in lane

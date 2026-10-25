@@ -69,6 +69,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "2bbed7fe52e0b04e5d24c82362d573970706c11323591e035ac389162fecde76",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -195,6 +196,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "2bbed7fe52e0b04e5d24c82362d573970706c11323591e035ac389162fecde76",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -297,6 +299,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -365,6 +368,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "26f8bd13b0fac94d39fccc66759405674c2d21b34c46e8a84a3f750669130fca",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -438,6 +442,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "4d6683eab52edf9b32fc9c2c5622ded9cf32e668e52618e7ac35454cd54cdac5",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -509,6 +514,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "741cba84b9bb0a8437b6cf4ae0d7b7c0386ca31cc097c8f1242e519e21d25fbe",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -577,6 +583,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "741cba84b9bb0a8437b6cf4ae0d7b7c0386ca31cc097c8f1242e519e21d25fbe",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -650,6 +657,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "3312011f3d77f7444ae90a3089e7bdf14fc9b41b15dd7b04be5d6b3cdbce3d6c",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -721,6 +729,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "ab2dea4f475d79f44bf25f67d64670e99241392e4694bc47f8561c6214db4b24",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -794,6 +803,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "0679d845fc76c27f1eeaeda07f6415d616b837d37447612afe6affbea6c824d1",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -934,6 +944,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "0679d845fc76c27f1eeaeda07f6415d616b837d37447612afe6affbea6c824d1",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1100,6 +1111,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "cb4a01b3c678295d8cb17273353e341605cab449fce27f0761f0fb4e63fa03d5",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1244,6 +1256,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "47acb418e2822f7d337960a18e682e1b66675b56dbff507371a6b6534926531a",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1348,6 +1361,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "53c04649cc85ff1c05fc5aa6c185f26f8927635fe6ff2de7c7d40ce622f4373a",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1419,6 +1433,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "57ec824e2048454e1604c3c707ab1d01bd4ae8d75d0a7c1332744be399b84275",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1511,6 +1526,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "57ec824e2048454e1604c3c707ab1d01bd4ae8d75d0a7c1332744be399b84275",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1648,6 +1664,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "ed03e2806e31d365d667a1a7b217d28b31ef7916af97f93484f7465492ca98e6",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1719,6 +1736,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "ca59c9eb9c471a13d9879d2ec5783d622768fefffd778a75fcc1050f8f09fb87",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1787,6 +1805,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "ca59c9eb9c471a13d9879d2ec5783d622768fefffd778a75fcc1050f8f09fb87",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1858,6 +1877,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "6c1888c62e3f09ec57e9da68f9ad44faadacdf2b55bd2b8085350f71f9a32a97",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1926,6 +1946,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "6c1888c62e3f09ec57e9da68f9ad44faadacdf2b55bd2b8085350f71f9a32a97",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -1997,6 +2018,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "62ea91a20b3764f0ae1f99810c19861a9c90844fe243de8188b72af1f78df2f8",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -2065,6 +2087,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "62ea91a20b3764f0ae1f99810c19861a9c90844fe243de8188b72af1f78df2f8",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -2136,6 +2159,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "66074ed4ca1ca3d3dda94540eb2404510a1093261465035ebc7817aae092bc41",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -2204,6 +2228,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "66074ed4ca1ca3d3dda94540eb2404510a1093261465035ebc7817aae092bc41",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -2337,6 +2362,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "0f77b9fe02c09bd8e27214383ed4cca1722807cf414ed6b1e86b1136e309f4cb",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -2467,6 +2493,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "0f77b9fe02c09bd8e27214383ed4cca1722807cf414ed6b1e86b1136e309f4cb",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -2600,6 +2627,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "3d9ff44886a3db83aaaf0409c0b577edc0e3848f57630f1e01500f873931343f",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -2668,6 +2696,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "3d9ff44886a3db83aaaf0409c0b577edc0e3848f57630f1e01500f873931343f",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -2739,6 +2768,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "273a97981e76cec5fd90e26d75bcc043e68b0ad7e2f9d92ceaefb507877d7343",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -2810,6 +2840,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "273a97981e76cec5fd90e26d75bcc043e68b0ad7e2f9d92ceaefb507877d7343",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -2881,6 +2912,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "9e5dfeb4bcce7103181ff9b2a867872f862758870a9dea4865fb897525f54c15",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -2949,6 +2981,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "9e5dfeb4bcce7103181ff9b2a867872f862758870a9dea4865fb897525f54c15",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -3020,6 +3053,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "ddebd491ce42a6b01ce6303c06124a49f461367d675e247aa56f489a1b79b513",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -3098,6 +3132,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "ddebd491ce42a6b01ce6303c06124a49f461367d675e247aa56f489a1b79b513",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -3169,6 +3204,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "735239ba0b27ce4bd569b73f350fe8b9edf21364a3ca16ff1fc7a72049a2577f",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -3266,6 +3302,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "735239ba0b27ce4bd569b73f350fe8b9edf21364a3ca16ff1fc7a72049a2577f",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -3396,6 +3433,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "8f52136ee7726ad0e790d3af5b1c42bb4ec0e5223471ffa8e9bc046576a7a8ab",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -3498,6 +3536,7 @@
       "candidate": {
         "conditions": {
           "case_sha256": "2c6116993fd21b523131ab40e6ea7be9820b51b371d411173eff2884021236c5",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],
@@ -3566,6 +3605,7 @@
       "incumbent": {
         "conditions": {
           "case_sha256": "2c6116993fd21b523131ab40e6ea7be9820b51b371d411173eff2884021236c5",
+          "execution_profile": null,
           "observed_models": [
             "claude-synthetic"
           ],

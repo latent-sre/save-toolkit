@@ -161,7 +161,7 @@ class RoutingGradeTests(unittest.TestCase):
         negative = {"id": "n", "target": {"kind": "skill", "name": "pcf-deploy"},
                     "routing": {"expect": "not_fire", "expected_alternative": "inline"}}
         fired = probe_assessment.grade_routing(negative, _trace(skills=["save-toolkit:pcf-deploy"]), ROOT)
-        missing_alternative = probe_assessment.grade_routing(negative, _trace(skills=["save-toolkit:runbook"]), ROOT)
+        missing_alternative = probe_assessment.grade_routing(negative, _trace(skills=["save-toolkit:operational-docs"]), ROOT)
         self.assertEqual(("FAIL", True), (fired.state, fired.forbidden))
         self.assertEqual(("FAIL", False), (missing_alternative.state, missing_alternative.forbidden))
         self.assertEqual("FAIL", probe_assessment.routing_on_cut(fired, "timed out").state)

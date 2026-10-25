@@ -1,0 +1,43 @@
+{
+  "format": "wp04-backup-review",
+  "version": 1,
+  "source_id": "Scenario-31",
+  "revision": "d0916b08ba421ce5e672e9ad68aa947d938dfef0",
+  "license": "Apache-2.0",
+  "source_path": "snapshots/sre/v0.2-B96DF826-4BB2-4B62-97AB-6D84254C53D7/Scenario-31",
+  "disposition": "excluded-source-incoherence-no-replacement-approved",
+  "assets": [
+    {
+      "path": "alerts/alerts_in_alerting_state_2025-12-15T175655.720371Z.json",
+      "sha256": "9892c2b5dc7983fddd08f64642454bb2e5c8cb4b8eb6a6c9695e52a34a2a38d1",
+      "size": 737,
+      "visibility": "observable"
+    },
+    {
+      "path": "ground_truth.yaml",
+      "sha256": "c4a34b3a588d24073b92ef7f06d03b6b23fbe8ad38ffc61a5d098a8915962a50",
+      "size": 2100,
+      "visibility": "hidden"
+    },
+    {
+      "path": "k8s_events_raw.tsv",
+      "sha256": "21be57c6c80969da17dc703668204068fee0f929fb851ff8cccad7f7b04807b8",
+      "size": 1426020,
+      "visibility": "observable"
+    },
+    {
+      "path": "k8s_objects_raw.tsv",
+      "sha256": "c49fbc07db2fd0f4c87d777e247cec59f1d54113d6b9218d967743a63afa7cfc",
+      "size": 37843572,
+      "visibility": "observable"
+    }
+  ],
+  "root_group": [
+    "frontend-block-all-ports"
+  ],
+  "gaps": [
+    "Ground truth final propagation targets frontend-proxy-1, absent from groups; do not invent alias to frontend-proxy-service-1.",
+    "Actual frontend-block-all-ports NetworkPolicy has ingress: [{}], inconsistent with ground-truth claim that it blocks all ingress.",
+    "Only official alerting-state snapshot reviewed; no backup native fixture prepared or admitted."
+  ]
+}

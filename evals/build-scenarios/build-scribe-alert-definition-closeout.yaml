@@ -1,6 +1,10 @@
 id: build-scribe-alert-definition-closeout
 max_turns: 36
 agent: software-engineer
+tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
+references:
+  - skills/operational-docs/references/knowledge-closeout.md
+  - skills/operational-docs/references/disposition-policy.md
 prompt: |
   I am Morgan, approving a documentation-only correction of the two alert cards and their
   definition links in docs/operations/index.md. Operational settings, ownership, lifecycle,
@@ -71,7 +75,7 @@ fixture:
     docs/runbooks/checkout.md: "# Checkout\nExisting approved operating procedure; unchanged.\n"
 checks:
   - {check: task_completed, target: scribe, text: "the documentation helper completed"}
-  - {check: skill_loaded, skill: operational-learning, text: "closeout method was loaded"}
+  - {check: skill_loaded, skill: operational-docs, text: "closeout method was loaded"}
   - {check: changes_within, allowed: [docs/operations/alerts/queue-lag.md, docs/operations/alerts/queue-depth.md, docs/operations/index.md], text: "only the approved definition metadata and links changed"}
   - {check: no_new_commits, text: "nothing committed"}
   - check: command_exit_zero

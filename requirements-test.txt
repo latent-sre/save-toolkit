@@ -16,6 +16,7 @@ pytest-xdist
 rich
 hypothesis
 pydantic
+docker
 ruff
 mypy
 types-PyYAML

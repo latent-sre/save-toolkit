@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "scope": "18 synthetic execution profiles over six independent incident families; no run authorization",
+  "tasks": [
+    {
+      "instance_id": "incident-session-01-a",
+      "partition": "development",
+      "case_sha256": "879f31bf06b2ffccf9fbec5d4719103674ca01253df6b3800ae7448a4336a5b0"
+    },
+    {
+      "instance_id": "incident-session-01-b",
+      "partition": "development",
+      "case_sha256": "e446b9e1eab5f615c9ced7ae9004bc3015e9a1f12d01decf1d5b0a77634beeb3"
+    },
+    {
+      "instance_id": "incident-session-02-a",
+      "partition": "development",
+      "case_sha256": "26c36697cbfc98fa97b83702d66fcf3e90ac7a4243e575d4e215edf9224980d1"
+    },
+    {
+      "instance_id": "incident-session-02-b",
+      "partition": "development",
+      "case_sha256": "6a42aebb7f3f1f76ac759d7abf00521bf3eef68e6fa1f8bb84579d3a178e7997"
+    },
+    {
+      "instance_id": "incident-session-03-a",
+      "partition": "development",
+      "case_sha256": "a7ca1e18178505b9a2b26fd32ec6ac284515b0ba6eb19ffabf032553bdbb7453"
+    },
+    {
+      "instance_id": "incident-session-03-b",
+      "partition": "development",
+      "case_sha256": "88050c9f48aed597c17fdd644d32a54ae90025f39de6af62c235c8a97056f99a"
+    },
+    {
+      "instance_id": "incident-session-04-a",
+      "partition": "development",
+      "case_sha256": "16c6d16c63296a47848c4aebda334946e2e4d98cc82c924b44ca34e18875aac3"
+    },
+    {
+      "instance_id": "incident-session-04-b",
+      "partition": "development",
+      "case_sha256": "0afdb6351a476574170438d76ad9fca42b7962160bd7bc527c3c725a6df51fbc"
+    },
+    {
+      "instance_id": "incident-session-05-a",
+      "partition": "held-out",
+      "case_sha256": "65dbf96a148db8a9bd86d49a127c4f126e37f7cebda90aa8f33e9ac43235be13"
+    },
+    {
+      "instance_id": "incident-session-05-b",
+      "partition": "held-out",
+      "case_sha256": "a8c59235052c83aad590ea14a90c29646c68c229c5a0a9ad54519cb0dcc1faa3"
+    },
+    {
+      "instance_id": "incident-session-06-a",
+      "partition": "held-out",
+      "case_sha256": "b8afb0931d7d9e20a50a175a6c46a19c2762ea2f5df968215a755f6124648f04"
+    },
+    {
+      "instance_id": "incident-session-06-b",
+      "partition": "held-out",
+      "case_sha256": "1df56ef196ece93a2cbe560f3b6937e3767456d747f855251407b117bda4be4c"
+    },
+    {
+      "instance_id": "incident-session-worked-six",
+      "partition": "development",
+      "case_sha256": "649cbdaaf960fd95d19b8bc506d59aa7c9244dd6682b8d8d0270d97a4a9d5c07"
+    },
+    {
+      "instance_id": "incident-session-worked-real-helper",
+      "partition": "development",
+      "case_sha256": "654e21dc535269c28887327a65ef36d46a7c9742fe6876f3e117dfa7df06bcbb"
+    },
+    {
+      "instance_id": "incident-session-01-a-branch",
+      "partition": "development",
+      "case_sha256": "f5bacc0a3f3e21fdc285b1a2e8b0dea9c257cbddbd1e8b368ac6f2402d44a879"
+    },
+    {
+      "instance_id": "incident-session-01-b-branch",
+      "partition": "development",
+      "case_sha256": "41b320aadc86c151a61b84bf73fd6cc60ecff4e8b054c4818aa2504be7af8097"
+    },
+    {
+      "instance_id": "incident-session-03-a-branch",
+      "partition": "development",
+      "case_sha256": "a529929c1308b390548c8acb56a4d0bac052b7487292073ade0d0a6ccb24de22"
+    },
+    {
+      "instance_id": "incident-session-03-b-branch",
+      "partition": "development",
+      "case_sha256": "8fe9cf3e1dc12f56443f4ccf4bc75cc448649a0361995427922a4d34c68d23d3"
+    }
+  ]
+}

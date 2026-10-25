@@ -47,13 +47,14 @@ MATCHED = (
     "requested_model",
     "observed_models",
     "runtime",
+    "execution_profile",
     "wall_clock_seconds",
     "turn_limit",
 )
 # What one arm's trials of a case must share to pool, as a batch refuses to pool anything else.
 POOLED = (*MATCHED, "plugin_source_sha256")
 # What every case of one label must share: one candidate, measured on one model, CLI and host.
-LABEL_IDENTITY = ("plugin_source_sha256", "requested_model", "observed_models", "runtime")
+LABEL_IDENTITY = ("plugin_source_sha256", "requested_model", "observed_models", "runtime", "execution_profile")
 DECIDED = (State.PASS, State.FAIL)
 
 
@@ -285,12 +286,14 @@ def _legacy_gaps(folder: Path) -> list[str]:
 
 def _conditions(record: RecordV1) -> dict[str, Any]:
     runtime = record.conditions.runtime
+    profile = record.conditions.execution_profile
     return {
         "case_sha256": record.case.case_sha256,
         "scenario_sha256": record.case.scenario_sha256,
         "requested_model": record.conditions.requested_model,
         "observed_models": record.conditions.observed_models,
         "runtime": runtime.model_dump(mode="json") if runtime else None,
+        "execution_profile": profile.model_dump(mode="json") if profile else None,
         "wall_clock_seconds": record.conditions.wall_clock_seconds,
         "turn_limit": record.conditions.turn_limit,
         "plugin_source_sha256": record.candidate.plugin_source_sha256,

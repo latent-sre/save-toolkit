@@ -1,0 +1,13 @@
+# Optional independent SWT worker environment; never install into the fleet plugin.
+# All exact versions are constrained centrally in requirements-dev.txt.
+-c requirements-dev.txt
+docker==7.2.0
+datasets==5.0.1
+editdistance==0.8.1
+GitPython==3.2.1
+python-dotenv==1.2.2
+requests==2.33.1
+tqdm==4.67.3
+unidiff==0.7.5
+pydantic==2.13.5
+pyyaml==6.0.3

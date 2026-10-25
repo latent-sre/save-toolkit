@@ -1,0 +1,80 @@
+{
+  "format": "wp04-proposed-run-plan",
+  "version": 1,
+  "status": "case-admission-and-exact-run-approval-pending",
+  "manifest_file_sha256": "475a8ef189ff60476c2b8257d0901144df017c619b3338ff7a0067e6d152a86d",
+  "manifest_canonical_sha256": "b9c9869928fdbbc89e74f909151063aed3ae65989f960ef6169271f601fd2e7a",
+  "profile": "wp04-recorded-observations-v2",
+  "case_ids": [
+    "wp04-7",
+    "wp04-21",
+    "wp04-24",
+    "wp04-80",
+    "wp04-102"
+  ],
+  "human_admitted_cases": [],
+  "candidate": {
+    "revision": null,
+    "source_digest": null,
+    "dirty": null
+  },
+  "incumbent": {
+    "revision": null,
+    "source_digest": null
+  },
+  "runner": {
+    "revision": null,
+    "source_digest": null,
+    "cli_version": null
+  },
+  "runtime": {
+    "required_system": "Windows",
+    "required_elevated": false,
+    "observed_hostname": null,
+    "observed_account_id": null,
+    "authentication_class": null,
+    "requested_model": "sonnet",
+    "observed_model": null,
+    "tools": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Skill"
+    ]
+  },
+  "execution": {
+    "smoke_trials": 1,
+    "trials_per_case_per_arm": 2,
+    "planned_main_trials": 20,
+    "concurrency": 1,
+    "automatic_retries": 0,
+    "max_turns": 36,
+    "wall_clock_guard_seconds": 900,
+    "smoke_batch_scheduling_usd": 3,
+    "per_case_batch_scheduling_usd": 5,
+    "hard_inflight_spend_cap_usd": null,
+    "total_spend_authorization_usd": null,
+    "cache_response_reuse": false,
+    "max_prepared_bytes": 536870912
+  },
+  "measurement": {
+    "upstream_evaluator_revision": "14f026fc9cc348c4ecec5ab32714de954c95c1b1",
+    "judge_identity": null,
+    "upstream_score": null,
+    "adapted_metric": "wp04-exact-entity-edge-v2",
+    "manual_semantics": "required-unmeasured",
+    "binding_policy": "wp04-original-metadata-anchored-name-v1"
+  },
+  "gates": [
+    "human admission of five source-reviewed proposed cases 7/21/24/80/102; exclusions 29/31/105 preserved",
+    "exact incumbent/candidate and runner source identities accepted",
+    "native Windows everyday unelevated account and CLI identity verified",
+    "effective tool/read boundary excludes evaluator material",
+    "model/authentication and spend exposure approved",
+    "smoke actual reads/collection/boundary complete before main scheduling",
+    "independent operational assessment and exact candidate acceptance after runs"
+  ],
+  "selection_revision": 2,
+  "bindings_file_sha256": "6a336ff92684e3f2e51e7848badcc40538750a186b98a40cca4b7755c0e38081",
+  "binding_metadata_file_sha256": "67577eebbdee941ee0f51916bba57f6de47f08d453fc1b7cdfe2422e38c7b535"
+}

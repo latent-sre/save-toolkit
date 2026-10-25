@@ -45,13 +45,13 @@ class SkillAssetTests(unittest.TestCase):
 
     def test_operational_template_revision_slots_use_short_commit_ids(self) -> None:
         for name, field, expected in (
-            ("runbook/assets/runbook-template.md", "source_revision",
+            ("operational-docs/assets/runbook-template.md", "source_revision",
              "<repository@short-commit or reviewed release identifier>"),
-            ("postmortem/assets/postmortem-template.md", "source_revision",
+            ("operational-docs/assets/postmortem-template.md", "source_revision",
              "<repository@short-commit or reviewed release identifier>"),
-            ("operational-learning/assets/service-card-template.md", "source_revision",
+            ("operational-docs/assets/service-card-template.md", "source_revision",
              "<repository@short-commit or reviewed release identifier>"),
-            ("operational-learning/assets/alert-card-template.md", "source_definition",
+            ("operational-docs/assets/alert-card-template.md", "source_definition",
              "<owning repository path@exact revision OR API resource locator + UID>"),
         ):
             with self.subTest(template=name):
@@ -60,7 +60,7 @@ class SkillAssetTests(unittest.TestCase):
                 self.assertEqual(metadata[field], expected)
 
     def test_postmortem_template_keeps_unknown_metadata_nullable(self) -> None:
-        text = (ROOT / "skills/postmortem/assets/postmortem-template.md").read_text(encoding="utf-8")
+        text = (ROOT / "skills/operational-docs/assets/postmortem-template.md").read_text(encoding="utf-8")
         metadata = yaml.safe_load(frontmatter_block(text))
         for field in ("severity", "started_at", "resolved_at", "resolution_confirmed_at"):
             with self.subTest(field=field):

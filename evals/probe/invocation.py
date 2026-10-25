@@ -21,7 +21,7 @@ from typing import Any, TextIO
 import clean_room
 import yaml
 
-from . import catalog, constants, fingerprints, records, tracing
+from . import catalog, constants, conversations, fingerprints, records, tracing
 from .constants import BUILD_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
 from .outcomes import CutShort, Stop
 from .tracing import TraceSummary
@@ -505,6 +505,13 @@ def native_identity_problem(
         return "native session identity missing or resume session mismatch"
     if trace.tool_errors or trace.denials:
         return "native tool denial/error"
-    if len(trace.dispatches) > (0 if resume else 1) or set(trace.dispatches) - {constants.namespaced(spec["helper"])}:
+    if conversations.enabled(spec):
+        helper = conversations.expected_helper(spec, spec.get("_conversation_turn", 0))
+        allowed = {constants.namespaced(helper)} if helper else set()
+        maximum = 1 if helper else 0
+    else:
+        allowed = {constants.namespaced(spec["helper"])}
+        maximum = 0 if resume else 1
+    if len(trace.dispatches) > maximum or set(trace.dispatches) - allowed:
         return "unexpected native helper session"
     return None

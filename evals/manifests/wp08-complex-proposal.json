@@ -1,0 +1,297 @@
+{
+  "schema_version": 2,
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "revision": "78f471bf655a3137b2e8a75af1501690ec009ec3",
+  "profile": "complex-v1",
+  "admission": "pending-human-acceptance",
+  "recipe": {
+    "eligible_difficulties": [
+      "1-4 hours",
+      ">4 hours"
+    ],
+    "selection": "predeclared ten cases across eight repositories; no model-outcome selection",
+    "balance": "complexity and subsystem diversity; replaces the easy-profile crash-marker quota"
+  },
+  "tasks": [
+    {
+      "instance_id": "astropy__astropy-13398",
+      "repo": "astropy/astropy",
+      "difficulty": "1-4 hours",
+      "complexity": "Coordinate-frame transforms must preserve terrestrial reference and observer geometry.",
+      "licence": {
+        "url": "https://raw.githubusercontent.com/astropy/astropy/6500928dc0e57be8f06d1162eacc3ba5e2eff692/LICENSE.rst",
+        "sha256": "a86d75ead6df0886dcbc04230ffcd971c66a4a6746ca559ddf768865370637f5"
+      },
+      "field_hashes": {
+        "instance_id": "f3a65e9e09239a84b081cda379070530f4ea3bf294654adb4f25a81e5943c415",
+        "repo": "5f9438f64a8641e5b1e506279ae909b230104d0841c86375bd31a042c1c9916a",
+        "difficulty": "42bdde648d9c03dcaf10ddae8914c3bd2ee619fc7408efca4c002244faee69b2",
+        "base_commit": "8fe100acc237fbf076a33f725429a361f550d3b0338e2ccd14e5992b4433187b",
+        "problem_statement": "dafc3deabda2b40a8d91b26705acfce73a9f9601d5ac985891f26b473b9a1dc7",
+        "FAIL_TO_PASS": "69c9c1105eec1d31bbdaddfd17770df49a2f75fc78b68e05e33c31c746044355",
+        "PASS_TO_PASS": "72510e48469c8d8ac71b912bb1a4da190d3db4cef7f88005b4c60dfa7a30faf0",
+        "image": "dcf80e52b15527e55f71daa6485c2675c6a274387ea1580a25694cedb23fdd31",
+        "patch": "b7fcbef9cd71774cdf4640d928c11fbc6da6eee842aa9aa65cfa1a5017a08b69",
+        "test_patch": "52f792790edaf1989c777334809132e1fd7737c3f9521245e8ec761ed5e75315",
+        "hints_text": "03232997a9aaeabbd32b3427889197dcb0dddcc79145b2b4e2c7b8f65849e6cb",
+        "eval_script": "a5277355284642ced496ac8548dbe002a99f015a87bdae75405e168d982e3ecd",
+        "log_parser": "266277f5fd21d9baeb5d0ed5a1a29383da40dbae9d15d3d879008ffc05f1d5bf",
+        "eval_type": "e6fc2364a8441bc306fada65d78dd85242c202a804b62ce071c92c4eb8ec521a",
+        "version": "5cc31a244d7ddd1ee58e87b2a8426d5f3764ccb41f1f9ab97a96b72b30ebd30c"
+      },
+      "row_sha256": "71d82814a76e7780d0cad4e1d4b10986de1d58cb538d1fda85e9ee29755fbfa4"
+    },
+    {
+      "instance_id": "django__django-13344",
+      "repo": "django/django",
+      "difficulty": "1-4 hours",
+      "complexity": "Mixed synchronous/asynchronous middleware must preserve response and await boundaries.",
+      "licence": {
+        "url": "https://raw.githubusercontent.com/django/django/e39e727ded673e74016b5d3658d23cbe20234d11/LICENSE",
+        "sha256": "b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669"
+      },
+      "field_hashes": {
+        "instance_id": "e6df891ad3e6dc93aab66cd2752811db91214f1eb16117ccaede1b6933802a23",
+        "repo": "849fb4d8e33903d5091f930739b191d218b27946a819b5d4fe4e8bbfc4dd46c7",
+        "difficulty": "42bdde648d9c03dcaf10ddae8914c3bd2ee619fc7408efca4c002244faee69b2",
+        "base_commit": "e41a7553fe9c233d7807daa5d55853d87b4724fbef02a21c8f52d810aa74687f",
+        "problem_statement": "b868f2a04a7a5f109d0bc10cad73a8cbc588070585fed2e425d91600d6ff97af",
+        "FAIL_TO_PASS": "7236fbae7b0f505f56fd0bde3715a33f8d27f9e4ad3ccd383705aba5e9ea4129",
+        "PASS_TO_PASS": "f05fe823b6f1829805e4f057b86fb2ffb6e7576fc37610a19a4fbb68a2b930e2",
+        "image": "ae45ae4eb9cf1fc7632591b90b7697c37bbe4ca5ab0185829127a1222923d5b7",
+        "patch": "c65834c77da11e72e7d1237c7c22bebedd4642006564a0a15262898bb9846a60",
+        "test_patch": "0b769c0fa06527488288399c8b4fec9d64a53c0ba16ac9634f35489c00c23ab6",
+        "hints_text": "0cc9a63f33f650e10eac3eb27aaa149482e168b357245238e116749e80a9c85b",
+        "eval_script": "711e688b1f92e97dc48229ce7d1845bd2255ac0151d68e1f3ab1012cdde3c8db",
+        "log_parser": "b31efdc0c33d9ce7b25ac212d8fca4beed451c1cb2f1ba287532d1abb65ea6b8",
+        "eval_type": "e6fc2364a8441bc306fada65d78dd85242c202a804b62ce071c92c4eb8ec521a",
+        "version": "5d74655fe90d54aee44f49342aa4c91dda08384f5a755f4fe1b6398bf63089f1"
+      },
+      "row_sha256": "ed963f2a9e3757f3e878ffe271dfa82371e4f8bd6279fbc930f114191d1ca161"
+    },
+    {
+      "instance_id": "django__django-16631",
+      "repo": "django/django",
+      "difficulty": "1-4 hours",
+      "complexity": "Session validation must handle key rotation, fallback secrets and migration to the new key.",
+      "licence": {
+        "url": "https://raw.githubusercontent.com/django/django/9b224579875e30203d079cc2fee83b116d98eb78/LICENSE",
+        "sha256": "b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669"
+      },
+      "field_hashes": {
+        "instance_id": "969f9471bf6ab5e98fae535bf4e1c4064cc153d16157853558b11062af86c61f",
+        "repo": "849fb4d8e33903d5091f930739b191d218b27946a819b5d4fe4e8bbfc4dd46c7",
+        "difficulty": "42bdde648d9c03dcaf10ddae8914c3bd2ee619fc7408efca4c002244faee69b2",
+        "base_commit": "ce8070e915e80b8aaf416aea788897614568fb9ca892bd382fc78e49bf2715ac",
+        "problem_statement": "bfa653bbb5825279ebe95007e615a736ddb2f2f013d57bc774a22c4ca8aef67b",
+        "FAIL_TO_PASS": "cbfe617ca8fb591dec3a8f1b081dcbf94cf67194d464f276a012e68e639c13a2",
+        "PASS_TO_PASS": "de459f9106032ac4ae76d9d3fcab585bb9ebee247a43b497807c6c75b6fb0eb1",
+        "image": "ea454753fc625d33d2327acdab7b1c05c84604e8938f3bc6919f74b29c71efbd",
+        "patch": "5683e2d77ab48550ba7157ec6c6d3db3e7c47474de73d9d73c417a4a060083a9",
+        "test_patch": "df22f68d9312a48ac505fc8d6fb753c16abc9927651165a41e4c9d834733666d",
+        "hints_text": "aaa097fe108d55855da34882a645d27ba2d827cd3928396e88bdef0cf7a0c248",
+        "eval_script": "d2ed7e584b4de7d2c89e6f61452afb0c8dda17da2ec908b9e305bd84a600db52",
+        "log_parser": "b31efdc0c33d9ce7b25ac212d8fca4beed451c1cb2f1ba287532d1abb65ea6b8",
+        "eval_type": "e6fc2364a8441bc306fada65d78dd85242c202a804b62ce071c92c4eb8ec521a",
+        "version": "5cc31a244d7ddd1ee58e87b2a8426d5f3764ccb41f1f9ab97a96b72b30ebd30c"
+      },
+      "row_sha256": "029e121f7c35099d976a867fef4a244c49fc54aa5bd79eb09b44e05118313b1c"
+    },
+    {
+      "instance_id": "pydata__xarray-6992",
+      "repo": "pydata/xarray",
+      "difficulty": ">4 hours",
+      "complexity": "Index transitions must preserve coordinate, variable and representation invariants.",
+      "licence": {
+        "url": "https://raw.githubusercontent.com/pydata/xarray/45c0a114e2b7b27b83c9618bc05b36afac82183c/LICENSE",
+        "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+      },
+      "field_hashes": {
+        "instance_id": "bc527874cf569fd19781a3188390f9dcf667afaccccfa904b645232e2cab9681",
+        "repo": "5013401c80bc8354769783ab4f78d4a3ca6be3f192a1a6fa3b1ee8cfcff85bc3",
+        "difficulty": "7b4ae3c37820ee78b9295916d04adfd874e682ad956b509c3591301e02753450",
+        "base_commit": "3e7efde080db8ab59ed387051680b9503f01438c9f488d56f4521ddeb9f5d561",
+        "problem_statement": "484070c20e6af3abe13c5a18437967fde637d20ec5ac1af486c372323f896cab",
+        "FAIL_TO_PASS": "3e7089743cc61da688dd987b0b9741fcc765b01730971a79c2cee96b2ce2b0bd",
+        "PASS_TO_PASS": "9b1c6031b1ab7023420aa3d562db8938fb0ff1fee4476204401bcfab5cedb4f1",
+        "image": "b4f1fdb5fa31407821bc1ab5f5387f74c5375d92a0f583c88892268609122f5f",
+        "patch": "87aa7b7fe9b7014450e13ef8f7d292672bda857a501cc76a21566f0cc6c0d875",
+        "test_patch": "2302d14993caddb96f47f20f01526a8638c4cc2551f9eff05d5b893c4537cbe9",
+        "hints_text": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+        "eval_script": "a4c2c451996d8c3aa050ddeb5d9057ccfef452be2713cd0596e1578c66ef1cc8",
+        "log_parser": "48fe95559b18d9385956e7072871301c0107d7ff28615482a058316d39fb13e0",
+        "eval_type": "e6fc2364a8441bc306fada65d78dd85242c202a804b62ce071c92c4eb8ec521a",
+        "version": "bd02a716cbb91a3a1c5dda8f1cde57dcfe1fc17f8455951633f5efc189bade85"
+      },
+      "row_sha256": "5d9604a9a0250df26591dda8c6e696b77931fada4f30f4ec4b5615042bd13662"
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4551",
+      "repo": "pylint-dev/pylint",
+      "difficulty": "1-4 hours",
+      "complexity": "Type annotations must flow through inference into UML attributes despite None defaults.",
+      "licence": {
+        "url": "https://raw.githubusercontent.com/pylint-dev/pylint/99589b08de8c5a2c6cc61e13a37420a868c80599/LICENSE",
+        "sha256": "f97b14080de8b8490d60eb3d620ebc419943e0779466d1dd0d5d6f68fe195dcd"
+      },
+      "field_hashes": {
+        "instance_id": "df6e53807038cc0c26682c0a5190237ab44587dcf93888fffb7ee94e601d7cde",
+        "repo": "1a97bf56ee8956bad9eb6157cb360bc0a46c382c4c3d7cd7ae4980de52017dbb",
+        "difficulty": "42bdde648d9c03dcaf10ddae8914c3bd2ee619fc7408efca4c002244faee69b2",
+        "base_commit": "7bf6659cfd4a31572d3dd673be478f822a0ca1d8ddc10d26e7ccf913564fa71a",
+        "problem_statement": "e2f572592701cd01fd60b0b2abb4417ed339c65605ed85b48037b27083f67463",
+        "FAIL_TO_PASS": "7ee662c8570075e693d4a9874db988375e6f72d060b58b61f96724f624994e9e",
+        "PASS_TO_PASS": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "image": "4ce43971354f056266b8c28a765f9262391079e60512bdabf3f0c1323ae790c7",
+        "patch": "71fd703e21bc3d4d2f7272db3ce722b088aff6dcca01f4d32d86adedd05cbeee",
+        "test_patch": "eb4346b03e416151ef838a514afc9d95e4309ebc57c2060592a89e289b773126",
+        "hints_text": "683deaf331a96c0f3a29671d83faf57af7d866c58ba015115c8ffd33b38ffdcd",
+        "eval_script": "26ac7a6b7e80b948925e6526e26274d79cf48edb0b48178b844c8266e1c27290",
+        "log_parser": "08850f6459651cc29e935ab5f7a70e03c3edd62835380e86c3a0b5a8d99a62cb",
+        "eval_type": "e6fc2364a8441bc306fada65d78dd85242c202a804b62ce071c92c4eb8ec521a",
+        "version": "837401e8a50dba30a0779876f5c1e39e35ab1cb391748b8426eb119fab222c93"
+      },
+      "row_sha256": "73e1269c9ad05cff3bb032f5987b75753385932cabde2a683212d0be1823784c"
+    },
+    {
+      "instance_id": "pytest-dev__pytest-5787",
+      "repo": "pytest-dev/pytest",
+      "difficulty": "1-4 hours",
+      "complexity": "Nested exception causes and contexts must survive serialization and remote reporting.",
+      "licence": {
+        "url": "https://raw.githubusercontent.com/pytest-dev/pytest/955e54221008aba577ecbaefa15679f6777d3bf8/LICENSE",
+        "sha256": "4be38574daf05665b6194e4fd84c5ef6ce7c3a2810308a5222d5cdffc2d04d18"
+      },
+      "field_hashes": {
+        "instance_id": "03fcf84bd43c77f40e46040db5513ab957a3cbb5bf3798e814103a26882b6d1c",
+        "repo": "57b7da6530df7973577b7f385e7b9627024f83f4abf42f84cd79dafe2ce0303d",
+        "difficulty": "42bdde648d9c03dcaf10ddae8914c3bd2ee619fc7408efca4c002244faee69b2",
+        "base_commit": "cca2d4a9407b5d2db7c3593dd9216e9653b4727b2357feb27b987a51384da2ef",
+        "problem_statement": "b1426989337a811272c97ad496b348a8c77f5e51fc21173534d133b57839c862",
+        "FAIL_TO_PASS": "6075903e968ccea52cad4d73b68b008237e34d8a61099f7d50e968fdac349674",
+        "PASS_TO_PASS": "eae5c66fdd0a09120b35d5bf6405caa13c0cdd17f01bf78751b9b1672d09eb58",
+        "image": "a3eb7bc0c315ff1939e78a6f1cc0e6c6bf6a74d499948e58ad8010084d4c75b7",
+        "patch": "1d071b537282c6ad47a4254300af2d0848bac8afcafd537d1dcc82b706200b14",
+        "test_patch": "17f47b0430c10e29cd3b9cc2ff725af8a0bd2603f4b632536ca65a94a96f7f42",
+        "hints_text": "b0d07d18c799d542e1f68b6ae69052b121c1b55cb4db16d40033a2c108430418",
+        "eval_script": "3fafbc03ce5567494951ced4d4ff3ea1c5e743949a6f8984542f9bf856a60ff8",
+        "log_parser": "a94b433151fff14c3cc7535245376ae61afcb0dc13ed9c67658f881ce800a27c",
+        "eval_type": "e6fc2364a8441bc306fada65d78dd85242c202a804b62ce071c92c4eb8ec521a",
+        "version": "47cacdb5cce5fa35a1e506106b2cb690b86ac42d6d287a74126be5b73b6b5261"
+      },
+      "row_sha256": "1072a415a0bf1f87982e571720d255c03989b915f038908e104aeb6267482cd5"
+    },
+    {
+      "instance_id": "pytest-dev__pytest-10356",
+      "repo": "pytest-dev/pytest",
+      "difficulty": "1-4 hours",
+      "complexity": "Marker inheritance must respect multiple-inheritance order without losing base markers.",
+      "licence": {
+        "url": "https://raw.githubusercontent.com/pytest-dev/pytest/3c1534944cbd34e8a41bc9e76818018fadefc9a1/LICENSE",
+        "sha256": "ca836a5f9ecca3b2f350230faa20a48fb8b145653b5568d784862df864706b9b"
+      },
+      "field_hashes": {
+        "instance_id": "b8a9060ffd32c7cfd95152be83c354d7680497d74eb3990947501ee0309952b0",
+        "repo": "57b7da6530df7973577b7f385e7b9627024f83f4abf42f84cd79dafe2ce0303d",
+        "difficulty": "42bdde648d9c03dcaf10ddae8914c3bd2ee619fc7408efca4c002244faee69b2",
+        "base_commit": "17f0d1f1df9de3265dda20cbfa768bcdc60bf7b1052e63a421ddf663ea9917fa",
+        "problem_statement": "1b46e9389a80cd716c1e6177e35fce683fa38418331e866a995f42ef1e7b0af6",
+        "FAIL_TO_PASS": "11953efb305105873eef822293933d1b56861eaf375b7a89319be7822ed8e30c",
+        "PASS_TO_PASS": "ce9e66b6f28360569bef105c578d304854a69921b9a69fc412f68d1a85dece51",
+        "image": "2060a23fef17f09cad35833193ecbcb275f6beb6b860efd6b60e3afc97d460fd",
+        "patch": "8d659c0cc5f1ad6ef91bd3004f3fd69ae34cf715e77ca7c2216bf52803a9030e",
+        "test_patch": "70cc61849e09e7f00ebb145e6daf5a51f42b91a028e4a6eeabedb790a9ada22b",
+        "hints_text": "72424efff1fba529e7db8d7a8eb7eb764804af44bdf6b36e0efcbcbfa82ea8fc",
+        "eval_script": "bdd765ed507511ebb1fc0c259f589546fec3815a52a2302c562cd5f0f133862f",
+        "log_parser": "a94b433151fff14c3cc7535245376ae61afcb0dc13ed9c67658f881ce800a27c",
+        "eval_type": "e6fc2364a8441bc306fada65d78dd85242c202a804b62ce071c92c4eb8ec521a",
+        "version": "428ff1bbca6880b5834c38c56e2bc84d004062d25a5d042ed8dc9ba385b2073d"
+      },
+      "row_sha256": "88d3d009a1ff6cc9b9524b54a6db496796a7367ea2ebd39901cc20f28f369eb9"
+    },
+    {
+      "instance_id": "scikit-learn__scikit-learn-25102",
+      "repo": "scikit-learn/scikit-learn",
+      "difficulty": "1-4 hours",
+      "complexity": "Transformer output must preserve pandas extension dtypes and feature selection semantics.",
+      "licence": {
+        "url": "https://raw.githubusercontent.com/scikit-learn/scikit-learn/f9a1cf072da9d7375d6c2163f68a6038b13b310f/COPYING",
+        "sha256": "e39bf18719108f9e94b578020077dae2c8f0cede14cd7caa11e9a13c44b5e5ab"
+      },
+      "field_hashes": {
+        "instance_id": "8cc7df6db7d0025093be4ff94e73a1aa13f275638dffb246523345ee6e3044f2",
+        "repo": "c4bc96aa83cfebc6b1c8d3964ec75d753d99170e55a47d098539a437dbc6b949",
+        "difficulty": "42bdde648d9c03dcaf10ddae8914c3bd2ee619fc7408efca4c002244faee69b2",
+        "base_commit": "6f5facd6fbf1d2df3546ad26606858a28bc5c8e5494c7064a934e7b5d3124acd",
+        "problem_statement": "9d3b44b6e7cc35d92878ab79ce03c33133b350ec32848f1ec17aeddd9b7dbfc8",
+        "FAIL_TO_PASS": "fd10303d2ba7a81edd5d6649f8fe278c3f2318252d2b6ec5c9a6276dcf0b15b3",
+        "PASS_TO_PASS": "0834085e395f05b4f4f6964ad65991071848f21694465dc8a7b7faa17eb74bc3",
+        "image": "372c14bd801c1b8a46b71d47736846732107af6e6f4afd07863748735b8c9018",
+        "patch": "904d27c1bcad93060e0f738fc53d813806ca37c8e9178f8913cfac03680bc25a",
+        "test_patch": "0b4b718b010cf927acde4c9306cf96c73ce230239bb096d1204d5cc1ab5981a3",
+        "hints_text": "ae0263137ea2d2a794cccc4063c4b299cc26b9da09d4e9b7d7b56aa39d3a59f5",
+        "eval_script": "4e06b9f5151a89b13b73439a0aa7ce01a6eec8a4e8c7562ee1da12a477c331d2",
+        "log_parser": "ba3991bd098af115b14c18d51a1d70b33522e9f355b749c5433d673b7d8dd1a9",
+        "eval_type": "e6fc2364a8441bc306fada65d78dd85242c202a804b62ce071c92c4eb8ec521a",
+        "version": "f7d272bf70cdcdef4bc47eee1bead4a86b25072bfc5277172db1cc74ee4af9ea"
+      },
+      "row_sha256": "e78a31cf541f0c05e1519fb3351bd3f432ae9c499c06f78377b85d1475ccee30"
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-7590",
+      "repo": "sphinx-doc/sphinx",
+      "difficulty": ">4 hours",
+      "complexity": "The Python C++ parser must recognize user-defined literal forms without breaking expressions.",
+      "licence": {
+        "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/2e506c5ab457cba743bb47eb5b8c8eb9dd51d23d/LICENSE",
+        "sha256": "5004de7c0e86d9f3b7fa059807719c62b06ee5a30b8358081433f28c3b9ac9c9"
+      },
+      "field_hashes": {
+        "instance_id": "8f495b9ca9d828392dcf28988750d564ffc73cb9bcfbd0e99b36330921d80f38",
+        "repo": "cec6ad9a1641c73b6991b50b430c01dd5631d2aebf3f548902a10d5d9e0f7e03",
+        "difficulty": "7b4ae3c37820ee78b9295916d04adfd874e682ad956b509c3591301e02753450",
+        "base_commit": "7cbe17d2c088c585a2a676f88be5ab340e853ad6aa993d63d5f06d9d2efb780f",
+        "problem_statement": "d5c82ea1a5a72d4684b56dc2b62526f0fc42a34fe079710277fd364ac446fe2e",
+        "FAIL_TO_PASS": "620bcc3f9d3409b900a268da0ba87067add3861e7e19729e177285d1bf755bc8",
+        "PASS_TO_PASS": "c8b512c08b35a3df26b69128afd7fc0270f3ea5a33312f68109c4b89ddc79fe9",
+        "image": "0d2bc7e4b8a34622508c7f8f8dbeb87060bd0d62511705595a3adabcb364b993",
+        "patch": "0566b76de3371396630cfa7984a651b9a532fdd3c368e73c04af7b8daba70969",
+        "test_patch": "b7f8ffa31216469477d76dbe0ec068de071b5d58e6c9e651f0bd9ba5c13e2bd9",
+        "hints_text": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+        "eval_script": "2468c0b304bb5a86064d626ed9ede76caf68ce06a3ca02d371ac6a6789d58e6a",
+        "log_parser": "837693a21e78fe53dc54dd759aacf96f01efdbc4ea013563bb6426f16e2fdd15",
+        "eval_type": "e6fc2364a8441bc306fada65d78dd85242c202a804b62ce071c92c4eb8ec521a",
+        "version": "fa7484677d99b81bf4b15d11050e36e9c920aff33837dde062ea880b4da99458"
+      },
+      "row_sha256": "5087f99b66cfe0a91051f1bd8a83aa4a1dedd52bd843a94f0a2c8f6ca522fa63"
+    },
+    {
+      "instance_id": "sympy__sympy-13878",
+      "repo": "sympy/sympy",
+      "difficulty": ">4 hours",
+      "complexity": "Distribution-specific CDFs must preserve domains, parameters and limiting behavior.",
+      "licence": {
+        "url": "https://raw.githubusercontent.com/sympy/sympy/7b127bdf71a36d85216315f80c1b54d22b060818/LICENSE",
+        "sha256": "b8fd72e9cdac9dc5028ec9c4623945971cdff1ce71fda381d5f5419ffe0ab587"
+      },
+      "field_hashes": {
+        "instance_id": "d7e0ed7be22a74d872e58ee76837aaf329d9c8539858be3e420e50ee7d884480",
+        "repo": "38a00952cba386d96c8f8d23f1c50a7329951928d22303eff5d3f5eb4f4a4942",
+        "difficulty": "7b4ae3c37820ee78b9295916d04adfd874e682ad956b509c3591301e02753450",
+        "base_commit": "24e6e486e7694b237c2178b3f7efdf8fe58a5e9ac0c43f7d3733066f0fdcfd68",
+        "problem_statement": "044d4b6dc3ee399645d43e320a0e700e9ce50371df738e84d1cd46420177471a",
+        "FAIL_TO_PASS": "01a2a5ce8a046d0a376bbd556d95d7c383cc4e2c0440d899fa84521af4ee107d",
+        "PASS_TO_PASS": "b7dddad4d4c6c02e6d552c395d3875837c777a158e12cf993319072c7c42ee14",
+        "image": "5e9036eece7cf6c119d9e2cdad91c54b88d7c85814d3b8d4416096961d6c84a0",
+        "patch": "908a1be834e6e5991073567a3bb446c4be04af9f1129638e454bc17ec3bcdc07",
+        "test_patch": "9da7d6d6d0681ce1cd7573f5ce00d1c864e692ad0f90bc06e353c94db7c0ceb8",
+        "hints_text": "005fcfc2982b21e8202dd02ff3e636a22de7cb81c271ebf22166eb6d27ca1322",
+        "eval_script": "cf959197c8299e885be61dbc4eba0f4ba837992145bb872348472dc8ac072fa3",
+        "log_parser": "4f5eddf5385ed10677466dbaad63c6ae741090f34c66eb9f557593b27d93342f",
+        "eval_type": "e6fc2364a8441bc306fada65d78dd85242c202a804b62ce071c92c4eb8ec521a",
+        "version": "e7a84a5fb23ab1062a8cecdcb5091f936a77b9150f09c60b96f026349c09c9a6"
+      },
+      "row_sha256": "ba2bf6dbdcb8448b8a73fa8f0cc50f8c1d248e304b3b5c469aca10afd5ad675b"
+    }
+  ]
+}

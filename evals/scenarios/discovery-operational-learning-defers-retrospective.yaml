@@ -6,13 +6,10 @@ prompt: |
   impact, what detected it, what we changed, and follow-ups with named owners. INC-5102 is
   resolved and I have the timeline and on-call notes to paste.
 success_criteria:
-- Routes a resolved-incident retrospective write-up to the postmortem lane, not knowledge closeout
+- Selects the postmortem method for the resolved-incident retrospective without starting knowledge closeout
 - Asks for or uses the supplied timeline instead of inventing causes
 target:
   kind: skill
-  name: operational-learning
+  name: operational-docs
 routing:
-  expect: not_fire
-  expected_alternative:
-    kind: skill
-    name: postmortem
+  expect: fire

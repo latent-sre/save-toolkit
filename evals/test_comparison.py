@@ -27,6 +27,7 @@ from probe_testkit import all_scenarios, read_json
 BUNDLE = Path(__file__).resolve().parent / "fixtures" / "v1-bundle"
 RUNS = BUNDLE / "runs"
 COST_FIELDS = ("trial_usd", "judge_usd", "known_usd", "complete")
+REPAIR_PROFILE = {"name": "static-repair-independently-verified-dec13", "authentication": "openrouter-host-proxy"}
 
 
 def report_for(runs: Path, scenarios: list[dict] | None = None) -> dict:
@@ -262,11 +263,51 @@ class ComparisonTests(unittest.TestCase):
                          (gain["candidate"]["verdict"], gain["candidate"]["reason"]))
         self.assertEqual("unmeasured", gain["outcome"])
 
+    def test_execution_profiles_must_match_between_arms(self) -> None:
+        for old, new, outcome in (
+            (None, None, "gain"),
+            (REPAIR_PROFILE, REPAIR_PROFILE, "gain"),
+            (None, REPAIR_PROFILE, "not_compared"),
+            (REPAIR_PROFILE, {**REPAIR_PROFILE, "name": "other-repair"}, "not_compared"),
+            (REPAIR_PROFILE, {**REPAIR_PROFILE, "authentication": "other-proxy"}, "not_compared"),
+        ):
+            with self.subTest(old=old, new=new), tempfile.TemporaryDirectory() as tmp:
+                runs = Path(tmp) / "runs"
+                shutil.copytree(RUNS / "eval-synthetic-gain", runs / "eval-synthetic-gain")
+                for label, profile in (("incumbent", old), ("candidate", new)):
+                    path = runs / "eval-synthetic-gain" / label / "run-1" / "record.json"
+                    record = read_json(path)
+                    # Explicit null and an omitted legacy field describe the same native profile.
+                    if label == "candidate" or profile is not None:
+                        record["conditions"]["execution_profile"] = profile
+                    path.write_text(json.dumps(record), encoding="utf-8")
+                gain = case(report_for(runs), "synthetic-gain")
+                self.assertEqual(outcome, gain["outcome"])
+                self.assertEqual(None if outcome == "gain" else "the arms differ in execution_profile", gain["reason"])
+                self.assertEqual(old, gain["incumbent"]["conditions"]["execution_profile"])
+                self.assertEqual(new, gain["candidate"]["conditions"]["execution_profile"])
+
+    def test_execution_profiles_must_match_to_pool_trials(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            runs = Path(tmp) / "runs"
+            shutil.copytree(RUNS / "eval-synthetic-threshold", runs / "eval-synthetic-threshold")
+            path = runs / "eval-synthetic-threshold" / "candidate" / "run-1" / "record.json"
+            record = read_json(path)
+            record["conditions"]["execution_profile"] = REPAIR_PROFILE
+            path.write_text(json.dumps(record), encoding="utf-8")
+            held = comparison.read_label(runs, "candidate")
+            spec = next(s for s in all_scenarios(BUNDLE / "scenarios") if s["id"] == "synthetic-threshold")
+            # Assess the pool directly so label-wide rejection cannot hide a missing pool constraint.
+            arm = comparison._assess(held.cases["synthetic-threshold"], spec)
+        self.assertEqual(("INCONCLUSIVE", "the trials are not one measurement: they differ in execution_profile"),
+                         (arm["verdict"], arm["reason"]))
+
     def test_a_label_measured_two_ways_across_its_cases_measures_none(self) -> None:
         """A label reused for another candidate, or continued case by case across a CLI upgrade, would add
         unlike measurements into one set of outcome counts (DEC-10), so none of its cases is measured."""
         for field, value, varied in (
             ("candidate", {"plugin_source_sha256": "f" * 64}, "plugin_source_sha256"),
+            ("conditions", {"execution_profile": REPAIR_PROFILE}, "execution_profile"),
             ("conditions", {"runtime": {"cli_version": "0.0.1 (synthetic)",
                                         "host_platform": {"system": "Linux", "release": "synthetic", "machine": "x86_64"}}},
              "runtime"),

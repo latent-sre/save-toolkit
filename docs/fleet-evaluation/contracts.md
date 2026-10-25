@@ -82,7 +82,9 @@ does not identify the cause. Confirm that the candidate had the declared opportu
 and that artifact collection worked before attributing a missing submission to it.
 
 Every native scenario declares a positive integer `max_turns` no greater than 500. The CLI enforces
-the limit, shared across both invocations of a native conversation. Offline sizing from historical
+the limit, shared across all ordered invocations of a native conversation. Wall-clock and native
+CLI spend guards apply separately to each invocation; they are not a cumulative conversation cap.
+Offline sizing from historical
 counts and timing is provisional: neither a selected limit nor a passing stub test proves live
 completion within the wall-clock guard. A single slow tool/helper may still reach that guard.
 Current coverage and sizing choices are recorded in the

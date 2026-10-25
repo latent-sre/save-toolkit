@@ -1,0 +1,250 @@
+{
+  "binding_policy": "wp04-original-metadata-anchored-name-v1",
+  "cases": {
+    "wp04-102": {
+      "/Namespace/otel-demo": [
+        "otel-demo-namespace-1"
+      ],
+      "otel-demo/Deployment/ad": [
+        "ad-deployment-1"
+      ],
+      "otel-demo/Pod/ad-554b849958-p226w": [
+        "ad-pod-1"
+      ],
+      "otel-demo/Pod/flagd-7b4bf67b7f-xbq4d": [
+        "flagd-pod-1"
+      ],
+      "otel-demo/Pod/flagd-c47676d99-kf657": [
+        "flagd-pod-1"
+      ],
+      "otel-demo/Pod/frontend-675fd7b5c5-nkn95": [
+        "frontend-pod-1"
+      ],
+      "otel-demo/Pod/frontend-proxy-6b4d584985-vmrpz": [
+        "frontend-pod-1",
+        "frontend-proxy-pod-1"
+      ],
+      "otel-demo/ReplicaSet/ad-554b849958": [
+        "ad-replicaset-1"
+      ],
+      "otel-demo/Service/ad": [
+        "ad-service-1"
+      ],
+      "otel-demo/Service/flagd": [
+        "flagd-service-1"
+      ],
+      "otel-demo/Service/frontend": [
+        "frontend-service-1"
+      ],
+      "otel-demo/Service/frontend-proxy": [
+        "frontend-proxy-service-1"
+      ]
+    },
+    "wp04-21": {
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-2ngwz": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-4fvng": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-892rc": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-95xf6": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-ckxt6": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-flgz4": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-ftn4q": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-ltcpd": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-ns8cj": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-nt6th": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-psc57": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-s2zr9": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-shmvh": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-tj449": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-tm62c": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-v75mv": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-w8p5x": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "chaos-mesh/StressChaos/otel-demo-valkey-memory-stress-zbhwg": [
+        "otel-demo-valkey-memory-stress"
+      ],
+      "otel-demo/Pod/valkey-cart-58df56c79c-4cvft": [
+        "valkey-cart-pod-1"
+      ],
+      "otel-demo/Service/cart": [
+        "cart-service-1"
+      ],
+      "otel-demo/Service/checkout": [
+        "checkout-service-1"
+      ],
+      "otel-demo/Service/frontend": [
+        "frontend-service-1"
+      ],
+      "otel-demo/Service/frontend-proxy": [
+        "frontend-proxy-service-1"
+      ],
+      "otel-demo/Service/valkey-cart": [
+        "valkey-cart-service-1"
+      ]
+    },
+    "wp04-24": {
+      "otel-demo/Deployment/checkout": [
+        "checkout-deployment"
+      ],
+      "otel-demo/Pod/checkout-5dccddf8bb-9d9c8": [
+        "checkout-pod-1"
+      ],
+      "otel-demo/Pod/checkout-849d65649b-qqtsz": [
+        "checkout-pod-1"
+      ],
+      "otel-demo/Service/checkout": [
+        "checkout-service-1"
+      ],
+      "otel-demo/Service/kafka": [
+        "kafka-service-1"
+      ]
+    },
+    "wp04-7": {
+      "otel-demo/ConfigMap/flagd-config": [
+        "flagd-config"
+      ],
+      "otel-demo/Service/checkout": [
+        "checkout-service-1"
+      ],
+      "otel-demo/Service/frontend": [
+        "frontend-service-1"
+      ],
+      "otel-demo/Service/frontend-proxy": [
+        "frontend-proxy-service-1"
+      ],
+      "otel-demo/Service/payment": [
+        "payment-service-1"
+      ]
+    },
+    "wp04-80": {
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-96js2": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-c88bd": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-dtxwx": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-fkbbr": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-fnppk": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-g8m6w": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-j8wrs": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-kxfht": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-rjhbq": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-t2rzv": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-t5r6p": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-tfpsw": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-wrbzf": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-xlccz": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-zkzlw": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "chaos-mesh/NetworkChaos/otel-demo-checkout-kafka-network-partition-znv8m": [
+        "otel-demo-checkout-kafka-network-partition"
+      ],
+      "otel-demo/Pod/checkout-5dccddf8bb-vn95l": [
+        "checkout-pod-1"
+      ],
+      "otel-demo/Service/checkout": [
+        "checkout-service-1"
+      ],
+      "otel-demo/Service/kafka": [
+        "kafka-service-1"
+      ]
+    }
+  },
+  "dataset_revision": "d0916b08ba421ce5e672e9ad68aa947d938dfef0",
+  "format": "wp04-evaluator-bindings",
+  "method": "original kind/namespace/explicit name; whole-name regex preferred, otherwise anchored prefix; no alias expansion",
+  "observed_entity_counts": {
+    "wp04-102": 692,
+    "wp04-21": 770,
+    "wp04-24": 694,
+    "wp04-7": 695,
+    "wp04-80": 772
+  },
+  "revision": 2,
+  "source_sha256": {
+    "wp04-102": {
+      "ground_truth.yaml": "775f6572803b8bf566f0924542e1f4f47fdf0bb21b212b0f9726e3daa3863e65",
+      "k8s_events_raw.tsv": "1c3264a333a5959a10e2b45990fe1113726570014faefcb88569ace4eb34baea",
+      "k8s_objects_raw.tsv": "f02e13bf384b7569af48c5b7336817fe67db26218d9c4b6e257fed524694506d"
+    },
+    "wp04-21": {
+      "ground_truth.yaml": "310361ed158bd7eea970fec28e8b547b5fa6327c446ce35276cafd71cc5ac7a7",
+      "k8s_events_raw.tsv": "d1e1065fc9ca2420a784df1656c764c9b54afca1739c79145735b929fb0640dd",
+      "k8s_objects_raw.tsv": "397e816d71dd6937e33303eb3c0d6c064d32fc653847c706248d2d4863b52af6"
+    },
+    "wp04-24": {
+      "ground_truth.yaml": "16bd2ca11922ed886b29deeb6f5a43171262c6df740407404b6d68cdcf15e000",
+      "k8s_events_raw.tsv": "63a95e2d1345d4d3f0f90fce3e69545d70f3c16bb553cd2b179d3d4768015648",
+      "k8s_objects_raw.tsv": "b644bbeb75bb819986ff555062966e42e6817622f3182d09ea2d937ac3c71623"
+    },
+    "wp04-7": {
+      "ground_truth.yaml": "5f0c42d08bb44540584eb75d4c68beaf79be7c529c8bd5404cdff25895e8fce4",
+      "k8s_events_raw.tsv": "283d53371b0154bbbab7ad0bfcedc5da645fcc12e7247ce711c009b8c30878d4",
+      "k8s_objects_raw.tsv": "d703c2659249b265d1dbac9535f1ebb058c5c656784d98800b04fe6e83549d50"
+    },
+    "wp04-80": {
+      "ground_truth.yaml": "3d88f95658251e4b95189fe6cd519cf82b73ab59acdbdba8bb54c7fdf2fda6b9",
+      "k8s_events_raw.tsv": "6fce0174e73fc644ea4cfe991146a9e72cfbece227b4605bd5542c460662107e",
+      "k8s_objects_raw.tsv": "80a5666f198b985d8e7e8d070151e82f5e1dfbd669d0de01ab2495760c159e4f"
+    }
+  },
+  "version": 1
+}

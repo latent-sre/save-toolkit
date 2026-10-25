@@ -1,6 +1,10 @@
 id: build-scribe-knowledge-closeout
 max_turns: 36
 agent: software-engineer
+tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
+references:
+  - skills/operational-docs/references/knowledge-closeout.md
+  - skills/operational-docs/references/disposition-policy.md
 # The real caller supplies the seeded checkout binding; no fake fixed commit is passed to scribe.
 prompt: |
   I am Morgan, authorizing a bounded documentation closeout in this reviewed fixture repository.
@@ -53,7 +57,7 @@ fixture:
       Preserve this procedure and its rehearsal evidence during the contact correction.
 checks:
   - {check: task_completed, target: scribe, text: "the requested documentation helper completed"}
-  - {check: skill_loaded, skill: operational-learning, text: "closeout method was loaded"}
+  - {check: skill_loaded, skill: operational-docs, text: "closeout method was loaded"}
   - {check: changes_within, allowed: [docs/operations/services/checkout.md, docs/operations/index.md], text: "only the owning card and affected index changed"}
   - {check: no_new_commits, text: "nothing committed"}
   - check: command_exit_zero

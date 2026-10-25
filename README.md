@@ -38,7 +38,7 @@ Routing is by description; there are no commands to memorize.
   interprets available evidence, follows related leads within the assignment, and returns findings
   and recommendations. Missing browser/API access stays explicit; a prompt cannot supply it.
 - *"this alert is too noisy"* → `observability-engineer` with `obs-alerting`.
-- *"write a runbook for the checkout deploy"* → the `scribe` agent with the `runbook` skill.
+- *"write a runbook for the checkout deploy"* → the `scribe` agent with `operational-docs` in runbook mode.
 - *"is PR #42 ready to merge?"* → `production-change-gate`'s merge-readiness checklist, including
   disposition of any known blocking findings; independent exact-SHA review is reserved for
   production deployments.
@@ -74,8 +74,9 @@ will offer it).
 
 The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 
-- **Incident and operations** — `incident-investigation`, `root-cause`, `postmortem`, `runbook`,
-  `operational-learning`, `service-lifecycle` (audit, onboard, and retire modes)
+- **Incident and operations** — `incident-investigation`, `root-cause`, `operational-docs`
+  (runbooks, postmortems, knowledge closeout, and ownership lookups), `service-lifecycle`
+  (audit, onboard, and retire modes)
 - **Observability** — `obs-analysis` (logs, metrics, and traces), `obs-alerting`,
   `obs-pipeline`, `grafana` (dashboard design and Grafana UI/API operations)
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`

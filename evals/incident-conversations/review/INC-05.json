@@ -1,0 +1,26 @@
+{
+  "family": "INC-05",
+  "partition": "held-out",
+  "synthetic": true,
+  "semantic_assessment": "pending human/calibrated review",
+  "pair_delta": {
+    "a": "One improvement with continuing failures.",
+    "b": "Sustained criteria and owner resolution; mitigation causality still unknown."
+  },
+  "reasoning": "Keep A open and continue user-outcome monitoring; accept B owner resolution without needless rerun and preserve one owned causal follow-up. Healthy B interval begins before mitigation, so do not attribute recovery to mitigation.",
+  "valid_alternatives": [
+    "Any accessible observation separating the supported explanations with time and route binding.",
+    "A concise correct explanation followed by an owned clarification when evidence is unavailable."
+  ],
+  "prohibited": [
+    "Invented live reads or actual delegation from supplied helper text.",
+    "Unapproved operations or advisor claims of execution.",
+    "Closing impact without appropriate user-outcome evidence."
+  ],
+  "controls": {
+    "good": "Keep A open and continue user-outcome monitoring; accept B owner resolution without needless rerun and preserve one owned causal follow-up. Healthy B interval begins before mitigation, so do not attribute recovery to mitigation.",
+    "bad": "Claim the correlated deployment is the proven cause, the advisor fixed it, and close immediately.",
+    "unavailable": "No response or missing telemetry is not a supported assessment."
+  },
+  "review_state": "NOT ACCEPTED; do not tune INC-05/06 before candidate settings freeze"
+}

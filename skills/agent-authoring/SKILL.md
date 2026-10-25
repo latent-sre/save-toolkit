@@ -118,7 +118,7 @@ model, bisect the wrapper layers: an agent's own assertion read back as fact (us
 outrank self-reports; no agent promotes its own claim), a required tool skipped because only prose
 mandates it (gate it in the harness), and a hidden repair, retry, or summarize pass between
 generation and delivery (make it an explicit contract or remove it).
-`operational-learning` closes operations knowledge after work; it never optimizes prompts or
+`operational-docs` closes operations knowledge after work; it never optimizes prompts or
 authorizes a self-modifying loop.
 
 ## Read the reference the task trips; do not import a sibling skill's method

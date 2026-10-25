@@ -41,6 +41,7 @@ results remain separate.
 | [WP-10 run plan](run-plan-wp10-wider-fleet-adversarial.md) | Draft, not approved: the AC-20 lane cases and AC-27 pairs, conditions, budget estimate and how to read the pairs |
 | [WP-13 run plan](run-plan-wp13-gcp-native-pilot.md) | Approved 2026-10-17: the native GCP pilot's smoke step and 24-case pilot, decisions, budget, review mode and stop rules |
 | [WP-08 run plan](run-plan-wp08-swebench-repair.md) | Approved 2026-10-18: 10 SWE-bench Verified tasks on the fleet's software-engineer in the static-repair profile, host-proxy credential, model-endpoint-only egress, Claude first then other models |
+| [WP-08 operator commands](wp08-operator.md) | Adapter setup, pinned selection/configuration, separate smoke/trial/batch commands, and evidence limits |
 | [GCP case hardening](gcp-hardening.md) | Approved 2026-10-17: why the pilot cases do not separate models, five hardening mechanisms, a three-family pilot and a pre-registered success criterion |
 | [Scenario specifications](scenarios.md) | Incident pairs, coding tasks, wider-fleet cases and examples |
 | [GCP evaluation track](gcp.md) | 32 paired scenario families, migration and managed services, GKE, reusable foundations and cloud lab profiles |

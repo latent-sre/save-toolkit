@@ -21,7 +21,7 @@ from typing import Any, Final
 import graders as fleet_graders
 import judge as rubric_judge
 
-from . import catalog, checking, fingerprints, invocation, outcomes, tracing
+from . import catalog, checking, conversations, fingerprints, invocation, outcomes, tracing
 from .backing import ServiceUnavailable
 from .checking import Context, Need
 from .constants import ROOT
@@ -155,11 +155,15 @@ def _trace_expectations(
         )
     reference_trace = (
         replace(trace, read_attempts=list[tracing.ReadAttempt](trace.parent_reads_before_dispatch))
-        if spec.get("followups")
+        if spec.get("followups") and not conversations.enabled(spec)
         else trace
     )
     for reference in spec.get("references") or []:
-        scope = " by initial parent before helper dispatch" if spec.get("followups") else ""
+        scope = (
+            " by initial parent before helper dispatch"
+            if spec.get("followups") and not conversations.enabled(spec)
+            else ""
+        )
         graded.append(
             (
                 f"reference {reference} read{scope}",
@@ -178,7 +182,44 @@ def _trace_expectations(
                 traits.polarity,
             )
         )
-    if spec.get("followups"):
+    if conversations.enabled(spec):
+        n = conversations.count(spec)
+        sessions = trace.conversation_sessions
+        graded.append(
+            (
+                "all incident invocations resumed the same session",
+                lambda: verdict(
+                    len(sessions) == n and bool(sessions[0]) and len(set(sessions + trace.init_session_ids)) == 1,
+                    f"invocations={len(sessions)}/{n}; sessions={sessions}",
+                ),
+                RAW,
+                Polarity.REQUIRES,
+            )
+        )
+        for index in range(n):
+            helper = conversations.expected_helper(spec, index)
+            evidence = trace.invocation_evidence[index] if index < len(trace.invocation_evidence) else None
+            graded.append(
+                (
+                    f"incident invocation {index + 1} helper contract",
+                    functools.partial(_incident_helper, helper, evidence, trace, plugin_root),
+                    RAW,
+                    Polarity.REQUIRES,
+                )
+            )
+        for index, entries in enumerate(spec["conversation"].get("turn_graders", [])):
+            evidence = trace.invocation_evidence[index] if index < len(trace.invocation_evidence) else None
+            for grader in entries:
+                traits = checking.grader_traits(grader.get("type"))
+                graded.append(
+                    (
+                        f"incident invocation {index + 1} grader {grader.get('type')}",
+                        functools.partial(_incident_grader, grader, evidence, judge_binding),
+                        traits.needs | RAW,
+                        traits.polarity,
+                    )
+                )
+    elif spec.get("followups"):
         returns = trace.agent_returns
         sessions = trace.conversation_sessions
         same_session = len(set(sessions + trace.init_session_ids)) == 1
@@ -213,6 +254,26 @@ def _trace_expectations(
             ]
         )
     return graded
+
+
+def _incident_helper(
+    helper: str | None, evidence: Mapping[str, Any] | None, trace: TraceSummary, plugin_root: Path
+) -> Outcome:
+    if evidence is None:
+        return verdict(False, "required invocation did not run")
+    expected = [f"{tracing.runtime_namespace(trace, plugin_root)}:{helper}"] if helper else []
+    returns = evidence["returns"]
+    continued = not helper or (len(returns) == 1 and returns[0]["continued"])
+    return verdict(
+        evidence["has_result"] and evidence["dispatches"] == expected and evidence["agents"] == expected and continued,
+        f"expected={expected}; dispatches={evidence['dispatches']}; completed={evidence['agents']}; parent continued={continued}",
+    )
+
+
+def _incident_grader(grader: Mapping[str, Any], evidence: Mapping[str, Any] | None, binding: Any) -> Outcome:
+    if evidence is None:
+        return verdict(False, "required invocation did not run")
+    return _run_grader(grader, evidence["response"], binding)
 
 
 def _run_grader(grader: Mapping[str, Any], text: str, judge_binding: Any) -> Outcome:

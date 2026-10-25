@@ -88,10 +88,25 @@ Older `total_duration_seconds` values are accepted when trial-only elapsed time 
 may include judging, so budget sizing treats them conservatively.
 
 Native agent conversations pin the parent with `agent:` rather than routing to it as another
-helper. Their sole-helper boundary cannot also permit a second agent dispatch. Skill-based native
+helper. The legacy two-message profile's sole-helper boundary cannot also permit a second agent dispatch. Skill-based native
 conversations retain positive main-session routing. Measure agent discovery with a separate unhinted
 routing scenario. Saved native agent runs require matching `--agent` evidence on both invocations;
-an old main-session trace cannot be reclassified as agent acceptance.
+an old main-session trace cannot be reclassified as agent acceptance. The opt-in
+[`incident-v1` profiles](incident-conversations/README.md) extend this path with ordered sessions,
+per-invocation helper contracts and frozen evidence branches. They retain then-visible judge contexts
+and actual resume evidence; semantic review remains separate from structural PASS.
+
+The standalone [`campaign_report.py`](campaign_report.py) accounts for selected slots, kept and
+incomplete attempts, original results, late operational failures, separate measured/estimated spend
+and unknown review dimensions. Its [operator guide](../docs/fleet-evaluation/campaign-report.md)
+describes the selection shape and portable evidence links. It does not grade or promote candidates.
+
+External benchmark preparation has separate entrypoints: [WP-04 ITBench](itbench_pilot.py),
+[WP-08 SWE-bench](swebench_repair.py), [WP-09 SWT](swt_pilot.py), and
+[WP-09 Harbor/Terminal-Bench](harbor_pilot.py). Their source manifests, static-authoring admissions,
+independent verifiers and live gates are separate from the native fixture runner. See the
+[complex-campaign plan](../docs/fleet-evaluation/implementation-complex-campaigns.md) for scope;
+offline tests establish neither live benchmark performance nor exact-candidate acceptance.
 
 ## Muse runner (separate baseline, never comparable)
 
@@ -865,11 +880,12 @@ services remain available for the checks' direct reads. Unsettled service eviden
 without erasing independent failures. Service JSON equality distinguishes booleans from numbers,
 including nested values, while numeric `3` and `3.0` compare equal.
 Every scenario must declare `max_turns` (1 to 500), passed to the CLI as `--max-turns`; a session the CLI
-ends there is a completed run (`run_end: turn_limit`) whose unmet requirements fail. In a two-turn conversation the limit covers both
-invocations: the resumed one gets only what the first left, a conversation that spends it ends
-without its follow-up, and a regrade refuses a saved conversation that ran past it. These follow
+ends there is a completed run (`run_end: turn_limit`) whose unmet requirements fail. In a conversation
+the limit covers all invocations: each resumed invocation gets only what prior invocations left,
+a conversation that spends it ends without later messages, and a regrade refuses a saved conversation
+that ran past it. Wall-clock and native CLI spend guards apply per invocation. These follow
 the result rules of the accepted [threat-model ADR](../docs/decisions/2026-10-03-eval-harness-threat-model.md).
-All 242 active scenarios now declare limits: 235 newly sized and seven existing limits preserved.
+The original 242-scenario sizing pass added 235 limits and preserved seven existing limits.
 The new values are provisional offline budgets derived from saved counts and elapsed evidence,
 with same-profile fallbacks and a 450-second sizing target within the 900-second wall-clock guard.
 A slow individual tool or helper can still hit that guard. These limits do not establish live

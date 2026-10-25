@@ -11,6 +11,6 @@ success_criteria:
 - Preserves held, contradicted, and missing outcomes with evidence boundaries
 target:
   kind: skill
-  name: runbook
+  name: operational-docs
 routing:
   expect: fire

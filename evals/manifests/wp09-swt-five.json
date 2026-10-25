@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "status": "proposed",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "dataset_revision": "78f471bf655a3137b2e8a75af1501690ec009ec3",
+  "upstream_repository": "https://github.com/logic-star-ai/swt-bench",
+  "upstream_revision": "330a649a764fab2fadaea632776eeae87272f74b",
+  "upstream_licence": {
+    "spdx": "MIT",
+    "sha256": "01354c7d6c4916a3b893b773386e2817f8f3cb80bdd82165850c80a38eff70b6"
+  },
+  "dataset_source": {
+    "dataset": "SWE-bench/SWE-bench_Verified",
+    "revision": "78f471bf655a3137b2e8a75af1501690ec009ec3",
+    "path": "data/test-00000-of-00001.parquet",
+    "url": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified/resolve/78f471bf655a3137b2e8a75af1501690ec009ec3/data/test-00000-of-00001.parquet",
+    "sha256": "030cfd7f2a704c4c0226e7f104c725a3b41230b1d3517f9c915ad7ea5be3fa25",
+    "bytes": 6304616,
+    "parser": "polars 2.0.0"
+  },
+  "filter": {
+    "path": "dataset/filter_cases_verified.txt",
+    "semantics": "exclusion",
+    "sha256": "726776a13721dc01e4fbeee5cb7f3c3068649e2b32f8be5282e498658aacf58b",
+    "excluded_count": 67
+  },
+  "field_convention": "original SWE patch=hidden code fix; test_patch=hidden gold tests; submitted tests=model_patch; is_swt=False",
+  "selection_policy": "Eligible original Verified rows rated >=1 hour, five repositories, selected before model outcomes; disjoint from proposed WP08.",
+  "cases": [
+    {
+      "instance_id": "astropy__astropy-13579",
+      "repo": "astropy/astropy",
+      "base_commit": "0df94ff7097961e92fd7812036a24b145bc13ca8",
+      "version": "5.0",
+      "row_sha256": "c72c2d2f6663c1dbf73ca0fcb25a2666e1e4a1fb4b5d0ea8b837bb88a812cfd6",
+      "complexity": "1-4 hours",
+      "rationale": "Sliced low-level WCS couples spectral and spatial axes: reconstruct dropped world coordinates while retaining dimensionality and round-trip behavior.",
+      "test_roots": [
+        "astropy/wcs/wcsapi/wrappers/tests/"
+      ],
+      "licence": {
+        "spdx": "BSD-3-Clause",
+        "url": "https://raw.githubusercontent.com/astropy/astropy/0df94ff7097961e92fd7812036a24b145bc13ca8/LICENSE.rst",
+        "sha256": "a86d75ead6df0886dcbc04230ffcd971c66a4a6746ca559ddf768865370637f5"
+      },
+      "image_source_tag": "swebench/sweb.eval.x86_64.astropy_1776_astropy-13579:latest"
+    },
+    {
+      "instance_id": "django__django-15957",
+      "repo": "django/django",
+      "base_commit": "f387d024fc75569d2a4a338bfda76cc2f328f627",
+      "version": "4.2",
+      "row_sha256": "4a9fd066fb258a5227fdb0e3926a5e6d767f542f98c1601eac6848df20e9ee8b",
+      "complexity": "1-4 hours",
+      "rationale": "Sliced related-object prefetch requires per-parent window partitioning, stable ordering and low/high bounds across relation types.",
+      "test_roots": [
+        "tests/prefetch_related/"
+      ],
+      "licence": {
+        "spdx": "BSD-3-Clause",
+        "url": "https://raw.githubusercontent.com/django/django/f387d024fc75569d2a4a338bfda76cc2f328f627/LICENSE",
+        "sha256": "b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669"
+      },
+      "image_source_tag": "swebench/sweb.eval.x86_64.django_1776_django-15957:latest"
+    },
+    {
+      "instance_id": "sympy__sympy-17630",
+      "repo": "sympy/sympy",
+      "base_commit": "58e78209c8577b9890e957b624466e5beed7eb08",
+      "version": "1.5",
+      "row_sha256": "473ec7edbb779059760e8acfe28336628acf99f768a971551dab59312f978e02",
+      "complexity": "1-4 hours",
+      "rationale": "Repeated block multiplication mixes scalar zeros and shaped ZeroMatrix values; retain shape through expression simplification.",
+      "test_roots": [
+        "sympy/matrices/expressions/tests/"
+      ],
+      "licence": {
+        "spdx": "BSD-3-Clause",
+        "url": "https://raw.githubusercontent.com/sympy/sympy/58e78209c8577b9890e957b624466e5beed7eb08/LICENSE",
+        "sha256": "f8254a405fae8fc9b2a13b9c3202e6fdfce7fa4c0886deb691dd7d72f1e09286"
+      },
+      "image_source_tag": "swebench/sweb.eval.x86_64.sympy_1776_sympy-17630:latest"
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-11510",
+      "repo": "sphinx-doc/sphinx",
+      "base_commit": "6cb783c0024a873722952a67ebb9f41771c8eb6d",
+      "version": "7.2",
+      "row_sha256": "ec2ba3b6980b8b2ec8b36816ed142fda6fd108c70b996eea2437eba575437003",
+      "complexity": "1-4 hours",
+      "rationale": "Include directive parsing and extension events interact across nested sources, line limits and final rendered output.",
+      "test_roots": [
+        "tests/"
+      ],
+      "licence": {
+        "spdx": "BSD-2-Clause",
+        "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/6cb783c0024a873722952a67ebb9f41771c8eb6d/LICENSE",
+        "sha256": "ff1bda7a7df4aea4723ccf02f678f0724c831a32cadf779b9fb4f12110d5bebb"
+      },
+      "image_source_tag": "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-11510:latest"
+    },
+    {
+      "instance_id": "pylint-dev__pylint-8898",
+      "repo": "pylint-dev/pylint",
+      "base_commit": "1f8c4d9eb185c16a2c1d881c054f015e1c2eb334",
+      "version": "3.0",
+      "row_sha256": "161e69a484d5ff3800acff56ded2b42aef311ebe3ee57fb212162a5c256e23d6",
+      "complexity": "1-4 hours",
+      "rationale": "Regex lists distinguish delimiter commas from quantifier and character-class commas through configuration conversion and diagnostics.",
+      "test_roots": [
+        "tests/"
+      ],
+      "licence": {
+        "spdx": "GPL-2.0-or-later",
+        "url": "https://raw.githubusercontent.com/pylint-dev/pylint/1f8c4d9eb185c16a2c1d881c054f015e1c2eb334/LICENSE",
+        "sha256": "f97b14080de8b8490d60eb3d620ebc419943e0779466d1dd0d5d6f68fe195dcd"
+      },
+      "image_source_tag": "swebench/sweb.eval.x86_64.pylint-dev_1776_pylint-8898:latest"
+    }
+  ],
+  "rejected_suggestions": [
+    {
+      "instance_id": "django__django-14011",
+      "reason": "official SWT Verified exclusion list"
+    },
+    {
+      "instance_id": "sympy__sympy-13878",
+      "reason": "official SWT Verified exclusion list"
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4551",
+      "reason": "official SWT Verified exclusion list"
+    }
+  ],
+  "dataset_licence": {
+    "declared": null,
+    "card_url": "https://huggingface.co/datasets/SWE-bench/SWE-bench_Verified/raw/78f471bf655a3137b2e8a75af1501690ec009ec3/README.md",
+    "card_sha256": "923e6b481ff75c709737251e602bdc311a9be49235b5c20107366747f5640fe4",
+    "repository_licences": "Per-case repository licences remain applicable to code and patches.",
+    "note": "Pinned dataset card and file list do not declare a separate dataset licence; upstream SWT code is MIT, and repository licences are recorded per case."
+  },
+  "tasks": [
+    {
+      "instance_id": "astropy__astropy-13579"
+    },
+    {
+      "instance_id": "django__django-15957"
+    },
+    {
+      "instance_id": "sympy__sympy-17630"
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-11510"
+    },
+    {
+      "instance_id": "pylint-dev__pylint-8898"
+    }
+  ],
+  "upstream_files": {
+    "src/dataset.py": "265e3da0abdffff5e21aa311073d557b022628ed5828e6deebe2d845631d2b6b",
+    "src/run_evaluation.py": "795ab0fa7548432abf4d24114a32fd4bc24e75aaba59a35ddb77c5cc4429db82",
+    "src/exec_spec.py": "33d776cb1d0ae737e6aa5c1e7a3a034c17f8ef331883dd89cebd705fa880b76d",
+    "src/grading.py": "2a7f5c42e4abab4b70577baa8d56b9317dfa24687c404699cc76db9fd0b62956",
+    "src/log_parsers.py": "d27b856507128fe7b6a940a12bd86d7aa38872fd1f7869c49e103251b69d2664",
+    "src/utils.py": "d23597b15233e239f24e1ea9daa1c7c29c231b5caae116ecdf029e38b1fe3263",
+    "src/main.py": "935bd1ab2ede28715492264bc71e7f41c00c4f8bd0eaf3383b3c41ea76a3cec9"
+  }
+}
