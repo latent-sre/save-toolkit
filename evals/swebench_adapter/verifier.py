@@ -44,11 +44,13 @@ def verifier_command(
     image_digest: str,
     *,
     baseline: bool = False,
-    storage_quota: bool = False,
+    storage_quota: bool = True,
     engine_id: str | None = None,
     docker_host: str | None = None,
 ) -> list[str]:
     """Launch this file in the caller's project interpreter as an isolated process."""
+    if storage_quota is not True:
+        raise ValueError("a hard storage quota is required")
     return (
         [
             sys.executable,
@@ -66,7 +68,7 @@ def verifier_command(
         ]
         + (["--engine-id", engine_id] if engine_id is not None else [])
         + (["--docker-host", docker_host] if docker_host is not None else [])
-        + (["--storage-quota"] if storage_quota else [])
+        + ["--storage-quota"]
         + (["--baseline"] if baseline else [])
     )
 
@@ -190,6 +192,9 @@ def _container_factory(
     *,
     storage_quota: bool,
 ) -> Callable[..., Any]:
+    if storage_quota is not True:
+        raise ValueError("a hard storage quota is required")
+
     def create(test_spec: Any, client: Any, run_id: str, logger: Any) -> Any:
         if test_spec.image != image_digest or client.images.get(image_digest).id != image_digest:
             raise ValueError("verifier image differs from the pinned image Id")
@@ -207,7 +212,7 @@ def _container_factory(
             pids_limit=256,
             network_disabled=True,
             privileged=False,
-            **({"storage_opt": {"size": "10G"}} if storage_quota else {}),
+            storage_opt={"size": "10G"},
         )
         return _CheckedBaseline(BoundedContainer(raw, storage_quota=storage_quota), base, receipt)
 
@@ -280,7 +285,7 @@ def verify(
     image_digest: str,
     *,
     baseline: bool = False,
-    storage_quota: bool = False,
+    storage_quota: bool = True,
     engine_id: str | None = None,
     docker_host: str | None = None,
 ) -> dict[str, Any]:
@@ -290,6 +295,8 @@ def verify(
     could not establish presence. ``removed`` means absence was established.
     Existing adapter evidence is refused without overwriting it.
     """
+    if storage_quota is not True:
+        raise ValueError("a hard storage quota is required")
     output.mkdir(parents=True, exist_ok=True)
     if any((output / name).exists() for name in ("verifier-receipt.json", "verifier-report.json")):
         raise ValueError("output already contains verifier evidence")
@@ -462,7 +469,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--image-digest", required=True)
     parser.add_argument("--baseline", action="store_true", help="run baseline tests with no candidate patch")
-    parser.add_argument("--storage-quota", action="store_true")
+    parser.add_argument("--storage-quota", action="store_true", required=True)
     parser.add_argument("--engine-id")
     parser.add_argument("--docker-host")
     args = parser.parse_args(argv)

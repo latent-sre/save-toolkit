@@ -81,7 +81,7 @@ Values in angle brackets are placeholders, not runnable defaults.
   },
   "proxy_bind": "<host IPv4 reachable by the relay>",
   "proxy_target": "host.docker.internal",
-  "storage_quota": false,
+  "storage_quota": true,
   "api_key_helper": false
 }
 ```
@@ -91,9 +91,11 @@ On a Linux host, bind the proxy to the local Docker bridge address reachable thr
 must prove its host route in smoke. No host firewall rules are installed. The proxy requires a random
 attempt token and exposes only the Messages route, even on its configured interface.
 
-Set `storage_quota` true only when the engine supports `--storage-opt size=10G`; otherwise the
-watchdog measures writable bytes through Docker inspection every minute and stops above 10 GiB
-(10,737,418,240 bytes), matching Docker's binary `size=10G` quota.
+`storage_quota` must be true. Both author and verifier containers require the engine to enforce
+`--storage-opt size=10G` (10 GiB, or 10,737,418,240 bytes). Unsupported engines stop before candidate
+execution; the watchdog is supplemental detection and cannot replace a hard quota. Confirm support
+on the selected Docker Desktop Linux engine before starting smoke; an unsupported engine needs a
+quota-capable configuration before this adapter can run.
 The exact byte count avoids parsing Docker's rounded human-readable size. The smoke's bounded fill
 probe attempts up to 10 GiB plus 100 MiB to demonstrate enforcement; reserve that space on the evaluation host.
 CPU is capped at two cores, memory at 2 GiB and processes at 256. The verifier also drops capabilities

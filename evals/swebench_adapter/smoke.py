@@ -103,7 +103,7 @@ def assess_smoke(observed: Mapping[str, Any], cleanup: list[dict[str, Any]]) -> 
         and egress.get("proxy") is True
         and all(egress.get(name) is False for name in ("internet", "host", "dns", "key_route")),
         "cpu_cap": bool(measured_cpu and bounded and mount_check),
-        "storage_cap": storage.get("stop") == "storage_limit" or storage.get("quota_rejected") is True,
+        "storage_cap": storage.get("quota_rejected") is True,
         "cleanup": _clean(cleanup),
     }
 

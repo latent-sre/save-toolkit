@@ -250,6 +250,8 @@ class DockerResources:
         *,
         storage_quota: bool,
     ) -> str:
+        if storage_quota is not True:
+            raise ValueError("a hard storage quota is required")
         if not isinstance(image, str) or _IMAGE.fullmatch(image) is None:
             raise ValueError("agent image must be an immutable sha256 image identity")
         environment: list[str] = []
@@ -278,7 +280,6 @@ class DockerResources:
         ):
             raise ValueError("CLI and plugin must be valid frozen bind sources")
         name = self._own("agent")
-        quota = ["--storage-opt", "size=10G"] if storage_quota else []
         self.docker.call(
             [
                 "run",
@@ -292,7 +293,8 @@ class DockerResources:
                 "127.0.0.1",
                 "--add-host",
                 f"model-proxy:{address}",
-                *quota,
+                "--storage-opt",
+                "size=10G",
                 "--mount",
                 f"type=bind,source={cli},target=/opt/claude,readonly",
                 "--mount",
