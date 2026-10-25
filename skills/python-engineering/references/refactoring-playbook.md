@@ -107,219 +107,201 @@ performance characteristics that callers rely on.
 
 ### Extract Function / Inline Function
 
-- Trigger: a fragment needs a comment to explain it, repeats, or sits at a different level of
-  detail. Inline when the body is as clear as the name or the wrapper only forwards.
+- Trigger: a fragment needs a comment, repeats, or mixes levels of detail. Inline when the body is
+  as clear as the name or the wrapper only forwards.
 - Preconditions: the fragment's inputs, outputs, and mutated variables are known; tests cover it.
-- Transformation: move the fragment into a named function that takes its inputs as parameters and
-  returns its outputs; replace the original with the call. To inline, substitute the body at each
-  call site and delete the function once no reference remains.
-- Verification: focused tests; unchanged evaluation order and mutation; reference inventory empty
-  before deleting an inlined function.
-- Avoid when: extraction needs many parameters or output variables (use Split Phase or Extract
-  Class), or an inlined function is public, patched in tests, or registered by name.
+- Transformation: move it into a named function that takes its inputs and returns its outputs. To
+  inline, substitute the body at each call site, then delete the function.
+- Verification: focused tests; evaluation order and mutation unchanged; no references remain
+  before deleting.
+- Avoid when: it needs many parameters or outputs (use Split Phase or Extract Class), or the
+  inlined function is public, patched in tests, or registered by name.
 
 ### Extract Variable / Inline Variable
 
 - Trigger: an expression is hard to read or repeats. Inline when the name adds nothing.
-- Preconditions: the expression has no side effects, or it is evaluated exactly once and in the
-  same order.
-- Transformation: assign the expression to a well-named local; replace occurrences.
-- Verification: tests; no change in evaluation count or order of side-effecting calls.
+- Preconditions: no side effects, or evaluated exactly once in the same order.
+- Transformation: assign it to a named local and replace the occurrences.
+- Verification: tests; evaluation count and order of side effects unchanged.
 - Avoid when: hoisting would evaluate a short-circuited or conditional expression unconditionally.
 
 ### Extract Class / Inline Class
 
-- Trigger: a subset of data and behavior changes together and apart from the rest of the class.
-  Inline when a class no longer carries enough responsibility to justify itself.
-- Preconditions: the cohesive subset and its callers are identified.
-- Transformation: create the class (often a dataclass), move fields and methods, delegate from the
-  original until callers move, then remove the delegation. Inline in reverse.
-- Verification: tests; pickled or serialized forms and `__repr__` consumers still valid; public
-  attributes still reachable or the break is authorized.
-- Avoid when: the split only reorganizes code that changes together, or adds a class per function.
+- Trigger: a subset of data and behavior changes together, apart from the rest. Inline a class
+  with too little responsibility left.
+- Preconditions: the cohesive subset and its callers are known.
+- Transformation: create the class (often a dataclass), move fields and methods, delegate until
+  callers move, then drop the delegation. Inline in reverse.
+- Verification: tests; serialized forms and `__repr__` consumers valid; public attributes still
+  reachable or the break authorized.
+- Avoid when: the split only reorganizes code that changes together.
 
 ### Extract Module / Move Symbol
 
-- Trigger: a module mixes unrelated responsibilities, or a symbol is used mostly by another module.
+- Trigger: a module mixes unrelated responsibilities, or a symbol is used mostly elsewhere.
 - Preconditions: complete reference inventory; import graph known.
-- Transformation: create the destination module and move the implementation. Update internal
-  callers to the new path. At the old path, keep a compatibility re-export (optionally with a
-  `DeprecationWarning`) for every published or dynamically referenced name. Update configuration
-  strings, entry points, and registries you own. Keep exactly one implementation. A class whose
-  module path is persisted (pickles, stored type names) stays defined at that path unless a data
-  migration is authorized: new pickles record the new module path even with a re-export at the
-  old one.
-- Verification: import each touched module in a fresh process and in both import orders; resolve
-  every string path and entry point; tests; search confirms one implementation.
-- Avoid when: the move would create an import cycle (move the shared piece lower first), or the
-  only gain is a different folder.
+- Transformation: move the implementation and update internal callers. Keep a compatibility
+  re-export (optionally warning) at the old path for every published or dynamically referenced
+  name. Update configuration strings, entry points, and registries you own. Keep one
+  implementation. Keep a class with a persisted path (pickles, stored type names) at that path
+  unless a data migration is authorized; new pickles record the new path even with a re-export.
+- Verification: import each touched module in a fresh process and in both orders; resolve every
+  string path and entry point; tests; one implementation remains.
+- Avoid when: it would create an import cycle (move the shared piece lower first), or only the
+  folder changes.
 
 ### Rename Symbol / Change Function Declaration
 
-- Trigger: a name misleads, or parameters are in the wrong order, missing, or unused.
-- Preconditions: reference inventory, including keyword-argument call sites and string references.
-- Transformation: use a symbol-aware rename where available. For a signature change, add the new
-  form, migrate callers, then remove the old form. For public functions, keep the old name or
-  keyword working for a deprecation period, or obtain authorization for the break.
-- Verification: type checker over callers; tests; string and keyword references resolved.
-- Avoid when: the name is persisted in data, configuration, or external clients and no migration
-  is authorized.
+- Trigger: a misleading name, or parameters in the wrong order, missing, or unused.
+- Preconditions: inventory including keyword call sites and string references.
+- Transformation: use a symbol-aware rename where available. For signatures, add the new form,
+  migrate callers, remove the old. Keep public names or keywords working through a deprecation
+  period unless the break is authorized.
+- Verification: type check over callers; tests; string and keyword references resolved.
+- Avoid when: the name is persisted in data, configuration, or external clients without an
+  authorized migration.
 
 ### Introduce Parameter Object
 
-- Trigger: the same group of parameters travels through several functions.
+- Trigger: the same parameter group travels through several functions.
 - Preconditions: the group is cohesive and has invariants worth stating.
-- Transformation: define a frozen dataclass (or `NamedTuple` when tuple behavior is needed),
-  validate invariants in it, change signatures one caller chain at a time.
-- Verification: tests; type checker; validation errors raised at the same point as before or
-  earlier with the change recorded.
-- Avoid when: the parameters appear together only once.
+- Transformation: a frozen dataclass (or `NamedTuple` for tuple behavior) that validates its
+  invariants; change one caller chain at a time.
+- Verification: tests; type check; validation errors raised at the same point, or earlier with
+  the change recorded.
+- Avoid when: the group appears together only once.
 
 ### Split Phase
 
-- Trigger: one routine parses, computes, and renders or writes, so a new input or output format
-  means copying the computation.
+- Trigger: one routine parses, computes, and renders, so a new format means copying computation.
 - Preconditions: characterization tests over every existing output path.
-- Transformation: compute an intermediate data structure (dataclass or plain typed structure) in
-  one phase and consume it in the next. Make each renderer or writer a function of that structure.
-- Verification: byte-for-byte comparison of existing outputs against the original over
-  representative inputs; the shared phase runs once per request.
+- Transformation: compute an intermediate typed structure in one phase; make each renderer or
+  writer a function of it.
+- Verification: existing outputs byte-identical to the original on representative inputs; the
+  shared phase runs once per request.
 - Avoid when: the phases share almost nothing and the routine is short.
 
 ### Separate Query from Modifier
 
-- Trigger: a function returns a value and also changes state, so callers cannot ask without acting.
-- Preconditions: callers that rely on the combined behavior are known.
-- Transformation: create a side-effect-free query; make the modifier return nothing or a status;
-  update callers to call both in the original order.
-- Verification: tests on both functions; side-effect order unchanged for existing callers.
-- Avoid when: atomicity requires the combined operation (compare-and-set, pop); keep it and name it
-  accordingly.
+- Trigger: a function returns a value and changes state, so callers cannot ask without acting.
+- Preconditions: callers relying on the combined behavior are known.
+- Transformation: a side-effect-free query plus a modifier returning nothing or a status; callers
+  call both in the original order.
+- Verification: tests on both; side-effect order unchanged.
+- Avoid when: atomicity needs the combined operation (compare-and-set, pop).
 
 ### Decompose Conditional / Consolidate Conditional
 
-- Trigger: a condition or branch body needs reading twice; several conditions yield the same result.
-- Preconditions: each branch is covered by a test.
-- Transformation: extract the condition and branches into named predicates or functions; merge
-  conditions with the same outcome into one named predicate.
+- Trigger: a condition or branch needs reading twice, or several conditions share a result.
+- Preconditions: each branch is tested.
+- Transformation: name the predicates and branch bodies; merge same-outcome conditions into one
+  predicate.
 - Verification: branch-by-branch tests, including boundary values.
-- Avoid when: merging hides a distinction a future change needs, or evaluation order of
-  side-effecting predicates would change.
+- Avoid when: merging hides a distinction a coming change needs, or changes the order of
+  side-effecting predicates.
 
 ### Guard Clauses
 
 - Trigger: nesting exists only to handle special cases before the main path.
-- Preconditions: special-case behavior is tested.
-- Transformation: return or raise early for each special case; leave the main path unindented.
-- Verification: tests for each early exit; resources still released on every path (use `with`).
-- Avoid when: early returns would skip required cleanup that is not in a `finally` or context
-  manager.
+- Preconditions: special cases are tested.
+- Transformation: return or raise early per special case; leave the main path unindented.
+- Verification: a test per early exit; resources released on every path.
+- Avoid when: an early return would skip cleanup not held in `finally` or a context manager.
 
 ### Replace Conditional with Polymorphism or a dispatch table
 
-- Trigger: the same switch on a type or kind repeats in several places, and variants actually
-  differ in behavior.
-- Preconditions: the variants and the operations that differ are enumerated.
-- Transformation: use a mapping from key to function for behavior-only variation, `singledispatch`
-  for type-based variation, or classes when variants also carry state. Fail loudly for unknown keys
-  where the original did.
+- Trigger: the same type or kind switch repeats in several places, and variants truly differ.
+- Preconditions: variants and differing operations enumerated.
+- Transformation: a key-to-function mapping for behavior-only variation, `singledispatch` for type
+  variation, classes when variants carry state; unknown keys fail as before.
 - Verification: a test per variant and for the unknown case.
-- Avoid when: the switch occurs once, or there are two stable variants; a plain conditional is
-  clearer.
+- Avoid when: the switch occurs once, or two stable variants read clearly as a conditional.
 
 ### Parameterize Function / Consolidate Duplication
 
-- Trigger: functions or branches differ only in literal values or a small step, and are meant to
-  behave the same way.
-- Preconditions: the copies' differences are listed and confirmed intentional or accidental.
-  Accidental drift is a bug: record it and decide separately.
-- Transformation: create one implementation with the difference as a parameter; point each copy at
-  it; delete the copies.
-- Verification: each former copy's tests pass against the shared implementation; one authoritative
+- Trigger: functions or branches meant to behave alike differ only in values or a small step.
+- Preconditions: differences listed and confirmed intentional or accidental; accidental drift is a
+  bug to record and decide separately.
+- Transformation: one implementation with the difference as a parameter; point the copies at it,
+  then delete them.
+- Verification: each former copy's tests pass against the shared implementation; one
   implementation remains.
-- Avoid when: the similarity is coincidental and the copies are expected to diverge.
+- Avoid when: the similarity is coincidental and the copies will diverge.
 
 ### Encapsulate Mutable State / Make Dependencies Explicit
 
-- Trigger: module-level mutable state, singletons, caches, or hidden calls to the clock,
-  environment, network, or filesystem make behavior depend on history or the host.
-- Preconditions: every reader and writer of the state is in the inventory.
-- Transformation: move state into an object with an explicit owner and lifetime, or pass it as a
-  parameter; pass dependencies (clock, client, path) in at the entry point with defaults that keep
-  existing callers working.
-- Verification: tests that run in any order and in isolation; repeated calls with different inputs
-  no longer interfere; existing callers unchanged.
-- Avoid when: the state is a deliberate process-wide cache with tested invalidation, and the change
-  only moves it.
+- Trigger: module-level mutable state, singletons, caches, or hidden clock, environment, network,
+  or filesystem calls make behavior depend on history or host.
+- Preconditions: every reader and writer is in the inventory.
+- Transformation: give state an explicit owner and lifetime, or pass it in; pass dependencies in
+  at the entry point with defaults that keep callers working.
+- Verification: tests pass in any order and in isolation; repeated calls no longer interfere;
+  callers unchanged.
+- Avoid when: it is a deliberate process-wide cache with tested invalidation and the change only
+  moves it.
 
 ### Remove Middle Man / Collapse Abstraction
 
-- Trigger: a class, factory, provider, manager, or abstract base adds a layer without behavior,
-  has one implementation, and no stated variation is coming.
-- Preconditions: the public entry points and their callers are known; the "no other
-  implementation" claim is checked against plugins, tests, and documentation.
-- Transformation: point callers at the real implementation; inline forwarding layers; replace a
-  single-implementation abstract base with the concrete type or a `Protocol` only where a test
-  double needs it; delete emptied modules.
-- Verification: public entry points behave identically; the forwarding layers are gone and callers
-  reach the implementation directly; no dangling imports; tests pass.
-- Avoid when: the layer is a published extension point, or real variation is planned and dated.
+- Trigger: a class, factory, provider, manager, or abstract base forwards without behavior, has
+  one implementation, and no variation is stated.
+- Preconditions: entry points and callers known; "no other implementation" checked against
+  plugins, tests, and documentation.
+- Transformation: point callers at the implementation, inline forwarding layers, replace a
+  single-implementation base with the concrete type (or a `Protocol` only where a test double
+  needs it), delete emptied modules.
+- Verification: entry points behave identically; callers reach the implementation directly; no
+  dangling imports; tests pass.
+- Avoid when: the layer is a published extension point, or real variation is planned.
 
 ### Replace Inheritance with Delegation
 
-- Trigger: a subclass uses part of a base class, overrides to disable behavior, or inherits only to
-  reuse code.
-- Preconditions: callers that rely on `isinstance` or the base's methods are known.
-- Transformation: hold the former base as a field; forward only the needed methods; remove the
+- Trigger: a subclass uses part of its base, overrides to disable behavior, or inherits only for
+  reuse.
+- Preconditions: callers relying on `isinstance` or base methods are known.
+- Transformation: hold the former base as a field, forward only what is needed, drop the
   inheritance.
-- Verification: `isinstance` and type-checker expectations satisfied or authorized to change; tests.
-- Avoid when: the subtype truly is substitutable for the base.
+- Verification: `isinstance` and type-check expectations kept or authorized to change; tests.
+- Avoid when: the subtype truly substitutes for the base.
 
 ### Introduce Test Boundary
 
 - Trigger: logic cannot be tested without real I/O, time, or randomness.
 - Preconditions: the boundary operations are listed.
-- Transformation: separate pure logic from I/O; pass the I/O operation or a small adapter in at the
-  boundary; keep the production default. Prefer a fake implementing the narrow interface over deep
-  mocking.
-- Verification: unit tests for the logic without I/O; a contract or integration test for the real
-  adapter.
-- Avoid when: the boundary exists only for one test that a temporary directory or local fixture
-  could serve.
+- Transformation: separate pure logic from I/O and pass the operation or a small adapter in,
+  keeping the production default; prefer a narrow fake to deep mocking.
+- Verification: logic tests without I/O; a contract or integration test for the real adapter.
+- Avoid when: a temporary directory or local fixture serves the one test that needs it.
 
 ### Preparatory Refactoring
 
-- Trigger: the requested feature would otherwise be added by copying a branch or threading a flag
-  through several layers.
+- Trigger: the feature would otherwise copy a branch or thread a flag through several layers.
 - Preconditions: the feature's target shape is known.
-- Transformation: first restructure with behavior unchanged and verified; then add the feature as
-  a small, separately verified change.
-- Verification: the refactor step passes the existing and characterization tests alone, before
-  the feature step.
+- Transformation: restructure first with behavior unchanged and verified, then add the feature as
+  a small separate change.
+- Verification: the refactor step passes the existing and characterization tests on its own.
 - Avoid when: the feature fits the current shape cleanly.
 
 ### Incremental Replacement
 
-- Trigger: a bespoke component or a dependency should be replaced, and a single switch is too
-  risky.
-- Preconditions: the old component's used surface is inventoried; differential tests compare the
-  old and new behavior on the same inputs.
-- Transformation: introduce a seam that both implementations satisfy, route callers through it,
-  migrate callers or traffic in steps, and switch fully when the cutover conditions hold.
-- Verification: differential tests at each step; the cutover conditions measured, not assumed.
-- Avoid when: the component is small enough to replace and verify in one step.
+- Trigger: a bespoke component or dependency should be replaced, and one switch is too risky.
+- Preconditions: the used surface is inventoried; differential tests compare old and new on the
+  same inputs.
+- Transformation: a seam both implementations satisfy; route callers through it; migrate in steps;
+  switch when the cutover conditions hold.
+- Verification: differential tests at each step; cutover conditions measured, not assumed.
+- Avoid when: it is small enough to replace and verify in one step.
 
 ### Remove Dead Code
 
 - Trigger: code appears unused.
-- Preconditions: static search and the full reference inventory find no use; dynamic use is ruled
-  out (registries, entry points, configuration, reflection, external callers of a published API).
-  Where available, add runtime evidence: coverage under representative runs, entry-point usage, or
-  logs. Dead-code finders give candidates, not proof.
-- Transformation: delete the code and its tests; for a published API, deprecate first unless
-  removal is authorized.
+- Preconditions: static search and the inventory find no use, and dynamic use is ruled out
+  (registries, entry points, configuration, reflection, published API). Add runtime evidence where
+  available: coverage on representative runs, entry-point usage, logs. Dead-code finders give
+  candidates, not proof.
+- Transformation: delete the code and its tests; deprecate a published API first unless removal is
+  authorized.
 - Verification: tests; fresh imports; entry points resolve; the package builds.
-- Avoid when: use cannot be ruled out; record it as a candidate instead.
+- Avoid when: use cannot be ruled out; record it as a candidate.
 
 ## Large and incremental changes
 

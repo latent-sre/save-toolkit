@@ -7,131 +7,110 @@ description: "Build, change, refactor, or modernize Python with verified results
 
 ## Objectives
 
-Pursue all three on every task, in proportion to its size:
+Pursue all three, in proportion to the task:
 
-1. **Build new code well from the start.** Set structure, supported language features, maintained
-   libraries, meaningful types, tests, and executable quality checks before a weak pattern repeats.
-2. **Improve existing code deliberately.** Find the material problems, then pursue justified
-   modernization and structural improvement, not cosmetic cleanup or the smallest possible diff.
-3. **Improve how the change is made.** Select and sequence techniques and tools, establish
+1. **Build new code well from the start:** structure, supported language features, maintained
+   libraries, meaningful types, tests, and executable checks before a weak pattern repeats.
+2. **Improve existing code deliberately:** pursue justified modernization and structural
+   improvement of material problems, not cosmetic cleanup or the smallest diff.
+3. **Improve how the change is made:** choose and sequence techniques and tools, establish
    behavioral evidence first, and verify correctness and improvement at each step.
 
 ## Terms
 
-- **Scope:** the files, symbols, and behaviors the request names, plus the code the change must
-  touch, its direct callers, and its tests.
-- **Substantial task:** adds a module or package, changes a public interface, spans more than one
-  module, or adds, removes, replaces, or upgrades a dependency. Any other task is a local change.
+- **Scope:** what the request names, plus the code the change must touch, its direct callers, and
+  its tests.
+- **Substantial task:** adds a module or package, changes a public interface, spans modules, or
+  changes a dependency. Anything else is a local change.
 - **Material decision:** a choice of dependency, toolchain, public interface, data model, module
   boundary, or migration path.
 
-## Posture
+## Posture and authority
 
-- Preserve required behavior and genuine constraints, not historical implementation choices.
-  Existing code earns no preference for existing; a new approach earns none for being new.
-  "Modern" means supported by the project's Python versions, appropriate, and maintained.
-- On a substantial task, assess language features and idioms, maintained libraries, module
-  boundaries, interfaces and data models, algorithms, resource and error handling, duplication,
-  coupling, obsolete code, unneeded abstraction, tests, typing, security, and executable checks.
+- Preserve required behavior and genuine constraints, not historical implementation choices;
+  neither existing nor new code earns preference for that alone. "Modern" means supported by the
+  project's Python versions, appropriate, and maintained.
+- On a substantial task, assess idioms, libraries, boundaries, data models, algorithms, error and
+  resource handling, duplication, coupling, unneeded abstraction, tests, typing, and security.
 - For each material decision, compare the status quo with the strongest credible alternative on
   correctness, maintainability, compatibility, security, testability, operational fit, migration
-  effort, and ongoing cost, weighing custom-code burden against dependency burden. Recommend one
-  and keep one row: `Problem | Selected approach | Benefit | Cost/risk | Verification`. No design
-  document for routine decisions.
+  effort, and ongoing cost, including custom-code versus dependency burden. Recommend one and keep
+  one row: `Problem | Selected approach | Benefit | Cost/risk | Verification`.
 - Reject an improvement only for a named drawback, constraint, or disproportionate cost. "Avoid
   dependencies", "keep the diff small", "follow the existing pattern", "it works", and "could be
   overengineering" are not reasons by themselves.
-- Aim the outcome high and execute in coherent, verified steps. MUST NOT replace understanding the
-  existing code with a broad rewrite. Removing structure is as valid a result as adding it.
-- Implement a requested contract as stated and raise concerns about it. If it creates a security or
-  data-loss risk, raise that before building and follow the owner's decision. Rejecting inputs or
-  dropping outputs the contract allows needs authorization.
-- A local change MUST NOT trigger a redesign. Stop when the objective and applicable checks are
-  met; do not keep redesigning because more is possible.
-
-## Authority
-
-- Implementation task: carry out justified improvements inside scope; recommend the rest.
-  Review-only or explanation-only task: recommend or explain; MUST NOT modify the project.
-- Obtain explicit authorization before breaking a public contract, changing supported Python
-  versions or platforms, running a destructive data migration, or changing code outside scope
-  across the repository.
-- When an explicit constraint blocks a better approach, state the conflict and a recommended
-  resolution; MUST NOT silently override the constraint.
+- Reach an ambitious outcome through coherent, verified steps; MUST NOT substitute a broad rewrite
+  for understanding the code. Removing structure is as valid as adding it. A local change MUST NOT
+  trigger a redesign; stop when the objective and checks are met.
+- Implement a requested contract as stated and raise concerns; raise security or data-loss risks
+  before building. Narrowing accepted inputs or outputs needs authorization.
+- Implementation task: make justified improvements inside scope and recommend the rest. Review- or
+  explanation-only task: MUST NOT modify the project.
+- Get explicit authorization to break a public contract, change supported Python versions or
+  platforms, run a destructive migration, or change code outside scope. When a constraint blocks a
+  better approach, state the conflict and a resolution; MUST NOT silently override it.
 - MUST NOT reset, stash, overwrite, or reformat unrelated work or others' uncommitted changes.
 
-## Required references
+## References
 
-Before the first edit, open every matching reference with your file-reading tool; paths are
-relative to this skill's directory. Apply every matching route. Every task matches the last row.
+Before the first edit, open each matching reference with your file-reading tool (paths are
+relative to this skill's directory), and apply every match.
 
 | When | Read |
 |---|---|
-| New project, or a new component whose structure the project does not already define | [starting-code.md](references/starting-code.md) |
-| Any behavior-preserving restructuring | [refactoring-playbook.md](references/refactoring-playbook.md): everything before the recipes, then the complete recipe for each technique selected |
-| Cross-module automated transformation, symbol-aware rename or move, or a bulk codemod | [refactoring-tools.md](references/refactoring-tools.md) |
+| New project, or a new component whose structure the project does not define | [starting-code.md](references/starting-code.md) |
+| Behavior-preserving restructuring | [refactoring-playbook.md](references/refactoring-playbook.md): everything before the recipes, then each selected recipe |
+| Cross-module automated transformation, symbol-aware rename or move, or bulk codemod | [refactoring-tools.md](references/refactoring-tools.md) |
 | Adding, replacing, upgrading, removing, or reorganizing dependencies or packaging | [dependencies.md](references/dependencies.md) |
-| Selecting verification | [quality-gates.md](references/quality-gates.md): the whole file, then run every matching risk row |
+| Packaging, public interfaces, supported versions, dependencies, trust boundaries, concurrency, performance, or a new project's checks | [quality-gates.md](references/quality-gates.md): the matching risk rows |
 
 If a required reference is unavailable, say so and MUST NOT claim its procedure was followed.
 
 ## Workflow
 
-1. **Inspect.** Read applicable instructions, the working-tree status, supported Python versions,
-   dependency and lock files, the relevant code with its callers and tests, and the repository's
-   real check commands.
-2. **Classify.** New behavior, behavior-preserving refactoring, modernization, bug fix, or review.
-   Split mixed work into separately verified steps; never change structure and behavior in the
-   same unverified step.
-3. **Define success.** Required behavior, the problem being solved, the intended improvement,
-   affected boundaries (public API, CLI, serialization, persisted data, concurrency), and the
-   evidence that will show acceptance.
-4. **Consult the references** in the table above.
-5. **Establish evidence.** Run the relevant existing checks before editing; that run is the
-   baseline. A failure is pre-existing only if the baseline shows it or a separate copy of the
-   starting state reproduces it. Add missing behavioral coverage before changing existing behavior
-   or structure.
-6. **Execute** coherent changes within scope, using suitable libraries, techniques, and tools.
-7. **Verify.** Run focused checks after each step and the relevant broader checks on the final
-   state. Review the final diff against the requirements and likely failure modes, including
-   unintended edits, leftovers, and new suppressions. On a substantial task, use an independent
-   reviewer when one is available; otherwise label the review as self-review. Rerun the checks
-   that review-driven edits affect.
-8. **Assess the improvement.** Name the evidence that the original problem is resolved and that
-   complexity did not just move. Examples: duplicated behavior now has one implementation; a
-   responsibility has a testable boundary; a maintained library replaced bespoke code; indirection
-   or an import cycle is gone; a resource gain is measured. Fewer lines, more files, more classes,
-   or smaller functions are not evidence by themselves. Do not invent scores.
+1. **Inspect** instructions, working-tree status, supported Python versions, dependency files, the
+   relevant code with its callers and tests, and the real check commands.
+2. **Classify** as new behavior, refactoring, modernization, bug fix, or review. Never change
+   structure and behavior in one unverified step.
+3. **Define success:** required behavior, the problem, the intended improvement, affected
+   boundaries (API, CLI, serialization, persisted data, concurrency), and acceptance evidence.
+4. **Read the matching references.**
+5. **Establish evidence:** run the existing checks before editing; that run is the baseline. A
+   failure is pre-existing only if the baseline or a separate copy of the starting state shows it.
+   Before changing poorly tested code, add tests that pin its current behavior.
+6. **Execute** coherent changes within scope.
+7. **Verify:** run focused checks after each step and broader checks on the final state. Every
+   change needs:
+   - tests for new behavior, seen failing first, covering boundary and error paths;
+   - a test for each changed `except` or raise path;
+   - for code that receives a caller-owned file, stream, or iterator, a test that an error raised
+     midway propagates with its type and the resource stays open.
+
+   Review the final diff against the requirements; on a substantial task use an independent
+   reviewer when available, else label it self-review. Rerun checks the review affects.
+8. **Assess the improvement:** name evidence that the problem is resolved without moving
+   complexity, such as one implementation instead of copies or a maintained library instead of
+   bespoke code. Line or class counts are not evidence; do not invent scores.
 
 ## Safeguards
 
-- MUST NOT weaken a check, add blanket suppressions or unjustified type escapes (`noqa`,
-  `type: ignore`, `Any`, `cast`), delete a valid test, or edit an expected result to match a
-  regression.
-- MUST NOT report a check as passed unless it ran against the final state in this task. Static
-  inspection is not runtime verification; a tool-generated change is not proof of correctness.
-  Keep each check's exit status and summary visible: run it unpiped and read its status (`$?` in
-  POSIX shells, `$LASTEXITCODE` in PowerShell); if you must pipe in a POSIX shell, run
-  `set -o pipefail` first. Never let `| tail`, `| grep`, or `|| true` hide the status.
-- Under pressure to skip checks, still run fast local checks (no network, no external services, no
-  writes outside the working tree and temporary directories) after any behavior change, and report
-  the result. "No need" or
-  "don't bother" permits skipping; it does not forbid running. If the user forbids a check, or it is
-  slow or unavailable, report it as not run, with its risk.
-- Record discovered bugs separately; change their behavior only when the task authorizes it.
-- Install packages, update lockfiles, or use the network only when the task permits. When a
-  required tool or source is unavailable, record the gap instead of inventing results.
+- MUST NOT weaken checks, add blanket suppressions or unjustified type escapes (`noqa`,
+  `type: ignore`, `Any`, `cast`), delete valid tests, or edit expected results to match a regression.
+- MUST NOT report a check as passed unless it ran on the final state in this task; inspection and
+  tool output are not verification. Do not hide a check's exit status behind a pipe.
+- Under pressure to skip checks, still run fast local checks (no network or external services)
+  after any behavior change, and report them. "Don't bother" permits skipping; it does not forbid
+  running. Report a forbidden, slow, or unavailable check as not run, with its risk.
+- Let errors from I/O and caller-owned objects propagate with their original type; convert only
+  errors about the data itself.
+- Record discovered bugs separately; change their behavior only when authorized.
+- Install, lock, or use the network only when the task permits; record missing tools or sources
+  instead of inventing results.
 
 ## Completion
 
-The task is complete only when the objective is met and every applicable check passes or has an
-exception the user explicitly accepted. An unavailable required check leaves verification
-incomplete; say which check and why.
-
-Report concisely, unless the request specifies an output format; then return exactly that format,
-for example raw JSON with no code fence:
-
-- Material changes and their decision rows.
-- References read, and the exact commands run with their scope and results.
-- Pre-existing failures with their evidence, checks not run, remaining risks, the review performed
-  (independent or self), and recommended improvements outside scope.
+Complete only when the objective is met and every applicable check passes or has a user-accepted
+exception; a missing required check leaves verification incomplete. Report concisely, or in exactly
+the requested format (for example raw JSON, no code fence): changes and decision rows, references
+read, commands and results, pre-existing failures, checks not run, risks, the review, and
+out-of-scope recommendations.

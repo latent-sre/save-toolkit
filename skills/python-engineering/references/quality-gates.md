@@ -1,7 +1,8 @@
 # Quality gates
 
-Read the whole file, then run the checks in every risk row the change matches. The completion rules
-and prohibitions are in SKILL.md; this file adds selection and execution detail.
+Read the risk rows the change matches and the sections they need. The tests every change needs, the
+completion rules, and the prohibitions are in SKILL.md; this file adds risk-specific checks and
+execution detail.
 
 ## Contents
 
@@ -29,10 +30,7 @@ Leave a row out only when its risk is absent, not when the check is inconvenient
 
 | Risk in this change | Required check |
 |---|---|
-| Any code change | Focused tests for the changed behavior; the project's lint and format on the changed files |
-| New behavior | Tests for normal, boundary, and error paths, seen failing before the implementation |
-| Changed error handling | A test that drives each changed `except` or raise path |
-| Code receives a caller-owned resource (open file, stream, connection, iterator) | Tests that an error raised by the resource, including midway through, propagates with its original type, and that the code neither suppresses it nor closes the resource |
+| Any code change | The tests in SKILL.md's Verify step, plus the project's lint and format on the changed files |
 | Behavior-preserving refactor of covered code | Existing assertions unchanged and passing before and after; only mechanical test updates (imports, `mock.patch` targets, renamed names), each listed in the report |
 | Refactor of poorly tested code | Characterization tests passing on the original, shown to fail when one quirk is altered |
 | Public API, signature, or type change | Type check over callers; tests of callers; import of every published name |
