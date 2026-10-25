@@ -17,9 +17,10 @@ from typing import Any, BinaryIO
 
 from probe.backing import SERVICE_RELAY_IMAGE, SERVICE_RELAY_SCRIPT
 
+from .limits import STORAGE_LIMIT
+
 STDOUT_LIMIT = 64 * 1024 * 1024
 STDERR_LIMIT = 1024 * 1024
-STORAGE_LIMIT = 10_000_000_000
 STORAGE_INTERVAL = 60.0
 _NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,62}")
 _IMAGE = re.compile(r"(?:[A-Za-z0-9][A-Za-z0-9._:/-]*@)?sha256:[0-9a-f]{64}")

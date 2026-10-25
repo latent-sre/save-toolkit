@@ -299,7 +299,7 @@ def test_wall_clock_stops_process_and_container(setup, monkeypatch):
     assert ["rm", "--force", name] in [args for args, *_ in docker.calls]
 
 
-@pytest.mark.parametrize("size,expected", [(10_000_000_001, "storage_limit"), (None, "monitor_failure"), (-1, "monitor_failure")])
+@pytest.mark.parametrize("size,expected", [(10_737_418_241, "storage_limit"), (None, "monitor_failure"), (-1, "monitor_failure")])
 def test_exact_writable_layer_watchdog_fails_closed(setup, monkeypatch, size, expected):
     docker, resources, _, _ = setup
     name = agent(setup)
@@ -435,3 +435,14 @@ def test_all_owned_commands_and_exec_stay_on_bound_daemon_after_context_changes(
     assert all(entry["present"] is False for entry in receipt)
     assert invoked and all(argv[:3] == ["docker-pinned", "--host", endpoint] for argv in invoked)
     assert process_calls[0][0] == ["docker-pinned", "--host", endpoint, "exec", name, "/opt/claude", "--version"]
+
+
+def test_watchdog_accepts_the_exact_binary_docker_quota(setup, monkeypatch):
+    docker, resources, _, _ = setup
+    name = agent(setup)
+    docker.size = 10_737_418_240
+    process = FakeProcess()
+    fake_process(monkeypatch, process)
+    result = resources.execute(name, ["command"], storage_quota=False)
+    assert result.stop is None
+    assert not process.killed

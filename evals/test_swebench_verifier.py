@@ -494,7 +494,7 @@ def test_verifier_storage_quota_option_reaches_factory(boundary):
     assert boundary.client.options[0]["storage_opt"] == {"size": "10G"}
 
 
-@pytest.mark.parametrize("size", [None, 10_000_000_001])
+@pytest.mark.parametrize("size", [None, 10_737_418_241])
 def test_verifier_storage_or_monitor_limit_is_inconclusive_before_candidate(boundary, size):
     boundary.client.size = size
     receipt = run(boundary)

@@ -23,7 +23,7 @@ standard-library HTTP and subprocess primitives, existing Pydantic records, Dock
 - Claude Sonnet 5.5 first; exact model IDs, CLI bytes, plugin bytes, dataset revision and images are pinned.
 - The OpenRouter key stays on the host. The agent receives a per-attempt placeholder token only.
 - Agent egress reaches only the fixed model proxy. Drop capabilities and privilege escalation;
-  cap CPU at 2, memory and processes, storage at 10 GB, turns at 64 and wall time at 45 minutes.
+  cap CPU at 2, memory and processes, storage at 10 GiB (`size=10G`), turns at 64 and wall time at 45 minutes.
 - Gold/test patches and hints never enter the agent container. Independent verification stays separate.
 - Cleanup runs on every exit; unresolved cleanup prevents the next attempt.
 - Model spending, owner acceptance and live execution remain governed by the approved run plan.

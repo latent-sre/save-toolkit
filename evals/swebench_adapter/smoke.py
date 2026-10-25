@@ -20,6 +20,7 @@ from probe.records import utc_now
 from .artifacts import store_json
 from .configuration import dependency_problems
 from .containers import Docker, DockerResources
+from .limits import STORAGE_LIMIT
 from .proxy import ModelProxy
 from .selection import resolve_task
 
@@ -156,17 +157,17 @@ print(json.dumps({{'proxy':proxy,'internet':connects('1.1.1.1',443),'host':conne
 """
 
 
-_STORAGE_PROBE = """import errno, json, time
+_STORAGE_PROBE = f"""import errno, json, time
 size = 0
 try:
     with open('/testbed/.wp08-storage-probe','wb',buffering=0) as stream:
         block = bytes(1024*1024)
-        while size <= 10_100_000_000:
+        while size < {STORAGE_LIMIT + 100 * 1024**2}:
             size += stream.write(block)
     time.sleep(90)
-    print(json.dumps({'quota':False,'written':size}))
+    print(json.dumps({{'quota':False,'written':size}}))
 except OSError as error:
-    print(json.dumps({'quota':error.errno in (errno.ENOSPC,errno.EDQUOT),'written':size}))
+    print(json.dumps({{'quota':error.errno in (errno.ENOSPC,errno.EDQUOT),'written':size}}))
 """
 
 
@@ -337,7 +338,7 @@ def run_smoke(
                     and fill.returncode == 0
                     and filled.get("quota") is True
                     and type(filled.get("written")) is int
-                    and 9_000_000_000 <= filled["written"] <= 10_000_000_000
+                    and STORAGE_LIMIT * 9 // 10 <= filled["written"] <= STORAGE_LIMIT
                     and storage_opt.get("size") == "10G"
                 ),
             }

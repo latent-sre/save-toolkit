@@ -56,9 +56,9 @@ scenario digest; its own digest is the runner identity of the records it writes.
 
 1. **Container:** the task's prebuilt SWE-bench environment image at the base commit, with no added
    capabilities, no privilege escalation, memory, process and CPU caps (`--cpus 2`), on an internal
-   Docker network. Writable storage is capped at 10 GB with `--storage-opt size=10G` if the engine
+   Docker network. Writable storage is capped at 10 GiB (10,737,418,240 bytes) with `--storage-opt size=10G` if the engine
    accepts it (it needs overlay2 on xfs); otherwise a host watchdog reads `docker ps --size` every
-   minute and stops the container above 10 GB, and that stop is INCONCLUSIVE. Before the agent starts,
+   minute and stops the container above 10 GiB, and that stop is INCONCLUSIVE. Before the agent starts,
    every ref except a detached HEAD at the base commit is deleted (branches, tags, remotes, stash,
    `refs/original`), the remotes are removed, `git reflog expire --expire=now --all` and
    `git gc --prune=now` run, and the smoke step confirms `git rev-list --all --not <base_commit>` is

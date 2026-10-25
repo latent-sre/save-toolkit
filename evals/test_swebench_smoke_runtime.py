@@ -53,8 +53,8 @@ class SmokeDocker(Docker):
         self.verifier_calls = []
         self.receipt_updates = {}
         self.processes = []
-        self.fill_stdout = b'{"quota":true,"written":9500000000}'
-        self.size = 10_000_000_001
+        self.fill_stdout = b'{"quota":true,"written":10200000000}'
+        self.size = 10_737_418_241
         self.foreign_history = b""
         self.guard_unavailable = False
         self.proxy_port = None
@@ -441,12 +441,19 @@ def test_storage_watchdog_stop_comes_from_real_execute_and_still_cleans(runtime)
     assert not runtime.docker.resources
 
 
-@pytest.mark.parametrize("payload", [b'{"quota":true,"written":100}', b'{"quota":false,"written":9500000000}'])
+@pytest.mark.parametrize("payload", [b'{"quota":true,"written":100}', b'{"quota":false,"written":10200000000}'])
 def test_quota_needs_an_actual_fill_at_the_approved_cap(runtime, payload):
     runtime.docker.fill_stdout = payload
     receipt = run(runtime)
     assert not receipt["checks"]["storage_cap"]
     assert receipt["checks"]["cleanup"]
+
+
+@pytest.mark.parametrize('written, accepted', [(10_737_418_240, True), (10_737_418_241, False)])
+def test_quota_acceptance_uses_binary_docker_size(runtime, written, accepted):
+    runtime.docker.fill_stdout = json.dumps({'quota': True, 'written': written}).encode()
+    receipt = run(runtime)
+    assert receipt['checks']['storage_cap'] is accepted
 
 
 @pytest.mark.parametrize(

@@ -92,9 +92,10 @@ must prove its host route in smoke. No host firewall rules are installed. The pr
 attempt token and exposes only the Messages route, even on its configured interface.
 
 Set `storage_quota` true only when the engine supports `--storage-opt size=10G`; otherwise the
-watchdog measures writable bytes through Docker inspection every minute and stops above 10 GB.
+watchdog measures writable bytes through Docker inspection every minute and stops above 10 GiB
+(10,737,418,240 bytes), matching Docker's binary `size=10G` quota.
 The exact byte count avoids parsing Docker's rounded human-readable size. The smoke's bounded fill
-probe writes up to about 10.1 GB to demonstrate enforcement; reserve that space on the evaluation host.
+probe attempts up to 10 GiB plus 100 MiB to demonstrate enforcement; reserve that space on the evaluation host.
 CPU is capped at two cores, memory at 2 GiB and processes at 256. The verifier also drops capabilities
 and network access; the adapter replaces only SWE-bench's container factory, preserving its grading.
 

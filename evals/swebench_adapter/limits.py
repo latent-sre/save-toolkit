@@ -19,7 +19,7 @@ from .windows_job import JobError, WindowsJob
 
 _STDOUT_LIMIT = 64 * 1024 * 1024
 _STDERR_LIMIT = 1024 * 1024
-_STORAGE_LIMIT = 10_000_000_000
+STORAGE_LIMIT = 10 * 1024**3  # Docker's size=10G uses binary units (10 GiB).
 _STORAGE_INTERVAL = 60.0
 _EXEC_TIMEOUT = 60.0
 _MONITOR_TIMEOUT = 5.0
@@ -246,7 +246,7 @@ def _storage(container: Any, timeout: float = _MONITOR_TIMEOUT) -> None:
         size = rows[0].get("SizeRw")
         if type(size) is not int or size < 0:
             raise ExecutionLimit("monitor_failure")
-        if size > _STORAGE_LIMIT:
+        if size > STORAGE_LIMIT:
             raise ExecutionLimit("storage_limit")
     except Exception as error:
         _kill(container)

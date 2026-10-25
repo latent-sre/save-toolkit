@@ -1,13 +1,15 @@
 """Smoke acceptance requires observed controls, never just requested Docker flags."""
 
 import copy
+import errno
 import json
 import os
 import subprocess
 import sys
+import time
 
 import pytest
-from swebench_adapter.smoke import assess_smoke, cpu_probe
+from swebench_adapter.smoke import _STORAGE_PROBE, assess_smoke, cpu_probe
 
 
 def evidence():
@@ -100,3 +102,34 @@ def test_unexpected_capability_or_writable_mount_invalidates_caps():
         else:
             observed['container']['Mounts'][0]['RW'] = True
         assert assess_smoke(observed, [{'present': False}])['cpu_cap'] is False
+
+
+@pytest.mark.parametrize('enforced', [True, False])
+def test_storage_probe_reaches_binary_docker_quota_without_allocating_disk(monkeypatch, capsys, enforced):
+    class File:
+        written = 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+        def write(self, block):
+            if enforced and self.written + len(block) > 10_737_418_240:
+                raise OSError(errno.ENOSPC, 'simulated Docker size=10G quota')
+            self.written += len(block)
+            return len(block)
+
+    file = File()
+    sleeps = []
+    monkeypatch.setattr(time, 'sleep', sleeps.append)
+    exec(_STORAGE_PROBE, {'open': lambda *_args, **_kwargs: file})
+    result = json.loads(capsys.readouterr().out)
+    assert result['quota'] is enforced
+    if enforced:
+        assert result['written'] == 10_737_418_240
+        assert sleeps == []
+    else:
+        assert 10_737_418_240 < result['written'] <= 10_842_275_840
+        assert sleeps == [90]

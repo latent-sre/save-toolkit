@@ -170,11 +170,11 @@ def test_bounded_docker_output_overflow_kills_container(monkeypatch):
 @pytest.mark.parametrize(
     "sizes,kind",
     [
-        ((10_000_000_001,), "storage_limit"),
+        ((10_737_418_241,), "storage_limit"),
         ((None,), "monitor_failure"),
         ((True,), "monitor_failure"),
         ((-1,), "monitor_failure"),
-        ((0, 10_000_000_001), "storage_limit"),
+        ((0, 10_737_418_241), "storage_limit"),
     ],
 )
 def test_container_storage_is_checked_before_and_after_exec(sizes, kind):
@@ -189,7 +189,7 @@ def test_container_storage_is_checked_before_and_after_exec(sizes, kind):
 def test_container_watchdog_checks_storage_during_blocked_output(monkeypatch):
     module = limits()
     monkeypatch.setattr(module, "_STORAGE_INTERVAL", 0.02)
-    api = DockerAPI(sizes=(0, 10_000_000_001), blocked=True)
+    api = DockerAPI(sizes=(0, 10_737_418_241), blocked=True)
     with pytest.raises(module.ExecutionLimit) as error:
         module.bounded_exec(Container(api), "test", 2)
     assert error.value.kind == "storage_limit"
@@ -273,7 +273,7 @@ def test_docker_interrupt_kills_owned_container_and_reaches_caller(monkeypatch, 
 def test_exact_output_and_storage_bounds_are_allowed(monkeypatch):
     module = limits()
     monkeypatch.setattr(module, "_STDOUT_LIMIT", 16)
-    api = DockerAPI((b"x" * 16,), sizes=(10_000_000_000,))
+    api = DockerAPI((b"x" * 16,), sizes=(10_737_418_240,))
     assert module.bounded_exec(Container(api), "test")[0] == "x" * 16
     assert not api.killed.is_set()
 

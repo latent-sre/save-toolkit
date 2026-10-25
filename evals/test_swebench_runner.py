@@ -437,7 +437,7 @@ def test_storage_watchdog_stop_is_inconclusive_and_retains_cleanup(setup):
     setup.config["storage_quota"] = False
     setup.smoke["binding"] = runner.runtime_binding(setup.config, setup.manifest, setup.docker)
     setup.docker.running = True
-    setup.docker.size = 10_000_000_001
+    setup.docker.size = 10_737_418_241
     result = trial(setup)
     assert result["status"] == "INCONCLUSIVE"
     assert "storage_limit" in result["reason"] and result["cleanup_ok"]
