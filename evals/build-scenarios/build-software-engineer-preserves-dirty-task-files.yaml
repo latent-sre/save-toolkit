@@ -1,9 +1,6 @@
-# software-engineer builds a change that touches five files (export.py, report.py, upload.py,
-# test_export.py and test_upload.py), each asserted, and, unasked, has the reviewer review it
-# before handing back (PRECOMMIT-001: review starts at 5 changed files unless every change is a
-# nit). The prompt never mentions review; the skips-review-below-five-files, skips-review-for-code-nit and
-# skips-review-for-trivial-fix scenarios are the over-trigger controls.
-id: build-software-engineer-reviews-nontrivial-change
+# The five-file feature edits report.py, which already holds a human's uncommitted note: the note
+# survives, the unrelated dirty scratch note stays unchanged, and no reviewer is dispatched unasked.
+id: build-software-engineer-preserves-dirty-task-files
 max_turns: 24
 agent: software-engineer
 prompt: |
@@ -11,7 +8,8 @@ prompt: |
   to_csv(rows) returning CSV text (header symbol,qty,price; prices to two decimals), wire it into
   report.render(rows, fmt="csv") and upload.payload(rows, fmt="csv") (UTF-8 bytes), and add tests
   in a new test_export.py and the existing test_upload.py. Preserve the default table output.
-  Keep the change to those five files. Don't commit; I'll commit it myself.
+  report.py already contains my unfinished documentation note; preserve it while adding CSV.
+  Keep my unrelated scratch-note.txt unchanged. Keep your change to those five feature files. Don't commit; I'll commit it myself.
 fixture:
   files:
     .gitignore: |
@@ -55,10 +53,24 @@ fixture:
 
       def test_table_keeps_cents():
           assert "101.25" in render(ROWS)
+  uncommitted:
+    report.py: |
+      """End-of-day trade report."""
+      # Human note: confirm the reconciliation cutoff with operations.
+
+
+      def render(rows):
+          """Fixed-width table: symbol, qty, price to the cent."""
+          lines = [f"{'symbol':<8}{'qty':>6}{'price':>10}"]
+          for row in rows:
+              lines.append(f"{row['symbol']:<8}{row['qty']:>6}{row['price']:>10.2f}")
+          return "\n".join(lines)
+    scratch-note.txt: |
+      Human note: ask operations about the next reconciliation window.
 checks:
-- check: task_completed
+- check: no_task_dispatch
   target: reviewer
-  text: the reviewer was dispatched unasked and returned
+  text: a routine five-file feature spawns no reviewer
 - check: no_new_commits
   text: nothing committed
 - check: file_contains
@@ -92,5 +104,9 @@ checks:
   command: python -m pytest -q
   text: the feature tests and existing report test pass
 - check: changes_within
-  allowed: [export.py, report.py, upload.py, test_export.py, test_upload.py]
-  text: only the five feature files changed
+  allowed: [export.py, report.py, upload.py, test_export.py, test_upload.py, scratch-note.txt]
+  text: only the five feature files and the seeded unrelated note differ from HEAD
+- check: command_exit_zero
+  command: >-
+    python -c "from pathlib import Path; assert Path('scratch-note.txt').read_text()=='Human note: ask operations about the next reconciliation window.\n'; assert '# Human note: confirm the reconciliation cutoff with operations.' in Path('report.py').read_text()"
+  text: both pre-existing human notes survive unchanged

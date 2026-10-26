@@ -8,6 +8,27 @@ is available in Git. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/f
 
 ### Changed
 
+- Rewrite `software-engineer`: 21,335 to 12,264 bytes, organized as an engineering loop. One
+  verification policy covers scope, reused evidence, retests, full-suite gates, failure diagnosis
+  and stopping; the agent makes reversible implementation decisions and adopts modern libraries
+  when their benefits justify the cost; dry runs share planning logic and define replacement
+  validation when effects cannot be previewed. `scribe` is dispatched only for approved
+  operational closeout. Frontmatter, tool grants, delegation edges and skill routes are unchanged;
+  the section pins in `scripts/test_validate_fleet.py` and the `docs/fleet-evaluation/` anchors
+  follow the new wording and headings. Owner disposition of `PRECOMMIT-001`: file count alone no
+  longer triggers review, so `software-engineer` reviews on request or a named material risk. The
+  two five-file controls become `build-software-engineer-skips-review-for-routine-feature` and
+  `build-software-engineer-preserves-dirty-task-files`, both expecting no unasked dispatch; the
+  review-gate hook ADR is withdrawn, the caller-ownership pilot report leaves with the item it
+  supported, and the item's open taint defect moves to `HANDOFF-003`. In paired Sonnet runs a
+  longer draft offered to run a production push once the caller approved it; an explicit clause
+  that the agent never executes or offers to execute a live change removed the offer in three of
+  three trials. Across 24 graded build scenarios at three trials each, the rewrite passed 41 of 72
+  trials and the previous agent 44: they tie on review, handoff, authority and injection cases;
+  the rewrite edited support-only Java source in three of three trials against one, and skipped
+  `api-craft` in three of six webhook and API trials against none, but kept the idempotency key on
+  console retries in two of three trials against none. Every version, the previous one included,
+  still drops the relayed `[UNTRUSTED]` label and pipes its final test run through `tail`.
 - Consolidate `operational-learning`, `runbook`, and `postmortem` into `operational-docs`, reducing
   the fleet from 27 skills to 25. Keep task-specific methods, all six assets, importer behavior,
   evidence safeguards and historical audit records. Remove 1,219 canonical bundle bytes and 983

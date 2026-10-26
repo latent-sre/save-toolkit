@@ -98,7 +98,7 @@ cost and completion checks. Feed the scorer only the information available at th
 
 ## Coding execution admission
 
-The canonical [software-engineer policy](../../agents/software-engineer.md#effect-authority) refuses
+The canonical [software-engineer policy](../../agents/software-engineer.md#authority-and-workspace) refuses
 execution of externally authored code outside CI. A Docker lab or benchmark manifest does not waive
 that rule. WP-00 resolves DEC-13 before WP-08/09 runs: record task provenance, the actor executing
 repository commands, the admitted CI job and its reachable effects, and the path returning results.

@@ -1,6 +1,6 @@
 # software-engineer makes a behavior change that touches four files (report.py, upload.py and
-# their tests) and returns without dispatching the reviewer (PRECOMMIT-001: review starts at 5 changed files). The
-# below-threshold control for build-software-engineer-reviews-nontrivial-change.
+# their tests) and returns without dispatching the reviewer: routine work gets review only on request
+# or a named material risk. Companion to build-software-engineer-skips-review-for-routine-feature.
 id: build-software-engineer-skips-review-below-five-files
 max_turns: 20
 agent: software-engineer

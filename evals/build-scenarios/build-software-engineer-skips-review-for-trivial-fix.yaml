@@ -1,8 +1,7 @@
 # software-engineer fixes one typo that appears in five files (README.md, report.py, test_report.py,
-# docs/usage.md and docs/operations.md) and returns without dispatching the reviewer (PRECOMMIT-001: a
-# typo fix is a nit and needs no review at any size). At five files only the nit exemption, not the
-# size threshold, explains a skip. Over-trigger control for
-# build-software-engineer-reviews-nontrivial-change.
+# docs/usage.md and docs/operations.md) and returns without dispatching the reviewer: a typo fix
+# carries no material risk at any file count. Companion to
+# build-software-engineer-skips-review-for-routine-feature.
 id: build-software-engineer-skips-review-for-trivial-fix
 max_turns: 14
 agent: software-engineer

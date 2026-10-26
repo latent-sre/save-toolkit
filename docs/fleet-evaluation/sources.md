@@ -10,7 +10,7 @@ implementation, so this package uses a fixed baseline. Refresh source claims at 
 | Source | Bounded observation |
 |---|---|
 | [Fleet guide](../../AGENTS.md) and [contributing](../../CONTRIBUTING.md) | [verified] Canonical-source, authority, roadmap and manual native-evaluation rules are present |
-| [Software-engineer effect authority](../../agents/software-engineer.md#effect-authority) | [verified] External-code execution is refused outside CI; a container is not a policy exception. DEC-13 and AC-25 address this integration constraint without changing the agent |
+| [Software-engineer authority and workspace](../../agents/software-engineer.md#authority-and-workspace) | [verified] External-code execution is refused outside CI; a container is not a policy exception. DEC-13 and AC-25 address this integration constraint without changing the agent |
 | [Native runner](../../evals/build_probe.py) | [verified] 3,799 lines at the planning baseline; separate grading/status/provenance and run artifact paths |
 | [Eval documentation](../../evals/README.md) | [verified] Routing, contract, build and native paths; native conversation scope is narrower than general interaction |
 | [Judge](../../evals/judge.py) | [verified] 901 lines; quote checking, model/execution binding, calibration and spend tracking |

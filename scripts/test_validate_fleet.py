@@ -323,25 +323,14 @@ class FleetValidatorTests(unittest.TestCase):
             ),
             (
                 "software-engineer-precommit-review",
-                _markdown_section(Path("agents/software-engineer.md"), "## Process"),
+                _markdown_section(Path("agents/software-engineer.md"), "## Review and delegation"),
                 (
-                    "before you commit or return a change, apply the review decision below",
-                    "caller says they will perform or arrange review",
-                    "verification in process step 4",
-                    "any full-suite or release gate they explicitly own",
-                    "name any pending review once in your next step",
-                    "caller explicitly declines review",
-                    "dispatch `reviewer` for an explicit request",
-                    "independent finding reconciliation",
-                    "security-sensitive",
-                    "exact-sha production-deployment review",
-                    "at any size, including nit-only changes",
-                    "5 or more files changed by this task",
-                    "unless every change in it is a nit",
-                    "include already-dirty files this task changes",
-                    "exclude only unrelated pre-existing changes",
+                    "if the caller owns review/gating",
+                    "if review is declined, report that gap",
+                    "otherwise dispatch reviewer for explicit requests",
+                    "file count alone does not require independent review",
                 ),
-                ("leaving out any path already changed", "3 or more files", "fewer than 3"),
+                ("5 or more files", "3 or more files", "fewer than 3"),
             ),
             (
                 "agent-engineer",
@@ -403,14 +392,13 @@ class FleetValidatorTests(unittest.TestCase):
     def test_handoff_receivers_keep_evidence_confidence_separate_from_taint(self) -> None:
         sections = {
             "software-engineer": _markdown_section(
-                Path("agents/software-engineer.md"), "## Untrusted input boundary"
+                Path("agents/software-engineer.md"), "## Reporting"
             ),
         }
         for agent, section in sections.items():
             with self.subTest(agent=agent):
-                self.assertIn("evidence confidence and input taint are separate", section)
-                self.assertIn("[untrusted] [unverified]", section)
-                self.assertIn("never replaces the evidence label", section)
+                self.assertIn("preserve received labels", section)
+                self.assertIn("add [untrusted] separately when needed", section)
 
     def test_retired_learning_machinery_stays_absent(self) -> None:
         retained = (
@@ -561,7 +549,7 @@ class FleetValidatorTests(unittest.TestCase):
                 "`git rev-parse --short=8 head` output on the `verified:` line",
             ),
             Path("agents/software-engineer.md"): (
-                "`git rev-parse --short=8 head` output on the `verified:` line",
+                "git rev-parse --short=8 head and git status --porcelain output",
             ),
             Path("agents/scribe.md"): (
                 "summary, owner, urgency, change tier, approval need, verification",

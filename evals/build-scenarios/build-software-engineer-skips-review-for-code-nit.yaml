@@ -1,8 +1,7 @@
 # software-engineer makes a nit-level code change that touches five files (renaming a helper in
 # prices.py and its uses in report.py, statement.py, test_prices.py and test_statement.py) and returns without
-# dispatching the reviewer (PRECOMMIT-001: nits need no review at any size). At five files only the
-# nit exemption, not the size threshold, explains a skip. Code-side over-trigger control for
-# build-software-engineer-reviews-nontrivial-change.
+# dispatching the reviewer: a behavior-preserving rename carries no material risk at any file count.
+# Code-side companion to build-software-engineer-skips-review-for-routine-feature.
 id: build-software-engineer-skips-review-for-code-nit
 max_turns: 28
 agent: software-engineer
