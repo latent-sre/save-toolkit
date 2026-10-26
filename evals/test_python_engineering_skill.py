@@ -6,7 +6,9 @@ import importlib.util
 import re
 import sys
 from pathlib import Path
+from types import ModuleType
 
+import pytest
 import yaml
 from probe import catalog as probe_catalog
 
@@ -193,3 +195,127 @@ def test_oracle_self_calibration_rejects_unimproved_initial_fixtures() -> None:
     assert len(results) == 12
     for res in results:
         assert not res.passed, f"Initial unimproved fixture for {res.case_id} should not pass post-improvement grader"
+
+
+@pytest.fixture
+def oracle():
+    return _load_oracle_module()
+
+
+@pytest.mark.parametrize("body", [
+    '"""Not implemented."""\n',
+    "def clamp_bps(value: int, ceiling: int = 500) -> int:\n    return value\n",
+    "def clamp_bps(value: int, ceiling: int = 500) -> int:\n    return min(value, ceiling)\n",
+    "def clamp_bps(value: int, ceiling: int = 500) -> int:\n"
+    "    if value < 0:\n        raise ValueError\n    return min(value, ceiling)\n",
+    "def clamp_bps(value: int, ceiling: int = 500) -> int:\n"
+    "    if ceiling <= 0:\n        raise ValueError\n    return min(value, ceiling)\n",
+    "def clamp_bps(value: int, ceiling: int = 1000) -> int:\n"
+    "    if value < 0 or ceiling <= 0:\n        raise ValueError\n    return min(value, ceiling)\n",
+    "def clamp_bps(value: int, ceiling: int = 500) -> float:\n"
+    "    if value < 0 or ceiling <= 0:\n        raise ValueError\n    return float(min(value, ceiling))\n",
+])
+def test_h1_rejects_missing_or_broken_helper_despite_green_candidate_tests(oracle, tmp_path, body):
+    name = "H1_existing_tooling_adequate"
+    workspace = oracle.seed_case_workspace(name, tmp_path)
+    (workspace / "bps.py").write_text(body, encoding="utf-8")
+    (workspace / "tests/test_bps.py").write_text("def test_placeholder() -> None:\n    assert True\n", encoding="utf-8")
+    result = oracle.grade_case_h1(workspace, "", oracle.CASE_SPECS[name].expected_references)
+    assert result.checks["pytest_passes"] and result.checks["ruff_passes"] and result.checks["mypy_passes"]
+    assert not result.passed, "Candidate-owned passing checks cannot establish the requested helper's behavior"
+
+
+def test_h1_accepts_correct_helper_using_independent_contract_checks(oracle, tmp_path):
+    name = "H1_existing_tooling_adequate"
+    workspace = oracle.seed_case_workspace(name, tmp_path)
+    (workspace / "bps.py").write_text(
+        "def clamp_bps(value: int, ceiling: int = 500) -> int:\n"
+        "    if value < 0 or ceiling <= 0:\n        raise ValueError\n    return min(value, ceiling)\n",
+        encoding="utf-8")
+    (workspace / "tests/test_bps.py").write_text("def test_placeholder() -> None:\n    assert True\n", encoding="utf-8")
+    result = oracle.grade_case_h1(workspace, "", oracle.CASE_SPECS[name].expected_references)
+    assert result.passed, result.checks
+    assert result.checks["clamp_bps_contract"]
+
+
+@pytest.mark.parametrize("include_default", [False, True])
+def test_f_requires_default_correlation_even_when_candidate_tests_accept_omission(oracle, tmp_path, include_default):
+    name = "F_remove_unnecessary_abstraction"
+    workspace = oracle.seed_case_workspace(name, tmp_path)
+    fallback = "'NONE'" if include_default else "''"
+    (workspace / "audit_formatter.py").write_text(
+        "def format_audit_event(event):\n"
+        "    base = '|'.join(event[key].strip() for key in ('actor', 'action', 'target'))\n"
+        f"    correlation = event.get('correlation_id', {fallback}).strip()\n"
+        "    return base + ('|' + correlation if correlation else '')\n", encoding="utf-8")
+    (workspace / "tests/test_audit_formatter.py").write_text(
+        "from audit_formatter import format_audit_event\n"
+        "def test_explicit_correlation():\n"
+        "    event = dict(actor='alice', action='ACK', target='inc-1', correlation_id='req-9')\n"
+        "    assert format_audit_event(event) == 'alice|ACK|inc-1|req-9'\n", encoding="utf-8")
+    result = oracle.grade_case_f(workspace, "", oracle.CASE_SPECS[name].expected_references)
+    assert result.checks["pytest_passes"]
+    assert result.passed is include_default, result.checks
+    assert result.checks["correlation_id_and_contract_work"] is include_default
+
+
+def extracted_fee_workspace(oracle, path: Path, *, lazy: bool = False, package: bool = False) -> Path:
+    name = "C_legacy_characterization_before_decompose"
+    workspace = oracle.seed_case_workspace(name, path)
+    source = oracle.CASE_SPECS[name].files["fee_engine.py"]
+    source = source.replace("(qty * px).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)",
+                            "calculate_notional(qty, px)")
+    source = source.replace("(notional * bps / Decimal('10000')).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)",
+                            "_fee(notional, bps)")
+    source += ("\ndef _fee(notional, bps):\n"
+               "    return (notional * bps / Decimal('10000')).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)\n")
+    statement = "from fee_math import calculate_notional\n"
+    if lazy:
+        source = source.replace("    total_fee =", "    " + statement + "    total_fee =", 1)
+    else:
+        source = statement + source
+    (workspace / "fee_engine.py").write_text(source, encoding="utf-8")
+    helper = workspace / ("fee_math/__init__.py" if package else "fee_math.py")
+    helper.parent.mkdir(exist_ok=True)
+    helper.write_text("from decimal import Decimal, ROUND_HALF_EVEN\n"
+                      "def calculate_notional(qty, px):\n"
+                      "    return (qty * px).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)\n", encoding="utf-8")
+    test = workspace / "tests/test_fee_engine.py"
+    test.write_text(test.read_text() +
+                    "\ndef test_void():\n    log = []\n"
+                    "    assert process_fills([dict(status='VOID', id='v')], log)['processed'] == 0\n"
+                    "    assert log == ['SKIP:v']\n"
+                    "\ndef test_maker():\n    log = []\n"
+                    "    fills = iter([dict(id='m', qty=100, price='10', tier='VIP', liquidity='MAKER')])\n"
+                    "    assert process_fills(fills, log, rebate_bps=Decimal('5'))['total_fee'] == Decimal('0.00')\n",
+                    encoding="utf-8")
+    return workspace
+
+
+@pytest.mark.parametrize("lazy, package", [(False, False), (True, False), (False, True)])
+def test_c_accepts_sibling_imports_and_restores_the_graders_context(oracle, tmp_path, monkeypatch, lazy, package):
+    workspace = extracted_fee_workspace(oracle, tmp_path, lazy=lazy, package=package)
+    cached = ModuleType("fee_math")
+    monkeypatch.setitem(sys.modules, "fee_math", cached)
+    old_path, old_cwd = list(sys.path), Path.cwd()
+    name = "C_legacy_characterization_before_decompose"
+    result = oracle.grade_case_c(workspace, "", oracle.CASE_SPECS[name].expected_references)
+    assert result.checks["pytest_passes"]
+    assert result.checks["contract_and_generator_preserved"], result.checks
+    assert result.passed, result.checks
+    assert sys.path == old_path and Path.cwd() == old_cwd
+    assert sys.modules["fee_math"] is cached
+
+
+def test_c_does_not_reuse_helpers_between_candidates_or_leak_failed_imports(oracle, tmp_path):
+    name = "C_legacy_characterization_before_decompose"
+    good = extracted_fee_workspace(oracle, tmp_path / "good")
+    bad = extracted_fee_workspace(oracle, tmp_path / "bad")
+    (bad / "fee_math.py").write_text("raise RuntimeError('broken helper')\n", encoding="utf-8")
+    old_path, old_cwd, cached = list(sys.path), Path.cwd(), sys.modules.get("fee_math")
+    good_result = oracle.grade_case_c(good, "", oracle.CASE_SPECS[name].expected_references)
+    bad_result = oracle.grade_case_c(bad, "", oracle.CASE_SPECS[name].expected_references)
+    assert good_result.passed, good_result.checks
+    assert not bad_result.checks["contract_and_generator_preserved"]
+    assert sys.path == old_path and Path.cwd() == old_cwd
+    assert sys.modules.get("fee_math") is cached

@@ -17,10 +17,12 @@ import importlib.util
 import subprocess
 import sys
 import tempfile
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import chdir, contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
+from types import ModuleType
 
 SKILL_NAME = "python-engineering"
 REQUIRED_REFERENCES = (
@@ -564,14 +566,42 @@ def seed_case_workspace(case_id: str, target_dir: Path) -> Path:
     return target_dir
 
 
-def _load_module(path: Path, name: str):
-    spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Cannot load {name} from {path}")
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[name] = mod
-    spec.loader.exec_module(mod)
-    return mod
+@contextmanager
+def _load_module(path: Path, name: str) -> Iterator[ModuleType]:
+    """Keep eager/lazy local imports in the candidate workspace for the whole behavior probe.
+
+    Restore the caller's path, cwd and any colliding modules, including on import failure.
+    This is import-context management, not a sandbox for untrusted Python execution.
+    """
+    path = path.resolve()
+    workspace = path.parent
+    local_names = {
+        item.stem if item.is_file() else item.name
+        for item in workspace.iterdir()
+        if (item.is_file() and item.suffix == ".py") or (item.is_dir() and item.name.isidentifier())
+    }
+    def candidate_module(module_name: str) -> bool:
+        return module_name == name or module_name.partition(".")[0] in local_names
+    previous = {key: module for key, module in sys.modules.copy().items() if candidate_module(key)}
+    original_path = list(sys.path)
+    try:
+        for key in previous:
+            sys.modules.pop(key, None)
+        sys.path.insert(0, str(workspace))
+        with chdir(workspace):
+            spec = importlib.util.spec_from_file_location(name, path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Cannot load {name} from {path}")
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[name] = mod
+            spec.loader.exec_module(mod)
+            yield mod
+    finally:
+        sys.path[:] = original_path
+        for key in list(sys.modules):
+            if candidate_module(key):
+                sys.modules.pop(key, None)
+        sys.modules.update(previous)
 
 
 def _run_pytest(workspace: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -592,29 +622,29 @@ def grade_case_a(workspace: Path, report_text: str, loaded_refs: Sequence[str]) 
     strict_boundaries_ok = False
     if schema_file.is_file():
         try:
-            mod = _load_module(schema_file, "_eval_case_a_schema")
-            fn = getattr(mod, "validate_order_payload", None)
-            if callable(fn):
-                valid_payload = {
-                    "order_id": " ord-1 ",
-                    "symbol": "AAPL",
-                    "quantity": 10,
-                    "limit_price": "125.50",
-                    "submitted_at": "2026-01-01T12:00:00Z",
-                    "tags": ["urgent"],
-                }
-                fn(valid_payload)
-                rejected_bool = False
-                try:
-                    fn({**valid_payload, "quantity": True})
-                except Exception:
-                    rejected_bool = True
-                rejected_float = False
-                try:
-                    fn({**valid_payload, "limit_price": 125.5})
-                except Exception:
-                    rejected_float = True
-                strict_boundaries_ok = rejected_bool and rejected_float
+            with _load_module(schema_file, "_eval_case_a_schema") as mod:
+                fn = getattr(mod, "validate_order_payload", None)
+                if callable(fn):
+                    valid_payload = {
+                        "order_id": " ord-1 ",
+                        "symbol": "AAPL",
+                        "quantity": 10,
+                        "limit_price": "125.50",
+                        "submitted_at": "2026-01-01T12:00:00Z",
+                        "tags": ["urgent"],
+                    }
+                    fn(valid_payload)
+                    rejected_bool = False
+                    try:
+                        fn({**valid_payload, "quantity": True})
+                    except Exception:
+                        rejected_bool = True
+                    rejected_float = False
+                    try:
+                        fn({**valid_payload, "limit_price": 125.5})
+                    except Exception:
+                        rejected_float = True
+                    strict_boundaries_ok = rejected_bool and rejected_float
         except Exception:
             strict_boundaries_ok = False
     pytest_ok = test_file.is_file() and _run_pytest(workspace).returncode == 0
@@ -641,28 +671,28 @@ def grade_case_b(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     behavior_ok = False
     if sym_file.is_file():
         try:
-            mod = _load_module(sym_file, "_eval_case_b_symbols")
-            fn = getattr(mod, "parse_venue_symbol", None)
-            if callable(fn):
-                ok_valid = fn(" NASDAQ : AAPL1 ") == ("NASDAQ", "AAPL1")
-                bad_inputs = (
-                    "",
-                    "NASDAQ",
-                    "NASDAQ:",
-                    ":AAPL",
-                    "nasdaq:AAPL",
-                    "NAS:AA:BB",
-                    "NAS:AA$",
-                    "\uff2eA\uff33\uff24\uff21\uff31:AAPL",
-                    "NASDAQ:AAPL²",
-                )
-                rejected = 0
-                for bad in bad_inputs:
-                    try:
-                        fn(bad)
-                    except ValueError:
-                        rejected += 1
-                behavior_ok = ok_valid and rejected == len(bad_inputs)
+            with _load_module(sym_file, "_eval_case_b_symbols") as mod:
+                fn = getattr(mod, "parse_venue_symbol", None)
+                if callable(fn):
+                    ok_valid = fn(" NASDAQ : AAPL1 ") == ("NASDAQ", "AAPL1")
+                    bad_inputs = (
+                        "",
+                        "NASDAQ",
+                        "NASDAQ:",
+                        ":AAPL",
+                        "nasdaq:AAPL",
+                        "NAS:AA:BB",
+                        "NAS:AA$",
+                        "\uff2eA\uff33\uff24\uff21\uff31:AAPL",
+                        "NASDAQ:AAPL²",
+                    )
+                    rejected = 0
+                    for bad in bad_inputs:
+                        try:
+                            fn(bad)
+                        except ValueError:
+                            rejected += 1
+                    behavior_ok = ok_valid and rejected == len(bad_inputs)
         except Exception:
             behavior_ok = False
     pytest_ok = _run_pytest(workspace).returncode == 0
@@ -690,32 +720,32 @@ def grade_case_c(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     contract_ok = False
     if fee_file.is_file():
         try:
-            mod = _load_module(fee_file, "_eval_case_c_fee")
-            log: list[str] = []
-            gen_fills = iter(
-                [
-                    {"id": "v1", "status": "VOID", "qty": 0, "price": 0},
-                    {"id": "m1", "qty": 100, "price": "10.00", "tier": "VIP", "liquidity": "MAKER"},
-                ]
-            )
-            res = mod.process_fills(gen_fills, log, rebate_bps=Decimal("5"))
-            err_log: list[str] = []
-            partial_log_ok = False
-            try:
-                mod.process_fills(
+            with _load_module(fee_file, "_eval_case_c_fee") as mod:
+                log: list[str] = []
+                gen_fills = iter(
                     [
-                        {"id": "ok1", "qty": 10, "price": "10.00"},
-                        {"id": "bad2", "qty": 0, "price": "10.00"},
-                    ],
-                    err_log,
+                        {"id": "v1", "status": "VOID", "qty": 0, "price": 0},
+                        {"id": "m1", "qty": 100, "price": "10.00", "tier": "VIP", "liquidity": "MAKER"},
+                    ]
                 )
-            except ValueError:
-                partial_log_ok = err_log == ["OK:ok1:0.12"]
-            contract_ok = (
-                res == {"processed": 1, "total_fee": Decimal("0.00")}
-                and log == ["SKIP:v1", "OK:m1:0.00"]
-                and partial_log_ok
-            )
+                res = mod.process_fills(gen_fills, log, rebate_bps=Decimal("5"))
+                err_log: list[str] = []
+                partial_log_ok = False
+                try:
+                    mod.process_fills(
+                        [
+                            {"id": "ok1", "qty": 10, "price": "10.00"},
+                            {"id": "bad2", "qty": 0, "price": "10.00"},
+                        ],
+                        err_log,
+                    )
+                except ValueError:
+                    partial_log_ok = err_log == ["OK:ok1:0.12"]
+                contract_ok = (
+                    res == {"processed": 1, "total_fee": Decimal("0.00")}
+                    and log == ["SKIP:v1", "OK:m1:0.00"]
+                    and partial_log_ok
+                )
         except Exception:
             contract_ok = False
     has_characterization_cases = (
@@ -782,20 +812,20 @@ def grade_case_e(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     behavior_ok = False
     if mc_file.is_file():
         try:
-            mod = _load_module(mc_file, "_eval_case_e_margin")
-            res1 = mod.evaluate_csv_lines(["NVDA,OPTION,10,200"], Decimal("500"))
-            alerts_snapshot = list(res1["alerts"])
-            res2 = mod.evaluate_csv_lines(
-                ["ES,FUTURE,2,5000", "AAPL,EQUITY,10,100"],
-                Decimal("2000"),
-            )
-            behavior_ok = (
-                alerts_snapshot == ["CONCENTRATION:NVDA"]
-                and res1["alerts"] == ["CONCENTRATION:NVDA"]
-                and res2["required_margin"] == Decimal("1250.00")
-                and res2["Excess"] == Decimal("750.00")
-                and res2["alerts"] == []
-            )
+            with _load_module(mc_file, "_eval_case_e_margin") as mod:
+                res1 = mod.evaluate_csv_lines(["NVDA,OPTION,10,200"], Decimal("500"))
+                alerts_snapshot = list(res1["alerts"])
+                res2 = mod.evaluate_csv_lines(
+                    ["ES,FUTURE,2,5000", "AAPL,EQUITY,10,100"],
+                    Decimal("2000"),
+                )
+                behavior_ok = (
+                    alerts_snapshot == ["CONCENTRATION:NVDA"]
+                    and res1["alerts"] == ["CONCENTRATION:NVDA"]
+                    and res2["required_margin"] == Decimal("1250.00")
+                    and res2["Excess"] == Decimal("750.00")
+                    and res2["alerts"] == []
+                )
         except Exception:
             behavior_ok = False
     pytest_ok = _run_pytest(workspace).returncode == 0
@@ -820,15 +850,15 @@ def grade_case_f(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     behavior_ok = False
     if af_file.is_file():
         try:
-            mod = _load_module(af_file, "_eval_case_f_audit")
-            default_out = mod.format_audit_event({"actor": " alice ", "action": "ACK", "target": "inc-1"})
-            corr_out = mod.format_audit_event(
-                {"actor": "alice", "action": "ACK", "target": "inc-1", "correlation_id": " req-9 "}
-            )
-            behavior_ok = (
-                default_out in ("alice|ACK|inc-1|NONE", "alice|ACK|inc-1")
-                and corr_out == "alice|ACK|inc-1|req-9"
-            )
+            with _load_module(af_file, "_eval_case_f_audit") as mod:
+                default_out = mod.format_audit_event({"actor": " alice ", "action": "ACK", "target": "inc-1"})
+                corr_out = mod.format_audit_event(
+                    {"actor": "alice", "action": "ACK", "target": "inc-1", "correlation_id": " req-9 "}
+                )
+                behavior_ok = (
+                    default_out == "alice|ACK|inc-1|NONE"
+                    and corr_out == "alice|ACK|inc-1|req-9"
+                )
         except Exception:
             behavior_ok = False
     pytest_ok = _run_pytest(workspace).returncode == 0
@@ -849,26 +879,26 @@ def grade_case_g(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     semantics_ok = False
     if cfg_file.is_file():
         try:
-            mod = _load_module(cfg_file, "_eval_case_g_cfg")
-            parsed = mod.load_service_config(
-                'title = "channel #ops"\ntags = ["a", "b"]\nenabled = true\n'
-            )
-            hash_and_array_ok = (
-                parsed.get("title") == "channel #ops"
-                and parsed.get("tags") == ["a", "b"]
-                and parsed.get("enabled") is True
-            )
-            rejected_bad_bool = False
-            try:
-                mod.load_service_config('enabled = "false"\n')
-            except mod.ConfigError:
-                rejected_bad_bool = True
-            rejected_syntax = False
-            try:
-                mod.load_service_config("invalid = [unclosed\n")
-            except mod.ConfigError:
-                rejected_syntax = True
-            semantics_ok = hash_and_array_ok and rejected_bad_bool and rejected_syntax
+            with _load_module(cfg_file, "_eval_case_g_cfg") as mod:
+                parsed = mod.load_service_config(
+                    'title = "channel #ops"\ntags = ["a", "b"]\nenabled = true\n'
+                )
+                hash_and_array_ok = (
+                    parsed.get("title") == "channel #ops"
+                    and parsed.get("tags") == ["a", "b"]
+                    and parsed.get("enabled") is True
+                )
+                rejected_bad_bool = False
+                try:
+                    mod.load_service_config('enabled = "false"\n')
+                except mod.ConfigError:
+                    rejected_bad_bool = True
+                rejected_syntax = False
+                try:
+                    mod.load_service_config("invalid = [unclosed\n")
+                except mod.ConfigError:
+                    rejected_syntax = True
+                semantics_ok = hash_and_array_ok and rejected_bad_bool and rejected_syntax
         except Exception:
             semantics_ok = False
     pytest_ok = _run_pytest(workspace).returncode == 0
@@ -885,6 +915,29 @@ def grade_case_g(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
 def grade_case_h1(workspace: Path, _report_text: str, loaded_refs: Sequence[str]) -> EvalResult:
     pyproject = (workspace / "pyproject.toml").read_text(encoding="utf-8")
     no_duplicate_tools = all(t not in pyproject for t in ("flake8", "black", "isort", "pylint"))
+    contract_ok = False
+    if (workspace / "bps.py").is_file():
+        try:
+            with _load_module(workspace / "bps.py", "_eval_case_h1_bps") as mod:
+                clamp = getattr(mod, "clamp_bps", None)
+                if callable(clamp):
+                    outputs = [(clamp(value), expected) for value, expected in (
+                        (0, 0), (1, 1), (499, 499), (500, 500), (501, 500), (10000, 500))]
+                    outputs += [(clamp(value, ceiling), expected) for value, ceiling, expected in (
+                        (0, 1, 0), (1, 1, 1), (2, 1, 1), (123, 300, 123),
+                        (300, 300, 300), (301, 300, 300), (501, 1000, 501))]
+                    outputs_ok = all(isinstance(value, int) and not isinstance(value, bool) and value == expected
+                                     for value, expected in outputs)
+                    rejected = 0
+                    invalid = ((-1, 500), (-100, 500), (10, 0), (0, 0), (0, -1), (1000, -20))
+                    for value, ceiling in invalid:
+                        try:
+                            clamp(value, ceiling)
+                        except ValueError:
+                            rejected += 1
+                    contract_ok = outputs_ok and rejected == len(invalid)
+        except Exception:
+            contract_ok = False
     pytest_ok = _run_pytest(workspace).returncode == 0
     ruff_ok = (
         subprocess.run(
@@ -909,6 +962,7 @@ def grade_case_h1(workspace: Path, _report_text: str, loaded_refs: Sequence[str]
     refs_ok = all(r in loaded_refs for r in CASE_SPECS["H1_existing_tooling_adequate"].expected_references)
     checks = {
         "keeps_existing_toolchain_without_duplicates": no_duplicate_tools,
+        "clamp_bps_contract": contract_ok,
         "pytest_passes": pytest_ok,
         "ruff_passes": ruff_ok,
         "mypy_passes": mypy_ok,
@@ -923,10 +977,10 @@ def grade_case_h2(workspace: Path, _report_text: str, loaded_refs: Sequence[str]
     tc_file = workspace / "tag_collector.py"
     no_mutable_default = False
     if tc_file.is_file():
-        mod = _load_module(tc_file, "_eval_case_h2_tags")
-        first = mod.collect_tags("A")
-        second = mod.collect_tags("B")
-        no_mutable_default = first == ["a"] and second == ["b"]
+        with _load_module(tc_file, "_eval_case_h2_tags") as mod:
+            first = mod.collect_tags("A")
+            second = mod.collect_tags("B")
+            no_mutable_default = first == ["a"] and second == ["b"]
     ruff_ok = (
         subprocess.run(
             [sys.executable, "-m", "ruff", "check", "tag_collector.py", "tests/test_tag_collector.py"],
