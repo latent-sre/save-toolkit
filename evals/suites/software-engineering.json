@@ -18,6 +18,7 @@
     "evals/test_pager_webhook_mutants_redelivery.py",
     "evals/test_pager_webhook_oracle.py",
     "evals/test_python_craft_oracle.py",
+    "evals/test_python_engineering_skill.py",
     "evals/test_python_index_probe.py",
     "evals/test_python_library_selection_oracle.py",
     "evals/test_python_new_code_probe.py",

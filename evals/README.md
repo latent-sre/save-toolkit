@@ -20,6 +20,7 @@ Use the verified project interpreter (`python` below), from the repository root.
 ```bash
 python evals/catalog.py suites
 python evals/catalog.py show --suite python-craft
+python evals/catalog.py show --suite python-engineering
 python evals/catalog.py list --component skill:python-craft
 python evals/catalog.py list --profile incident-v1
 python evals/catalog.py tests --suite python-craft --json
@@ -46,6 +47,10 @@ collection settings and inherited collection overrides, so a narrowed run is vis
 `tracks` distinguishes existing runners/adapters from inactive proposals, planned integrations, and
 independent sandboxes. It does not activate them. `campaigns` links actual selection manifests;
 a runner with no selection is still discoverable through `tracks`.
+
+The [`python-engineering` saved-case guide](../eval-runs/python-engineering/README.md) links the
+paired artifact outputs and corrected offline scores. These saved cases are separate from its four
+native routing scenarios and are not a live campaign selection.
 
 Native discovery supports `--kind`, `--component`, `--profile`, and `--suite`: repeated values within
 one filter are OR, different filters are AND. A component is the pinned agent/skill or routing target,

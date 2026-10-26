@@ -13,8 +13,8 @@ python evals/catalog.py show --suite gcp-investigation
 python evals/catalog.py campaigns
 ```
 
-[verified] The initial expanded inventory contains 405 native scenarios, 148 root-suite Python test
-files, 34 suites, and 23 track records. Every current native scenario and root test file belongs to
+[verified] The inventory contains 409 native scenarios, 149 root-suite Python test
+files, 35 suites, and 23 track records. Every current native scenario and root test file belongs to
 at least one named suite. Suites overlap intentionally; their counts must not be added to estimate
 independent coverage. The live `coverage` output derives counts and lists unassigned IDs/files if
 new material has not yet been grouped. Component tests require the committed inventory to remain
@@ -48,6 +48,7 @@ that need human review. For example, the [GCP guide](../oracles/gcp/README.md) a
 | Description changes and helper handoffs | `routing-and-handoffs` | All current routing cases plus caller/helper continuation boundaries; does not imply every host executes the same tools |
 | Software-engineer work | `software-engineering` | Task scope, authoring, review and artifact controls across its current cases; independent adversarial and platform suites remain useful |
 | Python implementation/refactoring | `python-craft` | Routing, closed-JSON judgments, streaming, library choice, resource lifetime, package/refactor and scope cases; the two judgment cases are not open-ended semantic assessments |
+| Python engineering skill | `python-engineering` | Four native routing scenarios, offline skill/oracle controls, and [12 paired saved artifact cases](../../eval-runs/python-engineering/README.md); artifact checks, report checks and reference compliance are reported separately |
 | Go implementation | `go-craft` | Existing routing and Go API fixture; much narrower than the Python case set |
 | HTTP APIs | `api-craft` | Pagination, problem responses, writes, OpenAPI and independent negative controls |
 | Application interfaces | `frontend-craft` | UI artifacts and page/console controls; rendering calibrations require their opt-in Node environments |
