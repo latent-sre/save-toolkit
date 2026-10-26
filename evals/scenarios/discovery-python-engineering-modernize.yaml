@@ -1,0 +1,14 @@
+id: discovery-python-engineering-modernize
+max_turns: 14
+split: regression
+prompt: |
+  Refactor and modernize our Python 3.12 ledger settlement package: add characterization tests for
+  the existing tariff calculator, decompose the nested conditionals, replace the ad-hoc regex CSV
+  parser with a maintained library where justified, and verify with pytest, ruff, and mypy.
+success_criteria:
+  - Activates Python engineering workflow for multi-step Python refactoring, modernization, and verification.
+target:
+  kind: skill
+  name: python-engineering
+routing:
+  expect: fire

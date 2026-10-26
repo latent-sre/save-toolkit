@@ -1,0 +1,351 @@
+{
+  "baseline": {
+    "A_new_code_library_vs_custom": {
+      "case_id": "A_new_code_library_vs_custom",
+      "passed": false,
+      "checks": {
+        "uses_maintained_library_pydantic": true,
+        "rejects_bool_as_int_and_float_for_decimal": true,
+        "pytest_passes": true,
+        "retains_compact_rationale": false,
+        "loads_required_references": false
+      },
+      "details": [],
+      "loaded_references": []
+    },
+    "B_simple_task_no_overengineering": {
+      "case_id": "B_simple_task_no_overengineering",
+      "passed": false,
+      "checks": {
+        "no_unnecessary_classes": true,
+        "no_pyproject_scaffolding_added": true,
+        "behavior_and_ascii_unicode_guard": true,
+        "pytest_passes": true,
+        "proportionate_reference_loading": false
+      },
+      "details": [],
+      "loaded_references": []
+    },
+    "C_legacy_characterization_before_decompose": {
+      "case_id": "C_legacy_characterization_before_decompose",
+      "passed": false,
+      "checks": {
+        "decomposed_into_helpers": true,
+        "characterization_tests_added": true,
+        "contract_and_generator_preserved": true,
+        "pytest_passes": true,
+        "loads_required_references": false
+      },
+      "details": [],
+      "loaded_references": []
+    },
+    "D_cross_module_dynamic_and_exports": {
+      "case_id": "D_cross_module_dynamic_and_exports",
+      "passed": false,
+      "checks": {
+        "extracted_reconciliation_module": true,
+        "public_and_dynamic_exports_intact_order_1": true,
+        "public_and_dynamic_exports_intact_order_2": true,
+        "pytest_passes": true,
+        "loads_required_references": false
+      },
+      "details": [],
+      "loaded_references": []
+    },
+    "E_sequenced_multi_technique_improvement": {
+      "case_id": "E_sequenced_multi_technique_improvement",
+      "passed": false,
+      "checks": {
+        "removed_mutable_global_state": false,
+        "consolidated_notional_duplication": true,
+        "no_cross_call_mutation_and_future_works": true,
+        "pytest_passes": true,
+        "loads_required_references": false
+      },
+      "details": [],
+      "loaded_references": []
+    },
+    "F_remove_unnecessary_abstraction": {
+      "case_id": "F_remove_unnecessary_abstraction",
+      "passed": false,
+      "checks": {
+        "removed_speculative_hierarchy": true,
+        "correlation_id_and_contract_work": true,
+        "pytest_passes": true,
+        "loads_required_references": false
+      },
+      "details": [],
+      "loaded_references": []
+    },
+    "G_dependency_replacement_semantic_diff": {
+      "case_id": "G_dependency_replacement_semantic_diff",
+      "passed": false,
+      "checks": {
+        "uses_stdlib_tomllib_and_removes_line_parser": true,
+        "preserves_config_error_and_boolean_semantics": true,
+        "pytest_passes": true,
+        "loads_required_references": false
+      },
+      "details": [],
+      "loaded_references": []
+    },
+    "H1_existing_tooling_adequate": {
+      "case_id": "H1_existing_tooling_adequate",
+      "passed": false,
+      "checks": {
+        "keeps_existing_toolchain_without_duplicates": true,
+        "pytest_passes": true,
+        "ruff_passes": true,
+        "mypy_passes": true,
+        "loads_required_references": false
+      },
+      "details": [],
+      "loaded_references": []
+    },
+    "H2_existing_tooling_genuine_gap": {
+      "case_id": "H2_existing_tooling_genuine_gap",
+      "passed": false,
+      "checks": {
+        "configured_ruff_bugbear_and_mypy": true,
+        "fixed_mutable_default_bug": true,
+        "ruff_passes": true,
+        "mypy_passes": true,
+        "pytest_passes": true,
+        "loads_required_references": false
+      },
+      "details": [],
+      "loaded_references": []
+    },
+    "I_offline_and_preexisting_failure": {
+      "case_id": "I_offline_and_preexisting_failure",
+      "passed": false,
+      "checks": {
+        "preserved_unrelated_failing_test": true,
+        "focused_netting_tests_pass": true,
+        "distinguishes_preexisting_failure_in_report": true,
+        "loads_required_references": false
+      },
+      "details": [],
+      "loaded_references": []
+    },
+    "J_pressure_skip_verification_and_suppress": {
+      "case_id": "J_pressure_skip_verification_and_suppress",
+      "passed": false,
+      "checks": {
+        "refused_blanket_suppressions": true,
+        "fixed_mutable_default_defect": true,
+        "ruff_clean": true,
+        "mypy_strict_clean": true,
+        "pytest_passes": true,
+        "loads_required_references": false
+      },
+      "details": [],
+      "loaded_references": []
+    },
+    "K_good_code_remains_unchanged": {
+      "case_id": "K_good_code_remains_unchanged",
+      "passed": false,
+      "checks": {
+        "good_code_left_unchanged": true,
+        "recommends_against_speculative_hierarchy": true,
+        "loads_required_references": false
+      },
+      "details": [],
+      "loaded_references": []
+    }
+  },
+  "with-skill": {
+    "A_new_code_library_vs_custom": {
+      "case_id": "A_new_code_library_vs_custom",
+      "passed": true,
+      "checks": {
+        "uses_maintained_library_pydantic": true,
+        "rejects_bool_as_int_and_float_for_decimal": true,
+        "pytest_passes": true,
+        "retains_compact_rationale": true,
+        "loads_required_references": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/starting-code.md",
+        "references/dependencies.md",
+        "references/quality-gates.md"
+      ]
+    },
+    "B_simple_task_no_overengineering": {
+      "case_id": "B_simple_task_no_overengineering",
+      "passed": true,
+      "checks": {
+        "no_unnecessary_classes": true,
+        "no_pyproject_scaffolding_added": true,
+        "behavior_and_ascii_unicode_guard": true,
+        "pytest_passes": true,
+        "proportionate_reference_loading": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/starting-code.md",
+        "references/quality-gates.md"
+      ]
+    },
+    "C_legacy_characterization_before_decompose": {
+      "case_id": "C_legacy_characterization_before_decompose",
+      "passed": true,
+      "checks": {
+        "decomposed_into_helpers": true,
+        "characterization_tests_added": true,
+        "contract_and_generator_preserved": true,
+        "pytest_passes": true,
+        "loads_required_references": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/refactoring-playbook.md",
+        "references/quality-gates.md"
+      ]
+    },
+    "D_cross_module_dynamic_and_exports": {
+      "case_id": "D_cross_module_dynamic_and_exports",
+      "passed": true,
+      "checks": {
+        "extracted_reconciliation_module": true,
+        "public_and_dynamic_exports_intact_order_1": true,
+        "public_and_dynamic_exports_intact_order_2": true,
+        "pytest_passes": true,
+        "loads_required_references": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/refactoring-playbook.md",
+        "references/refactoring-tools.md",
+        "references/quality-gates.md"
+      ]
+    },
+    "E_sequenced_multi_technique_improvement": {
+      "case_id": "E_sequenced_multi_technique_improvement",
+      "passed": true,
+      "checks": {
+        "removed_mutable_global_state": true,
+        "consolidated_notional_duplication": true,
+        "no_cross_call_mutation_and_future_works": true,
+        "pytest_passes": true,
+        "loads_required_references": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/quality-gates.md",
+        "references/refactoring-playbook.md"
+      ]
+    },
+    "F_remove_unnecessary_abstraction": {
+      "case_id": "F_remove_unnecessary_abstraction",
+      "passed": true,
+      "checks": {
+        "removed_speculative_hierarchy": true,
+        "correlation_id_and_contract_work": true,
+        "pytest_passes": true,
+        "loads_required_references": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/quality-gates.md",
+        "references/refactoring-playbook.md"
+      ]
+    },
+    "G_dependency_replacement_semantic_diff": {
+      "case_id": "G_dependency_replacement_semantic_diff",
+      "passed": true,
+      "checks": {
+        "uses_stdlib_tomllib_and_removes_line_parser": true,
+        "preserves_config_error_and_boolean_semantics": true,
+        "pytest_passes": true,
+        "loads_required_references": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/dependencies.md",
+        "references/quality-gates.md",
+        "references/refactoring-playbook.md"
+      ]
+    },
+    "H1_existing_tooling_adequate": {
+      "case_id": "H1_existing_tooling_adequate",
+      "passed": true,
+      "checks": {
+        "keeps_existing_toolchain_without_duplicates": true,
+        "pytest_passes": true,
+        "ruff_passes": true,
+        "mypy_passes": true,
+        "loads_required_references": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/quality-gates.md",
+        "references/starting-code.md"
+      ]
+    },
+    "H2_existing_tooling_genuine_gap": {
+      "case_id": "H2_existing_tooling_genuine_gap",
+      "passed": true,
+      "checks": {
+        "configured_ruff_bugbear_and_mypy": true,
+        "fixed_mutable_default_bug": true,
+        "ruff_passes": true,
+        "mypy_passes": true,
+        "pytest_passes": true,
+        "loads_required_references": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/quality-gates.md",
+        "references/refactoring-playbook.md"
+      ]
+    },
+    "I_offline_and_preexisting_failure": {
+      "case_id": "I_offline_and_preexisting_failure",
+      "passed": true,
+      "checks": {
+        "preserved_unrelated_failing_test": true,
+        "focused_netting_tests_pass": true,
+        "distinguishes_preexisting_failure_in_report": true,
+        "loads_required_references": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/quality-gates.md",
+        "references/refactoring-playbook.md"
+      ]
+    },
+    "J_pressure_skip_verification_and_suppress": {
+      "case_id": "J_pressure_skip_verification_and_suppress",
+      "passed": true,
+      "checks": {
+        "refused_blanket_suppressions": true,
+        "fixed_mutable_default_defect": true,
+        "ruff_clean": true,
+        "mypy_strict_clean": true,
+        "pytest_passes": true,
+        "loads_required_references": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/quality-gates.md",
+        "references/refactoring-playbook.md"
+      ]
+    },
+    "K_good_code_remains_unchanged": {
+      "case_id": "K_good_code_remains_unchanged",
+      "passed": true,
+      "checks": {
+        "good_code_left_unchanged": true,
+        "recommends_against_speculative_hierarchy": true,
+        "loads_required_references": true
+      },
+      "details": [],
+      "loaded_references": [
+        "references/quality-gates.md",
+        "references/refactoring-playbook.md"
+      ]
+    }
+  }
+}

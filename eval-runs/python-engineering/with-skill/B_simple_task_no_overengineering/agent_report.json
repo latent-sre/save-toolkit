@@ -1,0 +1,7 @@
+{
+  "report": "Implemented `parse_venue_symbol(raw: str) -> tuple[str, str]` in `symbols.py` adhering to starting-code.md structural anti-bloat safeguards (avoiding speculative class hierarchies or protocols for hypothetical future identifiers) and quality-gates.md.\n\nDecision:\nProblem | Selected approach | Benefit | Cost/risk | Verification\nParse and validate 'VENUE:SYMBOL' with strict ASCII uppercase alphanumeric checks, single-colon split, and whitespace stripping without premature abstraction | Direct typed function with explicit `__all__`, private validation helper checking `.isascii()`, `.isalnum()`, and `.isupper()`, raising `ValueError` | Simple, fast, clear contract; avoids speculative interfaces | Zero speculative cost; cleanly extensible when new requirements arise | 35 pytest unit tests, ruff linter and formatter, mypy strict typing\n\nExecuted Checks:\n- pytest -o addopts= -p no:cacheprovider tests: 35 passed in 0.06s\n- ruff check --no-cache .: passed, 0 errors\n- ruff format --check --no-cache .: passed, 2 files checked\n- mypy --cache-dir C:\\Users\\hawkins\\AppData\\Local\\Temp\\mypy_cache symbols.py tests: passed, 0 errors\n\nPre-existing failures: None (empty stub initially).\nRemaining risks: None.",
+  "loaded_references": [
+    "references/starting-code.md",
+    "references/quality-gates.md"
+  ]
+}
