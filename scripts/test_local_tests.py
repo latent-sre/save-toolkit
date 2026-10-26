@@ -188,3 +188,21 @@ def test_inherited_filter_and_zero_collection_remain_visible(suite_repository):
     result = invoke(suite_repository, "--suite", "named", "-n", "0", inherited_options="-k nonexistent")
     assert result.returncode == 5, result.stdout + result.stderr
     assert "filtered" in result.stdout.lower()
+
+
+@pytest.mark.parametrize("source, override", [
+    ("def test_good(): pass\ndef test_other(): pass\n", "python_functions=test_good"),
+    ("class TestKeep:\n def test_good(self): pass\nclass TestDrop:\n def test_other(self): pass\n",
+     "python_classes=TestKeep"),
+])
+def test_inherited_collection_overrides_are_recorded_as_filtered(suite_repository, source, override):
+    (suite_repository / "scripts/test_named.py").write_text(source, encoding="utf-8")
+    result = invoke(suite_repository, "--suite", "named", "-n", "0", inherited_options=f"-o {override}")
+    assert result.returncode == 0, result.stdout + result.stderr
+    receipt = json.loads(next((suite_repository / ".git/local-test-runs").glob("*/run.json")).read_text())
+    assert receipt["results"]["collected"] == 1
+    assert receipt["effective"]["suite_filtered"] is True
+    assert "filtered" in result.stdout.lower()
+    key, value = override.split("=", 1)
+    assert receipt["effective"]["collection"][key] == [value]
+    assert key in receipt["effective"]["collection_overrides"]

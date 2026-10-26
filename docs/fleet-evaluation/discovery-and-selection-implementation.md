@@ -156,3 +156,36 @@ selection. Its runner fingerprint still matches the retained zero-difference sav
 suite definitions, track records, discovery/coverage code, tests and source-backed gap claims.
 This remains local, uncommitted work, not immutable candidate acceptance. No model, cloud, sandbox
 or benchmark campaign was launched by this expansion.
+
+
+## Deep review before publication
+
+The owner requested a commit, push, and deep review after the coverage expansion. The initial
+implementation was committed locally as `2a62fc1846d7aeb28558136d18a8758ce349faf3` against base
+`4d9d368dbdfa298e48e24961c9acb998d55776fd`. Two independent static reviews covered native selection
+and execution, and catalog/coverage/offline suite execution respectively.
+
+[verified] Both reported correctness findings were reproduced before repair:
+
+- **P1, frozen oracle drift after admission:** changing a file-backed oracle between selection
+  admission and the first or a later trial could establish a new identity and reach invocation.
+  The selection's expected case hashes now travel through batch settings and are checked as each
+  trial establishes its scenario identity, before services or model invocation. Existing per-turn
+  and grading checks continue to enforce that identity. Both drift timings now produce an
+  INCONCLUSIVE result without invoking the changed case.
+- **P2, hidden pytest collection override:** an inherited `-o python_functions=...` or
+  `-o python_classes=...` could narrow a named suite while its receipt said unfiltered. Receipts
+  now include effective collection settings and recognized collection overrides, and those
+  overrides mark the run as filtered. Real-process regressions reproduced both forms and pass
+  after the change.
+
+[verified] Final `python scripts/local_tests.py --heavy` passed: 5,246 tests, 5,164 subtests and 94
+platform-specific/opt-in skips, in 82.92 seconds. The common Git directory retains the receipt under
+`local-test-runs/20261026T000307Z-90a77669/`. Ruff, formatting, mypy and focused regression checks
+passed. The repaired runner rescored the same 15 saved trials with zero changed verdicts/check
+states versus the base runner; its private output is
+`.eval-runs/discovery-selection-verification/deep-review-rescore/`.
+
+The static review did not establish native Windows or opt-in integration behavior. An interrupted
+selection retention write fails closed; automated recovery of a partial hash-named file is not
+claimed. No live model evaluations or production actions were performed for this review.

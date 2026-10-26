@@ -20,6 +20,7 @@ class Selection:
     raw: bytes
     trials: int
     scenarios: list[dict[str, Any]]
+    case_digests: dict[str, str]
 
     @property
     def file_sha256(self) -> str:
@@ -108,7 +109,12 @@ def load(path: Path, scenarios: list[dict[str, Any]]) -> Selection:
         if fingerprints.case_digest(spec) != task["case_sha256"]:
             raise ValueError(f"selected case changed: {name}; export a new selection after finalizing definitions")
         selected[name] = spec
-    return Selection(raw, total, [selected[name] for name in sorted(selected)])
+    return Selection(
+        raw,
+        total,
+        [selected[name] for name in sorted(selected)],
+        {task["instance_id"]: task["case_sha256"] for task in data["tasks"]},
+    )
 
 
 def trial_count(selection: Selection, offset: int, count: int | None) -> int:

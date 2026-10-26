@@ -40,7 +40,8 @@ track. `show` lists exact membership and guides. `tests` lists files without imp
 it does not claim a collected test count. `coverage` exposes any newly unassigned cases/files and
 shows declared kinds and graders. The [capability map](docs/coverage.md) explains coverage limits
 and useful additional evaluations. Repeat `--suite` to combine groups without repeating work. `-k` and other pytest
-filters remain available and are recorded as filtered runs.
+filters remain available and are recorded as filtered runs. Receipts also record effective pytest
+collection settings and inherited collection overrides, so a narrowed run is visible.
 
 `tracks` distinguishes existing runners/adapters from inactive proposals, planned integrations, and
 independent sandboxes. It does not activate them. `campaigns` links actual selection manifests;

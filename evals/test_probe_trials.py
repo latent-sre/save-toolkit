@@ -820,6 +820,47 @@ class EndToEndStubTests(TempRootTestCase):
         self.assertEqual((3, 3, 0), tuple(report["counts"][k] for k in ("expected_slots", "started_slots", "missing_slots")))
         self.assertEqual({"PASS": 3, "FAIL": 0, "INCONCLUSIVE": 0}, report["verdict_counts"])
 
+    def test_frozen_oracle_cannot_be_rebaselined_before_first_or_later_trial(self) -> None:
+        for changed_trial in (1, 2):
+            with self.subTest(changed_trial=changed_trial):
+                folder = self.root / f"drift-{changed_trial}"
+                folder.mkdir()
+                oracle = folder / "oracle.py"
+                oracle.write_text("raise SystemExit(0)\n", encoding="utf-8")
+                reference = "evals/oracles/frozen-selection/control.py"
+                lookup = probe_constants.oracle_source
+                stage = probe_fingerprints.stage_plugin
+                stages = []
+                def resolve(relative, oracle=oracle, reference=reference, lookup=lookup):
+                    return oracle if relative == reference else lookup(relative)
+                def stage_and_change(*args, stages=stages, changed_trial=changed_trial, oracle=oracle, stage=stage, **kwargs):
+                    stages.append(True)
+                    if len(stages) == changed_trial:
+                        oracle.write_text("# changed after admission\nraise SystemExit(0)\n", encoding="utf-8")
+                    return stage(*args, **kwargs)
+                specs = [stub_spec() | {"id": name} for name in ("first", "later")]
+                for spec in specs:
+                    spec["checks"].append({"check": "command_exit_zero", "command": "python control.py",
+                                           "writes_from": {"control.py": reference}, "text": "oracle control"})
+                with mock.patch.object(probe_constants, "oracle_source", side_effect=resolve):
+                    manifest = {"schema_version": 1, "profile": "native-selection-v1", "trials": 1,
+                                "tasks": [{"instance_id": s["id"], "case_sha256": probe_fingerprints.case_digest(s)}
+                                          for s in specs],
+                                "source": {"git_revision": None, "dirty": None, "suites": []}}
+                    selected = folder / "selection.json"
+                    selected.write_text(json.dumps(manifest), encoding="utf-8")
+                    with (mock.patch.object(probe_fingerprints, "stage_plugin", side_effect=stage_and_change),
+                          mock.patch.object(probe_invocation, "run_cli", wraps=probe_invocation.run_cli) as invoke,
+                          mock.patch.object(probe_backing, "start_services", wraps=probe_backing.start_services) as services):
+                        code, _, _ = self._batch(folder / "runs", stub_cli(folder, cost=0.0), specs,
+                                                 "--selection", str(selected))
+                    self.assertEqual(changed_trial - 1, invoke.call_count, "changed cases must not spend a model call")
+                    self.assertEqual(changed_trial - 1, services.call_count, "changed cases must not start services")
+                    self.assertEqual(2, code)
+                    grade = read_json(folder / "runs" / f"eval-{specs[changed_trial-1]['id']}" / "l/run-1/grading.json")
+                    self.assertEqual("INCONCLUSIVE", grade["status"])
+                    self.assertIn("frozen selection", grade["inconclusive"])
+
     def test_a_trial_that_fails_its_identity_check_stops_the_batch(self) -> None:
         """Codex on PR #328 and WP-02's stop rule: a wrong tool inventory, plugin or model stops the batch,
         since every later trial would run as the same wrong candidate, in this invocation or the next."""

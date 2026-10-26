@@ -475,6 +475,7 @@ def run(args: argparse.Namespace, scenarios: list[dict[str, Any]]) -> int:
         judge_binding=judge_binding,
         runtime=runtime,
         max_invocation_usd=args.max_invocation_usd,
+        expected_case_digests=frozen.case_digests if frozen is not None else None,
     )
     release_sleep_hold = _hold_off_idle_sleep()
     try:

@@ -65,6 +65,7 @@ class BatchSettings:
     judge_binding: rubric_judge.JudgeBinding | None = None
     runtime: dict[str, Any] | None = None
     max_invocation_usd: float | None = None
+    expected_case_digests: Mapping[str, str] | None = None
 
 
 def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettings) -> dict[str, Any]:
@@ -638,6 +639,12 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         provenance["plugin_served_from"] = str(served.resolve())
         binding = fingerprints.binding_for(spec, settings.judge_binding)
         scenario_identity = fingerprints.scenario_digest(spec, binding)
+        if settings.expected_case_digests is not None:
+            expected_case = settings.expected_case_digests.get(spec["id"])
+            if expected_case is None or fingerprints.case_digest(spec) != expected_case:
+                inconclusive = identity_failure = (
+                    "case inputs no longer match the frozen selection; re-run with finalized inputs"
+                )
         if settings.expected_plugin_digest and provenance["plugin_source_sha256"] != settings.expected_plugin_digest:
             inconclusive = identity_failure = "plugin inputs changed before the trial; re-run with one candidate"
         runner = fingerprints.runner_provenance()

@@ -65,7 +65,10 @@ matching the campaign reporter's denominator. It conveys no run or candidate app
 Existing scenario IDs and source paths remain where their consumers expect them. Case hashes bind
 the finalized definitions; organizational work does not need to preserve earlier hashes. Never
 rewrite historical records to give them a new case identity. Native `run --selection` verifies case
-hashes before live preflight and retains the supplied bytes before scheduling. The retained file's
+hashes before live preflight and retains the supplied bytes before scheduling. Each trial also
+checks its oracle inputs against those frozen hashes before starting services or invoking a model;
+later drift stops the batch with an inconclusive measurement. Existing invocation/grading identity
+checks continue to enforce that trial's inputs. The retained file's
 byte hash and the reporter's normalized JSON hash have distinct labels and purposes.
 
 ## Scenario contract

@@ -90,7 +90,15 @@ class RunSettings:
         self.expected_paths = expected_paths
 
     def pytest_configure(self, config: pytest.Config) -> None:
+        collection = {name: config.getini(name) for name in (
+            "python_files", "python_classes", "python_functions", "testpaths", "norecursedirs")}
+        collection_overrides = sorted({
+            option.partition("=")[0].strip() for option in config.getoption("override_ini", default=[]) or []
+            if option.partition("=")[0].strip() in collection
+        })
         self.effective = {
+            "collection": collection,
+            "collection_overrides": collection_overrides,
             "workers": config.getoption("numprocesses", default=0),
             "distribution": config.getoption("dist", default="no"),
             "heavy": config.getoption("heavy", default=False),
@@ -115,7 +123,7 @@ class RunSettings:
             expected = [str((config.invocation_params.dir / arg).resolve()) for arg in self.expected_paths]
             if actual != expected:
                 raise pytest.UsageError("--suite cannot be combined with explicit test paths")
-            filtered = any(self.effective[key] for key in (
+            filtered = bool(collection_overrides) or any(self.effective[key] for key in (
                 "marker", "keyword", "collect_only", "ignored_paths", "ignored_globs", "deselected_nodes",
                 "last_failed", "stepwise", "stepwise_skip"))
             self.effective["suite_filtered"] = filtered
