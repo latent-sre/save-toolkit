@@ -361,7 +361,7 @@ authorized library adoption, established versus uncertain defects, explanation-o
 justified whole-codebase rewrites in scope that preserve required contracts. It also checks effect-aware
 control flow, simpler calls, layer removal, ordered records, indexed membership with streaming, and
 transport-independent policy boundaries. It loads the Python refactoring/writing references and the
-builder bar so their design guidance is assessed together. `python-new-code-judgment` checks a
+agent's quality and operability rules so their design guidance is assessed together. `python-new-code-judgment` checks a
 direct implementation for a bounded task, an importable core serving CLI and notebook consumers,
 bounded streaming with publication after validation, and an unresolved partial-failure contract.
 These supplied-state decisions do not prove execution or consumer discovery. `discovery-python-improvement` checks routing

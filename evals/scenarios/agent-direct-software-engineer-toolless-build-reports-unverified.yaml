@@ -13,7 +13,7 @@ success_criteria:
 graders:
   - type: regex
     pattern: 'wordfreq|word frequenc|most common'
-  # The Verification gate: "written but not verified", or an equivalent disclosure bound to the verb.
+  # The Reporting section labels missing checks [unverified]: "written but not verified", or an equivalent disclosure bound to the verb.
   # A literal [verified] token must not satisfy "nothing was run".
   - type: regex
     pattern: '\[unverified\]|not verified|unverified|(?:could ?n.t|cannot|can.t|unable to|did not|didn.t|never|nothing (?:was |got )?|not (?:been )?)[^.\n]{0,40}?\b(?:verif|run\b|ran\b|built|creat|execut|tested|happen|produced|written|performed)|\bno\b[^.\n]{0,30}?\b(?:command|test|pytest|output|file|script)s?\b[^.\n]{0,25}?\b(?:run|ran|executed|produced|created|written|exists?|to show)|\bno (?:pytest|test) run\b'

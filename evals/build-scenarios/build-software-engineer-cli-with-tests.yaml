@@ -89,7 +89,7 @@ checks:
   - {check: command_exit_zero, command: "python scripts/wordfreq.py empty.txt", writes: {empty.txt: ""}, text: "an empty file exits 0"}
   - {check: changed_files_not_containing, glob: "tests/*.py", needle: "import pytest", text: "new tests use the repo's framework (unittest, no pytest import)"}
   - {check: verification_completed, runner: unittest, text: "trace: a foreground suite completed after the last potentially mutating tool action"}
-  # The report format is the body's, not the prompt's: its Verification gate labels a direct
+  # The report format is the body's, not the prompt's: its Reporting section labels a direct
   # observation [verified], so the agent's own suite result carries that label on its line.
   - {check: text_regex, pattern: '\[verified\][^\n]{0,200}(?:\bran [1-9]\d* tests?\b|\b[1-9]\d* (?:tests? )?passed\b|unittest discover)|(?:\bran [1-9]\d* tests?\b|\b[1-9]\d* (?:tests? )?passed\b|unittest discover)[^\n]{0,200}\[verified\]', text: "report: the agent's own suite result is labelled [verified]"}
   - {check: changes_within, allowed: ["scripts/wordfreq.py", "tests/test_wordfreq*.py", "README.md"], text: "surgical: only the new tool, its own test module, and the README changed"}
