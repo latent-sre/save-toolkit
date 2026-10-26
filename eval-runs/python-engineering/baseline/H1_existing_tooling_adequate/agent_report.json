@@ -1,0 +1,4 @@
+{
+  "report": "Implemented `clamp_bps(value: int, ceiling: int = 500) -> int` in `bps.py` to clamp basis points to the specified ceiling, raising `ValueError` when `value < 0` or `ceiling <= 0`. Added full unit tests in `tests/test_bps.py` covering values below, at, and above the ceiling, zero values, custom ceilings, negative values, and zero/negative ceilings. Verification passed: 7/7 tests passing in pytest, ruff check clean, and strict mypy clean.",
+  "loaded_references": []
+}

@@ -1,0 +1,4 @@
+{
+  "report": "Implemented `parse_venue_symbol` in `symbols.py` adhering to YAGNI and avoiding overengineering. The function splits on a single colon delimiter, strips surrounding whitespace, and validates that both venue and symbol are non-empty uppercase ASCII alphanumeric strings via regex, raising `ValueError` on any violation. Kept the module clean, lightweight, and extensible for future identifier parsers without introducing unnecessary class hierarchies, factories, or registries. Created comprehensive parameterized unit tests in `tests/test_symbols.py`. Verification output: 35 tests passed, ruff clean, mypy clean.",
+  "loaded_references": []
+}

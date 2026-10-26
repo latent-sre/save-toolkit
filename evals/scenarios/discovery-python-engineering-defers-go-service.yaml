@@ -1,0 +1,16 @@
+id: discovery-python-engineering-defers-go-service
+max_turns: 14
+split: regression
+prompt: |
+  Refactor our Go 1.23 HTTP handler in `internal/orders/handler.go` to propagate `context.Context`,
+  wrap returned errors with `%w`, and add table-driven `go test` coverage for invalid payloads.
+target:
+  kind: skill
+  name: python-engineering
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: go-craft
+success_criteria:
+  - Selects Go engineering guidance for a Go service refactoring without firing Python engineering.

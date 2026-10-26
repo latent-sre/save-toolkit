@@ -1,0 +1,4 @@
+{
+  "report": "Extracted `Discrepancy` and `reconcile_positions` into `ledger/reconciliation.py` while keeping `AccountLedger` focused in `ledger/core.py`. Maintained complete backward compatibility and export hygiene across the package: `ledger/core.py` re-exports the reconciliation symbols, `ledger/__init__.py` exposes both core and reconciliation symbols in `__all__`, and `ledger/plugin_loader.py` was updated to target `ledger.reconciliation:reconcile_positions` while preserving support for legacy dynamic hooks. Unit tests in `tests/test_ledger.py` verify booking, reconciliation diffs, backward-compatible imports, and dynamic hook resolution. Verification output: 5 tests passed, ruff clean, mypy clean.",
+  "loaded_references": []
+}

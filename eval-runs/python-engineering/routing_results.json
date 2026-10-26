@@ -1,0 +1,42 @@
+{
+  "case": "Case L: positive and negative activation cases",
+  "evaluated_skills": [
+    "python-engineering",
+    "go-craft",
+    "incident-investigation",
+    "ci-actions",
+    "frontend-craft"
+  ],
+  "results": {
+    "L1_modernize": {
+      "selected_skill": "python-engineering",
+      "python_engineering_fired": true,
+      "rationale": "Directly matches python-engineering triggers for modernizing a legacy Python package, replacing custom parsing with a maintained library, and establishing pytest, Ruff, and mypy quality gates."
+    },
+    "L2_new_component": {
+      "selected_skill": "python-engineering",
+      "python_engineering_fired": true,
+      "rationale": "Directly matches python-engineering triggers for creating a new Python CLI package, configuring pyproject.toml, writing behavioral pytest cases, and wiring Ruff and mypy quality gates."
+    },
+    "L3_dependency_replace": {
+      "selected_skill": "python-engineering",
+      "python_engineering_fired": true,
+      "rationale": "Directly matches python-engineering for selecting and replacing packages, migrating packaging to pyproject.toml dependency groups, and replacing custom Python implementations with maintained libraries."
+    },
+    "L4_go_service": {
+      "selected_skill": "go-craft",
+      "python_engineering_fired": false,
+      "rationale": "Targets Go HTTP handler refactoring and go test coverage, which triggers go-craft and is explicitly excluded from python-engineering as non-Python language work."
+    },
+    "L5_live_incident": {
+      "selected_skill": "incident-investigation",
+      "python_engineering_fired": false,
+      "rationale": "Involves live incident bridge triage and next troubleshooting checks without code edits, which is explicitly routed to incident-investigation and excluded from python-engineering."
+    },
+    "L6_github_actions": {
+      "selected_skill": "ci-actions",
+      "python_engineering_fired": false,
+      "rationale": "Targets hardening and securing GitHub Actions workflows and token permissions, which directly matches ci-actions ('harden the pipeline')."
+    }
+  }
+}

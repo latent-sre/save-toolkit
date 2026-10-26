@@ -67,6 +67,16 @@ source checkout, source cache and reviewer packet are not mounted. Network remai
 available to the CLI service; this is not a network sandbox or a general execution
 profile. Only the declared Read/Grep/Glob/Skill profile is accepted.
 
+The WP-04 wrapper now imposes host-owned launch settings before plugin loading:
+candidate hooks and inline skill/command shell expansion are disabled, external and
+plugin MCP configuration is suppressed, and restricted mode confines model file
+tools to the observation and plugin roots. Caller omissions cannot remove these
+controls; conflicting settings are refused. This also suppresses the candidate's
+guard startup hook, so this profile supplies no native hook-acceptance evidence.
+Static skills and references remain available and the CLI retains its subscriber
+credential access. The wrapper and CLI binary hashes bind this changed runtime;
+the earlier five-case Linux pilot retains its original runtime and results.
+
 The model-free namespace control must prove an observation is readable, an external
 answer file is absent and writes to the observation mount fail. Actual CLI startup,
 plugin load, advertised tools, source reads and output collection remain separate

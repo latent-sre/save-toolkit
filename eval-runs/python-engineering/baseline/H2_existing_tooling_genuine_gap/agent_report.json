@@ -1,0 +1,4 @@
+{
+  "report": "Case H2: Fixed cross-call state bleed and type issues in `tag_collector.py` by changing mutable default `bucket: list[str] = []` to `bucket: list[str] | None = None` and initializing a fresh list when None. Configured `pyproject.toml` with ruff linting including bugbear (`select = [\"E\", \"F\", \"I\", \"B\"]`) and strict mypy (`strict = true`). Expanded `tests/test_tag_collector.py` with 4 test cases covering normalization, multi-call isolation, custom bucket preservation, and explicit None arguments. Verification: pytest passed (4 passed in 0.05s), ruff check passed with 0 errors, and strict mypy passed with 0 issues.",
+  "loaded_references": []
+}

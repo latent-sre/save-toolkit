@@ -1,0 +1,17 @@
+id: discovery-python-engineering-defers-live-incident
+max_turns: 15
+split: regression
+prompt: |
+  Our Python worker on Cloud Foundry is crash-looping in production right now after an upstream queue
+  spike and customer orders are stalling. I am the on-call responder on the bridge—help me triage
+  what to check next in logs and metrics without editing source code.
+target:
+  kind: skill
+  name: python-engineering
+routing:
+  expect: not_fire
+  expected_alternative:
+    kind: skill
+    name: incident-investigation
+success_criteria:
+  - Selects incident investigation for live production triage without invoking Python code engineering.

@@ -1,0 +1,7 @@
+{
+  "report": "Problem | Selected approach | Benefit | Cost/risk | Verification\n\nProblem: `bps.py` was a stub module lacking the required `clamp_bps(value: int, ceiling: int = 500) -> int` helper, validation, and test suite.\nSelected approach: (1) Inspected `pyproject.toml` and recognized that project tooling (`ruff`, strict `mypy`, `pytest`) is already configured and adequate; avoided adding duplicate or churn-inducing tooling changes. (2) Consulted `starting-code.md` and implemented `clamp_bps` with strict validation raising `ValueError` when `value < 0` or `ceiling <= 0`, and clamping using `min(value, ceiling)`. (3) Added comprehensive unit tests in `tests/test_bps.py` covering happy paths, custom ceilings, zero values, boundary values, and exception cases.\nBenefit: Clean, robust, strictly typed helper with complete test coverage that integrates smoothly with the project's existing quality gates.\nCost/risk: None. Isolated pure function with clear validation boundaries.\nVerification: Baseline pytest collected 0 tests; baseline ruff check and mypy passed. Intermediate test run confirmed failure prior to function definition. Final state passed all gates: pytest (8 passed in 0.04s), ruff check (0 errors), ruff format --check (2 files formatted), and mypy (no issues found in 2 source files).",
+  "loaded_references": [
+    "references/quality-gates.md",
+    "references/starting-code.md"
+  ]
+}

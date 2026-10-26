@@ -1,0 +1,8 @@
+{
+  "report": "Problem | Selected approach | Benefit | Cost/risk | Verification\n\nProblem: `config_loader.py` used a fragile bespoke TOML parser based on naive line splitting that failed on quoted hash characters (e.g. `title = \"channel #ops\"`), inline arrays (`tags = [\"a\", \"b\"]`), and standard TOML syntax features.\nSelected approach: (1) Applied R18 (Incremental Component or Dependency Replacement) and standard-library capability selection to replace the custom parser with Python stdlib `tomllib`. (2) Preserved all caller contracts: caught `tomllib.TOMLDecodeError` and translated to `ConfigError`, and preserved the explicit boolean type validation on the `enabled` field. (3) Added thorough test cases in `tests/test_config_loader.py` covering quoted `#`, inline arrays, comments, boolean validation, and syntax errors.\nBenefit: Full TOML specification compliance without third-party dependencies, deletion of bespoke line-parsing code, and robust error translation preserving caller contracts.\nCost/risk: Minimal. `tomllib` is part of standard library (Python 3.11+), zero new external dependencies; `ConfigError` and return dictionary schema remain backward-compatible.\nVerification: Baseline pytest passed 1 test; baseline ruff had 3 pre-existing import warnings; baseline mypy passed. Intermediate test run confirmed 2 failing tests on custom parser. Final state passed all gates: pytest (6 passed in 0.04s), ruff check (0 errors), ruff format --check (2 files formatted), and mypy (no issues found in 2 source files).",
+  "loaded_references": [
+    "references/dependencies.md",
+    "references/quality-gates.md",
+    "references/refactoring-playbook.md"
+  ]
+}

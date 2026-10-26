@@ -3,6 +3,8 @@
 Use as build_probe --executable "<python> <absolute path to this file>".
 Only the staged fixture, staged plugin, temporary CLI config, system runtime and
 resolved CLI binary are mounted. Network remains available for Claude's service.
+The host disables candidate hooks, inline skill commands and plugin MCP servers;
+restricted mode confines model file tools to the staged inputs.
 This is a separate Linux runtime profile, not Windows acceptance evidence.
 """
 
@@ -115,6 +117,38 @@ def namespace_command(command: list[str], cwd: Path, plugin: Path, config: Path)
     return [*argv, "--chdir", str(cwd.resolve()), "--", str(executable), *command[1:]]
 
 
+def claude_command(executable: str, args: list[str], cwd: Path, config: Path) -> list[str]:
+    """Admit the profile, then enforce host-owned controls before any plugin loads.
+
+    Do not remove or rewrite candidate files: their measured bytes stay intact.
+    These launch controls are specific to WP04, whose model has no command tools.
+    """
+    plugin = validate_profile(args, cwd, config)
+    admitted = list(args)
+    positions = {}
+    index = 0
+    while index < len(args):
+        flag = args[index]
+        positions[flag] = index + 1
+        index += 2 if flag in VALUE_FLAGS else 1
+    settings = {"syncClaudeAiSkills": False, "disableAllHooks": True, "disableSkillShellExecution": True}
+    for flag, value in (
+        ("--settings", json.dumps(settings)),
+        ("--mcp-config", '{"mcpServers":{}}'),
+        ("--add-dir", str(plugin)),
+        ("--allowedTools", ",".join(sorted(TOOLS))),
+        ("--permission-mode", "dontAsk"),
+    ):
+        if flag in positions:
+            admitted[positions[flag]] = value
+        else:
+            admitted += [flag, value]
+    if "--strict-mcp-config" not in positions:
+        admitted.append("--strict-mcp-config")
+    admitted.append("--restricted")
+    return namespace_command([executable, *admitted], cwd, plugin, config)
+
+
 def main() -> int:
     executable = shutil.which("claude")
     if executable is None:
@@ -138,8 +172,7 @@ def main() -> int:
         if not configured:
             raise ValueError("temporary clean-room CLI config is required")
         cwd, config = Path.cwd(), Path(configured)
-        plugin = validate_profile(args, cwd, config)
-        command = namespace_command([executable, *args], cwd, plugin, config)
+        command = claude_command(executable, args, cwd, config)
         # No child credential/content output is inspected or copied here. The
         # runner owns stdout/stderr evidence and process-group cancellation.
         os.execvp(command[0], command)
