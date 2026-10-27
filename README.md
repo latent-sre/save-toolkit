@@ -86,8 +86,26 @@ The skills, by area (each `skills/<name>/SKILL.md` carries its own description a
   `ci-actions`, `database-reliability`, `eng-ladder`
 - **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`
 
-The roster's tool postures, enforcement model, and design disciplines are in
-[AGENTS.md](AGENTS.md); the repository layout and its consequences are under **Start here**.
+The enforcement model and design disciplines are in [AGENTS.md](AGENTS.md); the repository layout
+and its consequences are under **Start here**.
+
+### Tools and delegation
+
+The last column is the Claude delegation graph, validated against each agent's frontmatter by
+Gate A.
+
+| Agent | Lane | Tools posture | Delegates to |
+|---|---|---|---|
+| `software-engineer` | Code and operator tooling | Local read/write + unguarded Bash/PowerShell for team-authored code; no web tools | `reviewer`, `scribe`, `researcher` |
+| `reviewer` | Independent investigation, verification, and review | Git/PR reads, scratch writes and checks, trusted skills; no direct web tools | `repository-investigator` |
+| `repository-investigator` | Bounded checkout questions | Read/Grep/Glob only; terminal | — |
+| `reliability-engineer` | Service reliability analysis, design, and toil reduction | Local reads + design-document writes; no execution or direct external access | `repository-investigator`, `sre-assistant`, `researcher` |
+| `principal-engineer` | System design and architecture: contract changes, migrations, new-system architecture, and tool or platform selection | Local reads + design-document and proposed-ADR writes; no execution or direct external access | `repository-investigator`, `sre-assistant`, `researcher` |
+| `sre-assistant` | Bounded read-only lookup or investigation, dispatched by a human or invoking workflow | Allowlist-guarded Bash/PowerShell and bundled Grafana helper; interactive browser tools that no hook guards; recommends mitigation | `researcher` |
+| `observability-engineer` | Observability and dispatched Grafana changes | Unguarded Bash; writes config and scoped Grafana dashboards, folders, alert rules, and silences | `scribe`, `researcher` |
+| `scribe` | Evidence-bound operational documents | Local document write; no Bash or web; terminal | — |
+| `researcher` | Cited public research | External-only; no local read, Bash, Write, Skill, or Agent | — |
+| `agent-engineer` | Fleet prompts, evals, and graphs | Local read/write + Bash; no web tools | `researcher` |
 
 ## How it works
 

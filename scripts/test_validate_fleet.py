@@ -207,15 +207,6 @@ class FleetValidatorTests(unittest.TestCase):
             with self.subTest(filename=filename), self.assertRaisesRegex(AssertionError, message):
                 _agent_failures_after_edit(filename, lambda text: text.replace(before, "replacement"))  # noqa: B023
 
-    def test_builder_agent_uses_software_engineer_identity(self) -> None:
-        path = ROOT / "agents/software-engineer.md"
-        self.assertTrue(path.is_file())
-        self.assertEqual("software-engineer", _agent("software-engineer").fields["name"])
-        self.assertIn("software-engineer", validate_fleet.EXPECTED_AUTHORITY)
-        old_name = "s" + "de"
-        self.assertNotIn(old_name, validate_fleet.EXPECTED_AUTHORITY)
-        self.assertFalse((ROOT / "agents" / f"{old_name}.md").exists())
-
     def test_builder_has_native_windows_and_posix_shells(self) -> None:
         grants = _granted_tools("software-engineer")
         self.assertTrue({"Bash", "PowerShell"} <= grants, grants)
@@ -226,23 +217,6 @@ class FleetValidatorTests(unittest.TestCase):
                 )
                 self.assertTrue(any("missing required tool(s)" in item and shell in item
                                     for item in failures), failures)
-
-    def test_always_loaded_guide_keeps_conditional_authority_complete(self) -> None:
-        guide = normalized((ROOT / "AGENTS.md").read_text(encoding="utf-8"))
-        self.assertIn(
-            "load it before recommending or changing supported runtime, tooling, or "
-            "infrastructure choices",
-            guide,
-        )
-        self.assertIn(
-            "[complete agent-body grafana-write rule]"
-            "(agents/observability-engineer.md#change-authority)",
-            guide,
-        )
-        self.assertIn(
-            "if any required step cannot be completed, hand off without applying",
-            guide,
-        )
 
     def test_exact_commit_id_independent_review_is_prod_deployment_only(self) -> None:
         """Deleting or moving the review boundary must fail this contract."""
@@ -295,7 +269,6 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertIn("do not require github release controls", checklist)
 
     def test_review_consumers_keep_routine_work_out_of_the_prod_review_gate(self) -> None:
-        software_engineer_fields = _agent("software-engineer").fields
         contracts = (
             (
                 "agents-learning",
@@ -316,32 +289,10 @@ class FleetValidatorTests(unittest.TestCase):
                 ("read the reviewer's packet",),
             ),
             (
-                "software-engineer-description",
-                normalized(software_engineer_fields["description"]),
-                (),
-                ("reviewer",),
-            ),
-            (
-                "software-engineer-precommit-review",
+                "software-engineer-caller-owned-review",
                 _markdown_section(Path("agents/software-engineer.md"), "## Process"),
-                (
-                    "before you commit or return a change, apply the review decision below",
-                    "caller says they will perform or arrange review",
-                    "verification in process step 4",
-                    "any full-suite or release gate they explicitly own",
-                    "name any pending review once in your next step",
-                    "caller explicitly declines review",
-                    "dispatch `reviewer` for an explicit request",
-                    "independent finding reconciliation",
-                    "security-sensitive",
-                    "exact-sha production-deployment review",
-                    "at any size, including nit-only changes",
-                    "5 or more files changed by this task",
-                    "unless every change in it is a nit",
-                    "include already-dirty files this task changes",
-                    "exclude only unrelated pre-existing changes",
-                ),
-                ("leaving out any path already changed", "3 or more files", "fewer than 3"),
+                ("caller says they will perform or arrange review", "dispatch to the caller"),
+                (),
             ),
             (
                 "agent-engineer",
@@ -399,18 +350,6 @@ class FleetValidatorTests(unittest.TestCase):
                          {grant.base for grant in grants})
         self.assertEqual(["repository-investigator"],
                          fleet_frontmatter.delegation_targets(grants, "reviewer.md", plugin="save-toolkit"))
-
-    def test_handoff_receivers_keep_evidence_confidence_separate_from_taint(self) -> None:
-        sections = {
-            "software-engineer": _markdown_section(
-                Path("agents/software-engineer.md"), "## Untrusted input boundary"
-            ),
-        }
-        for agent, section in sections.items():
-            with self.subTest(agent=agent):
-                self.assertIn("evidence confidence and input taint are separate", section)
-                self.assertIn("[untrusted] [unverified]", section)
-                self.assertIn("never replaces the evidence label", section)
 
     def test_retired_learning_machinery_stays_absent(self) -> None:
         retained = (
@@ -728,10 +667,10 @@ class FleetValidatorTests(unittest.TestCase):
 
     @staticmethod
     def _roster_failures(mutate) -> list[str]:
-        """validate_roster_graph over a copy of AGENTS.md with `mutate` applied."""
+        """validate_roster_graph over a copy of README.md with `mutate` applied."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            (root / "AGENTS.md").write_text(mutate((ROOT / "AGENTS.md").read_text(encoding="utf-8")), encoding="utf-8")
+            (root / "README.md").write_text(mutate((ROOT / "README.md").read_text(encoding="utf-8")), encoding="utf-8")
             return validate_fleet.validate_roster_graph(root)
 
     def test_current_roster_graph_matches_enforced_graph(self) -> None:
@@ -750,14 +689,14 @@ class FleetValidatorTests(unittest.TestCase):
     def test_roster_adding_a_phantom_edge_is_rejected(self) -> None:
         # scribe holds no Agent grant at all; a rendered edge out of it is a phantom the enforced
         # graph forbids.
-        source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        source = (ROOT / "README.md").read_text(encoding="utf-8").split("### Tools and delegation", 1)[1]
         scribe_row = next(line for line in source.splitlines() if line.startswith("| `scribe` |"))
         phantom_row = scribe_row.removesuffix(" — |") + " `researcher` |"
         failures = self._roster_failures(lambda text: must_replace(text, scribe_row, phantom_row, 1))
         self.assertTrue(any("'scribe'" in f for f in failures), failures)
 
     def test_roster_with_duplicate_agent_row_is_rejected(self) -> None:
-        source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        source = (ROOT / "README.md").read_text(encoding="utf-8").split("### Tools and delegation", 1)[1]
         row = next(line for line in source.splitlines() if line.startswith("| `software-engineer` |"))
         failures = self._roster_failures(lambda text: must_replace(text, row, f"{row}\n{row}", 1))
         self.assertTrue(

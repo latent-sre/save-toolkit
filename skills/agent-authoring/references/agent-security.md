@@ -1,7 +1,7 @@
 # Agent security (prompt injection and the lethal trifecta)
 
 Report structural controls separately from prose; unprobed runtime boundaries stay `[unverified]`.
-Verify the `AGENTS.md` roster against frontmatter and guard tests; this reference does not enforce it.
+Verify the `README.md` roster against frontmatter and guard tests; this reference does not enforce it.
 
 ## The lethal trifecta, as this fleet cuts it
 

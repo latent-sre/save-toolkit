@@ -27,11 +27,15 @@ interpreter; activate that environment or use its full executable path. A bare `
 can select a different version on Windows; avoid the Store stub.
 `rg` hides generated projections through [`.ignore`](.ignore); pass `--no-ignore` to inspect them.
 
+Host-supplied MCP dependencies: `researcher` uses the host's GitHits and Context7 servers and
+`sre-assistant` the Playwright server; this plugin declares none of them. Grants name exact tools,
+so a server-side rename silently drops the tool — re-verify those grants after MCP upgrades.
+
 ### Changing a delegation or handoff edge
 
 A model-call edge `A → B` is the `Agent(save-toolkit:B)` grant in `agents/A.md`. Its one source is
 that grant, pinned by `EXPECTED_DELEGATION` in `scripts/validate_fleet.py` and rendered as the
-"Delegates to" column of the `AGENTS.md` roster; never re-tabulate edges elsewhere. Change all
+"Delegates to" column of the `README.md` roster; never re-tabulate edges elsewhere. Change all
 three in one commit, regenerate, then run Gate A: the source check, the roster render check, and
 the byte-for-byte adapter gate (Copilot `agents:`) must all pass.
 
@@ -39,6 +43,11 @@ A VS Code handoff edge is separate and never alters an `Agent(...)` grant. Edit
 `COPILOT_HANDOFFS_BY_SOURCE` in `scripts/generate_platform_adapters.py`, update the exact
 source-target and authority assertions in `scripts/test_platform_adapters.py`, regenerate, and run
 those tests and Gate A. Keep `researcher` call-only and every handoff `send: true`.
+
+Agent bodies are the runtime copy of the `AGENTS.md` handoff contract; `AGENTS.md` reaches only
+sessions in this repository. Each delegating agent keeps a short handoff core. Add a generic handoff
+rule to a body only when a handoff build probe in `evals/build-scenarios/` shows the agent failing
+without that rule; otherwise the rule costs every run context and changes nothing.
 
 ### Read-only guard scoping
 
@@ -212,6 +221,10 @@ git diff origin/main...HEAD --stat
 git diff origin/main...HEAD
 git log origin/main..HEAD --oneline
 ```
+
+Add one `CHANGELOG.md` entry per change under `[Unreleased]`, at most two lines saying what changed
+for someone using the fleet; measurements, test counts, and byte deltas belong in the pull request
+or a `docs/reviews/` record. Keep the last two releases and drop older ones, which Git retains.
 
 Confirm the diff and commit list hold only the intended work. `main` takes pull requests only;
 Save Toolkit maintainers merge. Production deployment of new bytes is a separate, exact-candidate
