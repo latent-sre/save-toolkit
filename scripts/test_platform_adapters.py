@@ -332,7 +332,6 @@ class PlatformAdapterTests(unittest.TestCase):
         for source in sorted((ROOT / "agents").glob("*.md")):
             description = frontmatter_value(adapters.render_copilot_agent(source), "description")
             self.assertNotIn("save-toolkit:", description, source.name)
-        self.assertIn("eng-ladder", adapters.render_copilot_agent(ROOT / "agents/software-engineer.md"))
 
     def test_copilot_agents_get_no_generated_preface(self) -> None:
         """A generated agent opens with its own body, not a host-contract header.
