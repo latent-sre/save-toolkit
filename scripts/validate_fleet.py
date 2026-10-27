@@ -154,7 +154,7 @@ EXPECTED_AUTHORITY = {
         "forbidden": EXTERNAL_EVIDENCE_TOOLS,
     },
 }
-# The enforced delegation graph; validate_roster_graph binds AGENTS.md's roster table to it.
+# The enforced delegation graph; validate_roster_graph binds README.md's roster table to it.
 EXPECTED_DELEGATION = {
     "reliability-engineer": {"repository-investigator", "sre-assistant", "researcher"},
     "principal-engineer": {"repository-investigator", "sre-assistant", "researcher"},
@@ -397,11 +397,11 @@ def validate_guard_wiring(root: Path, agent_names: list[str]) -> list[str]:
 
 
 def validate_roster_graph(root: Path) -> list[str]:
-    """Bind the AGENTS.md roster 'Delegates to' column to the enforced delegation graph.
+    """Bind the README.md roster 'Delegates to' column to the enforced delegation graph.
 
     The fleet's delegation graph has exactly one enforced SOURCE — each agent's `Agent(...)` grant
     in frontmatter, checked against EXPECTED_DELEGATION in validate_agents — and one human-readable
-    RENDER: the "Delegates to" column of the roster table in AGENTS.md. Nothing kept the render
+    RENDER: the "Delegates to" column of the roster table in README.md. Nothing kept the render
     honest until here. An edge added to (or dropped from) an agent's frontmatter, or a new agent,
     could leave the roster describing a graph the fleet no longer has — the repo's signature
     silent-drift failure, one table further out from the code. This turns the render into a
@@ -410,7 +410,7 @@ def validate_roster_graph(root: Path) -> list[str]:
     It parses only the LAST cell of each roster row for edges, so backticked tool names in the
     "Tools posture" cell (`Read`, `cf`, `git`) can never be misread as delegation targets.
     """
-    path = root / "AGENTS.md"
+    path = root / "README.md"
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except OSError as exc:

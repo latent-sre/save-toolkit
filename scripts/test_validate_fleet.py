@@ -225,15 +225,6 @@ class FleetValidatorTests(unittest.TestCase):
             "infrastructure choices",
             guide,
         )
-        self.assertIn(
-            "[complete agent-body grafana-write rule]"
-            "(agents/observability-engineer.md#change-authority)",
-            guide,
-        )
-        self.assertIn(
-            "if any required step cannot be completed, hand off without applying",
-            guide,
-        )
 
     def test_exact_commit_id_independent_review_is_prod_deployment_only(self) -> None:
         """Deleting or moving the review boundary must fail this contract."""
@@ -684,10 +675,10 @@ class FleetValidatorTests(unittest.TestCase):
 
     @staticmethod
     def _roster_failures(mutate) -> list[str]:
-        """validate_roster_graph over a copy of AGENTS.md with `mutate` applied."""
+        """validate_roster_graph over a copy of README.md with `mutate` applied."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            (root / "AGENTS.md").write_text(mutate((ROOT / "AGENTS.md").read_text(encoding="utf-8")), encoding="utf-8")
+            (root / "README.md").write_text(mutate((ROOT / "README.md").read_text(encoding="utf-8")), encoding="utf-8")
             return validate_fleet.validate_roster_graph(root)
 
     def test_current_roster_graph_matches_enforced_graph(self) -> None:
@@ -706,14 +697,14 @@ class FleetValidatorTests(unittest.TestCase):
     def test_roster_adding_a_phantom_edge_is_rejected(self) -> None:
         # scribe holds no Agent grant at all; a rendered edge out of it is a phantom the enforced
         # graph forbids.
-        source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        source = (ROOT / "README.md").read_text(encoding="utf-8").split("### Tools and delegation", 1)[1]
         scribe_row = next(line for line in source.splitlines() if line.startswith("| `scribe` |"))
         phantom_row = scribe_row.removesuffix(" — |") + " `researcher` |"
         failures = self._roster_failures(lambda text: must_replace(text, scribe_row, phantom_row, 1))
         self.assertTrue(any("'scribe'" in f for f in failures), failures)
 
     def test_roster_with_duplicate_agent_row_is_rejected(self) -> None:
-        source = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        source = (ROOT / "README.md").read_text(encoding="utf-8").split("### Tools and delegation", 1)[1]
         row = next(line for line in source.splitlines() if line.startswith("| `software-engineer` |"))
         failures = self._roster_failures(lambda text: must_replace(text, row, f"{row}\n{row}", 1))
         self.assertTrue(

@@ -26,7 +26,7 @@ VS Code loads agent `.md` files from `.github/agents/` in a workspace and from
 | `infer` | **Retired** — replaced by `user-invocable` and `disable-model-invocation`. Never emit |
 
 Claude grants use full plugin names (`Agent(save-toolkit:reviewer)`); the generator projects the
-same targets to bare Copilot names, removing only this plugin's namespace without widening the target set. The `AGENTS.md` roster owns the edge list.
+same targets to bare Copilot names, removing only this plugin's namespace without widening the target set. The `README.md` roster owns the edge list.
 
 ## Handoff entries
 
