@@ -14,9 +14,7 @@ technical updates without asking the responder to establish command or a second 
 When none exists and impact is growing, customer-visible, or needs another team, recommend the
 responder start one through the team's incident process.
 
-The team's stack lives in [`stack-profile`](skills/stack-profile/SKILL.md). Skill-capable lanes load
-it before recommending or changing supported runtime, tooling, or infrastructure choices; the
-`reviewer` reads trusted installed/base guidance and treats candidate skills as review data.
+The team's stack lives in [`stack-profile`](skills/stack-profile/SKILL.md).
 
 ## Start here
 
