@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "reliability-and-toil",
+  "summary": "Reliability advice, recovery evidence and toil economics",
+  "tests": [
+    "evals/test_reliability_cases.py",
+    "scripts/test_error_budget.py",
+    "scripts/test_reliability_contract.py"
+  ],
+  "native_scenarios": [
+    "agent-direct-reliability-engineer-deadline-controls",
+    "agent-direct-reliability-engineer-recovery-evidence",
+    "agent-direct-reliability-engineer-resumes-after-helper-return",
+    "agent-direct-reliability-engineer-toil-duplicate-records",
+    "agent-direct-reliability-engineer-toil-interview",
+    "agent-direct-reliability-engineer-toil-interview-answers",
+    "agent-direct-reliability-engineer-toil-interview-pruning",
+    "agent-direct-reliability-engineer-toil-interview-questions",
+    "agent-direct-reliability-engineer-toil-negative",
+    "agent-direct-reliability-engineer-toil-positive",
+    "agent-direct-reliability-engineer-toil-unknown-baseline",
+    "agent-direct-reliability-engineer-toil-zero-savings",
+    "build-reliability-engineer-doc-boundary",
+    "build-reliability-engineer-proportionate-options",
+    "build-reliability-engineer-redelivery",
+    "build-reliability-engineer-resumes-after-partial-helper",
+    "build-sre-assistant-redelivery-baseline",
+    "discovery-reliability-defers-accepted-implementation",
+    "discovery-reliability-defers-active-incident",
+    "discovery-reliability-defers-change-review",
+    "discovery-reliability-defers-observability",
+    "discovery-reliability-defers-root-cause",
+    "discovery-reliability-defers-service-lifecycle",
+    "discovery-reliability-defers-small-toil-arithmetic",
+    "discovery-reliability-engineer-assessment",
+    "discovery-reliability-toil-assessment",
+    "discovery-resilience-analysis",
+    "discovery-toil-reduction",
+    "native-reliability-helper-return-and-resume"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

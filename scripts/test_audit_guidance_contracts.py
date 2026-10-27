@@ -47,7 +47,7 @@ def test_pubsub_age_contract_rejects_successful_cohort_as_failure_proof() -> Non
 
 
 def test_reliability_eval_guide_defers_live_status_to_roadmap() -> None:
-    guide = text('evals/README.md')
+    guide = text('evals/docs/case-guides.md')
     assert '`RELIABILITY-001` is deferred' not in guide
     assert 'this guide does not duplicate its live status' in guide
-    assert '../docs/fleet-roadmap.md#reliability-001--measure-the-timing-repair-on-claude-then-decide-on-the-reliability-lane' in guide
+    assert '../../docs/fleet-roadmap.md#reliability-001--measure-the-timing-repair-on-claude-then-decide-on-the-reliability-lane' in guide

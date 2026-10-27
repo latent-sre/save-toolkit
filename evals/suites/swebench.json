@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "id": "swebench",
+  "summary": "SWE-bench adapter controls and existing campaign references",
+  "tests": [
+    "evals/test_swebench_artifacts.py",
+    "evals/test_swebench_cli.py",
+    "evals/test_swebench_complex_selection.py",
+    "evals/test_swebench_configuration.py",
+    "evals/test_swebench_containers.py",
+    "evals/test_swebench_limits.py",
+    "evals/test_swebench_proxy.py",
+    "evals/test_swebench_runner.py",
+    "evals/test_swebench_sdk.py",
+    "evals/test_swebench_selection.py",
+    "evals/test_swebench_smoke.py",
+    "evals/test_swebench_smoke_runtime.py",
+    "evals/test_swebench_verifier.py"
+  ],
+  "native_scenarios": [],
+  "campaigns": [
+    {
+      "id": "swebench-complex",
+      "entrypoint": "evals/swebench_repair.py",
+      "selection": "evals/manifests/wp08-complex-proposal.json",
+      "guide": "docs/fleet-evaluation/wp08-operator.md"
+    }
+  ],
+  "guides": [
+    "docs/fleet-evaluation/wp08-operator.md"
+  ]
+}

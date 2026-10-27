@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "muse",
+  "summary": "Muse adapter controls; separate baseline with native parity limits",
+  "tests": [
+    "evals/test_muse_probe.py"
+  ],
+  "native_scenarios": [],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md",
+    "evals/docs/running.md"
+  ]
+}

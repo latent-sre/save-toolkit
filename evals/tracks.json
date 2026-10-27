@@ -1,0 +1,399 @@
+{
+  "schema_version": 1,
+  "tracks": [
+    {
+      "id": "aiopslab",
+      "summary": "Later environment extension; needs a distinct approved incident family",
+      "kind": "benchmark",
+      "implementation": "planned",
+      "entrypoints": [],
+      "suites": [],
+      "guides": [
+        "docs/fleet-evaluation/integrations.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "coder-eval",
+      "summary": "Deferred custom-runner adoption experiment; no installed fleet integration",
+      "kind": "runner",
+      "implementation": "planned",
+      "entrypoints": [],
+      "suites": [],
+      "guides": [
+        "docs/fleet-evaluation/coder-eval.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "codex",
+      "summary": "Structured artifact/scoped-query profiles, not native routing or hooks",
+      "kind": "runner",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/codex_probe.py"
+      ],
+      "suites": [
+        "codex"
+      ],
+      "guides": [
+        "evals/docs/running.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "comparison-presentation",
+      "summary": "Deferred presentation/import choice; current local reports already work",
+      "kind": "tooling",
+      "implementation": "planned",
+      "entrypoints": [],
+      "suites": [],
+      "guides": [
+        "docs/fleet-evaluation/integrations.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "gcp-live",
+      "summary": "Planned live cloud exercises; synthetic GCP cases do not establish cloud effects",
+      "kind": "benchmark",
+      "implementation": "planned",
+      "entrypoints": [],
+      "suites": [],
+      "guides": [
+        "docs/fleet-evaluation/gcp.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "graph-sandbox",
+      "summary": "Independent offline graph/effect-recovery lab; separate dependencies and activation",
+      "kind": "sandbox",
+      "implementation": "present",
+      "entrypoints": [
+        "sandbox/graph-sandbox/activate.py"
+      ],
+      "suites": [],
+      "guides": [
+        "sandbox/graph-sandbox/AGENTS.md",
+        "sandbox/graph-sandbox/contract.md"
+      ]
+    },
+    {
+      "id": "harbor",
+      "summary": "Selected Terminal-Bench tasks through the Harbor adapter",
+      "kind": "benchmark",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/harbor_pilot.py"
+      ],
+      "suites": [
+        "harbor"
+      ],
+      "guides": [
+        "docs/fleet-evaluation/wp09-terminal-runplan.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "inspect",
+      "summary": "Artifact-only word-frequency pilot using Inspect AI/SWE",
+      "kind": "runner",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/inspect_pilot.py"
+      ],
+      "suites": [
+        "inspect"
+      ],
+      "guides": [
+        "evals/docs/running.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "interop-sandbox",
+      "summary": "Independent AutoGen/A2A interoperability and recovery lab",
+      "kind": "sandbox",
+      "implementation": "present",
+      "entrypoints": [
+        "sandbox/autogen-a2a-sandbox/activate.py"
+      ],
+      "suites": [],
+      "guides": [
+        "sandbox/autogen-a2a-sandbox/AGENTS.md",
+        "sandbox/autogen-a2a-sandbox/contract.md"
+      ]
+    },
+    {
+      "id": "itbench",
+      "summary": "Fixed-evidence incident diagnosis adapter and reviewed source bindings",
+      "kind": "benchmark",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/itbench_pilot.py",
+        "evals/wp04_linux_cli.py"
+      ],
+      "suites": [
+        "itbench"
+      ],
+      "guides": [
+        "docs/fleet-evaluation/wp04-operator-runplan.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "judge-comparison",
+      "summary": "Deferred incumbent/Inspect/Pydantic comparison under EVAL-015; no new judge family selected",
+      "kind": "judge",
+      "implementation": "planned",
+      "entrypoints": [],
+      "suites": [],
+      "guides": [
+        "docs/fleet-roadmap.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "multi-model",
+      "summary": "Prepare and account for explicit model/profile comparisons; does not execute runners",
+      "kind": "tooling",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/testing_block.py"
+      ],
+      "suites": [
+        "multi-model"
+      ],
+      "guides": [
+        "docs/fleet-evaluation/multi-model-testing.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "muse",
+      "summary": "Separate host baseline; unsupported native evidence remains inconclusive",
+      "kind": "runner",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/muse_probe.py"
+      ],
+      "suites": [
+        "muse"
+      ],
+      "guides": [
+        "evals/docs/running.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "native",
+      "summary": "Native Claude routing, contracts, builds and conversations; live admission remains separate",
+      "kind": "runner",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/build_probe.py"
+      ],
+      "suites": [
+        "adversarial",
+        "api-craft",
+        "engineering-design",
+        "fleet-structure",
+        "frontend-craft",
+        "gcp-investigation",
+        "go-craft",
+        "grafana",
+        "incident-conversations",
+        "incident-investigation",
+        "observability-alerting",
+        "observability-analysis",
+        "observability-pipeline",
+        "operational-docs",
+        "operator-tooling",
+        "pager-webhook",
+        "platform-operations",
+        "python-craft",
+        "python-engineering",
+        "release-and-ci",
+        "reliability-and-toil",
+        "research-and-review",
+        "routing-and-handoffs",
+        "software-engineering",
+        "sre-investigation"
+      ],
+      "guides": [
+        "evals/docs/running.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "native-judge",
+      "summary": "Existing rubric corpus and calibration; offline controls do not establish judge accuracy",
+      "kind": "judge",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/judge.py"
+      ],
+      "suites": [
+        "adversarial",
+        "eval-harness"
+      ],
+      "guides": [
+        "evals/docs/authoring.md"
+      ]
+    },
+    {
+      "id": "offline-tests",
+      "summary": "Repository pytest checks; independent sandboxes retain their own collection",
+      "kind": "tooling",
+      "implementation": "present",
+      "entrypoints": [
+        "scripts/local_tests.py"
+      ],
+      "suites": [
+        "adversarial",
+        "api-craft",
+        "codex",
+        "engineering-design",
+        "eval-harness",
+        "fleet-structure",
+        "frontend-craft",
+        "gcp-investigation",
+        "go-craft",
+        "grafana",
+        "harbor",
+        "incident-conversations",
+        "incident-investigation",
+        "inspect",
+        "itbench",
+        "multi-model",
+        "muse",
+        "observability-alerting",
+        "observability-analysis",
+        "observability-pipeline",
+        "operational-docs",
+        "operator-tooling",
+        "pager-webhook",
+        "platform-operations",
+        "python-craft",
+        "python-engineering",
+        "readonly-guard",
+        "release-and-ci",
+        "reliability-and-toil",
+        "research-and-review",
+        "routing-and-handoffs",
+        "software-engineering",
+        "sre-investigation",
+        "swebench",
+        "swt"
+      ],
+      "guides": [
+        "CONTRIBUTING.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "principal-judgment",
+      "summary": "Inactive full-context semantic design proposal; not in the native catalog",
+      "kind": "proposal",
+      "implementation": "proposal",
+      "entrypoints": [],
+      "suites": [
+        "engineering-design"
+      ],
+      "guides": [
+        "evals/proposals/principal-judgment/README.md"
+      ]
+    },
+    {
+      "id": "reports",
+      "summary": "Read saved records, compare labels, and inspect recorded turns; never schedule trials",
+      "kind": "tooling",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/campaign_report.py",
+        "evals/compare_runs.py",
+        "evals/turn_counts.py"
+      ],
+      "suites": [
+        "eval-harness"
+      ],
+      "guides": [
+        "docs/fleet-evaluation/campaign-report.md"
+      ]
+    },
+    {
+      "id": "sregym",
+      "summary": "Planned live diagnosis/recovery lab; no repository adapter entrypoint",
+      "kind": "benchmark",
+      "implementation": "planned",
+      "entrypoints": [],
+      "suites": [],
+      "guides": [
+        "docs/fleet-evaluation/integrations.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "structural",
+      "summary": "Dependency-free fleet structure and projection checks",
+      "kind": "tooling",
+      "implementation": "present",
+      "entrypoints": [
+        "scripts/gate_a.py"
+      ],
+      "suites": [
+        "fleet-structure"
+      ],
+      "guides": [
+        "CONTRIBUTING.md"
+      ]
+    },
+    {
+      "id": "swebench",
+      "summary": "Repository bug repair through admitted static authoring and independent verification",
+      "kind": "benchmark",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/swebench_repair.py"
+      ],
+      "suites": [
+        "swebench"
+      ],
+      "guides": [
+        "docs/fleet-evaluation/wp08-operator.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "swt",
+      "summary": "Bug reproduction/test generation with buggy-versus-repaired verification",
+      "kind": "benchmark",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/swt_pilot.py"
+      ],
+      "suites": [
+        "swt"
+      ],
+      "guides": [
+        "docs/fleet-evaluation/wp09-swt-run-plan.md",
+        "evals/docs/coverage.md"
+      ]
+    },
+    {
+      "id": "workflow-graph-authoring",
+      "summary": "Dormant skill proposal; existing service-graph routing stays with principal-engineer",
+      "kind": "proposal",
+      "implementation": "proposal",
+      "entrypoints": [],
+      "suites": [
+        "fleet-structure"
+      ],
+      "guides": [
+        "sandbox/workflow-graph-engineering/SKILL.md",
+        "docs/fleet-roadmap.md"
+      ]
+    }
+  ]
+}

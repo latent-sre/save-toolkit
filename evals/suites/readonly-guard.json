@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "id": "readonly-guard",
+  "summary": "Read-only command guard and hook boundaries",
+  "tests": [
+    "scripts/test_cross_platform_reads.py",
+    "scripts/test_gcloud_config_guard.py",
+    "scripts/test_grafana_helper_guard.py",
+    "scripts/test_hook_wiring.py",
+    "scripts/test_readonly_guard.py"
+  ],
+  "native_scenarios": [],
+  "campaigns": [],
+  "guides": [
+    "CONTRIBUTING.md"
+  ]
+}

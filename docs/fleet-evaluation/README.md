@@ -50,6 +50,12 @@ results remain separate.
 | [Operations](operations.md) | Proposed operator workflow, lab lifecycle, costs, data and recovery |
 | [Sources and baseline](sources.md) | Checked repository evidence, upstream provenance and limits |
 
+The [test and evaluation discovery design](discovery-and-selection-design.md) adds a catalog,
+explicit suites, and frozen native selections over the existing tools. The owner authorized its
+implementation; it remains separate from campaign admission and exact-candidate acceptance.
+The [capability and track map](../../evals/docs/coverage.md) shows existing suite coverage, source
+limits, and useful additional evaluations; the catalog's `coverage` command reports current membership.
+
 ## What is decided and what remains proposed
 
 | Scope choice | Disposition |

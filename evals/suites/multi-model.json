@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "multi-model",
+  "summary": "Four-model command preparation, unsupported-profile accounting and saved-result comparison",
+  "tests": [
+    "evals/test_testing_block.py"
+  ],
+  "native_scenarios": [],
+  "campaigns": [
+    {
+      "id": "four-model-smoke",
+      "entrypoint": "evals/testing_block.py",
+      "selection": "evals/manifests/multi-model-testing.json",
+      "guide": "docs/fleet-evaluation/multi-model-testing.md"
+    },
+    {
+      "id": "wp10-model-comparison",
+      "entrypoint": "evals/testing_block.py",
+      "selection": "evals/manifests/wp10-model-testing.json",
+      "guide": "docs/fleet-evaluation/multi-model-testing.md"
+    }
+  ],
+  "guides": [
+    "docs/fleet-evaluation/multi-model-testing.md",
+    "evals/docs/coverage.md"
+  ]
+}

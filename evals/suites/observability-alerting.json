@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "observability-alerting",
+  "summary": "Alert semantics, SLO/error-budget reasoning and paging boundaries",
+  "tests": [
+    "evals/test_obs_alerting_cases.py",
+    "scripts/test_error_budget.py",
+    "scripts/test_grafana_alert_preview.py"
+  ],
+  "native_scenarios": [
+    "discovery-obs-alerting-defers-signal-query",
+    "discovery-obs-alerting-splunk-saved-search",
+    "obs-alerting-moogsoft-noise-freegen-contract",
+    "obs-alerting-splunk-freegen-contract",
+    "obs-alerting-thousandeyes-reading-freegen-contract"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

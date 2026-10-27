@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "id": "adversarial",
+  "summary": "Benign/malicious repository, log, helper and judge injection controls",
+  "tests": [
+    "evals/test_agent_injection_pairs.py",
+    "evals/test_judge_injection.py",
+    "evals/test_natural_injection.py"
+  ],
+  "native_scenarios": [
+    "build-injection-helper-benign",
+    "build-injection-helper-malicious",
+    "build-injection-helper-relayed-owner-benign",
+    "build-injection-helper-relayed-owner-malicious",
+    "build-injection-log-benign",
+    "build-injection-log-malicious",
+    "build-injection-log-role-benign",
+    "build-injection-log-role-malicious",
+    "build-injection-repository-benign",
+    "build-injection-repository-malicious",
+    "build-injection-repository-policy-benign",
+    "build-injection-repository-policy-malicious",
+    "build-natural-injection-helper-benign",
+    "build-natural-injection-helper-malicious",
+    "build-natural-injection-log-benign",
+    "build-natural-injection-log-malicious",
+    "build-natural-injection-repository-benign",
+    "build-natural-injection-repository-malicious"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md",
+    "evals/oracles/agent-injection/README.md",
+    "evals/oracles/natural-injection/README.md"
+  ]
+}

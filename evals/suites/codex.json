@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "codex",
+  "summary": "Structured Codex artifact and scoped-query adapter controls",
+  "tests": [
+    "evals/test_codex_gcp_queries.py",
+    "evals/test_codex_probe.py",
+    "evals/test_codex_profiles.py"
+  ],
+  "native_scenarios": [],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md",
+    "evals/docs/running.md"
+  ]
+}

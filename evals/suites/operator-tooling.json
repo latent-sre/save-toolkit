@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "operator-tooling",
+  "summary": "Operator CLI safety and useful local tool outcomes",
+  "tests": [
+    "evals/test_operator_cli_oracle.py"
+  ],
+  "native_scenarios": [
+    "build-operator-cli-safe-requeue",
+    "build-software-engineer-live-log-tail",
+    "discovery-operator-cli-defers-running-in-prod",
+    "discovery-operator-cli-unattended-script"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "research-and-review",
+  "summary": "Research/investigator evidence boundaries and independent scratch review",
+  "tests": [
+    "evals/test_researcher_scribe_cases.py",
+    "evals/test_reviewer_cases.py",
+    "evals/test_wider_fleet_cases.py"
+  ],
+  "native_scenarios": [
+    "agent-direct-researcher-source-authenticity",
+    "agent-direct-reviewer-permits-established-verification",
+    "build-repository-investigator-denied-shell-canary",
+    "build-repository-investigator-missing-runtime",
+    "build-repository-investigator-source",
+    "build-researcher-missing-source",
+    "build-researcher-partial-research",
+    "build-researcher-public-source",
+    "build-researcher-rejects-private-input",
+    "build-reviewer-accepts-compatible-refactor",
+    "build-reviewer-approves-clean-change",
+    "build-reviewer-executes-nothing",
+    "build-reviewer-finds-cross-tenant-read",
+    "build-reviewer-follows-unchanged-caller",
+    "build-reviewer-rejects-candidate-runner",
+    "build-reviewer-reopens-helper-claims",
+    "build-reviewer-reproduces-in-scratch",
+    "build-reviewer-reviews-uncommitted-after-terse-handoff",
+    "build-reviewer-reviews-uncommitted-work",
+    "discovery-researcher-extended-public-comparison",
+    "discovery-researcher-quick-public-lookup"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

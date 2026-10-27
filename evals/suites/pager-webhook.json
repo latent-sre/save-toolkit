@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "pager-webhook",
+  "summary": "Webhook signature, durability, redelivery, enrichment and mutation controls",
+  "tests": [
+    "evals/test_pager_webhook_mutants.py",
+    "evals/test_pager_webhook_mutants_durable.py",
+    "evals/test_pager_webhook_mutants_redelivery.py",
+    "evals/test_pager_webhook_oracle.py"
+  ],
+  "native_scenarios": [
+    "build-software-engineer-pager-webhook"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

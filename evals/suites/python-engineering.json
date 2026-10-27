@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "python-engineering",
+  "summary": "Python engineering skill structure, routing, oracle controls and saved artifact comparisons",
+  "tests": [
+    "evals/test_python_engineering_skill.py"
+  ],
+  "native_scenarios": [
+    "discovery-python-engineering-defers-go-service",
+    "discovery-python-engineering-defers-live-incident",
+    "discovery-python-engineering-modernize",
+    "discovery-python-engineering-new-component"
+  ],
+  "campaigns": [],
+  "guides": [
+    "eval-runs/python-engineering/README.md",
+    "evals/oracles/python-engineering/evaluate_cases.py",
+    "eval-runs/python-engineering/rescore-20261026.json"
+  ]
+}

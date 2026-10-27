@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "itbench",
+  "summary": "ITBench fixed-evidence incident adapter and bindings",
+  "tests": [
+    "evals/test_itbench_adapter.py",
+    "evals/test_itbench_bindings.py",
+    "evals/test_itbench_cli.py",
+    "evals/test_itbench_native.py",
+    "evals/test_wp04_linux_cli.py"
+  ],
+  "native_scenarios": [],
+  "campaigns": [
+    {
+      "id": "itbench-five",
+      "entrypoint": "evals/itbench_pilot.py",
+      "selection": "evals/manifests/wp04-itbench-five.json",
+      "guide": "docs/fleet-evaluation/wp04-operator-runplan.md"
+    }
+  ],
+  "guides": [
+    "docs/fleet-evaluation/wp04-operator-runplan.md",
+    "evals/docs/coverage.md"
+  ]
+}

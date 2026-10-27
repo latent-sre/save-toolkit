@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "engineering-design",
+  "summary": "Principal design judgments, incumbent pairs and inactive semantic proposal controls",
+  "tests": [
+    "evals/test_principal_cases.py",
+    "evals/test_principal_heldout.py",
+    "evals/test_principal_judgment.py",
+    "scripts/test_principal_contract.py"
+  ],
+  "native_scenarios": [
+    "build-principal-engineer-contract-change",
+    "build-principal-engineer-live-store-cutover",
+    "build-principal-engineer-new-system",
+    "build-principal-engineer-order-event-identity",
+    "build-principal-engineer-platform-selection",
+    "build-software-engineer-contract-change-baseline",
+    "build-software-engineer-live-store-cutover",
+    "build-software-engineer-new-system-baseline",
+    "build-software-engineer-order-event-identity-baseline",
+    "discovery-principal-engineer-defers-agent-workflow",
+    "discovery-principal-engineer-defers-design-review",
+    "discovery-principal-engineer-defers-reliability-assessment",
+    "discovery-principal-engineer-defers-small-tool-build",
+    "discovery-principal-engineer-new-service-design",
+    "discovery-principal-engineer-platform-selection",
+    "discovery-principal-engineer-returned-fork",
+    "discovery-principal-engineer-service-workflow-graph",
+    "eng-ladder-altitude-boundaries",
+    "eng-ladder-assessment-remit",
+    "eng-ladder-design-only-authority",
+    "eng-ladder-principal-preserves-writes-in-recovery"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

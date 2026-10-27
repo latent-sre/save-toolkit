@@ -87,6 +87,7 @@ LIVE_DOC_ROOTS = (
 LIVE_DOC_DIR_GLOBS = (
     ("docs", "*.md"),
     ("docs/reviews", "*.md"),
+    ("evals/docs", "*.md"),
 )
 
 

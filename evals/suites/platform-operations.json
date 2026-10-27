@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "platform-operations",
+  "summary": "PCF, database, edge and stack-boundary routing; mostly supplied-state coverage",
+  "tests": [
+    "scripts/test_pcf_resize_contract.py",
+    "scripts/test_skill_assets.py"
+  ],
+  "native_scenarios": [
+    "discovery-akamai-edge-defers-backend-log-query",
+    "discovery-akamai-edge-reference-error",
+    "discovery-database-reliability-blocking-query",
+    "discovery-database-reliability-defers-app-crash",
+    "discovery-pcf-ops-app-crash",
+    "discovery-pcf-ops-defers-foundation-repair",
+    "discovery-runtime-boundary",
+    "stack-profile-broad-inventory-loading",
+    "stack-profile-copilot-selection-loading",
+    "stack-profile-structured-classification"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

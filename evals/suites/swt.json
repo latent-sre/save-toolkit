@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "swt",
+  "summary": "SWT bug reproduction/test-generation adapter and verifier controls",
+  "tests": [
+    "evals/test_swt_adapter.py",
+    "evals/test_swt_runner.py",
+    "evals/test_swt_smoke.py",
+    "evals/test_swt_verifier.py"
+  ],
+  "native_scenarios": [],
+  "campaigns": [
+    {
+      "id": "swt-five",
+      "entrypoint": "evals/swt_pilot.py",
+      "selection": "evals/manifests/wp09-swt-five.json",
+      "guide": "docs/fleet-evaluation/wp09-swt-run-plan.md"
+    }
+  ],
+  "guides": [
+    "docs/fleet-evaluation/wp09-swt-run-plan.md",
+    "evals/docs/coverage.md"
+  ]
+}

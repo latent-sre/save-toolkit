@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "frontend-craft",
+  "summary": "Application UI artifacts and optional page/console rendering controls",
+  "tests": [
+    "evals/test_incidents_console_oracle.py",
+    "evals/test_incidents_page_oracle.py",
+    "evals/test_maintenance_banner_oracle.py",
+    "scripts/test_frontend_craft_assets.py"
+  ],
+  "native_scenarios": [
+    "build-software-engineer-incidents-console",
+    "build-software-engineer-incidents-page",
+    "build-software-engineer-status-front-page",
+    "discovery-frontend-craft-defers-observability-dashboard",
+    "discovery-frontend-craft-weighs-mantine-in-tailwind-app",
+    "frontend-craft-scopes-existing-app-verification"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/docs/coverage.md"
+  ]
+}

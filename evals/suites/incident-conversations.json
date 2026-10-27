@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "incident-conversations",
+  "summary": "Synthetic incident profiles and continuity controls; case acceptance remains separate",
+  "tests": [
+    "evals/test_incident_conversations.py",
+    "evals/test_native_readiness_cases.py"
+  ],
+  "native_scenarios": [
+    "incident-session-01-a",
+    "incident-session-01-a-branch",
+    "incident-session-01-b",
+    "incident-session-01-b-branch",
+    "incident-session-02-a",
+    "incident-session-02-b",
+    "incident-session-03-a",
+    "incident-session-03-a-branch",
+    "incident-session-03-b",
+    "incident-session-03-b-branch",
+    "incident-session-04-a",
+    "incident-session-04-b",
+    "incident-session-05-a",
+    "incident-session-05-b",
+    "incident-session-06-a",
+    "incident-session-06-b",
+    "incident-session-worked-real-helper",
+    "incident-session-worked-six"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/incident-conversations/README.md"
+  ]
+}
