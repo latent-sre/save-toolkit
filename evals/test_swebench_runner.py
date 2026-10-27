@@ -168,7 +168,7 @@ def setup(tmp_path, monkeypatch):
                        ("scripts/readonly-guard-hook.sh", "#!/bin/sh\nexit 42\n")):
         path = plugin / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text)
+        path.write_text(text, newline="\n")
     subprocess.run(["git", "init", "-q", str(plugin)], check=True)
     subprocess.run(["git", "-C", str(plugin), "add", "."], check=True)
     subprocess.run(["git", "-C", str(plugin), "-c", "user.name=Offline Fixture",

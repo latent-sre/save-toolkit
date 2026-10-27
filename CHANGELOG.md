@@ -32,6 +32,11 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - Five completed review packets that only the old changelog entries cited; Git keeps them at
   `562a654b`.
 
+### Fixed
+
+- The SWE-bench runner tests write their fixture scripts with LF line endings, so the runner no
+  longer rejects them on Windows hosts.
+
 ## [0.51.4] - 2026-10-23
 
 ### Changed
