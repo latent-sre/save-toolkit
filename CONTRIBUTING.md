@@ -222,6 +222,10 @@ git diff origin/main...HEAD
 git log origin/main..HEAD --oneline
 ```
 
+Add one `CHANGELOG.md` entry per change under `[Unreleased]`, at most two lines saying what changed
+for someone using the fleet; measurements, test counts, and byte deltas belong in the pull request
+or a `docs/reviews/` record. Keep the last two releases and drop older ones, which Git retains.
+
 Confirm the diff and commit list hold only the intended work. `main` takes pull requests only;
 Save Toolkit maintainers merge. Production deployment of new bytes is a separate, exact-candidate
 decision under

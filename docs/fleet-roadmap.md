@@ -182,8 +182,8 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   [Integrated preparation evidence](reviews/2026-10-25-complex-campaign-preparation.md) records the
   offline controls and repaired review findings. These are preparation milestones, not accepted
   benchmark outcomes; exact-case acceptance and live gates remain open.
-- WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md) and its
-  [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
+- WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md), its
+  [case acceptance](reviews/2026-10-10-wp10-case-acceptance.md), and its [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
   [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
   exact quotation, the reliability exception-path explanation and GCP-01 B's factual findings open.
   The [current four-model continuation](reviews/2026-10-25-wp10-continuation.md) completed
