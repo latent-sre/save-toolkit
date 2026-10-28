@@ -499,9 +499,6 @@ class FleetValidatorTests(unittest.TestCase):
             Path("agents/observability-engineer.md"): (
                 "`git rev-parse --short=8 head` output on the `verified:` line",
             ),
-            Path("agents/software-engineer.md"): (
-                "`git rev-parse --short=8 head` output on the `verified:` line",
-            ),
             Path("agents/scribe.md"): (
                 "summary, owner, urgency, change tier, approval need, verification",
                 "from `service-lifecycle` or a service owner",

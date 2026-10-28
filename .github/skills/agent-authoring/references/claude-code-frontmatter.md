@@ -15,8 +15,12 @@ Claude frontmatter contracts live here. Re-verify after CLI upgrades against the
 ## Agents
 
 `validate_fleet.py` accepts exactly four keys in canonical agent frontmatter — `name`,
-`description`, `tools`, `model` — and fails on any other. Every remaining documented field is
-either inert in a plugin or decided against below.
+`description`, `tools`, `model` — and fails on any other. This is the fleet's selected subset,
+not the full host schema; other fields are either inert in a plugin or unused here.
+
+A plugin agent with invalid YAML can still appear under its filename while every frontmatter
+field is ignored. Discovery alone does not establish that its grants or model were applied;
+validate the source and generated headers before publishing.
 
 | Field | Disposition here |
 |---|---|
@@ -25,8 +29,8 @@ either inert in a plugin or decided against below.
 | `model` | Generation aliases `haiku \| sonnet \| opus \| fable \| inherit` only — `validate_fleet.py` rejects full IDs. No agent pins one. Cost-justified tiering may lower mechanical, high-volume lanes; review, root-cause, and authority lanes inherit. State a pin's reason in the same change. Resolution order: the call's `model`, then frontmatter `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the session model; a family alias in the call or frontmatter resolves to the session's exact model when it is that family. `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` ignores the first two, so check both variables before attributing a lane result to the session model. A fork always runs on the session model. Generated Copilot adapters carry no `model` |
 | `hooks`, `mcpServers`, `permissionMode` | Plugin-packaged agents **ignore** all three. The fleet ships `hooks/hooks.json` session-wide, self-scoped to exact guarded `agent_type` values; canonical frontmatter containing `hooks` fails validation |
 | `initialPrompt` | Ignored for plugin subagents |
-| `omitClaudeMd` | Launches the subagent without user, project, and local CLAUDE.md files. A candidate for `reviewer`, whose trusted-base review cannot stop a candidate's fleet guide from auto-loading; plugin-subagent behavior is unknown, and adopting it needs a `validate_fleet.py` key decision |
-| `disallowedTools`, `skills`, `maxTurns`, `memory`, `background`, `effort`, `isolation`, `color`, `experimental` | Real on the platform, unused here. `skills:` preloads full skill content at startup — prefer it over `Skill` in `tools` if an agent ever needs a skill every run, and never list a `disable-model-invocation: true` skill. `maxTurns` and `memory` are decided against below |
+| `omitClaudeMd` | Supported for plugin subagents: omits user, project, and local CLAUDE.md files from initial context; managed policy remains. Ignored when the agent is the main session. Unused here; adopting it for trusted-base review needs a `validate_fleet.py` key decision and a host check |
+| `disallowedTools`, `skills`, `maxTurns`, `autoCompactWindow`, `memory`, `background`, `effort`, `isolation`, `color`, `experimental` | Supported for plugin agents, unused here. `skills:` preloads the first 32 distinct skills at startup; use it only for a skill needed every run, never one with `disable-model-invocation: true`. `autoCompactWindow` selects a 100,000–1,000,000-token window; `experimental.cacheTtl` accepts `5m` or `1h`. These are behavior choices, not required compatibility fields. `maxTurns` and `memory` are decided against below |
 
 Scoped Bash specifiers in agent `tools:` did not narrow commands on the hosts tested. In `disallowedTools`,
 `Bash(git push *)` removes Bash entirely. The same entry in settings `permissions.deny`
@@ -60,7 +64,8 @@ invocations, inspect overlapping triggers and discovery-listing omissions separa
 | `compatibility` | Descriptive only: up to 500 characters that Claude Code accepts but does not act on. The fleet uses it for host and access prerequisites (for example `pcf-deploy`); `check_links.py` allows it |
 | `disable-model-invocation: true` | Side-effect skills (deploy): user-only invocation via `/plugin:name`, description removed from the model's context, unavailable for agent `skills:` preloading. Older builds ignored it for plugin-shipped skills, so the skill body still defers authority rather than trusting the flag |
 | `allowed-tools`, `disallowed-tools` | `allowed-tools` **grants** (pre-approves) for the turn that invokes the skill, clearing on the next user message, and cannot restrict; `disallowed-tools` **removes** tools while the skill is active, clearing on the next user message — the only restricting field. Neither is used here |
-| `user-invocable: false`, `when_to_use`, `arguments`, `model`, `effort`, `context`, `agent`, `hooks`, `paths`, `shell` | Available on the platform, unused here; `when_to_use` is decided against below |
+| `user-invocable: false` | Hides the menu entry and prevents typed slash invocation; automatic loading remains available unless disabled separately. Unused here |
+| `when_to_use`, `arguments`, `model`, `effort`, `context`, `agent`, `background`, `hooks`, `paths`, `shell` | Available on the platform, unused here. `background` applies only to `context: fork`; `when_to_use` is decided against below |
 
 ### Authoring rules (only the direct-link rule is enforced)
 
@@ -77,6 +82,9 @@ Discovery names/descriptions share a budget: 1% of the context window by default
 (`skillListingBudgetFraction`), or a fixed character count from `SLASH_COMMAND_TOOL_CHAR_BUDGET`;
 8,000 characters is only the fallback. On overflow names remain but least-invoked descriptions
 are dropped; inspect the `/context` Skills row, `/doctor`, or `--debug` log on the actual host.
+Claude Code truncates a skill's combined `description` and `when_to_use` listing at 1,536
+characters. The fleet's stricter 1,024-character skill-description limit preserves portability;
+the separate agent-description byte limit above is repository policy, not a host runtime limit.
 
 An invoked body loads whole as one message and persists across turns. The 5,000-token per-skill /
 25,000-token combined limits apply to reattachment after summary compaction: the most recent
@@ -97,7 +105,7 @@ rather than relying on a cap.
 
 | Field | Decision |
 |---|---|
-| `when_to_use` | Trigger phrasings live in `description` so routing has one surface to tune under the 1,024-character cap |
+| `when_to_use` | Trigger phrasings live in `description` so routing has one surface to tune under the fleet's portable skill-description limit |
 | `maxTurns` | A capped subagent returns partial output marked as partial, and Claude can resume it. Still unused: loop bounds are task-shaped prose rules (three-strikes, two-round review caps) that fail with a diagnosis. Revisit on an observed runaway loop |
 | `memory` | Agents are stateless; durable knowledge lives in the repo. It is not a scratch workspace. Setting it auto-enables Read/Write/Edit, so it must never reach `repository-investigator` or `researcher` |
 | `TodoWrite` in `tools` | Disabled by default in favour of `TaskCreate`/`TaskGet`/`TaskList`/`TaskUpdate`, none yet shown to reach a subagent, and a partially unresolved list launches without it. Kept only as the source of Copilot's `todo`, which VS Code provisions and the cloud coding agent does not. No swap to the Task* names is planned |

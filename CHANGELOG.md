@@ -8,6 +8,10 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Trim selected software-engineer reporting, escalation, and helper-dispatch instructions while
+  retaining its existing builder workflow and caller-owned review rules.
+- Refresh Claude Code and Copilot frontmatter guidance for plugin support and fields supported by
+  each host; keep existing tool grants and generated header fields.
 - Repair Windows evaluation fixtures, recognize CRLF verifier failure markers and allow
   bounded loopback refusal detection; retain explicit gaps for unavailable symlink privileges.
 - Reconcile EVAL-012 preparation with recorded Linux trials, Windows verification gaps and the
