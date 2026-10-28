@@ -116,6 +116,73 @@ These failures predate this documentation change. They prevent a passing Windows
 No full suite or model campaign was started to mask the focused failures. The observed Docker quota
 failure is independent of these offline fixtures.
 
+## Windows remediation follow-up (2026-10-28)
+
+[verified] The repair worktree is based on `66ef1270`. The original failure receipts above
+remain unchanged. The current changes address these causes:
+
+- Compare verifier path components and use the existing Git Bash discovery helper in the
+  smoke fixture. Windows paths no longer select WSL Bash accidentally.
+- Write explicit LF bytes in the subprocess fixture and selection Git fixture, preserving
+  byte-faithful capture and exact committed-byte validation.
+- Schedule Python interruption with `_thread.interrupt_main` in the isolated driver.
+  [sourced] Python documents that Windows `os.kill` uses process termination for signals
+  other than its console control events; this explains the original exit code 2.
+  See [os.kill](https://docs.python.org/3.14/library/os.html#os.kill) and
+  [interrupt_main](https://docs.python.org/3.14/library/_thread.html#_thread.interrupt_main).
+  [unverified] This does not qualify native Windows console Ctrl+C delivery.
+- Increase the smoke cleanup connection timeout from one to five seconds. A closed
+  loopback listener took approximately two seconds to return connection refusal on this host.
+  The new real-listener regression failed at one second and passed at five. A separate
+  regression preserves timeout as unknown cleanup, never confirmed absence.
+- Create actual symlinks when permitted. Only local Windows error 1314 becomes an explicit
+  skip; CI and other errors still fail. [unverified] Four affected link controls require a
+  Windows account with symlink privileges before their Windows coverage can be claimed.
+
+[verified] Both formerly failing conversation publication cases passed using fresh temporary
+directories on `F:` (private receipt `.eval-runs/eval012-windows-fixes-20261028/publication-3.xml`).
+All 28 conversation checks also passed in the earlier focused run on `C:`.
+[unverified] The original rename-lock owner remains unknown. No retry or publication-logic
+change was introduced, and these passing reruns do not establish a root-cause fix.
+
+[verified] Ruff lint passes for the changed Python files; formatter checks pass for
+the nine changed evaluation test files. Mypy with the Linux target used by CI passes all
+72 configured source files. Native Windows mypy still reports four Unix-API attribute errors
+in unchanged `swebench_adapter/limits.py` and `swebench_adapter/proxy.py`; the Linux-target
+check is not a Windows typing pass. Independent static review found no actionable regression
+in the working-tree diff; it does not accept an evaluated candidate.
+
+[verified] The coordinated `scripts/local_tests.py --heavy` run finished with **4,866 passed,
+50 failed, 471 skipped**, plus 5,163 passing subtests, in 461.89 seconds. Its private receipt
+is `.git/local-test-runs/20261028T091739Z-1a7c1cec/` in the common Git directory. That run
+includes the first repairs above and precedes the additional fixture repairs below; it is
+not a passing result for the final working tree. Documentation changed during the run;
+the receipt retains before/after dirty state and diff hashes.
+
+The full-suite failures were traced as follows:
+
+| Group | Follow-up and evidence boundary |
+|---|---|
+| 15 runner checks | The separate verifier stub also matched literal POSIX slashes. Component matching restored the existing assertions. All 81 runner checks passed in the focused follow-up. |
+| 15 verifier checks | The patch fixture wrote CRLF despite its exact LF-byte contract; explicit LF fixes that fixture. Separately, the production parser rejected CRLF-terminated failure markers in host-written logs. Accepting an optional terminal CR fixes the parser without admitting arbitrary substring mentions. All 79 verifier checks passed, including explicit LF/CRLF positive and negative cases. |
+| 1 Git pruning check | The test hard-coded `/bin/sh`. Existing shell discovery plus a POSIX-form temporary path exercises the real pruning script. All 52 container checks passed. |
+| 1 shell-stream check | `cmd.exe` preserves the space before `&&` in `echo first &&`. Removing that fixture space preserves the exact two-line assertion. Three process checks passed; one remains platform-skipped. |
+| 10 GCP profile subtests | The host PATH lacks `sh`. With `C:\Program Files\Git\usr\bin` prepended only for the test process, all 10 profile tests passed. No global PATH or product fallback changed. |
+| 8 additional symlink checks | WinError 1314 in proxy, artifact, catalog, campaign-report, SWT runner and testing-block fixtures. These remain failures in the full receipt; no bypass or new skip was added. Together with the four explicitly skipped checks above, twelve link controls remain unqualified on this host. |
+
+The targeted receipts are in `.eval-runs/eval012-windows-fixes-20261028/` in the main checkout:
+`runner-verifier-2.xml` retains 207 passes, two log-newline failures and one skip;
+`verifier-final.xml` records an intermediate 73-pass run whose forced-LF log fixture was rejected
+in review as concealing the parser defect. The corrected `verifier-crlf-final.xml` records all
+79 tests after the real parser fix; `gcp-with-git-shell.xml` records the shell-qualified profile
+run. The full suite was not repeated after the follow-up repairs; unaffected evidence is retained
+and the affected verifier suite, lint, formatting and Linux-target typing checks were rerun.
+
+[unverified] Windows qualification remains blocked on actual link-control execution with the
+required privilege. Native console Ctrl+C delivery, the original intermittent publication lock,
+and the native Windows typing gaps also remain outside the established passing evidence.
+The Docker hard-quota failure remains independent. No model trials or candidate promotion occurred.
+
 ## Completion audit
 
 [sourced: accepted specification and current roadmap] The original EVAL-012 program includes the

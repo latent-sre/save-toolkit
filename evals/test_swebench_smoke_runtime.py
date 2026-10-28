@@ -28,6 +28,8 @@ from swebench_adapter import configuration, proxy, runner, selection, smoke
 from swebench_adapter.containers import Docker
 from swebench_adapter.limits import ProcessResult
 
+from scripts.testkit import require_shell
+
 ROOT = Path(__file__).resolve().parents[1]
 IMAGE = "sha256:" + "a" * 64
 REFERENCE = "registry.invalid/repair@sha256:" + "b" * 64
@@ -152,11 +154,16 @@ class SmokeDocker(Docker):
             elif "rev-list" in args:
                 out = self.foreign_history
             elif args[-2] == "-c" and args[-3] == "bash":
-                env = {**os.environ, "CLAUDE_PLUGIN_ROOT": self.mounts["/opt/fleet"]}
+                env = {**os.environ, "CLAUDE_PLUGIN_ROOT": Path(self.mounts["/opt/fleet"]).as_posix()}
                 if self.guard_unavailable:
                     env["CLAUDE_PLUGIN_ROOT"] += "/missing"
                 result = subprocess.run(
-                    ["bash", "-c", args[-1]], input=input, capture_output=True, env=env, check=False, timeout=10
+                    [require_shell("bash"), "-c", args[-1]],
+                    input=input,
+                    capture_output=True,
+                    env=env,
+                    check=False,
+                    timeout=10,
                 )
                 code, out, err = result.returncode, result.stdout, result.stderr
             elif args[-3:-1] == ["python3", "-c"]:
@@ -269,7 +276,7 @@ def runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(socket, "create_connection", loopback_only)
 
     def process(args, **kwargs):
-        assert len(args) >= 2 and str(args[1]).endswith("/swebench_adapter/verifier.py")
+        assert len(args) >= 2 and Path(args[1]).parts[-2:] == ("swebench_adapter", "verifier.py")
         assert kwargs["timeout"] == 2700
         assert not any(name.startswith(("ANTHROPIC_", "OPENROUTER_")) for name in kwargs["env"])
         fields = {
@@ -382,6 +389,24 @@ def observations(runtime):
     return json.loads((runtime.output / "observations.json").read_text())
 
 
+def test_closed_loopback_listener_is_confirmed_absent():
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+        listener.listen()
+        assert smoke._port_present("127.0.0.1", port) is True
+    assert smoke._port_present("127.0.0.1", port) is False
+
+
+def test_cleanup_timeout_stays_unknown(monkeypatch):
+    def timeout(*args, **kwargs):
+        raise TimeoutError("unavailable measurement")
+
+    monkeypatch.setattr(socket, "create_connection", timeout)
+    with pytest.raises(TimeoutError):
+        smoke._port_present("127.0.0.1", 1)
+
+
 def test_model_free_smoke_runs_reference_and_baseline_with_real_binding_and_artifacts(runtime):
     receipt = run(runtime)
     assert receipt["error"] is None
@@ -447,11 +472,11 @@ def test_quota_needs_an_actual_fill_at_the_approved_cap(runtime, payload):
     assert receipt["checks"]["cleanup"]
 
 
-@pytest.mark.parametrize('written, accepted', [(10_737_418_240, True), (10_737_418_241, False)])
+@pytest.mark.parametrize("written, accepted", [(10_737_418_240, True), (10_737_418_241, False)])
 def test_quota_acceptance_uses_binary_docker_size(runtime, written, accepted):
-    runtime.docker.fill_stdout = json.dumps({'quota': True, 'written': written}).encode()
+    runtime.docker.fill_stdout = json.dumps({"quota": True, "written": written}).encode()
     receipt = run(runtime)
-    assert receipt['checks']['storage_cap'] is accepted
+    assert receipt["checks"]["storage_cap"] is accepted
 
 
 @pytest.mark.parametrize(
@@ -481,8 +506,10 @@ def test_unremoved_resource_prevents_smoke_acceptance(runtime):
 
 def test_unresolved_verifier_process_cleanup_stops_before_next_control(runtime, monkeypatch):
     process = runner.run_bounded
+
     def unresolved(*args, **kwargs):
         return replace(process(*args, **kwargs), cleanup_complete=False, stop="cleanup_failure", pid=12345)
+
     monkeypatch.setattr(runner, "run_bounded", unresolved)
     receipt = run(runtime)
     assert len(runtime.docker.verifier_calls) == 1

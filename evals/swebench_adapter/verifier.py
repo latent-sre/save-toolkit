@@ -423,7 +423,7 @@ def verify(
                 log_path = logs / harness.LOG_INSTANCE
                 log = read_artifact(log_path).decode("utf-8") if log_path.is_file() else ""
                 prefix = r"(?:\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} - INFO - )?"
-                if re.search(rf"^{prefix}{re.escape(harness.APPLY_PATCH_FAIL)}:[ \t]*$", log, re.MULTILINE):
+                if re.search(rf"^{prefix}{re.escape(harness.APPLY_PATCH_FAIL)}:[ \t]*\r?$", log, re.MULTILINE):
                     receipt.update(
                         outcome="FAIL", reason="upstream verifier explicitly recorded patch application failure"
                     )

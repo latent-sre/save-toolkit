@@ -32,13 +32,32 @@ def dump(path, value):
 
 
 def trace(model=MODEL, subtype="success", denials=None):
-    return ("\n".join(json.dumps(event) for event in [
-        {"type": "system", "subtype": "init", "model": model, "tools": list(BUILD_TOOLS),
-         "plugins": [{"name": "save-toolkit", "path": "/opt/fleet"}], "mcp_servers": [], "session_id": "offline"},
-        {"type": "result", "subtype": subtype, "result": "Static repair left for independent verification.",
-         "num_turns": 3, "modelUsage": {model: {}}, "total_cost_usd": 0.25,
-         "permission_denials": denials or []},
-    ]) + "\n").encode()
+    return (
+        "\n".join(
+            json.dumps(event)
+            for event in [
+                {
+                    "type": "system",
+                    "subtype": "init",
+                    "model": model,
+                    "tools": list(BUILD_TOOLS),
+                    "plugins": [{"name": "save-toolkit", "path": "/opt/fleet"}],
+                    "mcp_servers": [],
+                    "session_id": "offline",
+                },
+                {
+                    "type": "result",
+                    "subtype": subtype,
+                    "result": "Static repair left for independent verification.",
+                    "num_turns": 3,
+                    "modelUsage": {model: {}},
+                    "total_cost_usd": 0.25,
+                    "permission_denials": denials or [],
+                },
+            ]
+        )
+        + "\n"
+    ).encode()
 
 
 class FakeDocker:
@@ -80,11 +99,22 @@ class FakeDocker:
         self.calls.append((list(args), input))
         code, out, err = 0, b"", b""
         if args[:2] == ["image", "inspect"]:
-            out = json.dumps([{"Id": self.relay_id, "RepoDigests": [SERVICE_RELAY_IMAGE]}]
-                if args[-1] == SERVICE_RELAY_IMAGE else [{"Id": self.image_id, "RepoDigests": self.digests}]).encode()
+            out = json.dumps(
+                [{"Id": self.relay_id, "RepoDigests": [SERVICE_RELAY_IMAGE]}]
+                if args[-1] == SERVICE_RELAY_IMAGE
+                else [{"Id": self.image_id, "RepoDigests": self.digests}]
+            ).encode()
         elif args[0] == "info":
-            out = json.dumps({"ID": self.engine_id, "ServerVersion": "28.5", "OSType": self.engine_os,
-                "OperatingSystem": "Offline Fixture", "KernelVersion": "6.0", "Driver": "overlay2"}).encode()
+            out = json.dumps(
+                {
+                    "ID": self.engine_id,
+                    "ServerVersion": "28.5",
+                    "OSType": self.engine_os,
+                    "OperatingSystem": "Offline Fixture",
+                    "KernelVersion": "6.0",
+                    "Driver": "overlay2",
+                }
+            ).encode()
         elif args[:2] == ["context", "inspect"]:
             out = json.dumps([{"Name": "offline-local", "Endpoints": {"docker": {"Host": self.endpoint}}}]).encode()
         elif args[:2] == ["network", "create"]:
@@ -146,8 +176,10 @@ class FakeProxy:
         self.closed = True
 
     def usage(self):
-        rows = self.usage_rows or [{"usage": 1.0, "limit": 30.0, "limit_remaining": 29.0},
-                                   {"usage": 1.5, "limit": 30.0, "limit_remaining": 28.5}]
+        rows = self.usage_rows or [
+            {"usage": 1.0, "limit": 30.0, "limit_remaining": 29.0},
+            {"usage": 1.5, "limit": 30.0, "limit_remaining": 28.5},
+        ]
         row = rows[min(self.reads, len(rows) - 1)]
         self.reads += 1
         if isinstance(row, Exception):
@@ -161,38 +193,80 @@ def setup(tmp_path, monkeypatch):
     for name in ("agents", "skills", "commands", "hooks"):
         (plugin / name).mkdir(parents=True)
     (plugin / "agents/software-engineer.md").write_text(
-        "---\nname: software-engineer\ntools: " + ", ".join(BUILD_TOOLS) + "\n---\nStatic repair.\n")
-    for name, text in ((".claude-plugin/plugin.json", '{"name":"save-toolkit"}'),
-                       ("scripts/fleet_frontmatter.py", "# fixture\n"),
-                       ("scripts/readonly-guard.py", "# fixture\n"),
-                       ("scripts/readonly-guard-hook.sh", "#!/bin/sh\nexit 42\n")):
+        "---\nname: software-engineer\ntools: " + ", ".join(BUILD_TOOLS) + "\n---\nStatic repair.\n"
+    )
+    for name, text in (
+        (".claude-plugin/plugin.json", '{"name":"save-toolkit"}'),
+        ("scripts/fleet_frontmatter.py", "# fixture\n"),
+        ("scripts/readonly-guard.py", "# fixture\n"),
+        ("scripts/readonly-guard-hook.sh", "#!/bin/sh\nexit 42\n"),
+    ):
         path = plugin / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, newline="\n")
     subprocess.run(["git", "init", "-q", str(plugin)], check=True)
     subprocess.run(["git", "-C", str(plugin), "add", "."], check=True)
-    subprocess.run(["git", "-C", str(plugin), "-c", "user.name=Offline Fixture",
-                    "-c", "user.email=fixture@example.invalid", "commit", "-qm", "offline fixture"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(plugin),
+            "-c",
+            "user.name=Offline Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "-qm",
+            "offline fixture",
+        ],
+        check=True,
+    )
     cli = tmp_path / "claude"
     cli.write_bytes(b"\x7fELFoffline fixture")
     cli.chmod(0o700)
-    rows = [{"instance_id": f"org__repo{i:02}-1", "repo": f"org/repo{i:02}", "version": "1.0",
-             "base_commit": "c" * 40, "difficulty": "<15 min fix", "problem_statement": "Public bug description",
-             "FAIL_TO_PASS": ["test_bug"], "PASS_TO_PASS": ["test_existing"], "image": REFERENCE,
-             "eval_script": "PRIVATE VERIFIER SCRIPT", "log_parser": "pytest", "eval_type": "pass_and_fail",
-             "patch": "PRIVATE GOLD PATCH", "test_patch": "PRIVATE TEST PATCH", "hints_text": "PRIVATE HINTS"}
-            for i in range(10)]
+    rows = [
+        {
+            "instance_id": f"org__repo{i:02}-1",
+            "repo": f"org/repo{i:02}",
+            "version": "1.0",
+            "base_commit": "c" * 40,
+            "difficulty": "<15 min fix",
+            "problem_statement": "Public bug description",
+            "FAIL_TO_PASS": ["test_bug"],
+            "PASS_TO_PASS": ["test_existing"],
+            "image": REFERENCE,
+            "eval_script": "PRIVATE VERIFIER SCRIPT",
+            "log_parser": "pytest",
+            "eval_type": "pass_and_fail",
+            "patch": "PRIVATE GOLD PATCH",
+            "test_patch": "PRIVATE TEST PATCH",
+            "hints_text": "PRIVATE HINTS",
+        }
+        for i in range(10)
+    ]
     manifest = selection.select_tasks(rows, "d" * 40, {row["repo"]: "BSD-3-Clause" for row in rows})
-    config = {"schema_version": 1, "plugin_root": str(plugin), "cli_path": str(cli),
-              "cli_sha256": hashlib.sha256(cli.read_bytes()).hexdigest(), "cli_version": "2.1.99",
-              "model": MODEL, "haiku_model": "anthropic/claude-haiku-4.5",
-              "images": {row["instance_id"]: {"reference": REFERENCE, "image_id": IMAGE} for row in rows},
-              "proxy_bind": "172.18.0.1", "proxy_target": "host.docker.internal", "storage_quota": True,
-              "api_key_helper": False}
+    config = {
+        "schema_version": 1,
+        "plugin_root": str(plugin),
+        "cli_path": str(cli),
+        "cli_sha256": hashlib.sha256(cli.read_bytes()).hexdigest(),
+        "cli_version": "2.1.99",
+        "model": MODEL,
+        "haiku_model": "anthropic/claude-haiku-4.5",
+        "images": {row["instance_id"]: {"reference": REFERENCE, "image_id": IMAGE} for row in rows},
+        "proxy_bind": "172.18.0.1",
+        "proxy_target": "host.docker.internal",
+        "storage_quota": True,
+        "api_key_helper": False,
+    }
     docker = FakeDocker()
-    smoke = {"format": "wp08-smoke", "schema_version": 1, "binding": runner.runtime_binding(config, manifest, docker),
-             "checks": {name: True for name in configuration._CHECKS},
-             "cleanup": [{"name": "offline-smoke", "present": False, "removed": True}]}
+    smoke = {
+        "format": "wp08-smoke",
+        "schema_version": 1,
+        "binding": runner.runtime_binding(config, manifest, docker),
+        "checks": {name: True for name in configuration._CHECKS},
+        "cleanup": [{"name": "offline-smoke", "present": False, "removed": True}],
+    }
     key_file = tmp_path / "protected-key"
     key_file.write_text(KEY)
     key_file.chmod(0o600)
@@ -208,25 +282,30 @@ def setup(tmp_path, monkeypatch):
     def popen(args, **kwargs):
         if args[0] != docker.executable:
             return real_popen(args, **kwargs)
+
         class Process:
             stdout = io.BytesIO(docker.patch if "diff" in args else b"" if "git" in args else docker.trace)
             stderr = io.BytesIO(docker.stderr)
             returncode = None if docker.running else docker.returncode
+
             def poll(self):
                 if docker.agent_interrupt:
                     raise KeyboardInterrupt
                 return self.returncode
+
             def kill(self):
                 self.returncode = -9
+
             def wait(self, timeout=None):
                 return self.returncode
+
         return Process()
 
     monkeypatch.setattr(subprocess, "Popen", popen)
     real_run = subprocess.run
 
     def process(args, **kwargs):
-        if len(args) < 2 or not str(args[1]).endswith("/swebench_adapter/verifier.py"):
+        if len(args) < 2 or Path(args[1]).parts[-2:] != ("swebench_adapter", "verifier.py"):
             return real_run(args, **kwargs)
         assert kwargs["timeout"] == 2700
         assert KEY not in str(kwargs.get("env", {}))
@@ -235,35 +314,78 @@ def setup(tmp_path, monkeypatch):
         task = json.loads(Path(parsed["--task"]).read_text())
         patch = Path(parsed["--patch"]).read_bytes()
         out = Path(parsed["--output"])
-        raw = {task["instance_id"]: {"patch_is_None": False, "patch_exists": True,
-               "patch_successfully_applied": True, "resolved": True, "infra_failure": False,
-               "tests_status": {field: {"success": task[field], "failure": []}
-                                for field in ("FAIL_TO_PASS", "PASS_TO_PASS")}}}
-        receipt = {"instance_id": task["instance_id"], "base_commit": task["base_commit"],
-                   "observed_base_commit": task["base_commit"], "initial_state": {
-                       "head": task["base_commit"], "tracked_clean": True, "index_clean": True,
-                       "replace_objects_disabled": True, "untracked_policy": "preserved"},
-                   "docker_engine_id": docker.engine_id, "docker_endpoint": docker.endpoint,
-                   "interrupted": False, "storage_quota": "--storage-quota" in args,
-                   "baseline": "--baseline" in args,
-                   "patch_sha256": hashlib.sha256(patch).hexdigest(), "swebench_version": "5.0.2",
-                   "verifier_image_digest": IMAGE, "command": args, "exit_status": 0,
-                   "report_path": "verifier-report.json", "evaluated_at": datetime.now(UTC).isoformat(),
-                   "outcome": "PASS", "reason": None,
-                   "cleanup": [{"name": f"sweb.eval.{task['instance_id'].lower()}.{parsed['--run-id']}",
-                                "present": False, "removed": True}]}
+        raw = {
+            task["instance_id"]: {
+                "patch_is_None": False,
+                "patch_exists": True,
+                "patch_successfully_applied": True,
+                "resolved": True,
+                "infra_failure": False,
+                "tests_status": {
+                    field: {"success": task[field], "failure": []} for field in ("FAIL_TO_PASS", "PASS_TO_PASS")
+                },
+            }
+        }
+        receipt = {
+            "instance_id": task["instance_id"],
+            "base_commit": task["base_commit"],
+            "observed_base_commit": task["base_commit"],
+            "initial_state": {
+                "head": task["base_commit"],
+                "tracked_clean": True,
+                "index_clean": True,
+                "replace_objects_disabled": True,
+                "untracked_policy": "preserved",
+            },
+            "docker_engine_id": docker.engine_id,
+            "docker_endpoint": docker.endpoint,
+            "interrupted": False,
+            "storage_quota": "--storage-quota" in args,
+            "baseline": "--baseline" in args,
+            "patch_sha256": hashlib.sha256(patch).hexdigest(),
+            "swebench_version": "5.0.2",
+            "verifier_image_digest": IMAGE,
+            "command": args,
+            "exit_status": 0,
+            "report_path": "verifier-report.json",
+            "evaluated_at": datetime.now(UTC).isoformat(),
+            "outcome": "PASS",
+            "reason": None,
+            "cleanup": [
+                {
+                    "name": f"sweb.eval.{task['instance_id'].lower()}.{parsed['--run-id']}",
+                    "present": False,
+                    "removed": True,
+                }
+            ],
+        }
         dump(out / "verifier-report.json", raw)
         dump(out / "verifier-receipt.json", receipt)
         return SimpleNamespace(returncode=0, stdout=b"", stderr=b"", stop=None, seconds=0.01)
 
     monkeypatch.setattr(runner, "run_bounded", process, raising=False)
-    return SimpleNamespace(config=config, manifest=manifest, rows=rows, smoke=smoke, key_file=key_file,
-                           docker=docker, output=tmp_path / "results", tmp=tmp_path)
+    return SimpleNamespace(
+        config=config,
+        manifest=manifest,
+        rows=rows,
+        smoke=smoke,
+        key_file=key_file,
+        docker=docker,
+        output=tmp_path / "results",
+        tmp=tmp_path,
+    )
 
 
 def trial(setup):
-    return runner.run_trial(setup.config, setup.manifest, setup.rows, setup.rows[0]["instance_id"],
-                            setup.output, setup.key_file, setup.smoke)
+    return runner.run_trial(
+        setup.config,
+        setup.manifest,
+        setup.rows,
+        setup.rows[0]["instance_id"],
+        setup.output,
+        setup.key_file,
+        setup.smoke,
+    )
 
 
 def folder(setup):
@@ -288,7 +410,9 @@ def test_agent_environment_and_command_never_inherit_host_credentials(setup, mon
     assert {"WebFetch", "WebSearch"} <= set(command[command.index("--disallowedTools") + 1].split(","))
     prompt = command[command.index("-p") + 1]
     assert "Public bug description" in prompt and "no commit" in prompt.lower()
-    assert all(secret not in str(command) for secret in ("PRIVATE GOLD", "PRIVATE TEST", "PRIVATE HINTS", "PRIVATE VERIFIER"))
+    assert all(
+        secret not in str(command) for secret in ("PRIVATE GOLD", "PRIVATE TEST", "PRIVATE HINTS", "PRIVATE VERIFIER")
+    )
     setup.config["api_key_helper"] = True
     command = runner.agent_command(setup.config, setup.rows[0])
     settings = json.loads(command[command.index("--settings") + 1])
@@ -357,11 +481,14 @@ def test_remote_or_non_linux_engine_is_refused_before_key(setup, field, value):
     assert not FakeProxy.instances
 
 
-@pytest.mark.parametrize("metadata", [
-    {"usage": 0, "limit": None, "limit_remaining": None},
-    {"usage": 0, "limit": 31, "limit_remaining": 31},
-    {"usage": 30, "limit": 30, "limit_remaining": 0},
-])
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {"usage": 0, "limit": None, "limit_remaining": None},
+        {"usage": 0, "limit": 31, "limit_remaining": 31},
+        {"usage": 30, "limit": 30, "limit_remaining": 0},
+    ],
+)
 def test_unknown_or_exhausted_key_budget_stops_before_agent(setup, monkeypatch, metadata):
     monkeypatch.setattr(FakeProxy, "usage_rows", [metadata])
     result = trial(setup)
@@ -370,10 +497,15 @@ def test_unknown_or_exhausted_key_budget_stops_before_agent(setup, monkeypatch, 
     assert FakeProxy.instances[0].closed
 
 
-@pytest.mark.parametrize("payload,ending,status", [(b"", "cut_short", "INCONCLUSIVE"),
-    (trace(model="wrong-model"), "void", "INCONCLUSIVE"),
-    (trace(subtype="error_max_turns"), "turn_limit", "FAIL"),
-    (trace(denials=[{"tool_name": "Bash"}]), "cut_short", "INCONCLUSIVE")])
+@pytest.mark.parametrize(
+    "payload,ending,status",
+    [
+        (b"", "cut_short", "INCONCLUSIVE"),
+        (trace(model="wrong-model"), "void", "INCONCLUSIVE"),
+        (trace(subtype="error_max_turns"), "turn_limit", "FAIL"),
+        (trace(denials=[{"tool_name": "Bash"}]), "cut_short", "INCONCLUSIVE"),
+    ],
+)
 def test_missing_trace_identity_turn_budget_and_denial_classification(setup, payload, ending, status):
     setup.docker.trace = payload
     if ending == "turn_limit":
@@ -409,8 +541,9 @@ def test_failed_cleanup_blocks_next_call_until_fresh_absence(setup):
     assert len(FakeProxy.instances) == before
     setup.docker.resources.clear()
     setup.docker.cleanup_error = False
-    result = runner.run_trial(setup.config, setup.manifest, setup.rows, next_id,
-                              setup.output, setup.key_file, setup.smoke)
+    result = runner.run_trial(
+        setup.config, setup.manifest, setup.rows, next_id, setup.output, setup.key_file, setup.smoke
+    )
     assert result["status"] == "PASS"
 
 
@@ -531,27 +664,43 @@ def test_first_trial_missing_stop_evidence_blocks_batch(setup):
 
 
 def test_verify_patch_forwards_baseline_and_retains_actual_resolved_result(setup):
-    result = runner.verify_patch(setup.rows[0], "", setup.tmp / "baseline", "baseline-run", IMAGE, setup.docker, baseline=True)
+    result = runner.verify_patch(
+        setup.rows[0], "", setup.tmp / "baseline", "baseline-run", IMAGE, setup.docker, baseline=True
+    )
     assert result["outcome"] == "PASS" and result["baseline"] is True
     assert result["command"][-1] == "--baseline"
     assert result["cleanup"][0]["present"] is False
 
 
-@pytest.mark.parametrize("field,value", [("instance_id", "other"), ("base_commit", "f" * 40),
-    ("patch_sha256", "f" * 64), ("swebench_version", "5.0.1"), ("verifier_image_digest", "sha256:" + "f" * 64),
-    ("command", ["wrong"]), ("exit_status", 1), ("report_path", "../old-report.json"),
-    ("evaluated_at", "2020-01-01T00:00:00+00:00"), ("baseline", True), ("cleanup", [])])
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("instance_id", "other"),
+        ("base_commit", "f" * 40),
+        ("patch_sha256", "f" * 64),
+        ("swebench_version", "5.0.1"),
+        ("verifier_image_digest", "sha256:" + "f" * 64),
+        ("command", ["wrong"]),
+        ("exit_status", 1),
+        ("report_path", "../old-report.json"),
+        ("evaluated_at", "2020-01-01T00:00:00+00:00"),
+        ("baseline", True),
+        ("cleanup", []),
+    ],
+)
 def test_verify_patch_rejects_mismatched_or_stale_receipts(setup, monkeypatch, field, value):
     original = runner.run_bounded
+
     def corrupt(args, **kwargs):
         result = original(args, **kwargs)
-        if len(args) > 1 and str(args[1]).endswith("/swebench_adapter/verifier.py"):
+        if len(args) > 1 and (Path(args[1]).parts[-2:] == ("swebench_adapter", "verifier.py")):
             out = Path(args[args.index("--output") + 1])
             path = out / "verifier-receipt.json"
             receipt = json.loads(path.read_text())
             receipt[field] = value
             dump(path, receipt)
         return result
+
     monkeypatch.setattr(runner, "run_bounded", corrupt)
     result = runner.verify_patch(setup.rows[0], PATCH, setup.tmp / "corrupt", "corrupt-run", IMAGE, setup.docker)
     assert result["outcome"] == "INCONCLUSIVE"
@@ -562,13 +711,17 @@ def test_verify_patch_rejects_mismatched_or_stale_receipts(setup, monkeypatch, f
 def test_verify_patch_timeout_and_interrupt_inspect_and_remove_owned_container(setup, monkeypatch, error):
     name = f"sweb.eval.{setup.rows[0]['instance_id']}.interrupted-run"
     original = runner.run_bounded
+
     def interrupted(args, **kwargs):
-        if len(args) > 1 and str(args[1]).endswith("/swebench_adapter/verifier.py"):
+        if len(args) > 1 and (Path(args[1]).parts[-2:] == ("swebench_adapter", "verifier.py")):
             setup.docker.resources.add(("container", name))
             raise error
         return original(args, **kwargs)
+
     monkeypatch.setattr(runner, "run_bounded", interrupted)
-    result = runner.verify_patch(setup.rows[0], PATCH, setup.tmp / "interrupted", "interrupted-run", IMAGE, setup.docker)
+    result = runner.verify_patch(
+        setup.rows[0], PATCH, setup.tmp / "interrupted", "interrupted-run", IMAGE, setup.docker
+    )
     assert result["outcome"] == "INCONCLUSIVE"
     assert result["cleanup"][0] == {"kind": "container", "name": name, "present": False, "removed": True}
     assert result["cleanup"][1]["kind"] == "host_process"
@@ -578,9 +731,10 @@ def test_verify_patch_timeout_and_interrupt_inspect_and_remove_owned_container(s
 
 def test_complete_unresolved_patch_is_fail(setup, monkeypatch):
     original = runner.run_bounded
+
     def failed_tests(args, **kwargs):
         result = original(args, **kwargs)
-        if len(args) > 1 and str(args[1]).endswith("/swebench_adapter/verifier.py"):
+        if len(args) > 1 and (Path(args[1]).parts[-2:] == ("swebench_adapter", "verifier.py")):
             out = Path(args[args.index("--output") + 1])
             receipt = json.loads((out / "verifier-receipt.json").read_text())
             receipt.update(outcome="FAIL", exit_status=1, reason="one required test failed")
@@ -592,16 +746,19 @@ def test_complete_unresolved_patch_is_fail(setup, monkeypatch):
             dump(out / "verifier-report.json", raw)
             return SimpleNamespace(returncode=1, stdout=b"", stderr=b"", stop=None, seconds=0.01)
         return result
+
     monkeypatch.setattr(runner, "run_bounded", failed_tests)
     assert trial(setup)["status"] == "FAIL"
 
 
 def test_plugin_mount_argument_is_posix_even_when_host_resolver_is_windows(setup, monkeypatch):
     resolve = Path.resolve
+
     def windows_resolve(path, *args, **kwargs):
         if str(path) == "/opt/fleet":
             return PureWindowsPath("C:/opt/fleet")
         return resolve(path, *args, **kwargs)
+
     monkeypatch.setattr(Path, "resolve", windows_resolve)
     command = runner.agent_command(setup.config, setup.rows[0])
     assert command[command.index("--plugin-dir") + 1] == "/opt/fleet"
@@ -615,8 +772,10 @@ def test_interruption_stops_batch_before_any_next_paid_task(setup, monkeypatch, 
     elif phase == "agent":
         setup.docker.agent_interrupt = True
     else:
+
         def interrupted(*args, **kwargs):
             return SimpleNamespace(returncode=-9, stdout=b"", stderr=b"", stop="interrupted", seconds=0.01)
+
         monkeypatch.setattr(runner, "run_bounded", interrupted)
     results = runner.run_batch(setup.config, setup.manifest, setup.rows, setup.output, setup.key_file, setup.smoke)
     assert len(results) == 2
@@ -629,12 +788,14 @@ def test_verifier_environment_uses_resolved_local_endpoint_with_private_home(set
     setup.docker.endpoint = "unix:///home/operator/.docker/desktop/docker.sock"
     setup.docker.pinned = None
     original = runner.run_bounded
+
     def inspect_process(args, **kwargs):
         assert kwargs["env"]["DOCKER_HOST"] == setup.docker.endpoint
         assert "DOCKER_CONTEXT" not in kwargs["env"]
         assert KEY not in str(kwargs["env"])
         assert args[args.index("--engine-id") + 1] == setup.docker.engine_id
         return original(args, **kwargs)
+
     monkeypatch.setattr(runner, "run_bounded", inspect_process)
     result = runner.verify_patch(setup.rows[0], PATCH, setup.tmp / "desktop", "desktop-run", IMAGE, setup.docker)
     assert result["outcome"] == "PASS"
@@ -642,11 +803,18 @@ def test_verifier_environment_uses_resolved_local_endpoint_with_private_home(set
     assert result["docker_engine_id"] == setup.docker.engine_id
 
 
-@pytest.mark.parametrize("field,value", [("observed_base_commit", "f" * 40),
-    ("docker_engine_id", "another-engine"), ("docker_endpoint", "unix:///another.sock"),
-    ("initial_state", {"head": "c" * 40, "tracked_clean": False, "index_clean": True})])
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("observed_base_commit", "f" * 40),
+        ("docker_engine_id", "another-engine"),
+        ("docker_endpoint", "unix:///another.sock"),
+        ("initial_state", {"head": "c" * 40, "tracked_clean": False, "index_clean": True}),
+    ],
+)
 def test_parent_rejects_unproven_base_or_engine_receipt(setup, monkeypatch, field, value):
     original = runner.run_bounded
+
     def corrupt(args, **kwargs):
         result = original(args, **kwargs)
         path = Path(args[args.index("--output") + 1]) / "verifier-receipt.json"
@@ -654,6 +822,7 @@ def test_parent_rejects_unproven_base_or_engine_receipt(setup, monkeypatch, fiel
         receipt[field] = value
         dump(path, receipt)
         return result
+
     monkeypatch.setattr(runner, "run_bounded", corrupt)
     result = runner.verify_patch(setup.rows[0], PATCH, setup.tmp / "unproven", "unproven-run", IMAGE, setup.docker)
     assert result["outcome"] == "INCONCLUSIVE"
@@ -661,17 +830,21 @@ def test_parent_rejects_unproven_base_or_engine_receipt(setup, monkeypatch, fiel
 
 def test_oversized_verifier_artifacts_are_rejected_before_read(setup, monkeypatch):
     original = runner.run_bounded
+
     def oversized(args, **kwargs):
         result = original(args, **kwargs)
         path = Path(args[args.index("--output") + 1]) / "oversized.log"
         with path.open("wb") as stream:
             stream.truncate(64 * 1024 * 1024 + 1)
         return result
+
     monkeypatch.setattr(runner, "run_bounded", oversized)
     read = Path.read_bytes
+
     def reject_large_read(path):
         assert path.name != "oversized.log", "artifact read before size validation"
         return read(path)
+
     monkeypatch.setattr(Path, "read_bytes", reject_large_read)
     result = runner.verify_patch(setup.rows[0], PATCH, setup.tmp / "oversized", "oversized-run", IMAGE, setup.docker)
     assert result["outcome"] == "INCONCLUSIVE"
@@ -680,6 +853,7 @@ def test_oversized_verifier_artifacts_are_rejected_before_read(setup, monkeypatc
 
 def test_total_verifier_artifact_limit_is_checked_before_any_artifact_read(setup, monkeypatch):
     original = runner.run_bounded
+
     def oversized(args, **kwargs):
         result = original(args, **kwargs)
         root = Path(args[args.index("--output") + 1])
@@ -687,6 +861,7 @@ def test_total_verifier_artifact_limit_is_checked_before_any_artifact_read(setup
             with (root / f"large-{index}.log").open("wb") as stream:
                 stream.truncate(64 * 1024 * 1024)
         return result
+
     monkeypatch.setattr(runner, "run_bounded", oversized)
     result = runner.verify_patch(setup.rows[0], PATCH, setup.tmp / "total", "total-run", IMAGE, setup.docker)
     assert result["outcome"] == "INCONCLUSIVE"
@@ -694,8 +869,9 @@ def test_total_verifier_artifact_limit_is_checked_before_any_artifact_read(setup
 
 
 def test_unknown_after_usage_preserves_assessment_and_stops_batch(setup, monkeypatch):
-    monkeypatch.setattr(FakeProxy, "usage_rows", [
-        {"usage": 1, "limit": 30, "limit_remaining": 29}, ValueError("unavailable usage")])
+    monkeypatch.setattr(
+        FakeProxy, "usage_rows", [{"usage": 1, "limit": 30, "limit_remaining": 29}, ValueError("unavailable usage")]
+    )
     result = trial(setup)
     assert result["status"] == "PASS" and not result["billing_known"]
     assert "usage" in result["after_assessment"]
@@ -709,9 +885,11 @@ def test_batch_stops_on_required_non_environment_controls(setup, monkeypatch, fa
     if failure == "authentication":
         monkeypatch.setattr(FakeProxy, "fail_auth", True)
     elif failure == "budget":
-        monkeypatch.setattr(FakeProxy, "usage_rows", [
-            {"usage": 1, "limit": 30, "limit_remaining": 29},
-            {"usage": 1.5, "limit": 30, "limit_remaining": 0}])
+        monkeypatch.setattr(
+            FakeProxy,
+            "usage_rows",
+            [{"usage": 1, "limit": 30, "limit_remaining": 29}, {"usage": 1.5, "limit": 30, "limit_remaining": 0}],
+        )
     elif failure == "identity":
         setup.docker.version = "wrong CLI"
     else:
@@ -723,8 +901,10 @@ def test_batch_stops_on_required_non_environment_controls(setup, monkeypatch, fa
 @pytest.mark.parametrize("stop", ["cleanup_failure", "ownership_failure", "interrupted", None])
 def test_unresolved_host_process_cleanup_blocks_batch_and_future_trials(setup, monkeypatch, stop):
     trial(setup)
+
     def unresolved(*args, **kwargs):
         return ProcessResult(b"", b"", -9, stop, 0.01, cleanup_complete=False, pid=12345)
+
     monkeypatch.setattr(runner, "run_bounded", unresolved)
     results = runner.run_batch(setup.config, setup.manifest, setup.rows, setup.output, setup.key_file, setup.smoke)
     assert len(results) == 2
@@ -745,8 +925,15 @@ def test_unresolved_host_process_cleanup_blocks_batch_and_future_trials(setup, m
     setup.docker.resources.clear()  # Docker absence cannot resolve host process uncertainty.
     before = len(FakeProxy.instances)
     with pytest.raises(ValueError, match="cleanup"):
-        runner.run_trial(setup.config, setup.manifest, setup.rows, setup.rows[2]["instance_id"],
-                         setup.output, setup.key_file, setup.smoke)
+        runner.run_trial(
+            setup.config,
+            setup.manifest,
+            setup.rows,
+            setup.rows[2]["instance_id"],
+            setup.output,
+            setup.key_file,
+            setup.smoke,
+        )
     assert len(FakeProxy.instances) == before
     assert not any(args[0] == "host_process" or host["name"] in args for args, _ in setup.docker.calls)
 
@@ -759,12 +946,15 @@ def test_supported_assessment_survives_late_instrument_failure(setup, monkeypatc
     if late_problem == "cleanup":
         setup.docker.cleanup_error = True
     elif late_problem == "billing":
-        monkeypatch.setattr(FakeProxy, "usage_rows", [
-            {"usage": 1, "limit": 30, "limit_remaining": 29}, ValueError("unavailable usage")])
+        monkeypatch.setattr(
+            FakeProxy, "usage_rows", [{"usage": 1, "limit": 30, "limit_remaining": 29}, ValueError("unavailable usage")]
+        )
     else:
+
         def failed_close(self):
             self.closed = True
             raise RuntimeError("closure could not be confirmed")
+
         monkeypatch.setattr(FakeProxy, "close", failed_close)
     result = trial(setup)
     record = RecordV1.model_validate_json((folder(setup) / "record.json").read_text())
@@ -812,8 +1002,11 @@ def test_supported_verifier_assessment_survives_late_container_cleanup(setup, mo
 @pytest.mark.parametrize("elevated", [True, None, 0, "false"])
 def test_shared_host_binding_requires_unelevated_account_before_docker(monkeypatch, elevated):
     monkeypatch.setattr(configuration, "binding", lambda *args: {})
-    monkeypatch.setattr(runner.fingerprints, "host_identity", lambda: {
-        "hostname": "host", "account_id": "account", "elevated": elevated})
+    monkeypatch.setattr(
+        runner.fingerprints,
+        "host_identity",
+        lambda: {"hostname": "host", "account_id": "account", "elevated": elevated},
+    )
     docker = SimpleNamespace(call=lambda *args, **kwargs: pytest.fail("unsafe host reached Docker"))
     with pytest.raises(ValueError, match="unelevated"):
         runner.runtime_binding({}, {}, docker)

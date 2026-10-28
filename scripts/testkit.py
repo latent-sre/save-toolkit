@@ -81,6 +81,16 @@ def require_shell(name: str = "sh") -> str:
     raise unittest.SkipTest(f"no `{name}` on this host")
 
 
+def require_symlink(link: Path, target: Path, *, target_is_directory: bool = False) -> None:
+    """Create a real link; expose a local Windows privilege gap as a skip, never a pass."""
+    try:
+        link.symlink_to(target, target_is_directory=target_is_directory)
+    except OSError as error:
+        if os.name == "nt" and getattr(error, "winerror", None) == 1314 and not os.environ.get("CI"):
+            raise unittest.SkipTest("Windows symlink privilege unavailable; link control unverified") from error
+        raise
+
+
 def must_replace(text: str, old: str, new: str, count: int = 1) -> str:
     """`text.replace(old, new, count)` that fails when `old` is absent.
 

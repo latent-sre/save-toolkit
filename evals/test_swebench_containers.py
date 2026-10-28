@@ -7,6 +7,8 @@ import subprocess
 import pytest
 from swebench_adapter import containers
 
+from scripts.testkit import require_shell
+
 DIGEST = "sha256:" + "a" * 64
 BASE = "b" * 40
 
@@ -70,9 +72,15 @@ def agent(setup, **kwargs):
     docker, resources, cli, plugin = setup
     if "wp08-attempt-network" not in docker.present:
         resources.internal_network()
-    return resources.start_agent("wp08-attempt-network", DIGEST, cli, plugin,
-        {"ANTHROPIC_AUTH_TOKEN": "attempt-placeholder", "ANTHROPIC_API_KEY": ""}, "172.30.0.2",
-        storage_quota=kwargs.get("storage_quota", True))
+    return resources.start_agent(
+        "wp08-attempt-network",
+        DIGEST,
+        cli,
+        plugin,
+        {"ANTHROPIC_AUTH_TOKEN": "attempt-placeholder", "ANTHROPIC_API_KEY": ""},
+        "172.30.0.2",
+        storage_quota=kwargs.get("storage_quota", True),
+    )
 
 
 def test_docker_wrapper_uses_argv_and_sanitizes_failure(monkeypatch):
@@ -96,9 +104,11 @@ def test_docker_wrapper_uses_argv_and_sanitizes_failure(monkeypatch):
 def test_docker_timeout_and_os_errors_do_not_include_output_or_argv(monkeypatch):
     for failure in (subprocess.TimeoutExpired(["sk-or-secret"], 1, output=b"sk-or-secret"), OSError("sk-or-secret")):
         calls = []
+
         def run(*args, failure=failure, calls=calls, **kwargs):
             calls.append(args)
             raise failure
+
         monkeypatch.setattr(containers.subprocess, "run", run)
         with pytest.raises(RuntimeError) as error:
             containers.Docker().call(["sk-or-secret"])
@@ -114,7 +124,9 @@ def test_internal_network_requires_isolated_bridge_mode_and_owns_partial_create(
     argv = next(args for args, *_ in docker.calls if args[:2] == ["network", "create"])
     assert "--internal" in argv
     assert "com.docker.network.bridge.gateway_mode_ipv4=isolated" in argv
-    assert resources.cleanup() == [{"kind": "network", "name": "wp08-attempt-network", "present": False, "removed": True}]
+    assert resources.cleanup() == [
+        {"kind": "network", "name": "wp08-attempt-network", "present": False, "removed": True}
+    ]
 
 
 def test_agent_launch_has_only_readonly_tool_mounts_and_fixed_network(setup):
@@ -122,14 +134,23 @@ def test_agent_launch_has_only_readonly_tool_mounts_and_fixed_network(setup):
     name = agent(setup, storage_quota=True)
     argv = next(args for args, *_ in docker.calls if args[0] == "run")
     assert name == "wp08-attempt-agent"
-    for option, expected in [("--cpus", "2"), ("--memory", "2g"), ("--pids-limit", "256"),
-                             ("--cap-drop", "ALL"), ("--security-opt", "no-new-privileges"),
-                             ("--dns", "127.0.0.1"), ("--add-host", "model-proxy:172.30.0.2"),
-                             ("--storage-opt", "size=10G"), ("--network", "wp08-attempt-network")]:
+    for option, expected in [
+        ("--cpus", "2"),
+        ("--memory", "2g"),
+        ("--pids-limit", "256"),
+        ("--cap-drop", "ALL"),
+        ("--security-opt", "no-new-privileges"),
+        ("--dns", "127.0.0.1"),
+        ("--add-host", "model-proxy:172.30.0.2"),
+        ("--storage-opt", "size=10G"),
+        ("--network", "wp08-attempt-network"),
+    ]:
         assert argv[argv.index(option) + 1] == expected
     mounts = [argv[i + 1] for i, arg in enumerate(argv) if arg == "--mount"]
-    assert mounts == [f"type=bind,source={cli.resolve()},target=/opt/claude,readonly",
-                      f"type=bind,source={plugin.resolve()},target=/opt/fleet,readonly"]
+    assert mounts == [
+        f"type=bind,source={cli.resolve()},target=/opt/claude,readonly",
+        f"type=bind,source={plugin.resolve()},target=/opt/fleet,readonly",
+    ]
     assert "docker.sock" not in " ".join(argv)
     assert "--privileged" not in argv
     assert resources.cleanup()[0]["present"] is False
@@ -147,8 +168,9 @@ def test_mutable_or_invalid_image_is_rejected_before_allocating(setup, image):
 def test_real_credential_markers_are_refused_before_launch(setup, value):
     docker, resources, cli, plugin = setup
     with pytest.raises(ValueError):
-        resources.start_agent("network", DIGEST, cli, plugin, {"ANTHROPIC_AUTH_TOKEN": value},
-                              "172.30.0.2", storage_quota=True)
+        resources.start_agent(
+            "network", DIGEST, cli, plugin, {"ANTHROPIC_AUTH_TOKEN": value}, "172.30.0.2", storage_quota=True
+        )
     assert docker.calls == []
 
 
@@ -210,8 +232,8 @@ def test_git_prune_script_removes_future_hidden_refs_remotes_and_reflogs(tmp_pat
     script = containers.git_prune_script(base)
     assert "\r" not in script
     # Only replace the fixed image workdir for the real temporary Git fixture.
-    script = script.replace("cd /testbed", 'cd "' + str(repo) + '"')
-    subprocess.run(["/bin/sh", "-s"], input=script.encode(), check=True, capture_output=True)
+    script = script.replace("cd /testbed", 'cd "' + repo.as_posix() + '"')
+    subprocess.run([require_shell("sh"), "-s"], input=script.encode(), check=True, capture_output=True)
     assert git(repo, "rev-parse", "HEAD") == base
     assert git(repo, "for-each-ref") == ""
     assert git(repo, "remote") == ""
@@ -259,9 +281,11 @@ class FakeProcess:
 
 def fake_process(monkeypatch, process):
     calls = []
+
     def popen(argv, **kwargs):
         calls.append((argv, kwargs))
         return process
+
     monkeypatch.setattr(containers.subprocess, "Popen", popen)
     return calls
 
@@ -299,7 +323,9 @@ def test_wall_clock_stops_process_and_container(setup, monkeypatch):
     assert ["rm", "--force", name] in [args for args, *_ in docker.calls]
 
 
-@pytest.mark.parametrize("size,expected", [(10_737_418_241, "storage_limit"), (None, "monitor_failure"), (-1, "monitor_failure")])
+@pytest.mark.parametrize(
+    "size,expected", [(10_737_418_241, "storage_limit"), (None, "monitor_failure"), (-1, "monitor_failure")]
+)
 def test_exact_writable_layer_watchdog_fails_closed(setup, monkeypatch, size, expected):
     docker, resources, _, _ = setup
     name = agent(setup)
@@ -363,7 +389,6 @@ def test_fast_execution_still_checks_storage_before_return(setup, monkeypatch):
     assert result.stop == "storage_limit"
 
 
-
 def test_failed_agent_creation_is_still_owned_for_cleanup(setup):
     docker, resources, _, _ = setup
     resources.internal_network()
@@ -394,13 +419,25 @@ def test_daemon_pin_is_stable_and_argv_cannot_mutate_it(endpoint):
     assert docker.argv[-1] == endpoint
 
 
-@pytest.mark.parametrize("endpoint", [
-    "tcp://remote.invalid:2375", "ssh://user@remote.invalid", "http://remote.invalid",
-    "unix://remote.invalid/docker.sock", "unix://user:secret@localhost/socket",
-    "unix:///run/docker.sock?credential=secret", "unix:///run/docker.sock#secret",
-    "unix:///run/sk-or-secret.sock", "unix:///run/docker.sock\n", "unix:///run/docker\x00.sock",
-    "npipe:////remote/pipe/docker_engine", "npipe:////./pipe/docker_engine\r", "", None,
-])
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "tcp://remote.invalid:2375",
+        "ssh://user@remote.invalid",
+        "http://remote.invalid",
+        "unix://remote.invalid/docker.sock",
+        "unix://user:secret@localhost/socket",
+        "unix:///run/docker.sock?credential=secret",
+        "unix:///run/docker.sock#secret",
+        "unix:///run/sk-or-secret.sock",
+        "unix:///run/docker.sock\n",
+        "unix:///run/docker\x00.sock",
+        "npipe:////remote/pipe/docker_engine",
+        "npipe:////./pipe/docker_engine\r",
+        "",
+        None,
+    ],
+)
 def test_daemon_pin_refuses_remote_or_credential_bearing_endpoints(endpoint):
     docker = containers.Docker()
     with pytest.raises(ValueError):
@@ -427,9 +464,9 @@ def test_all_owned_commands_and_exec_stay_on_bound_daemon_after_context_changes(
     resources = containers.DockerResources(docker, "bound-attempt")
     network = resources.internal_network()
     proxy_ip = resources.start_relay(network, "host.docker.internal", 40000)
-    name = resources.start_agent(network, DIGEST, cli, plugin,
-                                {"ANTHROPIC_AUTH_TOKEN": "attempt-placeholder"}, proxy_ip,
-                                storage_quota=True)
+    name = resources.start_agent(
+        network, DIGEST, cli, plugin, {"ANTHROPIC_AUTH_TOKEN": "attempt-placeholder"}, proxy_ip, storage_quota=True
+    )
     resources.setup_repository(name, BASE)
     process_calls = fake_process(monkeypatch, FakeProcess())
     result = resources.execute(name, ["/opt/claude", "--version"], storage_quota=False)

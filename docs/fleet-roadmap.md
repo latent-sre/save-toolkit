@@ -203,6 +203,8 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
 - The [Windows preparation and completion audit](reviews/2026-10-27-eval012-windows-preparation.md)
   binds fresh WP-04/08/09 source packets and retains failed Windows checks. Docker accepts
   a size option but did not enforce it in the bounded write probe; the host is not qualified.
+  Windows fixture repairs have focused passing evidence; symlink privilege, native signal
+  qualification and the intermittent publication-lock diagnosis remain open in that audit.
 - WP-03 remains deferred under EVAL-015. WP-06/07's SREGym and recovery work, WP-11's later
   AIOpsLab expansion and WP-14's live GCP exercises retain their delivery/acceptance requirements.
 - WP-15's [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful comparison.
