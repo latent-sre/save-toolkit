@@ -8,6 +8,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Reconcile EVAL-012 preparation with recorded Linux trials, Windows verification gaps and the
+  measured Docker quota failure; retain outstanding campaign and human-acceptance requirements.
 - Consolidate `operational-learning`, `runbook`, and `postmortem` into `operational-docs` (27 to 25
   skills) with methods, assets, and importer behavior intact ([evidence](docs/reviews/2026-10-24-operational-docs-consolidation.md)).
 - Trim the references of 22 skills, removing repeated narration, tutorials, and unconfirmed claims;

@@ -7,6 +7,11 @@ remaining batch separately. Offline tests are not installed-host acceptance.
 
 ## Prepare the evaluation host
 
+The [Windows preparation audit](../reviews/2026-10-27-eval012-windows-preparation.md) found
+that the observed containerd/overlayfs engine accepted a size option but exceeded it in a
+bounded write probe. Successful container creation and `StorageOpt` inspection alone do
+not qualify this host. Resolve that failure before the full smoke or benchmark trials.
+
 Use a local Docker engine running Linux containers. The agent network requires Docker's
 `--internal` bridge with `com.docker.network.bridge.gateway_mode_ipv4=isolated`: unlike an ordinary
 internal bridge, it has no host bridge address. DNS forwarding is disabled in the agent container;

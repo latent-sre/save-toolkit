@@ -5,7 +5,12 @@
 original bytes, original IDs, immutable paths and per-file SHA-256. Every selected root has an
 unambiguous binding to an actual observed resource under original metadata. Known-correct,
 wrong-root, unavailable and missing-root controls execute against all five real source bindings.
-**Zero cases are human-admitted and zero model trials have run.**
+This is the source/admission packet; its zero-trial statement applied when it was prepared.
+[sourced] The later [Linux pilot](../reviews/2026-10-25-followthrough.md#linux-wp-04-pilot)
+records one attempt on each of these five cases, retaining technical failures and pending
+upstream/human assessments. The [Windows preparation audit](../reviews/2026-10-27-eval012-windows-preparation.md)
+records newly restored source fixtures and outstanding host checks. Neither changes the
+pending exact-case admission fields in the Windows run-plan template.
 
 [sourced] The source is [ITBench-Lite at d0916b08](https://huggingface.co/datasets/ibm-research/ITBench-Lite/tree/d0916b08ba421ce5e672e9ad68aa947d938dfef0/snapshots/sre/v0.2-B96DF826-4BB2-4B62-97AB-6D84254C53D7),
 whose [pinned dataset card](https://huggingface.co/datasets/ibm-research/ITBench-Lite/blob/d0916b08ba421ce5e672e9ad68aa947d938dfef0/README.md)
