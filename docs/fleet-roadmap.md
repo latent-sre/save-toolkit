@@ -23,19 +23,17 @@ records do not re-queue work.
 
 ## Repository work
 
-### SKILLS-003 — consolidate operational documentation methods
+### SKILLS-004 — disposition the postmortem follow-up-ID failure in `operational-docs`
 
-**Status:** `ready` (2026-10-24); combined source, callers, assets and checks are prepared.
-**Owner:** Current session prepares the candidate; human owner accepts the exact revision.
-**Outcome:** One `operational-docs` entrypoint replaces three overlapping skills while preserving
-bounded runbook edits, retrospective scope, closeout evidence and read-only ownership lookup.
-**Next action:** Human review and merge disposition for `work/operational-docs-consolidation`.
-Retain the recorded native limits: one smoke trial per positive case, and the fleet-failure
-negative's unfinished dispatch on both incumbent and candidate. The postmortem fixture loads the
-method and stays in scope but fails its exact follow-up-ID check; resolve or explicitly disposition
-that result before claiming authored-behavior acceptance.
-**Evidence:** [Consolidation and verification](reviews/2026-10-24-operational-docs-consolidation.md).
-**SRE task:** Select one operational-documentation skill and load only the requested method.
+**Status:** `decision-needed` (2026-10-28); split from SKILLS-003 when its consolidation merged in #430.
+**Owner:** The human owner decides the disposition; `agent-engineer` owns the fixture and the method.
+**Outcome:** `build-scribe-postmortem-unknown-metadata` passes its exact follow-up-row check, or the
+owner records that the check, not the method, is wrong.
+**Next action:** The owner decides whether a tracking-note suffix on an existing follow-up ID and
+proposed sub-IDs (`FUP-74-A/B/C`) are acceptable. Keep the recorded native limits: one smoke trial
+per positive case, and the fleet-failure negative's unfinished dispatch on both arms.
+**Evidence:** [Document fixture](reviews/2026-10-24-operational-docs-consolidation.md#document-fixture).
+**SRE task:** An SRE writing a postmortem keeps existing follow-up IDs intact so tracking stays joined.
 
 ### SKILLS-002 — clean skill references sequentially
 
