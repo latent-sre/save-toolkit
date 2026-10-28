@@ -205,7 +205,9 @@ class _SmokeUpstream:
 
 def _port_present(host: str, port: int) -> bool:
     try:
-        with socket.create_connection((host, port), timeout=1):
+        # Windows can take about two seconds to report a refused loopback connection.
+        # A timeout still propagates as unknown cleanup, never confirmed absence.
+        with socket.create_connection((host, port), timeout=5):
             return True
     except ConnectionRefusedError:
         return False

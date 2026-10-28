@@ -38,6 +38,21 @@ class MarkdownHelperTests(unittest.TestCase):
 
 
 class ShellTests(unittest.TestCase):
+    def test_symlink_privilege_gap_skips_locally_but_fails_ci(self) -> None:
+        error = OSError("symlink privilege unavailable")
+        error.winerror = 1314
+        link = mock.Mock()
+        link.symlink_to.side_effect = error
+        target = Path("target")
+        with mock.patch.object(testkit.os, "name", "nt"):
+            with mock.patch.dict(testkit.os.environ, {"CI": ""}), self.assertRaises(unittest.SkipTest):
+                testkit.require_symlink(link, target)
+            with mock.patch.dict(testkit.os.environ, {"CI": "true"}), self.assertRaises(OSError):
+                testkit.require_symlink(link, target)
+        link.symlink_to.side_effect = FileExistsError("existing destination")
+        with self.assertRaises(FileExistsError):
+            testkit.require_symlink(link, Path("target"))
+
     def test_a_missing_shell_skips_locally_and_fails_on_ci(self) -> None:
         with mock.patch.object(testkit, "find_shell", return_value=None):
             with mock.patch.dict(testkit.os.environ, {"CI": ""}), self.assertRaises(unittest.SkipTest):

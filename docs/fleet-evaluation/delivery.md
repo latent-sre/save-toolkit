@@ -56,8 +56,10 @@ work-package numbers identify scope rather than imposing a total execution order
    cases, exact candidate and limitations; the pilot alone does not complete WP-12/13.
 5. **Broader fleet evaluation:** WP-03/05/07/09/10, full WP-12/13 and WP-14, including a judge disposition, longer and branching
    incident conversations, recovery advice, test generation, terminal work, wider roster coverage
-   and controlled adversarial cases, the complete GCP catalog, GCP handover tabletops and eight live
-   cloud exercises. Fixed conversations alone do not complete WP-05 or the interactive part of WP-13.
+   and controlled adversarial cases, the complete GCP catalog and eight live cloud exercises.
+   Fixed conversations alone do not complete WP-05. Under the owner's 2026-10-18 amendment,
+   GCP branching and human handover exercises report separately as BRANCH-001 and HANDOVER-001
+   in the [roadmap](../fleet-roadmap.md); they no longer gate WP-13 completion.
 6. **Environment expansion:** WP-11 adds Microsoft AIOpsLab for the selected later capability.
 
 Only mark a work package complete when its named acceptance evidence exists. Framework installation

@@ -159,7 +159,7 @@ part of the incident, without delegating deployment or remediation authority.
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-25). The owner accepted [specification](fleet-evaluation/README.md)
+**Status:** `active` (2026-10-27). The owner accepted [specification](fleet-evaluation/README.md)
 revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion boundary on
 2026-10-18. By work package:
 - WP-01 complete: `evals/compare_runs.py`, merged in
@@ -200,6 +200,13 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   [stress test](reviews/2026-10-17-wp13-stress-test.md), the
   [hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md) and the
   [catalog baseline](reviews/2026-10-18-wp13-catalog-baseline.md); branching moved to BRANCH-001.
+- The [Windows preparation and completion audit](reviews/2026-10-27-eval012-windows-preparation.md)
+  binds fresh WP-04/08/09 source packets and retains failed Windows checks. Docker accepts
+  a size option but did not enforce it in the bounded write probe; the host is not qualified.
+  Windows fixture repairs have focused passing evidence; symlink privilege, native signal
+  qualification and the intermittent publication-lock diagnosis remain open in that audit.
+- WP-03 remains deferred under EVAL-015. WP-06/07's SREGym and recovery work, WP-11's later
+  AIOpsLab expansion and WP-14's live GCP exercises retain their delivery/acceptance requirements.
 - WP-15's [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful comparison.
 
 **Owner:** The human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
@@ -213,14 +220,16 @@ acceptance tests, delivery phases and explicit open decisions.
   Sonnet/Sol/Luna/Terra testing support first, then WP-04 on Linux and Windows, EVAL-005,
   ROUTE-007, HANDOVER-001, WP-09 and WP-10. The owner approved USD 40 aggregate testing
   spend; exact runtime evidence, human tabletops and candidate acceptance remain distinct.
-  The owner subsequently deferred Windows WP-04 and Docker-based WP-09 execution;
-  Linux WP-04 and independent local preparation continue. Bounded Codex subscription
+  The owner previously deferred Windows WP-04 and Docker-based WP-09 execution and now
+  requests their preparation. The measured quota failure and Windows verification gaps must
+  be resolved before execution; preparation does not accept a new host or candidate. Bounded Codex subscription
   runs are explicitly approved, with dollar costs remaining unknown.
   [Follow-through evidence](reviews/2026-10-25-followthrough.md) records the four-model
   smoke and five-case Linux WP-04 pilot, preserving technical failures, mapping gaps
   and unmeasured upstream/human assessments.
-- WP-08: review the implementation candidate and complex-case/run-plan amendment, then prove hard
-  quota support on the already selected Windows Docker Desktop Linux engine. Freeze
+- WP-08/09: resolve the observed hard-quota failure on the selected Windows Docker Desktop
+  engine, with an owner-approved host amendment if needed. Repair/qualify Windows checks and
+  review the exact implementation and complex-case/run-plan amendment. Freeze
   the accepted dataset/selection, licences, CLI, plugin and image identities using the
   [operator commands](fleet-evaluation/wp08-operator.md). Then start the approved
   [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md)'s model-free smoke, first paid trial

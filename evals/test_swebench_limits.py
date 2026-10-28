@@ -23,7 +23,11 @@ def limits():
 
 def test_process_captures_separate_small_outputs_and_exit_code(tmp_path):
     result = limits().run_bounded(
-        [sys.executable, "-c", "import sys;print('out');print('err',file=sys.stderr);sys.exit(7)"],
+        [
+            sys.executable,
+            "-c",
+            "import sys;sys.stdout.buffer.write(b'out\\n');sys.stderr.buffer.write(b'err\\n');sys.exit(7)",
+        ],
         cwd=tmp_path,
         env=os.environ,
         timeout=3,
@@ -60,12 +64,13 @@ def test_process_timeout_terminates_owned_child_tree(tmp_path):
 
 
 def test_process_interruption_is_returned_instead_of_escaping(tmp_path):
-    # Deliver a real SIGINT inside an isolated driver so pytest itself is never signalled.
+    # Schedule KeyboardInterrupt inside an isolated driver. Windows os.kill(SIGINT)
+    # terminates the process instead of invoking Python's signal handler.
     source = Path(__file__).parent
     driver = (
-        "import os,signal,threading,sys,json;from pathlib import Path;"
+        "import os,_thread,threading,sys,json;from pathlib import Path;"
         f"sys.path.insert(0,{str(source)!r});from swebench_adapter.limits import run_bounded;"
-        "threading.Timer(.15,lambda:os.kill(os.getpid(),signal.SIGINT)).start();"
+        "threading.Timer(.15,_thread.interrupt_main).start();"
         "r=run_bounded([sys.executable,'-c','import time;time.sleep(10)'],cwd=Path.cwd(),env=os.environ,timeout=3);"
         "print(json.dumps({'stop':r.stop,'seconds':r.seconds}))"
     )

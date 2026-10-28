@@ -12,6 +12,8 @@ import pytest
 from itbench_adapter import assess_local, export_submission, fetch_sources, stage_case, validate_manifest
 from itbench_testkit import BINDINGS, PREFIX, SHA, diagnosis, manifest, truth
 
+from scripts.testkit import require_symlink
+
 
 def test_staging_copies_only_reviewed_observations(tmp_path: Path) -> None:
     source = tmp_path / "source"
@@ -58,11 +60,11 @@ def test_staging_fails_closed_without_partial_publication(tmp_path: Path, mode: 
     asset = source / "Scenario-24" / "k8s_events_raw.tsv"
     if mode == "symlink":
         asset.unlink()
-        asset.symlink_to(source / "Scenario-24" / "ground_truth.yaml")
+        require_symlink(asset, source / "Scenario-24" / "ground_truth.yaml")
     if mode == "parentlink":
         moved = source / "moved"
         (source / "Scenario-24").rename(moved)
-        (source / "Scenario-24").symlink_to(moved, target_is_directory=True)
+        require_symlink(source / "Scenario-24", moved, target_is_directory=True)
     if mode == "tamper":
         asset.write_text("tampered")
     if mode == "answerbytes":

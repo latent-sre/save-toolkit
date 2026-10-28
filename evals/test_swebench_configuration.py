@@ -9,6 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from scripts.testkit import require_symlink
+
 
 def module():
     return importlib.import_module("swebench_adapter.configuration")
@@ -111,7 +113,7 @@ def test_load_requires_strict_json_object(tmp_path, text):
 def test_cli_symlink_resolves_but_script_wrapper_is_rejected(config_file):
     path, config = config_file
     link = path.parent / "cli-link"
-    link.symlink_to(path.parent / "claude")
+    require_symlink(link, path.parent / "claude")
     config["cli_path"] = str(link)
     path.write_text(json.dumps(config))
     assert module().load_config(path)["cli_path"] == str(path.parent / "claude")
@@ -245,18 +247,18 @@ def test_selection_committed_requires_tracked_clean_head_bytes(tmp_path):
     git("config", "user.name", "Offline Test")
     git("config", "user.email", "offline@example.invalid")
     path = tmp_path / "selection.json"
-    path.write_text('{"selection":1}\n')
+    path.write_text('{"selection":1}\n', newline="\n")
     assert not module().selection_committed(path)
     git("add", "selection.json")
     assert not module().selection_committed(path)
     git("commit", "--quiet", "-m", "temporary fixture")
     head = git("rev-parse", "HEAD")
     assert module().selection_committed(path)
-    path.write_text('{"selection":2}\n')
+    path.write_text('{"selection":2}\n', newline="\n")
     assert not module().selection_committed(path)
     git("add", "selection.json")
     assert not module().selection_committed(path)
-    path.write_text('{"selection":1}\n')
+    path.write_text('{"selection":1}\n', newline="\n")
     assert not module().selection_committed(path), "staged changes also invalidate a selection"
     git("reset", "--quiet", "HEAD", "--", "selection.json")
     assert module().selection_committed(path)
