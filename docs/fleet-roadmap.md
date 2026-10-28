@@ -157,48 +157,46 @@ part of the incident, without delegating deployment or remediation authority.
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-25). The owner accepted [specification](fleet-evaluation/README.md)
+**Status:** `active` (2026-10-28). The owner accepted [specification](fleet-evaluation/README.md)
 revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion boundary on
-2026-10-18. By work package:
-- WP-01 complete: `evals/compare_runs.py`, merged in
-  [PR #333](https://github.com/latent-sre/save-toolkit/pull/333) at `52352543`.
-- WP-02 complete on 2026-10-09: [run record](reviews/2026-10-08-wp02-native-readiness.md); the
-  [EVAL-011 closeout](reviews/2026-10-10-eval-011-closeout.md) binds the repaired native
-  measurement contract.
-- WP-08 implementation candidate prepared: adapter, host credential proxy, independent verifier,
-  smoke gates and offline tests; [implementation and verification evidence](reviews/2026-10-25-wp08-adapter.md).
-  Live smoke and paid trials have not run; exact-candidate acceptance remains with the owner.
-- Complex-campaign preparation is in progress under the [implementation plan](fleet-evaluation/implementation-complex-campaigns.md):
-  WP-08 has a separate [ten-case hard-task proposal](fleet-evaluation/wp08-complex-proposal.md);
-  WP-04 has a pinned [source/admission packet](fleet-evaluation/wp04-case-review.md);
-  WP-05 has [18 authored execution profiles over six incident families](../evals/incident-conversations/README.md),
-  with native ordered-session support and offline controls. WP-09 has separate
-  [five-case SWT](fleet-evaluation/wp09-swt-run-plan.md) and
-  [five-case Harbor/Terminal-Bench](fleet-evaluation/wp09-terminal-runplan.md) proposals,
-  native author/independent verifier adapters and executable model-free smoke commands. The standalone
-  [campaign report](fleet-evaluation/campaign-report.md) preserves measurement, billing and review gaps.
-  [Integrated preparation evidence](reviews/2026-10-25-complex-campaign-preparation.md) records the
-  offline controls and repaired review findings. These are preparation milestones, not accepted
-  benchmark outcomes; exact-case acceptance and live gates remain open.
-- WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md), its
-  [case acceptance](reviews/2026-10-10-wp10-case-acceptance.md), and its [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
-  [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
-  exact quotation, the reliability exception-path explanation and GCP-01 B's factual findings open.
-  The [current four-model continuation](reviews/2026-10-25-wp10-continuation.md) completed
-  all 44 planned attempts, retaining four instrument gaps and separate semantic proposals.
-  Mechanical passes do not close the observed reasoning failures or human acceptance.
-  The [88-attempt repair comparison](reviews/2026-10-25-wp10-handoff-repairs.md) is complete
-  at run and AI-review level. Retry reasoning improved on Sonnet/Luna in the sample;
-  Terra remains unresolved, and the unsupported GCP rewrite was withdrawn. Keep its
-  incumbent/candidate evidence separate from the earlier baseline and human acceptance.
-- WP-12 complete on 2026-10-17: all 64 GCP cases accepted at `9147ff91`
-  ([pilot and template](../evals/oracles/gcp/README.md), [catalog](../evals/oracles/gcp/CATALOG.md)).
-- WP-13 complete on 2026-10-18 under its [run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md):
-  the [pilot](reviews/2026-10-17-wp13-gcp-pilot-review.md), the
-  [stress test](reviews/2026-10-17-wp13-stress-test.md), the
-  [hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md) and the
-  [catalog baseline](reviews/2026-10-18-wp13-catalog-baseline.md); branching moved to BRANCH-001.
-- WP-15's [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful comparison.
+2026-10-18. Follow-through testing has reported USD 12.477564 of native spend against the owner's
+USD 40 cap ([latest total](reviews/2026-10-25-wp10-handoff-repairs.md#disposition-and-remaining-work));
+Codex subscription dollars remain unknown, not zero. By work package:
+- Complete: WP-01 ([PR #333](https://github.com/latent-sre/save-toolkit/pull/333)), WP-02
+  ([run record](reviews/2026-10-08-wp02-native-readiness.md), bound by the
+  [EVAL-011 closeout](reviews/2026-10-10-eval-011-closeout.md)), WP-12 (all 64 GCP cases accepted
+  at `9147ff91`; [catalog](../evals/oracles/gcp/CATALOG.md)) and WP-13
+  ([pilot](reviews/2026-10-17-wp13-gcp-pilot-review.md), [stress test](reviews/2026-10-17-wp13-stress-test.md),
+  [hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md) and
+  [catalog baseline](reviews/2026-10-18-wp13-catalog-baseline.md); branching moved to BRANCH-001).
+- WP-04: five cases proposed in the [case review](fleet-evaluation/wp04-case-review.md); none is
+  human-admitted. A five-case Linux Sonnet pilot ran on 2026-10-25 under the follow-through
+  approval ([record](reviews/2026-10-25-followthrough.md#linux-wp-04-pilot)); the case review's
+  "zero model trials" line predates it. The owner deferred Windows execution.
+- WP-05: [18 execution profiles over six incident families](../evals/incident-conversations/README.md)
+  with offline controls; none accepted or run.
+- WP-08: adapter and hard storage quotas merged in #431 and #432
+  ([evidence](reviews/2026-10-25-wp08-adapter.md)); a separate
+  [ten-case hard-task proposal](fleet-evaluation/wp08-complex-proposal.md) awaits owner acceptance.
+  No live smoke or paid trial has run.
+- WP-09: [SWT](fleet-evaluation/wp09-swt-run-plan.md) and
+  [Harbor/Terminal-Bench](fleet-evaluation/wp09-terminal-runplan.md) proposals with model-free smoke
+  commands; the owner deferred Docker-based execution, and WP-09 follows WP-08.
+- WP-10: the [first step](reviews/2026-10-10-wp10-first-step.md), its
+  [case acceptance](reviews/2026-10-10-wp10-case-acceptance.md) and
+  [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved. The
+  [44-attempt continuation](reviews/2026-10-25-wp10-continuation.md) and the
+  [88-attempt repair comparison](reviews/2026-10-25-wp10-handoff-repairs.md) are complete at run
+  and AI-review level. Retry reasoning improved on Sonnet and Luna in the sample, Terra did not, and
+  the GCP startup rewrite was withdrawn. On 2026-10-28 the owner chose broader qualification over
+  accepting the retained candidate; its scope is not yet set.
+- WP-15: the [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful
+  comparison.
+- Complex-campaign preparation follows the
+  [implementation plan](fleet-evaluation/implementation-complex-campaigns.md); the
+  [preparation evidence](reviews/2026-10-25-complex-campaign-preparation.md) and
+  [campaign report](fleet-evaluation/campaign-report.md) keep measurement, billing and review gaps.
+  These are preparation milestones, not accepted benchmark outcomes.
 
 **Owner:** The human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
 scenario and measurement design; implementation and lab owners are assigned per delivery package.
@@ -207,38 +205,33 @@ test generation, selected terminal tasks, GCP managed-service/migration and GKE 
 fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
 acceptance tests, delivery phases and explicit open decisions.
 **Next action:**
-- Execute the owner's [follow-through plan](fleet-evaluation/run-plan-followthrough.md): shared
-  Sonnet/Sol/Luna/Terra testing support first, then WP-04 on Linux and Windows, EVAL-005,
-  ROUTE-007, HANDOVER-001, WP-09 and WP-10. The owner approved USD 40 aggregate testing
-  spend; exact runtime evidence, human tabletops and candidate acceptance remain distinct.
-  The owner subsequently deferred Windows WP-04 and Docker-based WP-09 execution;
-  Linux WP-04 and independent local preparation continue. Bounded Codex subscription
-  runs are explicitly approved, with dollar costs remaining unknown.
-  [Follow-through evidence](reviews/2026-10-25-followthrough.md) records the four-model
-  smoke and five-case Linux WP-04 pilot, preserving technical failures, mapping gaps
-  and unmeasured upstream/human assessments.
-- WP-08: review the implementation candidate and complex-case/run-plan amendment, then prove hard
-  quota support on the already selected Windows Docker Desktop Linux engine. Freeze
-  the accepted dataset/selection, licences, CLI, plugin and image identities using the
-  [operator commands](fleet-evaluation/wp08-operator.md). Then start the approved
+- WP-10: `agent-engineer` drafts the broader-qualification run plan; the owner sets its cases,
+  repetitions, host, spend cap and human-review sample. The retained candidate differs from the
+  measured three-file candidate and has not been measured as a whole. Human acceptance names the
+  exact candidate; no campaign is scheduled automatically.
+- WP-04/05: the owner admits or rejects each case at its exact digest against the review criteria,
+  then binds candidate, runner, CLI, model, host and spend under the
+  [WP-04 operator plan](fleet-evaluation/wp04-operator-runplan.md) and the WP-05
+  [run plan](../evals/incident-conversations/run-plan.json).
+- WP-08: the owner reviews the candidate and the hard-task proposal, proves hard quota support on
+  the selected Windows Docker Desktop Linux engine and freezes identities with the
+  [operator commands](fleet-evaluation/wp08-operator.md). The owner then starts the
   [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md)'s model-free smoke, first paid trial
-  and remaining nine Claude tasks as separate owner-started steps. Other models retain their own
-  approvals; WP-09 follows WP-08.
-- WP-04/05: complete exact case/review admission and bounded native run conditions after integrated
-  offline verification. WP-09 requires pinned compatible images and per-case model-free smoke before
-  exact-candidate/model/spend acceptance; Harbor is already the selected Terminal-Bench runner.
-- WP-13: none; complete. Use its cases as a regression check when a skill or agent changes.
-  Haiku's inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
-- WP-10: review the retained repair candidate and bound 88-attempt comparison. Resolve the
-  remaining Terra, GCP B and quotation/instrument gaps or select broader qualification;
-  human acceptance names the exact candidate. No further campaign is scheduled automatically.
-- Before any rubric-graded campaign: one owner-approved judge recalibration, because the clean-room
-  auth-failure fix (`1d92654f`) changed the judge identity.
+  and remaining nine Claude tasks as separate steps; other models retain their own approvals.
+- Judge: the owner approved recalibration on 2026-10-28. The 2026-10-19 receipt in the
+  [EVAL-005 run](reviews/2026-10-18-eval-005-run.md) already includes `1d92654f`, and the judge
+  source, rubrics and calibration corpus are unchanged since its revision `93e52481`. A receipt
+  binds the host's interpreter, PyYAML and CLI path, so run `python evals/judge.py --calibrate` on
+  the first rubric-graded campaign's host before that campaign. The WP-10 comparison cases make no rubric-judge calls.
+- WP-13: none; use its cases as a regression check when a skill or agent changes. Haiku's
+  inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
 - Runner follow-ups, not blocking: unittest `--option=value` spellings and SHA-spelled Git ranges
   fail their detectors (0/303 and 0/909 in saved traces).
 
-The follow-through request authorizes its bounded testing within USD 40 total. It does not
-authorize lab provisioning or production change.
+The [follow-through plan](fleet-evaluation/run-plan-followthrough.md) governs model coverage and the
+shared USD 40 cap; bounded Codex subscription runs are approved with unknown dollar cost. Record each
+run's reported cost before scheduling the next; unknown cost stops scheduling. The cap authorizes
+bounded testing, not lab provisioning or production change.
 **Evidence:** [Specification](fleet-evaluation/README.md); per-package records are linked under Status.
 Integration and behavioral results remain unverified.
 **SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
