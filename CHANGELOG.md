@@ -8,6 +8,9 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Rewrite `software-engineer` as a lifecycle agent under a 2,100-word ceiling (3,262 to 2,091
+  words): one verification policy says when a check runs again, with lifecycle decision rules and
+  operator safeguards; routing triggers, handoff rows, and packet slots are unchanged.
 - Repair Windows evaluation fixtures, recognize CRLF verifier failure markers and allow
   bounded loopback refusal detection; retain explicit gaps for unavailable symlink privileges.
 - Reconcile EVAL-012 preparation with recorded Linux trials, Windows verification gaps and the
