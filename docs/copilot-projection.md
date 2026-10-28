@@ -23,6 +23,10 @@ installed-host checks live in [VS Code plugin acceptance](vscode-plugin-acceptan
   [manifest format detection](vscode-plugin-acceptance.md#manifest-format-detection).
 - Agent resource links resolve from their generated location: workspace agents use
   `.github/skills/`, while installed agents use root `skills/`.
+- Unset agent `target` follows the selected VS Code editor harness. `agents` and `handoffs`
+  describe Local behavior; the Copilot-harness converter does not forward either field or `target`.
+  A valid shared header therefore does not establish the same delegation controls on every host.
+  Keep explicit nonempty tool grants: that converter maps empty or missing tools to all tools.
 
 ## Body budgets
 
