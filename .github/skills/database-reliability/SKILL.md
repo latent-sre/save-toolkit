@@ -50,14 +50,12 @@ it safely, diagnosing it, and proving recovery.
   change/recovery packet; mutations, their executing plans, and parameter changes use
   `production-change-gate` under the authority rule. Dashboard access alone does not grant SQL
   execution.
-- Index for measured query patterns, avoid N+1 access and unbounded result sets, and verify any fix
-  with before/after evidence. Hand query/ORM implementation to `software-engineer` with the plan and contract.
+- Hand query/ORM implementation to `software-engineer` with the plan and contract; verify any fix
+  with measured before/after evidence.
 - Backups must be monitored **and restored in a drill**. An untested backup does not prove recovery,
   RPO, or RTO. Verify replication and failover rather than assuming them.
 - Use scoped database credentials, never an application admin role. No unbounded `UPDATE`/`DELETE`:
   require a predicate and row-count sanity check, plus the tested recovery strategy.
-- During a DB-driven incident, the agent diagnoses and hands off; mitigation follows
-  `production-change-gate`, applied by the human owner or approved protected automation.
 
 ## Read only the conditional procedure the request needs
 

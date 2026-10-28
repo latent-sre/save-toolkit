@@ -60,10 +60,7 @@ New GitHub-hosted Linux jobs use `runs-on: ubuntu-latest`; keep an existing job'
 
 ## Security and delivery essentials
 
-Keep secret values out of prompts, command arguments, logs, caches and artifacts. Read the security
-reference when changing job permissions, event trust, action versions or credentials: it owns least
-privilege, separation of untrusted validation from privileged delivery, quoted event data and the
-repository's action-version policy (reviewed full SHAs and image digests when no policy exists).
+Keep secret values out of prompts, command arguments, logs, caches and artifacts.
 
 Build once and promote the tested artifact, with its digest and source/run identity. Verify actual
 environment protection and identity configuration before claiming a deployment is gated; an
