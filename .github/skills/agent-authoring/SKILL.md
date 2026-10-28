@@ -74,23 +74,23 @@ summary becomes a shortcut that displaces the body.
 | Omits a required element | Required slot in a template it must fill |
 | Behavior should depend on a condition | Conditional keyed to an observable predicate |
 
-No nuance clauses ("unless it matters") and no don't-lists for human-facing shape — both reopen the
-negotiation. Before editing instructions, locate the layer that owns the failure — routing metadata,
-instructions, context assembly, tool/output schema, orchestration, wrapper/model/runtime, or the
-evaluator — and fix it there: strict schema for machine-consumed shape, code or a tool gate for
-fixed branches and effects, the harness for context selection.
+Express exceptions as conditions keyed to observable predicates; replace vague clauses such as
+"unless it matters". Use a positive recipe for human-facing shape, not a don't-list. Before editing
+instructions, locate the layer that owns the failure — routing metadata, instructions, context
+assembly, tool/output schema, orchestration, wrapper/model/runtime, or the evaluator — and fix it
+there: strict schema for machine-consumed shape, code or a tool gate for fixed branches and effects,
+the harness for context selection.
 
-**3. For each artifact or roster change, check all four themes together:** Prompt Engineering owns owner selection,
-instructions and output/tool shape; Context Engineering owns the smallest trusted state; Loop
-Engineering owns work, verification, budgets and termination; Graph Engineering owns ownership
-transitions. A skill deepens the current node while its owner and authority
-stay correct. Invoke another agent only for a change of ownership, authority, isolation,
-independent verification, justified parallel breadth, or additional context capacity. A new roster
-role needs a distinct tool posture, durable domain lane, or routing split the current agents cannot
-own; record the justification in its file and an ADR if it reshapes the roster. A new skill: first
-read the descriptions (not bodies) of `skills/*/SKILL.md`. If one owns the capability, extend it
-with a reference. Otherwise the new description needs a trigger no existing description claims,
-reciprocal "Not for" lines on both sides, and the listing-size delta stated in the PR.
+**3. Check each artifact or roster change:** owner and authority, instructions and output/tool
+shape, the smallest trusted state, work and verification, budgets and termination, and ownership
+transitions. A skill deepens the current node while its owner and authority stay correct. Invoke
+another agent only for a change of ownership, authority, isolation, independent verification,
+justified parallel breadth, or additional context capacity. A new roster role needs a distinct tool
+posture, durable domain lane, or routing split the current agents cannot own; record the justification
+in its file and an ADR if it reshapes the roster. A new skill: first read the descriptions (not bodies)
+of `skills/*/SKILL.md`. If one owns the capability, extend it with a reference. Otherwise the new
+description needs a trigger no existing description claims, reciprocal "Not for" lines on both sides,
+and the listing-size delta stated in the PR.
 
 Routing and live coordination stay in the main session. When multi-agent is justified, the default
 is orchestrator–workers: the caller owns plan and synthesis; workers get bounded mandates, separate
@@ -127,7 +127,8 @@ authorizes a self-modifying loop.
 |---|---|
 | A prompt, agent body, skill body, description, or grader | [artifact guidance](./references/artifact.md) |
 | A tool contract, or promoting a shell prototype to a tool | [tool contracts](./references/artifact.md#tool-contracts) |
-| Any agent or skill frontmatter, a delegation or handoff edge, or the VS Code/Copilot projection | [Claude Code frontmatter](./references/claude-code-frontmatter.md), the single source of truth, including `Agent(...)` grants and their depth limit and the MCP output cap; [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) for `agents:`, `handoffs:`, and tool aliases; this fleet's edge-change procedure is in the Save Toolkit repository's `CONTRIBUTING.md` |
+| Agent or skill frontmatter, delegation/handoff edges, or their projections | [Claude Code frontmatter](./references/claude-code-frontmatter.md), the canonical source contract, including `Agent(...)` grants, their depth limit, and the MCP output cap; follow this fleet's edge-change procedure in the Save Toolkit repository's `CONTRIBUTING.md` |
+| VS Code/Copilot projection or handoff work | Also read [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) for `agents:`, `handoffs:`, and tool aliases |
 | Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
 | A cold-start packet, bounded evidence, receiving a helper's return, or replaying context | [context and handoffs](./references/context.md) |
 | Relying on a frontmatter field to enforce anything, or publishing a skill beyond this plugin | [skill portability](./references/skill-portability.md) — the portable set can grant, never restrict |

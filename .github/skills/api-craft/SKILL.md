@@ -11,8 +11,8 @@ argument-hint: "[the HTTP API or integration to build or change]"
 
 # API craft
 
-Use the service's consumer, error/page/version and identity contracts. HTTP clients keep their
-native entrypoint.
+Use the service's consumer, error/page/version and identity contracts. Client-only integrations
+keep their existing CLI, worker or library entrypoint without adding an HTTP server.
 
 Load `stack-profile` for framework, runtime and datastore choices. Include persistence and
 asynchronous work where they fulfill the API contract.
@@ -20,8 +20,6 @@ asynchronous work where they fulfill the API contract.
 For new APIs or scoped upgrades, verify the latest compatible stable releases and recommended APIs
 against official docs and upstream evidence. Prefer supported native capabilities; explain older
 version constraints or prerelease choices and keep dependency selection reproducible.
-
-Parameterize queries and keep transactions short; no transaction spans an outbound call.
 
 ## Load for the changed boundary
 

@@ -17,6 +17,7 @@ evidence. Compatibility-gate exceptions need the accepted break, reason and owne
 | Collections | Bound results and allowlist filters/sorts; cursor traversal needs deterministic ordering with a unique tie-breaker. |
 | Identity | Reuse the application's authentication/session integration, including corporate SSO where established. Internal network access grants no permissions. Enforce object/tenant authorization and fail closed when verification is unavailable. Authentication changes get independent review. |
 | Webhook receiver | Use the existing/provider-supported verifier before acceptance or effects. Preserve original bytes for raw-body signatures and enforce the provider's signed-timestamp policy where supplied. Freshness does not deduplicate delivery; use authenticated event identity with [Background work](./background-work.md). |
+| Persistence | When the HTTP API uses a database, parameterize queries and keep transactions short; no transaction spans an outbound call. |
 | Writes | Choose native idempotence, preconditions or replay keys for the effect; follow [API writes](./api-writes.md). Accepted background work needs durable ownership and observable completion under [Background work](./background-work.md). |
 | Browser boundary | Apply CSRF and origin/host checks for the actual browser/session model; scope CORS deliberately. Loopback tools reject untrusted hosts. |
 | Streams | Bound waits, buffers and reconnects; distinguish degraded from failed responses. |
