@@ -290,8 +290,8 @@ class FleetValidatorTests(unittest.TestCase):
             ),
             (
                 "software-engineer-caller-owned-review",
-                _markdown_section(Path("agents/software-engineer.md"), "## Process"),
-                ("caller says they will perform or arrange review", "dispatch to the caller"),
+                _markdown_section(Path("agents/software-engineer.md"), "## Review and completion"),
+                ("if the caller owns review, return instead",),
                 (),
             ),
             (

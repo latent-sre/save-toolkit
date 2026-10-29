@@ -8,6 +8,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Rewrite software-engineer around building, improving existing code, and improving how the work is
+  done; review now triggers on a request, a required gate, or material risk, not file count.
 - Retire the five-file review dispatch scenarios and the checks that graded carried evidence labels;
   grade a stale review finding by behavior instead of a fixed marker.
 - Trim selected software-engineer reporting, escalation, and helper-dispatch instructions while
