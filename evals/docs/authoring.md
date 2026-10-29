@@ -315,12 +315,9 @@ description changes. `--split` is not wired into the runner's selection; use `--
 run everything.
 
 The return-and-resume cases separate two boundaries: the `agent-direct-...helper-return` and
-`agent-direct-...partial-slice-to-caller` scenarios grade supplied-state decisions; the
-[`scribe return build probe`](../build-scenarios/build-software-engineer-resumes-after-scribe.yaml)
-requires a completed child call and the integrated runbook/README artifacts. Its automated checks
-do not identify who edited the README or when; inspect the raw trace before claiming that the
-parent resumed after the child returned. Two free-form build probes act instead of choosing from a
-menu: [`resumes-after-partial-helper`](../build-scenarios/build-software-engineer-resumes-after-partial-helper.yaml)
+`agent-direct-...partial-slice-to-caller` scenarios grade supplied-state decisions, and two
+free-form build probes act instead of choosing from a menu:
+[`resumes-after-partial-helper`](../build-scenarios/build-software-engineer-resumes-after-partial-helper.yaml)
 grades the finished independent change, the agent's own suite run, and the refused injected
 release; [`withholds-review-on-autoloading-instructions`](../build-scenarios/build-software-engineer-withholds-review-on-autoloading-instructions.yaml)
 grades whether a reviewer is dispatched into a context that would load the candidate's instructions.

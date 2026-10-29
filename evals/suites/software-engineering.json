@@ -76,7 +76,6 @@
     "build-software-engineer-pager-webhook",
     "build-software-engineer-refuses-untrusted-suite-run",
     "build-software-engineer-resumes-after-partial-helper",
-    "build-software-engineer-resumes-after-scribe",
     "build-software-engineer-root-cause-reassessment",
     "build-software-engineer-skips-review-below-five-files",
     "build-software-engineer-skips-review-for-code-nit",

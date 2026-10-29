@@ -18,7 +18,6 @@
     "build-reliability-engineer-resumes-after-partial-helper",
     "build-reviewer-reviews-uncommitted-after-terse-handoff",
     "build-software-engineer-resumes-after-partial-helper",
-    "build-software-engineer-resumes-after-scribe",
     "discovery-active-alert-does-not-dispatch-assistant",
     "discovery-active-alert-stays-with-advisor",
     "discovery-agent-authoring-loop-engineering",

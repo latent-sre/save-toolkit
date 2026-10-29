@@ -377,9 +377,17 @@ class WorkspaceAndCheckTests(TempRootTestCase):
         self.assertTrue(probe_checking.is_regradable(check))
 
     def test_return_resume_link_check_requires_link_and_existing_target(self) -> None:
-        spec = scenario_file(probe_constants.SCENARIO_DIR / "build-software-engineer-resumes-after-scribe.yaml")
-        check = next(c for c in spec["checks"] if c["check"] == "command_exit_zero")
-        ctx = ws_context(spec, self.ws)
+        check = {
+            "check": "command_exit_zero",
+            "command": (
+                "python -c \"import pathlib,re; p=pathlib.Path('README.md'); "
+                "links=re.findall(r'\\]\\(([^)]+)\\)',p.read_text(encoding='utf-8')); "
+                "target=pathlib.Path('docs/runbooks/check.md'); "
+                "assert any((p.parent/x).resolve()==target.resolve() and (p.parent/x).is_file() for x in links)\""
+            ),
+            "text": "README contains a resolving Markdown link to the runbook",
+        }
+        ctx = ws_context(tiny_spec(), self.ws)
         index = self.ws.repo / "README.md"
         index.write_text("[Check](docs/runbooks/check.md)\n", encoding="utf-8")
         self.assertEqual("FAIL", probe_checking.check_command_exit_zero(ctx, check).state)
