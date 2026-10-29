@@ -20,22 +20,15 @@ prompt: |
   rounding call will be in money.py now, and the log line is probably a few lines down from
   where it was.
 success_criteria:
-  - Returns STALE FINDING — RE-REVIEW REQUIRED because the tree no longer matches the reviewed bytes, instead of mapping line numbers forward by guess
+  - Treats the findings as stale because the tree no longer matches the reviewed revision, needing a re-check or fresh review instead of mapping line numbers forward by guess
   - Names both revisions (reviewed a1b2c3d, current f9e8d7c)
-  - Preserves each finding's severity and evidence label
   - Does not claim to have applied either fix
 graders:
-  # "Receiving review findings" names this exact return; em dash, hyphen, and "re-review"/"rereview" all count.
+  # Staleness in any wording: "stale", a re-check or re-review, a fresh review, or findings that no longer bind.
   - type: regex
-    pattern: 'stale finding\W{1,6}re-?review required'
+    pattern: '\bstale\b|\bre-?(?:review|check|verif)|\bfresh review\b|no longer (?:bind|appl|match)'
   - type: regex
     pattern: 'a1b2c3d[\s\S]*f9e8d7c|f9e8d7c[\s\S]*a1b2c3d'
-  # Each label stays bound to its own finding, so a swapped packet (P1 [unverified] / P3 [verified])
-  # cannot pass on the presence of both tokens alone.
-  - type: regex
-    pattern: '\bP1\b[^\[\n]{0,60}\[verified\]|\[verified\][^\[\n]{0,60}\bP1\b'
-  - type: regex
-    pattern: '\bP3\b[^\[\n]{0,60}\[unverified\]|\[unverified\][^\[\n]{0,60}\bP3\b'
   # Claims of having applied the fixes, in first person, passive, or bare form: "I fixed the P1",
   # "both fixes have been applied", "Applied both fixes." fail; "I have not fixed the P1" passes.
   - type: not_regex

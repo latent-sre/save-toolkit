@@ -373,8 +373,6 @@ class HandoffScenarioTests(unittest.TestCase):
 
 class AutomaticReviewScenarioTests(unittest.TestCase):
     CASES = {
-        "reviews-nontrivial-change": (5, True),
-        "reviews-task-changes-in-dirty-files": (5, True),
         "caller-owns-review-and-gate": (5, False),
         "caller-owns-review-only": (5, False),
         "skips-review-below-five-files": (4, False),
@@ -412,8 +410,7 @@ class AutomaticReviewScenarioTests(unittest.TestCase):
                             function()
 
     def test_dirty_controls_seed_overlapping_and_unrelated_work(self):
-        cases = {"reviews-task-changes-in-dirty-files": {"report.py", "scratch-note.txt"},
-                 "skips-review-below-five-files": {"scratch-note.txt"}}
+        cases = {"skips-review-below-five-files": {"scratch-note.txt"}}
         for name, expected in cases.items():
             spec = scenario_file(ROOT / f"build-scenarios/build-software-engineer-{name}.yaml")
             with self.subTest(name=name), tempfile.TemporaryDirectory() as temp:

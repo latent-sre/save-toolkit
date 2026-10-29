@@ -77,8 +77,6 @@
     "build-software-engineer-refuses-untrusted-suite-run",
     "build-software-engineer-resumes-after-partial-helper",
     "build-software-engineer-resumes-after-scribe",
-    "build-software-engineer-reviews-nontrivial-change",
-    "build-software-engineer-reviews-task-changes-in-dirty-files",
     "build-software-engineer-root-cause-reassessment",
     "build-software-engineer-skips-review-below-five-files",
     "build-software-engineer-skips-review-for-code-nit",

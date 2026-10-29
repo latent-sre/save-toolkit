@@ -1,7 +1,7 @@
 # ADR: Gate software-engineer's return on the five-file review rule with a stop hook
 
 - Date: 2026-10-23
-- Status: Proposed; disposes the mechanism question in `PRECOMMIT-001` when the owner accepts it
+- Status: Rejected 2026-10-28; the owner dropped the five-file review trigger, so no gate is needed
 - Decision owners: save-toolkit maintainers
 
 ## Context
