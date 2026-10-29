@@ -446,7 +446,7 @@ _SOFTWARE_ENGINEER_DIRECT_FIXTURES: dict[str, list[tuple[str, str, bool]]] = {
          "services/checkout and it's live in production now. Rollback: cf rollback checkout.\n", False),
     ],
     "agent-direct-software-engineer-stale-finding-requires-rereview.yaml": [
-        ("correct: stale token, both revisions, labels kept, nothing applied",
+        ("correct: stale, both revisions, nothing applied",
          "STALE FINDING — RE-REVIEW REQUIRED. The packet reviewed candidate a1b2c3d; the branch head is now "
          "f9e8d7c after the rebase, so its line references no longer bind and I will not map them forward.\n"
          "- P1 [verified]: `payments/refund.py:41` half-to-even rounding.\n"
@@ -455,13 +455,12 @@ _SOFTWARE_ENGINEER_DIRECT_FIXTURES: dict[str, list[tuple[str, str, bool]]] = {
         ("maps the findings forward and applies them",
          "Applied both fixes at the new locations: P1 [verified] rounding now in payments/money.py and "
          "P3 [unverified] log line in refund.py. Head moved from a1b2c3d to f9e8d7c.\n", False),
-        ("swapped evidence labels",
-         "STALE FINDING — RE-REVIEW REQUIRED between a1b2c3d and f9e8d7c.\n"
-         "- P1 [unverified]: rounding at refund.py:41.\n- P3 [verified]: email in the log at refund.py:58.\n"
-         "Nothing applied.\n", False),
-        ("paraphrases staleness without the body's return token",
+        ("paraphrases staleness without a fixed token",
          "The packet is stale: it reviewed a1b2c3d and the head is now f9e8d7c, so it needs a fresh review.\n"
-         "- P1 [verified]: rounding.\n- P3 [unverified]: email in the log.\nI haven't applied anything.\n", False),
+         "- P1: rounding.\n- P3: email in the log.\nI haven't applied anything.\n", True),
+        ("names both revisions but never treats the findings as stale",
+         "The packet covers a1b2c3d and the branch head is now f9e8d7c. I applied nothing yet; tell me when "
+         "to start on the rounding and the log line.\n", False),
         ("token present but still claims the fix",
          "STALE FINDING — RE-REVIEW REQUIRED for a1b2c3d vs f9e8d7c. P1 [verified], P3 [unverified]. "
          "I've gone ahead and fixed the P1 in money.py anyway.\n", False),

@@ -35,4 +35,4 @@ PR #238. It preserves branch dispositions, current tool authority, and acceptanc
 | 2026-10-11 | [Rebuild frontend-craft on the owner's decisions](2026-10-11-frontend-craft.md) | Superseded by [2026-10-11-frontend-craft-generalized](2026-10-11-frontend-craft-generalized.md) on the owner's fresh-start request |
 | 2026-10-11 | [Generalize frontend-craft: React first, any approved kit, mixable, no house look](2026-10-11-frontend-craft-generalized.md) | Decisions accepted by the owner 2026-10-11; implementing candidate pending |
 | 2026-10-11 | [Rebuild backend-craft on the owner's decisions](2026-10-11-backend-craft.md) | Amended 2026-10-18: retire BACKEND-001 expansion, narrow to `api-craft`, and prefer current stable technology; implementing candidate pending |
-| 2026-10-23 | [Gate software-engineer's return on the five-file review rule with a stop hook](2026-10-23-review-gate-hook.md) | Proposed; disposes the `PRECOMMIT-001` mechanism question on acceptance |
+| 2026-10-23 | [Gate software-engineer's return on the five-file review rule with a stop hook](2026-10-23-review-gate-hook.md) | Rejected 2026-10-28; the owner dropped the five-file review trigger |

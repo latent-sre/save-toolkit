@@ -8,6 +8,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Retire the five-file review dispatch scenarios and the checks that graded carried evidence labels;
+  grade a stale review finding by behavior instead of a fixed marker.
 - Trim selected software-engineer reporting, escalation, and helper-dispatch instructions while
   retaining its existing builder workflow and caller-owned review rules.
 - Refresh Claude Code and Copilot frontmatter guidance for plugin support and fields supported by
