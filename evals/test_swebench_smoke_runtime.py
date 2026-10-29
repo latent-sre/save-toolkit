@@ -257,7 +257,10 @@ def runtime(tmp_path, monkeypatch):
     monkeypatch.delenv("DOCKER_HOST", raising=False)
     monkeypatch.delenv("DOCKER_CONTEXT", raising=False)
     monkeypatch.setattr(smoke, "Docker", lambda: docker)
-    monkeypatch.setattr(configuration.shutil, "which", lambda name: "/offline/docker")
+    real_which = shutil.which
+    monkeypatch.setattr(
+        configuration.shutil, "which", lambda name: "/offline/docker" if name == "docker" else real_which(name)
+    )
     monkeypatch.setattr(configuration.metadata, "version", lambda name: "5.0.2")
 
     def forbidden(*args, **kwargs):
@@ -387,6 +390,12 @@ def run(runtime):
 
 def observations(runtime):
     return json.loads((runtime.output / "observations.json").read_text())
+
+
+def test_fixture_fakes_only_the_docker_binary(runtime):
+    # SmokeDocker resolves bash through this same shutil.which on Linux; faking every name sent it to /offline/docker.
+    assert shutil.which("docker") == "/offline/docker"
+    assert shutil.which("bash") != "/offline/docker"
 
 
 def test_closed_loopback_listener_is_confirmed_absent():

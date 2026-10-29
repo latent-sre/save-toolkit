@@ -50,6 +50,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 - The SWE-bench runner tests write their fixture scripts with LF line endings, so the runner no
   longer rejects them on Windows hosts.
+- The model-free smoke tests fake only the `docker` binary lookup, so the guard step finds `bash` on
+  Linux again instead of the fake Docker path.
 
 ## [0.51.4] - 2026-10-23
 
