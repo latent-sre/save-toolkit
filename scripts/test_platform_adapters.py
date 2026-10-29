@@ -205,7 +205,7 @@ class PlatformAdapterTests(unittest.TestCase):
             "researcher": None,
             "reviewer": ["repository-investigator"],
             "scribe": None,
-            "software-engineer": ["reviewer", "scribe", "researcher"],
+            "software-engineer": ["reviewer", "researcher"],
             "sre-assistant": ["researcher"],
         }
         self.assertEqual(
@@ -258,7 +258,7 @@ class PlatformAdapterTests(unittest.TestCase):
             "researcher": [],
             "reviewer": ["software-engineer"],
             "scribe": ["software-engineer"],
-            "software-engineer": ["reviewer", "scribe", "principal-engineer"],
+            "software-engineer": ["reviewer", "principal-engineer"],
             "sre-assistant": ["scribe", "software-engineer"],
         }
         # What each receiving lane's handoff prompt must say.

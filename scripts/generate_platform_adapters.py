@@ -129,7 +129,7 @@ COPILOT_NATIVE_BROWSER_MAP = {
     "mcp__microsoft_playwright_mcp__browser_type": ("typeInPage",),
     "mcp__microsoft_playwright_mcp__browser_press_key": ("typeInPage",),
 }
-# Offered by two lanes; _copilot_handoffs copies each handoff, so sharing the dict is safe.
+# Offered by observability-engineer; _copilot_handoffs copies each handoff, so sharing the dict is safe.
 _APPROVED_CLOSEOUT_HANDOFF = {
     "label": "Start approved closeout",
     "agent": "scribe",
@@ -215,7 +215,6 @@ COPILOT_HANDOFFS_BY_SOURCE = {
             ),
             "send": True,
         },
-        _APPROVED_CLOSEOUT_HANDOFF,
         {
             "label": "Resolve the returned design fork",
             "agent": "principal-engineer",

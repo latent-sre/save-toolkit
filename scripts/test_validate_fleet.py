@@ -556,9 +556,9 @@ class FleetValidatorTests(unittest.TestCase):
              ("forbidden tool(s): Agent, Bash, WebSearch", "delegation mismatch")),
             ("researcher.md", "  - mcp__plugin_githits_githits__search\n", "  - mcp__plugin_githits_githits__*\n",
              ("MCP authority is not exact-approved",)),
-            ("software-engineer.md", "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
+            ("software-engineer.md", "Agent(save-toolkit:reviewer, save-toolkit:researcher)",
              "Agent(save-toolkit:does-not-exist)", ("does not exist",)),
-            ("software-engineer.md", "Agent(save-toolkit:reviewer, save-toolkit:scribe, save-toolkit:researcher)",
+            ("software-engineer.md", "Agent(save-toolkit:reviewer, save-toolkit:researcher)",
              "Agent(save-toolkit:reviewer)", ("delegation mismatch",)),
             ("repository-investigator.md", "tools: Read, Grep, Glob", "tools: Read, Grep, Glob, WebSearch",
              ("forbidden tool(s): WebSearch",)),
@@ -676,10 +676,10 @@ class FleetValidatorTests(unittest.TestCase):
         self.assertEqual([], validate_fleet.validate_roster_graph(ROOT))
 
     def test_roster_dropping_a_delegation_edge_is_rejected(self) -> None:
-        # software-engineer delegates to reviewer, scribe, researcher in frontmatter; drop researcher from the
+        # software-engineer delegates to reviewer and researcher in frontmatter; drop researcher from the
         # rendered row and the render now describes a graph the fleet does not have.
         failures = self._roster_failures(
-            lambda t: must_replace(t, "| `reviewer`, `scribe`, `researcher` |", "| `reviewer`, `scribe` |", 1)
+            lambda t: must_replace(t, "| `reviewer`, `researcher` |", "| `reviewer` |", 1)
         )
         self.assertTrue(any("'software-engineer'" in f and "researcher" in f for f in failures), failures)
 

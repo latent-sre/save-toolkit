@@ -161,7 +161,7 @@ EXPECTED_DELEGATION = {
     "reviewer": {"repository-investigator"},
     "repository-investigator": set(),
     "researcher": set(),
-    "software-engineer": {"reviewer", "scribe", "researcher"},
+    "software-engineer": {"reviewer", "researcher"},
     "sre-assistant": {"researcher"},
     "observability-engineer": {"scribe", "researcher"},
     "scribe": set(),

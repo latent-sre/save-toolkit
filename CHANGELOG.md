@@ -10,6 +10,9 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 - Rewrite software-engineer around building, improving existing code, and improving how the work is
   done; review now triggers on a request, a required gate, or material risk, not file count.
+- Drop software-engineer's `scribe` delegation edge, which no trial outside its own probe used, the
+  runbook redirect in its description, and the Grafana authority row; its completion rule now
+  accepts reused evidence with unchanged inputs, and builds stay reproducible when touched.
 - Retire the five-file review dispatch scenarios and the checks that graded carried evidence labels;
   grade a stale review finding by behavior instead of a fixed marker.
 - Trim selected software-engineer reporting, escalation, and helper-dispatch instructions while
@@ -41,6 +44,7 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 - Fleet tests that pinned `software-engineer` wording; a two-phrase check keeps the caller-owned
   review path.
+- The `build-software-engineer-resumes-after-scribe` probe, retired with the edge it exercised.
 - From `AGENTS.md`: the Grafana-exception bullet, the stack-profile load sentence, and passages
   repeated in the frontmatter reference or `CONTRIBUTING.md`.
 - Five completed review packets that only the old changelog entries cited; Git keeps them at
