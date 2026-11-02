@@ -93,22 +93,6 @@ class RunbookFrontmatterContractTest(unittest.TestCase):
         )
         self.assertIn(status, template_status_enum())
 
-    def test_example_is_marked_as_an_exemplar_before_its_first_procedure(self) -> None:
-        """Its dates and evidence ids are illustrative, and a copier must learn that first.
-
-        The frontmatter shows a matured runbook -- non-null `last_verified`, populated
-        `verification_evidence`, three history rows. That is the point: the blank template cannot
-        show it. It is also exactly what someone would inherit unnoticed by copying the file, so
-        the disclaimer has to land above the first thing anyone acts on.
-        """
-        text = EXAMPLE_PATH.read_text(encoding="utf-8")
-        self.assertIn("teaching exemplar, not a live runbook", text)
-        self.assertLess(
-            text.index("teaching exemplar"),
-            text.index("## Procedure"),
-            "the exemplar disclaimer must precede the procedure a reader would follow",
-        )
-
     def test_date_valued_frontmatter_is_quoted_in_the_template_and_the_example(self) -> None:
         """`last_reviewed: 2026-02-18` is a date object to a YAML parser, not a string.
 

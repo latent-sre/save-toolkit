@@ -224,7 +224,8 @@ regressions and ordinary PR evidence.
 
 ## Retired tooling
 
-[Fleet Atlas](archive/fleet-atlas/README.md) is archived and no longer part of the active toolkit.
+Fleet Atlas is retired and no longer in the working tree; recover its files with
+`git show 3db39edc:<path>`.
 Use [AGENTS.md](AGENTS.md) and the canonical agents and skills for guidance and ownership;
 inspect source references directly when assessing a change.
 
