@@ -5,9 +5,10 @@ an in-process import writes there reads as plugin drift (CI sets PYTHONDONTWRITE
 same reason). Scenario checks and fixture suites shell out to a bare `python`; resolve it to the
 interpreter running the tests, as an activated environment would, rather than whatever PATH holds.
 
-The eval-machinery files in HEAVY spawn real processes and hold most of the suite's run time. A
-plain run skips them; `--heavy` adds them, `-m heavy` runs only them, and a file named on the
-command line always runs. CI's eval-tests job runs `-m heavy`.
+The eval-machinery files in HEAVY spawn real processes and hold most of the suite's run time, or
+import a framework that costs every collecting worker seconds (the Inspect pilot). A plain run
+skips them; `--heavy` adds them, `-m heavy` runs only them, and a file named on the command line
+always runs. CI's eval-tests job runs `-m heavy`.
 """
 
 import atexit
@@ -27,6 +28,7 @@ HEAVY = frozenset({
     "evals/test_eval011_oracles.py",
     "evals/test_gcp_cases.py",
     "evals/test_incident_writes_oracle.py",
+    "evals/test_inspect_pilot.py",
     "evals/test_maintenance_banner_oracle.py",
     "evals/test_natural_injection.py",
     "evals/test_openapi_document_oracle.py",

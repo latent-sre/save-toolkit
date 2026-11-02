@@ -10,11 +10,12 @@ import json
 import pytest
 from probe import catalog, cli, fingerprints
 from probe.exits import ExitCode
+from probe_testkit import scenario
 
 
 @pytest.fixture
 def snapshot(tmp_path):
-    spec = next(s for s in catalog.load_all_scenarios() if s["id"] == "build-python-package-refactor")
+    spec = scenario("build-python-package-refactor")
     data = {"schema_version": 1, "profile": "native-selection-v1", "trials": 3,
             "tasks": [{"instance_id": spec["id"], "case_sha256": fingerprints.case_digest(spec)}],
             "source": {"git_revision": None, "dirty": None, "suites": []}}

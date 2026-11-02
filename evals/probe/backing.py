@@ -215,7 +215,9 @@ def _start_service_proxy(service: Service) -> None:
     # server_close joins these handlers after shutdown stops accepting requests. Each connection
     # serves one request, so an idle keepalive client cannot issue more writes during grading.
     server.daemon_threads = False
-    thread = threading.Thread(target=server.serve_forever, name=f"build-probe-{service.name}", daemon=True)
+    thread = threading.Thread(
+        target=server.serve_forever, kwargs={"poll_interval": 0.01}, name=f"build-probe-{service.name}", daemon=True
+    )
     thread.start()
     service.proxy = server
     service.proxy_thread = thread

@@ -140,14 +140,10 @@ def test_rows(root: Path, suites: dict[str, dict[str, Any]], *, selected: bool) 
 
 def native_inventory() -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
     from probe import catalog as native  # noqa: PLC0415 -- test lookup is standard-library-only
-    from probe import constants  # noqa: PLC0415 -- only native discovery needs these paths
 
-    specs = native.load_all_scenarios()
-    paths = {
-        native.load_scenario(path)["id"]: path.relative_to(ROOT).as_posix()
-        for directory in (constants.SCENARIO_DIR, constants.CONTRACT_SCENARIO_DIR)
-        for path in directory.glob("*.yaml")
-    }
+    by_path = native.load_scenarios_by_path()
+    specs = list(by_path.values())
+    paths = {spec["id"]: path.relative_to(ROOT).as_posix() for path, spec in by_path.items()}
     rows = []
     for spec in sorted(specs, key=lambda value: value["id"]):
         target = spec.get("target", {})
