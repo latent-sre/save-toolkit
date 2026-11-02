@@ -4,7 +4,7 @@
 This is the executable roster; CONTRIBUTING.md defines when component suites must also run.
 No gate-path script imports a third-party package, so the gate runs on a bare interpreter and
 the validate job installs nothing. The first such import must add
-`python -m pip install -r requirements-dev.txt` to that job in the same change;
+`uv sync --locked` to that job in the same change;
 test_validate_workflow.py fails until it does. Checks need neither a clean tree nor full Git
 history.
 All checks run even after a failure. Default output is one verdict plus failure diagnostics;

@@ -151,9 +151,9 @@ def test_combined_binding_keeps_shared_and_dependency_identity(tmp_path, monkeyp
     shared = {"adapter_sha256": "shared-v1", "host_runtime": {"identity": {"elevated": False}}}
     monkeypatch.setattr(runner, "runtime_binding", lambda *a: copy.deepcopy(shared))
     monkeypatch.setattr(runner, "adapter_digest", lambda: "swt")
-    requirements = tmp_path / "requirements-swt.txt"
-    requirements.write_text("dependency==1")
-    monkeypatch.setattr(runner, "SWT_REQUIREMENTS", requirements)
+    lock = tmp_path / "uv.lock"
+    lock.write_text("version = 1\n")
+    monkeypatch.setattr(runner, "DEPENDENCY_LOCK", lock)
     first = runner.live_binding({}, {}, {"instance_id": "org__repo-1"}, None)
     assert first["shared_adapter_sha256"] == "shared-v1"
     path, _, _, _ = approved_smoke(tmp_path, first)
@@ -162,7 +162,7 @@ def test_combined_binding_keeps_shared_and_dependency_identity(tmp_path, monkeyp
     assert first["adapter_sha256"] != second["adapter_sha256"]
     with pytest.raises(ValueError):
         runner.require_admission(path, second)
-    requirements.write_text("dependency==2")
+    lock.write_text("version = 2\n")
     third = runner.live_binding({}, {}, {"instance_id": "org__repo-1"}, None)
     assert second["adapter_sha256"] != third["adapter_sha256"]
     with pytest.raises(ValueError):
@@ -295,7 +295,7 @@ def test_trial_publishes_the_exact_accepted_binding(tmp_path, monkeypatch):
         "task_sha256": "row",
         "adapter_sha256": "d" * 64,
         "shared_adapter_sha256": "a" * 64,
-        "swt_requirements_sha256": "b" * 64,
+        "dependency_lock_sha256": "b" * 64,
     }
     admission, _, _, _ = approved_smoke(tmp_path, binding)
     row = {"instance_id": binding["instance_id"]}
