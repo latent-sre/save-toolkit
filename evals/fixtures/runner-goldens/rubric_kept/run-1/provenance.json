@@ -1,0 +1,150 @@
+{
+  "plugin_root": "/golden/checkout",
+  "plugin_commit": "23e5b9ff413e319a45b3322e29c4dff5fe20da18",
+  "plugin_inputs_dirty": false,
+  "plugin_source_sha256": "a3c590527655bafbe89dce8625254e0487eb114653c2e5a02eec75b402d1700d",
+  "plugin_served_from": "/golden/workspace/plugin",
+  "runner_commit": "23e5b9ff413e319a45b3322e29c4dff5fe20da18",
+  "runner_source_dirty": false,
+  "runner_source_sha256": "eb3f5a24bbc3cd9b6b51f213d234f225421f4a380c9e214ba2c31571cb670de7",
+  "runtime": {
+    "cli_version": "x",
+    "host_platform": {
+      "system": "Windows",
+      "release": "11",
+      "machine": "AMD64"
+    },
+    "host_identity": {
+      "hostname": "synthetic-host",
+      "account_id": "synthetic-account",
+      "elevated": false,
+      "identity_source": "windows_process_token"
+    }
+  },
+  "judge_binding": {
+    "cache_dir": null,
+    "calibration": {
+      "accepted": true,
+      "agreement": {
+        "compromise_preserves_evidence": [
+          8,
+          8,
+          0
+        ],
+        "gate_blocks_action": [
+          17,
+          17,
+          0
+        ],
+        "incident_companion_response": [
+          27,
+          27,
+          0
+        ],
+        "mitigation_recommendation": [
+          8,
+          8,
+          0
+        ],
+        "no_blind_retry_after_unknown": [
+          15,
+          15,
+          0
+        ],
+        "no_inline_deploy_commitment": [
+          29,
+          29,
+          0
+        ],
+        "no_production_action_claim": [
+          25,
+          25,
+          0
+        ],
+        "no_retirement_effect_claim": [
+          18,
+          18,
+          0
+        ],
+        "recommend_only_stays_in_bounds": [
+          13,
+          13,
+          0
+        ],
+        "security_review_structural": [
+          12,
+          12,
+          0
+        ],
+        "unknown_outcome_reconcile_first": [
+          15,
+          15,
+          0
+        ]
+      },
+      "cached_calls": 0,
+      "completed": true,
+      "corpus_sha256": "7721e19963bcb96e769d3cd9f7a2a0de2c91d9323f044f69e46f8cc0ef65c19f",
+      "cost_usd": 1.87,
+      "execution": {
+        "argv": [
+          "/golden/claude",
+          "-p",
+          "--model",
+          "sonnet",
+          "--output-format",
+          "json",
+          "--input-format",
+          "text",
+          "--tools",
+          "",
+          "--strict-mcp-config",
+          "--mcp-config",
+          "{\"mcpServers\":{}}",
+          "--max-turns",
+          "1"
+        ],
+        "python": "3.14.6 (main, Jul 18 2026, 17:01:31) [Clang 22.1.3 ]",
+        "pyyaml": "6.0.3",
+        "source_sha256": "f513d58485122a67be50547b0bdfdc465f00e78690bfba803d68956c733c31a6",
+        "template_sha256": "d53e5bdedef84a181a7889475e3d1b32ef73fe5d48370cfdac140cfd9f5a7149",
+        "timeout": 120
+      },
+      "identity_source": "live",
+      "judge_cli": "/golden/claude",
+      "known_cost_usd": 1.87,
+      "live_calls": 187,
+      "model_requested": "sonnet",
+      "model_resolved": "claude-sonnet-5",
+      "results_sha256": "feb95116a7b231f931ca5f5e56e94110563bd9ce3e655ea0b87449660dc289e3",
+      "rubrics_sha256": "11ecc6d761c3d0894acb52be78ea98da71d5e71146b09e2cb1d725f5e4e34a9c",
+      "schema_version": 1,
+      "unknown_cost_calls": 0
+    },
+    "execution": {
+      "argv": [
+        "/golden/claude",
+        "-p",
+        "--model",
+        "claude-sonnet-5",
+        "--output-format",
+        "json",
+        "--input-format",
+        "text",
+        "--tools",
+        "",
+        "--strict-mcp-config",
+        "--mcp-config",
+        "{\"mcpServers\":{}}",
+        "--max-turns",
+        "1"
+      ],
+      "python": "3.14.6 (main, Jul 18 2026, 17:01:31) [Clang 22.1.3 ]",
+      "pyyaml": "6.0.3",
+      "source_sha256": "f513d58485122a67be50547b0bdfdc465f00e78690bfba803d68956c733c31a6",
+      "template_sha256": "d53e5bdedef84a181a7889475e3d1b32ef73fe5d48370cfdac140cfd9f5a7149",
+      "timeout": 120
+    },
+    "receipt_sha256": "f9d64604d290429a1a4b1dc0d5b9991441200f9b32b4eda2c9de4a9c3dfc34c1"
+  }
+}

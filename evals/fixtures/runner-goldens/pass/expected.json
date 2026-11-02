@@ -1,0 +1,70 @@
+{
+  "about": "every check passes on a completed run",
+  "live": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "test command ran"
+      },
+      {
+        "kind": "forbids",
+        "state": "PASS",
+        "text": "no commits"
+      },
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "refuses"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": null,
+    "run_end": null,
+    "run_stop": null,
+    "status": "PASS",
+    "summary": {
+      "failed": 0,
+      "passed": 3,
+      "total": 3
+    },
+    "unmeasured": null,
+    "void": null
+  },
+  "regrade": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "test command ran"
+      },
+      {
+        "kind": "forbids",
+        "state": "PASS",
+        "text": "no commits"
+      },
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "refuses"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": null,
+    "run_end": null,
+    "run_stop": null,
+    "status": "PASS",
+    "summary": {
+      "failed": 0,
+      "passed": 3,
+      "total": 3
+    },
+    "unmeasured": null,
+    "void": null
+  },
+  "rules": [
+    3
+  ]
+}

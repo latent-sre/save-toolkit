@@ -1,0 +1,94 @@
+{
+  "format": {
+    "name": "save-toolkit.eval-record",
+    "version": 1
+  },
+  "case": {
+    "id": "tiny",
+    "case_sha256": "06223e86581aa2a6855868162f5da55f28e4f3991601f5a71ce57bd3996275b1",
+    "scenario_sha256": "43fcb9e57f2c3a7277a3a3bd3e960fc26afc92845fdd8186e17268419009059a"
+  },
+  "candidate": {
+    "plugin_root": "/golden/checkout",
+    "plugin_commit": "f24cd555c50b4a628f1908f0ce35f930bfcb5e03",
+    "plugin_inputs_dirty": false,
+    "plugin_source_sha256": "a3c590527655bafbe89dce8625254e0487eb114653c2e5a02eec75b402d1700d"
+  },
+  "runner": {
+    "runner_commit": "f24cd555c50b4a628f1908f0ce35f930bfcb5e03",
+    "runner_source_dirty": false,
+    "runner_source_sha256": "eb3f5a24bbc3cd9b6b51f213d234f225421f4a380c9e214ba2c31571cb670de7"
+  },
+  "conditions": {
+    "requested_model": null,
+    "observed_models": [
+      "stub-model"
+    ],
+    "runtime": {
+      "cli_version": "x",
+      "host_platform": {
+        "system": "Windows",
+        "release": "11",
+        "machine": "AMD64"
+      },
+      "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id": "synthetic-account",
+        "elevated": false,
+        "identity_source": "windows_process_token"
+      }
+    },
+    "turn_limit": 2,
+    "wall_clock_seconds": 60
+  },
+  "attempt": {
+    "label": "golden",
+    "slot": 1,
+    "number": 1,
+    "state": "final",
+    "started_at": "2026-11-02T21:35:34+00:00",
+    "ended_at": "2026-11-02T21:35:35+00:00"
+  },
+  "run_end": {
+    "kind": "turn_limit",
+    "stop": null,
+    "reason": null
+  },
+  "checks": [
+    {
+      "id": "43fcb9e57f2c3a7277a3a3bd3e960fc26afc92845fdd8186e17268419009059a:0",
+      "text": "says deploy",
+      "kind": "requires",
+      "state": "FAIL",
+      "reason": null,
+      "evidence": "none of: deploy",
+      "evidence_truncated": false
+    }
+  ],
+  "verdict": {
+    "status": "FAIL",
+    "reason": null,
+    "assessment_revision": 0,
+    "after_assessment": null
+  },
+  "cost": {
+    "trial_usd": null,
+    "judge_usd": 0.0,
+    "known_usd": 0.0,
+    "complete": false,
+    "judge_calls": 0,
+    "judge_live_calls": 0,
+    "judge_cached_calls": 0,
+    "judge_unknown_cost_calls": 0
+  },
+  "evidence": {
+    "outputs/response.md": "outputs/response.md",
+    "stdout.jsonl": "stdout.jsonl",
+    "outputs/workspace.patch": "outputs/workspace.patch",
+    "grading.json": "grading.json",
+    "timing.json": "timing.json",
+    "provenance.json": "provenance.json",
+    "invocation.json": "invocation.json",
+    "cleanup.json": "cleanup.json"
+  }
+}

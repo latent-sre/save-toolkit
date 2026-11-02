@@ -1,0 +1,50 @@
+{
+  "about": "a check's own code fails: a grader error, never a verdict",
+  "live": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "an unbalanced pattern"
+      }
+    ],
+    "grader_error": "grader error: PatternError('missing ), unterminated subpattern at position 0')",
+    "inconclusive": "grader error: PatternError('missing ), unterminated subpattern at position 0')",
+    "run_end": null,
+    "run_stop": null,
+    "status": "INCONCLUSIVE",
+    "summary": {
+      "failed": 1,
+      "passed": 0,
+      "total": 1
+    },
+    "unmeasured": null,
+    "void": null
+  },
+  "regrade": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "an unbalanced pattern"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": "grader error: PatternError('missing ), unterminated subpattern at position 0')",
+    "run_end": null,
+    "run_stop": null,
+    "status": "INCONCLUSIVE",
+    "summary": {
+      "failed": 1,
+      "passed": 0,
+      "total": 1
+    },
+    "unmeasured": null,
+    "void": "grader error: PatternError('missing ), unterminated subpattern at position 0')"
+  },
+  "rules": [
+    5
+  ]
+}

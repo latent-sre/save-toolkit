@@ -1,0 +1,65 @@
+{
+  "argv": [
+    "/golden/checkout/.venv/bin/python",
+    "/golden/workspace/stub_claude.py",
+    "--agent",
+    "save-toolkit:software-engineer",
+    "-p",
+    "do the thing",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--forward-subagent-text",
+    "--plugin-dir",
+    "/golden/workspace/plugin",
+    "--mcp-config",
+    "{\"mcpServers\":{}}",
+    "--strict-mcp-config",
+    "--settings",
+    "{\"syncClaudeAiSkills\": false}",
+    "--tools",
+    "Read,Edit,Write,Grep,Glob,Bash,Skill,Task",
+    "--disallowedTools",
+    "NotebookEdit,WebFetch,WebSearch,ToolSearch,CronCreate,CronDelete,DesignSync,EnterWorktree,ExitWorktree,PushNotification,RemoteTrigger,ScheduleWakeup,Workflow,TaskCreate,TaskUpdate,TaskStop,Monitor",
+    "--no-session-persistence",
+    "--allowedTools",
+    "Read,Edit,Write,Grep,Glob,Bash,Skill,Task",
+    "--permission-mode",
+    "dontAsk",
+    "--max-turns",
+    "20"
+  ],
+  "workspace": "/golden/workspace/repo",
+  "runtime": {
+    "cli_version": "x",
+    "host_platform": {
+      "system": "Windows",
+      "release": "11",
+      "machine": "AMD64"
+    },
+    "host_identity": {
+      "hostname": "synthetic-host",
+      "account_id": "synthetic-account",
+      "elevated": false,
+      "identity_source": "windows_process_token"
+    }
+  },
+  "expected_model": null,
+  "resume": null,
+  "started_at": "2026-11-02T21:35:32+00:00",
+  "state": "finished",
+  "exit_code": 0,
+  "requested_max_invocation_usd": null,
+  "effective_max_invocation_usd": null,
+  "ended_at": "2026-11-02T21:35:33+00:00",
+  "session_id": "",
+  "main_models": [
+    ""
+  ],
+  "init_session_ids": [
+    ""
+  ],
+  "inconclusive": null,
+  "cut_short": false,
+  "run_stop": null
+}

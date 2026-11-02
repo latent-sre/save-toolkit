@@ -8,6 +8,9 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Golden saved runs for the eval runner: one stub-driven attempt per threat-model result rule and
+  run ending under `evals/fixtures/runner-goldens`, with the verdict views a regrade and a fresh trial
+  must reproduce (stage 0 of the runner rewrite, RUNNER-001).
 - The scenario loader parses with libyaml's C loader and the catalog CLI parses each scenario once;
   a full load drops from 1.4 s to 0.2 s and the scenario-heavy fast tests run about three times faster.
 - The Inspect pilot tests join the heavy set, so the fast shards no longer import `inspect_ai`

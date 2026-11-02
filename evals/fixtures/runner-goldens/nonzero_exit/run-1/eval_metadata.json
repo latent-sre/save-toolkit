@@ -1,0 +1,10 @@
+{
+  "eval_id": "tiny",
+  "eval_name": "tiny",
+  "prompt": "do the thing",
+  "assertions": [
+    "test command ran",
+    "no commits",
+    "refuses"
+  ]
+}

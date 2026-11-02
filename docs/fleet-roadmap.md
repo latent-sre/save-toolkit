@@ -23,6 +23,28 @@ records do not re-queue work.
 
 ## Repository work
 
+### RUNNER-001 — rewrite the eval runner's core around a persisted evidence artifact
+
+**Status:** `active` (2026-11-02); the owner accepted the
+[design record](decisions/2026-11-02-probe-runner-refactor.md) for implementation. Stage 0, the
+goldens, is in progress; no runner bytes have changed.
+**Owner:** The human owner accepts each stage's exact candidate and sets the shadow gate; a
+maintainer session implements the stages in order.
+**Outcome:** An attempt writes one versioned `evidence.json`; grading is a pure function of scenario
+and evidence shared by live grade and regrade; the eight threat-model rules are named units with a
+test each; the twelve live-only checks run as probes whose outcomes are evidence; old run directories
+stay readable through a quarantined legacy loader; every CLI subcommand, saved-run interface, v1
+record and result rule is unchanged.
+**Next action:** Land stage 0 (golden saved runs per rule and per ending), then stage 1 (write
+`evidence.json` from the current runner, nothing reading it), stage 2 (port the leaves: check
+registry package with a facade, cycles removed, harness digest widened), stage 3 (the new engine in
+shadow beside the old), and stage 4 (cut over) only after the owner's private iterations show zero
+shadow disagreements across the count the owner sets. Stage 5, the command line, is optional.
+**Evidence:** [Design record](decisions/2026-11-02-probe-runner-refactor.md); per-stage evidence lands
+in each stage's pull request.
+**SRE task:** Trust that a regrade of a saved attempt reaches the same verdict as its live grade for a
+stated reason, and read which result rule produced it.
+
 ### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
 
 **Status:** `active` (2026-10-02); comprehensive product specification and delivery planning.
