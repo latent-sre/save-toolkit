@@ -46,20 +46,21 @@
   },
   "expected_model": null,
   "resume": null,
-  "started_at": "2026-11-02T21:35:35+00:00",
+  "started_at": "2026-11-02T21:42:56+00:00",
   "state": "timed_out",
   "exit_code": null,
   "requested_max_invocation_usd": null,
   "effective_max_invocation_usd": null,
-  "ended_at": "2026-11-02T21:35:37+00:00",
+  "ended_at": "2026-11-02T21:42:58+00:00",
   "session_id": "",
   "main_models": [
-    ""
+    "",
+    "stub-model"
   ],
   "init_session_ids": [
     ""
   ],
-  "inconclusive": "resolved model identity missing",
-  "cut_short": false,
-  "run_stop": null
+  "inconclusive": "timed out after 2s",
+  "cut_short": true,
+  "run_stop": "wall_clock"
 }

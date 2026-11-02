@@ -50,6 +50,9 @@ def test_every_ending_and_every_result_rule_has_a_golden() -> None:
     endings = {golden_runs.expected(c)["live"].get("run_end") for c in CASES}
     assert {None, outcomes.Ending.CUT_SHORT, outcomes.Ending.TURN_LIMIT, outcomes.Ending.INCOMPLETE} <= endings
     assert any(golden_runs.expected(c)["live"].get("void") for c in CASES), "rule 1 voids a trial"
+    timed_out = golden_runs.expected(next(c for c in CASES if c.name == "wall_clock"))["live"]
+    assert (timed_out["run_end"], timed_out["run_stop"]) == (outcomes.Ending.CUT_SHORT, "wall_clock")
+    assert timed_out["void"] is None, "a timeout with a resolved identity is a cut, not a void"
     assert {rule for c in CASES for rule in c.rules} == set(range(1, 9))
     for item in CASES:
         assert golden_runs.expected(item)["rules"] == list(item.rules), item.name

@@ -53,6 +53,9 @@ argv = sys.argv
 root = argv[argv.index("--plugin-dir") + 1] if "--plugin-dir" in argv else ""
 print(json.dumps({"type": "system", "subtype": "init", "cwd": os.getcwd(), "tools": TOOLS,
                   "plugins": [{"name": "save-toolkit", "path": root}], "mcp_servers": [], "permissionMode": "dontAsk"}))
+# One main-thread turn resolves the model identity, so the timeout is a cut, not an identity void.
+print(json.dumps({"type": "assistant", "message": {"model": "stub-model", "content": [
+    {"type": "text", "text": "Looking at the tests."}]}}))
 sys.stdout.flush()
 time.sleep(30)
 """

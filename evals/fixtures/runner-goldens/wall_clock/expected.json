@@ -20,9 +20,9 @@
       }
     ],
     "grader_error": null,
-    "inconclusive": "resolved model identity missing",
-    "run_end": null,
-    "run_stop": null,
+    "inconclusive": "timed out after 2s",
+    "run_end": "cut_short",
+    "run_stop": "wall_clock",
     "status": "INCONCLUSIVE",
     "summary": {
       "failed": 3,
@@ -30,7 +30,7 @@
       "total": 3
     },
     "unmeasured": null,
-    "void": "resolved model identity missing"
+    "void": null
   },
   "regrade": {
     "after_assessment": null,
@@ -52,9 +52,9 @@
       }
     ],
     "grader_error": null,
-    "inconclusive": "resolved model identity missing",
-    "run_end": null,
-    "run_stop": null,
+    "inconclusive": "timed out after 2s",
+    "run_end": "cut_short",
+    "run_stop": "wall_clock",
     "status": "INCONCLUSIVE",
     "summary": {
       "failed": 3,
@@ -62,7 +62,7 @@
       "total": 3
     },
     "unmeasured": null,
-    "void": "resolved model identity missing"
+    "void": null
   },
   "rules": [
     2,

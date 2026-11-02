@@ -18,12 +18,12 @@
   "changed_files": [],
   "commit_ids_before_after": [
     [
-      "9e8ac9cadba6feb89d837401492fdcca63b80020",
-      "c970f45ab3ef615c95abf05fa95158aa9e0469a2"
+      "7da9c9db0bdae7f238e4dad029748878beb29751",
+      "b7bc951438e91c9536cedf74bed78ce70fb6fba8"
     ],
     [
-      "9e8ac9cadba6feb89d837401492fdcca63b80020",
-      "c970f45ab3ef615c95abf05fa95158aa9e0469a2"
+      "7da9c9db0bdae7f238e4dad029748878beb29751",
+      "b7bc951438e91c9536cedf74bed78ce70fb6fba8"
     ]
   ],
   "commits_before_after": [
@@ -38,7 +38,7 @@
   "dispatches": [],
   "effect_calls": [],
   "foreign_skills": [],
-  "inconclusive": "resolved model identity missing",
+  "inconclusive": "timed out after 2s",
   "initial_parent_reference_reads": [],
   "initial_parent_skills_before_dispatch": [],
   "invocation_evidence": [
@@ -55,21 +55,24 @@
   },
   "judge_binding": null,
   "main_models": [
-    ""
+    "",
+    "stub-model"
   ],
   "mcp_servers": [],
-  "models": [],
+  "models": [
+    "stub-model"
+  ],
   "num_turns": null,
   "permission_mode": "dontAsk",
   "plugin": {
-    "plugin_commit": "f24cd555c50b4a628f1908f0ce35f930bfcb5e03",
+    "plugin_commit": "2e6bab98500a8fe8201470ff70b1ee5ab12be1e4",
     "plugin_inputs_dirty": false,
     "plugin_root": null,
     "plugin_served_from": null,
     "plugin_source_sha256": "a3c590527655bafbe89dce8625254e0487eb114653c2e5a02eec75b402d1700d"
   },
   "powershell_commands": [],
-  "run_end": null,
+  "run_end": "cut_short",
   "runtime": {
     "cli_version": "x",
     "host_identity": {
