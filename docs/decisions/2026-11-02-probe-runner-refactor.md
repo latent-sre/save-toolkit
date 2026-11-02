@@ -3,6 +3,8 @@
 - **Date:** 2026-11-02
 - **Status:** accepted for implementation by the owner on 2026-11-02; each stage's exact candidate is
   accepted separately on its own evidence
+- **Amended:** 2026-11-02, by the decision owner: the decisions under "Decision needed" are made and
+  recorded under "Decisions made"
 - **Decision owner:** the human owner; a maintainer session implements each accepted stage
 - **Roadmap item:** `RUNNER-001` in [the fleet roadmap](../fleet-roadmap.md)
 - **Keeps:** [2026-09-03-one-eval-runner](2026-09-03-one-eval-runner.md),
@@ -204,6 +206,25 @@ No production surface. Ongoing: three new modules and one new artifact to keep d
 estimate from `test_probe_trials.py` 1,689, `test_probe_rescoring.py` 823 and
 `test_probe_assessment.py` 492. The owner's time: setting the shadow count, running the shadow
 trials they would run anyway, and one rescore and diff.
+
+### Decisions made
+
+Made by the decision owner on 2026-11-02, after stage 0 landed:
+
+- Option 3 is accepted.
+- `evidence.json` carries the parsed trace facts in full.
+- The shadow gate is 30 private attempts with zero disagreements, and among them at least one
+  native conversation, one cut-short run and one machinery failure; fewer attempts, or a count that
+  lacks any of the three, holds stage 4.
+- Stage 5 is out of scope; it is proposed again on its own if wanted.
+- `runner_source_sha256` changes at stages 1 to 4; strict regrades of earlier runs then need
+  `--relax-identity`.
+- Two stage 0 findings are resolved by the result-rules ADR's amendment of the same date: a backing
+  service that never starts is a rule 5 measurement failure with no ending, and a cleanup failure
+  after grading is the live attempt's evidence that a regrade does not carry. The third is a defect:
+  a regrade records a grading-machinery failure in rule 1's form; stage 3's engine records it as a
+  grader error on a live grade and on a regrade alike, and the `machinery_failure` golden is
+  regenerated in that stage with the changed view explained.
 
 ### Decision needed
 

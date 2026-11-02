@@ -175,7 +175,7 @@ CASES: tuple[Case, ...] = (
     ),
     Case(
         "service_unavailable",
-        (2, 5),
+        (5,),
         "a backing service never starts, so the model is never called",
         stub_spec,
         seams=_service_unavailable,

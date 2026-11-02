@@ -27,7 +27,8 @@ records do not re-queue work.
 
 **Status:** `active` (2026-11-02); the owner accepted the
 [design record](decisions/2026-11-02-probe-runner-refactor.md) for implementation. Stage 0, the
-goldens, is in progress; no runner bytes have changed.
+goldens, landed on PR #455; the owner's decisions the plan left open are recorded in the design
+record's amendment of 2026-11-02; no runner bytes have changed.
 **Owner:** The human owner accepts each stage's exact candidate and sets the shadow gate; a
 maintainer session implements the stages in order.
 **Outcome:** An attempt writes one versioned `evidence.json`; grading is a pure function of scenario

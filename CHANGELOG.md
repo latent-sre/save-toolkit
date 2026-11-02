@@ -8,6 +8,10 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The result rules of the 2026-10-03 eval-harness decision record have their own heading and, by
+  owner amendment, name what a backing service that never starts, a grading-machinery failure and a
+  cleanup failure after grading record; the runner-rewrite record carries the owner's decisions on
+  the evidence artifact, the shadow gate, stage 5 and runner identity (RUNNER-001).
 - Golden saved runs for the eval runner: one stub-driven attempt per threat-model result rule and
   run ending under `evals/fixtures/runner-goldens`, with the verdict views a regrade and a fresh trial
   must reproduce (stage 0 of the runner rewrite, RUNNER-001).

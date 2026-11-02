@@ -65,7 +65,6 @@
     "void": "backing service unavailable: db"
   },
   "rules": [
-    2,
     5
   ]
 }
