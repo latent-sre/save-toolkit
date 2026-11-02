@@ -31,8 +31,8 @@ Request interim findings only when the host can deliver them to this caller; oth
 partial return at a useful boundary, then dispatch within the remaining task/budget. A running
 helper or acknowledgment is not a result; do not promise progress on an unverified channel.
 
-Reconcile each return against its assignment and source evidence; preserve labels and
-unknown times/state. Use supported findings, reject unsupported conclusions, and continue the parent
+Reconcile each return against its assignment and source evidence; preserve unknown
+times/state. Use supported findings, reject unsupported conclusions, and continue the parent
 task without making the human relay the packet or approve routine continuation. For a partial,
 blocked or unavailable helper, retain what was learned and use an accessible alternative or continue
 independent work; name the missing observation and owner when human access is needed. Helper
