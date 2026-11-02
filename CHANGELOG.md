@@ -6,6 +6,14 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+### Added
+
+- Inspect AI orchestration of the native routing and contract scenarios: `evals/inspect_fleet.py` runs the
+  unchanged native trial as an Inspect task (one sample per scenario, one epoch per trial slot, the same
+  published runs and batch summary), with offline tests, a `inspect-native` track, and a
+  [parity run plan](docs/fleet-evaluation/run-plan-inspect-native-parity.md). The native CLI stays the
+  acceptance reference ([decision](docs/decisions/2026-11-02-inspect-orchestrates-native-runner.md)).
+
 ### Changed
 
 - Parse fleet frontmatter as YAML, the way Claude Code and Copilot read it: `scripts/fleet_frontmatter.py`

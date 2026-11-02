@@ -174,3 +174,33 @@ Remove-Item Env:RUN_INSPECT_DOCKER_SMOKE
 These scripted pass/fail cases verify the bridge and scorers, not model capability. Ordinary
 CI runs the offline tests; Docker smoke cases are explicit opt-ins. Details and remaining
 modernization work are in [Python and eval modernization](../../docs/python-eval-modernization.md).
+
+## Inspect orchestration of native scenarios
+
+[`inspect_fleet.py`](../inspect_fleet.py) runs the native routing and contract scenarios under
+Inspect AI with the native trial unchanged: one sample per scenario, one epoch per trial slot, and
+`probe.trials.run_trial` publishing each attempt under `-T out=` exactly as `build_probe.py run`
+does, record, provenance, judge binding and the batch summary file included. The scorer reports the
+verdict the trial returned; nothing is graded twice. Inspect adds concurrency (`--max-samples`), the
+`.eval` log and `inspect view`. Build probes and native conversations stay with `build_probe.py`.
+
+```powershell
+inspect eval evals/inspect_fleet.py@native_scenarios --model none --max-samples 1 `
+  --log-dir .eval-runs/inspect-fleet/logs `
+  -T label=candidate -T out=.eval-runs/inspect-fleet/<iteration> -T claude_model=sonnet -T trials=3 `
+  -T judge_calibration=.eval-runs/judge-calibration/<timestamp>/identity.json
+inspect view --log-dir .eval-runs/inspect-fleet/logs
+python evals/build_probe.py regrade .eval-runs/inspect-fleet/<iteration>
+```
+
+`--model none` is deliberate: the Claude CLI authenticates itself inside the clean room, so Inspect's
+model API, pricing and cost limits do not apply. The `-T` options mirror `build_probe.py run`;
+`-T selection_file=` admits a frozen `native-selection-v1` file and retains it beside the runs, and
+`-T scenario=` or `-T suite=` that names a build probe or conversation is refused rather than
+narrowed. The per-scenario verdict with thresholds is `build_probe.py regrade` over the published
+runs, for this path and the native batch alike; Inspect's accuracy metric is a mean over trials. The
+native batch spend cap (`--max-batch-usd`) exists only on the native CLI; the per-invocation cap
+passes through as `-T max_invocation_usd=`. Start with `--max-samples 1`: the native batch runs
+trials one at a time, and parallel trials are a different load on the host and the account until the
+[parity run](../../docs/fleet-evaluation/run-plan-inspect-native-parity.md) says otherwise. The
+native CLI remains the documented entry point and the acceptance reference.

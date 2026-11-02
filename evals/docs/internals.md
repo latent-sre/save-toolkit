@@ -34,6 +34,10 @@ preserves the private craft trial's verification wiring without shipping the pro
   layouts and incremental typing remain: whole-file formatting or typing migrations would replace
   calibration and case identities without establishing a behavioral improvement.
 
+- **Inspect orchestration.** [`inspect_fleet.py`](../inspect_fleet.py) wraps the same
+  `probe.trials.run_trial` in an Inspect task for routing and contract scenarios; it lives beside the
+  runner, not in `probe/`, so the runner identity and every saved run identity are unchanged by it.
+
 A function is patched in the module that defines it, such as `probe.trials.run_trial`: every other
 module calls it through that module, so one patch reaches every caller, and a test enforces it. A
 class or constant is bound by name in each module that imports it, so a patch must reach each of
