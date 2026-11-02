@@ -8,6 +8,11 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- CI skips the eval-machinery shards on a pull request that touches only documentation or agent and
+  skill prose; `scripts/eval_tests_needed.py` names the trigger paths and `CONTRIBUTING.md` the rule.
+- Trim the eval self-tests: the GCP grader-mechanics checks run on the 11-family pilot instead of
+  all 31 families, the python-craft exit cross-products become diagonals, and the webhook oracle's
+  test allowances shrink so a non-recovering mutant fails in ten seconds rather than twenty.
 - Cut `AGENTS.md` to its map, three enforcement bullets, three conventions and the hard rule; rules the
   README, `CONTRIBUTING.md` and agent bodies already carry leave it, and the labels-in-transit clause
   leaves it and `helper-exchange.md` (LABELS-001 tracks the rest); the postmortem method now says the

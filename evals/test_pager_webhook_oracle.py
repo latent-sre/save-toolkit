@@ -167,10 +167,10 @@ MUTANTS = {
                                    '            conn.commit()\n'
                                    '        threading.Thread(target=_enrich_later, args=(event,), daemon=True).start()')},
                        "never became a complete incident"),
-    # Processing starts 5 s after a forged request, beyond a short fixed wait.
+    # Processing starts 3 s after a forged request, beyond a short fixed wait.
     "signature_checked_after_delayed_processing": (
         "signature",
-        {"SIGNATURE_REJECTS": ('(threading.Timer(5, _process_one, args=(json.loads(raw),)).start() or True)'
+        {"SIGNATURE_REJECTS": ('(threading.Timer(3, _process_one, args=(json.loads(raw),)).start() or True)'
                                ' and not hmac.compare_digest(request.headers.get("x-pager-signature", ""),'
                                ' expected)')},
         "was stored or processed"),
@@ -212,9 +212,10 @@ def materialize(tmp_path: Path, overrides: dict[str, str]) -> Path:
 def run(workspace: Path, check: str) -> subprocess.CompletedProcess:
     # A 4 s runbook lookup still outlasts the vendor's 3 s window, so the timing checks discriminate.
     # Shorter allowances keep CI fast and still discriminate: the delayed-processing mutant finishes
-    # at about 9 s, inside the 4 + 10 s signature wait, and the reference recovers at once.
-    env = dict(os.environ, PROBE_RUNBOOK_DELAY="4", PROBE_PROCESSING_ALLOWANCE="10",
-               PROBE_RECOVERY_ALLOWANCE="15", PYTHONDONTWRITEBYTECODE="1")
+    # at about 7 s, inside the 4 + 7 s signature wait, and the reference recovers at once, so a
+    # mutant that never recovers is caught after 4 + 6 s rather than a minute.
+    env = dict(os.environ, PROBE_RUNBOOK_DELAY="4", PROBE_PROCESSING_ALLOWANCE="7",
+               PROBE_RECOVERY_ALLOWANCE="6", PYTHONDONTWRITEBYTECODE="1")
     return run_oracle_check(workspace, check, env=env, timeout=180)
 
 
