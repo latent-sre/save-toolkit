@@ -8,6 +8,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Retire the `agent-engineer` agent; the `agent-authoring` skill now handles prompt, agent, skill,
+  eval and roster work directly in your session, and routing that named the agent names the skill.
 - Retire the five-file review dispatch scenarios and the checks that graded carried evidence labels;
   grade a stale review finding by behavior instead of a fixed marker.
 - Trim selected software-engineer reporting, escalation, and helper-dispatch instructions while

@@ -295,12 +295,6 @@ class FleetValidatorTests(unittest.TestCase):
                 (),
             ),
             (
-                "agent-engineer",
-                _markdown_section(Path("agents/agent-engineer.md"), "## Method"),
-                ("promotion is the human owner's acceptance of the exact candidate revision",),
-                ("approval on the exact candidate revision by someone other than",),
-            ),
-            (
                 "agent-authoring",
                 _markdown_section(
                     Path("skills/agent-authoring/references/artifact.md"),
@@ -398,7 +392,6 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertNotIn(obsolete_term, skill)
         active_fleet_contracts = (
             Path("AGENTS.md"),
-            Path("agents/agent-engineer.md"),
             Path("agents/reviewer.md"),
             Path("skills/agent-authoring/SKILL.md"),
             Path("skills/agent-authoring/references/artifact.md"),

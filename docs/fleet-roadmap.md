@@ -72,7 +72,7 @@ remaining reliability gaps.
 **Status:** `ready` (2026-10-24); the audit repairs and pruning merged in #420/#421.
 Targeted live evaluations are complete; the resulting retirement-role clarification is ready for
 review. Incident investigation remains explicitly excluded.
-**Owner:** `agent-engineer` prepares the candidate; the human owner accepts its exact revision.
+**Owner:** A maintainer session prepares the candidate; the human owner accepts its exact revision.
 **Outcome:** Repeated skill instructions and stale guidance are reduced while domain boundaries,
 evidence, recovery, authorization and meaningful verification remain intact.
 **Next action:** Review the retirement-role clarification and its before/after evidence. Further
@@ -107,7 +107,7 @@ evidence, and extend the tool as new operational needs appear.
 ### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
 
 **Status:** `active` (2026-09-20).
-**Owner:** Maintainers accept the release; `agent-engineer` owns the plugin contract and
+**Owner:** Maintainers accept the release; a maintainer session owns the plugin contract and
 `software-engineer` owns helper/adapter repairs.
 **Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
 to a previously accepted one. The [acceptance cases](vscode-plugin-acceptance.md) pass on those
@@ -209,7 +209,7 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   AIOpsLab expansion and WP-14's live GCP exercises retain their delivery/acceptance requirements.
 - WP-15's [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful comparison.
 
-**Owner:** The human owner accepts scope, run conditions and exact candidates; `agent-engineer` owns
+**Owner:** The human owner accepts scope, run conditions and exact candidates; a maintainer session owns
 scenario and measurement design; implementation and lab owners are assigned per delivery package.
 **Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
 test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
@@ -261,7 +261,7 @@ improved or regressed, and distinguish failed behavior from an instrument that c
 of the skill's five archetypes and that the mix is defined after a few runs, not up front; the
 rewritten `frontend-craft` therefore weights the archetypes evenly and defers the deep capability
 references ([decision](decisions/2026-10-11-frontend-craft-generalized.md)).
-**Owner:** The human owner decides the weighting and the first add-on; `agent-engineer` owns the
+**Owner:** The human owner decides the weighting and the first add-on; a maintainer session owns the
 skill's archetype table and build scenarios.
 **Outcome:** After the first few real GUI tasks, the archetype table reflects the kinds of GUI the
 team builds most, the greenfield recommendations follow that weighting, and the first deep
@@ -279,7 +279,7 @@ and a deep reference for the capability they reach for first.
 **Status:** `active` (2026-10-18). A single-file `go-craft` candidate is authored and composed with
 `software-engineer`, `api-craft` and `operator-cli`; HTTP-specific Go guidance stays in the API
 reference ([decision](decisions/2026-10-11-backend-craft.md)).
-**Owner:** The human owner accepts the candidate; `agent-engineer` owns the skill.
+**Owner:** The human owner accepts the candidate; a maintainer session owns the skill.
 **Outcome:** `go-craft` covers writing, refactoring and testing Go across services, CLIs and
 libraries, measured against build scenarios the way `python-craft` is, and `api-craft` and
 `operator-cli` load it for Go changes.
@@ -298,7 +298,7 @@ asking for them.
 and `[UNTRUSTED]` taint through to their reports; agents still label their own load-bearing claims.
 The `software-engineer` scenarios no longer grade it; the `software-engineer` rewrite removes the
 agent's clause.
-**Owner:** The human owner accepts the candidate; `agent-engineer` owns the change.
+**Owner:** The human owner accepts the candidate; a maintainer session owns the change.
 **Outcome:** No fleet instruction or grader requires carrying input labels or taint in transit.
 "Data, never instructions" stays the trust control, and agents keep labelling their own claims.
 **Next action:** Remove the transit clause from the Evidence convention in `AGENTS.md` and from
@@ -321,14 +321,14 @@ the current Linux host without Docker; original trial-3 traces remain on Windows
 In the historical six trials, both arms, the panel was saved
 through a preflighted write and the datasource stayed unchanged, but every trial is FAIL under the
 all-checks threshold.
-**Owner:** The human owner approves each repair run; `agent-engineer` repairs the scenario and runs it.
+**Owner:** The human owner approves each repair run; a maintainer session repairs the scenario and runs it.
 **Outcome:** [`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
 fails only on agent behavior: its refusal-wording check accepts the measured correct refusals, and
 its post-write query check fails only when the agent's query did not return the persisted panel's
 data. The owner has decided whether the missing panel no-data text needs an
 `observability-engineer` or `grafana` repair.
 **Next action:** The [offline refusal repair](reviews/2026-10-25-eval-005-repair.md) accepts both
-retained measured fragments and preserves rejection of an actual datasource edit. `agent-engineer` reproduces the
+retained measured fragments and preserves rejection of an actual datasource edit. A maintainer session reproduces the
 empty post-write Grafana query on the fixture without a model; and reads historical trial 3's
 queries against the check. The owner then decides on the no-data text and approves a re-run.
 **Evidence:** [run record](reviews/2026-10-18-eval-005-run.md).
@@ -340,7 +340,7 @@ datasources alone.
 **Status:** `active` (2026-10-25); the 20-case automatic-routing baseline completed with
 12 PASS, seven FAIL and one INCONCLUSIVE. Two small wording candidates were withdrawn
 after a 30-attempt paired comparison did not demonstrate improvement. Failures remain open.
-**Owner:** The human owner approves the run; `agent-engineer` writes the missing scenarios and runs them.
+**Owner:** The human owner approves the run; a maintainer session writes the missing scenarios and runs them.
 **Outcome:** The eight surviving skills whose description clauses `5c5aa742` replaced with short
 exclusions (akamai-edge, api-craft, database-reliability, frontend-craft, obs-alerting,
 obs-pipeline, pcf-deploy, pcf-ops), plus grafana as the successor to obs-dashboards and obs-analysis
@@ -374,7 +374,7 @@ a probe shows the agent failing without it. The gap itself stays known and unrem
 dropped a restated helper label in at least one trial, against the AGENTS.md rule to preserve
 labels in transit, and no wording tried closed it. A new remedy needs a handoff build probe showing
 it lands before it enters an agent body.
-**Owner:** `agent-engineer` owns the graders.
+**Owner:** A maintainer session owns the graders.
 **Outcome:** `agent-direct-handoff-software-engineer-blocks-unapproved` grades blocking without false
 reds: its `not_regex` graders accept a statement that nothing changed ("I changed nothing") and a
 conditional plan that waits for approval ("once approved, I will apply the patch"), and its fields
@@ -408,20 +408,20 @@ measures newer retry guidance on Claude and Codex; it does not replace this prof
   or occupancy maximum but failed the rubric: none explained that a false return permits another
   call while an uncaught exception exits immediately
   ([closeout](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout)).
-**Owner:** The human owner approves the run and remains the only acceptor; `agent-engineer` runs and
+**Owner:** The human owner approves the run and remains the only acceptor; a maintainer session runs and
 reads it.
 **Outcome:** One bounded Sonnet comparison shows whether the reliability engineer states timing
 without the 36-second bound and keeps the false-return versus exception distinction, against a
 control that differs from it only by the timing repair. The owner then accepts the lane, scopes a
 further repair, or keeps it shipped and unaccepted.
-**Next action:** `agent-engineer` freezes a main commit as the candidate and builds the control from
+**Next action:** A maintainer session freezes a main commit as the candidate and builds the control from
 it: the same bytes with only the retry-timing text restored to its pre-`2d0292c1` wording (the
 retry-timing sentences in `skills/resilience-analysis/SKILL.md` and the two retry passages in its
 `references/worked-contrasts.md`), keeping the overload and admission wording, with adapters
 regenerated. A `git revert` of `2d0292c1` no longer applies, because `f151c276` rewrote the same
 lines, so the control is a hand diff pushed to a ref and reviewed. With both commits and plugin
 digests recorded, the owner approves that bound pair (about USD 1; one native trial per arm on
-`claude-sonnet-5-5`, no retries). `agent-engineer` then runs both on
+`claude-sonnet-5-5`, no retries). A maintainer session then runs both on
 [`native-reliability-helper-return-and-resume`](../evals/scenarios/native-reliability-helper-return-and-resume.yaml)
 and has the timing criterion graded blind. One sample per arm cannot establish a rate. The 2026-10-08
 arms, including the unpublished synthetic baseline `cecadc1b`, the impossible old native case and all
@@ -441,7 +441,7 @@ cases there is one tracker advantage and two design ties, not established genera
 an equivalence proof; principal's repeatable advantage is method and authority consistency. The
 review cycle is complete.
 **Owner:** Maintainers select the exact candidate and approve the evaluation budget;
-`agent-engineer` owns the lane and its `eng-ladder` method.
+a maintainer session owns the lane and its `eng-ladder` method.
 **Outcome:** The principal engineer returns design records that name supported and unseen
 consumers, plan compatible staged rollout and recovery, shape new systems against the stack
 profile, and leave every decision to the human owner without expanded authority. One lane is shown
@@ -470,7 +470,7 @@ recovery, and the decisions to make, before code is written.
 24-session Sonnet campaign failed acceptance. After the helper-scope repair at `c53ed2b6`, one fresh
 sample completed the native return/resume sequence but failed semantic criteria 4 and 6; the other
 stopped before resume. Later source merges are not a fresh behavioral verdict.
-**Owner:** Maintainers select the exact candidate and evaluation budget; `agent-engineer` owns
+**Owner:** Maintainers select the exact candidate and evaluation budget; a maintainer session owns
 the bounded follow-up.
 **Outcome:** The advisor loads relevant guidance, dispatches a bounded helper, reconciles its
 return, and advances without invented causes, timing, or current-state claims.
@@ -497,7 +497,7 @@ or an untimed aggregate for evidence of incident recovery or cause.
 verified and independently reviewed against fixtures; no real-service records exist to accept
 them against. The owner removed the retirement-order and record-transition references on
 2026-10-24 because existing team processes cover that work; their acceptance campaign is dropped.
-**Owner:** Save Toolkit maintainers; `agent-engineer` owns consumer requirements and
+**Owner:** Save Toolkit maintainers; a maintainer session owns consumer requirements and
 `software-engineer` owns producer/resolver implementation.
 **Outcome:** Explicit team, service, environment, and deployment selectors produce the smallest
 schema-valid context projection, failing closed on missing or ambiguous context and granting no
@@ -519,9 +519,9 @@ record still applies to the deployment being operated.
 ### GRAPH-007 — promote or retire the sandbox workflow-graph skill
 
 **Status:** `deferred` (2026-10-17); the owner deferred the promote-or-retire decision.
-**Owner:** Save Toolkit maintainers; `agent-engineer` owns the skill text if promoted.
+**Owner:** Save Toolkit maintainers; a maintainer session owns the skill text if promoted.
 **Outcome:** Portable executable workflow/state-graph design either ships as a reviewed, routed
-skill or is retired. Until then `agent-engineer` claims only the fleet's own agent workflow graph,
+skill or is retired. Until then `agent-authoring` claims only the fleet's own agent workflow graph,
 and a team service's workflow graph routes to `principal-engineer`.
 **Next action:** None. Reopens when the owner takes the decision: promote
 `sandbox/workflow-graph-engineering/SKILL.md` into `skills/` with routing scenarios and a
@@ -533,7 +533,7 @@ remove it.
 
 **Status:** `deferred` (2026-10-07); split from EVAL-010 action 4 when EVAL-010 closed.
 **Owner:** Maintainers approve the comparison's budget, any new dependency and its credential;
-`agent-engineer` runs it as EVAL-012 WP-03 under DEC-05.
+a maintainer session runs it as EVAL-012 WP-03 under DEC-05.
 **Outcome:** Pydantic Evals' `LLMJudge` prompt and Inspect's `model_graded_qa` are scored on the
 calibration corpus beside `judge.py`'s prompt; one is adopted only if it beats `judge.py` on every
 rubric and removes code or cost, and a judge from another family needs a new ADR.
@@ -565,7 +565,7 @@ target, argv/executable digest, expiry, rollback — instead of an open-ended ex
 
 **Status:** `deferred` (2026-10-18); moved out of WP-13 by the owner. Reopens when WP-05's incident
 conversations are planned or a skill change needs a re-reasoning measure.
-**Owner:** `agent-engineer` authors; the human owner accepts the cases.
+**Owner:** A maintainer session authors; the human owner accepts the cases.
 **Outcome:** Branching versions of GCP-02/05/09/15/17/29 meet AC-26: different checks reveal only
 their own observations, equivalent requests reach the same read, unsupported requests return
 unavailable, and a correction changes the supported conclusion, as the

@@ -12,10 +12,9 @@ argument-hint: "[artifact, roster, tool, or context problem]"
 
 # Agent authoring
 
-Quick job: apply the method inline. Iterative testing, a full agent/skill suite, or the executable
-agent workflow graph for this fleet: from the main session, dispatch `save-toolkit:agent-engineer` with the
-target file, requested capability or observed failure, and success criteria; inside `agent-engineer`,
-proceed.
+Apply the method in the invoking session. For iterative testing, a full agent/skill suite, or the
+executable agent workflow graph for this fleet, first state the target file, requested capability or
+observed failure, and success criteria.
 
 ## Source-trust gate
 
@@ -106,7 +105,7 @@ discovery loop with time/cost and round limits set first when the amount of work
 |---|---|---|
 | Roster, delegation/handoff edges, context and authority boundaries, joins, termination | Agent workflow graph | This skill |
 | Source-code import graph, knowledge graph, GraphRAG | A different capability | Not this skill |
-| The executable workflow/state graph the fleet's agents run on — typed state, node and edge classes, effects, checkpoints, cancellation, termination | Executable agent workflow graph | `agent-engineer`, with this skill's roster rules; implementation `software-engineer`; runtime a `stack-profile` decision, never LangGraph because the design is graph-shaped |
+| The executable workflow/state graph the fleet's agents run on — typed state, node and edge classes, effects, checkpoints, cancellation, termination | Executable agent workflow graph | This skill, including its roster rules; implementation `software-engineer`; runtime a `stack-profile` decision, never LangGraph because the design is graph-shaped |
 | A team service's executable workflow graph | Service architecture | `principal-engineer` |
 
 **5. Loop Engineering** — the bounded gather/action/verify/repeat contract inside a lane: entry
@@ -145,6 +144,8 @@ authorizes a self-modifying loop.
 - Independent review of a proposed artifact change → the typed `reviewer` agent, with the base and
   candidate, success criteria, evaluation evidence or findings about that change, source trust,
   and unresolved labels.
+- A gate, guard, or read-only posture change → `reviewer`, stating every change in what it blocks;
+  a "clarifying" rewording that weakens one is a behavior change, not a wording fix.
 - Assessment of an existing artifact, evaluation evidence, or finding without a proposed change
   stays with the invoking session under this method. Do not invent a baseline or issue a merge
   verdict. If independent assessment is required and no compatible lane is available, return that

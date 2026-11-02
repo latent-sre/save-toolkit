@@ -7,7 +7,7 @@ description: >-
   Triggers: 'draft the retro for the outage', 'update the runbook from this incident',
   'capture durable operational lessons', 'which team owns payments and how do I page them'.
   Direct operational-document writing belongs to scribe. Active incidents use incident-investigation,
-  alert design uses observability-engineer, and fleet prompt failures use agent-engineer.
+  alert design uses observability-engineer, and fleet prompt failures use agent-authoring.
 argument-hint: "[document, component, alert, or resolved incident]"
 ---
 

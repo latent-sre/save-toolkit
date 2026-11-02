@@ -16,7 +16,7 @@ This reference supplies artifact destinations, disposition persistence and defin
 | An alert fires | Return to `incident-investigation`; `sre-assistant` takes only a dispatched read. No retrospective or KB preparation before resolution. |
 | A runbook is missing or contradicted, including a failed drill | Use `scribe` with the [runbook method](./runbook.md) and supplied evidence; unsupported commands remain `[unverified]`. A drill exposing a bad step cannot verify the repaired version. |
 | A resolved incident reveals a systemic lesson | Assign a missing postmortem separately with an owner; continue authorized knowledge closeout and its follow-ups. |
-| A fleet prompt, agent or skill has an accepted behavioral failure | Send divergence, evidence and proposed named regression to `agent-engineer`; do not rewrite fleet definitions through operational content. |
+| A fleet prompt, agent or skill has an accepted behavioral failure | Send divergence, evidence and proposed named regression to `agent-authoring`; do not rewrite fleet definitions through operational content. |
 
 ## One-time disposition states
 

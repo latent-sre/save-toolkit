@@ -70,7 +70,6 @@ will offer it).
 | `reliability-engineer` | Service reliability assessment, resilience design, and toil reduction | Local evidence and design documents; bounded facts from `repository-investigator`, protected observations from `sre-assistant`, and sanitized research from `researcher`; implementation stays with its existing owner |
 | `researcher` | Extended public research or bounded external-source help for another agent | Returns cited evidence from official docs, upstream code, packages, and advisories; quick lookups stay with a caller that already has evidence or approved retrieval tools |
 | `reviewer` *(for maintainers and builders)* | Independent investigation, isolated verification, and correctness/security review | Gathers Git/PR evidence and uses focused evidence helpers; owns the verdict, while its caller dispatches fixes to `software-engineer` |
-| `agent-engineer` *(for maintainers)* | The fleet's prompts, agents, skills, descriptions, evals, bounded prompt/eval loops, and the fleet's agent workflow graph (roster, delegation, handoffs, and the executable graph its agents run on) | Delegates only sanitized public lookups to `researcher`; the caller separately dispatches helper code to `software-engineer` and injection-surface review to `reviewer` |
 
 The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 
@@ -105,7 +104,6 @@ Gate A.
 | `observability-engineer` | Observability and dispatched Grafana changes | Unguarded Bash; writes config and scoped Grafana dashboards, folders, alert rules, and silences | `scribe`, `researcher` |
 | `scribe` | Evidence-bound operational documents | Local document write; no Bash or web; terminal | — |
 | `researcher` | Cited public research | External-only; no local read, Bash, Write, Skill, or Agent | — |
-| `agent-engineer` | Fleet prompts, evals, and graphs | Local read/write + Bash; no web tools | `researcher` |
 
 ## How it works
 

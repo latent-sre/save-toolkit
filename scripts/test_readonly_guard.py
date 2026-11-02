@@ -925,7 +925,6 @@ class FleetCredentialDenyTest(unittest.TestCase):
     UNGUARDED_LANES = (
         "save-toolkit:software-engineer",
         "save-toolkit:observability-engineer",
-        "save-toolkit:agent-engineer",
         "software-engineer",
     )
     CREDENTIAL_COMMANDS = (

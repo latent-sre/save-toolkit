@@ -128,8 +128,6 @@ setup, task verifier and artifact extraction must work before running the agent.
   proportionate proposals; reject unsupported benefit figures and authority expansion.
 - **Researcher:** use a versioned public question and a fixture/retrieval record supporting the
   expected claim. Source authenticity and claim support are separate from stylistic quality.
-- **Agent engineer:** expose development failures, freeze the candidate and then assess held-out
-  behavior. A prompt optimized on its own final test set cannot establish general improvement.
 
 ## Controlled adversarial cases
 
