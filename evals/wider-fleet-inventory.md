@@ -13,7 +13,6 @@ and judge calibration are unchanged. AC-27's adversarial surfaces are catalogued
 | Scribe | `build-scribe-postmortem-evidence`, `agent-direct-scribe-command-evidence`, knowledge/alert closeout artifacts | `agent-direct-scribe-contradictory-record`: conflicting accepted/denied receipts cannot become an executed or approved restart | `test_wider_fleet_cases.py`: retains both IDs and unknown execution/approval/recovery; `test_researcher_scribe_cases.py` retains artifact controls |
 | Reliability engineer | `build-reliability-engineer-redelivery`, `agent-direct-reliability-engineer-toil-positive`, `agent-direct-reliability-engineer-toil-negative`, partial-helper boundaries | Every graded case accepted one exact answer, and dependency failure and toil evidence never met in one case. `build-reliability-engineer-proportionate-options` (added after a second inventory): either bulkhead form passes; a larger pool refuted by a change record, restart automation, an unsupported incident-reduction figure, a saving beyond the recorded toil, and expanded authority fail | `test_reliability_cases.py`: both accepted options, each rejected option, every wrong value, missing and extra keys, duplicate keys, and block shape run through the actual oracle; five oracle mutations, run by hand on 2026-10-08 and not kept in the suite, each failed a test |
 | Researcher | `build-researcher-public-source`, `build-researcher-missing-source`, partial research | `agent-direct-researcher-source-authenticity`: a supplied vendor-origin receipt supports one versioned claim, not a different claim; an unattributed paste establishes neither origin nor the retry default | `test_wider_fleet_cases.py`: separates origin, claim support, uncertainty, and actual retrieval; no network required |
-| Agent engineer | `agent-direct-agent-engineer-learning-loop`, `build-agent-engineer-resumes-after-partial-research` | `agent-direct-agent-engineer-heldout-contamination`: reading a failed final case before revising makes the rerun development evidence; c18 has no independent improvement or human acceptance | `test_wider_fleet_cases.py`: rejects contaminated holdout claims, promotion, and dropped initial failure; `test_agent_engineer_cases.py` retains artifact repair controls |
 
 ## Interpretation and remaining execution limits
 
@@ -30,7 +29,6 @@ these authored decisions discriminate; it does not establish fleet reliability o
 render evidence are reported. It does not render a dashboard, establish pixel/accessibility quality,
 or independently execute PromQL. Existing service-backed cases remain the execution path for actual
 stored/query behavior; a visual/browser run remains a separate evidence requirement before claiming
-a working dashboard. Likewise, the agent-engineer case tests contamination recognition, not a real
-held-out generalization result. No new holdout dataset, calibration corpus, or live campaign is
+a working dashboard. No new holdout dataset, calibration corpus, or live campaign is
 created by this inventory. Ongoing scheduling and acceptance belong to the existing WP-10 roadmap
 entry, not a second backlog here.

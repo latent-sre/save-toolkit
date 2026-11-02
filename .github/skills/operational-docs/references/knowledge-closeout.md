@@ -58,7 +58,7 @@ a reviewable repository change or a tracked, owned handoff. Read the
 - Review and execution stamps follow the [shared evidence rules](../SKILL.md#evidence-and-authority).
   A drill exposing a bad step never verifies its repair.
 - Tier 2 or 3 recommendations name explicit human approval and rollback or recovery; agents do
-  not apply them. Fleet prompt, skill, or agent failures return to `agent-engineer` with observed
+  not apply them. Fleet prompt, skill, or agent failures go to `agent-authoring` with observed
   divergence and a proposed named regression.
 
 ## Output

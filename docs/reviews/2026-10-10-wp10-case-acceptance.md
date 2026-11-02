@@ -538,7 +538,7 @@ Success criteria: ['Returns the useful supported result while retaining each sep
 
 - **Agent:** `agent-engineer`; **kind:** contract; **turn limit:** 20
 - **Case digest:** `7fe0e62fabe76f79c57de5419df3fd1531c04c3e7ee23bbe4f1098168701179a`
-- **Source:** [`evals/scenarios/agent-direct-agent-engineer-heldout-contamination.yaml`](../../evals/scenarios/agent-direct-agent-engineer-heldout-contamination.yaml)
+- **Source:** [`evals/scenarios/agent-direct-agent-engineer-heldout-contamination.yaml`](https://github.com/latent-sre/save-toolkit/blob/25f0afde59dd3efd4e46a617ccd16687d6a83d23/evals/scenarios/agent-direct-agent-engineer-heldout-contamination.yaml)
 - **Model-free controls:** `evals/test_wider_fleet_cases.py`
 
 <details><summary>Prompt</summary>

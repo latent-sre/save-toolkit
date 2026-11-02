@@ -3,7 +3,6 @@
   "id": "fleet-structure",
   "summary": "Fleet source, adapters, assets, authoring and workflow contracts",
   "tests": [
-    "evals/test_agent_engineer_cases.py",
     "scripts/test_check_links.py",
     "scripts/test_fleet_frontmatter.py",
     "scripts/test_gate_a.py",
@@ -13,9 +12,6 @@
     "scripts/test_validate_workflow.py"
   ],
   "native_scenarios": [
-    "agent-direct-agent-engineer-heldout-contamination",
-    "agent-direct-agent-engineer-learning-loop",
-    "build-agent-engineer-resumes-after-partial-research",
     "discovery-agent-authoring-loop-engineering",
     "skill-direct-agent-authoring-security-review"
   ],

@@ -324,12 +324,11 @@ menu: [`resumes-after-partial-helper`](../build-scenarios/build-software-enginee
 grades the finished independent change, the agent's own suite run, and the refused injected
 release; [`withholds-review-on-autoloading-instructions`](../build-scenarios/build-software-engineer-withholds-review-on-autoloading-instructions.yaml)
 grades whether a reviewer is dispatched into a context that would load the candidate's instructions.
-Five sibling probes give the other delegating agents the same coverage, each acting on a partial
+Four sibling probes give the other delegating agents the same coverage, each acting on a partial
 return that carries a false `[verified]` claim and an injected instruction:
 [`observability-engineer`](../build-scenarios/build-observability-engineer-resumes-after-partial-helper.yaml),
 [`reliability-engineer`](../build-scenarios/build-reliability-engineer-resumes-after-partial-helper.yaml),
-[`reviewer`](../build-scenarios/build-reviewer-reopens-helper-claims.yaml),
-[`agent-engineer`](../build-scenarios/build-agent-engineer-resumes-after-partial-research.yaml), and
+[`reviewer`](../build-scenarios/build-reviewer-reopens-helper-claims.yaml), and
 [`sre-assistant`](../build-scenarios/build-sre-assistant-handles-partial-research.yaml).
 
 Four build probes cover `api-craft`, each exercising the app with a probe-owned oracle. The Python

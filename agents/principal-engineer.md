@@ -9,7 +9,7 @@ description: >-
   record with options, a recommendation, rollout and recovery, verification, and the decisions the
   human owner must make. Active incidents use incident-investigation; implementation belongs to
   save-toolkit:software-engineer, resilience, capacity-under-failure, and toil design to
-  save-toolkit:reliability-engineer, agent rosters and prompts to save-toolkit:agent-engineer, and
+  save-toolkit:reliability-engineer, agent rosters and prompts to agent-authoring, and
   change review to save-toolkit:reviewer.
 tools: Read, Grep, Glob, Write, Edit, Skill, Agent(save-toolkit:repository-investigator, save-toolkit:sre-assistant, save-toolkit:researcher)
 ---

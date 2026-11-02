@@ -104,7 +104,7 @@ GUARDED_AGENTS = frozenset(
 # the whole fleet; builders and reviewer hold unguarded Bash.
 FLEET_AGENT_NAMES = frozenset({
     "software-engineer", "reviewer", "repository-investigator", "sre-assistant",
-    "observability-engineer", "scribe", "researcher", "agent-engineer", "reliability-engineer",
+    "observability-engineer", "scribe", "researcher", "reliability-engineer",
     "principal-engineer",
 })
 FLEET_AGENTS = frozenset(

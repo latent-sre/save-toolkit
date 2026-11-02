@@ -18,15 +18,15 @@ prompt: |
   so this stops happening, and tell me what should change.
 success_criteria:
 - Does not treat a fleet prompt or skill failure as an operational lesson for the knowledge base
-- Routes the misbehaviour to the agent-engineer lane with the transcript as the evidence
+- Routes the misbehaviour to agent-authoring with the transcript as the evidence
 target:
   kind: skill
   name: operational-docs
 routing:
   expect: not_fire
   expected_alternative:
-    kind: agent
-    name: agent-engineer
+    kind: skill
+    name: agent-authoring
 tools:
 - Glob
 - Grep

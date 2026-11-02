@@ -8,6 +8,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Retire the `agent-engineer` agent; the `agent-authoring` skill now handles prompt, agent, skill,
+  eval and roster work directly in your session, and routing that named the agent names the skill.
 - Remove tests that only pinned exact wording in agents, skills, and templates; keep deletion guards
   for production-authority rules, the runbook fast-path banner, and the Confluence token prompt.
 - Remove the retired Fleet Atlas archive from the working tree; its files remain in Git history at
@@ -52,6 +54,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 - The SWE-bench runner tests write their fixture scripts with LF line endings, so the runner no
   longer rejects them on Windows hosts.
+- The model-free smoke tests fake only the `docker` binary lookup, so the guard step finds `bash` on
+  Linux again instead of the fake Docker path.
 
 ## [0.51.4] - 2026-10-23
 

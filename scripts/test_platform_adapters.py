@@ -197,7 +197,6 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_copilot_agents_preserve_every_canonical_delegation_allowlist(self) -> None:
         expected = {
-            "agent-engineer": ["researcher"],
             "observability-engineer": ["scribe", "researcher"],
             "principal-engineer": ["repository-investigator", "sre-assistant", "researcher"],
             "reliability-engineer": ["repository-investigator", "sre-assistant", "researcher"],
@@ -250,7 +249,6 @@ class PlatformAdapterTests(unittest.TestCase):
 
     def test_copilot_agents_offer_the_current_roster_handoff_graph(self) -> None:
         expected_targets = {
-            "agent-engineer": [],
             "observability-engineer": ["sre-assistant", "scribe"],
             "principal-engineer": ["software-engineer"],
             "reliability-engineer": [],

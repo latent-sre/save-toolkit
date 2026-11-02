@@ -53,7 +53,7 @@ production stack or imply that a Kubernetes task measures PCF proficiency.
 | Role | Responsibility in this project |
 |---|---|
 | Human owner | Select intended task, accept experiment conditions, disposition results and accept exact candidates |
-| agent-engineer | Own scenario semantics, agent/skill experiments and calibrated judging methods |
+| maintainer session | Own scenario semantics, agent/skill experiments and calibrated judging methods |
 | software-engineer | Implement adapters, result import, reporting and lab integration code |
 | reviewer | Independently assess implementation and whether evidence supports the claimed result |
 | Lab operator | Provision/reset the disposable environment and execute any assigned lab changes |
@@ -78,7 +78,7 @@ operations retain their complete rule; this specification does not widen it.
 | reliability-engineer | Analyze a recurring failure and propose an improvement | Supported mechanism, proportionate design and a meaningful verification proposal |
 | principal-engineer | Design a shared-contract change or a new system before code | Consumers found or named unknown, compatible staged rollout with recovery, stack fit, and decisions left to the owner |
 | researcher | Answer a public, version-specific question | Relevant primary sources, supported claims and honest retrieval gaps |
-| agent-engineer | Improve a measured prompt failure | Improvement on held-out cases with no hidden regressions or automatic promotion |
+| agent-authoring skill | Improve a measured prompt failure | Improvement on held-out cases with no hidden regressions or automatic promotion |
 
 Each lane gets a focused task suite. A coding benchmark score is not a verdict on the entire roster.
 Tool access must reflect the lane being evaluated. A refusal of an out-of-lane benchmark task can

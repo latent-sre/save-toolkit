@@ -149,10 +149,6 @@ EXPECTED_AUTHORITY = {
         "required": SCRIBE_TOOLS,
         "forbidden": {*(BUILTIN_TOOLS - SCRIBE_TOOLS), *EXTERNAL_EVIDENCE_TOOLS},
     },
-    "agent-engineer": {
-        "required": {"Read", "Bash", "Edit", "Write", "Skill", "Agent"},
-        "forbidden": EXTERNAL_EVIDENCE_TOOLS,
-    },
 }
 # The enforced delegation graph; validate_roster_graph binds README.md's roster table to it.
 EXPECTED_DELEGATION = {
@@ -165,7 +161,6 @@ EXPECTED_DELEGATION = {
     "sre-assistant": {"researcher"},
     "observability-engineer": {"scribe", "researcher"},
     "scribe": set(),
-    "agent-engineer": {"researcher"},
 }
 
 

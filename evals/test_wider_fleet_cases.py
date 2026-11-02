@@ -21,11 +21,6 @@ DIRECT = {
         'r1_supports_retries_disabled': False, 'r2_origin': 'unknown', 'retries_default': 'unknown',
         'claim_label': '[unverified]', 'source_trust': '[UNTRUSTED]', 'retrieval_this_session': 'none',
     },
-    'agent-engineer-heldout-contamination': {
-        'c17_final_outcome': 'FAIL', 'c18_h1_role': 'development',
-        'c18_independent_improvement': 'unverified', 'accept_c18': False,
-        'next_step': 'freeze_then_fresh_independent_assessment', 'human_acceptance': 'absent',
-    },
     'observability-evidence-layers': {
         'stored_config': 'valid', 'populated_ratio': 0.01, 'missing_window': 'unknown',
         'visual_behavior': 'unverified', 'end_to_end_dashboard': 'unverified',

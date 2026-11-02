@@ -12,4 +12,4 @@ target: {kind: agent, name: principal-engineer}
 routing: {expect: fire}
 tools: [Glob, Grep, Read, Skill, Task]
 success_criteria:
-  - Dispatches the team service's workflow-graph design to the design lane rather than agent-engineer, building it, or answering inline.
+  - Dispatches the team service's workflow-graph design to the design lane rather than agent-authoring, building it, or answering inline.
