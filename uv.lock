@@ -336,9 +336,9 @@ name = "aiologic"
 version = "0.17.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "sniffio" },
+    { name = "sniffio", marker = "python_full_version < '3.13'" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
-    { name = "wrapt" },
+    { name = "wrapt", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f1/7a/d51f2fde1e8ae8a83431f8e97b7a71e9358cdb1d4d2ce6be387fa44d68de/aiologic-0.17.1.tar.gz", hash = "sha256:2e1b93b9e88ced318c2a63ad7b382688f40cbfe40e3d42258d49dc9c5aea179d", size = 252354, upload-time = "2026-06-27T20:41:33.25Z" }
 wheels = [
@@ -1056,7 +1056,7 @@ name = "culsans"
 version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiologic" },
+    { name = "aiologic", marker = "python_full_version < '3.13'" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d9/e3/49afa1bc180e0d28008ec6bcdf82a4072d1c7a41032b5b759b60814ca4b0/culsans-0.11.0.tar.gz", hash = "sha256:0b43d0d05dce6106293d114c86e3fb4bfc63088cfe8ff08ed3fe36891447fe33", size = 107546, upload-time = "2025-12-31T23:15:38.196Z" }
@@ -1752,8 +1752,8 @@ name = "httpcore2"
 version = "2.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-test') or extra == 'group-12-save-toolkit-sandbox' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt')" },
-    { name = "truststore", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-test') or extra == 'group-12-save-toolkit-sandbox' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt')" },
+    { name = "h11", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or extra == 'group-12-save-toolkit-sandbox' or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt')" },
+    { name = "truststore", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or extra == 'group-12-save-toolkit-sandbox' or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c0/61/afa9d6b7452f9eca73f73d45324eb0bb52f098fd5e6049bf6b8263be9b4e/httpcore2-2.16.0.tar.gz", hash = "sha256:c72cd0413563b17e1cd8354677dff887466f8ec2551679759e93126534428643", size = 69886, upload-time = "2026-10-21T07:09:45.31Z" }
 wheels = [
@@ -4771,6 +4771,9 @@ version = "0.0.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]
+gate = [
+    { name = "pyyaml" },
+]
 grafana = [
     { name = "deepdiff" },
     { name = "pillow" },
@@ -4839,6 +4842,7 @@ test = [
 [package.metadata]
 
 [package.metadata.requires-dev]
+gate = [{ name = "pyyaml", specifier = ">=6.0.3" }]
 grafana = [
     { name = "deepdiff", specifier = ">=9.1.0" },
     { name = "pillow", specifier = ">=13.0.0" },
@@ -6018,7 +6022,7 @@ name = "zipfile-zstd"
 version = "0.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zstandard" },
+    { name = "zstandard", marker = "python_full_version < '3.14' or (python_full_version == '3.14.*' and extra != 'group-12-save-toolkit-swebench')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f7/2a/2e0941bc0058d10ab37d8c578b94a19f611f6ae54f124140f2fb451f0932/zipfile-zstd-0.0.4.tar.gz", hash = "sha256:c1498e15b7922a3d1af0ea55df8b11b2af4e8f7e0e80e414e25d66899f7def89", size = 4603, upload-time = "2021-12-08T07:38:16.245Z" }
 wheels = [

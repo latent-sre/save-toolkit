@@ -2,11 +2,10 @@
 """Run the live-tree structural checks used by CI and before a push.
 
 This is the executable roster; CONTRIBUTING.md defines when component suites must also run.
-No gate-path script imports a third-party package, so the gate runs on a bare interpreter and
-the validate job installs nothing. The first such import must add
-`uv sync --locked` to that job in the same change;
-test_validate_workflow.py fails until it does. Checks need neither a clean tree nor full Git
-history.
+The gate path imports PyYAML through scripts/fleet_frontmatter.py and nothing else; the validate
+job installs the locked `gate` group (pyproject.toml) on the 3.12 floor before running it. A new
+gate-path third-party import joins that group in the same change; test_validate_workflow.py fails
+until the job installs it. Checks need neither a clean tree nor full Git history.
 All checks run even after a failure. Default output is one verdict plus failure diagnostics;
 --verbose includes successful step output. Structural success is not behavioral acceptance.
 """

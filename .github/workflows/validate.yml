@@ -24,14 +24,31 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Python
+        id: python
         uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           check-latest: true
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      # Gate A reads frontmatter through scripts/fleet_frontmatter.py, which imports PyYAML. The
+      # `gate` group is that one dependency, installed from the same lock on the 3.12 floor and bound
+      # to setup-python's interpreter; test_validate_workflow.py fails if a gate-path script imports
+      # something this step does not install (docs/decisions/2026-08-23 and 2026-11-02).
+      - name: Install the locked gate environment
+        run: |
+          uv sync --locked --only-group gate
+          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+        env:
+          UV_PYTHON: ${{ steps.python.outputs.python-path }}
+          UV_PYTHON_DOWNLOADS: never
+
       # gate_a.py owns the structural roster; component suites run in the matrix below.
-      # No gate-path script imports a third-party package, so this job installs nothing;
-      # test_validate_workflow.py fails once one does (see docs/decisions/2026-08-23 and 2026-11-02).
       - name: Gate A -- mechanical audit
         run: python scripts/gate_a.py
 

@@ -213,7 +213,7 @@ class ValidateWorkflowTests(unittest.TestCase):
             if "python scripts/gate_a.py" in step.get("run", "").splitlines()
         )
         ci_installs = any(
-            "uv sync --locked" in step.get("run", "").splitlines()
+            any(line.startswith("uv sync --locked") for line in step.get("run", "").splitlines())
             and "if" not in step
             for step in steps[:gate_index]
         )
@@ -328,19 +328,24 @@ class ValidateWorkflowTests(unittest.TestCase):
         output's path, not a preference: uv treats its own managed interpreters as non-system, so a
         preference alone can fail to find any interpreter.
         """
-        for name in ("fast-tests", "eval-tests"):
+        # The gate job installs only the `gate` group: Gate A stays small and PyYAML is its one import.
+        expected = {"validate": "uv sync --locked --only-group gate", "fast-tests": "uv sync --locked",
+                    "eval-tests": "uv sync --locked"}
+        for name, command in expected.items():
             with self.subTest(job=name):
                 steps = workflow_jobs()[name]["steps"]
                 python = next(s for s in steps if s.get("uses", "").startswith("actions/setup-python@"))
                 self.assertNotIn("cache", python["with"], "pip caching has no requirements file to key on")
                 uv = next(s for s in steps if s.get("uses", "").startswith("astral-sh/setup-uv@"))
                 self.assertIs(uv["with"]["enable-cache"], True)
-                install = next(s for s in steps if "uv sync --locked" in s.get("run", "").splitlines())
+                install = next(s for s in steps if command in s.get("run", "").splitlines())
                 self.assertEqual("${{ steps." + python["id"] + ".outputs.python-path }}",
                                  install.get("env", {}).get("UV_PYTHON"))
                 self.assertEqual("never", install.get("env", {}).get("UV_PYTHON_DOWNLOADS"))
                 self.assertIn('echo "$PWD/.venv/bin" >> "$GITHUB_PATH"', install["run"].splitlines())
-                self.assertLess(steps.index(install), steps.index(pytest_step(workflow_jobs()[name])))
+                consumer = (next(s for s in steps if s.get("run") == "python scripts/gate_a.py")
+                            if name == "validate" else pytest_step(workflow_jobs()[name]))
+                self.assertLess(steps.index(install), steps.index(consumer))
 
     def test_the_gate_still_has_a_schedule_and_manual_dispatch(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")

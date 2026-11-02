@@ -8,6 +8,11 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Parse fleet frontmatter as YAML, the way Claude Code and Copilot read it: `scripts/fleet_frontmatter.py`
+  loads with PyYAML's safe loader (duplicate keys rejected, line-numbered diagnostics) instead of its
+  own grammar, so typed scalars and lists reach the validators; Gate A now installs the locked `gate`
+  group (PyYAML only) on the 3.12 floor. Every canonical and projected file parses to the same mapping
+  as a plain safe load, and the generated projections are byte-identical.
 - Manage dependencies as a uv project: `pyproject.toml` declares the dependency groups and `uv.lock`
   holds every exact version, replacing the six requirements files; CI installs with `setup-uv` and
   `uv sync --locked`, Dependabot proposes weekly lock updates, and the weekly run audits the locked sets

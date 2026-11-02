@@ -27,7 +27,6 @@ test = [
     "pytest>=9.1.1",
     "pytest-xdist>=3.8.0",
     "hypothesis>=6.168.5",
-    "pyyaml>=6.0.3",
     "types-PyYAML>=6.0.12.20260906",
     "fastapi>=0.141.1",
     "httpx>=0.28.1",
@@ -41,7 +40,14 @@ test = [
     "docker>=7.2.0",
     "ruff>=0.16.10",
     "mypy>=2.4.0",
+    { include-group = "gate" },
     { include-group = "grafana" },
+]
+# Gate A's path (scripts/gate_a.py and the scripts it imports) reads frontmatter through
+# scripts/fleet_frontmatter.py, which needs PyYAML and nothing else; the validate job syncs this group
+# alone on the 3.12 floor. A further gate-path third-party import joins this group.
+gate = [
+    "pyyaml>=6.0.3",
 ]
 # Grafana analysis workflows (skills/grafana/scripts); run with `python -I` in the project environment.
 grafana = [

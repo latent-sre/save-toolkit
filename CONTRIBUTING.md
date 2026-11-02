@@ -80,7 +80,10 @@ the sandboxes' own `requirements.txt` pins stay exact in the manifest and move o
 contract. The `swebench` group installs on top of the project environment
 (`uv sync --locked --group swebench`); `harbor`, `swt` and `sandbox` are declared conflicting with
 it and install only into a separate environment, for example
-`UV_PROJECT_ENVIRONMENT=.eval-runs/harbor-sdk uv sync --locked --only-group harbor`.
+`UV_PROJECT_ENVIRONMENT=.eval-runs/harbor-sdk uv sync --locked --only-group harbor`. Gate A's
+path imports PyYAML through `scripts/fleet_frontmatter.py` and nothing else: the `gate` group is
+that one dependency, the validate job syncs it alone on the 3.12 floor, and a new gate-path
+third-party import joins that group in the same change.
 
 The Grafana analysis libraries are part of the `test` group. The Grafana workflow runs with
 `python -I` in the project environment for data analysis, query parsing, capture comparisons and
