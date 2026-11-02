@@ -392,14 +392,10 @@ candidate. Preserve actual return/resume and sufficient-evidence recovery as reg
 2026-10-18, 101 commits on main have touched `incident-investigation` or `sre-assistant` since
 2026-09-07, so reopening starts with a fresh bounded baseline on current main before any repair;
 the September failures are not assumed to persist or to be fixed.
-**Evidence:** [Selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md);
-[second pass](reviews/2026-09-07-incident-quality-second-pass.md), its
-[symptom-guidance](reviews/2026-09-06-general-incident-help.md) and
-[first-repair](reviews/2026-09-06-sre-decision-quality-repairs.md) baselines, plus
-[task-sized outputs](reviews/2026-09-07-task-sized-skill-outputs.md) and
-[helper exchange](reviews/2026-09-07-incident-helper-exchange.md). The
-[operational-contract report](reviews/2026-09-04-operational-contract-fixes.md) remains the
-record-provenance evidence used by merged PR #237. Results apply to those records' named snapshots.
+**Evidence:** none current. The September 2026 campaign records (selected-improvement record,
+second pass, symptom-guidance and first-repair baselines, task-sized outputs, helper exchange, and
+the operational-contract report used by merged PR #237) were removed on 2026-11-02 and remain at the
+[pre-removal snapshot](https://github.com/latent-sre/save-toolkit/tree/7ac287d518df1f5b8c9397642a8204b0909ca2ac/docs/reviews); their results apply only to the snapshots they name.
 **SRE task:** Get a useful next check or closeout without mistaking a helper's completed assignment
 or an untimed aggregate for evidence of incident recovery or cause.
 
@@ -424,7 +420,8 @@ was committed on 2026-09-30; rebase it onto producer main and rerun its tests be
 **Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md),
 [lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml), the
 [accepted context-contract scope](decisions/2026-08-24-sre-operational-context-contract.md), and
-the context refresh in the [selected-improvement record](reviews/2026-09-07-selected-sre-improvements.md).
+the context refresh in the [selected-improvement record](https://github.com/latent-sre/save-toolkit/tree/7ac287d518df1f5b8c9397642a8204b0909ca2ac/docs/reviews/2026-09-07-selected-sre-improvements.md)
+(removed 2026-11-02, kept in Git).
 **SRE task:** State team, service, environment, and deployment once, and know whether the service
 record still applies to the deployment being operated.
 
