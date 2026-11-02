@@ -10,6 +10,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 - The scenario loader parses with libyaml's C loader and the catalog CLI parses each scenario once;
   a full load drops from 1.4 s to 0.2 s and the scenario-heavy fast tests run about three times faster.
+- The Inspect pilot tests join the heavy set, so the fast shards no longer import `inspect_ai`
+  in every collecting worker.
 - CI skips the eval-machinery shards on a pull request that touches only documentation or agent and
   skill prose; `scripts/eval_tests_needed.py` names the trigger paths and `CONTRIBUTING.md` the rule.
 - Trim the eval self-tests: the GCP grader-mechanics checks run on the 11-family pilot instead of
