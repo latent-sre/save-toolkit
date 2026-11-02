@@ -97,16 +97,22 @@ def scenario_tools(spec: Spec) -> tuple[str, ...]:
     return DEFAULT_MAIN_SESSION_TOOLS
 
 
+# libyaml's C parser reads the same safe YAML subset about nine times faster than the pure-Python
+# SafeLoader that `yaml.safe_load` always picks. The runner, the catalog CLI and the fast tests
+# each parse all 400-odd scenarios per load, so the choice is worth over a second per call.
+_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
+
 def load_scenario(path: Path) -> dict[str, Any]:
-    spec = yaml.safe_load(path.read_text(encoding="utf-8"))
+    spec = yaml.load(path.read_text(encoding="utf-8"), Loader=_LOADER)
     problems = validate_scenario(spec, where=str(path))
     if problems:
         raise ValueError("\n".join(problems))
     return spec  # type: ignore[no-any-return]
 
 
-def load_all_scenarios(directory: Path | None = None) -> list[dict[str, Any]]:
-    """Every scenario the runner owns.
+def load_scenarios_by_path(directory: Path | None = None) -> dict[Path, dict[str, Any]]:
+    """Every scenario the runner owns, keyed by its file, parsed once and checked for unique ids.
 
     Two directories, one runner: `build-scenarios/` holds the fixture-backed probes, whose inline
     repos run to hundreds of lines each, and `scenarios/` holds the routing and contract cases.
@@ -114,16 +120,22 @@ def load_all_scenarios(directory: Path | None = None) -> list[dict[str, Any]]:
     directory a spec came from.
     """
     directories = [directory] if directory is not None else [SCENARIO_DIR, CONTRACT_SCENARIO_DIR]
-    specs: list[dict[str, Any]] = []
+    specs: dict[Path, dict[str, Any]] = {}
     for source in directories:
         if source.is_dir():
-            specs += [load_scenario(p) for p in sorted(source.glob("*.yaml"))]
+            for path in sorted(source.glob("*.yaml")):
+                specs[path] = load_scenario(path)
     seen: set[str] = set()
-    for spec in specs:
+    for spec in specs.values():
         if spec["id"] in seen:
             raise ValueError(f"duplicate scenario id {spec['id']!r}")
         seen.add(spec["id"])
     return specs
+
+
+def load_all_scenarios(directory: Path | None = None) -> list[dict[str, Any]]:
+    """Every scenario the runner owns, in file order."""
+    return list(load_scenarios_by_path(directory).values())
 
 
 def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
