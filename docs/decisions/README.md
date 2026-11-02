@@ -9,9 +9,9 @@ removed by this cleanup are in the [pre-cleanup snapshot](https://github.com/lat
 earlier missing references require their own historical revision.
 Anyone else changes a decision through a successor as described in [`commands/adr.md`](../../commands/adr.md).
 
-The [retention successor](2026-09-07-historical-artifact-retention.md) explicitly replaces the
-incident-navigation and incident-autonomy bundle-preservation requirements when maintainers merge
-PR #238. It preserves branch dispositions, current tool authority, and acceptance holds.
+The [retention successor](2026-09-07-historical-artifact-retention.md) replaced the
+incident-navigation and incident-autonomy bundle-preservation requirements when maintainers merged
+PR #238 on 2026-09-07. It preserves branch dispositions, current tool authority, and acceptance holds.
 
 | Date | Decision | Status |
 |---|---|---|
@@ -25,10 +25,10 @@ PR #238. It preserves branch dispositions, current tool authority, and acceptanc
 | 2026-08-24 | [Establish a source-independent SRE operational-context contract](2026-08-24-sre-operational-context-contract.md) | Accepted |
 | 2026-08-26 | [Use a consumer-specific Docker Compose sandbox for GRAPH-002](2026-08-26-graph-002-docker-sandbox-runtime.md) | Accepted |
 | 2026-09-01 | [One Claude engine, deterministic structure graders, and a calibrated rubric judge](2026-09-01-rubric-judge-evaluation-contract.md) | Accepted 2026-09-01; failed-judge-call sentence superseded by [2026-10-03-eval-harness-threat-model](2026-10-03-eval-harness-threat-model.md) |
-| 2026-09-03 | [The incident lane is an advisor and a pair of hands](2026-09-03-incident-lane-advisor-and-hands.md) | Accepted 2026-09-03; bundle-retention clause superseded upon acceptance of the retention successor |
+| 2026-09-03 | [The incident lane is an advisor and a pair of hands](2026-09-03-incident-lane-advisor-and-hands.md) | Accepted 2026-09-03; bundle-retention clause superseded by [2026-09-07-historical-artifact-retention](2026-09-07-historical-artifact-retention.md) |
 | 2026-09-03 | [One eval runner, three scenario kinds](2026-09-03-one-eval-runner.md) | Accepted 2026-09-03; registry list superseded by [2026-09-04-eight-grader-registry](2026-09-04-eight-grader-registry.md) |
 | 2026-09-04 | [The grader registry is eight graders](2026-09-04-eight-grader-registry.md) | Accepted 2026-09-04 |
-| 2026-09-07 | [Keep retired artifacts in Git history](2026-09-07-historical-artifact-retention.md) | Proposed; effective on maintainer merge of PR #238 |
+| 2026-09-07 | [Keep retired artifacts in Git history](2026-09-07-historical-artifact-retention.md) | Accepted on maintainer merge of PR #238, 2026-09-07 |
 | 2026-10-03 | [What the eval harness defends against](2026-10-03-eval-harness-threat-model.md) | Accepted 2026-10-06, with result rules added before acceptance |
 | 2026-10-04 | [The incident companion judge reads the case material, not a summary of it](2026-10-04-rubric-judge-case-material.md) | Proposed; amends 2026-09-01 |
 | 2026-10-05 | [Add one principal engineering lane for system design and architecture](2026-10-05-principal-engineer.md) | Proposed |

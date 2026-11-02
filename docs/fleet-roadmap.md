@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; working update 2026-10-16, backlog prune.** This is the only backlog.
+> **Status: live; working update 2026-11-02, merged-item closure.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -22,70 +22,6 @@ This also covers items recorded before the closed register and changelog were tr
 records do not re-queue work.
 
 ## Repository work
-
-### SKILLS-003 — consolidate operational documentation methods
-
-**Status:** `ready` (2026-10-24); combined source, callers, assets and checks are prepared.
-**Owner:** Current session prepares the candidate; human owner accepts the exact revision.
-**Outcome:** One `operational-docs` entrypoint replaces three overlapping skills while preserving
-bounded runbook edits, retrospective scope, closeout evidence and read-only ownership lookup.
-**Next action:** Human review and merge disposition for `work/operational-docs-consolidation`.
-Retain the recorded native limits: one smoke trial per positive case, and the fleet-failure
-negative's unfinished dispatch on both incumbent and candidate. The postmortem fixture loads the
-method and stays in scope but fails its exact follow-up-ID check; resolve or explicitly disposition
-that result before claiming authored-behavior acceptance.
-**Evidence:** [Consolidation and verification](reviews/2026-10-24-operational-docs-consolidation.md).
-**SRE task:** Select one operational-documentation skill and load only the requested method.
-
-### SKILLS-002 — clean skill references sequentially
-
-**Status:** `ready` (2026-10-24); the owner selected all canonical references, one skill at a time
-and one commit per skill. The series starts from PR #427's observability cleanup.
-**Owner:** Current session prepares and verifies each skill; the human owner accepts the candidate.
-**Outcome:** Review all 104 references across 23 skill bundles. Remove generic explanations,
-duplication, unsupported team rules and stale claims while retaining operational details,
-established decisions, audited safeguards and meaningful verification. The four skills without
-reference files need no reference cleanup.
-**Next action:** Human review of the 23 per-skill commits on `work/skill-reference-cleanup`; decide
-acceptance and merge. All 104 original references were reviewed; one redundant reference was
-retired, with 85,724 canonical reference bytes removed. Existing native/runtime acceptance gaps
-remain unverified.
-Only necessary entrypoint links, tests and generated projections accompany a reference change.
-**Evidence:** [Existing agent/skill audit baseline](reviews/2026-10-23-agent-skill-audit/README.md);
-per-skill commits record the cleanup and verification, and [the changelog](../CHANGELOG.md) records progress.
-**SRE task:** Load concise, current operational references without inheriting invented team policy.
-
-### FLEET-AUDIT-20261023 — audit each agent and skill against its complete contract
-
-**Status:** `decision-needed` (2026-10-24); all 25 findings repaired and locally verified; exact-candidate acceptance and merge disposition remain pending. All 42 agent/skill audit reports are complete: ten agents, thirty shipped skills and two nonshipping surfaces. The ledger records 25 distinct findings (23 shipped, two sandbox); repairs and native/runtime acceptance remain separate.
-**Owner:** Human requester accepts dispositions; the current session owns final repairs and verification.
-**Outcome:** All ten canonical agents, thirty canonical skill bundles and the two nonshipping skill
-surfaces have source-bound reports covering routing, authority, workflow, platform projections,
-bundled resources and meaningful test/eval coverage, with actionable findings and explicit gaps.
-**Next action:** Human requester accepts or returns the complete repair candidate and decides merge disposition; no original finding remains unrepaired. See [first-batch evidence](reviews/2026-10-23-agent-skill-audit/repairs-first-ten.md), [second-batch evidence](reviews/2026-10-23-agent-skill-audit/repairs-second-ten.md), and [final-batch evidence](reviews/2026-10-23-agent-skill-audit/repairs-final-five.md). Do not promote the sandbox candidate or restore retired Fleet Atlas without a separate owner decision. The original audit is source-bound; repair evidence is tracked in its linked follow-up.
-**Evidence:** [Agent and skill audit](reviews/2026-10-23-agent-skill-audit/README.md).
-**SRE task:** Select an agent or skill with a clear account of its supported work, boundaries and
-remaining reliability gaps.
-
-### SKILLS-001 — reduce unnecessary skill content without lowering standards
-
-**Status:** `ready` (2026-10-24); the audit repairs and pruning merged in #420/#421.
-Targeted live evaluations are complete; the resulting retirement-role clarification is ready for
-review. Incident investigation remains explicitly excluded.
-**Owner:** A maintainer session prepares the candidate; the human owner accepts its exact revision.
-**Outcome:** Repeated skill instructions and stale guidance are reduced while domain boundaries,
-evidence, recovery, authorization and meaningful verification remain intact.
-**Next action:** Review the retirement-role clarification and its before/after evidence. Further
-pruning needs a separately selected scope; do not include `incident-investigation`. No whole-skill
-retirement is selected. Existing behavioral acceptance gaps remain with their current owners.
-**Evidence:** [Full skills audit and follow-ups](reviews/2026-10-23-skills-audit.md), including the
-[targeted live probes](reviews/2026-10-23-skills-audit.md#targeted-live-probes-and-retirement-role-repair).
-The merged pruning contributed 2,718 canonical bytes before correctness additions, preserving the
-separate already-merged trims. The new conditional reference adds 191 bytes for the observed role
-inference defect; the entrypoint does not grow. Structural, decision, reference-read and manual
-semantic results are reported separately; passing fields alone missed the approval-role error.
-**SRE task:** Load less repeated guidance and receive task-sized help without losing the checks
-that make operational advice and engineering changes trustworthy.
 
 ### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
 
@@ -362,30 +298,6 @@ invocation; do not change that authority to make discovery pass.
 the commit message of `5c5aa742` records the original scenarios as owed.
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.
-
-### HANDOFF-002 — the blocks-unapproved graders stop false-redding
-
-**Status:** `ready` (2026-10-25); the offline grader repair is implemented, with
-[before/after evidence](reviews/2026-10-25-wp10-handoff-repairs.md#handoff-002).
-The owner narrowed this item to the grader fix. The label-restatement rule
-it also proposed is dropped: across the handoff build probes on 2026-09-30 it landed in 0 to 2 of 3
-trials on every arm, the no-rule controls included, and AGENTS.md adds a handoff body rule only when
-a probe shows the agent failing without it. The gap itself stays known and unremedied: every arm
-dropped a restated helper label in at least one trial, against the AGENTS.md rule to preserve
-labels in transit, and no wording tried closed it. A new remedy needs a handoff build probe showing
-it lands before it enters an agent body.
-**Owner:** A maintainer session owns the graders.
-**Outcome:** `agent-direct-handoff-software-engineer-blocks-unapproved` grades blocking without false
-reds: its `not_regex` graders accept a statement that nothing changed ("I changed nothing") and a
-conditional plan that waits for approval ("once approved, I will apply the patch"), and its fields
-grader is not tripped by a field name repeated in prose.
-**Next action:** Integrate the verified repair and obtain human merge disposition. Scripted
-controls now accept the bounded no-op and approval-conditional statements while rejecting
-actual edits, premature commitments and invalid decision fields; no model run is needed.
-**Evidence:** [the scenario](../evals/scenarios/agent-direct-handoff-software-engineer-blocks-unapproved.yaml);
-its exact field parser was already correct; the two scenario-specific action patterns were repaired.
-**SRE task:** An SRE trusts that a red on this check means the agent edited without approval, not
-that it said so in a harmless sentence.
 
 ### RELIABILITY-001 — measure the timing repair on Claude, then decide on the reliability lane
 

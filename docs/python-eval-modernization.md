@@ -4,9 +4,6 @@ The measured first step is Python 3.14 in CI, current FastAPI, and a bounded Ins
 SWE integration. The native fleet evaluator stays in place until its contracts have equivalent
 evidence on a replacement. This branch is based on machinery PR #259, not the paperwork branch.
 
-The separate [sandbox runtime upgrade](sandbox-runtime-upgrade.md) records the follow-up work
-on the existing graph and AutoGen/A2A applications; it does not expand the Inspect pilot's scope.
-
 ## Runtime and dependency findings
 
 - [verified] The unchanged repository passes on CPython 3.14.7: 674 tests passed, 5 skipped,
@@ -113,5 +110,3 @@ ceiling from 11,503 to 11,554 without changing the skill or agent ceilings.
   (220 net lines added, using five lines of existing headroom). Retire that
   additive cost as equivalent native infrastructure can be removed; do not count a pilot as a net
   simplification yet.
-
-The next framework batch is recorded in [LangGraph upgrade verification](langgraph-upgrade.md).
