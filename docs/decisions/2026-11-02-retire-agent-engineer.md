@@ -25,13 +25,12 @@ durable domain lane, or routing split the current agents cannot own".
   ([principal-engineer evaluation](../reviews/2026-10-05-principal-engineer-evals.md)) and once not
   dispatched where a case expected it
   ([operational-docs consolidation](../reviews/2026-10-24-operational-docs-consolidation.md)).
-- [sourced: delegated transcript scan, 2026-11-02] The 21 sessions with the most commits here were
-  scanned for dispatches, with the detector first proven on a known dispatch and on mutated copies.
-  No dispatch of this agent was found; its only appearances were evaluation trials. The plugin's
-  agents were available in three of those sessions: one was scanned in full and two in part. Of all
-  21, five were scanned in full, thirteen in part, one could not be read and two were not scanned.
-  The two partial plugin sessions are being completed; their result is recorded here before the
-  candidate is accepted.
+- [sourced: delegated transcript scans, 2026-11-02] The 21 sessions with the most commits here were
+  scanned for dispatches in both the tool-call and task-start channels, with the detector first proven
+  on a known dispatch and on mutated copies. The plugin's agents were available in three of those
+  sessions; all three were read from start to finish and none dispatched this agent. Its only
+  dispatches in any scanned transcript were evaluation trials. The plugin's agents were absent from
+  every scanned portion of the other eighteen; one of those could not be read and two were not scanned.
 - [sourced] The [2026-10-23 audit](../reviews/2026-10-23-agent-skill-audit/agents/agent-engineer.md)
   found no defect against the agent's own contract; it did not assess whether the lane was needed.
 
