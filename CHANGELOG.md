@@ -12,6 +12,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   a full load drops from 1.4 s to 0.2 s and the scenario-heavy fast tests run about three times faster.
 - The Inspect pilot tests join the heavy set, so the fast shards no longer import `inspect_ai`
   in every collecting worker.
+- Test HTTP servers, the SWE-bench proxy and the runner's backing services shut down on a 10 ms
+  poll instead of the 500 ms default; the proxy tests drop from 36 s to 2 s.
 - CI skips the eval-machinery shards on a pull request that touches only documentation or agent and
   skill prose; `scripts/eval_tests_needed.py` names the trigger paths and `CONTRIBUTING.md` the rule.
 - Trim the eval self-tests: the GCP grader-mechanics checks run on the 11-family pilot instead of

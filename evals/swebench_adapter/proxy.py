@@ -355,7 +355,9 @@ class ModelProxy:
         if self._server is not None or self._closed.is_set():
             raise RuntimeError("proxy cannot be started")
         self._server = _Server((self._bind_host, 0), self)
-        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        # shutdown() returns on the serving loop's next poll; the default 0.5 s tick made every close
+        # wait half a second for nothing.
+        self._thread = threading.Thread(target=self._server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
         self._thread.start()
 
     def _track(self, resource: object) -> None:
