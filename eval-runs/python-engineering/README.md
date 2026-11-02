@@ -6,10 +6,12 @@ The `python-engineering` suite links three distinct kinds of evidence:
   live-incident negatives. The `native` track runs these through the existing fleet runner.
 - [Offline skill and oracle tests](../../evals/test_python_engineering_skill.py), selected through
   the `offline-tests` track. These test structure, references, routing definitions and oracle controls.
-- Twelve saved artifact cases in each of [baseline](baseline/) and [with-skill](with-skill/).
-  These are previously produced workspaces and reports, not native build scenarios or an admitted
-  campaign selection. The [oracle module](../../evals/oracles/python-engineering/evaluate_cases.py)
-  owns their prompts, seeds and grading functions.
+- Scores for twelve saved artifact cases in each of two arms, `baseline` and `with-skill`. The
+  workspaces and agent reports those scores were graded from are no longer in the working tree;
+  recover them from Git history at `6d7e645` under `eval-runs/python-engineering/{baseline,with-skill}/`.
+  They were previously produced outputs, not native build scenarios or an admitted campaign
+  selection. The [oracle module](../../evals/oracles/python-engineering/evaluate_cases.py) owns their
+  prompts, seeds and grading functions.
 
 ```bash
 python evals/catalog.py show --suite python-engineering
@@ -20,8 +22,8 @@ python scripts/local_tests.py --suite python-engineering
 
 ## Saved artifact cases
 
-Each case directory under both arms contains the candidate files, tests and `agent_report.json`.
-The exact identifiers below are the oracle's `GRADERS` keys and directory names.
+Each recovered case directory holds the candidate files, tests and `agent_report.json`. The exact
+identifiers below are the oracle's `GRADERS` keys and the saved directory names.
 
 | Case ID | What the case examines |
 |---|---|
@@ -47,7 +49,8 @@ were passed to the corresponding `GRADERS` function. No new model or routing tri
 
 [verified] No overall verdict changed from the [historical scores](score_summary.json). The newly
 added `clamp_bps_contract` check passes for both H1 outputs. F's stricter default and the import-context
-repair caused no saved verdict changes. The original scores and workspaces remain unchanged.
+repair caused no saved verdict changes. The original scores remain unchanged; the workspaces are
+retained only in Git history, so this regrade cannot be rerun from the working tree.
 
 The record separates the existing checks for interpretation; it does not redefine oracle acceptance.
 `check_groups` gives the complete classification and `rescored_results` retains each individual check.
