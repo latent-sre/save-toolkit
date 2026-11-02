@@ -7,6 +7,8 @@ ADR's decision owner, the business owner who accepted it, amends it. An owner am
 `Amended:` line naming the change, and its commit message says the decision owner made it. References
 removed by this cleanup are in the [pre-cleanup snapshot](https://github.com/latent-sre/save-toolkit/tree/e6702ee04ca03f87e71595fb4dbf89a722df9fe9/docs/decisions);
 earlier missing references require their own historical revision.
+The 2026-10-23 agent and skill audit packet cited by the 2026-11-02 ADR was removed on 2026-11-02;
+read it with `git show b55b5bbc:docs/reviews/2026-10-23-agent-skill-audit/<path>`.
 Anyone else changes a decision through a successor as described in [`commands/adr.md`](../../commands/adr.md).
 
 The [retention successor](2026-09-07-historical-artifact-retention.md) replaced the

@@ -44,7 +44,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 ### Removed
 
 - Roadmap items SKILLS-001, SKILLS-002, SKILLS-003, FLEET-AUDIT-20261023 and HANDOFF-002, whose
-  outcomes merged in PRs #420-#424, #429, #430 and #438, with the skills-audit report they cited.
+  outcomes merged in PRs #420-#424, #429, #430 and #438, with the skills-audit report and the
+  49-file agent and skill audit packet they cited; both stay in Git at `b55b5bbc`.
 - The superseded VS Code 1.135.0 host row, the Fleet Atlas pointer, the pre-PR-#235
   `incident-investigation` snapshot, the WP-04 receipt and two sandbox upgrade receipts; Git keeps them at `b55b5bbc`.
 - Fleet tests that pinned `software-engineer` wording; a two-phrase check keeps the caller-owned
