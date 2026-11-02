@@ -54,6 +54,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Python
+        id: python
         uses: actions/setup-python@v5
         with:
           python-version: '3.14'
@@ -65,16 +66,17 @@ jobs:
           enable-cache: true
 
       # The lock is the pin set: `--locked` fails if pyproject.toml and uv.lock disagree. uv is bound
-      # to setup-python's interpreter (the latest 3.14 patch) and never downloads its own. The
-      # environment goes on PATH so the pytest step's bare `python`, and the nested suites' `python`,
-      # is the locked environment.
+      # to setup-python's interpreter by path (the latest 3.14 patch) and may not download its own.
+      # The environment goes on PATH so the pytest step's bare `python`, and the nested suites'
+      # `python`, is the locked environment.
       - name: Install the locked test environment
         run: |
           uv sync --locked
           echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
         env:
-          UV_PYTHON_PREFERENCE: only-system
+          UV_PYTHON: ${{ steps.python.outputs.python-path }}
+          UV_PYTHON_DOWNLOADS: never
 
       # Four workers match the hosted runner's cores; worksteal balances slow individual cases.
       # CLI options stay with the outer run; PYTEST_ADDOPTS would spawn workers in fixture suites.
@@ -120,6 +122,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Python
+        id: python
         uses: actions/setup-python@v5
         with:
           python-version: '3.14'
@@ -136,7 +139,8 @@ jobs:
           echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
         env:
-          UV_PYTHON_PREFERENCE: only-system
+          UV_PYTHON: ${{ steps.python.outputs.python-path }}
+          UV_PYTHON_DOWNLOADS: never
 
       # Early collection excludes fast files; worker options stay out of nested pytest environments.
       - name: Eval machinery tests
@@ -173,16 +177,23 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v10
 
-      # harbor, swt and sandbox are conflicting groups, so each is exported on its own; the project
-      # export carries the default test group plus swebench. --no-deps audits exactly the locked
-      # versions and resolves nothing.
+      # harbor, swt and sandbox are conflicting groups, so each is exported and audited on its own
+      # (pip-audit refuses one package at two versions in a single call); the project export carries
+      # the default test group plus swebench. --no-deps audits exactly the locked versions and
+      # resolves nothing. Every set is audited before the step fails.
       - name: Audit the locked dependency sets
         run: |
+          status=0
           uv export --locked --no-emit-project --no-hashes --format requirements.txt --group swebench > project.txt
           uv export --locked --no-emit-project --no-hashes --format requirements.txt --only-group harbor > harbor.txt
           uv export --locked --no-emit-project --no-hashes --format requirements.txt --only-group swt > swt.txt
           uv export --locked --no-emit-project --no-hashes --format requirements.txt --only-group sandbox > sandbox.txt
-          uvx --from pip-audit==2.10.1 pip-audit --no-deps --disable-pip --progress-spinner off -r project.txt -r harbor.txt -r swt.txt -r sandbox.txt
+          for group in project harbor swt sandbox; do
+            echo "::group::$group"
+            uvx --from pip-audit==2.10.1 pip-audit --no-deps --disable-pip --progress-spinner off -r "$group.txt" || status=1
+            echo "::endgroup::"
+          done
+          exit "$status"
 
   claude-plugin-contract:
     runs-on: ubuntu-latest

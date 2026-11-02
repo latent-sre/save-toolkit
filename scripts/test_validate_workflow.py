@@ -321,10 +321,12 @@ class ValidateWorkflowTests(unittest.TestCase):
                 self.assertTrue({"xdist", "hypothesispytest"} <= plugins)
 
     def test_locked_install_is_cached_and_bound_to_the_setup_python_interpreter(self) -> None:
-        """uv installs the lock into setup-python's interpreter, never a download, and puts it on PATH.
+        """uv installs the lock into setup-python's interpreter by path, never a download, and puts it on PATH.
 
         The pytest step and the nested suites run bare `python`; without the PATH line they would
-        run the runner's system interpreter against an empty environment.
+        run the runner's system interpreter against an empty environment. The binding is the step
+        output's path, not a preference: uv treats its own managed interpreters as non-system, so a
+        preference alone can fail to find any interpreter.
         """
         for name in ("fast-tests", "eval-tests"):
             with self.subTest(job=name):
@@ -334,7 +336,9 @@ class ValidateWorkflowTests(unittest.TestCase):
                 uv = next(s for s in steps if s.get("uses", "").startswith("astral-sh/setup-uv@"))
                 self.assertIs(uv["with"]["enable-cache"], True)
                 install = next(s for s in steps if "uv sync --locked" in s.get("run", "").splitlines())
-                self.assertEqual("only-system", install.get("env", {}).get("UV_PYTHON_PREFERENCE"))
+                self.assertEqual("${{ steps." + python["id"] + ".outputs.python-path }}",
+                                 install.get("env", {}).get("UV_PYTHON"))
+                self.assertEqual("never", install.get("env", {}).get("UV_PYTHON_DOWNLOADS"))
                 self.assertIn('echo "$PWD/.venv/bin" >> "$GITHUB_PATH"', install["run"].splitlines())
                 self.assertLess(steps.index(install), steps.index(pytest_step(workflow_jobs()[name])))
 
