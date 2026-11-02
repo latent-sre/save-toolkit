@@ -44,6 +44,7 @@ include = [
     "evals/inspect_pilot.py",
     "evals/test_*.py",
     "evals/probe_testkit.py",
+    "evals/golden_runs.py",
     "scripts/*.py",
     "skills/**/*.py",
 ]

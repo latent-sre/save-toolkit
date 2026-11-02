@@ -34,6 +34,12 @@ preserves the private craft trial's verification wiring without shipping the pro
   layouts and incremental typing remain: whole-file formatting or typing migrations would replace
   calibration and case identities without establishing a behavioral improvement.
 
+- **Golden saved runs.** [`evals/fixtures/runner-goldens/`](../fixtures/runner-goldens/README.md)
+  holds one stub-driven attempt per result rule and run ending, as the runner published it, with the
+  verdict view of its live grade and of a regrade of the same directory. `evals/golden_runs.py write`
+  regenerates them from the current runner and `evals/test_golden_runs.py` proves the current runner
+  reproduces both views; a changed view is a verdict change to explain in the pull request.
+
 A function is patched in the module that defines it, such as `probe.trials.run_trial`: every other
 module calls it through that module, so one patch reaches every caller, and a test enforces it. A
 class or constant is bound by name in each module that imports it, so a patch must reach each of

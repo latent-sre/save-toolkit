@@ -1,0 +1,16 @@
+{
+  "requested_model": null,
+  "trial_cost_usd": 0.0,
+  "total_cost_usd": 0.0,
+  "known_cost_usd": 0.0,
+  "cost_complete": true,
+  "judge": {
+    "calls": 0,
+    "cost_usd": 0.0,
+    "known_cost_usd": 0.0,
+    "unknown_cost_calls": 0,
+    "live_calls": 0,
+    "cached_calls": 0,
+    "seconds": 0
+  }
+}

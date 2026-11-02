@@ -1,0 +1,13 @@
+{
+  "about": "the attempt raises before grading and is kept without a verdict",
+  "live": {
+    "attempt_state": "incomplete",
+    "raised": "RuntimeError: fixture unavailable",
+    "run_end": "incomplete",
+    "status": null
+  },
+  "regrade": null,
+  "rules": [
+    7
+  ]
+}

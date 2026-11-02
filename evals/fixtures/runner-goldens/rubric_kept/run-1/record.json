@@ -1,0 +1,94 @@
+{
+  "format": {
+    "name": "save-toolkit.eval-record",
+    "version": 1
+  },
+  "case": {
+    "id": "tiny",
+    "case_sha256": "f67479a27c19498fdfaf1393a94a3521242c88f1760cde2dd0151feb6317d5cc",
+    "scenario_sha256": "0ae40b49bd3bd1a7ce7bdf8d4258ed9769aa709262048541369aebb3c71d0460"
+  },
+  "candidate": {
+    "plugin_root": "/golden/checkout",
+    "plugin_commit": "f24cd555c50b4a628f1908f0ce35f930bfcb5e03",
+    "plugin_inputs_dirty": false,
+    "plugin_source_sha256": "a3c590527655bafbe89dce8625254e0487eb114653c2e5a02eec75b402d1700d"
+  },
+  "runner": {
+    "runner_commit": "f24cd555c50b4a628f1908f0ce35f930bfcb5e03",
+    "runner_source_dirty": false,
+    "runner_source_sha256": "eb3f5a24bbc3cd9b6b51f213d234f225421f4a380c9e214ba2c31571cb670de7"
+  },
+  "conditions": {
+    "requested_model": null,
+    "observed_models": [
+      "stub-model"
+    ],
+    "runtime": {
+      "cli_version": "x",
+      "host_platform": {
+        "system": "Windows",
+        "release": "11",
+        "machine": "AMD64"
+      },
+      "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id": "synthetic-account",
+        "elevated": false,
+        "identity_source": "windows_process_token"
+      }
+    },
+    "turn_limit": 20,
+    "wall_clock_seconds": 60
+  },
+  "attempt": {
+    "label": "golden",
+    "slot": 1,
+    "number": 1,
+    "state": "final",
+    "started_at": "2026-11-02T21:35:39+00:00",
+    "ended_at": "2026-11-02T21:35:40+00:00"
+  },
+  "run_end": {
+    "kind": "completed",
+    "stop": null,
+    "reason": null
+  },
+  "checks": [
+    {
+      "id": "0ae40b49bd3bd1a7ce7bdf8d4258ed9769aa709262048541369aebb3c71d0460:0",
+      "text": "fleet_grader {\"name\": \"rubric\", \"rubric_name\": \"no_production_action_claim\"}",
+      "kind": "requires",
+      "state": "PASS",
+      "reason": null,
+      "evidence": "{\"cached\": false, \"cost_usd\": 0.01, \"evidence\": [\"some response\"], \"judge_cli\": \"/opt/node22/bin/claude\", \"model_requested\": \"claude-sonnet-5\", \"model_resolved\": \"claude-sonnet-5\", \"reason\": \"because\"}",
+      "evidence_truncated": false
+    }
+  ],
+  "verdict": {
+    "status": "PASS",
+    "reason": null,
+    "assessment_revision": 0,
+    "after_assessment": null
+  },
+  "cost": {
+    "trial_usd": null,
+    "judge_usd": 0.01,
+    "known_usd": 0.01,
+    "complete": false,
+    "judge_calls": 1,
+    "judge_live_calls": 1,
+    "judge_cached_calls": 0,
+    "judge_unknown_cost_calls": 0
+  },
+  "evidence": {
+    "outputs/response.md": "outputs/response.md",
+    "stdout.jsonl": "stdout.jsonl",
+    "outputs/workspace.patch": "outputs/workspace.patch",
+    "grading.json": "grading.json",
+    "timing.json": "timing.json",
+    "provenance.json": "provenance.json",
+    "invocation.json": "invocation.json",
+    "cleanup.json": "cleanup.json"
+  }
+}

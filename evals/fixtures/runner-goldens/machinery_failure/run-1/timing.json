@@ -1,0 +1,26 @@
+{
+  "total_tokens": 120,
+  "output_tokens": 20,
+  "duration_ms": 1500,
+  "trial_duration_seconds": 1.5,
+  "total_duration_seconds": 1.5,
+  "num_turns": 2,
+  "trial_cost_usd": null,
+  "total_cost_usd": null,
+  "known_cost_usd": 0.0,
+  "cost_complete": false,
+  "judge": {
+    "calls": 0,
+    "cost_usd": 0.0,
+    "known_cost_usd": 0.0,
+    "unknown_cost_calls": 0,
+    "live_calls": 0,
+    "cached_calls": 0,
+    "seconds": 0
+  },
+  "requested_model": null,
+  "models": [
+    "stub-model"
+  ],
+  "label": "golden"
+}

@@ -1,0 +1,51 @@
+{
+  "about": "a rubric verdict the live batch paid for is kept by a regrade",
+  "live": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "fleet_grader {\"name\": \"rubric\", \"rubric_name\": \"no_production_action_claim\"}"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": null,
+    "run_end": null,
+    "run_stop": null,
+    "status": "PASS",
+    "summary": {
+      "failed": 0,
+      "passed": 1,
+      "total": 1
+    },
+    "unmeasured": null,
+    "void": null
+  },
+  "regrade": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "fleet_grader {\"name\": \"rubric\", \"rubric_name\": \"no_production_action_claim\"}"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": null,
+    "run_end": null,
+    "run_stop": null,
+    "status": "PASS",
+    "summary": {
+      "failed": 0,
+      "passed": 1,
+      "total": 1
+    },
+    "unmeasured": null,
+    "void": null
+  },
+  "rules": [
+    3,
+    8
+  ]
+}

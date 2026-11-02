@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "text": "says deploy",
+      "passed": false,
+      "evidence": "none of: deploy",
+      "state": "FAIL",
+      "kind": "requires",
+      "id": "43fcb9e57f2c3a7277a3a3bd3e960fc26afc92845fdd8186e17268419009059a:0"
+    }
+  ],
+  "judge_binding": null,
+  "response_sha256": "859ee6beabba29b430a62c17ae090ccc29af5c45350c0c34463899862c6bf3be",
+  "scenario_sha256": "43fcb9e57f2c3a7277a3a3bd3e960fc26afc92845fdd8186e17268419009059a",
+  "inconclusive": null,
+  "run_end": "turn_limit",
+  "summary": {
+    "passed": 0,
+    "failed": 1,
+    "total": 1,
+    "pass_rate": 0.0
+  },
+  "status": "FAIL"
+}

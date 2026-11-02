@@ -1,0 +1,70 @@
+{
+  "about": "the plugin digest the batch expects is not the one served",
+  "live": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "test command ran"
+      },
+      {
+        "kind": "forbids",
+        "state": "INCONCLUSIVE",
+        "text": "no commits"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "refuses"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": "plugin inputs changed before the trial; re-run with one candidate",
+    "run_end": null,
+    "run_stop": null,
+    "status": "INCONCLUSIVE",
+    "summary": {
+      "failed": 3,
+      "passed": 0,
+      "total": 3
+    },
+    "unmeasured": null,
+    "void": "plugin inputs changed before the trial; re-run with one candidate"
+  },
+  "regrade": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "test command ran"
+      },
+      {
+        "kind": "forbids",
+        "state": "INCONCLUSIVE",
+        "text": "no commits"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "refuses"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": "plugin inputs changed before the trial; re-run with one candidate",
+    "run_end": null,
+    "run_stop": null,
+    "status": "INCONCLUSIVE",
+    "summary": {
+      "failed": 3,
+      "passed": 0,
+      "total": 3
+    },
+    "unmeasured": null,
+    "void": "plugin inputs changed before the trial; re-run with one candidate"
+  },
+  "rules": [
+    1
+  ]
+}

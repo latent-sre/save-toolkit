@@ -1,0 +1,8 @@
+{
+  "eval_id": "tiny",
+  "eval_name": "tiny",
+  "prompt": "do the thing",
+  "assertions": [
+    "says deploy"
+  ]
+}
