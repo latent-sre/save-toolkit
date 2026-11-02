@@ -8,7 +8,7 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
-- Cut `AGENTS.md` to its map, three enforcement bullets, two conventions and the hard rule; rules the
+- Cut `AGENTS.md` to its map, three enforcement bullets, three conventions and the hard rule; rules the
   README, `CONTRIBUTING.md` and agent bodies already carry leave it, and the labels-in-transit clause
   leaves it and `helper-exchange.md` (LABELS-001 tracks the rest); the postmortem method now says the
   record stays blameless.
