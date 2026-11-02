@@ -45,7 +45,7 @@ the highest-value findings in this repo:
 
 Suggestions that violate these are not improvements — please don't raise them:
 
-- **Third-party dependencies are permitted, pinned in `requirements-dev.txt`** (PyYAML included,
+- **Third-party dependencies are permitted, declared in `pyproject.toml` and locked in `uv.lock`** (PyYAML included,
   the gate path included — owner decision, ADR 2026-08-23). Do not flag a pinned dependency as a
   violation. Do flag: an unpinned install, or a Gate A-path script gaining a third-party import
   without the CI install step landing in the same PR.

@@ -52,7 +52,7 @@ compatibility floor is Python 3.12, including the native runner and installed ho
 exercises that minimum.
 
 ```bash
-python -m pip install -r requirements-dev.txt
+uv sync --locked
 python evals/build_probe.py validate                        # offline schema/grader/target check
 python evals/build_probe.py run --scenario all --label baseline --model sonnet --trials 3 \
   --out .eval-runs/<iteration>
@@ -141,8 +141,8 @@ Save Toolkit plugin or pin its software-engineer agent: this is an **artifact-on
 pilot**, not native fleet acceptance. The existing runner remains authoritative for plugin
 identity, routing, hooks, delegation, calibrated judging, and conversation continuity.
 
-Install `requirements-test.txt` for offline tests, or `requirements-dev.txt` for all tooling.
-Both include Inspect AI, Inspect SWE, and the Anthropic SDK required by the Claude bridge.
+Install the locked `test` group with `uv sync --locked`; it includes Inspect AI, Inspect SWE, and
+the Anthropic SDK required by the Claude bridge.
 Docker must be available for sandboxed runs. The sandbox uses a reviewed image digest, resource
 limits, all capabilities dropped, and a read-only system filesystem. Only workspace, home, and temporary
 directories are writable. Grading uses system executables, a fixed PATH, and disables Python's

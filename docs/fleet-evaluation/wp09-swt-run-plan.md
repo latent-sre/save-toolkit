@@ -50,8 +50,9 @@ Use the repository's verified Python interpreter for offline work. An optional i
 worker environment avoids changing the project environment:
 
 ```powershell
-uv venv --python 3.14 .swt-venv
-uv pip install --python .swt-venv\Scripts\python.exe -r requirements-swt.txt
+$env:UV_PROJECT_ENVIRONMENT = ".swt-venv"
+uv sync --locked --only-group swt
+Remove-Item Env:UV_PROJECT_ENVIRONMENT
 .swt-venv\Scripts\python.exe evals/swt_pilot.py validate --dataset .eval-runs/complex-campaigns/wp08-source/dataset.json --source .eval-runs/complex-campaigns/wp09-swt-source
 .swt-venv\Scripts\python.exe evals/swt_pilot.py prepare --dataset .eval-runs/complex-campaigns/wp08-source/dataset.json --source .eval-runs/complex-campaigns/wp09-swt-source --output .eval-runs/complex-campaigns/wp09-swt-prepared
 ```
@@ -97,7 +98,7 @@ and six-container cleanup. Inline check booleans cannot replace evidence.
 The owner reviews the exact manifest, source/plugin/CLI digests, model, host/engine/image binding,
 observed smoke checks, budget and complexity before marking that produced admission artifact
 accepted with the named owner. Bindings are per case. The combined adapter identity includes the original shared SWE/native
-source-and-dependency hash, SWT adapter sources and the exact `requirements-swt.txt` bytes. That
+source-and-dependency hash, SWT adapter sources and the exact `uv.lock` bytes. That
 same combined hash appears in accepted binding, published binding and record provenance.
 Changing any bound input requires fresh
 matching evidence. Unknown checks never become true automatically.
@@ -166,7 +167,6 @@ The focused checks are executable without Docker or a provider:
 
 ```powershell
 python -m pytest -n 0 evals/test_swt_adapter.py evals/test_swt_runner.py evals/test_swt_smoke.py evals/test_swt_verifier.py
-uv pip install --python .swt-venv\Scripts\python.exe -c requirements-dev.txt pytest
 .swt-venv\Scripts\python.exe -m pytest -q -o addopts="" --confcutdir=evals evals/test_swt_verifier.py -k real_upstream
 ```
 

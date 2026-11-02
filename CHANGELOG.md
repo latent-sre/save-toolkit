@@ -8,6 +8,12 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Manage dependencies as a uv project: `pyproject.toml` declares the dependency groups and `uv.lock`
+  holds every exact version, replacing the six requirements files; CI installs with `setup-uv` and
+  `uv sync --locked`, Dependabot proposes weekly lock updates, and the weekly run audits the locked sets
+  ([decision](docs/decisions/2026-11-02-uv-project-lockfile.md)). The project environment re-resolved to
+  current releases; Harbor, the SWT runtime and the sandboxes keep their contract pins, the Harbor set
+  installs again, and the SWE-bench, SWT and Harbor adapter identities now hash the manifest and lock.
 - Cut `AGENTS.md` to its map, three enforcement bullets, three conventions and the hard rule; rules the
   README, `CONTRIBUTING.md` and agent bodies already carry leave it, and the labels-in-transit clause
   leaves it and `helper-exchange.md` (LABELS-001 tracks the rest); the postmortem method now says the
@@ -47,6 +53,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Removed
 
+- The six `requirements-*.txt` files; `uv.lock` replaces them and the adapter identities hash the
+  lock instead.
 - Roadmap items SKILLS-001, SKILLS-002, SKILLS-003, FLEET-AUDIT-20261023 and HANDOFF-002, whose
   outcomes merged in PRs #420-#424, #429, #430 and #438, with the skills-audit report and the
   49-file agent and skill audit packet they cited; both stay in Git at `b55b5bbc`.
