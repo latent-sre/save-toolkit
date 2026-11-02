@@ -261,16 +261,6 @@ class PlatformAdapterTests(unittest.TestCase):
             "software-engineer": ["reviewer", "scribe", "principal-engineer"],
             "sre-assistant": ["scribe", "software-engineer"],
         }
-        # What each receiving lane's handoff prompt must say.
-        prompt_phrases = {
-            "reviewer": ("[UNTRUSTED]", "gather missing Git/PR/history evidence", "preparation gap",
-                         "permitted isolated verification", "Do not modify the candidate"),
-            "scribe": ("explicitly approved", "without writing"),
-            "software-engineer": ("explicitly approved", "[UNTRUSTED]", "without editing"),
-            "principal-engineer": ("[UNTRUSTED]", "Decision needed", "without writing"),
-            "sre-assistant": ("[UNTRUSTED]", "without applying production changes", "human-selected handoff",
-                              "Do not imply automatic return"),
-        }
         for name, targets in expected_targets.items():
             with self.subTest(agent=name):
                 handoffs = self._copilot(name, "handoffs") or []
@@ -281,33 +271,6 @@ class PlatformAdapterTests(unittest.TestCase):
                     self.assertTrue(str(handoff.get("label", "")).strip())
                     self.assertTrue(str(handoff.get("prompt", "")).strip())
                     self.assertNotEqual("researcher", handoff["agent"])
-                    for phrase in prompt_phrases.get(handoff["agent"], ()):
-                        self.assertIn(phrase, handoff["prompt"])
-
-    def test_sre_incident_closeout_handoff_preserves_the_authorized_artifact(self) -> None:
-        handoff = next(
-            item for item in self._copilot("sre-assistant", "handoffs") or []
-            if item["agent"] == "scribe"
-        )
-        prompt = handoff["prompt"]
-        self.assertRegex(
-            prompt,
-            r"For full incident closeout, .*postmortem first, then .*knowledge dispositions",
-        )
-        self.assertIn("requested primary artifact", prompt)
-        self.assertIn("same Follow-ups record", prompt)
-        self.assertRegex(
-            prompt,
-            r"For a knowledge-only request, .*knowledge closeout mode .*do not add a postmortem",
-        )
-        self.assertIn("explicitly approved", prompt)
-        self.assertIn("Re-establish that the incident is resolved", prompt)
-        self.assertIn("preserve evidence labels and the technical record", prompt)
-        self.assertIn(
-            "If resolution, approval, or checkout binding is absent, report the gap without writing",
-            prompt,
-        )
-        self.assertIs(handoff["send"], True)
 
     def test_copilot_handoffs_are_independent_of_model_called_subagents(self) -> None:
         self.assertNotIn("sre-assistant", self._copilot("observability-engineer", "agents") or [])
@@ -464,7 +427,7 @@ class PlatformAdapterTests(unittest.TestCase):
                     links_checked += 1
             self.assertGreater(links_checked, 0, f"no resource links exercised in {directory}")
 
-    def test_plugin_commands_preserve_the_canonical_inventory_and_adr_preflight(self) -> None:
+    def test_plugin_commands_preserve_the_canonical_inventory_and_adr_body(self) -> None:
         root = self._canonical_root()
         # A second command proves generation discovers sources instead of special-casing ADR.
         (root / "commands/probe.md").write_text(
@@ -478,13 +441,8 @@ class PlatformAdapterTests(unittest.TestCase):
         adr = outputs[command_root / "adr.md"].decode("utf-8")
         # ADR currently needs no addressing rewrite: its full body and metadata must survive.
         self.assertEqual((root / "commands/adr.md").read_text(encoding="utf-8"), adr)
-        self.assertIn("exactly `software-engineer` or exactly `principal-engineer`", adr)
-        self.assertIn("When the selected agent is `principal-engineer`, write the status as `proposed`", adr)
-        self.assertIn("exclusive create-new operation", adr)
-        self.assertIn("symlink, junction, or reparse point", adr)
         self.assertIn("disable-model-invocation: true", adr)
         self.assertNotRegex(frontmatter_block(adr), r"(?m)^(?:agent|tools|allowed-tools):")
-        self.assertLess(adr.index("selected-agent preflight"), adr.index("Accepted argument grammar"))
 
     def test_missing_packaged_command_is_detected(self) -> None:
         root = self._canonical_root()

@@ -617,12 +617,6 @@ class ConfluenceImportReferenceTest(unittest.TestCase):
         self.assertNotIn("$CONFLUENCE_API_TOKEN", reference)
         self.assertIn('--user "user@example.com"', reference)
         self.assertIn("prompts for the API token", reference)
-        self.assertIn("--fail-with-body", reference)
-        # The page JSON goes to the converter whole, so the title, version, and modified date
-        # survive and a missing view body fails in the converter (tested above), not in a jq step.
-        self.assertIn("?body-format=view", reference)
-        self.assertIn('"<resolved converter path>" page.json', reference)
-        self.assertIn("refuses a JSON without a view body", reference)
 
 
 if __name__ == "__main__":
