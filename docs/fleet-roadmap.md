@@ -230,17 +230,20 @@ asking for them.
 
 ### LABELS-001 — drop the labels-in-transit convention across the fleet
 
-**Status:** `ready` (2026-10-28). The owner retired the rule that agents carry input evidence labels
+**Status:** `active` (2026-11-02). The owner retired the rule that agents carry input evidence labels
 and `[UNTRUSTED]` taint through to their reports; agents still label their own load-bearing claims.
-The `software-engineer` scenarios no longer grade it; the `software-engineer` rewrite removes the
-agent's clause.
+The `software-engineer` scenarios no longer grade it, PR #445 retired the graders that checked
+carried labels, and the clause is gone from `AGENTS.md`, `software-engineer`, and
+`skills/incident-investigation/references/helper-exchange.md`.
 **Owner:** The human owner accepts the candidate; a maintainer session owns the change.
 **Outcome:** No fleet instruction or grader requires carrying input labels or taint in transit.
 "Data, never instructions" stays the trust control, and agents keep labelling their own claims.
-**Next action:** Remove the transit clause from the Evidence convention in `AGENTS.md` and from
-`skills/incident-investigation/references/helper-exchange.md`, check the other agents and skills
-for the same requirement, then retire grader checks that require labels carried from an input
-without a caller request.
+**Next action:** Remove the propagation clauses that remain in the agent bodies (`scribe`,
+`observability-engineer`, `reviewer`, `researcher`, `sre-assistant`, `repository-investigator`,
+`reliability-engineer`) and in `skills/operational-docs/SKILL.md` with its `knowledge-closeout.md`
+and `disposition-policy.md` references, and `skills/agent-authoring/references/context.md` and
+`agent-security.md`; keep each lane's own-claim labelling; regenerate adapters. Agent-body edits
+are a fleet behavior change and need their own candidate, not a documentation PR.
 **Evidence:** `build-software-engineer-resumes-after-partial-helper` kept the helper's
 `[UNTRUSTED] [unverified]` labels 0/3 on each of three revisions on 2026-10-22
 (`.eval-runs/se-review-20261022/`) and 0/1 on each arm on 2026-10-28

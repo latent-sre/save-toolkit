@@ -8,6 +8,10 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Cut `AGENTS.md` to its map, three enforcement bullets, three conventions and the hard rule; rules the
+  README, `CONTRIBUTING.md` and agent bodies already carry leave it, and the labels-in-transit clause
+  leaves it and `helper-exchange.md` (LABELS-001 tracks the rest); the postmortem method now says the
+  record stays blameless.
 - Retire the `agent-engineer` agent; the `agent-authoring` skill now handles prompt, agent, skill,
   eval and roster work directly in your session, and routing that named the agent names the skill.
 - Remove tests that only pinned exact wording in agents, skills, and templates; keep deletion guards
