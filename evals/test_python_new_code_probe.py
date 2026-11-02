@@ -180,8 +180,9 @@ class TestNewCodeProbe:
                                                 'if __name__ == "__main__":\n    sys.stdin.reconfigure(encoding="latin-1")'),
                           "invalid UTF-8 stdin: failure exit status")
 
-    @pytest.mark.parametrize("code", (0, 3))
-    @pytest.mark.parametrize("phase", ("import", "API"))
+    # A zero exit at API time is the exit most likely to be mistaken for success; a nonzero exit at
+    # import is the other phase. The remaining two cells of the cross-product add no code path.
+    @pytest.mark.parametrize("code,phase", ((0, "API"), (3, "import")), ids=("API-0", "import-3"))
     def test_candidate_exits_cannot_skip_contract_checks(self, code, phase):
         source = (f"raise SystemExit({code})\n" if phase == "import" else
                   CORRECT.replace("def summarize(rows):", f"def summarize(rows):\n    raise SystemExit({code})"))
@@ -213,7 +214,9 @@ class TestNewCodeProbe:
     def test_large_constant_buffers_pass(self):
         self.assert_passes(CORRECT.replace("def summarize(rows):", "def summarize(rows):\n    buffer = bytearray(2_000_000)"))
 
-    @pytest.mark.parametrize("index", (0, 1, 2), ids=("binary", "small-chunks", "large-chunks"))
+    # The 1 MiB-chunk variant exercised only the constant-buffer allowance that
+    # test_large_constant_buffers_pass already covers with a 2 MB buffer.
+    @pytest.mark.parametrize("index", (0, 1), ids=("binary", "small-chunks"))
     def test_binary_and_chunked_file_readers_pass(self, index):
         binary = CORRECT.replace('open(argv[0], encoding="utf-8")',
                                  'io.TextIOWrapper(open(argv[0], "rb"), encoding="utf-8")')
@@ -228,10 +231,11 @@ class TestNewCodeProbe:
         yield pending
 
 def parsed(source):""").replace("enumerate(source, 1)", "enumerate(lines(source), 1)")
-        self.assert_passes((binary, chunked, chunked.replace("4096", "1_048_576"))[index])
+        self.assert_passes((binary, chunked)[index])
 
-    @pytest.mark.parametrize("library", ("builtins", "io"))
-    @pytest.mark.parametrize("defect", ("import-io", "leak"))
+    # Alias recognition is covered per library above; each defect needs one alias, not both.
+    @pytest.mark.parametrize("library,defect", (("builtins", "import-io"), ("io", "leak")),
+                             ids=("builtins-import-io", "io-leak"))
     def test_retained_open_aliases_still_expose_import_io_and_leaks(self, library, defect):
         alias = f"from {library} import open as file_open\n" + CORRECT.replace(
             'open(argv[0], encoding="utf-8")', 'file_open(argv[0], encoding="utf-8")')

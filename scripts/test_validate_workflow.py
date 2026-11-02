@@ -14,6 +14,7 @@ from unittest import mock
 
 import yaml
 
+import eval_tests_needed
 from testkit import load_path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -267,12 +268,39 @@ class ValidateWorkflowTests(unittest.TestCase):
         check counts as passing, so the gate both always runs and checks each shard's result.
         """
         job = workflow_jobs()["component-tests"]
-        self.assertEqual({"fast-tests", "eval-tests"}, set(job["needs"]))
+        self.assertEqual({"changes", "fast-tests", "eval-tests"}, set(job["needs"]))
         self.assertEqual("${{ always() }}", job.get("if"),
                          "a failed shard would skip the required check, which then reads as passing")
         script = "\n".join(step.get("run", "") for step in job["steps"])
-        for shard in ("fast-tests", "eval-tests"):
-            self.assertIn(f'test "${{{{ needs.{shard}.result }}}}" = success', script)
+        self.assertIn('test "${{ needs.fast-tests.result }}" = success', script)
+        # The eval shard may be skipped only when the changes job said no trigger path changed; a
+        # skip for any other reason (the changes job failed, so its output is empty) fails the gate.
+        self.assertIn('case "${{ needs.eval-tests.result }}" in', script)
+        self.assertIn('skipped) test "${{ needs.changes.outputs.eval }}" = false ;;', script)
+        self.assertIn("*) exit 1 ;;", script)
+
+    def test_eval_tests_run_only_when_a_trigger_path_changed(self) -> None:
+        """A documentation or prose pull request skips the eval machinery; everything else runs it."""
+        job = workflow_jobs()["eval-tests"]
+        self.assertEqual(["changes"], job["needs"])
+        self.assertEqual("${{ needs.changes.outputs.eval == 'true' }}", job["if"])
+        changes = workflow_jobs()["changes"]
+        script = "\n".join(step.get("run", "") for step in changes["steps"])
+        self.assertIn('if [ "$EVENT_NAME" != pull_request ]', script, "pushes and schedules run everything")
+        self.assertIn("python scripts/eval_tests_needed.py", script)
+        self.assertNotIn("fetch-depth", "\n".join(str(step) for step in changes["steps"]))
+        triggers = ["evals/test_judge.py", "scripts/readonly-guard.py", "hooks/hooks.json",
+                    "skills/grafana/scripts/grafana_read.py", "conftest.py", "pytest.ini",
+                    "pyproject.toml", "requirements-test.txt", ".github/workflows/validate.yml"]
+        for path in triggers:
+            with self.subTest(path=path):
+                self.assertTrue(eval_tests_needed.needed([path]))
+        quiet = ["AGENTS.md", "README.md", "docs/fleet-roadmap.md", "docs/reviews/x.md",
+                 "skills/grafana/SKILL.md", "skills/grafana/references/http-api.md",
+                 "agents/scribe.md", "commands/adr.md", ".github/skills/grafana/SKILL.md",
+                 "com.github.copilot/agents/scribe.agent.md", "CHANGELOG.md", ""]
+        self.assertFalse(eval_tests_needed.needed(quiet))
+        self.assertTrue(eval_tests_needed.needed([*quiet, "evals/scenarios/x.yaml"]))
 
     def assert_shards_cover_every_test(self, name: str, groups: list[str]) -> None:
         """The last shard's `-k` is the complement of the others, so a shard edit cannot drop a test."""
@@ -292,7 +320,7 @@ class ValidateWorkflowTests(unittest.TestCase):
         """conftest.py's default run skips HEAVY; without this job no CI run would execute them."""
         self.assert_shards_cover_every_test("eval-tests", ["webhook", "python", "other"])
         job = workflow_jobs()["eval-tests"]
-        self.assertNotIn("needs", job, "the eval tests must run alongside fast-tests, not after")
+        self.assertNotIn("fast-tests", job["needs"], "the eval tests must run alongside fast-tests, not after")
         commands = [step.get("run") for step in job["steps"]]
         self.assertIn("python -m pip install -r requirements-test.txt", commands)
         step = pytest_step(job)

@@ -103,7 +103,7 @@ researcher dispatch from the agent.
 `python -m pytest evals/ --heavy` covers the runner, graders, and judge without a model. A plain
 `python -m pytest evals/` skips the heavy eval-machinery files listed in the root `conftest.py`
 (`HEAVY`), among them the probe-trial, checking and oracle suites, so it does not. Gate A is
-structural and does not run them; CI runs both shards, and its required `component-tests` check
+structural and does not run them; CI runs the fast shards on every pull request and the eval shards when a trigger path changed, and its required `component-tests` check
 passes only when both do.
 
 For a final local full run, use `python scripts/local_tests.py --heavy` from the repository root.
