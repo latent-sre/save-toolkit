@@ -20,8 +20,8 @@ Use nullable times and keep impact end separate from human resolution confirmati
 For full causal analysis, choose and name a method suited to the evidence: Five Whys, a fault tree,
 causal graph, or another method. Preserve branches and uncertainty rather than forcing a linear
 story or line count. Explain decisions from the information available then, separating trigger,
-mechanism, failed defenses, and system conditions; human error is not the root cause. Aim to reduce
-recurrence or impact without promising zero recurrence.
+mechanism, failed defenses, and system conditions; human error is not the root cause and the
+record stays blameless. Aim to reduce recurrence or impact without promising zero recurrence.
 
 "No data loss" needs evidence: name the row-count, checksum, write-path replay, or other check;
 otherwise mark it `[unverified]`. Assess detection source, delay, available signals, and noise.
