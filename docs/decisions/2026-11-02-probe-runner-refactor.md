@@ -1,9 +1,10 @@
 # ADR: Rewrite the eval runner's core around a persisted evidence artifact
 
 - **Date:** 2026-11-02
-- **Status:** proposed
+- **Status:** accepted for implementation by the owner on 2026-11-02; each stage's exact candidate is
+  accepted separately on its own evidence
 - **Decision owner:** the human owner; a maintainer session implements each accepted stage
-- **Roadmap item:** none yet; accepting this record creates one
+- **Roadmap item:** `RUNNER-001` in [the fleet roadmap](../fleet-roadmap.md)
 - **Keeps:** [2026-09-03-one-eval-runner](2026-09-03-one-eval-runner.md),
   [2026-09-04-eight-grader-registry](2026-09-04-eight-grader-registry.md),
   [2026-10-03-eval-harness-threat-model](2026-10-03-eval-harness-threat-model.md) result rules 1 to 8,
