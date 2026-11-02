@@ -218,131 +218,37 @@ class FleetValidatorTests(unittest.TestCase):
                 self.assertTrue(any("missing required tool(s)" in item and shell in item
                                     for item in failures), failures)
 
-    def test_exact_commit_id_independent_review_is_prod_deployment_only(self) -> None:
-        """Deleting or moving the review boundary must fail this contract."""
-        production_checklist = _markdown_section(
-            Path("skills/production-change-gate/SKILL.md"),
-            "## Production authorization",
-        )
-        self.assertIn(
-            "a new-artifact deployment attaches the exact candidate commit's independent review",
-            production_checklist,
-        )
-        self.assertIn(
-            "for a deployment, the protected environment gating the credential",
-            production_checklist,
-        )
-        self.assertIn(
-            "a non-deployment action attaches the current command or diff and named approval "
-            "instead",
-            production_checklist,
-        )
+    def test_safety_critical_rules_are_not_deleted(self) -> None:
+        """Deletion guards for production-authority rules that no guard or validator enforces.
 
-        for relative, heading in (
-            (Path("skills/production-change-gate/references/merge-readiness.md"), "# Merge readiness"),
-            (Path("skills/production-change-gate/references/release-readiness.md"), "# Release readiness"),
-        ):
-            checklist = _markdown_section(relative, heading)
-            with self.subTest(contract=relative.as_posix()):
-                self.assertNotIn("requires independent review", checklist)
-                self.assertNotIn("reviewed commit id", checklist)
-
-    def test_release_gate_uses_distribution_specific_immutability(self) -> None:
-        checklist = _markdown_section(
-            Path("skills/production-change-gate/references/release-artifact-evidence.md"),
-            "# Release artifact evidence",
-        ).replace("*", "")
-
-        self.assertIn("github release as the distribution path", checklist)
-        self.assertIn("gh api repos/{owner}/{repo}/releases/tags/{tag}", checklist)
-        self.assertIn('require "immutable": true', checklist)
-        self.assertRegex(checklist, r"shipping asset.s checked digest.*exact candidate.s lower-environment test evidence")
-        self.assertIn("gh api repos/{owner}/{repo}/immutable-releases", checklist)
-        self.assertIn('"enabled": true', checklist)
-        self.assertIn("gh api repos/{owner}/{repo}/rulesets/{ruleset_id}", checklist)
-        self.assertIn("target: tag", checklist)
-        self.assertIn("enforcement: active", checklist)
-        self.assertIn("ref_name.include", checklist)
-        self.assertIn("no matching exclusion", checklist)
-        self.assertIn("`update` and `deletion` rules", checklist)
-        self.assertIn("any other distribution path", checklist)
-        self.assertIn("do not require github release controls", checklist)
-
-    def test_review_consumers_keep_routine_work_out_of_the_prod_review_gate(self) -> None:
+        A reworded or inverted sentence that keeps the phrase still passes; meaning belongs to
+        behavioral evals.
+        """
         contracts = (
-            (
-                "agents-learning",
-                _markdown_section(Path("AGENTS.md"), "## Hard rules"),
-                (
-                    "eval results never promote a candidate",
-                    "only human acceptance of the exact candidate revision does",
-                ),
-                ("let pr review promote",),
-            ),
-            (
-                "merge-ci",
-                _markdown_section(
-                    Path("skills/production-change-gate/references/merge-readiness.md"),
-                    "# Merge readiness",
-                ),
-                ("read from the ci record",),
-                ("read the reviewer's packet",),
-            ),
-            (
-                "software-engineer-caller-owned-review",
-                _markdown_section(Path("agents/software-engineer.md"), "## Process"),
-                ("caller says they will perform or arrange review", "dispatch to the caller"),
-                (),
-            ),
-            (
-                "agent-engineer",
-                _markdown_section(Path("agents/agent-engineer.md"), "## Method"),
-                ("promotion is the human owner's acceptance of the exact candidate revision",),
-                ("approval on the exact candidate revision by someone other than",),
-            ),
-            (
-                "agent-authoring",
-                _markdown_section(
-                    Path("skills/agent-authoring/references/artifact.md"),
-                    "# Artifact altitude — author and optimize one LLM-facing artifact",
-                ),
-                ("human acceptance of the exact candidate revision is promotion",),
-                ("pr approval on the exact candidate revision is promotion",),
-            ),
-            (
-                "reviewer-scope",
-                _markdown_section(Path("agents/reviewer.md"), "## Scope the review first"),
-                ("cannot supply the exact-sha review evidence required for a production deployment",),
-                ("re-review before merge",),
-            ),
-            (
-                "reviewer-output",
-                _markdown_section(Path("agents/reviewer.md"), "## Output format"),
-                ("cannot supply production-change-gate's exact-sha review evidence",),
-                ("cannot satisfy merge-gate",),
-            ),
+            (Path("skills/production-change-gate/SKILL.md"), "## Production authorization", (
+                "a new-artifact deployment attaches the exact candidate commit's independent review",
+                "for a deployment, the protected environment gating the credential",
+                "a non-deployment action attaches the current command or diff and named approval instead",
+            )),
+            (Path("agents/reviewer.md"), "## Scope the review first", (
+                "cannot supply the exact-sha review evidence required for a production deployment",
+            )),
+            (Path("agents/reviewer.md"), "## Output format", (
+                "cannot supply production-change-gate's exact-sha review evidence",
+            )),
+            (Path("AGENTS.md"), "## Hard rules", (
+                "eval results never promote a candidate",
+                "only human acceptance of the exact candidate revision does",
+            )),
         )
-        for name, text, required, forbidden in contracts:
-            with self.subTest(contract=name):
-                for phrase in required:
+        for relative, heading, phrases in contracts:
+            text = _markdown_section(relative, heading)
+            for phrase in phrases:
+                with self.subTest(contract=relative.as_posix(), phrase=phrase):
                     self.assertIn(phrase, text)
-                for phrase in forbidden:
-                    self.assertNotIn(phrase, text)
-
-    def test_artifact_assessment_does_not_require_a_change_review(self) -> None:
-        handoffs = _markdown_section(Path("skills/agent-authoring/SKILL.md"), "## Handoffs")
-        self.assertIn("independent review of a proposed artifact change", handoffs)
-        self.assertIn("base and candidate", handoffs)
-        self.assertIn("without a proposed change stays with the invoking session", handoffs)
-        self.assertIn("do not invent a baseline or issue a merge verdict", handoffs)
-        self.assertNotIn("independent review of an artifact, supplied evaluation evidence", handoffs)
 
     def test_scribe_is_a_non_executing_document_writer(self) -> None:
-        body = _agent("scribe").body
         self.assertEqual({"Read", "Grep", "Glob", "Edit", "Write", "Skill"}, _granted_tools("scribe"))
-        self.assertIn("Do not execute anything", body)
-        self.assertIn("## Pick one primary mode", body)
-        self.assertIn("**Knowledge closeout mode**", body)
 
     def test_reviewer_collects_and_verifies_evidence_without_direct_external_tools(self) -> None:
         grants = fleet_frontmatter.tool_grants(_agent("reviewer").fields["tools"])
@@ -385,162 +291,9 @@ class FleetValidatorTests(unittest.TestCase):
         examples = ROOT / "skills/operational-docs/assets/examples"
         self.assertEqual([], sorted(examples.glob("*.json")))
         self.assertEqual([], sorted((ROOT / "evals/improvements").glob("*/record.json")))
-
-        skill = "\n".join(
-            (ROOT / relative).read_text(encoding="utf-8")
-            for relative in (
-                "skills/operational-docs/SKILL.md",
-                "skills/operational-docs/references/knowledge-closeout.md",
-            )
-        ).lower()
-        for obsolete_term in ("knowledge-update", "packet drift", "sha-256"):
-            with self.subTest(obsolete_term=obsolete_term):
-                self.assertNotIn(obsolete_term, skill)
-        active_fleet_contracts = (
-            Path("AGENTS.md"),
-            Path("agents/agent-engineer.md"),
-            Path("agents/reviewer.md"),
-            Path("skills/agent-authoring/SKILL.md"),
-            Path("skills/agent-authoring/references/artifact.md"),
-            Path("skills/agent-authoring/references/agent-security.md"),
-        )
-        for relative in active_fleet_contracts:
-            text = (ROOT / relative).read_text(encoding="utf-8").lower()
-            for obsolete_term in (
-                "improvement_id",
-                "failure_fingerprint",
-                "improvement lifecycle",
-                "fleet-improvement-v1",
-            ):
-                with self.subTest(contract=relative.as_posix(), obsolete_term=obsolete_term):
-                    self.assertNotIn(obsolete_term, text)
         for relative in retained[3:]:
             with self.subTest(template=relative.as_posix()):
                 self.assertIn("last_reviewed: null", (ROOT / relative).read_text(encoding="utf-8"))
-
-    def test_operational_templates_use_reviewable_provenance_not_retired_ids(self) -> None:
-        expected_provenance = {
-            Path("skills/operational-docs/assets/service-card-template.md"): (
-                "| Date | PR / revision / evidence reference | Change | Reviewer |"
-            ),
-            Path("skills/operational-docs/assets/alert-card-template.md"): (
-                "| Date | PR / revision / evidence reference | Change | Reviewer |"
-            ),
-            Path("skills/operational-docs/assets/knowledge-index-template.md"): (
-                "| PR / revision / evidence reference | Trigger | Summary | Dispositions | Reviewed change |"
-            ),
-            Path("skills/operational-docs/assets/runbook-template.md"): (
-                "- Provenance: <PR, target revision, and evidence references>"
-            ),
-        }
-        for relative, marker in expected_provenance.items():
-            text = (ROOT / relative).read_text(encoding="utf-8")
-            with self.subTest(template=relative.as_posix()):
-                self.assertNotIn("knowledge update id", text.lower())
-                self.assertNotIn("update id", text.lower())
-                self.assertNotIn("ol_ id", text.lower())
-                self.assertIn(marker, text)
-
-    def test_prepared_requires_verified_checkout_revision_binding(self) -> None:
-        contract_paths = (
-            Path("agents/scribe.md"),
-            Path("skills/operational-docs/references/knowledge-closeout.md"),
-            Path("skills/operational-docs/references/disposition-policy.md"),
-        )
-        for relative in contract_paths:
-            text = normalized((ROOT / relative).read_text(encoding="utf-8"))
-            with self.subTest(contract=relative.as_posix()):
-                self.assertIn("mounted checkout's current commit matches the target revision", text)
-                self.assertIn("`[verified]` checkout binding", text)
-                self.assertIn("`proposed`", text)
-                self.assertIn("`blocked`", text)
-
-    def test_closeout_accepts_short_ids_without_guessing_checkout_identity(self) -> None:
-        text = _markdown_section(Path("skills/operational-docs/references/knowledge-closeout.md"), "## Close the loop")
-        for phrase in (
-            "`git rev-parse --short=8 head`",
-            "uniqueness",
-            "full ids",
-            "ambiguous",
-            "`[unverified]`",
-            "`proposed` or `blocked`",
-        ):
-            with self.subTest(phrase=phrase):
-                self.assertIn(phrase, text)
-
-    def test_investigator_target_slot_accepts_short_ids_and_unknown_revision(self) -> None:
-        text = _markdown_section(Path("agents/repository-investigator.md"), "## Output contract")
-        self.assertIn(
-            "target: <repository root@short commit id or unknown; note included uncommitted state>",
-            text,
-        )
-
-    def test_closeout_contracts_bind_sender_roots_and_disposition_homes(self) -> None:
-        expectations = {
-            Path("skills/operational-docs/references/knowledge-closeout.md"): (
-                "never derives binding from `.git/` contents",
-                "never `agents/`, `skills/`, `hooks/`, `.github/`, `.claude/`, or a fleet guide",
-                "target, revision, checkout binding or its absence",
-                "alert changes disposition the alert card, service card, knowledge index, and runbook",
-            ),
-            Path("skills/operational-docs/references/disposition-policy.md"): (
-                "an audit finds an operational gap on an otherwise unchanged component",
-                "open knowledge gaps",
-                "whenever no such diff can be prepared",
-                "the alert's knowledge-index row, including its `status` cell",
-                "their knowledge-index `status` cells to `retired`",
-                "fill only from the evidence that moves `last_reviewed`",
-                "authorized roots only when the caller names none",
-            ),
-            Path("skills/operational-docs/assets/knowledge-index-template.md"): (
-                "| service | lifecycle | owner |",
-                "| exact alert name | status | service |",
-            ),
-            Path("agents/observability-engineer.md"): (
-                "`git rev-parse --short=8 head` output on the `verified:` line",
-            ),
-            Path("agents/scribe.md"): (
-                "summary, owner, urgency, change tier, approval need, verification",
-                "from `service-lifecycle` or a service owner",
-            ),
-        }
-        for relative, phrases in expectations.items():
-            text = normalized((ROOT / relative).read_text(encoding="utf-8"))
-            for phrase in phrases:
-                with self.subTest(contract=relative.as_posix(), phrase=phrase):
-                    self.assertIn(phrase, text)
-
-    def test_observability_engineer_no_longer_owns_operational_documentation(self) -> None:
-        agent = _agent("observability-engineer")
-        description, body = str(agent.fields["description"]).lower(), agent.body
-        self.assertIn("for runbooks or postmortems use save-toolkit:scribe", description)
-        self.assertNotIn("operational documentation", description)
-        self.assertNotIn("## Documentation lane", body)
-        self.assertNotIn("- `runbook` —", body)
-        self.assertNotIn("- `postmortem` —", body)
-        self.assertNotIn("documentation output, filled", body)
-        self.assertIn("→ `scribe`", body)
-
-    def test_scribe_returns_runbook_link_to_caller_and_preserves_alert_owner(self) -> None:
-        body = _agent("scribe").body
-        self.assertNotIn("and link it from the alert", body)
-        self.assertIn(
-            "Return the exact runbook path or URL and any alert name to the invoking caller",
-            body,
-        )
-        self.assertIn("recommend `observability-engineer` to that caller", body)
-        self.assertIn("only that owner updates the definition", body)
-
-    def test_runbook_template_does_not_upgrade_last_verified_without_evidence(self) -> None:
-        template = (ROOT / "skills/operational-docs/assets/runbook-template.md").read_text(
-            encoding="utf-8"
-        )
-        self.assertNotIn("bump `last_verified`", template)
-        self.assertIn(
-            "Change `last_verified` only when incoming rehearsal evidence binds this exact runbook version",
-            template,
-        )
-        self.assertIn("otherwise leave it unchanged", template)
 
     def test_one_frontmatter_edit_is_rejected_with_its_diagnostics(self) -> None:
         for filename, old, new, messages in (

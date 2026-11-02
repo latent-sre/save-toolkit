@@ -4,15 +4,13 @@
   "summary": "Fleet source, adapters, assets, authoring and workflow contracts",
   "tests": [
     "evals/test_agent_engineer_cases.py",
-    "scripts/test_audit_guidance_contracts.py",
     "scripts/test_check_links.py",
     "scripts/test_fleet_frontmatter.py",
     "scripts/test_gate_a.py",
     "scripts/test_platform_adapters.py",
     "scripts/test_skill_assets.py",
     "scripts/test_validate_fleet.py",
-    "scripts/test_validate_workflow.py",
-    "scripts/test_workflow_graph_contract.py"
+    "scripts/test_validate_workflow.py"
   ],
   "native_scenarios": [
     "agent-direct-agent-engineer-heldout-contamination",

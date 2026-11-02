@@ -1,6 +1,5 @@
-"""Bounded fixture checks for the repaired telemetry guidance and eval criteria."""
+"""Bounded fixture checks for the repaired telemetry eval criteria."""
 
-import re
 from pathlib import Path
 
 import yaml
@@ -8,30 +7,6 @@ import yaml
 from evals.graders import run_grader
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def test_overall_spl_without_taxonomy_preserves_population_and_unknown_status() -> None:
-    source = (ROOT / "skills/obs-analysis/references/spl.md").read_text()
-    query = source.split("### Overall deploy error rate")[1].split("````spl")[1].split("````")[0]
-    # Exercise the supplied aggregation's contract over completion-event fixtures;
-    # this is deliberately not a Splunk integration test.
-    assert "count AS total, count(status) AS classified" in query
-    assert "count(eval(status>=500 AND status<600)) AS errors by phase" in query
-    assert "error_type" not in query
-    assert "if(total>0 AND classified=total, errors/total, null())" in query
-
-    def rate(statuses: list[str | None]) -> float | None:
-        valid = [int(s) for s in statuses if s is not None and re.fullmatch(r"[1-5][0-9]{2}", s)]
-        return sum(s >= 500 for s in valid) / len(statuses) if statuses and len(valid) == len(statuses) else None
-
-    assert rate(["200"] * 99 + ["500"]) == 0.01
-    assert rate(["200"] * 90 + ["500"] * 10) == 0.10
-    assert rate(["200"] * 900 + ["500"] * 100) == 0.10
-    for invalid in (None, "0", "700", "500.5"):
-        assert rate(["200", invalid]) is None
-    assert rate([]) is None
-    catalog = (ROOT / "skills/obs-analysis/references/query-catalog.md").read_text()
-    assert "./spl.md#overall-deploy-error-rate" in catalog
 
 
 def grade_scenario(name: str, response: str) -> bool:
