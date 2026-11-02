@@ -44,6 +44,19 @@ def test_the_fixtures_name_no_host_path() -> None:
         if path.is_file():
             text = path.read_text(encoding="utf-8")
             assert str(golden_runs.ROOT) not in text and "/tmp/" not in text, path
+            assert not any(prefix in text for prefix in ("/opt/", "/usr/", "/home/")), path
+
+
+@pytest.mark.parametrize("item", [c for c in CASES if c.judged], ids=[c.name for c in CASES if c.judged])
+def test_a_kept_judgment_holds_under_its_judge_and_lapses_under_another(item: golden_runs.Case, tmp_path: Path) -> None:
+    """A regrade keeps the judgment the live batch paid for only under the judge that gave it."""
+    want = golden_runs.expected(item)
+    copy = tmp_path / "run-1"
+    shutil.copytree(golden_runs.FIXTURES / item.name / "run-1", copy)
+    assert golden_runs.regrade_view(copy, golden_runs.scenario(item), other_judge=True) == want["regrade_other_judge"]
+    assert want["regrade"]["status"] == "PASS" and want["regrade"]["inconclusive"] is None
+    assert want["regrade_other_judge"]["status"] == "INCONCLUSIVE"
+    assert "needs a re-run under the current judge" in want["regrade_other_judge"]["inconclusive"]
 
 
 def test_every_ending_and_every_result_rule_has_a_golden() -> None:

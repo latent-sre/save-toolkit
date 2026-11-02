@@ -21,10 +21,10 @@
         "params": {},
         "response_sha256": "079ca489932a088e22f61168463806e9655a1825f2b399667d3d62c57570c35b",
         "rendered_rubric_sha256": "736f75c9360a9df23a5df3bb6d50e0f796f4ab4185de8f760f75b74a36d880d2",
-        "cache_key": "e37419f91c2ccced85c2bc5c53952bb1f23dc807a6c4eaff13117d830eceee38",
+        "cache_key": "04c7f54f36efab1605cb05c93ebc4a68846a74145b7acba66dfd5352dab53d9e",
         "execution": {
           "argv": [
-            "/opt/node22/bin/claude",
+            "/golden/claude",
             "-p",
             "--model",
             "claude-sonnet-5",
@@ -113,7 +113,7 @@
             "cost_usd": 1.87,
             "execution": {
               "argv": [
-                "/opt/node22/bin/claude",
+                "/golden/claude",
                 "-p",
                 "--model",
                 "sonnet",
@@ -136,7 +136,7 @@
               "timeout": 120
             },
             "identity_source": "live",
-            "judge_cli": "/opt/node22/bin/claude",
+            "judge_cli": "/golden/claude",
             "known_cost_usd": 1.87,
             "live_calls": 187,
             "model_requested": "sonnet",
@@ -148,7 +148,7 @@
           },
           "execution": {
             "argv": [
-              "/opt/node22/bin/claude",
+              "/golden/claude",
               "-p",
               "--model",
               "claude-sonnet-5",
@@ -170,10 +170,10 @@
             "template_sha256": "d53e5bdedef84a181a7889475e3d1b32ef73fe5d48370cfdac140cfd9f5a7149",
             "timeout": 120
           },
-          "receipt_sha256": "b68e9654f50720a5fc7bd20afa6f6fda3dd243dff008dbb28c64305579373ab5"
+          "receipt_sha256": "f9d64604d290429a1a4b1dc0d5b9991441200f9b32b4eda2c9de4a9c3dfc34c1"
         },
         "passed": true,
-        "detail": "{\"cached\": false, \"cost_usd\": 0.01, \"evidence\": [\"some response\"], \"judge_cli\": \"/opt/node22/bin/claude\", \"model_requested\": \"claude-sonnet-5\", \"model_resolved\": \"claude-sonnet-5\", \"reason\": \"because\"}",
+        "detail": "{\"cached\": false, \"cost_usd\": 0.01, \"evidence\": [\"some response\"], \"judge_cli\": \"/golden/claude\", \"model_requested\": \"claude-sonnet-5\", \"model_resolved\": \"claude-sonnet-5\", \"reason\": \"because\"}",
         "inconclusive": false
       }
     ],

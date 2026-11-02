@@ -46,12 +46,12 @@
   },
   "expected_model": null,
   "resume": null,
-  "started_at": "2026-11-02T21:35:40+00:00",
+  "started_at": "2026-11-02T21:46:44+00:00",
   "state": "finished",
   "exit_code": 0,
   "requested_max_invocation_usd": null,
   "effective_max_invocation_usd": null,
-  "ended_at": "2026-11-02T21:35:40+00:00",
+  "ended_at": "2026-11-02T21:46:44+00:00",
   "session_id": "",
   "main_models": [
     ""

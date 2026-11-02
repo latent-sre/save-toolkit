@@ -62,6 +62,9 @@ time.sleep(30)
 
 Seams = Callable[[Path], contextlib.AbstractContextManager[Any]]
 
+# The judge binding records the CLI it would run; a placeholder keeps the host's path out of it.
+JUDGE_CLI = "/golden/claude"
+
 
 @dataclasses.dataclass(frozen=True)
 class Case:
@@ -240,6 +243,13 @@ def run_live(item: Case, root: Path) -> tuple[Path, dict[str, Any] | None, str |
     """Run the case's trial under `root`; return its run directory, the grade, and what raised."""
     spec = item.spec()
     out = root / "iteration"
+    with mock.patch.object(judge, "claude_executable", return_value=JUDGE_CLI):
+        return _run_live(item, spec, root, out)
+
+
+def _run_live(
+    item: Case, spec: dict[str, Any], root: Path, out: Path
+) -> tuple[Path, dict[str, Any] | None, str | None]:
     settings = trials.BatchSettings(
         plugin_root=ROOT, label=LABEL, model=None, out_dir=out, timeout=item.timeout,
         executable=_stub_command(root, item), keep_workspace=False, env_factory=plain_env_factory(),
@@ -292,11 +302,23 @@ def live_view(grading: Mapping[str, Any] | None, raised: str | None, run_dir: Pa
     }
 
 
-def regrade_view(run_dir: Path, spec: Mapping[str, Any]) -> dict[str, Any] | None:
-    """The view a regrade of `run_dir` produces; None when the directory holds no live grade."""
+def regrade_view(run_dir: Path, spec: Mapping[str, Any], *, other_judge: bool = False) -> dict[str, Any] | None:
+    """The view a regrade of `run_dir` produces; None when the directory holds no live grade.
+
+    A judged run is regraded under the judge its binding recorded, since the live judge's identity
+    (its Python, PyYAML and CLI path) is the host's; `other_judge` regrades it under a judge whose
+    source differs instead, which is what any other host sees.
+    """
     if not (run_dir / "grading.json").is_file():
         return None
-    return verdict_view(rescoring.regrade_run(run_dir, dict(spec), write=False, relax_identity=True))
+    binding = json.loads((run_dir / "grading.json").read_text(encoding="utf-8")).get("judge_binding")
+    execution = dict(binding["execution"]) if binding else None
+    if execution is not None and other_judge:
+        execution["source_sha256"] = "0" * 64
+    with contextlib.ExitStack() as stack:
+        if execution is not None:
+            stack.enter_context(mock.patch.object(judge, "execution_identity", return_value=execution))
+        return verdict_view(rescoring.regrade_run(run_dir, dict(spec), write=False, relax_identity=True))
 
 
 def normalize(run_dir: Path, root: Path) -> None:
@@ -347,6 +369,8 @@ def write(item: Case, fixtures: Path = FIXTURES) -> dict[str, Any]:
         "live": live,
         "regrade": regrade_view(target / "run-1", spec),
     }
+    if item.judged:
+        expected["regrade_other_judge"] = regrade_view(target / "run-1", spec, other_judge=True)
     (target / "expected.json").write_text(json.dumps(expected, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return expected
 
@@ -369,6 +393,12 @@ def check(fixtures: Path = FIXTURES) -> list[str]:
             shutil.copytree(fixtures / item.name / "run-1", copy)
             if (got := regrade_view(copy, scenario(item, fixtures))) != want["regrade"]:
                 drift.append(f"{item.name}: regrade view differs: {got} != {want['regrade']}")
+            if (
+                item.judged
+                and (got := regrade_view(copy, scenario(item, fixtures), other_judge=True))
+                != want["regrade_other_judge"]
+            ):
+                drift.append(f"{item.name}: other-judge regrade view differs: {got} != {want['regrade_other_judge']}")
             run_dir, grading, raised = run_live(item, Path(tmp))
             if (got := live_view(grading, raised, run_dir)) != want["live"]:
                 drift.append(f"{item.name}: live view differs: {got} != {want['live']}")

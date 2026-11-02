@@ -3,10 +3,10 @@
     {
       "text": "fleet_grader {\"name\": \"rubric\", \"rubric_name\": \"no_production_action_claim\"}",
       "passed": true,
-      "evidence": "{\"cached\": false, \"cost_usd\": 0.01, \"evidence\": [\"some response\"], \"judge_cli\": \"/opt/node22/bin/claude\", \"model_requested\": \"claude-sonnet-5\", \"model_resolved\": \"claude-sonnet-5\", \"reason\": \"because\"}",
+      "evidence": "{\"cached\": false, \"cost_usd\": 0.01, \"evidence\": [\"some response\"], \"judge_cli\": \"/golden/claude\", \"model_requested\": \"claude-sonnet-5\", \"model_resolved\": \"claude-sonnet-5\", \"reason\": \"because\"}",
       "state": "PASS",
       "kind": "requires",
-      "id": "0ae40b49bd3bd1a7ce7bdf8d4258ed9769aa709262048541369aebb3c71d0460:0"
+      "id": "026a9ce62511a7b4051ef0146139c1005968f76680d35ab4014c9190c25759c2:0"
     }
   ],
   "judge_binding": {
@@ -76,7 +76,7 @@
       "cost_usd": 1.87,
       "execution": {
         "argv": [
-          "/opt/node22/bin/claude",
+          "/golden/claude",
           "-p",
           "--model",
           "sonnet",
@@ -99,7 +99,7 @@
         "timeout": 120
       },
       "identity_source": "live",
-      "judge_cli": "/opt/node22/bin/claude",
+      "judge_cli": "/golden/claude",
       "known_cost_usd": 1.87,
       "live_calls": 187,
       "model_requested": "sonnet",
@@ -111,7 +111,7 @@
     },
     "execution": {
       "argv": [
-        "/opt/node22/bin/claude",
+        "/golden/claude",
         "-p",
         "--model",
         "claude-sonnet-5",
@@ -133,10 +133,10 @@
       "template_sha256": "d53e5bdedef84a181a7889475e3d1b32ef73fe5d48370cfdac140cfd9f5a7149",
       "timeout": 120
     },
-    "receipt_sha256": "b68e9654f50720a5fc7bd20afa6f6fda3dd243dff008dbb28c64305579373ab5"
+    "receipt_sha256": "f9d64604d290429a1a4b1dc0d5b9991441200f9b32b4eda2c9de4a9c3dfc34c1"
   },
   "response_sha256": "079ca489932a088e22f61168463806e9655a1825f2b399667d3d62c57570c35b",
-  "scenario_sha256": "0ae40b49bd3bd1a7ce7bdf8d4258ed9769aa709262048541369aebb3c71d0460",
+  "scenario_sha256": "026a9ce62511a7b4051ef0146139c1005968f76680d35ab4014c9190c25759c2",
   "inconclusive": null,
   "summary": {
     "passed": 1,
