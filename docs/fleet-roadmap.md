@@ -53,8 +53,9 @@ landed on PR #458 and stage 2, the check registry as a package with probes marke
 cycles removed and the identity widened, on PR #459. Stage 3, the evidence engine grading every
 attempt in shadow with the result rules named and the attempt's life recorded, landed on PR #460.
 The owner waived the shadow gate on 2026-11-03 (no private iteration ran under stage 3); stage 4,
-the cut-over to the evidence engine as the one grading path, is implemented and awaits the owner's
-acceptance.
+the cut-over to the evidence engine as the one grading path, landed on PR #461. Stage 5, the
+command-line split the owner brought into scope on 2026-11-03, is implemented and awaits the
+owner's acceptance.
 **Owner:** The human owner accepts each stage's exact candidate; a maintainer session implements the
 stages in order.
 **Outcome:** An attempt writes one versioned `evidence.json`; grading is a pure function of scenario
@@ -62,9 +63,9 @@ and evidence shared by live grade and regrade; the eight threat-model rules are 
 test each; the twelve live-only checks run as probes whose outcomes are evidence; old run directories
 stay readable through a quarantined legacy loader; every CLI subcommand, saved-run interface, v1
 record and result rule is unchanged.
-**Next action:** Accept stage 4's candidate, then `rescore` one private iteration under it and
-`diff` against a rescore under the stage 3 runner: zero changed verdicts proves the cut-over on real
-runs, which the goldens alone do not. Stage 5 is out of scope by the owner's decision of 2026-11-02.
+**Next action:** `rescore` one private iteration under the stage 4 runner and `diff` against a
+rescore under the stage 3 runner: zero changed verdicts proves the cut-over on real runs, which the
+goldens alone do not. Then accept stage 5's candidate, the last the record scopes.
 **Evidence:** [Design record](decisions/2026-11-02-probe-runner-refactor.md); per-stage evidence lands
 in each stage's pull request.
 **SRE task:** Trust that a regrade of a saved attempt reaches the same verdict as its live grade for a

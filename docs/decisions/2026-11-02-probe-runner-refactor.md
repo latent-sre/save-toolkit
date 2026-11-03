@@ -7,6 +7,8 @@
   recorded under "Decisions made"
 - **Amended:** 2026-11-03, by the decision owner: the shadow gate is waived and stage 4 proceeds on
   the goldens alone; recorded under "Decisions made"
+- **Amended:** 2026-11-03, by the decision owner, after stage 4 landed: stage 5 is in scope as its
+  own change; recorded under "Decisions made"
 - **Decision owner:** the human owner; a maintainer session implements each accepted stage
 - **Roadmap item:** `RUNNER-001` in [the fleet roadmap](../fleet-roadmap.md)
 - **Keeps:** [2026-09-03-one-eval-runner](2026-09-03-one-eval-runner.md),
@@ -234,6 +236,12 @@ Made by the decision owner on 2026-11-03, after stage 3 landed:
   agreement evidence; stage 4 proceeds on them, and the cut-over is unproven on real runs, as the
   weakest point below says, until the owner's first rescore and diff of a private iteration under
   the cut-over runner. The `shadow` command and `shadow.json` are removed with the cut-over.
+
+Made by the decision owner on 2026-11-03, after stage 4 landed:
+
+- Stage 5, the optional command-line split, is in scope and proposed as its own change: `cli.run`
+  splits into the batch's plan, its scheduling with the budget stop, and its conclusion, with no
+  result rule, saved-run interface, exit code or command-line flag changed.
 
 ### Decision needed
 

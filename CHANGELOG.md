@@ -20,6 +20,10 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- `cli.run` is the batch's plan, its scheduling under the budget stop, and its conclusion, three
+  functions over two records (`Batch`, `Scheduled`) instead of one; no exit code, event, flag or
+  saved-run interface changes (stage 5 of the runner rewrite, RUNNER-001, brought into scope by the
+  owner on 2026-11-03).
 - The evidence engine is the runner's one grading path: a live attempt's probes run once in its
   workspace and are recorded as evidence before the rules read them, the grade is read from the
   attempt's `evidence.json` as a regrade reads it later, and a regrade of a run that wrote one no
