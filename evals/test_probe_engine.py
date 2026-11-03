@@ -14,7 +14,7 @@ from unittest import mock
 import golden_runs
 import judge
 import pytest
-from probe import checks, cli, engine, rescoring, workspaces
+from probe import checks, cli, engine, evidence, rescoring, workspaces
 from probe.attempt import Phase
 from probe.constants import ROOT
 from probe.outcomes import CutShort, State, Stop
@@ -298,7 +298,106 @@ def test_check_evidence_reproduces_each_run_from_its_evidence_and_catches_a_reco
         code, out = check(iteration, spec)
         assert code == 1 and "broken/run-1: not checked:" in out and "checked 2 run(s)" in out, (shape, out)
     shutil.rmtree(broken.parent)
-    # A published run that lost its trace summary was never read, so the iteration is not clean.
-    (iteration / f"eval-{spec['id']}" / "golden" / "run-1" / "outputs" / "trace-summary.json").unlink()
+    # A run that lost its trace summary is still checked from its evidence; one that lost both was
+    # never read, so the iteration is not clean.
+    published = iteration / f"eval-{spec['id']}" / "golden" / "run-1"
+    (published / "outputs" / "trace-summary.json").unlink()
     code, out = check(iteration, spec)
-    assert code == 1 and "1 run(s) not checked: the trace summary is missing" in out, out
+    assert code == 0 and "checked 1 run(s) from their evidence; 0 differ" in out, out
+    (published / "evidence.json").unlink()
+    code, out = check(iteration, spec)
+    assert code == 1 and "1 run(s) not checked: neither evidence.json nor a trace summary" in out, out
+
+
+# --- item 4: a run with its own evidence regrades from evidence.json alone ---------------------
+
+
+def _evidence_only(run_dir: Path, root: Path) -> Path:
+    """A copy of the run that keeps its evidence.json and nothing else."""
+    alone = root / "alone" / "run-1"
+    alone.mkdir(parents=True)
+    shutil.copy2(run_dir / "evidence.json", alone / "evidence.json")
+    return alone
+
+
+@pytest.mark.parametrize("item", CASES, ids=IDS)
+def test_a_run_regrades_to_its_live_verdict_from_its_evidence_alone(item: golden_runs.Case, tmp_path: Path) -> None:
+    run_dir, grading, _summary = _live(item, tmp_path)
+    alone = _evidence_only(run_dir, tmp_path)
+    regraded = rescoring.regrade_run(alone, item.spec(), write=False)
+    assert comparable(regraded) == comparable(grading)
+    written = rescoring.regrade_run(alone, item.spec(), write=True)
+    assert comparable(written) == comparable(grading)
+    assert sorted(p.name for p in (alone / "assessments" / "1").iterdir()) == [
+        "evidence.json",
+        "grading.json",
+        "trace-summary.json",
+    ]
+    assert sorted(p.name for p in alone.iterdir()) == ["assessments", "evidence.json"], "nothing else was read or made"
+
+
+@pytest.mark.parametrize("item", [c for c in CASES if c.native is not None], ids=[c.name for c in CASES if c.native is not None])
+def test_the_native_replay_reads_the_same_from_files_and_from_evidence(item: golden_runs.Case, tmp_path: Path) -> None:
+    run_dir, _grading, _summary = _live(item, tmp_path)
+    found = rescoring.load_evidence(run_dir, item.spec())
+    assert rescoring.self_sufficient(found, item.spec())
+    # Replayed against the image the trial was served, restaged where the run recorded it.
+    with rescoring._served_plugin_root(rescoring.summary_of(found)) as (served, _):
+        from_files = rescoring.native_regrade_problem(run_dir, item.spec(), served)
+        from_evidence = rescoring.native_evidence_problem(found, item.spec(), served)
+    assert (str(from_evidence), type(from_evidence)) == (str(from_files), type(from_files))
+    expected = {"native_pass": None, "native_wrong_session": "session", "native_incomplete_followup": "no result"}
+    assert (from_evidence is None) if expected[item.name] is None else (expected[item.name] in str(from_evidence))
+
+
+def test_a_damaged_native_turn_in_the_evidence_is_named_by_the_replay(tmp_path: Path) -> None:
+    item = next(c for c in CASES if c.name == "native_pass")
+    run_dir, _grading, _summary = _live(item, tmp_path)
+    found = rescoring.load_evidence(run_dir, item.spec())
+    second = found.turns[1]
+
+    def replay(record: evidence.EvidenceV1) -> str | None:
+        with rescoring._served_plugin_root(rescoring.summary_of(record)) as (served, _):
+            return rescoring.native_evidence_problem(record, item.spec(), served)
+
+    assert replay(found) is None
+    resumed_elsewhere = found.model_copy(
+        update={"turns": [found.turns[0], second.model_copy(update={"resume": "another-session"})]}
+    )
+    assert "session, workspace, or model binding changed" in str(replay(resumed_elsewhere))
+    leaked = found.model_copy(
+        update={"turns": [found.turns[0], second.model_copy(update={"credential_markers": ["sk-ant-"]})]}
+    )
+    assert "credential marker" in str(replay(leaked))
+    untraced = found.model_copy(update={"turns": [found.turns[0], second.model_copy(update={"trace": None})]})
+    assert "boundary evidence missing or invalid" in str(replay(untraced))
+
+
+def test_an_older_native_record_without_its_turns_regrades_from_its_files(tmp_path: Path) -> None:
+    """A native run whose evidence was written before turns carried their traces is not self-sufficient,
+    so its regrade still reads the run's files, and still reaches its live verdict."""
+    item = next(c for c in CASES if c.name == "native_pass")
+    run_dir, grading, _summary = _live(item, tmp_path)
+    record = run_dir / "evidence.json"
+    older = json.loads(record.read_text("utf-8"))
+    older.pop("conversation", None)
+    for turn in older["turns"]:
+        for field in ("invoked", "workspace", "trace", "credential_markers", "input_sha256", "release",
+                      "judge_context_sha256", "response_text_sha256"):
+            turn.pop(field, None)
+    record.write_text(json.dumps(older), encoding="utf-8")
+    found = rescoring.load_evidence(run_dir, item.spec())
+    assert not rescoring.self_sufficient(found, item.spec())
+    assert comparable(rescoring.regrade_run(run_dir, item.spec(), write=False)) == comparable(grading)
+
+
+def test_a_raw_trace_changed_beside_the_evidence_is_refused(tmp_path: Path) -> None:
+    """The evidence is all a regrade needs; a raw trace still beside it must be the one it recorded."""
+    item = next(c for c in CASES if c.name == "pass")
+    run_dir, grading, _ = _live(item, tmp_path)
+    assert comparable(rescoring.regrade_run(run_dir, item.spec(), write=False)) == comparable(grading)
+    with (run_dir / "stdout.jsonl").open("a", encoding="utf-8") as trace:
+        trace.write("\n")
+    regraded = rescoring.regrade_run(run_dir, item.spec(), write=False)
+    assert regraded["status"] == "INCONCLUSIVE"
+    assert "saved raw trace stdout.jsonl differs from the run's evidence" in str(regraded["void"])

@@ -27,7 +27,10 @@ preserves the private craft trial's verification wiring without shipping the pro
   evidence. A live attempt reaches it through `engine.grade_trial`: the probes run once in the
   trial's workspace, their outcomes are recorded as evidence before the rules read them, and the
   grade is read from that evidence as a regrade reads it later. `assessment.plan` lists the
-  expectations and `assessment.assess` is the loop the engine drives. `build_probe.py check-evidence`
+  expectations and `assessment.assess` is the loop the engine drives. A run whose own evidence holds
+  every native turn regrades from `evidence.json` alone; where the run's files are still beside it,
+  they are replayed too and must agree, so a file changed after the run is refused, not ignored.
+  `build_probe.py check-evidence`
   grades each saved run from its evidence alone and reports any verdict that differs from the run's
   own grade, so a record missing what a check read shows on real runs. A result rule therefore
   changes in one place: `rules.py` holds the eight result rules as named functions, each with its own

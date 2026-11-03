@@ -10,7 +10,8 @@ import hashlib
 import json
 import posixpath
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -178,46 +179,111 @@ def problems(spec: Mapping[str, Any], where: str) -> list[str]:
     return issue
 
 
+@dataclass(frozen=True)
+class Released:
+    """What one incident invocation was released and answered, as a replay reads it: from the run's
+    files for a run saved before its evidence carried them, from its evidence after. A field that is
+    None was missing or unreadable."""
+
+    invoked: bool  # the invocation ran: its invocation.json was written
+    prompt: str | None  # the `-p` argument it ran with
+    input_sha256: str | None  # digest of the released input.md text
+    release: Mapping[str, Any] | None  # its release.json
+    judge_context_sha256: str | None  # canonical digest of its judge-context.json
+    response: str | None  # its trace's final text
+    response_text_sha256: str | None  # digest of the saved response.md text
+
+
+def canonical_sha256(value: object) -> str:
+    """A JSON value's digest, independent of key order: how a judge context is compared."""
+    return digest(json.dumps(value, sort_keys=True, ensure_ascii=False))
+
+
 def replay_problem(run: Path, spec: Mapping[str, Any], initial: str) -> str | None:
-    """Bind saved releases to frozen choices and actual preceding responses, without future context."""
-    manifest = layout.read_object(run / "conversation.json")
-    if manifest != {"profile": PROFILE, "invocations": count(spec), "guard_scope": "per invocation"}:
-        return "incident conversation index missing or differs from scenario"
+    """Bind saved releases to frozen choices and actual preceding responses, without future context,
+    reading a saved run's files."""
     invocation_root = run / "invocations"
     expected_names = {f"{i:03}" for i in range(2, count(spec) + 1)}
-    if invocation_root.is_dir() and any(p.name not in expected_names for p in invocation_root.iterdir()):
+    manifest = layout.read_object(run / "conversation.json")
+    if (
+        manifest == manifest_for(spec)
+        and invocation_root.is_dir()
+        and any(p.name not in expected_names for p in invocation_root.iterdir())
+    ):
         return "incident conversation contains an unexpected invocation"
+    return replay_releases(manifest, [released_from(folder) for folder in folders(run, spec)], spec, initial)
+
+
+def manifest_for(spec: Mapping[str, Any]) -> dict[str, Any]:
+    """The conversation index an incident conversation writes."""
+    return {"profile": PROFILE, "invocations": count(spec), "guard_scope": "per invocation"}
+
+
+def released_from(folder: Path) -> Released:
+    """One invocation's release facts as its folder keeps them; a missing or unreadable one is None."""
+    if not (folder / "invocation.json").is_file():
+        return Released(False, None, None, None, None, None, None)
+
+    def attempt(read: Callable[[], Any]) -> Any:
+        try:
+            return read()
+        except (OSError, ValueError, KeyError, TypeError, IndexError):
+            return None
+
+    def prompt() -> str:
+        argv = json.loads((folder / "invocation.json").read_text(encoding="utf-8"))["argv"]
+        return str(argv[argv.index("-p") + 1])
+
+    context = layout.read_object(folder / "judge-context.json")
+    return Released(
+        True,
+        attempt(prompt),
+        attempt(lambda: digest((folder / "input.md").read_text(encoding="utf-8"))),
+        layout.read_object(folder / "release.json"),
+        canonical_sha256(context) if context is not None else None,
+        attempt(lambda: tracing.parse_trace(folder / "stdout.jsonl").result_text),
+        attempt(lambda: digest((folder / "response.md").read_text(encoding="utf-8"))),
+    )
+
+
+def replay_releases(
+    manifest: object, released: Sequence[Released], spec: Mapping[str, Any], initial: str
+) -> str | None:
+    """Bind each invocation's release to the frozen choice the preceding response selects, and its
+    then-visible judge context to the conversation so far: the incident replay, over files or evidence."""
+    if manifest != manifest_for(spec):
+        return "incident conversation index missing or differs from scenario"
     messages: list[dict[str, str]] = []
     previous = ""
-    for index, folder in enumerate(folders(run, spec)):
-        if not (folder / "invocation.json").is_file():
+    for index, item in enumerate(released):
+        if not item.invoked:
             break  # native boundary replay distinguishes budget exhaustion from missing evidence
         selected = (
             {"selected": "initial", "text": initial} if index == 0 else resolve(spec["followups"][index - 1], previous)
         )
         messages.append({"role": "user", "content": selected["text"]})
-        try:
-            metadata = json.loads((folder / "invocation.json").read_text(encoding="utf-8"))
-            argv = metadata["argv"]
-            if argv[argv.index("-p") + 1] != selected["text"]:
-                return "incident invocation prompt differs from released input"
-            if (folder / "input.md").read_text(encoding="utf-8") != selected["text"]:
-                return "incident released input missing or changed"
-            expected = {
-                "invocation": index + 1,
-                "selected": selected["selected"],
-                "input_sha256": digest(selected["text"]),
-                "trigger_response_sha256": digest(previous) if index else None,
-            }
-            if layout.read_object(folder / "release.json") != expected:
-                return "incident branch release differs from frozen evidence"
-            context = layout.read_object(folder / "judge-context.json")
-            if context != judge_context(index, messages, spec["fixture"]["files"]):
-                return "incident then-visible judge context missing or changed"
-            previous = tracing.parse_trace(folder / "stdout.jsonl").result_text
-            if (folder / "response.md").read_text(encoding="utf-8") != previous:
-                return "incident saved response differs from its invocation trace"
-        except (OSError, ValueError, KeyError, TypeError):
+        if item.prompt is None:
             return "incident released input evidence missing or invalid"
+        if item.prompt != selected["text"]:
+            return "incident invocation prompt differs from released input"
+        if item.input_sha256 is None:
+            return "incident released input evidence missing or invalid"
+        if item.input_sha256 != digest(selected["text"]):
+            return "incident released input missing or changed"
+        expected = {
+            "invocation": index + 1,
+            "selected": selected["selected"],
+            "input_sha256": digest(selected["text"]),
+            "trigger_response_sha256": digest(previous) if index else None,
+        }
+        if item.release != expected:
+            return "incident branch release differs from frozen evidence"
+        if item.judge_context_sha256 != canonical_sha256(judge_context(index, messages, spec["fixture"]["files"])):
+            return "incident then-visible judge context missing or changed"
+        if item.response is None or item.response_text_sha256 is None:
+            return "incident released input evidence missing or invalid"
+        previous = item.response
+        if item.response_text_sha256 != digest(previous):
+            return "incident saved response differs from its invocation trace"
         messages.append({"role": "assistant", "content": previous})
     return None

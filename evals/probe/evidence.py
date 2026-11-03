@@ -22,7 +22,7 @@ from typing import Any, Literal, get_args
 
 from pydantic import ConfigDict, Field
 
-from . import assessment, fingerprints, layout
+from . import assessment, conversations, fingerprints, invocation, layout, tracing
 from .checking import Context
 from .outcomes import CutShort, Ending, Outcome, Polarity, State, Stop
 from .records import Sha256, UtcTime, _Section
@@ -177,6 +177,20 @@ class Turn(_Section):
     ended_at: UtcTime | None
     raw_sha256: Sha256 | None
     response_sha256: Sha256 | None
+    # What a regrade replays the turn's boundary and release checks from, so a native run needs its
+    # evidence alone. Absent from records written before they were added, which regrade from files.
+    invoked: bool | None = Field(default=None, description="Whether the invocation's folder exists.")
+    workspace: str | None = Field(default=None, description="The repository path this invocation ran in.")
+    trace: Trace | None = Field(default=None, description="This invocation's parsed raw trace.")
+    credential_markers: list[str] | None = Field(
+        default=None, description="Credential-shaped markers in its final text and raw trace, by name only."
+    )
+    input_sha256: Sha256 | None = Field(default=None, description="Digest of the released input.md text.")
+    release: dict[str, Any] | None = Field(default=None, description="Its release.json, an incident turn's.")
+    judge_context_sha256: Sha256 | None = Field(
+        default=None, description="Key-order-independent digest of its judge-context.json."
+    )
+    response_text_sha256: Sha256 | None = Field(default=None, description="Digest of the saved response.md text.")
 
 
 class ProbeOutcome(_Section):
@@ -207,6 +221,9 @@ class EvidenceV1(_Section):
     service_problem: str | None
     ending: RunEnding
     turns: list[Turn]
+    conversation: dict[str, Any] | None = Field(
+        default=None, description="An incident conversation's index (conversation.json), when it has one."
+    )
     probes: list[ProbeOutcome]
 
 
@@ -258,39 +275,56 @@ def _strings(value: object) -> list[str] | None:
 
 
 def turns(run_dir: Path | None) -> list[Turn]:
-    """Each native invocation the attempt saved, in order; an attempt with one invocation has none."""
+    """Each native invocation the attempt saved, in order, with what a regrade replays from it; an
+    attempt with one invocation has none. A damaged field is unknown, never coerced into place."""
     if run_dir is None:
         return []
     folders = layout.saved_folders(run_dir)
     if len(folders) < 2:
         return []
-    result = []
-    for folder in folders:
-        saved = layout.read_object(folder / "invocation.json") or {}
-        times = {name: _typed(saved.get(name), str) for name in ("started_at", "ended_at")}
-        result.append(
-            Turn(
-                folder=folder.relative_to(run_dir).as_posix() or ".",
-                argv=[str(arg) for arg in saved.get("argv") or []] if isinstance(saved.get("argv"), list) else [],
-                resume=_typed(saved.get("resume"), str),
-                expected_model=_typed(saved.get("expected_model"), str),
-                session_id=_typed(saved.get("session_id"), str),
-                main_models=_strings(saved.get("main_models")),
-                init_session_ids=_strings(saved.get("init_session_ids")),
-                exit_code=_typed(saved.get("exit_code"), int),
-                state=_typed(saved.get("state"), str),
-                cut_short=_typed(saved.get("cut_short"), bool),
-                run_stop=_typed(saved.get("run_stop"), str),
-                inconclusive=_typed(saved.get("inconclusive"), str),
-                started_at=times["started_at"]
-                if times["started_at"] and _UTC_TIME.match(times["started_at"])
-                else None,
-                ended_at=times["ended_at"] if times["ended_at"] and _UTC_TIME.match(times["ended_at"]) else None,
-                raw_sha256=file_sha256(folder / "stdout.jsonl"),
-                response_sha256=file_sha256(folder / "response.md"),
-            )
-        )
-    return result
+    return [_turn(run_dir, folder) for folder in folders]
+
+
+def _turn(run_dir: Path, folder: Path) -> Turn:
+    saved = layout.read_object(folder / "invocation.json") or {}
+    times = {name: _typed(saved.get(name), str) for name in ("started_at", "ended_at")}
+    released = conversations.released_from(folder)
+    trace_path = folder / "stdout.jsonl"
+    try:
+        parsed = tracing.parse_trace(trace_path) if trace_path.is_file() else None
+    except (OSError, ValueError):
+        parsed = None
+    return Turn(
+        folder=folder.relative_to(run_dir).as_posix() or ".",
+        argv=[str(arg) for arg in saved.get("argv") or []] if isinstance(saved.get("argv"), list) else [],
+        resume=_typed(saved.get("resume"), str),
+        expected_model=_typed(saved.get("expected_model"), str),
+        session_id=_typed(saved.get("session_id"), str),
+        main_models=_strings(saved.get("main_models")),
+        init_session_ids=_strings(saved.get("init_session_ids")),
+        exit_code=_typed(saved.get("exit_code"), int),
+        state=_typed(saved.get("state"), str),
+        cut_short=_typed(saved.get("cut_short"), bool),
+        run_stop=_typed(saved.get("run_stop"), str),
+        inconclusive=_typed(saved.get("inconclusive"), str),
+        started_at=times["started_at"] if times["started_at"] and _UTC_TIME.match(times["started_at"]) else None,
+        ended_at=times["ended_at"] if times["ended_at"] and _UTC_TIME.match(times["ended_at"]) else None,
+        raw_sha256=file_sha256(trace_path),
+        response_sha256=file_sha256(folder / "response.md"),
+        invoked=folder.exists(),
+        workspace=_typed(saved.get("workspace"), str),
+        trace=Trace(**dataclasses.asdict(parsed), raw_sha256={}, restored_from_summary=False) if parsed else None,
+        credential_markers=invocation.credential_markers(parsed.result_text, trace_path) if parsed else None,
+        input_sha256=released.input_sha256,
+        release=dict(released.release) if released.release is not None else None,
+        judge_context_sha256=released.judge_context_sha256,
+        response_text_sha256=released.response_text_sha256,
+    )
+
+
+def conversation_of(run_dir: Path | None) -> dict[str, Any] | None:
+    """The incident conversation index a run saved, if it saved one."""
+    return layout.read_object(run_dir / "conversation.json") if run_dir is not None else None
 
 
 def probes(
@@ -324,6 +358,17 @@ def probes(
             )
         )
     return probes
+
+
+def binding_of(found: EvidenceV1) -> dict[str, Any] | None:
+    """The judge binding the attempt graded under, rejoined from its measurement and host parts."""
+    if found.identity.judge_binding is None:
+        return None
+    return {
+        **found.identity.judge_binding,
+        "execution": found.host.judge_execution,
+        "cache_dir": found.host.judge_cache_dir,
+    }
 
 
 def split_binding(binding: Mapping[str, Any] | None) -> tuple[dict[str, Any] | None, dict[str, Any] | None, Any]:
@@ -451,5 +496,6 @@ def from_live(
         service_problem=service_problem,
         ending=ending,
         turns=turns(run_dir),
+        conversation=conversation_of(run_dir),
         probes=probes,
     )

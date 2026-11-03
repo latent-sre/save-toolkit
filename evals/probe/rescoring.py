@@ -18,6 +18,7 @@ import re
 import shutil
 import tempfile
 from collections.abc import Iterator, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -56,10 +57,22 @@ def _unreadable_root(plugin_root: Path, exc: Exception) -> str:
     return f"plugin root {plugin_root} could not be read ({type(exc).__name__}); restore it to regrade the run"
 
 
+@dataclass(frozen=True)
+class TurnView:
+    """One native invocation as a regrade replays it: from the run's files for a run saved before its
+    evidence carried its turns, from its evidence after."""
+
+    present: bool  # the invocation's folder exists
+    has_trace: bool  # its raw trace exists
+    metadata: object  # its invocation.json as parsed; None when it does not parse
+    trace: TraceSummary | None  # its parsed raw trace; None when it does not parse
+    markers: list[str]  # the credential markers its final text and raw trace hold, by name
+
+
 def native_regrade_problem(
     run_dir: Path, spec: Spec, plugin_root: Path, *, recorded_plugin_sha: str | None = None
 ) -> str | None:
-    """Replay each invocation's boundary checks using its saved cwd after the workspace is gone.
+    """Replay each invocation's boundary checks from a saved run's files, after the workspace is gone.
 
     Saved evidence that is missing or malformed, or a plugin root the regrade cannot read, leaves the
     run unmeasured under a reason that names it; a defect in the runner raises instead of being
@@ -69,22 +82,93 @@ def native_regrade_problem(
         problem = conversations.replay_problem(run_dir, spec, catalog.scenario_prompt(spec, plugin_root))
         if problem:
             return problem
+    return _native_replay(
+        [_file_view(folder) for folder in conversations.folders(run_dir, spec)],
+        spec,
+        plugin_root,
+        recorded_plugin_sha=recorded_plugin_sha,
+    )
+
+
+def native_evidence_problem(
+    found: evidence.EvidenceV1, spec: Spec, plugin_root: Path, *, recorded_plugin_sha: str | None = None
+) -> str | None:
+    """The same replay as `native_regrade_problem`, from the turns a run's own evidence carries."""
+    if conversations.enabled(spec):
+        problem = conversations.replay_releases(
+            found.conversation,
+            [_released_of(turn) for turn in found.turns],
+            spec,
+            catalog.scenario_prompt(spec, plugin_root),
+        )
+        if problem:
+            return problem
+    return _native_replay(
+        [_evidence_view(turn) for turn in found.turns], spec, plugin_root, recorded_plugin_sha=recorded_plugin_sha
+    )
+
+
+def _file_view(folder: Path) -> TurnView:
+    trace_path = folder / "stdout.jsonl"
+    if not trace_path.is_file():
+        return TurnView(folder.exists(), False, None, None, [])
+    try:
+        metadata = json.loads((folder / "invocation.json").read_text(encoding="utf-8"))
+        trace = tracing.parse_trace(trace_path)
+    except (OSError, ValueError):
+        return TurnView(True, True, None, None, [])
+    return TurnView(True, True, metadata, trace, invocation.credential_markers(trace.result_text, trace_path))
+
+
+def _evidence_view(turn: evidence.Turn) -> TurnView:
+    metadata: dict[str, Any] = {
+        "workspace": turn.workspace,
+        "exit_code": turn.exit_code,
+        "expected_model": turn.expected_model,
+        "resume": turn.resume,
+        "inconclusive": turn.inconclusive,
+        "argv": list(turn.argv),
+        "session_id": turn.session_id,
+        "main_models": turn.main_models,
+        "init_session_ids": turn.init_session_ids,
+        **({"cut_short": turn.cut_short} if turn.cut_short is not None else {}),
+        **({"run_stop": turn.run_stop} if turn.run_stop is not None else {}),
+    }
+    trace = engine.trace_from(turn.trace) if turn.trace is not None else None
+    return TurnView(
+        bool(turn.invoked), turn.raw_sha256 is not None, metadata, trace, list(turn.credential_markers or [])
+    )
+
+
+def _released_of(turn: evidence.Turn) -> conversations.Released:
+    argv = list(turn.argv)
+    prompt = argv[argv.index("-p") + 1] if "-p" in argv and argv.index("-p") + 1 < len(argv) else None
+    return conversations.Released(
+        bool(turn.invoked),
+        prompt,
+        turn.input_sha256,
+        turn.release,
+        turn.judge_context_sha256,
+        turn.trace.result_text if turn.trace is not None else None,
+        turn.response_text_sha256,
+    )
+
+
+def _native_replay(
+    views: list[TurnView], spec: Spec, plugin_root: Path, *, recorded_plugin_sha: str | None
+) -> str | None:
+    """Each invocation's boundary checks, in order, under today's rules: the replay both readers share."""
     resume, workspace = None, None
     done: list[TraceSummary] = []
-    for index, folder in enumerate(conversations.folders(run_dir, spec)):
+    for index, view in enumerate(views):
         current_spec = conversations.turn_spec(spec, index)
         left = invocation.turns_left(spec, done)
         if left is not None and left <= 0:  # the conversation spent its limit, so no follow-up started
-            return (
-                "native follow-up ran past the conversation's turn limit; re-run the trial" if folder.exists() else None
-            )
-        trace_path, metadata_path = folder / "stdout.jsonl", folder / "invocation.json"
-        if not trace_path.is_file():
+            return "native follow-up ran past the conversation's turn limit; re-run the trial" if view.present else None
+        if not view.has_trace:
             return "native conversation trace missing; re-run the trial"
-        try:
-            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-            trace = tracing.parse_trace(trace_path)
-        except (OSError, ValueError):
+        metadata, trace = view.metadata, view.trace
+        if metadata is None or trace is None:
             return _INVALID_NATIVE_EVIDENCE
         legacy_timeout = (
             isinstance(metadata, dict)
@@ -122,7 +206,7 @@ def native_regrade_problem(
         pin = catalog.agent_pin(spec)
         if pins != ([pin] if pin else []):
             return "native invocation agent pin differs from scenario; re-run the trial"
-        if invocation.credential_markers(trace.result_text, trace_path):
+        if view.markers:
             return "native credential marker detected; re-run the trial"
         try:
             if legacy_timeout:
@@ -181,11 +265,162 @@ def regrade_run(
     binds the runner's source; kept verdicts are then found under the saved identity, and the grade
     is marked `identity_relaxed` so it serves only to compare runners on the same trace.
     """
+    own = run_dir / evidence.FILE
+    if own.is_file():
+        found = evidence.EvidenceV1.model_validate_json(own.read_text(encoding="utf-8"))
+        if self_sufficient(found, spec):
+            return _regrade_from_evidence(run_dir, spec, found, write=write, relax_identity=relax_identity)
     summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
     with _served_plugin_root(summary) as (plugin_root, has_plugin_root):
         return _regrade_run(
             run_dir, spec, summary, plugin_root, has_plugin_root, write=write, relax_identity=relax_identity
         )
+
+
+def self_sufficient(found: evidence.EvidenceV1, spec: Spec) -> bool:
+    """Whether a run's own evidence holds everything its regrade reads: written by the live attempt,
+    and, for a native conversation, each turn's trace and release facts and the conversation's index,
+    which records written before they were added lack."""
+    if found.written_by != "live":
+        return False
+    if not spec.get("followups"):
+        return True
+    return (
+        bool(found.turns)
+        and all(turn.invoked is not None for turn in found.turns)
+        and (not conversations.enabled(spec) or found.conversation is not None)
+    )
+
+
+def summary_of(found: evidence.EvidenceV1) -> dict[str, Any]:
+    """The facts of a trace summary a regrade reads, from the evidence that carries them."""
+    return {
+        "plugin": {
+            "plugin_root": found.host.plugin_root,
+            "plugin_served_from": found.host.plugin_served_from,
+            "plugin_source_sha256": found.identity.plugin_source_sha256,
+        },
+        "workspace": found.host.workspace,
+        "runtime": found.host.runtime,
+        "models": list(found.trace.models),
+    }
+
+
+def _regrade_from_evidence(
+    run_dir: Path, spec: Spec, found: evidence.EvidenceV1, *, write: bool, relax_identity: bool
+) -> dict[str, Any]:
+    """Regrade a run from its own evidence and nothing else: the identity, judge binding, trace,
+    probe outcomes and each native turn the live attempt recorded. The run level is what a regrade
+    settles today from that evidence: the ending it recorded, the native replay under today's rules,
+    the saved identity and the judge binding."""
+    summary = summary_of(found)
+    with _served_plugin_root(summary) as (plugin_root, has_plugin_root):
+        saved_binding = evidence.binding_of(found)
+        identity = fingerprints.scenario_digest(spec, saved_binding)
+        identity_matches = found.identity.scenario_sha256 == identity
+        relaxed = relax_identity and not identity_matches
+        recorded_sha = found.identity.plugin_source_sha256 if has_plugin_root else None
+        native_problem = (
+            _native_problem_beside_files(run_dir, found, spec, plugin_root, recorded_sha)
+            if spec.get("followups")
+            else None
+        )
+        trace = engine.trace_of(found)
+        judge_problem = _saved_judge_problem(spec, saved_binding)
+        level = _evidence_run_level(spec, found, native_problem, saved_binding, judge_problem, has_plugin_root, trace)
+        changed = _changed_raw_traces(run_dir, found)
+        if changed and (level is None or rules.is_cut(level)):
+            # A void already found names what changed more precisely, as the file replay does.
+            level = f"saved raw trace {changed[0]} differs from the run's evidence; re-run the trial"
+        if not identity_matches and not relaxed:
+            level = "saved scenario identity is missing or changed; re-run the trial"
+        stale_judge = (
+            f"{judge_problem}; the kept judgment needs a re-run under the current judge"
+            if isinstance(judge_problem, rubric_judge.JudgeExecutionChanged)
+            else None
+        )
+        kept = engine.kept_from(found, stale_judge=stale_judge, mark=True)
+        verdict = engine.grade(spec, found, kept, plugin_root=plugin_root, run_level=level)
+        if fingerprints.scenario_digest(spec, saved_binding) != identity:
+            verdict = engine.grade(
+                spec,
+                found,
+                kept,
+                plugin_root=plugin_root,
+                run_level="scenario inputs changed during regrade; re-run the trial",
+            )
+    rendered = engine.render(verdict, spec)
+    grading = {
+        **rendered,
+        "judge_binding": saved_binding,
+        "plugin_source_sha256": found.identity.plugin_source_sha256,
+        "runtime": found.host.runtime,
+        "models": list(trace.models),
+        "regraded": True,
+        **({"identity_relaxed": True} if relaxed else {}),
+    }
+    if not write:
+        return grading
+    saved_summary = layout.read_object(run_dir / "outputs" / "trace-summary.json")
+    return _add_assessment(run_dir, grading, saved_summary if saved_summary is not None else summary, trace, found)
+
+
+def _native_problem_beside_files(
+    run_dir: Path, found: evidence.EvidenceV1, spec: Spec, plugin_root: Path, recorded_sha: str | None
+) -> str | None:
+    """The native replay of a run's evidence. The evidence is all a regrade needs, but where the run's
+    own files are still beside it they must tell the same story: they are replayed too, and a problem
+    they show that the evidence does not means one of them changed after the run."""
+    from_evidence = native_evidence_problem(found, spec, plugin_root, recorded_plugin_sha=recorded_sha)
+    if not (run_dir / "invocation.json").is_file():
+        return from_evidence
+    from_files = native_regrade_problem(run_dir, spec, plugin_root, recorded_plugin_sha=recorded_sha)
+    if from_files is None or str(from_files) == str(from_evidence):
+        return from_evidence
+    return from_files
+
+
+def _changed_raw_traces(run_dir: Path, found: evidence.EvidenceV1) -> list[str]:
+    """Each raw trace still beside the run whose bytes differ from the digest its evidence recorded. A
+    missing one is not a difference: the evidence carries what it held."""
+    return [
+        relative
+        for relative, digest in sorted(found.trace.raw_sha256.items())
+        if (run_dir / relative).is_file() and evidence.file_sha256(run_dir / relative) != digest
+    ]
+
+
+def _evidence_run_level(
+    spec: Spec,
+    found: evidence.EvidenceV1,
+    native_problem: str | None,
+    saved_binding: Any,
+    judge_problem: rubric_judge.JudgeUnavailable | None,
+    has_plugin_root: bool,
+    trace: TraceSummary,
+) -> str | None:
+    """Why a regrade of an evidence run cannot measure it at all, or how it was cut short, in the
+    order `_run_level_reason` settles it for a run saved before its evidence: the native replay's cut,
+    the cut or void the ending recorded, the replay's void, then the plugin root and judge binding."""
+    recorded = engine.run_level_of(found)
+    level: str | None
+    if isinstance(native_problem, CutShort):
+        level = native_problem
+    elif rules.is_cut(recorded) and not native_problem:
+        level = recorded
+    else:
+        level = (recorded if recorded and not rules.is_cut(recorded) else None) or native_problem
+    if spec.get("references") and not has_plugin_root:
+        level = "reference plugin root evidence missing or invalid; re-run the trial"
+    if fingerprints.required_rubrics(spec) and not saved_binding:
+        # The judged response is the evidence's own final text, so only the binding can be missing.
+        level = "saved judge binding or judged response identity is missing or changed; re-run the trial"
+    elif judge_problem is not None and not isinstance(judge_problem, rubric_judge.JudgeExecutionChanged):
+        level = str(judge_problem)
+    if not found.trace.restored_from_summary and str(level or "").startswith(invocation.BLOCKED_TOOLS):
+        blocked = invocation.runtime_blocked_tools(trace, spec)
+        level = f"{invocation.BLOCKED_TOOLS}: {blocked}" if blocked else None
+    return level
 
 
 def load_evidence(run_dir: Path, spec: Spec) -> evidence.EvidenceV1:
@@ -515,7 +750,8 @@ def _saved_runs(
             slot = layout.slot(run_dir.name)
             if slot is None:
                 skipped["other_run_folders"].append(run_dir.relative_to(iteration_dir).as_posix())
-            elif not (run_dir / "outputs" / "trace-summary.json").exists():
+            elif not (run_dir / "outputs" / "trace-summary.json").exists() and not (run_dir / evidence.FILE).is_file():
+                # Neither the evidence nor the summary a pre-evidence run is read back from.
                 skipped["runs_without_trace_summary"] += 1
             else:
                 runs.append((spec, run_dir, {"scenario": spec["id"], "label": run_dir.parent.name, "run": slot}))
@@ -620,8 +856,7 @@ def evidence_check(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict
             saved = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
             if not isinstance(saved, dict):
                 raise ValueError("the saved grade is not a JSON object")
-            summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
-            with _served_plugin_root(summary) as (plugin_root, _has_plugin_root):
+            with _served_plugin_root(summary_of(found)) as (plugin_root, _has_plugin_root):
                 graded = engine.render(engine.grade(spec, found, plugin_root=plugin_root), spec)
             # Inside the boundary: a saved grade of the wrong shape is this run's error, never the
             # end of the iteration's check.
