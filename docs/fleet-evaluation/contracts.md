@@ -160,7 +160,8 @@ its assessment.
 | Git and workspace | Commit counts and identities before and after, branch, changed paths, a digest of the patch, the fixture's state files, and whether `.agents/` existed |
 | Services | Each backing service's name, image and address, and any backing service that stopped answering, after the proxy stopped or during a probe |
 | Ending | How execution ended, as the result record reads it, and the identity failure the batch read |
-| Turns | Each native invocation's command, session, model, exit, state and stop, with digests of its trace and response |
+| Turns | Each native invocation's command, session, model, workspace, exit, state and stop, with digests of its trace and response; its parsed trace, the credential-marker names its raw trace held, and an incident turn's released input, release record and judge context by digest, so a regrade replays its boundary and release checks from the record alone |
+| Conversation | An incident conversation's index, when it has one |
 | Probes | The outcome of each check a regrade keeps rather than re-measures, a paid judgment or a reading of the workspace or a service, as the probe measured it before the result rules read it |
 
 ## Report records

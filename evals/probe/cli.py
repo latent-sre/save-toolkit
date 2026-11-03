@@ -409,10 +409,10 @@ def check_evidence(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> int:
         print(f"skipped scenario(s) not in this checkout: {', '.join(skipped['scenarios'])}")
     if skipped["other_run_folders"]:
         print(f"skipped folder(s) that are not numbered runs: {', '.join(skipped['other_run_folders'])}")
-    # A published run without its trace summary was never read: it cannot be called clean.
+    # A published run with neither its evidence nor its trace summary was never read: not clean.
     unchecked = skipped["runs_without_trace_summary"]
     if unchecked:
-        print(f"{unchecked} run(s) not checked: the trace summary is missing")
+        print(f"{unchecked} run(s) not checked: neither evidence.json nor a trace summary is there")
     print(f"checked {len(result['runs'])} run(s) from their evidence; {differing} differ from their own grade")
     return ExitCode.DIFFERENT if differing or unchecked else ExitCode.OK
 

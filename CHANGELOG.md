@@ -8,6 +8,13 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Added
 
+- A run with its own evidence regrades from `evidence.json` alone. Each native turn now records its
+  parsed trace, workspace, the credential-marker names its raw trace held, and an incident turn's
+  released input, release record and judge context by digest, with the conversation index; the
+  boundary and release replay runs over those turns through the same core that reads an older run's
+  files. Where the run's files are still beside the evidence they are replayed too and must agree, and a
+  raw trace whose bytes differ from its recorded digest is refused. The new evidence-v1 fields are
+  optional, so records written before them load and regrade from files as before (RUNNER-001).
 - `build_probe.py check-evidence ITERATION_DIR`: grades every saved run that wrote `evidence.json`
   from that record alone, with no model, workspace or judge call, and exits 1 when a verdict differs
   from the run's own grade, naming the scenario when it changed since the run. It is the offline check

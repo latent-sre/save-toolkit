@@ -79,8 +79,13 @@ def _position(probe_id: str, order: int) -> int:
 
 def trace_of(found: evidence_v1.EvidenceV1) -> TraceSummary:
     """The parsed trace the evidence carries, as the object the checks read."""
+    return trace_from(found.trace)
+
+
+def trace_from(trace: evidence_v1.Trace) -> TraceSummary:
+    """A parsed trace an evidence record carries, the attempt's or one turn's, as the checks read it."""
     fields = {f.name for f in dataclasses.fields(TraceSummary)}
-    return TraceSummary(**{name: value for name, value in found.trace.model_dump().items() if name in fields})
+    return TraceSummary(**{name: value for name, value in trace.model_dump().items() if name in fields})
 
 
 @contextlib.contextmanager

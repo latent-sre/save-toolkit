@@ -1038,6 +1038,116 @@
             }
           ],
           "title": "Response Sha256"
+        },
+        "invoked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether the invocation's folder exists.",
+          "title": "Invoked"
+        },
+        "workspace": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The repository path this invocation ran in.",
+          "title": "Workspace"
+        },
+        "trace": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Trace"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "This invocation's parsed raw trace."
+        },
+        "credential_markers": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Credential-shaped markers in its final text and raw trace, by name only.",
+          "title": "Credential Markers"
+        },
+        "input_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Digest of the released input.md text.",
+          "title": "Input Sha256"
+        },
+        "release": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Its release.json, an incident turn's.",
+          "title": "Release"
+        },
+        "judge_context_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Key-order-independent digest of its judge-context.json.",
+          "title": "Judge Context Sha256"
+        },
+        "response_text_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Digest of the saved response.md text.",
+          "title": "Response Text Sha256"
         }
       },
       "required": [
@@ -1146,6 +1256,20 @@
       },
       "title": "Turns",
       "type": "array"
+    },
+    "conversation": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "An incident conversation's index (conversation.json), when it has one.",
+      "title": "Conversation"
     },
     "probes": {
       "items": {
