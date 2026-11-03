@@ -1,5 +1,10 @@
 {
   "about": "the plugin digest the batch expects is not the one served",
+  "batch": {
+    "batch_stop": "a trial failed its identity check: plugin inputs changed before the trial; re-run with one candidate",
+    "cost_known": false,
+    "scenario_stop": null
+  },
   "live": {
     "after_assessment": null,
     "expectations": [

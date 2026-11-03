@@ -1,0 +1,122 @@
+{
+  "format": {
+    "name": "save-toolkit.eval-record",
+    "version": 1
+  },
+  "case": {
+    "id": "native-conversation",
+    "case_sha256": "60f750812e333b84296280e1ee558fbdf1e20b8efe9e44465e5cad435e7207a6",
+    "scenario_sha256": "0e07a241fd27553ea5ff57b2975905b90d581bf46f28852c83d8a4d206e1285e"
+  },
+  "candidate": {
+    "plugin_root": "/golden/checkout",
+    "plugin_commit": "adbb9193e18445b70d562c7bf9d6d01724bb9cbb",
+    "plugin_inputs_dirty": false,
+    "plugin_source_sha256": "a3c590527655bafbe89dce8625254e0487eb114653c2e5a02eec75b402d1700d"
+  },
+  "runner": {
+    "runner_commit": "adbb9193e18445b70d562c7bf9d6d01724bb9cbb",
+    "runner_source_dirty": false,
+    "runner_source_sha256": "eb3f5a24bbc3cd9b6b51f213d234f225421f4a380c9e214ba2c31571cb670de7"
+  },
+  "conditions": {
+    "requested_model": "stub-model",
+    "observed_models": [
+      "stub-model"
+    ],
+    "runtime": {
+      "cli_version": "x",
+      "host_platform": {
+        "system": "Windows",
+        "release": "11",
+        "machine": "AMD64"
+      },
+      "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id": "synthetic-account",
+        "elevated": false,
+        "identity_source": "windows_process_token"
+      }
+    },
+    "turn_limit": 20,
+    "wall_clock_seconds": 60
+  },
+  "attempt": {
+    "label": "golden",
+    "slot": 1,
+    "number": 1,
+    "state": "final",
+    "started_at": "2026-11-02T23:58:54+00:00",
+    "ended_at": "2026-11-02T23:58:54+00:00"
+  },
+  "run_end": {
+    "kind": "cut_short",
+    "stop": "no_result",
+    "reason": "no result event (claude exit 0)"
+  },
+  "checks": [
+    {
+      "id": "0e07a241fd27553ea5ff57b2975905b90d581bf46f28852c83d8a4d206e1285e:0",
+      "text": "routing fire skill:incident-investigation",
+      "kind": "requires",
+      "state": "INCONCLUSIVE",
+      "reason": "no result event (claude exit 0)",
+      "evidence": "INCONCLUSIVE: no result event (claude exit 0)",
+      "evidence_truncated": false
+    },
+    {
+      "id": "0e07a241fd27553ea5ff57b2975905b90d581bf46f28852c83d8a4d206e1285e:1",
+      "text": "native helper completed exactly once",
+      "kind": "requires",
+      "state": "INCONCLUSIVE",
+      "reason": "no result event (claude exit 0)",
+      "evidence": "INCONCLUSIVE: no result event (claude exit 0)",
+      "evidence_truncated": false
+    },
+    {
+      "id": "0e07a241fd27553ea5ff57b2975905b90d581bf46f28852c83d8a4d206e1285e:2",
+      "text": "parent continued after helper completion",
+      "kind": "requires",
+      "state": "INCONCLUSIVE",
+      "reason": "no result event (claude exit 0)",
+      "evidence": "INCONCLUSIVE: no result event (claude exit 0)",
+      "evidence_truncated": false
+    },
+    {
+      "id": "0e07a241fd27553ea5ff57b2975905b90d581bf46f28852c83d8a4d206e1285e:3",
+      "text": "human follow-up resumed the same session",
+      "kind": "requires",
+      "state": "INCONCLUSIVE",
+      "reason": "no result event (claude exit 0)",
+      "evidence": "INCONCLUSIVE: no result event (claude exit 0)",
+      "evidence_truncated": false
+    }
+  ],
+  "verdict": {
+    "status": "INCONCLUSIVE",
+    "reason": "no result event (claude exit 0)",
+    "assessment_revision": 0,
+    "after_assessment": null
+  },
+  "cost": {
+    "trial_usd": null,
+    "judge_usd": 0.0,
+    "known_usd": 0.0,
+    "complete": false,
+    "judge_calls": 0,
+    "judge_live_calls": 0,
+    "judge_cached_calls": 0,
+    "judge_unknown_cost_calls": 0
+  },
+  "evidence": {
+    "outputs/response.md": "outputs/response.md",
+    "stdout.jsonl": "stdout.jsonl",
+    "outputs/workspace.patch": "outputs/workspace.patch",
+    "grading.json": "grading.json",
+    "timing.json": "timing.json",
+    "provenance.json": "provenance.json",
+    "invocation.json": "invocation.json",
+    "followup/invocation.json": "followup/invocation.json",
+    "cleanup.json": "cleanup.json"
+  }
+}

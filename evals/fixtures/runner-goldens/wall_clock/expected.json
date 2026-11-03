@@ -1,5 +1,10 @@
 {
   "about": "the CLI outlives the wall-clock timeout",
+  "batch": {
+    "batch_stop": null,
+    "cost_known": false,
+    "scenario_stop": null
+  },
   "live": {
     "after_assessment": null,
     "expectations": [

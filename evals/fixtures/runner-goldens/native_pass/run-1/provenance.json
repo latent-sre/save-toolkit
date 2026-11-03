@@ -1,0 +1,24 @@
+{
+  "plugin_root": "/golden/checkout",
+  "plugin_commit": "adbb9193e18445b70d562c7bf9d6d01724bb9cbb",
+  "plugin_inputs_dirty": false,
+  "plugin_source_sha256": "a3c590527655bafbe89dce8625254e0487eb114653c2e5a02eec75b402d1700d",
+  "plugin_served_from": "/golden/workspace/plugin",
+  "runner_commit": "adbb9193e18445b70d562c7bf9d6d01724bb9cbb",
+  "runner_source_dirty": false,
+  "runner_source_sha256": "eb3f5a24bbc3cd9b6b51f213d234f225421f4a380c9e214ba2c31571cb670de7",
+  "runtime": {
+    "cli_version": "x",
+    "host_platform": {
+      "system": "Windows",
+      "release": "11",
+      "machine": "AMD64"
+    },
+    "host_identity": {
+      "hostname": "synthetic-host",
+      "account_id": "synthetic-account",
+      "elevated": false,
+      "identity_source": "windows_process_token"
+    }
+  }
+}

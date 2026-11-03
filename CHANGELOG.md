@@ -8,6 +8,10 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The golden saved runs gain three native conversations (a pass, a resumed call under the wrong
+  session, a follow-up cut short) and a batch view per case recording what the result row tells the
+  batch under rules 1, 5, 6 and 7; a written regrade is proved to land beside the original (rule 8).
+  The native conversation stub moves into the probe test kit (stage 0 follow-up, RUNNER-001).
 - The result rules of the 2026-10-03 eval-harness decision record have their own heading and, by
   owner amendment, name what a backing service that never starts, a grading-machinery failure and a
   cleanup failure after grading record; the runner-rewrite record carries the owner's decisions on

@@ -1,0 +1,85 @@
+{
+  "about": "the resumed call reports a different session, so the conversation is not the one declared",
+  "batch": {
+    "batch_stop": null,
+    "cost_known": true,
+    "scenario_stop": null
+  },
+  "live": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "routing fire skill:incident-investigation"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "native helper completed exactly once"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "parent continued after helper completion"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "human follow-up resumed the same session"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": "native session identity missing or resume session mismatch",
+    "run_end": null,
+    "run_stop": null,
+    "status": "INCONCLUSIVE",
+    "summary": {
+      "failed": 4,
+      "passed": 0,
+      "total": 4
+    },
+    "unmeasured": null,
+    "void": "native session identity missing or resume session mismatch"
+  },
+  "regrade": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "routing fire skill:incident-investigation"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "native helper completed exactly once"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "parent continued after helper completion"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "human follow-up resumed the same session"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": "native session identity missing or resume session mismatch",
+    "run_end": null,
+    "run_stop": null,
+    "status": "INCONCLUSIVE",
+    "summary": {
+      "failed": 4,
+      "passed": 0,
+      "total": 4
+    },
+    "unmeasured": null,
+    "void": "native session identity missing or resume session mismatch"
+  },
+  "rules": [
+    1
+  ]
+}

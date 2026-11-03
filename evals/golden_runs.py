@@ -27,13 +27,15 @@ from typing import Any
 from unittest import mock
 
 import judge
-from probe import backing, constants, fingerprints, layout, rescoring, trials, workspaces
+from probe import backing, cli, constants, fingerprints, invocation, layout, rescoring, trials, workspaces
 from probe_testkit import (
     STUB_RUNTIME,
     calibration_receipt,
     judge_envelope,
     judge_process,
     judge_verdict,
+    native_conversation_spec,
+    native_launch,
     plain_env_factory,
     stub_cli,
     stub_spec,
@@ -80,6 +82,8 @@ class Case:
     sleeping: bool = False
     seams: Seams | None = None
     judged: bool = False  # binds a mocked calibration receipt and a scripted PASS judgment
+    native: Mapping[str, Any] | None = None  # a native conversation: flags for the in-process launcher
+    model: str | None = None  # the model the batch declares; a native conversation must declare one
     raises: bool = False  # the attempt is expected to raise before grading (an incomplete attempt)
 
 
@@ -199,6 +203,31 @@ CASES: tuple[Case, ...] = (
         judged=True,
     ),
     Case(
+        "native_pass",
+        (3,),
+        "a native conversation: the initial call fires the skill and dispatches the helper, the resumed "
+        "call answers the follow-up, and every check passes",
+        native_conversation_spec,
+        native={},
+        model="stub-model",
+    ),
+    Case(
+        "native_wrong_session",
+        (1,),
+        "the resumed call reports a different session, so the conversation is not the one declared",
+        native_conversation_spec,
+        native={"wrong_session": True},
+        model="stub-model",
+    ),
+    Case(
+        "native_incomplete_followup",
+        (2,),
+        "the resumed call ends without a result event, so the follow-up is cut short",
+        native_conversation_spec,
+        native={"incomplete_followup": True},
+        model="stub-model",
+    ),
+    Case(
         "incomplete",
         (7,),
         "the attempt raises before grading and is kept without a verdict",
@@ -232,6 +261,8 @@ def verdict_view(grading: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _stub_command(root: Path, item: Case) -> str:
+    if item.native is not None:
+        return "native-stub"  # never launched: the in-process launcher answers `run_cli`
     if not item.sleeping:
         return stub_cli(root, **item.stub)
     stub = root / "sleeping_claude.py"
@@ -239,8 +270,9 @@ def _stub_command(root: Path, item: Case) -> str:
     return f'"{sys.executable}" "{stub}"'
 
 
-def run_live(item: Case, root: Path) -> tuple[Path, dict[str, Any] | None, str | None]:
-    """Run the case's trial under `root`; return its run directory, the grade, and what raised."""
+def run_live(item: Case, root: Path) -> tuple[Path, dict[str, Any] | None, str | None, dict[str, Any] | None]:
+    """Run the case's trial under `root`; return its run directory, the grade, what raised, and the
+    result row the batch reads."""
     spec = item.spec()
     out = root / "iteration"
     with mock.patch.object(judge, "claude_executable", return_value=JUDGE_CLI):
@@ -249,9 +281,9 @@ def run_live(item: Case, root: Path) -> tuple[Path, dict[str, Any] | None, str |
 
 def _run_live(
     item: Case, spec: dict[str, Any], root: Path, out: Path
-) -> tuple[Path, dict[str, Any] | None, str | None]:
+) -> tuple[Path, dict[str, Any] | None, str | None, dict[str, Any] | None]:
     settings = trials.BatchSettings(
-        plugin_root=ROOT, label=LABEL, model=None, out_dir=out, timeout=item.timeout,
+        plugin_root=ROOT, label=LABEL, model=item.model, out_dir=out, timeout=item.timeout,
         executable=_stub_command(root, item), keep_workspace=False, env_factory=plain_env_factory(),
         runtime=STUB_RUNTIME, expected_plugin_digest=item.expected_plugin_digest,
         judge_binding=(
@@ -259,12 +291,16 @@ def _run_live(
         ),
     )  # fmt: skip
     raised: str | None = None
+    summary: dict[str, Any] | None = None
     with contextlib.ExitStack() as stack:
         stack.enter_context(mock.patch.object(fingerprints, "runtime_identity", return_value=STUB_RUNTIME))
         if item.seams is not None:
             stack.enter_context(item.seams(root))
+        if item.native is not None:
+            launch = native_launch(spec, [], **item.native)
+            stack.enter_context(mock.patch.object(invocation, "run_cli", side_effect=launch))
         try:
-            trials.run_trial(spec, run_number=1, settings=settings)
+            summary = trials.run_trial(spec, run_number=1, settings=settings)
         except Exception as exc:  # an incomplete attempt is the case under test
             if not item.raises:
                 raise
@@ -279,7 +315,21 @@ def _run_live(
         if (run_dir / "grading.json").is_file()
         else None
     )
-    return run_dir, grading, raised
+    return run_dir, grading, raised, summary
+
+
+def batch_view(summary: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    """What the batch reads from a finished trial's result row: why the batch stops after it (an
+    identity failure or an uncleaned environment), why the scenario's further trials stop (a grading
+    machinery failure), and whether its cost is known (result rules 5 to 7). None for an attempt
+    that raised, which has no result row."""
+    if summary is None:
+        return None
+    return {
+        "batch_stop": cli._stop_after(dict(summary), None),
+        "scenario_stop": summary.get("grader_error") or summary.get("service_error") or None,
+        "cost_known": summary.get("cost_complete"),
+    }
 
 
 def live_view(grading: Mapping[str, Any] | None, raised: str | None, run_dir: Path) -> dict[str, Any]:
@@ -315,10 +365,15 @@ def regrade_view(run_dir: Path, spec: Mapping[str, Any], *, other_judge: bool = 
     execution = dict(binding["execution"]) if binding else None
     if execution is not None and other_judge:
         execution["source_sha256"] = "0" * 64
-    with contextlib.ExitStack() as stack:
+    with tempfile.TemporaryDirectory(prefix="golden-regrade-") as tmp, contextlib.ExitStack() as stack:
+        # The regrade restages the served plugin image at the path the run recorded, so the copy
+        # gets this host's paths back; the committed fixture is never touched.
+        copy = Path(tmp) / "run-1"
+        shutil.copytree(run_dir, copy)
+        denormalize(copy, Path(tmp))
         if execution is not None:
             stack.enter_context(mock.patch.object(judge, "execution_identity", return_value=execution))
-        return verdict_view(rescoring.regrade_run(run_dir, dict(spec), write=False, relax_identity=True))
+        return verdict_view(rescoring.regrade_run(copy, dict(spec), write=False, relax_identity=True))
 
 
 def normalize(run_dir: Path, root: Path) -> None:
@@ -343,30 +398,49 @@ def normalize(run_dir: Path, root: Path) -> None:
     if summary_path.is_file():
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
         if isinstance(summary.get("plugin"), dict):
-            # A regrade of a run served the checkout measures against this checkout; a path from the
-            # generating host would be unreadable everywhere else and read as a missing plugin root.
+            # A regrade measures against this checkout wherever it runs; the generating host's root
+            # would be unreadable everywhere else and read as a missing plugin root. The served image
+            # path stays, as a placeholder: a regrade restages the image there from this checkout.
             summary["plugin"]["plugin_root"] = None
-            summary["plugin"]["plugin_served_from"] = None
         summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def write(item: Case, fixtures: Path = FIXTURES) -> dict[str, Any]:
-    """Generate one case's fixture: the normalized run directory, its scenario, and both views."""
+def denormalize(run_dir: Path, root: Path) -> None:
+    """Give a copy of a fixture this host's paths back: the workspace placeholder becomes a directory
+    under `root` and the checkout placeholder this checkout, so a regrade can restage and read them."""
+    replacements = [(WORKSPACE, str(root / "workspace")), (CHECKOUT, str(ROOT))]
+    for path in sorted(p for p in run_dir.rglob("*") if p.is_file()):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        for old, new in replacements:
+            text = text.replace(old, json.dumps(new)[1:-1] if path.suffix in {".json", ".jsonl"} else new)
+        path.write_text(text, encoding="utf-8")
+
+
+def write(item: Case, fixtures: Path = FIXTURES, *, artifacts: bool = True) -> dict[str, Any]:
+    """Generate one case's fixture: the normalized run directory, its scenario, and the views.
+    `artifacts=False` keeps the committed run directory and rewrites only the views from a fresh
+    trial, for a change to the views alone."""
     target = fixtures / item.name
     with tempfile.TemporaryDirectory(prefix=f"golden-{item.name}-") as tmp:
         root = Path(tmp)
-        run_dir, grading, raised = run_live(item, root)
+        run_dir, grading, raised, summary = run_live(item, root)
         live = live_view(grading, raised, run_dir)
-        normalize(run_dir, root)
-        if target.exists():
-            shutil.rmtree(target)
-        shutil.copytree(run_dir, target / "run-1")
+        batch = batch_view(summary)
+        if artifacts:
+            normalize(run_dir, root)
+            if target.exists():
+                shutil.rmtree(target)
+            shutil.copytree(run_dir, target / "run-1")
     spec = item.spec()
     (target / "scenario.json").write_text(json.dumps(spec, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     expected = {
         "about": item.about,
         "rules": list(item.rules),
         "live": live,
+        "batch": batch,
         "regrade": regrade_view(target / "run-1", spec),
     }
     if item.judged:
@@ -399,9 +473,11 @@ def check(fixtures: Path = FIXTURES) -> list[str]:
                 != want["regrade_other_judge"]
             ):
                 drift.append(f"{item.name}: other-judge regrade view differs: {got} != {want['regrade_other_judge']}")
-            run_dir, grading, raised = run_live(item, Path(tmp))
+            run_dir, grading, raised, summary = run_live(item, Path(tmp))
             if (got := live_view(grading, raised, run_dir)) != want["live"]:
                 drift.append(f"{item.name}: live view differs: {got} != {want['live']}")
+            if (got := batch_view(summary)) != want["batch"]:
+                drift.append(f"{item.name}: batch view differs: {got} != {want['batch']}")
     return drift
 
 

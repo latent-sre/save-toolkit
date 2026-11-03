@@ -1,5 +1,10 @@
 {
   "about": "the CLI ends the session at the declared turn limit; unmet requirements fail",
+  "batch": {
+    "batch_stop": null,
+    "cost_known": false,
+    "scenario_stop": null
+  },
   "live": {
     "after_assessment": null,
     "expectations": [

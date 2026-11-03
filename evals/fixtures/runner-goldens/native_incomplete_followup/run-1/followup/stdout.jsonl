@@ -1,0 +1,1 @@
+{"type": "system", "subtype": "init", "session_id": "same-session", "model": "stub-model", "tools": ["Skill", "Read", "Task"], "plugins": [{"name": "save-toolkit", "path": "/golden/workspace/plugin"}], "mcp_servers": []}

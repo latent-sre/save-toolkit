@@ -25,7 +25,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -548,3 +548,101 @@ def plain_env_factory():
         yield dict(os.environ)
 
     return plain
+
+
+# --- the native conversation stub: an initial call and a resumed follow-up, scripted in process -----
+
+_NATIVE_CONVERSATION_SPEC: dict[str, Any] = {
+    "id": "native-conversation",
+    "prompt": "Help me investigate; ask one helper to read evidence.md.",
+    "max_turns": 20,
+    "target": {"kind": "skill", "name": "incident-investigation"},
+    "routing": {"expect": "fire"},
+    "tools": ["Skill", "Read", "Task"],
+    "fixture": {"files": {"evidence.md": "Supplied observation."}},
+    "followups": ["The owner supplied corrected evidence. What changes?"],
+    "helper": "sre-assistant",
+    "expected_model": "stub-model",
+}
+
+
+def native_conversation_spec(**changes: Any) -> dict[str, Any]:
+    """A fresh copy of the two-turn native conversation scenario with the given keys replaced."""
+    return {**copy.deepcopy(_NATIVE_CONVERSATION_SPEC), **changes}
+
+
+def native_launch(
+    spec: Mapping[str, Any],
+    calls: list[tuple[Any, ...]],
+    *,
+    wrong_session: bool = False,
+    bad_runtime: bool = False,
+    bad_initial: bool = False,
+    credential: bool = False,
+    wrong_model: bool = False,
+    missing_model: bool = False,
+    hidden_tool: str | None = None,
+    cost: Any = 0.05,
+    child_events: list[dict[str, Any]] | None = None,
+    turns: tuple[int | None, int | None] = (3, 2),
+    initial_subtype: str = "success",
+    incomplete_followup: bool = False,
+) -> Callable[..., int]:
+    """A `probe.invocation.run_cli` replacement that scripts one native conversation: the initial
+    call fires the skill and dispatches a helper; the resumed call answers the follow-up. Each flag
+    breaks one thing the runner must notice. Every call appends (argv, cwd, id(env), timeout) to `calls`."""
+
+    def launch(argv: list[str], **kwargs: Any) -> int:
+        calls.append((argv, kwargs["cwd"], id(kwargs["env"]), kwargs["timeout"]))
+        resumed = "--resume" in argv
+        session_id = "different" if resumed and wrong_session else "same-session"
+        observed_model = None if missing_model else "other-model" if wrong_model else "stub-model"
+        # The runtime loads whatever `--plugin-dir` names: the image the trial is served.
+        served = argv[argv.index("--plugin-dir") + 1]
+        events: list[dict[str, Any]] = [
+            {
+                "type": "system",
+                "subtype": "init",
+                "session_id": session_id,
+                "model": observed_model,
+                "tools": list(spec["tools"])
+                + (["Bash"] if (resumed and bad_runtime) or (not resumed and bad_initial) else []),
+                "plugins": [{"name": "save-toolkit", "path": served}],
+                "mcp_servers": [],
+            }
+        ]
+        if not resumed:
+            events += skill_events(is_error=False)[:2]
+            events[1]["message"]["content"][0]["input"]["skill"] = "save-toolkit:incident-investigation"
+            events += native_dispatch_events() if child_events is None else child_events
+            if hidden_tool:
+                events.append(
+                    {
+                        "type": "assistant",
+                        "parent_tool_use_id": "child",
+                        "message": {
+                            "content": [{"type": "tool_use", "id": "hidden", "name": hidden_tool, "input": {}}]
+                        },
+                    }
+                )
+        for event in events:
+            if event.get("type") == "assistant":
+                event["message"]["model"] = observed_model
+        result = {
+            "type": "result",
+            "subtype": "success" if resumed else initial_subtype,
+            "session_id": session_id,
+            "result": "Synthetic .credentials.json marker" if credential else "Owner correction assessed.",
+            "duration_ms": 50,
+            "usage": {"input_tokens": 10},
+            "modelUsage": {"stub-model": {}},
+            "total_cost_usd": cost[resumed] if isinstance(cost, tuple) else cost,
+        }
+        if turns[resumed] is not None:
+            result["num_turns"] = turns[resumed]
+        if not (resumed and incomplete_followup):
+            events += [result, result]  # repeated terminal envelopes must not double-charge a turn
+        kwargs["stdout"].write("\n".join(json.dumps(event) for event in events) + "\n")
+        return 0
+
+    return launch

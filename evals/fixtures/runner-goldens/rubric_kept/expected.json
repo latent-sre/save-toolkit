@@ -1,5 +1,10 @@
 {
   "about": "a rubric verdict the live batch paid for is kept by a regrade",
+  "batch": {
+    "batch_stop": null,
+    "cost_known": false,
+    "scenario_stop": null
+  },
   "live": {
     "after_assessment": null,
     "expectations": [

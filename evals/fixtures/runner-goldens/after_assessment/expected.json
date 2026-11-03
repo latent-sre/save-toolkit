@@ -1,5 +1,10 @@
 {
   "about": "service cleanup fails after grading; the verdict stands and the problem is recorded",
+  "batch": {
+    "batch_stop": "backing service cleanup failed: cleanup",
+    "cost_known": false,
+    "scenario_stop": null
+  },
   "live": {
     "after_assessment": "backing service cleanup failed: cleanup",
     "expectations": [
