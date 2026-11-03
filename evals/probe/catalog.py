@@ -452,6 +452,18 @@ def _check_problems(spec: Spec, where: str, kind: str) -> list[str]:
                     "before_effects must be boolean",
                 ),
                 (
+                    # The evidence keeps the state directory's own files; a nested or parent name
+                    # would read as absent on every regrade, whatever the candidate wrote there.
+                    check["check"] == "state_file_absent"
+                    and (
+                        not isinstance(check.get("name"), str)
+                        or check["name"] in ("", ".", "..")
+                        or "/" in check["name"]
+                        or "\\" in check["name"]
+                    ),
+                    "state_file_absent names one file directly in the state directory",
+                ),
+                (
                     check["check"] == "tool_call_count"
                     and (
                         not isinstance(check.get("tool"), str)

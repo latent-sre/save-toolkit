@@ -164,6 +164,13 @@ def known_usd(value: object) -> float | None:
     return number if math.isfinite(number) and number >= 0 else None
 
 
+# The CLI's error result variants: they carry `errors`, never a `result` text, and still close an
+# intact stream.
+ERROR_RESULTS = frozenset(
+    {"error_max_turns", "error_during_execution", "error_max_budget_usd", "error_max_structured_output_retries"}
+)
+
+
 def parse_trace(path: Path) -> TraceSummary:
     reader = _Reader()
     intact = True
@@ -179,7 +186,7 @@ def parse_trace(path: Path) -> TraceSummary:
             if not isinstance(event, dict):
                 intact = False
             elif event.get("type") == "result":
-                supported_result = isinstance(event.get("result"), str)
+                supported_result = isinstance(event.get("result"), str) or event.get("subtype") in ERROR_RESULTS
             reader.event(event, position)
     summary = reader.finish()
     summary.tool_counts_complete = intact and summary.saw_init and summary.has_result and supported_result

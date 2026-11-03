@@ -110,6 +110,9 @@ def context_of(
         state = root / "state"
         state.mkdir()
         for name, content in found.workspace.state_files.items():
+            # The evidence is data: only a plain file name is written, and only inside `state`.
+            if name in ("", ".", "..") or Path(name).name != name:
+                raise ValueError(f"evidence names a state file outside its state directory: {name[:120]!r}")
             (state / name).write_text(content, encoding="utf-8")
         ws = Workspace(
             root,
@@ -195,7 +198,7 @@ def grade(
             keep=True,
             raw_trace=not found.trace.restored_from_summary,
         )
-        graded, reason = assessment.assess(items, level, kept=kept_outcome, instrument=found.service_problem)
+        graded, reason = assessment.assess(items, level, kept=kept_outcome)
         status, reason = rules.rule_3_roll_up([g.outcome for g in graded], level or reason)
         # Without the raw trace the CLI's stop reason is gone; the live grade recorded what it saw.
         at_limit = (
@@ -287,7 +290,8 @@ def observe(
     identity_failure: str | None = None,
 ) -> evidence_v1.EvidenceV1:
     """What the attempt observed, as the evidence record it writes: the trial's context, how the
-    run ended, and the probes' outcomes, measured here once."""
+    run ended, and the probes' outcomes, measured here once, after the workspace facts are read."""
+    workspace = evidence_v1.workspace_facts(ctx)
     probes, problem = probe(ctx, run_level=run_level, identity=identity)
     ending = evidence_v1.ending_from(
         run_level,
@@ -305,6 +309,7 @@ def observe(
         provenance=provenance or {},
         runtime=runtime,
         requested_model=requested_model,
+        workspace=workspace,
     )
 
 

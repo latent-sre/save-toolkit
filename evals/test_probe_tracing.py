@@ -58,6 +58,23 @@ class TraceAndCommandTests(unittest.TestCase):
                 self.assertTrue(trace.tool_counts_complete)
                 self.assertEqual(0.25, trace.total_cost_usd)
 
+    def test_an_error_result_without_result_text_closes_a_complete_stream(self) -> None:
+        """The CLI's error result variants (`error_max_turns` and the rest) carry `errors`, not a
+        `result` string; the stream they close is still intact, so its counts are complete (rule 4
+        grades a turn-limit run as a completed one). A result event of neither shape is not."""
+        init = {"type": "system", "subtype": "init", "model": "stub-model"}
+        call = {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": "ls"}},
+        ]}}
+        for subtype in ("error_max_turns", "error_during_execution", "error_max_budget_usd"):
+            with self.subTest(subtype=subtype):
+                trace = parse_events([init, call, {"type": "result", "subtype": subtype, "is_error": True, "errors": []}])
+                self.assertTrue(trace.tool_counts_complete)
+                self.assertEqual({"Bash": 1}, trace.tool_counts)
+        for result in ({"type": "result", "subtype": "success"}, {"type": "result", "subtype": "error_unknown"}):
+            with self.subTest(result=result):
+                self.assertFalse(parse_events([init, call, result]).tool_counts_complete)
+
     def test_invalid_reported_cost_is_unknown_at_trace_ingestion(self) -> None:
         for value in (False, True, -0.01, "0.01", float("nan"), float("inf"), 10**400):
             with self.subTest(value=value):

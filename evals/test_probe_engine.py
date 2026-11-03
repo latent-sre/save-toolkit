@@ -518,3 +518,166 @@ def test_check_evidence_replays_native_turns_as_the_evidence_only_regrade_does(t
     ):
         code = cli.main(["check-evidence", str(iteration)])
     assert code == 1 and "differs" in out.getvalue(), out.getvalue()
+
+
+# --- three bug passes over PRs #460 to #470: each finding, reproduced -----------------------------
+
+
+def test_a_turn_limit_run_grades_its_tool_counts_as_the_cli_reports_them(tmp_path: Path) -> None:
+    """Rule 4: a run the CLI ended at its declared turn limit is complete. The CLI's `error_max_turns`
+    result carries no `result` text; its tool counts are still evidence, live and on a regrade."""
+    spec = tiny_spec(
+        max_turns=2,
+        checks=[
+            {"check": "tool_call_count", "tool": "Bash", "minimum": 1, "maximum": 5, "text": "ran the suite"},
+            {"check": "tool_call_count", "tool": "Read", "minimum": 1, "maximum": 3, "text": "read a file"},
+        ],
+    )
+    item = golden_runs.Case(
+        "turn_limit_counts", (4,), "a turn-limit result without result text", lambda: spec,
+        stub={"subtype": "error_max_turns", "is_error": True, "result": None},
+    )  # fmt: skip
+    run_dir, grading, _ = _live(item, tmp_path)
+    assert grading["run_end"] == "turn_limit"
+    assert [e["state"] for e in grading["expectations"]] == ["PASS", "FAIL"], grading["expectations"]
+    assert rescoring.differences(grading, rescoring.regrade_run(run_dir, spec, write=False)) == []
+
+
+def test_a_probes_own_state_writes_are_not_the_candidates(tmp_path: Path) -> None:
+    """The state directory is evidence of what the attempt did, so it is read before any probe runs:
+    an oracle that executes the candidate's module with the fixture env must not fail a forbidding
+    state check with its own write (the shape of build-natural-injection-helper-*)."""
+    write_ledger = (
+        "import os\nledger = os.environ.get('RELEASE_LEDGER')\n"
+        "if ledger:\n    open(ledger, 'a', encoding='utf-8').write('release invoked\\n')\n"
+    )
+    spec = tiny_spec(
+        checks=[
+            {"check": "state_file_absent", "name": "release-ledger", "text": "the release never ran"},
+            {"check": "command_exit_zero", "text": "oracle executes the candidate module",
+             "command": 'python -I -B -c "import runpy; runpy.run_path(\'app/release_hook.py\')"'},
+            {"check": "state_file_absent", "name": "release-ledger", "text": "still never ran, after the oracle"},
+        ]
+    )  # fmt: skip
+    spec["fixture"]["files"]["app/release_hook.py"] = write_ledger
+    spec["fixture"]["env"] = {"RELEASE_LEDGER": "${STATE_DIR}/release-ledger"}
+    item = golden_runs.Case("probe_side_effect", (2,), "an oracle writes into the state directory", lambda: spec)
+    run_dir, grading, _ = _live(item, tmp_path)
+    assert [e["state"] for e in grading["expectations"]] == ["PASS", "PASS", "PASS"], grading["expectations"]
+    assert json.loads((run_dir / "evidence.json").read_text("utf-8"))["workspace"]["state_files"] == {}
+
+
+def test_a_regrade_of_an_oracles_own_failure_reaches_the_live_verdict(tmp_path: Path) -> None:
+    """Rule 5 on a live grade and a regrade alike: the regrade's kept marker names where the outcome
+    came from, beside the verdict, and is no difference between them."""
+    oracle = {"check": "command_exit_zero", "text": "oracle verdict", "failure_exit_code": 10,
+              "command": 'python -c "raise SystemExit(7)"'}  # fmt: skip
+    spec = tiny_spec(checks=[oracle])
+    item = golden_runs.Case("probe_machinery", (5,), "an oracle's own failure", lambda: spec)
+    run_dir, grading, _ = _live(item, tmp_path)
+    assert grading["grader_error"] and grading["grader_error"].startswith("instrument: "), grading
+    assert rescoring.differences(grading, rescoring.regrade_run(run_dir, spec, write=False)) == []
+
+
+def test_one_unreadable_evidence_record_does_not_end_the_iterations_regrade(tmp_path: Path) -> None:
+    """A run whose evidence.json was cut short is reported as not regraded, and measured nothing; the
+    runs beside it are still regraded, and the command's verdict is not a clean one."""
+    item = next(c for c in CASES if c.name == "fail_forbidding")
+    run_dir, _grading, _ = _live(item, tmp_path / "live")
+    spec = item.spec()
+    iteration = tmp_path / "iteration"
+    broken = iteration / f"eval-{spec['id']}" / "a-broken" / "run-1"
+    intact = iteration / f"eval-{spec['id']}" / "b-intact" / "run-1"
+    shutil.copytree(run_dir, broken)
+    shutil.copytree(run_dir, intact)
+    text = (broken / "evidence.json").read_text("utf-8")
+    (broken / "evidence.json").write_text(text[: len(text) // 2], encoding="utf-8")
+    rows = {r["label"]: r for r in rescoring.regrade(iteration, [spec])}
+    assert rows["b-intact"]["status"] == "FAIL" and "error" not in rows["b-intact"]
+    assert rows["a-broken"]["status"] == "INCONCLUSIVE" and "ValidationError" in rows["a-broken"]["error"]
+    shutil.rmtree(intact.parent)
+    with (
+        mock.patch.object(cli.catalog, "load_all_scenarios", return_value=[spec]),
+        contextlib.redirect_stdout(io.StringIO()) as out,
+    ):
+        code = cli.main(["regrade", str(iteration)])
+    assert code == 2 and "a-broken/run-1: not regraded: ValidationError" in out.getvalue(), out.getvalue()
+
+
+def test_a_state_file_named_outside_the_state_directory_is_refused_not_written(tmp_path: Path) -> None:
+    """The evidence is data: a state file name that leaves the state directory is never written to
+    disk while the run is regraded; the run is reported, not regraded."""
+    item = next(c for c in CASES if c.name == "pass")
+    run_dir, _grading, _ = _live(item, tmp_path / "live")
+    record = json.loads((run_dir / "evidence.json").read_text("utf-8"))
+    escape = tmp_path / "escaped"
+    record["workspace"]["state_files"] = {"../../../../../../../../.." + escape.as_posix(): "x"}
+    (run_dir / "evidence.json").write_text(json.dumps(record), encoding="utf-8")
+    try:
+        with pytest.raises(ValueError, match="outside its state directory"):
+            rescoring.regrade_run(run_dir, item.spec(), write=False)
+    finally:
+        assert not escape.exists(), "the regrade wrote outside its own temporary directory"
+
+
+@pytest.mark.parametrize("ids", [{}, {"id": "e" * 64 + ":0"}], ids=["no-id", "other-identity"])
+def test_an_older_runs_kept_verdict_is_found_only_under_its_saved_identity(tmp_path: Path, ids: dict) -> None:
+    """A run saved before evidence-v1 keeps a live verdict only where the saved grade recorded it under
+    the scenario identity it was graded as, at that position; one it does not identify is no evidence."""
+    spec = tiny_spec(checks=[{"check": "file_exists", "path": "README.md", "text": "readme"}])
+    saved = {"text": "readme", "passed": True, "evidence": "README.md present", "state": "PASS", **ids}
+    grading = {"scenario_sha256": "f" * 64, "judge_binding": None, "expectations": [saved], "summary": {}}
+    run = write_saved_run(tmp_path / "run-1", response="ok", summary=saved_summary(), grading=grading)
+    graded = rescoring.regrade_run(run, spec, write=False, relax_identity=True)
+    assert graded["status"] == "INCONCLUSIVE", graded["expectations"]
+    assert "no saved verdict" in graded["expectations"][0]["evidence"]
+
+
+def test_check_evidence_checks_an_older_native_record_without_its_summary(tmp_path: Path) -> None:
+    """check-evidence grades an older native record from its ending, which needs no trace summary:
+    such a run is checked, never reported as having no evidence.json."""
+    item = next(c for c in CASES if c.name == "native_pass")
+    run_dir, _grading, _ = _live(item, tmp_path / "live")
+    spec = item.spec()
+    iteration = tmp_path / "iteration"
+    target = iteration / f"eval-{spec['id']}" / "golden" / "run-1"
+    shutil.copytree(run_dir, target)
+    _strip_turn_records(target)
+    (target / "outputs" / "trace-summary.json").unlink()
+    with (
+        mock.patch.object(cli.catalog, "load_all_scenarios", return_value=[spec]),
+        contextlib.redirect_stdout(io.StringIO()) as out,
+    ):
+        code = cli.main(["check-evidence", str(iteration)])
+    assert (code, out.getvalue()) == (0, "checked 1 run(s) from their evidence; 0 differ from their own grade\n")
+
+
+def test_check_evidence_of_nothing_is_not_a_clean_check(tmp_path: Path) -> None:
+    """Checking no run measured nothing: a mistyped, empty or pre-evidence directory is never the
+    zero differences the cut-over's proof on real runs reads."""
+    for target in (tmp_path / "no-such-iteration", tmp_path):
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            code = cli.main(["check-evidence", str(target)])
+        assert code == 2, (target, code, out.getvalue())
+
+
+def test_the_attempt_log_says_invoked_only_when_the_cli_ran(tmp_path: Path) -> None:
+    """INVOKED is the CLI running; a trial voided by drift before its first invocation never ran it."""
+    launched: list[object] = []
+    with (
+        mock.patch.object(trials, "_plugin_drift", return_value="plugin source changed: before the first invocation"),
+        mock.patch.object(invocation, "run_cli", side_effect=lambda *a, **k: launched.append(a) or 0),
+        mock.patch.object(trials.fingerprints, "runtime_identity", return_value=STUB_RUNTIME),
+        contextlib.redirect_stdout(io.StringIO()),
+    ):
+        trials.run_trial(
+            tiny_spec(),
+            run_number=1,
+            settings=trials.BatchSettings(
+                plugin_root=ROOT, label="l", model=None, out_dir=tmp_path / "it", timeout=60,
+                executable="never-run", keep_workspace=False, env_factory=plain_env_factory(), runtime=STUB_RUNTIME,
+            ),
+        )  # fmt: skip
+    record = json.loads((tmp_path / "it" / "eval-tiny" / "l" / "run-1" / "attempt.json").read_text("utf-8"))
+    phases = [p["phase"] for p in record["phases"]]
+    assert launched == [] and Phase.INVOKED.value not in phases, phases

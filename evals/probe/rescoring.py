@@ -748,11 +748,13 @@ def _add_assessment(
 
 
 def _saved_runs(
-    iteration_dir: Path, scenarios: list[dict[str, Any]]
+    iteration_dir: Path, scenarios: list[dict[str, Any]], *, any_evidence: bool = False
 ) -> tuple[list[tuple[dict[str, Any], Path, dict[str, Any]]], dict[str, Any]]:
     """Each published run in an iteration with its scenario and the row naming it, a run being a
     `layout` slot folder holding a trace summary, and what was passed over: a scenario not loaded, a
     folder that is not a numbered run (an operator's `run-1-old`), and a run without a trace summary.
+    A run without its summary is listed when its evidence regrades alone, or, with `any_evidence`
+    (check-evidence, which never reads the summary), when it wrote evidence at all.
     Nothing is dropped silently."""
     by_id = {s["id"]: s for s in scenarios}
     runs: list[tuple[dict[str, Any], Path, dict[str, Any]]] = []
@@ -766,7 +768,11 @@ def _saved_runs(
             slot = layout.slot(run_dir.name)
             if slot is None:
                 skipped["other_run_folders"].append(run_dir.relative_to(iteration_dir).as_posix())
-            elif not (run_dir / "outputs" / "trace-summary.json").exists() and not _regrades_alone(run_dir, spec):
+            elif (
+                not (run_dir / "outputs" / "trace-summary.json").exists()
+                and not (any_evidence and (run_dir / evidence.FILE).is_file())
+                and not _regrades_alone(run_dir, spec)
+            ):
                 # No summary, and no evidence complete enough to regrade from in its place.
                 skipped["runs_without_trace_summary"] += 1
             else:
@@ -790,7 +796,26 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[s
     runs, skipped = _saved_runs(iteration_dir, scenarios)
     results = []
     for spec, run_dir, row in runs:
-        g = regrade_run(run_dir, spec)
+        try:
+            g = regrade_run(run_dir, spec)
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+            # One unreadable run is reported and measured nothing; it never ends the iteration's regrade.
+            results.append(
+                {
+                    **row,
+                    **assessment.native_assessment(spec),
+                    "status": "INCONCLUSIVE",
+                    "passed": 0,
+                    "total": 0,
+                    "scenario_sha256": None,
+                    "plugin_source_sha256": None,
+                    "runtime": None,
+                    "models": [],
+                    "inconclusive": None,
+                    "error": f"{type(exc).__name__}: {exc}"[:300],
+                }
+            )
+            continue
         results.append(
             {
                 "scenario": row["scenario"],
@@ -822,18 +847,23 @@ _KEPT_MARKER = re.compile(r"^\[kept: [\w-]+\] ")
 _COMMON_EVIDENCE = EVIDENCE_LIMIT - len("[kept: workspace-dependent] ")
 
 
+def _unmarked(reason: object) -> object:
+    """A trial's reason without the kept marker a regrade's reason carries when a kept outcome names it."""
+    return _KEPT_MARKER.sub("", reason) if isinstance(reason, str) else reason
+
+
 def comparable(grading: Mapping[str, Any]) -> dict[str, Any]:
     """The verdict of a grade: everything but what is beside it, which two grades of the same
     evidence may differ in without disagreeing (identities and digests, the judge binding, times, the
     after-assessment record of rule 6, a regrade's kept markers, and the tail of bounded evidence)."""
     return {
         "status": grading.get("status"),
-        "inconclusive": grading.get("inconclusive"),
-        "unmeasured": grading.get("unmeasured"),
+        "inconclusive": _unmarked(grading.get("inconclusive")),
+        "unmeasured": _unmarked(grading.get("unmeasured")),
         "void": grading.get("void"),
         "run_end": grading.get("run_end"),
         "run_stop": grading.get("run_stop"),
-        "grader_error": grading.get("grader_error"),
+        "grader_error": _unmarked(grading.get("grader_error")),
         "expectations": [
             {
                 "text": e.get("text"),
@@ -872,7 +902,7 @@ def evidence_check(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict
     run's own `grading.json`. A difference means the evidence lacks something the live grade read,
     or the scenario changed since the run (`scenario_changed`); a run saved before evidence-v1 is
     counted, not checked. Nothing is written."""
-    runs, skipped = _saved_runs(iteration_dir, scenarios)
+    runs, skipped = _saved_runs(iteration_dir, scenarios, any_evidence=True)
     rows: list[dict[str, Any]] = []
     without_evidence = 0
     for spec, run_dir, row in runs:

@@ -26,6 +26,7 @@ from .checking import Context, Need
 from .constants import ROOT
 from .outcomes import (
     EVIDENCE_LIMIT,
+    SERVICE_UNAVAILABLE,
     CutShort,
     Ending,
     Outcome,
@@ -410,7 +411,7 @@ def _measure(item: Expectation) -> tuple[Outcome, str | None]:
     try:
         return outcomes.coerce(item.measure()), None
     except ServiceUnavailable as exc:
-        return instrument(f"backing service unavailable: {exc}"), str(exc)
+        return instrument(f"{SERVICE_UNAVAILABLE}{exc}"), str(exc)
     except Exception as exc:  # a grader crash is a measurement failure, never a verdict
         return grader_error(exc), None
 
@@ -435,7 +436,6 @@ def assess(
     inconclusive: str | None,
     *,
     kept: Kept | None = None,
-    instrument: str | None = None,
 ) -> tuple[list[Graded], str | None]:
     """Grade every expectation under the result rules, in order.
 
@@ -443,8 +443,7 @@ def assess(
     declared profile, any other string for a void one. `kept`, which a plan with kept expectations
     requires, returns the recorded outcome of an expectation it keeps, or None when none was
     recorded: measuring a kept expectation here would spend a judge call or read a workspace that is
-    gone. `instrument` is the backing-service failure the evidence recorded, which a kept
-    instrument failure names as the trial's reason, as a measured one names the service's own.
+    gone.
     Returns the graded expectations and the first reason one of them went unmeasured that names the
     trial's reason.
     """
@@ -466,10 +465,10 @@ def assess(
                 reason = reason or missing
                 saved = unmeasured(missing)
             # A kept outcome is what the probe measured; on a cut run the rule reads it as it reads
-            # a measured one, and an instrument failure names the trial's reason as a measured one does.
+            # a measured one, and a service that stopped answering names the trial's reason as a
+            # measured one does.
             outcome = forbidden_on_cut(saved, cut) if cut is not None and forbids_on_cut else saved
-            if saved.instrument and instrument:
-                reason = reason or instrument
+            reason = reason or saved.service_reason
         else:
             outcome, service = _measure(item)
             reason = reason or service

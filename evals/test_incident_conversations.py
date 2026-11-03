@@ -282,6 +282,23 @@ def test_an_answer_with_crlf_line_endings_regrades_as_it_was_graded(tmp_path):
     assert rescoring.regrade_run(alone, case, write=False)["status"] == "PASS"
 
 
+def test_a_crlf_answer_saved_on_windows_before_the_fix_regrades_as_it_was_graded(tmp_path):
+    """A runner before the fix wrote response.md with Windows newline translation, so a CRLF in the
+    answer reached the disk as CR CR LF; that file still holds the answer the trace gave."""
+    case = spec(2)
+    summary, folder = run(tmp_path, case, "crlf")
+    assert summary["status"] == "PASS"
+    later = conversations.folders(folder, case)[1]
+    answer = (later / "response.md").read_bytes().decode("utf-8")
+    assert answer == "unknown remains\r\nsecond line"
+    (later / "response.md").write_bytes(answer.replace("\n", "\r\n").encode("utf-8"))
+    record = read_json(folder / "evidence.json")
+    record["turns"][1]["response_text_sha256"] = conversations.released_from(later).response_text_sha256
+    (folder / "evidence.json").write_text(json.dumps(record), encoding="utf-8")
+    regraded = rescoring.regrade_run(folder, case, write=False)
+    assert regraded["status"] == "PASS", regraded.get("void")
+
+
 @pytest.mark.parametrize("mutation", ["resume", "budget", "release", "judge", "trace", "response", "extra"])
 def test_saved_evidence_mutations_cannot_regrade_as_pass(tmp_path, mutation):
     case = spec(2)
@@ -335,3 +352,17 @@ def test_future_authored_observation_changes_case_fingerprint():
     before = fingerprints.case_digest(case)
     case["followups"][0]["request_map"][1]["text"] = "changed unchosen evidence"
     assert fingerprints.case_digest(case) != before
+
+
+def test_an_older_incident_run_with_a_damaged_index_regrades_inconclusive_not_raised(tmp_path: Path) -> None:
+    """A run saved before evidence-v1 is read back through `legacy`; a conversation index the replay
+    refuses leaves the run unmeasured under a reason that names it, as it did before the cut-over."""
+    case = spec(2)
+    _, folder = run(tmp_path, case)
+    (folder / "evidence.json").unlink()
+    index = json.loads((folder / "conversation.json").read_text("utf-8"))
+    index["invocations"] = 1
+    (folder / "conversation.json").write_text(json.dumps(index), encoding="utf-8")
+    graded = rescoring.regrade_run(folder, case, write=False)
+    assert graded["status"] == "INCONCLUSIVE"
+    assert "incident conversation index" in str(graded.get("void") or graded.get("inconclusive")), graded

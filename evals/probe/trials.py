@@ -699,7 +699,8 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
                     served,
                 )
                 identity_failure = identity_failure or failed
-            _phase(life, attempts.Phase.INVOKED)
+            if trace_path.exists():  # the CLI ran: a drift found before its first launch skips it
+                _phase(life, attempts.Phase.INVOKED)
         else:
             # A missing fixture target cannot be repaired by the model. Starting it here would
             # spend a call with unresolved service placeholders and could make a tool-bearing

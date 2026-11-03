@@ -288,8 +288,10 @@ def replay_releases(
         if item.response is None or item.response_text_sha256 is None:
             return "incident released input evidence missing or invalid"
         previous = item.response
-        # response.md is read back with universal newlines, so the trace's text is compared the same way.
-        if item.response_text_sha256 != digest(universal_newlines(previous)):
+        # response.md is read back with universal newlines, so the trace's text is compared the same way;
+        # a runner before the fix wrote it with Windows newline translation, which turned CRLF into CR CR LF.
+        saved_forms = {digest(universal_newlines(previous)), digest(universal_newlines(previous.replace("\n", "\r\n")))}
+        if item.response_text_sha256 not in saved_forms:
             return "incident saved response differs from its invocation trace"
         messages.append({"role": "assistant", "content": previous})
     return None

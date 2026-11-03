@@ -8,6 +8,27 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Fixed
 
+- The first of three bug passes over the runner rewrite (PRs #460 to #470) found thirteen defects the
+  pull requests introduced, each fixed with a test that failed first (RUNNER-001):
+  - a run the CLI ends at its declared turn limit grades its `tool_call_count` checks again: the CLI's
+    error result variants carry `errors`, not a `result` text, and still close an intact stream;
+  - the state directory and `.agents` are read before any probe runs, so an oracle that executes the
+    candidate's module with the fixture env (`build-natural-injection-helper-*`) no longer fails
+    `state_file_absent` with its own write;
+  - a `state_file_absent` name must be one file directly in the state directory, and a state file the
+    evidence names outside it is refused on a regrade, never written;
+  - a kept instrument failure names a backing service as the trial's reason only when the failure is the
+    service's, and a regrade's kept marker on a reason is no difference from the live grade;
+  - one unreadable `evidence.json` is reported as not regraded instead of ending the iteration's
+    regrade, and an older incident run whose conversation index is damaged regrades INCONCLUSIVE naming
+    it instead of raising;
+  - an older run's kept verdicts are found by the saved scenario identity and position again, as before
+    the cut-over, not by position alone;
+  - `check-evidence` checks an older native record that lacks its trace summary, and exits 2 when it
+    checked no run at all;
+  - the attempt log records `invoked` only when the CLI ran;
+  - an incident answer with CRLF line endings saved on Windows by a runner before the fix regrades as
+    it was graded.
 - Five defects a review of the evidence-only regrade found, each with a test that failed first: a native
   run whose older evidence cannot regrade alone and whose trace summary is gone is skipped and counted
   again instead of ending the iteration's regrade; removing a native run's first `invocation.json` no
