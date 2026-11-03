@@ -20,6 +20,11 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The test suite passes under an elevated account: the tests that bind a runtime to the host (the
+  SWE-bench runner and smoke fixtures, the batch cleanup test) read the host as an ordinary account
+  through `probe_testkit.unelevated_host`, so a root container no longer reports 21 failures and 77
+  errors that every change had to be argued past. The elevation rule itself is still tested with an
+  identity it is handed.
 - `cli.run` is the batch's plan, its scheduling under the budget stop, and its conclusion, three
   functions over two records (`Batch`, `Scheduled`) instead of one; no exit code, event, flag or
   saved-run interface changes (stage 5 of the runner rewrite, RUNNER-001, brought into scope by the

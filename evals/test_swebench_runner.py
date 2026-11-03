@@ -16,6 +16,7 @@ import pytest
 from probe.backing import SERVICE_RELAY_IMAGE
 from probe.constants import BUILD_TOOLS
 from probe.records import RecordV1
+from probe_testkit import unelevated_host
 from swebench_adapter import configuration, runner, selection
 from swebench_adapter.limits import ProcessResult
 
@@ -189,6 +190,12 @@ class FakeProxy:
 
 @pytest.fixture
 def setup(tmp_path, monkeypatch):
+    # The runtime binds to the account running the suite; a root container would refuse every test.
+    with unelevated_host():
+        yield _setup(tmp_path, monkeypatch)
+
+
+def _setup(tmp_path, monkeypatch):
     plugin = tmp_path / "plugin"
     for name in ("agents", "skills", "commands", "hooks"):
         (plugin / name).mkdir(parents=True)

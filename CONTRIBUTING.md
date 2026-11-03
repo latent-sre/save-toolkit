@@ -123,6 +123,10 @@ than against a substitute or missing host binary, under
 Live evals run from `evals/build_probe.py` in a manual clean room, not CI. Raw traces and the batch
 summary stay private under `.eval-runs/`; quote the numbers you rely on into the PR or review that
 uses them.
+
+The whole suite passes under an elevated account, such as a root container: a test that binds a
+runtime to the host reads it through `probe_testkit.unelevated_host`, which leaves the hostname real
+and the account ordinary. A failure attributed to "running as root" is a defect, not a known state.
 Behavioral campaign plans include Sonnet, Sol, Luna and Terra coverage. Start with the
 [four-model testing block](docs/fleet-evaluation/multi-model-testing.md) to check the supported
 paths, then name the exact models, cases and limits for the campaign. Record unsupported profile
