@@ -336,9 +336,9 @@ name = "aiologic"
 version = "0.17.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "sniffio", marker = "python_full_version < '3.13'" },
+    { name = "sniffio" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
-    { name = "wrapt", marker = "python_full_version < '3.13'" },
+    { name = "wrapt" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f1/7a/d51f2fde1e8ae8a83431f8e97b7a71e9358cdb1d4d2ce6be387fa44d68de/aiologic-0.17.1.tar.gz", hash = "sha256:2e1b93b9e88ced318c2a63ad7b382688f40cbfe40e3d42258d49dc9c5aea179d", size = 252354, upload-time = "2026-06-27T20:41:33.25Z" }
 wheels = [
@@ -387,7 +387,7 @@ wheels = [
 
 [[package]]
 name = "anthropic"
-version = "2.3.0"
+version = "2.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -399,9 +399,9 @@ dependencies = [
     { name = "sniffio" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3e/ba/4c91947e0d0062d66d371db371597287153f7685fbed512d3294d0cde3c7/anthropic-2.3.0.tar.gz", hash = "sha256:edfdea1e3fa7b3ce25df1511953408b2f03bfa61eb6f6268f766101a9e18ad53", size = 1869656, upload-time = "2026-10-23T23:18:47.649Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c8/5b/6c13b126554cfec789ce14a74f2ccfd46382a0eb296ec78ea6b80eeac3b5/anthropic-2.4.0.tar.gz", hash = "sha256:c59cab76049cf581e90e2ee3a20472291029b7a6a1ee2ef32bff2b2a7010fd47", size = 1915809, upload-time = "2026-11-02T19:08:06.047Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/29/eb3558ab6bf252a07ac41c76ac5b0ea24a0aa0c23f87a40aaf31a5f8dba4/anthropic-2.3.0-py3-none-any.whl", hash = "sha256:aa6a3984f9276f307933d42dc6f58b6efc821a5ecafbc8d1bb5993a066767622", size = 2216980, upload-time = "2026-10-23T23:18:45.779Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/5d/e399d9028411ce404d7ddbe6b8060d878b2549ed8cd671a7bb496ae20ffc/anthropic-2.4.0-py3-none-any.whl", hash = "sha256:db2e691364ae2e04083ed9b8deb49f1a6967e9f184f8cbb5afcb3bcda8ab0532", size = 2340848, upload-time = "2026-11-02T19:08:03.822Z" },
 ]
 
 [[package]]
@@ -1056,7 +1056,7 @@ name = "culsans"
 version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiologic", marker = "python_full_version < '3.13'" },
+    { name = "aiologic" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d9/e3/49afa1bc180e0d28008ec6bcdf82a4072d1c7a41032b5b759b60814ca4b0/culsans-0.11.0.tar.gz", hash = "sha256:0b43d0d05dce6106293d114c86e3fb4bfc63088cfe8ff08ed3fe36891447fe33", size = 107546, upload-time = "2025-12-31T23:15:38.196Z" }
@@ -1078,7 +1078,7 @@ resolution-markers = [
 ]
 dependencies = [
     { name = "dill" },
-    { name = "filelock", version = "4.2.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "filelock", version = "4.2.7", source = { registry = "https://pypi.org/simple" } },
     { name = "fsspec", extra = ["http"], marker = "(extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-sandbox') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-sandbox') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-swebench') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-sandbox' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-swt')" },
     { name = "httpx" },
     { name = "huggingface-hub", version = "1.33.0", source = { registry = "https://pypi.org/simple" } },
@@ -1114,7 +1114,7 @@ resolution-markers = [
 ]
 dependencies = [
     { name = "dill" },
-    { name = "filelock", version = "4.2.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "filelock", version = "4.2.7", source = { registry = "https://pypi.org/simple" } },
     { name = "fsspec", extra = ["http"], marker = "extra == 'group-12-save-toolkit-swebench' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-sandbox') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-sandbox') or (extra == 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test')" },
     { name = "huggingface-hub", version = "2.4.0", source = { registry = "https://pypi.org/simple" } },
     { name = "multiprocess" },
@@ -1401,7 +1401,7 @@ wheels = [
 
 [[package]]
 name = "filelock"
-version = "4.2.6"
+version = "4.2.7"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
@@ -1447,9 +1447,9 @@ resolution-markers = [
     "python_full_version < '3.14' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-sandbox' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
     "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-sandbox' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/35/6c/730b340182f1fd74d4ef8d3f35431ce84f8f97b1a1f2afd145174b7bb047/filelock-4.2.6.tar.gz", hash = "sha256:ee7af8ede36dcaf12e1016d9f7c3a63ecd5497d46f85dab21b8c779b8f944e97", size = 661339, upload-time = "2026-10-31T15:10:16.889Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/14/73688a22e91cfcfc6837a011ffa572e2ba3c348765f7bd482d8436fa9b6f/filelock-4.2.7.tar.gz", hash = "sha256:31f6f7e3a8b6f0bd89114d30c5d5218ea1cfb63e5c4aa695b7559314a209bc7f", size = 661450, upload-time = "2026-11-02T16:09:15.119Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/8d/3f849fcb79359259737bc2d8ddcaee6149ffb773239a260c9ff20179736f/filelock-4.2.6-py3-none-any.whl", hash = "sha256:fd7d4fca497bf3e3d0945a13261f8e684f2aef12ce7cf76aef26e13bf7388b88", size = 164378, upload-time = "2026-10-31T15:10:15.322Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/1a/1fcf0d3886bad15b92459a0e529dd86a1ec4d9ef30e789df48044fd3698c/filelock-4.2.7-py3-none-any.whl", hash = "sha256:d08972bbca2b8767ee552aff877b091dd111ffb1d22de7de885766ea7d719d5e", size = 164345, upload-time = "2026-11-02T16:09:13.588Z" },
 ]
 
 [[package]]
@@ -1752,8 +1752,8 @@ name = "httpcore2"
 version = "2.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or extra == 'group-12-save-toolkit-sandbox' or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt')" },
-    { name = "truststore", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or extra == 'group-12-save-toolkit-sandbox' or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt')" },
+    { name = "h11", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-test') or extra == 'group-12-save-toolkit-sandbox' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt')" },
+    { name = "truststore", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-test') or extra == 'group-12-save-toolkit-sandbox' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c0/61/afa9d6b7452f9eca73f73d45324eb0bb52f098fd5e6049bf6b8263be9b4e/httpcore2-2.16.0.tar.gz", hash = "sha256:c72cd0413563b17e1cd8354677dff887466f8ec2551679759e93126534428643", size = 69886, upload-time = "2026-10-21T07:09:45.31Z" }
 wheels = [
@@ -1823,7 +1823,7 @@ resolution-markers = [
 dependencies = [
     { name = "click" },
     { name = "filelock", version = "3.32.7", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-12-save-toolkit-harbor' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-sandbox') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test')" },
-    { name = "filelock", version = "4.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-sandbox') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-sandbox') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-swebench') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-sandbox' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-swt')" },
+    { name = "filelock", version = "4.2.7", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-sandbox') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-sandbox') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-swebench') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-sandbox' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-sandbox' and extra == 'group-12-save-toolkit-swt')" },
     { name = "fsspec" },
     { name = "hf-xet", marker = "platform_machine == 'AMD64' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'" },
     { name = "httpx" },
@@ -1855,7 +1855,7 @@ resolution-markers = [
 ]
 dependencies = [
     { name = "click" },
-    { name = "filelock", version = "4.2.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "filelock", version = "4.2.7", source = { registry = "https://pypi.org/simple" } },
     { name = "fsspec" },
     { name = "hf-xet", marker = "platform_machine == 'AMD64' or platform_machine == 'ARM64' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'" },
     { name = "httpx2" },
@@ -2289,14 +2289,14 @@ wheels = [
 
 [[package]]
 name = "jsonpatch"
-version = "1.39"
+version = "1.41"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jsonpointer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9c/ff/afa6c4e4e8dbc89bfdd7c75d0917120e6455620f7e952778f58d60cadcb5/jsonpatch-1.39.tar.gz", hash = "sha256:d0a314128ec7fc7dba7155b0b19f94913198f54acbbef9c7817d5063d998bc27", size = 49539, upload-time = "2026-11-01T21:20:21.156Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/8a/68334b79bea0e6e49e92ce02344f71ebf3538f8e08fee316029263285431/jsonpatch-1.41.tar.gz", hash = "sha256:1aca06402f94e5cd7bc133af0cb4f7b2c2f9c0bc172f9de52c9aa4c6104b0d1c", size = 56504, upload-time = "2026-11-02T22:20:47.779Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/55/ed/e9c6dc32d9a048b80e2dd2e17983cd23f4fa32ed906c2bad5b9a13eeb487/jsonpatch-1.39-py3-none-any.whl", hash = "sha256:8c1849545b8b245623274b881e18cf5606dc4f11272cde327d3c1f3997181097", size = 17444, upload-time = "2026-11-01T21:20:19.708Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/0b/7e683efbfa0df2110323ff364cf7d37286f681f33c5012f2806ccf618f85/jsonpatch-1.41-py3-none-any.whl", hash = "sha256:fd493e82a57da7dd60e22ff2521f75d2be3ce41d76a845799d898de6da682922", size = 20261, upload-time = "2026-11-02T22:20:46.099Z" },
 ]
 
 [[package]]
@@ -2310,11 +2310,11 @@ wheels = [
 
 [[package]]
 name = "jsonpointer"
-version = "3.7"
+version = "3.8"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/20/4a/d1590490a19f794b352e6da86fbc65d245f486facaacf91054bca35d465f/jsonpointer-3.7.tar.gz", hash = "sha256:58734c45431c9a268df029a39bce8d57e8aebe32f1d58d28a17c9aa246e10929", size = 15197, upload-time = "2026-11-01T21:08:42.912Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/cf/5d665216bd9dea19dd26ea93ca525ef02936a9cccd0cd856f8408eb77f0b/jsonpointer-3.8.tar.gz", hash = "sha256:a627a255641390bfb4d51d4cfbb90648078ae855b45804ef7e19ea13a4cca355", size = 19212, upload-time = "2026-11-02T21:52:18.838Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/91/ffedd6ed8952a65dd4497a0c95b4d87f42f5ce3334f01e344027099bc0be/jsonpointer-3.7-py3-none-any.whl", hash = "sha256:41005d228d8a6ec517b727d2821b7fa16e6bfc7c695ca3339f8331cccaba3887", size = 9363, upload-time = "2026-11-01T21:08:41.871Z" },
+    { url = "https://files.pythonhosted.org/packages/76/61/20f3a497beac4c8f869b8161b468b31c0f05d9d73600da0313eb759bad8a/jsonpointer-3.8-py3-none-any.whl", hash = "sha256:d69af85adaea202111bbc931067ead68dc16bca4592c74e1a1953152e2a330ab", size = 10233, upload-time = "2026-11-02T21:52:17.617Z" },
 ]
 
 [[package]]
@@ -2355,7 +2355,7 @@ wheels = [
 
 [[package]]
 name = "langchain-core"
-version = "1.7.3"
+version = "1.7.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -2370,9 +2370,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "uuid-utils" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ac/90/f932d9c82d15033ae9676fb3670993e10e1b4d9c59fe1b7ae024dee11955/langchain_core-1.7.3.tar.gz", hash = "sha256:77f70b81e238c981bfd8405840b03fdf143735ac93c0729c2bdb39d6f0648024", size = 1029116, upload-time = "2026-10-29T20:55:56.42Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/27/25/bd6a5092ec05f7fe7642e7fd3981c8bdfd5a7750f34520b9eee3e9e4b1c0/langchain_core-1.7.4.tar.gz", hash = "sha256:a9b286e12d782dfc1eb17bdbf4228e0f71e7caa6e5d26375eb9ab6723baaf613", size = 1029531, upload-time = "2026-11-02T15:31:17.865Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b4/c6/88bcc77899601e09a428d9c764e41ac3e7ede161384f85b9a2a8a828f81d/langchain_core-1.7.3-py3-none-any.whl", hash = "sha256:460c214bf31495d7b7e0a879e408dbfda677fd53fd879da786c1b966a4f6bff6", size = 577074, upload-time = "2026-10-29T20:55:54.722Z" },
+    { url = "https://files.pythonhosted.org/packages/99/dc/8c0e82e0171187f3425b3f7ef962858991ad731b4618d7e814eb72715091/langchain_core-1.7.4-py3-none-any.whl", hash = "sha256:20963807aa074366a3820a5d980399009ac05e17b77105c1e847db3ea3b4829f", size = 577184, upload-time = "2026-11-02T15:31:16.286Z" },
 ]
 
 [[package]]
@@ -4216,14 +4216,14 @@ wheels = [
 
 [[package]]
 name = "python-discovery"
-version = "1.9.0"
+version = "1.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "filelock", version = "4.2.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "filelock", version = "4.2.7", source = { registry = "https://pypi.org/simple" } },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/86/15/0405206e0cfe0c14b91ac038d31f30d1dd78139b3b2a285e6be41bf6e5af/python_discovery-1.9.0.tar.gz", hash = "sha256:88beb57e51b919c30f303b053ec41359298ca349192035b0a802c76347ae96d7", size = 125151, upload-time = "2026-10-30T23:24:24.91Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/a2/c98905e39dfe464612b8032014fbe7b8b6e939217cd705d0152b981aeba6/python_discovery-1.9.1.tar.gz", hash = "sha256:83e3c0024b93e256809dc9cd053537a37df6d3badc3b68aa03006a224336b21f", size = 126369, upload-time = "2026-11-02T15:58:19.766Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cb/3c/da1cae963a076132dbc4d3c1f0292dd2f373b9d3e072d42f4620801159c1/python_discovery-1.9.0-py3-none-any.whl", hash = "sha256:fb65edfff3541b7ceb3a39be334a0f69f4cb5148287a053e1874748742fda93b", size = 39841, upload-time = "2026-10-30T23:24:23.452Z" },
+    { url = "https://files.pythonhosted.org/packages/68/48/098829df5400ca16bea46ba81d1e185069a0efcbd12721c6789ebabb29de/python_discovery-1.9.1-py3-none-any.whl", hash = "sha256:a78322b3b70c5d61dddc2f37ca1beffa9a5ce01cedf3526444e01bfc94f50b35", size = 40027, upload-time = "2026-11-02T15:58:18.222Z" },
 ]
 
 [[package]]
@@ -4826,7 +4826,6 @@ test = [
     { name = "inspect-swe" },
     { name = "jsonschema" },
     { name = "mypy" },
-    { name = "orjson" },
     { name = "pillow" },
     { name = "polars" },
     { name = "promql-parser" },
@@ -4834,7 +4833,6 @@ test = [
     { name = "pytest" },
     { name = "pytest-xdist" },
     { name = "pyyaml" },
-    { name = "rich" },
     { name = "ruff" },
     { name = "types-pyyaml" },
 ]
@@ -4895,7 +4893,6 @@ test = [
     { name = "inspect-swe", specifier = ">=0.2.70" },
     { name = "jsonschema", specifier = ">=4.26.0" },
     { name = "mypy", specifier = ">=2.4.0" },
-    { name = "orjson", specifier = ">=3.12.0" },
     { name = "pillow", specifier = ">=13.0.0" },
     { name = "polars", specifier = ">=2.0.0" },
     { name = "promql-parser", specifier = ">=0.11.0" },
@@ -4903,7 +4900,6 @@ test = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "rich", specifier = ">=15.0.0" },
     { name = "ruff", specifier = ">=0.16.10" },
     { name = "types-pyyaml", specifier = ">=6.0.12.20260906" },
 ]
@@ -5590,7 +5586,7 @@ version = "21.15.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "distlib" },
-    { name = "filelock", version = "4.2.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "filelock", version = "4.2.7", source = { registry = "https://pypi.org/simple" } },
     { name = "packaging" },
     { name = "platformdirs" },
     { name = "python-discovery" },
@@ -6022,7 +6018,7 @@ name = "zipfile-zstd"
 version = "0.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zstandard", marker = "python_full_version < '3.14' or (python_full_version == '3.14.*' and extra != 'group-12-save-toolkit-swebench')" },
+    { name = "zstandard" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f7/2a/2e0941bc0058d10ab37d8c578b94a19f611f6ae54f124140f2fb451f0932/zipfile-zstd-0.0.4.tar.gz", hash = "sha256:c1498e15b7922a3d1af0ea55df8b11b2af4e8f7e0e80e414e25d66899f7def89", size = 4603, upload-time = "2021-12-08T07:38:16.245Z" }
 wheels = [

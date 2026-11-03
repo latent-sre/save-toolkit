@@ -16,6 +16,9 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Refresh the lock to the releases of the last day (anthropic 2.4.0, filelock 4.2.7, jsonpatch 1.41,
+  jsonpointer 3.8, python-discovery 1.9.1, langchain-core 1.7.4) and drop the `orjson` and `rich` pins,
+  which nothing in the repository imports; rich remains as Inspect's dependency.
 - State the action-reference rule: a floating major tag where the action publishes one, otherwise the
   exact release tag, both moved by Dependabot; setup-uv is pinned to its release 10.3.3, since it
   publishes no alias past v7, and the workflow test admits both forms.
