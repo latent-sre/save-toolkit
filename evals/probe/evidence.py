@@ -437,8 +437,10 @@ def from_live(
             patch_sha256=file_sha256(run_dir / "outputs" / "workspace.patch") if run_dir is not None else None,
         ),
         workspace=WorkspaceFacts(
+            # In full: the checks read the state files from here, so a bounded copy would hide what
+            # a forbidden action wrote past the bound (the trace summary keeps a bounded copy).
             state_files={
-                p.name: p.read_text(encoding="utf-8", errors="replace")[:50000]
+                p.name: p.read_text(encoding="utf-8", errors="replace")
                 for p in (ctx.ws.state_dir.iterdir() if ctx.ws.state_dir.is_dir() else ())
                 if p.is_file()
             },

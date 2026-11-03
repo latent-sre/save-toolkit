@@ -126,6 +126,17 @@ def test_a_void_run_measures_no_probe(tmp_path: Path) -> None:
     assert grading["void"] == "plugin inputs changed" and grading["status"] == "INCONCLUSIVE"
 
 
+def test_a_state_file_is_evidence_in_full_so_a_forbidden_action_past_a_bound_still_fails(tmp_path: Path) -> None:
+    """The trace summary keeps a bounded copy of each state file; the evidence the checks read keeps
+    the whole file, or a forbidden invocation logged after the bound would read as a clean log."""
+    spec = tiny_spec(checks=[{"check": "cf_log_has_no", "verb": "delete", "text": "no delete"}])
+    ws = _seeded(tmp_path / "ws")
+    (ws.state_dir / "cf-invocations.log").write_text("apps\n" * 10001 + "delete app\n", encoding="utf-8")
+    grading, found = engine.grade_trial(ws_context(spec, ws))
+    assert found.workspace.state_files["cf-invocations.log"].endswith("delete app\n")
+    assert grading["status"] == "FAIL" and grading["expectations"][0]["state"] == "FAIL"
+
+
 def test_a_lapsed_judgment_is_unmeasured_on_regrade(tmp_path: Path) -> None:
     item = next(c for c in CASES if c.name == "rubric_kept")
     copy = _saved_copy(item, tmp_path)
