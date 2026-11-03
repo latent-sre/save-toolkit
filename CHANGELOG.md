@@ -8,6 +8,25 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Fixed
 
+- The second bug pass over the runner rewrite (adversarial, older-run and failure-path reviews) found
+  eleven defects the pull requests or the first pass's fixes left, each fixed with a test that failed
+  first (RUNNER-001):
+  - a regrade of a run saved before evidence-v1 refuses a state file its trace summary names outside the
+    state directory, as one named in `evidence.json` already was;
+  - the runner's git reads switch off `core.fsmonitor`, so a plugin root a saved run names never runs a
+    command its repository configuration supplies, in a regrade or in `check-evidence`;
+  - the evidence-only regrade checks the judged response against the run's own grade again, so an edited
+    final text cannot turn a judged FAIL into a PASS;
+  - a kept outcome counts only as the kind the scenario keeps it as, so relabelling a judgment in the
+    evidence no longer escapes the stale-judge rule;
+  - whatever one saved run raises is that run's error in `regrade`, `rescore` and `check-evidence`,
+    nesting too deep to read included, and a pinned agent's frontmatter that no longer reads leaves a
+    native run unmeasured under a reason that names the plugin root;
+  - the attempt log records `invoked` when the CLI ran before the attempt raised, and an attempt log that
+    cannot be written warns instead of leaving a stale summary row over a published run;
+  - `regrade` and `check-evidence` count only the runs they read, `check-evidence` names a run that lost
+    the `evidence.json` its record lists instead of passing it as pre-evidence, and says when the runner
+    changed since the run.
 - Two batch failures that predate the runner rewrite, each with a test that failed first. A rerun onto
   a label's existing slot crashed with a traceback and exit 1, a FAIL batch's code, and an offset that
   reached a taken slot did so after paying for the trials before it; every planned slot is now checked

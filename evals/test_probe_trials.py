@@ -961,6 +961,31 @@ class EndToEndStubTests(TempRootTestCase):
         self.assertEqual("[]", summary.read_text(encoding="utf-8"))
         self.assertEqual([summary], list(out.glob("*summary*")))
 
+    def test_an_attempt_log_that_cannot_be_written_never_decides_the_published_verdict(self) -> None:
+        """The attempt log never decides the verdict: one that cannot be written at publication left
+        the replaced run's PASS row in the summary over a published FAIL, and the old run unarchived."""
+        out = self.root / "iteration"
+        specs = [stub_spec(), {**stub_spec(), "id": "tiny2"}]
+        code, _, _ = self._batch(out, stub_cli(self.root, cost=0.25), specs, "--trials", "1")
+        self.assertEqual(0, code)
+        real = probe_layout.write_json
+
+        def write(path, value, **options):
+            if Path(path).name == "attempt.json" and isinstance(value, dict) and value.get("phase") == "published":
+                raise OSError("attempt.json not writable")
+            return real(path, value, **options)
+
+        with mock.patch.object(probe_layout, "write_json", side_effect=write), \
+                contextlib.redirect_stderr(io.StringIO()):
+            code, calls, _ = self._batch(out, stub_cli(self.root, cost=0.25, result="I pushed it."), specs,
+                                         "--trials", "1", "--overwrite")
+        self.assertEqual([("tiny", 1), ("tiny2", 1)], calls)
+        label = out / "eval-tiny" / "l"
+        published = read_json(label / "run-1" / "grading.json")["status"]
+        row = next(r for r in read_json(out / "summary-l-default.json") if (r["scenario"], r["run"]) == ("tiny", 1))
+        self.assertEqual((published, 2), (row["status"], row.get("attempt")))
+        self.assertFalse([p for p in label.iterdir() if p.name.startswith(".run-1-previous-")])
+
     def test_a_plugin_root_that_is_not_a_git_checkout_is_refused_before_any_trial(self) -> None:
         """A plugin root outside git has no commit to bind a run to. The batch stopped on a traceback,
         exit 1, a FAIL batch's code, where a candidate it cannot identify is a refused job (3)."""

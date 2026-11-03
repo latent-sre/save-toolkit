@@ -102,7 +102,7 @@ def workspace(tmp: Path, summary: Mapping[str, Any], saved: Saved, recorded_work
     state = tmp / "state"
     state.mkdir()
     for name, content in (summary.get("state_files") or {}).items():
-        (state / name).write_text(content, encoding="utf-8")
+        layout.state_file(state, name).write_text(content, encoding="utf-8")
     ws = Workspace(
         tmp,
         tmp / "repo-gone",

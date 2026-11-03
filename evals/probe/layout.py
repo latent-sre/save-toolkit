@@ -124,7 +124,7 @@ def read_object(path: Path) -> dict[str, Any] | None:
     object: an unknown, never a partial reading."""
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):  # RecursionError: nesting too deep to read
         return None
     return value if isinstance(value, dict) else None
 
@@ -143,6 +143,14 @@ def write_json(path: Path, value: object, *, ascii_only: bool = False, atomic: b
         os.replace(partial, path)
     finally:
         partial.unlink(missing_ok=True)
+
+
+def state_file(state: Path, name: object) -> Path:
+    """Where a saved state file is rebuilt for a regrade: a plain file name directly in `state`. A
+    saved run is data, so a name that would leave the directory is refused, never written."""
+    if not isinstance(name, str) or name in ("", ".", "..") or Path(name).name != name:
+        raise ValueError(f"evidence names a state file outside its state directory: {str(name)[:120]!r}")
+    return state / name
 
 
 def saved_folders(run: Path) -> list[Path]:

@@ -184,12 +184,13 @@ def _new_attempt_dir(target: Path) -> Path:
 
 def _phase(life: attempts.Attempt | None, phase: attempts.Phase, note: str | None = None) -> None:
     """Record a phase of the attempt's life, when the attempt has one. The record never decides the
-    verdict: a move the machine refuses is a runner defect reported on stderr, not a failed trial."""
+    verdict: a move the machine refuses is a runner defect, and an attempt log that cannot be written
+    is a host problem, each reported on stderr, never a failed trial."""
     if life is None:
         return
     try:
         life.advance(phase, note)
-    except attempts.IllegalTransition as exc:
+    except (attempts.IllegalTransition, OSError) as exc:
         print(f"warning: attempt phase not recorded: {exc}", file=sys.stderr)
 
 
@@ -685,22 +686,26 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         started = time.monotonic()
         if inconclusive is None:
             make_env = settings.env_factory or (lambda: clean_room.clean_env(subscriber_only=True))
-            with make_env() as base_env:
-                env = workspaces.child_env(base_env, ws, spec, services)
-                inconclusive, failed = _invoke_turns(
-                    spec,
-                    settings,
-                    run_out,
-                    ws,
-                    env,
-                    provenance["plugin_source_sha256"],
-                    binding,
-                    scenario_identity,
-                    served,
-                )
-                identity_failure = identity_failure or failed
-            if trace_path.exists():  # the CLI ran: a drift found before its first launch skips it
-                _phase(life, attempts.Phase.INVOKED)
+            try:
+                with make_env() as base_env:
+                    env = workspaces.child_env(base_env, ws, spec, services)
+                    inconclusive, failed = _invoke_turns(
+                        spec,
+                        settings,
+                        run_out,
+                        ws,
+                        env,
+                        provenance["plugin_source_sha256"],
+                        binding,
+                        scenario_identity,
+                        served,
+                    )
+                    identity_failure = identity_failure or failed
+            finally:
+                # The CLI ran, whether or not the step raised after it (an authentication failure is
+                # found after the call); a drift found before its first launch skips it.
+                if trace_path.exists():
+                    _phase(life, attempts.Phase.INVOKED)
         else:
             # A missing fixture target cannot be repaired by the model. Starting it here would
             # spend a call with unresolved service placeholders and could make a tool-bearing

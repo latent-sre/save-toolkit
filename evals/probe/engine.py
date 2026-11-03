@@ -25,7 +25,7 @@ from typing import Any
 
 import judge as rubric_judge
 
-from . import assessment, fingerprints, outcomes, rules
+from . import assessment, fingerprints, layout, outcomes, rules
 from . import evidence as evidence_v1
 from .checks.registry import Context
 from .constants import ROOT
@@ -34,7 +34,7 @@ from .tracing import TraceSummary
 from .workspaces import GitFacts, Workspace
 
 Spec = Mapping[str, Any]
-Kept = Mapping[int, tuple[str, Outcome]]  # a probe's text and outcome, by the position it was recorded at
+Kept = Mapping[int, tuple[str, Outcome, str]]  # a probe's text, outcome and kept kind, by recorded position
 
 
 @dataclasses.dataclass(frozen=True)
@@ -53,12 +53,12 @@ class Verdict:
 
 def kept_from(
     found: evidence_v1.EvidenceV1, *, stale_judge: str | None = None, mark: bool = False
-) -> dict[int, tuple[str, Outcome]]:
+) -> dict[int, tuple[str, Outcome, str]]:
     """The probe outcomes an evidence record holds, as the outcomes a grade keeps, by the position
     each was recorded at (its id's suffix), since two expectations can read the same. With
     `stale_judge`, a judgment the judge that gave it no longer stands behind is unmeasured instead.
     With `mark`, a regrade's, each outcome's evidence leads with the marker naming why it is kept."""
-    kept: dict[int, tuple[str, Outcome]] = {}
+    kept: dict[int, tuple[str, Outcome, str]] = {}
     for order, probe in enumerate(found.probes):
         if stale_judge and probe.kept_as == "live-judge":
             outcome = outcomes.unmeasured(stale_judge)
@@ -67,7 +67,7 @@ def kept_from(
             outcome = Outcome(probe.state, probe.evidence, machinery=read.machinery)
             if mark:
                 outcome = outcome.with_evidence(outcomes.kept_evidence(probe.kept_as, probe.evidence))
-        kept[_position(probe.id, order)] = (probe.text, outcome)
+        kept[_position(probe.id, order)] = (probe.text, outcome, probe.kept_as)
     return kept
 
 
@@ -110,10 +110,7 @@ def context_of(
         state = root / "state"
         state.mkdir()
         for name, content in found.workspace.state_files.items():
-            # The evidence is data: only a plain file name is written, and only inside `state`.
-            if name in ("", ".", "..") or Path(name).name != name:
-                raise ValueError(f"evidence names a state file outside its state directory: {name[:120]!r}")
-            (state / name).write_text(content, encoding="utf-8")
+            layout.state_file(state, name).write_text(content, encoding="utf-8")
         ws = Workspace(
             root,
             root / "repo-gone",
@@ -184,8 +181,12 @@ def grade(
     identity = found.identity.scenario_sha256 or fingerprints.scenario_digest(spec, binding)
 
     def kept_outcome(index: int, item: assessment.Expectation) -> Outcome | None:
+        # Kept only where the plan keeps it, as what the plan keeps it as: whether an outcome is a
+        # judgment (which a changed judge lapses) is the scenario's to say, never the evidence's.
         recorded = kept.get(index)
-        return recorded[1] if recorded is not None and recorded[0] == item.text else None
+        if recorded is None or recorded[0] != item.text or recorded[2] != item.kept_as:
+            return None
+        return recorded[1]
 
     with context_of(spec, found, root, level) as ctx:
         items = assessment.plan(

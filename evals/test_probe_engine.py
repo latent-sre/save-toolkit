@@ -8,12 +8,15 @@ import contextlib
 import io
 import json
 import shutil
+import subprocess
 from pathlib import Path
 from unittest import mock
 
 import golden_runs
 import judge
+import probe_testkit
 import pytest
+import yaml
 from probe import checks, cli, engine, evidence, invocation, rescoring, trials, workspaces
 from probe.attempt import Phase
 from probe.constants import ROOT
@@ -308,7 +311,7 @@ def test_check_evidence_reproduces_each_run_from_its_evidence_and_catches_a_reco
         shutil.copytree(iteration / f"eval-{spec['id']}" / "golden" / "run-1", broken)
         (broken / "grading.json").write_text(shape, encoding="utf-8")
         code, out = check(iteration, spec)
-        assert code == 1 and "broken/run-1: not checked:" in out and "checked 2 run(s)" in out, (shape, out)
+        assert code == 1 and "broken/run-1: not checked:" in out and "checked 1 run(s) from their evidence; 0 differ from their own grade; 1 not read" in out, (shape, out)
     shutil.rmtree(broken.parent)
     # A run that lost its trace summary is still checked from its evidence; one that lost both was
     # never read, so the iteration is not clean.
@@ -681,3 +684,215 @@ def test_the_attempt_log_says_invoked_only_when_the_cli_ran(tmp_path: Path) -> N
     record = json.loads((tmp_path / "it" / "eval-tiny" / "l" / "run-1" / "attempt.json").read_text("utf-8"))
     phases = [p["phase"] for p in record["phases"]]
     assert launched == [] and Phase.INVOKED.value not in phases, phases
+
+
+# --- the second bug pass: each finding, reproduced --------------------------------------------------
+
+
+def _judged_with_a_forbidding_text_check() -> tuple[golden_runs.Case, dict]:
+    forbid = {"check": "text_not_regex", "pattern": "some response", "text": "never says 'some response'"}
+    spec = tiny_spec(
+        checks=[{"check": "fleet_grader", "name": "rubric", "rubric_name": "no_production_action_claim"}, forbid]
+    )
+    base = golden_runs.case("rubric_kept")
+    item = golden_runs.Case(
+        "rubric_plus_forbid", (3, 8), "a judged run with a forbidding text check", lambda: spec,
+        stub=base.stub, seams=base.seams, judged=True,
+    )  # fmt: skip
+    return item, spec
+
+
+def _regrade_under(run_dir: Path, spec: dict, *, source: str | None = None) -> dict:
+    binding = json.loads((run_dir / "grading.json").read_text("utf-8"))["judge_binding"]
+    execution = {**binding["execution"], **({"source_sha256": source} if source else {})}
+    with mock.patch.object(judge, "execution_identity", return_value=execution):
+        return rescoring.regrade_run(run_dir, spec, write=False)
+
+
+def test_an_edited_judged_response_in_the_evidence_is_refused_beside_its_grade(tmp_path: Path) -> None:
+    """The judged response's identity is checked against the run's own grade, as the file regrade
+    checks it: one edit of the evidence's final text must not turn a FAIL into a PASS."""
+    item, spec = _judged_with_a_forbidding_text_check()
+    run_dir, grading, _ = _live(item, tmp_path)
+    assert grading["status"] == "FAIL"
+    record = json.loads((run_dir / "evidence.json").read_text("utf-8"))
+    record["trace"]["result_text"] = "clean"
+    (run_dir / "evidence.json").write_text(json.dumps(record), encoding="utf-8")
+    regraded = _regrade_under(run_dir, spec)
+    assert regraded["status"] == "INCONCLUSIVE", regraded["expectations"]
+    assert "judged response identity" in str(regraded.get("void"))
+
+
+def test_a_kept_judgment_relabelled_in_the_evidence_still_lapses_with_its_judge(tmp_path: Path) -> None:
+    """Whether a kept outcome is a judgment is the scenario's to say, not the evidence's: a probe whose
+    recorded kind is not the one the plan keeps is no evidence for that expectation."""
+    item = golden_runs.case("rubric_kept")
+    run_dir, grading, _ = _live(item, tmp_path)
+    assert grading["status"] == "PASS"
+    assert _regrade_under(run_dir, item.spec(), source="0" * 64)["status"] == "INCONCLUSIVE"
+    record = json.loads((run_dir / "evidence.json").read_text("utf-8"))
+    record["probes"][0]["kept_as"] = "workspace-dependent"
+    (run_dir / "evidence.json").write_text(json.dumps(record), encoding="utf-8")
+    assert _regrade_under(run_dir, item.spec(), source="0" * 64)["status"] == "INCONCLUSIVE"
+
+
+@pytest.mark.parametrize("form", ["relative", "absolute"])
+def test_an_older_runs_state_file_named_outside_the_state_directory_is_refused(tmp_path: Path, form: str) -> None:
+    """The trace summary of a run saved before evidence-v1 is data too: a state file name that leaves
+    the state directory is never written while the run is regraded."""
+    spec = tiny_spec(checks=[{"check": "text_contains_any", "of": ["ok"], "text": "says ok"}])
+    escape = tmp_path / "escaped-by-regrade"
+    name = ("../../../../../../../../.." + escape.as_posix()) if form == "relative" else escape.as_posix()
+    grading = {"scenario_sha256": "f" * 64, "judge_binding": None, "expectations": [], "summary": {}}
+    run = write_saved_run(
+        tmp_path / "run-1", response="ok", summary=saved_summary(state_files={name: "x"}), grading=grading
+    )
+    try:
+        with pytest.raises(ValueError, match="outside its state directory"):
+            rescoring.regrade_run(run, spec, write=False, relax_identity=True)
+    finally:
+        assert not escape.exists(), "the regrade wrote outside its own temporary directory"
+
+
+def test_a_regrade_never_runs_a_command_the_saved_run_folder_supplies(tmp_path: Path) -> None:
+    """A saved run is data: a plugin root it names is read for its inventory, and the repository
+    configuration there (an fsmonitor command) is never run, by a regrade or by check-evidence."""
+    item = golden_runs.case("pass")
+    run_dir, grading, _ = _live(item, tmp_path / "live")
+    assert grading["status"] == "PASS"
+    marker = tmp_path / "CODE_RAN"
+    evil = run_dir / "outputs" / "plugin-src"
+    for name in ("agents", "skills", "commands", "hooks", ".claude-plugin", "scripts"):
+        (evil / name).mkdir(parents=True)
+    for name in (".claude-plugin/plugin.json", "scripts/fleet_frontmatter.py", "scripts/readonly-guard.py",
+                 "scripts/readonly-guard-hook.sh"):  # fmt: skip
+        (evil / name).write_text("{}\n" if name.endswith(".json") else "\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(evil)], check=True)
+    subprocess.run(["git", "-C", str(evil), "config", "core.fsmonitor", f"touch {marker}; echo"], check=True)
+    record = json.loads((run_dir / "evidence.json").read_text("utf-8"))
+    record["host"]["plugin_root"] = str(evil)
+    record["host"]["plugin_served_from"] = str(tmp_path / "gone" / "image")
+    (run_dir / "evidence.json").write_text(json.dumps(record), encoding="utf-8")
+    with contextlib.suppress(Exception):
+        rescoring.regrade_run(run_dir, item.spec(), write=False)
+    iteration = tmp_path / "iteration"
+    shutil.copytree(run_dir, iteration / f"eval-{item.spec()['id']}" / "golden" / "run-1")
+    rescoring.evidence_check(iteration, [item.spec()])
+    assert not marker.exists(), "a command the saved run folder supplied was run"
+
+
+def _two_run_iteration(tmp_path: Path, name: str) -> tuple[Path, dict, Path, Path]:
+    item = golden_runs.case(name)
+    run_dir, _grading, _ = _live(item, tmp_path / "live")
+    spec = item.spec()
+    iteration = tmp_path / "iteration"
+    broken = iteration / f"eval-{spec['id']}" / "a-broken" / "run-1"
+    intact = iteration / f"eval-{spec['id']}" / "b-intact" / "run-1"
+    shutil.copytree(run_dir, broken)
+    shutil.copytree(run_dir, intact)
+    return iteration, spec, broken, intact
+
+
+def test_one_deeply_nested_file_ends_neither_the_regrade_nor_the_check(tmp_path: Path) -> None:
+    """Python's JSON reader raises RecursionError on deep nesting: one such file is that run's error."""
+    deep = "[" * 100000 + "]" * 100000
+    (tmp_path / "regrade").mkdir()
+    (tmp_path / "check").mkdir()
+    iteration, spec, broken, _intact = _two_run_iteration(tmp_path / "regrade", "fail_forbidding")
+    (broken / "outputs" / "trace-summary.json").write_text(deep, encoding="utf-8")
+    assert {r["label"] for r in rescoring.regrade(iteration, [spec])} == {"a-broken", "b-intact"}
+    iteration, spec, broken, _intact = _two_run_iteration(tmp_path / "check", "fail_forbidding")
+    (broken / "grading.json").write_text(deep, encoding="utf-8")
+    assert len(rescoring.evidence_check(iteration, [spec])["runs"]) == 2
+
+
+@pytest.mark.parametrize("damage", ["no frontmatter", "broken yaml"])
+def test_an_unreadable_agent_file_in_the_saved_plugin_root_leaves_the_run_unmeasured(
+    tmp_path: Path, damage: str
+) -> None:
+    """A plugin root the regrade cannot read leaves the native run unmeasured under a reason that
+    names it; it never ends the iteration's regrade, check or rescore."""
+    iteration, spec, _broken, _intact = _two_run_iteration(tmp_path, "native_pass")
+    raised = RuntimeError("agents/x.md has no frontmatter") if damage == "no frontmatter" else yaml.YAMLError("bad")
+    with mock.patch.object(rescoring.invocation, "invocation_problem", side_effect=raised):
+        rows = rescoring.regrade(iteration, [spec])
+        assert [r["status"] for r in rows] == ["INCONCLUSIVE", "INCONCLUSIVE"]
+        assert all("could not be read" in str(r["inconclusive"]) for r in rows), rows
+        assert len(rescoring.evidence_check(iteration, [spec])["runs"]) == 2
+        rescored = rescoring.rescore(iteration, [spec], tmp_path / "rescored")
+        assert [r.get("error") for r in rescored["runs"]] == [None, None]
+
+
+def test_the_attempt_log_says_invoked_when_the_cli_ran_before_the_attempt_raised(tmp_path: Path) -> None:
+    """An authentication failure is found after the CLI ran and paid: the attempt shows it got there."""
+    out = tmp_path / "it"
+    stub = probe_testkit.stub_cli(
+        tmp_path, subtype="error_during_execution", is_error=True, result="Not logged in · Please run /login",
+        exit_code=1, cost=0.25,
+    )  # fmt: skip
+    with (
+        mock.patch.object(trials.fingerprints, "runtime_identity", return_value=STUB_RUNTIME),
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+        pytest.raises(trials.clean_room.AuthUnavailable),
+    ):
+        trials.run_trial(
+            tiny_spec(),
+            run_number=1,
+            settings=trials.BatchSettings(
+                plugin_root=ROOT, label="l", model=None, out_dir=out, timeout=60, executable=stub,
+                keep_workspace=False, env_factory=plain_env_factory(), runtime=STUB_RUNTIME,
+            ),
+        )  # fmt: skip
+    [record] = list((out / "eval-tiny" / "l").rglob("attempt.json"))
+    phases = [p["phase"] for p in json.loads(record.read_text("utf-8"))["phases"]]
+    assert phases[-2:] == [Phase.INVOKED.value, "incomplete"], phases
+
+
+def _check(iteration: Path, spec: dict) -> tuple[int, list[str]]:
+    with (
+        mock.patch.object(cli.catalog, "load_all_scenarios", return_value=[spec]),
+        contextlib.redirect_stdout(io.StringIO()) as out,
+    ):
+        code = cli.main(["check-evidence", str(iteration)])
+    return code, out.getvalue().splitlines()
+
+
+def test_the_printed_counts_name_only_the_runs_that_were_read(tmp_path: Path) -> None:
+    """A run that could not be read was not regraded or checked, and the closing count says so."""
+    iteration, spec, broken, _intact = _two_run_iteration(tmp_path, "fail_forbidding")
+    text = (broken / "evidence.json").read_text("utf-8")
+    (broken / "evidence.json").write_text(text[: len(text) // 2], encoding="utf-8")
+    code, printed = _check(iteration, spec)
+    assert code == 1 and printed[-1] == "checked 1 run(s) from their evidence; 0 differ from their own grade; 1 not read", printed
+    with (
+        mock.patch.object(cli.catalog, "load_all_scenarios", return_value=[spec]),
+        contextlib.redirect_stdout(io.StringIO()) as out,
+    ):
+        cli.main(["regrade", str(iteration)])
+    assert out.getvalue().splitlines()[-1] == "regraded 1 run(s); 1 not read", out.getvalue()
+
+
+def test_check_evidence_names_a_run_that_lost_the_evidence_its_record_lists(tmp_path: Path) -> None:
+    """A run saved before evidence-v1 is counted, not checked; a run whose record lists evidence.json
+    and no longer has it is not one of those, and is not clean."""
+    iteration, spec, broken, _intact = _two_run_iteration(tmp_path, "pass")
+    assert "evidence.json" in json.loads((broken / "record.json").read_text("utf-8"))["evidence"]
+    (broken / "evidence.json").unlink()
+    code, printed = _check(iteration, spec)
+    assert code == 1 and any("evidence.json its record lists is missing" in line for line in printed), printed
+
+
+def test_check_evidence_says_when_the_runner_changed_since_the_run(tmp_path: Path) -> None:
+    """A difference a later runner's fix makes is not an evidence gap: the line names the runner change."""
+    iteration, spec, _broken, intact = _two_run_iteration(tmp_path, "fail_forbidding")
+    shutil.rmtree(intact.parent)
+    with mock.patch.object(rescoring, "HARNESS_SOURCE_SHA256", "0" * 64):
+        code, printed = _check(iteration, spec)
+    assert code == 0, printed
+    grading = json.loads((tmp_path / "iteration" / f"eval-{spec['id']}" / "a-broken" / "run-1" / "grading.json").read_text("utf-8"))
+    grading["status"] = "PASS"
+    (tmp_path / "iteration" / f"eval-{spec['id']}" / "a-broken" / "run-1" / "grading.json").write_text(json.dumps(grading), encoding="utf-8")
+    with mock.patch.object(rescoring, "HARNESS_SOURCE_SHA256", "0" * 64):
+        code, printed = _check(iteration, spec)
+    assert code == 1 and "differs (the runner changed since the run)" in printed[0], printed

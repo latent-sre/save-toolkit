@@ -392,15 +392,19 @@ def check_evidence(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> int:
     run's own grade; exit 1 when any does, so an evidence record missing what a check read is
     caught on real runs, not only on the goldens, and 2 when no run was checked."""
     result = rescoring.evidence_check(iteration_dir.resolve(), scenarios)
-    differing = 0
+    differing = unread = 0
     for r in result["runs"]:
         name = layout.run_name(*layout.run_key(r))
         if r.get("error"):
-            differing += 1
+            unread += 1
             print(f"{name}: not checked: {r['error']}")
         elif r["differences"]:
             differing += 1
-            changed = " (the scenario changed since the run)" if r["scenario_changed"] else ""
+            changed = "".join(
+                f" (the {what} changed since the run)"
+                for what, flag in (("scenario", r["scenario_changed"]), ("runner", r.get("runner_changed")))
+                if flag
+            )
             print(f"{name}: differs{changed}: {'; '.join(r['differences'])}")
     skipped = result["skipped"]
     if skipped["runs_without_evidence"]:
@@ -413,11 +417,15 @@ def check_evidence(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> int:
     unchecked = skipped["runs_without_trace_summary"]
     if unchecked:
         print(f"{unchecked} run(s) not checked: neither evidence.json nor a trace summary is there")
-    print(f"checked {len(result['runs'])} run(s) from their evidence; {differing} differ from their own grade")
-    if differing or unchecked:
+    checked = len(result["runs"]) - unread
+    print(
+        f"checked {checked} run(s) from their evidence; {differing} differ from their own grade"
+        + (f"; {unread} not read" if unread else "")
+    )
+    if differing or unread or unchecked:
         return ExitCode.DIFFERENT
     # Checking nothing measured nothing: a mistyped or empty directory is not a clean check.
-    return ExitCode.OK if result["runs"] else ExitCode.INCONCLUSIVE
+    return ExitCode.OK if checked else ExitCode.INCONCLUSIVE
 
 
 def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: float | None) -> int:
@@ -430,7 +438,8 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: flo
         if batches.pool_identity(r) is None:
             scope += " (model, candidate, CLI or host unknown: not pooled)"
         print(f"{layout.run_name(*layout.run_key(r))}: {r['status']} {r['passed']}/{r['total']}{scope}")
-    print(f"regraded {len(rows)} run(s)")
+    unread = sum(1 for r in rows if r.get("error"))
+    print(f"regraded {len(rows) - unread} run(s)" + (f"; {unread} not read" if unread else ""))
 
     # Exit like a run: trials aggregate per scenario against its threshold only within one arm, the
     # runs one batch could pool -- one label, resolved model, candidate, CLI and host, and scenario

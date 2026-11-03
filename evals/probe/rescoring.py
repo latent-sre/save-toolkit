@@ -24,6 +24,7 @@ from typing import Any
 
 import clean_room
 import judge as rubric_judge
+import yaml
 
 from . import (
     assessment,
@@ -227,6 +228,8 @@ def _native_replay(
             return _unreadable_root(plugin_root, exc)
         except clean_room.AuthUnavailable:
             return "native invocation reported an authentication failure; re-run the trial"
+        except (RuntimeError, yaml.YAMLError) as exc:  # e.g. a pinned agent's frontmatter that no longer reads
+            return _unreadable_root(plugin_root, exc)
         if problem and not (saved_cut and isinstance(problem, CutShort)):
             return problem
         if (
@@ -328,6 +331,14 @@ def _regrade_from_evidence(
         trace = engine.trace_of(found)
         judge_problem = _saved_judge_problem(spec, saved_binding)
         level = _evidence_run_level(spec, found, native_problem, saved_binding, judge_problem, has_plugin_root, trace)
+        saved_grade = layout.read_object(layout.live_grade(run_dir))
+        if (
+            fingerprints.required_rubrics(spec)
+            and saved_grade is not None
+            and saved_grade.get("response_sha256") != rubric_judge._digest(trace.result_text)
+        ):
+            # The run's own grade is beside its evidence: the judged response must be the one it judged.
+            level = "saved judge binding or judged response identity is missing or changed; re-run the trial"
         changed = _changed_raw_traces(run_dir, found)
         if changed and (level is None or rules.is_cut(level)):
             # A void already found names what changed more precisely, as the file replay does.
@@ -641,7 +652,7 @@ def _run_level_reason(
                 problem = fingerprints.plugin_drift_problem(plugin_root, str(recorded_sha)) or (
                     invocation.profile_problem(trace, spec, plugin_root, workspace)
                 )
-            except (OSError, json.JSONDecodeError) as exc:
+            except (OSError, json.JSONDecodeError, RuntimeError, yaml.YAMLError) as exc:
                 problem = _unreadable_root(plugin_root, exc)
             inconclusive = problem or CutShort(str(inconclusive), Stop.WALL_CLOCK)
     if spec.get("references") and not has_plugin_root:
@@ -798,7 +809,7 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[s
     for spec, run_dir, row in runs:
         try:
             g = regrade_run(run_dir, spec)
-        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        except Exception as exc:  # whatever one saved run raises is that run's error
             # One unreadable run is reported and measured nothing; it never ends the iteration's regrade.
             results.append(
                 {
@@ -900,14 +911,18 @@ def evidence_check(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict
     """Grade every published run that wrote `evidence.json` from that evidence alone, under the
     run level its ending records and the probe outcomes it holds, and compare each verdict with the
     run's own `grading.json`. A difference means the evidence lacks something the live grade read,
-    or the scenario changed since the run (`scenario_changed`); a run saved before evidence-v1 is
-    counted, not checked. Nothing is written."""
+    or the scenario or the runner changed since the run (`scenario_changed`, `runner_changed`); a run
+    saved before evidence-v1 is counted, not checked. Nothing is written."""
     runs, skipped = _saved_runs(iteration_dir, scenarios, any_evidence=True)
     rows: list[dict[str, Any]] = []
     without_evidence = 0
     for spec, run_dir, row in runs:
         if not (run_dir / evidence.FILE).is_file():
-            without_evidence += 1
+            if evidence.FILE in ((layout.read_object(run_dir / "record.json") or {}).get("evidence") or {}):
+                # Written, then lost: not a run saved before evidence-v1.
+                rows.append({**row, "error": f"the {evidence.FILE} its record lists is missing"})
+            else:
+                without_evidence += 1
             continue
         try:
             found = evidence.EvidenceV1.model_validate_json((run_dir / evidence.FILE).read_text(encoding="utf-8"))
@@ -932,7 +947,7 @@ def evidence_check(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict
             # Inside the boundary: a saved grade of the wrong shape is this run's error, never the
             # end of the iteration's check.
             found_differences = differences(saved, graded)
-        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        except Exception as exc:  # whatever one saved run raises is that run's error
             rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
             continue
         rows.append(
@@ -940,6 +955,8 @@ def evidence_check(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict
                 **row,
                 "differences": found_differences,
                 "scenario_changed": found.identity.case_sha256 not in (None, fingerprints.case_digest(spec)),
+                # A later runner's fix can change a grade the evidence fully supports: not an evidence gap.
+                "runner_changed": found.identity.runner_source_sha256 not in (None, HARNESS_SOURCE_SHA256),
             }
         )
     return {"runs": rows, "skipped": {**skipped, "runs_without_evidence": without_evidence}}
@@ -970,7 +987,7 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
         try:
             saved = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
             grading = regrade_run(run_dir, spec, write=False, relax_identity=True)
-        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        except Exception as exc:  # whatever one saved run raises is that run's error
             # One unreadable or older-shaped run stays visible instead of ending the comparison.
             rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
             continue
