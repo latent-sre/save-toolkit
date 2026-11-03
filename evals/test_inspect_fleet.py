@@ -224,3 +224,17 @@ def test_a_retained_identity_failure_refuses_an_append(preflight, monkeypatch, t
     monkeypatch.setattr(probe_batches, "batch_identity_problem", lambda *args: None)
     with pytest.raises(ValueError, match="earlier trial failed its identity check"):
         inspect_fleet.native_scenarios(label="l", out=str(out))
+
+
+def test_a_taken_slot_is_refused_before_the_task_starts(preflight, tmp_path):
+    """The native batch checks every planned slot before its first trial; so does the task, or a later
+    sample's taken slot is found only after earlier samples' trials were paid for."""
+    out = tmp_path / "it"
+    first, second = (s.id for s in inspect_fleet.native_scenarios(label="l", out=str(out)).dataset[:2])
+    (out / f"eval-{second}" / "l" / "run-1").mkdir(parents=True)
+    with pytest.raises(ValueError, match="run-1 already exists"):
+        inspect_fleet.native_scenarios(label="l", out=str(out))
+    (out / f"eval-{second}" / "l" / "run-1").rmdir()
+    (out / f"eval-{first}" / "l" / ".run-1-attempt-0123456789abcdef").mkdir(parents=True)
+    with pytest.raises(ValueError, match="no readable attempt identity"):
+        inspect_fleet.native_scenarios(label="l", out=str(out))

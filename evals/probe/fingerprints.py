@@ -92,6 +92,11 @@ def binding_for(spec: Mapping[str, Any], judge_binding: rubric_judge.JudgeBindin
     return judge_binding.metadata if judge_binding and required_rubrics(spec) else None
 
 
+class EvaluatorChanged(RuntimeError):
+    """The runner's own source changed under this process: every later grade would bind other code, so
+    the process stops; never one saved run's error."""
+
+
 def _case_payload(spec: Mapping[str, Any]) -> dict[str, Any]:
     """The case a verdict is about: the scenario, the judge's cached rubric definitions, and current
     oracle file bytes.
@@ -101,7 +106,7 @@ def _case_payload(spec: Mapping[str, Any]) -> dict[str, Any]:
     unconsumed bytes.
     """
     if harness_source_digest() != HARNESS_SOURCE_SHA256:
-        raise RuntimeError("evaluator source changed after import; start a new process")
+        raise EvaluatorChanged("evaluator source changed after import; start a new process")
     rubrics, oracles = {}, {}
     for definition in [*spec.get("graders", []), *spec.get("checks", [])]:
         name = _rubric_name(definition)

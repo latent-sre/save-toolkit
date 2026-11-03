@@ -134,8 +134,8 @@ is not written, and the run is still published with its verdict: the record only
 attempt's files keep, the summary row carries `record_problem`, and the batch goes on. Beside it,
 `evidence.json` is the [evidence-v1 record](../../docs/fleet-evaluation/contracts.md#evidence-record-v1)
 of what the attempt observed and no verdict (`evidence.EvidenceV1`); a regrade of a run saved before
-it reads the same shape back through `legacy` and writes it beside its assessment. Nothing grades from
-it yet; the runner rewrite's later stages do. Attempt folders are created with a plain `mkdir`, so
+it reads the same shape back through `legacy` and writes it beside its assessment. Since stage 4 of the
+runner rewrite the live grade and every regrade are graded from it. Attempt folders are created with a plain `mkdir`, so
 they inherit `.eval-runs/` permissions; `tempfile.mkdtemp` made them readable only by the account
 that ran them on Windows.
 
@@ -228,9 +228,10 @@ These checks detect persistent changes, not a transient edit restored between ch
 candidate checkout stable for the batch. Strict MCP mode supplies an explicit empty server set.
 Runtime init must report exactly one plugin with that image's identity and
 exactly the requested tool inventory, and the trace must name the model it ran on; a missing or
-foreign tool, an MCP server, a trace that names no model, an error result, a
-nonzero exit, or — where reads were granted — a successful read outside the workspace and plugin
-image makes the trial **INCONCLUSIVE**, never a verdict. An auth failure aborts the batch.
+foreign tool, an MCP server, a trace that names no model, or — where reads were granted — a successful
+read outside the workspace and plugin image makes the trial **INCONCLUSIVE**, never a verdict. An error
+result or a nonzero exit cuts the run short instead (below): a forbidding check its partial trace
+already violates still fails. An auth failure aborts the batch.
 
 CLI children and grading/oracle commands receive workspace-owned `TMP`, `TEMP` and `TMPDIR`.
 Ordinary Python children suppress bytecode generation. Cleanup records `cleanup.json`, including
@@ -243,8 +244,9 @@ Those run-level failures mark every check INCONCLUSIVE, so nothing observed unde
 model or tools counts. A trial whose identity is wrong — its tool inventory, plugin or model, or
 plugin inputs that changed — also stops the batch, since every later trial would run as the same
 wrong candidate: its summary row records `identity_failure`, and a later invocation of the label
-schedules nothing until that run is replaced with `--overwrite` or a new label is used. The batch
-then exits 2 unless a FAIL verdict decides it. A failure the candidate's own run causes, such as a
+schedules nothing for that scenario until that run is replaced with `--overwrite` or a new label is
+used. The batch then exits 2, or 1 when a FAIL verdict decides it among trials that still pool with
+this candidate (a row from the changed candidate pools with none, so its batch reads INCONCLUSIVE). A failure the candidate's own run causes, such as a
 read outside the workspace or a refused command, voids only its trial, and a backing service that
 never started stops only its scenario. A run cut short on the declared profile is different: after a timeout, a
 missing result, an error result, a nonzero exit or the native spend cap, the partial trace must still

@@ -361,6 +361,8 @@ def write_record(
                 "provenance.json",
                 "invocation.json",
                 "followup/invocation.json",
+                "followup/stdout.jsonl",
+                "followup/response.md",
                 "cleanup.json",
                 *_conversation_evidence(run_dir),
             )

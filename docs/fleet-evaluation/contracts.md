@@ -147,7 +147,9 @@ are different runtime conditions. The importing computer never supplies missing 
 RUNNER-001 adds one evidence record per graded attempt, `evidence.json`, beside the result record.
 It holds what the attempt observed and never what the checks concluded, and the runner grades live
 attempts and saved runs from the same object: a live attempt's probes are measured into it before
-anything is graded, and a regrade of a run that wrote it reads it instead of the raw trace. Its
+anything is graded, and a regrade of a run that wrote it grades from it instead of the raw trace,
+whose bytes it checks against the recorded digest; `check-evidence` also parses the raw trace again
+and names any fact the evidence holds differently. Its
 field names are published as a JSON Schema,
 [`eval-evidence-v1.schema.json`](eval-evidence-v1.schema.json), generated from the runner's
 evidence model, which validates every record before it is written. A regrade of a run saved before

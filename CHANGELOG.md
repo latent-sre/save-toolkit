@@ -8,6 +8,29 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Fixed
 
+- The third bug pass (a review of every fix, the docs against the code, and a residual hunt) found
+  defects, two of them introduced by the second pass's own fixes, each fixed with a test that failed first
+  (RUNNER-001):
+  - `check-evidence` reads each raw trace beside the evidence again and names every parsed-trace fact the
+    evidence holds differently: since stage 4 the live grade reads the evidence it writes, so comparing
+    grades alone could never catch an evidence writer that lost a fact;
+  - a native run cut short and then voided by drift regrades void, as it was graded (a void replaces a
+    cut, rule 1), and a turn that timed out is read in the live order, so an authentication line in a
+    trace that then hung no longer voids a cut FAIL;
+  - the trace summary holds the state the live grade read, before any probe ran, so a run that lost its
+    `evidence.json` regrades as it was graded; a graded trial whose CLI never started costs a known zero,
+    so a backing service that never started no longer stops a capped batch;
+  - every planned slot is checked against both of `run_trial`'s rules, a taken run and an unidentified
+    earlier attempt, before the first trial, in the native batch and the Inspect task alike;
+  - `diff` compares how each run ended (void, cut and stop, grader error) as well as its status and
+    checks, and names a run either rescore could not read instead of calling it unchanged; `rescore`
+    grades a run that keeps only its evidence, and counts only the runs it read;
+  - the runner's own "evaluator source changed" stop ends the process instead of being reported as each
+    saved run's error; the attempt log records `invoked` only for a launch that ran, and `void` for every
+    run-level void; a regrade that fails after making its assessment folder removes it, so later regrades
+    are still listed in `record.json`; the record lists a native follow-up's raw trace and response;
+  - an edited judged response is refused beside a grade that cannot be read; a summary nested too deep
+    to read refuses the append; `regrade` names the runs it passed over.
 - Defects that predate the runner rewrite, fixed by the owner's decision of 2026-11-03, each with a test
   that failed first:
   - a candidate cannot escape a FAIL with file names: a state file or a repository file whose name is not

@@ -243,6 +243,12 @@ def native_scenarios(
         selection.retain(out_dir, frozen)
     summary_path = out_dir / f"summary-{label}-{claude_model or 'default'}.json"
     existing = batches.read_summary(summary_path)
+    # Every planned slot, before the task starts, as the native batch checks them: a slot found
+    # unusable mid-task was paid for up to it.
+    for spec in chosen:
+        for slot in range(1, epochs + 1):
+            if taken := native_trials.slot_problem(out_dir, spec["id"], label, run_offset + slot, overwrite=overwrite):
+                raise ValueError(f"refusing to run: {taken}")
     replaced = {(spec["id"], label, run_offset + slot) for spec in chosen for slot in range(1, epochs + 1)}
     retained = [entry for entry in existing if not overwrite or layout.run_key(entry) not in replaced]
     problem = batches.batch_identity_problem(

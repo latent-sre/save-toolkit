@@ -1,4 +1,4 @@
-"""The `build_probe.py` command line: run, validate, regrade, rescore, diff, and schema.
+"""The `build_probe.py` command line: run, validate, regrade, rescore, diff, check-evidence, and schema.
 
 Each job is a subcommand. The flat flags the runner has always taken (`--validate`, `--regrade DIR`,
 `--rescore DIR --out DIR`, `--rescore-diff BASE CANDIDATE`, and a bare run) still parse and reach
@@ -110,8 +110,8 @@ def _threshold_option(parser: argparse.ArgumentParser) -> None:
         "--threshold",
         type=_threshold,
         default=None,
-        help="fraction of trials that must PASS for a scenario verdict (positives only; "
-        "not_fire scenarios are always clamped to 1.0). Default: the scenario's own.",
+        help="fraction of trials that must PASS for a scenario verdict (positives only; a scenario "
+        "with any forbidding check, not_fire included, is always held to 1.0). Default: the scenario's own.",
     )
 
 
@@ -370,7 +370,7 @@ def rescore(iteration_dir: Path, out_dir: Path | None, scenarios: list[dict[str,
         if r.get("error"):
             print(f"{layout.run_name(*layout.run_key(r))}: not rescored: {r['error']}")
             continue
-        saved, now = r["saved"]["status"], r["rescored"]["status"]
+        saved, now = (r["saved"] or {}).get("status", "no saved grade"), r["rescored"]["status"]
         changed += saved != now
         relaxed = " (identity relaxed)" if r["identity_relaxed"] else ""
         print(f"{layout.run_name(*layout.run_key(r))}: saved {saved}, rescored {now}{relaxed}")
@@ -380,17 +380,20 @@ def rescore(iteration_dir: Path, out_dir: Path | None, scenarios: list[dict[str,
         print(f"skipped {skipped['runs_without_trace_summary']} run(s) with no trace summary")
     if skipped["other_run_folders"]:
         print(f"skipped folder(s) that are not numbered runs: {', '.join(skipped['other_run_folders'])}")
+    unread = sum(1 for r in rows if r.get("error"))
     print(
-        f"rescored {len(rows)} run(s) into {out}; {changed} differ from the saved verdict "
+        f"rescored {len(rows) - unread} run(s) into {out}; {changed} differ from the saved verdict "
         "(including any scenario edits since the run; diff two rescores to isolate a runner change)"
+        + (f"; {unread} not read" if unread else "")
     )
     return ExitCode.OK
 
 
 def check_evidence(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> int:
     """Grade each saved run from its evidence alone and print every verdict that differs from the
-    run's own grade; exit 1 when any does, so an evidence record missing what a check read is
-    caught on real runs, not only on the goldens, and 2 when no run was checked."""
+    run's own grade, and every parsed-trace fact that differs from its raw trace read again; exit 1
+    when any does or a run could not be read, so an evidence record missing what a check read is
+    caught on real runs, not only on the goldens, and 2 when no run was checked and none failed to read."""
     result = rescoring.evidence_check(iteration_dir.resolve(), scenarios)
     differing = unread = 0
     for r in result["runs"]:
@@ -429,7 +432,8 @@ def check_evidence(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> int:
 
 
 def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: float | None) -> int:
-    rows = rescoring.regrade(iteration_dir.resolve(), scenarios)
+    skipped: dict[str, Any] = {}
+    rows = rescoring.regrade(iteration_dir.resolve(), scenarios, skipped_out=skipped)
     for r in rows:
         if r.get("error"):
             print(f"{layout.run_name(*layout.run_key(r))}: not regraded: {r['error']}")
@@ -438,6 +442,12 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: flo
         if batches.pool_identity(r) is None:
             scope += " (model, candidate, CLI or host unknown: not pooled)"
         print(f"{layout.run_name(*layout.run_key(r))}: {r['status']} {r['passed']}/{r['total']}{scope}")
+    if skipped.get("scenarios"):
+        print(f"skipped scenario(s) not in this checkout: {', '.join(skipped['scenarios'])}")
+    if skipped.get("runs_without_trace_summary"):
+        print(f"skipped {skipped['runs_without_trace_summary']} run(s) with no trace summary")
+    if skipped.get("other_run_folders"):
+        print(f"skipped folder(s) that are not numbered runs: {', '.join(skipped['other_run_folders'])}")
     unread = sum(1 for r in rows if r.get("error"))
     print(f"regraded {len(rows) - unread} run(s)" + (f"; {unread} not read" if unread else ""))
 
@@ -572,20 +582,23 @@ def _plan(
     except ValueError as exc:
         print(f"refusing to run: {exc}", file=sys.stderr)
         return ExitCode.REFUSED
-    if not args.overwrite:
-        # Every planned slot, before the first trial: a slot found taken mid-batch was paid for up to it.
-        taken = next(
-            (
-                target
-                for s in scenarios
-                for i in range(args.trials)
-                if (target := layout.run_dir(out, s["id"], args.label, args.run_offset + i + 1)).exists()
-            ),
-            None,
-        )
-        if taken is not None:
-            print(f"refusing to run: {taken} already exists; pass --overwrite or a --run-offset", file=sys.stderr)
-            return ExitCode.REFUSED
+    # Every planned slot, before the first trial: a slot found unusable mid-batch was paid for up to it.
+    taken = next(
+        (
+            problem
+            for s in scenarios
+            for i in range(args.trials)
+            if (
+                problem := trials.slot_problem(
+                    out, s["id"], args.label, args.run_offset + i + 1, overwrite=args.overwrite
+                )
+            )
+        ),
+        None,
+    )
+    if taken is not None:
+        print(f"refusing to run: {taken}", file=sys.stderr)
+        return ExitCode.REFUSED
     replaced = {(s["id"], args.label, args.run_offset + i + 1) for s in scenarios for i in range(args.trials)}
     retained = [e for e in existing if not args.overwrite or layout.run_key(e) not in replaced]
     settings = trials.BatchSettings(

@@ -463,10 +463,13 @@ class NativeConversationRunTests(unittest.TestCase):
                 "workspace": str(run.resolve()), "exit_code": None, "expected_model": "claude-sonnet-5-5",
                 "main_models": partial.main_models, "init_session_ids": partial.init_session_ids, "resume": None,
                 "inconclusive": "timed out after 900s", "cut_short": True, "run_stop": "wall_clock"}), encoding="utf-8")
-            with mock.patch.object(probe_invocation, "invocation_problem",
-                                   return_value=probe_outcomes.CutShort("no result event", "no_result")):
+            # A turn that timed out is read in the live order: its profile and session, never the
+            # invocation's own problems (`invocation.turn_reason`).
+            with mock.patch.object(probe_invocation, "profile_problem", return_value=None), \
+                    mock.patch.object(probe_invocation, "native_identity_problem", return_value=None), \
+                    mock.patch.object(probe_invocation, "invocation_problem", side_effect=AssertionError("live never reads it")):
                 kept = probe_rescoring.native_regrade_problem(run, NATIVE_SPEC, ROOT)
-            with mock.patch.object(probe_invocation, "invocation_problem", return_value="native parent model differs"):
+            with mock.patch.object(probe_invocation, "profile_problem", return_value="native parent model differs"):
                 voided = probe_rescoring.native_regrade_problem(run, NATIVE_SPEC, ROOT)
         self.assertIsInstance(kept, probe_outcomes.CutShort)
         self.assertEqual(("timed out after 900s", "wall_clock"), (str(kept), kept.kind))
@@ -934,6 +937,16 @@ class EndToEndStubTests(TempRootTestCase):
             code, calls, _ = self._batch(out, stub_cli(self.root), [stub_spec()], "--scenario", "tiny",
                                          "--run-offset", "1")
         self.assertEqual((0, [("tiny", 2)]), (code, calls))
+
+    def test_an_unidentified_earlier_attempt_beside_a_planned_slot_is_refused_before_any_trial(self) -> None:
+        """run_trial refuses a slot whose earlier attempt cannot be identified; the plan checks that rule
+        too, or the batch pays for the trials before that slot and then crashes on it."""
+        out = self.root / "hidden"
+        (out / "eval-tiny" / "l" / ".run-2-attempt-0123456789abcdef").mkdir(parents=True)
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            code, calls, _ = self._batch(out, stub_cli(self.root), [stub_spec()], "--scenario", "tiny", "--trials", "2")
+        self.assertEqual((3, []), (code, calls))
+        self.assertIn("no readable attempt identity", err.getvalue())
 
     def test_a_summary_cut_short_is_refused_before_any_trial_and_is_never_left_cut(self) -> None:
         """A summary cut mid-write (a full disk, a kill) crashed a resume with a JSONDecodeError

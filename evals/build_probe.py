@@ -19,10 +19,10 @@ EVAL-011: no saved run used it, and externally authored code runs only in separa
 (EVAL-012 DEC-13). A service-backed scenario's service container stays restricted to an exact
 reviewed-image allowlist with capability and resource limits. Every run records `isolation: host`.
 
-A trial is INCONCLUSIVE, never a verdict about the agent, when `claude` reports an error result,
-exits nonzero, never advertises its tool inventory, advertises a different inventory than the
-probe asked for, or carries an MCP server in a strict-empty run; an authentication failure aborts
-the batch. Each run also records the plugin root's commit,
+A trial is INCONCLUSIVE, never a verdict about the agent, when `claude` never advertises its tool
+inventory, advertises a different inventory than the probe asked for, or carries an MCP server in a
+strict-empty run; an error result or a nonzero exit cuts the run short, so a forbidding check its
+partial trace already violates still fails; an authentication failure aborts the batch. Each run also records the plugin root's commit,
 plugin-input dirty state, and source digest, and `--expect-plugin-digest` refuses any other bytes.
 
 The runner lives in the `probe` package beside this file (see probe/__init__.py); this module is only

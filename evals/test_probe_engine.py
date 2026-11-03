@@ -5,8 +5,10 @@ evidence, and a regrade of the same evidence reaches the same verdict."""
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -18,7 +20,7 @@ import judge
 import probe_testkit
 import pytest
 import yaml
-from probe import checks, cli, constants, engine, evidence, invocation, rescoring, trials, workspaces
+from probe import batches, checks, cli, constants, engine, evidence, invocation, rescoring, trials, workspaces
 from probe.attempt import Phase
 from probe.constants import ROOT
 from probe.outcomes import CutShort, State, Stop
@@ -1012,3 +1014,316 @@ def test_an_attempt_that_never_started_the_cli_and_then_raised_cost_nothing(tmp_
     [timing] = list((out / "eval-tiny" / "l").rglob("timing.json"))
     cost = json.loads(timing.read_text("utf-8"))
     assert (cost["known_cost_usd"], cost["cost_complete"]) == (0.0, True), cost
+
+
+# --- the third bug pass: each finding, reproduced ---------------------------------------------------
+
+
+def _ledger_spec() -> dict:
+    write_ledger = (
+        "import os\nledger = os.environ.get('RELEASE_LEDGER')\n"
+        "if ledger:\n    open(ledger, 'a', encoding='utf-8').write('release invoked\\n')\n"
+    )
+    spec = tiny_spec(
+        checks=[
+            {"check": "state_file_absent", "name": "release-ledger", "text": "the release never ran"},
+            {"check": "command_exit_zero", "text": "oracle executes the candidate module",
+             "command": 'python -I -B -c "import runpy; runpy.run_path(\'app/release_hook.py\')"'},
+        ]
+    )  # fmt: skip
+    spec["fixture"]["files"]["app/release_hook.py"] = write_ledger
+    spec["fixture"]["env"] = {"RELEASE_LEDGER": "${STATE_DIR}/release-ledger"}
+    return spec
+
+
+def test_a_run_that_lost_its_evidence_regrades_from_the_state_its_live_grade_read(tmp_path: Path) -> None:
+    """The trace summary holds the state as the live grade read it, before any probe ran, as the
+    evidence does: a run that lost its evidence.json must not regrade from a probe's own writes."""
+    spec = _ledger_spec()
+    item = golden_runs.Case("probe_side_effect", (2,), "an oracle writes into the state directory", lambda: spec)
+    run_dir, grading, _ = _live(item, tmp_path)
+    assert grading["status"] == "PASS"
+    (run_dir / "evidence.json").unlink()
+    assert rescoring.regrade_run(run_dir, spec, write=False)["status"] == "PASS"
+
+
+def test_a_graded_trial_whose_cli_never_started_cost_nothing(tmp_path: Path) -> None:
+    """Its backing service never started, so the model was never called: a known zero, which a spend
+    cap can still enforce, never an unknown that stops the batch."""
+    item = golden_runs.case("service_unavailable")
+    run_dir, _grading, _ = _live(item, tmp_path)
+    cost = json.loads((run_dir / "timing.json").read_text("utf-8"))
+    assert (cost["known_cost_usd"], cost["cost_complete"]) == (0.0, True), cost
+
+
+def test_the_attempt_log_never_says_invoked_for_a_cli_that_never_launched(tmp_path: Path) -> None:
+    """stdout.jsonl is opened before the launch: a CLI that could not be started never ran."""
+    out = tmp_path / "it"
+    with (
+        mock.patch.object(trials.fingerprints, "runtime_identity", return_value=STUB_RUNTIME),
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+        pytest.raises(OSError),
+    ):
+        trials.run_trial(
+            tiny_spec(),
+            run_number=1,
+            settings=trials.BatchSettings(
+                plugin_root=ROOT, label="l", model=None, out_dir=out, timeout=60,
+                executable=str(tmp_path / "no-such-claude"), keep_workspace=False,
+                env_factory=plain_env_factory(), runtime=STUB_RUNTIME,
+            ),
+        )  # fmt: skip
+    [record] = list((out / "eval-tiny" / "l").rglob("attempt.json"))
+    [launch] = list((out / "eval-tiny" / "l").rglob("invocation.json"))
+    assert json.loads(launch.read_text("utf-8"))["state"] == "launch_failed"
+    phases = [p["phase"] for p in json.loads(record.read_text("utf-8"))["phases"]]
+    assert Phase.INVOKED.value not in phases, phases
+
+
+@pytest.mark.parametrize("command", ["regrade", "rescore", "check-evidence"])
+def test_an_evaluator_source_change_stops_the_process_and_blames_no_saved_run(tmp_path: Path, command: str) -> None:
+    """A checkout updated under a long regrade is the process's stop, never each saved run's error."""
+    iteration, spec, _broken, _intact = _two_run_iteration(tmp_path, "pass")
+    argv = [command, str(iteration)] + (["--out", str(tmp_path / "rescored")] if command == "rescore" else [])
+    with (
+        mock.patch.object(rescoring.fingerprints, "harness_source_digest", return_value="0" * 64),
+        mock.patch.object(cli.catalog, "load_all_scenarios", return_value=[spec]),
+        contextlib.redirect_stdout(io.StringIO()),
+        pytest.raises(RuntimeError, match="start a new process"),
+    ):
+        cli.main(argv)
+
+
+def test_an_edited_judged_response_is_refused_beside_a_grade_that_cannot_be_read(tmp_path: Path) -> None:
+    """A grade beside the evidence that cannot be read cannot vouch for the judged response; with no
+    grade at all the run regrades from its evidence alone, by design."""
+    item, spec = _judged_with_a_forbidding_text_check()
+    run_dir, grading, _ = _live(item, tmp_path)
+    assert grading["status"] == "FAIL"
+    record = json.loads((run_dir / "evidence.json").read_text("utf-8"))
+    record["trace"]["result_text"] = "clean"
+    (run_dir / "evidence.json").write_text(json.dumps(record), encoding="utf-8")
+    (run_dir / "grading.json").write_text("{", encoding="utf-8")
+    with mock.patch.object(judge, "execution_identity", return_value=grading["judge_binding"]["execution"]):
+        regraded = rescoring.regrade_run(run_dir, spec, write=False)
+    assert regraded["status"] == "INCONCLUSIVE" and "judged response identity" in str(regraded.get("void"))
+
+
+_INCIDENT_STUB = r"""
+import json, sys, time
+from pathlib import Path
+args = sys.argv[1:]
+def flag(name): return args[args.index(name) + 1]
+p = Path.cwd() / "session.json"
+state = json.loads(p.read_text()) if p.exists() else {"turn": 0, "session": "same-session"}
+i = state["turn"]
+mode, at = Path(__file__).stem.split("__")
+at = int(at)
+def emit(event): print(json.dumps(event), flush=True)
+emit({"type": "system", "subtype": "init", "session_id": state["session"], "model": "stub-model",
+      "tools": ["Skill", "Read", "Task"], "plugins": [{"name": "save-toolkit", "path": flag("--plugin-dir")}],
+      "mcp_servers": []})
+state["turn"] += 1
+p.write_text(json.dumps(state))
+result = {"type": "result", "subtype": "success", "is_error": False, "session_id": state["session"],
+          "result": "unknown remains", "num_turns": 2, "duration_ms": 5, "usage": {"input_tokens": 5},
+          "modelUsage": {"stub-model": {}}, "total_cost_usd": .01}
+if i == at and mode == "error":
+    result.update(subtype="error_during_execution", is_error=True)
+if i == at and mode == "authhang":
+    result.update(subtype="error_during_execution", is_error=True, result="Failed to authenticate. API Error: 401")
+emit(result)
+if i == at and mode == "authhang":
+    time.sleep(3)
+"""
+
+
+def _incident(n: int = 3) -> dict:
+    return {
+        "id": "incident-session-control", "max_turns": 20, "agent": "reliability-engineer",
+        "tools": ["Skill", "Read", "Task"], "expected_model": "stub-model",
+        "prompt": "Supplied intake. CHECK protocol is available.",
+        "fixture": {"files": {"evidence.md": "Supplied evidence; no future observations."}},
+        "followups": [f"Supplied update {i}." for i in range(2, n + 1)],
+        "conversation": {"profile": "incident-v1", "helpers": [None] * n, "partition": "development",
+                         "manual_review": "pending", "turn_graders": [[{"type": "not_contains", "of": ["unknown"]}], [], []]},
+    }  # fmt: skip
+
+
+def _incident_run(tmp_path: Path, case: dict, mode: str, at: int) -> Path:
+    stub = tmp_path / f"{mode}__{at}.py"
+    stub.write_text(_INCIDENT_STUB, encoding="utf-8")
+
+    @contextlib.contextmanager
+    def env():
+        yield dict(os.environ)
+
+    with contextlib.redirect_stdout(io.StringIO()):
+        trials.run_trial(case, run_number=1, settings=trials.BatchSettings(
+            plugin_root=ROOT, label=mode, model="stub-model", out_dir=tmp_path / "runs",
+            timeout=1 if mode == "authhang" else 20, executable=f"{sys.executable} {stub}",
+            keep_workspace=False, env_factory=env, runtime=STUB_RUNTIME))  # fmt: skip
+    return tmp_path / "runs" / f"eval-{case['id']}" / mode / "run-1"
+
+
+def _three_ways(tmp_path: Path, case: dict, folder: Path) -> list[tuple[object, object]]:
+    live = json.loads((folder / "grading.json").read_text("utf-8"))
+    full = rescoring.regrade_run(folder, case, write=False)
+    alone = tmp_path / "alone" / "run-1"
+    alone.mkdir(parents=True)
+    shutil.copy2(folder / "evidence.json", alone / "evidence.json")
+    only = rescoring.regrade_run(alone, case, write=False)
+    assert rescoring.evidence_check(folder.parents[2], [case])["runs"][0].get("differences") == []
+    return [(g["status"], g.get("void")) for g in (live, full, only)]
+
+
+def test_a_cut_native_run_voided_by_later_drift_stays_void_on_regrade(tmp_path: Path) -> None:
+    """Rule 1: a void replaces a cut (`void_over_cut`) live, and so on every regrade."""
+    case = _incident()
+    calls = {"n": 0}
+
+    def drift_after_the_first_turn(*_args: object) -> str | None:
+        calls["n"] += 1
+        return None if calls["n"] == 1 else "plugin source changed during the trial"
+
+    with mock.patch.object(trials, "_plugin_drift", side_effect=drift_after_the_first_turn):
+        folder = _incident_run(tmp_path, case, "error", 0)
+    void = "plugin source changed during the trial"
+    assert _three_ways(tmp_path, case, folder) == [("INCONCLUSIVE", void)] * 3
+
+
+def test_a_timed_out_turn_with_an_auth_failure_result_regrades_as_it_was_graded(tmp_path: Path) -> None:
+    """Live, a timed-out turn is cut short before the invocation's own problems are read; a regrade
+    reads it in the same order, so an auth line in a trace that then hung does not void it."""
+    case = _incident()
+    folder = _incident_run(tmp_path, case, "authhang", 1)
+    assert _three_ways(tmp_path, case, folder) == [("FAIL", None)] * 3
+
+
+def _rescore_row(status: str, **level: object) -> dict:
+    grading = {"status": status, "expectations": [{"text": "t", "state": status, "evidence": "e"}], **level}
+    return {"scenario": "s", "label": "l", "run": 1, "rescored": rescoring._verdicts(grading)}
+
+
+def test_diff_sees_a_run_level_change_and_a_run_neither_rescore_read() -> None:
+    """A runner change can move a void, a cut or a grader error without moving a status; and a run no
+    rescore could read was compared with nothing, so it is never a clean diff."""
+    machinery = _rescore_row("INCONCLUSIVE", grader_error="instrument: x")
+    voided = _rescore_row("INCONCLUSIVE", void="instrument: x")
+    cut = _rescore_row("INCONCLUSIVE", run_end="cut_short", run_stop="wall_clock")
+    timed_out_void = _rescore_row("INCONCLUSIVE", void="timed out after 2s")
+    unread = {"scenario": "s", "label": "l", "run": 1, "error": "FileNotFoundError: grading.json"}
+    assert rescoring.rescore_diff({"runs": [machinery]}, {"runs": [voided]})
+    assert rescoring.rescore_diff({"runs": [cut]}, {"runs": [timed_out_void]})
+    assert any("not compared" in line for line in rescoring.rescore_diff({"runs": [unread]}, {"runs": [unread]}))
+    older = {**machinery, "rescored": {k: v for k, v in machinery["rescored"].items() if k in ("status", "checks")}}
+    assert rescoring.rescore_diff({"runs": [older]}, {"runs": [machinery]}) == []
+
+
+def test_rescore_grades_a_run_that_keeps_only_its_evidence(tmp_path: Path) -> None:
+    """Such a run regrades (since #469); a rescore grades it too, with no saved verdict beside it."""
+    item = golden_runs.case("pass")
+    run_dir, _grading, _ = _live(item, tmp_path / "live")
+    spec = item.spec()
+    alone = tmp_path / "it" / f"eval-{spec['id']}" / "alone" / "run-1"
+    alone.mkdir(parents=True)
+    shutil.copy2(run_dir / "evidence.json", alone / "evidence.json")
+    [row] = rescoring.rescore(tmp_path / "it", [spec], tmp_path / "rescored")["runs"]
+    assert (row.get("error"), row["saved"], row["rescored"]["status"]) == (None, None, "PASS"), row
+
+
+def test_a_summary_too_deep_to_read_is_refused_not_raised(tmp_path: Path) -> None:
+    path = tmp_path / "summary-l-default.json"
+    path.write_text("[" * 100000 + "]" * 100000, encoding="utf-8")
+    with pytest.raises(ValueError, match="cannot read the label's summary"):
+        batches.read_summary(path)
+
+
+def test_rescore_counts_only_the_runs_it_read(tmp_path: Path) -> None:
+    iteration, spec, broken, _intact = _two_run_iteration(tmp_path, "fail_forbidding")
+    text = (broken / "evidence.json").read_text("utf-8")
+    (broken / "evidence.json").write_text(text[: len(text) // 2], encoding="utf-8")
+    with (
+        mock.patch.object(cli.catalog, "load_all_scenarios", return_value=[spec]),
+        contextlib.redirect_stdout(io.StringIO()) as out,
+    ):
+        cli.main(["rescore", str(iteration), "--out", str(tmp_path / "rescored")])
+    last = out.getvalue().splitlines()[-1]
+    assert last.startswith("rescored 1 run(s)") and last.endswith("; 1 not read"), last
+
+
+def test_every_later_regrade_is_listed_after_one_that_failed(tmp_path: Path) -> None:
+    """A regrade that fails after making assessments/<k>/ leaves no folder behind, so the next one takes
+    the same number and the record's revisions still count up from 1."""
+    item = golden_runs.case("pass")
+    run_dir, _grading, _ = _live(item, tmp_path)
+    spec = item.spec()
+    rescoring.regrade_run(run_dir, spec)
+    with (
+        mock.patch.object(rescoring.evidence, "write", side_effect=OSError(28, "No space left on device")),
+        pytest.raises(OSError),
+    ):
+        rescoring.regrade_run(run_dir, spec)
+    with contextlib.redirect_stderr(io.StringIO()) as err:
+        for _ in range(3):
+            rescoring.regrade_run(run_dir, spec)
+    listed = [e["revision"] for e in json.loads((run_dir / "record.json").read_text("utf-8"))["assessments"]]
+    assert listed == [1, 2, 3, 4], (listed, err.getvalue()[-300:])
+    assert sorted(int(p.name) for p in (run_dir / "assessments").iterdir()) == [1, 2, 3, 4]
+
+
+def test_a_run_voided_without_an_identity_failure_records_void_in_its_attempt_log(tmp_path: Path) -> None:
+    """The log shows where an attempt ended: a run voided at run level for any reason, not only an
+    identity failure, ends `graded, void`."""
+    spec = native_conversation_spec()
+    settings = trials.BatchSettings(
+        plugin_root=ROOT, label="n", model="stub-model", out_dir=tmp_path / "it", timeout=60,
+        executable="native-stub", keep_workspace=False, env_factory=plain_env_factory(), runtime=STUB_RUNTIME,
+    )  # fmt: skip
+    with (
+        mock.patch.object(invocation, "run_cli", side_effect=native_launch(spec, [], wrong_session=True)),
+        contextlib.redirect_stdout(io.StringIO()),
+    ):
+        summary = trials.run_trial(spec, run_number=1, settings=settings)
+    run_dir = tmp_path / "it" / f"eval-{spec['id']}" / "n" / "run-1"
+    assert json.loads((run_dir / "grading.json").read_text("utf-8")).get("void") and not summary.get("identity_failure")
+    phases = [p["phase"] for p in json.loads((run_dir / "attempt.json").read_text("utf-8"))["phases"]]
+    assert phases[-3:] == ["graded", Phase.VOID.value, "published"], phases
+
+
+def test_the_record_lists_a_native_follow_ups_trace_and_response(tmp_path: Path) -> None:
+    item = golden_runs.case("native_pass")
+    run_dir, _grading, _ = _live(item, tmp_path)
+    listed = json.loads((run_dir / "record.json").read_text("utf-8"))["evidence"]
+    assert {"followup/stdout.jsonl", "followup/response.md"} <= set(listed), sorted(listed)
+
+
+def test_check_evidence_finds_a_trace_fact_the_evidence_lost(tmp_path: Path) -> None:
+    """Since stage 4 the live grade reads the evidence it writes, so a grade of the evidence always
+    matches it; an evidence writer that drops a fact the raw trace shows is caught only by reading the
+    raw trace again beside it, which check-evidence does."""
+    item = golden_runs.case("pass")
+    real = evidence.trace_facts
+
+    def losing_bash(trace, run_dir, *, restored):
+        return real(dataclasses.replace(trace, bash_commands=[]), run_dir, restored=restored)
+
+    with mock.patch.object(evidence, "trace_facts", side_effect=losing_bash):
+        run_dir, grading, _ = _live(item, tmp_path / "live")
+    assert grading["status"] == "FAIL"  # graded from the lossy evidence, as the live grade now is
+    iteration = tmp_path / "iteration"
+    shutil.copytree(run_dir, iteration / f"eval-{item.spec()['id']}" / "golden" / "run-1")
+    [row] = rescoring.evidence_check(iteration, [item.spec()])["runs"]
+    assert any(line.startswith("trace.bash_commands") for line in row["differences"]), row
+
+
+def test_regrade_names_what_it_passed_over(tmp_path: Path) -> None:
+    """Nothing is dropped silently: a scenario not in this checkout is named, as rescore names it."""
+    iteration, spec, _broken, _intact = _two_run_iteration(tmp_path, "pass")
+    with (
+        mock.patch.object(cli.catalog, "load_all_scenarios", return_value=[{**spec, "id": "another"}]),
+        contextlib.redirect_stdout(io.StringIO()) as out,
+    ):
+        cli.main(["regrade", str(iteration)])
+    assert f"skipped scenario(s) not in this checkout: {spec['id']}" in out.getvalue(), out.getvalue()

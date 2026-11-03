@@ -29,7 +29,7 @@ def read_summary(path: Path) -> list[dict[str, Any]]:
         rows = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
             raise ValueError("not a list of result rows")
-    except (OSError, ValueError) as exc:
+    except (OSError, ValueError, RecursionError) as exc:  # RecursionError: nesting too deep to read
         raise ValueError(
             f"cannot read the label's summary {path}: {exc}; its saved runs are intact, but its earlier "
             "verdicts cannot be counted: restore the summary or use a new label"

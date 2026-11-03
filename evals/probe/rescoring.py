@@ -220,6 +220,12 @@ def _native_replay(
                     or invocation.profile_problem(trace, spec, plugin_root, recorded_workspace)
                     or invocation.native_identity_problem(trace, current_spec, resume, complete=False)
                 )
+            elif saved_cut and metadata.get("run_stop") == Stop.WALL_CLOCK:
+                # A turn that timed out: the live order reads its profile and session and never the
+                # invocation's own problems (`invocation.turn_reason`), so neither does a regrade.
+                problem = invocation.profile_problem(
+                    trace, spec, plugin_root, recorded_workspace
+                ) or invocation.native_identity_problem(trace, current_spec, resume, complete=False)
             else:
                 problem = invocation.invocation_problem(
                     trace, metadata["exit_code"], current_spec, plugin_root, recorded_workspace, resume
@@ -331,11 +337,12 @@ def _regrade_from_evidence(
         trace = engine.trace_of(found)
         judge_problem = _saved_judge_problem(spec, saved_binding)
         level = _evidence_run_level(spec, found, native_problem, saved_binding, judge_problem, has_plugin_root, trace)
-        saved_grade = layout.read_object(layout.live_grade(run_dir))
+        grade_path = layout.live_grade(run_dir)
+        saved_grade = layout.read_object(grade_path)
         if (
             fingerprints.required_rubrics(spec)
-            and saved_grade is not None
-            and saved_grade.get("response_sha256") != rubric_judge._digest(trace.result_text)
+            and grade_path.exists()  # absent, the run regrades from its evidence alone (by design)
+            and (saved_grade or {}).get("response_sha256") != rubric_judge._digest(trace.result_text)
         ):
             # The run's own grade is beside its evidence: the judged response must be the one it judged.
             level = "saved judge binding or judged response identity is missing or changed; re-run the trial"
@@ -415,8 +422,11 @@ def _changed_raw_traces(run_dir: Path, found: evidence.EvidenceV1) -> list[str]:
 
 def _recorded_or_replayed(found: evidence.EvidenceV1, native_problem: str | None) -> str | None:
     """The run level an evidence run's ending and its native replay settle, in the order the file
-    path settles it: the replay's cut, the cut or void the ending recorded, then the replay's void."""
+    path settles it: the void the ending recorded (a void replaces a cut, rule 1), the replay's cut,
+    the cut the ending recorded, then the replay's void."""
     recorded = engine.run_level_of(found)
+    if recorded and not rules.is_cut(recorded):
+        return recorded
     if isinstance(native_problem, CutShort):
         return native_problem
     if rules.is_cut(recorded) and not native_problem:
@@ -627,7 +637,10 @@ def _run_level_reason(
 ) -> str | None:
     """Why the regrade cannot measure the run at all, or how it was cut short, from saved evidence."""
     inconclusive: str | None
-    if isinstance(native_problem, CutShort):
+    # A void the live grade recorded replaces the replay's cut (rule 1). Only a recorded one: an older
+    # grade's reason read as run-level (`_saved_void`) can be a timeout the replay recovers as a cut.
+    recorded_void = live_grade.get("void") if live_grade.get("run_end") != Ending.CUT_SHORT else None
+    if isinstance(native_problem, CutShort) and not recorded_void:
         inconclusive = native_problem
     elif live_grade.get("run_end") == Ending.CUT_SHORT and not native_problem:
         # A cut-short FAIL keeps its reason under `unmeasured`; its forbidding checks still count.
@@ -727,7 +740,27 @@ def _add_assessment(
     revision = layout.next_number(revisions)
     target = rules.rule_8_regrade_adds(run_dir, revision)
     target.mkdir(parents=True)
-    evidence.write(target, found)
+    try:
+        grading, entry = _write_assessment(target, revision, grading, summary, trace)
+        evidence.write(target, found)
+    except BaseException:
+        # Not yet listed, so not a regrade the record holds: leave no number behind for the next one
+        # to skip, which the record's count from 1 would refuse.
+        shutil.rmtree(target, ignore_errors=True)
+        raise
+    records.update_record(run_dir, lambda record: record.setdefault("assessments", []).append(entry))
+    return grading
+
+
+def _write_assessment(
+    target: Path,
+    revision: int,
+    grading: dict[str, Any],
+    summary: Mapping[str, Any],
+    trace: TraceSummary | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The regrade's grade and trace summary, written into its assessment folder, and the entry the
+    record lists it under."""
     grading = {
         **grading,
         "assessment_revision": revision,
@@ -754,8 +787,7 @@ def _add_assessment(
         "runner_source_sha256": HARNESS_SOURCE_SHA256,
         "assessed_at": grading["assessed_at"],
     }
-    records.update_record(run_dir, lambda record: record.setdefault("assessments", []).append(entry))
-    return grading
+    return grading, entry
 
 
 def _saved_runs(
@@ -803,12 +835,20 @@ def _regrades_alone(run_dir: Path, spec: Spec) -> bool:
     return self_sufficient(found, spec)
 
 
-def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def regrade(
+    iteration_dir: Path, scenarios: list[dict[str, Any]], *, skipped_out: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
+    """Regrade every saved run, writing each assessment beside it; `skipped_out`, when given, receives
+    what was passed over, so nothing is dropped silently."""
     runs, skipped = _saved_runs(iteration_dir, scenarios)
+    if skipped_out is not None:
+        skipped_out.update(skipped)
     results = []
     for spec, run_dir, row in runs:
         try:
             g = regrade_run(run_dir, spec)
+        except fingerprints.EvaluatorChanged:
+            raise  # the process's stop, not this run's
         except Exception as exc:  # whatever one saved run raises is that run's error
             # One unreadable run is reported and measured nothing; it never ends the iteration's regrade.
             results.append(
@@ -946,7 +986,9 @@ def evidence_check(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict
                 graded = engine.render(engine.grade(spec, found, plugin_root=plugin_root, run_level=level), spec)
             # Inside the boundary: a saved grade of the wrong shape is this run's error, never the
             # end of the iteration's check.
-            found_differences = differences(saved, graded)
+            found_differences = differences(saved, graded) + _trace_differences(run_dir, found)
+        except fingerprints.EvaluatorChanged:
+            raise  # the process's stop, not this run's
         except Exception as exc:  # whatever one saved run raises is that run's error
             rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
             continue
@@ -962,9 +1004,33 @@ def evidence_check(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict
     return {"runs": rows, "skipped": {**skipped, "runs_without_evidence": without_evidence}}
 
 
+def _trace_differences(run_dir: Path, found: evidence.EvidenceV1) -> list[str]:
+    """Each parsed-trace field the evidence holds differently from its raw trace, read again with the
+    parser the live attempt used. Since stage 4 the live grade reads the evidence it writes, so a grade
+    of the evidence always matches it; only the raw trace beside it shows a fact the evidence lost (or
+    a parser that reads it differently since, which `runner_changed` names)."""
+    if found.trace.restored_from_summary or not any((run_dir / key).is_file() for key in found.trace.raw_sha256):
+        return []
+    reread = evidence.trace_facts(tracing.parse_trial_trace(run_dir), None, restored=False)
+    skip = {"raw_sha256", "restored_from_summary"}
+    recorded = found.trace.model_dump(mode="json", exclude=skip)
+    parsed = reread.model_dump(mode="json", exclude=skip)
+    return [
+        f"trace.{name}: the evidence holds {str(recorded.get(name))[:80]!r}, its raw trace {str(parsed.get(name))[:80]!r}"
+        for name in sorted(recorded.keys() | parsed.keys())
+        if recorded.get(name) != parsed.get(name)
+    ]
+
+
 def _verdicts(grading: Mapping[str, Any]) -> dict[str, Any]:
+    """What a rescore keeps of a grade to compare: the status, how the run ended (a void, a cut and its
+    stop, a grader error, which a runner change can move without moving the status), and each check."""
     return {
         "status": grading.get("status"),
+        "run_end": grading.get("run_end"),
+        "run_stop": grading.get("run_stop"),
+        "void": bool(grading.get("void")),
+        "grader_error": bool(grading.get("grader_error")),
         "checks": [
             {"text": e.get("text"), "state": outcomes.legacy_state(e), "evidence": str(e.get("evidence") or "")[:200]}
             for e in grading.get("expectations") or []
@@ -985,8 +1051,12 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
     rows = []
     for spec, run_dir, row in runs:
         try:
-            saved = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
+            grade_path = layout.live_grade(run_dir)
+            # A run that keeps only its evidence regrades from it (since #469): no saved verdict beside it.
+            saved = json.loads(grade_path.read_text(encoding="utf-8")) if grade_path.exists() else None
             grading = regrade_run(run_dir, spec, write=False, relax_identity=True)
+        except fingerprints.EvaluatorChanged:
+            raise  # the process's stop, not this run's
         except Exception as exc:  # whatever one saved run raises is that run's error
             # One unreadable or older-shaped run stays visible instead of ending the comparison.
             rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
@@ -1002,7 +1072,7 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
             {
                 **row,
                 "identity_relaxed": bool(grading.get("identity_relaxed")),
-                "saved": _verdicts(saved),
+                "saved": _verdicts(saved) if saved is not None else None,
                 "rescored": _verdicts(grading),
             }
         )
@@ -1012,10 +1082,8 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
 
 
 def rescore_diff(base: Mapping[str, Any], candidate: Mapping[str, Any]) -> list[str]:
-    """Each run and check whose rescored verdict differs between two rescores of the same runs."""
-
-    def outcome(row: Mapping[str, Any]) -> Mapping[str, Any]:
-        return {"status": "ERROR", "checks": []} if row.get("error") else row.get("rescored") or {}
+    """Each run and check whose rescored verdict differs between two rescores of the same runs: its
+    status, how it ended, and each check; and each run either rescore could not read."""
 
     left = {layout.run_key(r): r for r in base.get("runs") or []}
     right = {layout.run_key(r): r for r in candidate.get("runs") or []}
@@ -1025,9 +1093,22 @@ def rescore_diff(base: Mapping[str, Any], candidate: Mapping[str, Any]) -> list[
         if k not in left or k not in right:
             lines.append(f"{name}: rescored only by the {'candidate' if k not in left else 'base'} runner")
             continue
-        a, b = outcome(left[k]), outcome(right[k])
+        if left[k].get("error") or right[k].get("error"):
+            # A run a rescore could not read was compared with nothing: never a clean diff.
+            errors = "; ".join(
+                f"{side}: {row['error']}"
+                for side, row in (("base", left[k]), ("candidate", right[k]))
+                if row.get("error")
+            )
+            lines.append(f"{name}: not compared: {errors}")
+            continue
+        a, b = left[k].get("rescored") or {}, right[k].get("rescored") or {}
         if a.get("status") != b.get("status"):
             lines.append(f"{name}: {a.get('status')} -> {b.get('status')}")
+        for field in ("run_end", "run_stop", "void", "grader_error"):
+            # Compared where both rescores kept it; a rescore from before these were kept has none.
+            if field in a and field in b and a[field] != b[field]:
+                lines.append(f"{name}: {field} {a[field]} -> {b[field]}")
         checks_a, checks_b = a.get("checks") or [], b.get("checks") or []
         for index in range(max(len(checks_a), len(checks_b))):
             ca = checks_a[index] if index < len(checks_a) else {}
