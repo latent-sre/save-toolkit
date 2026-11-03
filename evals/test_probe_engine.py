@@ -15,6 +15,8 @@ import judge
 import pytest
 from probe import cli, engine, rescoring, shadow
 from probe.attempt import Phase
+from probe.outcomes import State
+from probe_testkit import saved_grade, saved_summary, write_saved_run
 
 CASES = [c for c in golden_runs.CASES if not c.raises]
 IDS = [c.name for c in CASES]
@@ -176,3 +178,92 @@ def test_the_shadow_report_counts_attempts_coverage_and_the_gate(tmp_path: Path)
         with contextlib.redirect_stdout(io.StringIO()) as out:
             assert cli.main(["shadow", str(iteration)]) == 1
         assert "disagrees: status: 'PASS' != 'FAIL'" in out.getvalue()
+
+
+# --- the Codex findings on PR #460, each a regression the shadow must not show ----------------
+
+
+def test_a_strict_regrade_that_rejects_a_changed_identity_voids_the_shadow_too(tmp_path: Path) -> None:
+    item = next(c for c in CASES if c.name == "pass")
+    copy = _saved_copy(item, tmp_path)
+    grading, result = rescoring.regrade_run_shadow(copy, golden_runs.scenario(item), write=False, relax_identity=False)
+    assert grading["status"] == "INCONCLUSIVE" and "saved scenario identity" in str(grading["inconclusive"])
+    assert result is not None and result["agrees"] is True, result.get("differences")
+
+
+def test_two_expectations_that_read_the_same_keep_their_own_probe_outcomes(tmp_path: Path) -> None:
+    item = next(c for c in CASES if c.name == "rubric_kept")
+    copy = _saved_copy(item, tmp_path)
+    found = rescoring.load_evidence(copy, golden_runs.scenario(item))
+    check = {"check": "fleet_grader", "name": "rubric", "rubric_name": "no_production_action_claim"}
+    spec = golden_runs.tiny_spec(checks=[check, dict(check)])
+    first = found.probes[0]
+    probes = [
+        first.model_copy(
+            update={"id": f"{found.identity.scenario_sha256}:0", "state": State.PASS, "evidence": "judged PASS"}
+        ),
+        first.model_copy(
+            update={"id": f"{found.identity.scenario_sha256}:1", "state": State.FAIL, "evidence": "judged FAIL"}
+        ),
+    ]
+    twice = found.model_copy(update={"probes": probes})
+    verdict = engine.grade(spec, twice)
+    assert [g.expectation.text for g in verdict.graded] == [probes[0].text, probes[1].text]
+    assert [g.outcome.state for g in verdict.graded] == ["PASS", "FAIL"]
+    assert [g.outcome.evidence for g in verdict.graded] == ["judged PASS", "judged FAIL"]
+
+
+def test_a_relative_reference_read_resolves_against_the_recorded_workspace(tmp_path: Path) -> None:
+    item = next(c for c in CASES if c.name == "pass")
+    copy = _saved_copy(item, tmp_path)
+    found = rescoring.load_evidence(copy, golden_runs.scenario(item))
+    plugin = tmp_path / "ws" / "plugin"
+    (plugin / "skills" / "stack-profile").mkdir(parents=True)
+    (plugin / "skills" / "stack-profile" / "SKILL.md").write_text("---\nname: stack-profile\n---\n", encoding="utf-8")
+    (plugin / ".claude-plugin").mkdir()
+    (plugin / ".claude-plugin" / "plugin.json").write_text('{"name": "save-toolkit"}', encoding="utf-8")
+    read = {"tool": "Read", "path": "../plugin/skills/stack-profile/SKILL.md", "outcome": "allowed"}
+    trace = found.trace.model_copy(update={"read_attempts": [read]})
+    host = found.host.model_copy(update={"workspace": str(tmp_path / "ws" / "repo")})
+    spec = {**golden_runs.tiny_spec(), "references": ["skills/stack-profile/SKILL.md"]}
+    verdict = engine.grade(spec, found.model_copy(update={"trace": trace, "host": host}), plugin_root=plugin)
+    reference = next(g for g in verdict.graded if g.expectation.text.startswith("reference "))
+    assert reference.outcome.state == "PASS", reference.outcome.evidence
+
+
+def test_a_summary_without_valid_counts_leaves_a_count_check_unmeasured_in_both_engines(tmp_path: Path) -> None:
+    spec = golden_runs.tiny_spec(checks=[{"check": "tool_call_count", "tool": "Bash", "minimum": 0, "maximum": 0}])
+    text = "tool_call_count " + json.dumps({"tool": "Bash", "minimum": 0, "maximum": 0})
+    run = write_saved_run(
+        tmp_path / "eval-tiny" / "lab" / "run-1",
+        response="done",
+        summary={**saved_summary(), "tool_counts": "malformed"},
+        grading={
+            **saved_grade(spec, [{"text": text, "passed": True, "evidence": "Bash: 0 attempted call(s)"}]),
+            "status": "PASS",
+        },
+    )
+    grading, result = rescoring.regrade_run_shadow(run, spec, write=False, relax_identity=True)
+    count = next(e for e in grading["expectations"] if e["text"] == text)
+    assert count["state"] == "INCONCLUSIVE" and "count evidence is missing" in count["evidence"]
+    assert result is not None and result["agrees"] is True, result.get("differences")
+
+
+def test_the_shadow_report_counts_kept_attempts_too(tmp_path: Path) -> None:
+    item = next(c for c in CASES if c.name == "pass")
+    root = tmp_path / "live"
+    root.mkdir()
+    run_dir, _, _ = _live(item, root)
+    spec = item.spec()
+    iteration = tmp_path / "iteration"
+    published = iteration / f"eval-{spec['id']}" / "golden" / "run-1"
+    shutil.copytree(run_dir, published)
+    kept = iteration / f"eval-{spec['id']}" / "golden" / "attempts" / "run-1" / "1"
+    shutil.copytree(run_dir, kept)
+    result = json.loads((kept / shadow.FILE).read_text("utf-8"))
+    (kept / shadow.FILE).write_text(
+        json.dumps({**result, "agrees": False, "differences": ["status: 'PASS' != 'FAIL'"]})
+    )
+    report = rescoring.shadow_report(iteration, [spec])
+    assert report["attempts"] == 2 and report["disagreeing"] == 1 and report["gate"]["met"] is False
+    assert [r.get("attempt") for r in report["runs"] if not r["agrees"]] == [1]

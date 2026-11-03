@@ -31,7 +31,7 @@ from .tracing import TraceSummary
 from .workspaces import GitFacts, Workspace
 
 Spec = Mapping[str, Any]
-Kept = Mapping[str, Outcome]  # a probe's outcome, by the expectation text it was recorded under
+Kept = Mapping[int, tuple[str, Outcome]]  # a probe's text and outcome, by the position it was recorded at
 
 
 @dataclasses.dataclass(frozen=True)
@@ -48,18 +48,26 @@ class Verdict:
     response_sha256: str
 
 
-def kept_from(found: evidence_v1.EvidenceV1, *, stale_judge: str | None = None) -> dict[str, Outcome]:
-    """The probe outcomes an evidence record holds, as the outcomes a grade keeps. With
+def kept_from(found: evidence_v1.EvidenceV1, *, stale_judge: str | None = None) -> dict[int, tuple[str, Outcome]]:
+    """The probe outcomes an evidence record holds, as the outcomes a grade keeps, by the position
+    each was recorded at (its id's suffix), since two expectations can read the same. With
     `stale_judge`, a judgment the judge that gave it no longer stands behind is unmeasured instead."""
-    kept: dict[str, Outcome] = {}
-    for probe in found.probes:
+    kept: dict[int, tuple[str, Outcome]] = {}
+    for order, probe in enumerate(found.probes):
         if stale_judge and probe.kept_as == "live-judge":
-            kept[probe.text] = outcomes.unmeasured(stale_judge)
+            outcome = outcomes.unmeasured(stale_judge)
         elif probe.state is State.PASS:
-            kept[probe.text] = Outcome(State.PASS, probe.evidence)
+            outcome = Outcome(State.PASS, probe.evidence)
         else:
-            kept[probe.text] = Outcome.read(False, probe.evidence)
+            outcome = Outcome.read(False, probe.evidence)
+        kept[_position(probe.id, order)] = (probe.text, outcome)
     return kept
+
+
+def _position(probe_id: str, order: int) -> int:
+    """The expectation position a probe's id names (`<identity>:<index>`), else its order."""
+    _prefix, _sep, index = probe_id.rpartition(":")
+    return int(index) if index.isdigit() else order
 
 
 def trace_of(found: evidence_v1.EvidenceV1) -> TraceSummary:
@@ -112,11 +120,7 @@ def context_of(spec: Spec, found: evidence_v1.EvidenceV1, plugin_root: Path) -> 
             service_problem=found.service_problem,
             # Zero calls are evidence only from an intact stream; a cut stream still proves what it
             # shows, and a summary's counts are what the run recorded (the regrade's rule).
-            tool_counts_recorded=(
-                trace.tool_counts_complete
-                or (cut and (trace.saw_init or bool(trace.tool_counts)))
-                or found.trace.restored_from_summary
-            ),
+            tool_counts_recorded=trace.tool_counts_complete or (cut and (trace.saw_init or bool(trace.tool_counts))),
         )
 
 
@@ -132,15 +136,21 @@ def run_level_of(found: evidence_v1.EvidenceV1) -> str | None:
 
 
 def grade(
-    spec: Spec, found: evidence_v1.EvidenceV1, kept: Kept | None = None, *, plugin_root: Path | None = None
+    spec: Spec,
+    found: evidence_v1.EvidenceV1,
+    kept: Kept | None = None,
+    *,
+    plugin_root: Path | None = None,
+    run_level: str | None = None,
 ) -> Verdict:
     """Grade `spec` from `found`. `kept` defaults to every probe outcome the evidence holds;
     `plugin_root` is where the measured plugin's manifest is read, the served image when it still
-    exists, else this checkout."""
+    exists, else this checkout; `run_level` is a reason the caller found that voids the run before
+    its evidence is read, such as a saved identity the scenario no longer matches."""
     kept = kept_from(found) if kept is None else kept
     served = found.host.plugin_served_from
     root = plugin_root or (Path(served) if isinstance(served, str) and Path(served).is_dir() else ROOT)
-    run_level = run_level_of(found)
+    run_level = run_level if run_level is not None else run_level_of(found)
     binding = (
         {
             **found.identity.judge_binding,
@@ -152,8 +162,9 @@ def grade(
     )
     identity = found.identity.scenario_sha256 or fingerprints.scenario_digest(spec, binding)
 
-    def kept_outcome(_index: int, item: assessment.Expectation) -> Outcome | None:
-        return kept.get(item.text)
+    def kept_outcome(index: int, item: assessment.Expectation) -> Outcome | None:
+        recorded = kept.get(index)
+        return recorded[1] if recorded is not None and recorded[0] == item.text else None
 
     with context_of(spec, found, root) as ctx:
         items = assessment.plan(
@@ -162,7 +173,7 @@ def grade(
             ctx,
             root,
             None,
-            workspace=ctx.ws.repo,
+            workspace=ctx.ws.command_repo,  # relative reads resolve against the trial's own repository
             keep=True,
             raw_trace=not found.trace.restored_from_summary,
         )

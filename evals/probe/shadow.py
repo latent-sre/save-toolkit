@@ -76,11 +76,15 @@ def compare(
     source: str,
     plugin_root: Path | None = None,
     stale_judge: str | None = None,
+    run_level: str | None = None,
 ) -> dict[str, Any]:
     """Grade `found` with the evidence engine and compare with the authoritative grade. The engine
-    is advisory here: a failure inside it is recorded, never raised into the grade it shadows."""
+    is advisory here: a failure inside it is recorded, never raised into the grade it shadows.
+    `run_level` is a reason the caller found that voids the run, which the engine then applies too."""
     try:
-        verdict = engine.grade(spec, found, engine.kept_from(found, stale_judge=stale_judge), plugin_root=plugin_root)
+        verdict = engine.grade(
+            spec, found, engine.kept_from(found, stale_judge=stale_judge), plugin_root=plugin_root, run_level=run_level
+        )
         rendered = engine.render(verdict, spec)
         diffs = differences(authoritative, rendered)
         return {"engine": ENGINE, "source": source, "agrees": not diffs, "differences": diffs, "verdict": rendered}

@@ -208,8 +208,16 @@ def shadow_report(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict[
     """Every shadow result an iteration holds, live and regraded, with the coverage the owner's gate
     asks for (stage 3 of the runner rewrite)."""
     runs, skipped = _saved_runs(iteration_dir, scenarios)
+    # Every attempt counts, not only the slot's published run: a superseded or incomplete attempt
+    # kept under the label's history was graded in shadow too (result rule 7).
+    attempts: list[tuple[dict[str, Any], Path, dict[str, Any]]] = []
+    for spec, label_dir in {(id(spec), run_dir.parent): (spec, run_dir.parent) for spec, run_dir, _ in runs}.values():
+        for kept, slot, number in layout.kept_attempts(label_dir):
+            attempts.append(
+                (spec, kept, {"scenario": spec["id"], "label": label_dir.name, "run": slot, "attempt": number})
+            )
     rows: list[dict[str, Any]] = []
-    for spec, run_dir, row in runs:
+    for spec, run_dir, row in [*runs, *attempts]:
         folders = [(run_dir, "live"), *((f, "regrade") for f, _ in layout.numbered(run_dir / "assessments"))]
         for folder, source in folders:
             result = layout.read_object(folder / shadow.FILE)
@@ -363,10 +371,11 @@ def _regrade_run(
             plugin_root=plugin_root,
             workspace=recorded_workspace,
         )
+        integrity: str | None = None  # a reason this regrade voids the run that the evidence cannot know
         if not identity_matches and not relaxed:
-            inconclusive = "saved scenario identity is missing or changed; re-run the trial"
+            inconclusive = integrity = "saved scenario identity is missing or changed; re-run the trial"
         elif len(old_by_id) != len(live_grade.get("expectations", [])):
-            inconclusive = "saved assertion identities are duplicated; re-run the trial"
+            inconclusive = integrity = "saved assertion identities are duplicated; re-run the trial"
         raw_counts_complete = reparsed is not None and trace.tool_counts_complete
         raw_counts_cut = (
             reparsed is not None and isinstance(inconclusive, CutShort) and (trace.saw_init or bool(trace.tool_counts))
@@ -442,7 +451,15 @@ def _regrade_run(
     # Stage 3 of the rewrite: the evidence engine grades the same evidence in shadow; this regrade
     # stays authoritative. A judgment the judge no longer stands behind lapses in both.
     shadowed = (
-        shadow.compare(spec, found, grading, source="regrade", plugin_root=plugin_root, stale_judge=stale_judge)
+        shadow.compare(
+            spec,
+            found,
+            grading,
+            source="regrade",
+            plugin_root=plugin_root,
+            stale_judge=stale_judge,
+            run_level=integrity,
+        )
         if found is not None
         else None
     )
