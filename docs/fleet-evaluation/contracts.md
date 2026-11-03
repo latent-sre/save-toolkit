@@ -118,7 +118,10 @@ files, as part of EVAL-011's runner sequence; WP-01 reads only this format. It i
 the runner already holds, not a new evidence store, and its exact field names are fixed in the
 runner change that implements it. Those names are published as a JSON Schema,
 [`eval-record-v1.schema.json`](eval-record-v1.schema.json), generated from the runner's record model,
-which validates every record before it is written.
+which validates every record before it is written. This schema and the evidence schema below publish
+field names and types; the models are stricter in one way JSON Schema cannot express: an integer
+field refuses a number written with a fraction part, such as `5.0`, which a JSON Schema validator
+accepts as an integer. The runner never writes one, and a value is never coerced into place.
 
 | Group | Fields |
 |---|---|
@@ -127,7 +130,7 @@ which validates every record before it is written.
 | Candidate and runner | Plugin commit, source digest and dirty state; runner revision and source digest |
 | Run conditions | Requested model, observed models, CLI version, host OS/release/architecture and observed hostname/account/elevation/source, declared turn limit and wall-clock timeout |
 | Attempt | Arm label, trial slot, attempt number, final, superseded or incomplete state, the reason for any replacement, and UTC start and end times |
-| Run end | How execution ended, independent of what the checks found: completed, turn limit, cut short with its stop (wall clock, spend guard, no result, error result or nonzero exit), void (wrong profile or identity), or incomplete (an attempt that raised, such as an authentication failure or interrupt) |
+| Run end | How execution ended, independent of what the checks found: completed, turn limit, cut short with its stop (wall clock, spend guard, no result, error result or nonzero exit), void (wrong profile or identity, or a backing service that never started, so nothing was measured), or incomplete (an attempt that raised, such as an authentication failure or interrupt) |
 | Checks | For each: ID, text, forbids, requires or both (a floor and a ceiling), PASS, FAIL or INCONCLUSIVE, an evidence excerpt with a truncation flag, and the reason |
 | Verdict | Trial verdict and reason, assessment revision 0, and any problem recorded after assessment; each later regrade is listed under `assessments` with its revision, verdict and grading path, never written over this one |
 | Cost | Trial and judge USD as the CLI's list-price estimate, each `null` when unknown; known total; a complete flag; live and cached judge calls |
@@ -144,7 +147,9 @@ are different runtime conditions. The importing computer never supplies missing 
 RUNNER-001 adds one evidence record per graded attempt, `evidence.json`, beside the result record.
 It holds what the attempt observed and never what the checks concluded, and the runner grades live
 attempts and saved runs from the same object: a live attempt's probes are measured into it before
-anything is graded, and a regrade of a run that wrote it reads it instead of the raw trace. Its
+anything is graded, and a regrade of a run that wrote it grades from it instead of the raw trace,
+whose bytes it checks against the recorded digest; `check-evidence` also parses the raw trace again
+and names any fact the evidence holds differently. Its
 field names are published as a JSON Schema,
 [`eval-evidence-v1.schema.json`](eval-evidence-v1.schema.json), generated from the runner's
 evidence model, which validates every record before it is written. A regrade of a run saved before

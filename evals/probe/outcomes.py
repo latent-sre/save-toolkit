@@ -21,6 +21,7 @@ UNMEASURED: Final = "INCONCLUSIVE: "
 INSTRUMENT: Final = "instrument: "
 GRADER_ERROR: Final = UNMEASURED + "grader error: "
 EVIDENCE_LIMIT: Final = 600
+SERVICE_UNAVAILABLE: Final = "backing service unavailable: "
 _KEPT: Final = re.compile(r"\[kept: [\w-]+\] ")
 
 
@@ -112,6 +113,14 @@ class Outcome:
     def instrument(self) -> bool:
         """A failure of the harness's own instrument, such as a backing service that stopped answering."""
         return self.machinery and _KEPT.sub("", self.evidence, count=1).startswith(INSTRUMENT)
+
+    @property
+    def service_reason(self) -> str | None:
+        """For a backing service that stopped answering a probe, the service's failure, as the trial
+        names it; None for any other outcome, an instrument failure of another kind included."""
+        spelled = _KEPT.sub("", self.evidence, count=1)
+        prefix = INSTRUMENT + SERVICE_UNAVAILABLE
+        return spelled.removeprefix(prefix) if self.machinery and spelled.startswith(prefix) else None
 
     def with_evidence(self, evidence: str) -> Outcome:
         return Outcome(self.state, evidence, machinery=self.machinery, forbidden=self.forbidden)

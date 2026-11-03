@@ -92,6 +92,11 @@ def binding_for(spec: Mapping[str, Any], judge_binding: rubric_judge.JudgeBindin
     return judge_binding.metadata if judge_binding and required_rubrics(spec) else None
 
 
+class EvaluatorChanged(RuntimeError):
+    """The runner's own source changed under this process: every later grade would bind other code, so
+    the process stops; never one saved run's error."""
+
+
 def _case_payload(spec: Mapping[str, Any]) -> dict[str, Any]:
     """The case a verdict is about: the scenario, the judge's cached rubric definitions, and current
     oracle file bytes.
@@ -101,7 +106,7 @@ def _case_payload(spec: Mapping[str, Any]) -> dict[str, Any]:
     unconsumed bytes.
     """
     if harness_source_digest() != HARNESS_SOURCE_SHA256:
-        raise RuntimeError("evaluator source changed after import; start a new process")
+        raise EvaluatorChanged("evaluator source changed after import; start a new process")
     rubrics, oracles = {}, {}
     for definition in [*spec.get("graders", []), *spec.get("checks", [])]:
         name = _rubric_name(definition)
@@ -230,7 +235,7 @@ def _plugin_files(root: Path) -> list[Path]:
     if not os.path.lexists(root / ".git"):
         return files
     inventory = subprocess.run(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", *inputs],
+        ["git", *SAFE_GIT, "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", *inputs],
         cwd=root,
         capture_output=True,
         text=True,
@@ -281,10 +286,15 @@ def stage_plugin(source: Path, target: Path) -> Path:
     return target
 
 
+# A plugin root a regrade reads can be one a saved run names: its repository configuration is data,
+# and the one setting a read-only inventory would run (an fsmonitor command) is switched off.
+SAFE_GIT = ("-c", "core.fsmonitor=false")
+
+
 def _git_text(cwd: Path, *args: str) -> str | None:
     """A git command's trimmed output, or None when it failed: an unknown answer, never an empty one."""
     proc = subprocess.run(
-        ["git", *args], cwd=str(cwd), capture_output=True, text=True, encoding="utf-8", errors="replace"
+        ["git", *SAFE_GIT, *args], cwd=str(cwd), capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     return proc.stdout.strip() if proc.returncode == 0 else None
 

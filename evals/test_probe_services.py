@@ -738,6 +738,17 @@ class ReviewFindingTests(ReviewFindingTestCase):
                         "the saved grade reads back as the same machinery failure")
         self.assertEqual("grafana: post-run GET /health was unreachable: unreachable", grading["inconclusive"])
 
+    def test_an_oracles_own_failure_is_named_beside_a_proxy_that_failed_to_stop(self) -> None:
+        """A kept instrument failure names the service only when it is the service's: an oracle that
+        exits outside its declared codes names its own failure, whatever the audit proxy did."""
+        spec = tiny_spec(checks=[{"check": "command_exit_zero", "text": "oracle verdict", "failure_exit_code": 10,
+                                  "command": 'python -c "raise SystemExit(7)"'}])
+        ctx = ws_context(spec, probe_workspaces.seed_workspace(spec, self.root / "ws-oracle"))
+        ctx.service_problem = "grafana: proxy audit stop failed"
+        grading = grade_trial(ctx)
+        self.assertEqual("INCONCLUSIVE", grading["status"])
+        self.assertTrue(grading["inconclusive"].startswith("instrument: "), grading["inconclusive"])
+
 
 class AuditProxyTests(unittest.TestCase):
     """The loopback proxy a service-backed trial's agent talks through: it forwards every request to

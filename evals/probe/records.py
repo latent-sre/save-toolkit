@@ -316,7 +316,14 @@ def write_record(
             else {
                 "kind": ended,
                 "stop": grading.get("run_stop"),
-                "reason": grading.get("void") or grading.get("inconclusive") or grading.get("unmeasured"),
+                # How the run ended, never a check's own reason (a grader error is a check's).
+                "reason": (
+                    grading.get("void")
+                    if ended == Ending.VOID
+                    else grading.get("inconclusive") or grading.get("unmeasured")
+                    if ended == Ending.CUT_SHORT
+                    else None
+                ),
             }
         ),
         "checks": [
@@ -361,6 +368,8 @@ def write_record(
                 "provenance.json",
                 "invocation.json",
                 "followup/invocation.json",
+                "followup/stdout.jsonl",
+                "followup/response.md",
                 "cleanup.json",
                 *_conversation_evidence(run_dir),
             )

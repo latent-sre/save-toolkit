@@ -318,9 +318,12 @@ def rescores(draw: st.DrawFn) -> dict:
 class RescoreDiffProperties(unittest.TestCase):
     @RULES
     @given(rescores(), rescores())
-    def test_a_rescore_diff_is_empty_against_itself_and_the_same_size_both_ways(self, base: dict,
-                                                                               candidate: dict) -> None:
-        self.assertEqual([], probe_rescoring.rescore_diff(base, base))
+    def test_a_rescore_diff_against_itself_names_only_unread_runs_and_is_the_same_size_both_ways(
+            self, base: dict, candidate: dict) -> None:
+        # A run no rescore could read was compared with nothing, so even against itself it is named.
+        unread = {row["run"] for row in base["runs"] if "error" in row}
+        named = {int(re.search(r"/run-(\d+)", line).group(1)) for line in probe_rescoring.rescore_diff(base, base)}
+        self.assertEqual(unread, named)
         self.assertEqual(len(probe_rescoring.rescore_diff(base, candidate)),
                          len(probe_rescoring.rescore_diff(candidate, base)))
 
@@ -343,8 +346,9 @@ class RescoreDiffProperties(unittest.TestCase):
                 row["rescored"]["status"] = data.draw(st.sampled_from([s for s in STATES
                                                                        if s != row["rescored"]["status"]]))
             changed.add(row["run"])
+        unread = {row["run"] for rescore in (base, candidate) for row in rescore["runs"] if "error" in row}
         named = {int(re.search(r"/run-(\d+)", line).group(1)) for line in probe_rescoring.rescore_diff(base, candidate)}
-        self.assertEqual(changed, named)
+        self.assertEqual(changed | unread, named)
 
 
 TOOL_INPUTS = {
@@ -575,6 +579,10 @@ VALIDATOR_CASES: list[tuple[str, dict, list[str]]] = [
     ("inverted tool-call bounds", _changed(BUILD, checks=_checks({"check": "tool_call_count", "tool": "Read",
                                                                   "minimum": 2, "maximum": 1})),
      ["case: checks[0] tool_call_count needs a tool and 0 <= minimum <= maximum integers"]),
+    ("nested state file name", _changed(BUILD, checks=_checks({"check": "state_file_absent", "name": "locks/run.lock"})),
+     ["case: checks[0] state_file_absent names one file directly in the state directory"]),
+    ("parent state file name", _changed(BUILD, checks=_checks({"check": "state_file_absent", "name": ".."})),
+     ["case: checks[0] state_file_absent names one file directly in the state directory"]),
     ("list-shaped writes_from", _changed(BUILD, checks=_checks({"check": "command_exit_zero", "command": "x",
                                                                 "writes_from": ["a"]})),
      ["case: checks[0] writes_from must be a mapping of non-empty name to oracle path"]),

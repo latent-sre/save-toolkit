@@ -20,6 +20,7 @@ saved JSON file through `write_json`.
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Iterator, Mapping
 from pathlib import Path
@@ -123,14 +124,39 @@ def read_object(path: Path) -> dict[str, Any] | None:
     object: an unknown, never a partial reading."""
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):  # RecursionError: nesting too deep to read
         return None
     return value if isinstance(value, dict) else None
 
 
-def write_json(path: Path, value: object, *, ascii_only: bool = False) -> None:
-    """Save a JSON file as the runner writes every one: indented, UTF-8."""
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=ascii_only), encoding="utf-8")
+def write_json(path: Path, value: object, *, ascii_only: bool = False, atomic: bool = False) -> None:
+    """Save a JSON file as the runner writes every one: indented, UTF-8. `atomic` replaces the file
+    whole, for one rewritten in place (a batch summary): a write cut short by a full disk or a kill
+    leaves the previous file, never a truncated one."""
+    text = json.dumps(value, indent=2, ensure_ascii=ascii_only)
+    if not atomic:
+        path.write_text(text, encoding="utf-8")
+        return
+    partial = path.with_name(f".{path.name}.partial")
+    try:
+        partial.write_text(text, encoding="utf-8")
+        os.replace(partial, path)
+    finally:
+        partial.unlink(missing_ok=True)
+
+
+def text_name(name: str) -> str:
+    """A file name the candidate chose, as text a record can hold: bytes that are not UTF-8 are kept as
+    `\\xNN` escapes, never left as surrogates that cannot be written."""
+    return os.fsencode(name).decode("utf-8", "backslashreplace")
+
+
+def state_file(state: Path, name: object) -> Path:
+    """Where a saved state file is rebuilt for a regrade: a plain file name directly in `state`. A
+    saved run is data, so a name that would leave the directory is refused, never written."""
+    if not isinstance(name, str) or name in ("", ".", "..") or Path(name).name != name:
+        raise ValueError(f"evidence names a state file outside its state directory: {str(name)[:120]!r}")
+    return state / name
 
 
 def saved_folders(run: Path) -> list[Path]:

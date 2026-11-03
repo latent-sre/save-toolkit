@@ -5,7 +5,9 @@
   2026-10-06, by the decision owner: EVAL-011's runner changes land in one pull request;
   2026-11-02, by the decision owner: the result rules get their own heading, rule 5 names what a
   backing service that never starts and a grading-machinery failure record, and rule 6 names the
-  cleanup record as the live attempt's evidence, from the stage 0 goldens of RUNNER-001
+  cleanup record as the live attempt's evidence, from the stage 0 goldens of RUNNER-001;
+  2026-11-03, by the decision owner: rule 5 records a backing service that never starts as a void run
+  end naming it, since nothing was measured and the record has no run end for a run that never ran
 - **Status:** Accepted 2026-10-06
 - **Decision owner:** Save Toolkit maintainers
 - **Roadmap item:** `EVAL-011` in [the fleet roadmap](../fleet-roadmap.md)
@@ -85,11 +87,11 @@ Results follow these rules. Documents and code that cite them call them the resu
    and the native conversations' spend cap are instrument guards: reaching either cuts the run short.
 5. A failure of the grading machinery, such as a grader or oracle defect, a misconfigured check, or
    a grader that times out in its own code, is a measurement failure and stops further trials of that
-   scenario. A backing service that never starts is the same: the model is never called, the trial
-   is inconclusive with no ending, and the scenario's further trials stop. A machinery failure is
-   recorded as a grader error, in the live grade and in every regrade alike, and is never recorded in
-   the form rule 1 reserves for an identity failure. An error caused by the candidate's own output
-   or code is a failure.
+   scenario. A failure of the machinery during grading is recorded as a grader error, in the live grade
+   and in every regrade alike. A backing service that never starts also stops the scenario's further
+   trials, but nothing is measured: the model is never called, and the trial is inconclusive with a
+   void run end that names the service. Neither is ever recorded as an identity failure, which stops
+   the whole batch (rule 1). An error caused by the candidate's own output or code is a failure.
 6. A problem after assessment, such as failed service cleanup, is recorded separately and blocks
    reuse of the environment; it does not change the verdict. The record is the live attempt's
    evidence: a regrade of that attempt keeps its verdict and carries no cleanup record of its own.

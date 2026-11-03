@@ -25,7 +25,7 @@ from typing import Any
 
 import judge as rubric_judge
 
-from . import assessment, fingerprints, outcomes, rules
+from . import assessment, fingerprints, layout, outcomes, rules
 from . import evidence as evidence_v1
 from .checks.registry import Context
 from .constants import ROOT
@@ -34,7 +34,7 @@ from .tracing import TraceSummary
 from .workspaces import GitFacts, Workspace
 
 Spec = Mapping[str, Any]
-Kept = Mapping[int, tuple[str, Outcome]]  # a probe's text and outcome, by the position it was recorded at
+Kept = Mapping[int, tuple[str, Outcome, str]]  # a probe's text, outcome and kept kind, by recorded position
 
 
 @dataclasses.dataclass(frozen=True)
@@ -53,12 +53,12 @@ class Verdict:
 
 def kept_from(
     found: evidence_v1.EvidenceV1, *, stale_judge: str | None = None, mark: bool = False
-) -> dict[int, tuple[str, Outcome]]:
+) -> dict[int, tuple[str, Outcome, str]]:
     """The probe outcomes an evidence record holds, as the outcomes a grade keeps, by the position
     each was recorded at (its id's suffix), since two expectations can read the same. With
     `stale_judge`, a judgment the judge that gave it no longer stands behind is unmeasured instead.
     With `mark`, a regrade's, each outcome's evidence leads with the marker naming why it is kept."""
-    kept: dict[int, tuple[str, Outcome]] = {}
+    kept: dict[int, tuple[str, Outcome, str]] = {}
     for order, probe in enumerate(found.probes):
         if stale_judge and probe.kept_as == "live-judge":
             outcome = outcomes.unmeasured(stale_judge)
@@ -67,7 +67,7 @@ def kept_from(
             outcome = Outcome(probe.state, probe.evidence, machinery=read.machinery)
             if mark:
                 outcome = outcome.with_evidence(outcomes.kept_evidence(probe.kept_as, probe.evidence))
-        kept[_position(probe.id, order)] = (probe.text, outcome)
+        kept[_position(probe.id, order)] = (probe.text, outcome, probe.kept_as)
     return kept
 
 
@@ -110,7 +110,7 @@ def context_of(
         state = root / "state"
         state.mkdir()
         for name, content in found.workspace.state_files.items():
-            (state / name).write_text(content, encoding="utf-8")
+            layout.state_file(state, name).write_text(content, encoding="utf-8")
         ws = Workspace(
             root,
             root / "repo-gone",
@@ -181,8 +181,12 @@ def grade(
     identity = found.identity.scenario_sha256 or fingerprints.scenario_digest(spec, binding)
 
     def kept_outcome(index: int, item: assessment.Expectation) -> Outcome | None:
+        # Kept only where the plan keeps it, as what the plan keeps it as: whether an outcome is a
+        # judgment (which a changed judge lapses) is the scenario's to say, never the evidence's.
         recorded = kept.get(index)
-        return recorded[1] if recorded is not None and recorded[0] == item.text else None
+        if recorded is None or recorded[0] != item.text or recorded[2] != item.kept_as:
+            return None
+        return recorded[1]
 
     with context_of(spec, found, root, level) as ctx:
         items = assessment.plan(
@@ -195,7 +199,7 @@ def grade(
             keep=True,
             raw_trace=not found.trace.restored_from_summary,
         )
-        graded, reason = assessment.assess(items, level, kept=kept_outcome, instrument=found.service_problem)
+        graded, reason = assessment.assess(items, level, kept=kept_outcome)
         status, reason = rules.rule_3_roll_up([g.outcome for g in graded], level or reason)
         # Without the raw trace the CLI's stop reason is gone; the live grade recorded what it saw.
         at_limit = (
@@ -253,7 +257,11 @@ def probe(ctx: Context, *, run_level: str | None, identity: str) -> tuple[list[e
 
     probes: list[evidence_v1.ProbeOutcome] = []
     problem: str | None = None
-    for index, item in enumerate(items):
+    # The forbidding probes read what the candidate did before any other probe runs: an oracle or a
+    # suite executes the candidate's code, which could rewrite what they read (rule 2).
+    order = sorted(range(len(items)), key=lambda index: items[index].polarity is not Polarity.FORBIDS)
+    for index in order:
+        item = items[index]
         if item.kept_as is None:
             continue
         if not measured(item):
@@ -271,6 +279,7 @@ def probe(ctx: Context, *, run_level: str | None, identity: str) -> tuple[list[e
                 kept_as=item.kept_as,
             )
         )
+    probes.sort(key=lambda outcome: _position(outcome.id, 0))  # recorded in the scenario's order
     return probes, problem
 
 
@@ -287,7 +296,8 @@ def observe(
     identity_failure: str | None = None,
 ) -> evidence_v1.EvidenceV1:
     """What the attempt observed, as the evidence record it writes: the trial's context, how the
-    run ended, and the probes' outcomes, measured here once."""
+    run ended, and the probes' outcomes, measured here once, after the workspace facts are read."""
+    workspace = evidence_v1.workspace_facts(ctx)
     probes, problem = probe(ctx, run_level=run_level, identity=identity)
     ending = evidence_v1.ending_from(
         run_level,
@@ -305,6 +315,7 @@ def observe(
         provenance=provenance or {},
         runtime=runtime,
         requested_model=requested_model,
+        workspace=workspace,
     )
 
 

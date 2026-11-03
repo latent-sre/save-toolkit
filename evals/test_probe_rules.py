@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest import mock
 
 import pytest
-from probe import outcomes, rules
-from probe.outcomes import Ending, Outcome, Polarity, State
+from probe import assessment, outcomes, rules
+from probe.outcomes import CutShort, Ending, Outcome, Polarity, State, Stop
 from probe.records import AttemptState
 from probe.tracing import TraceSummary
 
@@ -24,8 +25,18 @@ def test_rule_1_voids_a_trial_that_was_not_the_candidate_declared() -> None:
     assert rules.rule_1_identity(Ending.VOID, None) == "run voided without a recorded reason"
     for kind in (Ending.COMPLETED, Ending.CUT_SHORT, Ending.TURN_LIMIT):
         assert rules.rule_1_identity(kind, "reason") is None
-    voided = rules.rule_1_void_every_check([outcomes.verdict(True, "x"), outcomes.violation("y")], "wrong plugin")
-    assert all(o == outcomes.unmeasured("wrong plugin") for o in voided) and len(voided) == 2
+    assert rules.rule_1_void_check("wrong plugin") == outcomes.unmeasured("wrong plugin")
+
+
+def test_the_grade_applies_rules_1_and_2_by_name() -> None:
+    """A rule changes in `rules` and nowhere else: the grade reaches each through its name."""
+    items = [assessment.Expectation("t", lambda: outcomes.verdict(True, "x"), Polarity.REQUIRES)]
+    with mock.patch.object(rules, "rule_1_void_check", return_value=outcomes.verdict(False, "by name")):
+        graded, _reason = assessment.assess(items, "wrong plugin")
+    assert graded[0].outcome == outcomes.verdict(False, "by name")
+    with mock.patch.object(rules, "rule_2_polarity_on_cut", return_value=outcomes.verdict(False, "by name")):
+        graded, _reason = assessment.assess(items, CutShort("timed out", Stop.WALL_CLOCK))
+    assert graded[0].outcome == outcomes.verdict(False, "by name")
 
 
 def test_rule_2_on_a_cut_run_counts_forbidden_evidence_and_nothing_else() -> None:

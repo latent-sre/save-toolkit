@@ -63,6 +63,20 @@ class ScenarioSpecTests(unittest.TestCase):
         self.assertEqual(set(re.findall(r"<[^<>\n]*>", template)), set(oracle.TEMPLATE_LITERALS))
 
 
+class EntryPointTests(unittest.TestCase):
+    def test_a_crash_exits_inconclusive_never_a_fail_verdict(self) -> None:
+        """Exit 1 is a FAIL verdict; an uncaught exception's own status 1 read as one. The process
+        boundary turns a crash into exit 2, INCONCLUSIVE, with its traceback on stderr."""
+        with mock.patch.object(build_probe.cli, "main", side_effect=RuntimeError("boom")), \
+                contextlib.redirect_stderr(io.StringIO()) as err:
+            code = build_probe.main()
+        self.assertEqual(2, code)
+        self.assertIn("RuntimeError: boom", err.getvalue())
+        self.assertIn("exit 2 (INCONCLUSIVE)", err.getvalue())
+        with mock.patch.object(build_probe.cli, "main", return_value=3):
+            self.assertEqual(3, build_probe.main())
+
+
 class PositiveControlTests(TempRootTestCase):
     """The instruments must be shown to fire: the fork traps write the lock, the cf shim logs."""
 

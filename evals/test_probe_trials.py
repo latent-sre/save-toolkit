@@ -33,6 +33,7 @@ from probe import constants as probe_constants
 from probe import engine as probe_engine
 from probe import fingerprints as probe_fingerprints
 from probe import invocation as probe_invocation
+from probe import layout as probe_layout
 from probe import outcomes as probe_outcomes
 from probe import records as probe_records
 from probe import rescoring as probe_rescoring
@@ -462,10 +463,13 @@ class NativeConversationRunTests(unittest.TestCase):
                 "workspace": str(run.resolve()), "exit_code": None, "expected_model": "claude-sonnet-5-5",
                 "main_models": partial.main_models, "init_session_ids": partial.init_session_ids, "resume": None,
                 "inconclusive": "timed out after 900s", "cut_short": True, "run_stop": "wall_clock"}), encoding="utf-8")
-            with mock.patch.object(probe_invocation, "invocation_problem",
-                                   return_value=probe_outcomes.CutShort("no result event", "no_result")):
+            # A turn that timed out is read in the live order: its profile and session, never the
+            # invocation's own problems (`invocation.turn_reason`).
+            with mock.patch.object(probe_invocation, "profile_problem", return_value=None), \
+                    mock.patch.object(probe_invocation, "native_identity_problem", return_value=None), \
+                    mock.patch.object(probe_invocation, "invocation_problem", side_effect=AssertionError("live never reads it")):
                 kept = probe_rescoring.native_regrade_problem(run, NATIVE_SPEC, ROOT)
-            with mock.patch.object(probe_invocation, "invocation_problem", return_value="native parent model differs"):
+            with mock.patch.object(probe_invocation, "profile_problem", return_value="native parent model differs"):
                 voided = probe_rescoring.native_regrade_problem(run, NATIVE_SPEC, ROOT)
         self.assertIsInstance(kept, probe_outcomes.CutShort)
         self.assertEqual(("timed out after 900s", "wall_clock"), (str(kept), kept.kind))
@@ -916,6 +920,84 @@ class EndToEndStubTests(TempRootTestCase):
                                                "--scenario", "tiny", "--trials", "2")
         self.assertEqual((2, [("tiny", 1)]), (code, calls))
         self.assertIn("stopped after plugin inputs could not be measured", printed)
+
+    def test_a_slot_that_already_exists_is_refused_before_any_trial(self) -> None:
+        """A rerun onto a label's existing slot crashed with a traceback, exit 1, a FAIL batch's code,
+        and an offset that reached an existing slot did so after paying for the trials before it. Every
+        planned slot is checked before the first trial: a refused job (3) that runs nothing."""
+        out = self.root / "slots"
+        code, calls, _ = self._batch(out, stub_cli(self.root), [stub_spec()], "--scenario", "tiny")
+        self.assertEqual((0, [("tiny", 1)]), (code, calls))
+        for extra in ((), ("--trials", "2", "--run-offset", "0")):
+            with self.subTest(extra=extra), contextlib.redirect_stderr(io.StringIO()) as err:
+                code, calls, _ = self._batch(out, stub_cli(self.root), [stub_spec()], "--scenario", "tiny", *extra)
+                self.assertEqual((3, []), (code, calls))
+                self.assertIn("run-1 already exists; pass --overwrite or a --run-offset", err.getvalue())
+        with contextlib.redirect_stderr(io.StringIO()):
+            code, calls, _ = self._batch(out, stub_cli(self.root), [stub_spec()], "--scenario", "tiny",
+                                         "--run-offset", "1")
+        self.assertEqual((0, [("tiny", 2)]), (code, calls))
+
+    def test_an_unidentified_earlier_attempt_beside_a_planned_slot_is_refused_before_any_trial(self) -> None:
+        """run_trial refuses a slot whose earlier attempt cannot be identified; the plan checks that rule
+        too, or the batch pays for the trials before that slot and then crashes on it."""
+        out = self.root / "hidden"
+        (out / "eval-tiny" / "l" / ".run-2-attempt-0123456789abcdef").mkdir(parents=True)
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            code, calls, _ = self._batch(out, stub_cli(self.root), [stub_spec()], "--scenario", "tiny", "--trials", "2")
+        self.assertEqual((3, []), (code, calls))
+        self.assertIn("no readable attempt identity", err.getvalue())
+
+    def test_a_summary_cut_short_is_refused_before_any_trial_and_is_never_left_cut(self) -> None:
+        """A summary cut mid-write (a full disk, a kill) crashed a resume with a JSONDecodeError
+        traceback, exit 1. The label's earlier verdicts cannot be read, so the append is refused (3);
+        and the summary is replaced whole, never rewritten in place, so a failed write leaves the old one."""
+        out = self.root / "cut"
+        out.mkdir()
+        summary = out / "summary-l-default.json"
+        summary.write_text('[\n  {\n    "scenario": "tiny",', encoding="utf-8")
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            code, calls, _ = self._batch(out, stub_cli(self.root), [stub_spec()], "--scenario", "tiny",
+                                         "--run-offset", "1")
+        self.assertEqual((3, []), (code, calls))
+        self.assertIn("cannot read the label's summary", err.getvalue())
+        summary.write_text("[]", encoding="utf-8")
+
+        def disk_fills(path: Path, text: str, **_: object) -> int:
+            with open(path, "w", encoding="utf-8") as handle:  # truncates, as a real write does
+                handle.write(text[: len(text) // 2])
+            raise OSError(28, "No space left on device")
+
+        with mock.patch.object(probe_layout.Path, "write_text", autospec=True, side_effect=disk_fills), \
+                self.assertRaises(OSError):
+            probe_layout.write_json(summary, [{"scenario": "tiny", "status": "PASS"}], atomic=True)
+        self.assertEqual("[]", summary.read_text(encoding="utf-8"))
+        self.assertEqual([summary], list(out.glob("*summary*")))
+
+    def test_an_attempt_log_that_cannot_be_written_never_decides_the_published_verdict(self) -> None:
+        """The attempt log never decides the verdict: one that cannot be written at publication left
+        the replaced run's PASS row in the summary over a published FAIL, and the old run unarchived."""
+        out = self.root / "iteration"
+        specs = [stub_spec(), {**stub_spec(), "id": "tiny2"}]
+        code, _, _ = self._batch(out, stub_cli(self.root, cost=0.25), specs, "--trials", "1")
+        self.assertEqual(0, code)
+        real = probe_layout.write_json
+
+        def write(path, value, **options):
+            if Path(path).name == "attempt.json" and isinstance(value, dict) and value.get("phase") == "published":
+                raise OSError("attempt.json not writable")
+            return real(path, value, **options)
+
+        with mock.patch.object(probe_layout, "write_json", side_effect=write), \
+                contextlib.redirect_stderr(io.StringIO()):
+            code, calls, _ = self._batch(out, stub_cli(self.root, cost=0.25, result="I pushed it."), specs,
+                                         "--trials", "1", "--overwrite")
+        self.assertEqual([("tiny", 1), ("tiny2", 1)], calls)
+        label = out / "eval-tiny" / "l"
+        published = read_json(label / "run-1" / "grading.json")["status"]
+        row = next(r for r in read_json(out / "summary-l-default.json") if (r["scenario"], r["run"]) == ("tiny", 1))
+        self.assertEqual((published, 2), (row["status"], row.get("attempt")))
+        self.assertFalse([p for p in label.iterdir() if p.name.startswith(".run-1-previous-")])
 
     def test_a_plugin_root_that_is_not_a_git_checkout_is_refused_before_any_trial(self) -> None:
         """A plugin root outside git has no commit to bind a run to. The batch stopped on a traceback,

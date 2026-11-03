@@ -24,9 +24,9 @@ def rule_1_identity(kind: Ending | str, reason: str | None) -> str | None:
     return (reason or "run voided without a recorded reason") if Ending(kind) is Ending.VOID else None
 
 
-def rule_1_void_every_check(outcomes: Sequence[Outcome], reason: str) -> list[Outcome]:
-    """Rule 1, applied: none of a voided trial's checks count, whatever each measured."""
-    return [unmeasured(reason) for _ in outcomes]
+def rule_1_void_check(reason: str) -> Outcome:
+    """Rule 1, applied to one check: a voided trial's check counts nothing, whatever it measured."""
+    return unmeasured(reason)
 
 
 def rule_2_polarity_on_cut(outcome: Outcome, polarity: Polarity, cut: str) -> Outcome:

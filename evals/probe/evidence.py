@@ -252,13 +252,22 @@ def trace_facts(trace: TraceSummary, run_dir: Path | None, *, restored: bool) ->
     raw = (
         {
             folder.relative_to(run_dir).joinpath("stdout.jsonl").as_posix(): digest
-            for folder in layout.saved_folders(run_dir)
+            for folder in _raw_trace_folders(run_dir)
             if (digest := file_sha256(folder / "stdout.jsonl")) is not None
         }
         if run_dir is not None
         else {}
     )
     return Trace(**dataclasses.asdict(trace), raw_sha256=raw, restored_from_summary=restored)
+
+
+def _raw_trace_folders(run_dir: Path) -> list[Path]:
+    """The folders whose raw traces the evidence digests. A conversation index the replay refuses
+    leaves the run's own: the regrade names the damaged index itself, and the evidence must not abort it."""
+    try:
+        return layout.saved_folders(run_dir)
+    except ValueError:
+        return [run_dir]
 
 
 _UTC_TIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|\+00:00)$")
@@ -337,22 +346,22 @@ def probes(
     spec: Mapping[str, Any], grading: Mapping[str, Any], trace: TraceSummary, plugin_root: Path, judge_binding: Any
 ) -> list[ProbeOutcome]:
     """The outcomes a saved grade recorded for every expectation a regrade keeps rather than
-    re-measures, paired with the grade's expectations by position and text, the position being the
-    one each recorded expectation's id names (`<identity>:<index>`), else its order; an expectation
-    the grade does not record at that position is not evidence."""
+    re-measures, each found by the id the grade recorded it under, its saved scenario identity and
+    position (`<identity>:<index>`), and by its text; an expectation the grade does not identify so
+    is not evidence (a legacy record without identities, or one graded as another scenario)."""
     items = assessment.plan(spec, trace, None, plugin_root, judge_binding, keep=True)
-    recorded: dict[int, Mapping[str, Any]] = {}
-    for order, saved in enumerate(grading.get("expectations") or []):
-        _prefix, _sep, suffix = str(saved.get("id") or "").rpartition(":")
-        recorded.setdefault(int(suffix) if suffix.isdigit() else order, saved)
+    identity = grading.get("scenario_sha256")
+    recorded: dict[object, Mapping[str, Any]] = {}
+    for saved in grading.get("expectations") or []:
+        recorded.setdefault(saved.get("id"), saved)
     probes = []
     for index, item in enumerate(items):
-        saved = recorded.get(index)
+        saved = recorded.get(fingerprints.assertion_id(identity, index)) if isinstance(identity, str) else None
         if item.kept_as is None or saved is None or saved.get("text") != item.text:
             continue
         probes.append(
             ProbeOutcome(
-                id=str(saved.get("id") or f"{grading.get('scenario_sha256')}:{index}"),
+                id=str(saved["id"]),
                 text=item.text,
                 kind=item.polarity,
                 # An older grade recorded no state; the outcome reads one from what it did record.
@@ -411,6 +420,22 @@ def ending_of(grading: Mapping[str, Any], identity_failure: str | None) -> RunEn
     )
 
 
+def workspace_facts(ctx: Context) -> WorkspaceFacts:
+    """What the attempt left in its workspace that the checks read: read before any probe runs, since
+    a probe that executes the candidate's code with the fixture's env can write here too."""
+    return WorkspaceFacts(
+        # In full: the checks read the state files from here, so a bounded copy would hide what a
+        # forbidden action wrote past the bound (the trace summary keeps a bounded copy).
+        state_files={
+            layout.text_name(p.name): p.read_text(encoding="utf-8", errors="replace")
+            for p in (ctx.ws.state_dir.iterdir() if ctx.ws.state_dir.is_dir() else ())
+            if p.is_file()
+        },
+        agents_dir=(ctx.ws.repo / ".agents").exists(),
+        baseline_branch=ctx.ws.baseline_branch,
+    )
+
+
 def ending_from(run_level: str | None, *, turn_limit: bool, identity_failure: str | None) -> RunEnding:
     """How the run that just ran ended: voided by `run_level` (rule 1), cut short by it (rules 2 and
     4), ended by the CLI at its declared turn limit, or completed."""
@@ -444,11 +469,13 @@ def from_live(
     provenance: Mapping[str, Any],
     runtime: Mapping[str, Any] | None,
     requested_model: str | None,
+    workspace: WorkspaceFacts | None = None,
 ) -> EvidenceV1:
     """The evidence of the attempt that just ran, from the objects the trial read, before anything
     is graded: `identity` is the scenario digest the trial started under, `binding` the judge
-    binding its identity binds, `probes` what `engine.probe` measured, and `service_problem` a
-    backing service that stopped answering, after the proxy stopped or during a probe."""
+    binding its identity binds, `probes` what `engine.probe` measured, `service_problem` a
+    backing service that stopped answering, after the proxy stopped or during a probe, and
+    `workspace` the workspace facts as they stood before the probes ran (read now when left out)."""
     binding, execution, cache_dir = split_binding(binding)
     git = ctx.git
     return EvidenceV1(
@@ -487,17 +514,7 @@ def from_live(
             problem=git.problem,
             patch_sha256=file_sha256(run_dir / "outputs" / "workspace.patch") if run_dir is not None else None,
         ),
-        workspace=WorkspaceFacts(
-            # In full: the checks read the state files from here, so a bounded copy would hide what
-            # a forbidden action wrote past the bound (the trace summary keeps a bounded copy).
-            state_files={
-                p.name: p.read_text(encoding="utf-8", errors="replace")
-                for p in (ctx.ws.state_dir.iterdir() if ctx.ws.state_dir.is_dir() else ())
-                if p.is_file()
-            },
-            agents_dir=(ctx.ws.repo / ".agents").exists(),
-            baseline_branch=ctx.ws.baseline_branch,
-        ),
+        workspace=workspace or workspace_facts(ctx),
         services=[ServiceFacts(name=s.name, image=s.image, base_url=s.base_url) for s in ctx.services],
         service_problem=service_problem,
         ending=ending,

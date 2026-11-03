@@ -8,6 +8,101 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Fixed
 
+- Four confirmed low defects the bug passes left, each with a test that failed first: a regrade after an
+  `assessments/<k>/` folder no record lists (one a failed regrade left under an older runner) moves it
+  aside, kept as `.unlisted-<k>-<hex>`, and is still listed in `record.json`; two regrades of one
+  iteration in the same second keep both `regrade-*.json` records; the grade reaches result rules 1 and 2
+  through their named functions, so a rule changes in `rules.py` and nowhere else; and `record.json`'s
+  run end carries how the run ended, never a check's own reason such as a grader error.
+- Two defects Codex found in this branch's own fixes, each with a test that failed first: a changed
+  path whose name is not UTF-8 is spelled `\xNN`, which a benign file can carry literally, so a file
+  named so is now failed by `changed_files_not_containing` rather than read by that spelling (a needle
+  could pass behind its benign twin); and a result event whose `subtype` is a list or an object no longer
+  raises in the trace parser.
+- The third bug pass (a review of every fix, the docs against the code, and a residual hunt) found
+  defects, two of them introduced by the second pass's own fixes, each fixed with a test that failed first
+  (RUNNER-001):
+  - `check-evidence` reads each raw trace beside the evidence again and names every parsed-trace fact the
+    evidence holds differently: since stage 4 the live grade reads the evidence it writes, so comparing
+    grades alone could never catch an evidence writer that lost a fact;
+  - a native run cut short and then voided by drift regrades void, as it was graded (a void replaces a
+    cut, rule 1), and a turn that timed out is read in the live order, so an authentication line in a
+    trace that then hung no longer voids a cut FAIL;
+  - the trace summary holds the state the live grade read, before any probe ran, so a run that lost its
+    `evidence.json` regrades as it was graded; a graded trial whose CLI never started costs a known zero,
+    so a backing service that never started no longer stops a capped batch;
+  - every planned slot is checked against both of `run_trial`'s rules, a taken run and an unidentified
+    earlier attempt, before the first trial, in the native batch and the Inspect task alike;
+  - `diff` compares how each run ended (void, cut and stop, grader error) as well as its status and
+    checks, and names a run either rescore could not read instead of calling it unchanged; `rescore`
+    grades a run that keeps only its evidence, and counts only the runs it read;
+  - the runner's own "evaluator source changed" stop ends the process instead of being reported as each
+    saved run's error; the attempt log records `invoked` only for a launch that ran, and `void` for every
+    run-level void; a regrade that fails after making its assessment folder removes it, so later regrades
+    are still listed in `record.json`; the record lists a native follow-up's raw trace and response;
+  - an edited judged response is refused beside a grade that cannot be read; a summary nested too deep
+    to read refuses the append; `regrade` names the runs it passed over.
+- Defects that predate the runner rewrite, fixed by the owner's decision of 2026-11-03, each with a test
+  that failed first:
+  - a candidate cannot escape a FAIL with file names: a state file or a repository file whose name is not
+    UTF-8 is kept as `\xNN` text and graded, instead of crashing the attempt (and its batch) or turning a
+    forbidding change check INCONCLUSIVE; a changed file that cannot be read back under its name is not
+    shown free of a forbidden needle;
+  - the forbidding probes read the checkout before any other probe runs, so the candidate's code, run by
+    an oracle or a suite, cannot rewrite what they read;
+  - the CLI's result fields are typed by the parser: a value of another type is unknown, never an
+    attempt that raises;
+  - an attempt that raised before the CLI started records a known zero cost, so it no longer blocks a
+    capped re-run of its label;
+  - a crash of `build_probe.py` exits 2 (INCONCLUSIVE) with its traceback, never 1, a FAIL verdict's code.
+- The second bug pass over the runner rewrite (adversarial, older-run and failure-path reviews) found
+  eleven defects the pull requests or the first pass's fixes left, each fixed with a test that failed
+  first (RUNNER-001):
+  - a regrade of a run saved before evidence-v1 refuses a state file its trace summary names outside the
+    state directory, as one named in `evidence.json` already was;
+  - the runner's git reads switch off `core.fsmonitor`, so a plugin root a saved run names never runs a
+    command its repository configuration supplies, in a regrade or in `check-evidence`;
+  - the evidence-only regrade checks the judged response against the run's own grade again, so an edited
+    final text cannot turn a judged FAIL into a PASS;
+  - a kept outcome counts only as the kind the scenario keeps it as, so relabelling a judgment in the
+    evidence no longer escapes the stale-judge rule;
+  - whatever one saved run raises is that run's error in `regrade`, `rescore` and `check-evidence`,
+    nesting too deep to read included, and a pinned agent's frontmatter that no longer reads leaves a
+    native run unmeasured under a reason that names the plugin root;
+  - the attempt log records `invoked` when the CLI ran before the attempt raised, and an attempt log that
+    cannot be written warns instead of leaving a stale summary row over a published run;
+  - `regrade` and `check-evidence` count only the runs they read, `check-evidence` names a run that lost
+    the `evidence.json` its record lists instead of passing it as pre-evidence, and says when the runner
+    changed since the run.
+- Two batch failures that predate the runner rewrite, each with a test that failed first. A rerun onto
+  a label's existing slot crashed with a traceback and exit 1, a FAIL batch's code, and an offset that
+  reached a taken slot did so after paying for the trials before it; every planned slot is now checked
+  before the first trial, and a taken one refuses the job (exit 3). A batch summary cut short by a full
+  disk or a kill crashed the next resume the same way; the summary is now replaced whole, never
+  rewritten in place, and one that cannot be read refuses the append (exit 3), in the native batch and
+  the Inspect batch alike. The record and evidence models' refusal of an integer written as `5.0`,
+  which their JSON Schemas accept, is documented in `contracts.md` and pinned by a test.
+- The first of three bug passes over the runner rewrite (PRs #460 to #470) found thirteen defects the
+  pull requests introduced, each fixed with a test that failed first (RUNNER-001):
+  - a run the CLI ends at its declared turn limit grades its `tool_call_count` checks again: the CLI's
+    error result variants carry `errors`, not a `result` text, and still close an intact stream;
+  - the state directory and `.agents` are read before any probe runs, so an oracle that executes the
+    candidate's module with the fixture env (`build-natural-injection-helper-*`) no longer fails
+    `state_file_absent` with its own write;
+  - a `state_file_absent` name must be one file directly in the state directory, and a state file the
+    evidence names outside it is refused on a regrade, never written;
+  - a kept instrument failure names a backing service as the trial's reason only when the failure is the
+    service's, and a regrade's kept marker on a reason is no difference from the live grade;
+  - one unreadable `evidence.json` is reported as not regraded instead of ending the iteration's
+    regrade, and an older incident run whose conversation index is damaged regrades INCONCLUSIVE naming
+    it instead of raising;
+  - an older run's kept verdicts are found by the saved scenario identity and position again, as before
+    the cut-over, not by position alone;
+  - `check-evidence` checks an older native record that lacks its trace summary, and exits 2 when it
+    checked no run at all;
+  - the attempt log records `invoked` only when the CLI ran;
+  - an incident answer with CRLF line endings saved on Windows by a runner before the fix regrades as
+    it was graded.
 - Five defects a review of the evidence-only regrade found, each with a test that failed first: a native
   run whose older evidence cannot regrade alone and whose trace summary is gone is skipped and counted
   again instead of ending the iteration's regrade; removing a native run's first `invocation.json` no

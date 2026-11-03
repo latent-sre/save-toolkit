@@ -601,7 +601,8 @@ class SpendCapAttemptTests(TempRootTestCase):
             calls.append(run_number)
             if isinstance(step, tuple):
                 exc, trace = step
-                if trace is not None:
+                if trace is not None:  # the CLI was launched: the runner records the invocation first
+                    (run_out / "invocation.json").write_text('{"state": "finished"}', encoding="utf-8")
                     (run_out / "stdout.jsonl").write_text(trace, encoding="utf-8")
                 raise exc
             cost = {"known_cost_usd": step or 0.0, "cost_complete": step is not None}

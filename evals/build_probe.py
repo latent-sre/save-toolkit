@@ -19,10 +19,10 @@ EVAL-011: no saved run used it, and externally authored code runs only in separa
 (EVAL-012 DEC-13). A service-backed scenario's service container stays restricted to an exact
 reviewed-image allowlist with capability and resource limits. Every run records `isolation: host`.
 
-A trial is INCONCLUSIVE, never a verdict about the agent, when `claude` reports an error result,
-exits nonzero, never advertises its tool inventory, advertises a different inventory than the
-probe asked for, or carries an MCP server in a strict-empty run; an authentication failure aborts
-the batch. Each run also records the plugin root's commit,
+A trial is INCONCLUSIVE, never a verdict about the agent, when `claude` never advertises its tool
+inventory, advertises a different inventory than the probe asked for, or carries an MCP server in a
+strict-empty run; an error result or a nonzero exit cuts the run short, so a forbidding check its
+partial trace already violates still fails; an authentication failure aborts the batch. Each run also records the plugin root's commit,
 plugin-input dirty state, and source digest, and `--expect-plugin-digest` refuses any other bytes.
 
 The runner lives in the `probe` package beside this file (see probe/__init__.py); this module is only
@@ -56,7 +56,24 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import traceback
+
 from probe import cli
+from probe.exits import ExitCode
+
+
+def main() -> int:
+    """The command line, with a crash read as what it is: exit 1 is a FAIL verdict, so an uncaught
+    exception (whose own status would be 1) exits 2, INCONCLUSIVE, its traceback on stderr."""
+    try:
+        return int(cli.main())
+    except Exception:
+        traceback.print_exc()
+        print(
+            "build_probe: the job crashed before it finished: exit 2 (INCONCLUSIVE), never a verdict", file=sys.stderr
+        )
+        return int(ExitCode.INCONCLUSIVE)
+
 
 if __name__ == "__main__":
-    raise SystemExit(cli.main())
+    raise SystemExit(main())

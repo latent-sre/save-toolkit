@@ -2,7 +2,7 @@
   "about": "a backing service never starts, so the model is never called",
   "batch": {
     "batch_stop": null,
-    "cost_known": false,
+    "cost_known": true,
     "scenario_stop": "backing service unavailable: db"
   },
   "live": {

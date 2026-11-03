@@ -1,4 +1,4 @@
-"""The `build_probe.py` command line: run, validate, regrade, rescore, diff, and schema.
+"""The `build_probe.py` command line: run, validate, regrade, rescore, diff, check-evidence, and schema.
 
 Each job is a subcommand. The flat flags the runner has always taken (`--validate`, `--regrade DIR`,
 `--rescore DIR --out DIR`, `--rescore-diff BASE CANDIDATE`, and a bare run) still parse and reach
@@ -110,8 +110,8 @@ def _threshold_option(parser: argparse.ArgumentParser) -> None:
         "--threshold",
         type=_threshold,
         default=None,
-        help="fraction of trials that must PASS for a scenario verdict (positives only; "
-        "not_fire scenarios are always clamped to 1.0). Default: the scenario's own.",
+        help="fraction of trials that must PASS for a scenario verdict (positives only; a scenario "
+        "with any forbidding check, not_fire included, is always held to 1.0). Default: the scenario's own.",
     )
 
 
@@ -370,7 +370,7 @@ def rescore(iteration_dir: Path, out_dir: Path | None, scenarios: list[dict[str,
         if r.get("error"):
             print(f"{layout.run_name(*layout.run_key(r))}: not rescored: {r['error']}")
             continue
-        saved, now = r["saved"]["status"], r["rescored"]["status"]
+        saved, now = (r["saved"] or {}).get("status", "no saved grade"), r["rescored"]["status"]
         changed += saved != now
         relaxed = " (identity relaxed)" if r["identity_relaxed"] else ""
         print(f"{layout.run_name(*layout.run_key(r))}: saved {saved}, rescored {now}{relaxed}")
@@ -380,27 +380,34 @@ def rescore(iteration_dir: Path, out_dir: Path | None, scenarios: list[dict[str,
         print(f"skipped {skipped['runs_without_trace_summary']} run(s) with no trace summary")
     if skipped["other_run_folders"]:
         print(f"skipped folder(s) that are not numbered runs: {', '.join(skipped['other_run_folders'])}")
+    unread = sum(1 for r in rows if r.get("error"))
     print(
-        f"rescored {len(rows)} run(s) into {out}; {changed} differ from the saved verdict "
+        f"rescored {len(rows) - unread} run(s) into {out}; {changed} differ from the saved verdict "
         "(including any scenario edits since the run; diff two rescores to isolate a runner change)"
+        + (f"; {unread} not read" if unread else "")
     )
     return ExitCode.OK
 
 
 def check_evidence(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> int:
     """Grade each saved run from its evidence alone and print every verdict that differs from the
-    run's own grade; exit 1 when any does, so an evidence record missing what a check read is
-    caught on real runs, not only on the goldens."""
+    run's own grade, and every parsed-trace fact that differs from its raw trace read again; exit 1
+    when any does or a run could not be read, so an evidence record missing what a check read is
+    caught on real runs, not only on the goldens, and 2 when no run was checked and none failed to read."""
     result = rescoring.evidence_check(iteration_dir.resolve(), scenarios)
-    differing = 0
+    differing = unread = 0
     for r in result["runs"]:
         name = layout.run_name(*layout.run_key(r))
         if r.get("error"):
-            differing += 1
+            unread += 1
             print(f"{name}: not checked: {r['error']}")
         elif r["differences"]:
             differing += 1
-            changed = " (the scenario changed since the run)" if r["scenario_changed"] else ""
+            changed = "".join(
+                f" (the {what} changed since the run)"
+                for what, flag in (("scenario", r["scenario_changed"]), ("runner", r.get("runner_changed")))
+                if flag
+            )
             print(f"{name}: differs{changed}: {'; '.join(r['differences'])}")
     skipped = result["skipped"]
     if skipped["runs_without_evidence"]:
@@ -413,18 +420,36 @@ def check_evidence(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> int:
     unchecked = skipped["runs_without_trace_summary"]
     if unchecked:
         print(f"{unchecked} run(s) not checked: neither evidence.json nor a trace summary is there")
-    print(f"checked {len(result['runs'])} run(s) from their evidence; {differing} differ from their own grade")
-    return ExitCode.DIFFERENT if differing or unchecked else ExitCode.OK
+    checked = len(result["runs"]) - unread
+    print(
+        f"checked {checked} run(s) from their evidence; {differing} differ from their own grade"
+        + (f"; {unread} not read" if unread else "")
+    )
+    if differing or unread or unchecked:
+        return ExitCode.DIFFERENT
+    # Checking nothing measured nothing: a mistyped or empty directory is not a clean check.
+    return ExitCode.OK if checked else ExitCode.INCONCLUSIVE
 
 
 def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: float | None) -> int:
-    rows = rescoring.regrade(iteration_dir.resolve(), scenarios)
+    skipped: dict[str, Any] = {}
+    rows = rescoring.regrade(iteration_dir.resolve(), scenarios, skipped_out=skipped)
     for r in rows:
+        if r.get("error"):
+            print(f"{layout.run_name(*layout.run_key(r))}: not regraded: {r['error']}")
+            continue
         scope = " (structural only; semantics UNVERIFIED)" if r.get("semantic_assessment") else ""
         if batches.pool_identity(r) is None:
             scope += " (model, candidate, CLI or host unknown: not pooled)"
         print(f"{layout.run_name(*layout.run_key(r))}: {r['status']} {r['passed']}/{r['total']}{scope}")
-    print(f"regraded {len(rows)} run(s)")
+    if skipped.get("scenarios"):
+        print(f"skipped scenario(s) not in this checkout: {', '.join(skipped['scenarios'])}")
+    if skipped.get("runs_without_trace_summary"):
+        print(f"skipped {skipped['runs_without_trace_summary']} run(s) with no trace summary")
+    if skipped.get("other_run_folders"):
+        print(f"skipped folder(s) that are not numbered runs: {', '.join(skipped['other_run_folders'])}")
+    unread = sum(1 for r in rows if r.get("error"))
+    print(f"regraded {len(rows) - unread} run(s)" + (f"; {unread} not read" if unread else ""))
 
     # Exit like a run: trials aggregate per scenario against its threshold only within one arm, the
     # runs one batch could pool -- one label, resolved model, candidate, CLI and host, and scenario
@@ -552,7 +577,28 @@ def _plan(
         )
     out.mkdir(parents=True, exist_ok=True)
     summary_path = out / f"summary-{args.label}-{args.model or 'default'}.json"
-    existing = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else []
+    try:
+        existing = batches.read_summary(summary_path)
+    except ValueError as exc:
+        print(f"refusing to run: {exc}", file=sys.stderr)
+        return ExitCode.REFUSED
+    # Every planned slot, before the first trial: a slot found unusable mid-batch was paid for up to it.
+    taken = next(
+        (
+            problem
+            for s in scenarios
+            for i in range(args.trials)
+            if (
+                problem := trials.slot_problem(
+                    out, s["id"], args.label, args.run_offset + i + 1, overwrite=args.overwrite
+                )
+            )
+        ),
+        None,
+    )
+    if taken is not None:
+        print(f"refusing to run: {taken}", file=sys.stderr)
+        return ExitCode.REFUSED
     replaced = {(s["id"], args.label, args.run_offset + i + 1) for s in scenarios for i in range(args.trials)}
     retained = [e for e in existing if not args.overwrite or layout.run_key(e) not in replaced]
     settings = trials.BatchSettings(
@@ -643,7 +689,10 @@ def _schedule(batch: Batch) -> Scheduled:
                 blocked = f"plugin inputs could not be measured: {exc}"
                 break
             layout.write_json(
-                batch.summary_path, batches.merge_summary_entries(batch.existing, results), ascii_only=True
+                batch.summary_path,
+                batches.merge_summary_entries(batch.existing, results),
+                ascii_only=True,
+                atomic=True,
             )
             machinery = results[-1].get("grader_error") or results[-1].get("service_error")
             if machinery:
@@ -657,7 +706,7 @@ def _schedule(batch: Batch) -> Scheduled:
         release_sleep_hold()
         # Written even when a trial raised: every trial that finished was paid for and stays counted.
         merged = batches.merge_summary_entries(batch.existing, results)
-        layout.write_json(batch.summary_path, merged, ascii_only=True)
+        layout.write_json(batch.summary_path, merged, ascii_only=True, atomic=True)
     return Scheduled(results, merged, blocked, auth_failed, machinery_stopped)
 
 

@@ -74,6 +74,21 @@ class BatchSettings:
     expected_case_digests: Mapping[str, str] | None = None
 
 
+def slot_problem(out_dir: Path, scenario_id: str, label: str, run_number: int, *, overwrite: bool) -> str | None:
+    """Why a trial cannot take this slot, which a batch checks for every planned slot before its first
+    trial: a published run there (without `--overwrite`), or an earlier attempt beside it that cannot
+    be identified, whose number the next attempt would have to follow."""
+    target = layout.run_dir(out_dir, scenario_id, label, run_number)
+    if target.exists() and not overwrite:
+        return f"{target} already exists; pass --overwrite or a --run-offset"
+    if not target.parent.is_dir():
+        return None
+    for folder in target.parent.iterdir():
+        if folder.is_dir() and layout.hidden_slot(folder.name) == run_number and _attempt_number(folder) is None:
+            return f"{folder} has no readable attempt identity; resolve it before retrying this slot"
+    return None
+
+
 def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettings) -> dict[str, Any]:
     """Publish a complete attempt; a failed overwrite leaves the previous run intact."""
     problems = catalog.validate_scenario(spec) if "followups" in spec else catalog._budget_problems(spec, "scenario")
@@ -81,8 +96,8 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
         raise ValueError("; ".join(problems))
     rubric_judge.validate_binding(settings.judge_binding, fingerprints.required_rubrics(spec))
     target = layout.run_dir(settings.out_dir, spec["id"], settings.label, run_number)
-    if target.exists() and not settings.overwrite:
-        raise RuntimeError(f"{target} already exists; pass --overwrite or a --run-offset")
+    if problem := slot_problem(settings.out_dir, spec["id"], settings.label, run_number, overwrite=settings.overwrite):
+        raise RuntimeError(problem)
     target.parent.mkdir(parents=True, exist_ok=True)
     # Every attempt stays visible (threat-model ADR result rule 7): a replaced run and an attempt that
     # never published move into the slot's history, which run-N globs never match.
@@ -93,7 +108,7 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
     for folder in target.parent.iterdir():
         if folder.is_dir() and layout.hidden_slot(folder.name) == run_number:
             hidden_number = _attempt_number(folder)
-            if hidden_number is None:
+            if hidden_number is None:  # appeared since slot_problem looked
                 raise RuntimeError(f"{folder} has no readable attempt identity; resolve it before retrying this slot")
             number = max(number, hidden_number + 1)
     attempt = _new_attempt_dir(target)
@@ -184,12 +199,13 @@ def _new_attempt_dir(target: Path) -> Path:
 
 def _phase(life: attempts.Attempt | None, phase: attempts.Phase, note: str | None = None) -> None:
     """Record a phase of the attempt's life, when the attempt has one. The record never decides the
-    verdict: a move the machine refuses is a runner defect reported on stderr, not a failed trial."""
+    verdict: a move the machine refuses is a runner defect, and an attempt log that cannot be written
+    is a host problem, each reported on stderr, never a failed trial."""
     if life is None:
         return
     try:
         life.advance(phase, note)
-    except attempts.IllegalTransition as exc:
+    except (attempts.IllegalTransition, OSError) as exc:
         print(f"warning: attempt phase not recorded: {exc}", file=sys.stderr)
 
 
@@ -320,8 +336,10 @@ def _record_raised_cost(attempt: Path, model: str | None) -> None:
     unknown if any invocation lacks a result event; plus any judge call its grading made."""
     if (attempt / "timing.json").exists():  # it was graded before it raised
         return
-    trace_path = attempt / "stdout.jsonl"
-    trial_usd = tracing.parse_trial_trace(attempt).total_cost_usd if trace_path.exists() else 0.0
+    # The first invocation's record is written before its launch; without one the CLI never started
+    # (the empty stdout.jsonl a never-started trial leaves is a placeholder, not a trace).
+    started = (attempt / "invocation.json").exists()
+    trial_usd = tracing.parse_trial_trace(attempt).total_cost_usd if started else 0.0
     judge = records.judge_spend()
     cost = records.trial_cost(trial_usd, judge)
     # The parts as well as the total: the v1 record calls a cost complete only beside known parts.
@@ -504,10 +522,13 @@ def _saved_summary(
     settings: BatchSettings,
     binding: dict[str, Any] | None,
     after_assessment: str | None,
+    workspace: evidence.WorkspaceFacts | None = None,
 ) -> dict[str, Any]:
     """The run's trace summary: its verdict, the trace facts, and what the workspace showed, so a
-    regrade sees the state the live grade saw after the workspace is gone."""
+    regrade sees the state the live grade saw after the workspace is gone. `workspace` is that state as
+    the attempt's evidence read it; left out, it is read now."""
     ws, git = ctx.ws, ctx.git
+    facts = workspace or evidence.workspace_facts(ctx)
     return {
         **assessment.native_assessment(ctx.spec),
         "status": grading["status"],
@@ -524,13 +545,10 @@ def _saved_summary(
         "branch": git.branch,
         "changed_files": git.changed,
         **({"git_problem": git.problem} if git.problem else {}),
-        # Full contents (bounded), so a regrade sees the same state the live grade saw.
-        "state_files": {
-            p.name: p.read_text(encoding="utf-8", errors="replace")[:50000]
-            for p in ws.state_dir.iterdir()
-            if p.is_file()
-        },
-        "agents_dir": (ws.repo / ".agents").exists(),
+        # Full contents (bounded), so a regrade sees the same state the live grade saw: as the evidence
+        # read it, before any probe ran (a probe can run the candidate's code with the fixture's env).
+        "state_files": {name: content[:50000] for name, content in facts.state_files.items()},
+        "agents_dir": facts.agents_dir,
         "plugin": provenance,
         "runtime": settings.runtime,
         "workspace": str(ws.repo.resolve()),
@@ -542,7 +560,12 @@ def _saved_summary(
 
 
 def _timing(
-    trace: TraceSummary, elapsed: float, judge: Mapping[str, Any], cost: Mapping[str, Any], settings: BatchSettings
+    trace: TraceSummary,
+    elapsed: float,
+    judge: Mapping[str, Any],
+    cost: Mapping[str, Any],
+    settings: BatchSettings,
+    trial_usd: float | None,
 ) -> dict[str, Any]:
     """What the trial took and cost: the CLI's own duration when it reported one, else the wall clock."""
     trial_seconds = (trace.duration_ms or elapsed * 1000) / 1000
@@ -553,7 +576,7 @@ def _timing(
         "trial_duration_seconds": round(trial_seconds, 1),
         "total_duration_seconds": round(trial_seconds + judge["seconds"], 1),
         "num_turns": trace.num_turns,
-        "trial_cost_usd": records.known_usd(trace.total_cost_usd),
+        "trial_cost_usd": records.known_usd(trial_usd),
         "total_cost_usd": cost["cost_usd"],
         "known_cost_usd": cost["known_cost_usd"],
         "cost_complete": cost["cost_complete"],
@@ -685,21 +708,28 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         started = time.monotonic()
         if inconclusive is None:
             make_env = settings.env_factory or (lambda: clean_room.clean_env(subscriber_only=True))
-            with make_env() as base_env:
-                env = workspaces.child_env(base_env, ws, spec, services)
-                inconclusive, failed = _invoke_turns(
-                    spec,
-                    settings,
-                    run_out,
-                    ws,
-                    env,
-                    provenance["plugin_source_sha256"],
-                    binding,
-                    scenario_identity,
-                    served,
-                )
-                identity_failure = identity_failure or failed
-            _phase(life, attempts.Phase.INVOKED)
+            try:
+                with make_env() as base_env:
+                    env = workspaces.child_env(base_env, ws, spec, services)
+                    inconclusive, failed = _invoke_turns(
+                        spec,
+                        settings,
+                        run_out,
+                        ws,
+                        env,
+                        provenance["plugin_source_sha256"],
+                        binding,
+                        scenario_identity,
+                        served,
+                    )
+                    identity_failure = identity_failure or failed
+            finally:
+                # The CLI ran, whether or not the step raised after it (an authentication failure is
+                # found after the call); a drift found before its first launch, or a launch that
+                # failed, never ran it. The first invocation's record says how its launch ended.
+                launched = (layout.read_object(run_out / "invocation.json") or {}).get("state")
+                if launched in ("finished", "timed_out"):
+                    _phase(life, attempts.Phase.INVOKED)
         else:
             # A missing fixture target cannot be repaired by the model. Starting it here would
             # spend a call with unresolved service placeholders and could make a tool-bearing
@@ -767,16 +797,23 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             _phase(life, attempts.Phase.VOID, identity_failure)
         elif grading.get("grader_error") or service_error:
             _phase(life, attempts.Phase.STOPPED, grading.get("grader_error") or service_error)
+        elif grading.get("void"):  # voided at run level for another reason: the log shows where it ended
+            _phase(life, attempts.Phase.VOID, grading["void"])
         layout.write_json(
             run_out / "outputs" / "trace-summary.json",
-            _saved_summary(ctx, grading, provenance, settings, binding, after_assessment),
+            _saved_summary(ctx, grading, provenance, settings, binding, after_assessment, found.workspace),
         )
         layout.write_json(run_out / "grading.json", grading)
         evidence.write(run_out, found)
         # Drained after grading: a rubric grader's judge call is spend this trial caused.
         judge = records.judge_spend()
-        cost = records.trial_cost(trace.total_cost_usd, judge)
-        layout.write_json(run_out / "timing.json", _timing(trace, elapsed, judge, cost, settings), ascii_only=True)
+        # The first invocation's record precedes every launch: without one the CLI never started and
+        # the model was never called (the empty stdout.jsonl left then is a placeholder, not a trace).
+        trial_usd = trace.total_cost_usd if (run_out / "invocation.json").exists() else 0.0
+        cost = records.trial_cost(trial_usd, judge)
+        layout.write_json(
+            run_out / "timing.json", _timing(trace, elapsed, judge, cost, settings, trial_usd), ascii_only=True
+        )
         summary = {
             "scenario": spec["id"],
             "label": settings.label,

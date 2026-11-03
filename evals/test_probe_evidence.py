@@ -49,6 +49,19 @@ def test_the_published_schema_is_the_model() -> None:
     )
 
 
+def test_an_integer_written_with_a_fraction_part_is_refused_though_the_schema_accepts_it(tmp_path: Path) -> None:
+    """JSON Schema reads `5.0` as an integer; the model never coerces a value into place, so it
+    refuses one (contracts.md). Pinned so a change to either side is deliberate."""
+    jsonschema = pytest.importorskip("jsonschema")
+    published = json.loads((ROOT / "docs/fleet-evaluation/eval-evidence-v1.schema.json").read_text("utf-8"))
+    _run, found, _grading = _live(next(c for c in CASES if c.name == "pass"), tmp_path)
+    record = json.loads(found.model_dump_json())
+    record["trace"]["duration_ms"] = 5.0
+    assert jsonschema.Draft202012Validator(published).is_valid(record)
+    with pytest.raises(ValueError, match="valid integer"):
+        evidence.EvidenceV1.model_validate_json(json.dumps(record))
+
+
 def test_the_trace_block_carries_every_trace_summary_field() -> None:
     """The parsed trace goes into the evidence in full; a field added to `TraceSummary` must be added here."""
     summary_fields = {f.name for f in dataclasses.fields(tracing.TraceSummary)}
