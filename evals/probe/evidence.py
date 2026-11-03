@@ -7,8 +7,8 @@ concluded: the identity it ran under, the host it ran on (in its own block, sinc
 computer's and not the measurement's), the parsed trace in full with a digest of each raw trace, the
 workspace's git facts and state files, the backing services, how the run ended, each native turn,
 and the outcomes of the probes: the checks a regrade cannot re-measure, whose live outcome is
-therefore evidence. The live path serialises what it has; a pre-evidence run directory is loaded
-into the same shape by `legacy`. Nothing grades from it yet.
+therefore evidence. The live path serialises what it observed, probes measured; a pre-evidence run
+directory is loaded into the same shape by `legacy`; `engine.grade` grades from it, live or saved.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from pydantic import ConfigDict, Field
 
 from . import assessment, fingerprints, layout
 from .checking import Context
-from .outcomes import Ending, Outcome, Polarity, State, Stop
+from .outcomes import CutShort, Ending, Outcome, Polarity, State, Stop
 from .records import Sha256, UtcTime, _Section
 from .tracing import TraceSummary
 
@@ -230,13 +230,17 @@ def file_sha256(path: Path) -> str | None:
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
 
 
-def trace_facts(trace: TraceSummary, run_dir: Path, *, restored: bool) -> Trace:
+def trace_facts(trace: TraceSummary, run_dir: Path | None, *, restored: bool) -> Trace:
     """Every field of the parsed trace, with the digest of each raw trace under the attempt folder."""
-    raw = {
-        folder.relative_to(run_dir).joinpath("stdout.jsonl").as_posix(): digest
-        for folder in layout.saved_folders(run_dir)
-        if (digest := file_sha256(folder / "stdout.jsonl")) is not None
-    }
+    raw = (
+        {
+            folder.relative_to(run_dir).joinpath("stdout.jsonl").as_posix(): digest
+            for folder in layout.saved_folders(run_dir)
+            if (digest := file_sha256(folder / "stdout.jsonl")) is not None
+        }
+        if run_dir is not None
+        else {}
+    )
     return Trace(**dataclasses.asdict(trace), raw_sha256=raw, restored_from_summary=restored)
 
 
@@ -253,8 +257,10 @@ def _strings(value: object) -> list[str] | None:
     return list(value) if isinstance(value, list) and all(isinstance(v, str) for v in value) else None
 
 
-def turns(run_dir: Path) -> list[Turn]:
+def turns(run_dir: Path | None) -> list[Turn]:
     """Each native invocation the attempt saved, in order; an attempt with one invocation has none."""
+    if run_dir is None:
+        return []
     folders = layout.saved_folders(run_dir)
     if len(folders) < 2:
         return []
@@ -290,24 +296,34 @@ def turns(run_dir: Path) -> list[Turn]:
 def probes(
     spec: Mapping[str, Any], grading: Mapping[str, Any], trace: TraceSummary, plugin_root: Path, judge_binding: Any
 ) -> list[ProbeOutcome]:
-    """The outcomes the grade recorded for every expectation a regrade keeps rather than re-measures,
-    paired with the grade's expectations by position and text, as a regrade pairs them; an
-    expectation the grade does not record at that position is not evidence."""
+    """The outcomes a saved grade recorded for every expectation a regrade keeps rather than
+    re-measures, paired with the grade's expectations by position and text, the position being the
+    one each recorded expectation's id names (`<identity>:<index>`), else its order; an expectation
+    the grade does not record at that position is not evidence."""
     items = assessment.plan(spec, trace, None, plugin_root, judge_binding, keep=True)
-    recorded = list(grading.get("expectations") or [])
-    return [
-        ProbeOutcome(
-            id=str(saved.get("id") or f"{grading.get('scenario_sha256')}:{index}"),
-            text=item.text,
-            kind=item.polarity,
-            # An older grade recorded no state; the outcome reads one from what it did record.
-            state=State(saved["state"]) if "state" in saved else Outcome.read(saved["passed"], saved["evidence"]).state,
-            evidence=str(saved.get("evidence") or ""),
-            kept_as=item.kept_as,
+    recorded: dict[int, Mapping[str, Any]] = {}
+    for order, saved in enumerate(grading.get("expectations") or []):
+        _prefix, _sep, suffix = str(saved.get("id") or "").rpartition(":")
+        recorded.setdefault(int(suffix) if suffix.isdigit() else order, saved)
+    probes = []
+    for index, item in enumerate(items):
+        saved = recorded.get(index)
+        if item.kept_as is None or saved is None or saved.get("text") != item.text:
+            continue
+        probes.append(
+            ProbeOutcome(
+                id=str(saved.get("id") or f"{grading.get('scenario_sha256')}:{index}"),
+                text=item.text,
+                kind=item.polarity,
+                # An older grade recorded no state; the outcome reads one from what it did record.
+                state=State(saved["state"])
+                if "state" in saved
+                else Outcome.read(saved["passed"], saved["evidence"]).state,
+                evidence=str(saved.get("evidence") or ""),
+                kept_as=item.kept_as,
+            )
         )
-        for index, (item, saved) in enumerate(zip(items, recorded, strict=False))
-        if item.kept_as is not None and saved.get("text") == item.text
-    ]
+    return probes
 
 
 def split_binding(binding: Mapping[str, Any] | None) -> tuple[dict[str, Any] | None, dict[str, Any] | None, Any]:
@@ -319,7 +335,8 @@ def split_binding(binding: Mapping[str, Any] | None) -> tuple[dict[str, Any] | N
 
 
 def ending_of(grading: Mapping[str, Any], identity_failure: str | None) -> RunEnding:
-    """How the run ended, as the grade recorded it: the v1 record's reading of the same fields."""
+    """How the run ended, as a saved grade recorded it: the v1 record's reading of the same fields.
+    The reason is the run's, why it was voided or cut short, never a check's own."""
     kind = (
         Ending.VOID
         if grading.get("void")
@@ -328,26 +345,60 @@ def ending_of(grading: Mapping[str, Any], identity_failure: str | None) -> RunEn
         else Ending.COMPLETED
     )
     stop = grading.get("run_stop") if kind is Ending.CUT_SHORT else None
+    reason = (
+        grading.get("void")
+        if kind is Ending.VOID
+        else grading.get("inconclusive") or grading.get("unmeasured")
+        if kind is Ending.CUT_SHORT
+        else None
+    )
     return RunEnding(
         kind=kind,
         stop=Stop(stop) if stop is not None else None,
-        reason=grading.get("void") or grading.get("inconclusive") or grading.get("unmeasured"),
+        reason=str(reason) if reason else None,
         identity_failure=identity_failure,
+    )
+
+
+def ending_from(run_level: str | None, *, turn_limit: bool, identity_failure: str | None) -> RunEnding:
+    """How the run that just ran ended: voided by `run_level` (rule 1), cut short by it (rules 2 and
+    4), ended by the CLI at its declared turn limit, or completed."""
+    if isinstance(run_level, CutShort):
+        return RunEnding(
+            kind=Ending.CUT_SHORT, stop=run_level.kind, reason=str(run_level), identity_failure=identity_failure
+        )
+    if run_level:
+        return RunEnding(kind=Ending.VOID, stop=None, reason=run_level, identity_failure=identity_failure)
+    kind = Ending.TURN_LIMIT if turn_limit else Ending.COMPLETED
+    return RunEnding(kind=kind, stop=None, reason=None, identity_failure=identity_failure)
+
+
+def ended(found: EvidenceV1, run_level: str | None, *, identity_failure: str | None) -> EvidenceV1:
+    """The same evidence with how the run ended settled after it was observed: a drift of the measured
+    inputs found after grading voids the run its evidence describes (rule 1)."""
+    return found.model_copy(
+        update={"ending": ending_from(run_level, turn_limit=False, identity_failure=identity_failure)}
     )
 
 
 def from_live(
     ctx: Context,
-    grading: Mapping[str, Any],
-    run_dir: Path,
+    run_dir: Path | None,
     *,
+    identity: str,
+    binding: Mapping[str, Any] | None,
+    ending: RunEnding,
+    probes: list[ProbeOutcome],
+    service_problem: str | None,
     provenance: Mapping[str, Any],
     runtime: Mapping[str, Any] | None,
     requested_model: str | None,
-    identity_failure: str | None,
 ) -> EvidenceV1:
-    """The evidence of the attempt that just ran, from the objects the live grade read."""
-    binding, execution, cache_dir = split_binding(grading.get("judge_binding"))
+    """The evidence of the attempt that just ran, from the objects the trial read, before anything
+    is graded: `identity` is the scenario digest the trial started under, `binding` the judge
+    binding its identity binds, `probes` what `engine.probe` measured, and `service_problem` a
+    backing service that stopped answering, after the proxy stopped or during a probe."""
+    binding, execution, cache_dir = split_binding(binding)
     git = ctx.git
     return EvidenceV1(
         format=EvidenceFormat(**EVIDENCE_FORMAT),
@@ -355,7 +406,7 @@ def from_live(
         identity=Identity(
             case_id=str(ctx.spec["id"]),
             case_sha256=fingerprints.case_digest(ctx.spec),
-            scenario_sha256=grading.get("scenario_sha256"),
+            scenario_sha256=identity,
             plugin_commit=provenance.get("plugin_commit"),
             plugin_inputs_dirty=provenance.get("plugin_inputs_dirty"),
             plugin_source_sha256=provenance.get("plugin_source_sha256"),
@@ -368,7 +419,7 @@ def from_live(
         ),
         host=Host(
             runtime=dict(runtime) if runtime is not None else None,
-            workspace=str(ctx.ws.repo.resolve()),
+            workspace=str(ctx.ws.repo),  # as the trial's commands named it: the path the CLI ran in
             plugin_root=provenance.get("plugin_root"),
             plugin_served_from=provenance.get("plugin_served_from"),
             judge_execution=execution,
@@ -383,20 +434,20 @@ def from_live(
             branch=git.branch,
             changed=[[status, path] for status, path in git.changed],
             problem=git.problem,
-            patch_sha256=file_sha256(run_dir / "outputs" / "workspace.patch"),
+            patch_sha256=file_sha256(run_dir / "outputs" / "workspace.patch") if run_dir is not None else None,
         ),
         workspace=WorkspaceFacts(
             state_files={
                 p.name: p.read_text(encoding="utf-8", errors="replace")[:50000]
-                for p in ctx.ws.state_dir.iterdir()
+                for p in (ctx.ws.state_dir.iterdir() if ctx.ws.state_dir.is_dir() else ())
                 if p.is_file()
             },
             agents_dir=(ctx.ws.repo / ".agents").exists(),
             baseline_branch=ctx.ws.baseline_branch,
         ),
         services=[ServiceFacts(name=s.name, image=s.image, base_url=s.base_url) for s in ctx.services],
-        service_problem=ctx.service_problem,
-        ending=ending_of(grading, identity_failure),
+        service_problem=service_problem,
+        ending=ending,
         turns=turns(run_dir),
-        probes=probes(ctx.spec, grading, ctx.trace, ctx.plugin_root, ctx.judge_binding),
+        probes=probes,
     )

@@ -21,20 +21,18 @@ preserves the private craft trial's verification wiring without shipping the pro
   it reads the live checkout, a backing service or a paid judge. Polarity, regradability and the
   cut-short rules are read from those declarations. [`probe/checking.py`](../probe/checking.py) is
   the facade that keeps every name importable and the module the runner calls the registry through.
-- **One grading loop.** `assessment.assess` grades a live trial and a regrade alike; a regrade
-  supplies the saved verdicts it keeps. A result rule therefore changes in one place: `rules.py`
-  holds the eight result rules as named functions, each with its own test, which the loop and the
-  attempt's life apply by name.
-- **The evidence engine, in shadow.** `engine.grade(scenario, evidence, kept)` grades an attempt from
-  its `evidence.json` alone: checks are re-measured through the same declared check functions
-  against a context rebuilt from the evidence, and a probe's live outcome is kept as evidence.
-  During the rewrite's shadow period every live grade and every regrade also runs it, and
-  `shadow.json` beside the authoritative grade records whether the two agree; a disagreement is a
-  test failure on the goldens and a `shadow_disagreements` field on the run's row. `build_probe.py
-  shadow ITERATION_DIR` counts the shadow grades across an iteration against the owner's gate.
+- **One grading path.** `engine.grade(scenario, evidence, kept)` grades an attempt from its
+  `evidence.json` alone, live or saved: the checks are re-measured through the same declared check
+  functions against a context rebuilt from the evidence, and a probe's recorded outcome is kept as
+  evidence. A live attempt reaches it through `engine.grade_trial`: the probes run once in the
+  trial's workspace, their outcomes are recorded as evidence before the rules read them, and the
+  grade is read from that evidence as a regrade reads it later. `assessment.plan` lists the
+  expectations and `assessment.assess` is the loop the engine drives; a result rule therefore
+  changes in one place: `rules.py` holds the eight result rules as named functions, each with its own
+  test, which the loop and the attempt's life apply by name.
 - **An attempt's life.** `attempt.py` writes `attempt.json` at each phase an attempt passes through
-  (`prepared`, `served`, `seeded`, `invoked`, `observed`, `graded`, `published`; `void`, `stopped`
-  and `incomplete` where one leaves it), so an attempt that raised shows where it stopped.
+  (`prepared`, `served`, `seeded`, `invoked`, `observed`, `probed`, `graded`, `published`; `void`,
+  `stopped` and `incomplete` where one leaves it), so an attempt that raised shows where it stopped.
 - **A published record contract.** `records.RecordV1` validates each `record.json` strictly, as
   the JSON its readers parse, on the first write and on every later change, and
   [`eval-record-v1.schema.json`](../../docs/fleet-evaluation/eval-record-v1.schema.json) is generated

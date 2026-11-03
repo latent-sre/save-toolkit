@@ -25,11 +25,10 @@ from probe import cli as probe_cli
 from probe import constants as probe_constants
 from probe import fingerprints as probe_fingerprints
 from probe import outcomes as probe_outcomes
-from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
 from probe import trials as probe_trials
 from probe import workspaces as probe_workspaces
-from probe_testkit import STUB_RUNTIME, all_scenarios, context, scenario_file, tiny_spec, trace_measures
+from probe_testkit import STUB_RUNTIME, all_scenarios, context, grade_trial, scenario_file, tiny_spec, trace_measures
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -219,7 +218,7 @@ class ReferenceReadTests(unittest.TestCase):
                         reads = [] if path is None else [{"tool": "Read", "path": path, "outcome": outcome}]
                         ctx = probe_checking.Context(spec, ws, self._trace(reads),
                                                   probe_workspaces.GitFacts(0, "main", [], ""), plugin_root=plugin_root)
-                        verdict = next(e for e in probe_assessment.grade(ctx)["expectations"]
+                        verdict = next(e for e in grade_trial(ctx)["expectations"]
                                        if e["text"] == f"reference {reference} read")
                         self.assertEqual(expected, verdict["passed"], verdict["evidence"])
 
@@ -232,7 +231,7 @@ class ReferenceReadTests(unittest.TestCase):
     def test_references_are_graded_as_their_own_expectation(self) -> None:
         ws = probe_workspaces.Workspace(Path("."), Path("."), Path("."), Path("."), 0, "main")
         ctx = probe_checking.Context(self.SPEC, ws, self._trace([]), probe_workspaces.GitFacts(0, "main", [], ""))
-        texts = [e["text"] for e in probe_assessment.grade(ctx)["expectations"]]
+        texts = [e["text"] for e in grade_trial(ctx)["expectations"]]
         self.assertIn(f"reference {self.SPEC['references'][0]} read", texts)
         self.assertIn(f"reference {self.SPEC['references'][0]} read", probe_assessment.scenario_assertions(self.SPEC))
 
@@ -315,7 +314,7 @@ class ResultRuleTests(unittest.TestCase):
         """Rule 1: identity and run-level failures mark every check INCONCLUSIVE, FAILs included."""
         spec = tiny_spec(checks=[{"check": "text_contains_any", "of": ["absent"], "text": "says absent"}])
         ctx = context(spec, probe_tracing.TraceSummary(result_text="text"))
-        grading = probe_assessment.grade(ctx, inconclusive="plugin source changed during the trial")
+        grading = grade_trial(ctx, inconclusive="plugin source changed during the trial")
         self.assertEqual("INCONCLUSIVE", grading["status"])
         self.assertEqual({"INCONCLUSIVE"}, {e["state"] for e in grading["expectations"]})
         self.assertNotIn("unmeasured", grading)
@@ -351,7 +350,7 @@ class GradingMachineryTests(unittest.TestCase):
         spec = tiny_spec(checks=[{"check": "text_contains_any", "of": ["ok"], "text": "says ok"},
                                  {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}])
         ctx = context(spec, probe_tracing.TraceSummary(result_text="ok"))
-        grading = probe_assessment.grade(ctx)
+        grading = grade_trial(ctx)
         self.assertEqual(["PASS", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
         self.assertEqual("INCONCLUSIVE", grading["status"])
         self.assertIn("unknown fleet grader", grading["grader_error"])
@@ -360,7 +359,7 @@ class GradingMachineryTests(unittest.TestCase):
         spec = tiny_spec(checks=[{"check": "text_contains_any", "of": ["absent"], "text": "says absent"},
                                  {"check": "fleet_grader", "name": "no-such-grader", "text": "broken"}])
         ctx = context(spec, probe_tracing.TraceSummary(result_text="ok"))
-        self.assertEqual("FAIL", probe_assessment.grade(ctx)["status"])
+        self.assertEqual("FAIL", grade_trial(ctx)["status"])
 
     def test_validation_rejects_an_unknown_fleet_grader(self) -> None:
         spec = tiny_spec(checks=[{"check": "fleet_grader", "name": "no-such-grader", "text": "x"}])
@@ -387,7 +386,7 @@ class GradingMachineryTests(unittest.TestCase):
     def test_an_instrument_failure_stops_its_scenario(self) -> None:
         spec = tiny_spec(checks=[{"check": "skill_not_loaded", "skill": "eng-ladder", "text": "no ladder"}])
         ctx = context(spec, probe_tracing.TraceSummary(skills=["<unnamed-skill>"]))
-        grading = probe_assessment.grade(ctx)
+        grading = grade_trial(ctx)
         self.assertEqual("INCONCLUSIVE", grading["expectations"][0]["state"])
         self.assertIn("Skill call carried no name", grading["grader_error"])
 
@@ -397,7 +396,7 @@ class GradingMachineryTests(unittest.TestCase):
         spec = tiny_spec(checks=[{"check": "fleet_grader", "name": "regex", "pattern": "x", "text": "judged"}])
         ctx = context(spec, probe_tracing.TraceSummary(result_text="response"))
         with mock.patch.object(fleet_graders, "run_grader", return_value=(False, evidence)):
-            grading = probe_assessment.grade(ctx)
+            grading = grade_trial(ctx)
         self.assertEqual(("INCONCLUSIVE", "INCONCLUSIVE"), (grading["status"], grading["expectations"][0]["state"]))
         self.assertIn("judge timed out", grading["grader_error"])
 
@@ -446,8 +445,9 @@ class GradingLoopTests(unittest.TestCase):
                                                    ("judged", True, "PASS", False),
                                                    ("INCONCLUSIVE: " + "u" * 586, False, "INCONCLUSIVE", True)):
             with self.subTest(state=state):
-                saved = {"sha:0": {"id": "sha:0", "text": "expectation", "passed": passed, "evidence": evidence}}
-                graded, _ = probe_assessment.assess([item], None, kept=probe_rescoring._saved_verdicts(saved, "sha"))
+                read = probe_outcomes.Outcome.read(passed, evidence)
+                kept = read.with_evidence(probe_outcomes.kept_evidence("live-judge", evidence))
+                graded, _ = probe_assessment.assess([item], None, kept=lambda _index, _item, kept=kept: kept)
                 record = probe_assessment.records(graded)[0]
                 self.assertTrue(record["evidence"].startswith("[kept: live-judge] "), record["evidence"])
                 self.assertEqual((state, truncated), (record["state"], bool(record.get("evidence_truncated"))))

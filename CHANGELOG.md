@@ -8,6 +8,13 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The evidence engine is the runner's one grading path: a live attempt's probes run once in its
+  workspace and are recorded as evidence before the rules read them, the grade is read from the
+  attempt's `evidence.json` as a regrade reads it later, and a regrade of a run that wrote one no
+  longer reads its raw trace (the owner's decision of 2026-11-02). The old live grader and regrade
+  loop, `shadow.json` and the `shadow` command are removed; `attempt.json` records the `probed`
+  phase. The owner waived the shadow gate on 2026-11-03, so the cut-over is proven on the goldens
+  alone (stage 4 of the runner rewrite, RUNNER-001).
 - The evidence engine grades every attempt in shadow: `probe/rules.py` names the eight result rules,
   `probe/engine.py` grades a scenario from its `evidence.json`, and `shadow.json` beside each live
   grade and each regrade records whether it agrees with the authoritative grade; `build_probe.py

@@ -1,25 +1,56 @@
-"""The evidence engine grades every golden the way the authoritative engine does, in shadow (stage 3
-of the runner rewrite, RUNNER-001): on each live attempt and on each regrade of a saved run."""
+"""The evidence engine is the runner's one grading path (stage 4 of the runner rewrite, RUNNER-001):
+a live attempt's probes are measured once and recorded as evidence, the grade is read from that
+evidence, and a regrade of the same evidence reaches the same verdict."""
 
 from __future__ import annotations
 
-import contextlib
-import io
 import json
+import re
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 import golden_runs
 import judge
 import pytest
-from probe import cli, engine, rescoring, shadow
+from probe import checks, engine, rescoring, workspaces
 from probe.attempt import Phase
-from probe.outcomes import State
-from probe_testkit import saved_grade, saved_summary, write_saved_run
+from probe.constants import ROOT
+from probe.outcomes import EVIDENCE_LIMIT, CutShort, State, Stop
+from probe_testkit import context, grade_trial, saved_grade, saved_summary, tiny_spec, write_saved_run, ws_context
 
 CASES = [c for c in golden_runs.CASES if not c.raises]
 IDS = [c.name for c in CASES]
+_KEPT = re.compile(r"^\[kept: [\w-]+\] ")
+# A regrade bounds a kept marker and its evidence together; the prefix both grades surely hold.
+_COMMON_EVIDENCE = EVIDENCE_LIMIT - len("[kept: workspace-dependent] ")
+
+
+def comparable(grading: Mapping[str, Any]) -> dict[str, Any]:
+    """The verdict of a grade: everything but what is beside it (identities, the judge binding, the
+    after-assessment record of rule 6, a regrade's kept markers and the tail of bounded evidence)."""
+    return {
+        "status": grading.get("status"),
+        "inconclusive": grading.get("inconclusive"),
+        "unmeasured": grading.get("unmeasured"),
+        "void": grading.get("void"),
+        "run_end": grading.get("run_end"),
+        "run_stop": grading.get("run_stop"),
+        "grader_error": grading.get("grader_error"),
+        "expectations": [
+            {
+                "text": e.get("text"),
+                "kind": e.get("kind"),
+                "state": e.get("state"),
+                "passed": e.get("passed"),
+                "evidence": _KEPT.sub("", str(e.get("evidence") or ""))[:_COMMON_EVIDENCE],
+            }
+            for e in grading.get("expectations") or []
+        ],
+        "summary": {key: (grading.get("summary") or {}).get(key) for key in ("passed", "failed", "total")},
+    }
 
 
 def _live(item: golden_runs.Case, root: Path):
@@ -36,125 +67,101 @@ def _saved_copy(item: golden_runs.Case, root: Path) -> Path:
     return copy
 
 
-@contextlib.contextmanager
-def _the_judge_that_graded(copy: Path):
-    binding = json.loads((copy / "grading.json").read_text("utf-8")).get("judge_binding")
-    if binding is None:
-        yield
-        return
-    with mock.patch.object(judge, "execution_identity", return_value=binding["execution"]):
-        yield
-
-
 @pytest.mark.parametrize("item", CASES, ids=IDS)
-def test_the_shadow_agrees_with_every_live_grade(item: golden_runs.Case, tmp_path: Path) -> None:
-    run_dir, _grading, summary = _live(item, tmp_path)
-    result = json.loads((run_dir / shadow.FILE).read_text("utf-8"))
-    assert result["engine"] == shadow.ENGINE and result["source"] == "live"
-    assert result.get("error") is None
-    assert result["differences"] == [] and result["agrees"] is True
-    assert "shadow_disagreements" not in summary and "shadow_error" not in summary
+def test_a_regrade_of_the_evidence_an_attempt_wrote_reaches_its_live_verdict(item: golden_runs.Case, tmp_path: Path) -> None:
+    """The same engine reads the same evidence twice: once as the attempt is graded, once as the
+    saved run is regraded from its own `evidence.json`, under the identity it ran as."""
+    run_dir, grading, _summary = _live(item, tmp_path)
+    regraded = rescoring.regrade_run(run_dir, item.spec(), write=False)
+    assert regraded.get("identity_relaxed") is None, "the run was graded by this runner"
+    assert comparable(regraded) == comparable(grading)
+    assert "after_assessment" not in regraded, "rule 6: the record is the live attempt's alone"
 
 
-@pytest.mark.parametrize("item", CASES, ids=IDS)
-def test_the_shadow_agrees_with_every_regrade(item: golden_runs.Case, tmp_path: Path) -> None:
-    copy = _saved_copy(item, tmp_path)
-    with _the_judge_that_graded(copy):
-        grading, result = rescoring.regrade_run_shadow(
-            copy, golden_runs.scenario(item), write=False, relax_identity=True
-        )
-    assert result is not None and result.get("error") is None
-    assert result["differences"] == [] and result["agrees"] is True
-    assert shadow.comparable(result["verdict"]) == shadow.comparable(grading)
+def test_a_regrade_reads_the_evidence_not_the_raw_trace(tmp_path: Path) -> None:
+    """The owner's decision of 2026-11-02: the evidence carries the parsed trace in full, so a regrade
+    of a run that wrote it no longer needs `stdout.jsonl`."""
+    item = next(c for c in CASES if c.name == "fail_forbidding")
+    run_dir, grading, _ = _live(item, tmp_path)
+    (run_dir / "stdout.jsonl").unlink()
+    regraded = rescoring.regrade_run(run_dir, item.spec(), write=False)
+    assert comparable(regraded) == comparable(grading)
+    assert regraded["status"] == "FAIL"
 
 
-def test_a_lapsed_judgment_lapses_in_the_shadow_too(tmp_path: Path) -> None:
+def _seeded(root: Path) -> workspaces.Workspace:
+    """A real fixture repository with one commit, as a trial seeds one, for probes that read it."""
+    (root / "repo").mkdir(parents=True)
+    (root / "state").mkdir()
+    (root / "repo" / "README.md").write_text("# fixture\n", encoding="utf-8")
+    workspaces._git(root / "repo", "init", "-q")
+    workspaces._git(root / "repo", *workspaces.GIT_IDENTITY, "add", "README.md")
+    workspaces._git(root / "repo", *workspaces.GIT_IDENTITY, "commit", "-q", "-m", "fixture")
+    return workspaces.Workspace(root, root / "repo", root / "bin", root / "state", 1, "main", baseline_commit_ids=frozenset())
+
+
+def test_a_probes_measured_outcome_is_evidence_and_the_rules_read_it(tmp_path: Path) -> None:
+    """A forbidding probe on a run cut short: the probe measured no violation, which the evidence
+    records as it was measured; the grade reads it under rule 2, so it proves nothing."""
+    check = {"check": "changed_files_not_containing", "glob": "**/*", "needle": "secret", "text": "no secret written"}
+    ctx = ws_context(tiny_spec(checks=[check]), _seeded(tmp_path / "ws"))
+    cut = CutShort("timed out after 60s", Stop.WALL_CLOCK)
+    grading, found = engine.grade_trial(ctx, inconclusive=cut)
+    probe = found.probes[0]
+    assert (probe.text, probe.kind, probe.state) == ("no secret written", "forbids", State.PASS), probe
+    assert found.ending.kind == "cut_short" and found.ending.reason == "timed out after 60s"
+    expectation = grading["expectations"][0]
+    assert expectation["state"] == "INCONCLUSIVE"
+    assert "no violation before the run was cut short" in expectation["evidence"]
+    assert (grading["run_end"], grading["run_stop"], grading["status"]) == ("cut_short", "wall_clock", "INCONCLUSIVE")
+
+
+def test_a_void_run_measures_no_probe(tmp_path: Path) -> None:
+    spec = tiny_spec(checks=[{"check": "command_exit_zero", "command": "true", "text": "test command ran"}])
+    ctx = ws_context(spec, _seeded(tmp_path / "ws"))
+    with mock.patch.object(checks.checkout, "_run", side_effect=AssertionError("a void run runs no probe")):
+        grading, found = engine.grade_trial(ctx, inconclusive="plugin inputs changed")
+    assert [(p.state, p.evidence) for p in found.probes] == [(State.INCONCLUSIVE, "INCONCLUSIVE: plugin inputs changed")]
+    assert found.ending.kind == "void" and found.ending.reason == "plugin inputs changed"
+    assert grading["void"] == "plugin inputs changed" and grading["status"] == "INCONCLUSIVE"
+
+
+def test_a_lapsed_judgment_is_unmeasured_on_regrade(tmp_path: Path) -> None:
     item = next(c for c in CASES if c.name == "rubric_kept")
     copy = _saved_copy(item, tmp_path)
     binding = json.loads((copy / "grading.json").read_text("utf-8"))["judge_binding"]
     other = {**binding["execution"], "source_sha256": "0" * 64}
     with mock.patch.object(judge, "execution_identity", return_value=other):
-        grading, result = rescoring.regrade_run_shadow(
-            copy, golden_runs.scenario(item), write=False, relax_identity=True
-        )
+        grading = rescoring.regrade_run(copy, golden_runs.scenario(item), write=False, relax_identity=True)
     assert grading["status"] == "INCONCLUSIVE" and "re-run under the current judge" in grading["inconclusive"]
-    assert result is not None and result["agrees"] is True, result.get("differences")
 
 
-def test_a_written_regrade_keeps_its_shadow_beside_its_assessment(tmp_path: Path) -> None:
+def test_a_written_regrade_keeps_the_evidence_it_graded_beside_its_assessment(tmp_path: Path) -> None:
     item = next(c for c in CASES if c.name == "pass")
     copy = _saved_copy(item, tmp_path)
     rescoring.regrade_run(copy, golden_runs.scenario(item), write=True, relax_identity=True)
-    assert not (copy / shadow.FILE).exists(), "the live attempt's folder is never rewritten"
-    result = json.loads((copy / "assessments" / "1" / shadow.FILE).read_text("utf-8"))
-    assert result["source"] == "regrade" and result["agrees"] is True
-
-
-def test_the_comparable_grade_leaves_out_what_is_beside_the_verdict() -> None:
-    grading = {
-        "status": "PASS",
-        "after_assessment": "cleanup failed",
-        "scenario_sha256": "a" * 64,
-        "judge_binding": {"x": 1},
-        "assessed_at": "now",
-        "expectations": [
-            {"text": "t", "kind": "requires", "state": "PASS", "passed": True, "evidence": "[kept: live-judge] ok"}
-        ],
-        "summary": {"passed": 1, "failed": 0, "total": 1, "pass_rate": 1.0},
-    }
-    view = shadow.comparable(grading)
-    assert view["expectations"][0]["evidence"] == "ok"
-    assert not {"after_assessment", "scenario_sha256", "judge_binding", "assessed_at"} & set(view)
-    changed = {**grading, "status": "FAIL", "expectations": [{**grading["expectations"][0], "state": "FAIL"}]}
-    assert shadow.differences(grading, changed) == [
-        "expectations[0].state: 'PASS' != 'FAIL'",
-        "status: 'PASS' != 'FAIL'",
+    assert not (copy / "evidence.json").exists(), "the live attempt's folder is never rewritten"
+    written = json.loads((copy / "assessments" / "1" / "evidence.json").read_text("utf-8"))
+    assert written["written_by"] == "legacy"
+    assert sorted(p.name for p in (copy / "assessments" / "1").iterdir()) == [
+        "evidence.json",
+        "grading.json",
+        "trace-summary.json",
     ]
 
 
-def test_a_kept_outcome_bounded_with_its_marker_compares_equal_to_its_recorded_evidence() -> None:
-    long = "x" * 600
-    marker = "[kept: live-judge] "
-    authoritative = {
-        "status": "PASS",
-        "expectations": [
-            {
-                "text": "t",
-                "kind": "requires",
-                "state": "PASS",
-                "passed": True,
-                "evidence": (marker + long)[:600],
-                "evidence_truncated": True,
-            }
-        ],
-        "summary": {},
-    }
-    shadowed = {
-        "status": "PASS",
-        "expectations": [{"text": "t", "kind": "requires", "state": "PASS", "passed": True, "evidence": long}],
-        "summary": {},
-    }
-    assert shadow.differences(authoritative, shadowed) == []
-
-
-def test_the_shadow_engine_never_breaks_the_grade_it_shadows(tmp_path: Path) -> None:
-    item = next(c for c in CASES if c.name == "pass")
-    with mock.patch.object(engine, "grade", side_effect=RuntimeError("engine defect")):
-        run_dir, grading, summary = _live(item, tmp_path)
-    assert grading["status"] == "PASS"
-    result = json.loads((run_dir / shadow.FILE).read_text("utf-8"))
-    assert result["agrees"] is False and result["error"] == "RuntimeError: engine defect"
-    assert summary["shadow_error"] == "RuntimeError: engine defect"
-
-
 def test_the_attempt_log_shows_each_phase_and_where_a_failure_left_it(tmp_path: Path) -> None:
-    phases = {}
-    for name in ("pass", "void_identity", "machinery_failure", "service_unavailable"):
+    phases, probes = {}, {}
+    for name in ("pass", "rubric_kept", "void_identity", "machinery_failure", "service_unavailable"):
         item = next(c for c in CASES if c.name == name)
         run_dir, _, _ = _live(item, tmp_path / name)
         phases[name] = [p["phase"] for p in json.loads((run_dir / "attempt.json").read_text("utf-8"))["phases"]]
+        probes[name] = json.loads((run_dir / "evidence.json").read_text("utf-8"))["probes"]
+    assert not probes["pass"] and probes["rubric_kept"], "a judged run has a probe; the tiny build run has none"
     assert phases["pass"] == ["prepared", "served", "seeded", "invoked", "observed", "graded", "published"]
+    assert phases["rubric_kept"] == ["prepared", "served", "seeded", "invoked", "observed", "probed", "graded", "published"]
     assert phases["void_identity"][-2:] == [Phase.VOID, Phase.PUBLISHED]
+    assert Phase.PROBED not in phases["void_identity"], "a void run measures no probe"
     assert phases["machinery_failure"][-2:] == [Phase.STOPPED, Phase.PUBLISHED]
     assert phases["service_unavailable"] == [
         "prepared",
@@ -174,46 +181,12 @@ def test_the_attempt_log_shows_each_phase_and_where_a_failure_left_it(tmp_path: 
     assert saved["phases"][-1]["note"].startswith("RuntimeError")
 
 
-def test_the_shadow_report_counts_attempts_coverage_and_the_gate(tmp_path: Path) -> None:
-    iteration = tmp_path / "iteration"
-    specs = []
-    for name in ("pass", "machinery_failure", "wall_clock", "native_pass"):
-        item = next(c for c in CASES if c.name == name)
-        root = tmp_path / name
-        root.mkdir()
-        run_dir, _, _ = _live(item, root)
-        spec = item.spec()
-        target = iteration / f"eval-{spec['id']}" / "golden" / "run-1"
-        if target.exists():
-            target = iteration / f"eval-{spec['id']}" / name / "run-1"
-        shutil.copytree(run_dir, target)
-        specs.append(spec)
-    seen = {s["id"]: s for s in specs}
-    report = rescoring.shadow_report(iteration, list(seen.values()))
-    assert report["attempts"] == 4 and report["disagreeing"] == 0 and report["agreeing"] == 4
-    assert report["coverage"] == {"native": 1, "cut_short": 1, "machinery_failure": 1}
-    assert report["gate"] == {"count": shadow.GATE_COUNT, "met": False}, "four attempts do not meet the owner's count"
-    with mock.patch.object(cli.catalog, "load_all_scenarios", return_value=list(seen.values())):
-        with contextlib.redirect_stdout(io.StringIO()) as out:
-            assert cli.main(["shadow", str(iteration)]) == 0
-        assert "4 attempt(s), 4 grade(s) agree, 0 disagree" in out.getvalue()
-        broken = next(iteration.rglob(shadow.FILE))
-        result = json.loads(broken.read_text("utf-8"))
-        broken.write_text(json.dumps({**result, "agrees": False, "differences": ["status: 'PASS' != 'FAIL'"]}))
-        with contextlib.redirect_stdout(io.StringIO()) as out:
-            assert cli.main(["shadow", str(iteration)]) == 1
-        assert "disagrees: status: 'PASS' != 'FAIL'" in out.getvalue()
-
-
-# --- the Codex findings on PR #460, each a regression the shadow must not show ----------------
-
-
-def test_a_strict_regrade_that_rejects_a_changed_identity_voids_the_shadow_too(tmp_path: Path) -> None:
+def test_a_strict_regrade_rejects_a_changed_identity(tmp_path: Path) -> None:
     item = next(c for c in CASES if c.name == "pass")
     copy = _saved_copy(item, tmp_path)
-    grading, result = rescoring.regrade_run_shadow(copy, golden_runs.scenario(item), write=False, relax_identity=False)
+    grading = rescoring.regrade_run(copy, golden_runs.scenario(item), write=False, relax_identity=False)
     assert grading["status"] == "INCONCLUSIVE" and "saved scenario identity" in str(grading["inconclusive"])
-    assert result is not None and result["agrees"] is True, result.get("differences")
+    assert all(e["state"] == "INCONCLUSIVE" for e in grading["expectations"]), "rule 1 voids every check"
 
 
 def test_two_expectations_that_read_the_same_keep_their_own_probe_outcomes(tmp_path: Path) -> None:
@@ -256,7 +229,7 @@ def test_a_relative_reference_read_resolves_against_the_recorded_workspace(tmp_p
     assert reference.outcome.state == "PASS", reference.outcome.evidence
 
 
-def test_a_summary_without_valid_counts_leaves_a_count_check_unmeasured_in_both_engines(tmp_path: Path) -> None:
+def test_a_summary_without_valid_counts_leaves_a_count_check_unmeasured(tmp_path: Path) -> None:
     spec = golden_runs.tiny_spec(checks=[{"check": "tool_call_count", "tool": "Bash", "minimum": 0, "maximum": 0}])
     text = "tool_call_count " + json.dumps({"tool": "Bash", "minimum": 0, "maximum": 0})
     run = write_saved_run(
@@ -268,27 +241,22 @@ def test_a_summary_without_valid_counts_leaves_a_count_check_unmeasured_in_both_
             "status": "PASS",
         },
     )
-    grading, result = rescoring.regrade_run_shadow(run, spec, write=False, relax_identity=True)
+    grading = rescoring.regrade_run(run, spec, write=False, relax_identity=True)
     count = next(e for e in grading["expectations"] if e["text"] == text)
     assert count["state"] == "INCONCLUSIVE" and "count evidence is missing" in count["evidence"]
-    assert result is not None and result["agrees"] is True, result.get("differences")
 
 
-def test_the_shadow_report_counts_kept_attempts_too(tmp_path: Path) -> None:
-    item = next(c for c in CASES if c.name == "pass")
-    root = tmp_path / "live"
-    root.mkdir()
-    run_dir, _, _ = _live(item, root)
-    spec = item.spec()
-    iteration = tmp_path / "iteration"
-    published = iteration / f"eval-{spec['id']}" / "golden" / "run-1"
-    shutil.copytree(run_dir, published)
-    kept = iteration / f"eval-{spec['id']}" / "golden" / "attempts" / "run-1" / "1"
-    shutil.copytree(run_dir, kept)
-    result = json.loads((kept / shadow.FILE).read_text("utf-8"))
-    (kept / shadow.FILE).write_text(
-        json.dumps({**result, "agrees": False, "differences": ["status: 'PASS' != 'FAIL'"]})
-    )
-    report = rescoring.shadow_report(iteration, [spec])
-    assert report["attempts"] == 2 and report["disagreeing"] == 1 and report["gate"]["met"] is False
-    assert [r.get("attempt") for r in report["runs"] if not r["agrees"]] == [1]
+def test_the_evidence_engine_grades_from_the_evidence_alone(tmp_path: Path) -> None:
+    """`engine.grade` with no caller-settled run level reads how the run ended from the evidence."""
+    item = next(c for c in CASES if c.name == "wall_clock")
+    run_dir, grading, _ = _live(item, tmp_path)
+    found = rescoring.load_evidence(run_dir, item.spec())
+    rendered = engine.render(engine.grade(item.spec(), found, plugin_root=ROOT), item.spec())
+    assert comparable(rendered) == comparable(grading)
+    assert rendered["run_end"] == "cut_short" and rendered["run_stop"] == "wall_clock"
+
+
+def test_the_testkit_grades_a_context_the_way_the_runner_grades_a_trial() -> None:
+    spec = tiny_spec(checks=[{"check": "text_contains_any", "of": ["refuse"], "text": "refuses"}])
+    grading = grade_trial(context(spec), inconclusive="wrong plugin")
+    assert grading["void"] == "wrong plugin" and grading["status"] == "INCONCLUSIVE"

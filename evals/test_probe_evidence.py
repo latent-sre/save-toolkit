@@ -134,7 +134,8 @@ def test_legacy_reads_a_saved_run_into_the_evidence_the_live_attempt_wrote(
     is the host's or the clock's (temporary paths, fresh fixture commits, timestamps, the runner
     identity in a probe's id) and three the old format never saved (the identity failure and the
     service problem the batch read from the result row, and a final text the live trace left empty,
-    which a regrade reads back as the `(no result)` placeholder the response file holds)."""
+    which a regrade reads back as the `(no result)` placeholder the response file holds), and where
+    the summary's complete counts fill what a cut stream lacks."""
     _run_dir, live, _grading = _live(item, tmp_path / "live")
     _copy, saved = _saved(item, tmp_path)
     assert saved.written_by == "legacy"
@@ -147,6 +148,7 @@ def test_legacy_reads_a_saved_run_into_the_evidence_the_live_attempt_wrote(
             "runtime_plugins": [p.get("name") for p in d["trace"]["runtime_plugins"]],
         }
         trace["result_text"] = trace["result_text"] or "(no result)"
+        trace.pop("tool_counts_complete")
         git = {
             **d["git"],
             "commit_ids_before": len(d["git"]["commit_ids_before"] or []),
@@ -185,6 +187,8 @@ def test_legacy_reads_a_saved_run_into_the_evidence_the_live_attempt_wrote(
 
     assert comparable(saved) == comparable(live)
     assert saved.trace.restored_from_summary is False, "the goldens keep their raw traces"
+    # The summary's complete counts fill what a cut or void stream lacks, and only add to it.
+    assert saved.trace.tool_counts_complete or not live.trace.tool_counts_complete
     assert saved.identity.case_sha256 == live.identity.case_sha256
 
 

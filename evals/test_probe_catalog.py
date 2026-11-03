@@ -29,6 +29,7 @@ from probe_testkit import (
     all_scenarios,
     context,
     contract_spec,
+    grade_trial,
     tiny_fixture,
     tiny_spec,
 )
@@ -241,7 +242,7 @@ class CheckPolarityTests(unittest.TestCase):
         spec = tiny_spec(checks=[{"check": "text_not_contains", "needle": "x", "text": "never says x"},
                                  {"check": "text_contains_any", "of": ["ok"], "text": "says ok"}])
         ctx = context(spec, probe_tracing.TraceSummary(result_text="ok"))
-        grading = probe_assessment.grade(ctx)
+        grading = grade_trial(ctx)
         self.assertEqual(["forbids", "requires"], [e["kind"] for e in grading["expectations"]])
 
 

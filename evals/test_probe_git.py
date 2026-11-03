@@ -5,9 +5,10 @@ import os
 import unittest
 from pathlib import Path
 
-from probe import assessment, checking, layout, rescoring, trials, workspaces
+from probe import checking, layout, rescoring, trials, workspaces
 from probe_testkit import (
     TempRootTestCase,
+    grade_trial,
     saved_grade,
     saved_summary,
     tiny_fixture,
@@ -25,7 +26,7 @@ class GitEvidenceTests(TempRootTestCase):
         ws = workspaces.seed_workspace(spec, self.root / "workspace")
         (ws.repo / os.fsdecode(b"bad-\xff.md")).write_text("FORBIDDEN\n", encoding="utf-8")
         ctx = ws_context(spec, ws, text="done")
-        grading = assessment.grade(ctx)
+        grading = grade_trial(ctx)
         self.assertEqual(["INCONCLUSIVE", "INCONCLUSIVE"], [e["state"] for e in grading["expectations"]])
         self.assertIn("UTF-8", ctx.git.problem or "")
         layout.write_json(self.root / "grading.json", grading)
@@ -42,7 +43,7 @@ class GitEvidenceTests(TempRootTestCase):
                 if name == "amended":
                     workspaces._git(ws.repo, "commit", "--amend", "-q", "-m", "rewritten baseline")
                 ctx = ws_context(spec, ws, text="done")
-                live = assessment.grade(ctx)
+                live = grade_trial(ctx)
                 self.assertEqual(expected, live["status"])
                 summary = trials._saved_summary(ctx, live, {}, settings, None, None)
                 run = write_saved_run(self.root / name / "run", response="done", summary=summary, grading=live)
