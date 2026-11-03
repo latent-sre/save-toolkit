@@ -3,6 +3,9 @@
 - **Date:** 2026-08-23
 - **Status:** Accepted
 - **Decision owner:** Save Toolkit maintainers
+- **Amended:** 2026-11-03, by the repository owner: `scripts/check_test_layout.py` does not exist and
+  nothing enforces an executable unittest entrypoint; the two sentences naming it describe a check
+  the repository does not have
 - **Supersedes:** the "Standard library only" Hard rules bullet (AGENTS.md) and its
   `docs/rules.md` index row, in full — including the PyYAML and blanket new-dependency bans.
 

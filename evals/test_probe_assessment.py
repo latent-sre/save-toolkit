@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import dataclasses
 import io
 import pickle
 import sys
@@ -486,6 +487,21 @@ class GradingLoopTests(unittest.TestCase):
         self.assertNotEqual((False, "x"), fail)  # a pair has no measurement state
         self.assertEqual((False, "x"), tuple(fail))  # the explicit pair-reading adapter remains
         self.assertEqual(hash(probe_outcomes.Outcome(probe_outcomes.State.FAIL, "x")), hash(fail))
+
+    def test_an_outcome_is_frozen_indexable_and_never_equal_to_a_pair(self) -> None:
+        failed = probe_outcomes.Outcome(probe_outcomes.State.FAIL, "x")
+        unknown = probe_outcomes.Outcome(probe_outcomes.State.INCONCLUSIVE, "x")
+        pair = (False, "x")
+        for outcome in (failed, unknown):
+            self.assertNotEqual(outcome, pair)
+            self.assertNotEqual(pair, outcome)
+        self.assertEqual(3, len({failed, unknown, pair}))
+        self.assertEqual((False, "x"), (unknown[0], unknown[1]))
+        kept = probe_outcomes.Outcome(probe_outcomes.State.FAIL, "deployed", forbidden=True)
+        with self.assertRaises((dataclasses.FrozenInstanceError, AttributeError)):
+            kept.state = probe_outcomes.State.PASS
+        self.assertIs(probe_outcomes.State.FAIL, kept.state)
+        self.assertTrue(kept.forbidden)
 
 
 if __name__ == "__main__":

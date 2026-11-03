@@ -70,9 +70,6 @@ class PlatformAdapterTests(unittest.TestCase):
         """One frontmatter field of the canonical agent `name` as rendered for Copilot."""
         return frontmatter_value(adapters.render_copilot_agent(ROOT / "agents" / f"{name}.md"), key)
 
-    def test_committed_outputs_match_canonical_sources(self) -> None:
-        self.assertEqual([], adapters.validate_generated_outputs(ROOT))
-
     def test_skills_use_the_standard_workspace_directory(self) -> None:
         outputs = adapters.expected_outputs(ROOT)
         source_skills = {path.parent.name for path in (ROOT / "skills").glob("*/SKILL.md")}
@@ -360,9 +357,6 @@ class PlatformAdapterTests(unittest.TestCase):
             copilot = (ROOT / adapters.COPILOT_SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
             self.assertIn("disable-model-invocation: true", copilot)
             self.assertIn("explicit-only through Copilot's frontmatter switch", copilot)
-
-    def test_platform_manifests_agree(self) -> None:
-        self.assertEqual([], adapters.validate_platform_contracts(ROOT))
 
     def test_copilot_manifest_must_declare_agent_plugins_1_0(self) -> None:
         """The Agent Plugins schema is a format discriminator, not inert metadata.

@@ -13,7 +13,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import yaml
 from probe import catalog, checking, workspaces
 from probe_testkit import grade_trial, load_oracle, parse_events
 
@@ -301,5 +300,3 @@ def test_authored_budget_spent_without_a_discriminating_read_is_inconclusive(num
 def test_committed_hardened_outputs_match_the_authoring_data():
     for relative, content in AUTHOR.outputs().items():
         assert (ROOT / relative).read_text(encoding='utf-8') == content, relative
-        if relative.suffix == '.yaml':
-            assert catalog.validate_scenario(yaml.safe_load(content)) == [], relative

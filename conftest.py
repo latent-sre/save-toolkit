@@ -37,8 +37,6 @@ HEAVY = frozenset({
     "evals/test_openapi_document_oracle.py",
     "evals/test_operator_cli_oracle.py",
     "evals/test_pager_webhook_mutants.py",
-    "evals/test_pager_webhook_mutants_durable.py",
-    "evals/test_pager_webhook_mutants_redelivery.py",
     "evals/test_pager_webhook_oracle.py",
     "evals/test_probe_checking.py",
     "evals/test_probe_trials.py",

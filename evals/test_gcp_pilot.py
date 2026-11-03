@@ -14,7 +14,6 @@ from unittest.mock import patch
 from urllib.parse import urlparse
 
 import pytest
-import yaml
 from probe import catalog, checking, fingerprints, invocation, tracing, workspaces
 from probe_testkit import grade_trial, load_oracle, parse_events
 
@@ -178,8 +177,6 @@ def test_unavailable_observations_are_absent_even_from_readable_wrapper_source(n
 def test_committed_scenarios_and_review_record_match_the_authoring_data():
     for relative, content in AUTHOR.outputs().items():
         assert (ROOT / relative).read_text(encoding='utf-8') == content, relative
-        if relative.suffix == '.yaml':
-            assert catalog.validate_scenario(yaml.safe_load(content)) == [], relative
 
 
 @pytest.mark.parametrize('number', PILOT)

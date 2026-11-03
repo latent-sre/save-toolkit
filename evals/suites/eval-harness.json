@@ -12,7 +12,6 @@
     "evals/test_eval011_grading.py",
     "evals/test_eval011_identity.py",
     "evals/test_eval011_oracles.py",
-    "evals/test_eval011_outcomes.py",
     "evals/test_eval011_pager_liveness.py",
     "evals/test_eval011_rubric_context.py",
     "evals/test_eval011_turn_limits.py",

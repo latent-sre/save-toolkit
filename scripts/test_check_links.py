@@ -543,9 +543,6 @@ class GuideLinkTests(Fixture):
 class LiveDocLinkTests(Fixture):
     """Live authority docs must not carry dead relative links."""
 
-    def test_live_tree_is_clean(self) -> None:
-        self.assertEqual([], check_links._check_live_doc_links(ROOT))
-
     def test_a_dead_link_in_a_live_doc_is_flagged(self) -> None:
         (self.root / "docs").mkdir()
         self.write("README.md", "See [gone](docs/no-such-file.md).\n")

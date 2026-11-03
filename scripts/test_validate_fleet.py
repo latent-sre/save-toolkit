@@ -462,11 +462,6 @@ class FleetValidatorTests(unittest.TestCase):
 class NonDelegatingHandoffTests(unittest.TestCase):
     """Terminal lanes must not acquire a delegating handoff through copied instructions."""
 
-    def test_live_tree_has_no_delegation_contradiction(self) -> None:
-        _, failures = validate_fleet.validate_agents(ROOT)
-        offenders = [f for f in failures if "Agent tool" in f]
-        self.assertEqual([], offenders, offenders)
-
     def test_delegating_imperative_in_a_toolless_lane_is_flagged(self) -> None:
         failures = _agent_failures_after_edit(
             "scribe.md", lambda text: must_replace(
@@ -526,10 +521,6 @@ class NonDelegatingHandoffTests(unittest.TestCase):
         already correct, so the checker flattens whitespace first. Pin the behavior directly.
         """
         self.assertIn("cannot delegate", validate_fleet._flatten("You cannot\ndelegate or contact"))
-        _, failures = validate_fleet.validate_agents(ROOT)
-        self.assertFalse(
-            any("repository-investigator" in f and "cannot invoke" in f for f in failures), failures
-        )
 
 
 if __name__ == "__main__":

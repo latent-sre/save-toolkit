@@ -1,16 +1,13 @@
-"""Each pager-webhook mutant fails the oracle check for the rule it breaks: signature, ack and completion.
+"""Each pager-webhook mutant fails the oracle check for the rule it breaks.
 
-Kept apart from test_pager_webhook_oracle.py, which defines them, and split by check across three
-files (MUTANT_FILE_CHECKS there), so that a run split by file gives these, the slowest of the
-oracle's cases, workers of their own.
+Kept apart from test_pager_webhook_oracle.py, which defines them, so the heavy CI shard's
+worksteal scheduling spreads these, the slowest of the oracle's cases, across workers.
 """
 
-from pathlib import Path
-
 import pytest
-from test_pager_webhook_oracle import assert_mutant_fails, mutants_checked_by
+from test_pager_webhook_oracle import MUTANTS, assert_mutant_fails
 
 
-@pytest.mark.parametrize("name", mutants_checked_by(Path(__file__).name))
+@pytest.mark.parametrize("name", sorted(MUTANTS))
 def test_mutant_fails_its_check(tmp_path, name):
     assert_mutant_fails(tmp_path, name)
