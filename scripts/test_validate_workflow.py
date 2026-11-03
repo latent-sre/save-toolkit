@@ -54,12 +54,16 @@ class ValidateWorkflowTests(unittest.TestCase):
             self.assertEqual("3.12" if name == "validate" else "3.14", setup["with"]["python-version"])
             self.assertIs(setup["with"]["check-latest"], True)
 
-    def test_repository_actions_use_major_tags(self) -> None:
+    def test_repository_actions_use_a_major_alias_or_an_exact_release_tag(self) -> None:
+        """The repository's action-reference policy (CONTRIBUTING.md): a floating major tag where the
+        action publishes one, otherwise its exact release tag, both kept current by Dependabot. A tag
+        can move upstream; the policy accepts that for readable references, so a branch name, `latest`,
+        a short tag such as `v10.3` or a bare commit is refused here."""
         jobs = workflow_jobs()
         for job in jobs.values():
             for step in job["steps"]:
                 if "uses" in step:
-                    self.assertRegex(step["uses"], r"^[\w.-]+/[\w.-]+@v[0-9]+$")
+                    self.assertRegex(step["uses"], r"^[\w.-]+/[\w.-]+@v[0-9]+(?:\.[0-9]+\.[0-9]+)?$")
 
     def test_deploy_oracle_action_policy(self) -> None:
         path = ROOT / "evals/oracles/pcf-deploy-job/probe_ci_workflow.py"

@@ -16,6 +16,9 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- State the action-reference rule: a floating major tag where the action publishes one, otherwise the
+  exact release tag, both moved by Dependabot; setup-uv is pinned to its release 10.3.3, since it
+  publishes no alias past v7, and the workflow test admits both forms.
 - Parse fleet frontmatter as YAML, the way Claude Code and Copilot read it: `scripts/fleet_frontmatter.py`
   loads with PyYAML's safe loader (duplicate keys rejected, line-numbered diagnostics) instead of its
   own grammar, so typed scalars and lists reach the validators; Gate A now installs the locked `gate`

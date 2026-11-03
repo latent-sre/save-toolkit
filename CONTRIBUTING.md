@@ -227,7 +227,11 @@ That job validates `.claude-plugin/marketplace.json` with `--strict` and
 `.claude-plugin/plugin.json` without it: plugin errors fail the job; warnings remain visible.
 `dependency-audit` runs only on the weekly schedule and manual dispatch: it exports the locked
 dependency sets and checks them against published advisories with pip-audit. It is not part of the
-required check, because advisories change without a commit.
+required check, because advisories change without a commit. Action references are a floating major
+tag where the action publishes one (`actions/checkout@v7`), otherwise the exact release tag
+(`astral-sh/setup-uv@v10.3.3`); Dependabot's actions updater moves both. A tag can move upstream, and
+the repository accepts that for readable references; `test_validate_workflow.py` admits only those
+two forms.
 The root `CLAUDE.md` intentionally provides repository authoring context and produces a warning
 because installed plugins do not load it. Report what ran and what remains unverified.
 
