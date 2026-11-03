@@ -28,7 +28,16 @@ from probe import outcomes as probe_outcomes
 from probe import tracing as probe_tracing
 from probe import trials as probe_trials
 from probe import workspaces as probe_workspaces
-from probe_testkit import STUB_RUNTIME, all_scenarios, context, grade_trial, scenario_file, tiny_spec, trace_measures
+from probe_testkit import (
+    STUB_RUNTIME,
+    all_scenarios,
+    context,
+    grade_trial,
+    scenario_file,
+    tiny_spec,
+    trace_measures,
+    unelevated_host,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -328,7 +337,7 @@ class ResultRuleTests(unittest.TestCase):
             calls.append(kwargs["run_number"])
             return {**summary, "scenario": spec["id"], "run": kwargs["run_number"]}
 
-        with tempfile.TemporaryDirectory() as tmp, \
+        with tempfile.TemporaryDirectory() as tmp, unelevated_host(), \
                 mock.patch.object(probe_trials, "run_trial", side_effect=fake_run_trial), \
                 mock.patch.object(probe_batches, "batch_identity_problem", return_value=None), \
                 contextlib.redirect_stdout(io.StringIO()) as out:

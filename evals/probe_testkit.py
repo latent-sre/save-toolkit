@@ -25,7 +25,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -288,6 +288,26 @@ def ws_context(
         dispatches=list(dispatches),
     )
     return checking.Context(spec, ws, trace, workspaces.collect_git_facts(ws))
+
+
+@contextlib.contextmanager
+def unelevated_host() -> Iterator[None]:
+    """Read the host's account as an ordinary, unelevated one for the duration.
+
+    A runtime is bound to the account the suite runs under, and a root container (a cloud session,
+    a CI image) makes every test that binds one refuse to start: `fingerprints.runtime_evidence_problem`
+    and `swebench_adapter.runner.runtime_binding` both require an unelevated account. The hostname
+    and the identity's source stay real; only the account reads as unelevated, as it does for the
+    operator the native execution contract assumes. The elevation rule itself is tested with an
+    identity it is handed, never through this."""
+    with contextlib.ExitStack() as stack:
+        if sys.platform == "win32":
+            stack.enter_context(
+                mock.patch.object(fingerprints, "_windows_host_account", return_value=("S-1-5-21-fixture", False))
+            )
+        else:
+            stack.enter_context(mock.patch.object(os, "geteuid", return_value=1001, create=True))
+        yield
 
 
 def grade_trial(ctx: checking.Context, **options: Any) -> dict[str, Any]:

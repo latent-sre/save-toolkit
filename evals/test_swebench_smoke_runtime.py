@@ -24,6 +24,7 @@ from types import SimpleNamespace
 
 import pytest
 from probe.backing import SERVICE_RELAY_IMAGE
+from probe_testkit import unelevated_host
 from swebench_adapter import configuration, proxy, runner, selection, smoke
 from swebench_adapter.containers import Docker
 from swebench_adapter.limits import ProcessResult
@@ -381,7 +382,8 @@ def runtime(tmp_path, monkeypatch):
         return result
 
     monkeypatch.setattr(subprocess, "Popen", popen)
-    return SimpleNamespace(config=config, manifest=manifest, rows=rows, docker=docker, output=tmp_path / "smoke")
+    with unelevated_host():  # the runtime binds to the account running the suite; a root container refuses
+        yield SimpleNamespace(config=config, manifest=manifest, rows=rows, docker=docker, output=tmp_path / "smoke")
 
 
 def run(runtime):
