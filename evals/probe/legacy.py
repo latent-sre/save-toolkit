@@ -185,7 +185,7 @@ def evidence_of(
         ],
         service_problem=None,
         ending=evidence.ending_of(live_grade, None),
-        turns=evidence.turns(run_dir),
+        turns=evidence.turns(run_dir, spec),
         conversation=evidence.conversation_of(run_dir),
         probes=evidence.probes(spec, live_grade, saved.trace, plugin_root, None),
     )

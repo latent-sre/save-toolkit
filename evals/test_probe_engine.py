@@ -14,11 +14,23 @@ from unittest import mock
 import golden_runs
 import judge
 import pytest
-from probe import checks, cli, engine, evidence, rescoring, workspaces
+from probe import checks, cli, engine, evidence, invocation, rescoring, trials, workspaces
 from probe.attempt import Phase
 from probe.constants import ROOT
 from probe.outcomes import CutShort, State, Stop
-from probe_testkit import context, grade_trial, saved_grade, saved_summary, tiny_spec, write_saved_run, ws_context
+from probe_testkit import (
+    STUB_RUNTIME,
+    context,
+    grade_trial,
+    native_conversation_spec,
+    native_launch,
+    plain_env_factory,
+    saved_grade,
+    saved_summary,
+    tiny_spec,
+    write_saved_run,
+    ws_context,
+)
 
 CASES = [c for c in golden_runs.CASES if not c.raises]
 IDS = [c.name for c in CASES]
@@ -401,3 +413,27 @@ def test_a_raw_trace_changed_beside_the_evidence_is_refused(tmp_path: Path) -> N
     regraded = rescoring.regrade_run(run_dir, item.spec(), write=False)
     assert regraded["status"] == "INCONCLUSIVE"
     assert "saved raw trace stdout.jsonl differs from the run's evidence" in str(regraded["void"])
+
+
+@pytest.mark.parametrize("ending", ["turn_limit", "error_result"])
+def test_a_conversation_that_ended_before_its_follow_up_regrades_from_its_evidence_alone(
+    tmp_path: Path, ending: str
+) -> None:
+    """A native conversation whose first invocation spent the turn budget, or ended in an error, never
+    creates its follow-up folder; its evidence still records that turn, so it regrades alone."""
+    spec = native_conversation_spec()
+    flags = {"turns": (spec["max_turns"], 2)} if ending == "turn_limit" else {"initial_subtype": "error_during_execution"}
+    settings = trials.BatchSettings(
+        plugin_root=ROOT, label="native", model="stub-model", out_dir=tmp_path / "it", timeout=60,
+        executable="native-stub", keep_workspace=False, env_factory=plain_env_factory(), runtime=STUB_RUNTIME,
+    )  # fmt: skip
+    with mock.patch.object(invocation, "run_cli", side_effect=native_launch(spec, [], **flags)):
+        trials.run_trial(spec, run_number=1, settings=settings)
+    run_dir = tmp_path / "it" / f"eval-{spec['id']}" / "native" / "run-1"
+    assert not (run_dir / "followup").exists(), "the follow-up never ran"
+    grading = json.loads((run_dir / "grading.json").read_text("utf-8"))
+    found = rescoring.load_evidence(run_dir, spec)
+    assert [t.invoked for t in found.turns] == [True, False]
+    assert rescoring.self_sufficient(found, spec)
+    alone = _evidence_only(run_dir, tmp_path)
+    assert comparable(rescoring.regrade_run(alone, spec, write=False)) == comparable(grading)

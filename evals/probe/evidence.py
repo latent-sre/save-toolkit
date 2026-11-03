@@ -274,12 +274,18 @@ def _strings(value: object) -> list[str] | None:
     return list(value) if isinstance(value, list) and all(isinstance(v, str) for v in value) else None
 
 
-def turns(run_dir: Path | None) -> list[Turn]:
+def turns(run_dir: Path | None, spec: Mapping[str, Any] | None = None) -> list[Turn]:
     """Each native invocation the attempt saved, in order, with what a regrade replays from it; an
-    attempt with one invocation has none. A damaged field is unknown, never coerced into place."""
+    attempt with one invocation has none. With the scenario, every invocation it declares is a turn,
+    one that never ran recorded as not invoked: a conversation can end before its follow-up starts,
+    and its replay reads that as the file replay does. A damaged field is unknown, never coerced."""
     if run_dir is None:
         return []
-    folders = layout.saved_folders(run_dir)
+    folders = (
+        conversations.folders(run_dir, spec)
+        if spec is not None and spec.get("followups")
+        else layout.saved_folders(run_dir)
+    )
     if len(folders) < 2:
         return []
     return [_turn(run_dir, folder) for folder in folders]
@@ -495,7 +501,7 @@ def from_live(
         services=[ServiceFacts(name=s.name, image=s.image, base_url=s.base_url) for s in ctx.services],
         service_problem=service_problem,
         ending=ending,
-        turns=turns(run_dir),
+        turns=turns(run_dir, ctx.spec),
         conversation=conversation_of(run_dir),
         probes=probes,
     )
