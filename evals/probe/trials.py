@@ -478,7 +478,7 @@ def _invoke_turns(
 def _warn_on_credentials(run_out: Path, trace: TraceSummary) -> None:
     """Name any credential-shaped marker in the final text or either invocation's raw trace."""
     markers = invocation.credential_markers(trace.result_text, run_out / "stdout.jsonl")
-    for folder in conversations.saved_folders(run_out)[1:]:
+    for folder in layout.saved_folders(run_out)[1:]:
         if (folder / "stdout.jsonl").is_file():
             markers += invocation.credential_markers("", folder / "stdout.jsonl")
     if markers:

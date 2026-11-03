@@ -15,7 +15,7 @@ from typing import Any
 import graders as fleet_graders
 import yaml
 
-from . import backing, checking, constants, conversations
+from . import backing, checking, constants, conversations, specs
 from .backing import SERVICE_NAME, TRUSTED_SERVICE_IMAGES
 from .constants import BUILD_TOOLS, CONTRACT_SCENARIO_DIR, ROOT, SCENARIO_DIR
 from .outcomes import Polarity
@@ -31,7 +31,7 @@ REQUIRED_KEYS = ("id", "prompt")
 #   native   -- `agent` + `followups`: pin the parent lane, observe one helper and resume.
 # `agent` pins the session; without it the trial runs as the main session with `tools`.
 DEFAULT_MAIN_SESSION_TOOLS = ("Skill", "Task")
-SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+SLUG = specs.SLUG  # the identifier shape, shared with the conversation validator
 ROUTING_EXPECTATIONS = ("fire", "not_fire")
 # A negative's alternative is one of these words, a component, or a list of either: any one passes.
 ALTERNATIVE_WORDS = ("inline", "main_session")
@@ -146,7 +146,7 @@ def validate_scenario(spec: object, *, where: str = "scenario") -> list[str]:
     return [
         *_identity_problems(spec, where),
         *_routing_problems(spec, where),
-        *_grader_problems(spec, where),
+        *specs.grader_problems(spec, where),
         *_kind_problems(spec, where, kind),
         *_reference_problems(spec, where, kind),
         *_pin_problems(spec, where),
@@ -670,27 +670,3 @@ def _prompt_names_target(prompt: str, target: Mapping[str, Any]) -> bool:
     name, plugin = re.escape(target["name"]), re.escape(constants.PLUGIN)
     pattern = rf"(?<![a-z0-9-])(?:/{plugin}:|@agent-{plugin}:|{plugin}:)?{name}(?![a-z0-9-])"
     return re.search(pattern, prompt, re.IGNORECASE) is not None
-
-
-def _grader_problems(spec: Spec, where: str) -> list[str]:
-    graders = spec.get("graders")
-    if graders is None:
-        return []
-    if not isinstance(graders, list) or not graders:
-        return [f"{where}: graders must be a non-empty list"]
-    problems: list[str] = []
-    for i, grader in enumerate(graders):
-        if not isinstance(grader, dict):
-            problems.append(f"{where}: graders[{i}] must be a mapping")
-            continue
-        kind = grader.get("type")
-        if not isinstance(kind, str) or kind not in fleet_graders.REGISTRY:
-            problems.append(f"{where}: graders[{i}] names an unknown grader type {kind!r}")
-            continue
-        try:
-            # Empty response: every grader validates its own kwargs before looking at text, so a
-            # bad regex or a malformed `fields` map is reported here rather than mid-batch.
-            fleet_graders.run_grader(dict(grader), "")
-        except Exception as exc:
-            problems.append(f"{where}: graders[{i}] ({kind}) has invalid configuration: {exc}")
-    return problems

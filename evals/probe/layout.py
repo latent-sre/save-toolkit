@@ -25,6 +25,8 @@ from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
+from . import constants
+
 CASE_PREFIX = "eval-"
 SLOT_PREFIX = "run-"
 # A hidden attempt folder names the slot it was written for: `.run-N-attempt-...`, `.run-N-previous-...`.
@@ -129,6 +131,18 @@ def read_object(path: Path) -> dict[str, Any] | None:
 def write_json(path: Path, value: object, *, ascii_only: bool = False) -> None:
     """Save a JSON file as the runner writes every one: indented, UTF-8."""
     path.write_text(json.dumps(value, indent=2, ensure_ascii=ascii_only), encoding="utf-8")
+
+
+def saved_folders(run: Path) -> list[Path]:
+    """The folders a saved run's invocations are in, in order: the run, then each follow-up. Read
+    only a canonical index; never follow arbitrary evidence paths from disk."""
+    manifest = read_object(run / "conversation.json")
+    if manifest is not None:
+        n = manifest.get("invocations")
+        if manifest.get("profile") != constants.INCIDENT_PROFILE or type(n) is not int or not 2 <= n <= 32:
+            raise ValueError("invalid incident conversation index")
+        return [run, *(run / "invocations" / f"{i:03}" for i in range(2, n + 1))]
+    return [run, run / "followup"] if (run / "followup").is_dir() else [run]
 
 
 def live_grade(run: Path) -> Path:
