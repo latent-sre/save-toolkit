@@ -52,7 +52,7 @@ compatibility floor is Python 3.12, including the native runner and installed ho
 exercises that minimum.
 
 ```bash
-python -m pip install -r requirements-dev.txt
+uv sync --locked
 python evals/build_probe.py validate                        # offline schema/grader/target check
 python evals/build_probe.py run --scenario all --label baseline --model sonnet --trials 3 \
   --out .eval-runs/<iteration>
@@ -141,8 +141,8 @@ Save Toolkit plugin or pin its software-engineer agent: this is an **artifact-on
 pilot**, not native fleet acceptance. The existing runner remains authoritative for plugin
 identity, routing, hooks, delegation, calibrated judging, and conversation continuity.
 
-Install `requirements-test.txt` for offline tests, or `requirements-dev.txt` for all tooling.
-Both include Inspect AI, Inspect SWE, and the Anthropic SDK required by the Claude bridge.
+Install the locked `test` group with `uv sync --locked`; it includes Inspect AI, Inspect SWE, and
+the Anthropic SDK required by the Claude bridge.
 Docker must be available for sandboxed runs. The sandbox uses a reviewed image digest, resource
 limits, all capabilities dropped, and a read-only system filesystem. Only workspace, home, and temporary
 directories are writable. Grading uses system executables, a fixed PATH, and disables Python's
@@ -174,3 +174,36 @@ Remove-Item Env:RUN_INSPECT_DOCKER_SMOKE
 These scripted pass/fail cases verify the bridge and scorers, not model capability. Ordinary
 CI runs the offline tests; Docker smoke cases are explicit opt-ins. Details and remaining
 modernization work are in [Python and eval modernization](../../docs/python-eval-modernization.md).
+
+## Inspect orchestration of native scenarios
+
+[`inspect_fleet.py`](../inspect_fleet.py) runs the native routing and contract scenarios under
+Inspect AI with the native trial unchanged: one sample per scenario, one epoch per trial slot, and
+`probe.trials.run_trial` publishing each attempt under `-T out=` exactly as `build_probe.py run`
+does, record, provenance, judge binding and the batch summary file included. The scorer reports the
+verdict the trial returned; nothing is graded twice. Inspect adds the sample queue, its limits, the
+`.eval` log and `inspect view`. Build probes and native conversations stay with `build_probe.py`.
+
+```powershell
+inspect eval evals/inspect_fleet.py@native_scenarios --model none --max-samples 1 `
+  --log-dir .eval-runs/inspect-fleet/logs `
+  -T label=candidate -T out=.eval-runs/inspect-fleet/<iteration> -T claude_model=sonnet -T trials=3 `
+  -T judge_calibration=.eval-runs/judge-calibration/<timestamp>/identity.json
+inspect view --log-dir .eval-runs/inspect-fleet/logs
+python evals/build_probe.py regrade .eval-runs/inspect-fleet/<iteration>
+```
+
+`--model none` is deliberate: the Claude CLI authenticates itself inside the clean room, so Inspect's
+model API, pricing and cost limits do not apply. The `-T` options mirror `build_probe.py run`;
+`-T selection_file=` admits a frozen `native-selection-v1` file and retains it beside the runs, and
+`-T scenario=` or `-T suite=` that names a build probe or conversation is refused rather than
+narrowed. The per-scenario verdict with thresholds is `build_probe.py regrade` over the published
+runs, for this path and the native batch alike; Inspect's accuracy metric is a mean over trials. The
+native batch spend cap (`--max-batch-usd`) exists only on the native CLI; the per-invocation cap
+passes through as `-T max_invocation_usd=`. Trials run one at a time whatever `--max-samples`
+says: the judge's spend accumulator is process-wide and each trial drains it after grading, so
+overlapping trials would book one trial's judge calls to another. The native stop rules hold between
+trials: an identity failure or a failed environment cleanup stops the batch (later samples end in
+error), and a scenario whose grading machinery failed is not run again (its later slots score as
+not run). The [parity run](../../docs/fleet-evaluation/run-plan-inspect-native-parity.md) compares
+the two paths; the native CLI remains the documented entry point and the acceptance reference.

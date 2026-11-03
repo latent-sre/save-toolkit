@@ -1,6 +1,7 @@
 """Real Harbor 0.24.0 interfaces, accessible only through owned bounded containers.
 
-Import this optional module inside the dedicated requirements-harbor environment.
+Import this optional module inside the dedicated `harbor` group environment
+(`uv sync --locked --only-group harbor` into its own UV_PROJECT_ENVIRONMENT).
 The generic Harbor Docker provider is deliberately not an admitted execution path.
 """
 

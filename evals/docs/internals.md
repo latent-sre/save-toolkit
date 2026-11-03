@@ -47,6 +47,10 @@ preserves the private craft trial's verification wiring without shipping the pro
   layouts and incremental typing remain: whole-file formatting or typing migrations would replace
   calibration and case identities without establishing a behavioral improvement.
 
+- **Inspect orchestration.** [`inspect_fleet.py`](../inspect_fleet.py) wraps the same
+  `probe.trials.run_trial` in an Inspect task for routing and contract scenarios; it lives beside the
+  runner, not in `probe/`, so the runner identity and every saved run identity are unchanged by it.
+
 - **Golden saved runs.** [`evals/fixtures/runner-goldens/`](../fixtures/runner-goldens/README.md)
   holds one stub-driven attempt per result rule and run ending, and three native conversations, as
   the runner published them, with the verdict view of each live grade and of a regrade of the same

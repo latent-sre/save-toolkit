@@ -23,6 +23,25 @@ records do not re-queue work.
 
 ## Repository work
 
+### EVAL-016 — prove the Inspect orchestration matches the native batch, then decide what it replaces
+
+**Status:** `active` (2026-11-02). `evals/inspect_fleet.py` runs the native routing and contract
+trials as an Inspect task with grading unchanged; its offline tests pass, and no paid run has
+compared it with `build_probe.py run`.
+**Owner:** Maintainers run the paid parity comparison and approve its budget; the repository owner
+decides the replacement inventory afterwards.
+**Outcome:** One frozen selection run through both paths on the same model, CLI and host shows the
+same per-scenario verdicts under `build_probe.py regrade`, with timing, cost and any INCONCLUSIVE
+reasons recorded; a follow-up decision then names which native batch code Inspect replaces, or the
+track is relabelled as scheduling only.
+**Next action:** A maintainer follows the [parity run plan](fleet-evaluation/run-plan-inspect-native-parity.md)
+on a host with Claude credentials and a current judge calibration, and files the comparison under
+`docs/reviews/`.
+**Evidence:** none yet; the [decision](decisions/2026-11-02-inspect-orchestrates-native-runner.md)
+records the design and its rollback.
+**SRE task:** Read one `inspect view` log of a fleet regression instead of a directory of records,
+trusting it only once it is known to say what the native batch says.
+
 ### RUNNER-001 — rewrite the eval runner's core around a persisted evidence artifact
 
 **Status:** `active` (2026-11-02); the owner accepted the

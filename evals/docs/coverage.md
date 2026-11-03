@@ -84,7 +84,7 @@ source artifacts; the index does not copy their approval state.
 | Native Claude | [Native guide](running.md), suites with native cases | Current host/model, calibration and run admission apply |
 | Codex | `codex` suite and [structured adapter](../codex_probe.py) | Scoped artifact/query profiles; no claim of native routing/hooks/helper parity |
 | Muse | `muse` suite and [runner guide](running.md#muse-runner-separate-baseline-never-comparable) | Separate baseline; unsupported evidence stays inconclusive |
-| Inspect AI/SWE | `inspect` suite and [pilot guide](running.md#inspect-ai--inspect-swe-pilot) | Artifact-only word-frequency pilot, not full fleet acceptance |
+| Inspect AI/SWE | `inspect` suite, [pilot guide](running.md#inspect-ai--inspect-swe-pilot) and [native orchestration](running.md#inspect-orchestration-of-native-scenarios) | Artifact-only word-frequency pilot, plus Inspect scheduling and logs around unchanged native routing and contract trials; the native CLI stays the acceptance reference until the parity run |
 | ITBench | `itbench` suite and [operator plan](../../docs/fleet-evaluation/wp04-operator-runplan.md) | Fixed evidence and source-bound cases, not live recovery |
 | SWE-bench | `swebench` suite and [operator guide](../../docs/fleet-evaluation/wp08-operator.md) | External repository repair under its execution/admission contract |
 | SWT | `swt` suite and [run plan](../../docs/fleet-evaluation/wp09-swt-run-plan.md) | Generated tests must discriminate buggy and repaired revisions |

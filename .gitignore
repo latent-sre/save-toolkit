@@ -23,3 +23,6 @@ __pycache__/
 # Lint and type-check caches for the eval runner (pyproject.toml).
 .mypy_cache/
 .ruff_cache/
+
+# The uv project environment (`uv sync --locked`); the eval runner digests skills/, not the root.
+.venv/
