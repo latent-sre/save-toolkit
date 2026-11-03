@@ -38,9 +38,9 @@ def test_a_fresh_stub_trial_matches_its_expected_live_view(item: golden_runs.Cas
                  for p in (golden_runs.FIXTURES / item.name / "run-1").rglob("*") if p.is_file()}
     produced = {p.relative_to(run_dir).as_posix() for p in run_dir.rglob("*") if p.is_file()}
     # The fixtures are pre-evidence directories by construction; a graded attempt now also writes
-    # its evidence-v1 artifact beside them.
-    assert produced == committed | ({"evidence.json"} if grading is not None else set()), (
-        "the runner publishes the artifact set the fixture holds, plus its evidence"
+    # its evidence-v1 artifact and, during the rewrite's shadow period, the shadow grade beside them.
+    assert produced == committed | ({"evidence.json", "shadow.json"} if grading is not None else set()), (
+        "the runner publishes the artifact set the fixture holds, plus its evidence and shadow grade"
     )
 
 
@@ -117,11 +117,10 @@ def test_every_ending_and_every_result_rule_has_a_golden() -> None:
 
 def test_live_and_regrade_views_differ_only_where_the_record_says_they_may() -> None:
     """A regrade keeps the verdict and loses only what the live run alone could see."""
-    # Two divergences the result-rules ADR's 2026-11-02 amendment settles:
-    # - a cleanup failure after grading is the live attempt's evidence; a regrade carries none (rule 6);
-    # - a grading-machinery failure is `grader_error` on a live grade but `void` on a regrade, which
-    #   rule 5 now forbids; the rewrite's stage 3 fixes the regrade and regenerates that golden.
-    allowed = {"after_assessment": {"after_assessment"}, "machinery_failure": {"grader_error", "void"}}
+    # One divergence the result-rules ADR's 2026-11-02 amendment makes the rule: a cleanup failure
+    # after grading is the live attempt's evidence; a regrade carries none (rule 6). A grading
+    # machinery failure reads the same on a live grade and a regrade since the rewrite's stage 3.
+    allowed = {"after_assessment": {"after_assessment"}}
     for item in CASES:
         want = golden_runs.expected(item)
         if want["regrade"] is None:

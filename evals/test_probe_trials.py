@@ -1147,7 +1147,11 @@ class EndToEndStubTests(TempRootTestCase):
                         self.assertEqual(original, {name: (kept / name).read_bytes() for name in original})
                         self.assertEqual("superseded", read_json(kept / "attempt.json")["state"])
                         self.assertTrue(retained)
-                        self.assertTrue(all(retained.count(path) == 3 for path in set(retained)))
+                        # The workspace's removal is retried three times; the shadow engine's own
+                        # temporary directories are removed once each and are not the workspace.
+                        workspaces = {path for path in retained if path.name.startswith("ws-")}
+                        self.assertTrue(workspaces)
+                        self.assertTrue(all(retained.count(path) == 3 for path in workspaces))
                     else:
                         with patcher, mock.patch.object(time, "sleep"), self.assertRaises((RuntimeError, OSError)):
                             self._run_trial(out, label="replaced", overwrite=True)

@@ -30,9 +30,11 @@ records do not re-queue work.
 goldens, landed on PR #455 with a follow-up for native conversations and the batch view; the owner's
 decisions the plan left open are recorded in the design record's amendment of 2026-11-02. Stage 1,
 `evidence.json` written by every graded attempt and by a regrade of an older run through `legacy`,
-is implemented and awaits the owner's acceptance of its candidate. Stage 2, the check registry as
-a package with probes marked, the two import cycles removed and the identity widened, is implemented
-behind it.
+landed on PR #458 and stage 2, the check registry as a package with probes marked, the two import
+cycles removed and the identity widened, on PR #459. Stage 3, the evidence engine grading every
+attempt in shadow with the result rules named and the attempt's life recorded, is implemented and
+awaits the owner's acceptance; the shadow period on the owner's private iterations starts when it
+lands.
 **Owner:** The human owner accepts each stage's exact candidate and sets the shadow gate; a
 maintainer session implements the stages in order.
 **Outcome:** An attempt writes one versioned `evidence.json`; grading is a pure function of scenario
@@ -40,10 +42,10 @@ and evidence shared by live grade and regrade; the eight threat-model rules are 
 test each; the twelve live-only checks run as probes whose outcomes are evidence; old run directories
 stay readable through a quarantined legacy loader; every CLI subcommand, saved-run interface, v1
 record and result rule is unchanged.
-**Next action:** Accept stage 1's and stage 2's candidates in order, then stage 3 (the new engine in
-shadow beside the old), and stage 4 (cut over) only after the owner's private iterations show zero
-shadow disagreements across the count the owner sets. Stage 5 is out of scope by the owner's
-decision of 2026-11-02.
+**Next action:** Accept stage 3's candidate, then run the owner's private iterations under it and
+read `build_probe.py shadow` until the gate of 2026-11-02 is met (30 attempts, zero disagreements,
+with a native conversation, a cut-short run and a machinery failure among them); stage 4 (cut over)
+follows only then. Stage 5 is out of scope by the owner's decision of 2026-11-02.
 **Evidence:** [Design record](decisions/2026-11-02-probe-runner-refactor.md); per-stage evidence lands
 in each stage's pull request.
 **SRE task:** Trust that a regrade of a saved attempt reaches the same verdict as its live grade for a

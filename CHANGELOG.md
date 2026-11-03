@@ -8,6 +8,14 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The evidence engine grades every attempt in shadow: `probe/rules.py` names the eight result rules,
+  `probe/engine.py` grades a scenario from its `evidence.json`, and `shadow.json` beside each live
+  grade and each regrade records whether it agrees with the authoritative grade; `build_probe.py
+  shadow ITERATION_DIR` counts the shadow grades against the owner's stage 4 gate. `attempt.json`
+  records each phase an attempt passes through. A regrade now records a grading-machinery failure as
+  a grader error, as the live grade does, instead of voiding the run (result rule 5 as amended
+  2026-11-02); the `machinery_failure` golden's regrade view changes accordingly (stage 3 of the
+  runner rewrite, RUNNER-001).
 - The check registry is the `probe/checks/` package: the registry and one module per domain
   (checkout, text, changes, services, trace, state, graders), each declaration saying whether it
   is a check or a probe; `probe/checking.py` is a facade that keeps every name importable. The
