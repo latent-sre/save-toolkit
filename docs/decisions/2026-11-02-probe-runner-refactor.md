@@ -9,6 +9,9 @@
   the goldens alone; recorded under "Decisions made"
 - **Amended:** 2026-11-03, by the decision owner, after stage 4 landed: stage 5 is in scope as its
   own change; recorded under "Decisions made"
+- **Amended:** 2026-11-03, by the decision owner, after three bug passes over the rewrite: rule 5's
+  record of a backing service that never starts, how earlier runs compare across a runner change,
+  and the rule 7 name; recorded under "Decisions made"
 - **Decision owner:** the human owner; a maintainer session implements each accepted stage
 - **Roadmap item:** `RUNNER-001` in [the fleet roadmap](../fleet-roadmap.md)
 - **Keeps:** [2026-09-03-one-eval-runner](2026-09-03-one-eval-runner.md),
@@ -242,6 +245,16 @@ Made by the decision owner on 2026-11-03, after stage 4 landed:
 - Stage 5, the optional command-line split, is in scope and proposed as its own change: `cli.run`
   splits into the batch's plan, its scheduling with the budget stop, and its conclusion, with no
   result rule, saved-run interface, exit code or command-line flag changed.
+
+Made by the decision owner on 2026-11-03, after three bug passes over the rewrite:
+
+- A backing service that never starts is recorded with a void run end that names it, as the runner
+  records it: nothing was measured, and record v1 has no run end for a run that never ran. The
+  result-rules ADR's rule 5 is amended the same day to say so; it stops the scenario, never the batch.
+- Earlier runs are compared across a runner change with `rescore`, which relaxes the saved identity
+  and marks those runs `identity_relaxed`; `regrade` has no `--relax-identity` flag, and a strict
+  regrade of an earlier run voids it, as the decision above intends.
+- Rule 7's function is `rule_7_attempt_kept`.
 
 ### Decision needed
 
