@@ -1,0 +1,132 @@
+{
+  "advertised_skills": [],
+  "advertised_tools": [
+    "Skill",
+    "Read",
+    "Task"
+  ],
+  "after_assessment": null,
+  "agent_returns": [
+    {
+      "agent": "save-toolkit:sre-assistant",
+      "completed": true,
+      "continued": true,
+      "tool_use_id": "child"
+    }
+  ],
+  "agents_dir": false,
+  "assessment_scope": "structural_only",
+  "bash_commands": [],
+  "branch": "main",
+  "changed_files": [],
+  "commit_ids_before_after": [
+    [
+      "5bcce5950b5c904bfa6384e0c23e8541743e9d95"
+    ],
+    [
+      "5bcce5950b5c904bfa6384e0c23e8541743e9d95"
+    ]
+  ],
+  "commits_before_after": [
+    1,
+    1
+  ],
+  "conversation_sessions": [
+    "same-session",
+    ""
+  ],
+  "denial_details": [],
+  "denials": [],
+  "dispatches": [
+    "save-toolkit:sre-assistant"
+  ],
+  "effect_calls": [],
+  "foreign_skills": [],
+  "inconclusive": "no result event (claude exit 0)",
+  "initial_parent_reference_reads": [],
+  "initial_parent_skills_before_dispatch": [
+    "save-toolkit:incident-investigation"
+  ],
+  "invocation_evidence": [
+    {
+      "agents": [
+        "save-toolkit:sre-assistant"
+      ],
+      "dispatches": [
+        "save-toolkit:sre-assistant"
+      ],
+      "has_result": true,
+      "response": "Owner correction assessed.",
+      "returns": [
+        {
+          "agent": "save-toolkit:sre-assistant",
+          "completed": true,
+          "continued": true,
+          "tool_use_id": "child"
+        }
+      ]
+    },
+    {
+      "agents": [],
+      "dispatches": [],
+      "has_result": false,
+      "response": "",
+      "returns": []
+    }
+  ],
+  "isolation": {
+    "mode": "host"
+  },
+  "judge_binding": null,
+  "main_models": [
+    "stub-model"
+  ],
+  "mcp_servers": [],
+  "models": [
+    "stub-model"
+  ],
+  "num_turns": null,
+  "permission_mode": "",
+  "plugin": {
+    "plugin_commit": "adbb9193e18445b70d562c7bf9d6d01724bb9cbb",
+    "plugin_inputs_dirty": false,
+    "plugin_root": null,
+    "plugin_served_from": "/golden/workspace/plugin",
+    "plugin_source_sha256": "a3c590527655bafbe89dce8625254e0487eb114653c2e5a02eec75b402d1700d"
+  },
+  "powershell_commands": [],
+  "run_end": "cut_short",
+  "runtime": {
+    "cli_version": "x",
+    "host_identity": {
+      "account_id": "synthetic-account",
+      "elevated": false,
+      "hostname": "synthetic-host",
+      "identity_source": "windows_process_token"
+    },
+    "host_platform": {
+      "machine": "AMD64",
+      "release": "11",
+      "system": "Windows"
+    }
+  },
+  "scenario_sha256": "0e07a241fd27553ea5ff57b2975905b90d581bf46f28852c83d8a4d206e1285e",
+  "semantic_assessment": "UNVERIFIED",
+  "services": [],
+  "skills": [
+    "save-toolkit:incident-investigation"
+  ],
+  "skills_failed": [],
+  "state_files": {},
+  "status": "INCONCLUSIVE",
+  "subagent_bash_commands": [],
+  "tool_counts": {
+    "Agent": 1,
+    "Skill": 1
+  },
+  "tool_errors": [],
+  "usage_models": [
+    "stub-model"
+  ],
+  "workspace": "/golden/workspace/repo"
+}

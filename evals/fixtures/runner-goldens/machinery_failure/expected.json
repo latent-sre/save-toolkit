@@ -1,5 +1,10 @@
 {
   "about": "a check's own code fails: a grader error, never a verdict",
+  "batch": {
+    "batch_stop": null,
+    "cost_known": false,
+    "scenario_stop": "grader error: PatternError('missing ), unterminated subpattern at position 0')"
+  },
   "live": {
     "after_assessment": null,
     "expectations": [

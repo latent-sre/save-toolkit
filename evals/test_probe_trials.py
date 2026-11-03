@@ -47,7 +47,9 @@ from probe_testkit import (
     judge_envelope,
     judge_process,
     judge_verdict,
+    native_conversation_spec,
     native_dispatch_events,
+    native_launch,
     parse_events,
     plain_env_factory,
     read_json,
@@ -65,12 +67,7 @@ NATIVE_SPEC = tiny_spec(followups=["and then?"], helper="sre-assistant", tools=[
 
 
 class NativeConversationRunTests(unittest.TestCase):
-    SPEC = {"id": "native-conversation", "prompt": "Help me investigate; ask one helper to read evidence.md.",
-            "max_turns": 20,
-            "target": {"kind": "skill", "name": "incident-investigation"}, "routing": {"expect": "fire"},
-            "tools": ["Skill", "Read", "Task"], "fixture": {"files": {"evidence.md": "Supplied observation."}},
-            "followups": ["The owner supplied corrected evidence. What changes?"], "helper": "sre-assistant",
-            "expected_model": "stub-model"}
+    SPEC = native_conversation_spec()
 
     def pinned_spec(self):
         spec = {**self.SPEC, "agent": "reliability-engineer"}
@@ -195,9 +192,7 @@ class NativeConversationRunTests(unittest.TestCase):
             with self.subTest(change=change):
                 self.assertTrue(probe_catalog.validate_scenario({**self.SPEC, **change}))
 
-    def run_native(self, root, *, wrong_session=False, bad_runtime=False, bad_initial=False, credential=False,
-                   wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05, runtime=None, child_events=None,
-                   turns=(3, 2), initial_subtype="success", incomplete_followup=False, max_invocation_usd=None):
+    def run_native(self, root, *, runtime=None, max_invocation_usd=None, **flags):
         calls, environments = [], []
 
         @contextlib.contextmanager
@@ -205,38 +200,7 @@ class NativeConversationRunTests(unittest.TestCase):
             environments.append(object())
             yield dict(os.environ)
 
-        def launch(argv, **kwargs):
-            calls.append((argv, kwargs["cwd"], id(kwargs["env"]), kwargs["timeout"]))
-            resumed = "--resume" in argv
-            session_id = "different" if resumed and wrong_session else "same-session"
-            observed_model = None if missing_model else "other-model" if wrong_model else "stub-model"
-            # The runtime loads whatever `--plugin-dir` names: the image the trial is served.
-            served = argv[argv.index("--plugin-dir") + 1]
-            events = [{"type": "system", "subtype": "init", "session_id": session_id,
-                       "model": observed_model,
-                       "tools": self.SPEC["tools"] + (["Bash"] if (resumed and bad_runtime) or (not resumed and bad_initial) else []),
-                       "plugins": [{"name": "save-toolkit", "path": served}], "mcp_servers": []}]
-            if not resumed:
-                events += skill_events(is_error=False)[:2]
-                events[1]["message"]["content"][0]["input"]["skill"] = "save-toolkit:incident-investigation"
-                events += native_dispatch_events() if child_events is None else child_events
-                if hidden_tool:
-                    events.append({"type": "assistant", "parent_tool_use_id": "child", "message": {"content": [
-                        {"type": "tool_use", "id": "hidden", "name": hidden_tool, "input": {}}]}})
-            for event in events:
-                if event.get("type") == "assistant":
-                    event["message"]["model"] = observed_model
-            result = {"type": "result", "subtype": "success" if resumed else initial_subtype, "session_id": session_id,
-                      "result": "Synthetic .credentials.json marker" if credential else "Owner correction assessed.",
-                      "duration_ms": 50, "usage": {"input_tokens": 10}, "modelUsage": {"stub-model": {}}, "total_cost_usd": cost[resumed] if isinstance(cost, tuple) else cost}
-            if turns[resumed] is not None:
-                result["num_turns"] = turns[resumed]
-            if not (resumed and incomplete_followup):
-                events += [result, result]  # repeated terminal envelopes must not double-charge a turn
-            kwargs["stdout"].write("\n".join(json.dumps(event) for event in events) + "\n")
-            return 0
-
-        with mock.patch.object(probe_invocation, "run_cli", side_effect=launch):
+        with mock.patch.object(probe_invocation, "run_cli", side_effect=native_launch(self.SPEC, calls, **flags)):
             summary = probe_trials.run_trial(self.SPEC, run_number=1, settings=probe_trials.BatchSettings(
                 plugin_root=ROOT, label="native", model="stub-model", out_dir=root, timeout=60,
                 executable="native-stub", keep_workspace=False, env_factory=environment, runtime=runtime,

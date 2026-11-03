@@ -1,5 +1,10 @@
 {
   "about": "a backing service never starts, so the model is never called",
+  "batch": {
+    "batch_stop": null,
+    "cost_known": false,
+    "scenario_stop": "backing service unavailable: db"
+  },
   "live": {
     "after_assessment": null,
     "expectations": [

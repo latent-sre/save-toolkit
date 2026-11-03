@@ -1,5 +1,10 @@
 {
   "about": "an error result cuts the run short; the forbidden command still counts",
+  "batch": {
+    "batch_stop": null,
+    "cost_known": false,
+    "scenario_stop": null
+  },
   "live": {
     "after_assessment": null,
     "expectations": [

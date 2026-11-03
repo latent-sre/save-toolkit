@@ -1,0 +1,11 @@
+{
+  "eval_id": "native-conversation",
+  "eval_name": "native-conversation",
+  "prompt": "Help me investigate; ask one helper to read evidence.md.",
+  "assertions": [
+    "routing fire skill:incident-investigation",
+    "native helper completed exactly once",
+    "parent continued after helper completion",
+    "human follow-up resumed the same session"
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "argv": [
+    "native-stub",
+    "-p",
+    "Help me investigate; ask one helper to read evidence.md.",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--forward-subagent-text",
+    "--plugin-dir",
+    "/golden/workspace/plugin",
+    "--mcp-config",
+    "{\"mcpServers\":{}}",
+    "--strict-mcp-config",
+    "--settings",
+    "{\"syncClaudeAiSkills\": false}",
+    "--tools",
+    "Skill,Read,Task",
+    "--disallowedTools",
+    "Bash,Edit,Write,NotebookEdit,Glob,Grep,WebFetch,WebSearch,ToolSearch,CronCreate,CronDelete,DesignSync,EnterWorktree,ExitWorktree,PushNotification,RemoteTrigger,ScheduleWakeup,Workflow,TaskCreate,TaskUpdate,TaskStop,Monitor",
+    "--restricted",
+    "--add-dir",
+    "/golden/workspace/plugin",
+    "--prompt-suggestions",
+    "false",
+    "--max-budget-usd",
+    "0.75",
+    "--allowedTools",
+    "Skill,Read,Task",
+    "--permission-mode",
+    "dontAsk",
+    "--model",
+    "stub-model",
+    "--max-turns",
+    "20"
+  ],
+  "workspace": "/golden/workspace/repo",
+  "runtime": {
+    "cli_version": "x",
+    "host_platform": {
+      "system": "Windows",
+      "release": "11",
+      "machine": "AMD64"
+    },
+    "host_identity": {
+      "hostname": "synthetic-host",
+      "account_id": "synthetic-account",
+      "elevated": false,
+      "identity_source": "windows_process_token"
+    }
+  },
+  "expected_model": "stub-model",
+  "resume": null,
+  "started_at": "2026-11-02T23:58:53+00:00",
+  "state": "finished",
+  "exit_code": 0,
+  "requested_max_invocation_usd": null,
+  "effective_max_invocation_usd": 0.75,
+  "ended_at": "2026-11-02T23:58:53+00:00",
+  "session_id": "same-session",
+  "main_models": [
+    "stub-model"
+  ],
+  "init_session_ids": [
+    "same-session"
+  ],
+  "inconclusive": null,
+  "cut_short": false,
+  "run_stop": null
+}
