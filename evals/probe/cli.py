@@ -57,7 +57,7 @@ def _emit(event: dict[str, Any]) -> None:
 
 
 DEFAULT_TIMEOUT = 900
-COMMANDS = ("run", "validate", "regrade", "rescore", "diff", "schema")
+COMMANDS = ("run", "validate", "regrade", "rescore", "diff", "check-evidence", "schema")
 MIXED_MODELS = "mixed resolved model identities"
 
 
@@ -216,6 +216,13 @@ def _command_parser() -> argparse.ArgumentParser:
         "diff", help="list every verdict that differs between two rescores (exit 1 when any does)"
     )
     diff.add_argument("diff_paths", type=Path, nargs=2, metavar=("BASE", "CANDIDATE"))
+    check = commands.add_parser(
+        "check-evidence",
+        help="grade saved runs from their evidence.json alone and compare with each run's own grade "
+        "(no model; exit 1 when any differs)",
+    )
+    check.add_argument("iteration", type=Path, metavar="ITERATION_DIR")
+    _scenario_option(check)
     schema = commands.add_parser("schema", help="print the JSON Schema of the v1 result record or evidence")
     schema.add_argument("--out", type=Path, help="write the schema here instead of printing it")
     schema.add_argument(
@@ -310,6 +317,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return rescore(args.iteration, args.out, scenarios)
     if command == "regrade":
         return regrade(args.iteration, scenarios, args.threshold)
+    if command == "check-evidence":
+        return check_evidence(args.iteration, scenarios)
     if not args.label or not args.out:
         parser.error("--label and --out are required to run trials")
     return run(args, scenarios)
@@ -376,6 +385,30 @@ def rescore(iteration_dir: Path, out_dir: Path | None, scenarios: list[dict[str,
         "(including any scenario edits since the run; diff two rescores to isolate a runner change)"
     )
     return ExitCode.OK
+
+
+def check_evidence(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> int:
+    """Grade each saved run from its evidence alone and print every verdict that differs from the
+    run's own grade; exit 1 when any does, so an evidence record missing what a check read is
+    caught on real runs, not only on the goldens."""
+    result = rescoring.evidence_check(iteration_dir.resolve(), scenarios)
+    differing = 0
+    for r in result["runs"]:
+        name = layout.run_name(*layout.run_key(r))
+        if r.get("error"):
+            differing += 1
+            print(f"{name}: not checked: {r['error']}")
+        elif r["differences"]:
+            differing += 1
+            changed = " (the scenario changed since the run)" if r["scenario_changed"] else ""
+            print(f"{name}: differs{changed}: {'; '.join(r['differences'])}")
+    skipped = result["skipped"]
+    if skipped["runs_without_evidence"]:
+        print(f"skipped {skipped['runs_without_evidence']} run(s) saved before evidence-v1")
+    if skipped["scenarios"]:
+        print(f"skipped scenario(s) not in this checkout: {', '.join(skipped['scenarios'])}")
+    print(f"checked {len(result['runs'])} run(s) from their evidence; {differing} differ from their own grade")
+    return ExitCode.DIFFERENT if differing else ExitCode.OK
 
 
 def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: float | None) -> int:

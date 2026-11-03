@@ -62,7 +62,10 @@ python evals/build_probe.py run --scenario discovery-runbook-incident-update --l
 
 `validate` is the CI-safe check and the one to run on any scenario edit. `run` needs a
 Claude-enabled runner and starts a fresh non-persistent process per trial. The other jobs are
-`regrade`, `rescore`, `diff` and `schema`; `build_probe.py COMMAND --help` describes each. The flat
+`regrade`, `rescore`, `diff`, `check-evidence` and `schema`; `build_probe.py COMMAND --help` describes
+each. `check-evidence ITERATION_DIR` grades every saved run that wrote `evidence.json` from that record
+alone and exits 1 when a verdict differs from the run's own grade: the offline proof, on real runs,
+that the evidence holds everything the live grade read. The flat
 flags of earlier runners (`--validate`, `--regrade DIR`, `--rescore DIR --out DIR`,
 `--rescore-diff BASE CANDIDATE`, and a bare run) remain supported compatibility forms and reach the same jobs.
 Every scenario must declare `max_turns`; validation refuses a missing or invalid limit before

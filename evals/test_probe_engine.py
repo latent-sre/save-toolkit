@@ -4,53 +4,25 @@ evidence, and a regrade of the same evidence reaches the same verdict."""
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
-import re
 import shutil
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 from unittest import mock
 
 import golden_runs
 import judge
 import pytest
-from probe import checks, engine, rescoring, workspaces
+from probe import checks, cli, engine, rescoring, workspaces
 from probe.attempt import Phase
 from probe.constants import ROOT
-from probe.outcomes import EVIDENCE_LIMIT, CutShort, State, Stop
+from probe.outcomes import CutShort, State, Stop
 from probe_testkit import context, grade_trial, saved_grade, saved_summary, tiny_spec, write_saved_run, ws_context
 
 CASES = [c for c in golden_runs.CASES if not c.raises]
 IDS = [c.name for c in CASES]
-_KEPT = re.compile(r"^\[kept: [\w-]+\] ")
-# A regrade bounds a kept marker and its evidence together; the prefix both grades surely hold.
-_COMMON_EVIDENCE = EVIDENCE_LIMIT - len("[kept: workspace-dependent] ")
-
-
-def comparable(grading: Mapping[str, Any]) -> dict[str, Any]:
-    """The verdict of a grade: everything but what is beside it (identities, the judge binding, the
-    after-assessment record of rule 6, a regrade's kept markers and the tail of bounded evidence)."""
-    return {
-        "status": grading.get("status"),
-        "inconclusive": grading.get("inconclusive"),
-        "unmeasured": grading.get("unmeasured"),
-        "void": grading.get("void"),
-        "run_end": grading.get("run_end"),
-        "run_stop": grading.get("run_stop"),
-        "grader_error": grading.get("grader_error"),
-        "expectations": [
-            {
-                "text": e.get("text"),
-                "kind": e.get("kind"),
-                "state": e.get("state"),
-                "passed": e.get("passed"),
-                "evidence": _KEPT.sub("", str(e.get("evidence") or ""))[:_COMMON_EVIDENCE],
-            }
-            for e in grading.get("expectations") or []
-        ],
-        "summary": {key: (grading.get("summary") or {}).get(key) for key in ("passed", "failed", "total")},
-    }
+comparable = rescoring.comparable
 
 
 def _live(item: golden_runs.Case, root: Path):
@@ -271,3 +243,48 @@ def test_the_testkit_grades_a_context_the_way_the_runner_grades_a_trial() -> Non
     spec = tiny_spec(checks=[{"check": "text_contains_any", "of": ["refuse"], "text": "refuses"}])
     grading = grade_trial(context(spec), inconclusive="wrong plugin")
     assert grading["void"] == "wrong plugin" and grading["status"] == "INCONCLUSIVE"
+
+
+def test_check_evidence_reproduces_each_run_from_its_evidence_and_catches_a_record_that_lacks_one(
+    tmp_path: Path,
+) -> None:
+    """`build_probe.py check-evidence` grades every saved run from its evidence alone: intact records
+    reproduce their own grades, a run saved before evidence-v1 is counted and skipped, and a record
+    that lost what a check read is a reported difference and exit 1. Goldens share scenario ids with
+    different checks, so each case is its own iteration, as each scenario's runs are in real ones."""
+
+    def check(iteration: Path, spec: dict) -> tuple[int, str]:
+        with (
+            mock.patch.object(cli.catalog, "load_all_scenarios", return_value=[spec]),
+            contextlib.redirect_stdout(io.StringIO()) as out,
+        ):
+            code = cli.main(["check-evidence", str(iteration)])
+        return code, out.getvalue()
+
+    iterations = {}
+    for name in ("pass", "fail_forbidding", "rubric_kept", "wall_clock", "native_pass"):
+        item = next(c for c in CASES if c.name == name)
+        run_dir, _, _ = _live(item, tmp_path / name)
+        spec = item.spec()
+        iteration = tmp_path / "iterations" / name
+        shutil.copytree(run_dir, iteration / f"eval-{spec['id']}" / "golden" / "run-1")
+        iterations[name] = (iteration, spec)
+        code, out = check(iteration, spec)
+        assert code == 0 and "checked 1 run(s) from their evidence; 0 differ" in out, (name, out)
+    iteration, spec = iterations["pass"]
+    older = iteration / f"eval-{spec['id']}" / "older" / "run-1"
+    shutil.copytree(golden_runs.FIXTURES / "pass" / "run-1", older)
+    golden_runs.denormalize(older, older.parent)
+    code, out = check(iteration, spec)
+    assert code == 0 and "skipped 1 run(s) saved before evidence-v1" in out, out
+    # The forbidding run's evidence loses the command that failed it: graded from the record alone it
+    # would now pass, which the check reports instead of trusting.
+    iteration, spec = iterations["fail_forbidding"]
+    record = next(iteration.glob("eval-*/golden/run-1/evidence.json"))
+    found = json.loads(record.read_text("utf-8"))
+    for name in ("bash_commands", "subagent_bash_commands", "effect_calls"):
+        found["trace"][name] = []
+    record.write_text(json.dumps(found), encoding="utf-8")
+    code, out = check(iteration, spec)
+    assert code == 1 and "golden/run-1: differs" in out and "status: 'FAIL' != " in out, out
+    assert "the scenario changed" not in out, "the case is unchanged; only the record lost evidence"
