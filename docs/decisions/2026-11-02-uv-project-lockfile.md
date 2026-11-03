@@ -3,6 +3,11 @@
 - Date: 2026-11-02
 - Status: accepted by the repository owner's instruction in the session that implemented it; the
   implementing candidate still requires the normal human acceptance decision
+- Amended: 2026-11-03, by the decision owner: the 2026-08-23 Gate A condition has fired. Commit
+  `d305bbd` made `scripts/fleet_frontmatter.py` import PyYAML and, in the same change, added the
+  `gate` dependency group and `uv sync --locked --only-group gate` to the Gate A job. The Decision's
+  sentence that the Gate A job "installs nothing" describes the state before that commit; the job
+  now installs the locked `gate` group, PyYAML only, on the 3.12 floor
 - Decision owner: repository owner
 - Scope: successor to the pin-location clause of
   [allow third-party dependencies](2026-08-23-allow-third-party-dependencies.md) (its condition 1)

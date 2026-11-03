@@ -14,7 +14,7 @@ import sys
 
 TRIGGER = re.compile(
     r"^(?:evals/|scripts/|hooks/|skills/[^/]+/scripts/"
-    r"|conftest\.py$|pytest\.ini$|pyproject\.toml$|requirements[^/]*\.txt$"
+    r"|conftest\.py$|pytest\.ini$|pyproject\.toml$|uv\.lock$"
     r"|\.github/workflows/validate\.yml$)"
 )
 

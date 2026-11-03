@@ -298,7 +298,7 @@ class ValidateWorkflowTests(unittest.TestCase):
         self.assertNotIn("fetch-depth", "\n".join(str(step) for step in changes["steps"]))
         triggers = ["evals/test_judge.py", "scripts/readonly-guard.py", "hooks/hooks.json",
                     "skills/grafana/scripts/grafana_read.py", "conftest.py", "pytest.ini",
-                    "pyproject.toml", "requirements-test.txt", ".github/workflows/validate.yml"]
+                    "pyproject.toml", "uv.lock", ".github/workflows/validate.yml"]
         for path in triggers:
             with self.subTest(path=path):
                 self.assertTrue(eval_tests_needed.needed([path]))

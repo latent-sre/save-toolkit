@@ -105,7 +105,7 @@ Tests replace only the external Docker/process boundary, retaining lifecycle and
 ## Task 5: operator entrypoint and smoke gate
 
 **Files:** `evals/swebench_repair.py`, `evals/swebench_adapter/__init__.py`, adapter CLI tests,
-`requirements-swebench.txt`, `requirements-dev.txt`, `pyproject.toml`, WP-08 operator documentation.
+`pyproject.toml`, `uv.lock`, WP-08 operator documentation.
 
 - [ ] Provide `select`, `preflight`, `smoke`, `trial` and `batch` entrypoints with validated manifests
   and clear missing-prerequisite errors before resource allocation or paid calls.
