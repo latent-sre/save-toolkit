@@ -26,6 +26,8 @@ dependencies = []
 test = [
     "pytest>=9.1.1",
     "pytest-xdist>=3.8.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-socket>=0.8.1",
     "hypothesis>=6.168.5",
     "types-PyYAML>=6.0.12.20260906",
     "fastapi>=0.141.1",
@@ -103,6 +105,12 @@ sandbox = [
 [tool.uv]
 package = false
 default-groups = ["test"]
+# litellm (Harbor's dependency) declares filelock<4 although it imports filelock only in two proxy CLI
+# commands, through the FileLock API that 4.x keeps unchanged; the Harbor modules the fleet adapter
+# imports never import litellm. filelock 3.x carries three advisories fixed only in 4.2.1, so the
+# Harbor group takes the 4.x line that every other group already has. Drop this once litellm lifts
+# its upper bound; the WP-09 Harbor smoke on a Docker host remains the live check of that environment.
+override-dependencies = ["filelock>=4.2.7"]
 # harbor, swt and sandbox resolve apart from the project environment and from each other; swebench
 # installs on top of test.
 conflicts = [

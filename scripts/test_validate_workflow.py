@@ -350,7 +350,7 @@ class ValidateWorkflowTests(unittest.TestCase):
                 self.assertEqual("1", step["env"]["PYTEST_DISABLE_PLUGIN_AUTOLOAD"])
                 args = shlex.split(step["run"])
                 plugins = {args[i + 1] for i, arg in enumerate(args[:-1]) if arg == "-p"}
-                self.assertTrue({"xdist", "hypothesispytest"} <= plugins)
+                self.assertTrue({"xdist", "hypothesispytest", "pytest_timeout", "pytest_socket"} <= plugins)
 
     def test_locked_install_is_cached_and_bound_to_the_setup_python_interpreter(self) -> None:
         """uv installs the lock into setup-python's interpreter by path, never a download, and puts it on PATH.

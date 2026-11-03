@@ -8,6 +8,10 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Added
 
+- pytest-timeout and pytest-socket in the test group and CI: a 300-second ceiling per test, and no socket
+  from the test process beyond loopback and Unix sockets; Hypothesis properties on the read-only guard's
+  fail-closed composition rules; a uv override that gives the Harbor group filelock 4.x against litellm's
+  declared bound, with the evidence in `pyproject.toml`.
 - Inspect AI orchestration of the native routing and contract scenarios: `evals/inspect_fleet.py` runs the
   unchanged native trial as an Inspect task (one sample per scenario, one epoch per trial slot, the same
   published runs and batch summary), with offline tests, a `inspect-native` track, and a

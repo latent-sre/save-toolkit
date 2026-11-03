@@ -131,7 +131,7 @@ jobs:
       # one worker reads as plugin drift to a native trial running in another. The default run
       # skips the heavy eval-machinery files (conftest.py HEAVY); the eval-tests job runs them.
       - name: Fast tests
-        run: python -m pytest -q -k "${{ matrix.selection }}" -n 4 --dist worksteal --durations=20 -p xdist -p hypothesispytest
+        run: python -m pytest -q -k "${{ matrix.selection }}" -n 4 --dist worksteal --durations=20 -p xdist -p hypothesispytest -p pytest_timeout -p pytest_socket
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
           PYTHONDONTWRITEBYTECODE: '1'
@@ -193,7 +193,7 @@ jobs:
 
       # Early collection excludes fast files; worker options stay out of nested pytest environments.
       - name: Eval machinery tests
-        run: python -m pytest -q -m heavy -k "${{ matrix.selection }}" -n 4 --dist worksteal --durations=20 -p xdist -p hypothesispytest
+        run: python -m pytest -q -m heavy -k "${{ matrix.selection }}" -n 4 --dist worksteal --durations=20 -p xdist -p hypothesispytest -p pytest_timeout -p pytest_socket
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
           PYTHONDONTWRITEBYTECODE: '1'

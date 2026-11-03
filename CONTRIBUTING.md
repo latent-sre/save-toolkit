@@ -184,7 +184,10 @@ speed: same candidate and selection, known competing workloads, and the same int
 `pytest.ini` defaults to **10 local workers** with `--dist worksteal`; CI passes its explicit
 four-worker override on the command line. Do not export worker options through `PYTEST_ADDOPTS`:
 fixture suites inherit that variable and start additional worker pools. CI disables automatic
-plugin loading and explicitly loads xdist and Hypothesis.
+plugin loading and explicitly loads xdist, Hypothesis, pytest-timeout and pytest-socket. Every test
+has a 300-second ceiling, and the test process may open sockets only to loopback or a Unix socket;
+a test that needs more declares it with those plugins' markers. Subprocesses a test starts are
+outside both rules.
 Work stealing balances individual cases across workers; module and class
 fixtures can run once on each worker that receives their tests. Pass `-n 0` for a debugger or
 `--pdb`, or a smaller count on a constrained host. More workers are not a speed guarantee.
