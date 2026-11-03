@@ -552,6 +552,93 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[s
     return results
 
 
+# A regrade bounds a kept marker and its evidence together to EVIDENCE_LIMIT; what any two grades of
+# the same evidence surely share of an expectation's evidence is the bound less the longest marker.
+_KEPT_MARKER = re.compile(r"^\[kept: [\w-]+\] ")
+_COMMON_EVIDENCE = EVIDENCE_LIMIT - len("[kept: workspace-dependent] ")
+
+
+def comparable(grading: Mapping[str, Any]) -> dict[str, Any]:
+    """The verdict of a grade: everything but what is beside it, which two grades of the same
+    evidence may differ in without disagreeing (identities and digests, the judge binding, times, the
+    after-assessment record of rule 6, a regrade's kept markers, and the tail of bounded evidence)."""
+    return {
+        "status": grading.get("status"),
+        "inconclusive": grading.get("inconclusive"),
+        "unmeasured": grading.get("unmeasured"),
+        "void": grading.get("void"),
+        "run_end": grading.get("run_end"),
+        "run_stop": grading.get("run_stop"),
+        "grader_error": grading.get("grader_error"),
+        "expectations": [
+            {
+                "text": e.get("text"),
+                "kind": e.get("kind"),
+                "state": e.get("state"),
+                "passed": e.get("passed"),
+                "evidence": _KEPT_MARKER.sub("", str(e.get("evidence") or ""))[:_COMMON_EVIDENCE],
+            }
+            for e in grading.get("expectations") or []
+        ],
+        "summary": {key: (grading.get("summary") or {}).get(key) for key in ("passed", "failed", "total")},
+    }
+
+
+def differences(saved: Mapping[str, Any], graded: Mapping[str, Any]) -> list[str]:
+    """Each place two grades' verdicts differ, as `path: saved != graded`."""
+    found: list[str] = []
+    _walk(comparable(saved), comparable(graded), "", found)
+    return found
+
+
+def _walk(left: Any, right: Any, path: str, found: list[str]) -> None:
+    if isinstance(left, dict) and isinstance(right, dict):
+        for key in sorted(left.keys() | right.keys()):
+            _walk(left.get(key), right.get(key), f"{path}.{key}" if path else str(key), found)
+    elif isinstance(left, list) and isinstance(right, list) and len(left) == len(right):
+        for index, (a, b) in enumerate(zip(left, right, strict=True)):
+            _walk(a, b, f"{path}[{index}]", found)
+    elif left != right:
+        found.append(f"{path}: {left!r} != {right!r}")
+
+
+def evidence_check(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict[str, Any]:
+    """Grade every published run that wrote `evidence.json` from that evidence alone, under the
+    run level its ending records and the probe outcomes it holds, and compare each verdict with the
+    run's own `grading.json`. A difference means the evidence lacks something the live grade read,
+    or the scenario changed since the run (`scenario_changed`); a run saved before evidence-v1 is
+    counted, not checked. Nothing is written."""
+    runs, skipped = _saved_runs(iteration_dir, scenarios)
+    rows: list[dict[str, Any]] = []
+    without_evidence = 0
+    for spec, run_dir, row in runs:
+        if not (run_dir / evidence.FILE).is_file():
+            without_evidence += 1
+            continue
+        try:
+            found = evidence.EvidenceV1.model_validate_json((run_dir / evidence.FILE).read_text(encoding="utf-8"))
+            saved = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
+            if not isinstance(saved, dict):
+                raise ValueError("the saved grade is not a JSON object")
+            summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
+            with _served_plugin_root(summary) as (plugin_root, _has_plugin_root):
+                graded = engine.render(engine.grade(spec, found, plugin_root=plugin_root), spec)
+            # Inside the boundary: a saved grade of the wrong shape is this run's error, never the
+            # end of the iteration's check.
+            found_differences = differences(saved, graded)
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+            rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
+            continue
+        rows.append(
+            {
+                **row,
+                "differences": found_differences,
+                "scenario_changed": found.identity.case_sha256 not in (None, fingerprints.case_digest(spec)),
+            }
+        )
+    return {"runs": rows, "skipped": {**skipped, "runs_without_evidence": without_evidence}}
+
+
 def _verdicts(grading: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "status": grading.get("status"),

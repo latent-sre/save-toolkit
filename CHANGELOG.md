@@ -8,6 +8,11 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Added
 
+- `build_probe.py check-evidence ITERATION_DIR`: grades every saved run that wrote `evidence.json`
+  from that record alone, with no model, workspace or judge call, and exits 1 when a verdict differs
+  from the run's own grade, naming the scenario when it changed since the run. It is the offline check
+  that the evidence holds what the live grade read, the design record's named failure mode, on real
+  runs rather than only the goldens (RUNNER-001).
 - pytest-timeout and pytest-socket in the test group and CI: a 300-second ceiling per test, and no socket
   from the test process beyond loopback and Unix sockets; Hypothesis properties on the read-only guard's
   fail-closed composition rules; a uv override that gives the Harbor group filelock 4.x against litellm's

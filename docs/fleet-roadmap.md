@@ -64,7 +64,8 @@ test each; the twelve live-only checks run as probes whose outcomes are evidence
 stay readable through a quarantined legacy loader; every CLI subcommand, saved-run interface, v1
 record and result rule is unchanged.
 **Next action:** `rescore` one private iteration under the stage 4 runner and `diff` against a
-rescore under the stage 3 runner: zero changed verdicts proves the cut-over on real runs, which the
+rescore under the stage 3 runner, and run `check-evidence` on the first iteration the stage 4
+runner writes: zero changed verdicts and zero differences prove the cut-over on real runs, which the
 goldens alone do not. Then accept stage 5's candidate, the last the record scopes.
 **Evidence:** [Design record](decisions/2026-11-02-probe-runner-refactor.md); per-stage evidence lands
 in each stage's pull request.
