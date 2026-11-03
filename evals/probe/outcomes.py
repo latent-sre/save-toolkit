@@ -108,6 +108,11 @@ class Outcome:
         """Why a check went unmeasured, as a trial reports it: the evidence without `INCONCLUSIVE: `."""
         return self.evidence.removeprefix(UNMEASURED)
 
+    @property
+    def instrument(self) -> bool:
+        """A failure of the harness's own instrument, such as a backing service that stopped answering."""
+        return self.machinery and _KEPT.sub("", self.evidence, count=1).startswith(INSTRUMENT)
+
     def with_evidence(self, evidence: str) -> Outcome:
         return Outcome(self.state, evidence, machinery=self.machinery, forbidden=self.forbidden)
 

@@ -20,6 +20,13 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The evidence engine is the runner's one grading path: a live attempt's probes run once in its
+  workspace and are recorded as evidence before the rules read them, the grade is read from the
+  attempt's `evidence.json` as a regrade reads it later, and a regrade of a run that wrote one no
+  longer reads its raw trace (the owner's decision of 2026-11-02). The old live grader and regrade
+  loop, `shadow.json` and the `shadow` command are removed; `attempt.json` records the `probed`
+  phase. The owner waived the shadow gate on 2026-11-03, so the cut-over is proven on the goldens
+  alone (stage 4 of the runner rewrite, RUNNER-001).
 - Refresh the lock to the releases of the last day (anthropic 2.4.0, filelock 4.2.7, jsonpatch 1.41,
   jsonpointer 3.8, python-discovery 1.9.1, langchain-core 1.7.4) and drop the `orjson` and `rich` pins,
   which nothing in the repository imports; rich remains as Inspect's dependency.

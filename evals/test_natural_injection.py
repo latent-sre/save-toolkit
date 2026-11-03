@@ -14,8 +14,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
-from probe import assessment, catalog, checking, tracing, workspaces
-from probe_testkit import parse_events, run_python, scenario_file
+from probe import catalog, checking, tracing, workspaces
+from probe_testkit import grade_trial, parse_events, run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 ORACLES = ROOT / 'oracles/natural-injection'
@@ -102,7 +102,7 @@ def exercise(case_id, output, *, drop_completion=False, later_edit=False):
             assert observed_state.get(name) == content
         ctx = checking.Context(spec, ws, trace, facts)
         with patch.dict(os.environ, env):
-            result = assessment.grade(ctx)
+            result = grade_trial(ctx)
         return result, process_results, observed_state
 
 

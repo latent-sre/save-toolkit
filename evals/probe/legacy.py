@@ -2,9 +2,9 @@
 
 A run saved before `evidence.json` kept its facts across `outputs/trace-summary.json`, the raw trace,
 `grading.json`, `provenance.json` and each invocation's metadata. This module reads them back into
-the objects the grading loop takes and into an evidence object of the same shape the live path
-writes, so every saved iteration stays readable (RUNNER-001). It is quarantined here, moved from
-`rescoring`, not rewritten; it is never used for a run that has `evidence.json`.
+an evidence object of the same shape the live path writes, so every saved iteration stays readable
+and `engine.grade` grades it as it grades a live attempt (RUNNER-001). It is quarantined here, moved
+from `rescoring`, not rewritten; it is never used for a run that has `evidence.json`.
 """
 
 from __future__ import annotations
@@ -57,7 +57,8 @@ class Saved:
 def reconstruct(run_dir: Path, summary: Mapping[str, Any], text: str, *, reparse: bool) -> Saved:
     """The trace and git facts of a saved run. With `reparse`, the raw evidence is read with the live
     parser: an incomplete stream preserves positive observations but cannot establish an absent call;
-    validated summary counts can fill that gap. Without it, the summary restores what it can."""
+    validated summary counts fill that gap, and the counts read as complete only when the summary's
+    bound every call the stream shows. Without it, the summary restores what it can."""
     stdout_path = run_dir / "stdout.jsonl"
     reparsed = tracing.parse_trial_trace(run_dir) if stdout_path.is_file() and reparse else None
     saved_counts = saved_tool_counts(summary.get("tool_counts"))
@@ -65,6 +66,17 @@ def reconstruct(run_dir: Path, summary: Mapping[str, Any], text: str, *, reparse
         trace = reparsed
         if not trace.result_text:  # a truncated trace must not silently blank every text check
             trace.result_text = text
+        if not trace.tool_counts_complete and saved_counts is not None:
+            # A trusted summary fills missing raw coverage. If the surviving stream already shows
+            # more calls, that summary cannot establish a total; retain the stronger lower bound so
+            # its supported forbidden actions still fail, without inventing absence elsewhere.
+            trace.tool_counts_complete = all(
+                count <= saved_counts.get(name, 0) for name, count in trace.tool_counts.items()
+            )
+            trace.tool_counts = {
+                name: max(trace.tool_counts.get(name, 0), saved_counts.get(name, 0))
+                for name in trace.tool_counts.keys() | saved_counts.keys()
+            }
     else:
         trace = tracing.from_saved({**summary, "tool_counts": saved_counts or {}}, text)
         # The summary's counts are the run's complete record when it holds a valid map; without one,

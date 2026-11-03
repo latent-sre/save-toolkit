@@ -35,7 +35,6 @@ from . import (
     records,
     rescoring,
     selection,
-    shadow,
     trials,
 )
 from .constants import ROOT
@@ -57,7 +56,7 @@ def _emit(event: dict[str, Any]) -> None:
 
 
 DEFAULT_TIMEOUT = 900
-COMMANDS = ("run", "validate", "regrade", "rescore", "diff", "schema", "shadow")
+COMMANDS = ("run", "validate", "regrade", "rescore", "diff", "schema")
 MIXED_MODELS = "mixed resolved model identities"
 
 
@@ -216,13 +215,6 @@ def _command_parser() -> argparse.ArgumentParser:
         "diff", help="list every verdict that differs between two rescores (exit 1 when any does)"
     )
     diff.add_argument("diff_paths", type=Path, nargs=2, metavar=("BASE", "CANDIDATE"))
-    shadowed = commands.add_parser(
-        "shadow",
-        help="count the evidence engine's shadow grades across saved runs against the stage 4 gate "
-        "(exit 1 when any disagrees)",
-    )
-    shadowed.add_argument("iteration", type=Path, metavar="ITERATION_DIR")
-    _scenario_option(shadowed)
     schema = commands.add_parser("schema", help="print the JSON Schema of the v1 result record or evidence")
     schema.add_argument("--out", type=Path, help="write the schema here instead of printing it")
     schema.add_argument(
@@ -317,8 +309,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return rescore(args.iteration, args.out, scenarios)
     if command == "regrade":
         return regrade(args.iteration, scenarios, args.threshold)
-    if command == "shadow":
-        return shadow_report(args.iteration, scenarios)
     if not args.label or not args.out:
         parser.error("--label and --out are required to run trials")
     return run(args, scenarios)
@@ -385,12 +375,6 @@ def rescore(iteration_dir: Path, out_dir: Path | None, scenarios: list[dict[str,
         "(including any scenario edits since the run; diff two rescores to isolate a runner change)"
     )
     return ExitCode.OK
-
-
-def shadow_report(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> int:
-    result = rescoring.shadow_report(iteration_dir.resolve(), scenarios)
-    shadow.print_report(result)
-    return ExitCode.DIFFERENT if result["disagreeing"] else ExitCode.OK
 
 
 def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]], threshold: float | None) -> int:

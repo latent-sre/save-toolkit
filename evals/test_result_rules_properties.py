@@ -40,7 +40,7 @@ from probe import outcomes as probe_outcomes
 from probe import records as probe_records
 from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
-from probe_testkit import INTENDED_POLARITY, context  # the reviewed table, not the declarations
+from probe_testkit import INTENDED_POLARITY, context, grade_trial  # the reviewed table, not the declarations
 
 RULES = settings(derandomize=True, database=None, deadline=None, max_examples=150)
 GRADES = settings(derandomize=True, database=None, deadline=None, max_examples=60)
@@ -127,8 +127,8 @@ def _expected(item: dict, run: str) -> tuple[str, bool]:
         return ("FAIL" if item["found"] == "violation" else "INCONCLUSIVE"), True
     if run == "cut" and item["polarity"] == "requires":
         return "INCONCLUSIVE", False  # rules 2 and 4: an unmet requirement proves nothing yet
-    if kept is not None:
-        return kept, False
+    if kept is not None:  # a kept outcome is read by the same rule as a measured one
+        return ("INCONCLUSIVE" if run == "cut" and kept == "PASS" else kept), False
     if run == "cut":  # forbids: evidence of the forbidden action stands, its absence proves nothing yet
         return ("FAIL" if found == "FAIL" else "INCONCLUSIVE"), True
     return found, True
@@ -269,7 +269,7 @@ class RunEndProperties(unittest.TestCase):
     @staticmethod
     def _grade(text: str, needle: str, word: str, inconclusive: str | None = None) -> dict:
         ctx = context(_text_spec(needle, word), probe_tracing.TraceSummary(result_text=text))
-        return probe_assessment.grade(ctx, inconclusive=inconclusive)
+        return grade_trial(ctx, inconclusive=inconclusive)
 
     @GRADES
     @given(letters, needles, needles)

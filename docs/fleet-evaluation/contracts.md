@@ -142,11 +142,14 @@ are different runtime conditions. The importing computer never supplies missing 
 ## Evidence record v1
 
 RUNNER-001 adds one evidence record per graded attempt, `evidence.json`, beside the result record.
-It holds what the attempt observed and never what the checks concluded, so the runner rewrite can
-grade live attempts and saved runs from the same object. Its field names are published as a JSON
-Schema, [`eval-evidence-v1.schema.json`](eval-evidence-v1.schema.json), generated from the runner's
+It holds what the attempt observed and never what the checks concluded, and the runner grades live
+attempts and saved runs from the same object: a live attempt's probes are measured into it before
+anything is graded, and a regrade of a run that wrote it reads it instead of the raw trace. Its
+field names are published as a JSON Schema,
+[`eval-evidence-v1.schema.json`](eval-evidence-v1.schema.json), generated from the runner's
 evidence model, which validates every record before it is written. A regrade of a run saved before
-this record reads it back from the files that run kept and writes the result beside its assessment.
+this record reads it back from the files that run kept and writes the evidence it graded beside
+its assessment.
 
 | Group | Fields |
 |---|---|
@@ -155,10 +158,10 @@ this record reads it back from the files that run kept and writes the result bes
 | Host | The computer's facts, in their own block so a regrade elsewhere compares the measurement and not the host: CLI version, platform and account, the workspace and plugin paths, and the judge's execution identity and cache |
 | Trace | Every parsed trace field, a digest of each raw trace the facts were read from, and whether the facts were restored from the summary because the raw trace was gone |
 | Git and workspace | Commit counts and identities before and after, branch, changed paths, a digest of the patch, the fixture's state files, and whether `.agents/` existed |
-| Services | Each backing service's name, image and address, and any service problem seen after grading started |
+| Services | Each backing service's name, image and address, and any backing service that stopped answering, after the proxy stopped or during a probe |
 | Ending | How execution ended, as the result record reads it, and the identity failure the batch read |
 | Turns | Each native invocation's command, session, model, exit, state and stop, with digests of its trace and response |
-| Probes | The live outcome of each check a regrade keeps rather than re-measures: a paid judgment or a reading of the workspace or a service |
+| Probes | The outcome of each check a regrade keeps rather than re-measures, a paid judgment or a reading of the workspace or a service, as the probe measured it before the result rules read it |
 
 ## Report records
 

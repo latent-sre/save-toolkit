@@ -38,9 +38,9 @@ def test_a_fresh_stub_trial_matches_its_expected_live_view(item: golden_runs.Cas
                  for p in (golden_runs.FIXTURES / item.name / "run-1").rglob("*") if p.is_file()}
     produced = {p.relative_to(run_dir).as_posix() for p in run_dir.rglob("*") if p.is_file()}
     # The fixtures are pre-evidence directories by construction; a graded attempt now also writes
-    # its evidence-v1 artifact and, during the rewrite's shadow period, the shadow grade beside them.
-    assert produced == committed | ({"evidence.json", "shadow.json"} if grading is not None else set()), (
-        "the runner publishes the artifact set the fixture holds, plus its evidence and shadow grade"
+    # its evidence-v1 artifact beside them.
+    assert produced == committed | ({"evidence.json"} if grading is not None else set()), (
+        "the runner publishes the artifact set the fixture holds, plus its evidence"
     )
 
 

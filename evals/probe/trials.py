@@ -30,13 +30,13 @@ from . import (
     backing,
     catalog,
     conversations,
+    engine,
     evidence,
     fingerprints,
     invocation,
     layout,
     records,
     rules,
-    shadow,
     tracing,
     workspaces,
 )
@@ -729,7 +729,23 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             judge_binding=settings.judge_binding,
             service_problem=service_error,
         )
-        grading = assessment.grade(ctx, inconclusive=inconclusive, expected_scenario_digest=scenario_identity)
+        (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
+        (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
+        _warn_on_credentials(run_out, trace)
+        # The probes run in the workspace and their outcomes are recorded as evidence; the grade is
+        # then read from that evidence, as a regrade reads it later.
+        grading, found = engine.grade_trial(
+            ctx,
+            inconclusive=inconclusive,
+            expected_scenario_digest=scenario_identity,
+            run_dir=run_out,
+            provenance={**provenance, **runner},
+            runtime=settings.runtime,
+            requested_model=settings.model,
+            identity_failure=identity_failure,
+        )
+        if found.probes and not grading.get("void"):
+            _phase(life, attempts.Phase.PROBED)
         after_assessment = None
         if services:
             try:
@@ -742,7 +758,8 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         drift = _plugin_drift(settings.plugin_root, served, provenance["plugin_source_sha256"])
         if drift:
             identity_failure = identity_failure or drift
-            grading = assessment.grade(ctx, inconclusive=drift, expected_scenario_digest=scenario_identity)
+            found = evidence.ended(found, drift, identity_failure=identity_failure)
+            grading = engine.render(engine.grade(spec, found, plugin_root=served, run_level=drift), spec)
         if after_assessment:
             grading = rules.rule_6_after_assessment(grading, after_assessment)
         _phase(life, attempts.Phase.GRADED)
@@ -750,28 +767,12 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             _phase(life, attempts.Phase.VOID, identity_failure)
         elif grading.get("grader_error") or service_error:
             _phase(life, attempts.Phase.STOPPED, grading.get("grader_error") or service_error)
-        (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
-        (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
-        _warn_on_credentials(run_out, trace)
         layout.write_json(
             run_out / "outputs" / "trace-summary.json",
             _saved_summary(ctx, grading, provenance, settings, binding, after_assessment),
         )
         layout.write_json(run_out / "grading.json", grading)
-        found = evidence.from_live(
-            ctx,
-            grading,
-            run_out,
-            provenance={**provenance, **runner},
-            runtime=settings.runtime,
-            requested_model=settings.model,
-            identity_failure=identity_failure,
-        )
         evidence.write(run_out, found)
-        # Stage 3 of the rewrite: the evidence engine grades the same attempt in shadow; this grade
-        # stays authoritative, and a disagreement is a reported row.
-        shadowed = shadow.compare(spec, found, grading, source="live", plugin_root=served)
-        shadow.write(run_out, shadowed)
         # Drained after grading: a rubric grader's judge call is spend this trial caused.
         judge = records.judge_spend()
         cost = records.trial_cost(trace.total_cost_usd, judge)
@@ -800,7 +801,6 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             **({"grader_error": grading["grader_error"]} if grading.get("grader_error") else {}),
             **({"identity_failure": identity_failure} if identity_failure else {}),
             **({"service_error": service_error} if service_error else {}),
-            **shadow.row_fields(shadowed),
         }
         return summary
     finally:

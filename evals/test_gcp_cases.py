@@ -19,8 +19,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from probe import assessment, catalog, checking, tracing, workspaces
-from probe_testkit import parse_events, scenario_file
+from probe import catalog, checking, tracing, workspaces
+from probe_testkit import grade_trial, parse_events, scenario_file
 
 ROOT = Path(__file__).resolve().parent
 CASES = ('build-gcp01-startup-a', 'build-gcp01-startup-b')
@@ -75,7 +75,7 @@ def exercise(case_id, output):
         events.append({'type': 'result', 'subtype': 'success', 'is_error': False, 'result': output['response']})
         ctx = checking.Context(spec, ws, parse_events(events), workspaces.collect_git_facts(ws))
         with patch.dict(os.environ, env):  # the probe-owned review script runs on the same PATH
-            result = assessment.grade(ctx)
+            result = grade_trial(ctx)
         state = sorted(path.name for path in ws.state_dir.iterdir())
         return result, processes, state
 

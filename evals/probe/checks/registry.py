@@ -205,6 +205,10 @@ def declare(
             raise ValueError(f"check {name!r} is declared twice")
         if polarity is Polarity.BOTH and on_cut is None:
             raise ValueError(f"check {name!r} has a floor and a ceiling but no cut-short rule")
+        if polarity is Polarity.BOTH and kind is Kind.PROBE:
+            raise ValueError(
+                f"check {name!r} is a probe with a floor and a ceiling; a probe's outcome is kept, not cut"
+            )
         rule: NeedsRule = needs if callable(needs) else frozenset(needs)
         fixed = rule if isinstance(rule, frozenset) else None
         if fixed is not None:

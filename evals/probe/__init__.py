@@ -19,13 +19,12 @@
 - `records`: what an attempt cost, and the v1 result record;
 - `invocation`: one `claude -p` call, and whether its trace may be graded;
 - `rules`: the eight result rules as named functions, which grading and the attempt's life apply;
-- `assessment`: the one grading loop, shared by live grades and regrades;
+- `assessment`: a scenario's expectations in grading order, and the one grading loop the engine drives;
 - `evidence`: what one attempt observed, as the evidence-v1 artifact it writes beside its grade;
-- `legacy`: read a pre-evidence run directory back into the grading loop's objects and into evidence;
+- `legacy`: read a pre-evidence run directory back into evidence;
 - `attempt`: one attempt's life as a state machine, written to `attempt.json` at each transition;
-- `engine`: grade a scenario from an evidence record, the rewrite's one grading path, in shadow
-  beside `assessment` until the owner's gate is met;
-- `shadow`: compare the two engines' grades and record the result beside the authoritative one;
+- `engine`: the one grading path: a live attempt's probes measured into evidence, and a scenario
+  graded from an evidence record, live or saved;
 - `trials`: run one trial and publish it as an attempt;
 - `rescoring`: regrade, rescore and diff saved runs;
 - `batches`: pool trials into a verdict per scenario;

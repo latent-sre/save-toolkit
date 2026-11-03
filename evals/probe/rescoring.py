@@ -1,11 +1,13 @@
 """Grade saved runs again: a regrade beside the run, a rescore into a new folder, and a diff of two.
 
-A regrade re-measures what the saved run still supports -- the raw trace, the final text, the state
-files and git facts the summary recorded -- and keeps the live verdict of anything else, by position
-under the saved scenario identity: a paid rubric judgment, or a check whose evidence left with the
-workspace. When the raw trace is gone, what only it held is INCONCLUSIVE, check by check. It never
-rewrites the run (threat-model ADR result rule 8). Grading itself is the same
-`assessment.assess` loop the live grade uses.
+A regrade grades the run's evidence with the engine the live grade used: its own `evidence.json`
+when it wrote one, else what `legacy` reads back from the files a pre-evidence run kept, the raw
+trace re-parsed when it survives. The checks are re-measured from that evidence and each probe's
+recorded outcome is kept, by position under the saved scenario identity: a paid rubric judgment, or
+a reading of the workspace that left with the run. When the raw trace is gone, what only it held is
+INCONCLUSIVE, check by check. What a regrade settles itself is the run-level reason: the saved
+identity, the judge binding, and a native conversation's replayed boundary checks. It never
+rewrites the run (threat-model ADR result rule 8).
 """
 
 from __future__ import annotations
@@ -14,7 +16,6 @@ import contextlib
 import json
 import re
 import shutil
-import sys
 import tempfile
 from collections.abc import Iterator, Mapping
 from pathlib import Path
@@ -26,8 +27,8 @@ import judge as rubric_judge
 from . import (
     assessment,
     catalog,
-    checking,
     conversations,
+    engine,
     evidence,
     fingerprints,
     invocation,
@@ -36,13 +37,11 @@ from . import (
     outcomes,
     records,
     rules,
-    shadow,
     tracing,
 )
-from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_IDENTITY, HARNESS_SOURCE_SHA256
-from .outcomes import EVIDENCE_LIMIT, UNMEASURED, CutShort, Ending, Outcome, Stop
+from .outcomes import EVIDENCE_LIMIT, UNMEASURED, CutShort, Ending, Stop
 from .tracing import TraceSummary
 
 Spec = Mapping[str, Any]
@@ -174,104 +173,56 @@ def regrade_run(
     *,
     write: bool = True,
     relax_identity: bool = False,
-    shadow_out: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Re-score an unchanged scenario; keep only exactly identified original live verdicts.
 
     `write=False` leaves the run untouched and only returns the grade. `relax_identity` grades a run
     whose saved scenario identity differs, as it does after any runner edit because the identity
     binds the runner's source; kept verdicts are then found under the saved identity, and the grade
-    is marked `identity_relaxed` so it serves only to compare runners on the same trace. The
-    evidence engine's shadow result on the same run is put under `shadow` in `shadow_out`, when the
-    caller passes a dict to receive it.
+    is marked `identity_relaxed` so it serves only to compare runners on the same trace.
     """
     summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
     with _served_plugin_root(summary) as (plugin_root, has_plugin_root):
-        grading, shadowed = _regrade_run(
+        return _regrade_run(
             run_dir, spec, summary, plugin_root, has_plugin_root, write=write, relax_identity=relax_identity
         )
-    if shadow_out is not None:
-        shadow_out["shadow"] = shadowed
-    return grading
-
-
-def regrade_run_shadow(
-    run_dir: Path, spec: Spec, *, write: bool = True, relax_identity: bool = False
-) -> tuple[dict[str, Any], dict[str, Any] | None]:
-    """`regrade_run` with its shadow result beside the grade."""
-    out: dict[str, Any] = {}
-    grading = regrade_run(run_dir, spec, write=write, relax_identity=relax_identity, shadow_out=out)
-    return grading, out.get("shadow")
-
-
-def shadow_report(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict[str, Any]:
-    """Every shadow result an iteration holds, live and regraded, with the coverage the owner's gate
-    asks for (stage 3 of the runner rewrite)."""
-    runs, skipped = _saved_runs(iteration_dir, scenarios)
-    # Every attempt counts, not only the slot's published run: a superseded or incomplete attempt
-    # kept under the label's history was graded in shadow too (result rule 7).
-    attempts: list[tuple[dict[str, Any], Path, dict[str, Any]]] = []
-    for spec, label_dir in {(id(spec), run_dir.parent): (spec, run_dir.parent) for spec, run_dir, _ in runs}.values():
-        for kept, slot, number in layout.kept_attempts(label_dir):
-            attempts.append(
-                (spec, kept, {"scenario": spec["id"], "label": label_dir.name, "run": slot, "attempt": number})
-            )
-    rows: list[dict[str, Any]] = []
-    for spec, run_dir, row in [*runs, *attempts]:
-        folders = [(run_dir, "live"), *((f, "regrade") for f, _ in layout.numbered(run_dir / "assessments"))]
-        for folder, source in folders:
-            result = layout.read_object(folder / shadow.FILE)
-            if result is None:
-                continue
-            verdict = result.get("verdict") or {}
-            rows.append(
-                {
-                    **row,
-                    "source": source,
-                    "agrees": bool(result.get("agrees")),
-                    "native": bool(spec.get("followups")),
-                    "cut_short": verdict.get("run_end") == Ending.CUT_SHORT,
-                    "machinery_failure": bool(verdict.get("grader_error")),
-                    **shadow.row_fields(result),
-                }
-            )
-    live = [r for r in rows if r["source"] == "live"]
-    coverage = {kind: sum(1 for r in live if r[kind]) for kind in shadow.GATE_COVERAGE}
-    disagreeing = [r for r in rows if not r["agrees"]]
-    return {
-        "runs": rows,
-        "skipped": skipped,
-        "attempts": len(live),
-        "agreeing": len(rows) - len(disagreeing),
-        "disagreeing": len(disagreeing),
-        "coverage": coverage,
-        "gate": {
-            "count": shadow.GATE_COUNT,
-            "met": len(live) >= shadow.GATE_COUNT and not disagreeing and all(coverage[k] >= 1 for k in coverage),
-        },
-    }
 
 
 def load_evidence(run_dir: Path, spec: Spec) -> evidence.EvidenceV1:
     """A saved run as evidence-v1: its own `evidence.json` when it wrote one, else what `legacy`
     reads back from the files a pre-evidence run kept, with the raw trace re-parsed when it survives."""
+    summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
+    recorded = summary.get("workspace")
+    with _served_plugin_root(summary) as (plugin_root, _has_plugin_root):
+        return _evidence(
+            run_dir,
+            spec,
+            summary,
+            plugin_root,
+            Path(recorded) if isinstance(recorded, str) and tracing.is_rooted(recorded) else None,
+            reparse=True,
+        )
+
+
+def _evidence(
+    run_dir: Path,
+    spec: Spec,
+    summary: Mapping[str, Any],
+    plugin_root: Path,
+    recorded_workspace: Path | None,
+    *,
+    reparse: bool,
+) -> evidence.EvidenceV1:
+    """The run's evidence: as written, or as `legacy` reads a pre-evidence directory back."""
     own = run_dir / evidence.FILE
     if own.is_file():
         return evidence.EvidenceV1.model_validate_json(own.read_text(encoding="utf-8"))
-    summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
     live_grade = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
     text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
-    with _served_plugin_root(summary) as (plugin_root, _has_plugin_root):
-        saved = legacy.reconstruct(run_dir, summary, text, reparse=True)
-        recorded = summary.get("workspace")
-        with tempfile.TemporaryDirectory(prefix="evidence-") as tmp:
-            ws = legacy.workspace(
-                Path(tmp),
-                summary,
-                saved,
-                Path(recorded) if isinstance(recorded, str) and tracing.is_rooted(recorded) else None,
-            )
-            return legacy.evidence_of(run_dir, spec, summary, saved, ws, live_grade, plugin_root)
+    saved = legacy.reconstruct(run_dir, summary, text, reparse=reparse)
+    with tempfile.TemporaryDirectory(prefix="evidence-") as tmp:
+        ws = legacy.workspace(Path(tmp), summary, saved, recorded_workspace)
+        return legacy.evidence_of(run_dir, spec, summary, saved, ws, live_grade, plugin_root)
 
 
 @contextlib.contextmanager
@@ -315,15 +266,13 @@ def _regrade_run(
     *,
     write: bool,
     relax_identity: bool,
-) -> tuple[dict[str, Any], dict[str, Any] | None]:
+) -> dict[str, Any]:
     live_grade = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
     old_by_id = {e.get("id"): e for e in live_grade.get("expectations", [])}
     saved_binding = live_grade.get("judge_binding")
     identity = fingerprints.scenario_digest(spec, saved_binding)
     identity_matches = live_grade.get("scenario_sha256") == identity
     relaxed = relax_identity and not identity_matches
-    kept_prefix = live_grade.get("scenario_sha256") if relaxed else identity
-    text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
     native_problem = (
         native_regrade_problem(
             run_dir,
@@ -342,132 +291,62 @@ def _regrade_run(
     recorded_workspace = (
         Path(saved_workspace) if isinstance(saved_workspace, str) and tracing.is_rooted(saved_workspace) else None
     )
-    # Re-parse the raw evidence with the live parser. An incomplete stream preserves positive
-    # observations but cannot establish an absent call; validated summary counts can fill that gap.
-    saved = legacy.reconstruct(run_dir, summary, text, reparse=not native_problem or bool(native_cut))
-    trace, saved_counts, git = saved.trace, saved.saved_counts, saved.git
-    reparsed = trace if saved.reparsed else None
-    with tempfile.TemporaryDirectory(prefix="regrade-") as tmp:
-        ws = legacy.workspace(Path(tmp), summary, saved, recorded_workspace)
-        ctx = Context(
-            dict(spec),
-            ws,
-            trace,
-            git,
-            plugin_root=plugin_root,
-            tool_counts_recorded=False,
-        )
-        judge_problem = _saved_judge_problem(spec, saved_binding)
-        inconclusive = _run_level_reason(
-            spec,
-            live_grade,
-            summary,
-            trace,
-            native_problem,
-            saved_binding,
-            judge_problem=judge_problem,
-            has_raw_trace=reparsed is not None,
-            has_plugin_root=has_plugin_root,
-            plugin_root=plugin_root,
-            workspace=recorded_workspace,
-        )
-        integrity: str | None = None  # a reason this regrade voids the run that the evidence cannot know
-        if not identity_matches and not relaxed:
-            inconclusive = integrity = "saved scenario identity is missing or changed; re-run the trial"
-        elif len(old_by_id) != len(live_grade.get("expectations", [])):
-            inconclusive = integrity = "saved assertion identities are duplicated; re-run the trial"
-        raw_counts_complete = reparsed is not None and trace.tool_counts_complete
-        raw_counts_cut = (
-            reparsed is not None and isinstance(inconclusive, CutShort) and (trace.saw_init or bool(trace.tool_counts))
-        )
-        ctx.tool_counts_recorded = raw_counts_complete or raw_counts_cut
-        if not raw_counts_complete and saved_counts is not None:
-            # A trusted summary fills missing raw coverage. If the surviving stream already shows
-            # more calls, that summary cannot establish a total; retain the stronger lower bound so
-            # its supported forbidden actions still fail, without inventing absence elsewhere.
-            ctx.tool_counts_recorded = raw_counts_cut or all(
-                count <= saved_counts.get(name, 0) for name, count in trace.tool_counts.items()
-            )
-            trace.tool_counts = {
-                name: max(trace.tool_counts.get(name, 0), saved_counts.get(name, 0))
-                for name in trace.tool_counts.keys() | saved_counts.keys()
-            }
-        # Routing, pinned-skill, reference, and non-rubric grader verdicts all come from the saved
-        # trace, so a routing or contract run regrades like a build run. A rubric grader would spend
-        # a live judge call, so it keeps the verdict the live batch paid for.
-        items = assessment.plan(
-            spec, trace, ctx, ctx.plugin_root, workspace=recorded_workspace, keep=True, raw_trace=reparsed is not None
-        )
-        stale_judge = (
-            f"{judge_problem}; the kept judgment needs a re-run under the current judge"
-            if isinstance(judge_problem, rubric_judge.JudgeExecutionChanged)
-            else None
-        )
-        kept = _saved_verdicts(old_by_id, kept_prefix, stale_judge=stale_judge)
-        graded, unmeasured = assessment.assess(items, inconclusive, kept=kept)
-    if fingerprints.scenario_digest(spec, saved_binding) != identity:
-        inconclusive = "scenario inputs changed during regrade; re-run the trial"
-        graded = assessment.unmeasured_all(graded, inconclusive)
-    status, reason = assessment.roll_up([g.outcome for g in graded], inconclusive or unmeasured)
-    # Without the raw trace the CLI's stop reason is gone; the live grade recorded what it saw.
-    turn_limit = not inconclusive and (
-        invocation.reached_turn_limit(trace, spec)
-        if reparsed is not None
-        else live_grade.get("run_end") == Ending.TURN_LIMIT
+    # The run's evidence, its raw trace re-parsed with the live parser when the run kept no evidence
+    # of its own: an incomplete stream preserves positive observations but cannot establish an
+    # absent call, which validated summary counts fill (legacy.reconstruct).
+    found = _evidence(
+        run_dir, spec, summary, plugin_root, recorded_workspace, reparse=not native_problem or bool(native_cut)
     )
-    expectations = assessment.records(graded)
-    grading = {
-        **assessment.native_assessment(spec),
-        "judge_binding": saved_binding,
-        "response_sha256": live_grade.get("response_sha256"),
-        "expectations": expectations,
-        "scenario_sha256": (
-            fingerprints.stamp_assertions(identity, expectations)
-            if identity_matches
-            else live_grade.get("scenario_sha256")
-        ),
-        "plugin_source_sha256": (summary.get("plugin") or {}).get("plugin_source_sha256"),
-        "runtime": summary.get("runtime"),
-        "models": trace.models if reparsed is not None else list(summary.get("models") or []),
-        "summary": assessment.summary_of(expectations),
-        "status": status,
-        "regraded": True,
-        **assessment.run_fields(status, reason, inconclusive, turn_limit=turn_limit),
-        **assessment.machinery_failure(graded),  # recorded on a regrade as on a live grade (rule 5)
-        **({"identity_relaxed": True} if relaxed else {}),
-    }
-    with tempfile.TemporaryDirectory(prefix="evidence-") as tmp:
-        # The evidence the regrade reconstructed, written beside its assessment; the live attempt's
-        # folder is never rewritten (result rule 8).
-        ws = legacy.workspace(Path(tmp), summary, saved, recorded_workspace)
-        try:
-            found: evidence.EvidenceV1 | None = legacy.evidence_of(
-                run_dir, spec, summary, saved, ws, live_grade, plugin_root
-            )
-        except (ValueError, TypeError, KeyError, OSError) as exc:
-            # The assessment stands on its own; evidence the contract refuses is reported, not raised.
-            print(f"warning: {run_dir}: evidence not written: {exc}", file=sys.stderr)
-            found = None
-    # Stage 3 of the rewrite: the evidence engine grades the same evidence in shadow; this regrade
-    # stays authoritative. A judgment the judge no longer stands behind lapses in both.
-    shadowed = (
-        shadow.compare(
-            spec,
-            found,
-            grading,
-            source="regrade",
-            plugin_root=plugin_root,
-            stale_judge=stale_judge,
-            run_level=integrity,
-        )
-        if found is not None
+    trace = engine.trace_of(found)
+    has_raw_trace = not found.trace.restored_from_summary
+    judge_problem = _saved_judge_problem(spec, saved_binding)
+    inconclusive = _run_level_reason(
+        spec,
+        live_grade,
+        summary,
+        trace,
+        native_problem,
+        saved_binding,
+        judge_problem=judge_problem,
+        has_raw_trace=has_raw_trace,
+        has_plugin_root=has_plugin_root,
+        plugin_root=plugin_root,
+        workspace=recorded_workspace,
+    )
+    if not identity_matches and not relaxed:
+        inconclusive = "saved scenario identity is missing or changed; re-run the trial"
+    elif len(old_by_id) != len(live_grade.get("expectations", [])):
+        inconclusive = "saved assertion identities are duplicated; re-run the trial"
+    stale_judge = (
+        f"{judge_problem}; the kept judgment needs a re-run under the current judge"
+        if isinstance(judge_problem, rubric_judge.JudgeExecutionChanged)
         else None
     )
+    # Routing, pinned-skill, reference, and non-rubric grader verdicts all come from the saved
+    # trace, so a routing or contract run regrades like a build run. A rubric grader would spend
+    # a live judge call, so it keeps the verdict the live batch paid for, found by its position.
+    kept = engine.kept_from(found, stale_judge=stale_judge, mark=True)
+    verdict = engine.grade(spec, found, kept, plugin_root=plugin_root, run_level=inconclusive)
+    if fingerprints.scenario_digest(spec, saved_binding) != identity:
+        inconclusive = "scenario inputs changed during regrade; re-run the trial"
+        verdict = engine.grade(spec, found, kept, plugin_root=plugin_root, run_level=inconclusive)
+    rendered = engine.render(verdict, spec)
+    grading = {
+        **rendered,
+        "judge_binding": saved_binding,
+        "response_sha256": live_grade.get("response_sha256"),
+        "scenario_sha256": rendered["scenario_sha256"] if identity_matches else live_grade.get("scenario_sha256"),
+        "plugin_source_sha256": (summary.get("plugin") or {}).get("plugin_source_sha256"),
+        "runtime": summary.get("runtime"),
+        "models": trace.models if has_raw_trace else list(summary.get("models") or []),
+        "regraded": True,
+        **({"identity_relaxed": True} if relaxed else {}),
+    }
     if not write:
-        return grading, shadowed
-    return _add_assessment(
-        run_dir, grading, summary, trace if reparsed is not None else None, found, shadowed
-    ), shadowed
+        return grading
+    # The evidence the regrade graded is written beside its assessment; the live attempt's folder
+    # is never rewritten (result rule 8).
+    return _add_assessment(run_dir, grading, summary, trace if has_raw_trace else None, found)
 
 
 def _run_level_reason(
@@ -572,42 +451,21 @@ def _saved_judge_problem(spec: Spec, saved_binding: Any) -> rubric_judge.JudgeUn
     return None
 
 
-def _saved_verdicts(
-    old_by_id: Mapping[Any, Mapping[str, Any]], prefix: str | None, *, stale_judge: str | None = None
-) -> assessment.Kept:
-    """The live verdict an expectation kept by a regrade carries, found by its position and text,
-    unless it is a judgment by a judge that has changed since (`stale_judge`)."""
-
-    def kept(index: int, item: assessment.Expectation) -> Outcome | None:
-        if stale_judge and item.kept_as == checking.LIVE_JUDGE:
-            return outcomes.unmeasured(stale_judge)
-        saved = old_by_id.get(fingerprints.assertion_id(str(prefix), index))
-        if saved is None or saved.get("text") != item.text:
-            return None
-        read = Outcome.read(saved["passed"], saved["evidence"])
-        return read.with_evidence(outcomes.kept_evidence(str(item.kept_as), str(saved["evidence"])))
-
-    return kept
-
-
 def _add_assessment(
     run_dir: Path,
     grading: dict[str, Any],
     summary: Mapping[str, Any],
     trace: TraceSummary | None,
-    found: evidence.EvidenceV1 | None = None,
-    shadowed: Mapping[str, Any] | None = None,
+    found: evidence.EvidenceV1,
 ) -> dict[str, Any]:
     """Write a regrade as assessments/<k>/ beside the run's original grade, never over it
-    (threat-model ADR result rule 8), and list it in the attempt's v1 record."""
+    (threat-model ADR result rule 8), with the evidence it graded, and list it in the attempt's v1
+    record."""
     revisions = run_dir / "assessments"
     revision = layout.next_number(revisions)
     target = rules.rule_8_regrade_adds(run_dir, revision)
     target.mkdir(parents=True)
-    if found is not None:
-        evidence.write(target, found)
-    if shadowed is not None:
-        shadow.write(target, shadowed)
+    evidence.write(target, found)
     grading = {
         **grading,
         "assessment_revision": revision,
@@ -668,8 +526,7 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[s
     runs, skipped = _saved_runs(iteration_dir, scenarios)
     results = []
     for spec, run_dir, row in runs:
-        out: dict[str, Any] = {}
-        g = regrade_run(run_dir, spec, shadow_out=out)
+        g = regrade_run(run_dir, spec)
         results.append(
             {
                 "scenario": row["scenario"],
@@ -684,7 +541,6 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[s
                 "runtime": g["runtime"],
                 "models": g["models"],
                 "inconclusive": g["inconclusive"],
-                **shadow.row_fields(out.get("shadow")),
             }
         )
     # Saved summaries keep the verdicts their batch recorded; the regrade's rows go beside them.
@@ -720,9 +576,7 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
     for spec, run_dir, row in runs:
         try:
             saved = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
-            out: dict[str, Any] = {}
-            grading = regrade_run(run_dir, spec, write=False, relax_identity=True, shadow_out=out)
-            shadowed = out.get("shadow")
+            grading = regrade_run(run_dir, spec, write=False, relax_identity=True)
         except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
             # One unreadable or older-shaped run stays visible instead of ending the comparison.
             rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
@@ -731,8 +585,6 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
         try:
             target.mkdir(parents=True)
             layout.write_json(target / "grading.json", grading)
-            if shadowed is not None:
-                shadow.write(target, shadowed)
         except OSError as exc:  # e.g. a path past Windows' 260-character limit: report it, keep going
             rows.append({**row, "error": f"cannot write the rescored grade: {type(exc).__name__}: {exc}"[:300]})
             continue
@@ -740,7 +592,6 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
             {
                 **row,
                 "identity_relaxed": bool(grading.get("identity_relaxed")),
-                **shadow.row_fields(shadowed),
                 "saved": _verdicts(saved),
                 "rescored": _verdicts(grading),
             }
