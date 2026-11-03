@@ -457,7 +457,12 @@ def assess(
         if cut is not None and item.polarity is Polarity.BOTH and item.on_cut is not None:
             outcome = _graded_on_cut(item, cut)
         elif inconclusive and not forbids_on_cut:
-            outcome = unmeasured(inconclusive)
+            # Rule 1 voids every check; on a cut run, rule 2 leaves a requiring check unmeasured.
+            outcome = (
+                rules.rule_2_polarity_on_cut(unmeasured(cut), item.polarity, cut)
+                if cut is not None
+                else rules.rule_1_void_check(inconclusive)
+            )
         elif item.kept_as is not None and kept is not None:
             saved = kept(index, item)
             if saved is None:

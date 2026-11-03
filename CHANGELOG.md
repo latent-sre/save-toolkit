@@ -8,6 +8,12 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Fixed
 
+- Four confirmed low defects the bug passes left, each with a test that failed first: a regrade after an
+  `assessments/<k>/` folder no record lists (one a failed regrade left under an older runner) moves it
+  aside, kept as `.unlisted-<k>-<hex>`, and is still listed in `record.json`; two regrades of one
+  iteration in the same second keep both `regrade-*.json` records; the grade reaches result rules 1 and 2
+  through their named functions, so a rule changes in `rules.py` and nowhere else; and `record.json`'s
+  run end carries how the run ended, never a check's own reason such as a grader error.
 - Two defects Codex found in this branch's own fixes, each with a test that failed first: a changed
   path whose name is not UTF-8 is spelled `\xNN`, which a benign file can carry literally, so a file
   named so is now failed by `changed_files_not_containing` rather than read by that spelling (a needle

@@ -15,6 +15,7 @@ from __future__ import annotations
 import contextlib
 import json
 import re
+import secrets
 import shutil
 import tempfile
 from collections.abc import Iterator, Mapping
@@ -737,7 +738,7 @@ def _add_assessment(
     (threat-model ADR result rule 8), with the evidence it graded, and list it in the attempt's v1
     record."""
     revisions = run_dir / "assessments"
-    revision = layout.next_number(revisions)
+    revision = _next_revision(run_dir, revisions)
     target = rules.rule_8_regrade_adds(run_dir, revision)
     target.mkdir(parents=True)
     try:
@@ -750,6 +751,20 @@ def _add_assessment(
         raise
     records.update_record(run_dir, lambda record: record.setdefault("assessments", []).append(entry))
     return grading
+
+
+def _next_revision(run_dir: Path, revisions: Path) -> int:
+    """The revision this regrade takes. Where the attempt's record lists its regrades, the next one it
+    lists; a numbered folder past them is one a regrade left before this runner removed its own on
+    failure, never listed, so it is moved aside (kept, under `.unlisted-<k>-<hex>`) rather than skipped,
+    which the record's count from 1 would refuse. Without a record, the next free number."""
+    record = layout.read_object(run_dir / "record.json")
+    listed = record.get("assessments") if record is not None else None
+    if not isinstance(listed, list):
+        return layout.next_number(revisions)
+    for stale in sorted(k for k in layout.taken(revisions) if k > len(listed)):
+        (revisions / str(stale)).rename(revisions / f".unlisted-{stale}-{secrets.token_hex(4)}")
+    return len(listed) + 1
 
 
 def _write_assessment(
@@ -885,10 +900,11 @@ def regrade(
         )
     # Saved summaries keep the verdicts their batch recorded; the regrade's rows go beside them.
     if results:
-        layout.write_json(
-            iteration_dir / f"regrade-{records.utc_now().replace(':', '')}.json",
-            {"runner": HARNESS_IDENTITY, "runs": results, "skipped": skipped},
-        )
+        stamp = records.utc_now().replace(":", "")
+        target, n = iteration_dir / f"regrade-{stamp}.json", 2
+        while target.exists():  # two regrades in one second each keep their rows
+            target, n = iteration_dir / f"regrade-{stamp}-{n}.json", n + 1
+        layout.write_json(target, {"runner": HARNESS_IDENTITY, "runs": results, "skipped": skipped})
     return results
 
 

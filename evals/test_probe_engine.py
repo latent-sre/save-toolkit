@@ -1327,3 +1327,45 @@ def test_regrade_names_what_it_passed_over(tmp_path: Path) -> None:
     ):
         cli.main(["regrade", str(iteration)])
     assert f"skipped scenario(s) not in this checkout: {spec['id']}" in out.getvalue(), out.getvalue()
+
+
+# --- the four confirmed low defects the passes left -------------------------------------------------
+
+
+def test_a_regrade_after_an_unlisted_assessment_folder_is_still_listed(tmp_path: Path) -> None:
+    """A regrade that failed before a runner removed its own half-written folder left assessments/<k>/
+    unlisted; every later regrade then took a number the record refuses. The leftover is moved aside,
+    kept, and the next regrade takes the next listed number."""
+    item = golden_runs.case("pass")
+    run_dir, _grading, _ = _live(item, tmp_path)
+    spec = item.spec()
+    rescoring.regrade_run(run_dir, spec)
+    (run_dir / "assessments" / "2").mkdir()  # left by a regrade that failed under an older runner
+    with contextlib.redirect_stderr(io.StringIO()) as err:
+        rescoring.regrade_run(run_dir, spec)
+    listed = [e["revision"] for e in json.loads((run_dir / "record.json").read_text("utf-8"))["assessments"]]
+    assert listed == [1, 2], (listed, err.getvalue()[-300:])
+    assert (run_dir / "assessments" / "2" / "grading.json").is_file()
+    assert [p.name.startswith(".unlisted-2-") for p in (run_dir / "assessments").iterdir() if p.name[0] == "."] == [True]
+
+
+def test_two_regrades_of_one_iteration_in_the_same_second_keep_both_records(tmp_path: Path) -> None:
+    iteration, spec, _broken, _intact = _two_run_iteration(tmp_path, "pass")
+    with mock.patch.object(rescoring.records, "utc_now", return_value="2026-11-03T12:00:00Z"):
+        rescoring.regrade(iteration, [spec])
+        rescoring.regrade(iteration, [spec])
+    assert len(list(iteration.glob("regrade-*.json"))) == 2
+
+
+@pytest.mark.parametrize(
+    ("name", "kind", "has_reason"),
+    [("machinery_failure", "completed", False), ("cut_forbidden_fails", "cut_short", True), ("void_identity", "void", True)],
+)
+def test_the_records_run_end_reason_is_how_the_run_ended_never_a_checks(
+    tmp_path: Path, name: str, kind: str, has_reason: bool
+) -> None:
+    """contracts.md: the run end is how execution ended, independent of what the checks found; a grader
+    error is a check's, so a completed run's end carries no reason."""
+    run_dir, _grading, _ = _live(golden_runs.case(name), tmp_path)
+    run_end = json.loads((run_dir / "record.json").read_text("utf-8"))["run_end"]
+    assert run_end["kind"] == kind and bool(run_end["reason"]) is has_reason, run_end
