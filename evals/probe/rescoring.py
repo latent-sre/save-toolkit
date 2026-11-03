@@ -22,13 +22,25 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, catalog, checking, conversations, fingerprints, invocation, layout, outcomes, records, tracing
+from . import (
+    assessment,
+    catalog,
+    checking,
+    conversations,
+    evidence,
+    fingerprints,
+    invocation,
+    layout,
+    legacy,
+    outcomes,
+    records,
+    tracing,
+)
 from .checking import Context
 from .constants import ROOT
 from .fingerprints import HARNESS_IDENTITY, HARNESS_SOURCE_SHA256
 from .outcomes import EVIDENCE_LIMIT, UNMEASURED, CutShort, Ending, Outcome, Stop
 from .tracing import TraceSummary
-from .workspaces import GitFacts, Workspace
 
 Spec = Mapping[str, Any]
 
@@ -40,25 +52,6 @@ _SAVED_TIMEOUT = re.compile(r"timed out after \d+s")
 
 def _unreadable_root(plugin_root: Path, exc: Exception) -> str:
     return f"plugin root {plugin_root} could not be read ({type(exc).__name__}); restore it to regrade the run"
-
-
-def _saved_tool_counts(value: object) -> dict[str, int] | None:
-    """A recorded complete count map, including {}, or None for missing/malformed evidence."""
-    if not isinstance(value, dict) or not all(
-        isinstance(name, str) and name.strip() and type(count) is int and count >= 0 for name, count in value.items()
-    ):
-        return None
-    return dict(value)
-
-
-def _saved_commit_ids(value: object, count: int) -> frozenset[str] | None:
-    """A complete saved reachability set; legacy counts alone cannot rule out a rewrite."""
-    if not isinstance(value, list) or not all(
-        isinstance(sha, str) and re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", sha) for sha in value
-    ):
-        return None
-    ids = frozenset(value)
-    return ids if len(ids) == len(value) == count else None
 
 
 def native_regrade_problem(
@@ -187,6 +180,28 @@ def regrade_run(run_dir: Path, spec: Spec, *, write: bool = True, relax_identity
         )
 
 
+def load_evidence(run_dir: Path, spec: Spec) -> evidence.EvidenceV1:
+    """A saved run as evidence-v1: its own `evidence.json` when it wrote one, else what `legacy`
+    reads back from the files a pre-evidence run kept, with the raw trace re-parsed when it survives."""
+    own = run_dir / evidence.FILE
+    if own.is_file():
+        return evidence.EvidenceV1.model_validate_json(own.read_text(encoding="utf-8"))
+    summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
+    live_grade = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
+    text = (run_dir / "outputs" / "response.md").read_text(encoding="utf-8")
+    with _served_plugin_root(summary) as (plugin_root, _has_plugin_root):
+        saved = legacy.reconstruct(run_dir, summary, text, reparse=True)
+        recorded = summary.get("workspace")
+        with tempfile.TemporaryDirectory(prefix="evidence-") as tmp:
+            ws = legacy.workspace(
+                Path(tmp),
+                summary,
+                saved,
+                Path(recorded) if isinstance(recorded, str) and tracing.is_rooted(recorded) else None,
+            )
+            return legacy.evidence_of(run_dir, spec, summary, saved, ws, live_grade, plugin_root)
+
+
 @contextlib.contextmanager
 def _served_plugin_root(summary: Mapping[str, Any]) -> Iterator[tuple[Path, bool]]:
     """The plugin root a regrade measures the run against, and whether the run recorded one.
@@ -257,45 +272,11 @@ def _regrade_run(
     )
     # Re-parse the raw evidence with the live parser. An incomplete stream preserves positive
     # observations but cannot establish an absent call; validated summary counts can fill that gap.
-    stdout_path = run_dir / "stdout.jsonl"
-    reparsed = (
-        tracing.parse_trial_trace(run_dir) if stdout_path.is_file() and (not native_problem or native_cut) else None
-    )
-    saved_counts = _saved_tool_counts(summary.get("tool_counts"))
-    if reparsed is not None:
-        trace = reparsed
-        if not trace.result_text:  # a truncated trace must not silently blank every text check
-            trace.result_text = text
-    else:
-        trace = tracing.from_saved({**summary, "tool_counts": saved_counts or {}}, text)
-    before, after = summary.get("commits_before_after") or [0, 0]
-    saved_ids = summary.get("commit_ids_before_after")
-    before_ids, after_ids = saved_ids if isinstance(saved_ids, list) and len(saved_ids) == 2 else (None, None)
-    git = GitFacts(
-        int(after),
-        str(summary.get("branch") or ""),
-        [tuple(x) for x in summary.get("changed_files") or []],
-        "",
-        str(summary["git_problem"]) if summary.get("git_problem") else None,
-        commit_ids=_saved_commit_ids(after_ids, int(after)),
-    )
+    saved = legacy.reconstruct(run_dir, summary, text, reparse=not native_problem or bool(native_cut))
+    trace, saved_counts, git = saved.trace, saved.saved_counts, saved.git
+    reparsed = trace if saved.reparsed else None
     with tempfile.TemporaryDirectory(prefix="regrade-") as tmp:
-        state = Path(tmp) / "state"
-        state.mkdir()
-        for name, content in (summary.get("state_files") or {}).items():
-            (state / name).write_text(content, encoding="utf-8")
-        ws = Workspace(
-            Path(tmp),
-            Path(tmp) / "repo-gone",
-            Path(tmp) / "bin",
-            state,
-            int(before),
-            "main",
-            command_repo=recorded_workspace,
-            baseline_commit_ids=_saved_commit_ids(before_ids, int(before)),
-        )
-        if summary.get("agents_dir"):
-            (ws.repo / ".agents").mkdir(parents=True)
+        ws = legacy.workspace(Path(tmp), summary, saved, recorded_workspace)
         ctx = Context(
             dict(spec),
             ws,
@@ -383,7 +364,12 @@ def _regrade_run(
     }
     if not write:
         return grading
-    return _add_assessment(run_dir, grading, summary, trace if reparsed is not None else None)
+    with tempfile.TemporaryDirectory(prefix="evidence-") as tmp:
+        # The evidence the regrade reconstructed, written beside its assessment; the live attempt's
+        # folder is never rewritten (result rule 8).
+        ws = legacy.workspace(Path(tmp), summary, saved, recorded_workspace)
+        found = legacy.evidence_of(run_dir, spec, summary, saved, ws, live_grade, plugin_root)
+    return _add_assessment(run_dir, grading, summary, trace if reparsed is not None else None, found)
 
 
 def _run_level_reason(
@@ -503,7 +489,11 @@ def _saved_verdicts(
 
 
 def _add_assessment(
-    run_dir: Path, grading: dict[str, Any], summary: Mapping[str, Any], trace: TraceSummary | None
+    run_dir: Path,
+    grading: dict[str, Any],
+    summary: Mapping[str, Any],
+    trace: TraceSummary | None,
+    found: evidence.EvidenceV1 | None = None,
 ) -> dict[str, Any]:
     """Write a regrade as assessments/<k>/ beside the run's original grade, never over it
     (threat-model ADR result rule 8), and list it in the attempt's v1 record."""
@@ -511,6 +501,8 @@ def _add_assessment(
     revision = layout.next_number(revisions)
     target = revisions / str(revision)
     target.mkdir(parents=True)
+    if found is not None:
+        evidence.write(target, found)
     grading = {
         **grading,
         "assessment_revision": revision,

@@ -356,6 +356,7 @@ def write_record(
                 "stdout.jsonl",
                 "outputs/workspace.patch",
                 "grading.json",
+                "evidence.json",
                 "timing.json",
                 "provenance.json",
                 "invocation.json",

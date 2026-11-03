@@ -108,7 +108,11 @@ identity, run conditions, attempt number and UTC times, how the run ended (an at
 reason when INCONCLUSIVE, and truncation flag (evidence is cut at 600 characters and flagged), the
 verdict, the cost, and evidence paths relative to the attempt folder. A record the contract refuses
 is not written, and the run is still published with its verdict: the record only maps facts the
-attempt's files keep, the summary row carries `record_problem`, and the batch goes on. Attempt folders are created with a plain `mkdir`, so
+attempt's files keep, the summary row carries `record_problem`, and the batch goes on. Beside it,
+`evidence.json` is the [evidence-v1 record](../../docs/fleet-evaluation/contracts.md#evidence-record-v1)
+of what the attempt observed and no verdict (`evidence.EvidenceV1`); a regrade of a run saved before
+it reads the same shape back through `legacy` and writes it beside its assessment. Nothing grades from
+it yet; the runner rewrite's later stages do. Attempt folders are created with a plain `mkdir`, so
 they inherit `.eval-runs/` permissions; `tempfile.mkdtemp` made them readable only by the account
 that ran them on Windows.
 

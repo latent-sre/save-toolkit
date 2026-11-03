@@ -27,6 +27,7 @@ from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import cli as probe_cli
 from probe import constants as probe_constants
+from probe import evidence as probe_evidence
 from probe import fingerprints as probe_fingerprints
 from probe import outcomes as probe_outcomes
 from probe import records as probe_records
@@ -175,6 +176,15 @@ class PackageStructureTests(unittest.TestCase):
                          "regenerate: python evals/build_probe.py schema --out docs/fleet-evaluation/eval-record-v1.schema.json")
         with contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(0, probe_cli.main(["schema"]))
+        self.assertEqual(published, json.loads(out.getvalue()))
+
+    def test_the_published_evidence_schema_is_the_evidence_model(self) -> None:
+        published = read_json(ROOT / "docs/fleet-evaluation/eval-evidence-v1.schema.json")
+        self.assertEqual(probe_evidence.evidence_schema(), published,
+                         "regenerate: python evals/build_probe.py schema --model evidence "
+                         "--out docs/fleet-evaluation/eval-evidence-v1.schema.json")
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(0, probe_cli.main(["schema", "--model", "evidence"]))
         self.assertEqual(published, json.loads(out.getvalue()))
 
     def test_a_record_that_breaks_the_contract_is_refused_before_it_is_written(self) -> None:

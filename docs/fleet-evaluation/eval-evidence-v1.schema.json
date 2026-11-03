@@ -1,0 +1,1167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Ending": {
+      "description": "How a run's execution ended, independent of what its checks found: the `run_end` a grade and\na v1 record carry.",
+      "enum": [
+        "completed",
+        "turn_limit",
+        "cut_short",
+        "void",
+        "incomplete"
+      ],
+      "title": "Ending",
+      "type": "string"
+    },
+    "EvidenceFormat": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "const": "save-toolkit.eval-evidence",
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "const": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "EvidenceFormat",
+      "type": "object"
+    },
+    "Git": {
+      "additionalProperties": false,
+      "properties": {
+        "commits_before": {
+          "title": "Commits Before",
+          "type": "integer"
+        },
+        "commits_after": {
+          "title": "Commits After",
+          "type": "integer"
+        },
+        "commit_ids_before": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Commit Ids Before"
+        },
+        "commit_ids_after": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Commit Ids After"
+        },
+        "branch": {
+          "title": "Branch",
+          "type": "string"
+        },
+        "changed": {
+          "description": "Each changed path as [status, posix path].",
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Changed",
+          "type": "array"
+        },
+        "problem": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Why the changed paths could not be listed, if they could not.",
+          "title": "Problem"
+        },
+        "patch_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Patch Sha256"
+        }
+      },
+      "required": [
+        "commits_before",
+        "commits_after",
+        "commit_ids_before",
+        "commit_ids_after",
+        "branch",
+        "changed",
+        "problem",
+        "patch_sha256"
+      ],
+      "title": "Git",
+      "type": "object"
+    },
+    "Host": {
+      "additionalProperties": false,
+      "description": "The computer the attempt ran on: its paths, CLI and account, and the judge's execution identity.\nA regrade elsewhere compares the measurement, not this block.",
+      "properties": {
+        "runtime": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runtime"
+        },
+        "workspace": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The repository path the trial's commands named.",
+          "title": "Workspace"
+        },
+        "plugin_root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Plugin Root"
+        },
+        "plugin_served_from": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The image of the measured inputs the trial was served.",
+          "title": "Plugin Served From"
+        },
+        "judge_execution": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The judge's Python, PyYAML, source and CLI.",
+          "title": "Judge Execution"
+        },
+        "judge_cache_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Judge Cache Dir"
+        }
+      },
+      "required": [
+        "runtime",
+        "workspace",
+        "plugin_root",
+        "plugin_served_from",
+        "judge_execution",
+        "judge_cache_dir"
+      ],
+      "title": "Host",
+      "type": "object"
+    },
+    "Identity": {
+      "additionalProperties": false,
+      "description": "What the measurement is bound to: the case, the candidate, the runner, the judge and the model.\nThe same on every host that measures the same inputs.",
+      "properties": {
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "case_sha256": {
+          "description": "The case alone: scenario, oracle bytes and rubrics, without the runner.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Case Sha256",
+          "type": "string"
+        },
+        "scenario_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The case bound to the runner, Python and judge that graded it.",
+          "title": "Scenario Sha256"
+        },
+        "plugin_commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Plugin Commit"
+        },
+        "plugin_inputs_dirty": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Plugin Inputs Dirty"
+        },
+        "plugin_source_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Plugin Source Sha256"
+        },
+        "runner_commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runner Commit"
+        },
+        "runner_source_dirty": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runner Source Dirty"
+        },
+        "runner_source_sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Runner Source Sha256"
+        },
+        "requested_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Requested Model"
+        },
+        "observed_models": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Observed Models",
+          "type": "array"
+        },
+        "judge_binding": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The calibration receipt and its digest, without the judge's execution identity.",
+          "title": "Judge Binding"
+        }
+      },
+      "required": [
+        "case_id",
+        "case_sha256",
+        "scenario_sha256",
+        "plugin_commit",
+        "plugin_inputs_dirty",
+        "plugin_source_sha256",
+        "runner_commit",
+        "runner_source_dirty",
+        "runner_source_sha256",
+        "requested_model",
+        "observed_models",
+        "judge_binding"
+      ],
+      "title": "Identity",
+      "type": "object"
+    },
+    "Polarity": {
+      "description": "What a check asserts (result rules 2 and 3).\n\nA forbidding check fails on any evidence of the forbidden action, even from a run cut short, and\nholds its scenario to every trial; a requiring check can fail only in a completed run. `both` has a\nrequired floor and a forbidden ceiling.",
+      "enum": [
+        "forbids",
+        "requires",
+        "both"
+      ],
+      "title": "Polarity",
+      "type": "string"
+    },
+    "ProbeOutcome": {
+      "additionalProperties": false,
+      "description": "A check a regrade cannot re-measure, so its live outcome is evidence: a paid judgment, or a\nreading of the workspace or a service that left with the run.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/Polarity"
+        },
+        "state": {
+          "$ref": "#/$defs/State"
+        },
+        "evidence": {
+          "title": "Evidence",
+          "type": "string"
+        },
+        "kept_as": {
+          "title": "Kept As",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "kind",
+        "state",
+        "evidence",
+        "kept_as"
+      ],
+      "title": "ProbeOutcome",
+      "type": "object"
+    },
+    "RunEnding": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/Ending"
+        },
+        "stop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stop"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "identity_failure": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Why the run was not the candidate declared (rule 1).",
+          "title": "Identity Failure"
+        }
+      },
+      "required": [
+        "kind",
+        "stop",
+        "reason",
+        "identity_failure"
+      ],
+      "title": "RunEnding",
+      "type": "object"
+    },
+    "ServiceFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "image": {
+          "title": "Image",
+          "type": "string"
+        },
+        "base_url": {
+          "title": "Base Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "image",
+        "base_url"
+      ],
+      "title": "ServiceFacts",
+      "type": "object"
+    },
+    "State": {
+      "description": "A check's or a trial's result. INCONCLUSIVE is never a verdict about the candidate.",
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "Stop": {
+      "description": "How a run on the declared profile stopped before completing (result rule 4).",
+      "enum": [
+        "wall_clock",
+        "no_result",
+        "error_result",
+        "nonzero_exit",
+        "spend_guard",
+        "cut_short"
+      ],
+      "title": "Stop",
+      "type": "string"
+    },
+    "Trace": {
+      "additionalProperties": false,
+      "description": "The parsed trace, every `TraceSummary` field, with a digest of each raw trace it was read from.",
+      "properties": {
+        "result_text": {
+          "title": "Result Text",
+          "type": "string"
+        },
+        "skills": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Skills",
+          "type": "array"
+        },
+        "skills_failed": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Skills Failed",
+          "type": "array"
+        },
+        "bash_commands": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Bash Commands",
+          "type": "array"
+        },
+        "powershell_commands": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Powershell Commands",
+          "type": "array"
+        },
+        "subagent_bash_commands": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Subagent Bash Commands",
+          "type": "array"
+        },
+        "effect_calls": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Effect Calls",
+          "type": "array"
+        },
+        "dispatches": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Dispatches",
+          "type": "array"
+        },
+        "agents": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Agents",
+          "type": "array"
+        },
+        "agents_failed": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Agents Failed",
+          "type": "array"
+        },
+        "runtime_plugins": {
+          "items": {},
+          "title": "Runtime Plugins",
+          "type": "array"
+        },
+        "read_attempts": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Read Attempts",
+          "type": "array"
+        },
+        "tool_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Tool Counts",
+          "type": "object"
+        },
+        "tool_counts_complete": {
+          "title": "Tool Counts Complete",
+          "type": "boolean"
+        },
+        "denials": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Denials",
+          "type": "array"
+        },
+        "duration_ms": {
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "total_tokens": {
+          "title": "Total Tokens",
+          "type": "integer"
+        },
+        "output_tokens": {
+          "title": "Output Tokens",
+          "type": "integer"
+        },
+        "models": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "usage_models": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Usage Models",
+          "type": "array"
+        },
+        "num_turns": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Num Turns"
+        },
+        "total_cost_usd": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total Cost Usd"
+        },
+        "has_result": {
+          "title": "Has Result",
+          "type": "boolean"
+        },
+        "result_is_error": {
+          "title": "Result Is Error",
+          "type": "boolean"
+        },
+        "result_subtype": {
+          "title": "Result Subtype",
+          "type": "string"
+        },
+        "tool_errors": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tool Errors",
+          "type": "array"
+        },
+        "denial_details": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Denial Details",
+          "type": "array"
+        },
+        "subagent_tool_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Subagent Tool Ids",
+          "type": "array"
+        },
+        "saw_init": {
+          "title": "Saw Init",
+          "type": "boolean"
+        },
+        "advertised_tools": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Advertised Tools",
+          "type": "array"
+        },
+        "advertised_skills": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Advertised Skills",
+          "type": "array"
+        },
+        "foreign_skills": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Foreign Skills",
+          "type": "array"
+        },
+        "mcp_servers": {
+          "items": {},
+          "title": "Mcp Servers",
+          "type": "array"
+        },
+        "permission_mode": {
+          "title": "Permission Mode",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "init_session_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Init Session Ids",
+          "type": "array"
+        },
+        "main_skills": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Main Skills",
+          "type": "array"
+        },
+        "main_skills_before_effects": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Main Skills Before Effects",
+          "type": "array"
+        },
+        "agent_returns": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Agent Returns",
+          "type": "array"
+        },
+        "conversation_sessions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Conversation Sessions",
+          "type": "array"
+        },
+        "invocation_evidence": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Invocation Evidence",
+          "type": "array"
+        },
+        "parent_reads_before_dispatch": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Parent Reads Before Dispatch",
+          "type": "array"
+        },
+        "parent_skills_before_dispatch": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Parent Skills Before Dispatch",
+          "type": "array"
+        },
+        "main_models": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Main Models",
+          "type": "array"
+        },
+        "raw_sha256": {
+          "additionalProperties": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "description": "Each raw trace the facts were read from, by path inside the attempt folder.",
+          "title": "Raw Sha256",
+          "type": "object"
+        },
+        "restored_from_summary": {
+          "description": "The raw trace was gone, so only what the trace summary restores is here.",
+          "title": "Restored From Summary",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "result_text",
+        "skills",
+        "skills_failed",
+        "bash_commands",
+        "powershell_commands",
+        "subagent_bash_commands",
+        "effect_calls",
+        "dispatches",
+        "agents",
+        "agents_failed",
+        "runtime_plugins",
+        "read_attempts",
+        "tool_counts",
+        "tool_counts_complete",
+        "denials",
+        "duration_ms",
+        "total_tokens",
+        "output_tokens",
+        "models",
+        "usage_models",
+        "num_turns",
+        "total_cost_usd",
+        "has_result",
+        "result_is_error",
+        "result_subtype",
+        "tool_errors",
+        "denial_details",
+        "subagent_tool_ids",
+        "saw_init",
+        "advertised_tools",
+        "advertised_skills",
+        "foreign_skills",
+        "mcp_servers",
+        "permission_mode",
+        "session_id",
+        "init_session_ids",
+        "main_skills",
+        "main_skills_before_effects",
+        "agent_returns",
+        "conversation_sessions",
+        "invocation_evidence",
+        "parent_reads_before_dispatch",
+        "parent_skills_before_dispatch",
+        "main_models",
+        "raw_sha256",
+        "restored_from_summary"
+      ],
+      "title": "Trace",
+      "type": "object"
+    },
+    "Turn": {
+      "additionalProperties": false,
+      "description": "One native invocation, as its `invocation.json` and raw trace record it.",
+      "properties": {
+        "folder": {
+          "title": "Folder",
+          "type": "string"
+        },
+        "argv": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Argv",
+          "type": "array"
+        },
+        "resume": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Resume"
+        },
+        "expected_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Expected Model"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Session Id"
+        },
+        "main_models": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Main Models"
+        },
+        "init_session_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Init Session Ids"
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Exit Code"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "State"
+        },
+        "cut_short": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cut Short"
+        },
+        "run_stop": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Run Stop"
+        },
+        "inconclusive": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Inconclusive"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|\\+00:00)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Started At"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|\\+00:00)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ended At"
+        },
+        "raw_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Raw Sha256"
+        },
+        "response_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Response Sha256"
+        }
+      },
+      "required": [
+        "folder",
+        "argv",
+        "resume",
+        "expected_model",
+        "session_id",
+        "main_models",
+        "init_session_ids",
+        "exit_code",
+        "state",
+        "cut_short",
+        "run_stop",
+        "inconclusive",
+        "started_at",
+        "ended_at",
+        "raw_sha256",
+        "response_sha256"
+      ],
+      "title": "Turn",
+      "type": "object"
+    },
+    "WorkspaceFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "state_files": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "State Files",
+          "type": "object"
+        },
+        "agents_dir": {
+          "title": "Agents Dir",
+          "type": "boolean"
+        },
+        "baseline_branch": {
+          "title": "Baseline Branch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state_files",
+        "agents_dir",
+        "baseline_branch"
+      ],
+      "title": "WorkspaceFacts",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One eval attempt's evidence, version 1 (docs/fleet-evaluation/contracts.md#evidence-record-v1).",
+  "properties": {
+    "format": {
+      "$ref": "#/$defs/EvidenceFormat"
+    },
+    "written_by": {
+      "description": "The live attempt, or `legacy` from a saved run.",
+      "enum": [
+        "live",
+        "legacy"
+      ],
+      "title": "Written By",
+      "type": "string"
+    },
+    "identity": {
+      "$ref": "#/$defs/Identity"
+    },
+    "host": {
+      "$ref": "#/$defs/Host"
+    },
+    "trace": {
+      "$ref": "#/$defs/Trace"
+    },
+    "git": {
+      "$ref": "#/$defs/Git"
+    },
+    "workspace": {
+      "$ref": "#/$defs/WorkspaceFacts"
+    },
+    "services": {
+      "items": {
+        "$ref": "#/$defs/ServiceFacts"
+      },
+      "title": "Services",
+      "type": "array"
+    },
+    "service_problem": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Service Problem"
+    },
+    "ending": {
+      "$ref": "#/$defs/RunEnding"
+    },
+    "turns": {
+      "items": {
+        "$ref": "#/$defs/Turn"
+      },
+      "title": "Turns",
+      "type": "array"
+    },
+    "probes": {
+      "items": {
+        "$ref": "#/$defs/ProbeOutcome"
+      },
+      "title": "Probes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "format",
+    "written_by",
+    "identity",
+    "host",
+    "trace",
+    "git",
+    "workspace",
+    "services",
+    "service_problem",
+    "ending",
+    "turns",
+    "probes"
+  ],
+  "title": "save-toolkit eval evidence, v1",
+  "type": "object"
+}

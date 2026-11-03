@@ -8,6 +8,12 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Each graded attempt writes `evidence.json`, the evidence-v1 record of what it observed and no
+  verdict, validated by `probe.evidence.EvidenceV1` and published as
+  `docs/fleet-evaluation/eval-evidence-v1.schema.json` (`build_probe.py schema --model evidence`);
+  a written regrade of an older run writes the evidence `probe.legacy` reads back beside its
+  assessment. The regrade's reconstruction moved into `legacy` unchanged (stage 1 of the runner
+  rewrite, RUNNER-001).
 - The golden saved runs gain three native conversations (a pass, a resumed call under the wrong
   session, a follow-up cut short) and a batch view per case recording what the result row tells the
   batch under rules 1, 5, 6 and 7; a written regrade is proved to land beside the original (rule 8).
