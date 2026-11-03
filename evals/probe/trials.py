@@ -321,8 +321,10 @@ def _record_raised_cost(attempt: Path, model: str | None) -> None:
     unknown if any invocation lacks a result event; plus any judge call its grading made."""
     if (attempt / "timing.json").exists():  # it was graded before it raised
         return
-    trace_path = attempt / "stdout.jsonl"
-    trial_usd = tracing.parse_trial_trace(attempt).total_cost_usd if trace_path.exists() else 0.0
+    # The first invocation's record is written before its launch; without one the CLI never started
+    # (the empty stdout.jsonl a never-started trial leaves is a placeholder, not a trace).
+    started = (attempt / "invocation.json").exists()
+    trial_usd = tracing.parse_trial_trace(attempt).total_cost_usd if started else 0.0
     judge = records.judge_spend()
     cost = records.trial_cost(trial_usd, judge)
     # The parts as well as the total: the v1 record calls a cost complete only beside known parts.
@@ -527,7 +529,7 @@ def _saved_summary(
         **({"git_problem": git.problem} if git.problem else {}),
         # Full contents (bounded), so a regrade sees the same state the live grade saw.
         "state_files": {
-            p.name: p.read_text(encoding="utf-8", errors="replace")[:50000]
+            layout.text_name(p.name): p.read_text(encoding="utf-8", errors="replace")[:50000]
             for p in ws.state_dir.iterdir()
             if p.is_file()
         },

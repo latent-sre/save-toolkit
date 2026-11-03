@@ -73,7 +73,7 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
                 return result.stdout.strip()
             before = digest()
             replacements = {
-                "build_probe.py": ("raise SystemExit(cli.main())", "raise SystemExit(cli.main() or 0)"),
+                "build_probe.py": ("raise SystemExit(main())", "raise SystemExit(main() or 0)"),
                 "probe/checks/changes.py": ("new = ctx.git.commit_ids - ctx.ws.baseline_commit_ids", "new = frozenset()"),
                 "probe/checking.py": ("from .checks import PROBES, REGRADABLE", "from .checks import PROBES, REGRADABLE  # bound"),
                 "probe/outcomes.py": ('EVIDENCE_LIMIT: Final = 600', 'EVIDENCE_LIMIT: Final = 601'),

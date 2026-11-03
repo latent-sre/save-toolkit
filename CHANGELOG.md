@@ -8,6 +8,19 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Fixed
 
+- Defects that predate the runner rewrite, fixed by the owner's decision of 2026-11-03, each with a test
+  that failed first:
+  - a candidate cannot escape a FAIL with file names: a state file or a repository file whose name is not
+    UTF-8 is kept as `\xNN` text and graded, instead of crashing the attempt (and its batch) or turning a
+    forbidding change check INCONCLUSIVE; a changed file that cannot be read back under its name is not
+    shown free of a forbidden needle;
+  - the forbidding probes read the checkout before any other probe runs, so the candidate's code, run by
+    an oracle or a suite, cannot rewrite what they read;
+  - the CLI's result fields are typed by the parser: a value of another type is unknown, never an
+    attempt that raises;
+  - an attempt that raised before the CLI started records a known zero cost, so it no longer blocks a
+    capped re-run of its label;
+  - a crash of `build_probe.py` exits 2 (INCONCLUSIVE) with its traceback, never 1, a FAIL verdict's code.
 - The second bug pass over the runner rewrite (adversarial, older-run and failure-path reviews) found
   eleven defects the pull requests or the first pass's fixes left, each fixed with a test that failed
   first (RUNNER-001):

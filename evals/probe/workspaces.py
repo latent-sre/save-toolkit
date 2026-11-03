@@ -56,7 +56,8 @@ def _git(
     return subprocess.CompletedProcess(
         proc.args,
         proc.returncode,
-        proc.stdout.decode("utf-8", errors="strict" if "-z" in args else "replace"),
+        # A NUL-delimited path that is not UTF-8 is the candidate's own file name: kept, as `\\xNN`.
+        proc.stdout.decode("utf-8", errors="backslashreplace" if "-z" in args else "replace"),
         proc.stderr.decode("utf-8", errors="replace"),
     )
 

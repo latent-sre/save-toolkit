@@ -145,6 +145,12 @@ def write_json(path: Path, value: object, *, ascii_only: bool = False, atomic: b
         partial.unlink(missing_ok=True)
 
 
+def text_name(name: str) -> str:
+    """A file name the candidate chose, as text a record can hold: bytes that are not UTF-8 are kept as
+    `\\xNN` escapes, never left as surrogates that cannot be written."""
+    return os.fsencode(name).decode("utf-8", "backslashreplace")
+
+
 def state_file(state: Path, name: object) -> Path:
     """Where a saved state file is rebuilt for a regrade: a plain file name directly in `state`. A
     saved run is data, so a name that would leave the directory is refused, never written."""

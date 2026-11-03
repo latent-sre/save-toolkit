@@ -257,7 +257,11 @@ def probe(ctx: Context, *, run_level: str | None, identity: str) -> tuple[list[e
 
     probes: list[evidence_v1.ProbeOutcome] = []
     problem: str | None = None
-    for index, item in enumerate(items):
+    # The forbidding probes read what the candidate did before any other probe runs: an oracle or a
+    # suite executes the candidate's code, which could rewrite what they read (rule 2).
+    order = sorted(range(len(items)), key=lambda index: items[index].polarity is not Polarity.FORBIDS)
+    for index in order:
+        item = items[index]
         if item.kept_as is None:
             continue
         if not measured(item):
@@ -275,6 +279,7 @@ def probe(ctx: Context, *, run_level: str | None, identity: str) -> tuple[list[e
                 kept_as=item.kept_as,
             )
         )
+    probes.sort(key=lambda outcome: _position(outcome.id, 0))  # recorded in the scenario's order
     return probes, problem
 
 

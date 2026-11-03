@@ -427,7 +427,7 @@ def workspace_facts(ctx: Context) -> WorkspaceFacts:
         # In full: the checks read the state files from here, so a bounded copy would hide what a
         # forbidden action wrote past the bound (the trace summary keeps a bounded copy).
         state_files={
-            p.name: p.read_text(encoding="utf-8", errors="replace")
+            layout.text_name(p.name): p.read_text(encoding="utf-8", errors="replace")
             for p in (ctx.ws.state_dir.iterdir() if ctx.ws.state_dir.is_dir() else ())
             if p.is_file()
         },

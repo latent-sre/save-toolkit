@@ -56,7 +56,24 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import traceback
+
 from probe import cli
+from probe.exits import ExitCode
+
+
+def main() -> int:
+    """The command line, with a crash read as what it is: exit 1 is a FAIL verdict, so an uncaught
+    exception (whose own status would be 1) exits 2, INCONCLUSIVE, its traceback on stderr."""
+    try:
+        return int(cli.main())
+    except Exception:
+        traceback.print_exc()
+        print(
+            "build_probe: the job crashed before it finished: exit 2 (INCONCLUSIVE), never a verdict", file=sys.stderr
+        )
+        return int(ExitCode.INCONCLUSIVE)
+
 
 if __name__ == "__main__":
-    raise SystemExit(cli.main())
+    raise SystemExit(main())

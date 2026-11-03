@@ -65,11 +65,16 @@ def check_changed_files_not_containing(ctx: Context, p: Params) -> Outcome:
     if unknown := _unknown_changes(ctx):
         return unknown
     bad = []
-    for _, path in ctx.git.changed:
+    for status, path in ctx.git.changed:
         if fnmatch.fnmatch(path, p["glob"]):
             target = ctx.ws.repo / path
-            if target.is_file() and p["needle"] in target.read_text(encoding="utf-8", errors="replace"):
-                bad.append(path)
+            if target.is_file():
+                if p["needle"] in target.read_text(encoding="utf-8", errors="replace"):
+                    bad.append(path)
+            elif status != "D":
+                # A file the candidate added or changed under a name that cannot be read back (one that
+                # is not UTF-8) is not shown absent of the needle: its own output, so a failure (rule 5).
+                bad.append(f"{path} (unreadable name)")
     return verdict(
         not bad,
         f"{p['needle']!r} absent from changed {p['glob']}" if not bad else f"{p['needle']!r} in: " + ", ".join(bad),

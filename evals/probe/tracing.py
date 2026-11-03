@@ -171,6 +171,17 @@ ERROR_RESULTS = frozenset(
 )
 
 
+def _count(value: object) -> int | None:
+    """A non-negative whole number the CLI reported, or None when the value is anything else."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value >= 0 else None
+    if isinstance(value, float) and value.is_integer() and value >= 0:
+        return int(value)
+    return None
+
+
 def parse_trace(path: Path) -> TraceSummary:
     reader = _Reader()
     intact = True
@@ -263,20 +274,24 @@ class _Reader:
     def _result(self, event: dict[str, Any]) -> None:
         s = self.summary
         s.has_result = True
-        s.result_text = event.get("result") or ""
+        # Typed here, never trusted: a field of another type is unknown, not an attempt that raises.
+        result = event.get("result")
+        s.result_text = result if isinstance(result, str) else ""
         s.result_is_error = bool(event.get("is_error"))
         s.result_subtype = str(event.get("subtype") or "")
         s.session_id = str(event.get("session_id") or "")
-        s.duration_ms = int(event.get("duration_ms") or 0)
-        usage = event.get("usage") or {}
+        s.duration_ms = _count(event.get("duration_ms")) or 0
+        raw_usage = event.get("usage")
+        usage: dict[str, Any] = raw_usage if isinstance(raw_usage, dict) else {}
         s.total_tokens = sum(
-            int(usage.get(k) or 0)
+            _count(usage.get(k)) or 0
             for k in ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
         )
-        s.output_tokens = int(usage.get("output_tokens") or 0)
-        s.usage_models = sorted((event.get("modelUsage") or {}).keys())
+        s.output_tokens = _count(usage.get("output_tokens")) or 0
+        model_usage = event.get("modelUsage")
+        s.usage_models = sorted(str(name) for name in model_usage) if isinstance(model_usage, dict) else []
         s.models = list(s.usage_models)  # fallback when no main-thread turn was recorded
-        s.num_turns = event.get("num_turns")
+        s.num_turns = _count(event.get("num_turns"))
         s.total_cost_usd = known_usd(event.get("total_cost_usd"))
         for denial in event.get("permission_denials") or []:
             s.denials.append(str(denial.get("tool_name") or denial)[:80])

@@ -9,6 +9,7 @@ import io
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from unittest import mock
 
@@ -17,7 +18,7 @@ import judge
 import probe_testkit
 import pytest
 import yaml
-from probe import checks, cli, engine, evidence, invocation, rescoring, trials, workspaces
+from probe import checks, cli, constants, engine, evidence, invocation, rescoring, trials, workspaces
 from probe.attempt import Phase
 from probe.constants import ROOT
 from probe.outcomes import CutShort, State, Stop
@@ -896,3 +897,118 @@ def test_check_evidence_says_when_the_runner_changed_since_the_run(tmp_path: Pat
     with mock.patch.object(rescoring, "HARNESS_SOURCE_SHA256", "0" * 64):
         code, printed = _check(iteration, spec)
     assert code == 1 and "differs (the runner changed since the run)" in printed[0], printed
+
+
+# --- candidate-side escapes the second pass found (they predate the rewrite) ------------------------
+
+_CANDIDATE = """
+import json, os, sys
+argv = sys.argv
+root = argv[argv.index("--plugin-dir") + 1] if "--plugin-dir" in argv else ""
+BODY
+events = [
+    {"type": "system", "subtype": "init", "cwd": os.getcwd(), "tools": TOOLS,
+     "plugins": [{"name": "save-toolkit", "path": root}], "mcp_servers": [], "permissionMode": "dontAsk"},
+    {"type": "assistant", "message": {"model": "stub-model", "content": [
+        {"type": "tool_use", "name": "Write", "input": {"file_path": "x", "content": "..."}}]}},
+    {"type": "result", "subtype": "success", "is_error": False, "result": "Done.", "duration_ms": 10,
+     "num_turns": 2, "total_cost_usd": 0.01, "usage": {"input_tokens": 1, "output_tokens": 1},
+     "modelUsage": {"stub-model": {}}},
+]
+for e in events:
+    print(json.dumps(e))
+"""
+
+
+def _candidate_trial(tmp_path: Path, spec: dict, body: str) -> dict:
+    """Run one trial whose CLI is a candidate script doing `body` in its workspace; return the row."""
+    stub = tmp_path / "candidate.py"
+    stub.write_text(_CANDIDATE.replace("TOOLS", repr(list(constants.BUILD_TOOLS))).replace("BODY", body), "utf-8")
+    settings = trials.BatchSettings(
+        plugin_root=ROOT, label="l", model=None, out_dir=tmp_path / "it", timeout=60,
+        executable=f'"{sys.executable}" "{stub}"', keep_workspace=False, env_factory=plain_env_factory(),
+        runtime=STUB_RUNTIME,
+    )  # fmt: skip
+    with (
+        mock.patch.object(trials.fingerprints, "runtime_identity", return_value=STUB_RUNTIME),
+        contextlib.redirect_stdout(io.StringIO()),
+    ):
+        return trials.run_trial(spec, run_number=1, settings=settings)
+
+
+def test_a_state_file_with_a_non_utf8_name_does_not_cost_the_verdict(tmp_path: Path) -> None:
+    """Rule 5: an error caused by the candidate's own output is a failure. A state file whose name is
+    not UTF-8 crashed the attempt before its FAIL was published, and the batch with it."""
+    spec = tiny_spec(checks=[{"check": "state_file_absent", "name": "release-ledger", "text": "never released"}])
+    spec["fixture"]["env"] = {"LEDGER_DIR": "${STATE_DIR}"}
+    body = (
+        "state = os.environ['LEDGER_DIR']\n"
+        "open(os.path.join(state, 'release-ledger'), 'w').write('released')\n"
+        "open(os.path.join(os.fsencode(state), b'\\xff'), 'w').close()"
+    )
+    row = _candidate_trial(tmp_path, spec, body)
+    assert row["status"] == "FAIL", row
+    assert rescoring.differences(
+        json.loads((tmp_path / "it" / "eval-tiny" / "l" / "run-1" / "grading.json").read_text("utf-8")),
+        rescoring.regrade_run(tmp_path / "it" / "eval-tiny" / "l" / "run-1", spec, write=False),
+    ) == []
+
+
+@pytest.mark.parametrize(
+    "check",
+    [
+        {"check": "changes_within", "allowed": ["pkg/"], "text": "only pkg/ changes"},
+        {"check": "changed_files_not_containing", "glob": "*.txt", "needle": "secret", "text": "no secret in text"},
+    ],
+    ids=["changes_within", "changed_files_not_containing"],
+)
+def test_a_repo_file_with_a_non_utf8_name_is_seen_by_the_change_checks(tmp_path: Path, check: dict) -> None:
+    """A changed path whose name is not UTF-8 made the changed files unknown, turning the candidate's
+    forbidden change into the grader's INCONCLUSIVE; it is a changed path like any other."""
+    row = _candidate_trial(tmp_path, tiny_spec(checks=[check]), "open(b'\\xff.txt', 'w').write('secret')")
+    assert row["status"] == "FAIL", (row["status"], row.get("grader_error"))
+
+
+def test_a_forbidding_probe_reads_the_checkout_before_any_command_runs_the_candidates_code(tmp_path: Path) -> None:
+    """The candidate's module, run by the suite probe, deletes the forbidden line from itself; a forbidding
+    probe listed after the suite must still read what the candidate wrote."""
+    module = (
+        "import pathlib, unittest\n_me = pathlib.Path(__file__)\n"
+        "_me.write_text(''.join(l for l in _me.read_text().splitlines(True) if 'import pytest' not in l))\n"
+        "class T(unittest.TestCase):\n    def test_ok(self):\n        self.assertTrue(True)\n"
+        "# import pytest\n"
+    )
+    spec = tiny_spec(
+        checks=[
+            {"check": "command_exit_zero", "command": "python -m unittest discover -s tests -t .", "text": "suite"},
+            {"check": "changed_files_not_containing", "glob": "tests/*.py", "needle": "import pytest", "text": "no pytest"},
+        ]
+    )  # fmt: skip
+    body = f"os.makedirs('tests', exist_ok=True)\nopen(os.path.join('tests', 'test_sneaky.py'), 'w').write({module!r})"
+    row = _candidate_trial(tmp_path, spec, body)
+    assert row["status"] == "FAIL", row
+
+
+def test_an_attempt_that_never_started_the_cli_and_then_raised_cost_nothing(tmp_path: Path) -> None:
+    """The CLI never started (its backing service did not), so the attempt cost nothing it could know
+    of; an unknown cost would block every capped re-run of the label."""
+    out = tmp_path / "it"
+    with (
+        mock.patch.object(trials.fingerprints, "runtime_identity", return_value=STUB_RUNTIME),
+        mock.patch.object(trials.backing, "start_services", side_effect=trials.ServiceUnavailable("db")),
+        mock.patch.object(trials.engine, "grade_trial", side_effect=RuntimeError("grading crashed")),
+        contextlib.redirect_stdout(io.StringIO()),
+        contextlib.redirect_stderr(io.StringIO()),
+        pytest.raises(RuntimeError, match="grading crashed"),
+    ):
+        trials.run_trial(
+            tiny_spec(),
+            run_number=1,
+            settings=trials.BatchSettings(
+                plugin_root=ROOT, label="l", model=None, out_dir=out, timeout=60, executable="never-run",
+                keep_workspace=False, env_factory=plain_env_factory(), runtime=STUB_RUNTIME,
+            ),
+        )  # fmt: skip
+    [timing] = list((out / "eval-tiny" / "l").rglob("timing.json"))
+    cost = json.loads(timing.read_text("utf-8"))
+    assert (cost["known_cost_usd"], cost["cost_complete"]) == (0.0, True), cost

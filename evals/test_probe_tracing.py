@@ -75,6 +75,22 @@ class TraceAndCommandTests(unittest.TestCase):
             with self.subTest(result=result):
                 self.assertFalse(parse_events([init, call, result]).tool_counts_complete)
 
+    def test_a_result_event_of_unexpected_types_is_read_not_raised(self) -> None:
+        """The CLI's result fields are typed by the parser, never trusted: a value of another type is
+        unknown, so the trial is graded instead of the attempt and its batch raising."""
+        init = {"type": "system", "subtype": "init", "model": "stub-model"}
+        for field, value in (("result", ["not", "text"]), ("result", 7), ("num_turns", 2.0), ("num_turns", "2"),
+                             ("duration_ms", "slow"), ("usage", {"input_tokens": "many", "output_tokens": 2.0}),
+                             ("usage", ["x"])):
+            with self.subTest(field=field, value=value):
+                trace = parse_events([init, {"type": "result", "subtype": "success", "result": "done", field: value}])
+                self.assertIsInstance(trace.result_text, str)
+                self.assertTrue(trace.num_turns is None or type(trace.num_turns) is int)
+                self.assertIs(type(trace.duration_ms), int)
+                self.assertIs(type(trace.total_tokens), int)
+                self.assertIs(type(trace.output_tokens), int)
+        self.assertEqual(2, parse_events([init, {"type": "result", "result": "x", "num_turns": 2.0}]).num_turns)
+
     def test_invalid_reported_cost_is_unknown_at_trace_ingestion(self) -> None:
         for value in (False, True, -0.01, "0.01", float("nan"), float("inf"), 10**400):
             with self.subTest(value=value):
