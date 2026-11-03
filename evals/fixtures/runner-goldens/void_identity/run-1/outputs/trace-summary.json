@@ -1,0 +1,87 @@
+{
+  "advertised_skills": [],
+  "advertised_tools": [],
+  "after_assessment": null,
+  "agent_returns": [],
+  "agents_dir": false,
+  "bash_commands": [],
+  "branch": "main",
+  "changed_files": [],
+  "commit_ids_before_after": [
+    [
+      "9e8ac9cadba6feb89d837401492fdcca63b80020",
+      "c970f45ab3ef615c95abf05fa95158aa9e0469a2"
+    ],
+    [
+      "9e8ac9cadba6feb89d837401492fdcca63b80020",
+      "c970f45ab3ef615c95abf05fa95158aa9e0469a2"
+    ]
+  ],
+  "commits_before_after": [
+    2,
+    2
+  ],
+  "conversation_sessions": [
+    ""
+  ],
+  "denial_details": [],
+  "denials": [],
+  "dispatches": [],
+  "effect_calls": [],
+  "foreign_skills": [],
+  "inconclusive": "plugin inputs changed before the trial; re-run with one candidate",
+  "initial_parent_reference_reads": [],
+  "initial_parent_skills_before_dispatch": [],
+  "invocation_evidence": [
+    {
+      "agents": [],
+      "dispatches": [],
+      "has_result": false,
+      "response": "",
+      "returns": []
+    }
+  ],
+  "isolation": {
+    "mode": "host"
+  },
+  "judge_binding": null,
+  "main_models": [],
+  "mcp_servers": [],
+  "models": [],
+  "num_turns": null,
+  "permission_mode": "",
+  "plugin": {
+    "plugin_commit": "f24cd555c50b4a628f1908f0ce35f930bfcb5e03",
+    "plugin_inputs_dirty": false,
+    "plugin_root": null,
+    "plugin_served_from": "/golden/workspace/plugin",
+    "plugin_source_sha256": "a3c590527655bafbe89dce8625254e0487eb114653c2e5a02eec75b402d1700d"
+  },
+  "powershell_commands": [],
+  "run_end": null,
+  "runtime": {
+    "cli_version": "x",
+    "host_identity": {
+      "account_id": "synthetic-account",
+      "elevated": false,
+      "hostname": "synthetic-host",
+      "identity_source": "windows_process_token"
+    },
+    "host_platform": {
+      "machine": "AMD64",
+      "release": "11",
+      "system": "Windows"
+    }
+  },
+  "scenario_sha256": "d12f6fec1f21e62a17f59a7feca79efe221f848fb0559609c042b4322e01770d",
+  "services": [],
+  "skills": [],
+  "skills_failed": [],
+  "state_files": {},
+  "status": "INCONCLUSIVE",
+  "subagent_bash_commands": [],
+  "tool_counts": {},
+  "tool_errors": [],
+  "usage_models": [],
+  "workspace": "/golden/workspace/repo"
+}

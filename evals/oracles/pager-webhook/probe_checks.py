@@ -145,7 +145,7 @@ def stored_anywhere(db, needle):
     return None
 
 
-def wait_for_incident(db, title, seconds=RUNBOOK_DELAY + 20):
+def wait_for_incident(db, title, seconds=RUNBOOK_DELAY + PROCESSING_ALLOWANCE_S):
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         found = incidents(db, title)

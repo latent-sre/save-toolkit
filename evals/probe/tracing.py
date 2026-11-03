@@ -16,7 +16,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Final, NotRequired, TypedDict, cast
 
-from . import conversations
+from . import layout
 from .constants import DISPATCH_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
 
 
@@ -574,7 +574,7 @@ MERGED_SPECIALLY = ("tool_counts", "tool_counts_complete", "conversation_session
 
 def parse_trial_trace(run_dir: Path) -> TraceSummary:
     """Merge invocation evidence, charging only the last cumulative result within each invocation."""
-    folders = [folder for folder in conversations.saved_folders(run_dir) if (folder / "stdout.jsonl").is_file()]
+    folders = [folder for folder in layout.saved_folders(run_dir) if (folder / "stdout.jsonl").is_file()]
     traces = [parse_trace(folder / "stdout.jsonl") for folder in folders] or [TraceSummary()]
     merged = replace(traces[-1], conversation_sessions=[trace.session_id for trace in traces])
     merged.invocation_evidence = [

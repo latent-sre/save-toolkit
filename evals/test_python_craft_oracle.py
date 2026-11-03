@@ -558,8 +558,10 @@ def _policy_unification_cases():
     ]
 
 
-@pytest.mark.parametrize("code", (0, 2))
-@pytest.mark.parametrize("phase", ("import", "api/iteration"))
+# Each oracle sees one exit at import and one during the API call, with the zero exit on the API
+# side where it is likeliest to pass for success; the other two cells of the cross-product per
+# oracle repeated the same supervision path at about ten seconds each.
+@pytest.mark.parametrize("phase,code", [("import", 2), ("api/iteration", 0)], ids=("import-2", "api-0"))
 @pytest.mark.parametrize("mode,child_args", [
     pytest.param(mode, (), id=mode) for mode in CORRECT
 ] + [

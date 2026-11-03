@@ -15,6 +15,7 @@ from probe import checking as probe_checking
 from probe import invocation as probe_invocation
 from probe import tracing as probe_tracing
 from probe import workspaces as probe_workspaces
+from probe.checks import checkout as probe_checkout
 from probe_testkit import run_python, scenario_file
 
 ROOT = Path(__file__).resolve().parent
@@ -200,7 +201,7 @@ def run_oracle_check(check, document, text):
             completed.append(result)
             return result
 
-        with patch.object(probe_checking, "_run", side_effect=run_actual):
+        with patch.object(probe_checkout, "_run", side_effect=run_actual):
             passed, evidence = probe_checking.check_command_exit_zero(ctx, check)
         assert len(completed) == 1, evidence
         return completed[0].returncode, passed, evidence

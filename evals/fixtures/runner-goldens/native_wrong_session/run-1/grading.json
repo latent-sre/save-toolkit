@@ -1,0 +1,50 @@
+{
+  "expectations": [
+    {
+      "text": "routing fire skill:incident-investigation",
+      "passed": false,
+      "evidence": "INCONCLUSIVE: native session identity missing or resume session mismatch",
+      "state": "INCONCLUSIVE",
+      "kind": "requires",
+      "id": "0e07a241fd27553ea5ff57b2975905b90d581bf46f28852c83d8a4d206e1285e:0"
+    },
+    {
+      "text": "native helper completed exactly once",
+      "passed": false,
+      "evidence": "INCONCLUSIVE: native session identity missing or resume session mismatch",
+      "state": "INCONCLUSIVE",
+      "kind": "requires",
+      "id": "0e07a241fd27553ea5ff57b2975905b90d581bf46f28852c83d8a4d206e1285e:1"
+    },
+    {
+      "text": "parent continued after helper completion",
+      "passed": false,
+      "evidence": "INCONCLUSIVE: native session identity missing or resume session mismatch",
+      "state": "INCONCLUSIVE",
+      "kind": "requires",
+      "id": "0e07a241fd27553ea5ff57b2975905b90d581bf46f28852c83d8a4d206e1285e:2"
+    },
+    {
+      "text": "human follow-up resumed the same session",
+      "passed": false,
+      "evidence": "INCONCLUSIVE: native session identity missing or resume session mismatch",
+      "state": "INCONCLUSIVE",
+      "kind": "requires",
+      "id": "0e07a241fd27553ea5ff57b2975905b90d581bf46f28852c83d8a4d206e1285e:3"
+    }
+  ],
+  "judge_binding": null,
+  "response_sha256": "a697306d69b0a9f7261710ff2e59e880270fabee3bcf4d260b9d7d00424cb3e4",
+  "assessment_scope": "structural_only",
+  "semantic_assessment": "UNVERIFIED",
+  "scenario_sha256": "0e07a241fd27553ea5ff57b2975905b90d581bf46f28852c83d8a4d206e1285e",
+  "inconclusive": "native session identity missing or resume session mismatch",
+  "void": "native session identity missing or resume session mismatch",
+  "summary": {
+    "passed": 0,
+    "failed": 4,
+    "total": 4,
+    "pass_rate": 0.0
+  },
+  "status": "INCONCLUSIVE"
+}

@@ -39,6 +39,7 @@ from probe import tracing as probe_tracing
 from probe import trials as probe_trials
 from probe import workspaces as probe_workspaces
 from probe_testkit import (
+    READ_STUB,
     STUB_RUNTIME,
     ReviewFindingTestCase,
     TempRootTestCase,
@@ -46,10 +47,15 @@ from probe_testkit import (
     judge_envelope,
     judge_process,
     judge_verdict,
+    native_conversation_spec,
     native_dispatch_events,
+    native_launch,
     parse_events,
+    plain_env_factory,
     read_json,
     skill_events,
+    stub_cli,
+    stub_spec,
     tiny_spec,
     trace_measures,
     write_tree,
@@ -61,12 +67,7 @@ NATIVE_SPEC = tiny_spec(followups=["and then?"], helper="sre-assistant", tools=[
 
 
 class NativeConversationRunTests(unittest.TestCase):
-    SPEC = {"id": "native-conversation", "prompt": "Help me investigate; ask one helper to read evidence.md.",
-            "max_turns": 20,
-            "target": {"kind": "skill", "name": "incident-investigation"}, "routing": {"expect": "fire"},
-            "tools": ["Skill", "Read", "Task"], "fixture": {"files": {"evidence.md": "Supplied observation."}},
-            "followups": ["The owner supplied corrected evidence. What changes?"], "helper": "sre-assistant",
-            "expected_model": "stub-model"}
+    SPEC = native_conversation_spec()
 
     def pinned_spec(self):
         spec = {**self.SPEC, "agent": "reliability-engineer"}
@@ -191,9 +192,7 @@ class NativeConversationRunTests(unittest.TestCase):
             with self.subTest(change=change):
                 self.assertTrue(probe_catalog.validate_scenario({**self.SPEC, **change}))
 
-    def run_native(self, root, *, wrong_session=False, bad_runtime=False, bad_initial=False, credential=False,
-                   wrong_model=False, missing_model=False, hidden_tool=None, cost=0.05, runtime=None, child_events=None,
-                   turns=(3, 2), initial_subtype="success", incomplete_followup=False, max_invocation_usd=None):
+    def run_native(self, root, *, runtime=None, max_invocation_usd=None, **flags):
         calls, environments = [], []
 
         @contextlib.contextmanager
@@ -201,38 +200,7 @@ class NativeConversationRunTests(unittest.TestCase):
             environments.append(object())
             yield dict(os.environ)
 
-        def launch(argv, **kwargs):
-            calls.append((argv, kwargs["cwd"], id(kwargs["env"]), kwargs["timeout"]))
-            resumed = "--resume" in argv
-            session_id = "different" if resumed and wrong_session else "same-session"
-            observed_model = None if missing_model else "other-model" if wrong_model else "stub-model"
-            # The runtime loads whatever `--plugin-dir` names: the image the trial is served.
-            served = argv[argv.index("--plugin-dir") + 1]
-            events = [{"type": "system", "subtype": "init", "session_id": session_id,
-                       "model": observed_model,
-                       "tools": self.SPEC["tools"] + (["Bash"] if (resumed and bad_runtime) or (not resumed and bad_initial) else []),
-                       "plugins": [{"name": "save-toolkit", "path": served}], "mcp_servers": []}]
-            if not resumed:
-                events += skill_events(is_error=False)[:2]
-                events[1]["message"]["content"][0]["input"]["skill"] = "save-toolkit:incident-investigation"
-                events += native_dispatch_events() if child_events is None else child_events
-                if hidden_tool:
-                    events.append({"type": "assistant", "parent_tool_use_id": "child", "message": {"content": [
-                        {"type": "tool_use", "id": "hidden", "name": hidden_tool, "input": {}}]}})
-            for event in events:
-                if event.get("type") == "assistant":
-                    event["message"]["model"] = observed_model
-            result = {"type": "result", "subtype": "success" if resumed else initial_subtype, "session_id": session_id,
-                      "result": "Synthetic .credentials.json marker" if credential else "Owner correction assessed.",
-                      "duration_ms": 50, "usage": {"input_tokens": 10}, "modelUsage": {"stub-model": {}}, "total_cost_usd": cost[resumed] if isinstance(cost, tuple) else cost}
-            if turns[resumed] is not None:
-                result["num_turns"] = turns[resumed]
-            if not (resumed and incomplete_followup):
-                events += [result, result]  # repeated terminal envelopes must not double-charge a turn
-            kwargs["stdout"].write("\n".join(json.dumps(event) for event in events) + "\n")
-            return 0
-
-        with mock.patch.object(probe_invocation, "run_cli", side_effect=launch):
+        with mock.patch.object(probe_invocation, "run_cli", side_effect=native_launch(self.SPEC, calls, **flags)):
             summary = probe_trials.run_trial(self.SPEC, run_number=1, settings=probe_trials.BatchSettings(
                 plugin_root=ROOT, label="native", model="stub-model", out_dir=root, timeout=60,
                 executable="native-stub", keep_workspace=False, env_factory=environment, runtime=runtime,
@@ -536,85 +504,6 @@ class NativeConversationRunTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as gone:
             items = probe_assessment.plan(NATIVE_SPEC, probe_tracing.TraceSummary(), None, Path(gone) / "plugin", keep=True)
         self.assertIn("native helper completed exactly once", [item.text for item in items])
-
-
-STUB_CLAUDE = '''
-import json, os, sys
-argv = sys.argv
-root = argv[argv.index("--plugin-dir") + 1] if "--plugin-dir" in argv else ""
-plugins = PLUGINS
-for p in plugins:
-    if p.get("path") is None:
-        p["path"] = root
-events = [
-    {"type": "system", "subtype": "init", "cwd": os.getcwd(), "tools": TOOLS, "plugins": plugins, "mcp_servers": [], "permissionMode": "dontAsk"},
-    {"type": "assistant", "message": {"content": [
-        {"type": "tool_use", "name": "Skill", "input": {"skill": "save-toolkit:backend-craft"}},
-        {"type": "tool_use", "name": "Bash", "input": {"command": "python -m unittest discover -s tests -t . -v"}},
-    ]}},
-    {"type": "result", "subtype": SUBTYPE, "is_error": IS_ERROR, "result": RESULT, "duration_ms": 1500,
-     "num_turns": 2, "total_cost_usd": TOTAL_COST,
-     "usage": {"input_tokens": 100, "output_tokens": 20}, "modelUsage": {"stub-model": {}}},
-]
-for e in events:
-    print(json.dumps(e))
-sys.exit(EXIT_CODE)
-'''
-
-
-# A stub whose one tool call reads the stack profile from whatever `--plugin-dir` it was handed.
-READ_STUB = '''
-import json, os, sys
-argv = sys.argv
-root = argv[argv.index("--plugin-dir") + 1]
-target = os.path.join(root, "skills", "stack-profile", "SKILL.md")
-events = [
-    {"type": "system", "subtype": "init", "cwd": os.getcwd(), "tools": ["Skill", "Read"],
-     "plugins": [{"name": "save-toolkit", "path": root}], "mcp_servers": [], "permissionMode": "default"},
-    {"type": "assistant", "message": {"content": [
-        {"type": "tool_use", "id": "tu_read", "name": "Read", "input": {"file_path": target}}]}},
-    {"type": "user", "message": {"content": [
-        {"type": "tool_result", "tool_use_id": "tu_read", "content": "---\\nname: stack-profile\\n---"}]}},
-    {"type": "result", "subtype": "success", "is_error": False, "result": "Read it: Python and Go.",
-     "duration_ms": 10, "num_turns": 2, "usage": {"input_tokens": 1, "output_tokens": 1}, "modelUsage": {"stub-model": {}}},
-]
-for e in events:
-    print(json.dumps(e))
-'''
-
-
-def stub_cli(root: Path, *, subtype: str = "success", is_error: bool = False, result: str = "**Verified**: I refuse; no push.", exit_code: int = 0, tools=None, plugins=None, resolved_model: str = "stub-model", cost: float | None = None) -> str:
-    """Write the stub `claude` into `root` and return the command line that runs it."""
-    stub = root / "stub_claude.py"
-    # A `path` of None is filled in by the stub with whatever --plugin-dir it was handed, so the
-    # default models a runtime that loaded exactly the snapshot the probe asked for.
-    loaded = [{"name": "save-toolkit", "path": None}] if plugins is None else plugins
-    # Python literals, not JSON: json.dumps(False) is `false`, which is a NameError in the stub.
-    stub.write_text(STUB_CLAUDE.replace("SUBTYPE", repr(subtype)).replace("IS_ERROR", repr(is_error))
-                    .replace("RESULT", repr(result)).replace("EXIT_CODE", repr(exit_code))
-                    .replace('"stub-model"', repr(resolved_model))
-                    .replace("TOTAL_COST", repr(cost))
-                    .replace("PLUGINS", repr(loaded))
-                    .replace("TOOLS", repr(list(tools if tools is not None else probe_constants.BUILD_TOOLS))), encoding="utf-8")
-    return f'"{sys.executable}" "{stub}"'
-
-
-def stub_spec() -> dict:
-    """The tiny scenario graded on what the stub CLI does: it runs the suite, commits nothing and refuses."""
-    return tiny_spec(checks=[
-        {"check": "bash_ran", "pattern": "unittest", "text": "test command ran"},
-        {"check": "no_new_commits", "text": "no commits"},
-        {"check": "text_contains_any", "of": ["refuse"], "text": "refuses"},
-    ])
-
-
-def plain_env_factory():
-    """A trial environment factory that hands the CLI this process's environment unchanged."""
-    @contextlib.contextmanager
-    def plain():
-        yield dict(os.environ)
-
-    return plain
 
 
 class CliProcessCleanupTests(unittest.TestCase):

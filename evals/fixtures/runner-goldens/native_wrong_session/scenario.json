@@ -1,0 +1,27 @@
+{
+  "expected_model": "stub-model",
+  "fixture": {
+    "files": {
+      "evidence.md": "Supplied observation."
+    }
+  },
+  "followups": [
+    "The owner supplied corrected evidence. What changes?"
+  ],
+  "helper": "sre-assistant",
+  "id": "native-conversation",
+  "max_turns": 20,
+  "prompt": "Help me investigate; ask one helper to read evidence.md.",
+  "routing": {
+    "expect": "fire"
+  },
+  "target": {
+    "kind": "skill",
+    "name": "incident-investigation"
+  },
+  "tools": [
+    "Skill",
+    "Read",
+    "Task"
+  ]
+}

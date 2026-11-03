@@ -15,9 +15,12 @@ preserves the private craft trial's verification wiring without shipping the pro
   is a frozen dataclass whose equality and hash include the state, evidence and both classification
   flags. Unpacking and indexing retain the `(passed, evidence)` reading API; a plain tuple is not
   equal to an outcome. Saved grades keep their text representation; only `Outcome.read` interprets it.
-- **Declared checks.** Each check in [`probe/checking.py`](../probe/checking.py) is registered with
-  `@declare`: whether it forbids, requires or both, and the evidence it reads. Polarity,
-  regradability and the cut-short rules are read from those declarations.
+- **Declared checks.** Each check in [`probe/checks/`](../probe/checks/) is registered with
+  `registry.declare`: whether it forbids, requires or both, the evidence it reads, and whether it is
+  a check a regrade re-measures from saved evidence or a probe that runs once at trial time because
+  it reads the live checkout, a backing service or a paid judge. Polarity, regradability and the
+  cut-short rules are read from those declarations. [`probe/checking.py`](../probe/checking.py) is
+  the facade that keeps every name importable and the module the runner calls the registry through.
 - **One grading loop.** `assessment.assess` grades a live trial and a regrade alike; a regrade
   supplies the saved verdicts it keeps. A result rule therefore changes in one place.
 - **A published record contract.** `records.RecordV1` validates each `record.json` strictly, as
@@ -37,6 +40,13 @@ preserves the private craft trial's verification wiring without shipping the pro
 - **Inspect orchestration.** [`inspect_fleet.py`](../inspect_fleet.py) wraps the same
   `probe.trials.run_trial` in an Inspect task for routing and contract scenarios; it lives beside the
   runner, not in `probe/`, so the runner identity and every saved run identity are unchanged by it.
+
+- **Golden saved runs.** [`evals/fixtures/runner-goldens/`](../fixtures/runner-goldens/README.md)
+  holds one stub-driven attempt per result rule and run ending, and three native conversations, as
+  the runner published them, with the verdict view of each live grade and of a regrade of the same
+  directory and the batch view the result row gives the batch. `evals/golden_runs.py write`
+  regenerates them from the current runner and `evals/test_golden_runs.py` proves the current runner
+  reproduces every view; a changed view is a verdict change to explain in the pull request.
 
 A function is patched in the module that defines it, such as `probe.trials.run_trial`: every other
 module calls it through that module, so one patch reaches every caller, and a test enforces it. A
@@ -105,7 +115,11 @@ identity, run conditions, attempt number and UTC times, how the run ended (an at
 reason when INCONCLUSIVE, and truncation flag (evidence is cut at 600 characters and flagged), the
 verdict, the cost, and evidence paths relative to the attempt folder. A record the contract refuses
 is not written, and the run is still published with its verdict: the record only maps facts the
-attempt's files keep, the summary row carries `record_problem`, and the batch goes on. Attempt folders are created with a plain `mkdir`, so
+attempt's files keep, the summary row carries `record_problem`, and the batch goes on. Beside it,
+`evidence.json` is the [evidence-v1 record](../../docs/fleet-evaluation/contracts.md#evidence-record-v1)
+of what the attempt observed and no verdict (`evidence.EvidenceV1`); a regrade of a run saved before
+it reads the same shape back through `legacy` and writes it beside its assessment. Nothing grades from
+it yet; the runner rewrite's later stages do. Attempt folders are created with a plain `mkdir`, so
 they inherit `.eval-runs/` permissions; `tempfile.mkdtemp` made them readable only by the account
 that ran them on Windows.
 

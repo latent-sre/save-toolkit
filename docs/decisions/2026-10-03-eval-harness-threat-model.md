@@ -2,7 +2,10 @@
 
 - **Date:** 2026-10-03
 - **Amended:** 2026-10-06, before acceptance: result rules added from the EVAL-012 WP-00 review;
-  2026-10-06, by the decision owner: EVAL-011's runner changes land in one pull request
+  2026-10-06, by the decision owner: EVAL-011's runner changes land in one pull request;
+  2026-11-02, by the decision owner: the result rules get their own heading, rule 5 names what a
+  backing service that never starts and a grading-machinery failure record, and rule 6 names the
+  cleanup record as the live attempt's evidence, from the stage 0 goldens of RUNNER-001
 - **Status:** Accepted 2026-10-06
 - **Decision owner:** Save Toolkit maintainers
 - **Roadmap item:** `EVAL-011` in [the fleet roadmap](../fleet-roadmap.md)
@@ -64,7 +67,9 @@ Review findings must establish a source-backed or reproduced failure within this
 requires showing that an excluded actor or unsupported workflow is necessary, and adding defensive
 machinery for that case requires prior maintainer acceptance of an expanded threat model.
 
-Results follow these rules:
+### Result rules
+
+Results follow these rules. Documents and code that cite them call them the result rules.
 
 1. A trial whose candidate, model, plugin, tool set or scenario differs from the one declared is
    inconclusive in full; none of its checks count.
@@ -80,9 +85,14 @@ Results follow these rules:
    and the native conversations' spend cap are instrument guards: reaching either cuts the run short.
 5. A failure of the grading machinery, such as a grader or oracle defect, a misconfigured check, or
    a grader that times out in its own code, is a measurement failure and stops further trials of that
-   scenario. An error caused by the candidate's own output or code is a failure.
+   scenario. A backing service that never starts is the same: the model is never called, the trial
+   is inconclusive with no ending, and the scenario's further trials stop. A machinery failure is
+   recorded as a grader error, in the live grade and in every regrade alike, and is never recorded in
+   the form rule 1 reserves for an identity failure. An error caused by the candidate's own output
+   or code is a failure.
 6. A problem after assessment, such as failed service cleanup, is recorded separately and blocks
-   reuse of the environment; it does not change the verdict.
+   reuse of the environment; it does not change the verdict. The record is the live attempt's
+   evidence: a regrade of that attempt keeps its verdict and carries no cleanup record of its own.
 7. Every attempt is kept with its trace, timing and cost, and a replaced attempt stays visible. An
    unknown cost is recorded as unknown, never as zero.
 8. Regrading under these rules adds a new assessment beside the original and never rewrites it.

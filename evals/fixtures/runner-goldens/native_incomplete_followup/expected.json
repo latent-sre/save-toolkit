@@ -1,0 +1,85 @@
+{
+  "about": "the resumed call ends without a result event, so the follow-up is cut short",
+  "batch": {
+    "batch_stop": null,
+    "cost_known": false,
+    "scenario_stop": null
+  },
+  "live": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "routing fire skill:incident-investigation"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "native helper completed exactly once"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "parent continued after helper completion"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "human follow-up resumed the same session"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": "no result event (claude exit 0)",
+    "run_end": "cut_short",
+    "run_stop": "no_result",
+    "status": "INCONCLUSIVE",
+    "summary": {
+      "failed": 4,
+      "passed": 0,
+      "total": 4
+    },
+    "unmeasured": null,
+    "void": null
+  },
+  "regrade": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "routing fire skill:incident-investigation"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "native helper completed exactly once"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "parent continued after helper completion"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "human follow-up resumed the same session"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": "no result event (claude exit 0)",
+    "run_end": "cut_short",
+    "run_stop": "no_result",
+    "status": "INCONCLUSIVE",
+    "summary": {
+      "failed": 4,
+      "passed": 0,
+      "total": 4
+    },
+    "unmeasured": null,
+    "void": null
+  },
+  "rules": [
+    2
+  ]
+}

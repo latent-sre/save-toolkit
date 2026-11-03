@@ -1,0 +1,94 @@
+{
+  "format": {
+    "name": "save-toolkit.eval-record",
+    "version": 1
+  },
+  "case": {
+    "id": "tiny",
+    "case_sha256": "9b8bb525eff83bbd332bcf315d47063bb6cad0701a13540a6cf2312760df09c6",
+    "scenario_sha256": "1414ad68a66b75d2e73d7057591efa56c9a459b48c468c4e123e28f3f8075d3c"
+  },
+  "candidate": {
+    "plugin_root": "/golden/checkout",
+    "plugin_commit": "f24cd555c50b4a628f1908f0ce35f930bfcb5e03",
+    "plugin_inputs_dirty": false,
+    "plugin_source_sha256": "a3c590527655bafbe89dce8625254e0487eb114653c2e5a02eec75b402d1700d"
+  },
+  "runner": {
+    "runner_commit": "f24cd555c50b4a628f1908f0ce35f930bfcb5e03",
+    "runner_source_dirty": false,
+    "runner_source_sha256": "eb3f5a24bbc3cd9b6b51f213d234f225421f4a380c9e214ba2c31571cb670de7"
+  },
+  "conditions": {
+    "requested_model": null,
+    "observed_models": [
+      "stub-model"
+    ],
+    "runtime": {
+      "cli_version": "x",
+      "host_platform": {
+        "system": "Windows",
+        "release": "11",
+        "machine": "AMD64"
+      },
+      "host_identity": {
+        "hostname": "synthetic-host",
+        "account_id": "synthetic-account",
+        "elevated": false,
+        "identity_source": "windows_process_token"
+      }
+    },
+    "turn_limit": 20,
+    "wall_clock_seconds": 60
+  },
+  "attempt": {
+    "label": "golden",
+    "slot": 1,
+    "number": 1,
+    "state": "final",
+    "started_at": "2026-11-02T21:35:37+00:00",
+    "ended_at": "2026-11-02T21:35:38+00:00"
+  },
+  "run_end": {
+    "kind": "completed",
+    "stop": null,
+    "reason": "grader error: PatternError('missing ), unterminated subpattern at position 0')"
+  },
+  "checks": [
+    {
+      "id": "1414ad68a66b75d2e73d7057591efa56c9a459b48c468c4e123e28f3f8075d3c:0",
+      "text": "an unbalanced pattern",
+      "kind": "requires",
+      "state": "INCONCLUSIVE",
+      "reason": "grader error: PatternError('missing ), unterminated subpattern at position 0')",
+      "evidence": "INCONCLUSIVE: grader error: PatternError('missing ), unterminated subpattern at position 0')",
+      "evidence_truncated": false
+    }
+  ],
+  "verdict": {
+    "status": "INCONCLUSIVE",
+    "reason": "grader error: PatternError('missing ), unterminated subpattern at position 0')",
+    "assessment_revision": 0,
+    "after_assessment": null
+  },
+  "cost": {
+    "trial_usd": null,
+    "judge_usd": 0.0,
+    "known_usd": 0.0,
+    "complete": false,
+    "judge_calls": 0,
+    "judge_live_calls": 0,
+    "judge_cached_calls": 0,
+    "judge_unknown_cost_calls": 0
+  },
+  "evidence": {
+    "outputs/response.md": "outputs/response.md",
+    "stdout.jsonl": "stdout.jsonl",
+    "outputs/workspace.patch": "outputs/workspace.patch",
+    "grading.json": "grading.json",
+    "timing.json": "timing.json",
+    "provenance.json": "provenance.json",
+    "invocation.json": "invocation.json",
+    "cleanup.json": "cleanup.json"
+  }
+}

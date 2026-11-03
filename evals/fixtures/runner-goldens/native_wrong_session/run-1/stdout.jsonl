@@ -1,0 +1,11 @@
+{"type": "system", "subtype": "init", "session_id": "same-session", "model": "stub-model", "tools": ["Skill", "Read", "Task"], "plugins": [{"name": "save-toolkit", "path": "/golden/workspace/plugin"}], "mcp_servers": []}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "tu_skill", "name": "Skill", "input": {"skill": "save-toolkit:incident-investigation"}}], "model": "stub-model"}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "tu_skill", "is_error": false, "content": "backend-craft loaded"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "child", "name": "Agent", "input": {"subagent_type": "save-toolkit:sre-assistant"}}], "model": "stub-model"}}
+{"type": "system", "subtype": "task_started", "tool_use_id": "child", "task_id": "task", "is_backgrounded": true}
+{"type": "user", "tool_use_result": {"isAsync": true}, "message": {"content": [{"type": "tool_result", "tool_use_id": "child", "content": "submitted"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "Before the child returns."}], "model": "stub-model"}}
+{"type": "system", "subtype": "task_notification", "tool_use_id": "child", "task_id": "task", "status": "completed"}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "Parent continues."}], "model": "stub-model"}}
+{"type": "result", "subtype": "success", "session_id": "same-session", "result": "Owner correction assessed.", "duration_ms": 50, "usage": {"input_tokens": 10}, "modelUsage": {"stub-model": {}}, "total_cost_usd": 0.05, "num_turns": 3}
+{"type": "result", "subtype": "success", "session_id": "same-session", "result": "Owner correction assessed.", "duration_ms": 50, "usage": {"input_tokens": 10}, "modelUsage": {"stub-model": {}}, "total_cost_usd": 0.05, "num_turns": 3}

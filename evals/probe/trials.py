@@ -30,6 +30,7 @@ from . import (
     backing,
     catalog,
     conversations,
+    evidence,
     fingerprints,
     invocation,
     layout,
@@ -477,7 +478,7 @@ def _invoke_turns(
 def _warn_on_credentials(run_out: Path, trace: TraceSummary) -> None:
     """Name any credential-shaped marker in the final text or either invocation's raw trace."""
     markers = invocation.credential_markers(trace.result_text, run_out / "stdout.jsonl")
-    for folder in conversations.saved_folders(run_out)[1:]:
+    for folder in layout.saved_folders(run_out)[1:]:
         if (folder / "stdout.jsonl").is_file():
             markers += invocation.credential_markers("", folder / "stdout.jsonl")
     if markers:
@@ -735,6 +736,18 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             _saved_summary(ctx, grading, provenance, settings, binding, after_assessment),
         )
         layout.write_json(run_out / "grading.json", grading)
+        evidence.write(
+            run_out,
+            evidence.from_live(
+                ctx,
+                grading,
+                run_out,
+                provenance={**provenance, **runner},
+                runtime=settings.runtime,
+                requested_model=settings.model,
+                identity_failure=identity_failure,
+            ),
+        )
         # Drained after grading: a rubric grader's judge call is spend this trial caused.
         judge = records.judge_spend()
         cost = records.trial_cost(trace.total_cost_usd, judge)

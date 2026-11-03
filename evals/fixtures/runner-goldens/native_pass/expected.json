@@ -1,0 +1,85 @@
+{
+  "about": "a native conversation: the initial call fires the skill and dispatches the helper, the resumed call answers the follow-up, and every check passes",
+  "batch": {
+    "batch_stop": null,
+    "cost_known": true,
+    "scenario_stop": null
+  },
+  "live": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "routing fire skill:incident-investigation"
+      },
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "native helper completed exactly once"
+      },
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "parent continued after helper completion"
+      },
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "human follow-up resumed the same session"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": null,
+    "run_end": null,
+    "run_stop": null,
+    "status": "PASS",
+    "summary": {
+      "failed": 0,
+      "passed": 4,
+      "total": 4
+    },
+    "unmeasured": null,
+    "void": null
+  },
+  "regrade": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "routing fire skill:incident-investigation"
+      },
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "native helper completed exactly once"
+      },
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "parent continued after helper completion"
+      },
+      {
+        "kind": "requires",
+        "state": "PASS",
+        "text": "human follow-up resumed the same session"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": null,
+    "run_end": null,
+    "run_stop": null,
+    "status": "PASS",
+    "summary": {
+      "failed": 0,
+      "passed": 4,
+      "total": 4
+    },
+    "unmeasured": null,
+    "void": null
+  },
+  "rules": [
+    3
+  ]
+}

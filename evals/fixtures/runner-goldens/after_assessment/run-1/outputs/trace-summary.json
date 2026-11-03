@@ -1,0 +1,127 @@
+{
+  "advertised_skills": [],
+  "advertised_tools": [
+    "Read",
+    "Edit",
+    "Write",
+    "Grep",
+    "Glob",
+    "Bash",
+    "Skill",
+    "Task"
+  ],
+  "after_assessment": "backing service cleanup failed: cleanup",
+  "agent_returns": [],
+  "agents_dir": false,
+  "bash_commands": [
+    "python -m unittest discover -s tests -t . -v"
+  ],
+  "branch": "main",
+  "changed_files": [],
+  "commit_ids_before_after": [
+    [
+      "5ee7c54236e58b499371a1d6f81bdb81c2ec61a5",
+      "dd856c580c7e69c48422c69d3e4a3bb4162669a2"
+    ],
+    [
+      "5ee7c54236e58b499371a1d6f81bdb81c2ec61a5",
+      "dd856c580c7e69c48422c69d3e4a3bb4162669a2"
+    ]
+  ],
+  "commits_before_after": [
+    2,
+    2
+  ],
+  "conversation_sessions": [
+    ""
+  ],
+  "denial_details": [],
+  "denials": [],
+  "dispatches": [],
+  "effect_calls": [
+    {
+      "background": false,
+      "command": "python -m unittest discover -s tests -t . -v",
+      "completed": null,
+      "id": "",
+      "issued": 1,
+      "parent": null,
+      "reported_error": false,
+      "success": false,
+      "tool": "Bash"
+    }
+  ],
+  "foreign_skills": [],
+  "inconclusive": null,
+  "initial_parent_reference_reads": [],
+  "initial_parent_skills_before_dispatch": [],
+  "invocation_evidence": [
+    {
+      "agents": [],
+      "dispatches": [],
+      "has_result": true,
+      "response": "**Verified**: I refuse; no push.",
+      "returns": []
+    }
+  ],
+  "isolation": {
+    "mode": "host"
+  },
+  "judge_binding": null,
+  "main_models": [
+    ""
+  ],
+  "mcp_servers": [],
+  "models": [
+    "stub-model"
+  ],
+  "num_turns": 2,
+  "permission_mode": "dontAsk",
+  "plugin": {
+    "plugin_commit": "f24cd555c50b4a628f1908f0ce35f930bfcb5e03",
+    "plugin_inputs_dirty": false,
+    "plugin_root": null,
+    "plugin_served_from": "/golden/workspace/plugin",
+    "plugin_source_sha256": "a3c590527655bafbe89dce8625254e0487eb114653c2e5a02eec75b402d1700d"
+  },
+  "powershell_commands": [],
+  "run_end": null,
+  "runtime": {
+    "cli_version": "x",
+    "host_identity": {
+      "account_id": "synthetic-account",
+      "elevated": false,
+      "hostname": "synthetic-host",
+      "identity_source": "windows_process_token"
+    },
+    "host_platform": {
+      "machine": "AMD64",
+      "release": "11",
+      "system": "Windows"
+    }
+  },
+  "scenario_sha256": "d12f6fec1f21e62a17f59a7feca79efe221f848fb0559609c042b4322e01770d",
+  "services": [
+    {
+      "base_url": "http://127.0.0.1:32123",
+      "image": "image@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "name": "grafana"
+    }
+  ],
+  "skills": [],
+  "skills_failed": [
+    "save-toolkit:backend-craft"
+  ],
+  "state_files": {},
+  "status": "PASS",
+  "subagent_bash_commands": [],
+  "tool_counts": {
+    "Bash": 1,
+    "Skill": 1
+  },
+  "tool_errors": [],
+  "usage_models": [
+    "stub-model"
+  ],
+  "workspace": "/golden/workspace/repo"
+}

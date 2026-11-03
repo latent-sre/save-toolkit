@@ -29,13 +29,14 @@ import yaml
 from . import constants
 from .constants import EVALS_DIR, PACKAGE_DIR, ROOT
 
-# Every file whose code grades a trial. The package is globbed, so a module added to it is bound the
-# moment it exists; a hand-kept list could leave one out of the identity without anyone noticing.
+# Every file whose code grades a trial. The package is globbed, sub-packages included, so a module
+# added anywhere in it is bound the moment it exists; a hand-kept list could leave one out of the
+# identity without anyone noticing.
 HARNESS_FILES = tuple(
     Path(path).resolve()
     for path in (
         EVALS_DIR / "build_probe.py",
-        *sorted(PACKAGE_DIR.glob("*.py")),
+        *sorted(PACKAGE_DIR.rglob("*.py")),
         fleet_graders.__file__,
         rubric_judge.__file__,
         clean_room.__file__,

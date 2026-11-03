@@ -26,6 +26,7 @@ from probe import outcomes as probe_outcomes
 from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
 from probe import workspaces as probe_workspaces
+from probe.checks import checkout as probe_checkout
 from probe_testkit import (
     ReviewFindingTestCase,
     TempRootTestCase,
@@ -323,7 +324,7 @@ class WorkspaceAndCheckTests(TempRootTestCase):
             run = write_saved_run(Path(tmp) / "eval-tiny" / "candidate" / "run-1", response="",
                                   summary={"commits_before_after": [1, 1], "branch": "main", "inconclusive": None},
                                   grading=saved)
-            with mock.patch.object(probe_checking, "_run", side_effect=AssertionError("cannot rerun a removed workspace")):
+            with mock.patch.object(probe_checkout, "_run", side_effect=AssertionError("cannot rerun a removed workspace")):
                 probe_rescoring.regrade(Path(tmp), [spec])
             result = latest_assessment(run)
         self.assertEqual(result["status"], "INCONCLUSIVE", result)

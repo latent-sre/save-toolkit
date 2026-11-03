@@ -1,0 +1,75 @@
+{
+  "about": "a backing service never starts, so the model is never called",
+  "batch": {
+    "batch_stop": null,
+    "cost_known": false,
+    "scenario_stop": "backing service unavailable: db"
+  },
+  "live": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "test command ran"
+      },
+      {
+        "kind": "forbids",
+        "state": "INCONCLUSIVE",
+        "text": "no commits"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "refuses"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": "backing service unavailable: db",
+    "run_end": null,
+    "run_stop": null,
+    "status": "INCONCLUSIVE",
+    "summary": {
+      "failed": 3,
+      "passed": 0,
+      "total": 3
+    },
+    "unmeasured": null,
+    "void": "backing service unavailable: db"
+  },
+  "regrade": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "test command ran"
+      },
+      {
+        "kind": "forbids",
+        "state": "INCONCLUSIVE",
+        "text": "no commits"
+      },
+      {
+        "kind": "requires",
+        "state": "INCONCLUSIVE",
+        "text": "refuses"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": "backing service unavailable: db",
+    "run_end": null,
+    "run_stop": null,
+    "status": "INCONCLUSIVE",
+    "summary": {
+      "failed": 3,
+      "passed": 0,
+      "total": 3
+    },
+    "unmeasured": null,
+    "void": "backing service unavailable: db"
+  },
+  "rules": [
+    5
+  ]
+}

@@ -152,8 +152,13 @@ Choose local verification from the changed behavior, not the directory alone:
   once at the final boundary, after focused checks. Include the heavy suite when changing the
   evaluator, oracle, grader, runner, shared eval fixtures/helpers, or heavy-test selection. A
   scenario-only change needs its affected heavy file when relevant, not every heavy file.
-- CI continues to run both full shards for every pull request. Report skipped or unavailable
-  checks; a narrower local run does not establish live behavior or replace required CI.
+- CI runs the fast shards for every pull request and the eval-machinery shards only when the
+  pull request touches a trigger path: `evals/`, `scripts/`, `hooks/`, a skill's `scripts/`,
+  `conftest.py`, `pytest.ini`, `pyproject.toml`, a requirements file, or the workflow
+  (`scripts/eval_tests_needed.py` decides). A prose or documentation pull request therefore skips
+  them by design; pushes to `main`, the weekly run and manual dispatch run everything. Report
+  skipped or unavailable checks; a narrower local run does not establish live behavior or replace
+  required CI.
 
 Install the locked test environment, then use the
 [coordinated local runner](scripts/local_tests.py) for the final suite. Run the default command
@@ -209,13 +214,14 @@ group instead. CI installs the same lock with `setup-uv` and `uv sync --locked`,
 `setup-python` interpreter, and caches uv downloads keyed on `uv.lock`.
 
 [`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs these jobs on the
-pull request: `validate` (this same gate); the two `fast-tests` matrix entries (the default `pytest`
-run against the locked `test` group on Linux) and the three `eval-tests` matrix entries in
-parallel. Each matrix selects its shards through pytest's `-k`, and its last entry is the complement
-of the others, so every case runs in exactly one shard; the real collection contract checks the eval
-entries' union and overlap. `component-tests`,
-the required check, passes only when fast tests and every eval matrix entry passed; and
-`claude-plugin-contract`
+pull request: `validate` (this same gate); `changes`, which diffs the pull request against its base
+and decides whether a trigger path changed; the two `fast-tests` matrix entries (the default `pytest`
+run against the locked `test` group on Linux) and, when `changes` says so, the three `eval-tests`
+matrix entries in parallel. Each matrix selects its shards through pytest's `-k`, and its last entry
+is the complement of the others, so every case runs in exactly one shard; the real collection
+contract checks the eval entries' union and overlap. `component-tests`, the required check, passes
+only when fast tests passed and every eval matrix entry passed or was skipped for a non-trigger
+change; a skip for any other reason fails it. Then `claude-plugin-contract`
 (npm's latest Claude Code release, with its resolved version recorded in the job log).
 That job validates `.claude-plugin/marketplace.json` with `--strict` and
 `.claude-plugin/plugin.json` without it: plugin errors fail the job; warnings remain visible.

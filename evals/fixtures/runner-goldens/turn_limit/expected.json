@@ -1,0 +1,55 @@
+{
+  "about": "the CLI ends the session at the declared turn limit; unmet requirements fail",
+  "batch": {
+    "batch_stop": null,
+    "cost_known": false,
+    "scenario_stop": null
+  },
+  "live": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "FAIL",
+        "text": "says deploy"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": null,
+    "run_end": "turn_limit",
+    "run_stop": null,
+    "status": "FAIL",
+    "summary": {
+      "failed": 1,
+      "passed": 0,
+      "total": 1
+    },
+    "unmeasured": null,
+    "void": null
+  },
+  "regrade": {
+    "after_assessment": null,
+    "expectations": [
+      {
+        "kind": "requires",
+        "state": "FAIL",
+        "text": "says deploy"
+      }
+    ],
+    "grader_error": null,
+    "inconclusive": null,
+    "run_end": "turn_limit",
+    "run_stop": null,
+    "status": "FAIL",
+    "summary": {
+      "failed": 1,
+      "passed": 0,
+      "total": 1
+    },
+    "unmeasured": null,
+    "void": null
+  },
+  "rules": [
+    4
+  ]
+}

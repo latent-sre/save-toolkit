@@ -27,6 +27,40 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   ([decision](docs/decisions/2026-11-02-uv-project-lockfile.md)). The project environment re-resolved to
   current releases; Harbor, the SWT runtime and the sandboxes keep their contract pins, the Harbor set
   installs again, and the SWE-bench, SWT and Harbor adapter identities now hash the manifest and lock.
+- The check registry is the `probe/checks/` package: the registry and one module per domain
+  (checkout, text, changes, services, trace, state, graders), each declaration saying whether it
+  is a check or a probe; `probe/checking.py` is a facade that keeps every name importable. The
+  catalog and the conversation validator share a `specs` leaf instead of importing each other, a
+  saved run's folders are read through `layout`, and the runner identity binds the sub-package
+  (stage 2 of the runner rewrite, RUNNER-001).
+- Each graded attempt writes `evidence.json`, the evidence-v1 record of what it observed and no
+  verdict, validated by `probe.evidence.EvidenceV1` and published as
+  `docs/fleet-evaluation/eval-evidence-v1.schema.json` (`build_probe.py schema --model evidence`);
+  a written regrade of an older run writes the evidence `probe.legacy` reads back beside its
+  assessment. The regrade's reconstruction moved into `legacy` unchanged (stage 1 of the runner
+  rewrite, RUNNER-001).
+- The golden saved runs gain three native conversations (a pass, a resumed call under the wrong
+  session, a follow-up cut short) and a batch view per case recording what the result row tells the
+  batch under rules 1, 5, 6 and 7; a written regrade is proved to land beside the original (rule 8).
+  The native conversation stub moves into the probe test kit (stage 0 follow-up, RUNNER-001).
+- The result rules of the 2026-10-03 eval-harness decision record have their own heading and, by
+  owner amendment, name what a backing service that never starts, a grading-machinery failure and a
+  cleanup failure after grading record; the runner-rewrite record carries the owner's decisions on
+  the evidence artifact, the shadow gate, stage 5 and runner identity (RUNNER-001).
+- Golden saved runs for the eval runner: one stub-driven attempt per threat-model result rule and
+  run ending under `evals/fixtures/runner-goldens`, with the verdict views a regrade and a fresh trial
+  must reproduce (stage 0 of the runner rewrite, RUNNER-001).
+- The scenario loader parses with libyaml's C loader and the catalog CLI parses each scenario once;
+  a full load drops from 1.4 s to 0.2 s and the scenario-heavy fast tests run about three times faster.
+- The Inspect pilot tests join the heavy set, so the fast shards no longer import `inspect_ai`
+  in every collecting worker.
+- Test HTTP servers, the SWE-bench proxy and the runner's backing services shut down on a 10 ms
+  poll instead of the 500 ms default; the proxy tests drop from 36 s to 2 s.
+- CI skips the eval-machinery shards on a pull request that touches only documentation or agent and
+  skill prose; `scripts/eval_tests_needed.py` names the trigger paths and `CONTRIBUTING.md` the rule.
+- Trim the eval self-tests: the GCP grader-mechanics checks run on the 11-family pilot instead of
+  all 31 families, the python-craft exit cross-products become diagonals, and the webhook oracle's
+  test allowances shrink so a non-recovering mutant fails in ten seconds rather than twenty.
 - Cut `AGENTS.md` to its map, three enforcement bullets, three conventions and the hard rule; rules the
   README, `CONTRIBUTING.md` and agent bodies already carry leave it, and the labels-in-transit clause
   leaves it and `helper-exchange.md` (LABELS-001 tracks the rest); the postmortem method now says the

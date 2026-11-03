@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "text": "an unbalanced pattern",
+      "passed": false,
+      "evidence": "INCONCLUSIVE: grader error: PatternError('missing ), unterminated subpattern at position 0')",
+      "state": "INCONCLUSIVE",
+      "kind": "requires",
+      "id": "1414ad68a66b75d2e73d7057591efa56c9a459b48c468c4e123e28f3f8075d3c:0"
+    }
+  ],
+  "judge_binding": null,
+  "response_sha256": "859ee6beabba29b430a62c17ae090ccc29af5c45350c0c34463899862c6bf3be",
+  "scenario_sha256": "1414ad68a66b75d2e73d7057591efa56c9a459b48c468c4e123e28f3f8075d3c",
+  "inconclusive": "grader error: PatternError('missing ), unterminated subpattern at position 0')",
+  "grader_error": "grader error: PatternError('missing ), unterminated subpattern at position 0')",
+  "summary": {
+    "passed": 0,
+    "failed": 1,
+    "total": 1,
+    "pass_rate": 0.0
+  },
+  "status": "INCONCLUSIVE"
+}
