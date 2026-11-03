@@ -118,7 +118,10 @@ files, as part of EVAL-011's runner sequence; WP-01 reads only this format. It i
 the runner already holds, not a new evidence store, and its exact field names are fixed in the
 runner change that implements it. Those names are published as a JSON Schema,
 [`eval-record-v1.schema.json`](eval-record-v1.schema.json), generated from the runner's record model,
-which validates every record before it is written.
+which validates every record before it is written. This schema and the evidence schema below publish
+field names and types; the models are stricter in one way JSON Schema cannot express: an integer
+field refuses a number written with a fraction part, such as `5.0`, which a JSON Schema validator
+accepts as an integer. The runner never writes one, and a value is never coerced into place.
 
 | Group | Fields |
 |---|---|

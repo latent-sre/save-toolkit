@@ -33,6 +33,7 @@ from probe import constants as probe_constants
 from probe import engine as probe_engine
 from probe import fingerprints as probe_fingerprints
 from probe import invocation as probe_invocation
+from probe import layout as probe_layout
 from probe import outcomes as probe_outcomes
 from probe import records as probe_records
 from probe import rescoring as probe_rescoring
@@ -916,6 +917,49 @@ class EndToEndStubTests(TempRootTestCase):
                                                "--scenario", "tiny", "--trials", "2")
         self.assertEqual((2, [("tiny", 1)]), (code, calls))
         self.assertIn("stopped after plugin inputs could not be measured", printed)
+
+    def test_a_slot_that_already_exists_is_refused_before_any_trial(self) -> None:
+        """A rerun onto a label's existing slot crashed with a traceback, exit 1, a FAIL batch's code,
+        and an offset that reached an existing slot did so after paying for the trials before it. Every
+        planned slot is checked before the first trial: a refused job (3) that runs nothing."""
+        out = self.root / "slots"
+        code, calls, _ = self._batch(out, stub_cli(self.root), [stub_spec()], "--scenario", "tiny")
+        self.assertEqual((0, [("tiny", 1)]), (code, calls))
+        for extra in ((), ("--trials", "2", "--run-offset", "0")):
+            with self.subTest(extra=extra), contextlib.redirect_stderr(io.StringIO()) as err:
+                code, calls, _ = self._batch(out, stub_cli(self.root), [stub_spec()], "--scenario", "tiny", *extra)
+                self.assertEqual((3, []), (code, calls))
+                self.assertIn("run-1 already exists; pass --overwrite or a --run-offset", err.getvalue())
+        with contextlib.redirect_stderr(io.StringIO()):
+            code, calls, _ = self._batch(out, stub_cli(self.root), [stub_spec()], "--scenario", "tiny",
+                                         "--run-offset", "1")
+        self.assertEqual((0, [("tiny", 2)]), (code, calls))
+
+    def test_a_summary_cut_short_is_refused_before_any_trial_and_is_never_left_cut(self) -> None:
+        """A summary cut mid-write (a full disk, a kill) crashed a resume with a JSONDecodeError
+        traceback, exit 1. The label's earlier verdicts cannot be read, so the append is refused (3);
+        and the summary is replaced whole, never rewritten in place, so a failed write leaves the old one."""
+        out = self.root / "cut"
+        out.mkdir()
+        summary = out / "summary-l-default.json"
+        summary.write_text('[\n  {\n    "scenario": "tiny",', encoding="utf-8")
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            code, calls, _ = self._batch(out, stub_cli(self.root), [stub_spec()], "--scenario", "tiny",
+                                         "--run-offset", "1")
+        self.assertEqual((3, []), (code, calls))
+        self.assertIn("cannot read the label's summary", err.getvalue())
+        summary.write_text("[]", encoding="utf-8")
+
+        def disk_fills(path: Path, text: str, **_: object) -> int:
+            with open(path, "w", encoding="utf-8") as handle:  # truncates, as a real write does
+                handle.write(text[: len(text) // 2])
+            raise OSError(28, "No space left on device")
+
+        with mock.patch.object(probe_layout.Path, "write_text", autospec=True, side_effect=disk_fills), \
+                self.assertRaises(OSError):
+            probe_layout.write_json(summary, [{"scenario": "tiny", "status": "PASS"}], atomic=True)
+        self.assertEqual("[]", summary.read_text(encoding="utf-8"))
+        self.assertEqual([summary], list(out.glob("*summary*")))
 
     def test_a_plugin_root_that_is_not_a_git_checkout_is_refused_before_any_trial(self) -> None:
         """A plugin root outside git has no commit to bind a run to. The batch stopped on a traceback,

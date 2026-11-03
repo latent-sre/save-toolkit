@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import os
 from pathlib import Path
 from typing import Any
@@ -72,7 +71,9 @@ class SummaryFile:
     async def add(self, entry: dict[str, Any]) -> None:
         async with self._lock:
             self.results.append(entry)
-            layout.write_json(self.path, batches.merge_summary_entries(self.existing, self.results), ascii_only=True)
+            layout.write_json(
+                self.path, batches.merge_summary_entries(self.existing, self.results), ascii_only=True, atomic=True
+            )
 
 
 def _chosen(
@@ -241,7 +242,7 @@ def native_scenarios(
     if frozen is not None:
         selection.retain(out_dir, frozen)
     summary_path = out_dir / f"summary-{label}-{claude_model or 'default'}.json"
-    existing = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else []
+    existing = batches.read_summary(summary_path)
     replaced = {(spec["id"], label, run_offset + slot) for spec in chosen for slot in range(1, epochs + 1)}
     retained = [entry for entry in existing if not overwrite or layout.run_key(entry) not in replaced]
     problem = batches.batch_identity_problem(

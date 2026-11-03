@@ -20,6 +20,7 @@ saved JSON file through `write_json`.
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Iterator, Mapping
 from pathlib import Path
@@ -128,9 +129,20 @@ def read_object(path: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
-def write_json(path: Path, value: object, *, ascii_only: bool = False) -> None:
-    """Save a JSON file as the runner writes every one: indented, UTF-8."""
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=ascii_only), encoding="utf-8")
+def write_json(path: Path, value: object, *, ascii_only: bool = False, atomic: bool = False) -> None:
+    """Save a JSON file as the runner writes every one: indented, UTF-8. `atomic` replaces the file
+    whole, for one rewritten in place (a batch summary): a write cut short by a full disk or a kill
+    leaves the previous file, never a truncated one."""
+    text = json.dumps(value, indent=2, ensure_ascii=ascii_only)
+    if not atomic:
+        path.write_text(text, encoding="utf-8")
+        return
+    partial = path.with_name(f".{path.name}.partial")
+    try:
+        partial.write_text(text, encoding="utf-8")
+        os.replace(partial, path)
+    finally:
+        partial.unlink(missing_ok=True)
 
 
 def saved_folders(run: Path) -> list[Path]:

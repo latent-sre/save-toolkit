@@ -558,7 +558,25 @@ def _plan(
         )
     out.mkdir(parents=True, exist_ok=True)
     summary_path = out / f"summary-{args.label}-{args.model or 'default'}.json"
-    existing = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else []
+    try:
+        existing = batches.read_summary(summary_path)
+    except ValueError as exc:
+        print(f"refusing to run: {exc}", file=sys.stderr)
+        return ExitCode.REFUSED
+    if not args.overwrite:
+        # Every planned slot, before the first trial: a slot found taken mid-batch was paid for up to it.
+        taken = next(
+            (
+                target
+                for s in scenarios
+                for i in range(args.trials)
+                if (target := layout.run_dir(out, s["id"], args.label, args.run_offset + i + 1)).exists()
+            ),
+            None,
+        )
+        if taken is not None:
+            print(f"refusing to run: {taken} already exists; pass --overwrite or a --run-offset", file=sys.stderr)
+            return ExitCode.REFUSED
     replaced = {(s["id"], args.label, args.run_offset + i + 1) for s in scenarios for i in range(args.trials)}
     retained = [e for e in existing if not args.overwrite or layout.run_key(e) not in replaced]
     settings = trials.BatchSettings(
@@ -649,7 +667,10 @@ def _schedule(batch: Batch) -> Scheduled:
                 blocked = f"plugin inputs could not be measured: {exc}"
                 break
             layout.write_json(
-                batch.summary_path, batches.merge_summary_entries(batch.existing, results), ascii_only=True
+                batch.summary_path,
+                batches.merge_summary_entries(batch.existing, results),
+                ascii_only=True,
+                atomic=True,
             )
             machinery = results[-1].get("grader_error") or results[-1].get("service_error")
             if machinery:
@@ -663,7 +684,7 @@ def _schedule(batch: Batch) -> Scheduled:
         release_sleep_hold()
         # Written even when a trial raised: every trial that finished was paid for and stays counted.
         merged = batches.merge_summary_entries(batch.existing, results)
-        layout.write_json(batch.summary_path, merged, ascii_only=True)
+        layout.write_json(batch.summary_path, merged, ascii_only=True, atomic=True)
     return Scheduled(results, merged, blocked, auth_failed, machinery_stopped)
 
 

@@ -10,12 +10,31 @@ import json
 import math
 from collections.abc import Mapping
 from fractions import Fraction
+from pathlib import Path
 from typing import Any
 
 import judge as rubric_judge
 
 from . import catalog, fingerprints, layout
 from .outcomes import State
+
+
+def read_summary(path: Path) -> list[dict[str, Any]]:
+    """A label's batch summary, or none before its first trial. One that cannot be read, such as a
+    file cut short by a crash before summaries were replaced whole, raises ValueError: the label's
+    earlier verdicts would go uncounted, so a batch must not append to it."""
+    if not path.exists():
+        return []
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+            raise ValueError("not a list of result rows")
+    except (OSError, ValueError) as exc:
+        raise ValueError(
+            f"cannot read the label's summary {path}: {exc}; its saved runs are intact, but its earlier "
+            "verdicts cannot be counted: restore the summary or use a new label"
+        ) from exc
+    return rows
 
 
 def merge_summary_entries(existing: list[dict[str, Any]], updates: list[dict[str, Any]]) -> list[dict[str, Any]]:

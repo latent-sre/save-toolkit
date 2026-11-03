@@ -8,6 +8,14 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Fixed
 
+- Two batch failures that predate the runner rewrite, each with a test that failed first. A rerun onto
+  a label's existing slot crashed with a traceback and exit 1, a FAIL batch's code, and an offset that
+  reached a taken slot did so after paying for the trials before it; every planned slot is now checked
+  before the first trial, and a taken one refuses the job (exit 3). A batch summary cut short by a full
+  disk or a kill crashed the next resume the same way; the summary is now replaced whole, never
+  rewritten in place, and one that cannot be read refuses the append (exit 3), in the native batch and
+  the Inspect batch alike. The record and evidence models' refusal of an integer written as `5.0`,
+  which their JSON Schemas accept, is documented in `contracts.md` and pinned by a test.
 - The first of three bug passes over the runner rewrite (PRs #460 to #470) found thirteen defects the
   pull requests introduced, each fixed with a test that failed first (RUNNER-001):
   - a run the CLI ends at its declared turn limit grades its `tool_call_count` checks again: the CLI's
