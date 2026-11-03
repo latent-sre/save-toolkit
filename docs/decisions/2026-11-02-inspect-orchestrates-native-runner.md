@@ -48,11 +48,13 @@ name what Inspect replaces, with the replacement inventory the specification req
 
 ## Consequences
 
-Inspect's concurrency, sample limits, `.eval` log and viewer apply to fleet regressions today with
-no change to what is measured. Grading parity is by construction and is tested offline by faking
-`run_trial` where the native tests fake it. Operational parity (timeouts, cost accounting, host load
-under parallel trials) is not established until EVAL-016, so the documented default is one sample
-at a time.
+Inspect's sample queue, limits, `.eval` log and viewer apply to fleet regressions today with no
+change to what is measured. Trials stay serial: the judge's spend accumulator is process-wide, so
+the task holds one lock around every trial, and under that lock it applies the native stop rules
+(an identity failure or failed cleanup stops the batch, a failed grader stops its scenario). Grading
+parity is by construction and is tested offline by faking `run_trial` where the native tests fake
+it. Operational parity (timeouts, cost accounting) is not established until EVAL-016, and
+concurrent trials wait for per-trial judge spend accounting in the native runner.
 
 Two paths publish into the same layout for the duration, which the specification allows only with
 a named consumer and an end: the consumer is the parity comparison, the end is EVAL-016's

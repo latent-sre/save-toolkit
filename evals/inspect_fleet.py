@@ -4,9 +4,10 @@ One sample is one native scenario and one epoch is one trial slot. The solver ca
 `probe.trials.run_trial` exactly as `build_probe.py run` does, so each attempt is published under
 the iteration directory in the same layout, with the same record, provenance, judge binding and
 batch summary file, and the scorer reports the verdict `run_trial` returned. Nothing is graded twice
-or differently: grading parity with the native batch is by construction. Inspect adds concurrency
-(`--max-samples`), the `.eval` log and `inspect view`. Build probes and native conversations stay
-with `build_probe.py` in this cut.
+or differently: grading parity with the native batch is by construction. Inspect adds the sample
+queue, its limits, the `.eval` log and `inspect view`; trials themselves run one at a time and the
+native stop rules hold between them (see `native_trial`). Build probes and native conversations
+stay with `build_probe.py` in this cut.
 
 Run with `--model none`: the Claude CLI authenticates itself inside the clean room and Inspect's
 model API is not involved. `build_probe.py regrade <out>` remains the per-scenario verdict with
@@ -105,24 +106,49 @@ def _chosen(
     return [spec for spec in chosen if scenarios.scenario_kind(spec) in SUPPORTED_KINDS]
 
 
+class BatchState:
+    """What the native batch loop carries between trials: one trial at a time, a batch-wide stop,
+    and the scenarios whose grading machinery failed."""
+
+    def __init__(self) -> None:
+        self.lock = asyncio.Lock()
+        self.stopped: str | None = None
+        self.machinery_stopped: dict[str, str] = {}
+
+
 @solver
 def native_trial(
     settings: native_trials.BatchSettings,
     specs: dict[str, dict[str, Any]],
     run_offset: int,
     summary: SummaryFile,
+    batch: BatchState,
 ) -> Solver:
     """Run the native trial for this sample's scenario in this epoch's slot and keep its summary."""
 
     async def solve(state: TaskState, generate: Generate) -> TaskState:
         spec = specs[str(state.sample_id)]
         run_number = run_offset + state.epoch
-        # The trial is the same blocking call the native batch makes; a worker thread keeps Inspect's
-        # loop free to run other samples up to --max-samples. AuthUnavailable and MeasuredInputRefused
-        # propagate: Inspect records the sample error and, with its default fail_on_error, stops the
-        # eval, as the native batch stops.
-        result = await asyncio.to_thread(native_trials.run_trial, spec, run_number=run_number, settings=settings)
-        await summary.add(result)
+        # Trials run one at a time whatever --max-samples says: the judge's spend accumulator is
+        # process-wide and run_trial drains it after grading, so overlapping trials would book one
+        # trial's judge calls to another. Under the same lock the native batch's stop rules apply
+        # before a trial starts: an identity failure or a failed environment cleanup stopped the
+        # batch, and a scenario whose grading machinery failed is not run again. AuthUnavailable and
+        # MeasuredInputRefused propagate: Inspect records the sample error and, with its default
+        # fail_on_error, stops the eval, as the native batch stops.
+        async with batch.lock:
+            if batch.stopped:
+                raise RuntimeError(f"native batch stopped: {batch.stopped}")
+            reason = batch.machinery_stopped.get(spec["id"])
+            if reason:
+                state.store.set("native_skipped", f"grading machinery failed: {reason}")
+                return state
+            result = await asyncio.to_thread(native_trials.run_trial, spec, run_number=run_number, settings=settings)
+            await summary.add(result)
+            machinery = result.get("grader_error") or result.get("service_error")
+            if machinery:
+                batch.machinery_stopped[spec["id"]] = str(machinery)
+            batch.stopped = native_cli._stop_after(result, None)
         state.store.set("native_summary", result)
         models = result.get("models") or []
         state.output = ModelOutput.from_content(
@@ -139,6 +165,9 @@ def native_verdict() -> Scorer:
     """The verdict the native trial returned: PASS is correct, FAIL incorrect, INCONCLUSIVE no answer."""
 
     async def score(state: TaskState, target: Target) -> Score:
+        skipped = state.store.get("native_skipped")
+        if skipped:
+            return Score(value=NOANSWER, answer=None, explanation=f"not run: {skipped}")
         result = state.store.get("native_summary")
         if not isinstance(result, dict):
             return Score(value=NOANSWER, answer=None, explanation="the native trial did not run")
@@ -220,6 +249,18 @@ def native_scenarios(
     )
     if problem:
         raise ValueError(f"existing trials under this label cannot pool with this batch: {problem}")
+    selected_ids = {spec["id"] for spec in chosen}
+    failed = next(
+        (
+            entry["identity_failure"]
+            for entry in retained
+            if entry.get("scenario") in selected_ids and entry.get("identity_failure")
+        ),
+        None,
+    )
+    if failed:
+        # WP-02's rule, as the native batch applies it: an append to the label must not run past one.
+        raise ValueError(f"an earlier trial failed its identity check: {failed}; overwrite that run or use a new label")
 
     settings = native_trials.BatchSettings(
         plugin_root=root,
@@ -252,7 +293,11 @@ def native_scenarios(
     return Task(
         dataset=MemoryDataset(samples, name=f"native-{label}"),
         solver=native_trial(
-            settings, {spec["id"]: spec for spec in chosen}, run_offset, SummaryFile(summary_path, existing)
+            settings,
+            {spec["id"]: spec for spec in chosen},
+            run_offset,
+            SummaryFile(summary_path, existing),
+            BatchState(),
         ),
         scorer=native_verdict(),
         epochs=epochs,

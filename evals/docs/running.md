@@ -181,7 +181,7 @@ modernization work are in [Python and eval modernization](../../docs/python-eval
 Inspect AI with the native trial unchanged: one sample per scenario, one epoch per trial slot, and
 `probe.trials.run_trial` publishing each attempt under `-T out=` exactly as `build_probe.py run`
 does, record, provenance, judge binding and the batch summary file included. The scorer reports the
-verdict the trial returned; nothing is graded twice. Inspect adds concurrency (`--max-samples`), the
+verdict the trial returned; nothing is graded twice. Inspect adds the sample queue, its limits, the
 `.eval` log and `inspect view`. Build probes and native conversations stay with `build_probe.py`.
 
 ```powershell
@@ -200,7 +200,10 @@ model API, pricing and cost limits do not apply. The `-T` options mirror `build_
 narrowed. The per-scenario verdict with thresholds is `build_probe.py regrade` over the published
 runs, for this path and the native batch alike; Inspect's accuracy metric is a mean over trials. The
 native batch spend cap (`--max-batch-usd`) exists only on the native CLI; the per-invocation cap
-passes through as `-T max_invocation_usd=`. Start with `--max-samples 1`: the native batch runs
-trials one at a time, and parallel trials are a different load on the host and the account until the
-[parity run](../../docs/fleet-evaluation/run-plan-inspect-native-parity.md) says otherwise. The
-native CLI remains the documented entry point and the acceptance reference.
+passes through as `-T max_invocation_usd=`. Trials run one at a time whatever `--max-samples`
+says: the judge's spend accumulator is process-wide and each trial drains it after grading, so
+overlapping trials would book one trial's judge calls to another. The native stop rules hold between
+trials: an identity failure or a failed environment cleanup stops the batch (later samples end in
+error), and a scenario whose grading machinery failed is not run again (its later slots score as
+not run). The [parity run](../../docs/fleet-evaluation/run-plan-inspect-native-parity.md) compares
+the two paths; the native CLI remains the documented entry point and the acceptance reference.

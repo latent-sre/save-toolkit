@@ -5,7 +5,9 @@ native preflight is scripted, so the suite runs on any account. Live parity with
 is the separate run plan, not these tests.
 """
 
+import itertools
 import json
+import time
 from pathlib import Path
 
 import clean_room
@@ -97,8 +99,7 @@ def scripted_trial(calls, statuses):
         return {"scenario": spec["id"], "label": settings.label, "run": run_number, "status": status,
                 "passed": passed, "total": 1, "models": ["claude-sonnet-5-5"], "seconds": 1.5,
                 "known_cost_usd": 0.01, "cost_complete": True, "plugin_source_sha256": "f" * 64,
-                "runner_source_sha256": "a" * 64, "scenario_sha256": "b" * 64,
-                **({"grader_error": "judge down"} if status == "INCONCLUSIVE" else {})}
+                "runner_source_sha256": "a" * 64, "scenario_sha256": "b" * 64}
 
     return run_trial
 
@@ -124,7 +125,7 @@ def test_each_sample_runs_once_per_epoch_through_the_native_trial(preflight, mon
     scores = {(sample.id, sample.epoch): sample.scores["native_verdict"] for sample in logs[0].samples}
     assert scores[(first, 1)].value == "C" and scores[(first, 1)].answer == "PASS"
     assert scores[(first, 2)].value == "I" and scores[(first, 2)].answer == "FAIL"
-    assert scores[(second, 1)].value == "N" and scores[(second, 1)].explanation == "judge down"
+    assert scores[(second, 1)].value == "N" and scores[(second, 1)].answer == "INCONCLUSIVE"
     assert scores[(first, 1)].metadata["known_cost_usd"] == 0.01 and scores[(first, 1)].metadata["run"] == 1
     rows = json.loads((out / "summary-cand-sonnet.json").read_text(encoding="utf-8"))
     assert sorted((row["scenario"], row["run"], row["status"]) for row in rows) == [
@@ -160,3 +161,66 @@ def test_the_runner_is_registered_for_discovery():
     assert track["entrypoints"] == ["evals/inspect_fleet.py"] and "inspect" in track["suites"]
     suite = json.loads((root / "evals/suites/inspect.json").read_text(encoding="utf-8"))
     assert "evals/test_inspect_fleet.py" in suite["tests"]
+
+
+def test_trials_never_overlap_whatever_max_samples_says(preflight, monkeypatch, tmp_path):
+    """The judge's spend accumulator is process-wide, so the task serializes trials itself."""
+    windows = []
+
+    def slow_trial(spec, *, run_number, settings):
+        start = time.monotonic()
+        time.sleep(0.05)
+        windows.append((start, time.monotonic()))
+        return {"scenario": spec["id"], "label": "l", "run": run_number, "status": "PASS", "passed": 1, "total": 1,
+                "models": ["m"]}
+
+    task = inspect_fleet.native_scenarios(label="l", out=str(tmp_path / "it"))
+    monkeypatch.setattr(probe_trials, "run_trial", slow_trial)
+    logs = inspect_eval(task, model="none", limit=4, log_dir=str(tmp_path / "logs"), display="none", max_samples=4)
+    assert logs[0].status == "success" and len(windows) == 4
+    ordered = sorted(windows)
+    assert all(previous_end <= next_start for (_, previous_end), (next_start, _) in itertools.pairwise(ordered))
+
+
+def test_a_grading_machinery_failure_stops_that_scenario_only(preflight, monkeypatch, tmp_path):
+    calls = []
+
+    def broken_grader(spec, *, run_number, settings):
+        calls.append((spec["id"], run_number))
+        return {"scenario": spec["id"], "label": "l", "run": run_number, "status": "INCONCLUSIVE", "passed": 0,
+                "total": 1, "models": ["m"], "grader_error": "judge down"}
+
+    task = inspect_fleet.native_scenarios(label="l", out=str(tmp_path / "it"), trials=2)
+    monkeypatch.setattr(probe_trials, "run_trial", broken_grader)
+    logs = inspect_eval(task, model="none", limit=1, log_dir=str(tmp_path / "logs"), display="none", max_samples=1)
+    assert logs[0].status == "success"
+    assert len(calls) == 1, "the second slot of a scenario whose grader failed is not run"
+    scores = sorted(((sample.scores["native_verdict"].answer, sample.scores["native_verdict"].explanation)
+                     for sample in logs[0].samples), key=lambda pair: pair[1])
+    assert scores == [("INCONCLUSIVE", "judge down"), (None, "not run: grading machinery failed: judge down")]
+
+
+def test_an_identity_failure_stops_the_batch(preflight, monkeypatch, tmp_path):
+    calls = []
+
+    def wrong_candidate(spec, *, run_number, settings):
+        calls.append(spec["id"])
+        return {"scenario": spec["id"], "label": "l", "run": run_number, "status": "INCONCLUSIVE", "passed": 0,
+                "total": 1, "models": ["m"], "identity_failure": "plugin source changed"}
+
+    task = inspect_fleet.native_scenarios(label="l", out=str(tmp_path / "it"))
+    monkeypatch.setattr(probe_trials, "run_trial", wrong_candidate)
+    logs = inspect_eval(task, model="none", limit=2, log_dir=str(tmp_path / "logs"), display="none", max_samples=1)
+    assert logs[0].status == "error" and "native batch stopped" in str(logs[0].error)
+    assert len(calls) == 1, "nothing runs after an identity failure"
+
+
+def test_a_retained_identity_failure_refuses_an_append(preflight, monkeypatch, tmp_path):
+    out = tmp_path / "it"
+    out.mkdir()
+    first = inspect_fleet.native_scenarios(label="probe", out=str(tmp_path / "other")).dataset[0].id
+    (out / "summary-l-default.json").write_text(json.dumps(
+        [{"scenario": first, "label": "l", "run": 1, "status": "INCONCLUSIVE", "identity_failure": "plugin source changed"}]))
+    monkeypatch.setattr(probe_batches, "batch_identity_problem", lambda *args: None)
+    with pytest.raises(ValueError, match="earlier trial failed its identity check"):
+        inspect_fleet.native_scenarios(label="l", out=str(out))

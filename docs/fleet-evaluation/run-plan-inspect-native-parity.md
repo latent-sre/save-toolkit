@@ -58,9 +58,9 @@ A matching result does not accept any candidate; it accepts the orchestration as
    from each `summary-*.json`, and every INCONCLUSIVE reason. Record the Inspect log's sample
    errors, if any, and the native batch's stop reason, if any.
 
-6. Optional second Inspect arm with `--max-samples 4` on the same selection, labelled
-   `inspect-parallel`, to measure what concurrency changes on this host and account. Keep it
-   separate; it is not part of the equivalence claim.
+6. `--max-samples` above 1 changes only Inspect's bookkeeping: the task runs trials one at a time
+   because the native judge spend accounting is process-wide. A concurrency arm belongs to a later
+   plan, after that accounting is per trial.
 
 ## Acceptance
 
