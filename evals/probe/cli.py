@@ -25,7 +25,18 @@ from typing import Any
 import clean_room
 import judge as rubric_judge
 
-from . import assessment, batches, catalog, fingerprints, layout, records, rescoring, selection, trials
+from . import (
+    assessment,
+    batches,
+    catalog,
+    evidence,
+    fingerprints,
+    layout,
+    records,
+    rescoring,
+    selection,
+    trials,
+)
 from .constants import ROOT
 from .exits import ExitCode, UsageParser
 from .outcomes import State
@@ -204,8 +215,11 @@ def _command_parser() -> argparse.ArgumentParser:
         "diff", help="list every verdict that differs between two rescores (exit 1 when any does)"
     )
     diff.add_argument("diff_paths", type=Path, nargs=2, metavar=("BASE", "CANDIDATE"))
-    schema = commands.add_parser("schema", help="print the JSON Schema of the v1 result record")
+    schema = commands.add_parser("schema", help="print the JSON Schema of the v1 result record or evidence")
     schema.add_argument("--out", type=Path, help="write the schema here instead of printing it")
+    schema.add_argument(
+        "--model", choices=("record", "evidence"), default="record", help="which contract to print (default: record)"
+    )
     return parser
 
 
@@ -265,7 +279,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if command == "diff":
         return diff(args.diff_paths)
     if command == "schema":
-        return schema(args.out)
+        return schema(args.out, args.model)
     try:
         scenarios = catalog.load_all_scenarios()
     except ValueError as exc:
@@ -315,8 +329,9 @@ def diff(paths: Sequence[Path]) -> int:
     return ExitCode.DIFFERENT if lines else ExitCode.OK
 
 
-def schema(out: Path | None) -> int:
-    text = json.dumps(records.record_schema(), indent=2, ensure_ascii=False) + "\n"
+def schema(out: Path | None, model: str = "record") -> int:
+    published = records.record_schema() if model == "record" else evidence.evidence_schema()
+    text = json.dumps(published, indent=2, ensure_ascii=False) + "\n"
     if out is None:
         sys.stdout.write(text)
     else:

@@ -20,7 +20,10 @@ not the full host schema; other fields are either inert in a plugin or unused he
 
 A plugin agent with invalid YAML can still appear under its filename while every frontmatter
 field is ignored. Discovery alone does not establish that its grants or model were applied;
-validate the source and generated headers before publishing.
+validate the source and generated headers before publishing. The fleet's validators read
+frontmatter the way the hosts do, as YAML through the shared `fleet_frontmatter.py` parser: an unquoted
+`true`, `123`, `null` or `[a, b]` is a boolean, a number, null or a list, not text, and a plain
+scalar that YAML cannot parse fails with its line number.
 
 | Field | Disposition here |
 |---|---|

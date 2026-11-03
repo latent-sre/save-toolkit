@@ -6,8 +6,64 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+### Added
+
+- pytest-timeout and pytest-socket in the test group and CI: a 300-second ceiling per test, and no socket
+  from the test process beyond loopback and Unix sockets; Hypothesis properties on the read-only guard's
+  fail-closed composition rules; a uv override that gives the Harbor group filelock 4.x against litellm's
+  declared bound, with the evidence in `pyproject.toml`.
+- Inspect AI orchestration of the native routing and contract scenarios: `evals/inspect_fleet.py` runs the
+  unchanged native trial as an Inspect task (one sample per scenario, one epoch per trial slot, the same
+  published runs and batch summary), with offline tests, a `inspect-native` track, and a
+  [parity run plan](docs/fleet-evaluation/run-plan-inspect-native-parity.md). The native CLI stays the
+  acceptance reference ([decision](docs/decisions/2026-11-02-inspect-orchestrates-native-runner.md)).
+
 ### Changed
 
+- The evidence engine is the runner's one grading path: a live attempt's probes run once in its
+  workspace and are recorded as evidence before the rules read them, the grade is read from the
+  attempt's `evidence.json` as a regrade reads it later, and a regrade of a run that wrote one no
+  longer reads its raw trace (the owner's decision of 2026-11-02). The old live grader and regrade
+  loop, `shadow.json` and the `shadow` command are removed; `attempt.json` records the `probed`
+  phase. The owner waived the shadow gate on 2026-11-03, so the cut-over is proven on the goldens
+  alone (stage 4 of the runner rewrite, RUNNER-001).
+- Refresh the lock to the releases of the last day (anthropic 2.4.0, filelock 4.2.7, jsonpatch 1.41,
+  jsonpointer 3.8, python-discovery 1.9.1, langchain-core 1.7.4) and drop the `orjson` and `rich` pins,
+  which nothing in the repository imports; rich remains as Inspect's dependency.
+- State the action-reference rule: a floating major tag where the action publishes one, otherwise the
+  exact release tag, both moved by Dependabot; setup-uv is pinned to its release 10.3.3, since it
+  publishes no alias past v7, and the workflow test admits both forms.
+- Parse fleet frontmatter as YAML, the way Claude Code and Copilot read it: `scripts/fleet_frontmatter.py`
+  loads with PyYAML's safe loader (duplicate keys rejected, line-numbered diagnostics) instead of its
+  own grammar, so typed scalars and lists reach the validators; Gate A now installs the locked `gate`
+  group (PyYAML only) on the 3.12 floor. Every canonical and projected file parses to the same mapping
+  as a plain safe load, and the generated projections are byte-identical.
+- Manage dependencies as a uv project: `pyproject.toml` declares the dependency groups and `uv.lock`
+  holds every exact version, replacing the six requirements files; CI installs with `setup-uv` and
+  `uv sync --locked`, Dependabot proposes weekly lock updates, and the weekly run audits the locked sets
+  ([decision](docs/decisions/2026-11-02-uv-project-lockfile.md)). The project environment re-resolved to
+  current releases; Harbor, the SWT runtime and the sandboxes keep their contract pins, the Harbor set
+  installs again, and the SWE-bench, SWT and Harbor adapter identities now hash the manifest and lock.
+- The evidence engine grades every attempt in shadow: `probe/rules.py` names the eight result rules,
+  `probe/engine.py` grades a scenario from its `evidence.json`, and `shadow.json` beside each live
+  grade and each regrade records whether it agrees with the authoritative grade; `build_probe.py
+  shadow ITERATION_DIR` counts the shadow grades against the owner's stage 4 gate. `attempt.json`
+  records each phase an attempt passes through. A regrade now records a grading-machinery failure as
+  a grader error, as the live grade does, instead of voiding the run (result rule 5 as amended
+  2026-11-02); the `machinery_failure` golden's regrade view changes accordingly (stage 3 of the
+  runner rewrite, RUNNER-001).
+- The check registry is the `probe/checks/` package: the registry and one module per domain
+  (checkout, text, changes, services, trace, state, graders), each declaration saying whether it
+  is a check or a probe; `probe/checking.py` is a facade that keeps every name importable. The
+  catalog and the conversation validator share a `specs` leaf instead of importing each other, a
+  saved run's folders are read through `layout`, and the runner identity binds the sub-package
+  (stage 2 of the runner rewrite, RUNNER-001).
+- Each graded attempt writes `evidence.json`, the evidence-v1 record of what it observed and no
+  verdict, validated by `probe.evidence.EvidenceV1` and published as
+  `docs/fleet-evaluation/eval-evidence-v1.schema.json` (`build_probe.py schema --model evidence`);
+  a written regrade of an older run writes the evidence `probe.legacy` reads back beside its
+  assessment. The regrade's reconstruction moved into `legacy` unchanged (stage 1 of the runner
+  rewrite, RUNNER-001).
 - The golden saved runs gain three native conversations (a pass, a resumed call under the wrong
   session, a follow-up cut short) and a batch view per case recording what the result row tells the
   batch under rules 1, 5, 6 and 7; a written regrade is proved to land beside the original (rule 8).
@@ -69,6 +125,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Removed
 
+- The six `requirements-*.txt` files; `uv.lock` replaces them and the adapter identities hash the
+  lock instead.
 - Roadmap items SKILLS-001, SKILLS-002, SKILLS-003, FLEET-AUDIT-20261023 and HANDOFF-002, whose
   outcomes merged in PRs #420-#424, #429, #430 and #438, with the skills-audit report and the
   49-file agent and skill audit packet they cited; both stay in Git at `b55b5bbc`.

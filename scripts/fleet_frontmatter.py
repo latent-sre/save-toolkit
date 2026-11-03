@@ -1,23 +1,30 @@
 #!/usr/bin/env python3
-"""Parse the deliberately small frontmatter grammar shared by fleet tooling.
+"""Parse fleet frontmatter as the hosts read it: one YAML mapping between `---` fences.
 
-It also owns the lexical conventions the grammar's readers must agree on: component names, tool
+PyYAML's safe loader gives the values Claude Code and Copilot see, so a scalar the host types
+(`true`, `1`, `null`, `[Read, Grep]`) arrives typed here too, and a plain scalar the host rejects
+(an unquoted `description` with `: ` inside it) is rejected here with its line number. Two fleet
+rules sit on top of YAML: a duplicate key is an error, and keys are strings. The safe loader follows
+YAML 1.1 typing, which is stricter than a YAML 1.2 host for `yes`/`no`/`on`/`off` and a few numeric
+spellings; a reader that must match both hosts checks the spelled text (check_links' manual-only
+rule does).
+
+The module also owns the lexical conventions the grammar's readers share: component names, tool
 grants, and the spellings of the plugin's runtime root.
 """
 
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 from typing import Literal, NamedTuple, TypeAlias
 
-Mode: TypeAlias = Literal["strict", "lenient"]
-FrontmatterValue: TypeAlias = str | list[str]
+import yaml
 
-KEY_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*):(?:[ \t]*(.*))?$")
-LIST_ITEM_RE = re.compile(r"\s+-\s+(.+?)\s*")
-BLOCK_MARKERS = {">", ">-", "|", "|-"}
+Mode: TypeAlias = Literal["strict", "lenient"]
+# Whatever the safe loader constructs: str, bool, int, float, None, list or dict.
+FrontmatterValue: TypeAlias = object
+
 # A component name: lowercase kebab-case. Pattern text, so callers can embed it in larger patterns.
 KEBAB_NAME = r"[a-z0-9]+(?:-[a-z0-9]+)*"
 NAME_RE = re.compile(rf"^{KEBAB_NAME}$")
@@ -26,10 +33,12 @@ NAME_RE = re.compile(rf"^{KEBAB_NAME}$")
 # process environment. Pattern text; check_links and the adapter generator must recognize the same set.
 PLUGIN_ROOT = r"\$(?:\{CLAUDE_PLUGIN_ROOT\}|env:CLAUDE_PLUGIN_ROOT)"
 TOOL_GRANT_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_.*-]*)(?:\((.*)\))?")
+# The first frontmatter line is file line 1, so YAML's zero-based line inside the block is offset 2.
+BLOCK_LINE_OFFSET = 2
 
 
 class FrontmatterError(ValueError):
-    """A syntax failure in the shared frontmatter subset."""
+    """A syntax failure in the shared frontmatter grammar."""
 
 
 class ParsedFrontmatter(NamedTuple):
@@ -37,6 +46,7 @@ class ParsedFrontmatter(NamedTuple):
     body: str
     raw_lines: tuple[str, ...]
     problems: tuple[str, ...]
+    # Per key: "plain", "double-quoted", "single-quoted", "block" (`|` or `>`), "list" or "mapping".
     styles: dict[str, str]
 
 
@@ -44,17 +54,6 @@ class ParsedFrontmatter(NamedTuple):
 # check_links.py (validation) and generate_platform_adapters.py (projection) cannot
 # drift; both import this name and keep a module attribute for test compatibility.
 MANUAL_ONLY = {"pcf-deploy"}
-
-
-def decode_scalar(raw: str) -> str:
-    """Decode one scalar with the adapter reader's established quote behavior."""
-    raw = raw.strip()
-    if raw.startswith('"'):
-        decoded: str = json.loads(raw)  # a JSON document opening with `"` is a string or an error
-        return decoded
-    if raw.startswith("'") and raw.endswith("'"):
-        return raw[1:-1].replace("''", "'")
-    return raw
 
 
 class ToolGrant(NamedTuple):
@@ -139,33 +138,32 @@ def _problem(
     problems.append(rendered)
 
 
-def _scalar(
-    raw: str,
-    *,
-    problems: list[str],
-    mode: Mode,
-    source: str,
-    line_number: int,
-) -> tuple[str, str]:
-    stripped = raw.strip()
-    if stripped.startswith("'") and not stripped.endswith("'"):
-        return stripped, "single-quoted-unmatched"
-    style = (
-        "double-quoted"
-        if stripped.startswith('"')
-        else "single-quoted"
-        if stripped.startswith("'") and stripped.endswith("'")
-        else "plain"
-    )
-    try:
-        return decode_scalar(stripped), style
-    except (json.JSONDecodeError, TypeError):
-        _problem(problems, mode, source, line_number, "invalid quoted scalar")
-        return stripped, style
+def _line(node: yaml.Node) -> int:
+    return int(node.start_mark.line) + BLOCK_LINE_OFFSET
+
+
+def _style(node: yaml.Node) -> str:
+    if isinstance(node, yaml.SequenceNode):
+        return "list"
+    if isinstance(node, yaml.MappingNode):
+        return "mapping"
+    style = node.style if isinstance(node, yaml.ScalarNode) else None
+    return {'"': "double-quoted", "'": "single-quoted", "|": "block", ">": "block"}.get(str(style or ""), "plain")
+
+
+def _yaml_error_detail(exc: yaml.YAMLError) -> tuple[int | None, str]:
+    mark = getattr(exc, "problem_mark", None)
+    line = None if mark is None else int(mark.line) + BLOCK_LINE_OFFSET
+    detail = getattr(exc, "problem", None) or str(exc).splitlines()[0]
+    return line, str(detail)
 
 
 def parse(text: str, source: str | Path, *, mode: Mode = "strict") -> ParsedFrontmatter:
-    """Parse frontmatter text in strict (raise) or lenient (collect) mode."""
+    """Parse frontmatter text in strict (raise) or lenient (collect) mode.
+
+    Lenient mode collects duplicate keys and non-string keys and keeps the first value; a YAML
+    syntax error ends the parse with that one problem, because nothing after it is defined.
+    """
     if mode not in {"strict", "lenient"}:
         raise ValueError(f"unsupported frontmatter parse mode: {mode!r}")
 
@@ -181,84 +179,47 @@ def parse(text: str, source: str | Path, *, mode: Mode = "strict") -> ParsedFron
         _problem(problems, mode, source_name, None, "missing closing frontmatter marker")
         return ParsedFrontmatter({}, text, (), tuple(problems), {})
 
-    fields: dict[str, FrontmatterValue] = {}
-    styles: dict[str, str] = {}
-    raw_lines = lines[1:end]
-    index = 0
-    while index < len(raw_lines):
-        line = raw_lines[index]
-        if not line.strip() or line.lstrip().startswith("#"):
-            index += 1
-            continue
-        match = KEY_RE.fullmatch(line)
-        if not match:
-            _problem(
-                problems,
-                mode,
-                source_name,
-                index + 2,
-                "unsupported frontmatter syntax",
-            )
-            index += 1
-            continue
-
-        key, raw = match.group(1), (match.group(2) or "")
-        duplicate = key in fields
-        if duplicate:
-            _problem(
-                problems,
-                mode,
-                source_name,
-                index + 2,
-                f"duplicate frontmatter key {key!r}",
-            )
-
-        if raw in BLOCK_MARKERS:
-            chunks: list[str] = []
-            index += 1
-            while index < len(raw_lines) and (
-                not raw_lines[index] or raw_lines[index].startswith((" ", "\t"))
-            ):
-                chunks.append(raw_lines[index].strip())
-                index += 1
-            value: FrontmatterValue = " ".join(chunk for chunk in chunks if chunk)
-            style = "block"
-        elif not raw:
-            items: list[str] = []
-            index += 1
-            while index < len(raw_lines):
-                item = LIST_ITEM_RE.fullmatch(raw_lines[index])
-                if not item:
-                    break
-                decoded, _item_style = _scalar(
-                    item.group(1),
-                    problems=problems,
-                    mode=mode,
-                    source=source_name,
-                    line_number=index + 2,
-                )
-                items.append(decoded)
-                index += 1
-            value = items
-            style = "list"
-        else:
-            value, style = _scalar(
-                raw,
-                problems=problems,
-                mode=mode,
-                source=source_name,
-                line_number=index + 2,
-            )
-            index += 1
-
-        if not duplicate:
-            fields[key] = value
-            styles[key] = style
-
+    raw_lines = tuple(lines[1:end])
     body = "\n".join(lines[end + 1 :]).lstrip("\n")
     if text.endswith("\n"):
         body += "\n"
-    return ParsedFrontmatter(fields, body, tuple(raw_lines), tuple(problems), styles)
+
+    fields: dict[str, FrontmatterValue] = {}
+    styles: dict[str, str] = {}
+    # The block ends with a line break in the file (the closing fence follows it), so the host sees
+    # one; without it a clip-chomped block scalar (`|`, `>`) would lose its final newline here.
+    loader = yaml.SafeLoader("\n".join(raw_lines) + "\n")
+    try:
+        try:
+            document = loader.get_single_node()
+        except yaml.YAMLError as exc:
+            line, detail = _yaml_error_detail(exc)
+            _problem(problems, mode, source_name, line, f"invalid frontmatter YAML: {detail}")
+            return ParsedFrontmatter({}, body, raw_lines, tuple(problems), {})
+        if document is None:  # an empty block between the fences
+            return ParsedFrontmatter({}, body, raw_lines, tuple(problems), {})
+        if not isinstance(document, yaml.MappingNode):
+            _problem(problems, mode, source_name, _line(document), "frontmatter must be a YAML mapping")
+            return ParsedFrontmatter({}, body, raw_lines, tuple(problems), {})
+        for key_node, value_node in document.value:
+            key = loader.construct_object(key_node, deep=True)
+            if not isinstance(key, str):
+                _problem(problems, mode, source_name, _line(key_node), f"frontmatter keys must be strings, not {key!r}")
+                continue
+            if key in fields:
+                _problem(problems, mode, source_name, _line(key_node), f"duplicate frontmatter key {key!r}")
+                continue
+            try:
+                value = loader.construct_object(value_node, deep=True)
+            except yaml.YAMLError as exc:
+                line, detail = _yaml_error_detail(exc)
+                _problem(problems, mode, source_name, line, f"invalid frontmatter YAML: {detail}")
+                continue
+            fields[key] = value
+            styles[key] = _style(value_node)
+    finally:
+        loader.dispose()
+    return ParsedFrontmatter(fields, body, raw_lines, tuple(problems), styles)
 
 
 def parse_file(path: Path, *, mode: Mode = "strict") -> ParsedFrontmatter:

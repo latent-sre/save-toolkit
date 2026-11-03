@@ -5,6 +5,8 @@
   accepted separately on its own evidence
 - **Amended:** 2026-11-02, by the decision owner: the decisions under "Decision needed" are made and
   recorded under "Decisions made"
+- **Amended:** 2026-11-03, by the decision owner: the shadow gate is waived and stage 4 proceeds on
+  the goldens alone; recorded under "Decisions made"
 - **Decision owner:** the human owner; a maintainer session implements each accepted stage
 - **Roadmap item:** `RUNNER-001` in [the fleet roadmap](../fleet-roadmap.md)
 - **Keeps:** [2026-09-03-one-eval-runner](2026-09-03-one-eval-runner.md),
@@ -225,6 +227,13 @@ Made by the decision owner on 2026-11-02, after stage 0 landed:
   a regrade records a grading-machinery failure in rule 1's form; stage 3's engine records it as a
   grader error on a live grade and on a regrade alike, and the `machinery_failure` golden is
   regenerated in that stage with the changed view explained.
+
+Made by the decision owner on 2026-11-03, after stage 3 landed:
+
+- The shadow gate is waived. No private iteration ran under stage 3, so the goldens are the only
+  agreement evidence; stage 4 proceeds on them, and the cut-over is unproven on real runs, as the
+  weakest point below says, until the owner's first rescore and diff of a private iteration under
+  the cut-over runner. The `shadow` command and `shadow.json` are removed with the cut-over.
 
 ### Decision needed
 

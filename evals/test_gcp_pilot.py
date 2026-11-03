@@ -15,8 +15,8 @@ from urllib.parse import urlparse
 
 import pytest
 import yaml
-from probe import assessment, catalog, checking, fingerprints, invocation, tracing, workspaces
-from probe_testkit import load_oracle, parse_events
+from probe import catalog, checking, fingerprints, invocation, tracing, workspaces
+from probe_testkit import grade_trial, load_oracle, parse_events
 
 ROOT = Path(__file__).resolve().parents[1]
 AUTHOR = load_oracle(ROOT / 'scripts/generate_gcp_pilot.py')
@@ -76,7 +76,7 @@ def exercise(data, arm, kind='useful', *, command_override=None, extra_events=()
         events.append({'type': 'result', 'subtype': 'success', 'is_error': False, 'result': response})
         ctx = checking.Context(spec, ws, parse_events(events), workspaces.collect_git_facts(ws))
         with patch.dict(os.environ, env):
-            grade = assessment.grade(ctx)
+            grade = grade_trial(ctx)
         return grade, processes, sorted(path.name for path in ws.state_dir.iterdir())
 
 

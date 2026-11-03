@@ -12,7 +12,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from probe import assessment as probe_assessment
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import constants as probe_constants
@@ -24,6 +23,7 @@ from probe_testkit import (
     ReviewFindingTestCase,
     context,
     contract_spec,
+    grade_trial,
     native_dispatch_events,
     parse_events,
     saved_grade,
@@ -346,7 +346,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         ):
             with self.subTest(events=events):
                 ctx = context(spec, parse_events(events))
-                grading = probe_assessment.grade(ctx)
+                grading = grade_trial(ctx)
                 self.assertEqual(grading["status"], "INCONCLUSIVE")
                 self.assertFalse(grading["expectations"][0]["passed"])
 
@@ -359,7 +359,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         for output, evidence in cases:
             with self.subTest(output=output):
                 ctx = context(spec, parse_events([self._call(), self._result(output=output)]))
-                grading = probe_assessment.grade(ctx)
+                grading = grade_trial(ctx)
                 self.assertEqual("FAIL", grading["status"])
                 self.assertIsNone(grading["inconclusive"])
                 self.assertEqual(evidence, grading["expectations"][0]["evidence"])
@@ -379,7 +379,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         for events, expected in cases:
             with self.subTest(expected=expected, events=events):
                 ctx = context(spec, parse_events(events))
-                self.assertEqual(expected, probe_assessment.grade(ctx)["status"])
+                self.assertEqual(expected, grade_trial(ctx)["status"])
 
     SUITE = "python -m unittest discover -s tests -t . -v"
     REPO = r"F:\iso-tmp\run\ws-abc\repo"
@@ -397,14 +397,14 @@ class VerificationEvidenceTests(unittest.TestCase):
         spec = self._ordered_spec()
         events = [self._call(command=f'cd "{self.REPO}" && {self.SUITE}'), self._result()]
         ctx = context(spec, parse_events(events), ws=self._ws())
-        self.assertEqual(probe_assessment.grade(ctx)["status"], "PASS")
+        self.assertEqual(grade_trial(ctx)["status"], "PASS")
 
     def test_positioned_suite_followed_by_inspection_is_inconclusive_not_a_failure(self):
         spec = self._ordered_spec()
         events = [self._call(command=f'cd "{self.REPO}" && {self.SUITE}'), self._result(),
                   self._call(command=f'cd "{self.REPO}" && git status --porcelain', use_id="inspect"), self._result("inspect")]
         ctx = context(spec, parse_events(events), ws=self._ws())
-        self.assertEqual(probe_assessment.grade(ctx)["status"], "INCONCLUSIVE")
+        self.assertEqual(grade_trial(ctx)["status"], "INCONCLUSIVE")
 
     def test_a_directory_prefix_never_admits_a_second_command(self):
         for command in (

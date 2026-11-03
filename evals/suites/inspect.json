@@ -1,14 +1,16 @@
 {
   "schema_version": 1,
   "id": "inspect",
-  "summary": "Inspect artifact-only word-frequency pilot controls",
+  "summary": "Inspect artifact-only word-frequency pilot and native-orchestration controls",
   "tests": [
-    "evals/test_inspect_pilot.py"
+    "evals/test_inspect_pilot.py",
+    "evals/test_inspect_fleet.py"
   ],
   "native_scenarios": [],
   "campaigns": [],
   "guides": [
     "evals/docs/coverage.md",
-    "evals/docs/running.md"
+    "evals/docs/running.md",
+    "docs/fleet-evaluation/run-plan-inspect-native-parity.md"
   ]
 }

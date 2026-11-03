@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import tempfile
 import unittest
@@ -71,10 +70,11 @@ class DesignLaneAuthorityContract:
             set(fleet_frontmatter.delegation_targets(grants, self.NAME, plugin="save-toolkit")),
         )
         projected = fleet_frontmatter.parse_file(ROOT / ".github/agents" / f"{self.NAME}.agent.md").fields
-        self.assertEqual(["read", "search", "edit", "agent"], json.loads(projected["tools"]))
+        # Projected frontmatter is YAML flow syntax, which the shared parser reads as real lists.
+        self.assertEqual(["read", "search", "edit", "agent"], projected["tools"])
         self.assertEqual(
             ["repository-investigator", "sre-assistant", "researcher"],
-            json.loads(projected["agents"]))
+            projected["agents"])
 
     def test_validator_rejects_execution_egress_and_implementation_delegation(self) -> None:
         filename = f"{self.NAME}.md"

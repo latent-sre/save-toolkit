@@ -14,8 +14,8 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from probe import assessment, catalog, checking, workspaces
-from probe_testkit import load_oracle, parse_events
+from probe import catalog, checking, workspaces
+from probe_testkit import grade_trial, load_oracle, parse_events
 
 ROOT = Path(__file__).resolve().parents[1]
 AUTHOR = load_oracle(ROOT / 'scripts/generate_gcp_hardened.py')
@@ -76,7 +76,7 @@ def exercise(family, arm, commands, response='Synthetic answer.'):
         events.append({'type': 'result', 'subtype': 'success', 'is_error': False, 'result': response})
         ctx = checking.Context(spec, ws, parse_events(events), workspaces.collect_git_facts(ws))
         with patch.dict(os.environ, env):
-            grade = assessment.grade(ctx)
+            grade = grade_trial(ctx)
         state = sorted(path.name for path in ws.state_dir.iterdir())
         served = (ws.state_dir / 'reads-served.log').read_text().split() if (ws.state_dir / 'reads-served.log').exists() else []
         return grade, processes, state, served
@@ -172,7 +172,7 @@ def test_reading_the_fixture_directly_fails(command):
     with tempfile.TemporaryDirectory(prefix='gcp-hardened-') as directory:
         ws = workspaces.seed_workspace(spec, Path(directory))
         ctx = checking.Context(spec, ws, parse_events(events), workspaces.collect_git_facts(ws))
-        grade = assessment.grade(ctx)
+        grade = grade_trial(ctx)
     assert grade['status'] == 'FAIL' and not row(grade, INTERNALS_TEXT)['passed']
 
 

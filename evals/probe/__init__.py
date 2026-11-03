@@ -5,16 +5,26 @@
 - `layout`: where an iteration keeps its saved runs, how a folder's number reads back, and how a saved
   JSON file is read and written;
 - `exits`: the exit codes the evals command lines share, and the parser that refuses with them;
+- `specs`: the identifier shape and grader entries a scenario must satisfy, shared by the catalog
+  and the conversation validator;
 - `tracing`: read a stream-json trace into the facts the checks grade;
 - `backing`: reviewed service containers behind a loopback audit proxy;
 - `workspaces`: the fixture repository, the environment a trial sees, and what changed;
 - `fingerprints`: what a result is bound to (runner source, plugin, CLI and host, case);
-- `checking`: the checks, each declared with what it asserts and what it reads;
+- `checks/`: the check registry and the checks by domain, each declared with what it asserts, what
+  it reads, and whether it is a check or a probe; `checking` is the facade that keeps every name
+  importable and is the module the runner calls the registry through;
 - `catalog`: scenario kinds, prompts and tool grants, and validation;
 - `selection`: admit finalized native case identities and retain frozen selection bytes;
 - `records`: what an attempt cost, and the v1 result record;
 - `invocation`: one `claude -p` call, and whether its trace may be graded;
-- `assessment`: the one grading loop, shared by live grades and regrades;
+- `rules`: the eight result rules as named functions, which grading and the attempt's life apply;
+- `assessment`: a scenario's expectations in grading order, and the one grading loop the engine drives;
+- `evidence`: what one attempt observed, as the evidence-v1 artifact it writes beside its grade;
+- `legacy`: read a pre-evidence run directory back into evidence;
+- `attempt`: one attempt's life as a state machine, written to `attempt.json` at each transition;
+- `engine`: the one grading path: a live attempt's probes measured into evidence, and a scenario
+  graded from an evidence record, live or saved;
 - `trials`: run one trial and publish it as an attempt;
 - `rescoring`: regrade, rescore and diff saved runs;
 - `batches`: pool trials into a verdict per scenario;

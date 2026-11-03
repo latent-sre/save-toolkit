@@ -17,7 +17,6 @@ import urllib.parse
 import urllib.request
 from unittest import mock
 
-from probe import assessment as probe_assessment
 from probe import backing as probe_backing
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
@@ -28,6 +27,7 @@ from probe import workspaces as probe_workspaces
 from probe_testkit import (
     ReviewFindingTestCase,
     context,
+    grade_trial,
     scenario_file,
     tiny_spec,
     ws_context,
@@ -728,7 +728,7 @@ class ReviewFindingTests(ReviewFindingTestCase):
         spec["checks"] = [{"check": "service_get", "path": "/health"}]
         ctx = context(spec, services=[_grafana()])
         with mock.patch.object(probe_backing, "request", return_value=(0, "unreachable")):
-            grading = probe_assessment.grade(ctx)
+            grading = grade_trial(ctx)
         self.assertEqual("INCONCLUSIVE", grading["status"])
         self.assertIn("backing service unavailable", grading["expectations"][0]["evidence"])
         # The service is the harness's instrument, so its loss is a grading-machinery failure that

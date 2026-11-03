@@ -16,7 +16,6 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from probe import assessment as probe_assessment
 from probe import backing as probe_backing
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
@@ -26,10 +25,12 @@ from probe import outcomes as probe_outcomes
 from probe import rescoring as probe_rescoring
 from probe import tracing as probe_tracing
 from probe import workspaces as probe_workspaces
+from probe.checks import checkout as probe_checkout
 from probe_testkit import (
     ReviewFindingTestCase,
     TempRootTestCase,
     all_scenarios,
+    grade_trial,
     latest_assessment,
     saved_grade,
     saved_summary,
@@ -251,7 +252,7 @@ class WorkspaceAndCheckTests(TempRootTestCase):
                 if declared is not None:
                     check["inconclusive_exit_code"] = declared
                 spec = tiny_spec(checks=[check])
-                result = probe_assessment.grade(ws_context(spec, self.ws))
+                result = grade_trial(ws_context(spec, self.ws))
                 self.assertEqual(result["status"], expected, result)
                 self.assertEqual(result["expectations"][0]["passed"], exit_code == 0)
                 if expected == "INCONCLUSIVE":
@@ -266,7 +267,7 @@ class WorkspaceAndCheckTests(TempRootTestCase):
                 check = {"check": "command_exit_zero", "text": "oracle verdict", "failure_exit_code": 10,
                          "inconclusive_exit_code": 3,
                          "command": f'"{sys.executable}" -c "raise SystemExit({exit_code})"'}
-                result = probe_assessment.grade(ws_context(tiny_spec(checks=[check]), self.ws))
+                result = grade_trial(ws_context(tiny_spec(checks=[check]), self.ws))
                 self.assertEqual(expected, result["status"], result)
                 evidence = result["expectations"][0]["evidence"]
                 self.assertEqual(machinery, evidence.startswith("instrument:"), evidence)
@@ -309,7 +310,7 @@ class WorkspaceAndCheckTests(TempRootTestCase):
                               f"def iter_selected(rows, allowed_ids):\n"
                               f"    raise SystemExit({code})\n    yield\n")
                     (self.ws.repo / "selection.py").write_text(source, encoding="utf-8")
-                    result = probe_assessment.grade(ws_context(spec, self.ws))
+                    result = grade_trial(ws_context(spec, self.ws))
                     self.assertEqual(result["status"], "FAIL", result)
                     self.assertFalse(result["expectations"][0]["passed"])
 
@@ -323,7 +324,7 @@ class WorkspaceAndCheckTests(TempRootTestCase):
             run = write_saved_run(Path(tmp) / "eval-tiny" / "candidate" / "run-1", response="",
                                   summary={"commits_before_after": [1, 1], "branch": "main", "inconclusive": None},
                                   grading=saved)
-            with mock.patch.object(probe_checking, "_run", side_effect=AssertionError("cannot rerun a removed workspace")):
+            with mock.patch.object(probe_checkout, "_run", side_effect=AssertionError("cannot rerun a removed workspace")):
                 probe_rescoring.regrade(Path(tmp), [spec])
             result = latest_assessment(run)
         self.assertEqual(result["status"], "INCONCLUSIVE", result)
@@ -474,11 +475,11 @@ class WorkspaceAndCheckTests(TempRootTestCase):
 
     def test_grade_marks_inconclusive_trials_red_with_the_reason(self) -> None:
         ctx = ws_context(tiny_spec(), self.ws)
-        grading = probe_assessment.grade(ctx, inconclusive="timed out after 1s")
+        grading = grade_trial(ctx, inconclusive="timed out after 1s")
         self.assertEqual("INCONCLUSIVE", grading["status"])
         self.assertFalse(grading["expectations"][0]["passed"])
         self.assertIn("timed out", grading["expectations"][0]["evidence"])
-        self.assertEqual("PASS", probe_assessment.grade(ctx)["status"])
+        self.assertEqual("PASS", grade_trial(ctx)["status"])
 
 
 class PositiveControlTests(TempRootTestCase):

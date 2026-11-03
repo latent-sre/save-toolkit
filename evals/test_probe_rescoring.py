@@ -15,7 +15,6 @@ from unittest import mock
 
 import graders as fleet_graders
 import judge
-from probe import assessment as probe_assessment
 from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import cli as probe_cli
@@ -32,6 +31,7 @@ from probe_testkit import (
     calibration_receipt,
     context,
     contract_spec,
+    grade_trial,
     judge_binding_metadata,
     judge_envelope,
     judge_process,
@@ -429,7 +429,7 @@ class RegradeIdentityTests(unittest.TestCase):
         ctx = context(self.SPEC, probe_tracing.TraceSummary(result_text="response"), judge_binding=binding)
         with mock.patch.object(judge, "load_rubrics", return_value=rubrics), \
                 mock.patch.object(fleet_graders, "run_grader", side_effect=changing_grader):
-            grading = probe_assessment.grade(ctx)
+            grading = grade_trial(ctx)
         self.assertEqual("INCONCLUSIVE", grading["status"])
         self.assertFalse(any(e["passed"] for e in grading["expectations"]))
 
@@ -438,7 +438,7 @@ class RegradeIdentityTests(unittest.TestCase):
         changed = {**self.SPEC, "prompt": "changed during the trial"}
         ctx = context(changed, probe_tracing.TraceSummary(result_text="response"))
         with mock.patch.object(fleet_graders, "run_grader") as grader:
-            grading = probe_assessment.grade(ctx, expected_scenario_digest=identity)
+            grading = grade_trial(ctx, expected_scenario_digest=identity)
         grader.assert_not_called()
         self.assertEqual("INCONCLUSIVE", grading["status"])
         self.assertEqual(identity, grading["scenario_sha256"])
@@ -485,7 +485,7 @@ class NormalJudgeBindingTests(unittest.TestCase):
                         ctx = context(spec, probe_tracing.TraceSummary(result_text="some response"), judge_binding=binding)
                         judge.drain_spend()
                         with mock.patch.object(judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS", reason="r" * 900), model=model))) as spawn:
-                            grade = probe_assessment.grade(ctx)
+                            grade = grade_trial(ctx)
                         self.assertEqual("PASS" if model == "claude-sonnet-5" else "INCONCLUSIVE", grade["status"])
                         self.assertEqual("claude-sonnet-5", spawn.call_args.args[1])
                         record = probe_records.judge_spend()["records"][0]
@@ -514,7 +514,7 @@ class NormalJudgeBindingTests(unittest.TestCase):
                 judge.drain_spend()
                 with mock.patch.object(judge, "DEFAULT_CALIBRATION_PATH", corpus), \
                         mock.patch.object(judge, "_run_judge_process", side_effect=complete_call):
-                    grade = probe_assessment.grade(ctx)
+                    grade = grade_trial(ctx)
                 record = probe_records.judge_spend()["records"][0]
                 self.assertEqual("INCONCLUSIVE", grade["status"])
                 self.assertTrue(record["inconclusive"])
@@ -533,7 +533,7 @@ class NormalJudgeBindingTests(unittest.TestCase):
             binding = judge.load_binding(receipt, {"no_production_action_claim"})
             ctx = context(spec, probe_tracing.TraceSummary(result_text="some response"), judge_binding=binding)
             with mock.patch.object(judge, "_run_judge_process", return_value=judge_process(stdout=judge_envelope(judge_verdict("PASS")))):
-                live = probe_assessment.grade(ctx)
+                live = grade_trial(ctx)
             judge.drain_spend()
             run = write_saved_run(root / "run", response="some response", summary={}, grading=live,
                                   events=[{"type": "result", "result": "some response"}])

@@ -20,9 +20,9 @@ python scripts/generate_platform_adapters.py --write
 ```
 
 Before changing frontmatter, tool authority, delegation, or guard wiring, read the
-[frontmatter reference](skills/agent-authoring/references/claude-code-frontmatter.md). Pin
-third-party dependencies in `requirements-dev.txt`; `scripts/readonly-guard.py` stays
-standard-library-only under `python -I -S`. Commands using `python` here mean the verified project
+[frontmatter reference](skills/agent-authoring/references/claude-code-frontmatter.md). Declare
+third-party dependencies in `pyproject.toml` and lock them with `uv lock`; `uv.lock` is the only
+exact pin set. `scripts/readonly-guard.py` stays standard-library-only under `python -I -S`. Commands using `python` here mean the verified project
 interpreter; activate that environment or use its full executable path. A bare `python` or `py -3`
 can select a different version on Windows; avoid the Store stub.
 `rg` hides generated projections through [`.ignore`](.ignore); pass `--no-ignore` to inspect them.
@@ -63,20 +63,32 @@ shapes, not every upstream rename.
 Python 3.12 is the minimum supported version for all repository Python, including installed
 hooks and bundled skill scripts. The structural CI job runs on the latest 3.12 patch.
 Development and component-test CI track the latest Python 3.14 patch; `.python-version` selects
-that development minor and CI uses `check-latest: true`. Use `uv python install 3.14`, then create
-`uv venv --python 3.14 .venv` if a matching environment does not already exist. Verify it with
-`.venv\Scripts\python.exe -c "import sys; print(sys.executable); print(sys.version)"`
-(POSIX: `.venv/bin/python`). Use this interpreter for installation, the baseline, and final checks.
-This repository uses requirements/constraints files, not a uv project lock; keep that workflow.
+that development minor and CI uses `check-latest: true`. Use `uv python install 3.14`, then
+`uv sync --locked`, which creates `.venv` on that interpreter and installs the locked `test` group.
+Verify it with `.venv\Scripts\python.exe -c "import sys; print(sys.executable); print(sys.version)"`
+(POSIX: `.venv/bin/python`). Use this interpreter for the baseline and final checks.
 An old uv binary may need updating before it knows about a newly released Python patch.
 The development default does not change the repository's Python 3.12 compatibility floor.
 
-For the optional Grafana analysis libraries, install only their constrained subset with
-`uv pip install --python .venv\Scripts\python.exe -r requirements-grafana.txt`
-(POSIX: use `.venv/bin/python`). Exact versions remain in `requirements-dev.txt`.
-The Grafana workflow runs with `python -I` in that managed environment for data analysis, query
-parsing, capture comparisons and image validation. Its low-level read helper and the hook guard
-remain standard-library-only under `python -I -S`. Plugins do not install these dependencies.
+`pyproject.toml` declares the dependency groups and `uv.lock` holds every exact version with its
+hash; `uv sync --locked` fails when the two disagree. Change a dependency with
+`uv add --group <group> <requirement>`, or edit the manifest and run `uv lock`, and commit both
+files; `uv lock --upgrade-package <name>` moves one package, and Dependabot proposes the weekly
+grouped updates. Versions an adapter admits by contract (Harbor in
+`evals/harbor_adapter/contracts.py`, the SWT runtime table in `evals/swt_adapter/verifier.py`) and
+the sandboxes' own `requirements.txt` pins stay exact in the manifest and move only with that
+contract. The `swebench` group installs on top of the project environment
+(`uv sync --locked --group swebench`); `harbor`, `swt` and `sandbox` are declared conflicting with
+it and install only into a separate environment, for example
+`UV_PROJECT_ENVIRONMENT=.eval-runs/harbor-sdk uv sync --locked --only-group harbor`. Gate A's
+path imports PyYAML through `scripts/fleet_frontmatter.py` and nothing else: the `gate` group is
+that one dependency, the validate job syncs it alone on the 3.12 floor, and a new gate-path
+third-party import joins that group in the same change.
+
+The Grafana analysis libraries are part of the `test` group. The Grafana workflow runs with
+`python -I` in the project environment for data analysis, query parsing, capture comparisons and
+image validation. Its low-level read helper and the hook guard remain standard-library-only under
+`python -I -S`. Plugins do not install these dependencies.
 
 ## 3. Verify in proportion to the change
 
@@ -148,12 +160,12 @@ Choose local verification from the changed behavior, not the directory alone:
   skipped or unavailable checks; a narrower local run does not establish live behavior or replace
   required CI.
 
-Install the constrained test dependencies in the project environment. Use the
+Install the locked test environment, then use the
 [coordinated local runner](scripts/local_tests.py) for the final suite. Run the default command
 below, or append `--heavy` when the rule above requires it; do not run both for the same candidate:
 
 ```powershell
-uv pip install --python .venv\Scripts\python.exe -r requirements-test.txt
+uv sync --locked
 .venv\Scripts\python.exe scripts/local_tests.py
 ```
 
@@ -172,7 +184,10 @@ speed: same candidate and selection, known competing workloads, and the same int
 `pytest.ini` defaults to **10 local workers** with `--dist worksteal`; CI passes its explicit
 four-worker override on the command line. Do not export worker options through `PYTEST_ADDOPTS`:
 fixture suites inherit that variable and start additional worker pools. CI disables automatic
-plugin loading and explicitly loads xdist and Hypothesis; the FastAPI fixture opts into Schemathesis.
+plugin loading and explicitly loads xdist, Hypothesis, pytest-timeout and pytest-socket. Every test
+has a 300-second ceiling, and the test process may open sockets only to loopback or a Unix socket;
+a test that needs more declares it with those plugins' markers. Subprocesses a test starts are
+outside both rules.
 Work stealing balances individual cases across workers; module and class
 fixtures can run once on each worker that receives their tests. Pass `-n 0` for a debugger or
 `--pdb`, or a smaller count on a constrained host. More workers are not a speed guarantee.
@@ -196,15 +211,15 @@ test files. Add new root tests and native scenarios to explicit capability suite
 Finalize definitions before exporting fingerprints for a new
 campaign; keep historical result identities intact.
 
-On POSIX, substitute `.venv/bin/python`. Installing `requirements-test.txt` honors its
-`requirements-dev.txt` constraints; it is a selected test set, not a complete environment export
-for `uv pip sync`. CI retains its setup-python/pip workflow in a job-owned environment.
-Both test jobs cache pip downloads, keyed on the test requirements and development constraints.
+On POSIX, substitute `.venv/bin/python`. `uv sync --locked` removes packages the lock does not
+name, so a package installed by hand for an experiment disappears at the next sync; add it to a
+group instead. CI installs the same lock with `setup-uv` and `uv sync --locked`, bound to the
+`setup-python` interpreter, and caches uv downloads keyed on `uv.lock`.
 
 [`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs these jobs on the
 pull request: `validate` (this same gate); `changes`, which diffs the pull request against its base
 and decides whether a trigger path changed; the two `fast-tests` matrix entries (the default `pytest`
-run against `requirements-test.txt` on Linux) and, when `changes` says so, the three `eval-tests`
+run against the locked `test` group on Linux) and, when `changes` says so, the three `eval-tests`
 matrix entries in parallel. Each matrix selects its shards through pytest's `-k`, and its last entry
 is the complement of the others, so every case runs in exactly one shard; the real collection
 contract checks the eval entries' union and overlap. `component-tests`, the required check, passes
@@ -213,6 +228,13 @@ change; a skip for any other reason fails it. Then `claude-plugin-contract`
 (npm's latest Claude Code release, with its resolved version recorded in the job log).
 That job validates `.claude-plugin/marketplace.json` with `--strict` and
 `.claude-plugin/plugin.json` without it: plugin errors fail the job; warnings remain visible.
+`dependency-audit` runs only on the weekly schedule and manual dispatch: it exports the locked
+dependency sets and checks them against published advisories with pip-audit. It is not part of the
+required check, because advisories change without a commit. Action references are a floating major
+tag where the action publishes one (`actions/checkout@v7`), otherwise the exact release tag
+(`astral-sh/setup-uv@v10.3.3`); Dependabot's actions updater moves both. A tag can move upstream, and
+the repository accepts that for readable references; `test_validate_workflow.py` admits only those
+two forms.
 The root `CLAUDE.md` intentionally provides repository authoring context and produces a warning
 because installed plugins do not load it. Report what ran and what remains unverified.
 

@@ -30,6 +30,7 @@ from probe import catalog as probe_catalog
 from probe import checking as probe_checking
 from probe import cli as probe_cli
 from probe import constants as probe_constants
+from probe import engine as probe_engine
 from probe import fingerprints as probe_fingerprints
 from probe import invocation as probe_invocation
 from probe import outcomes as probe_outcomes
@@ -223,7 +224,7 @@ class NativeConversationRunTests(unittest.TestCase):
     def test_raised_native_attempt_accounts_for_followup_cost(self):
         for incomplete in (False, True):
             with self.subTest(incomplete_followup=incomplete), tempfile.TemporaryDirectory() as tmp:
-                with mock.patch.object(probe_assessment, "grade", side_effect=RuntimeError("grading failed")), \
+                with mock.patch.object(probe_engine, "grade_trial", side_effect=RuntimeError("grading failed")), \
                         self.assertRaisesRegex(RuntimeError, "grading failed"):
                     self.run_native(Path(tmp), incomplete_followup=incomplete)
                 kept = Path(tmp) / "eval-native-conversation/native/attempts/run-1/1"
@@ -240,7 +241,7 @@ class NativeConversationRunTests(unittest.TestCase):
     def test_raised_native_attempt_does_not_turn_invalid_cost_into_known_spend(self):
         for costs in ((False, False), (0.05, -0.01), (0.05, "0.01")):
             with self.subTest(costs=costs), tempfile.TemporaryDirectory() as tmp:
-                with mock.patch.object(probe_assessment, "grade", side_effect=RuntimeError("grading failed")), \
+                with mock.patch.object(probe_engine, "grade_trial", side_effect=RuntimeError("grading failed")), \
                         self.assertRaisesRegex(RuntimeError, "grading failed"):
                     self.run_native(Path(tmp), cost=costs)
                 kept = Path(tmp) / "eval-native-conversation/native/attempts/run-1/1"
@@ -1099,13 +1100,13 @@ class EndToEndStubTests(TempRootTestCase):
         agent.write_bytes((ROOT / "agents/software-engineer.md").read_bytes())
         probe_workspaces._git(plugin, "init", "-q")
         probe_workspaces._git(plugin, *probe_workspaces.GIT_IDENTITY, "commit", "--allow-empty", "-m", "fixture")
-        grade = probe_assessment.grade
+        grade = probe_engine.grade_trial
         def change_after_grade(ctx, **kwargs):
             result = grade(ctx, **kwargs)
             if kwargs.get("inconclusive") is None:
                 agent.write_bytes(agent.read_bytes() + b"\nchanged after grading\n")
             return result
-        with mock.patch.object(probe_assessment, "grade", side_effect=change_after_grade):
+        with mock.patch.object(probe_engine, "grade_trial", side_effect=change_after_grade):
             summary = self._run_trial(self.root / "iteration", plugin_root=plugin, label="late-change")
         self.assertEqual("INCONCLUSIVE", summary["status"])
         self.assertEqual(0, summary["passed"])
@@ -1147,7 +1148,11 @@ class EndToEndStubTests(TempRootTestCase):
                         self.assertEqual(original, {name: (kept / name).read_bytes() for name in original})
                         self.assertEqual("superseded", read_json(kept / "attempt.json")["state"])
                         self.assertTrue(retained)
-                        self.assertTrue(all(retained.count(path) == 3 for path in set(retained)))
+                        # The workspace's removal is retried three times; the shadow engine's own
+                        # temporary directories are removed once each and are not the workspace.
+                        workspaces = {path for path in retained if path.name.startswith("ws-")}
+                        self.assertTrue(workspaces)
+                        self.assertTrue(all(retained.count(path) == 3 for path in workspaces))
                     else:
                         with patcher, mock.patch.object(time, "sleep"), self.assertRaises((RuntimeError, OSError)):
                             self._run_trial(out, label="replaced", overwrite=True)

@@ -47,7 +47,8 @@ def binding(config: dict[str, Any], manifest: dict[str, Any], docker: Docker) ->
     sources = {p.name: sha256(p) for p in Path(__file__).parent.glob("*.py")}
     root = Path(__file__).resolve().parents[2]
     sources["harbor_pilot.py"] = sha256(root / "evals/harbor_pilot.py")
-    sources["requirements-harbor.txt"] = sha256(root / "requirements-harbor.txt")
+    sources["pyproject.toml"] = sha256(root / "pyproject.toml")
+    sources["uv.lock"] = sha256(root / "uv.lock")
     result["harbor_adapter_sha256"] = canonical_digest(sources)
     result["shared_adapter_sha256"] = result["adapter_sha256"]
     result["adapter_sha256"] = canonical_digest(

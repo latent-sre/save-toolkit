@@ -50,3 +50,7 @@ DISPATCH_TOOLS = frozenset({"Task", "Agent"})
 def requested_tool_name(name: str) -> str:
     """A tool as a trial's inventory names it: either name of the dispatch tool is `Task`."""
     return "Task" if name in DISPATCH_TOOLS else name
+
+
+# The one incident-conversation profile a saved run may index; `layout.saved_folders` reads the index.
+INCIDENT_PROFILE = "incident-v1"

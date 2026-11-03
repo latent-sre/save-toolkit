@@ -17,12 +17,14 @@ PR #238 on 2026-09-07. It preserves branch dispositions, current tool authority,
 
 | Date | Decision | Status |
 |---|---|---|
+| 2026-11-02 | [Inspect AI orchestrates the native runner](2026-11-02-inspect-orchestrates-native-runner.md) | Accepted for implementation; native runner remains the reference until the parity run |
+| 2026-11-02 | [Manage dependencies as a uv project with one lockfile](2026-11-02-uv-project-lockfile.md) | Accepted for implementation; candidate acceptance remains separate |
 | 2026-10-25 | [Explicit native evaluation selections](2026-10-25-explicit-native-selections.md) | Accepted for implementation; candidate acceptance remains separate |
 | 2026-08-21 | [Take `observability-engineer` off the read-only Bash guard](2026-08-21-observability-engineer-unguarded-bash.md) | Accepted |
 | 2026-08-22 | [Agent discovery is model-labelled calibration](2026-08-22-agent-discovery-calibration.md) | accepted 2026-08-22; disposes `EVAL-002` |
 | 2026-08-22 | [Production-only exact-SHA review boundary](2026-08-22-production-review-boundary.md) | accepted 2026-08-22; disposes `REVIEW-001` |
 | 2026-08-23 | [Allow a per-agent model generation alias; keep the ban on full model IDs](2026-08-23-allow-model-aliases.md) | Accepted |
-| 2026-08-23 | [Allow third-party dependencies everywhere, pinned in `requirements-dev.txt`](2026-08-23-allow-third-party-dependencies.md) | Accepted |
+| 2026-08-23 | [Allow third-party dependencies everywhere, pinned in `requirements-dev.txt`](2026-08-23-allow-third-party-dependencies.md) | Accepted; pin location superseded by [2026-11-02](2026-11-02-uv-project-lockfile.md) |
 | 2026-08-23 | [Retire Codex as a distribution target; keep it as a way to work in this repository](2026-08-23-retire-codex-distribution-target.md) | Accepted |
 | 2026-08-24 | [Establish a source-independent SRE operational-context contract](2026-08-24-sre-operational-context-contract.md) | Accepted |
 | 2026-08-26 | [Use a consumer-specific Docker Compose sandbox for GRAPH-002](2026-08-26-graph-002-docker-sandbox-runtime.md) | Accepted |
@@ -40,4 +42,4 @@ PR #238 on 2026-09-07. It preserves branch dispositions, current tool authority,
 | 2026-10-11 | [Rebuild backend-craft on the owner's decisions](2026-10-11-backend-craft.md) | Amended 2026-10-18: retire BACKEND-001 expansion, narrow to `api-craft`, and prefer current stable technology; implementing candidate pending |
 | 2026-10-23 | [Gate software-engineer's return on the five-file review rule with a stop hook](https://github.com/latent-sre/save-toolkit/blob/fd0a47ffb5f038858c4a46aeb6896563ff4f5eed/docs/decisions/2026-10-23-review-gate-hook.md) | Rejected 2026-10-28; the owner dropped the five-file review trigger; file removed 2026-11-02, kept in Git |
 | 2026-11-02 | [Retire the agent-engineer lane; agent-authoring owns its work](2026-11-02-retire-agent-engineer.md) | Accepted for implementation by the owner 2026-11-02; candidate acceptance remains separate |
-| 2026-11-02 | [Rewrite the eval runner's core around a persisted evidence artifact](2026-11-02-probe-runner-refactor.md) | Accepted for implementation by the owner 2026-11-02; each stage's candidate is accepted separately; amended by the owner 2026-11-02 with the decisions the plan left open |
+| 2026-11-02 | [Rewrite the eval runner's core around a persisted evidence artifact](2026-11-02-probe-runner-refactor.md) | Accepted for implementation by the owner 2026-11-02; each stage's candidate is accepted separately; amended by the owner 2026-11-02 with the decisions the plan left open and 2026-11-03 with the shadow gate waived |

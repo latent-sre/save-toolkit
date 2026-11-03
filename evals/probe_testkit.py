@@ -32,7 +32,7 @@ from typing import Any
 from unittest import mock
 
 import judge
-from probe import assessment, catalog, checking, constants, fingerprints, tracing, workspaces
+from probe import assessment, catalog, checking, constants, engine, fingerprints, tracing, workspaces
 
 ROOT = Path(__file__).resolve().parent.parent
 EVALS = ROOT / "evals"
@@ -288,6 +288,13 @@ def ws_context(
         dispatches=list(dispatches),
     )
     return checking.Context(spec, ws, trace, workspaces.collect_git_facts(ws))
+
+
+def grade_trial(ctx: checking.Context, **options: Any) -> dict[str, Any]:
+    """The grade of a trial a test built as a check context: probes measured, the evidence graded
+    (`engine.grade_trial`), without the evidence the live runner writes beside it."""
+    grading, _found = engine.grade_trial(ctx, **options)
+    return grading
 
 
 def trace_measures(spec: dict[str, Any], trace: tracing.TraceSummary) -> list[tuple[str, Any]]:

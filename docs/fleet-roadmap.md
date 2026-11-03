@@ -23,24 +23,48 @@ records do not re-queue work.
 
 ## Repository work
 
+### EVAL-016 — prove the Inspect orchestration matches the native batch, then decide what it replaces
+
+**Status:** `active` (2026-11-02). `evals/inspect_fleet.py` runs the native routing and contract
+trials as an Inspect task with grading unchanged; its offline tests pass, and no paid run has
+compared it with `build_probe.py run`.
+**Owner:** Maintainers run the paid parity comparison and approve its budget; the repository owner
+decides the replacement inventory afterwards.
+**Outcome:** One frozen selection run through both paths on the same model, CLI and host shows the
+same per-scenario verdicts under `build_probe.py regrade`, with timing, cost and any INCONCLUSIVE
+reasons recorded; a follow-up decision then names which native batch code Inspect replaces, or the
+track is relabelled as scheduling only.
+**Next action:** A maintainer follows the [parity run plan](fleet-evaluation/run-plan-inspect-native-parity.md)
+on a host with Claude credentials and a current judge calibration, and files the comparison under
+`docs/reviews/`.
+**Evidence:** none yet; the [decision](decisions/2026-11-02-inspect-orchestrates-native-runner.md)
+records the design and its rollback.
+**SRE task:** Read one `inspect view` log of a fleet regression instead of a directory of records,
+trusting it only once it is known to say what the native batch says.
+
 ### RUNNER-001 — rewrite the eval runner's core around a persisted evidence artifact
 
 **Status:** `active` (2026-11-02); the owner accepted the
 [design record](decisions/2026-11-02-probe-runner-refactor.md) for implementation. Stage 0, the
-goldens, landed on PR #455; the owner's decisions the plan left open are recorded in the design
-record's amendment of 2026-11-02; no runner bytes have changed.
-**Owner:** The human owner accepts each stage's exact candidate and sets the shadow gate; a
-maintainer session implements the stages in order.
+goldens, landed on PR #455 with a follow-up for native conversations and the batch view; the owner's
+decisions the plan left open are recorded in the design record's amendment of 2026-11-02. Stage 1,
+`evidence.json` written by every graded attempt and by a regrade of an older run through `legacy`,
+landed on PR #458 and stage 2, the check registry as a package with probes marked, the two import
+cycles removed and the identity widened, on PR #459. Stage 3, the evidence engine grading every
+attempt in shadow with the result rules named and the attempt's life recorded, landed on PR #460.
+The owner waived the shadow gate on 2026-11-03 (no private iteration ran under stage 3); stage 4,
+the cut-over to the evidence engine as the one grading path, is implemented and awaits the owner's
+acceptance.
+**Owner:** The human owner accepts each stage's exact candidate; a maintainer session implements the
+stages in order.
 **Outcome:** An attempt writes one versioned `evidence.json`; grading is a pure function of scenario
 and evidence shared by live grade and regrade; the eight threat-model rules are named units with a
 test each; the twelve live-only checks run as probes whose outcomes are evidence; old run directories
 stay readable through a quarantined legacy loader; every CLI subcommand, saved-run interface, v1
 record and result rule is unchanged.
-**Next action:** Land stage 0 (golden saved runs per rule and per ending), then stage 1 (write
-`evidence.json` from the current runner, nothing reading it), stage 2 (port the leaves: check
-registry package with a facade, cycles removed, harness digest widened), stage 3 (the new engine in
-shadow beside the old), and stage 4 (cut over) only after the owner's private iterations show zero
-shadow disagreements across the count the owner sets. Stage 5, the command line, is optional.
+**Next action:** Accept stage 4's candidate, then `rescore` one private iteration under it and
+`diff` against a rescore under the stage 3 runner: zero changed verdicts proves the cut-over on real
+runs, which the goldens alone do not. Stage 5 is out of scope by the owner's decision of 2026-11-02.
 **Evidence:** [Design record](decisions/2026-11-02-probe-runner-refactor.md); per-stage evidence lands
 in each stage's pull request.
 **SRE task:** Trust that a regrade of a saved attempt reaches the same verdict as its live grade for a

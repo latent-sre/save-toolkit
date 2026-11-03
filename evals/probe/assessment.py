@@ -1,9 +1,9 @@
-"""Grade one trial: every expectation its scenario states, measured or kept, rolled up by the result rules.
+"""Every expectation a scenario states, measured or kept, rolled up by the result rules.
 
-`assess` is the one grading loop. A live grade measures every expectation against the trial it just
-ran; a regrade measures what the saved run still supports and keeps the live verdict for the rest
-(rescoring.regrade_run). Both apply the threat-model ADR's result rules in the same order, so a rule
-changes in one place:
+`plan` lists a scenario's expectations in grading order and `assess` is the one grading loop, which
+`engine.grade` drives from an evidence record for a live attempt and a regrade alike: the checks are
+measured from the evidence, and a probe's recorded outcome is kept. The loop applies the
+threat-model ADR's result rules in one order, so a rule changes in one place:
 - a run-level failure (a wrong profile, changed inputs) leaves every check INCONCLUSIVE (rule 1);
 - on a run cut short, evidence of a forbidden action still fails and nothing else does (rules 2, 4);
 - a grader crash or instrument failure is INCONCLUSIVE and named, never a verdict (rule 5);
@@ -19,9 +19,8 @@ from pathlib import Path
 from typing import Any, Final
 
 import graders as fleet_graders
-import judge as rubric_judge
 
-from . import catalog, checking, conversations, fingerprints, invocation, outcomes, tracing
+from . import catalog, checking, conversations, outcomes, rules, tracing
 from .backing import ServiceUnavailable
 from .checking import Context, Need
 from .constants import ROOT
@@ -396,9 +395,7 @@ def routing_on_cut(outcome: Outcome, cut: str) -> Outcome:
 
 def forbidden_on_cut(outcome: Outcome, cut: str) -> Outcome:
     """A forbidding check on a run cut short: a violation stands, but no violation yet proves nothing."""
-    if outcome.state is State.PASS:
-        return unmeasured(f"no violation before the run was cut short ({cut})")
-    return outcome
+    return rules.rule_2_polarity_on_cut(outcome, Polarity.FORBIDS, cut)
 
 
 def _bound(outcome: Outcome) -> tuple[Outcome, bool]:
@@ -434,15 +431,22 @@ Kept = Callable[[int, Expectation], Outcome | None]
 
 
 def assess(
-    items: Sequence[Expectation], inconclusive: str | None, *, kept: Kept | None = None
+    items: Sequence[Expectation],
+    inconclusive: str | None,
+    *,
+    kept: Kept | None = None,
+    instrument: str | None = None,
 ) -> tuple[list[Graded], str | None]:
     """Grade every expectation under the result rules, in order.
 
     `inconclusive` is the run-level reason, if any: a CutShort for a run that stopped early on its
-    declared profile, any other string for a void one. `kept`, which a regrade's plan requires, returns
-    the saved live verdict of an expectation it keeps, or None when none was saved: measuring a kept
-    expectation live would spend a judge call or read a workspace that is gone. Returns the graded
-    expectations and the first reason one of them went unmeasured that names the trial's reason.
+    declared profile, any other string for a void one. `kept`, which a plan with kept expectations
+    requires, returns the recorded outcome of an expectation it keeps, or None when none was
+    recorded: measuring a kept expectation here would spend a judge call or read a workspace that is
+    gone. `instrument` is the backing-service failure the evidence recorded, which a kept
+    instrument failure names as the trial's reason, as a measured one names the service's own.
+    Returns the graded expectations and the first reason one of them went unmeasured that names the
+    trial's reason.
     """
     if kept is None and any(item.kept_as for item in items):
         raise ValueError("this plan keeps live verdicts; assess it with `kept`, the saved verdicts")
@@ -461,7 +465,11 @@ def assess(
                 missing = f"no saved verdict for a {item.kept_as} expectation; re-run the trial"
                 reason = reason or missing
                 saved = unmeasured(missing)
-            outcome = saved
+            # A kept outcome is what the probe measured; on a cut run the rule reads it as it reads
+            # a measured one, and an instrument failure names the trial's reason as a measured one does.
+            outcome = forbidden_on_cut(saved, cut) if cut is not None and forbids_on_cut else saved
+            if saved.instrument and instrument:
+                reason = reason or instrument
         else:
             outcome, service = _measure(item)
             reason = reason or service
@@ -475,21 +483,10 @@ def assess(
     return graded, reason
 
 
-def unmeasured_all(graded: Sequence[Graded], reason: str) -> list[Graded]:
-    """A run-level failure found after grading voids every check already graded (result rule 1)."""
-    return [Graded(g.expectation, *_bound(unmeasured(reason))) for g in graded]
-
-
 def roll_up(outcomes: Sequence[Outcome], unmeasured_reason: str | None) -> tuple[State, str | None]:
     """A trial's status: a supported FAIL wins, then anything unmeasured, then PASS (result rule 3).
     Returns it with the first reason something went unmeasured, if any."""
-    states = [outcome.state for outcome in outcomes]
-    reason = unmeasured_reason or next(
-        (outcome.reason for outcome in outcomes if outcome.state is State.INCONCLUSIVE), None
-    )
-    if State.FAIL in states:
-        return State.FAIL, reason
-    return (State.INCONCLUSIVE if reason or State.INCONCLUSIVE in states else State.PASS), reason
+    return rules.rule_3_roll_up(outcomes, unmeasured_reason)
 
 
 def records(graded: Sequence[Graded]) -> list[dict[str, Any]]:
@@ -532,50 +529,5 @@ def summary_of(expectations: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
 def machinery_failure(graded: Sequence[Graded]) -> dict[str, str]:
     """The first grading-machinery failure in a grade, if any (threat-model ADR rule 5)."""
-    failure = next((g.outcome.reason for g in graded if g.outcome.machinery), None)
+    failure = rules.rule_5_machinery_failure([g.outcome for g in graded])
     return {"grader_error": failure} if failure else {}
-
-
-def grade(
-    ctx: Context, *, inconclusive: str | None = None, expected_scenario_digest: str | None = None
-) -> dict[str, Any]:
-    """Grade a trial that just ran, against its live workspace, trace and services."""
-    binding = fingerprints.binding_for(ctx.spec, ctx.judge_binding)
-    identity = expected_scenario_digest or fingerprints.scenario_digest(ctx.spec, binding)
-    if fingerprints.scenario_digest(ctx.spec, binding) != identity:
-        inconclusive = "scenario inputs changed before grading; re-run the trial"
-    if not inconclusive:
-        try:
-            rubric_judge.validate_binding(ctx.judge_binding, fingerprints.required_rubrics(ctx.spec))
-        except rubric_judge.JudgeUnavailable as exc:
-            inconclusive = str(exc)
-    items = plan(
-        ctx.spec,
-        ctx.trace,
-        ctx,
-        ctx.plugin_root,
-        ctx.judge_binding,
-        workspace=ctx.ws.repo,
-    )
-    graded, reason = assess(items, inconclusive)
-    if fingerprints.scenario_digest(ctx.spec, binding) != identity:
-        inconclusive = "scenario inputs changed during grading; re-run the trial"
-        graded = unmeasured_all(graded, inconclusive)
-    status, reason = roll_up([g.outcome for g in graded], inconclusive or reason)
-    expectations = records(graded)
-    return {
-        "expectations": expectations,
-        "judge_binding": binding,
-        "response_sha256": rubric_judge._digest(ctx.trace.result_text),
-        **native_assessment(ctx.spec),
-        "scenario_sha256": fingerprints.stamp_assertions(identity, expectations),
-        **run_fields(
-            status,
-            reason,
-            inconclusive,
-            turn_limit=not inconclusive and invocation.reached_turn_limit(ctx.trace, ctx.spec),
-        ),
-        **machinery_failure(graded),
-        "summary": summary_of(expectations),
-        "status": status,
-    }

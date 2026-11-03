@@ -179,14 +179,13 @@ def load_config(path: Path) -> dict[str, Any]:
 
 
 def adapter_digest() -> str:
-    """Hash every adapter module plus entrypoint, imported harness and dependency pins."""
+    """Hash every adapter module plus entrypoint, imported harness, dependency manifest and lock."""
     paths = {
         *(_ROOT / "evals/swebench_adapter").glob("*.py"),
         _ROOT / "evals/swebench_repair.py",
         *HARNESS_FILES,
-        _ROOT / "requirements-dev.txt",
-        _ROOT / "requirements-test.txt",
-        _ROOT / "requirements-swebench.txt",
+        _ROOT / "pyproject.toml",
+        _ROOT / "uv.lock",
     }
     digest = hashlib.sha256()
     try:

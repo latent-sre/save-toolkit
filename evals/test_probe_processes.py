@@ -10,6 +10,7 @@ from unittest import mock
 
 import pytest
 from probe import checking, invocation, workspaces
+from probe.checks import checkout
 from probe_testkit import tiny_spec, ws_context
 
 
@@ -50,11 +51,11 @@ def test_grading_commands_preserve_shell_streams_and_exit_status(tmp_path: Path)
         "import sys\nsys.stdout.buffer.write(b'answer\\xff\\r\\n')\nsys.stderr.write('diagnostic\\n')\nsys.exit(7)\n",
         encoding="utf-8",
     )
-    result = checking._run(ctx, "python output.py", timeout=10)
+    result = checkout._run(ctx, "python output.py", timeout=10)
     assert result.returncode == 7
     assert result.stdout == "answer\ufffd\n"
     assert result.stderr == "diagnostic\n"
-    shell = checking._run(ctx, "echo first&& echo second", timeout=10)
+    shell = checkout._run(ctx, "echo first&& echo second", timeout=10)
     assert shell.returncode == 0
     assert shell.stdout.splitlines() == ["first", "second"]
 
@@ -69,7 +70,7 @@ def test_grading_waits_for_output_inherited_by_a_child(tmp_path: Path) -> None:
         "\"import time; time.sleep(0.05); print('x' * 100000)\"])\n",
         encoding="utf-8",
     )
-    result = checking._run(ctx, "python parent.py", timeout=10)
+    result = checkout._run(ctx, "python parent.py", timeout=10)
     assert result.returncode == 0
     assert result.stdout == "x" * 100000 + "\n"
 

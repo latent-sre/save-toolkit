@@ -242,17 +242,6 @@ ALLOWED_KEYS = {
 # state why the skill cannot be model-invoked, and keep the message below in sync.
 # Single-sourced from fleet_frontmatter; kept as a module attribute for test compatibility.
 MANUAL_ONLY = fleet_frontmatter.MANUAL_ONLY
-YAML_NON_STRING = re.compile(
-    r"^(?:"
-    r"~|null|true|false|yes|no|on|off|"
-    r"[-+]?(?:0|[1-9][0-9_]*|0o[0-7_]+|0x[0-9a-f_]+)|"
-    r"[-+]?(?:(?:[0-9][0-9_]*)?\.[0-9_]+|[0-9][0-9_]*[eE][-+]?[0-9]+|\.inf|\.nan)|"
-    r"[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[Tt ][0-9:.+\-Zz ]+)?"
-    r")$",
-    re.IGNORECASE,
-)
-
-
 def _strip_fences(text: str) -> str:
     kept = []
     fence: tuple[str, int] | None = None
@@ -276,23 +265,32 @@ def _strip_fences(text: str) -> str:
 def _yaml_string(
     parsed: fleet_frontmatter.ParsedFrontmatter, key: str, where: str, failures: list[str]
 ) -> str | None:
-    """The field `key` when it is one nonblank YAML string; otherwise record why and return None."""
-    value, style = parsed.fields.get(key, ""), parsed.styles.get(key)
+    """The field `key` when it is one nonblank YAML string; otherwise record why and return None.
+
+    The parser already applied the host's typing, so a bare `true`, `123`, `null` or `[a, b]` arrives
+    as a bool, an int, None or a list here; the host would have dropped the string too.
+    """
+    value = parsed.fields.get(key, "")
     where = f"{where}: {key}"
+    if isinstance(value, bool | int | float) or value is None:
+        failures.append(f"{where}: value must be a YAML string, not an implicit scalar")
+        return None
     if not isinstance(value, str) or not value.strip():
         failures.append(f"{where}: value must be one nonblank YAML string")
         return None
-    if style == "single-quoted-unmatched":
-        failures.append(f"{where}: invalid quoted string")
-        return None
-    if style == "plain":
-        if value.startswith("[") or value.startswith("{"):
-            failures.append(f"{where}: value must be a string, not a collection")
-            return None
-        if YAML_NON_STRING.fullmatch(value):
-            failures.append(f"{where}: value must be a YAML string, not an implicit scalar")
-            return None
     return value
+
+
+def _literal_true(parsed: fleet_frontmatter.ParsedFrontmatter, key: str) -> bool:
+    """`key: true` as every host reads it: the boolean, spelled plainly as `true`.
+
+    PyYAML follows YAML 1.1, where `yes` and `on` are also booleans; a YAML 1.2 host reads those as
+    strings, so only the spelling both agree on counts.
+    """
+    if parsed.fields.get(key) is not True or parsed.styles.get(key) != "plain":
+        return False
+    spelled = re.compile(rf"^{re.escape(key)}:\s*true\s*(?:#.*)?$")
+    return any(spelled.match(line) for line in parsed.raw_lines)
 
 
 def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
@@ -336,15 +334,15 @@ def _check_skill_frontmatter(path: Path, text: str) -> tuple[str, list[str]]:
             )
         elif compatibility and len(compatibility) > 500:
             failures.append(f"{where}: compatibility exceeds 500 characters")
-    raw_manual_only = values.get("disable-model-invocation")
+    manual_only = _literal_true(parsed, "disable-model-invocation")
     if expected_name in MANUAL_ONLY:
-        if raw_manual_only != "true":
+        if not manual_only:
             failures.append(
                 f"{where}: manual-only skill must contain frontmatter "
                 "disable-model-invocation: true"
             )
-    elif raw_manual_only is not None:
-        if raw_manual_only != "true":
+    elif "disable-model-invocation" in values:
+        if not manual_only:
             failures.append(f"{where}: disable-model-invocation must be boolean true")
         failures.append(
             f"{where}: only {', '.join(sorted(MANUAL_ONLY))} may disable model invocation"

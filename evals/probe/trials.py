@@ -30,12 +30,18 @@ from . import (
     backing,
     catalog,
     conversations,
+    engine,
+    evidence,
     fingerprints,
     invocation,
     layout,
     records,
+    rules,
     tracing,
     workspaces,
+)
+from . import (
+    attempt as attempts,
 )
 from .backing import Service, ServiceUnavailable
 from .checking import Context
@@ -91,7 +97,7 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
                 raise RuntimeError(f"{folder} has no readable attempt identity; resolve it before retrying this slot")
             number = max(number, hidden_number + 1)
     attempt = _new_attempt_dir(target)
-    _write_attempt(attempt, number, AttemptState.FINAL)
+    attempts.Attempt.begin(attempt, number)
     started_at = records.utc_now()
 
     def record(incomplete: str | None = None) -> None:
@@ -129,6 +135,8 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
             if backup is not None:
                 backup.rename(target)
             raise
+        # The trial body advanced the attempt's life on disk; read it back before the last step.
+        _phase(attempts.Attempt.read(target), attempts.Phase.PUBLISHED)
         if backup is not None:
             try:
                 _keep_attempt(backup, history, current, AttemptState.SUPERSEDED, f"replaced by attempt {number}")
@@ -139,6 +147,8 @@ def run_trial(spec: Mapping[str, Any], *, run_number: int, settings: BatchSettin
     except BaseException as exc:
         if not published and attempt.exists():
             reason = f"{type(exc).__name__}: {exc}"[:500]
+            with contextlib.suppress(Exception):  # where the attempt stopped, when that can be written
+                _phase(attempts.Attempt.read(attempt), attempts.Phase.INCOMPLETE, reason)
             # Each step is best effort and its failure is only warned of; no timing.json leaves the
             # cost unknown, which the cap refuses.
             for warning, step in (
@@ -172,6 +182,17 @@ def _new_attempt_dir(target: Path) -> Path:
     raise RuntimeError(f"could not create an attempt directory beside {target}")
 
 
+def _phase(life: attempts.Attempt | None, phase: attempts.Phase, note: str | None = None) -> None:
+    """Record a phase of the attempt's life, when the attempt has one. The record never decides the
+    verdict: a move the machine refuses is a runner defect reported on stderr, not a failed trial."""
+    if life is None:
+        return
+    try:
+        life.advance(phase, note)
+    except attempts.IllegalTransition as exc:
+        print(f"warning: attempt phase not recorded: {exc}", file=sys.stderr)
+
+
 def _attempt_number(run_dir: Path) -> int | None:
     number = (layout.read_object(run_dir / "attempt.json") or {}).get("attempt")
     if type(number) is int and number > 0:
@@ -182,15 +203,7 @@ def _attempt_number(run_dir: Path) -> int | None:
 
 
 def _write_attempt(run_dir: Path, number: int, state: AttemptState, reason: str | None = None) -> None:
-    layout.write_json(
-        run_dir / "attempt.json",
-        {"attempt": number, "state": state, **({"reason": reason} if reason else {}), "recorded_at": records.utc_now()},
-        ascii_only=True,
-    )
-    records.update_record(
-        run_dir,
-        lambda record: record["attempt"].update(number=number, state=state, **({"reason": reason} if reason else {})),
-    )
+    attempts.record_state(run_dir, number, state, reason)
 
 
 def kept_attempt_costs(
@@ -477,7 +490,7 @@ def _invoke_turns(
 def _warn_on_credentials(run_out: Path, trace: TraceSummary) -> None:
     """Name any credential-shaped marker in the final text or either invocation's raw trace."""
     markers = invocation.credential_markers(trace.result_text, run_out / "stdout.jsonl")
-    for folder in conversations.saved_folders(run_out)[1:]:
+    for folder in layout.saved_folders(run_out)[1:]:
         if (folder / "stdout.jsonl").is_file():
             markers += invocation.credential_markers("", folder / "stdout.jsonl")
     if markers:
@@ -601,6 +614,7 @@ def _finish_trial(
 
 def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings: BatchSettings) -> dict[str, Any]:
     eval_name = spec["id"]
+    life = attempts.Attempt.read(run_out)  # begun by run_trial; a test that runs the body alone has none
     (run_out / "outputs").mkdir(parents=True, exist_ok=True)
     # Raw traces carry whole prompts, responses, session ids, and tool payloads, and the README
     # calls them owner-only. Real on POSIX; advisory on Windows/NTFS, the same caveat clean_room
@@ -636,6 +650,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         # checkout: with `--plugin-dir` and `--add-dir` naming the checkout, a routing session could
         # read this repository's evals, docs and history before choosing an agent (EVAL-014).
         served = fingerprints.stage_plugin(settings.plugin_root, root / "plugin")
+        _phase(life, attempts.Phase.SERVED)
         provenance["plugin_served_from"] = str(served.resolve())
         binding = fingerprints.binding_for(spec, settings.judge_binding)
         scenario_identity = fingerprints.scenario_digest(spec, binding)
@@ -659,6 +674,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             spec if spec.get("fixture") else {**spec, "fixture": {"files": {"README.md": "# eval workspace\n"}}},
             root,
         )
+        _phase(life, attempts.Phase.SEEDED)
         if inconclusive is None:
             try:
                 services = backing.start_services(spec, settings.docker)
@@ -683,6 +699,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
                     served,
                 )
                 identity_failure = identity_failure or failed
+            _phase(life, attempts.Phase.INVOKED)
         else:
             # A missing fixture target cannot be repaired by the model. Starting it here would
             # spend a call with unresolved service placeholders and could make a tool-bearing
@@ -696,6 +713,7 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             inconclusive = void_over_cut(inconclusive, drift)
         trace = tracing.parse_trial_trace(run_out) if trace_path.exists() else TraceSummary()
         git = workspaces.collect_git_facts(ws)
+        _phase(life, attempts.Phase.OBSERVED)
         try:
             backing.stop_proxies(services)
         except ServiceUnavailable as exc:
@@ -711,7 +729,23 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
             judge_binding=settings.judge_binding,
             service_problem=service_error,
         )
-        grading = assessment.grade(ctx, inconclusive=inconclusive, expected_scenario_digest=scenario_identity)
+        (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
+        (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
+        _warn_on_credentials(run_out, trace)
+        # The probes run in the workspace and their outcomes are recorded as evidence; the grade is
+        # then read from that evidence, as a regrade reads it later.
+        grading, found = engine.grade_trial(
+            ctx,
+            inconclusive=inconclusive,
+            expected_scenario_digest=scenario_identity,
+            run_dir=run_out,
+            provenance={**provenance, **runner},
+            runtime=settings.runtime,
+            requested_model=settings.model,
+            identity_failure=identity_failure,
+        )
+        if found.probes and not grading.get("void"):
+            _phase(life, attempts.Phase.PROBED)
         after_assessment = None
         if services:
             try:
@@ -724,17 +758,21 @@ def _run_trial(spec: Mapping[str, Any], run_number: int, run_out: Path, settings
         drift = _plugin_drift(settings.plugin_root, served, provenance["plugin_source_sha256"])
         if drift:
             identity_failure = identity_failure or drift
-            grading = assessment.grade(ctx, inconclusive=drift, expected_scenario_digest=scenario_identity)
+            found = evidence.ended(found, drift, identity_failure=identity_failure)
+            grading = engine.render(engine.grade(spec, found, plugin_root=served, run_level=drift), spec)
         if after_assessment:
-            grading["after_assessment"] = after_assessment
-        (run_out / "outputs" / "response.md").write_text(trace.result_text or "(no result)", encoding="utf-8")
-        (run_out / "outputs" / "workspace.patch").write_text(git.patch or "(no changes)\n", encoding="utf-8")
-        _warn_on_credentials(run_out, trace)
+            grading = rules.rule_6_after_assessment(grading, after_assessment)
+        _phase(life, attempts.Phase.GRADED)
+        if identity_failure:
+            _phase(life, attempts.Phase.VOID, identity_failure)
+        elif grading.get("grader_error") or service_error:
+            _phase(life, attempts.Phase.STOPPED, grading.get("grader_error") or service_error)
         layout.write_json(
             run_out / "outputs" / "trace-summary.json",
             _saved_summary(ctx, grading, provenance, settings, binding, after_assessment),
         )
         layout.write_json(run_out / "grading.json", grading)
+        evidence.write(run_out, found)
         # Drained after grading: a rubric grader's judge call is spend this trial caused.
         judge = records.judge_spend()
         cost = records.trial_cost(trace.total_cost_usd, judge)

@@ -356,6 +356,7 @@ def write_record(
                 "stdout.jsonl",
                 "outputs/workspace.patch",
                 "grading.json",
+                "evidence.json",
                 "timing.json",
                 "provenance.json",
                 "invocation.json",
@@ -391,15 +392,13 @@ def _store(path: Path, fields: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _conversation_evidence(run_dir: Path) -> list[str]:
-    from . import conversations  # noqa: PLC0415 -- avoid the records/tracing import cycle
-
     if not (run_dir / "conversation.json").is_file():
         return []
     return [
         "conversation.json",
         *(
             str((folder / name).relative_to(run_dir)).replace("\\", "/")
-            for folder in conversations.saved_folders(run_dir)
+            for folder in layout.saved_folders(run_dir)
             for name in (
                 "invocation.json",
                 "stdout.jsonl",

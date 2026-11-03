@@ -36,7 +36,7 @@
         "text": "an unbalanced pattern"
       }
     ],
-    "grader_error": null,
+    "grader_error": "grader error: PatternError('missing ), unterminated subpattern at position 0')",
     "inconclusive": "grader error: PatternError('missing ), unterminated subpattern at position 0')",
     "run_end": null,
     "run_stop": null,
@@ -47,7 +47,7 @@
       "total": 1
     },
     "unmeasured": null,
-    "void": "grader error: PatternError('missing ), unterminated subpattern at position 0')"
+    "void": null
   },
   "rules": [
     5

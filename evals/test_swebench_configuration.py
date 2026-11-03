@@ -166,14 +166,14 @@ def test_adapter_digest_binds_paths_bytes_requirements_and_normalizes_crlf(tmp_p
     native = root / "evals/probe/native.py"
     native.parent.mkdir()
     native.write_bytes(b"native\n")
-    for name in ("requirements-dev.txt", "requirements-test.txt", "requirements-swebench.txt"):
+    for name in ("pyproject.toml", "uv.lock"):
         (root / name).write_bytes(b"dependency==1\n")
     monkeypatch.setattr(configuration, "_ROOT", root)
     monkeypatch.setattr(configuration, "HARNESS_FILES", (native,))
     initial = configuration.adapter_digest()
-    (root / "requirements-swebench.txt").write_bytes(b"dependency==2\n")
+    (root / "uv.lock").write_bytes(b"dependency==2\n")
     assert configuration.adapter_digest() != initial
-    (root / "requirements-swebench.txt").write_bytes(b"dependency==1\n")
+    (root / "uv.lock").write_bytes(b"dependency==1\n")
     native.write_bytes(b"native\r\n")
     assert configuration.adapter_digest() == initial
     native.write_bytes(b"native changed\n")
@@ -185,7 +185,7 @@ def test_adapter_digest_binds_paths_bytes_requirements_and_normalizes_crlf(tmp_p
     (adapter / "configuration.py").rename(adapter / "renamed.py")
     assert configuration.adapter_digest() != initial
     (adapter / "renamed.py").rename(adapter / "configuration.py")
-    (root / "requirements-dev.txt").write_bytes(b"dependency==2\n")
+    (root / "pyproject.toml").write_bytes(b"dependency==2\n")
     assert configuration.adapter_digest() != initial
     entry.unlink()
     with pytest.raises(ValueError):
