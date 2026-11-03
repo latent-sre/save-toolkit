@@ -15,6 +15,8 @@
 - `records`: what an attempt cost, and the v1 result record;
 - `invocation`: one `claude -p` call, and whether its trace may be graded;
 - `assessment`: the one grading loop, shared by live grades and regrades;
+- `evidence`: what one attempt observed, as the evidence-v1 artifact it writes beside its grade;
+- `legacy`: read a pre-evidence run directory back into the grading loop's objects and into evidence;
 - `trials`: run one trial and publish it as an attempt;
 - `rescoring`: regrade, rescore and diff saved runs;
 - `batches`: pool trials into a verdict per scenario;
