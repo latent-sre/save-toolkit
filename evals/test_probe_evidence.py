@@ -79,6 +79,27 @@ def test_every_need_a_regradable_check_reads_has_a_block() -> None:
             assert (needs <= checking.SAVED) == (name in regradable), name
     assert regradable and probes
     assert set(regradable) == checking.REGRADABLE
+    for name, declared in checking.CHECKS.items():
+        kind = declared.kind_of({"check": name}, {})
+        assert kind is (checking.Kind.CHECK if name in regradable else checking.Kind.PROBE), name
+    assert {
+        "changed_files_not_containing",
+        "command_exit_zero",
+        "command_output_regex",
+        "file_contains",
+        "file_exists",
+        "glob_exists",
+        "grafana_dashboard_write",
+        "grafana_query_succeeded",
+        "ran_outside_checkout",
+        "service_array_item",
+        "service_get",
+        "service_unchanged",
+    } == checking.PROBES
+    # Two declarations read evidence their parameters choose: a rubric grader spends a judge call,
+    # and a seeded workspace's uncommitted bytes left with the checkout.
+    assert checking.CHECKS["fleet_grader"].kind is None and checking.CHECKS["no_workspace_changes"].kind is None
+    assert checking.CHECKS["fleet_grader"].kind_of({"check": "fleet_grader", "name": "rubric"}, {}) is checking.Kind.PROBE
 
 
 @pytest.mark.parametrize("item", CASES, ids=IDS)

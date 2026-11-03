@@ -209,21 +209,37 @@ class PackageStructureTests(unittest.TestCase):
             self.assertEqual("patched", probe_checking.run(ctx, {"check": "text_regex", "pattern": "absent"}).evidence)
 
     def test_the_runner_identity_binds_every_module_in_the_package(self) -> None:
-        package = {path.resolve() for path in (ROOT / "evals" / "probe").glob("*.py")}
+        package = {path.resolve() for path in (ROOT / "evals" / "probe").rglob("*.py")}
         self.assertLessEqual(package | {(ROOT / "evals" / "build_probe.py").resolve()}, set(probe_fingerprints.HARNESS_FILES))
+        self.assertTrue(any("checks" in path.parts for path in probe_fingerprints.HARNESS_FILES), "the sub-package is bound")
 
     def test_a_sibling_function_is_called_through_its_module(self) -> None:
         """So a test patches the one place a function is looked up. `outcomes` holds pure
-        constructors that nothing patches, so they may be imported by name."""
+        constructors that nothing patches, so they may be imported by name; `checking` is the facade
+        over `checks/` and exists to re-export, so it alone imports functions by name."""
         package = ROOT / "evals" / "probe"
-        functions = {path.stem: {node.name for node in ast.parse(path.read_text(encoding="utf-8")).body
-                                 if isinstance(node, ast.FunctionDef)}
-                     for path in package.glob("*.py")}
-        for path in package.glob("*.py"):
+
+        def dotted(path: Path) -> str:
+            parts = path.relative_to(package).with_suffix("").parts
+            return ".".join(parts[:-1] if parts[-1] == "__init__" else parts)
+
+        modules = {dotted(path): path for path in package.rglob("*.py")}
+        functions = {name: {node.name for node in ast.parse(path.read_text(encoding="utf-8")).body
+                            if isinstance(node, ast.FunctionDef)}
+                     for name, path in modules.items()}
+        for name, path in modules.items():
+            if name == "checking":
+                continue
+            package_parts = name.split(".")[:-1] if path.name != "__init__.py" else name.split(".")
             for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-                if isinstance(node, ast.ImportFrom) and node.level == 1 and node.module and node.module != "outcomes":
-                    with self.subTest(module=path.stem, source=node.module):
-                        self.assertEqual(set(), {alias.name for alias in node.names} & functions.get(node.module, set()))
+                if not (isinstance(node, ast.ImportFrom) and node.level and node.module):
+                    continue
+                base = package_parts[: len(package_parts) - (node.level - 1)] if node.level > 1 else package_parts
+                source = ".".join([*base, node.module])
+                if source == "outcomes":
+                    continue
+                with self.subTest(module=name, source=source):
+                    self.assertEqual(set(), {alias.name for alias in node.names} & functions.get(source, set()))
 
 
 class IdleSleepHoldTests(unittest.TestCase):

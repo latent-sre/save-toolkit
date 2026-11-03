@@ -14,9 +14,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from . import constants, layout
+from . import constants, layout, specs, tracing
 
-PROFILE = "incident-v1"
+PROFILE = constants.INCIDENT_PROFILE
 
 
 def enabled(spec: Mapping[str, Any]) -> bool:
@@ -32,17 +32,6 @@ def folders(run: Path, spec: Mapping[str, Any]) -> list[Path]:
     if enabled(spec):
         return [run, *(run / "invocations" / f"{i:03}" for i in range(2, count(spec) + 1))]
     return [run, run / "followup"] if spec.get("followups") else [run]
-
-
-def saved_folders(run: Path) -> list[Path]:
-    """Read only a canonical index; never follow arbitrary evidence paths from disk."""
-    manifest = layout.read_object(run / "conversation.json")
-    if manifest is not None:
-        n = manifest.get("invocations")
-        if manifest.get("profile") != PROFILE or type(n) is not int or not 2 <= n <= 32:
-            raise ValueError("invalid incident conversation index")
-        return [run, *(run / "invocations" / f"{i:03}" for i in range(2, n + 1))]
-    return [run, run / "followup"] if (run / "followup").is_dir() else [run]
 
 
 def turn_spec(spec: Mapping[str, Any], index: int) -> Mapping[str, Any]:
@@ -112,8 +101,6 @@ def judge_context(index: int, messages: Sequence[Mapping[str, str]], files: Mapp
 
 def problems(spec: Mapping[str, Any], where: str) -> list[str]:
     """Shape-check all opt-in values before a trial can start."""
-    from . import catalog  # noqa: PLC0415 -- catalog calls this validator
-
     issue: list[str] = []
     config = spec.get("conversation")
     if not isinstance(config, dict) or config.get("profile") != PROFILE:
@@ -131,7 +118,7 @@ def problems(spec: Mapping[str, Any], where: str) -> list[str]:
             h is not None
             and (
                 not isinstance(h, str)
-                or not catalog.SLUG.fullmatch(h)
+                or not specs.SLUG.fullmatch(h)
                 or not (constants.ROOT / "agents" / f"{h}.md").is_file()
             )
             for h in helpers
@@ -150,7 +137,7 @@ def problems(spec: Mapping[str, Any], where: str) -> list[str]:
                     f"{where}: incident semantic rubric requires a calibrated then-visible judge; use manual review"
                 )
             elif entries:
-                issue += catalog._grader_problems({"graders": entries}, where)
+                issue += specs.grader_problems({"graders": entries}, where)
     if spec.get("graders") or spec.get("helper"):
         issue.append(f"{where}: declare incident graders and helpers per invocation")
     for update in followups:
@@ -174,7 +161,7 @@ def problems(spec: Mapping[str, Any], where: str) -> list[str]:
             ident, requests, text = option["id"], option["requests"], option["text"]
             if not isinstance(ident, str) or ident in ids or ident in {"fixed", "ambiguous", "unavailable"}:
                 issue.append(f"{where}: branch ids must be unique, non-reserved strings")
-            elif not catalog.SLUG.fullmatch(ident):
+            elif not specs.SLUG.fullmatch(ident):
                 issue.append(f"{where}: branch id must be a slug")
             else:
                 ids.add(ident)
@@ -202,8 +189,6 @@ def replay_problem(run: Path, spec: Mapping[str, Any], initial: str) -> str | No
         return "incident conversation contains an unexpected invocation"
     messages: list[dict[str, str]] = []
     previous = ""
-    from . import tracing  # noqa: PLC0415 -- tracing imports this module
-
     for index, folder in enumerate(folders(run, spec)):
         if not (folder / "invocation.json").is_file():
             break  # native boundary replay distinguishes budget exhaustion from missing evidence

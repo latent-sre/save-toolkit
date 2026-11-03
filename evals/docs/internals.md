@@ -15,9 +15,12 @@ preserves the private craft trial's verification wiring without shipping the pro
   is a frozen dataclass whose equality and hash include the state, evidence and both classification
   flags. Unpacking and indexing retain the `(passed, evidence)` reading API; a plain tuple is not
   equal to an outcome. Saved grades keep their text representation; only `Outcome.read` interprets it.
-- **Declared checks.** Each check in [`probe/checking.py`](../probe/checking.py) is registered with
-  `@declare`: whether it forbids, requires or both, and the evidence it reads. Polarity,
-  regradability and the cut-short rules are read from those declarations.
+- **Declared checks.** Each check in [`probe/checks/`](../probe/checks/) is registered with
+  `registry.declare`: whether it forbids, requires or both, the evidence it reads, and whether it is
+  a check a regrade re-measures from saved evidence or a probe that runs once at trial time because
+  it reads the live checkout, a backing service or a paid judge. Polarity, regradability and the
+  cut-short rules are read from those declarations. [`probe/checking.py`](../probe/checking.py) is
+  the facade that keeps every name importable and the module the runner calls the registry through.
 - **One grading loop.** `assessment.assess` grades a live trial and a regrade alike; a regrade
   supplies the saved verdicts it keeps. A result rule therefore changes in one place.
 - **A published record contract.** `records.RecordV1` validates each `record.json` strictly, as

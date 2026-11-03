@@ -8,6 +8,12 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The check registry is the `probe/checks/` package: the registry and one module per domain
+  (checkout, text, changes, services, trace, state, graders), each declaration saying whether it
+  is a check or a probe; `probe/checking.py` is a facade that keeps every name importable. The
+  catalog and the conversation validator share a `specs` leaf instead of importing each other, a
+  saved run's folders are read through `layout`, and the runner identity binds the sub-package
+  (stage 2 of the runner rewrite, RUNNER-001).
 - Each graded attempt writes `evidence.json`, the evidence-v1 record of what it observed and no
   verdict, validated by `probe.evidence.EvidenceV1` and published as
   `docs/fleet-evaluation/eval-evidence-v1.schema.json` (`build_probe.py schema --model evidence`);

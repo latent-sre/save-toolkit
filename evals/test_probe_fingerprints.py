@@ -56,7 +56,8 @@ class RuntimeIdentityTests(unittest.TestCase):
 
 
 class EvaluatorImplementationIdentityTests(unittest.TestCase):
-    FILES = ("build_probe.py", *sorted(f"probe/{p.name}" for p in (ROOT / "evals" / "probe").glob("*.py")),
+    FILES = ("build_probe.py",
+             *sorted(p.relative_to(ROOT / "evals").as_posix() for p in (ROOT / "evals" / "probe").rglob("*.py")),
              "graders.py", "judge.py", "clean_room.py", "oracles/incident-closing-fields/probe_closing_fields.py")
 
     def test_new_process_identity_binds_every_local_evaluator_module(self) -> None:
@@ -73,7 +74,8 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
             before = digest()
             replacements = {
                 "build_probe.py": ("raise SystemExit(cli.main())", "raise SystemExit(cli.main() or 0)"),
-                "probe/checking.py": ("new = ctx.git.commit_ids - ctx.ws.baseline_commit_ids", "new = frozenset()"),
+                "probe/checks/changes.py": ("new = ctx.git.commit_ids - ctx.ws.baseline_commit_ids", "new = frozenset()"),
+                "probe/checking.py": ("from .checks import PROBES, REGRADABLE", "from .checks import PROBES, REGRADABLE  # bound"),
                 "probe/outcomes.py": ('EVIDENCE_LIMIT: Final = 600', 'EVIDENCE_LIMIT: Final = 601'),
                 "graders.py": ("return (not missing,", "return (False,"),
                 "judge.py": ("Distinguish the assistant's own voice", "Ignore the assistant's own voice"),

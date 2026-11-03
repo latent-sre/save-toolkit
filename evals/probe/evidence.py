@@ -22,7 +22,7 @@ from typing import Any, Literal, get_args
 
 from pydantic import ConfigDict, Field
 
-from . import assessment, conversations, fingerprints, layout
+from . import assessment, fingerprints, layout
 from .checking import Context
 from .outcomes import Ending, Outcome, Polarity, State, Stop
 from .records import Sha256, UtcTime, _Section
@@ -234,7 +234,7 @@ def trace_facts(trace: TraceSummary, run_dir: Path, *, restored: bool) -> Trace:
     """Every field of the parsed trace, with the digest of each raw trace under the attempt folder."""
     raw = {
         folder.relative_to(run_dir).joinpath("stdout.jsonl").as_posix(): digest
-        for folder in conversations.saved_folders(run_dir)
+        for folder in layout.saved_folders(run_dir)
         if (digest := file_sha256(folder / "stdout.jsonl")) is not None
     }
     return Trace(**dataclasses.asdict(trace), raw_sha256=raw, restored_from_summary=restored)
@@ -255,7 +255,7 @@ def _strings(value: object) -> list[str] | None:
 
 def turns(run_dir: Path) -> list[Turn]:
     """Each native invocation the attempt saved, in order; an attempt with one invocation has none."""
-    folders = conversations.saved_folders(run_dir)
+    folders = layout.saved_folders(run_dir)
     if len(folders) < 2:
         return []
     result = []
