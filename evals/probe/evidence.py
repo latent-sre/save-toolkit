@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Literal, get_args
@@ -42,7 +43,10 @@ class Identity(_Section):
     The same on every host that measures the same inputs."""
 
     case_id: str
-    case_sha256: Sha256 = Field(description="The case alone: scenario, oracle bytes and rubrics, without the runner.")
+    case_sha256: Sha256 | None = Field(
+        description="The case alone: scenario, oracle bytes and rubrics, without the runner; null when a "
+        "saved run recorded none, never the current inputs."
+    )
     scenario_sha256: str | None = Field(description="The case bound to the runner, Python and judge that graded it.")
     plugin_commit: str | None
     plugin_inputs_dirty: bool | None
@@ -236,6 +240,19 @@ def trace_facts(trace: TraceSummary, run_dir: Path, *, restored: bool) -> Trace:
     return Trace(**dataclasses.asdict(trace), raw_sha256=raw, restored_from_summary=restored)
 
 
+_UTC_TIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|\+00:00)$")
+
+
+def _typed(value: object, kind: type) -> Any:
+    """A saved value of exactly `kind`, else None: a damaged field is unknown, never coerced into
+    place. The regrade names damaged invocation evidence itself; the evidence must not abort it."""
+    return value if type(value) is kind else None
+
+
+def _strings(value: object) -> list[str] | None:
+    return list(value) if isinstance(value, list) and all(isinstance(v, str) for v in value) else None
+
+
 def turns(run_dir: Path) -> list[Turn]:
     """Each native invocation the attempt saved, in order; an attempt with one invocation has none."""
     folders = conversations.saved_folders(run_dir)
@@ -244,22 +261,25 @@ def turns(run_dir: Path) -> list[Turn]:
     result = []
     for folder in folders:
         saved = layout.read_object(folder / "invocation.json") or {}
+        times = {name: _typed(saved.get(name), str) for name in ("started_at", "ended_at")}
         result.append(
             Turn(
                 folder=folder.relative_to(run_dir).as_posix() or ".",
-                argv=[str(arg) for arg in saved.get("argv") or []],
-                resume=saved.get("resume"),
-                expected_model=saved.get("expected_model"),
-                session_id=saved.get("session_id"),
-                main_models=saved.get("main_models"),
-                init_session_ids=saved.get("init_session_ids"),
-                exit_code=saved.get("exit_code"),
-                state=saved.get("state"),
-                cut_short=saved.get("cut_short"),
-                run_stop=saved.get("run_stop"),
-                inconclusive=saved.get("inconclusive"),
-                started_at=saved.get("started_at"),
-                ended_at=saved.get("ended_at"),
+                argv=[str(arg) for arg in saved.get("argv") or []] if isinstance(saved.get("argv"), list) else [],
+                resume=_typed(saved.get("resume"), str),
+                expected_model=_typed(saved.get("expected_model"), str),
+                session_id=_typed(saved.get("session_id"), str),
+                main_models=_strings(saved.get("main_models")),
+                init_session_ids=_strings(saved.get("init_session_ids")),
+                exit_code=_typed(saved.get("exit_code"), int),
+                state=_typed(saved.get("state"), str),
+                cut_short=_typed(saved.get("cut_short"), bool),
+                run_stop=_typed(saved.get("run_stop"), str),
+                inconclusive=_typed(saved.get("inconclusive"), str),
+                started_at=times["started_at"]
+                if times["started_at"] and _UTC_TIME.match(times["started_at"])
+                else None,
+                ended_at=times["ended_at"] if times["ended_at"] and _UTC_TIME.match(times["ended_at"]) else None,
                 raw_sha256=file_sha256(folder / "stdout.jsonl"),
                 response_sha256=file_sha256(folder / "response.md"),
             )

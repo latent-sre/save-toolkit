@@ -222,10 +222,17 @@
           "type": "string"
         },
         "case_sha256": {
-          "description": "The case alone: scenario, oracle bytes and rubrics, without the runner.",
-          "pattern": "^[0-9a-f]{64}$",
-          "title": "Case Sha256",
-          "type": "string"
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The case alone: scenario, oracle bytes and rubrics, without the runner; null when a saved run recorded none, never the current inputs.",
+          "title": "Case Sha256"
         },
         "scenario_sha256": {
           "anyOf": [

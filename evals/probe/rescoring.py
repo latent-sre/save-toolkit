@@ -14,6 +14,7 @@ import contextlib
 import json
 import re
 import shutil
+import sys
 import tempfile
 from collections.abc import Iterator, Mapping
 from pathlib import Path
@@ -368,7 +369,14 @@ def _regrade_run(
         # The evidence the regrade reconstructed, written beside its assessment; the live attempt's
         # folder is never rewritten (result rule 8).
         ws = legacy.workspace(Path(tmp), summary, saved, recorded_workspace)
-        found = legacy.evidence_of(run_dir, spec, summary, saved, ws, live_grade, plugin_root)
+        try:
+            found: evidence.EvidenceV1 | None = legacy.evidence_of(
+                run_dir, spec, summary, saved, ws, live_grade, plugin_root
+            )
+        except (ValueError, TypeError, KeyError, OSError) as exc:
+            # The assessment stands on its own; evidence the contract refuses is reported, not raised.
+            print(f"warning: {run_dir}: evidence not written: {exc}", file=sys.stderr)
+            found = None
     return _add_assessment(run_dir, grading, summary, trace if reparsed is not None else None, found)
 
 

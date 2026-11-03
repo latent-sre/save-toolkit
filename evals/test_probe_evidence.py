@@ -193,6 +193,36 @@ def test_a_written_regrade_carries_the_evidence_it_reconstructed(tmp_path: Path)
     assert [p.kept_as for p in written.probes] == [checking.LIVE_JUDGE]
 
 
+def test_a_damaged_invocation_field_does_not_abort_a_written_regrade(tmp_path: Path) -> None:
+    """A regrade names damaged invocation evidence itself and stays INCONCLUSIVE; the evidence it
+    writes beside that assessment records the damaged field as unknown rather than refusing."""
+    item = next(c for c in CASES if c.name == "native_pass")
+    copy, _ = _saved(item, tmp_path)
+    metadata_path = copy / "followup" / "invocation.json"
+    metadata = json.loads(metadata_path.read_text("utf-8"))
+    metadata["exit_code"] = "0"
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+    grading = rescoring.regrade_run(copy, golden_runs.scenario(item), write=True, relax_identity=True)
+    assert grading["status"] == "INCONCLUSIVE"
+    assert "boundary evidence missing or invalid" in str(grading["inconclusive"])
+    assert (copy / "assessments/1/grading.json").is_file()
+    written = evidence.EvidenceV1.model_validate_json((copy / "assessments/1" / evidence.FILE).read_text("utf-8"))
+    assert [t.exit_code for t in written.turns] == [0, None]
+
+
+def test_legacy_carries_the_recorded_case_digest_never_the_current_inputs(tmp_path: Path) -> None:
+    item = next(c for c in CASES if c.name == "pass")
+    copy, found = _saved(item, tmp_path)
+    record_path = copy / "record.json"
+    record = json.loads(record_path.read_text("utf-8"))
+    assert found.identity.case_sha256 == record["case"]["case_sha256"]
+    record["case"]["case_sha256"] = "a" * 64
+    record_path.write_text(json.dumps(record), encoding="utf-8")
+    assert rescoring.load_evidence(copy, golden_runs.scenario(item)).identity.case_sha256 == "a" * 64
+    record_path.unlink()
+    assert rescoring.load_evidence(copy, golden_runs.scenario(item)).identity.case_sha256 is None
+
+
 def test_a_saved_run_with_its_own_evidence_is_read_as_written(tmp_path: Path) -> None:
     item = next(c for c in CASES if c.name == "pass")
     run_dir, found, _ = _live(item, tmp_path)

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from . import evidence, fingerprints, layout, tracing
+from . import evidence, layout, tracing
 from .tracing import TraceSummary
 from .workspaces import GitFacts, Workspace
 
@@ -114,8 +114,12 @@ def evidence_of(
 ) -> evidence.EvidenceV1:
     """The saved run as evidence-v1, from what its files kept. Two facts the old format never saved
     stay null: the identity failure the batch read from the result row, and a service problem seen
-    after the proxy stopped; the live grade's `void` and `inconclusive` carry what it recorded."""
+    after the proxy stopped; the live grade's `void` and `inconclusive` carry what it recorded. The
+    case digest is the one the attempt's record names, null for a run that recorded none: the
+    current inputs are never substituted for the ones the attempt ran."""
     provenance = layout.read_object(run_dir / "provenance.json") or {}
+    # The case the attempt ran is the one its record names; the current inputs may have changed since.
+    recorded_case = ((layout.read_object(run_dir / "record.json") or {}).get("case") or {}).get("case_sha256")
     plugin = dict(summary.get("plugin") or {})
     binding, execution, cache_dir = evidence.split_binding(live_grade.get("judge_binding"))
     git = saved.git
@@ -124,7 +128,7 @@ def evidence_of(
         written_by="legacy",
         identity=evidence.Identity(
             case_id=str(spec["id"]),
-            case_sha256=fingerprints.case_digest(spec),
+            case_sha256=recorded_case if isinstance(recorded_case, str) else None,
             scenario_sha256=live_grade.get("scenario_sha256"),
             plugin_commit=plugin.get("plugin_commit"),
             plugin_inputs_dirty=plugin.get("plugin_inputs_dirty"),
