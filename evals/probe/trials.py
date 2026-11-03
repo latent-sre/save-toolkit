@@ -477,7 +477,7 @@ def _invoke_turns(
         )
         layout.write_json(invocation_path, invocation_record, ascii_only=True)
         if spec.get("followups"):
-            (turn_out / "response.md").write_text(current.result_text, encoding="utf-8")
+            (turn_out / "response.md").write_text(current.result_text, encoding="utf-8", newline="")
         if inconclusive:
             break
         resume = current.session_id
