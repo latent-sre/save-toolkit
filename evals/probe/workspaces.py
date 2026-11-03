@@ -56,8 +56,7 @@ def _git(
     return subprocess.CompletedProcess(
         proc.args,
         proc.returncode,
-        # A NUL-delimited path that is not UTF-8 is the candidate's own file name: kept, as `\\xNN`.
-        proc.stdout.decode("utf-8", errors="backslashreplace" if "-z" in args else "replace"),
+        proc.stdout.decode("utf-8", errors="replace"),
         proc.stderr.decode("utf-8", errors="replace"),
     )
 
@@ -188,6 +187,26 @@ class GitFacts:
     # Why the changed paths could not be listed: a git command failed, so they are unknown, not none.
     problem: str | None = None
     commit_ids: frozenset[str] | None = None
+    # Changed paths whose names were not UTF-8, as `changed` spells them (a live grade's own: the
+    # probes that read the checkout look them up; a regrade never does).
+    undecodable: frozenset[str] = frozenset()
+
+
+def _changed_paths(raw: bytes) -> tuple[list[tuple[str, str]], frozenset[str]]:
+    """`git diff --name-status -z` output as (status, path) pairs, each path decoded on its own, and the
+    paths whose names were not UTF-8: their `\\xNN` text is a spelling another file may carry literally,
+    so nothing may be looked up by it."""
+    fields = raw.split(b"\0")[:-1]
+    changed: list[tuple[str, str]] = []
+    undecodable: set[str] = set()
+    for status, path in zip(fields[::2], fields[1::2], strict=True):
+        try:
+            text = path.decode("utf-8")
+        except UnicodeDecodeError:
+            text = path.decode("utf-8", "backslashreplace")
+            undecodable.add(text)
+        changed.append((status.decode("ascii", "replace")[:1], text))
+    return changed, frozenset(undecodable)
 
 
 def collect_git_facts(ws: Workspace) -> GitFacts:
@@ -204,7 +223,7 @@ def collect_git_facts(ws: Workspace) -> GitFacts:
     if (ws.repo / ".git" / "index").is_file():
         shutil.copyfile(ws.repo / ".git" / "index", index)
     env = {**os.environ, "GIT_INDEX_FILE": str(index)}
-    outputs = []
+    outputs: list[bytes] = []
     for args in (
         ("add", "-A"),
         # --no-renames: a file moved out of the allowed set must show as a deletion, not vanish into
@@ -212,23 +231,16 @@ def collect_git_facts(ws: Workspace) -> GitFacts:
         ("diff", "--cached", "--no-renames", "--name-status", "-z", base),
         ("diff", "--cached", base),
     ):
-        try:
-            proc = _git(ws.repo, *args, check=False, env=env)
-        except UnicodeDecodeError:
-            return GitFacts(count, branch, [], "", "git paths contain non-UTF-8 bytes", commit_ids)
+        # Bytes: each changed path is decoded on its own (`_changed_paths`); text-mode pipes would also
+        # normalize CR/CRLF inside NUL-delimited filenames.
+        proc = subprocess.run(["git", *GIT_IDENTITY, *args], cwd=str(ws.repo), capture_output=True, env=env)
         if proc.returncode != 0:
-            return GitFacts(
-                count,
-                branch,
-                [],
-                "",
-                f"git {args[0]} exited {proc.returncode}: {proc.stderr.strip()[:200]}",
-                commit_ids,
-            )
+            stderr = proc.stderr.decode("utf-8", errors="replace").strip()[:200]
+            return GitFacts(count, branch, [], "", f"git {args[0]} exited {proc.returncode}: {stderr}", commit_ids)
         outputs.append(proc.stdout)
-    fields = outputs[1].split("\0")[:-1]
-    changed = [(status[:1], path) for status, path in zip(fields[::2], fields[1::2], strict=True)]
-    return GitFacts(count, branch, changed, outputs[2], commit_ids=commit_ids)
+    changed, undecodable = _changed_paths(outputs[1])
+    patch = outputs[2].decode("utf-8", errors="replace")
+    return GitFacts(count, branch, changed, patch, commit_ids=commit_ids, undecodable=undecodable)
 
 
 def remove_tree(root: Path) -> None:

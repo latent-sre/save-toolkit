@@ -71,7 +71,8 @@ class TraceAndCommandTests(unittest.TestCase):
                 trace = parse_events([init, call, {"type": "result", "subtype": subtype, "is_error": True, "errors": []}])
                 self.assertTrue(trace.tool_counts_complete)
                 self.assertEqual({"Bash": 1}, trace.tool_counts)
-        for result in ({"type": "result", "subtype": "success"}, {"type": "result", "subtype": "error_unknown"}):
+        for result in ({"type": "result", "subtype": "success"}, {"type": "result", "subtype": "error_unknown"},
+                       {"type": "result", "subtype": []}, {"type": "result", "subtype": {"x": 1}}):
             with self.subTest(result=result):
                 self.assertFalse(parse_events([init, call, result]).tool_counts_complete)
 

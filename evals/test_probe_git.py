@@ -36,6 +36,17 @@ class GitEvidenceTests(TempRootTestCase):
         layout.write_json(self.root / "grading.json", grading)
         layout.write_json(self.root / "git.json", {"changed_files": ctx.git.changed, "git_problem": ctx.git.problem})
 
+    def test_a_non_utf8_name_cannot_hide_behind_a_name_that_spells_its_escape(self) -> None:
+        """`\\xff` is how a byte that is not UTF-8 is written as text, and also a name a file can carry
+        literally: a forbidden needle in the first must not pass because the second, benign, shares
+        its spelling (Codex on PR #471)."""
+        spec = tiny_spec(checks=[{"check": "changed_files_not_containing", "glob": "*.md", "needle": "FORBIDDEN"}])
+        ws = workspaces.seed_workspace(spec, self.root / "workspace-collision")
+        (ws.repo / os.fsdecode(b"bad-\xff.md")).write_text("FORBIDDEN\n", encoding="utf-8")
+        (ws.repo / "bad-\\xff.md").write_text("benign\n", encoding="utf-8")
+        grading = grade_trial(ws_context(spec, ws, text="done"))
+        self.assertEqual(["FAIL"], [e["state"] for e in grading["expectations"]])
+
     def test_saved_live_commit_proof_survives_workspace_removal(self) -> None:
         spec = tiny_spec(fixture=tiny_fixture(branches={}))
         settings = trials.BatchSettings(plugin_root=Path(__file__).resolve().parent.parent, label="candidate",

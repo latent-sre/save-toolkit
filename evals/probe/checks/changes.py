@@ -68,7 +68,11 @@ def check_changed_files_not_containing(ctx: Context, p: Params) -> Outcome:
     for status, path in ctx.git.changed:
         if fnmatch.fnmatch(path, p["glob"]):
             target = ctx.ws.repo / path
-            if target.is_file():
+            if path in ctx.git.undecodable and status != "D":
+                # Its `\\xNN` spelling may be another file's literal name: never read by it (rule 5:
+                # a name the candidate chose that cannot be read back is its own output, a failure).
+                bad.append(f"{path} (name not UTF-8)")
+            elif target.is_file():
                 if p["needle"] in target.read_text(encoding="utf-8", errors="replace"):
                     bad.append(path)
             elif status != "D":

@@ -8,6 +8,11 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Fixed
 
+- Two defects Codex found in this branch's own fixes, each with a test that failed first: a changed
+  path whose name is not UTF-8 is spelled `\xNN`, which a benign file can carry literally, so a file
+  named so is now failed by `changed_files_not_containing` rather than read by that spelling (a needle
+  could pass behind its benign twin); and a result event whose `subtype` is a list or an object no longer
+  raises in the trace parser.
 - The third bug pass (a review of every fix, the docs against the code, and a residual hunt) found
   defects, two of them introduced by the second pass's own fixes, each fixed with a test that failed first
   (RUNNER-001):
