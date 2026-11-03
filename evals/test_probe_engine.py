@@ -437,3 +437,84 @@ def test_a_conversation_that_ended_before_its_follow_up_regrades_from_its_eviden
     assert rescoring.self_sufficient(found, spec)
     alone = _evidence_only(run_dir, tmp_path)
     assert comparable(rescoring.regrade_run(alone, spec, write=False)) == comparable(grading)
+
+
+
+# --- the review of PRs #468 to #470: each finding, reproduced --------------------------------------
+
+
+def _strip_turn_records(run_dir: Path) -> None:
+    """Make a run's evidence look as it did before turns carried their traces."""
+    record = run_dir / "evidence.json"
+    older = json.loads(record.read_text("utf-8"))
+    older.pop("conversation", None)
+    for turn in older["turns"]:
+        for field in ("invoked", "workspace", "trace", "credential_markers", "input_sha256", "release",
+                      "judge_context_sha256", "response_text_sha256"):
+            turn.pop(field, None)
+    record.write_text(json.dumps(older), encoding="utf-8")
+
+
+def test_a_run_whose_older_evidence_cannot_regrade_alone_is_skipped_without_its_summary(tmp_path: Path) -> None:
+    """Without its trace summary, a native run whose evidence predates turn records is passed over and
+    counted, as before; it must not end the iteration's regrade."""
+    item = next(c for c in CASES if c.name == "native_pass")
+    run_dir, _grading, _ = _live(item, tmp_path / "live")
+    iteration = tmp_path / "iteration"
+    target = iteration / f"eval-{item.spec()['id']}" / "golden" / "run-1"
+    shutil.copytree(run_dir, target)
+    _strip_turn_records(target)
+    (target / "outputs" / "trace-summary.json").unlink()
+    assert rescoring.regrade(iteration, [item.spec()]) == []
+    _runs, skipped = rescoring._saved_runs(iteration, [item.spec()])
+    assert skipped["runs_without_trace_summary"] == 1
+
+
+@pytest.mark.parametrize("removed", ["root_invocation", "root_invocation_and_traces"])
+def test_files_beside_the_evidence_stay_bound_when_some_are_removed(tmp_path: Path, removed: str) -> None:
+    """A changed follow-up must not regrade as PASS because the first turn's invocation.json, or the
+    traces with it, were removed: a native run regrades from its files, all of them, or none."""
+    item = next(c for c in CASES if c.name == "native_pass")
+    run_dir, grading, _ = _live(item, tmp_path)
+    assert grading["status"] == "PASS"
+    followup = run_dir / "followup" / "invocation.json"
+    metadata = json.loads(followup.read_text("utf-8"))
+    metadata["resume"] = "another-session"
+    followup.write_text(json.dumps(metadata), encoding="utf-8")
+    (run_dir / "invocation.json").unlink()
+    if removed == "root_invocation_and_traces":
+        (run_dir / "stdout.jsonl").unlink()
+        (run_dir / "followup" / "stdout.jsonl").unlink()
+    assert rescoring.regrade_run(run_dir, item.spec(), write=False)["status"] == "INCONCLUSIVE"
+
+
+@pytest.mark.parametrize("argv", [None, 5, {"-p": "x"}])
+def test_a_damaged_argv_in_an_older_native_run_is_reported_not_raised(tmp_path: Path, argv: object) -> None:
+    item = next(c for c in CASES if c.name == "native_pass")
+    copy = _saved_copy(item, tmp_path)
+    metadata_path = copy / "followup" / "invocation.json"
+    metadata = json.loads(metadata_path.read_text("utf-8"))
+    metadata["argv"] = argv
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+    grading = rescoring.regrade_run(copy, golden_runs.scenario(item), write=False, relax_identity=True)
+    assert grading["status"] == "INCONCLUSIVE"
+
+
+def test_check_evidence_replays_native_turns_as_the_evidence_only_regrade_does(tmp_path: Path) -> None:
+    """A native record missing a turn's trace grades differently from evidence alone; check-evidence
+    must say so rather than report it clean."""
+    item = next(c for c in CASES if c.name == "native_pass")
+    run_dir, _grading, _ = _live(item, tmp_path / "live")
+    spec = item.spec()
+    iteration = tmp_path / "iteration"
+    target = iteration / f"eval-{spec['id']}" / "golden" / "run-1"
+    shutil.copytree(run_dir, target)
+    record = json.loads((target / "evidence.json").read_text("utf-8"))
+    record["turns"][1]["trace"] = None
+    (target / "evidence.json").write_text(json.dumps(record), encoding="utf-8")
+    with (
+        mock.patch.object(cli.catalog, "load_all_scenarios", return_value=[spec]),
+        contextlib.redirect_stdout(io.StringIO()) as out,
+    ):
+        code = cli.main(["check-evidence", str(iteration)])
+    assert code == 1 and "differs" in out.getvalue(), out.getvalue()

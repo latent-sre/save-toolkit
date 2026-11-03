@@ -194,6 +194,11 @@ class Released:
     response_text_sha256: str | None  # digest of the saved response.md text
 
 
+def universal_newlines(text: str) -> str:
+    """Text as reading it back with universal newlines gives it: CRLF and a lone CR become LF."""
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def canonical_sha256(value: object) -> str:
     """A JSON value's digest, independent of key order: how a judge context is compared."""
     return digest(json.dumps(value, sort_keys=True, ensure_ascii=False))
@@ -227,7 +232,7 @@ def released_from(folder: Path) -> Released:
     def attempt(read: Callable[[], Any]) -> Any:
         try:
             return read()
-        except (OSError, ValueError, KeyError, TypeError, IndexError):
+        except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):
             return None
 
     def prompt() -> str:
@@ -283,7 +288,8 @@ def replay_releases(
         if item.response is None or item.response_text_sha256 is None:
             return "incident released input evidence missing or invalid"
         previous = item.response
-        if item.response_text_sha256 != digest(previous):
+        # response.md is read back with universal newlines, so the trace's text is compared the same way.
+        if item.response_text_sha256 != digest(universal_newlines(previous)):
             return "incident saved response differs from its invocation trace"
         messages.append({"role": "assistant", "content": previous})
     return None

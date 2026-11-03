@@ -6,6 +6,17 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+### Fixed
+
+- Five defects a review of the evidence-only regrade found, each with a test that failed first: a native
+  run whose older evidence cannot regrade alone and whose trace summary is gone is skipped and counted
+  again instead of ending the iteration's regrade; removing a native run's first `invocation.json` no
+  longer switches off the check that its remaining files agree with its evidence (a native run regrades
+  from all of its files or none); a damaged `argv` in an older native run is reported INCONCLUSIVE
+  instead of raising; `check-evidence` replays native turns as the evidence-only regrade does; and an
+  incident answer with CRLF line endings regrades as it was graded, its `response.md` written without
+  newline translation and compared with universal newlines (RUNNER-001).
+
 ### Added
 
 - A run with its own evidence regrades from `evidence.json` alone. Each native turn now records its

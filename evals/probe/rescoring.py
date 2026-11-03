@@ -368,16 +368,28 @@ def _regrade_from_evidence(
 def _native_problem_beside_files(
     run_dir: Path, found: evidence.EvidenceV1, spec: Spec, plugin_root: Path, recorded_sha: str | None
 ) -> str | None:
-    """The native replay of a run's evidence. The evidence is all a regrade needs, but where the run's
-    own files are still beside it they must tell the same story: they are replayed too, and a problem
-    they show that the evidence does not means one of them changed after the run."""
+    """The native replay of a run's evidence. The evidence is all a regrade needs, but where any of the
+    run's own files is still beside it they must tell the same story: a native run regrades from all
+    of its files or none, so they are replayed too, and a problem they show that the evidence does not
+    means one of them changed or went missing after the run."""
     from_evidence = native_evidence_problem(found, spec, plugin_root, recorded_plugin_sha=recorded_sha)
-    if not (run_dir / "invocation.json").is_file():
+    if not _native_files_remain(run_dir, spec):
         return from_evidence
     from_files = native_regrade_problem(run_dir, spec, plugin_root, recorded_plugin_sha=recorded_sha)
     if from_files is None or str(from_files) == str(from_evidence):
         return from_evidence
     return from_files
+
+
+# What a native turn's folder holds that its replay reads.
+_TURN_FILES = ("invocation.json", "stdout.jsonl", "response.md", "input.md", "release.json", "judge-context.json")
+
+
+def _native_files_remain(run_dir: Path, spec: Spec) -> bool:
+    """Whether any file a native replay reads is still beside the run's evidence."""
+    if (run_dir / "conversation.json").exists() or (run_dir / "invocations").exists():
+        return True
+    return any((folder / name).exists() for folder in conversations.folders(run_dir, spec) for name in _TURN_FILES)
 
 
 def _changed_raw_traces(run_dir: Path, found: evidence.EvidenceV1) -> list[str]:
@@ -388,6 +400,17 @@ def _changed_raw_traces(run_dir: Path, found: evidence.EvidenceV1) -> list[str]:
         for relative, digest in sorted(found.trace.raw_sha256.items())
         if (run_dir / relative).is_file() and evidence.file_sha256(run_dir / relative) != digest
     ]
+
+
+def _recorded_or_replayed(found: evidence.EvidenceV1, native_problem: str | None) -> str | None:
+    """The run level an evidence run's ending and its native replay settle, in the order the file
+    path settles it: the replay's cut, the cut or void the ending recorded, then the replay's void."""
+    recorded = engine.run_level_of(found)
+    if isinstance(native_problem, CutShort):
+        return native_problem
+    if rules.is_cut(recorded) and not native_problem:
+        return recorded
+    return (recorded if recorded and not rules.is_cut(recorded) else None) or native_problem
 
 
 def _evidence_run_level(
@@ -402,14 +425,7 @@ def _evidence_run_level(
     """Why a regrade of an evidence run cannot measure it at all, or how it was cut short, in the
     order `_run_level_reason` settles it for a run saved before its evidence: the native replay's cut,
     the cut or void the ending recorded, the replay's void, then the plugin root and judge binding."""
-    recorded = engine.run_level_of(found)
-    level: str | None
-    if isinstance(native_problem, CutShort):
-        level = native_problem
-    elif rules.is_cut(recorded) and not native_problem:
-        level = recorded
-    else:
-        level = (recorded if recorded and not rules.is_cut(recorded) else None) or native_problem
+    level = _recorded_or_replayed(found, native_problem)
     if spec.get("references") and not has_plugin_root:
         level = "reference plugin root evidence missing or invalid; re-run the trial"
     if fingerprints.required_rubrics(spec) and not saved_binding:
@@ -750,12 +766,24 @@ def _saved_runs(
             slot = layout.slot(run_dir.name)
             if slot is None:
                 skipped["other_run_folders"].append(run_dir.relative_to(iteration_dir).as_posix())
-            elif not (run_dir / "outputs" / "trace-summary.json").exists() and not (run_dir / evidence.FILE).is_file():
-                # Neither the evidence nor the summary a pre-evidence run is read back from.
+            elif not (run_dir / "outputs" / "trace-summary.json").exists() and not _regrades_alone(run_dir, spec):
+                # No summary, and no evidence complete enough to regrade from in its place.
                 skipped["runs_without_trace_summary"] += 1
             else:
                 runs.append((spec, run_dir, {"scenario": spec["id"], "label": run_dir.parent.name, "run": slot}))
     return runs, skipped
+
+
+def _regrades_alone(run_dir: Path, spec: Spec) -> bool:
+    """Whether a run's own evidence is readable and complete enough to regrade from without its files."""
+    own = run_dir / evidence.FILE
+    if not own.is_file():
+        return False
+    try:
+        found = evidence.EvidenceV1.model_validate_json(own.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return self_sufficient(found, spec)
 
 
 def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -856,8 +884,21 @@ def evidence_check(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict
             saved = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
             if not isinstance(saved, dict):
                 raise ValueError("the saved grade is not a JSON object")
-            with _served_plugin_root(summary_of(found)) as (plugin_root, _has_plugin_root):
-                graded = engine.render(engine.grade(spec, found, plugin_root=plugin_root), spec)
+            with _served_plugin_root(summary_of(found)) as (plugin_root, has_plugin_root):
+                # A native record that regrades alone is replayed as that regrade replays it, so a turn it
+                # lacks shows here; an older one has no turns to replay and is graded from its ending.
+                native_problem = (
+                    native_evidence_problem(
+                        found,
+                        spec,
+                        plugin_root,
+                        recorded_plugin_sha=found.identity.plugin_source_sha256 if has_plugin_root else None,
+                    )
+                    if spec.get("followups") and self_sufficient(found, spec)
+                    else None
+                )
+                level = _recorded_or_replayed(found, native_problem)
+                graded = engine.render(engine.grade(spec, found, plugin_root=plugin_root, run_level=level), spec)
             # Inside the boundary: a saved grade of the wrong shape is this run's error, never the
             # end of the iteration's check.
             found_differences = differences(saved, graded)

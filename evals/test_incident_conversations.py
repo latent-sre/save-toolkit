@@ -81,6 +81,7 @@ if mode == "alternative" and i == 0: response = "CHECK: show upstream timing"
 if mode == "correction": response = "CHECK: splunk" if i == 0 else "CHECK: instances"
 if mode == "unavailable" and i == 0: response = "CHECK: splunk"
 if mode == "ambiguous" and i == 0: response = "CHECK: instances\nCHECK: dependency latency"
+if mode == "crlf" and i == 1: response = "unknown remains\r\nsecond line"
 if mode == "helper" and i == 3:
     emit({"type":"assistant","message":{"model":"stub-model","content":[{"type":"tool_use","id":"child","name":"Task","input":{"subagent_type":"save-toolkit:sre-assistant"}}]}})
     emit({"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"child","content":"supplied observation summarized"}]}})
@@ -268,6 +269,19 @@ def test_authored_manifest_partition_and_hidden_review_are_bound():
             )
 
 
+def test_an_answer_with_crlf_line_endings_regrades_as_it_was_graded(tmp_path):
+    """The saved response.md must hold the answer as the trace gave it: a CRLF in the answer, written
+    with platform newline translation and read back with universal newlines, no longer matched."""
+    case = spec(2)
+    summary, folder = run(tmp_path, case, "crlf")
+    assert summary["status"] == "PASS"
+    assert rescoring.regrade_run(folder, case, write=False)["status"] == "PASS"
+    alone = tmp_path / "alone" / "run-1"
+    alone.mkdir(parents=True)
+    (alone / "evidence.json").write_bytes((folder / "evidence.json").read_bytes())
+    assert rescoring.regrade_run(alone, case, write=False)["status"] == "PASS"
+
+
 @pytest.mark.parametrize("mutation", ["resume", "budget", "release", "judge", "trace", "response", "extra"])
 def test_saved_evidence_mutations_cannot_regrade_as_pass(tmp_path, mutation):
     case = spec(2)
@@ -297,6 +311,10 @@ def test_saved_evidence_mutations_cannot_regrade_as_pass(tmp_path, mutation):
     else:
         (folder / "invocations/999").mkdir()
     assert rescoring.regrade_run(folder, case)["status"] == "INCONCLUSIVE"
+    # Removing the first turn's invocation.json must not switch off the files' agreement with the evidence.
+    if mutation not in ("judge", "extra"):
+        (folder / "invocation.json").unlink()
+        assert rescoring.regrade_run(folder, case, write=False)["status"] == "INCONCLUSIVE", mutation
 
 
 def test_saved_rescore_preserves_original_and_compares_identically(tmp_path):
