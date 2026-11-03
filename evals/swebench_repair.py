@@ -77,7 +77,9 @@ def main(argv: list[str] | None = None) -> int:
                 try:
                     datasets = importlib.import_module("datasets")
                 except ImportError as exc:
-                    raise ValueError("install requirements-swebench.txt to fetch the pinned dataset") from exc
+                    raise ValueError(
+                        "install the swebench dependency group (uv sync --locked --group swebench) to fetch the pinned dataset"
+                    ) from exc
                 rows = list(datasets.load_dataset("SWE-bench/SWE-bench_Verified", revision=args.revision, split="test"))
                 store_json(
                     args.dataset.parent,

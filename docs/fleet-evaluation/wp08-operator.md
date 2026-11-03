@@ -22,7 +22,7 @@ evidence. See the [Docker gateway-mode documentation](https://docs.docker.com/en
 Install the approved evaluation dependencies in the managed project environment:
 
 ```sh
-uv pip install --python .venv/bin/python -r requirements-swebench.txt
+uv sync --locked --group swebench
 ```
 
 On Windows, use `.venv\Scripts\python.exe`; the target containers and mounted Claude binary are

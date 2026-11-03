@@ -396,7 +396,7 @@ def render_copilot_agent(
 def _portable_skill(source: Path) -> str:
     parsed = fleet_frontmatter.parse_file(source)
     fields = parsed.fields
-    explicit = str(fields.get("name")) in MANUAL_ONLY or fields.get("disable-model-invocation") == "true"
+    explicit = str(fields.get("name")) in MANUAL_ONLY or fields.get("disable-model-invocation") is True
     note = "> This skill is explicit-only through Copilot's frontmatter switch.\n\n" if explicit else ""
     return (
         "---\n"

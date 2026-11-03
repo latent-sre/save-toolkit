@@ -8,6 +8,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -31,17 +32,19 @@ def pytest_step(job: dict) -> dict:
 
 class ValidateWorkflowTests(unittest.TestCase):
     def test_sandbox_dependencies_match_repository_pins(self) -> None:
+        """Every sandbox pin is a version uv.lock resolves; the `sandbox` group carries them exactly."""
         def pins(path):
-            return {line.strip() for line in path.read_text(encoding="utf-8").splitlines()
+            return {line.strip().lower().replace("_", "-") for line in path.read_text(encoding="utf-8").splitlines()
                     if line.strip() and not line.lstrip().startswith("#")}
 
-        repository = pins(ROOT / "requirements-dev.txt")
+        with (ROOT / "uv.lock").open("rb") as lock:
+            repository = {f"{package['name']}=={package['version']}" for package in tomllib.load(lock)["package"]}
         for relative in ("sandbox/autogen-a2a-sandbox/requirements.txt",
                          "sandbox/graph-sandbox/runner/requirements.txt",
                          "sandbox/graph-sandbox/services/requirements.txt"):
             with self.subTest(path=relative):
                 self.assertEqual(set(), pins(ROOT / relative) - repository,
-                                 "sandbox dependencies drifted from the repository pin set")
+                                 "sandbox dependencies drifted from the repository lock")
 
     def test_ci_checks_python_312_floor_and_314_development_default(self) -> None:
         jobs = workflow_jobs()
@@ -51,12 +54,16 @@ class ValidateWorkflowTests(unittest.TestCase):
             self.assertEqual("3.12" if name == "validate" else "3.14", setup["with"]["python-version"])
             self.assertIs(setup["with"]["check-latest"], True)
 
-    def test_repository_actions_use_major_tags(self) -> None:
+    def test_repository_actions_use_a_major_alias_or_an_exact_release_tag(self) -> None:
+        """The repository's action-reference policy (CONTRIBUTING.md): a floating major tag where the
+        action publishes one, otherwise its exact release tag, both kept current by Dependabot. A tag
+        can move upstream; the policy accepts that for readable references, so a branch name, `latest`,
+        a short tag such as `v10.3` or a bare commit is refused here."""
         jobs = workflow_jobs()
         for job in jobs.values():
             for step in job["steps"]:
                 if "uses" in step:
-                    self.assertRegex(step["uses"], r"^[\w.-]+/[\w.-]+@v[0-9]+$")
+                    self.assertRegex(step["uses"], r"^[\w.-]+/[\w.-]+@v[0-9]+(?:\.[0-9]+\.[0-9]+)?$")
 
     def test_deploy_oracle_action_policy(self) -> None:
         path = ROOT / "evals/oracles/pcf-deploy-job/probe_ci_workflow.py"
@@ -170,7 +177,7 @@ class ValidateWorkflowTests(unittest.TestCase):
             "      - run: python scripts/gate_a.py\n"
             "  component-tests:\n"
             "    steps:\n"
-            "      - run: python -m pip install -r requirements-dev.txt\n"
+            "      - run: uv sync --locked\n"
         )
         for statement in (
             "import yaml", "import fleet_frontmatter", "from scripts import fleet_frontmatter",
@@ -196,7 +203,7 @@ class ValidateWorkflowTests(unittest.TestCase):
                     workflow_path.write_text(
                         workflow.replace(
                             "      - run: python scripts/gate_a.py",
-                            "      - run: python -m pip install -r requirements-dev.txt\n"
+                            "      - run: uv sync --locked\n"
                             "      - run: python scripts/gate_a.py",
                         ),
                         encoding="utf-8",
@@ -211,7 +218,7 @@ class ValidateWorkflowTests(unittest.TestCase):
             if "python scripts/gate_a.py" in step.get("run", "").splitlines()
         )
         ci_installs = any(
-            "python -m pip install -r requirements-dev.txt" in step.get("run", "").splitlines()
+            any(line.startswith("uv sync --locked") for line in step.get("run", "").splitlines())
             and "if" not in step
             for step in steps[:gate_index]
         )
@@ -223,7 +230,7 @@ class ValidateWorkflowTests(unittest.TestCase):
         self.assertFalse(
             offenders and not ci_installs,
             f"gate-path scripts import {offenders} but the validate job installs no "
-            "dependencies before Gate A; add `python -m pip install -r requirements-dev.txt` "
+            "dependencies before Gate A; add `uv sync --locked` "
             "to that job (and update gate_a.py's docstring) in the same change",
         )
 
@@ -242,9 +249,9 @@ class ValidateWorkflowTests(unittest.TestCase):
 
     def test_fast_tests_install_dependencies_and_run_pytest(self) -> None:
         jobs = workflow_jobs()
-        commands = [step.get("run") for step in jobs["fast-tests"]["steps"]]
+        lines = [line for step in jobs["fast-tests"]["steps"] for line in step.get("run", "").splitlines()]
         self.assertEqual(["python", "-m", "pytest", "-q"], shlex.split(pytest_step(jobs["fast-tests"])["run"])[:4])
-        self.assertIn("python -m pip install -r requirements-test.txt", commands)
+        self.assertIn("uv sync --locked", lines)
 
     def test_fast_tests_run_in_parallel_without_writing_bytecode(self) -> None:
         """The eval runner digests every file under skills/, compiled caches included.
@@ -321,8 +328,8 @@ class ValidateWorkflowTests(unittest.TestCase):
         self.assert_shards_cover_every_test("eval-tests", ["webhook", "python", "other"])
         job = workflow_jobs()["eval-tests"]
         self.assertNotIn("fast-tests", job["needs"], "the eval tests must run alongside fast-tests, not after")
-        commands = [step.get("run") for step in job["steps"]]
-        self.assertIn("python -m pip install -r requirements-test.txt", commands)
+        lines = [line for step in job["steps"] for line in step.get("run", "").splitlines()]
+        self.assertIn("uv sync --locked", lines)
         step = pytest_step(job)
         environment = step.get("env", {})
         self.assertIn("-m heavy", step["run"])
@@ -343,16 +350,34 @@ class ValidateWorkflowTests(unittest.TestCase):
                 self.assertEqual("1", step["env"]["PYTEST_DISABLE_PLUGIN_AUTOLOAD"])
                 args = shlex.split(step["run"])
                 plugins = {args[i + 1] for i, arg in enumerate(args[:-1]) if arg == "-p"}
-                self.assertTrue({"xdist", "hypothesispytest"} <= plugins)
+                self.assertTrue({"xdist", "hypothesispytest", "pytest_timeout", "pytest_socket"} <= plugins)
 
-    def test_dependency_cache_changes_with_selection_or_constraints(self) -> None:
-        for name in ("fast-tests", "eval-tests"):
+    def test_locked_install_is_cached_and_bound_to_the_setup_python_interpreter(self) -> None:
+        """uv installs the lock into setup-python's interpreter by path, never a download, and puts it on PATH.
+
+        The pytest step and the nested suites run bare `python`; without the PATH line they would
+        run the runner's system interpreter against an empty environment. The binding is the step
+        output's path, not a preference: uv treats its own managed interpreters as non-system, so a
+        preference alone can fail to find any interpreter.
+        """
+        # The gate job installs only the `gate` group: Gate A stays small and PyYAML is its one import.
+        expected = {"validate": "uv sync --locked --only-group gate", "fast-tests": "uv sync --locked",
+                    "eval-tests": "uv sync --locked"}
+        for name, command in expected.items():
             with self.subTest(job=name):
-                step = next(s for s in workflow_jobs()[name]["steps"]
-                            if s.get("uses", "").startswith("actions/setup-python@"))
-                self.assertEqual("pip", step["with"].get("cache"))
-                self.assertEqual({"requirements-test.txt", "requirements-dev.txt", "requirements-grafana.txt"},
-                                 set(step["with"].get("cache-dependency-path", "").split()))
+                steps = workflow_jobs()[name]["steps"]
+                python = next(s for s in steps if s.get("uses", "").startswith("actions/setup-python@"))
+                self.assertNotIn("cache", python["with"], "pip caching has no requirements file to key on")
+                uv = next(s for s in steps if s.get("uses", "").startswith("astral-sh/setup-uv@"))
+                self.assertIs(uv["with"]["enable-cache"], True)
+                install = next(s for s in steps if command in s.get("run", "").splitlines())
+                self.assertEqual("${{ steps." + python["id"] + ".outputs.python-path }}",
+                                 install.get("env", {}).get("UV_PYTHON"))
+                self.assertEqual("never", install.get("env", {}).get("UV_PYTHON_DOWNLOADS"))
+                self.assertIn('echo "$PWD/.venv/bin" >> "$GITHUB_PATH"', install["run"].splitlines())
+                consumer = (next(s for s in steps if s.get("run") == "python scripts/gate_a.py")
+                            if name == "validate" else pytest_step(workflow_jobs()[name]))
+                self.assertLess(steps.index(install), steps.index(consumer))
 
     def test_the_gate_still_has_a_schedule_and_manual_dispatch(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")

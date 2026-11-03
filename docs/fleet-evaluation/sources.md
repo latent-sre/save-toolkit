@@ -17,7 +17,7 @@ implementation, so this package uses a fixed baseline. Refresh source claims at 
 | [Calibration corpus](../../evals/rubrics-calibration.yaml) | [verified] 164 cases across 11 rubrics; mitigation and compromise sets have one pass/two fail each |
 | [Scenario directories](../../evals/scenarios) and [build scenarios](../../evals/build-scenarios) | [verified] 193 YAML files; file count is not accepted behavioral coverage |
 | [Inspect pilot](../../evals/inspect_pilot.py) | [verified] Artifact-only task, native_fleet_parity false; selected fixture includes seven artifact checks and eight omitted checks at this baseline |
-| [Requirements](../../requirements-dev.txt) | [verified] inspect-ai 0.3.263 and inspect-swe 0.2.70 are pinned; this does not prove current environment installation |
+| [Lockfile](../../uv.lock) | [verified] 2026-11-02: inspect-ai 0.3.287 and inspect-swe 0.2.72 are locked; this does not prove current environment installation |
 | [Incident skill](../../skills/incident-investigation/SKILL.md) | [verified] Human advice, discriminating checks, board continuity, existing TLC/ITO and evidence-bound recovery requirements |
 | [Stack guidance](../../skills/stack-profile/SKILL.md) | [verified] PCF/on-prem and GCP context; benchmark Kubernetes labs do not redefine the production stack |
 | [Judge ADR](../decisions/2026-09-01-rubric-judge-evaluation-contract.md) | [verified] Accepted contract and historical rationale; do not silently rewrite it |
@@ -125,7 +125,7 @@ original provenance; this section records what changed.
 | [Coder Eval configuration](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/src/coder_eval/config.py) and [Claude adapter](https://github.com/UiPath/coder_eval/blob/0fa062a25e6db7cf76edc487cab6967ebe5c55bf/src/coder_eval/agents/claude_code_agent.py) | [sourced] Telemetry to Azure Application Insights is on by default; the adapter always denies ToolSearch and defaults `setting_sources` to the project. It authenticates with `ANTHROPIC_API_KEY` or a cached `claude login` session, requires Python 3.13 or later, and its Docker driver mounts `~/.claude` unless `CODER_EVAL_NO_CLAUDE_MOUNT=1` |
 | [Harbor](https://github.com/harbor-framework/harbor) | [sourced] Latest release v0.24.0 (2026-10-05); Coder Eval's Harbor extra pins 0.23.0. The cited documentation now redirects to [custom agents](https://docs.harborframework.com/agents/custom-agents) and [skills](https://docs.harborframework.com/jobs/skills) |
 | [promptfoo command line](https://www.promptfoo.dev/docs/usage/command-line/) | [sourced] `import` reads only promptfoo eval JSON or OpenAI Evals JSONL; telemetry is on by default. The project [joined OpenAI](https://www.promptfoo.dev/blog/promptfoo-joining-openai/) (announced 2026-03-09) and remains MIT |
-| Inspect on PyPI | [sourced] Latest inspect-ai 0.3.276 and inspect-swe 0.2.71; [requirements](../../requirements-dev.txt) still pins 0.3.263 and 0.2.70 |
+| Inspect on PyPI | [sourced] 2026-11-02: latest inspect-ai 0.3.287 and inspect-swe 0.2.72, the versions [uv.lock](../../uv.lock) resolves |
 
 ## Remaining uncertainty
 

@@ -15,13 +15,16 @@ All commands below use the isolated interpreter selected for that host. On POSIX
 [verified] Harbor is pinned to [0.24.0](https://pypi.org/project/harbor/0.24.0/), source
 `b53b8134e1241686dca7759af188f987ecc48e8b`, Apache-2.0, Python 3.12 or later. The exact wheel SHA-256
 is `23b7ba616a3aae4eff561ced5e2c51c7186f2981e53a770dea9c689d3969877c`.
-[requirements-harbor.txt](../../requirements-harbor.txt) binds that wheel URL and the observed isolated
-SDK dependency set. Do not install or synchronize it into the shared project environment.
+The `harbor` dependency group in [pyproject.toml](../../pyproject.toml) pins that release and
+[uv.lock](../../uv.lock) binds the wheel hash and the resolved SDK dependency set. The group is
+declared conflicting with the project environment, so it installs only with `--only-group` into an
+environment of its own.
 
 ```powershell
-uv venv --python 3.14 .eval-runs/harbor-sdk
+$env:UV_PROJECT_ENVIRONMENT = ".eval-runs/harbor-sdk"
+uv sync --locked --only-group harbor
+Remove-Item Env:UV_PROJECT_ENVIRONMENT
 $HarborPython = ".eval-runs/harbor-sdk/Scripts/python.exe"
-uv pip install --python $HarborPython -r requirements-harbor.txt
 & $HarborPython evals/harbor_pilot.py validate
 & $HarborPython evals/harbor_pilot.py sdk-check
 & $HarborPython -m pytest -o addopts='' evals/test_harbor_adapter.py evals/test_harbor_runner.py evals/test_harbor_sdk.py evals/test_harbor_smoke.py evals/test_harbor_transfer.py

@@ -112,6 +112,22 @@
       ]
     },
     {
+      "id": "inspect-native",
+      "summary": "Inspect AI scheduling, logs and viewer around unchanged native routing and contract trials; parity run pending",
+      "kind": "runner",
+      "implementation": "present",
+      "entrypoints": [
+        "evals/inspect_fleet.py"
+      ],
+      "suites": [
+        "inspect"
+      ],
+      "guides": [
+        "evals/docs/running.md",
+        "docs/fleet-evaluation/run-plan-inspect-native-parity.md"
+      ]
+    },
+    {
       "id": "interop-sandbox",
       "summary": "Independent AutoGen/A2A interoperability and recovery lab",
       "kind": "sandbox",

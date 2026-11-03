@@ -22,7 +22,7 @@ from swebench_adapter.runner import _budget, _measured, _runtime, agent_environm
 
 from swt_adapter import core, verifier
 
-SWT_REQUIREMENTS = Path(__file__).resolve().parents[2] / "requirements-swt.txt"
+DEPENDENCY_LOCK = Path(__file__).resolve().parents[2] / "uv.lock"
 
 SMOKE_CHECKS = (
     "reference_reproduces",
@@ -84,14 +84,12 @@ def live_binding(
         raise ValueError("live evaluation requires an observed unelevated account")
     shared_digest = binding["adapter_sha256"]
     swt_digest = adapter_digest()
-    requirements_digest = hashlib.sha256(SWT_REQUIREMENTS.read_bytes()).hexdigest()
+    lock_digest = hashlib.sha256(DEPENDENCY_LOCK.read_bytes()).hexdigest()
     binding.update(
         shared_adapter_sha256=shared_digest,
         swt_adapter_sha256=swt_digest,
-        swt_requirements_sha256=requirements_digest,
-        adapter_sha256=core.digest(
-            {"shared": shared_digest, "swt": swt_digest, "requirements-swt": requirements_digest}
-        ),
+        dependency_lock_sha256=lock_digest,
+        adapter_sha256=core.digest({"shared": shared_digest, "swt": swt_digest, "uv.lock": lock_digest}),
         swt_upstream_revision=core.UPSTREAM_REVISION,
         instance_id=row["instance_id"],
         task_sha256=core.digest(row),
