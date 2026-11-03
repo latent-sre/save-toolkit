@@ -35,6 +35,8 @@ from . import (
     legacy,
     outcomes,
     records,
+    rules,
+    shadow,
     tracing,
 )
 from .checking import Context
@@ -166,19 +168,88 @@ def native_regrade_problem(
     return None
 
 
-def regrade_run(run_dir: Path, spec: Spec, *, write: bool = True, relax_identity: bool = False) -> dict[str, Any]:
+def regrade_run(
+    run_dir: Path,
+    spec: Spec,
+    *,
+    write: bool = True,
+    relax_identity: bool = False,
+    shadow_out: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Re-score an unchanged scenario; keep only exactly identified original live verdicts.
 
     `write=False` leaves the run untouched and only returns the grade. `relax_identity` grades a run
     whose saved scenario identity differs, as it does after any runner edit because the identity
     binds the runner's source; kept verdicts are then found under the saved identity, and the grade
-    is marked `identity_relaxed` so it serves only to compare runners on the same trace.
+    is marked `identity_relaxed` so it serves only to compare runners on the same trace. The
+    evidence engine's shadow result on the same run is put under `shadow` in `shadow_out`, when the
+    caller passes a dict to receive it.
     """
     summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
     with _served_plugin_root(summary) as (plugin_root, has_plugin_root):
-        return _regrade_run(
+        grading, shadowed = _regrade_run(
             run_dir, spec, summary, plugin_root, has_plugin_root, write=write, relax_identity=relax_identity
         )
+    if shadow_out is not None:
+        shadow_out["shadow"] = shadowed
+    return grading
+
+
+def regrade_run_shadow(
+    run_dir: Path, spec: Spec, *, write: bool = True, relax_identity: bool = False
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """`regrade_run` with its shadow result beside the grade."""
+    out: dict[str, Any] = {}
+    grading = regrade_run(run_dir, spec, write=write, relax_identity=relax_identity, shadow_out=out)
+    return grading, out.get("shadow")
+
+
+def shadow_report(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict[str, Any]:
+    """Every shadow result an iteration holds, live and regraded, with the coverage the owner's gate
+    asks for (stage 3 of the runner rewrite)."""
+    runs, skipped = _saved_runs(iteration_dir, scenarios)
+    # Every attempt counts, not only the slot's published run: a superseded or incomplete attempt
+    # kept under the label's history was graded in shadow too (result rule 7).
+    attempts: list[tuple[dict[str, Any], Path, dict[str, Any]]] = []
+    for spec, label_dir in {(id(spec), run_dir.parent): (spec, run_dir.parent) for spec, run_dir, _ in runs}.values():
+        for kept, slot, number in layout.kept_attempts(label_dir):
+            attempts.append(
+                (spec, kept, {"scenario": spec["id"], "label": label_dir.name, "run": slot, "attempt": number})
+            )
+    rows: list[dict[str, Any]] = []
+    for spec, run_dir, row in [*runs, *attempts]:
+        folders = [(run_dir, "live"), *((f, "regrade") for f, _ in layout.numbered(run_dir / "assessments"))]
+        for folder, source in folders:
+            result = layout.read_object(folder / shadow.FILE)
+            if result is None:
+                continue
+            verdict = result.get("verdict") or {}
+            rows.append(
+                {
+                    **row,
+                    "source": source,
+                    "agrees": bool(result.get("agrees")),
+                    "native": bool(spec.get("followups")),
+                    "cut_short": verdict.get("run_end") == Ending.CUT_SHORT,
+                    "machinery_failure": bool(verdict.get("grader_error")),
+                    **shadow.row_fields(result),
+                }
+            )
+    live = [r for r in rows if r["source"] == "live"]
+    coverage = {kind: sum(1 for r in live if r[kind]) for kind in shadow.GATE_COVERAGE}
+    disagreeing = [r for r in rows if not r["agrees"]]
+    return {
+        "runs": rows,
+        "skipped": skipped,
+        "attempts": len(live),
+        "agreeing": len(rows) - len(disagreeing),
+        "disagreeing": len(disagreeing),
+        "coverage": coverage,
+        "gate": {
+            "count": shadow.GATE_COUNT,
+            "met": len(live) >= shadow.GATE_COUNT and not disagreeing and all(coverage[k] >= 1 for k in coverage),
+        },
+    }
 
 
 def load_evidence(run_dir: Path, spec: Spec) -> evidence.EvidenceV1:
@@ -244,7 +315,7 @@ def _regrade_run(
     *,
     write: bool,
     relax_identity: bool,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
     live_grade = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
     old_by_id = {e.get("id"): e for e in live_grade.get("expectations", [])}
     saved_binding = live_grade.get("judge_binding")
@@ -300,10 +371,11 @@ def _regrade_run(
             plugin_root=plugin_root,
             workspace=recorded_workspace,
         )
+        integrity: str | None = None  # a reason this regrade voids the run that the evidence cannot know
         if not identity_matches and not relaxed:
-            inconclusive = "saved scenario identity is missing or changed; re-run the trial"
+            inconclusive = integrity = "saved scenario identity is missing or changed; re-run the trial"
         elif len(old_by_id) != len(live_grade.get("expectations", [])):
-            inconclusive = "saved assertion identities are duplicated; re-run the trial"
+            inconclusive = integrity = "saved assertion identities are duplicated; re-run the trial"
         raw_counts_complete = reparsed is not None and trace.tool_counts_complete
         raw_counts_cut = (
             reparsed is not None and isinstance(inconclusive, CutShort) and (trace.saw_init or bool(trace.tool_counts))
@@ -361,10 +433,9 @@ def _regrade_run(
         "status": status,
         "regraded": True,
         **assessment.run_fields(status, reason, inconclusive, turn_limit=turn_limit),
+        **assessment.machinery_failure(graded),  # recorded on a regrade as on a live grade (rule 5)
         **({"identity_relaxed": True} if relaxed else {}),
     }
-    if not write:
-        return grading
     with tempfile.TemporaryDirectory(prefix="evidence-") as tmp:
         # The evidence the regrade reconstructed, written beside its assessment; the live attempt's
         # folder is never rewritten (result rule 8).
@@ -377,7 +448,26 @@ def _regrade_run(
             # The assessment stands on its own; evidence the contract refuses is reported, not raised.
             print(f"warning: {run_dir}: evidence not written: {exc}", file=sys.stderr)
             found = None
-    return _add_assessment(run_dir, grading, summary, trace if reparsed is not None else None, found)
+    # Stage 3 of the rewrite: the evidence engine grades the same evidence in shadow; this regrade
+    # stays authoritative. A judgment the judge no longer stands behind lapses in both.
+    shadowed = (
+        shadow.compare(
+            spec,
+            found,
+            grading,
+            source="regrade",
+            plugin_root=plugin_root,
+            stale_judge=stale_judge,
+            run_level=integrity,
+        )
+        if found is not None
+        else None
+    )
+    if not write:
+        return grading, shadowed
+    return _add_assessment(
+        run_dir, grading, summary, trace if reparsed is not None else None, found, shadowed
+    ), shadowed
 
 
 def _run_level_reason(
@@ -452,6 +542,10 @@ def _saved_void(live_grade: Mapping[str, Any], summary: Mapping[str, Any]) -> st
     """
     if live_grade.get("void"):
         return str(live_grade["void"])
+    if live_grade.get("grader_error"):
+        # The grade names a grading-machinery failure: the check's, recorded as a grader error and
+        # never in rule 1's form (result rule 5, amended 2026-11-02), so the regrade re-measures.
+        return None
     reason = live_grade.get("inconclusive", summary.get("inconclusive"))
     if not reason:
         return None
@@ -502,15 +596,18 @@ def _add_assessment(
     summary: Mapping[str, Any],
     trace: TraceSummary | None,
     found: evidence.EvidenceV1 | None = None,
+    shadowed: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Write a regrade as assessments/<k>/ beside the run's original grade, never over it
     (threat-model ADR result rule 8), and list it in the attempt's v1 record."""
     revisions = run_dir / "assessments"
     revision = layout.next_number(revisions)
-    target = revisions / str(revision)
+    target = rules.rule_8_regrade_adds(run_dir, revision)
     target.mkdir(parents=True)
     if found is not None:
         evidence.write(target, found)
+    if shadowed is not None:
+        shadow.write(target, shadowed)
     grading = {
         **grading,
         "assessment_revision": revision,
@@ -571,7 +668,8 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[s
     runs, skipped = _saved_runs(iteration_dir, scenarios)
     results = []
     for spec, run_dir, row in runs:
-        g = regrade_run(run_dir, spec)
+        out: dict[str, Any] = {}
+        g = regrade_run(run_dir, spec, shadow_out=out)
         results.append(
             {
                 "scenario": row["scenario"],
@@ -586,6 +684,7 @@ def regrade(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> list[dict[s
                 "runtime": g["runtime"],
                 "models": g["models"],
                 "inconclusive": g["inconclusive"],
+                **shadow.row_fields(out.get("shadow")),
             }
         )
     # Saved summaries keep the verdicts their batch recorded; the regrade's rows go beside them.
@@ -621,7 +720,9 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
     for spec, run_dir, row in runs:
         try:
             saved = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
-            grading = regrade_run(run_dir, spec, write=False, relax_identity=True)
+            out: dict[str, Any] = {}
+            grading = regrade_run(run_dir, spec, write=False, relax_identity=True, shadow_out=out)
+            shadowed = out.get("shadow")
         except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
             # One unreadable or older-shaped run stays visible instead of ending the comparison.
             rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
@@ -630,6 +731,8 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
         try:
             target.mkdir(parents=True)
             layout.write_json(target / "grading.json", grading)
+            if shadowed is not None:
+                shadow.write(target, shadowed)
         except OSError as exc:  # e.g. a path past Windows' 260-character limit: report it, keep going
             rows.append({**row, "error": f"cannot write the rescored grade: {type(exc).__name__}: {exc}"[:300]})
             continue
@@ -637,6 +740,7 @@ def rescore(iteration_dir: Path, scenarios: list[dict[str, Any]], out_dir: Path)
             {
                 **row,
                 "identity_relaxed": bool(grading.get("identity_relaxed")),
+                **shadow.row_fields(shadowed),
                 "saved": _verdicts(saved),
                 "rescored": _verdicts(grading),
             }
