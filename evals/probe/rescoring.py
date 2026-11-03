@@ -618,16 +618,21 @@ def evidence_check(iteration_dir: Path, scenarios: list[dict[str, Any]]) -> dict
         try:
             found = evidence.EvidenceV1.model_validate_json((run_dir / evidence.FILE).read_text(encoding="utf-8"))
             saved = json.loads(layout.live_grade(run_dir).read_text(encoding="utf-8"))
+            if not isinstance(saved, dict):
+                raise ValueError("the saved grade is not a JSON object")
             summary = json.loads((run_dir / "outputs" / "trace-summary.json").read_text(encoding="utf-8"))
             with _served_plugin_root(summary) as (plugin_root, _has_plugin_root):
                 graded = engine.render(engine.grade(spec, found, plugin_root=plugin_root), spec)
-        except (OSError, ValueError, TypeError, KeyError) as exc:
+            # Inside the boundary: a saved grade of the wrong shape is this run's error, never the
+            # end of the iteration's check.
+            found_differences = differences(saved, graded)
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
             rows.append({**row, "error": f"{type(exc).__name__}: {exc}"[:300]})
             continue
         rows.append(
             {
                 **row,
-                "differences": differences(saved, graded),
+                "differences": found_differences,
                 "scenario_changed": found.identity.case_sha256 not in (None, fingerprints.case_digest(spec)),
             }
         )

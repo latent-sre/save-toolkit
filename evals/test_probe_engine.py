@@ -288,3 +288,17 @@ def test_check_evidence_reproduces_each_run_from_its_evidence_and_catches_a_reco
     code, out = check(iteration, spec)
     assert code == 1 and "golden/run-1: differs" in out and "status: 'FAIL' != " in out, out
     assert "the scenario changed" not in out, "the case is unchanged; only the record lost evidence"
+    # A saved grade of the wrong shape is that run's error; the rest of the iteration is still checked.
+    iteration, spec = iterations["pass"]
+    for shape in ("null", "[]", '{"expectations": [null]}'):
+        broken = iteration / f"eval-{spec['id']}" / "broken" / "run-1"
+        shutil.rmtree(broken.parent, ignore_errors=True)
+        shutil.copytree(iteration / f"eval-{spec['id']}" / "golden" / "run-1", broken)
+        (broken / "grading.json").write_text(shape, encoding="utf-8")
+        code, out = check(iteration, spec)
+        assert code == 1 and "broken/run-1: not checked:" in out and "checked 2 run(s)" in out, (shape, out)
+    shutil.rmtree(broken.parent)
+    # A published run that lost its trace summary was never read, so the iteration is not clean.
+    (iteration / f"eval-{spec['id']}" / "golden" / "run-1" / "outputs" / "trace-summary.json").unlink()
+    code, out = check(iteration, spec)
+    assert code == 1 and "1 run(s) not checked: the trace summary is missing" in out, out
