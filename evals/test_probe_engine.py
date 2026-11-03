@@ -112,6 +112,31 @@ def test_the_comparable_grade_leaves_out_what_is_beside_the_verdict() -> None:
     ]
 
 
+def test_a_kept_outcome_bounded_with_its_marker_compares_equal_to_its_recorded_evidence() -> None:
+    long = "x" * 600
+    marker = "[kept: live-judge] "
+    authoritative = {
+        "status": "PASS",
+        "expectations": [
+            {
+                "text": "t",
+                "kind": "requires",
+                "state": "PASS",
+                "passed": True,
+                "evidence": (marker + long)[:600],
+                "evidence_truncated": True,
+            }
+        ],
+        "summary": {},
+    }
+    shadowed = {
+        "status": "PASS",
+        "expectations": [{"text": "t", "kind": "requires", "state": "PASS", "passed": True, "evidence": long}],
+        "summary": {},
+    }
+    assert shadow.differences(authoritative, shadowed) == []
+
+
 def test_the_shadow_engine_never_breaks_the_grade_it_shadows(tmp_path: Path) -> None:
     item = next(c for c in CASES if c.name == "pass")
     with mock.patch.object(engine, "grade", side_effect=RuntimeError("engine defect")):

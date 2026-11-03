@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from . import engine, evidence, layout
+from .outcomes import EVIDENCE_LIMIT
 
 FILE = "shadow.json"
 ENGINE = "evidence-v1 engine"
@@ -21,12 +22,17 @@ ENGINE = "evidence-v1 engine"
 GATE_COUNT = 30
 GATE_COVERAGE = ("native", "cut_short", "machinery_failure")
 _KEPT = re.compile(r"^\[kept: [\w-]+\] ")
+# The longest kept marker a regrade prepends before bounding evidence to EVIDENCE_LIMIT; what both
+# engines surely hold of a kept outcome's evidence is the bound less this.
+_COMMON_EVIDENCE = EVIDENCE_LIMIT - len("[kept: workspace-dependent] ")
 
 
 def comparable(grading: Mapping[str, Any]) -> dict[str, Any]:
     """The whole grade minus what is volatile or beside the verdict: identities and digests, the
     judge binding, timestamps and revision marks, the after-assessment record (rule 6: beside the
-    verdict, the live attempt's alone), and a regrade's kept markers on probe evidence."""
+    verdict, the live attempt's alone), and a regrade's kept markers on probe evidence. Evidence is
+    compared on the prefix both engines surely hold: a regrade bounds marker and evidence together,
+    and a probe's recorded evidence is already bounded, so the truncation flag is not compared."""
     return {
         "status": grading.get("status"),
         "inconclusive": grading.get("inconclusive"),
@@ -41,8 +47,7 @@ def comparable(grading: Mapping[str, Any]) -> dict[str, Any]:
                 "kind": e.get("kind"),
                 "state": e.get("state"),
                 "passed": e.get("passed"),
-                "evidence": _KEPT.sub("", str(e.get("evidence") or "")),
-                "evidence_truncated": bool(e.get("evidence_truncated")),
+                "evidence": _KEPT.sub("", str(e.get("evidence") or ""))[:_COMMON_EVIDENCE],
             }
             for e in grading.get("expectations") or []
         ],
