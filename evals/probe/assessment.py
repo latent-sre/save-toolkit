@@ -21,7 +21,7 @@ from typing import Any, Final
 import graders as fleet_graders
 import judge as rubric_judge
 
-from . import catalog, checking, conversations, fingerprints, invocation, outcomes, tracing
+from . import catalog, checking, conversations, fingerprints, invocation, outcomes, rules, tracing
 from .backing import ServiceUnavailable
 from .checking import Context, Need
 from .constants import ROOT
@@ -396,9 +396,7 @@ def routing_on_cut(outcome: Outcome, cut: str) -> Outcome:
 
 def forbidden_on_cut(outcome: Outcome, cut: str) -> Outcome:
     """A forbidding check on a run cut short: a violation stands, but no violation yet proves nothing."""
-    if outcome.state is State.PASS:
-        return unmeasured(f"no violation before the run was cut short ({cut})")
-    return outcome
+    return rules.rule_2_polarity_on_cut(outcome, Polarity.FORBIDS, cut)
 
 
 def _bound(outcome: Outcome) -> tuple[Outcome, bool]:
@@ -477,19 +475,14 @@ def assess(
 
 def unmeasured_all(graded: Sequence[Graded], reason: str) -> list[Graded]:
     """A run-level failure found after grading voids every check already graded (result rule 1)."""
-    return [Graded(g.expectation, *_bound(unmeasured(reason))) for g in graded]
+    voided = rules.rule_1_void_every_check([g.outcome for g in graded], reason)
+    return [Graded(g.expectation, *_bound(outcome)) for g, outcome in zip(graded, voided, strict=True)]
 
 
 def roll_up(outcomes: Sequence[Outcome], unmeasured_reason: str | None) -> tuple[State, str | None]:
     """A trial's status: a supported FAIL wins, then anything unmeasured, then PASS (result rule 3).
     Returns it with the first reason something went unmeasured, if any."""
-    states = [outcome.state for outcome in outcomes]
-    reason = unmeasured_reason or next(
-        (outcome.reason for outcome in outcomes if outcome.state is State.INCONCLUSIVE), None
-    )
-    if State.FAIL in states:
-        return State.FAIL, reason
-    return (State.INCONCLUSIVE if reason or State.INCONCLUSIVE in states else State.PASS), reason
+    return rules.rule_3_roll_up(outcomes, unmeasured_reason)
 
 
 def records(graded: Sequence[Graded]) -> list[dict[str, Any]]:
@@ -532,7 +525,7 @@ def summary_of(expectations: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
 def machinery_failure(graded: Sequence[Graded]) -> dict[str, str]:
     """The first grading-machinery failure in a grade, if any (threat-model ADR rule 5)."""
-    failure = next((g.outcome.reason for g in graded if g.outcome.machinery), None)
+    failure = rules.rule_5_machinery_failure([g.outcome for g in graded])
     return {"grader_error": failure} if failure else {}
 
 

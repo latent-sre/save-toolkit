@@ -67,6 +67,9 @@ def reconstruct(run_dir: Path, summary: Mapping[str, Any], text: str, *, reparse
             trace.result_text = text
     else:
         trace = tracing.from_saved({**summary, "tool_counts": saved_counts or {}}, text)
+        # The summary's counts are the run's complete record when it holds a valid map; without one,
+        # zero calls are not evidence (the regrade's rule for a run whose raw trace is gone).
+        trace.tool_counts_complete = saved_counts is not None
     before, after = summary.get("commits_before_after") or [0, 0]
     saved_ids = summary.get("commit_ids_before_after")
     before_ids, after_ids = saved_ids if isinstance(saved_ids, list) and len(saved_ids) == 2 else (None, None)
