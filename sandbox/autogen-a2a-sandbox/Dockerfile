@@ -1,4 +1,4 @@
-FROM python:3.14.7-slim-bookworm@sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f
+FROM python:3.14.10-slim-bookworm@sha256:516b51cb9db2ef061e465c803e50f64361b82cefd91e525b889b967b83e83527
 
 ARG SANDBOX_SOURCE_REVISION
 LABEL org.opencontainers.image.revision=${SANDBOX_SOURCE_REVISION} \

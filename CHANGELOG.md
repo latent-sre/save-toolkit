@@ -141,6 +141,17 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Every remaining stale pin moved to its current release. The sandbox images' Python base is
+  3.14.10 (`python:3.14.10-slim-bookworm`, was a 3.14.7 build), written only in each Dockerfile's `FROM`:
+  preflight and both sandboxes derive the Python version from it, the in-image probe and evidence
+  check the interpreter against the base image's own `PYTHON_VERSION`, and Dependabot's `docker`
+  ecosystem now updates it. The eval probe images moved: relay Python 3.12.10 to 3.14.10, Grafana
+  (a March 2025 build) to 13.3.0, Prometheus v3.14.0 to v3.15.1, and the Inspect sandbox to 3.14.10.
+  `uv lock --upgrade` moved 16 indirect packages, including openai 3 in the Harbor environment and
+  soupsieve 4. The four front-end build scenarios moved to React 19.3, TypeScript 7, Vite 8.3, Vitest 5
+  and MSW 3; MSW 3 renames `onUnhandledRequest` to `onUnhandledFrame`, and the UI oracle calibration
+  resolves `msw/node` through MSW's exports map because MSW 3 ships no `node/` folder.
+
 - Each pinned version lives in one file and is read from there
   ([decision](docs/decisions/2026-11-04-one-version-source-per-pin.md)): sandbox images pin only in
   their `requirements.txt` (Dependabot updates the files directly), the SWT verifier reads the `swt` group, and the Harbor adapter reads its version and wheel

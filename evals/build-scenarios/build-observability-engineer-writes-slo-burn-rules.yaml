@@ -20,7 +20,7 @@ prompt: |
     https://runbooks.example.internal/docs/runbooks/checkout-slo.md.
   - The unrelated platform rules in `alerts/platform.rules.yml` stay exactly as they are.
   - promtool 3.14 is available without a local install:
-    `docker run --rm -v "$PWD:/work" --entrypoint /bin/promtool prom/prometheus:v3.14.0-distroless@sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a check rules /work/alerts/checkout-slo.rules.yml`
+    `docker run --rm -v "$PWD:/work" --entrypoint /bin/promtool prom/prometheus:v3.15.1-distroless@sha256:451a845bae1d51622b41af1780eb2ad911bbb79a9855bc8e9bb67fabbc03f934 check rules /work/alerts/checkout-slo.rules.yml`
     and `test rules` the same way. You may add your own `alerts/checkout-slo.test.yml`.
 
   Do not commit. Tell me what you wrote and what you verified.

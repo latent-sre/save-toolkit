@@ -40,10 +40,7 @@ REVISION = "1" * 40
 CASE_DIGEST = "7" * 64
 FIXED_TIME = datetime(2026, 8, 29, 12, 0, tzinfo=UTC)
 SANDBOX_ROOT = Path(__file__).resolve().parents[2]
-BASE_REFERENCE = (
-    "python:3.14.7-slim-bookworm@"
-    "sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f"
-)
+BASE_IMAGE = r"FROM python:3\.\d+\.\d+-slim-[a-z]+@sha256:[0-9a-f]{64}"
 
 
 class RunnerImageContractTests(unittest.TestCase):
@@ -61,7 +58,9 @@ class RunnerImageContractTests(unittest.TestCase):
             if line.strip() and not line.lstrip().startswith("#")
         ]
 
-        self.assertEqual(instructions[0], f"FROM {BASE_REFERENCE}")
+        self.assertRegex(instructions[0], f"^{BASE_IMAGE}$")
+        services = (SANDBOX_ROOT / "services" / "Dockerfile").read_text(encoding="utf-8")
+        self.assertEqual(services.splitlines()[0], instructions[0])
         self.assertIn("USER 65532:65532", instructions)
         self.assertIn(
             "&& install -d --owner 65532 --group 65532 --mode 0750 /state /evidence",

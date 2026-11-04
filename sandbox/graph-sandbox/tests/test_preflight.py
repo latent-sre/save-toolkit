@@ -112,6 +112,7 @@ class PreflightTests(unittest.TestCase):
         context_digest = build_context_digest(self.sandbox_root)
         for logical_name in ("runner", "services"):
             record = self.lock["images"][logical_name]
+            record["base_reference"] = BASE_REFERENCE
             record["build_context_digest"] = context_digest
             record["dockerfile_digest"] = file_digest(
                 self.sandbox_root / logical_name / "Dockerfile"

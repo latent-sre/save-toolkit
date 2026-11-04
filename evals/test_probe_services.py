@@ -33,10 +33,8 @@ from probe_testkit import (
     ws_context,
 )
 
-GRAFANA_IMAGE = "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb"
-PROMETHEUS_IMAGE = (
-    "prom/prometheus:v3.14.0-distroless@sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a"
-)
+GRAFANA_IMAGE = probe_backing.GRAFANA_IMAGE
+PROMETHEUS_IMAGE = probe_backing.PROMETHEUS_IMAGE
 
 
 def _grafana_metric_frame(value: object = 0.2, ref_id: str = "A") -> dict:

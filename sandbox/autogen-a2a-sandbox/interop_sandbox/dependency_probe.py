@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 from importlib import metadata
 from pathlib import Path
@@ -10,7 +11,6 @@ from typing import Any, Sequence
 
 
 PROBE_VERSION = "autogen-a2a-dependency-probe/v1"
-EXPECTED_PYTHON = "3.14.7"
 REQUIREMENTS = Path(__file__).resolve().parents[1] / "requirements.txt"
 PROBED_DISTRIBUTIONS = ("a2a-sdk", "agent-framework-a2a", "agent-framework-core", "autogen-agentchat")
 
@@ -48,9 +48,9 @@ def expected_report(python_version: str) -> dict[str, Any]:
     }
 
 
-def validate_report(report: dict[str, Any]) -> dict[str, Any]:
+def validate_report(report: dict[str, Any], expected_python: str) -> dict[str, Any]:
     """Reject drift in the runtime identity or closed output contract."""
-    expected = expected_report(EXPECTED_PYTHON)
+    expected = expected_report(expected_python)
     if set(report) != set(expected):
         raise ValueError("unexpected top-level dependency probe keys")
     if report["distributions"] != expected["distributions"]:
@@ -161,7 +161,8 @@ def build_report() -> dict[str, Any]:
     report["distributions"] = {
         name: metadata.version(name) for name in EXPECTED_DISTRIBUTIONS
     }
-    return validate_report(report)
+    # The official base image declares its interpreter release; the Dockerfile's FROM pins that image.
+    return validate_report(report, os.environ.get("PYTHON_VERSION", ""))
 
 
 def main() -> int:

@@ -19,16 +19,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-TRUSTED_SERVICE_IMAGES = frozenset(
-    {
-        "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb",
-        "prom/prometheus:v3.14.0-distroless@sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a",
-    }
+GRAFANA_IMAGE = "grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205"
+PROMETHEUS_IMAGE = (
+    "prom/prometheus:v3.15.1-distroless@sha256:451a845bae1d51622b41af1780eb2ad911bbb79a9855bc8e9bb67fabbc03f934"
 )
+TRUSTED_SERVICE_IMAGES = frozenset({GRAFANA_IMAGE, PROMETHEUS_IMAGE})
 
 
 SERVICE_RELAY_IMAGE = (
-    "python:3.12.10-slim-bookworm@sha256:97983fa8cc88343512862c62307159a82261c3528dc025f79e5a3f7af43e50b4"
+    "python:3.14.10-slim-bookworm@sha256:516b51cb9db2ef061e465c803e50f64361b82cefd91e525b889b967b83e83527"
 )
 
 

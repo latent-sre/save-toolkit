@@ -34,7 +34,6 @@ _IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
 _RUN_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,104}$")
 _RESOURCE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,62}$")
 _DAEMON_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-_PYTHON_VERSION = re.compile(r"^3\.14\.7$")
 _HOST_PYTHON_VERSION = re.compile(r"^3\.\d+\.\d+$")
 _COMPOSE_VERSION = re.compile(r"^v?\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$")
 _REQUIREMENTS = Path(__file__).resolve().parent / "requirements.txt"
@@ -56,6 +55,19 @@ def _requirement_pins(path: Path = _REQUIREMENTS) -> dict[str, str]:
 
 
 _PINNED_PACKAGES = {name: _requirement_pins()[name] for name in _PROBED_PACKAGES}
+
+
+def _base_python(path: Path = Path(__file__).resolve().parent / "Dockerfile") -> str:
+    """The Python release of the Dockerfile's digest-pinned base, the image's only version source."""
+    references = [line.split()[1] for line in path.read_text(encoding="utf-8").splitlines()
+                  if line.split()[:1] == ["FROM"] and len(line.split()) >= 2]
+    match = re.fullmatch(r"python:(3\.\d+\.\d+)-slim-[a-z]+@sha256:[0-9a-f]{64}", references[0]) if len(references) == 1 else None
+    if match is None:
+        raise ValueError("Dockerfile must have one digest-pinned python:X.Y.Z-slim base")
+    return match[1]
+
+
+_BASE_PYTHON = _base_python()
 _STAGE_MANIFEST_VERSION = "autogen-a2a-final-stage/v2"
 _RECEIPT_VERSION = "autogen-a2a-host-receipt/v1"
 _FINAL_CLAIM_AUTHENTICATION_FIELD = "final_claim_hmac_sha256"
@@ -1524,7 +1536,7 @@ def _validate_runtime_terminal(
         root.get(field) != expected_value for field, expected_value in expected.items()
     ):
         raise ActivationError("runtime_evidence_invalid", "terminal runtime binding mismatch", EXIT_RUNTIME)
-    if type(root.get("python")) is not str or _PYTHON_VERSION.fullmatch(root["python"]) is None:
+    if root.get("python") != _BASE_PYTHON:
         raise ActivationError("runtime_evidence_invalid", "terminal Python identity is malformed", EXIT_RUNTIME)
     a2a = root.get("a2a")
     if type(a2a) is not dict or set(a2a) != {
@@ -1783,7 +1795,7 @@ def _validate_runtime_final(
         or contracts.to_plain_object(artifact.packages) != _PINNED_PACKAGES
     ):
         raise ActivationError("runtime_evidence_invalid", "runtime package identity is not pinned", EXIT_RUNTIME)
-    if type(root.get("python")) is not str or _PYTHON_VERSION.fullmatch(root["python"]) is None:
+    if root.get("python") != _BASE_PYTHON:
         raise ActivationError("runtime_evidence_invalid", "runtime Python identity is malformed", EXIT_RUNTIME)
     return root
 

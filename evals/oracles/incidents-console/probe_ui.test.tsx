@@ -46,7 +46,7 @@ beforeAll(() => {
   // The repo's own setup file normally starts this server; start it here too so the oracle
   // still runs if the agent changed that file. msw throws when it is already listening.
   try {
-    server.listen({ onUnhandledRequest: 'bypass' });
+    server.listen({ onUnhandledFrame: 'bypass' });
   } catch {
     /* already listening */
   }

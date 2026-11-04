@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import platform
 import tempfile
 import unittest
 from pathlib import Path
@@ -59,7 +61,8 @@ class RuntimeEvidenceTests(unittest.TestCase):
         evidence = runtime_evidence()
 
         self.assertEqual(evidence["runtime_version"], "graph-runner-runtime/v1")
-        self.assertEqual(evidence["python_version"], "3.14.7")
+        # In the image the base declares PYTHON_VERSION; the Dockerfile's FROM pins that base.
+        self.assertEqual(evidence["python_version"], os.environ.get("PYTHON_VERSION", platform.python_version()))
         self.assertEqual(evidence["packages"], pinned_packages())
 
 
