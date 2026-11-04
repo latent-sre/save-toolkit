@@ -5,10 +5,7 @@ on:
   push:
     branches:
       - main
-  # The weekly run also audits the locked dependency sets (dependency-audit below).
   workflow_dispatch:
-  schedule:
-    - cron: '0 14 * * 1'  # Mondays 14:00 UTC
 
 # Required status checks are configured in the repository ruleset.
 permissions:
@@ -67,33 +64,3 @@ jobs:
       # Root CLAUDE.md serves repository authors, not installed plugin context, so its warning stays.
       - name: Validate plugin manifest, frontmatter, and hooks
         run: claude plugin validate .claude-plugin/plugin.json
-
-  dependency-audit:
-    # Known-advisory scan of the locked dependency sets, on the weekly run and on demand. Advisory
-    # databases change without a commit, so this job is not part of the required check.
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v10.3.3
-
-      # harbor and swt are conflicting groups, so each is exported and audited on its own
-      # (pip-audit refuses one package at two versions in a single call); the project export carries
-      # the default test group plus swebench. --no-deps audits exactly the locked versions and
-      # resolves nothing. Every set is audited before the step fails.
-      - name: Audit the locked dependency sets
-        run: |
-          status=0
-          uv export --locked --no-emit-project --no-hashes --format requirements.txt --group swebench > project.txt
-          uv export --locked --no-emit-project --no-hashes --format requirements.txt --only-group harbor > harbor.txt
-          uv export --locked --no-emit-project --no-hashes --format requirements.txt --only-group swt > swt.txt
-          for group in project harbor swt; do
-            echo "::group::$group"
-            uvx --from pip-audit==2.10.1 pip-audit --no-deps --disable-pip --progress-spinner off -r "$group.txt" || status=1
-            echo "::endgroup::"
-          done
-          exit "$status"

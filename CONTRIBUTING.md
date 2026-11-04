@@ -219,9 +219,8 @@ Gate A, the `scripts/` suite (the guard, hooks and bundled skill scripts) on the
 npm's latest Claude Code release, with its resolved version recorded in the job log, validating
 `.claude-plugin/marketplace.json` with `--strict` and `.claude-plugin/plugin.json` without it:
 plugin errors fail the job; warnings remain visible.
-`dependency-audit` runs only on the weekly schedule and manual dispatch: it exports the locked
-dependency sets and checks them against published advisories with pip-audit. It is not part of the
-required check, because advisories change without a commit. Action references are a floating major
+GitHub's Dependabot alerts report published advisories against the repository's dependencies;
+CI runs no advisory scan. Action references are a floating major
 tag where the action publishes one (`actions/checkout@v7`), otherwise the exact release tag
 (`astral-sh/setup-uv@v10.3.3`); Dependabot's actions updater moves both. A tag can move upstream, and
 the repository accepts that for readable references.

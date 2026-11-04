@@ -141,7 +141,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - The Python floor is 3.14 for all repository Python, including the guard hook and bundled skill
   scripts; on an older `python3` the guarded hook fails closed.
 - CI is one required job, `component-tests (ubuntu-latest)`: Gate A, the `scripts/` suite and the host's
-  plugin validator. `evals/` tests no longer run in CI; a campaign runs them before its first trial.
+  plugin validator. `evals/` tests no longer run in CI; a campaign runs them before its first trial. The
+  weekly pip-audit job is gone; Dependabot alerts report advisories.
 - The test suite passes under an elevated account: the tests that bind a runtime to the host (the
   SWE-bench runner and smoke fixtures, the batch cleanup test) read the host as an ordinary account
   through `probe_testkit.unelevated_host`, so a root container no longer reports 21 failures and 77
