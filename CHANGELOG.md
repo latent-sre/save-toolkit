@@ -285,7 +285,7 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - Clarify authoring reference selection and API client scope; trim repeated CI and database guidance
   while preserving operational authority, recovery rules, and executable examples.
 - Consolidate `operational-learning`, `runbook`, and `postmortem` into `operational-docs` (27 to 25
-  skills) with methods, assets, and importer behavior intact ([evidence](docs/reviews/2026-10-24-operational-docs-consolidation.md)).
+  skills) with methods, assets, and importer behavior intact.
 - Trim the references of 22 skills, removing repeated narration, tutorials, and unconfirmed claims;
   contracts, recorded decisions, and fenced command blocks are unchanged.
 - Correct reference facts: MSW 3 imports, configurable TraceQL windows, non-GPU startup-probe scope,
