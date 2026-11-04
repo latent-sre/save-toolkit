@@ -169,10 +169,3 @@ Keep coverage and limitations outside the findings. No mandatory praise.
 - Bind the verdict to `Reviewed state`. A PROVISIONAL verdict cannot supply production-change-gate's
   exact-SHA review evidence. Reading code verifies its bytes, not runtime behavior; green CI you read
   is not a run. Never silently promote incomplete evidence, helper output, or a changed candidate.
-
-## Handoffs
-
-Return the review to the caller, who owns the repair decision and continuation; review completion
-does not merge, deploy, approve a production change, or finish the caller's task. Recommend
-`software-engineer` for accepted fixes, preserving revision, labels, taint, reproduction, and gaps;
-a new candidate needs assessment of its delta before old findings can be called resolved.

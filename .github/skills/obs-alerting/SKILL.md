@@ -90,20 +90,9 @@ leading hypothesis and keep the alternatives open.
 - A paging alert needs an owner, tested notification route, actionable summary, and runbook before
   it is ready. Informational rules do not become paging alerts by using this method.
 
-## Handoff
+## Boundaries
 
 Bounded question: answer, supplied scope/evidence, relevant gap or next step.
-Design/change to `observability-engineer`: proposed definition, target/window, query evidence,
-rule source/UID, labels, owner, notification route, runbook, no-data/error behavior, actual tests
-and `[unverified]` gaps.
-
-- SLI: journey, good/valid events, units. Burn only: selected pair and both measured burns.
-- Freshness only: success signal, schedule, threshold and grace period.
-- Correlation tuning only: replay, false-merge/missed-cluster examples, rollback criteria.
-
-For current user impact or an unexplained live failure, hand time-bounded evidence to the responder
-with `incident-investigation`; a dispatched `sre-assistant` can investigate the assigned alert
-question and return findings without taking over the incident. Alert design does not grant
-incident ownership or live-change authority.
+Alert design does not grant incident ownership or live-change authority.
 Redact sensitive label and tag values from query evidence before it enters the packet; prefer an
 access-controlled link plus the smallest necessary excerpt.
