@@ -1,8 +1,7 @@
 # Save Toolkit — fleet guide
 
 Canonical sources are `agents/`, `skills/`, `commands/`, and `hooks/`; generated adapters are
-consequences. This file reaches only sessions in this repository; agent and skill bodies carry the
-runtime copy of every rule here.
+consequences.
 
 ## Start here
 
