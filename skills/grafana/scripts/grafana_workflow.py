@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded Grafana investigations and local evidence reports. Python 3.12+.
+"""Bounded Grafana investigations and local evidence reports. Python 3.14+.
 
 Agent-oriented structured investigations reuse grafana_read authentication and fixed endpoints.
 Optional evidence packages and local viewing; no arbitrary URLs or Grafana writes.

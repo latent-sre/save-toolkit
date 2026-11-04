@@ -42,7 +42,7 @@ def assess_smoke(observed: Mapping[str, Any], cleanup: list[dict[str, Any]]) -> 
     allow, deny = _object(observed.get("guard_allow")), _object(observed.get("guard_deny"))
     try:
         denial = _object(json.loads(deny.get("stdout", ""))).get("hookSpecificOutput", {})
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         denial = {}
     denial = _object(denial)
     reason = str(denial.get("permissionDecisionReason", "")).lower()
@@ -344,7 +344,7 @@ def run_smoke(
                     and storage_opt.get("size") == "10G"
                 ),
             }
-    except (ValueError, OSError, RuntimeError, KeyError, TypeError):
+    except ValueError, OSError, RuntimeError, KeyError, TypeError:
         error = "smoke setup or measurement failed; inspect the retained observations"
     except KeyboardInterrupt:
         error = "smoke interrupted"

@@ -2,10 +2,8 @@
 """Run the live-tree structural checks used by CI and before a push.
 
 This is the executable roster; CONTRIBUTING.md defines when component suites must also run.
-The gate path imports PyYAML through scripts/fleet_frontmatter.py and nothing else; the validate
-job installs the locked `gate` group (pyproject.toml) on the 3.12 floor before running it. A new
-gate-path third-party import joins that group in the same change; test_validate_workflow.py fails
-until the job installs it. Checks need neither a clean tree nor full Git history.
+The gate path imports PyYAML through scripts/fleet_frontmatter.py; CI installs the locked test
+environment before running it. Checks need neither a clean tree nor full Git history.
 All checks run even after a failure. Default output is one verdict plus failure diagnostics;
 --verbose includes successful step output. Structural success is not behavioral acceptance.
 """
@@ -27,7 +25,7 @@ STEPS = [
     ("Fleet, plugin, and generated adapter contracts", ["scripts/validate_fleet.py"]),
 ]
 
-MINIMUM_PYTHON = (3, 12)
+MINIMUM_PYTHON = (3, 14)
 
 
 def preflight() -> bool:

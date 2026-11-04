@@ -178,7 +178,7 @@ def _validate_exact_json_fields(fields: dict[str, object], grader_name: str) -> 
         raise ValueError(f"{grader_name} fields must be finite strict JSON: {config_problem}")
     try:
         json.dumps(fields, allow_nan=False)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         raise ValueError(f"{grader_name} fields must be encodable as finite strict JSON") from None
 
 

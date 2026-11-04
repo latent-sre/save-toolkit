@@ -138,6 +138,11 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The Python floor is 3.14 for all repository Python, including the guard hook and bundled skill
+  scripts; on an older `python3` the guarded hook fails closed.
+- CI is one required job, `component-tests (ubuntu-latest)`: Gate A, the `scripts/` suite and the host's
+  plugin validator. `evals/` tests no longer run in CI; a campaign runs them before its first trial. The
+  weekly pip-audit job is gone; Dependabot alerts report advisories.
 - The nine agents no longer carry a `## Handoffs` section (agent bodies 104,496 → 96,710 bytes
   net). Tool grants and the README roster carry the delegation edges; `researcher` and `reviewer`
   enforce their own input and instruction-loading boundaries. Rules with no other copy moved:

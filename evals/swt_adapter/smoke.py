@@ -141,7 +141,7 @@ def run_smoke(
             == "FAIL"
         )
         controls["code_fix_rejected"] = core.admit_patch(row["patch"], roots)["state"] == "FAIL"
-    except (ValueError, OSError):
+    except ValueError, OSError:
         error = "SWT negative control execution or cleanup failed"
     checks = {key: controls.get(key, False) for key in runner.SMOKE_CHECKS}
     receipt = {

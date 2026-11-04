@@ -461,7 +461,7 @@ def runtime_identity(executable: str) -> dict[str, Any]:
             )
         lines = proc.stdout.strip().splitlines() if proc.returncode == 0 else []
         version = lines[0].strip() if lines else None
-    except (OSError, ValueError, subprocess.TimeoutExpired):  # ValueError: a command with an unclosed quote
+    except OSError, ValueError, subprocess.TimeoutExpired:  # ValueError: a command with an unclosed quote
         version = None
     return {
         "cli_version": version,

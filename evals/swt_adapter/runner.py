@@ -129,7 +129,7 @@ def require_admission(admission_path: Path, binding: dict[str, Any]) -> None:
     """Reopen actual hash-bound smoke evidence before credentials or paid setup."""
     try:
         receipt, _ = _json_bytes(admission_path)
-    except (OSError, ValueError, TypeError, AttributeError):
+    except OSError, ValueError, TypeError, AttributeError:
         raise ValueError("exact SWT acceptance file is required") from None
     if (
         receipt.get("accepted") is not True
@@ -207,7 +207,7 @@ def require_admission(admission_path: Path, binding: dict[str, Any]) -> None:
                 or result.get("mechanical") != ("PASS" if name == "gold" else "FAIL")
             ):
                 raise ValueError
-    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+    except OSError, ValueError, KeyError, TypeError, AttributeError:
         raise ValueError("complete digest-bound model-free SWT smoke evidence is required") from None
 
 

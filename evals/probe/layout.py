@@ -124,7 +124,7 @@ def read_object(path: Path) -> dict[str, Any] | None:
     object: an unknown, never a partial reading."""
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError, RecursionError):  # RecursionError: nesting too deep to read
+    except OSError, ValueError, RecursionError:  # RecursionError: nesting too deep to read
         return None
     return value if isinstance(value, dict) else None
 

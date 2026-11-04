@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import shutil
@@ -71,6 +72,22 @@ class RebuildInlineCommandTests(unittest.TestCase):
 
 
 class HookWiringTests(unittest.TestCase):
+    def test_readonly_guard_is_standard_library_only(self) -> None:
+        """The hook runs the guard as `python -I -S`: no user environment, no `site`, nothing installed.
+
+        A third-party import raises before the guard can return 42/43, the launcher falls through
+        to its blanket deny, and every guarded Bash command dies.
+        """
+        guard = ROOT / "scripts" / "readonly-guard.py"
+        imported: set[str] = set()
+        for node in ast.walk(ast.parse(guard.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                imported.add(node.module.split(".")[0])
+        self.assertEqual(set(), imported - sys.stdlib_module_names)
+        self.assertIn("-I -S", (ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+
     def test_powershell_has_a_separate_guard_handler(self) -> None:
         entry = next(e for e in hook_entries("PreToolUse") if e["matcher"] == "PowerShell")
         handler = entry["hooks"][0]

@@ -117,7 +117,7 @@ def _file_view(folder: Path) -> TurnView:
     try:
         metadata = json.loads((folder / "invocation.json").read_text(encoding="utf-8"))
         trace = tracing.parse_trace(trace_path)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return TurnView(True, True, None, None, [])
     return TurnView(True, True, metadata, trace, invocation.credential_markers(trace.result_text, trace_path))
 
@@ -845,7 +845,7 @@ def _regrades_alone(run_dir: Path, spec: Spec) -> bool:
         return False
     try:
         found = evidence.EvidenceV1.model_validate_json(own.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return False
     return self_sufficient(found, spec)
 

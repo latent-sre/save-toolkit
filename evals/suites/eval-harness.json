@@ -40,7 +40,6 @@
     "evals/test_probe_trials.py",
     "evals/test_result_rules_properties.py",
     "evals/test_turn_counts.py",
-    "scripts/test_heavy_selection.py",
     "scripts/test_local_tests.py",
     "scripts/test_testkit.py"
   ],
