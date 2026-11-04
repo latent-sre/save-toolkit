@@ -19,6 +19,7 @@ COPY interop_sandbox ./interop_sandbox
 COPY cases ./cases
 COPY tests ./tests
 COPY activate.py ./activate.py
+COPY Dockerfile ./Dockerfile
 
 RUN printf '%s\n' 'autogen-a2a-sandbox-container/v1' > /opt/interop-sandbox/.runtime-marker \
     && chmod 0444 /opt/interop-sandbox/.runtime-marker \

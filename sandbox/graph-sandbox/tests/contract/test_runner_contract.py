@@ -59,8 +59,6 @@ class RunnerImageContractTests(unittest.TestCase):
         ]
 
         self.assertRegex(instructions[0], f"^{BASE_IMAGE}$")
-        services = (SANDBOX_ROOT / "services" / "Dockerfile").read_text(encoding="utf-8")
-        self.assertEqual(services.splitlines()[0], instructions[0])
         self.assertIn("USER 65532:65532", instructions)
         self.assertIn(
             "&& install -d --owner 65532 --group 65532 --mode 0750 /state /evidence",

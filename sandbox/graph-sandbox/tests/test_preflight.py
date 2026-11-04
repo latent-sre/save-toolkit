@@ -501,6 +501,16 @@ class PreflightTests(unittest.TestCase):
                 with self.assertRaisesRegex(PreflightError, f"images.lock.runner.{field}"):
                     self.validate(lock=lock)
 
+    def test_services_dockerfile_must_share_the_runner_base(self) -> None:
+        dockerfile = self.sandbox_root / "services" / "Dockerfile"
+        dockerfile.write_text("FROM python:3.14.0-slim-bookworm@sha256:" + "0" * 64 + "\n", encoding="utf-8")
+        lock = copy.deepcopy(self.lock)
+        lock["images"]["services"]["dockerfile_digest"] = file_digest(dockerfile)
+        for record in lock["images"].values():
+            record["build_context_digest"] = build_context_digest(self.sandbox_root)
+        with self.assertRaisesRegex(PreflightError, "images.lock.services.base_reference: Dockerfile mismatch"):
+            self.validate(lock=lock)
+
     def test_digest_helpers_reject_symlinks_in_build_context(self) -> None:
         link = self.sandbox_root / "runner" / "linked.py"
         link.write_text("VALUE = 1\n", encoding="utf-8")
