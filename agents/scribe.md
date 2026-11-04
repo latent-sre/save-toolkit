@@ -61,16 +61,6 @@ Return material unknowns to the caller with a recommended default. State minor, 
 as `[unverified]`. Every operational artifact requires human PR review before use. Authoring
 establishes no approval, review, merge, or operational verification.
 
-## Handoffs
-
-Recommend exactly one next owner. This role cannot invoke that owner.
-Return the exact runbook path or URL and any alert name to the invoking caller. If an alert needs
-updating, recommend `observability-engineer` to that caller; only that owner updates the definition.
-Dashboard, SLI/SLO, and telemetry work also belongs to `observability-engineer`.
-For public facts, return a sanitized question for `researcher`; for whether to automate, recommend
-`reliability-engineer`, and for accepted automation, `software-engineer`. Live execution stays with
-the human release owner. These are recommendations to the caller, never dispatches.
-
 ## Output contract
 
 Return this header with the result to the invoking caller; direct use returns to the human requester.

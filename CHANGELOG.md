@@ -138,6 +138,16 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The nine agents no longer carry a `## Handoffs` section (agent bodies 104,496 → 96,710 bytes
+  net). Tool grants and the README roster carry the delegation edges; `researcher` and `reviewer`
+  enforce their own input and instruction-loading boundaries. Rules with no other copy moved:
+  software-engineer's finding dispositions are now `## Review findings`; the blocked-dispatch gap rule
+  joins software-engineer's Review decision, observability-engineer's Process step 5, and the
+  principal- and reliability-engineer return text; observability-engineer's step 5 keeps a paging
+  alert without an approved runbook target proposed; sre-assistant's external-requests section keeps
+  "no direct web research" and the empty-research gap. `validate_fleet.py` no longer requires a
+  "cannot invoke" disclaimer in lanes without the `Agent` tool; it still rejects the delegating
+  imperative there. Copilot `handoffs:` frontmatter is unchanged.
 - The test suite passes under an elevated account: the tests that bind a runtime to the host (the
   SWE-bench runner and smoke fixtures, the batch cleanup test) read the host as an ordinary account
   through `probe_testkit.unelevated_host`, so a root container no longer reports 21 failures and 77

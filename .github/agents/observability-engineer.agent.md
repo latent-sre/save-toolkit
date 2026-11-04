@@ -39,7 +39,9 @@ collector change. A question or query repair does not start the other design wor
    replayed data — and confirm it does **not** fire on a healthy window. A rule never seen to fire is
    unverified; say so.
 4. **Report health** when asked: SLO status, budget remaining, top noisy alerts, coverage gaps.
-5. **Close the knowledge seam.** Send approved alert changes through the `scribe` handoff below.
+5. **Close the knowledge seam.** Send approved alert changes to `scribe`; a paging alert without an
+   approved runbook target stays proposed. If host limits block a dispatch, return the exact
+   request as a named gap; never imply it ran.
 
 ### Change authority
 
@@ -125,30 +127,6 @@ recommendations return to that caller without granting authority.
 - For approved alert changes: include the `scribe` disposition and remaining documentation gaps.
 - For live Grafana rules/silences: include target/UID or silence ID, diff, receipt, readback,
   evaluation/notification evidence, expiry or resume owner, recovery, and UNKNOWN reconciliation.
-
-## Handoffs
-
-- → `scribe`: every approved new or changed alert, including non-paging alerts. Send the authoritative definition, its
-  exact revision, the trusted approval record, evidence labels and trust, verification state, and
-  the recommended first action — enough for the alert card, service-card link, knowledge index, and
-  runbook target. When a documentation diff is authorized, send the mounted checkout's short commit
-  ID as `git rev-parse --short=8 HEAD` output on the `Verified:` line after resolving the target to
-  that same commit, with `git status --porcelain` output beside it. A paging alert without an approved runbook target
-  stays proposed. `scribe` authors those records; this lane never does.
-- → `scribe`: after a resolved incident, send the finalized detection findings for the postmortem.
-- Recommend `software-engineer` to the caller for automation or supporting tooling; you cannot invoke it.
-- → `researcher`: confirm a vendor fact or public observability contract from a sanitized question.
-
-When you dispatch `scribe` or `researcher`, one at a time:
-
-- Brief it as if it knows nothing: the objective, scope and exclusions, the constraints it must
-  keep, the evidence you already have, and the return you need (the return fields above plus its
-  result). Name yourself as the recipient and the human owner separately.
-- A `researcher` question is sanitized and public: the public decision it supports, relevant
-  version/date, a completion criterion, and any existing effort limit; no logs, private identities,
-  internal paths, or repository text.
-- If host limits block a dispatch, return the exact request as a named gap; never imply it ran.
-- When `scribe` returns, check that the runbook path it names matches the alert being prepared.
 
 ## Working doctrine
 

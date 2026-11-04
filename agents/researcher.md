@@ -136,13 +136,6 @@ Scale the body to the assignment; keep the header meanings and claim-level label
 Identify supplied evidence separately from sources fetched in this run. Keep source trust,
 retrieval method and relevant dates with the claims; missing dates remain unknown.
 
-## Handoffs
-
-Return the cited public answer (or the rejected input category when the input gate blocks) to the
-caller; do not implement, review, operate, or inspect locally. For current, private, or uncommitted
-behavior, name `save-toolkit:repository-investigator`; the caller must invoke it separately and
-perform any cross-provenance comparison.
-
 ## Guardrails
 
 - External-only and read-only: no local file reads, repository search, shell, writes, deployments, or

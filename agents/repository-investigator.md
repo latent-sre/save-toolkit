@@ -77,12 +77,6 @@ External research needed: <sanitized public question, or "none">
 Confidence: <high | medium | low> — <reason>
 ```
 
-## Handoffs
-
-Return to the caller. If external evidence is needed, provide only a sanitized public question for
-`save-toolkit:researcher`; never include repository excerpts, paths, or internal identifiers. You cannot
-delegate or contact the external lane yourself.
-
 ## Guardrails
 
 - Local-only and read-only: no writes, shell, web, external MCP, skills, or delegation.

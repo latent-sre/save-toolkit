@@ -156,7 +156,6 @@ class FleetValidatorTests(unittest.TestCase):
             (root / "agents").mkdir()
             (root / "agents/extra-agent.md").write_text(
                 "---\nname: extra-agent\ndescription: Unexpected roster member\ntools: Read\n---\n"
-                "## Handoffs\nThis agent cannot invoke another owner.\n"
                 "[verified] [sourced] [unverified]\n",
                 encoding="utf-8",
             )
@@ -469,66 +468,10 @@ class NonDelegatingHandoffTests(unittest.TestCase):
 
     def test_delegating_imperative_in_a_toolless_lane_is_flagged(self) -> None:
         failures = _agent_failures_after_edit(
-            "scribe.md", lambda text: must_replace(
-                text, "Recommend exactly one next owner. This role cannot invoke that owner",
-                "Hand to exactly one agent. If two are needed, sequence them",
-            ),
+            "scribe.md", lambda text: text + "\nHand to exactly one\nagent. If two are needed, sequence them.\n",
         )
         self.assertTrue(
             any("holds no Agent tool" in f and "scribe" in f for f in failures), failures
-        )
-
-    def test_a_lane_that_drops_every_disclaimer_is_flagged(self) -> None:
-        """Strip ALL disclaimer phrasings, not one, or the test proves nothing.
-
-        `scribe` states the constraint twice — once in its handoff rules and again as "this agent
-        cannot delegate or browse". Removing only the first leaves the second matching and the
-        validator correctly silent, so an earlier single-substitution version of this test failed
-        for the right reason. Strip every phrase and assert none survive before expecting the flag.
-        """
-        def remove_disclaimers(text: str) -> str:
-            for phrase in validate_fleet.NON_DELEGATION_DISCLAIMERS:
-                text = text.replace(phrase, "proceeds")
-            self.assertFalse(
-                any(phrase in validate_fleet._flatten(text) for phrase in validate_fleet.NON_DELEGATION_DISCLAIMERS),
-                "fixture still carries a disclaimer; the assertion below would be vacuous",
-            )
-            return text
-
-        failures = _agent_failures_after_edit("scribe.md", remove_disclaimers)
-        self.assertTrue(
-            any("must state that it cannot invoke" in f and "scribe" in f for f in failures),
-            failures,
-        )
-
-    def test_a_recommendation_alone_is_not_a_disclaimer(self) -> None:
-        """Describing what the lane does is not stating what it cannot do.
-
-        "Recommend exactly one next owner" was briefly accepted as a disclaimer. It is not one: an
-        agent could keep that sentence, drop every incapability statement, and pass -- reopening
-        the misleading-authority drift the contract exists to stop.
-        """
-        self.assertNotIn(
-            "Recommend exactly one next owner", validate_fleet.NON_DELEGATION_DISCLAIMERS
-        )
-        for phrase in validate_fleet.NON_DELEGATION_DISCLAIMERS:
-            with self.subTest(phrase=phrase):
-                self.assertTrue(
-                    phrase.startswith("cannot ") or "must invoke" in phrase,
-                    f"{phrase!r} does not assert incapability",
-                )
-
-    def test_disclaimer_is_found_across_a_line_wrap(self) -> None:
-        """A hard-wrapped disclaimer must still count.
-
-        `repository-investigator` genuinely wraps "You cannot\\ndelegate or contact the external
-        lane yourself". A raw substring test misses that and reports a violation in a file that is
-        already correct, so the checker flattens whitespace first. Pin the behavior directly.
-        """
-        self.assertIn("cannot delegate", validate_fleet._flatten("You cannot\ndelegate or contact"))
-        _, failures = validate_fleet.validate_agents(ROOT)
-        self.assertFalse(
-            any("repository-investigator" in f and "cannot invoke" in f for f in failures), failures
         )
 
 
