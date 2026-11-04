@@ -73,12 +73,14 @@ An old uv binary may need updating before it knows about a newly released Python
 hash; `uv sync --locked` fails when the two disagree. Change a dependency with
 `uv add --group <group> <requirement>`, or edit the manifest and run `uv lock`, and commit both
 files; `uv lock --upgrade-package <name>` moves one package, and Dependabot proposes the weekly
-grouped updates. Versions an adapter admits by contract (Harbor in
-`evals/harbor_adapter/contracts.py`, the SWT runtime table in `evals/swt_adapter/verifier.py`) stay
-exact in the manifest and move only with that contract; the sandboxes own their pins in their
-`requirements.txt`. The `swebench` group installs on top of the project environment
-(`uv sync --locked --group swebench`); `harbor` and `swt` are declared conflicting with it and
-install only into a separate environment, for example
+grouped updates. Each pinned version lives in exactly one file: the `swt` group's exact pins, which
+`evals/swt_adapter/verifier.py` reads; Harbor's version and wheel hash in `uv.lock`, which
+`evals/harbor_adapter/contracts.py` reads; and each sandbox image's `requirements.txt`, which that
+sandbox's validators, probe and tests read. A test or validator never restates a dependency
+version: it checks the package set, that each pin is exact, and that the installed or reported
+version matches the one source, so a version bump is one edit. The `swebench` group installs on top
+of the project environment (`uv sync --locked --group swebench`); `harbor` and `swt` are declared
+conflicting with it and install only into a separate environment, for example
 `UV_PROJECT_ENVIRONMENT=.eval-runs/harbor-sdk uv sync --locked --only-group harbor`.
 
 The Grafana analysis libraries are part of the `test` group. The Grafana workflow runs with

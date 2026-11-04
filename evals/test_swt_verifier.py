@@ -7,7 +7,6 @@ import importlib
 import json
 import sys
 import tarfile
-import tomllib
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -17,10 +16,7 @@ from swt_adapter import core, verifier
 
 
 def swt_runtime_pins():
-    """The exact pins of the `swt` dependency group; uv.lock resolves them under `--locked`."""
-    with (Path(__file__).parents[1] / "pyproject.toml").open("rb") as manifest:
-        group = tomllib.load(manifest)["dependency-groups"]["swt"]
-    return dict(entry.split("==") for entry in group if isinstance(entry, str) and "==" in entry)
+    return verifier.runtime_pins()
 
 
 def test_runtime_accepts_declared_swt_versions(monkeypatch):

@@ -37,12 +37,25 @@ _DAEMON_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _PYTHON_VERSION = re.compile(r"^3\.14\.7$")
 _HOST_PYTHON_VERSION = re.compile(r"^3\.\d+\.\d+$")
 _COMPOSE_VERSION = re.compile(r"^v?\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$")
-_PINNED_PACKAGES = {
-    "a2a-sdk": "1.1.2",
-    "agent-framework-a2a": "1.0.0b260821",
-    "agent-framework-core": "1.16.0",
-    "autogen-agentchat": "0.7.5",
-}
+_REQUIREMENTS = Path(__file__).resolve().parent / "requirements.txt"
+_PROBED_PACKAGES = ("a2a-sdk", "agent-framework-a2a", "agent-framework-core", "autogen-agentchat")
+
+
+def _requirement_pins(path: Path = _REQUIREMENTS) -> dict[str, str]:
+    """Return the image's exact pins; requirements.txt is the only version source."""
+    pins: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        requirement = line.split("#", 1)[0].strip()
+        if not requirement:
+            continue
+        name, separator, version = (part.strip() for part in requirement.partition("=="))
+        if not separator or not name or not version:
+            raise ValueError(f"sandbox requirement is not an exact pin: {requirement}")
+        pins[name.lower()] = version
+    return pins
+
+
+_PINNED_PACKAGES = {name: _requirement_pins()[name] for name in _PROBED_PACKAGES}
 _STAGE_MANIFEST_VERSION = "autogen-a2a-final-stage/v2"
 _RECEIPT_VERSION = "autogen-a2a-host-receipt/v1"
 _FINAL_CLAIM_AUTHENTICATION_FIELD = "final_claim_hmac_sha256"

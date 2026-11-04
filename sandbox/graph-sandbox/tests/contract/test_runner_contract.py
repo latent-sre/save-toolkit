@@ -23,6 +23,7 @@ from runner.gateway import (
     validate_checkout_receipt,
 )
 from runner.main import ConfigurationError, RunnerConfig
+from runner.runtime import pinned_packages
 from runner.models import (
     CONTRACT_VERSION,
     merge_ordered_unique,
@@ -46,24 +47,11 @@ BASE_REFERENCE = (
 
 
 class RunnerImageContractTests(unittest.TestCase):
-    def test_runner_dependencies_are_the_exact_approved_set(self) -> None:
-        requirements = {
-            line.strip()
-            for line in (SANDBOX_ROOT / "runner" / "requirements.txt")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if line.strip() and not line.lstrip().startswith("#")
-        }
+    def test_runner_dependencies_are_the_approved_packages_exactly_pinned(self) -> None:
+        pins = pinned_packages(SANDBOX_ROOT / "runner" / "requirements.txt")
 
-        self.assertEqual(
-            requirements,
-            {
-                "httpx==0.28.1",
-                "langgraph==1.2.11",
-                "langgraph-checkpoint-sqlite==3.1.1",
-            },
-        )
-        self.assertFalse(any("pytest" in requirement.lower() for requirement in requirements))
+        self.assertEqual(set(pins), {"httpx", "langgraph", "langgraph-checkpoint-sqlite"})
+        self.assertTrue(all(pins.values()))
 
     def test_runner_dockerfile_is_pinned_nonroot_and_has_no_implicit_authority(self) -> None:
         dockerfile = (SANDBOX_ROOT / "runner" / "Dockerfile").read_text(encoding="utf-8")

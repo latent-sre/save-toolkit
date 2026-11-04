@@ -238,9 +238,8 @@ def create_worker_app(*, state_directory: str | Path, agent_url: str) -> FastAPI
         version=WORKER_VERSION,
         lifespan=lifespan,
     )
-    # a2a-sdk 1.1.2's optional FastAPI OpenAPI enhancer assumes protobuf 6's
-    # FieldDescriptor.is_repeated, while AutoGen 0.7.5 pins protobuf 5.29.x.
-    # The public route factories themselves are Starlette/FastAPI compatible.
+    # Mount the public route factories directly; they are Starlette/FastAPI compatible
+    # and need no OpenAPI enhancer.
     app.router.routes.extend(create_agent_card_routes(card))
     app.router.routes.extend(
         create_jsonrpc_routes(

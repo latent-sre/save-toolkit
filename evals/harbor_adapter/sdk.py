@@ -1,4 +1,4 @@
-"""Real Harbor 0.24.0 interfaces, accessible only through owned bounded containers.
+"""Real Harbor SDK interfaces, accessible only through owned bounded containers.
 
 Import this optional module inside the dedicated `harbor` group environment
 (`uv sync --locked --only-group harbor` into its own UV_PROJECT_ENVIRONMENT).

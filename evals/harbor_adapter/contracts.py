@@ -7,12 +7,23 @@ import json
 import math
 import re
 import shutil
+import tomllib
 from pathlib import Path
 from typing import Any
 
-HARBOR_VERSION = "0.24.0"
-HARBOR_COMMIT = "b53b8134e1241686dca7759af188f987ecc48e8b"
-HARBOR_WHEEL_SHA256 = "23b7ba616a3aae4eff561ced5e2c51c7186f2981e53a770dea9c689d3969877c"
+LOCKFILE = Path(__file__).resolve().parents[2] / "uv.lock"
+
+
+def _locked_harbor() -> tuple[str, str]:
+    """Harbor's version and wheel SHA-256 as uv.lock resolves them; the lock is the only version source."""
+    with LOCKFILE.open("rb") as lock:
+        (package,) = (p for p in tomllib.load(lock)["package"] if p["name"] == "harbor")
+    (wheel,) = package["wheels"]
+    return package["version"], wheel["hash"].removeprefix("sha256:")
+
+
+HARBOR_VERSION, HARBOR_WHEEL_SHA256 = _locked_harbor()
+HARBOR_COMMIT = "fdba28fc411e47e8765420a1a063b4918fce3def"
 SOURCE_COMMIT = "2fd12b88aafdd04a52c298e3940bcb189f9766d6"
 TASK_NAMES = (
     "cancel-async-tasks",

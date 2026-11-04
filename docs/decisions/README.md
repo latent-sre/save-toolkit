@@ -17,8 +17,9 @@ PR #238 on 2026-09-07. It preserves branch dispositions, current tool authority,
 
 | Date | Decision | Status |
 |---|---|---|
+| 2026-11-04 | [Keep each pinned version in one file, and read it from there](2026-11-04-one-version-source-per-pin.md) | Accepted for implementation; candidate acceptance remains separate |
 | 2026-11-02 | [Inspect AI orchestrates the native runner](2026-11-02-inspect-orchestrates-native-runner.md) | Accepted for implementation; native runner remains the reference until the parity run |
-| 2026-11-02 | [Manage dependencies as a uv project with one lockfile](2026-11-02-uv-project-lockfile.md) | Accepted for implementation; candidate acceptance remains separate |
+| 2026-11-02 | [Manage dependencies as a uv project with one lockfile](2026-11-02-uv-project-lockfile.md) | Accepted for implementation; exact-pin clause superseded by [2026-11-04](2026-11-04-one-version-source-per-pin.md) |
 | 2026-10-25 | [Explicit native evaluation selections](2026-10-25-explicit-native-selections.md) | Accepted for implementation; candidate acceptance remains separate |
 | 2026-08-21 | [Take `observability-engineer` off the read-only Bash guard](2026-08-21-observability-engineer-unguarded-bash.md) | Accepted |
 | 2026-08-22 | [Agent discovery is model-labelled calibration](2026-08-22-agent-discovery-calibration.md) | accepted 2026-08-22; disposes `EVAL-002` |

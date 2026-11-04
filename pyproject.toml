@@ -57,28 +57,29 @@ swebench = [
     "pydantic>=2.13.5",
     "pyyaml>=6.0.3",
 ]
-# Optional independent SWT worker environment. evals/swt_adapter/verifier.py admits only these exact
-# versions, so they move only with that adapter. Conflicts below keep the group out of the project
+# Optional independent SWT worker environment. evals/swt_adapter/verifier.py admits exactly the
+# versions pinned here and reads them from this group. Conflicts below keep the group out of the project
 # environment: install it with `uv sync --locked --only-group swt` into a separate UV_PROJECT_ENVIRONMENT.
 swt = [
     "docker==7.2.0",
-    "datasets==5.0.1",
+    "datasets==5.1.0",
     "editdistance==0.8.1",
     "GitPython==3.2.1",
-    "python-dotenv==1.2.2",
-    "requests==2.33.1",
-    "tqdm==4.67.3",
-    "unidiff==0.7.5",
+    "python-dotenv==1.2.4",
+    "requests==2.34.2",
+    "tqdm==4.70.1",
+    "unidiff==1.0.1",
     "pydantic>=2.13.5",
     "pyyaml>=6.0.3",
     "pytest>=9.1.1",
 ]
-# Optional WP-09 Harbor SDK environment, Apache-2.0. evals/harbor_adapter/contracts.py binds this exact
-# Harbor release and its upstream source commit, so the version moves only with that adapter.
+# Optional WP-09 Harbor SDK environment, Apache-2.0. evals/harbor_adapter/contracts.py reads this
+# release's version and wheel hash from uv.lock; a version change also updates its upstream source
+# commit there and the frozen manifest's harbor block.
 # Conflicts below keep it out of the project environment: install it with
 # `uv sync --locked --only-group harbor` into a separate UV_PROJECT_ENVIRONMENT.
 harbor = [
-    "harbor==0.24.0",
+    "harbor==0.25.0",
     "pytest>=9.1.1",
 ]
 
