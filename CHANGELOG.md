@@ -8,6 +8,9 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Fixed
 
+- Repository instructions drop three dead lines: an untracked EVAL-009 promise and an ADR citation in
+  the Copilot review guide, and a `CLAUDE.md` memory rule naming a retro protocol the repository lacks.
+
 - The graph sandbox's evidence validator and contract test expected `langgraph-checkpoint-sqlite`
   3.1.1 while its runner image installed 3.1.2, so by its code it would reject real-image evidence, and the
   contract test failed on main; both now read the image's `requirements.txt`.
