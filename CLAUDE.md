@@ -44,7 +44,6 @@ defaults below.
 ## Rules vs. state vs. evidence
 - Instructions files hold only durable, imperative rules. Current state (what's paused, what's next, branch names) lives in the project's ledger or tracker; forensic narrative lives in per-task reports. Never let state or narrative leak into instructions — stale lines teach future sessions to distrust the file.
 - Extract the lesson, discard the incident: when something goes wrong, convert it into a general rule and record the rule in the right instructions file — this one for cross-project habits, the repo's own for repo rules. The story of what happened stays in the report or postmortem.
-- Memory hygiene: when a project's MEMORY.md index nears its load budget (200 lines/25KB) or a tracked round closes, run the consolidation pass from the fleet's retro protocol — merge newer facts into existing memories, retire closed-round state to one outcome pointer, delete dead claims; item by item, never a wholesale rewrite.
 - No meta-prose: an instructions file carries no provenance narrative, methodology notes, date stamps, citations, or self-justification — comments included. A rule is its trigger, its imperative, and the failure it prevents; where it came from belongs in the report that proposed it.
 
 ## Finish with a review packet

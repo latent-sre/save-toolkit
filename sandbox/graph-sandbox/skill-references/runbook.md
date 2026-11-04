@@ -10,8 +10,8 @@ source_revision: save-toolkit@10292e5844ac0e31a07caeacfb4da52dc8c3bb87
 last_reviewed: null
 last_verified: 2026-08-30
 verification_evidence:
-  - docs/reviews/2026-08-30-exercise-graph-003-current-runtime.md
-  - docs/reviews/2026-08-30-graph-003-current-runtime-evidence.md
+  - https://github.com/latent-sre/save-toolkit/blob/10292e5844ac0e31a07caeacfb4da52dc8c3bb87/docs/reviews/2026-08-30-exercise-graph-003-current-runtime.md
+  - https://github.com/latent-sre/save-toolkit/blob/10292e5844ac0e31a07caeacfb4da52dc8c3bb87/docs/reviews/2026-08-30-graph-003-current-runtime-evidence.md
 version: 3
 ---
 

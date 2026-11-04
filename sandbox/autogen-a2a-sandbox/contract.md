@@ -1,7 +1,6 @@
 # `canary-release-evidence-conflict/v1` — interface and state contract
 
-- **Status:** active implementation contract; live work is tracked by
-  [`GRAPH-005`](../docs/fleet-roadmap.md#graph-005--autogen-graphflow--a2a-canary-evidence-sandbox).
+- **Status:** active implementation contract.
 - **Owner:** The orchestrator owns this file during implementation. Builders route changes through
   the orchestrator.
 - **Version:** `autogen-a2a-interface/v1`

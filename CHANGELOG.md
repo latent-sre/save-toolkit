@@ -1,12 +1,23 @@
 # Changelog
 
 Recent changes to the current Save Toolkit. This is a pre-release repository; entries do not
-assert a published release or acceptance of an evaluated candidate. Releases before 0.51.3 are in
-Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+assert a published release or acceptance of an evaluated candidate. Releases before 0.51.4 are in
+Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-11-04
+
 ### Fixed
+
+- Repository instructions drop three dead lines: an untracked EVAL-009 promise and an ADR citation in
+  the Copilot review guide, and a `CLAUDE.md` memory rule naming a retro protocol the repository lacks.
+- `AGENTS.md` drops its runtime-copy note, and `CONTRIBUTING.md` drops its restatement of the ADR
+  amendment rule; `commands/adr.md` still carries that rule.
+- Repository cleanup: README drops a `py -3` hint and a removed-procedure pointer, the Copilot guide
+  a duplicate rule, the autogen sandbox contract a dead GRAPH-005 link, and one retired review packet.
+- Retire the saved `python-engineering` artifact cases under `eval-runs/` and the frontend-craft
+  verification restoration bundle; the suite keeps its routing scenarios and oracle controls.
 
 - The graph sandbox's evidence validator and contract test expected `langgraph-checkpoint-sqlite`
   3.1.1 while its runner image installed 3.1.2, so by its code it would reject real-image evidence, and the
@@ -141,6 +152,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The owner accepted the `principal-engineer` lane at its exact candidate (`1f25a268`); PRINCIPAL-001
+  leaves the roadmap and its eight retained review packets are retired.
 - Every remaining stale pin moved to its current release. The sandbox images' Python base is
   3.14.10 (`python:3.14.10-slim-bookworm`, was a 3.14.7 build), written only in each Dockerfile's `FROM`:
   preflight and both sandboxes derive the Python version from it, the in-image probe and evidence
@@ -280,7 +293,7 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - Clarify authoring reference selection and API client scope; trim repeated CI and database guidance
   while preserving operational authority, recovery rules, and executable examples.
 - Consolidate `operational-learning`, `runbook`, and `postmortem` into `operational-docs` (27 to 25
-  skills) with methods, assets, and importer behavior intact ([evidence](docs/reviews/2026-10-24-operational-docs-consolidation.md)).
+  skills) with methods, assets, and importer behavior intact.
 - Trim the references of 22 skills, removing repeated narration, tutorials, and unconfirmed claims;
   contracts, recorded decisions, and fenced command blocks are unchanged.
 - Correct reference facts: MSW 3 imports, configurable TraceQL windows, non-GPU startup-probe scope,
@@ -344,28 +357,3 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - `software-engineer` treats a push or tag push as a CI submission and again keeps embedded
   remote-URL credentials out of its context.
 - The routine-completion grader matches the current return-header fields.
-
-## [0.51.3] - 2026-10-22
-
-### Added
-
-- `go-craft`, a candidate skill for Go services, CLIs, libraries, and workers; native routing and
-  benefit are unmeasured (BACKEND-002).
-- WP-12's GCP catalog: 20 families (40 A/B cases); the owner accepted all 64 cases at `9147ff91`
-  under DEC-14.
-
-### Changed
-
-- `software-engineer` gets a leaner core for dispatched work (issue #403): caller-owned review,
-  named verification scope, and the final message as the report; the `Changed` packet slot returns.
-- `observability-engineer` drops its unguarded-Bash paragraph; the ADR, the guard, and the
-  `grafana` trust rule still hold.
-- Rename `backend-craft` to `api-craft`, scoped to HTTP APIs, webhook receivers, HTTP clients, and
-  API-accepted work, with corrected FastAPI, Huma, and credential-renewal guidance.
-- EVAL-005 ran six Sonnet trials, all FAIL under the all-checks threshold
-  ([run record](docs/reviews/2026-10-18-eval-005-run.md)).
-
-### Fixed
-
-- Oracle and handoff validation use contract checks instead of arbitrary count and length
-  thresholds.

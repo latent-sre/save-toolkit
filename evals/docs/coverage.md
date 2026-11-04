@@ -48,7 +48,7 @@ that need human review. For example, the [GCP guide](../oracles/gcp/README.md) a
 | Description changes and helper handoffs | `routing-and-handoffs` | All current routing cases plus caller/helper continuation boundaries; does not imply every host executes the same tools |
 | Software-engineer work | `software-engineering` | Task scope, authoring, review and artifact controls across its current cases; independent adversarial and platform suites remain useful |
 | Python implementation/refactoring | `python-craft` | Routing, closed-JSON judgments, streaming, library choice, resource lifetime, package/refactor and scope cases; the two judgment cases are not open-ended semantic assessments |
-| Python engineering skill | `python-engineering` | Four native routing scenarios, offline skill/oracle controls, and [12 paired saved artifact cases](../../eval-runs/python-engineering/README.md); artifact checks, report checks and reference compliance are reported separately |
+| Python engineering skill | `python-engineering` | Four native routing scenarios and offline skill/oracle controls |
 | Go implementation | `go-craft` | Existing routing and Go API fixture; much narrower than the Python case set |
 | HTTP APIs | `api-craft` | Pagination, problem responses, writes, OpenAPI and independent negative controls |
 | Application interfaces | `frontend-craft` | UI artifacts and page/console controls; rendering calibrations require their opt-in Node environments |

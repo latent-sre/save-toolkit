@@ -48,10 +48,6 @@ collection settings and inherited collection overrides, so a narrowed run is vis
 independent sandboxes. It does not activate them. `campaigns` links actual selection manifests;
 a runner with no selection is still discoverable through `tracks`.
 
-The [`python-engineering` saved-case guide](../eval-runs/python-engineering/README.md) links the
-paired artifact outputs and corrected offline scores. These saved cases are separate from its four
-native routing scenarios and are not a live campaign selection.
-
 Native discovery supports `--kind`, `--component`, `--profile`, and `--suite`: repeated values within
 one filter are OR, different filters are AND. A component is the pinned agent/skill or routing target,
 including negative routing targets. It does not imply coverage of every indirectly loaded skill.

@@ -14,7 +14,7 @@ with one narrow exception: an invoked `observability-engineer` may apply scoped 
 folder, and alert-rule writes and temporary silences under its
 [change-authority rule](agents/observability-engineer.md#change-authority).
 
-> **Pre-release (0.51.4).** Installs track `main` and may change without notice. The repository has
+> **Pre-release (0.52.0).** Installs track `main` and may change without notice. The repository has
 > no supported immutable release channel.
 
 ## Install (Claude Code)
@@ -151,7 +151,7 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 |---|---|---|
 | Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre-assistant` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
 | VS Code 1.137.0 | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-09-10 the maintainer ran the [acceptance cases](docs/vscode-plugin-acceptance.md) against an installed 0.40.0 candidate and reported all passing, including the forbidden-child case that ran anyway on 1.135.0. Owner-reported from a live session; no transcript was filed, so this row is the record. The separate agent-scoped hook canary remains unrun and `hooks/copilot-hooks.json` still ships empty |
-| First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the `RELEASE-001` acceptance run passes on that exact build (procedure removed 2026-09-02; recover it with `git show e77fc672^:docs/probes/host-002-vscode-agent-delegation.md`) |
+| First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the `RELEASE-001` acceptance run passes on that exact build |
 
 ### Other hosts
 
@@ -206,8 +206,8 @@ root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs
 
 ## Validate
 
-One structural gate (on Windows use `python` or `py -3`, never `python3` — the Microsoft Store
-stub):
+One structural gate, run with the project interpreter (see
+[CONTRIBUTING.md](CONTRIBUTING.md#2-change-the-source-of-truth)):
 
 ```sh
 python scripts/gate_a.py                                # the whole structural gate

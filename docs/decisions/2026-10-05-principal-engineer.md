@@ -1,8 +1,9 @@
 # ADR: Add one principal engineering lane for system design and architecture
 
 - **Date:** 2026-10-05
-- **Status:** proposed; implementation authorized by the owner on 2026-10-05, exact-candidate
-  acceptance pending
+- **Status:** accepted by the owner on 2026-11-04 for the exact candidate at `1f25a268`
+  (`agents/principal-engineer.md` blob `61be9848` and `skills/eng-ladder/` at that commit);
+  implementation authorized by the owner on 2026-10-05
 - **Decision owner:** Save Toolkit maintainers
 
 ## Context
