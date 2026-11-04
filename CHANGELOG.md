@@ -152,6 +152,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The owner accepted the `principal-engineer` lane at its exact candidate (`1f25a268`); PRINCIPAL-001
+  leaves the roadmap and its eight retained review packets are retired.
 - Every remaining stale pin moved to its current release. The sandbox images' Python base is
   3.14.10 (`python:3.14.10-slim-bookworm`, was a 3.14.7 build), written only in each Dockerfile's `FROM`:
   preflight and both sandboxes derive the Python version from it, the in-image probe and evidence

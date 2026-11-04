@@ -398,36 +398,6 @@ work with an owner and a meaningful proof-of-improvement check.
 
 ## Deferred
 
-### PRINCIPAL-001 — accept the principal engineering lane on representative design tasks
-
-**Status:** `deferred` (2026-10-16); the lane stays shipped and unaccepted. Across three measured
-cases there is one tracker advantage and two design ties, not established general superiority or
-an equivalence proof; principal's repeatable advantage is method and authority consistency. The
-review cycle is complete.
-**Owner:** Maintainers select the exact candidate and approve the evaluation budget;
-a maintainer session owns the lane and its `eng-ladder` method.
-**Outcome:** The principal engineer returns design records that name supported and unseen
-consumers, plan compatible staged rollout and recovery, shape new systems against the stack
-profile, and leave every decision to the human owner without expanded authority. One lane is shown
-to serve both design depths, or the owner splits or removes it.
-**Next action:** None. Reopens when the owner scopes a repair for builder adherence/reporting,
-shared capture/abort reasoning and the method-check label/predicate mismatch, or approves
-calibration of the [semantic scoring proposal](../evals/proposals/principal-judgment/README.md).
-Each campaign states trial count, estimated cost, review hours and cost cap under DEC-04 before
-any call. Do not rerun the completed review cycle; exact-candidate acceptance remains the owner's
-decision. Retain the [held-out reconciliation](reviews/2026-10-08-principal-heldout-cutover.md#disposition-and-bounded-follow-up),
-the [familiar-case packet](reviews/2026-10-07-principal-judgment-acceptance.md) and the independent
-reports while this item is deferred: familiar-case
-[first pass](reviews/2026-10-08-principal-independent-first-pass.md) and
-[trace pass](reviews/2026-10-08-principal-independent-second-pass.md); held-out
-[first pass](reviews/2026-10-08-principal-heldout-independent-first-pass.md),
-[prompted addendum](reviews/2026-10-08-principal-heldout-independent-addendum.md) and
-[trace pass](reviews/2026-10-08-principal-heldout-independent-second-pass.md).
-**Evidence:** [Native evaluation](reviews/2026-10-05-principal-engineer-evals.md); the
-[lane decision](decisions/2026-10-05-principal-engineer.md) keeps its acceptance scope.
-**SRE task:** Get a reviewable design or architecture record, with options, staged rollout and
-recovery, and the decisions to make, before code is written.
-
 ### INCIDENT-QUALITY-001 — verify decision quality after the SRE contract repairs
 
 **Status:** `deferred` (2026-10-16); behavioral acceptance failed and stays on hold. The completed

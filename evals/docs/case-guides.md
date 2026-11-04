@@ -50,8 +50,8 @@ reliability assessments, small tool builds, an independent review of a design do
 fleet's own workflow-graph design to reach their own lanes. The design-review negative seeds the
 two consumers its document names; a review the main session keeps passes, as does one handed to
 `reviewer`, and the design lane taking it fails. `python -m pytest
-evals/test_principal_cases.py` calibrates them offline; design quality needs document review, and
-native acceptance stays open under `PRINCIPAL-001`.
+evals/test_principal_cases.py` calibrates them offline; design quality needs document review,; the owner accepted the
+lane's exact candidate on 2026-11-04.
 
 The [PRINCIPAL-001 semantic proposal](../proposals/principal-judgment/README.md) is deliberately
 outside the active catalog and canonical rubric/corpus maps until reviewed activation and a new
@@ -66,11 +66,10 @@ store copy, bounded-pause cutover, and recovery after replacement-only writes. T
 fixtures and checks are identical. `python -m pytest evals/test_principal_heldout.py` verifies
 pair equality and the same-count/different-state rehearsal counterexample without model calls.
 Artifact/boundary and skill-load checks remain separate from substantive design review; no
-keyword semantic oracle is added. The [preregistered review protocol](../../docs/reviews/2026-10-08-principal-heldout-cutover.md)
-requires uniformly hidden author metadata and a frozen first pass before trace reconciliation.
-The approved six-trial native campaign and independent AI review are complete. The linked receipt
-preserves all three review stages and reports a held-out design tie, separate from principal's
-method/boundary consistency. Structural results do not dispose of its substantive design findings.
+keyword semantic oracle is added. The preregistered review protocol
+required uniformly hidden author metadata and a frozen first pass before trace reconciliation.
+The approved six-trial native campaign and independent AI review are complete and reported a
+held-out design tie, separate from principal's method/boundary consistency. Structural results do not dispose of its substantive design findings.
 The frozen method checks' labels say before Write while their predicates require before the first
 potentially mutating call; the report distinguishes actual skill loads from that ordering failure.
 
