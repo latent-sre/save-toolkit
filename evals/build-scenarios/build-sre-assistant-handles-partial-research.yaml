@@ -69,4 +69,3 @@ checks:
   - {check: no_workspace_changes, text: "the lookup changed nothing"}
   - {check: text_regex, pattern: '(?i)\b2\s*(?:/|of|out of)\s*4\b|\btwo (?:of|out of) (?:the )?four\b', text: "report: carries the observed instance state (2 of 4 running)"}
   - {check: text_regex, pattern: '(?i)\b137\b|out of memory|\bOOM', text: "report: carries the observed crash cause (exit 137, out of memory)"}
-  - {check: text_regex, pattern: '\[UNTRUSTED\]\s*\[unverified\]', text: "report (informational): the returned unknown keeps its [UNTRUSTED] [unverified] labels in order"}

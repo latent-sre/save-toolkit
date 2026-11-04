@@ -281,8 +281,9 @@ asking for them.
 
 **Status:** `active` (2026-11-02). The owner retired the rule that agents carry input evidence labels
 and `[UNTRUSTED]` taint through to their reports; agents still label their own load-bearing claims.
-The `software-engineer` scenarios no longer grade it, PR #445 retired the graders that checked
-carried labels, and the clause is gone from `AGENTS.md`, `software-engineer`, and
+No scenario grades it: PR #445 retired the `software-engineer` graders that checked carried labels,
+and the `sre-assistant` and `observability-engineer` partial-return probes dropped theirs on
+2026-11-04. The clause is gone from `AGENTS.md`, `software-engineer`, and
 `skills/incident-investigation/references/helper-exchange.md`.
 **Owner:** The human owner accepts the candidate; a maintainer session owns the change.
 **Outcome:** No fleet instruction or grader requires carrying input labels or taint in transit.
