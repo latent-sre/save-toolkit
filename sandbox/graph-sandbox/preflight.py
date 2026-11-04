@@ -20,10 +20,20 @@ import shutil
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
 
-BASE_REFERENCE = (
-    "python:3.14.7-slim-bookworm@"
-    "sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f"
-)
+_BASE_IMAGE = re.compile(r"python:(?P<python>3\.\d+\.\d+)-slim-[a-z]+@sha256:[0-9a-f]{64}")
+
+
+def _runner_base_reference() -> tuple[str, str]:
+    """The runner Dockerfile's FROM is the only base-image pin; return it and its Python version."""
+    lines = (Path(__file__).resolve().parent / "runner" / "Dockerfile").read_text(encoding="utf-8").splitlines()
+    references = [line.split()[1] for line in lines if line.split()[:1] == ["FROM"] and len(line.split()) >= 2]
+    match = _BASE_IMAGE.fullmatch(references[0]) if len(references) == 1 else None
+    if match is None:
+        raise RuntimeError("runner Dockerfile must have one digest-pinned python:X.Y.Z-slim base")
+    return references[0], match["python"]
+
+
+BASE_REFERENCE, BASE_PYTHON_VERSION = _runner_base_reference()
 LOCK_VERSION = "graph-sandbox-images/v1"
 PLATFORM = "linux/amd64"
 DEFAULT_SERVICES = frozenset({"graph-runner", "checkout", "payments", "inventory"})

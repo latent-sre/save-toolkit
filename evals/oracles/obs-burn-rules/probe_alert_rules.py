@@ -29,7 +29,7 @@ import re
 import subprocess
 import sys
 
-IMAGE = "prom/prometheus:v3.14.0-distroless@sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a"
+IMAGE = "prom/prometheus:v3.15.1-distroless@sha256:451a845bae1d51622b41af1780eb2ad911bbb79a9855bc8e9bb67fabbc03f934"
 STATUSES = ("200", "500", "503")   # checkout per-minute rates in each segment, in this order
 NOT_FOUND_PER_MIN = 20              # checkout 404s, constant
 SEARCH_PER_MIN = (2000, 200)        # the search app's 200s and 500s, constant

@@ -40,7 +40,7 @@ prompt: |
 fixture:
   services:
     - name: prometheus
-      image: "prom/prometheus:v3.14.0-distroless@sha256:50c707e96da5ade383cb1707790576480485e93de06aa60ad8802cb5f744bd0a"
+      image: "prom/prometheus:v3.15.1-distroless@sha256:451a845bae1d51622b41af1780eb2ad911bbb79a9855bc8e9bb67fabbc03f934"
       port: 9090
       ready: /-/ready
       ready_timeout: 180
@@ -71,7 +71,7 @@ fixture:
         pointer: data/result
         nonempty: true
     - name: grafana
-      image: "grafana/grafana@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb"
+      image: "grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205"
       port: 3000
       auth: "admin:admin"
       ready: /api/health

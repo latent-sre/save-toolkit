@@ -20,6 +20,7 @@ from typing import Callable, Mapping, Sequence
 
 from build_images import SnapshotError, build_and_lock
 from preflight import (
+    BASE_PYTHON_VERSION,
     CommandTimeoutError,
     DockerCLI,
     PreflightError,
@@ -975,7 +976,7 @@ def _validate_runtime_evidence(files: Mapping[str, Path]) -> dict[str, object]:
     packages = _require_closed(runtime["packages"], set(expected_packages), "runtime packages")
     if runtime["runtime_version"] != "graph-runner-runtime/v1":
         raise ActivationError("evidence export: runtime version mismatch")
-    if runtime["python_version"] != "3.14.7":
+    if runtime["python_version"] != BASE_PYTHON_VERSION:
         raise ActivationError("evidence export: runtime python version mismatch")
     for package, expected in expected_packages.items():
         if packages[package] != expected:

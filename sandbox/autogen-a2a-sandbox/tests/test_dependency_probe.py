@@ -1,3 +1,4 @@
+import platform
 import sys
 import unittest
 from pathlib import Path
@@ -10,6 +11,7 @@ from interop_sandbox import dependency_probe
 
 
 EXPECTED_DISTRIBUTIONS = dependency_probe.EXPECTED_DISTRIBUTIONS
+PYTHON = platform.python_version()
 TRANSPORT_PACKAGES = {"fastapi", "httpx", "sse-starlette", "uvicorn"}
 
 
@@ -24,7 +26,7 @@ class DependencyProbeTests(unittest.TestCase):
         report = {
             "distributions": EXPECTED_DISTRIBUTIONS.copy(),
             "probe_version": "autogen-a2a-dependency-probe/v1",
-            "python": "3.14.7",
+            "python": PYTHON,
             "surfaces": {
                 "a2a_v1_models": "constructed",
                 "agent_framework_a2a": "constructed",
@@ -33,21 +35,27 @@ class DependencyProbeTests(unittest.TestCase):
             },
         }
 
-        self.assertEqual(dependency_probe.validate_report(report), report)
+        self.assertEqual(dependency_probe.validate_report(report, PYTHON), report)
 
     def test_report_contract_rejects_a_missing_distribution_version(self) -> None:
-        report = dependency_probe.expected_report("3.14.7")
+        report = dependency_probe.expected_report(PYTHON)
         del report["distributions"]["a2a-sdk"]
 
         with self.assertRaisesRegex(ValueError, "distributions"):
-            dependency_probe.validate_report(report)
+            dependency_probe.validate_report(report, PYTHON)
+
+    def test_report_contract_rejects_an_interpreter_other_than_the_base_image(self) -> None:
+        report = dependency_probe.expected_report(PYTHON)
+
+        with self.assertRaisesRegex(ValueError, "Python version"):
+            dependency_probe.validate_report(report, PYTHON + ".1")
 
     def test_report_contract_rejects_an_unexpected_top_level_key(self) -> None:
-        report = dependency_probe.expected_report("3.14.7")
+        report = dependency_probe.expected_report(PYTHON)
         report["unexpected"] = "not closed"
 
         with self.assertRaisesRegex(ValueError, "top-level"):
-            dependency_probe.validate_report(report)
+            dependency_probe.validate_report(report, PYTHON)
 
 
 if __name__ == "__main__":

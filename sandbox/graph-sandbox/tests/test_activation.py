@@ -42,6 +42,8 @@ from build_images import (  # noqa: E402
     safe_extract_archive,
 )
 from preflight import (  # noqa: E402
+    BASE_PYTHON_VERSION,
+    BASE_REFERENCE,
     ContextIdentity,
     DockerCLI,
     PreflightError,
@@ -527,10 +529,7 @@ class SnapshotTests(unittest.TestCase):
             self.assertEqual(lock.read_text(encoding="utf-8"), '{"template":true}\n')
 
     def test_builder_uses_snapshot_for_build_and_repeats_explicit_local_context(self) -> None:
-        base = (
-            b"FROM python:3.14.7-slim-bookworm@"
-            b"sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f\n"
-        )
+        base = f"FROM {BASE_REFERENCE}\n".encode()
         archive = self.archive_files(
             {
                 "graph-sandbox/.dockerignore": b"**\n!runner/**\n!services/**\n!cases/**\n",
@@ -1029,7 +1028,7 @@ class ActivationTests(unittest.TestCase):
             "runtime.json": json.dumps(
                 {
                     "runtime_version": "graph-runner-runtime/v1",
-                    "python_version": "3.14.7",
+                    "python_version": BASE_PYTHON_VERSION,
                     "packages": runner_pins(),
                 }
             )
@@ -1665,7 +1664,7 @@ class ActivationTests(unittest.TestCase):
                 self.assertIsInstance(record["exit_status"], int)
             self.assertNotIn(str(staging), json.dumps(command_records))
             environment = _read_json(final / "environment.json")
-            self.assertEqual(environment["python_runtime_posture"], "observed:3.14.7")
+            self.assertEqual(environment["python_runtime_posture"], f"observed:{BASE_PYTHON_VERSION}")
             self.assertEqual(
                 environment["package_posture"],
                 {name: f"observed:{version}" for name, version in runner_pins().items()},

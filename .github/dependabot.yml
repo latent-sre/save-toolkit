@@ -1,5 +1,6 @@
 # Weekly updates for the workflow's action majors (one grouped pull request), the uv project's
-# lockfile (pyproject.toml + uv.lock), and each sandbox image's requirements.txt. Minor and patch
+# lockfile (pyproject.toml + uv.lock), each sandbox image's requirements.txt, and the sandbox
+# Dockerfiles' digest-pinned base image. Minor and patch
 # releases arrive as one grouped pull request per ecosystem; a major release gets its own. CI's
 # `uv sync --locked` is the check that a proposed lock still matches the manifest, and the component
 # tests are the evidence that the fleet still passes on it. Every pinned version lives in exactly one
@@ -33,3 +34,14 @@ updates:
     groups:
       sandbox-minor-and-patch:
         update-types: ["minor", "patch"]
+  - package-ecosystem: "docker"
+    directories:
+      - "/sandbox/autogen-a2a-sandbox"
+      - "/sandbox/graph-sandbox/runner"
+      - "/sandbox/graph-sandbox/services"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      sandbox-base-image:
+        patterns: ["*"]

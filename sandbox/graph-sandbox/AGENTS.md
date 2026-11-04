@@ -5,9 +5,9 @@ runtime decision, and the live roadmap remain authoritative.
 
 ## Environment card
 
-- **Toolchain**: Python 3.14.7 at `python`; Docker Engine 29.7.2 Linux/amd64; Docker Compose 5.4.0;
-  container base `python:3.14.7-slim-bookworm@sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f`
-  for Linux/amd64.
+- **Toolchain**: Python 3.14 at `python`; Docker Engine 29.7.2 Linux/amd64; Docker Compose 5.4.0;
+  the Linux/amd64 container base is pinned by digest only in the `FROM` line of `runner/Dockerfile`,
+  which `services/Dockerfile` repeats and preflight checks.
 - **Build**: `python sandbox/graph-sandbox/activate.py build --docker-context <named-local-context> --source-revision <40-lowercase-hex>`.
 - **Run**: `python sandbox/graph-sandbox/activate.py fresh --docker-context <same-named-local-context> --source-revision <same-40-hex> --run-id mission-healthy-001 --evidence-root <existing-canonical-dir> --case mission-healthy-001 --approval-fixture APPROVED`.
 - **Resume**: replace `fresh` with `resume` and reuse the exact context, revision, run ID, and

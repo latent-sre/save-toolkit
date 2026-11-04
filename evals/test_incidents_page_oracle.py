@@ -86,6 +86,12 @@ def calibration():
         aliases = {package: (modules / package).as_posix() for package in required}
         # Vitest's own module has runtime identity; use its actual entry, not a second package copy.
         aliases["vitest"] = (modules / "vitest/dist/index.js").as_posix()
+        if "msw" in required:
+            # A folder alias cannot reach a subpath only the package's exports map declares (MSW 3).
+            entry = json.loads((modules / "msw/package.json").read_text(encoding="utf-8"))["exports"]["./node"]
+            while isinstance(entry, dict):
+                entry = entry.get("import") or entry.get("node") or entry["default"]
+            aliases = {"msw/node": (modules / "msw" / entry).as_posix(), **aliases}
         if mode == "bounded":
             transport = work / "transport-double.ts"
             shutil.copyfile(FIXTURES / "transport-double.ts", transport)
