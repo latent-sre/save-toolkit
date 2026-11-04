@@ -27,7 +27,6 @@ for the matching diagnostics, property-specific debug-header mechanism, DataStre
 coverage limits, and offload reports.
 
 Edge-side evidence (WAF deny, cache misconfiguration, edge 5xx) stays in this skill's lanes.
-Route origin-side findings through [Handoffs](#handoffs).
 
 ## Three lanes, three authority postures
 
@@ -55,13 +54,6 @@ Route origin-side findings through [Handoffs](#handoffs).
 
 ## Handoffs
 
-The responder with `incident-investigation` retains the overall live investigation. A dispatched
-`sre-assistant` may follow origin-side evidence (edge→origin errors, healthy edge with slow
-turnaround) within its assigned question, targets and access; return the leg finding, exact source,
-timestamps, alternatives and gaps to its invoking caller. A related lead does not grant new access
-or transfer incident ownership.
-Origin leg outside an incident: `pcf-ops` or `gcp-ops` for the origin app, `obs-analysis` for origin latency.
-A recurring query, missing alert, or detection gap goes to `observability-engineer`. For a proposed
-property change, send the human release owner the prepared version and
-[property change packet](./references/property-config.md#property-change-packet). New durable
-operational facts route to `scribe` through the `operational-docs` knowledge-closeout method.
+Following an origin-side lead does not grant new access or transfer incident ownership. For a
+proposed property change, send the human release owner the prepared version and
+[property change packet](./references/property-config.md#property-change-packet).

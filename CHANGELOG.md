@@ -148,6 +148,11 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   "no direct web research" and the empty-research gap. `validate_fleet.py` no longer requires a
   "cannot invoke" disclaimer in lanes without the `Agent` tool; it still rejects the delegating
   imperative there. Copilot `handoffs:` frontmatter is unchanged.
+- The `agent-authoring`, `akamai-edge` and `obs-alerting` Handoffs sections drop their routing lines
+  (1,857 bytes net) and keep their rules: gate-weakening review and no self-assessed independence;
+  an origin-side lead grants no access or incident ownership, and property changes go to the human
+  release owner with the change packet; alert design grants no incident or live-change authority,
+  and query evidence is redacted. `grafana`'s dashboard-operations write receipt is unchanged.
 - The test suite passes under an elevated account: the tests that bind a runtime to the host (the
   SWE-bench runner and smoke fixtures, the batch cleanup test) read the host as an ordinary account
   through `probe_testkit.unelevated_host`, so a root container no longer reports 21 failures and 77
