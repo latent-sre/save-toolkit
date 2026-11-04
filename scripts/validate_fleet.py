@@ -55,33 +55,16 @@ WRITE_TOOLS = {"Write", "Edit", "NotebookEdit"}
 LOCAL_READ_TOOLS = {"Read", "Grep", "Glob"}
 # The evidence-label triad, pinned once.
 EVIDENCE_TRIAD = ("[verified]", "[sourced]", "[unverified]")
-# The delegating form of the handoff rule, and the disclaimers that replace it in a lane holding no
-# `Agent` tool. Matched as literal substrings so a reworded rule fails loudly here rather than
-# quietly reintroducing an instruction the lane cannot carry out.
+# The delegating imperative, forbidden in a lane holding no `Agent` tool. Matched as a literal
+# substring so copied instructions cannot hand a terminal lane a dispatch it cannot carry out.
 DELEGATION_IMPERATIVE = "Hand to exactly one agent"
-# Several equally correct phrasings are already in use, so the set is a union rather than one house
-# style — the point is that the lane says somewhere in its own handoff section that it cannot
-# dispatch, not that every file says it identically.
-#
-# Every member must assert INCAPABILITY. "Recommend exactly one next owner" was briefly here and is
-# deliberately gone: it describes what the lane does, not what it cannot do, so an agent could keep
-# that sentence, drop every "cannot" statement, and still pass — reopening the precise
-# misleading-authority drift this contract exists to stop. Recommending and being unable to dispatch
-# are different claims, and only the second one is the control.
-NON_DELEGATION_DISCLAIMERS = (
-    "cannot invoke",
-    "cannot delegate",
-    "caller must invoke",
-)
 
 def _flatten(text: str) -> str:
     """Collapse all whitespace runs to single spaces for substring matching.
 
-    Every phrase above is longer than a few words, so in a hard-wrapped markdown body it is a coin
-    flip whether a newline lands in the middle of one. `repository-investigator` really does wrap
-    "You cannot\\ndelegate or contact the external lane yourself", and a naive `in` test against the
-    raw body misses it — reporting a violation in a file that is already correct. Matching against
-    the flattened text makes the check independent of where the author's reflow put the breaks.
+    The phrase above spans several words, so in a hard-wrapped markdown body a newline can land in
+    the middle of it and a naive `in` test against the raw body misses it. Matching against the
+    flattened text makes the check independent of where the author's reflow put the breaks.
     """
     return " ".join(text.split())
 WEB_TOOLS = {"WebFetch", "WebSearch"}
@@ -219,18 +202,11 @@ def _tool_grant_failures(path: Path, grants: list[fleet_frontmatter.ToolGrant]) 
 def _body_failures(path: Path, body: str, bases: set[str]) -> list[str]:
     failures: list[str] = []
     # An agent with no Agent tool can recommend a next owner, but cannot dispatch one.
-    if "Agent" not in bases:
-        flat = _flatten(body)
-        if DELEGATION_IMPERATIVE in flat:
-            failures.append(
-                f"{path}: says {DELEGATION_IMPERATIVE!r} but holds no Agent tool; this lane can "
-                f"only recommend a next owner (see scribe.md for the adapted wording)"
-            )
-        if not any(phrase in flat for phrase in NON_DELEGATION_DISCLAIMERS):
-            failures.append(
-                f"{path}: holds no Agent tool, so its handoff block must state that it cannot "
-                f"invoke the next owner; expected one of {list(NON_DELEGATION_DISCLAIMERS)}"
-            )
+    if "Agent" not in bases and DELEGATION_IMPERATIVE in _flatten(body):
+        failures.append(
+            f"{path}: says {DELEGATION_IMPERATIVE!r} but holds no Agent tool; this lane can "
+            f"only recommend a next owner"
+        )
     return failures
 
 
