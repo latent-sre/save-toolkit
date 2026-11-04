@@ -1,10 +1,12 @@
 # Changelog
 
 Recent changes to the current Save Toolkit. This is a pre-release repository; entries do not
-assert a published release or acceptance of an evaluated candidate. Releases before 0.51.3 are in
-Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+assert a published release or acceptance of an evaluated candidate. Releases before 0.51.4 are in
+Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 
 ## [Unreleased]
+
+## [0.52.0] - 2026-11-04
 
 ### Fixed
 
@@ -12,6 +14,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   the Copilot review guide, and a `CLAUDE.md` memory rule naming a retro protocol the repository lacks.
 - `AGENTS.md` drops its runtime-copy note, and `CONTRIBUTING.md` drops its restatement of the ADR
   amendment rule; `commands/adr.md` still carries that rule.
+- Repository cleanup: README drops a `py -3` hint and a removed-procedure pointer, the Copilot guide
+  a duplicate rule, the autogen sandbox contract a dead GRAPH-005 link, and one retired review packet.
 
 - The graph sandbox's evidence validator and contract test expected `langgraph-checkpoint-sqlite`
   3.1.1 while its runner image installed 3.1.2, so by its code it would reject real-image evidence, and the
@@ -349,28 +353,3 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - `software-engineer` treats a push or tag push as a CI submission and again keeps embedded
   remote-URL credentials out of its context.
 - The routine-completion grader matches the current return-header fields.
-
-## [0.51.3] - 2026-10-22
-
-### Added
-
-- `go-craft`, a candidate skill for Go services, CLIs, libraries, and workers; native routing and
-  benefit are unmeasured (BACKEND-002).
-- WP-12's GCP catalog: 20 families (40 A/B cases); the owner accepted all 64 cases at `9147ff91`
-  under DEC-14.
-
-### Changed
-
-- `software-engineer` gets a leaner core for dispatched work (issue #403): caller-owned review,
-  named verification scope, and the final message as the report; the `Changed` packet slot returns.
-- `observability-engineer` drops its unguarded-Bash paragraph; the ADR, the guard, and the
-  `grafana` trust rule still hold.
-- Rename `backend-craft` to `api-craft`, scoped to HTTP APIs, webhook receivers, HTTP clients, and
-  API-accepted work, with corrected FastAPI, Huma, and credential-renewal guidance.
-- EVAL-005 ran six Sonnet trials, all FAIL under the all-checks threshold
-  ([run record](docs/reviews/2026-10-18-eval-005-run.md)).
-
-### Fixed
-
-- Oracle and handoff validation use contract checks instead of arbitrary count and length
-  thresholds.
