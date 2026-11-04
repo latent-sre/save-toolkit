@@ -206,8 +206,8 @@ root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs
 
 ## Validate
 
-One structural gate (on Windows use `python` or `py -3`, never `python3` — the Microsoft Store
-stub):
+One structural gate, run with the project interpreter (see
+[CONTRIBUTING.md](CONTRIBUTING.md#2-change-the-source-of-truth)):
 
 ```sh
 python scripts/gate_a.py                                # the whole structural gate

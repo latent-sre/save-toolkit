@@ -49,9 +49,6 @@ Suggestions that violate these are not improvements — please don't raise them:
   the gate path included). Do not flag a pinned dependency as a
   violation. Do flag: an unpinned install, or a Gate A-path script gaining a third-party import
   without the CI install step landing in the same PR.
-- **Never repair a generated copy directly.** Fix `agents/`, `skills/`, or
-  `scripts/generate_platform_adapters.py`, then regenerate all hosts so one fix cannot create
-  several subtly different fleets.
 - **`model:` must be a generation alias, never a full ID.** The fleet inherits the session model
   by default; an alias pin on a cost- or latency-sensitive lane is allowed and validated. Do not
   flag an alias as a violation. A full ID — `claude-opus-4-1-20250805` and the like — is still a
