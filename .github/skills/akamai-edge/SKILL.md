@@ -52,7 +52,7 @@ Edge-side evidence (WAF deny, cache misconfiguration, edge 5xx) stays in this sk
 | Cache purge, a live change: invalidate vs delete, scope, network, origin load | [Cache purge](./references/property-config.md#cache-purge) |
 | Real-user monitoring: beacons, Core Web Vitals, back-end vs front-end time, slicing a regression | [mPulse RUM](./references/mpulse-rum.md) |
 
-## Handoffs
+## Boundaries
 
 Following an origin-side lead does not grant new access or transfer incident ownership. For a
 proposed property change, send the human release owner the prepared version and

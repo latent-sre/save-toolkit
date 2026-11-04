@@ -90,7 +90,7 @@ leading hypothesis and keep the alternatives open.
 - A paging alert needs an owner, tested notification route, actionable summary, and runbook before
   it is ready. Informational rules do not become paging alerts by using this method.
 
-## Handoff
+## Boundaries
 
 Bounded question: answer, supplied scope/evidence, relevant gap or next step.
 Alert design does not grant incident ownership or live-change authority.

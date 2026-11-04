@@ -149,7 +149,7 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   "cannot invoke" disclaimer in lanes without the `Agent` tool; it still rejects the delegating
   imperative there. Copilot `handoffs:` frontmatter is unchanged.
 - The `agent-authoring`, `akamai-edge` and `obs-alerting` Handoffs sections drop their routing lines
-  (1,857 bytes net) and keep their rules: gate-weakening review and no self-assessed independence;
+  (1,857 bytes net), are renamed `## Boundaries`, and keep their rules: gate-weakening review and no self-assessed independence;
   an origin-side lead grants no access or incident ownership, and property changes go to the human
   release owner with the change packet; alert design grants no incident or live-change authority,
   and query evidence is redacted. `grafana`'s dashboard-operations write receipt is unchanged.

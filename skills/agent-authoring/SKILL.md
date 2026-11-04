@@ -139,7 +139,7 @@ authorizes a self-modifying loop.
   The fleet's `CONTRIBUTING.md` is policy; this skill is method. A personal copy still reaches the user's
   credentials, tools, files, and network, and competes for routing with the plugin skill.
 
-## Handoffs
+## Boundaries
 
 - A gate, guard, or read-only posture change needs independent review stating every change in what
   it blocks; a "clarifying" rewording that weakens one is a behavior change, not a wording fix.
