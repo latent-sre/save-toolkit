@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "id": "python-engineering",
-  "summary": "Python engineering skill structure, routing, oracle controls and saved artifact comparisons",
+  "summary": "Python engineering skill structure, routing and oracle controls",
   "tests": [
     "evals/test_python_engineering_skill.py"
   ],
@@ -13,8 +13,6 @@
   ],
   "campaigns": [],
   "guides": [
-    "eval-runs/python-engineering/README.md",
-    "evals/oracles/python-engineering/evaluate_cases.py",
-    "eval-runs/python-engineering/rescore-20261026.json"
+    "evals/oracles/python-engineering/evaluate_cases.py"
   ]
 }

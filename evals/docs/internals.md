@@ -4,9 +4,6 @@
 
 ## Runner layout
 
-The [frontend trial verification patch](../fixtures/frontend-craft-verification/README.md)
-preserves the private craft trial's verification wiring without shipping the prototype.
-
 `build_probe.py` is only the command line; the code is in [`probe/`](../probe), one module per job (its
 [`__init__.py`](../probe/__init__.py) lists them), and tests and tools import those modules directly:
 

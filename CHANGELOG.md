@@ -16,6 +16,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   amendment rule; `commands/adr.md` still carries that rule.
 - Repository cleanup: README drops a `py -3` hint and a removed-procedure pointer, the Copilot guide
   a duplicate rule, the autogen sandbox contract a dead GRAPH-005 link, and one retired review packet.
+- Retire the saved `python-engineering` artifact cases under `eval-runs/` and the frontend-craft
+  verification restoration bundle; the suite keeps its routing scenarios and oracle controls.
 
 - The graph sandbox's evidence validator and contract test expected `langgraph-checkpoint-sqlite`
   3.1.1 while its runner image installed 3.1.2, so by its code it would reject real-image evidence, and the
