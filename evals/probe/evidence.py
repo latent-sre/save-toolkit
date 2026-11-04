@@ -307,7 +307,7 @@ def _turn(run_dir: Path, folder: Path) -> Turn:
     trace_path = folder / "stdout.jsonl"
     try:
         parsed = tracing.parse_trace(trace_path) if trace_path.is_file() else None
-    except (OSError, ValueError):
+    except OSError, ValueError:
         parsed = None
     return Turn(
         folder=folder.relative_to(run_dir).as_posix() or ".",

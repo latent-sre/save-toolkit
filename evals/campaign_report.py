@@ -41,7 +41,7 @@ def _safe(root: Path, path: Path) -> bool:
             part not in (".", "..") and not (root.joinpath(*relative.parts[: index + 1])).is_symlink()
             for index, part in enumerate(relative.parts)
         )
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return False
 
 
@@ -72,7 +72,7 @@ def _read(root: Path, path: Path) -> Any:
         value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_pairs)
         _digest(value)  # Refuse NaN/Infinity, including values in unknown sidecar fields.
         return value
-    except (OSError, UnicodeError, json.JSONDecodeError):
+    except OSError, UnicodeError, json.JSONDecodeError:
         raise ValueError("unreadable or malformed JSON evidence") from None
 
 
@@ -276,7 +276,7 @@ def _attempt(
     binding = _sidecar(root, folder, "binding.json", problems)
     try:
         problems.extend(_identity_problems(value, identity, binding, manifest, task))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         problems.append("identity.json or binding.json: malformed identity")
     row["binding"] = binding
     cost = value["cost"]

@@ -98,7 +98,7 @@ def image_identity(docker: Docker, config: Mapping[str, Any], instance_id: str) 
             or reference not in observed[0]["RepoDigests"]
         ):
             raise ValueError
-    except (RuntimeError, ValueError, TypeError, OSError):
+    except RuntimeError, ValueError, TypeError, OSError:
         raise ValueError("local image does not match its pinned reference and Id") from None
     return str(expected)
 
@@ -147,7 +147,7 @@ def runtime_binding(config: Mapping[str, Any], manifest: Mapping[str, Any], dock
             or SERVICE_RELAY_IMAGE not in relay[0]["RepoDigests"]
         ):
             raise ValueError
-    except (RuntimeError, OSError, ValueError, TypeError, KeyError):
+    except RuntimeError, OSError, ValueError, TypeError, KeyError:
         raise ValueError("Docker runtime must identify the same local Linux engine and pinned relay image") from None
     return {
         **bound,
@@ -174,7 +174,7 @@ def _present(docker: Docker, kind: str, name: str) -> bool | None:
         suffixes = (f"no such object: {name}", f"no such {kind}: {name}", f"network {name} not found")
         if result.returncode == 1 and any(error == text or error.endswith(": " + text) for text in suffixes):
             return False
-    except (RuntimeError, OSError, ValueError, TypeError):
+    except RuntimeError, OSError, ValueError, TypeError:
         pass
     return None
 
@@ -454,7 +454,7 @@ def _reconcile_pending(output: Path, docker: Docker) -> None:
                 or _present(docker, item["kind"], item["name"]) is not False
             ):
                 raise ValueError
-    except (ValueError, OSError, TypeError):
+    except ValueError, OSError, TypeError:
         if manual_process_recovery:
             raise ValueError(
                 "previous host process cleanup remains unresolved; recorded process requires manual recovery"
@@ -903,7 +903,7 @@ def run_batch(
             or summary.get("after_assessment")
         ):
             raise ValueError
-    except (ValueError, OSError, TypeError, KeyError):
+    except ValueError, OSError, TypeError, KeyError:
         raise ValueError("first trial record and matching measured billing at or below USD 2 are required") from None
     result = [summary]
     environments = int(bool(summary.get("environment_failure")))

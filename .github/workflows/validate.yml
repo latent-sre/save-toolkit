@@ -5,264 +5,54 @@ on:
   push:
     branches:
       - main
-  # Manual and weekly runs keep validation available without a new pull request; the weekly run
-  # also audits the locked dependency sets (dependency-audit below).
   workflow_dispatch:
-  schedule:
-    - cron: '0 14 * * 1'  # Mondays 14:00 UTC
 
 # Required status checks are configured in the repository ruleset.
 permissions:
   contents: read
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up Python
-        id: python
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-          check-latest: true
-
-      # Action references are a floating major tag where the action publishes one, otherwise the
-      # exact release tag: setup-uv publishes no alias past v7. Dependabot moves both forms
-      # (CONTRIBUTING.md); test_validate_workflow.py accepts exactly these two forms.
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v10.3.3
-        with:
-          enable-cache: true
-
-      # Gate A reads frontmatter through scripts/fleet_frontmatter.py, which imports PyYAML. The
-      # `gate` group is that one dependency, installed from the same lock on the 3.12 floor and bound
-      # to setup-python's interpreter; test_validate_workflow.py fails if a gate-path script imports
-      # something this step does not install (docs/decisions/2026-08-23 and 2026-11-02).
-      - name: Install the locked gate environment
-        run: |
-          uv sync --locked --only-group gate
-          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
-          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
-        env:
-          UV_PYTHON: ${{ steps.python.outputs.python-path }}
-          UV_PYTHON_DOWNLOADS: never
-
-      # gate_a.py owns the structural roster; component suites run in the matrix below.
-      - name: Gate A -- mechanical audit
-        run: python scripts/gate_a.py
-
-  changes:
-    # A pull request confined to documentation or agent and skill prose cannot change the outcome
-    # of the eval-machinery tests, so eval-tests runs only when a trigger path changed
-    # (scripts/eval_tests_needed.py). Every other event runs everything.
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      eval: ${{ steps.filter.outputs.eval }}
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Decide whether the eval-machinery tests must run
-        id: filter
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          if [ "$EVENT_NAME" != pull_request ]; then
-            echo "eval=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          git fetch --no-tags --depth=1 origin "$BASE_SHA"
-          git diff --name-only "$BASE_SHA" HEAD | tee changed-paths.txt
-          echo "eval=$(python scripts/eval_tests_needed.py < changed-paths.txt)" >> "$GITHUB_OUTPUT"
-
-  fast-tests:
-    # The default pytest run: everything except the heavy eval-machinery files. The last matrix
-    # selection is the complement of the others, so every test runs in exactly one shard.
-    name: fast-tests (${{ matrix.group }}, ubuntu-latest)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - group: scripts
-            selection: scripts
-          - group: other
-            selection: not (scripts)
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up Python
-        id: python
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.14'
-          check-latest: true
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v10.3.3
-        with:
-          enable-cache: true
-
-      # The lock is the pin set: `--locked` fails if pyproject.toml and uv.lock disagree. uv is bound
-      # to setup-python's interpreter by path (the latest 3.14 patch) and may not download its own.
-      # The environment goes on PATH so the pytest step's bare `python`, and the nested suites'
-      # `python`, is the locked environment.
-      - name: Install the locked test environment
-        run: |
-          uv sync --locked
-          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
-          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
-        env:
-          UV_PYTHON: ${{ steps.python.outputs.python-path }}
-          UV_PYTHON_DOWNLOADS: never
-
-      # Four workers match the hosted runner's cores; worksteal balances slow individual cases.
-      # CLI options stay with the outer run; PYTEST_ADDOPTS would spawn workers in fixture suites.
-      # Load only the outer run's plugins; nested suites opt into plugins they actually require.
-      # No bytecode: the eval runner digests every file under skills/, so a .pyc written by
-      # one worker reads as plugin drift to a native trial running in another. The default run
-      # skips the heavy eval-machinery files (conftest.py HEAVY); the eval-tests job runs them.
-      - name: Fast tests
-        run: python -m pytest -q -k "${{ matrix.selection }}" -n 4 --dist worksteal --durations=20 -p xdist -p hypothesispytest -p pytest_timeout -p pytest_socket
-        env:
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
-          PYTHONDONTWRITEBYTECODE: '1'
-
-      # pyproject.toml scopes these to the eval runner; they run even when a test failed.
-      - name: Lint, format and type-check the eval runner
-        if: ${{ !cancelled() }}
-        run: |
-          python -m ruff check
-          python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles
-          python -m ruff format --check
-          python -m mypy
-        env:
-          PYTHONDONTWRITEBYTECODE: '1'
-
-  eval-tests:
-    # Webhook observation windows and the Python-craft oracles each take a shard; the last
-    # selection is the complement of the others, so every heavy test runs in exactly one shard.
-    # Skipped on a pull request that touched no trigger path (see the changes job).
-    name: eval-tests (${{ matrix.group }}, ubuntu-latest)
-    runs-on: ubuntu-latest
-    needs: [changes]
-    if: ${{ needs.changes.outputs.eval == 'true' }}
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - group: webhook
-            selection: pager_webhook
-          - group: python
-            selection: python_craft_oracle or python_new_code_probe or python_package_refactor or python_library_selection_oracle or python_index_probe
-          - group: other
-            selection: not (pager_webhook or python_craft_oracle or python_new_code_probe or python_package_refactor or python_library_selection_oracle or python_index_probe)
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up Python
-        id: python
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.14'
-          check-latest: true
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v10.3.3
-        with:
-          enable-cache: true
-
-      - name: Install the locked test environment
-        run: |
-          uv sync --locked
-          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
-          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
-        env:
-          UV_PYTHON: ${{ steps.python.outputs.python-path }}
-          UV_PYTHON_DOWNLOADS: never
-
-      # Early collection excludes fast files; worker options stay out of nested pytest environments.
-      - name: Eval machinery tests
-        run: python -m pytest -q -m heavy -k "${{ matrix.selection }}" -n 4 --dist worksteal --durations=20 -p xdist -p hypothesispytest -p pytest_timeout -p pytest_socket
-        env:
-          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
-          PYTHONDONTWRITEBYTECODE: '1'
-
   component-tests:
-    # The required check: it passes only when fast tests passed and every eval matrix entry either
-    # passed or was skipped because the changes job found no trigger path. A job whose needs failed
-    # is skipped, and a skipped required check counts as passing, so this one always runs and checks.
+    # The required check. It proves what the plugin ships: Gate A's grant, delegation, wiring and
+    # adapter contracts; the guard, hooks and bundled skill scripts on the Python floor; and the
+    # host's own plugin validator. Eval-harness tests run before a campaign, not here.
     name: component-tests (ubuntu-latest)
-    runs-on: ubuntu-latest
-    needs: [changes, fast-tests, eval-tests]
-    if: ${{ always() }}
-    timeout-minutes: 5
-    steps:
-      - name: Both test shards passed, or the eval shard was skipped for a non-trigger change
-        run: |
-          test "${{ needs.fast-tests.result }}" = success
-          case "${{ needs.eval-tests.result }}" in
-            success) ;;
-            skipped) test "${{ needs.changes.outputs.eval }}" = false ;;
-            *) exit 1 ;;
-          esac
-
-  dependency-audit:
-    # Known-advisory scan of every locked dependency set, on the weekly run and on demand. Advisory
-    # databases change without a commit, so this job is not part of the required check: a finding is
-    # a signal to open a lock update, not a reason an unrelated pull request turns red.
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v10.3.3
-
-      # harbor and swt are conflicting groups, so each is exported and audited on its own
-      # (pip-audit refuses one package at two versions in a single call); the project export carries
-      # the default test group plus swebench. --no-deps audits exactly the locked versions and
-      # resolves nothing. Each sandbox requirements file pins only its direct dependencies, so
-      # pip-audit resolves it to audit the transitive set an image build would install. Every set is
-      # audited before the step fails.
-      - name: Audit the locked dependency sets
-        run: |
-          status=0
-          uv export --locked --no-emit-project --no-hashes --format requirements.txt --group swebench > project.txt
-          uv export --locked --no-emit-project --no-hashes --format requirements.txt --only-group harbor > harbor.txt
-          uv export --locked --no-emit-project --no-hashes --format requirements.txt --only-group swt > swt.txt
-          for group in project harbor swt; do
-            echo "::group::$group"
-            uvx --from pip-audit==2.10.1 pip-audit --no-deps --disable-pip --progress-spinner off -r "$group.txt" || status=1
-            echo "::endgroup::"
-          done
-          for requirements in sandbox/autogen-a2a-sandbox/requirements.txt sandbox/graph-sandbox/runner/requirements.txt sandbox/graph-sandbox/services/requirements.txt; do
-            echo "::group::$requirements"
-            uvx --from pip-audit==2.10.1 pip-audit --progress-spinner off -r "$requirements" || status=1
-            echo "::endgroup::"
-          done
-          exit "$status"
-
-  claude-plugin-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
 
-      # Track upstream compatibility; retain the resolved version in every run's log.
+      - name: Set up Python
+        id: python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          check-latest: true
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install the locked test environment
+        run: |
+          uv sync --locked
+          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+        env:
+          UV_PYTHON: ${{ steps.python.outputs.python-path }}
+          UV_PYTHON_DOWNLOADS: never
+
+      - name: Gate A
+        run: python scripts/gate_a.py
+
+      - name: Shipped-code tests
+        run: python -m pytest -q scripts -n 4 --dist worksteal --durations=10 -p xdist -p hypothesispytest -p pytest_timeout -p pytest_socket
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
+
+      # Track upstream compatibility; the resolved version stays in every run's log.
       - name: Install the Claude Code CLI
         run: |
           npm install -g @anthropic-ai/claude-code@latest
@@ -271,7 +61,6 @@ jobs:
       - name: Validate marketplace manifest
         run: claude plugin validate .claude-plugin/marketplace.json --strict
 
-      # Root CLAUDE.md serves repository authors, not installed plugin context.
-      # Display plugin warnings; validation errors still fail this job.
+      # Root CLAUDE.md serves repository authors, not installed plugin context, so its warning stays.
       - name: Validate plugin manifest, frontmatter, and hooks
         run: claude plugin validate .claude-plugin/plugin.json

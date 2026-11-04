@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline sampled threshold preview, Python 3.12+, standard library only.
+"""Offline sampled threshold preview, Python 3.14+, standard library only.
 
 This module never evaluates a saved Grafana rule or its no-data/error policy,
 replays pre-window state, or predicts notification delivery. The evaluation grid

@@ -4,7 +4,7 @@ For an SRE agent with terminal tools; no write authority is granted.
 
 ## Bundled read helper
 
-The installed `grafana` skill includes [grafana_read.py](../scripts/grafana_read.py), a stdlib-only Python 3.12+
+The installed `grafana` skill includes [grafana_read.py](../scripts/grafana_read.py), a stdlib-only Python 3.14+
 client. Run it as `python -I -S` (or `python3`, `python.exe`) with its **absolute installed path** in
 drive-letter form, such as `"C:/Users/<you>/.claude/plugins/cache/.../grafana_read.py"` (on
 Copilot, the generated `.github` copy), never another file, or call its installed

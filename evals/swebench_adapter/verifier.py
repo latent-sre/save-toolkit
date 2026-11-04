@@ -489,7 +489,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             engine_id=args.engine_id,
             docker_host=args.docker_host,
         )
-    except (OSError, ValueError):
+    except OSError, ValueError:
         print("verifier output cannot be created or already contains evidence", file=sys.stderr)
         return 3
     return int(receipt["exit_status"])

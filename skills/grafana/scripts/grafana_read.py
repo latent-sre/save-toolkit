@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bounded Grafana reads with process-local authentication and safe JSON output.
 
-Python 3.12+, stdlib only. The environment supplies GRAFANA_URL, GRAFANA_ORG_ID and either
+Python 3.14+, stdlib only. The environment supplies GRAFANA_URL, GRAFANA_ORG_ID and either
 GRAFANA_SA_TOKEN or GRAFANA_USERNAME/GRAFANA_PASSWORD. When it sets none of them, the one
 per-user file ~/.config/save-toolkit/grafana.env (KEY=VALUE lines) supplies them; sources never mix.
 This masks known authentication values, not arbitrary sensitive telemetry, and does

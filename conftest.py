@@ -8,7 +8,7 @@ interpreter running the tests, as an activated environment would, rather than wh
 The eval-machinery files in HEAVY spawn real processes and hold most of the suite's run time, or
 import a framework that costs every collecting worker seconds (the Inspect pilot). A plain run
 skips them; `--heavy` adds them, `-m heavy` runs only them, and a file named on the command line
-always runs. CI's eval-tests job runs `-m heavy`.
+always runs. CI runs no eval tests; a campaign runs them first.
 """
 
 import atexit
@@ -53,7 +53,7 @@ HEAVY = frozenset({
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption("--heavy", action="store_true",
-                     help="include the heavy eval-machinery tests (CI's eval-tests job runs them)")
+                     help="include the heavy eval-machinery tests (run them before an eval campaign)")
 
 
 def pytest_configure(config: pytest.Config) -> None:

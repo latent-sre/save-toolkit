@@ -1,6 +1,6 @@
 # Dashboard investigation and evidence workflows
 
-Run [grafana_workflow.py](../scripts/grafana_workflow.py) with Python 3.12+ and operator-managed
+Run [grafana_workflow.py](../scripts/grafana_workflow.py) with Python 3.14+ and operator-managed
 Polars, promql-parser, DeepDiff and Pillow under `python -I`: installed packages remain available,
 but working directory, user site and `PYTHONPATH` are excluded. The interpreter and site initialization
 are trusted installation inputs. Guard/read helper retain `python -I -S`. Missing dependencies are

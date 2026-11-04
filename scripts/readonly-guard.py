@@ -393,7 +393,7 @@ def grafana_helper_allowed(command: str, powershell: bool = False, *, shell_inde
     return True
 
 
-def explain_powershell(command: str, *, shell_independent: bool = False) -> "str | None":
+def explain_powershell(command: str, *, shell_independent: bool = False) -> str | None:
     """Small literal-command grammar, not a POSIX parse of general PowerShell code.
 
     Reject expressions, expansions, scripts, redirection, stop-parsing and command chains.
@@ -657,12 +657,12 @@ _CODE_RUNNERS = frozenset({
 })
 
 
-def _allow() -> "NoReturn":
+def _allow() -> NoReturn:
     """Positively assert ALLOW (no stdout, distinctive exit code) and stop."""
     sys.exit(EXIT_ALLOW)
 
 
-def _deny(reason: str) -> "NoReturn":
+def _deny(reason: str) -> NoReturn:
     """Emit the deny decision on stdout and assert DENY via the exit code."""
     print(json.dumps({
         "hookSpecificOutput": {
@@ -744,7 +744,7 @@ def _git_flag_names(args: list[str]) -> set[str]:
     return names
 
 
-def _date_reason(args: list[str]) -> "str | None":
+def _date_reason(args: list[str]) -> str | None:
     """None if this `date` invocation only displays; otherwise why it is refused.
 
     Short-flag CLUSTERS (`date -uR`) are denied rather than decomposed: a cluster would have to be
@@ -877,7 +877,7 @@ def _gcloud_allowed(args: list[str]) -> bool:
     )
 
 
-def _segment_reason(segment: list[str]) -> "str | None":
+def _segment_reason(segment: list[str]) -> str | None:
     """None if this segment is an allowed read; otherwise the specific rule that denies it.
 
     The reasons name the rule so the agent's next move is obvious: rephrase into an allowed shape,
@@ -1007,7 +1007,7 @@ def _tokenize(line: str, *, comments: bool = True) -> list[str]:
     return list(lexer)
 
 
-def _line_reason(line: str) -> "str | None":
+def _line_reason(line: str) -> str | None:
     """None if every segment of one line is an allowed read; otherwise the first denial reason."""
     try:
         for match in _SHELL_WORD.finditer(line):
@@ -1042,7 +1042,7 @@ def _line_reason(line: str) -> "str | None":
     return None
 
 
-def explain(command: str) -> "str | None":
+def explain(command: str) -> str | None:
     """None if `command` is entirely allowed reads; otherwise the specific rule that denies it.
 
     No rule is agent-specific since `observability-engineer` left the roster, so no agent is
@@ -1174,7 +1174,7 @@ def _assignment_prefix(segment: list[str]) -> list[str]:
     return prefix
 
 
-def _gcloud_credential_reason(words: list[str]) -> "str | None":
+def _gcloud_credential_reason(words: list[str]) -> str | None:
     words = [word for word in words if word not in _RELEASE_TRACKS]
     if not words:
         return None
@@ -1193,7 +1193,7 @@ def _gcloud_credential_reason(words: list[str]) -> "str | None":
     return None
 
 
-def _credential_reason_for_tokens(tokens: list[str]) -> "str | None":
+def _credential_reason_for_tokens(tokens: list[str]) -> str | None:
     for token in _assignment_prefix(tokens):
         # Each prefix token matched `NAME=`, and a name holds no `=`, so this split is that match.
         name, _, value = token.partition("=")
@@ -1226,7 +1226,7 @@ def _credential_reason_for_tokens(tokens: list[str]) -> "str | None":
     return None
 
 
-def credential_reason(command: str) -> "str | None":
+def credential_reason(command: str) -> str | None:
     """The rule denying a credential-printing command, or None when nothing matched."""
     if not command.strip():
         return None

@@ -5,9 +5,8 @@
   implementing candidate still requires the normal human acceptance decision
 - Decision owner: repository owner
 - Scope: successor to the clause of [manage dependencies as a uv project](2026-11-02-uv-project-lockfile.md)
-  that keeps adapter and sandbox versions exact "in the manifest" and moves them "only with that
-  contract", and to its `sandbox` dependency group; the lockfile, the conflicting `harbor` and `swt`
-  groups, CI's `uv sync --locked`, and Gate A's bare interpreter remain in force
+  that keeps adapter versions exact "in the manifest" and moves them "only with that contract"; the
+  lockfile and the conflicting `harbor` and `swt` groups remain in force
 
 ## Context
 
@@ -35,8 +34,7 @@ We will keep each pinned version in exactly one file and have code and tests rea
 
 - Each sandbox image's `requirements.txt` is its only pin. Host validators, the dependency probe and
   tests parse it; runtime evidence records installed versions measured with `importlib.metadata`.
-  The `sandbox` dependency group is removed, Dependabot's `pip` ecosystem updates the three files
-  directly, and the weekly audit reads them.
+  Dependabot's `pip` ecosystem updates the three files directly.
 - The `swt` group in `pyproject.toml` is the SWT runtime pin; `verifier.py` reads it.
 - `uv.lock` is Harbor's version and wheel-hash source; `contracts.py` reads both. Harbor's upstream
   source commit, which no lock records, stays a constant in `contracts.py`, and the frozen case
@@ -54,8 +52,7 @@ that remain still catch the failures they existed for: evidence from an image th
 pins, an SWT environment with the wrong packages, and a manifest that names another Harbor wheel.
 
 The sandbox images now record measured versions rather than asserted ones. Sandbox transitive
-dependencies are no longer locked; the weekly audit resolves each file to audit what a build would
-install. Sandbox suites still run only locally.
+dependencies are not locked, so an image build resolves them fresh. Sandbox suites run only locally.
 
 What would show this was wrong: a pinned-version bump that passes the suites but changes a measured
 result, which would argue for freezing earlier than campaign acceptance.

@@ -52,7 +52,7 @@ def read_key(path: str | Path) -> str:
         if not _credential(value):
             raise ValueError
         return value
-    except (OSError, UnicodeError, ValueError):
+    except OSError, UnicodeError, ValueError:
         raise ValueError("invalid protected key file") from None
     finally:
         if descriptor is not None:
@@ -203,7 +203,7 @@ class _Handler(BaseHTTPRequestHandler):
                 return
             try:
                 payload = _json(body)
-            except (ValueError, UnicodeError, RecursionError):
+            except ValueError, UnicodeError, RecursionError:
                 self._reject(400)
                 return
             if not isinstance(payload, dict) or not isinstance(payload.get("model"), str):
@@ -272,7 +272,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self.wfile.write(data[cursor:cut])
                 self.wfile.flush()
                 pending = data[cut:]
-        except (OSError, ValueError, http.client.HTTPException, RecursionError):
+        except OSError, ValueError, http.client.HTTPException, RecursionError:
             if not started:
                 with contextlib.suppress(OSError):
                     self._reject(502)
@@ -408,7 +408,7 @@ class ModelProxy:
                 # the socket separately so close() still interrupts an active read.
                 self._upstream_sockets[connection] = connection.sock
                 self._active.add(connection.sock)
-        except (OSError, http.client.HTTPException):
+        except OSError, http.client.HTTPException:
             self._untrack(connection)
             connection.close()
             raise
@@ -446,7 +446,7 @@ class ModelProxy:
                 ):
                     raise ValueError
             return result
-        except (OSError, ValueError, http.client.HTTPException, RecursionError, OverflowError):
+        except OSError, ValueError, http.client.HTTPException, RecursionError, OverflowError:
             raise ValueError("upstream usage unavailable") from None
         finally:
             if connection is not None:
