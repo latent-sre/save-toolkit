@@ -12,9 +12,9 @@ All commands below use the isolated interpreter selected for that host. On POSIX
 
 ## Preparation without Docker or models
 
-[verified] Harbor is pinned to [0.24.0](https://pypi.org/project/harbor/0.24.0/), source
-`b53b8134e1241686dca7759af188f987ecc48e8b`, Apache-2.0, Python 3.12 or later. The exact wheel SHA-256
-is `23b7ba616a3aae4eff561ced5e2c51c7186f2981e53a770dea9c689d3969877c`.
+[verified] Harbor is pinned to [0.25.0](https://pypi.org/project/harbor/0.25.0/), source
+`fdba28fc411e47e8765420a1a063b4918fce3def`, Apache-2.0, Python 3.12 or later. The exact wheel SHA-256
+is `51923ac567fc57b03279e93468b105f689628bcac2cd3d541d4e44aa5c0ec309`.
 The `harbor` dependency group in [pyproject.toml](../../pyproject.toml) pins that release and
 [uv.lock](../../uv.lock) binds the wheel hash and the resolved SDK dependency set. The group is
 declared conflicting with the project environment, so it installs only with `--only-group` into an

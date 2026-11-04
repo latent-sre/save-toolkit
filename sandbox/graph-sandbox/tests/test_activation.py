@@ -31,6 +31,7 @@ from activate import (  # noqa: E402
     cleanup_published_resources,
     execute_validated_compose,
     parse_args,
+    runner_pins,
     verify_and_publish_evidence,
 )
 from build_images import (  # noqa: E402
@@ -1016,8 +1017,8 @@ class ActivationTests(unittest.TestCase):
                     "state_schema": "graph-state/v2",
                     "source_revision": SOURCE_REVISION,
                     "thread_id": thread_id,
-                    "langgraph_version": "1.2.11",
-                    "sqlite_saver_version": "3.1.1",
+                    "langgraph_version": runner_pins()["langgraph"],
+                    "sqlite_saver_version": runner_pins()["langgraph-checkpoint-sqlite"],
                     "resume_source_checkpoint_id": None,
                     "checkpoints": [
                         {"checkpoint_id": "checkpoint-001", "operation": "write", "result": "recorded"}
@@ -1029,11 +1030,7 @@ class ActivationTests(unittest.TestCase):
                 {
                     "runtime_version": "graph-runner-runtime/v1",
                     "python_version": "3.14.7",
-                    "packages": {
-                        "httpx": "0.28.1",
-                        "langgraph": "1.2.11",
-                        "langgraph-checkpoint-sqlite": "3.1.1",
-                    },
+                    "packages": runner_pins(),
                 }
             )
             + "\n",
@@ -1671,11 +1668,7 @@ class ActivationTests(unittest.TestCase):
             self.assertEqual(environment["python_runtime_posture"], "observed:3.14.7")
             self.assertEqual(
                 environment["package_posture"],
-                {
-                    "httpx": "observed:0.28.1",
-                    "langgraph": "observed:1.2.11",
-                    "langgraph-checkpoint-sqlite": "observed:3.1.1",
-                },
+                {name: f"observed:{version}" for name, version in runner_pins().items()},
             )
             self.assertFalse(staging.exists())
 

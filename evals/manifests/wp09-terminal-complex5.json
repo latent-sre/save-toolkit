@@ -9,9 +9,9 @@
   "license_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
   "license_url": "https://github.com/harbor-framework/terminal-bench-2/blob/2fd12b88aafdd04a52c298e3940bcb189f9766d6/LICENSE",
   "harbor": {
-    "version": "0.24.0",
-    "source_commit": "b53b8134e1241686dca7759af188f987ecc48e8b",
-    "wheel_sha256": "23b7ba616a3aae4eff561ced5e2c51c7186f2981e53a770dea9c689d3969877c",
+    "version": "0.25.0",
+    "source_commit": "fdba28fc411e47e8765420a1a063b4918fce3def",
+    "wheel_sha256": "51923ac567fc57b03279e93468b105f689628bcac2cd3d541d4e44aa5c0ec309",
     "license": "Apache-2.0",
     "python": ">=3.12"
   },

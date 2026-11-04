@@ -8,6 +8,9 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Fixed
 
+- The graph sandbox's evidence validator and contract test expected `langgraph-checkpoint-sqlite`
+  3.1.1 while its runner image installed 3.1.2, so by its code it would reject real-image evidence, and the
+  contract test failed on main; both now read the image's `requirements.txt`.
 - Four confirmed low defects the bug passes left, each with a test that failed first: a regrade after an
   `assessments/<k>/` folder no record lists (one a failed regrade left under an older runner) moves it
   aside, kept as `.unlisted-<k>-<hex>`, and is still listed in `record.json`; two regrades of one
@@ -137,6 +140,17 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   acceptance reference ([decision](docs/decisions/2026-11-02-inspect-orchestrates-native-runner.md)).
 
 ### Changed
+
+- Each pinned version lives in one file and is read from there
+  ([decision](docs/decisions/2026-11-04-one-version-source-per-pin.md)): sandbox images pin only in
+  their `requirements.txt` (the `sandbox` dependency group is gone and Dependabot updates the files
+  directly), the SWT verifier reads the `swt` group, and the Harbor adapter reads its version and wheel
+  hash from `uv.lock`. Tests check package sets and exactness, not version numbers, and the AutoGen
+  sandbox's evidence records installed versions instead of literals. Pins moved to current releases:
+  Harbor 0.25.0 (the five WP-09 cases re-verified to parse), unidiff 1.0.1, datasets 5.1.0, requests
+  2.34.2, tqdm 4.70.1, python-dotenv 1.2.4, langgraph 1.2.19, langgraph-checkpoint-sqlite 3.1.3, a2a-sdk
+  1.3.0, agent-framework-core 1.24.0, agent-framework-a2a 1.0.0b261030, FastAPI 0.162.0, uvicorn
+  0.54.0 and sse-starlette 3.6.0.
 
 - The nine agents no longer carry a `## Handoffs` section (agent bodies 104,496 → 96,710 bytes
   net). Tool grants and the README roster carry the delegation edges; `researcher` and `reviewer`

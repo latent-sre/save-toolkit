@@ -1391,6 +1391,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.module = _load_runtime()
         from interop_sandbox.contracts import canonical_sha256
+        from interop_sandbox.dependency_probe import EXPECTED_DISTRIBUTIONS
         terminal_state = {
             "state_version": "canary-analysis-state/v1",
             "run_id": "mission-healthy-001",
@@ -1444,12 +1445,7 @@ class RuntimeStateValidationTests(unittest.TestCase):
             "unresolved_contradictions": [],
             "reconciliation_attempts": 0,
             "graph_state_sha256": canonical_sha256(terminal_state),
-            "packages": {
-                "agent-framework-core": "1.16.0",
-                "agent-framework-a2a": "1.0.0b260821",
-                "autogen-agentchat": "0.7.5",
-                "a2a-sdk": "1.1.2",
-            },
+            "packages": copy.deepcopy(EXPECTED_DISTRIBUTIONS),
         }
         artifact["artifact_digest"] = canonical_sha256(artifact)
         timeline = {

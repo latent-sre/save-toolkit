@@ -44,6 +44,23 @@ class ActivationError(PreflightError):
     """Activation cannot preserve the validated runtime boundary."""
 
 
+RUNNER_REQUIREMENTS = Path(__file__).resolve().parent / "runner" / "requirements.txt"
+
+
+def runner_pins(path: Path = RUNNER_REQUIREMENTS) -> dict[str, str]:
+    """Return the runner image's exact pins; its requirements file is the only version source."""
+    pins: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        requirement = line.split("#", 1)[0].strip()
+        if not requirement:
+            continue
+        name, separator, version = (part.strip() for part in requirement.partition("=="))
+        if not separator or not name or not version:
+            raise ActivationError(f"runner requirement is not an exact pin: {requirement}")
+        pins[name.lower()] = version
+    return pins
+
+
 MAX_EVIDENCE_BYTES = 32 * 1024 * 1024
 MAX_EVIDENCE_FILES = 1024
 ALLOWED_EVIDENCE_FILES = frozenset(
@@ -954,16 +971,8 @@ def _validate_runtime_evidence(files: Mapping[str, Path]) -> dict[str, object]:
         {"runtime_version", "python_version", "packages"},
         "runtime",
     )
-    packages = _require_closed(
-        runtime["packages"],
-        {"httpx", "langgraph", "langgraph-checkpoint-sqlite"},
-        "runtime packages",
-    )
-    expected_packages = {
-        "httpx": "0.28.1",
-        "langgraph": "1.2.11",
-        "langgraph-checkpoint-sqlite": "3.1.1",
-    }
+    expected_packages = runner_pins()
+    packages = _require_closed(runtime["packages"], set(expected_packages), "runtime packages")
     if runtime["runtime_version"] != "graph-runner-runtime/v1":
         raise ActivationError("evidence export: runtime version mismatch")
     if runtime["python_version"] != "3.14.7":
@@ -1153,6 +1162,7 @@ def _validate_checkpoint_oracle(
         "checkpoint lineage",
     )
     packages = runtime["packages"]
+    pins = runner_pins()
     checkpoints = closed["checkpoints"]
     saver_ids = closed["saver_checkpoint_ids"]
     if (
@@ -1161,8 +1171,8 @@ def _validate_checkpoint_oracle(
         or closed["state_schema"] != STATE_SCHEMA_VERSION
         or closed["source_revision"] != source_revision
         or closed["thread_id"] != f"{THREAD_PREFIX}{run_id}"
-        or closed["langgraph_version"] != "1.2.11"
-        or closed["sqlite_saver_version"] != "3.1.1"
+        or closed["langgraph_version"] != pins.get("langgraph")
+        or closed["sqlite_saver_version"] != pins.get("langgraph-checkpoint-sqlite")
         or closed["langgraph_version"] != packages["langgraph"]
         or closed["sqlite_saver_version"] != packages["langgraph-checkpoint-sqlite"]
         or not isinstance(checkpoints, list)

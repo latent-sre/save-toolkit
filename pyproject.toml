@@ -63,43 +63,30 @@ swebench = [
     "pydantic>=2.13.5",
     "pyyaml>=6.0.3",
 ]
-# Optional independent SWT worker environment. evals/swt_adapter/verifier.py admits only these exact
-# versions, so they move only with that adapter. Conflicts below keep the group out of the project
+# Optional independent SWT worker environment. evals/swt_adapter/verifier.py admits exactly the
+# versions pinned here and reads them from this group. Conflicts below keep the group out of the project
 # environment: install it with `uv sync --locked --only-group swt` into a separate UV_PROJECT_ENVIRONMENT.
 swt = [
     "docker==7.2.0",
-    "datasets==5.0.1",
+    "datasets==5.1.0",
     "editdistance==0.8.1",
     "GitPython==3.2.1",
-    "python-dotenv==1.2.2",
-    "requests==2.33.1",
-    "tqdm==4.67.3",
-    "unidiff==0.7.5",
+    "python-dotenv==1.2.4",
+    "requests==2.34.2",
+    "tqdm==4.70.1",
+    "unidiff==1.0.1",
     "pydantic>=2.13.5",
     "pyyaml>=6.0.3",
     "pytest>=9.1.1",
 ]
-# Optional WP-09 Harbor SDK environment, Apache-2.0. evals/harbor_adapter/contracts.py binds this exact
-# Harbor release and its upstream source commit, so the version moves only with that adapter.
+# Optional WP-09 Harbor SDK environment, Apache-2.0. evals/harbor_adapter/contracts.py reads this
+# release's version and wheel hash from uv.lock; a version change also updates its upstream source
+# commit there and the frozen manifest's harbor block.
 # Conflicts below keep it out of the project environment: install it with
 # `uv sync --locked --only-group harbor` into a separate UV_PROJECT_ENVIRONMENT.
 harbor = [
-    "harbor==0.24.0",
+    "harbor==0.25.0",
     "pytest>=9.1.1",
-]
-# The repository-owned sandboxes' exact pins (sandbox/*/requirements.txt, read by their Dockerfiles and
-# asserted by their own tests); scripts/test_validate_workflow.py keeps the two in step.
-sandbox = [
-    "a2a-sdk==1.1.2",
-    "agent-framework-a2a==1.0.0b260821",
-    "agent-framework-core==1.16.0",
-    "autogen-agentchat==0.7.5",
-    "fastapi==0.141.1",
-    "httpx==0.28.1",
-    "langgraph==1.2.11",
-    "langgraph-checkpoint-sqlite==3.1.2",
-    "sse-starlette==3.4.11",
-    "uvicorn==0.52.4",
 ]
 
 [tool.uv]
@@ -111,21 +98,16 @@ default-groups = ["test"]
 # Harbor group takes the 4.x line that every other group already has. Drop this once litellm lifts
 # its upper bound; the WP-09 Harbor smoke on a Docker host remains the live check of that environment.
 override-dependencies = ["filelock>=4.2.7"]
-# harbor, swt and sandbox resolve apart from the project environment and from each other; swebench
+# harbor and swt resolve apart from the project environment and from each other; swebench
 # installs on top of test.
 conflicts = [
     [{ group = "harbor" }, { group = "test" }],
     [{ group = "harbor" }, { group = "grafana" }],
     [{ group = "harbor" }, { group = "swebench" }],
     [{ group = "harbor" }, { group = "swt" }],
-    [{ group = "harbor" }, { group = "sandbox" }],
     [{ group = "swt" }, { group = "test" }],
     [{ group = "swt" }, { group = "grafana" }],
     [{ group = "swt" }, { group = "swebench" }],
-    [{ group = "swt" }, { group = "sandbox" }],
-    [{ group = "sandbox" }, { group = "test" }],
-    [{ group = "sandbox" }, { group = "grafana" }],
-    [{ group = "sandbox" }, { group = "swebench" }],
 ]
 
 [tool.ruff]

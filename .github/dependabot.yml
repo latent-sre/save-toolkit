@@ -1,9 +1,9 @@
-# Weekly updates for the workflow's action majors (one grouped pull request) and for the uv
-# project's lockfile (pyproject.toml + uv.lock). Minor and patch releases
-# arrive as one grouped pull request; a major release gets its own. CI's `uv sync --locked` is the
-# check that a proposed lock still matches the manifest, and the component tests are the evidence
-# that the fleet still passes on it. Dependabot does not relax the exact pins in the harbor, swt and
-# sandbox groups: those versions belong to their adapters and sandboxes (pyproject.toml comments).
+# Weekly updates for the workflow's action majors (one grouped pull request), the uv project's
+# lockfile (pyproject.toml + uv.lock), and each sandbox image's requirements.txt. Minor and patch
+# releases arrive as one grouped pull request per ecosystem; a major release gets its own. CI's
+# `uv sync --locked` is the check that a proposed lock still matches the manifest, and the component
+# tests are the evidence that the fleet still passes on it. Every pinned version lives in exactly one
+# file, so one update edits one place.
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -21,4 +21,15 @@ updates:
       day: "monday"
     groups:
       minor-and-patch:
+        update-types: ["minor", "patch"]
+  - package-ecosystem: "pip"
+    directories:
+      - "/sandbox/autogen-a2a-sandbox"
+      - "/sandbox/graph-sandbox/runner"
+      - "/sandbox/graph-sandbox/services"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      sandbox-minor-and-patch:
         update-types: ["minor", "patch"]

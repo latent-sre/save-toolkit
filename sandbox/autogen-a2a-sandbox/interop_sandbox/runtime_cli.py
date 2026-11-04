@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 import urllib.request
+from importlib import metadata
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -739,6 +740,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 async def _run_fresh(args: argparse.Namespace) -> int:
     from .approval_gate import open_approval_gate
+    from .dependency_probe import PROBED_DISTRIBUTIONS
     from .contracts import (
         REQUEST_VERSION,
         canonical_json_bytes,
@@ -859,12 +861,7 @@ async def _run_fresh(args: argparse.Namespace) -> int:
             "case_digest": request.case_digest,
             "candidate_revision": request.candidate_revision,
             "python": platform.python_version(),
-            "packages": {
-                "agent-framework-core": "1.16.0",
-                "agent-framework-a2a": "1.0.0b260821",
-                "autogen-agentchat": "0.7.5",
-                "a2a-sdk": "1.1.2",
-            },
+            "packages": {name: metadata.version(name) for name in PROBED_DISTRIBUTIONS},
             "analysis_invocations": 1,
             **request_proof,
             "artifact": None,

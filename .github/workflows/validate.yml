@@ -231,20 +231,26 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v10.3.3
 
-      # harbor, swt and sandbox are conflicting groups, so each is exported and audited on its own
+      # harbor and swt are conflicting groups, so each is exported and audited on its own
       # (pip-audit refuses one package at two versions in a single call); the project export carries
       # the default test group plus swebench. --no-deps audits exactly the locked versions and
-      # resolves nothing. Every set is audited before the step fails.
+      # resolves nothing. Each sandbox requirements file pins only its direct dependencies, so
+      # pip-audit resolves it to audit the transitive set an image build would install. Every set is
+      # audited before the step fails.
       - name: Audit the locked dependency sets
         run: |
           status=0
           uv export --locked --no-emit-project --no-hashes --format requirements.txt --group swebench > project.txt
           uv export --locked --no-emit-project --no-hashes --format requirements.txt --only-group harbor > harbor.txt
           uv export --locked --no-emit-project --no-hashes --format requirements.txt --only-group swt > swt.txt
-          uv export --locked --no-emit-project --no-hashes --format requirements.txt --only-group sandbox > sandbox.txt
-          for group in project harbor swt sandbox; do
+          for group in project harbor swt; do
             echo "::group::$group"
             uvx --from pip-audit==2.10.1 pip-audit --no-deps --disable-pip --progress-spinner off -r "$group.txt" || status=1
+            echo "::endgroup::"
+          done
+          for requirements in sandbox/autogen-a2a-sandbox/requirements.txt sandbox/graph-sandbox/runner/requirements.txt sandbox/graph-sandbox/services/requirements.txt; do
+            echo "::group::$requirements"
+            uvx --from pip-audit==2.10.1 pip-audit --progress-spinner off -r "$requirements" || status=1
             echo "::endgroup::"
           done
           exit "$status"

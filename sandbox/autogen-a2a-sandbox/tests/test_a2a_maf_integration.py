@@ -61,16 +61,12 @@ def _requests_by_case() -> dict[str, AnalysisRequest]:
 
 class A2AMAFIntegrationContractTests(unittest.TestCase):
     def test_pinned_fastapi_transport_dependencies_import_public_a2a_routes(self) -> None:
-        requirements = (SANDBOX_ROOT / "requirements.txt").read_text(encoding="utf-8")
+        from interop_sandbox.dependency_probe import pinned_requirements  # noqa: PLC0415
 
-        for pin in (
-            "fastapi==0.141.1",
-            "httpx==0.28.1",
-            "sse-starlette==3.4.11",
-            "uvicorn==0.52.4",
-        ):
-            with self.subTest(pin=pin):
-                self.assertIn(f"\n{pin}\n", f"\n{requirements}")
+        pins = pinned_requirements(SANDBOX_ROOT / "requirements.txt")
+        for name in ("fastapi", "httpx", "sse-starlette", "uvicorn"):
+            with self.subTest(package=name):
+                self.assertIn(name, pins)
 
         from a2a.server.routes import (  # noqa: PLC0415
             add_a2a_routes_to_fastapi,
@@ -82,7 +78,7 @@ class A2AMAFIntegrationContractTests(unittest.TestCase):
         self.assertTrue(callable(create_agent_card_routes))
         self.assertTrue(callable(create_jsonrpc_routes))
 
-    def test_a2a_fastapi_openapi_enricher_is_skipped_for_protobuf5(self) -> None:
+    def test_a2a_fastapi_openapi_enricher_accepts_protobuf5_routes(self) -> None:
         from a2a.server.routes import add_a2a_routes_to_fastapi  # noqa: PLC0415
 
         self.assertTrue(metadata.version("protobuf").startswith("5.29."))
@@ -99,11 +95,10 @@ class A2AMAFIntegrationContractTests(unittest.TestCase):
         ]
         self.assertEqual(len(jsonrpc_routes), 1)
 
-        with self.assertRaisesRegex(AttributeError, "is_repeated"):
-            add_a2a_routes_to_fastapi(
-                FastAPI(),
-                jsonrpc_routes=jsonrpc_routes,
-            )
+        add_a2a_routes_to_fastapi(
+            FastAPI(),
+            jsonrpc_routes=jsonrpc_routes,
+        )
 
 
 class A2AMAFIntegrationTests(unittest.IsolatedAsyncioTestCase):

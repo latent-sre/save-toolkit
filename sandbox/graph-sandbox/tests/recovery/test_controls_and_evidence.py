@@ -7,7 +7,7 @@ from pathlib import Path
 
 from runner.controls import CancellationError, transition_cancellation
 from runner.evidence import EvidenceExporter
-from runner.runtime import runtime_evidence
+from runner.runtime import pinned_packages, runtime_evidence
 
 
 class CancellationContractTests(unittest.TestCase):
@@ -60,14 +60,7 @@ class RuntimeEvidenceTests(unittest.TestCase):
 
         self.assertEqual(evidence["runtime_version"], "graph-runner-runtime/v1")
         self.assertEqual(evidence["python_version"], "3.14.7")
-        self.assertEqual(
-            evidence["packages"],
-            {
-                "httpx": "0.28.1",
-                "langgraph": "1.2.11",
-                "langgraph-checkpoint-sqlite": "3.1.1",
-            },
-        )
+        self.assertEqual(evidence["packages"], pinned_packages())
 
 
 class EvidenceExportTests(unittest.TestCase):

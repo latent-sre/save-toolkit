@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 from importlib import metadata
 from pathlib import Path
 from types import ModuleType
@@ -30,18 +31,18 @@ from swebench_adapter.verifier import _CheckedBaseline, artifact_files
 
 from swt_adapter.core import UPSTREAM_REVISION, VARIANTS, admit_patch, assess, digest, transform
 
+MANIFEST = Path(__file__).resolve().parents[2] / "pyproject.toml"
+
+
+def runtime_pins() -> dict[str, str]:
+    """The `swt` dependency group's exact pins; pyproject.toml is the only version source."""
+    with MANIFEST.open("rb") as manifest:
+        group = tomllib.load(manifest)["dependency-groups"]["swt"]
+    return dict(entry.split("==", 1) for entry in group if isinstance(entry, str) and "==" in entry)
+
 
 def runtime_problems() -> list[str]:
-    required = {
-        "docker": "7.2.0",
-        "unidiff": "0.7.5",
-        "editdistance": "0.8.1",
-        "GitPython": "3.2.1",
-        "tqdm": "4.67.3",
-        "datasets": "5.0.1",
-        "python-dotenv": "1.2.2",
-        "requests": "2.33.1",
-    }
+    required = runtime_pins()
     problems = []
     for package, version in required.items():
         try:

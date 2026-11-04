@@ -5,17 +5,31 @@ from __future__ import annotations
 import json
 import platform
 from importlib import metadata
+from pathlib import Path
 from typing import Any, Sequence
 
 
 PROBE_VERSION = "autogen-a2a-dependency-probe/v1"
 EXPECTED_PYTHON = "3.14.7"
-EXPECTED_DISTRIBUTIONS = {
-    "a2a-sdk": "1.1.2",
-    "agent-framework-a2a": "1.0.0b260821",
-    "agent-framework-core": "1.16.0",
-    "autogen-agentchat": "0.7.5",
-}
+REQUIREMENTS = Path(__file__).resolve().parents[1] / "requirements.txt"
+PROBED_DISTRIBUTIONS = ("a2a-sdk", "agent-framework-a2a", "agent-framework-core", "autogen-agentchat")
+
+
+def pinned_requirements(path: Path = REQUIREMENTS) -> dict[str, str]:
+    """Return the image's exact pins; requirements.txt is the only version source."""
+    pins: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        requirement = line.split("#", 1)[0].strip()
+        if not requirement:
+            continue
+        name, separator, version = (part.strip() for part in requirement.partition("=="))
+        if not separator or not name or not version:
+            raise ValueError(f"sandbox requirement is not an exact pin: {requirement}")
+        pins[name.lower()] = version
+    return pins
+
+
+EXPECTED_DISTRIBUTIONS = {name: pinned_requirements()[name] for name in PROBED_DISTRIBUTIONS}
 EXPECTED_SURFACES = {
     "a2a_v1_models": "constructed",
     "agent_framework_a2a": "constructed",

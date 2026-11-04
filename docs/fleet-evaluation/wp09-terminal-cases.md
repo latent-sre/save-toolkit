@@ -2,7 +2,7 @@
 
 [verified] The [frozen manifest](../../evals/manifests/wp09-terminal-complex5.json) identifies five
 source-coherent tasks before observing any candidate results. These are proposed cases, not accepted
-benchmark results. All five parse with the actual Harbor 0.24.0 `Task` implementation. No task code,
+benchmark results. All five parse with the actual Harbor 0.25.0 `Task` implementation. No task code,
 Docker environment, reference solution or candidate model was executed during preparation.
 
 [sourced] Source is [terminal-bench-2 at the explicit commit](https://github.com/harbor-framework/terminal-bench-2/tree/2fd12b88aafdd04a52c298e3940bcb189f9766d6)

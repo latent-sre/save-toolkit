@@ -9,40 +9,16 @@ sys.path.insert(0, str(SANDBOX_ROOT))
 from interop_sandbox import dependency_probe
 
 
-EXPECTED_DISTRIBUTIONS = {
-    "a2a-sdk": "1.1.2",
-    "agent-framework-a2a": "1.0.0b260821",
-    "agent-framework-core": "1.16.0",
-    "autogen-agentchat": "0.7.5",
-}
-EXPECTED_TRANSPORT_PINS = {
-    "fastapi": "0.141.1",
-    "httpx": "0.28.1",
-    "sse-starlette": "3.4.11",
-    "uvicorn": "0.52.4",
-}
+EXPECTED_DISTRIBUTIONS = dependency_probe.EXPECTED_DISTRIBUTIONS
+TRANSPORT_PACKAGES = {"fastapi", "httpx", "sse-starlette", "uvicorn"}
 
 
 class DependencyProbeTests(unittest.TestCase):
-    def test_runtime_dependencies_are_the_exact_framework_and_transport_pins(self) -> None:
-        requirement_lines = {
-            line
-            for line in (SANDBOX_ROOT / "requirements.txt")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if line and not line.startswith("#")
-        }
+    def test_runtime_dependencies_are_the_framework_and_transport_packages_exactly_pinned(self) -> None:
+        pins = dependency_probe.pinned_requirements(SANDBOX_ROOT / "requirements.txt")
 
-        self.assertEqual(
-            requirement_lines,
-            {
-                f"{name}=={version}"
-                for name, version in {
-                    **EXPECTED_DISTRIBUTIONS,
-                    **EXPECTED_TRANSPORT_PINS,
-                }.items()
-            },
-        )
+        self.assertEqual(set(pins), set(dependency_probe.PROBED_DISTRIBUTIONS) | TRANSPORT_PACKAGES)
+        self.assertTrue(all(pins.values()))
 
     def test_report_contract_accepts_exact_expected_shape(self) -> None:
         report = {

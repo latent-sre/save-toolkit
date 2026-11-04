@@ -8,7 +8,6 @@ import shlex
 import subprocess
 import sys
 import tempfile
-import tomllib
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -31,21 +30,6 @@ def pytest_step(job: dict) -> dict:
 
 
 class ValidateWorkflowTests(unittest.TestCase):
-    def test_sandbox_dependencies_match_repository_pins(self) -> None:
-        """Every sandbox pin is a version uv.lock resolves; the `sandbox` group carries them exactly."""
-        def pins(path):
-            return {line.strip().lower().replace("_", "-") for line in path.read_text(encoding="utf-8").splitlines()
-                    if line.strip() and not line.lstrip().startswith("#")}
-
-        with (ROOT / "uv.lock").open("rb") as lock:
-            repository = {f"{package['name']}=={package['version']}" for package in tomllib.load(lock)["package"]}
-        for relative in ("sandbox/autogen-a2a-sandbox/requirements.txt",
-                         "sandbox/graph-sandbox/runner/requirements.txt",
-                         "sandbox/graph-sandbox/services/requirements.txt"):
-            with self.subTest(path=relative):
-                self.assertEqual(set(), pins(ROOT / relative) - repository,
-                                 "sandbox dependencies drifted from the repository lock")
-
     def test_ci_checks_python_312_floor_and_314_development_default(self) -> None:
         jobs = workflow_jobs()
         for name in ("validate", "fast-tests", "eval-tests"):
