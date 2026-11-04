@@ -372,7 +372,7 @@ def attempt(path: Path, plan: dict[str, Any], record_root: Path | None = None) -
             row["semantic_review_status"] = "required_not_assessed"
         if row["state"] not in {"PASS", "FAIL", "INCONCLUSIVE", None}:
             problems.append("unsupported result state")
-    except (ValueError, KeyError, TypeError, OSError):
+    except ValueError, KeyError, TypeError, OSError:
         problems.append("invalid or unreadable record")
     return row
 

@@ -47,9 +47,8 @@ The literal text call and observed fixed text-only projection are supported; non
 catalogs, resource reads, server arguments and arbitrary wrappers remain unmeasured.
 Subscription dollar cost is unknown; wall time, tool limits and token usage are recorded.
 
-Use the latest **Python 3.14** patch for development and component-test CI. The repository-wide
-compatibility floor is Python 3.12, including the native runner and installed hooks; structural CI
-exercises that minimum.
+Use the latest **Python 3.14** patch. It is also the repository-wide compatibility floor,
+including the native runner and installed hooks.
 
 ```bash
 uv sync --locked

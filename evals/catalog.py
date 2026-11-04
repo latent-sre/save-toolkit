@@ -294,7 +294,7 @@ def _git(*arguments: str) -> str | None:
         return subprocess.run(
             ["git", *arguments], cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8", timeout=15
         ).stdout.strip()
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return None
 
 

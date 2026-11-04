@@ -176,7 +176,7 @@ def model_matches(session: str, thread: str, expected: str) -> bool:
         ids = [row["payload"].get("id") for row in rows if row.get("type") == "session_meta"]
         models = [row["payload"].get("model") for row in rows if row.get("type") == "turn_context"]
         return bool(thread and ids == [thread] and models and set(models) == {expected})
-    except (ValueError, KeyError, TypeError):
+    except ValueError, KeyError, TypeError:
         return False
 
 
@@ -333,7 +333,7 @@ def session_tool_problems(session: str, trace: CodexTrace) -> list[str]:
         # These cases only need MCP file tools. Any other call needs a new, reviewed
         # mapping; it cannot silently count as an absence of shell or effects.
         return [] if calls == expected else ["session tool inventory disagrees with scoped MCP trace"]
-    except (ValueError, KeyError, TypeError, AttributeError):
+    except ValueError, KeyError, TypeError, AttributeError:
         return ["invalid session tool inventory"]
 
 

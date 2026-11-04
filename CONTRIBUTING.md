@@ -60,15 +60,14 @@ top-level key containing `agent` when `agent_type` is absent. A renamed key such
 detected. Re-probe the live PreToolUse payload after host upgrades; offline tests cover known
 shapes, not every upstream rename.
 
-Python 3.12 is the minimum supported version for all repository Python, including installed
-hooks and bundled skill scripts. The structural CI job runs on the latest 3.12 patch.
-Development and component-test CI track the latest Python 3.14 patch; `.python-version` selects
-that development minor and CI uses `check-latest: true`. Use `uv python install 3.14`, then
+Python 3.14 is the minimum supported version for all repository Python, including installed
+hooks and bundled skill scripts; a host whose `python3` is older is unsupported, and the guarded
+hook fails closed there. Development and CI track the latest 3.14 patch; `.python-version`
+selects it and CI uses `check-latest: true`. Use `uv python install 3.14`, then
 `uv sync --locked`, which creates `.venv` on that interpreter and installs the locked `test` group.
 Verify it with `.venv\Scripts\python.exe -c "import sys; print(sys.executable); print(sys.version)"`
 (POSIX: `.venv/bin/python`). Use this interpreter for the baseline and final checks.
 An old uv binary may need updating before it knows about a newly released Python patch.
-The development default does not change the repository's Python 3.12 compatibility floor.
 
 `pyproject.toml` declares the dependency groups and `uv.lock` holds every exact version with its
 hash; `uv sync --locked` fails when the two disagree. Change a dependency with

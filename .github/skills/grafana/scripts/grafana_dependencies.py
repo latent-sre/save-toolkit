@@ -3,7 +3,7 @@
 
 No expression execution, network access, or health inference. PromQL AST selectors
 identify explicit metric references; unresolved names remain visible as gaps.
-Python 3.12+; promql-parser is loaded only for Prometheus expression inspection.
+Python 3.14+; promql-parser is loaded only for Prometheus expression inspection.
 """
 
 import hashlib

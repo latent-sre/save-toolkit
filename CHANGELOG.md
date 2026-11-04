@@ -138,6 +138,8 @@ Git history at `562a654b`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The Python floor is 3.14 for all repository Python, including the guard hook and bundled skill
+  scripts; on an older `python3` the guarded hook fails closed.
 - CI is one required job, `component-tests (ubuntu-latest)`: Gate A, the `scripts/` suite and the host's
   plugin validator. `evals/` tests no longer run in CI; a campaign runs them before its first trial.
 - The test suite passes under an elevated account: the tests that bind a runtime to the host (the

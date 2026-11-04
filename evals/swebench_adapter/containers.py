@@ -235,7 +235,7 @@ class DockerResources:
             address = ipaddress.IPv4Address(json.loads(result.stdout))
             if address.is_unspecified or address.is_multicast or address.is_loopback:
                 raise ValueError
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             raise RuntimeError("relay internal IPv4 evidence is invalid") from None
         return str(address)
 
@@ -270,7 +270,7 @@ class DockerResources:
             address = ipaddress.IPv4Address(proxy_ip)
             if address.is_unspecified or address.is_loopback or address.is_multicast:
                 raise ValueError
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             raise ValueError("proxy_ip must be an internal IPv4 address") from None
         cli, plugin = cli.resolve(strict=True), plugin.resolve(strict=True)
         if (
@@ -317,13 +317,13 @@ class DockerResources:
     def _present(self, kind: str, name: str) -> bool | None:
         try:
             result = self.docker.call([kind, "inspect", name], check=False, timeout=10)
-        except (RuntimeError, OSError):
+        except RuntimeError, OSError:
             return None
         if result.returncode == 0:
             try:
                 evidence = json.loads(result.stdout)
                 return True if isinstance(evidence, list) and evidence else None
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 return None
         error = result.stderr.decode("utf-8", "replace").lower()
         if result.returncode == 1 and (
@@ -342,7 +342,7 @@ class DockerResources:
                 try:
                     argv = ["rm", "--force", name] if kind == "container" else ["network", "rm", name]
                     removed = self.docker.call(argv, check=False, timeout=20).returncode == 0
-                except (RuntimeError, OSError):
+                except RuntimeError, OSError:
                     removed = False
                 receipt.append({"kind": kind, "name": name, "present": self._present(kind, name), "removed": removed})
         return receipt
@@ -351,7 +351,7 @@ class DockerResources:
         result = self.docker.call(["inspect", "--size", "--format", "{{json .SizeRw}}", container], timeout=timeout)
         try:
             size = json.loads(result.stdout)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             raise RuntimeError("writable-layer measurement is invalid") from None
         if type(size) is not int or size < 0:
             raise RuntimeError("writable-layer measurement is unavailable")
@@ -395,7 +395,7 @@ class DockerResources:
                     output.extend(chunk[:remaining])
                     if len(chunk) > remaining:
                         overflow.set()
-            except (OSError, ValueError):
+            except OSError, ValueError:
                 read_failure.set()
             finally:
                 stream.close()
@@ -428,7 +428,7 @@ class DockerResources:
                         if self._size(container, min(10, max(0.01, wall_seconds - (now - started)))) > STORAGE_LIMIT:
                             stop = "storage_limit"
                             break
-                    except (RuntimeError, OSError):
+                    except RuntimeError, OSError:
                         stop = "monitor_failure"
                         break
                     next_storage = now + STORAGE_INTERVAL

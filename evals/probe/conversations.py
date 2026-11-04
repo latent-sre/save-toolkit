@@ -232,7 +232,7 @@ def released_from(folder: Path) -> Released:
     def attempt(read: Callable[[], Any]) -> Any:
         try:
             return read()
-        except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):
+        except OSError, ValueError, KeyError, TypeError, IndexError, AttributeError:
             return None
 
     def prompt() -> str:

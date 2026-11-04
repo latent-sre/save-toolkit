@@ -57,7 +57,7 @@ def _canonical(value: Any) -> bytes:
         return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode(
             "utf-8"
         )
-    except (TypeError, ValueError, UnicodeError):
+    except TypeError, ValueError, UnicodeError:
         raise ValueError("identity requires canonical JSON") from None
 
 
@@ -117,7 +117,7 @@ def load_config(path: Path) -> dict[str, Any]:
         if len(raw) > _MAX_JSON:
             raise ValueError
         config = json.loads(raw, object_pairs_hook=_pairs, parse_constant=_constant)
-    except (OSError, ValueError, UnicodeError, RecursionError):
+    except OSError, ValueError, UnicodeError, RecursionError:
         raise ValueError("invalid configuration JSON") from None
     if not isinstance(config, dict) or set(config) - _FIELDS or (_FIELDS - {"api_key_helper"}) - set(config):
         raise ValueError("invalid configuration fields")
@@ -136,7 +136,7 @@ def load_config(path: Path) -> dict[str, Any]:
             raise ValueError("invalid configuration plugin_root")
         if not _native_cli(cli, config["cli_sha256"]):
             raise ValueError("invalid configuration cli binary or digest")
-    except (OSError, RuntimeError):
+    except OSError, RuntimeError:
         raise ValueError("configuration plugin_root or cli_path is unavailable") from None
     if config["model"] != "anthropic/claude-sonnet-5.5":
         raise ValueError("invalid configuration model")
@@ -164,7 +164,7 @@ def load_config(path: Path) -> dict[str, Any]:
             raise ValueError("invalid configuration image_id")
     try:
         ipaddress.IPv4Address(config["proxy_bind"])
-    except (ipaddress.AddressValueError, TypeError):
+    except ipaddress.AddressValueError, TypeError:
         raise ValueError("invalid configuration proxy_bind") from None
     if not isinstance(config["proxy_bind"], str) or config["proxy_target"] != "host.docker.internal":
         raise ValueError("invalid configuration proxy target")
@@ -194,7 +194,7 @@ def adapter_digest() -> str:
                 raise ValueError
             digest.update(path.relative_to(_ROOT).as_posix().encode("utf-8") + b"\0")
             digest.update(path.read_bytes().replace(b"\r\n", b"\n") + b"\0")
-    except (OSError, ValueError):
+    except OSError, ValueError:
         raise ValueError("adapter identity inputs are unavailable") from None
     return digest.hexdigest()
 
@@ -267,7 +267,7 @@ def _git(cwd: Path, *args: str) -> bytes | None:
             timeout=5,
             check=False,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except OSError, subprocess.TimeoutExpired:
         return None
     return result.stdout if result.returncode == 0 else None
 
@@ -294,7 +294,7 @@ def selection_committed(path: Path) -> bool:
             return False
         expected = _git(root, "cat-file", "blob", f"HEAD:{relative}")
         return expected is not None and path.read_bytes() == expected
-    except (OSError, ValueError, RuntimeError):
+    except OSError, ValueError, RuntimeError:
         return False
 
 

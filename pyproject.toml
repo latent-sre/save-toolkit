@@ -17,7 +17,7 @@
 # development environment that uv.lock resolves.
 name = "save-toolkit"
 version = "0.0.0"
-requires-python = ">=3.12"  # repository-wide compatibility floor (CONTRIBUTING.md)
+requires-python = ">=3.14"  # repository-wide compatibility floor (CONTRIBUTING.md)
 dependencies = []
 
 [dependency-groups]
@@ -104,7 +104,7 @@ conflicts = [
 ]
 
 [tool.ruff]
-target-version = "py312"  # repository-wide compatibility floor (CONTRIBUTING.md)
+target-version = "py314"  # repository-wide compatibility floor (CONTRIBUTING.md)
 line-length = 120
 # scripts/ is its suites' import root (`import validate_fleet`, `from testkit import ...`), so those
 # modules sort as first-party. evals/ is deliberately absent: reclassifying its modules would reorder
@@ -162,7 +162,7 @@ ignore = ["E501"]  # the formatter owns line length; long messages and patterns 
 "scripts/fleet_frontmatter.py" = ["UP040"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 files = [
     "evals/probe", "evals/build_probe.py", "evals/compare_runs.py", "evals/turn_counts.py", "evals/graders.py",
     "evals/inspect_pilot.py", "evals/inspect_fleet.py", "evals/catalog.py", "evals/campaign_report.py", "evals/testing_block.py", "evals/wp04_linux_cli.py",

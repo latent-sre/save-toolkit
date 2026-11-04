@@ -71,7 +71,7 @@ def _terminate(process: subprocess.Popen[bytes], job: WindowsJob | None = None) 
             clean = False
     try:
         process.wait(timeout=1)
-    except (OSError, subprocess.TimeoutExpired):
+    except OSError, subprocess.TimeoutExpired:
         clean = False
     return clean
 
@@ -98,7 +98,7 @@ def run_bounded(command: Sequence[str], *, cwd: Path, env: Mapping[str, str], ti
             start_new_session=not _WINDOWS,
             creationflags=0x204 if _WINDOWS else 0,  # CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP
         )
-    except (OSError, ValueError):
+    except OSError, ValueError:
         clean = job.close() if job is not None else True
         return ProcessResult(b"", b"", -1, "spawn_failure", time.monotonic() - started, clean)
     except KeyboardInterrupt:
@@ -138,7 +138,7 @@ def run_bounded(command: Sequence[str], *, cwd: Path, env: Mapping[str, str], ti
                     target.extend(chunk[:available])
                 if len(chunk) > available:
                     exceeded.set()
-        except (OSError, ValueError):
+        except OSError, ValueError:
             failed.set()
 
     assert process.stdout is not None and process.stderr is not None

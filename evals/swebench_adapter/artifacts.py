@@ -76,7 +76,7 @@ def runtime_problem(
             return "init plugin name or mounted path differs from the staged plugin"
         trace = tracing.parse_trace(trace_path)
         return invocation.runtime_boundary_problem(trace, tools)
-    except (ValueError, OSError, KeyError, TypeError):
+    except ValueError, OSError, KeyError, TypeError:
         return "runtime identity evidence is unreadable or malformed"
 
 
