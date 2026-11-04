@@ -46,8 +46,8 @@ preserves the private craft trial's verification wiring without shipping the pro
 - **Static checks.** [`pyproject.toml`](../../pyproject.toml) runs Ruff's lint rules over the runner,
   `graders.py`, `inspect_pilot.py` and the `test_*.py` files, Ruff's formatter over all of them but
   the tests, which keep their compact hand layout, and strict mypy over the same code without the
-  tests; CI runs them after the component tests. `python -m ruff check`,
-  `python -m ruff format --check` and `python -m mypy` reproduce them locally. A separate
+  tests; CI does not run them. Run `python -m ruff check`,
+  `python -m ruff format --check` and `python -m mypy` locally. A separate
   `python -m ruff check --isolated --select E9,F63,F7,F82 evals/judge.py evals/clean_room.py evals/oracles`
   checks syntax, invalid control flow and undefined names in those byte-bound files. Their existing
   layouts and incremental typing remain: whole-file formatting or typing migrations would replace

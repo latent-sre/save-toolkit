@@ -174,8 +174,8 @@ python -m pytest evals/test_inspect_pilot.py -k real_swe -q
 Remove-Item Env:RUN_INSPECT_DOCKER_SMOKE
 ```
 
-These scripted pass/fail cases verify the bridge and scorers, not model capability. Ordinary
-CI runs the offline tests; Docker smoke cases are explicit opt-ins. Details and remaining
+These scripted pass/fail cases verify the bridge and scorers, not model capability. CI does not
+run them; run the offline tests locally, and Docker smoke cases are explicit opt-ins. Details and remaining
 modernization work are in [Python and eval modernization](../../docs/python-eval-modernization.md).
 
 ## Inspect orchestration of native scenarios

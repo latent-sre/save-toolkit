@@ -2,8 +2,8 @@
 # project's lockfile (pyproject.toml + uv.lock). Minor and patch releases
 # arrive as one grouped pull request; a major release gets its own. CI's `uv sync --locked` is the
 # check that a proposed lock still matches the manifest, and the component tests are the evidence
-# that the fleet still passes on it. Dependabot does not relax the exact pins in the harbor, swt and
-# sandbox groups: those versions belong to their adapters and sandboxes (pyproject.toml comments).
+# that the fleet still passes on it. Dependabot does not relax the exact pins in the harbor and swt
+# groups: those versions belong to their adapters (pyproject.toml comments).
 version: 2
 updates:
   - package-ecosystem: "github-actions"

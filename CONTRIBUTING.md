@@ -75,15 +75,12 @@ hash; `uv sync --locked` fails when the two disagree. Change a dependency with
 `uv add --group <group> <requirement>`, or edit the manifest and run `uv lock`, and commit both
 files; `uv lock --upgrade-package <name>` moves one package, and Dependabot proposes the weekly
 grouped updates. Versions an adapter admits by contract (Harbor in
-`evals/harbor_adapter/contracts.py`, the SWT runtime table in `evals/swt_adapter/verifier.py`) and
-the sandboxes' own `requirements.txt` pins stay exact in the manifest and move only with that
-contract. The `swebench` group installs on top of the project environment
-(`uv sync --locked --group swebench`); `harbor`, `swt` and `sandbox` are declared conflicting with
-it and install only into a separate environment, for example
-`UV_PROJECT_ENVIRONMENT=.eval-runs/harbor-sdk uv sync --locked --only-group harbor`. Gate A's
-path imports PyYAML through `scripts/fleet_frontmatter.py` and nothing else: the `gate` group is
-that one dependency, the validate job syncs it alone on the 3.12 floor, and a new gate-path
-third-party import joins that group in the same change.
+`evals/harbor_adapter/contracts.py`, the SWT runtime table in `evals/swt_adapter/verifier.py`) stay
+exact in the manifest and move only with that contract; the sandboxes own their pins in their
+`requirements.txt`. The `swebench` group installs on top of the project environment
+(`uv sync --locked --group swebench`); `harbor` and `swt` are declared conflicting with it and
+install only into a separate environment, for example
+`UV_PROJECT_ENVIRONMENT=.eval-runs/harbor-sdk uv sync --locked --only-group harbor`.
 
 The Grafana analysis libraries are part of the `test` group. The Grafana workflow runs with
 `python -I` in the project environment for data analysis, query parsing, capture comparisons and
@@ -156,13 +153,10 @@ Choose local verification from the changed behavior, not the directory alone:
   once at the final boundary, after focused checks. Include the heavy suite when changing the
   evaluator, oracle, grader, runner, shared eval fixtures/helpers, or heavy-test selection. A
   scenario-only change needs its affected heavy file when relevant, not every heavy file.
-- CI runs the fast shards for every pull request and the eval-machinery shards only when the
-  pull request touches a trigger path: `evals/`, `scripts/`, `hooks/`, a skill's `scripts/`,
-  `conftest.py`, `pytest.ini`, `pyproject.toml`, a requirements file, or the workflow
-  (`scripts/eval_tests_needed.py` decides). A prose or documentation pull request therefore skips
-  them by design; pushes to `main`, the weekly run and manual dispatch run everything. Report
-  skipped or unavailable checks; a narrower local run does not establish live behavior or replace
-  required CI.
+- CI runs no `evals/` tests, so the local runs above are the only evidence for an eval change;
+  quote them in the pull request. Before an eval campaign's first trial, run
+  `scripts/local_tests.py --heavy` on its exact candidate. Report skipped or unavailable checks; a
+  narrower local run does not establish live behavior or replace required CI.
 
 Install the locked test environment, then use the
 [coordinated local runner](scripts/local_tests.py) for the final suite. Run the default command
@@ -220,25 +214,18 @@ name, so a package installed by hand for an experiment disappears at the next sy
 group instead. CI installs the same lock with `setup-uv` and `uv sync --locked`, bound to the
 `setup-python` interpreter, and caches uv downloads keyed on `uv.lock`.
 
-[`.github/workflows/validate.yml`](.github/workflows/validate.yml) then runs these jobs on the
-pull request: `validate` (this same gate); `changes`, which diffs the pull request against its base
-and decides whether a trigger path changed; the two `fast-tests` matrix entries (the default `pytest`
-run against the locked `test` group on Linux) and, when `changes` says so, the three `eval-tests`
-matrix entries in parallel. Each matrix selects its shards through pytest's `-k`, and its last entry
-is the complement of the others, so every case runs in exactly one shard; the real collection
-contract checks the eval entries' union and overlap. `component-tests`, the required check, passes
-only when fast tests passed and every eval matrix entry passed or was skipped for a non-trigger
-change; a skip for any other reason fails it. Then `claude-plugin-contract`
-(npm's latest Claude Code release, with its resolved version recorded in the job log).
-That job validates `.claude-plugin/marketplace.json` with `--strict` and
-`.claude-plugin/plugin.json` without it: plugin errors fail the job; warnings remain visible.
+[`.github/workflows/validate.yml`](.github/workflows/validate.yml) runs one job on every pull
+request: `component-tests (ubuntu-latest)`, the required check. It proves what the plugin ships:
+Gate A, the `scripts/` suite (the guard, hooks and bundled skill scripts) on the Python floor, and
+npm's latest Claude Code release, with its resolved version recorded in the job log, validating
+`.claude-plugin/marketplace.json` with `--strict` and `.claude-plugin/plugin.json` without it:
+plugin errors fail the job; warnings remain visible.
 `dependency-audit` runs only on the weekly schedule and manual dispatch: it exports the locked
 dependency sets and checks them against published advisories with pip-audit. It is not part of the
 required check, because advisories change without a commit. Action references are a floating major
 tag where the action publishes one (`actions/checkout@v7`), otherwise the exact release tag
 (`astral-sh/setup-uv@v10.3.3`); Dependabot's actions updater moves both. A tag can move upstream, and
-the repository accepts that for readable references; `test_validate_workflow.py` admits only those
-two forms.
+the repository accepts that for readable references.
 The root `CLAUDE.md` intentionally provides repository authoring context and produces a warning
 because installed plugins do not load it. Report what ran and what remains unverified.
 
