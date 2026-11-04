@@ -1,34 +1,34 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
     "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
     "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
     "python_full_version >= '3.15' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
     "python_full_version >= '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
     "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
     "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
     "python_full_version >= '3.15' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
     "python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
     "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
     "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
     "python_full_version < '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
     "python_full_version < '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
     "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
     "extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
     "python_full_version < '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
     "python_full_version < '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
     "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
@@ -264,8 +264,8 @@ name = "anyio"
 version = "4.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "idna" },
-    { name = "typing-extensions", marker = "python_full_version < '3.15'" },
+    { name = "idna", marker = "(sys_platform != 'emscripten' and extra != 'group-12-save-toolkit-grafana') or extra == 'group-12-save-toolkit-harbor' or extra == 'group-12-save-toolkit-swebench' or extra == 'group-12-save-toolkit-test' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt')" },
+    { name = "typing-extensions", marker = "(python_full_version < '3.15' and sys_platform != 'emscripten' and extra != 'group-12-save-toolkit-grafana') or (python_full_version < '3.15' and extra == 'group-12-save-toolkit-harbor') or (python_full_version < '3.15' and extra == 'group-12-save-toolkit-swebench') or (python_full_version < '3.15' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a1/98/7e457a3b014976887a050561955c0b76e1e7e2d6e27b78ecef2ef80518f2/anyio-4.16.0.tar.gz", hash = "sha256:59bb03251907983d1603d27c3087ddb1e93299ea2163adcdba37899a4fb12ffb", size = 310971, upload-time = "2026-11-01T11:20:07.282Z" }
 wheels = [
@@ -746,50 +746,12 @@ wheels = [
 
 [[package]]
 name = "datasets"
-version = "5.0.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-dependencies = [
-    { name = "dill" },
-    { name = "filelock" },
-    { name = "fsspec", extra = ["http"], marker = "extra == 'group-12-save-toolkit-swt' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test')" },
-    { name = "httpx" },
-    { name = "huggingface-hub", version = "1.33.0", source = { registry = "https://pypi.org/simple" } },
-    { name = "multiprocess" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "pandas" },
-    { name = "pyarrow" },
-    { name = "pyyaml" },
-    { name = "requests", version = "2.33.1", source = { registry = "https://pypi.org/simple" } },
-    { name = "tqdm", version = "4.67.3", source = { registry = "https://pypi.org/simple" } },
-    { name = "xxhash" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/0a/5b/836516269d4f618efe621661cfb6f9acc57e6f95265db3efaee48a5ffe04/datasets-5.0.1.tar.gz", hash = "sha256:ce22bb851efd7494f08aad33b940803784434f6e77763d00679a0dc45fcf686a", size = 641498, upload-time = "2026-07-28T11:09:12.016Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/0b/98fc6eb83333508ca5f44c52b3e287ea8137a0ad582714e2cbc67a02154b/datasets-5.0.1-py3-none-any.whl", hash = "sha256:9fbf73688f8c18f7529b4fe592abd04015f81d1e58001e4bac73ffb2b39d7cc4", size = 559079, upload-time = "2026-07-28T11:09:10.266Z" },
-]
-
-[[package]]
-name = "datasets"
 version = "5.1.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.15' and sys_platform == 'win32'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 dependencies = [
     { name = "dill" },
     { name = "filelock" },
-    { name = "fsspec", extra = ["http"], marker = "extra == 'group-12-save-toolkit-swebench' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt')" },
+    { name = "fsspec", extra = ["http"], marker = "extra == 'group-12-save-toolkit-swebench' or extra == 'group-12-save-toolkit-swt' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-test')" },
     { name = "huggingface-hub", version = "2.4.0", source = { registry = "https://pypi.org/simple" } },
     { name = "multiprocess" },
     { name = "numpy" },
@@ -797,7 +759,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "pyyaml" },
-    { name = "tqdm", version = "4.70.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "tqdm" },
     { name = "xxhash" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/17/e6/b5d8c77f13cc6269660b0f2691e8875777b9d94972e281b7b2c25f25bd9d/datasets-5.1.0.tar.gz", hash = "sha256:1561347daa8841b51351ef2ad1647b4ee4af406852c0f7bd1df587ac1ca7888e", size = 687306, upload-time = "2026-10-05T15:32:32.053Z" }
@@ -892,8 +854,7 @@ version = "7.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pywin32", marker = "sys_platform == 'win32'" },
-    { name = "requests", version = "2.33.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-12-save-toolkit-swt' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test')" },
-    { name = "requests", version = "2.34.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-12-save-toolkit-swebench' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test')" },
+    { name = "requests" },
     { name = "urllib3" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/88/7f/731ff914b0255d3d065f45fd4e626d4b8c95dbcbaada049f337a6ac16410/docker-7.2.0.tar.gz", hash = "sha256:cebb93773d334f778e023a7ee352a8d6e13ab1bd3b863a4d4a59dec897df43ac", size = 118731, upload-time = "2026-07-09T14:53:46.39Z" }
@@ -1107,9 +1068,10 @@ wheels = [
 
 [[package]]
 name = "harbor"
-version = "0.24.0"
+version = "0.25.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "certifi" },
     { name = "dirhash" },
     { name = "fastapi" },
     { name = "filelock" },
@@ -1122,9 +1084,9 @@ dependencies = [
     { name = "platformdirs" },
     { name = "pydantic" },
     { name = "pyjwt" },
-    { name = "python-dotenv", version = "1.2.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
-    { name = "requests", version = "2.34.2", source = { registry = "https://pypi.org/simple" } },
+    { name = "requests" },
     { name = "rich" },
     { name = "semver" },
     { name = "shortuuid" },
@@ -1134,9 +1096,9 @@ dependencies = [
     { name = "typer" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/82/7d/16e21cfd52938260dce71ff77ec1ed156bd8c327642760fe66163b0cd3ce/harbor-0.24.0.tar.gz", hash = "sha256:6c5185e6a76abc677ed3f95e688dc0dbf8597e4fa50847cb9a37a4448c91b1e5", size = 2090577, upload-time = "2026-10-05T05:04:46.252Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/8f/624ed4b2763565d50c78e9278d2800037c9147d56ee977d3b8ed6c5b81b1/harbor-0.25.0.tar.gz", hash = "sha256:a66543a223539cd853889ee0eea77d15a3e5222963418a87c0f079b63dadb4b2", size = 2309418, upload-time = "2026-10-25T20:27:27.643Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9e/63/0e3d788e8d1ed116125507c6a01e3fb95cf82be71f2ea7040a1458709d21/harbor-0.24.0-py3-none-any.whl", hash = "sha256:23b7ba616a3aae4eff561ced5e2c51c7186f2981e53a770dea9c689d3969877c", size = 2331740, upload-time = "2026-10-05T05:04:42.088Z" },
+    { url = "https://files.pythonhosted.org/packages/90/72/2ead84b6d43e4737682dd489b107be9d828bf5ae4869d0d4f2aa72243149/harbor-0.25.0-py3-none-any.whl", hash = "sha256:51923ac567fc57b03279e93468b105f689628bcac2cd3d541d4e44aa5c0ec309", size = 2535481, upload-time = "2026-10-25T20:27:25.575Z" },
 ]
 
 [[package]]
@@ -1190,8 +1152,8 @@ name = "httpcore2"
 version = "2.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test')" },
-    { name = "truststore", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test')" },
+    { name = "h11", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or (sys_platform != 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt')" },
+    { name = "truststore", marker = "(sys_platform != 'emscripten' and extra == 'group-12-save-toolkit-swebench') or (sys_platform != 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c0/61/afa9d6b7452f9eca73f73d45324eb0bb52f098fd5e6049bf6b8263be9b4e/httpcore2-2.16.0.tar.gz", hash = "sha256:c72cd0413563b17e1cd8354677dff887466f8ec2551679759e93126534428643", size = 69886, upload-time = "2026-10-21T07:09:45.31Z" }
 wheels = [
@@ -1247,12 +1209,6 @@ wheels = [
 name = "huggingface-hub"
 version = "1.33.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test'",
-    "sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test'",
-]
 dependencies = [
     { name = "click" },
     { name = "filelock" },
@@ -1261,8 +1217,7 @@ dependencies = [
     { name = "httpx" },
     { name = "packaging" },
     { name = "pyyaml" },
-    { name = "tqdm", version = "4.67.3", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-12-save-toolkit-swt' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test')" },
-    { name = "tqdm", version = "4.70.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-12-save-toolkit-harbor' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test')" },
+    { name = "tqdm" },
     { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/25/2a/484d112c0d8fc5f665d7b65137ac9cdb2953c982391598c3597968a12ee7/huggingface_hub-1.33.0.tar.gz", hash = "sha256:367be21a201db9523eddf8aeac7048f2602c1b308691c97640d5e72ed188007e", size = 1043548, upload-time = "2026-09-24T09:49:29.971Z" }
@@ -1275,12 +1230,33 @@ name = "huggingface-hub"
 version = "2.4.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.15' and sys_platform == 'win32'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
+    "sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test'",
+    "sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test'",
+    "sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test'",
 ]
 dependencies = [
     { name = "click" },
@@ -1290,7 +1266,7 @@ dependencies = [
     { name = "httpx2" },
     { name = "packaging" },
     { name = "pyyaml" },
-    { name = "tqdm", version = "4.70.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "tqdm" },
     { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b5/3b/2fcef1eabe52aec90fc8cd253cc154da1d02a446d7bbcdec59b4a51d4be7/huggingface_hub-2.4.0.tar.gz", hash = "sha256:13a6158b9e3393d9d3f248ce99074d50c2a0a1449fb9d8e2f710751e2084c188", size = 1066194, upload-time = "2026-10-29T15:30:12.321Z" }
@@ -1493,7 +1469,7 @@ dependencies = [
     { name = "platformdirs" },
     { name = "psutil" },
     { name = "pydantic" },
-    { name = "python-dotenv", version = "1.2.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "rich" },
     { name = "s3fs" },
@@ -1796,7 +1772,7 @@ dependencies = [
     { name = "packaging" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "python-dotenv", version = "1.2.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "tiktoken" },
     { name = "tokenizers" },
@@ -2295,7 +2271,7 @@ dependencies = [
     { name = "jiter" },
     { name = "pydantic" },
     { name = "sniffio" },
-    { name = "tqdm", version = "4.70.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "tqdm" },
     { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/9a/8c75e8c8a5b407a0586faeb2afac91674ff955c191ecc1d6d3b6669f6788/openai-2.54.0.tar.gz", hash = "sha256:e3e6f8bc1ba30ddf381ace1a14340eed381cb984a1a59bd0f34b5be3b5d49cfa", size = 1100285, upload-time = "2026-08-11T18:46:59.035Z" }
@@ -2811,7 +2787,7 @@ version = "2.16.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
-    { name = "python-dotenv", version = "1.2.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "python-dotenv" },
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
@@ -2922,53 +2898,8 @@ wheels = [
 
 [[package]]
 name = "python-dotenv"
-version = "1.2.2"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/82/ed/0301aeeac3e5353ef3d94b6ec08bbcabd04a72018415dcb29e588514bba8/python_dotenv-1.2.2.tar.gz", hash = "sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3", size = 50135, upload-time = "2026-03-01T16:00:26.196Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/d7/1959b9648791274998a9c3526f6d0ec8fd2233e4d4acce81bbae76b44b2a/python_dotenv-1.2.2-py3-none-any.whl", hash = "sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a", size = 22101, upload-time = "2026-03-01T16:00:25.09Z" },
-]
-
-[[package]]
-name = "python-dotenv"
 version = "1.2.4"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-]
 sdist = { url = "https://files.pythonhosted.org/packages/74/26/2fbeedb218a787a5eea551c7532cac4e009f83d689dd2faa0d0353473f86/python_dotenv-1.2.4.tar.gz", hash = "sha256:f0d53e69935a851c0dcc78f3ab7aaccd8cabef0b92382b576b824212902873c0", size = 60824, upload-time = "2026-10-01T05:36:10Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/60/d1/38f3a3405989a89ac18390803e70c6ad7c7760da4f9b83cbeca0c44a0c72/python_dotenv-1.2.4-py3-none-any.whl", hash = "sha256:42269a8a5b3fd54ffa6f3d84b18abed50064717576b4ecf03dc4a55d8aa04fdc", size = 23266, upload-time = "2026-10-01T05:36:08.633Z" },
@@ -3114,64 +3045,13 @@ wheels = [
 
 [[package]]
 name = "requests"
-version = "2.33.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-dependencies = [
-    { name = "certifi", marker = "extra == 'group-12-save-toolkit-swt' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test')" },
-    { name = "charset-normalizer", marker = "extra == 'group-12-save-toolkit-swt' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test')" },
-    { name = "idna", marker = "extra == 'group-12-save-toolkit-swt' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test')" },
-    { name = "urllib3", marker = "extra == 'group-12-save-toolkit-swt' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test')" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5f/a4/98b9c7c6428a668bf7e42ebb7c79d576a1c3c1e3ae2d47e674b468388871/requests-2.33.1.tar.gz", hash = "sha256:18817f8c57c6263968bc123d237e3b8b08ac046f5456bd1e307ee8f4250d3517", size = 134120, upload-time = "2026-03-30T16:09:15.531Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d7/8e/7540e8a2036f79a125c1d2ebadf69ed7901608859186c856fa0388ef4197/requests-2.33.1-py3-none-any.whl", hash = "sha256:4e6d1ef462f3626a1f0a0a9c42dd93c63bad33f9f1c1937509b8c5c8718ab56a", size = 64947, upload-time = "2026-03-30T16:09:13.83Z" },
-]
-
-[[package]]
-name = "requests"
 version = "2.34.2"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-]
 dependencies = [
-    { name = "certifi", marker = "extra == 'group-12-save-toolkit-harbor' or extra == 'group-12-save-toolkit-swebench' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-test')" },
-    { name = "charset-normalizer", marker = "extra == 'group-12-save-toolkit-harbor' or extra == 'group-12-save-toolkit-swebench' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-test')" },
-    { name = "idna", marker = "extra == 'group-12-save-toolkit-harbor' or extra == 'group-12-save-toolkit-swebench' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-test')" },
-    { name = "urllib3", marker = "extra == 'group-12-save-toolkit-harbor' or extra == 'group-12-save-toolkit-swebench' or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-test')" },
+    { name = "certifi" },
+    { name = "charset-normalizer" },
+    { name = "idna" },
+    { name = "urllib3" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed", size = 142856, upload-time = "2026-05-14T19:25:27.735Z" }
 wheels = [
@@ -3312,6 +3192,7 @@ wheels = [
 name = "save-toolkit"
 version = "0.0.0"
 source = { virtual = "." }
+default-groups = ["test"]
 
 [package.dev-dependencies]
 grafana = [
@@ -3331,16 +3212,16 @@ swebench = [
     { name = "swebench" },
 ]
 swt = [
-    { name = "datasets", version = "5.0.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "datasets" },
     { name = "docker" },
     { name = "editdistance" },
     { name = "gitpython" },
     { name = "pydantic" },
     { name = "pytest" },
-    { name = "python-dotenv", version = "1.2.2", source = { registry = "https://pypi.org/simple" } },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
-    { name = "requests", version = "2.33.1", source = { registry = "https://pypi.org/simple" } },
-    { name = "tqdm", version = "4.67.3", source = { registry = "https://pypi.org/simple" } },
+    { name = "requests" },
+    { name = "tqdm" },
     { name = "unidiff", version = "0.7.5", source = { registry = "https://pypi.org/simple" } },
 ]
 test = [
@@ -3377,7 +3258,7 @@ grafana = [
     { name = "promql-parser", specifier = ">=0.11.0" },
 ]
 harbor = [
-    { name = "harbor", specifier = "==0.24.0" },
+    { name = "harbor", specifier = "==0.25.0" },
     { name = "pytest", specifier = ">=9.1.1" },
 ]
 swebench = [
@@ -3387,16 +3268,16 @@ swebench = [
     { name = "swebench", specifier = ">=5.0.2" },
 ]
 swt = [
-    { name = "datasets", specifier = "==5.0.1" },
+    { name = "datasets", specifier = "==5.1.0" },
     { name = "docker", specifier = "==7.2.0" },
     { name = "editdistance", specifier = "==0.8.1" },
     { name = "gitpython", specifier = "==3.2.1" },
     { name = "pydantic", specifier = ">=2.13.5" },
     { name = "pytest", specifier = ">=9.1.1" },
-    { name = "python-dotenv", specifier = "==1.2.2" },
+    { name = "python-dotenv", specifier = "==1.2.4" },
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "requests", specifier = "==2.33.1" },
-    { name = "tqdm", specifier = "==4.67.3" },
+    { name = "requests", specifier = "==2.34.2" },
+    { name = "tqdm", specifier = "==4.70.1" },
     { name = "unidiff", specifier = "==0.7.5" },
 ]
 test = [
@@ -3597,18 +3478,18 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "chardet" },
-    { name = "datasets", version = "5.1.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "datasets" },
     { name = "docker" },
     { name = "ghapi" },
     { name = "gitpython" },
     { name = "modal" },
     { name = "pre-commit" },
-    { name = "python-dotenv", version = "1.2.4", source = { registry = "https://pypi.org/simple" } },
+    { name = "python-dotenv" },
     { name = "pyyaml" },
-    { name = "requests", version = "2.34.2", source = { registry = "https://pypi.org/simple" } },
+    { name = "requests" },
     { name = "rich" },
     { name = "tenacity" },
-    { name = "tqdm", version = "4.70.1", source = { registry = "https://pypi.org/simple" } },
+    { name = "tqdm" },
     { name = "typer" },
     { name = "unidiff", version = "1.0.1", source = { registry = "https://pypi.org/simple" } },
 ]
@@ -3661,7 +3542,7 @@ version = "0.14.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "regex" },
-    { name = "requests", version = "2.34.2", source = { registry = "https://pypi.org/simple" } },
+    { name = "requests" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/66/62/167a842aa0429d45f5e797354fd4343a96f6043d67d0513c675c7b8d36e6/tiktoken-0.14.0.tar.gz", hash = "sha256:231dec90efcdccf1b565a1416107736f1e09b1a08fe736ef9d6363e626d03874", size = 38898, upload-time = "2026-08-17T19:49:49.514Z" }
 wheels = [
@@ -3740,54 +3621,10 @@ wheels = [
 
 [[package]]
 name = "tqdm"
-version = "4.67.3"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-dependencies = [
-    { name = "colorama", marker = "(sys_platform == 'win32' and extra == 'group-12-save-toolkit-swt') or (sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt')" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/09/a9/6ba95a270c6f1fbcd8dac228323f2777d886cb206987444e4bce66338dd4/tqdm-4.67.3.tar.gz", hash = "sha256:7d825f03f89244ef73f1d4ce193cb1774a8179fd96f31d7e1dcde62092b960bb", size = 169598, upload-time = "2026-02-03T17:35:53.048Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/16/e1/3079a9ff9b8e11b846c6ac5c8b5bfb7ff225eee721825310c91b3b50304f/tqdm-4.67.3-py3-none-any.whl", hash = "sha256:ee1e4c0e59148062281c49d80b25b67771a127c85fc9676d3be5f243206826bf", size = 78374, upload-time = "2026-02-03T17:35:50.982Z" },
-]
-
-[[package]]
-name = "tqdm"
 version = "4.70.1"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test'",
-    "extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor' and extra != 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform == 'emscripten' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-    "python_full_version < '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench' and extra != 'group-12-save-toolkit-swt' and extra != 'group-12-save-toolkit-test'",
-]
 dependencies = [
-    { name = "colorama", marker = "(sys_platform == 'win32' and extra == 'group-12-save-toolkit-harbor') or (sys_platform == 'win32' and extra == 'group-12-save-toolkit-swebench') or (sys_platform != 'win32' and extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swebench') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-swt') or (extra == 'group-12-save-toolkit-harbor' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-harbor') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-grafana' and extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test') or (extra == 'group-12-save-toolkit-grafana' and extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt') or (extra != 'group-12-save-toolkit-swebench' and extra == 'group-12-save-toolkit-swt' and extra == 'group-12-save-toolkit-test')" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0d/ea/b2a5bd54b28a324dae8211928b2d730b6547500342c7e6c6dea08bd0a485/tqdm-4.70.1.tar.gz", hash = "sha256:cefd0eca11b2a37a3aee776544d4f4ae913f02688135b5556b8788dfa474afc4", size = 171846, upload-time = "2026-09-11T07:25:16.601Z" }
 wheels = [

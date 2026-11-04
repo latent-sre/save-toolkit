@@ -62,12 +62,12 @@ swebench = [
 # environment: install it with `uv sync --locked --only-group swt` into a separate UV_PROJECT_ENVIRONMENT.
 swt = [
     "docker==7.2.0",
-    "datasets==5.0.1",
+    "datasets==5.1.0",
     "editdistance==0.8.1",
     "GitPython==3.2.1",
-    "python-dotenv==1.2.2",
-    "requests==2.33.1",
-    "tqdm==4.67.3",
+    "python-dotenv==1.2.4",
+    "requests==2.34.2",
+    "tqdm==4.70.1",
     "unidiff==0.7.5",
     "pydantic>=2.13.5",
     "pyyaml>=6.0.3",
@@ -78,7 +78,7 @@ swt = [
 # Conflicts below keep it out of the project environment: install it with
 # `uv sync --locked --only-group harbor` into a separate UV_PROJECT_ENVIRONMENT.
 harbor = [
-    "harbor==0.24.0",
+    "harbor==0.25.0",
     "pytest>=9.1.1",
 ]
 
