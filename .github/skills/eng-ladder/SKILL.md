@@ -1,71 +1,32 @@
 ---
 name: eng-ladder
 description: >-
-  Select the engineering altitude for implementation, design, review, or growth feedback when work
-  may span components, teams, migrations, or hard-to-reverse choices. Triggers: 'how rigorous
-  should this be', 'review this at the principal level', 'is this a design doc or just a PR'. A
-  scoped change with an obvious owner and existing pattern routes straight to its builder or craft
-  skill. Active-alert troubleshooting belongs to incident-investigation.
-argument-hint: "[task, diff, file, or design doc]"
+  Design method and review standard for work across services, teams, or migrations: a shared
+  contract change, a new system's architecture, a hard-to-reverse migration, or a tool or platform
+  selection. Use it to write such a design or to review a design document. Triggers: 'review this
+  design doc', 'is this design sound', 'which platform should we pick'. A scoped change that follows
+  an existing pattern or an accepted design is build work, not this. Active-alert troubleshooting
+  belongs to incident-investigation.
+argument-hint: "[design doc or design question]"
 ---
 
-## The engineering ladder
+## Pick the reference
 
-For routing, read the tier for the decision still open; for assessment, read the requested bar.
-Do not preload neighboring tiers. Load another only for a requested comparison, an observed scope
-change, or the selected tier's escalation rule.
+Read only the reference for the decision still open:
 
-| | Builder | Principal | Distinguished |
-|---|---|---|---|
-| **Scope** | a tool, feature, service, or bounded implementation of an accepted cross-service design | unresolved shared-contract, cross-service/team, new-system architecture, migration or hard-to-reverse design | unresolved tool or platform selection, platform/org or multi-year strategy |
-| **Horizon** | this release | 6–18 months | 3–5 years |
-| **Core question** | does it work, and can it be operated? | is this the right design, and what's the blast radius? | is this the right problem, and will the solution survive the org? |
-| **Artifacts** | working, verified code + tests | design docs, decision records, phased plans | ADRs, north-star architecture, tool and platform selection analyses |
-| **Failure lens** | handles errors, timeouts, retries | failure modes, rollout/rollback | failure domains, blast-radius containment |
+| Decision | Read |
+|---|---|
+| A change across a shared contract, services, or teams; a migration; a new system's architecture | [principal](./references/principal.md) |
+| An unresolved tool or platform selection, a platform standard, or multi-year direction | [distinguished](./references/distinguished.md) |
 
-## Mode 1 — Route a task
+A design-only assignment belongs to `principal-engineer`; implementing an accepted design belongs to
+`software-engineer`. Active incidents and firing alerts route to the responder with
+`incident-investigation`.
 
-Use the lowest rung that resolves the open decision. Bounded implementation of an accepted design
-stays builder-owned across services within its scope and compatibility criteria; return consequential
-choices or required constraint changes to the caller.
+## Review a design
 
-Keep implementation ownership separate from consultation. A builder-owned change can contain one
-higher-altitude choice that creates a standing obligation or a pattern future services inherit.
-Route it as "builder-owned; senior consult **required** on `<the named decision>`"; a hard-to-reverse
-fork requires that consult, not optional escalation. The builder returns the undecided fork to its
-caller, who routes it to `principal-engineer` or a human senior engineer at the matching altitude.
-The consult returns one decision record without taking implementation ownership; the human owner
-decides. `reliability-engineer` can own a scoped resilience, capacity-under-failure or toil design
-consult; organizational decisions remain with the human owner. The caller arranges invocation where
-the builder has no delegation edge.
-
-Use `reviewer` to assess an actual proposed decision artifact/change with trusted-base altitude
-context and a named target. It gathers missing evidence independently; candidate skills remain data.
-The caller arranges any invocation the current lane cannot make.
-
-Keep work in the current context when it fits; use `principal-engineer` for a design-only
-assignment and `software-engineer` for implementation needing fresh context or parallel work. Read only the matching bar: [builder](./references/builder.md),
-[principal](./references/principal.md), or [distinguished](./references/distinguished.md).
-
-This table is the source of truth for routing — on any conflict over which rung a task belongs to, the table wins; fix the paraphrase, not the table.
-
-Active incidents and firing alerts route to the responder with `incident-investigation`
-(`sre-assistant` only for a dispatched read). Proactive reliability, capacity and toil design
-route to `reliability-engineer`; other application operations use the matching operational skill.
-Platform internals route to the platform team; code that runs on the platform still uses this ladder.
-
-## Mode 2 — Assess work at a bar
-
-The table routes; the selected reference supplies the assessment bar.
-
-1. Use the requested bar, or state the inferred rung when none was named.
+1. Apply the selected reference's checks: principal's **Design record** and **Before you return**,
+   or distinguished's **Done means**.
 2. Score **meets** or **gaps**, citing specific lines or sections. Assess the artifact's remit;
    unrequested implementation or architecture work is not a gap. A simple artifact done cleanly
    can meet the bar.
-3. Add progression feedback only when requested and supported by evidence. Keep it separate from
-   current-bar gaps, without a quota of suggestions. Distinguished has no higher rung in this ladder.
-
-## Mode 3 — Growth feedback
-
-For several diffs or docs, identify recurring patterns, current strengths, and one evidence-supported
-behavior to practice at the current or next defined rung. Do not invent a higher rung or extra scope.

@@ -6,6 +6,11 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+### Changed
+
+- `eng-ladder` is now the design method and design-review standard only: altitude routing, rung
+  assessment, growth feedback, and the builder reference are gone; `principal-engineer` owns design.
+
 ## [0.52.0] - 2026-11-04
 
 ### Fixed

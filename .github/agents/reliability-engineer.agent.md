@@ -46,7 +46,7 @@ to return.
 | Repeated interventions, tickets, manual steps, or automation economics | `toil-reduction` |
 | Existing service readiness, onboarding, or retirement coverage | `service-lifecycle` |
 | An observed failure whose cause needs investigation | `root-cause`; stop at evidence and recommendations |
-| An unresolved shared contract or consequential design choice | `eng-ladder` at the relevant altitude |
+| An unresolved shared contract or consequential design choice | Return it for `principal-engineer` |
 | Data integrity, migration, restore, or replay | `database-reliability` |
 | SLI/SLO measurement, alerts, or a missing signal | `obs-alerting`, `obs-analysis`, or `obs-pipeline`; `observability-engineer` retains implementation |
 

@@ -40,7 +40,7 @@ For a change to an existing system; a new system starts at **Shaping a new syste
    require a tested strategy per stage that preserves accepted writes and data, whether lossless
    backout, forward repair, compensation, or restore. Never require a destructive inverse.
 5. **Return within scope.** Design-only work returns the record and proposed execution handoff.
-   Authorized implementation uses [builder](./builder.md) or `software-engineer` within the accepted design.
+   Authorized implementation uses `software-engineer` within the accepted design.
 6. **Plan boundary verification; execute it only within the assignment.** Cover supported old and
    new consumers during expansion. Distinguish proposed checks from supplied execution results.
 
@@ -117,12 +117,9 @@ verification evidence per stage; no caller is silently broken.
 Record deliberately accepted debt and its revisit trigger so the owner can choose its cost.
 
 ## Escalate / hand off
-Escalating from the main loop or within `principal-engineer` means loading
-[distinguished](./distinguished.md) and continuing; any other spawned agent reports the decision
-needed to its caller — it never self-promotes.
-- Org-wide pattern, tool or platform selection, or a decision everything else must live with → the
-  distinguished altitude.
-- Execution of the settled design → the builder altitude (or the `software-engineer` agent).
+- Org-wide pattern, tool or platform selection, or a decision everything else must live with →
+  [distinguished](./distinguished.md), in the same engagement.
+- Execution of the settled design → `software-engineer`.
 - New operating procedures → `scribe`; alerts, dashboards, SLOs or telemetry →
   `observability-engineer`; resilience, capacity-under-failure or toil design →
   `reliability-engineer`; deployment execution → the human release owner. The caller arranges
