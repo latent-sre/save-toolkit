@@ -6,6 +6,11 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+### Changed
+
+- `software-engineer`'s description no longer routes runbooks and postmortems to `scribe` or states
+  deploy ownership; its body still holds the deploy rule.
+
 ## [0.52.0] - 2026-11-04
 
 ### Fixed
