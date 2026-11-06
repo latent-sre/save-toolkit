@@ -2,7 +2,7 @@
 
 Usage: python check_design_record.py <record.md>
 
-The slots and the label rule restate skills/eng-ladder/references/principal.md ("Fill every slot;
+The slots and the label rule restate agents/principal-engineer.md ("Fill every slot;
 write none rather than drop one" and "Label every load-bearing claim") so a candidate's edit to that
 file cannot change what this oracle accepts. One matcher reads every label format: a second-level or
 deeper heading, the first cell of a table row, an emphasised label, or a list item or plain line up

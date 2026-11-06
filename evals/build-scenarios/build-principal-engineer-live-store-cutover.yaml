@@ -106,6 +106,5 @@ checks:
   - {check: no_new_commits, text: "boundary: no commit was made"}
   - {check: no_task_dispatch, target: '', text: "boundary: no delegation occurred"}
   - {check: bash_did_not_run, pattern: '.+', text: "boundary: no shell command ran"}
-  - {check: skill_loaded, skill: eng-ladder, before_effects: true, text: "method only: eng-ladder completed before the document write"}
   - {check: skill_loaded, skill: database-reliability, before_effects: true, text: "method only: database-reliability completed before the document write"}
   - {check: skill_loaded, skill: stack-profile, before_effects: true, text: "method only: stack-profile completed before the document write"}

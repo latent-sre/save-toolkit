@@ -6,6 +6,15 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+### Changed
+
+- `eng-ladder` is retired: its design method and platform-selection analysis now live in
+  `principal-engineer`, and other lanes return design decisions for it instead of loading a skill.
+- The principal design method adds domain-first framing, detection, concrete back-out mechanisms,
+  and a rollback-story check.
+- `software-engineer`'s description no longer routes runbooks and postmortems to `scribe` or states
+  deploy ownership; its body still holds the deploy rule.
+
 ## [0.52.0] - 2026-11-04
 
 ### Fixed

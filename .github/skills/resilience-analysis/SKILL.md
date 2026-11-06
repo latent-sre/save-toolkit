@@ -75,7 +75,7 @@ required verification can matter urgently without proving that recovery will fai
 
 Compare the smallest effective change with existing controls and consequential alternatives. Specify
 the mechanism it changes, compatibility, degraded behavior, operational burden, recovery, owner and
-acceptance criteria. Load `eng-ladder` for consequential shared-contract decisions. Implementation,
+acceptance criteria. Return consequential shared-contract decisions for `principal-engineer`. Implementation,
 independent change review and live execution retain their existing owners.
 
 For calculations, show units, measured versus assumed inputs, the equation, uncertainty and validity

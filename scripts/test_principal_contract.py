@@ -9,7 +9,7 @@ from test_validate_fleet import DesignLaneAuthorityContract
 from testkit import markdown_section
 
 ROOT = Path(__file__).resolve().parents[1]
-PRINCIPAL = ROOT / "skills/eng-ladder/references/principal.md"
+PRINCIPAL = ROOT / "agents/principal-engineer.md"
 
 
 class PrincipalContractTests(DesignLaneAuthorityContract, unittest.TestCase):

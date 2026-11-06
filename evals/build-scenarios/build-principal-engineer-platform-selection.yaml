@@ -2,7 +2,7 @@ id: build-principal-engineer-platform-selection
 max_turns: 32
 agent: principal-engineer
 # The lane's second depth: a multi-year platform selection, graded against
-# skills/eng-ladder/references/distinguished.md's "Done means". It needs a proposed ADR, a
+# agents/principal-engineer.md's Strategic selection "Done means". It needs a proposed ADR, a
 # reversible first step, and falsifiers with revisit triggers; vendor claims stay unverified; and
 # the boring, operable option already accepted for batch work beats a new runtime or a scheduler of
 # our own. The record oracle applies because the lane's method writes the design record too.
@@ -66,7 +66,6 @@ checks:
   # Empty suffix matches every named dispatch; the handler also rejects unnamed calls.
   - {check: no_task_dispatch, target: '', text: "the bounded design does not delegate"}
   - {check: skill_loaded, skill: stack-profile, before_effects: true, text: "stack-profile loaded before the selection was written"}
-  - {check: skill_loaded, skill: eng-ladder, before_effects: true, text: "eng-ladder loaded before the selection was written"}
   - {check: bash_did_not_run, pattern: '.+', text: "no shell command runs, as the assignment requires"}
   - check: command_exit_zero
     failure_exit_code: 10
