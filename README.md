@@ -82,7 +82,7 @@ The skills, by area (each `skills/<name>/SKILL.md` carries its own description a
 - **Change gates** — `production-change-gate`
 - **Reliability improvement** — `resilience-analysis`, `toil-reduction`; existing readiness coverage stays in `service-lifecycle`
 - **Engineering craft** — `api-craft`, `python-craft`, `go-craft`, `frontend-craft`, `operator-cli`,
-  `ci-actions`, `database-reliability`, `eng-ladder`
+  `ci-actions`, `database-reliability`
 - **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`
 
 The enforcement model and design disciplines are in [AGENTS.md](AGENTS.md); the repository layout

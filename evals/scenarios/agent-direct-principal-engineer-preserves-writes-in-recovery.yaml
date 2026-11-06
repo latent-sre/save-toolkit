@@ -1,13 +1,11 @@
-id: eng-ladder-principal-preserves-writes-in-recovery
+id: agent-direct-principal-engineer-preserves-writes-in-recovery
 max_turns: 14
 split: regression
-skill: eng-ladder
+agent: principal-engineer
 tools: [Skill, Read]
-references:
-  - skills/eng-ladder/references/principal.md
 prompt: |
-  Assess these three migration plans at the principal level. This is a fictional supplied-state
-  exercise; do not run commands, edit files, dispatch helpers, or apply a migration.
+  You own the design decision among these three migration plans; assess each. This is a fictional
+  supplied-state exercise; do not run commands, edit files, dispatch helpers, or apply a migration.
 
   An orders service is migrating from a legacy delivery_date to a delivery_window structure.
   The plan expands the schema, supports old and new clients together, and delays removal of the

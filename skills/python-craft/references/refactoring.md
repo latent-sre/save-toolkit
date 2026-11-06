@@ -46,7 +46,7 @@ adapters only for actual supported consumers.
 
 Map consumers before choosing the boundary, including release inputs and non-code consumers such as
 configured names and package data. For an unresolved rollout, compatibility, or recovery design,
-use the project's design workflow; load `eng-ladder` for principal-level design guidance.
+use the project's design workflow or return the decision for `principal-engineer`.
 
 1. Complete a real consumer path before widening; dormant helpers can pass tests while callers
    still use old policy.

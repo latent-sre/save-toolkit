@@ -23,7 +23,7 @@ IDENTITY = ROOT / "build-scenarios/build-principal-engineer-order-event-identity
 IDENTITY_INCUMBENT = ROOT / "build-scenarios/build-software-engineer-order-event-identity-baseline.yaml"
 PLATFORM = ROOT / "build-scenarios/build-principal-engineer-platform-selection.yaml"
 ORACLE = ROOT / "oracles/principal-engineer/check_design_record.py"
-PRINCIPAL = ROOT.parent / "skills/eng-ladder/references/principal.md"
+PRINCIPAL = ROOT.parent / "agents/principal-engineer.md"
 
 CONTRACT_REPLY = {
     "consumer_files": "cli/mw.py,grafana/dashboards/maintenance.json,spa/src/windows.ts",

@@ -1,12 +1,10 @@
-id: eng-ladder-design-only-authority
+id: agent-direct-principal-engineer-design-only-authority
 max_turns: 15
 split: regression
-skill: eng-ladder
+agent: principal-engineer
 tools:
 - Skill
 - Read
-references:
-- skills/eng-ladder/references/principal.md
 prompt: |-
   A human owner assigns only a design for changing a shared API consumed by two services.
   The supplied inventory names both consumers. Propose an additive field, a compatibility window,

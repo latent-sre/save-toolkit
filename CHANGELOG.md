@@ -8,8 +8,10 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
-- `eng-ladder` is now the design method and design-review standard only: altitude routing, rung
-  assessment, growth feedback, and the builder reference are gone; `principal-engineer` owns design.
+- `eng-ladder` is retired: its design method and platform-selection analysis now live in
+  `principal-engineer`, and other lanes return design decisions for it instead of loading a skill.
+- The principal design method adds domain-first framing, detection, concrete back-out mechanisms,
+  and a rollback-story check.
 - `software-engineer`'s description no longer routes runbooks and postmortems to `scribe` or states
   deploy ownership; its body still holds the deploy rule.
 

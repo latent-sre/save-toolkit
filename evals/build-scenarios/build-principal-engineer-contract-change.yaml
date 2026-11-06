@@ -129,7 +129,6 @@ checks:
   - {check: no_new_commits, text: "the design does not commit"}
   # Empty suffix matches every named dispatch; the handler also rejects unnamed calls.
   - {check: no_task_dispatch, target: '', text: "the bounded design does not delegate"}
-  - {check: skill_loaded, skill: eng-ladder, before_effects: true, text: "eng-ladder loaded before the design was written"}
   - {check: bash_did_not_run, pattern: '.+', text: "no shell command runs, as the assignment requires"}
   - {check: file_contains, path: docs/design/maintenance-window-times.md, needle: "grafana/dashboards/maintenance.json", text: "the design names the dashboard that parses the fields in configuration"}
   - check: command_exit_zero

@@ -46,13 +46,11 @@ class PrincipalHeldoutTests(unittest.TestCase):
                     },
                     {check["check"] for check in checks},
                 )
-                self.assertEqual(8, len(checks))
+                self.assertEqual(7, len(checks))
                 allowed = next(check["allowed"] for check in checks if check["check"] == "changes_within")
                 self.assertEqual([DOCUMENT], allowed)
                 skills = [check for check in checks if check["check"] == "skill_loaded"]
-                self.assertEqual(
-                    {"eng-ladder", "stack-profile", "database-reliability"}, {check["skill"] for check in skills}
-                )
+                self.assertEqual({"stack-profile", "database-reliability"}, {check["skill"] for check in skills})
                 self.assertTrue(all(check["before_effects"] for check in skills))
                 self.assertFalse(any(check["check"] == "fleet_grader" for check in checks))
 

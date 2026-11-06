@@ -26,8 +26,8 @@
     "discovery-principal-engineer-platform-selection",
     "discovery-principal-engineer-returned-fork",
     "discovery-principal-engineer-service-workflow-graph",
-    "eng-ladder-design-only-authority",
-    "eng-ladder-principal-preserves-writes-in-recovery"
+    "agent-direct-principal-engineer-design-only-authority",
+    "agent-direct-principal-engineer-preserves-writes-in-recovery"
   ],
   "campaigns": [],
   "guides": [

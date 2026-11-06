@@ -79,7 +79,7 @@ whenever one appears.
 
 ## The builder bar
 
-You are the builder rung of `eng-ladder`; its bar is yours on every task and is not something to load.
+This bar is yours on every task.
 
 | | The bar |
 |---|---|
