@@ -55,3 +55,20 @@ calls can break. A feature's availability does not establish equivalence.
 For a Ruff upgrade preview, follow [Refactoring tools](./refactoring-tools.md) and select `UP` with
 the component's actual `--target-version`. Keep optional and standard-library-only components within
 their own constraints. Validate affected deployment versions rather than just the developer's runtime.
+
+## Dependency and packaging decisions
+
+Do not impose a blanket zero-dependency rule without a project/runtime constraint, or write a
+substantial custom parser, validator or client without comparing suitable existing capabilities.
+Check distribution and import names, actual APIs, maintenance/deprecations, target wheels/native
+build requirements, licensing, advisories and transitive/operational costs. Reuse unchanged evidence
+for unrelated edits; unavailable evidence remains a stated gap.
+
+Keep runtime requirements, user extras and development groups distinct. Libraries declare supported
+compatibility ranges; applications lock deployment environments. Update generated locks through the
+project package manager, without incidental unrelated upgrades. Existing configuration conventions
+win; do not introduce duplicate formatters, linters or package managers.
+
+Replacement tests also cover decimal rounding, ordering, duplicate keys, mutable defaults and
+missing-versus-null values. Translate exceptions where consumers require the existing domain type;
+verify cleanup, timeout and retry behavior before removing the old implementation.

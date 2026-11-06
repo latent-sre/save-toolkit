@@ -8,6 +8,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Consolidate Python guidance under `python-craft`, preserving engineering recipes and oracle coverage;
+  retire the duplicate `python-engineering` skill.
+
 - `eng-ladder` is retired: its design method and platform-selection analysis now live in
   `principal-engineer`, and other lanes return design decisions for it instead of loading a skill.
 - The principal design method adds domain-first framing, detection, concrete back-out mechanisms,

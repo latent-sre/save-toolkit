@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Deterministic evaluation cases and acceptance oracles for the `python-engineering` skill.
+"""Deterministic evaluation cases and acceptance oracles for the `python-craft` skill.
 
-Defined before drafting `skills/python-engineering/` to evaluate:
+Preserved engineering cases for the consolidated Python skill evaluate:
 1. Building new code well from the start.
 2. Improving existing code deliberately.
 3. Improving the refactoring process itself.
@@ -24,12 +24,12 @@ from decimal import Decimal
 from pathlib import Path
 from types import ModuleType
 
-SKILL_NAME = "python-engineering"
+SKILL_NAME = "python-craft"
 REQUIRED_REFERENCES = (
-    "references/starting-code.md",
-    "references/refactoring-playbook.md",
+    "references/writing-python.md",
+    "references/refactoring-recipes.md",
     "references/refactoring-tools.md",
-    "references/dependencies.md",
+    "references/libraries-and-modernization.md",
     "references/quality-gates.md",
 )
 
@@ -67,8 +67,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "`float` inputs, `submitted_at: datetime` with timezone, and `tags: list[str]`)."
         ),
         expected_references=(
-            "references/starting-code.md",
-            "references/dependencies.md",
+            "references/writing-python.md",
+            "references/libraries-and-modernization.md",
             "references/quality-gates.md",
         ),
         forbidden_references=("references/refactoring-tools.md",),
@@ -96,7 +96,7 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "the module appropriately."
         ),
         expected_references=(
-            "references/starting-code.md",
+            "references/writing-python.md",
             "references/quality-gates.md",
         ),
         forbidden_references=("references/refactoring-tools.md",),
@@ -115,7 +115,7 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "`tests/test_fee_engine.py`."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
+            "references/refactoring-recipes.md",
             "references/quality-gates.md",
         ),
         forbidden_references=(),
@@ -167,7 +167,7 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "`ledger/reconciliation.py` module and add unit tests in `tests/test_ledger.py`."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
+            "references/refactoring-recipes.md",
             "references/refactoring-tools.md",
             "references/quality-gates.md",
         ),
@@ -226,7 +226,7 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "evaluations."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
+            "references/refactoring-recipes.md",
             "references/quality-gates.md",
         ),
         forbidden_references=(),
@@ -284,7 +284,7 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "and clean up the module's structure."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
+            "references/refactoring-recipes.md",
             "references/quality-gates.md",
         ),
         forbidden_references=(),
@@ -335,8 +335,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "validation contracts."
         ),
         expected_references=(
-            "references/dependencies.md",
-            "references/refactoring-playbook.md",
+            "references/libraries-and-modernization.md",
+            "references/refactoring-recipes.md",
             "references/quality-gates.md",
         ),
         forbidden_references=(),
@@ -435,7 +435,7 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "any unavailable checks."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
+            "references/refactoring-recipes.md",
             "references/quality-gates.md",
         ),
         forbidden_references=(),
@@ -504,7 +504,7 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "there is a genuine material defect."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
+            "references/refactoring-recipes.md",
             "references/quality-gates.md",
         ),
         forbidden_references=(),

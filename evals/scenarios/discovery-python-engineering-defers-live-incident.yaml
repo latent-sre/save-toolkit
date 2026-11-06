@@ -7,7 +7,7 @@ prompt: |
   what to check next in logs and metrics without editing source code.
 target:
   kind: skill
-  name: python-engineering
+  name: python-craft
 routing:
   expect: not_fire
   expected_alternative:

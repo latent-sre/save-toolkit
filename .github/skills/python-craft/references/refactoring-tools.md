@@ -59,3 +59,9 @@ from Python 3.13+; check older recipes against the actual toolchain.
 Check the installed tool's parser support against the actual syntax, including modern annotations;
 its minimum installable Python version does not establish support for every target syntax feature.
 Keep tools in a development environment; report the tool/version and unresolved references when material.
+
+Do not use broad text/regex replacements for symbol moves, argument reordering or import rewrites
+where shadowed names, strings and comments can match. Do not rewrite production files in place with
+`ast.parse()` followed by `ast.unparse()`; it loses comments and original formatting. For a custom
+codemod, include multiline calls, decorators and aliased imports in the positive/negative fixtures,
+then pilot a bounded module before wider application. Remove temporary Rope metadata before delivery.

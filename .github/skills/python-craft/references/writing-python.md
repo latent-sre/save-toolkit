@@ -39,3 +39,31 @@ malformed-input policy, then test valid non-ASCII and rejected bytes through bot
 in-memory text tests exercise neither. Keep decoding in the CLI adapter, preserve borrowed streams
 and the core's text/record contract. Exercise the real entrypoint; when installation is part of
 delivery, check the installed artifact outside the checkout.
+
+## Deliverable Classification and Layout Selection
+
+Before writing implementation code, classify the deliverable and select the smallest layout that
+supports its execution, import, and testing boundaries:
+
+| Deliverable type | Required layout decision | Packaging rule |
+|---|---|---|
+| Standalone script or single-module utility | Single `<name>.py` file with focused functions (and a `main(argv: Sequence[str] | None = None) -> int` entry point if CLI-invoked) | MUST NOT create `pyproject.toml`, package directories, `src/` scaffolding, or build backends for a standalone script or isolated single-module utility that has no existing `pyproject.toml`. Optionally use inline script metadata ([PEP 723](https://peps.python.org/pep-0723/)) when isolated script dependencies are needed |
+| CLI application | Importable package (`<pkg>/` or `src/<pkg>/`) separating argument parsing/IO from core domain logic, plus `[project.scripts]` entry point | Configure `[build-system]` and `[project]` in `pyproject.toml` ([PyPA pyproject.toml](https://packaging.python.org/en/latest/specifications/pyproject-toml/)) |
+| Service or worker | Package separating transport/framework wiring, configuration loading, and pure domain/policy modules | Manage runtime vs. development dependencies and lockfiles for reproducible deployment ([libraries and modernization](./libraries-and-modernization.md)) |
+| Reusable library | `src/<pkg>/` layout (prevents accidental uninstalled local imports during testing), explicit `__all__`, and `py.typed` marker ([PEP 561](https://peps.python.org/pep-0561/)) | Define compatibility ranges in `requires-python` and `[project.dependencies]` without pinning consumer applications |
+| Component inside an existing project | Module or subpackage matching the repository's established package root, naming, and test layout | Reuse existing `pyproject.toml`, test runner, and lint/type configuration |
+
+## Start with a complete path
+
+Inspect existing modules and dependencies before creating a utility. Establish entrypoints, pure
+policy, IO and configuration boundaries; annotate public interfaces and validate external inputs.
+Implement and check one end-to-end slice before repeating its structure. Inject clocks, clients,
+randomness and streams when their variability matters to the contract or tests.
+
+Reject booleans at integer-only boundaries; reject binary floats when accepting exact decimal inputs.
+ASCII-only identifiers need an ASCII check as well as alphanumeric/case checks. Test these at the
+actual validation boundary, including rejected inputs.
+
+Create modules, classes and protocols for real responsibility, lifecycle or integration boundaries.
+Do not add speculative factories, forwarding managers, dependency-injection containers or deep
+package layers to a small utility. Simple code still needs clear types and behavioral tests.

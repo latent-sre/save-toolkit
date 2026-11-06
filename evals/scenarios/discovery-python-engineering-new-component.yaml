@@ -6,9 +6,9 @@ prompt: |
   boundary, writes behavioral pytest cases first, enforces strict typing on public interfaces, and
   wires ruff and mypy quality gates before expanding the module layout.
 success_criteria:
-  - Activates Python engineering workflow when starting a new Python component with tests, types, and quality gates.
+  - Activates Python craft workflow when starting a new Python component with tests, types, and quality gates.
 target:
   kind: skill
-  name: python-engineering
+  name: python-craft
 routing:
   expect: fire

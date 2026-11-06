@@ -31,15 +31,8 @@ match the task:
 1. **Establish the baseline before editing existing code.** Run the target test files and static gates
    before making changes. Record any pre-existing failures so they are separated from regressions
    introduced by your work.
-2. **Use the repository's actual interpreter and commands.** Run checks using the project's virtual
-   environment (`.venv/bin/python` or `.venv\Scripts\python.exe` / `uv run`) and configured flags in
-   `pyproject.toml` or CI workflows. Record the selected `sys.executable` and `sys.version`, run
-   baseline and final checks through that same interpreter, and invoke tools as
-   `<python> -m pytest` / `-m mypy` so an unrelated `PATH` install is not used.
-   - For uv projects, use `uv run --locked` (fails on a stale lock); `--frozen` skips the freshness
-     check and `--no-sync` can run stale dependencies, so neither is stronger validation.
-   - MUST NOT run `uv pip sync` with a sparse requirements file against a shared environment; it
-     removes every package outside its input.
+2. **Bind baseline and final checks to the project environment.** Follow
+   [environment and checks](./environment-and-checks.md) for interpreter identity, commands and locks.
 3. **Iterate with fast, focused checks.** During step-by-step refactoring or vertical-slice
    implementation, run `python -m pytest <affected_test_file>` and `python -m ruff check <affected_files>`
    after each step to catch regressions immediately.
@@ -70,7 +63,8 @@ when standard `pytest`/`unittest` parametrized checks suffice:
 
 ## Configuring and Improving Project Gates
 
-- **New projects:** Establish a minimal coherent gate set in `pyproject.toml`:
+- **New packaged projects:** Establish a minimal coherent gate set in `pyproject.toml`;
+  a standalone script does not require new project scaffolding:
   - `ruff check` with at least `["E", "F", "W", "I", "B", "UP", "SIM"]` and `ruff format --check`.
   - `mypy` (`strict = true`) or `pyright` covering source and test modules.
   - `pytest` with strict markers/config.
@@ -92,6 +86,6 @@ when standard `pytest`/`unittest` parametrized checks suffice:
   - Cite coverage percentages or cyclomatic complexity numbers as proof of correctness or good design.
   - Report unexecuted, stale, or hypothetical commands as passing.
 - **Final diff review.** For substantial changes, inspect `git status` and `git diff` against the task
-  requirements, Python-specific hazards ([refactoring-playbook.md](refactoring-playbook.md)), and
+  requirements, Python-specific hazards ([refactoring](./refactoring.md)), and
   scope boundaries. Use an independent `reviewer` lane when available and authorized; otherwise
   perform a dedicated self-review and label it accurately as self-review.

@@ -19,6 +19,13 @@ design, and review requests stop at those outputs unless implementation is reque
 establish the cause and expected behavior, reproduce it, and verify the repair. Keep small changes
 scoped; report material adjacent findings separately.
 
+For substantial work, actively compare the current approach with the strongest credible alternative.
+"Keep the diff small", "avoid dependencies", and "it already works" need a concrete compatibility,
+risk or cost reason to rule out an improvement. Neither novelty nor the status quo wins by default.
+Build new code well, improve existing code deliberately, and choose transformations that make the
+refactoring itself safer. Record consequential choices as problem, approach, benefit, cost/risk and
+verification; trivial edits do not trigger unrelated redesign.
+
 ## Build or improve
 
 1. Choose the workflow: **new code** establishes the contract, consumer, and delivery shape;
@@ -43,12 +50,14 @@ scoped; report material adjacent findings separately.
 | Starting a script, module, library, or service | [Writing Python](./references/writing-python.md), including entrypoint and byte-boundary checks |
 | Interpreter/dependencies uncertain or changing | [Environment and checks](./references/environment-and-checks.md) |
 | Calls, functions, modules, data, or resource ownership | [Writing Python](./references/writing-python.md) |
-| Structural improvement, a multi-module migration, or Pythonic replacements | [Refactoring](./references/refactoring.md) |
+| Structural improvement, a multi-module migration, or Pythonic replacements | [Refactoring](./references/refactoring.md); use the matching [refactoring recipes](./references/refactoring-recipes.md) for the observed structural problem |
 | Need a worked comparison for flattening nested control flow | [Guard-clause example](./references/refactoring.md#guard-clause-example) |
 | Library adoption or dependency/runtime migration | [Libraries and modernization](./references/libraries-and-modernization.md) |
 | Automated transformations, lint fixes, or unused-code detection | [Refactoring tools](./references/refactoring-tools.md) |
+| Selecting checks or changing project quality gates | [Quality gates](./references/quality-gates.md) and [Environment and checks](./references/environment-and-checks.md) |
 | Bug hunting, review, or a suspected failure | [Finding defects](./references/finding-defects.md) |
 
-Load matching references only. Run project checks in the intended environment on supported Python
+Route from the inspected code and project configuration as well as the request. For implementation
+or verification, read the applicable quality-gate rows; load other references only when they match. Run project checks in the intended environment on supported Python
 versions; report intentional behavior differences, verification, and remaining uncertainty; measure
 performance claims separately.

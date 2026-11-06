@@ -1,4 +1,4 @@
-"""Specification and oracle calibration tests for the `python-engineering` skill."""
+"""Specification and oracle calibration tests for the `python-craft` skill."""
 
 from __future__ import annotations
 
@@ -13,25 +13,28 @@ import yaml
 from probe import catalog as probe_catalog
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILL_DIR = ROOT / "skills" / "python-engineering"
+SKILL_DIR = ROOT / "skills" / "python-craft"
 SKILL_MD = SKILL_DIR / "SKILL.md"
 REFERENCES_DIR = SKILL_DIR / "references"
-ORACLE_PATH = ROOT / "evals" / "oracles" / "python-engineering" / "evaluate_cases.py"
+ORACLE_PATH = ROOT / "evals" / "oracles" / "python-craft" / "evaluate_cases.py"
 
 EXPECTED_REFERENCES = (
-    "starting-code.md",
-    "refactoring-playbook.md",
+    "writing-python.md",
+    "refactoring-recipes.md",
     "refactoring-tools.md",
-    "dependencies.md",
+    "libraries-and-modernization.md",
     "quality-gates.md",
+    "environment-and-checks.md",
+    "finding-defects.md",
+    "refactoring.md",
 )
 
 
 def _load_oracle_module():
-    spec = importlib.util.spec_from_file_location("python_engineering_eval_oracle", ORACLE_PATH)
+    spec = importlib.util.spec_from_file_location("python_craft_engineering_oracle", ORACLE_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules["python_engineering_eval_oracle"] = module
+    sys.modules["python_craft_engineering_oracle"] = module
     spec.loader.exec_module(module)
     return module
 
@@ -53,24 +56,16 @@ def test_required_file_structure_and_no_extra_files() -> None:
     assert actual_refs == sorted(EXPECTED_REFERENCES)
 
 
-def test_skill_frontmatter_and_word_budget() -> None:
-    raw = SKILL_MD.read_text(encoding="utf-8")
-    meta, body = _split_frontmatter(raw)
-    assert set(meta.keys()) <= {"name", "description", "argument-hint", "disable-model-invocation", "compatibility"}
-    assert meta["name"] == "python-engineering"
-    description = str(meta["description"])
-    assert len(description) <= 1024
-    assert "Triggers:" in description
-    quoted_triggers = re.findall(r'"([^"]+)"', description.split("Triggers:", 1)[1])
-    assert 2 <= len(quoted_triggers) <= 4
-    body_words = len(body.split())
-    assert 550 <= body_words <= 950, f"Expected SKILL.md body near 600-900 words, got {body_words}"
+def test_skill_frontmatter_and_retired_entrypoint() -> None:
+    meta, _ = _split_frontmatter(SKILL_MD.read_text(encoding="utf-8"))
+    assert meta["name"] == "python-craft"
+    assert not (ROOT / "skills" / "python-engineering").exists()
 
 
 def test_skill_links_every_reference() -> None:
     _, body = _split_frontmatter(SKILL_MD.read_text(encoding="utf-8"))
     for ref_name in EXPECTED_REFERENCES:
-        link_pattern = f"](references/{ref_name})"
+        link_pattern = f"](./references/{ref_name})"
         assert link_pattern in body, f"SKILL.md must link directly to references/{ref_name}"
 
 
@@ -85,7 +80,7 @@ def test_references_have_contents_toc_and_no_evidence_labels() -> None:
 
 
 def test_refactoring_playbook_recipes_carry_every_required_field() -> None:
-    playbook = (REFERENCES_DIR / "refactoring-playbook.md").read_text(encoding="utf-8")
+    playbook = (REFERENCES_DIR / "refactoring-recipes.md").read_text(encoding="utf-8")
     for required_field in (
         "- **Trigger:**",
         "- **Preconditions:**",
@@ -96,7 +91,7 @@ def test_refactoring_playbook_recipes_carry_every_required_field() -> None:
         assert playbook.count(required_field) >= 19, f"Expected >=19 occurrences of {required_field}"
 
 
-def test_routing_scenarios_for_python_engineering_validate() -> None:
+def test_migrated_routing_scenarios_validate() -> None:
     scenario_dir = ROOT / "evals" / "scenarios"
     expected_ids = {
         "discovery-python-engineering-modernize": "fire",
@@ -108,7 +103,7 @@ def test_routing_scenarios_for_python_engineering_validate() -> None:
         path = scenario_dir / f"{scenario_id}.yaml"
         assert path.is_file(), f"Missing routing scenario {path}"
         spec = probe_catalog.load_scenario(path)
-        assert spec["target"] == {"kind": "skill", "name": "python-engineering"}
+        assert spec["target"] == {"kind": "skill", "name": "python-craft"}
         assert spec["routing"]["expect"] == expected_routing
 
 

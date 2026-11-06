@@ -1,28 +1,12 @@
-# Python Refactoring Playbook
+# Refactoring recipes
 
 ## Contents
 
-- Pre-Refactoring Protocol
 - Problem-to-Technique Decision Table
-- Operational Refactoring Recipes
-- Python-Specific Refactoring Hazards
-- Sequencing Mixed Work and Incremental Migrations
+- Operational Refactoring Recipes (R1–R19)
 
-## Pre-Refactoring Protocol
-
-1. **Name the problem and the benefit** (mixed IO and policy, mutable module state, duplicated rule
-   drift, pass-through indirection) before touching code.
-2. **Inspect static and dynamic consumers:** callers, imports, `__all__`, `pyproject.toml` entry
-   points, config files, `importlib`/`getattr` strings, plugin registries, and `mock.patch` targets.
-3. **Characterize undertested code** with tests that pass against the unmodified implementation,
-   covering edge cases, side effects, rounding, mutation, and error paths.
-4. **Preserve observable contracts** (return values and types, exception types/messages callers match
-   on, argument mutation, CLI flags/exit codes/streams, serialized formats, concurrency behavior)
-   unless a contract change is authorized.
-5. **Record discovered bugs separately.** Fix them in a separate step only within scope; otherwise
-   preserve and report them.
-6. **Weigh removal as seriously as addition:** collapse speculative hierarchies, middle-man wrappers,
-   and single-implementation interfaces before adding layers.
+Use [refactoring](./refactoring.md) for consumer contracts, characterization, migration sequencing
+and Python hazards. Read only the recipes matching the observed problem.
 
 ## Problem-to-Technique Decision Table
 
@@ -83,10 +67,10 @@ recipe in full.
 ### R4. Extract Module and Move Function/Class/Symbol
 - **Trigger:** A module mixes sub-domains, or a symbol belongs with another module's data.
 - **Preconditions:** Check `__all__`, `[project.scripts]`/entry points, `importlib` strings, and
-  `mock.patch("pkg.old_mod.sym")` targets; apply [refactoring-tools.md](refactoring-tools.md).
+  `mock.patch("pkg.old_mod.sym")` targets; apply [refactoring tools](./refactoring-tools.md).
 - **Transformation:** Move the symbol and its private helpers; update internal imports,
-  `package/__init__.py`, and dynamic target strings. MUST retain a re-export in the original
-  non-private module (`from .new_mod import sym as sym`, or list it in `__all__`) unless breaking the
+  `package/__init__.py`, and dynamic target strings. Retain a re-export for supported consumers of the original
+  module (`from .new_mod import sym as sym`, or list it in `__all__`) unless breaking the
   old path is explicitly requested.
 - **Verification:** Fresh-process imports in both orders (`python -c "import a, b"` and
   `"import b, a"`), dynamic lookups, and the full suite.
@@ -162,8 +146,8 @@ recipe in full.
 - **Trigger:** Functions use module globals, mutable defaults (`def f(x=[])`), or implicit
   `os.environ`/`datetime.now()`.
 - **Preconditions:** Find every reader/writer and whether any caller or test imports the global.
-- **Transformation:** Use `x: list[str] | None = None` with a fresh list in the body. When a mutable
-  global is private (underscore, not in `__all__`, not imported elsewhere), MUST delete it and its
+- **Transformation:** Use `x: list[str] | None = None` with a fresh list in the body. When consumer inspection establishes a mutable
+  global is private (including dynamic references), MUST delete it and its
   `.append()`/`.clear()` mutations, replacing it with a local accumulator or explicit state object.
   Inject clock/config/env as parameters.
 - **Verification:** Call repeatedly in one process; prove no cross-call leakage or aliasing of
@@ -208,7 +192,7 @@ recipe in full.
 ### R18. Incremental Component or Dependency Replacement
 - **Trigger:** Replacing a bespoke parser/client/validator (including when a bug exposes a broken
   hand-rolled TOML/JSON/CSV/URL parser) or a deprecated library.
-- **Preconditions:** Verify target semantics in [dependencies.md](dependencies.md); define cutover
+- **Preconditions:** Verify target semantics in [libraries and modernization](./libraries-and-modernization.md); define cutover
   criteria.
 - **Transformation:** Instead of patching the custom parser, put the stdlib module (`tomllib`,
   `json`, `csv`, `urllib.parse`) or maintained package behind the existing function, translate its
@@ -226,43 +210,3 @@ recipe in full.
 - **Verification:** Tests, linter (`F401`/`F841`), type checker, and import checks.
 - **Avoid when:** It is public API (`__all__`) or invoked by external plugins/config.
 
-## Python-Specific Refactoring Hazards
-
-Check these before and after every transformation:
-
-- **Decorators and wrappers:** Moving decorated code changes import-time registration
-  (FastAPI/Click routes), `functools.wraps` metadata, and descriptor binding.
-- **Dynamic imports and reflection:** `importlib`, `getattr`, `mock.patch("mod.Name")`, task names,
-  and forward refs are invisible to rename tools; grep for the string.
-- **Public re-exports and entry points:** See R4; also check `[project.scripts]` and plugin entry
-  points.
-- **Import-time behavior and circular imports:** Keep module edges acyclic; import each module first
-  in a fresh process.
-- **Mutation, aliasing, and evaluation order:** Extraction can change in-place mutation vs. rebinding
-  (`xs.extend` vs. `xs = xs + ...`) and late-binding closures (`lambda: i`).
-- **Generator exhaustion:** Replacing a list with an iterator breaks second passes and `if items:`.
-- **Exception hierarchy and chaining:** Library swaps change raised types; translate with `from exc`.
-- **Serialization and persisted representations:** Renaming fields, Enum members, or classes breaks
-  JSON/pickle/database payloads without wire aliases.
-- **Async cancellation, concurrency, and resource lifetimes:** Keep `with`/`async with` lifetimes and
-  re-raise `asyncio.CancelledError`. `TaskGroup` (3.11+) is not a `gather` replacement or a
-  concurrency limit: failures arrive as `ExceptionGroup`, so handle inside tasks or use `except*`
-  (which cannot `return`/`break`/`continue`); wrap the whole operation in one `asyncio.timeout()`.
-- **Guard-clause and truthiness inversion:** Negate literally (`not (limit is None or limit >= 0)`);
-  `limit is not None and limit < 0` admits NaN. `if not x` conflates `0`, empty, and `None`;
-  `items[-n:]` returns everything when `n == 0`. Test zero, one, empty, NaN, and over-length inputs.
-- **Annotation evaluation:** Dropping `from __future__ import annotations` or unquoting forward refs
-  is safe only when every supported runtime is 3.14+; below that it raises `NameError`, and runtime
-  readers (Pydantic, dataclasses, `get_type_hints`) see strings vs. objects differently.
-
-## Sequencing Mixed Work and Incremental Migrations
-
-- **Never mix refactoring and behavior change in one unverified jump.** Finish and test one before
-  starting the other.
-- **Stage large restructurings toward a target design,** keeping tests runnable between steps; MUST
-  NOT replace understanding of edge-case contracts with a blind rewrite.
-- **Mark bridges that must outlive the task** with `warnings.deprecated` (3.13+;
-  `typing_extensions.deprecated` below) so type checkers list remaining callers (mypy needs its
-  `deprecated` error code), and record the removal condition.
-- **Finish the migration:** remove shims, duplicate helpers, and unused imports once in-scope callers
-  have moved.
