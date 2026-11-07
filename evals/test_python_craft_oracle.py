@@ -191,7 +191,8 @@ class PythonCraftOracleTests(unittest.TestCase):
             "case_k": "rewrite_implementation", "case_l": "preserve_effects_with_loop",
             "case_m": "name_independent_options", "case_n": "remove_empty_layers",
             "case_o": "keep_ordered_records", "case_p": "index_membership_stream_rows",
-            "case_q": "separate_policy_from_transport"})
+            "case_q": "separate_policy_from_transport", "case_r": "keep_transaction_owner",
+            "case_s": "propagate_failure", "case_t": "keep_boundary_translation"})
 
     def test_new_code_judgment_grader_rejects_wrong_or_missing_decisions(self):
         self.assert_grader_requires_each_decision(ROOT / "scenarios/python-new-code-judgment.yaml", {

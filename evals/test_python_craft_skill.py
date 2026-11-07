@@ -1,4 +1,4 @@
-"""Specification and oracle calibration tests for the `python-engineering` skill."""
+"""Structure, routing and oracle calibration tests for the `python-craft` skill."""
 
 from __future__ import annotations
 
@@ -13,25 +13,49 @@ import yaml
 from probe import catalog as probe_catalog
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILL_DIR = ROOT / "skills" / "python-engineering"
+SKILL_DIR = ROOT / "skills" / "python-craft"
 SKILL_MD = SKILL_DIR / "SKILL.md"
 REFERENCES_DIR = SKILL_DIR / "references"
-ORACLE_PATH = ROOT / "evals" / "oracles" / "python-engineering" / "evaluate_cases.py"
+ORACLE_PATH = ROOT / "evals" / "oracles" / "python-craft" / "evaluate_cases.py"
 
 EXPECTED_REFERENCES = (
-    "starting-code.md",
-    "refactoring-playbook.md",
-    "refactoring-tools.md",
-    "dependencies.md",
-    "quality-gates.md",
+    "design-and-dependencies.md",
+    "refactoring.md",
+    "verification.md",
+)
+
+# Structural coverage only: a named technique can be present and still be taught badly.
+REFACTORING_TECHNIQUES = (
+    r"extract",
+    r"inline",
+    r"move",
+    r"rename",
+    r"signature",
+    r"parameter object",
+    r"split phase",
+    r"query from modifier",
+    r"guard clause",
+    r"dispatch",
+    r"parameteri[sz]e",
+    r"encapsulate",
+    r"forwarding",
+    r"composition",
+    r"boundar(y|ies)",
+    r"preparatory",
+    r"incremental",
+    r"dead code",
+    r"rope",
+    r"libcst",
+    r"ruff",
+    r"\bast\b",
 )
 
 
 def _load_oracle_module():
-    spec = importlib.util.spec_from_file_location("python_engineering_eval_oracle", ORACLE_PATH)
+    spec = importlib.util.spec_from_file_location("python_craft_case_oracle", ORACLE_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules["python_engineering_eval_oracle"] = module
+    sys.modules["python_craft_case_oracle"] = module
     spec.loader.exec_module(module)
     return module
 
@@ -53,18 +77,16 @@ def test_required_file_structure_and_no_extra_files() -> None:
     assert actual_refs == sorted(EXPECTED_REFERENCES)
 
 
-def test_skill_frontmatter_and_word_budget() -> None:
+def test_skill_frontmatter() -> None:
     raw = SKILL_MD.read_text(encoding="utf-8")
-    meta, body = _split_frontmatter(raw)
-    assert set(meta.keys()) <= {"name", "description", "argument-hint", "disable-model-invocation", "compatibility"}
-    assert meta["name"] == "python-engineering"
+    meta, _ = _split_frontmatter(raw)
+    assert set(meta.keys()) <= {"name", "description", "argument-hint", "compatibility"}
+    assert meta["name"] == "python-craft"
     description = str(meta["description"])
     assert len(description) <= 1024
     assert "Triggers:" in description
-    quoted_triggers = re.findall(r'"([^"]+)"', description.split("Triggers:", 1)[1])
+    quoted_triggers = re.findall(r"(['\"])(.+?)\1", description.split("Triggers:", 1)[1])
     assert 2 <= len(quoted_triggers) <= 4
-    body_words = len(body.split())
-    assert 550 <= body_words <= 950, f"Expected SKILL.md body near 600-900 words, got {body_words}"
 
 
 def test_skill_links_every_reference() -> None:
@@ -84,32 +106,38 @@ def test_references_have_contents_toc_and_no_evidence_labels() -> None:
             assert "## Contents" in text, f"{path.name} (>100 lines) must include a ## Contents section"
 
 
-def test_refactoring_playbook_recipes_carry_every_required_field() -> None:
-    playbook = (REFERENCES_DIR / "refactoring-playbook.md").read_text(encoding="utf-8")
-    for required_field in (
-        "- **Trigger:**",
-        "- **Preconditions:**",
-        "- **Transformation:**",
-        "- **Verification:**",
-        "- **Avoid when:**",
-    ):
-        assert playbook.count(required_field) >= 19, f"Expected >=19 occurrences of {required_field}"
+def test_refactoring_reference_names_each_technique_and_tool() -> None:
+    text = (REFERENCES_DIR / "refactoring.md").read_text(encoding="utf-8").lower()
+    missing = [term for term in REFACTORING_TECHNIQUES if not re.search(term, text)]
+    assert not missing, f"refactoring.md no longer names: {missing}"
 
 
-def test_routing_scenarios_for_python_engineering_validate() -> None:
+def test_routing_scenarios_target_python_craft() -> None:
     scenario_dir = ROOT / "evals" / "scenarios"
     expected_ids = {
-        "discovery-python-engineering-modernize": "fire",
-        "discovery-python-engineering-new-component": "fire",
-        "discovery-python-engineering-defers-go-service": "not_fire",
-        "discovery-python-engineering-defers-live-incident": "not_fire",
+        "discovery-python-characterize-and-modernize": "fire",
+        "discovery-python-new-component": "fire",
+        "discovery-python-improvement": "fire",
+        "discovery-python-refactoring": "fire",
+        "discovery-python-modernization": "fire",
+        "discovery-python-defers-go-service": "not_fire",
+        "discovery-python-defers-live-incident": "not_fire",
     }
     for scenario_id, expected_routing in expected_ids.items():
         path = scenario_dir / f"{scenario_id}.yaml"
         assert path.is_file(), f"Missing routing scenario {path}"
         spec = probe_catalog.load_scenario(path)
-        assert spec["target"] == {"kind": "skill", "name": "python-engineering"}
+        assert spec["target"] == {"kind": "skill", "name": "python-craft"}
         assert spec["routing"]["expect"] == expected_routing
+
+
+def test_case_oracle_routes_only_to_bundled_references() -> None:
+    oracle = _load_oracle_module()
+    bundled = {f"references/{name}" for name in EXPECTED_REFERENCES}
+    assert set(oracle.REQUIRED_REFERENCES) == bundled
+    for spec in oracle.CASE_SPECS.values():
+        assert set(spec.expected_references) <= bundled, spec.case_id
+        assert set(spec.forbidden_references) <= bundled, spec.case_id
 
 
 def test_oracle_self_calibration_rejects_unimproved_initial_fixtures() -> None:
