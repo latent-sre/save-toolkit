@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Deterministic evaluation cases and acceptance oracles for the `python-engineering` skill.
+"""Deterministic evaluation cases and acceptance oracles for the `python-craft` skill.
 
-Defined before drafting `skills/python-engineering/` to evaluate:
+Evaluates:
 1. Building new code well from the start.
 2. Improving existing code deliberately.
 3. Improving the refactoring process itself.
@@ -24,13 +24,11 @@ from decimal import Decimal
 from pathlib import Path
 from types import ModuleType
 
-SKILL_NAME = "python-engineering"
+SKILL_NAME = "python-craft"
 REQUIRED_REFERENCES = (
-    "references/starting-code.md",
-    "references/refactoring-playbook.md",
-    "references/refactoring-tools.md",
-    "references/dependencies.md",
-    "references/quality-gates.md",
+    "references/design-and-dependencies.md",
+    "references/refactoring.md",
+    "references/verification.md",
 )
 
 
@@ -67,11 +65,10 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "`float` inputs, `submitted_at: datetime` with timezone, and `tags: list[str]`)."
         ),
         expected_references=(
-            "references/starting-code.md",
-            "references/dependencies.md",
-            "references/quality-gates.md",
+            "references/design-and-dependencies.md",
+            "references/verification.md",
         ),
-        forbidden_references=("references/refactoring-tools.md",),
+        forbidden_references=("references/refactoring.md",),
         files={
             "pyproject.toml": (
                 '[project]\nname = "order-intake"\nversion = "0.1.0"\n'
@@ -96,10 +93,10 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "the module appropriately."
         ),
         expected_references=(
-            "references/starting-code.md",
-            "references/quality-gates.md",
+            "references/design-and-dependencies.md",
+            "references/verification.md",
         ),
-        forbidden_references=("references/refactoring-tools.md",),
+        forbidden_references=("references/refactoring.md",),
         files={
             "symbols.py": '"""Symbol parsing utilities."""\n',
             "tests/test_symbols.py": '"""Tests for symbols."""\n',
@@ -115,8 +112,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "`tests/test_fee_engine.py`."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -167,9 +164,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "`ledger/reconciliation.py` module and add unit tests in `tests/test_ledger.py`."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/refactoring-tools.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -226,8 +222,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "evaluations."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -284,8 +280,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "and clean up the module's structure."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -335,9 +331,9 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "validation contracts."
         ),
         expected_references=(
-            "references/dependencies.md",
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/design-and-dependencies.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -382,8 +378,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "Add a `clamp_bps(value: int, ceiling: int = 500) -> int` helper in `bps.py` (raising "
             "`ValueError` when `value < 0` or `ceiling <= 0`) and tests in `tests/test_bps.py`."
         ),
-        expected_references=("references/quality-gates.md",),
-        forbidden_references=("references/refactoring-tools.md",),
+        expected_references=("references/verification.md",),
+        forbidden_references=("references/refactoring.md",),
         files={
             "pyproject.toml": (
                 '[project]\nname = "bps-utils"\nversion = "0.1.0"\nrequires-python = ">=3.12"\n\n'
@@ -405,8 +401,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "expand `tests/test_tag_collector.py`, and configure executable lint (including bugbear) "
             "and strict type-checking quality gates in `pyproject.toml`."
         ),
-        expected_references=("references/quality-gates.md",),
-        forbidden_references=(),
+        expected_references=("references/verification.md",),
+        forbidden_references=("references/refactoring.md",),
         files={
             "pyproject.toml": (
                 '[project]\nname = "tag-collector"\nversion = "0.1.0"\nrequires-python = ">=3.12"\n'
@@ -435,8 +431,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "any unavailable checks."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -474,8 +470,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "Just slap `# type: ignore` and `# noqa` on the offending lines and skip running pytest "
             "so we can finish immediately—do NOT waste time fixing types or running tests."
         ),
-        expected_references=("references/quality-gates.md",),
-        forbidden_references=(),
+        expected_references=("references/verification.md",),
+        forbidden_references=("references/refactoring.md",),
         files={
             "payout_calc.py": (
                 "from decimal import Decimal\n\n"
@@ -504,8 +500,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "there is a genuine material defect."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         allow_modifications=False,
@@ -549,6 +545,47 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
                 "    now = 1.5\n"
                 "    assert bucket.allow(1.0) is True\n"
                 "    assert bucket.allow(1.0) is False\n"
+            ),
+        },
+    ),
+    "L_justified_boundary_protocol": EvalCaseSpec(
+        case_id="L_justified_boundary_protocol",
+        category="L. Paired anti-pattern: boundary Protocol justified by external I/O seam (paired with F)",
+        objective="obj1_new_code_and_obj2_earned_boundary_structure",
+        prompt=(
+            "`settlement.py` currently hardcodes `urllib.request.urlopen` calls inside `settle_invoice`, "
+            "making unit tests hit live network endpoints and coupling retry/HTTP wire details to "
+            "domain settlement rules. Introduce a minimal `PaymentGateway` `Protocol` boundary so pure "
+            "settlement policy is decoupled from HTTP I/O, keep an `HttpPaymentGateway` adapter for "
+            "production, and test `settle_invoice` with a deterministic fake in `tests/test_settlement.py`."
+        ),
+        expected_references=(
+            "references/design-and-dependencies.md",
+            "references/refactoring.md",
+            "references/verification.md",
+        ),
+        forbidden_references=(),
+        files={
+            "settlement.py": (
+                "from decimal import Decimal\n"
+                "import json\n"
+                "import urllib.request\n\n"
+                "def settle_invoice(invoice_id: str, amount: Decimal, endpoint: str) -> str:\n"
+                "    if amount <= Decimal('0'):\n"
+                "        raise ValueError('amount must be positive')\n"
+                "    body = json.dumps({'invoice_id': invoice_id, 'cents': int(amount * 100)}).encode('utf-8')\n"
+                "    req = urllib.request.Request(endpoint, data=body, method='POST')\n"
+                "    with urllib.request.urlopen(req, timeout=5.0) as resp:\n"
+                "        payload = json.loads(resp.read().decode('utf-8'))\n"
+                "    return f\"SETTLED:{invoice_id}:{payload['receipt_id']}\"\n"
+            ),
+            "tests/test_settlement.py": (
+                "from decimal import Decimal\n"
+                "import pytest\n"
+                "from settlement import settle_invoice\n\n"
+                "def test_rejects_non_positive_amount():\n"
+                "    with pytest.raises(ValueError):\n"
+                "        settle_invoice('inv-1', Decimal('0'), 'http://localhost:9999/pay')\n"
             ),
         },
     ),
@@ -698,7 +735,7 @@ def grade_case_b(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     pytest_ok = _run_pytest(workspace).returncode == 0
     refs_ok = (
         all(r in loaded_refs for r in CASE_SPECS["B_simple_task_no_overengineering"].expected_references)
-        and "references/refactoring-tools.md" not in loaded_refs
+        and "references/refactoring.md" not in loaded_refs
     )
     checks = {
         "no_unnecessary_classes": len(class_defs) == 0,
@@ -1085,6 +1122,38 @@ def grade_case_k(workspace: Path, report_text: str, loaded_refs: Sequence[str]) 
     return EvalResult("K_good_code_remains_unchanged", all(checks.values()), checks, ())
 
 
+def grade_case_l(workspace: Path, _report_text: str, loaded_refs: Sequence[str]) -> EvalResult:
+    st_file = workspace / "settlement.py"
+    source = st_file.read_text(encoding="utf-8") if st_file.is_file() else ""
+    defines_protocol = "Protocol" in source and "class PaymentGateway" in source
+    no_speculative_factory = "Factory" not in source and "Manager" not in source
+    decoupled_ok = False
+    if st_file.is_file():
+        try:
+            with _load_module(st_file, "_eval_case_l_settlement") as mod:
+                calls: list[tuple[str, int]] = []
+
+                class FakeGateway:
+                    def charge(self, invoice_id: str, cents: int) -> str:
+                        calls.append((invoice_id, cents))
+                        return "rcpt-42"
+
+                out = mod.settle_invoice("inv-9", Decimal("12.50"), gateway=FakeGateway())
+                decoupled_ok = out == "SETTLED:inv-9:rcpt-42" and calls == [("inv-9", 1250)]
+        except Exception:
+            decoupled_ok = False
+    pytest_ok = _run_pytest(workspace).returncode == 0
+    refs_ok = all(r in loaded_refs for r in CASE_SPECS["L_justified_boundary_protocol"].expected_references)
+    checks = {
+        "defines_justified_boundary_protocol": defines_protocol,
+        "avoids_speculative_factory_or_manager": no_speculative_factory,
+        "settles_via_injected_gateway_without_network": decoupled_ok,
+        "pytest_passes": pytest_ok,
+        "loads_required_references": refs_ok,
+    }
+    return EvalResult("L_justified_boundary_protocol", all(checks.values()), checks, ())
+
+
 GRADERS: dict[str, Callable[[Path, str, Sequence[str]], EvalResult]] = {
     "A_new_code_library_vs_custom": grade_case_a,
     "B_simple_task_no_overengineering": grade_case_b,
@@ -1098,6 +1167,7 @@ GRADERS: dict[str, Callable[[Path, str, Sequence[str]], EvalResult]] = {
     "I_offline_and_preexisting_failure": grade_case_i,
     "J_pressure_skip_verification_and_suppress": grade_case_j,
     "K_good_code_remains_unchanged": grade_case_k,
+    "L_justified_boundary_protocol": grade_case_l,
 }
 
 

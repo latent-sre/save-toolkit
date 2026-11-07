@@ -1,91 +1,47 @@
-# Improving existing Python
+# Deliberate Refactoring and Transformation Tools
 
-## Choose the transformation
+## Refactoring to Resolve the Design Problem
 
-Share a policy only when callers need the same rule; identical fragments may evolve independently.
-A helper beside copies still in use does not establish shared ownership. Judge a transformation
-through callers, including construction/conversion costs and memory, not its shorter spelling.
+1. **Diagnose root mechanism**: duplicated policy, primitive data, mixed logic and I/O, hidden state, leaked resources, speculative pass-through layers, or fragile custom infrastructure.
+2. **Define target ownership, data model, and dependency direction**, then sequence moves to reach it. Cosmetic renaming or file splitting leaving coupled ownership intact is insufficient.
+3. **Remove vs. add structure**: inline pass-through wrappers, single-use classes, and unused hooks when indirection is the problem; add a `dataclass`, `Protocol`, or module boundary only to isolate coupled responsibilities or I/O.
+4. **Inventory consumers**: static imports, `__all__`, `__init__.py` re-exports, entrypoints, dynamic lookups (`importlib`, `getattr`), config/manifest strings (`release-files.txt`), wire keys, and `unittest.mock.patch` targets.
+5. **Migrate callers and retire bridges**: update in-repo callers together; keep re-export shims or `@warnings.deprecated` bridges only for external callers during transition, then remove them.
+6. **Prove design benefit**: simpler flow, isolated pure policy, removed duplication, narrower state, stronger types, or verified stdlib/library ownership.
 
-## Simplify control flow and iteration
+## Problem-to-Technique Catalog
 
-- Short-circuit replacements can skip effects/errors; use a sentinel when `None` is a valid result.
-- `zip` truncates unless strict; indexing/grouping replacements can change duplicate handling,
-  equality/hashability, ordering, missing-key insertion and result types.
-- Dispatch tables do not preserve ordered/range predicates; `match` bare names capture rather than compare.
-- Lazy replacements move work/errors and may lose repeatability. Cleanup restructuring must preserve
-  partial acquisition, release order, cancellation and exception suppression.
+| Observed problem | Technique | Hazard or check |
+|---|---|---|
+| Duplicated policy or branching | Extract pure function or dispatch table | Preserve precedence, rounding, and errors |
+| Mixed I/O, validation, and policy | Split adapter from pure core | Keep handles out of core; test without mocks |
+| Primitive obsession or parallel dicts | Use `dataclass(frozen=True, slots=True)`, `NamedTuple`, `Enum`, `pydantic` | Preserve JSON/wire keys and equality |
+| Deep nesting or flag arguments | Guard clauses, early returns, focused functions | Preserve side-effect order and errors |
+| God module or catch-all `utils.py` | Split by cohesion; re-export API in `__init__.py` | Test fresh imports in both orders (`import pkg; import pkg.sub` and reverse) |
+| Speculative ABCs, factories, wrappers | Inline delegating layers; drop unused hooks | Confirm no plugin or patch target relies on seam |
+| Hidden globals or import-time reads | Parameterize deps or pass explicit config | Keep default entrypoints ergonomic |
+| Leaked files, clients, locks, temp paths | Wrap in context managers or `ExitStack` | Verify cleanup on errors and partial generators |
+| Fragile custom parsing, retry, HTTP | Replace with `ipaddress`, `tomllib`, `urllib.parse`, `pydantic`, `tenacity`, `httpx` | Audit coercion, leading zeros, `bool`/`int`, timeouts |
+| Swallowed errors or low-level leaks | Narrow `try`; `raise DomainError(...) from exc` | Preserve `__cause__`, exit codes, exception types |
+| Circular imports | Extract shared types to leaf module or invert deps | Avoid local-import hacks unless deferring heavy deps |
+| N+1 lookups, repeated regex/JSON, buffering | Precompute `set`/`dict` indexes, hoist regexes, stream | Preserve order and single-pass streaming (`set(allowed_ids)`) |
+| Legacy syntax or typing clutter | Upgrade to target-version `match`, `X | Y`, `type`, `Path`, `with` | Match `requires-python`; separate from logic diffs |
 
-An extracted `return` does not return from its caller; preserve moved `break`/`continue` effects.
-Comprehension iteration variables do not leak like loop variables. Generator expressions evaluate
-the outermost iterable immediately; generator-function bodies wait for resumption. Neither can
-consume a file closed by its producer. `mapping.get(key, expensive_default())` evaluates the default
-even on a hit; dispatch tables should store callables rather than their results.
+## Shared Python Refactoring Hazards
 
-### Guard-clause example
+- **Import binding and patch seams**: `from pkg.mod import fn` binds at import time; if tests or callers patch `pkg.mod.fn`, look up `mod.fn` at call time or keep the attribute on the module/package.
+- **Callable identity**: decorators and `@lru_cache` change identity (`is`), `__name__`, and pickleability—use `@functools.wraps` and check registries.
+- **Evaluation order and truthiness**: reordering `and`/`or`/ternaries shifts side effects; use `x is None` rather than `not x` when `0`, `""`, `False`, or `[]` are valid.
+- **Numeric and slice traps**: `isinstance(True, int)` is `True` (exclude `bool`); `float("nan") != float("nan")`; `items[-count:]` returns the full list when `count == 0`—guard `count <= 0` with `[]`.
+- **Generators and streaming**: never wrap `with open(...)` around `yield` if callers manage lifetime or stop early; never `list(stream)` or read ahead past a stop condition on single-pass streams.
+- **Cancellation**: never swallow `asyncio.CancelledError` or `KeyboardInterrupt`.
 
-For an accepted condition `limit is None or limit >= 0`, reject with
-`not (limit is None or limit >= 0)`. Substituting `limit is not None and limit < 0` changes NaN
-behavior: both comparisons are false. `if not limit` confuses zero with absence. Invalid inputs
-must fail before the effect; valid inputs reach it once, unchanged.
+## Refactoring and Transformation Tools
 
-## Preserve consumers and integrate
-
-Establish required behavior from specifications and consumers. Characterization records current
-behavior; it cannot justify preserving a demonstrated bug or guessing an undocumented rule.
-
-Find imports/re-exports, entrypoints, configured import strings, registries/decorators, and persisted
-qualified names; an underscore does not prove a name is private. Search for qualified names as text
-too (`"pkg.module.name"`, entry-point `"pkg.module:name"`) across code, configuration, and package
-metadata; a rename tool or language server resolves only static references. Controlled internal
-signatures and shapes may change with their callers. Preserve supported call forms/defaults,
-import-time effects, and public patch points. An explicit `lazy import` (3.15) defers the imported
-module's import-time effects until first use; adding or removing one moves them. Add compatibility
-adapters only for actual supported consumers.
-
-## Stage a large or multi-module change
-
-Map consumers before choosing the boundary, including release inputs and non-code consumers such as
-configured names and package data. For an unresolved rollout, compatibility, or recovery design,
-use the project's design workflow or return the decision for `principal-engineer`.
-
-1. Complete a real consumer path before widening; dormant helpers can pass tests while callers
-   still use old policy.
-2. Add compatibility bridges only when supported consumers, mixed versions, or persisted data need
-   them, and define when each can be removed. Mark a bridge with
-   `warnings.deprecated` (3.13+; `typing_extensions.deprecated` before that): it warns at runtime,
-   and type checkers can list remaining callers; mypy does so only with its `deprecated` error code
-   enabled.
-3. Retire superseded code and dependencies after callers and release inputs use the replacement.
-   Find leftovers with an instrument and read its hits as leads: the type checker and text searches
-   for callers, `vulture` for unreferenced definitions, `deptry` for declared dependencies nothing
-   imports. Entry points, registries, and dynamic lookups look unused to static tools; confirm a
-   detector reports a known leftover before trusting its clean run.
-   For module-layout, entrypoint, or package-data changes, build the project's actual release
-   artifact and exercise an installation outside the source checkout. Check imports, configured
-   lookups, and bundled resources there; checkout tests can conceal missing release files.
-
-Choose checkpoints by risk, not file counts; a small atomic replacement may be safer than a bridge.
-
-## Characterization pitfalls
-
-Characterize values, types, exceptions, effects and cleanup before restructuring. Equality can hide a
-changed type (`0 == Decimal("0")`); preserve empty-result type and one-pass input behavior. Keep raised
-outcomes raised rather than returning error strings. Record known bugs separately from required behavior.
-
-## Verify behavior and benefit
-
-Use coverage or reversible mutation when reach/sensitivity is uncertain, not universally. Working
-behavior needs no red-first test; bug fixes need independent expectations.
-
-Compare fresh equivalent inputs and controlled time, randomness, effects, and caches. Check relevant
-values/types, serialization, aliasing/mutation, call forms, errors, and effect order. Preserve the
-exception object when propagating it. Pair differential checks with independent expectations so an
-old bug cannot count as correctness. Use fresh processes for relevant import orders, cycles, and
-registries. Exercise existing entrypoints; retain behavioral assertions when retiring test wiring.
-
-For streaming, check progress before full consumption and cleanup after a prefix; returning an
-iterator proves neither streaming nor bounded memory.
-
-Show the benefit through actual callers: a shared policy replaces copies, a calculation works without
-I/O, conversions/layers disappear, or a real change becomes simpler. Profile and benchmark when
-performance motivates the design; compatibility tests alone do not establish improvement.
+| Tool | Best fit | Caution |
+|---|---|---|
+| Manual / LSP | Localized logic, model, and flow edits | Check `getattr`/`importlib`, `__all__`, `mock.patch` |
+| `rope` | Multi-file rename, move, signature updates | Audit string refs and review diffs |
+| `libcst` | CST codemods preserving comments/formatting | Test visitors on edge syntax and inspect diffs |
+| `ruff check --select UP,I,B,SIM` | Target-version upgrades, imports, idioms | Preview with `--diff` or `--no-fix --no-fix-only` |
+| `ast` (stdlib) | Read-only inventory of imports and symbols | Never rewrite files via `ast.unparse` |

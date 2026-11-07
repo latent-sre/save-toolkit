@@ -1,4 +1,4 @@
-id: discovery-python-engineering-defers-go-service
+id: discovery-python-defers-go-service
 max_turns: 14
 split: regression
 prompt: |
@@ -6,11 +6,11 @@ prompt: |
   wrap returned errors with `%w`, and add table-driven `go test` coverage for invalid payloads.
 target:
   kind: skill
-  name: python-engineering
+  name: python-craft
 routing:
   expect: not_fire
   expected_alternative:
     kind: skill
     name: go-craft
 success_criteria:
-  - Selects Go engineering guidance for a Go service refactoring without firing Python engineering.
+  - Selects Go engineering guidance for a Go service refactoring without firing python-craft.

@@ -4,7 +4,7 @@ split: regression
 skill: python-craft
 tools: [Skill, Read]
 references:
-  - skills/python-craft/references/writing-python.md
+  - skills/python-craft/references/design-and-dependencies.md
 prompt: |-
   Assess these independent new Python implementation cases; do not edit code. The supplied
   requirements are complete except for the explicitly unresolved failure policy in case D.

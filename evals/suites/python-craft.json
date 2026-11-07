@@ -4,6 +4,7 @@
   "summary": "Python judgment, routing and artifact controls",
   "tests": [
     "evals/test_python_craft_oracle.py",
+    "evals/test_python_craft_skill.py",
     "evals/test_python_index_probe.py",
     "evals/test_python_library_selection_oracle.py",
     "evals/test_python_new_code_probe.py",
@@ -23,10 +24,12 @@
     "build-python-refactor-effects",
     "build-python-separate-calculation",
     "build-python-unify-policy",
+    "discovery-python-defers-go-service",
     "discovery-python-defers-live-incident",
     "discovery-python-explanation",
     "discovery-python-improvement",
     "discovery-python-modernization",
+    "discovery-python-new-component",
     "discovery-python-refactoring",
     "python-new-code-judgment",
     "python-refactoring-judgment"

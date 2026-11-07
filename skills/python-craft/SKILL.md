@@ -1,54 +1,50 @@
 ---
 name: python-craft
 description: >-
-  Write, refactor, or modernize Python in services, CLIs, scripts, libraries, and tests,
-  routine or difficult: simplify structure, reduce duplicated logic, fix established
-  defects, and replace custom machinery with suitable maintained libraries. Load before
-  editing any Python; also use for explanations and practical starting designs.
-  Triggers: 'improve this Python', 'refactor this Python', 'modernize this module',
-  'explain this Python'. Not for operating a running service or changing another
-  language.
-argument-hint: "[Python code, file, or task]"
+  Write, refactor, modernize, and verify Python code with autonomous
+  engineering judgment across scripts, CLIs, libraries, packages, and
+  services. Use when designing Python modules or packages, selecting or
+  replacing dependencies, restructuring tangled code, modernizing syntax or
+  typing, fixing defects, or establishing proportional tests and checks.
+  Triggers: "write or refactor Python code", "design a Python module or CLI",
+  "modernize Python or replace custom code", "review or test Python changes".
 ---
 
-# Python craft
+# Python Craft
 
-Make Python easier to understand, use, and change. Keep clear code when a change offers no benefit.
-The task and project constraints set scope; this skill adds no tools or authority. Explanation,
-design, and review requests stop at those outputs unless implementation is requested. For a defect,
-establish the cause and expected behavior, reproduce it, and verify the repair. Keep small changes
-scoped; report material adjacent findings separately.
+Deliver complete, verified Python changes through focused engineering judgment:
 
-## Build or improve
+1. **Build new code well from the start**: choose sound libraries, target-version features, data models, module boundaries, interfaces, tests, and checks before weak patterns spread.
+2. **Improve existing code deliberately**: diagnose root design flaws, compare stronger alternatives, and implement justified modernization and structural improvement rather than cosmetic diffs.
+3. **Improve the refactoring process**: sequence behavior-preserving moves, use suitable tools, establish behavioral evidence, and verify compatibility and concrete design gain.
 
-1. Choose the workflow: **new code** establishes the contract, consumer, and delivery shape;
-   **refactoring** maps existing consumers, behavior, and ownership before changing structure.
-   Use both when a refactor introduces a new capability; distinguish its new behavior from the
-   contracts the restructuring preserves.
-2. Choose the design or transformation that fits: representations, algorithms, control flow,
-   interfaces, extraction or inlining. Compare direct code, the standard library, existing
-   dependencies, and maintained packages where relevant.
-3. Deliver a complete path through its entrypoint, then cover remaining cases and affected callers.
-   Stage work by risk; a justified rewrite may replace all in-scope implementation.
-   Preserve supported contracts; separate intentional behavior changes from
-   restructuring and resolve uncertain requirements rather than guessing.
-4. Check required behavior through intended entrypoints. For refactoring, show the benefit: one policy
-   owner, fewer facts callers must coordinate, removed machinery, or an easier real change. Remove obsolete
-   code/dependencies; passing tests or reducing line count alone does not establish improvement.
+Preserve required behavior and genuine constraints—not historical implementation choices.
 
-## Load relevant detail
+## Engineering Judgment, Autonomy, and Scope
 
-| Task | Read |
+- **Assess opportunities** across libraries, Python features, data models, interfaces, algorithms, module ownership, resource lifetimes, errors, testing, and typing.
+- **Compare against the strongest credible alternative** on correctness, clarity, maintainability, compatibility, security, testability, operational fit, migration effort, and recurring maintenance or dependency cost. Neither status quo code nor novelty gets automatic preference.
+- **Reject unsupported conservatism**: "avoid dependencies", "keep the diff small", "follow the existing pattern", "the code already works", and "that might be overengineering" are insufficient alone; require a concrete drawback, constraint, or disproportionate cost.
+- **Decide autonomously within scope**: select libraries, internal interfaces, module boundaries, algorithms, and tools without redundant prompts. Recommend the best-supported option rather than presenting unequal choices as peers.
+- **Escalate only genuine blockers** affecting required behavior, external contracts, persistent data, live systems, or scope; continue independent work meanwhile.
+- **Respect boundaries**: preserve unrelated changes; surface constraints blocking better solutions rather than overriding them silently; keep review/explanation requests read-only; report out-of-scope improvements without applying them.
+- **Record consequential decisions**: `Problem | Selected approach | Benefit | Cost/risk | Verification`
+- **Use small verified steps as a tactic**, not a limit on ambition. Redesign or replace internal structure when it solves the in-scope problem cleanly.
+
+## Proportional Execution Workflow
+
+1. **Inspect**: check instructions, working-tree changes, `requires-python`, consumers, dependencies, tests, and verification commands.
+2. **Classify**: distinguish new behavior, behavior-preserving refactoring, modernization, defect repair, and read-only review; separate behavior changes from structural moves.
+3. **Define success**: state required behavior, root problem, intended improvement, affected boundaries, and acceptance evidence.
+4. **Consult**: load only the reference files matching the task and inspection findings.
+5. **Establish evidence**: reuse valid checks or capture a baseline to separate existing failures from regressions. Characterize untested behavior before restructuring; add regression or acceptance tests failing before the fix where practical; skip ceremonial tests for trivial edits or implementation mirrors.
+6. **Implement and verify**: deliver a complete working path; iterate with focused checks and run broader gates on the final state.
+7. **Assess**: confirm the root problem improved without shifting complexity or turning a trivial edit into an architecture project.
+
+## Reference Routing
+
+| Reference | Load when |
 |---|---|
-| Starting a script, module, library, or service | [Writing Python](./references/writing-python.md), including entrypoint and byte-boundary checks |
-| Interpreter/dependencies uncertain or changing | [Environment and checks](./references/environment-and-checks.md) |
-| Calls, functions, modules, data, or resource ownership | [Writing Python](./references/writing-python.md) |
-| Structural improvement, a multi-module migration, or Pythonic replacements | [Refactoring](./references/refactoring.md) |
-| Need a worked comparison for flattening nested control flow | [Guard-clause example](./references/refactoring.md#guard-clause-example) |
-| Library adoption or dependency/runtime migration | [Libraries and modernization](./references/libraries-and-modernization.md) |
-| Automated transformations, lint fixes, or unused-code detection | [Refactoring tools](./references/refactoring-tools.md) |
-| Bug hunting, review, or a suspected failure | [Finding defects](./references/finding-defects.md) |
-
-Load matching references only. Run project checks in the intended environment on supported Python
-versions; report intentional behavior differences, verification, and remaining uncertainty; measure
-performance claims separately.
+| [`references/design-and-dependencies.md`](references/design-and-dependencies.md) | Designing scripts, CLIs, packages, or services; selecting target-version features; evaluating, adding, replacing, or upgrading libraries; checking anti-patterns. |
+| [`references/refactoring.md`](references/refactoring.md) | Diagnosing structural smells; splitting, merging, or removing modules and layers; preserving exports, contracts, and patch seams; choosing refactoring tools (`rope`, `libcst`, `ruff`). |
+| [`references/verification.md`](references/verification.md) | Binding the project interpreter (`uv`, `.venv`); designing unit, characterization, differential, property-based (`Hypothesis`), import, or performance checks; reporting verification. |
