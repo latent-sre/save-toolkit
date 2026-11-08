@@ -1,15 +1,9 @@
 # Cloud Trace — the GCP trace backend
 
-## Trace ingestion, storage, and export
-
-- `obs-pipeline` owns OTLP/Telemetry API ingestion. The older proprietary Cloud Trace API is not
-  retired; the Telemetry API is preferred for higher ingestion quotas.
-- Trace sinks are deprecated; use Observability Analytics SQL (GA) for analytical queries rather
-  than designing around sink export.
-
 ## Reading traces here
 
-- Cloud Trace uses Trace explorer filters and Observability Analytics SQL, not TraceQL.
+- Cloud Trace uses Trace explorer filters and Observability Analytics SQL, not TraceQL; trace sinks
+  are deprecated, so do not design analysis around sink export. `obs-pipeline` owns ingestion.
 - Cloud Run's sampled platform request spans land in Cloud Trace; application spans follow the
   SDK/collector route to Tempo, Cloud Trace or both. For a log trace ID, check platform spans here
   and application spans in their recorded destinations; unknown routes remain gaps. Platform-only

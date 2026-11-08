@@ -15,7 +15,8 @@ absent_over_time({app="settlement-api", env="prod"}[10m])
 
 It returns 1 for no matching lines, nothing when lines exist. Wrong selector/tenant, silent source
 and lost ingestion remain alternatives; find the last line before assigning a pipeline fault.
-`or on() vector(0)` hides this distinction by turning no matches into zero-valued samples.
+In a diagnostic or ratio query, `or on() vector(0)` hides this distinction by turning no matches
+into zero-valued samples. A dashboard presence panel that maps zero to red uses it deliberately.
 
 ## Line filters versus parsers
 
@@ -26,7 +27,7 @@ and lost ingestion remain alternatives; find the last line before assigning a pi
   instant queries only, without grouping.
 - A `pattern` needs a named capture and literal text between captures; abutting fields need `regexp`.
 
-Loki 3.x structured metadata attaches high-cardinality fields to lines without indexing or including
+Since Loki 3.0, structured metadata attaches high-cardinality fields to lines without indexing or including
 them in the text. It needs schema v13+ and the `tsdb` index. Confirm actual emitted keys; filter them
 without a parser:
 
@@ -84,9 +85,7 @@ For line text, prefilter before parsing, then match the parsed ID exactly:
 ```
 
 For structured metadata, use its parser-free shape above. Double-quoted literals require escaping;
-raw backtick strings require excluding the backtick delimiter. For arbitrary values, use a client
-that emits a LogQL literal and inspect the rendered query. Sorting/cross-service presentation is
-client-side.
+raw backtick strings cannot contain a backtick. Sorting/cross-service presentation is client-side.
 
 ## Errors that are limits, not bugs
 

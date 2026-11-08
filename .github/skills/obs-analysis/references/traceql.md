@@ -24,8 +24,8 @@ through an analysis task. Alert design stays with `obs-alerting`.
 ## Limits and discard reasons — absence causes
 
 A missing trace can be a limit casualty, not a telemetry gap. `max_bytes_per_trace` (upstream
-default 5000000 = 5 MB) drops oversized traces without telling the client: Tempo 3.x accepts the spans
-and discards the trace downstream (Tempo 2.x refused it at ingest with `TRACE_TOO_LARGE`),
+default 5000000 = 5 MB) drops oversized traces without telling the client: since Tempo 3.0 it accepts the
+spans and discards the trace downstream (before 3.0 it refused them at ingest with `TRACE_TOO_LARGE`),
 compaction partially drops, and **search silently skips** oversized traces. Discard reasons are
 observable as the `reason` label on `tempo_discarded_spans_total`:
 `rate_limited` (`rate_limit_bytes`), `live_traces_exceeded` (`max_traces_per_user`),

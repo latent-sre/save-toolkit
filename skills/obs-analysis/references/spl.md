@@ -1,11 +1,13 @@
 # SPL dialect for log investigation
 
-Resolve index, sourcetype, correlation and extraction placeholders through [local inventory](./indexes.md).
-Syntax basis: Splunk Enterprise 10.4 references for
-[comments](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.4/use-the-search-app/add-comments-to-searches),
-[quoting](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.4/use-the-search-app/anatomy-of-a-search),
-[`timechart`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.4/search-commands/timechart),
-and [`streamstats`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.4/search-commands/streamstats).
+Index, sourcetype, correlation and extraction placeholders are not discovered values: resolve each
+on the target and confirm it on one real event.
+Syntax basis: Splunk Enterprise 10.6 references for
+[comments](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.6/use-the-search-app/add-comments-to-searches),
+[quoting](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.6/use-the-search-app/anatomy-of-a-search),
+[`timechart`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.6/search-commands/timechart),
+[`streamstats`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.6/search-commands/streamstats),
+and [`sort`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.6/search-commands/sort).
 Target version and extractions still require confirmation.
 
 ## SPL comments
@@ -50,11 +52,19 @@ decision. Recent indexing proves arrival for returned events only; measure per-e
 known errors with `stats count(error_type) AS classified, count`; a low classified ratio in ordinary
 traffic may simply mean few errors. Group by stable error/service/route fields, not raw messages.
 
+## PCF apps in Splunk
+
+Confirm each of these on one real event. A Splunk Firehose nozzle feed delivers log lines as
+sourcetype `cf:logmessage` and HTTP start/stop events as `cf:httpstartstop`; a syslog drain carries
+whatever its input sets. Bind org, space and app fields together: app names repeat across spaces.
+Gorouter `RTR` lines, one per routed request, are the request-completion population; `APP` lines
+are stdout/stderr, not a request count. RTR `response_time` is in seconds, not ms, and
+`vcap_request_id` correlates one request.
+
 ## Spot a spike vs the baseline (anomaly detection)
 
 Use one completion event per eligible request/attempt, fresh ingestion, and a single three-digit
-HTTP status per event. PCF Gorouter `RTR` is normally that source; `APP` stdout is not a request
-count. Resolve the selector from [inventory](./indexes.md).
+HTTP status per event; on PCF that is the [Gorouter `RTR` population](#pcf-apps-in-splunk).
 
 For a preceding-hour baseline, align absolute bounds to five minutes and exclude the current
 incomplete bucket. `timechart cont=t` preserves empty buckets, unlike `stats ... by _time`.
@@ -84,8 +94,8 @@ in its whole-period baseline.
 
 ## Correlate one request across services
 
-Apply classic SPL escaping for quotes, pipes and backslashes, then inspect the rendered query;
-API/shell/dashboard encoding may add another layer.
+Classic SPL escapes quotes, pipes and backslashes with a backslash. Logged hops are not a complete
+call graph.
 
 ```spl
 index=<app_index> (request_id="<validated_and_spl_escaped_id>" OR trace_id="<validated_and_spl_escaped_id>") earliest=<start_epoch> latest=<end_epoch>
@@ -94,7 +104,7 @@ index=<app_index> (request_id="<validated_and_spl_escaped_id>" OR trace_id="<val
 ```
 
 Use `(index=a OR index=b)`, not a list inside `index=`. `sort 0` keeps the full path instead of the
-default truncation. Use `index=*` only for one id crossing services that cannot be enumerated, with
+default 10,000-row truncation, at extra cost. Use `index=*` only for one id crossing services that cannot be enumerated, with
 a tight window; it covers public indexes, not internal `_*`, and may miss role-restricted data.
 
 ## Compare before vs after a deploy
