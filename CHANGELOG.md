@@ -16,6 +16,10 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   deploy ownership; its body still holds the deploy rule.
 - `software-engineer` no longer dispatches `reviewer` by file count, carries finding labels, or
   loads `obs-pipeline` or `ci-actions`; its review-findings rule is reduced to the stale check.
+- `software-engineer` names a review it skipped under **Check first** and drops repeated deploy and
+  workflow pointers.
+- `service-lifecycle` is retired: readiness audits load `resilience-analysis`, and decommissioning a
+  live service goes through `production-change-gate`.
 
 ## [0.52.0] - 2026-11-04
 

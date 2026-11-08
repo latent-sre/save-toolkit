@@ -4,8 +4,8 @@ description: >-
   Analyze failure propagation and design service resilience using source, configuration, operational
   evidence, and explicit assumptions. Triggers: 'what happens if this dependency slows down',
   'find resilience weaknesses', 'design a safer recovery path'. Covers capacity under failure,
-  partial completion, degraded behavior and recovery. Active incidents use incident-investigation;
-  basic readiness checklists use service-lifecycle; change verdicts belong to reviewer.
+  partial completion, degraded behavior, recovery, and existing service readiness. Active incidents
+  use incident-investigation; change verdicts belong to reviewer.
 argument-hint: "[service or design, user outcome, environment, evidence]"
 ---
 

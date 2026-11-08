@@ -48,9 +48,9 @@ to return.
 
 | Assignment | Load when needed |
 |---|---|
-| Failure propagation, capacity under failure, degraded behavior, recovery, or a reliability design | `resilience-analysis` |
+| Failure propagation, capacity under failure, degraded behavior, recovery, existing service readiness, or a reliability design | `resilience-analysis` |
 | Repeated interventions, tickets, manual steps, or automation economics | `toil-reduction` |
-| Existing service readiness, onboarding, or retirement coverage | `service-lifecycle` |
+| Retiring or decommissioning a live service | `production-change-gate` |
 | An observed failure whose cause needs investigation | `root-cause`; stop at evidence and recommendations |
 | An unresolved shared contract or consequential design choice | Return it for `principal-engineer` |
 | Data integrity, migration, restore, or replay | `database-reliability` |

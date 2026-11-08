@@ -74,13 +74,12 @@ will offer it).
 The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 
 - **Incident and operations** — `incident-investigation`, `root-cause`, `operational-docs`
-  (runbooks, postmortems, knowledge closeout, and ownership lookups), `service-lifecycle`
-  (audit, onboard, and retire modes)
+  (runbooks, postmortems, knowledge closeout, and ownership lookups)
 - **Observability** — `obs-analysis` (logs, metrics, and traces), `obs-alerting`,
   `obs-pipeline`, `grafana` (dashboard design and Grafana UI/API operations)
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `production-change-gate`
-- **Reliability improvement** — `resilience-analysis`, `toil-reduction`; existing readiness coverage stays in `service-lifecycle`
+- **Reliability improvement** — `resilience-analysis` (including existing service readiness), `toil-reduction`
 - **Engineering craft** — `api-craft`, `python-craft`, `go-craft`, `frontend-craft`, `operator-cli`,
   `ci-actions`, `database-reliability`
 - **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`

@@ -422,32 +422,6 @@ the operational-contract report used by merged PR #237) were removed on 2026-11-
 **SRE task:** Get a useful next check or closeout without mistaking a helper's completed assignment
 or an untimed aggregate for evidence of incident recovery or cause.
 
-### LIFECYCLE-001 — operational context and service records stay true for a real service
-
-**Status:** `deferred` (2026-10-16); CONTEXT-001 merged in. Consumer and producer repairs are
-verified and independently reviewed against fixtures; no real-service records exist to accept
-them against. The owner removed the retirement-order and record-transition references on
-2026-10-24 because existing team processes cover that work; their acceptance campaign is dropped.
-**Owner:** Save Toolkit maintainers; a maintainer session owns consumer requirements and
-`software-engineer` owns producer/resolver implementation.
-**Outcome:** Explicit team, service, environment, and deployment selectors produce the smallest
-schema-valid context projection, failing closed on missing or ambiguous context and granting no
-authority. Record maintenance and retirement remain with the team's existing processes.
-**Next action:** None. Reopens when the owner selects a critical service, environment and record
-repository. Then review and integrate the `sre-context` candidate `3433f98e` on
-`work/lifecycle-001-status-projection`, based on `be29c942` (seven unmerged prerequisite commits
-ahead of producer main `903ac830`), with this consumer, and verify navigation, freshness,
-and ownership on that service. Fixture-only
-resolution grants no live authority; catalog dates do not establish `last_verified`. The candidate
-was committed on 2026-09-30; rebase it onto producer main and rerun its tests before review.
-**Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md),
-[lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml), the
-[accepted context-contract scope](decisions/2026-08-24-sre-operational-context-contract.md), and
-the context refresh in the [selected-improvement record](https://github.com/latent-sre/save-toolkit/tree/7ac287d518df1f5b8c9397642a8204b0909ca2ac/docs/reviews/2026-09-07-selected-sre-improvements.md)
-(removed 2026-11-02, kept in Git).
-**SRE task:** State team, service, environment, and deployment once, and know whether the service
-record still applies to the deployment being operated.
-
 ### GRAPH-007 — promote or retire the sandbox workflow-graph skill
 
 **Status:** `deferred` (2026-10-17); the owner deferred the promote-or-retire decision.
