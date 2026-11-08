@@ -23,6 +23,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - The observability references correct Splunk per-field throttling, Tempo 3.x oversized-trace drops,
   the tail-sampling decision cache default, and other vendor details; four skills shed repeated text.
 - `operator-cli` corrects its signal, PowerShell and broken-pipe rules and adds environment binding, crash-safe receipts and locks, and match-all refusal.
+- `production-change-gate` tightens environment, immutable-release and rollback evidence, completes its worked example, and folds artifact evidence into release readiness.
 
 ## [0.52.0] - 2026-11-04
 

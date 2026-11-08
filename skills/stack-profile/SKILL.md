@@ -63,9 +63,9 @@ investigation board, and recommendations based on supplied impact and policy. Wh
 not recorded yet.
 
 ## Change management
-Change records live in **both BMC Remedy and Jira**. `production-change-gate` refers to "the formal
-change record" generically; name whichever system governs the change in hand rather than assuming
-one.
+Change records live in **both BMC Remedy and Jira**. `production-change-gate` asks for the change record
+and leaves the system to this profile; name whichever system governs the change in hand rather than
+assuming one.
 
 ## Documentation home
 **The team-owned GitHub repository is the living source.** Confluence still holds operational
