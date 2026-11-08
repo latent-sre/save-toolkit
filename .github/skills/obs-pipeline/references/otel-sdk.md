@@ -45,7 +45,8 @@ Apply only changed-path steps for scoped fixes; service-wide work uses the full 
    - `num_traces` defaults to 50,000 in memory; new arrivals can evict oldest traces before sampling.
      Watch `otelcol_processor_tail_sampling_sampling_trace_dropped_too_early`.
    - `decision_wait` defaults to 30s; late spans miss the decision. The sampled/non-sampled LRU
-     `decision_cache` can preserve an earlier keep decision for late spans, not guarantee it.
+     `decision_cache` is off by default (both sizes 0); once sized, it can preserve an earlier keep
+     decision for late spans, not guarantee it.
      Size capacity/cache and monitor drops rather than promising every error trace.
 
 4. **Correlation:** emit structured logs with approved trace/span fields; verify actual exemplar

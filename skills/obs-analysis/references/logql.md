@@ -22,8 +22,9 @@ and lost ingestion remain alternatives; find the last line before assigning a pi
 - Parser failures set `__error__`; metric queries cannot contain pipeline errors. Filtering them
   avoids query failure but discards records, so separately check parsing coverage.
 - `|>` / `!>` pattern-match filters and probabilistic `approx_topk(k, ...)` are version-gated;
-  `approx_topk` supports instant queries only, without grouping.
-- A `pattern` needs a named capture and whitespace between captures; abutting fields need `regexp`.
+  `approx_topk` is experimental, must be enabled per tenant (`shard_aggregations`), and supports
+  instant queries only, without grouping.
+- A `pattern` needs a named capture and literal text between captures; abutting fields need `regexp`.
 
 Loki 3.x structured metadata attaches high-cardinality fields to lines without indexing or including
 them in the text. It needs schema v13+ and the `tsdb` index. Confirm actual emitted keys; filter them

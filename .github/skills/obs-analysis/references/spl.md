@@ -136,17 +136,18 @@ not zero-fill. Without usable error classification, use the overall query above.
   the mode; a summary's quiet tail is not a live all-clear.
 - Role/user search filters do not constrain accelerated data models. Apply the parent redaction
   rules and explicit dataset-field `WHERE`/`BY` constraints.
-- `TERM(www.example.com)` or `TERM(10.0.0.5)` keeps minor breakers in one indexed term.
+- `TERM(10.0.0.5)` keeps minor breakers in one indexed term, but matches only where major
+  breakers (spaces, commas) bound it in the raw event: it misses `ip=10.0.0.5`.
   With `tstats`, `PREFIX(kbps=)` extracts values; omitting the delimiter yields `=10`-shaped values.
 - Prefer search-time extraction. Index-time extraction changes indexing cost and configuration;
   route that recommendation to `observability-engineer`.
-- Use Job Inspector's component costs and `scanCount` versus `resultCount` before rewriting a slow
-  search: a large scan/tiny result suggests under-scoping or a non-index-selective filter.
+- Use Job Inspector's component costs and `scanCount` versus `eventCount` before rewriting a slow
+  search: many scanned events with few matches suggests under-scoping or a non-index-selective filter.
 
 ## Tips & gotchas (Splunk-specific — where the default bites)
 
 - `_time` displays in search timezone, not necessarily the event's.
-- `timechart`/`chart ... by <field>` defaults to the top ten series and folds others into `OTHER`.
+- `timechart ... by <field>` defaults to the top ten series and folds others into `OTHER`.
   Use `limit=0`, or state the limit, when rare codes/hosts matter.
 - `transaction` groups events at substantial cost; prefer `stats by <id>` for correlation when
   suitable, without claiming target performance until measured.

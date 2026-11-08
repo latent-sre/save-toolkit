@@ -67,8 +67,7 @@ For Go implementation, load `go-craft` alongside this command contract.
   takes the same path, or schedulers and CI cancellation kill the command without cleanup. Cleanup
   does not undo completed external effects or delete another process's resources.
 - Obtain secrets through the established environment, binding, or store—not command-line flags,
-  logs, tracebacks, or configuration dumps. Live production changes remain prepared for the human
-  release owner under `production-change-gate`; implementing the CLI grants no execution authority.
+  logs, tracebacks, or configuration dumps.
 
 ## Verify the operator contract
 

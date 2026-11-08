@@ -12,10 +12,12 @@ argument-hint: "[service, SLO, alert, storm, or synthetic check]"
 
 Page on user-visible symptoms that require action now. Use an SLI and error budget to distinguish a
 significant sustained burn from a transient component signal; use correlation and synthetics to rank
-where responders should look, never to manufacture a root cause. Every paging alert links a runbook.
+where responders should look, never to manufacture a root cause. Every paging alert has an owner, an actionable summary, and a runbook link.
 
 For a bounded check or explanation, answer from the supplied rule and evidence; name its limits.
 Design and verification steps below apply only to the artifact or readiness work requested.
+Redact sensitive label and tag values from query evidence; prefer an access-controlled link plus
+the smallest necessary excerpt.
 **Grafana implementation lives in `grafana`.** Load it for rule inspection/create/update,
 pause/resume, silences, provisioning formats, evaluation settings, contact points, notification
 policies, or missing-notification investigation. This skill owns alert intent, SLOs, burn rates,
@@ -38,7 +40,6 @@ Read only the row needed for the task:
 | Need | Reference |
 |---|---|
 | SLI, SLO, budget status, or multi-window burn rate | [burn-rate method](./references/burn-rate.md) |
-| Grafana-specific rules, provisioning, notification configuration, or silences | The `grafana` skill and its alerting references |
 | Splunk saved-search alerts, cron/window pairing, throttling, or webhook/email actions | [Splunk alerting](./references/splunk-alerting.md) |
 | Alert storm, event correlation, deduplication, or Moogsoft | [Moogsoft correlation](./references/moogsoft.md) |
 | Synthetic test, DNS, BGP, path, or external reachability | [ThousandEyes synthetics](./references/thousandeyes.md) |
@@ -87,12 +88,3 @@ leading hypothesis and keep the alternatives open.
 
 - Don't choose extra nines because they sound reliable; every nine raises operating cost. Match the
   target to user need and what the team can actually defend.
-- A paging alert needs an owner, tested notification route, actionable summary, and runbook before
-  it is ready. Informational rules do not become paging alerts by using this method.
-
-## Boundaries
-
-Bounded question: answer, supplied scope/evidence, relevant gap or next step.
-Alert design does not grant incident ownership or live-change authority.
-Redact sensitive label and tag values from query evidence before it enters the packet; prefer an
-access-controlled link plus the smallest necessary excerpt.

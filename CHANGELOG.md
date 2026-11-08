@@ -20,6 +20,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   workflow pointers.
 - `service-lifecycle` is retired: readiness audits load `resilience-analysis`, and decommissioning a
   live service goes through `production-change-gate`.
+- The observability references correct Splunk per-field throttling, Tempo 3.x oversized-trace drops,
+  the tail-sampling decision cache default, and other vendor details; four skills shed repeated text.
 
 ## [0.52.0] - 2026-11-04
 

@@ -11,8 +11,6 @@ argument-hint: "[service, missing signal, or telemetry route]"
 
 # Ship telemetry end to end
 
-**Grafana pointer:** UI/API access, datasource configuration, dashboards, and alert operations live
-in `grafana`. This skill owns emission, collection, and export through Alloy/OTel to the backend.
 If a bounded backend query finds the signal but a panel does not, carry that evidence to `grafana`
 for datasource, variable, query-window, and presentation checks before changing the pipeline.
 
@@ -32,12 +30,9 @@ Identify the affected Splunk or Wavefront/PCF App Metrics feed and its owner bef
 Confirmed PCF-platform-owned feeds stay with that owner; use `pcf-ops` and `obs-analysis` for
 platform-side and query evidence. The backend name alone does not establish the ingestion route.
 
-GCP backends are landing with the migration: the documented ingest is OTLP to the Telemetry API
-(`telemetry.googleapis.com` — all three signals) through the same otelcol exporter slot. Log
-ingestion has been **GA since 2026-08-14**.
-The [Alloy pipeline](./references/alloy.md) reference separately documents its public-preview
-Google-auth component and required stability flag. Exact target project/config and route behavior
-remain unconfirmed until a canary run proves them.
+Google Cloud ingest is OTLP to the Telemetry API (`telemetry.googleapis.com`, all three signals);
+[Alloy pipeline](./references/alloy.md) has the exporter, auth, and stability-flag details. Only a
+canary run proves the target project and route.
 
 ## Where a missing signal gets lost
 
@@ -68,12 +63,11 @@ time series per value.
 ## OTel naming — dotted namespaces and instrument metadata
 - **The OTel name is the source of truth:** namespaces delimited by **dots**, `snake_case` only *within*
   a multi-word component. **Units live in instrument metadata (UCUM), not the name** (upstream allows a
-  unit in the name only to resolve ambiguity) — *"units do not need to be specified in the names since
-  they are included during instrument creation."* Base units (seconds, bytes); dimensions in
+  unit in the name only to resolve ambiguity). Base units (seconds, bytes); dimensions in
   attributes, not the name. Pluralization follows the unit: a name whose value carries a real unit
   stays singular, a unitless countable is pluralized (`system.paging.faults`,
   `system.network.packets`), and UpDownCounter names are never pluralized.
-- **This lands natively on our stack.** Wavefront takes dot-delimited names + point tags
+- Wavefront takes dot-delimited names + point tags
   (`app.http.requests.latency`) — the OTel shape, near-unchanged. Keep the bounded-tag discipline;
   this section owns the emitted naming/tag contract. A Prometheus-style exporter translates dotted
   names for you by default; do not pre-bake exporter suffixes into the OTel name.
@@ -82,9 +76,10 @@ time series per value.
 
 Return per boundary checked: target, UTC window, exact check/result, canary service ID (trace ID for
 traces), config revision and claim confidence. Name missing proof without inventing checks or broader
-coverage. Separate observed counters from interpretations. Minimize copied telemetry. Redact credentials, tokens, secrets, personal data, authentication or
-session values, and user identifiers before any excerpt enters the packet; prefer an
-access-controlled source link plus the smallest necessary excerpt. Also redact sensitive attribute values.
+coverage. Separate observed counters from interpretations. Redact credentials, tokens, secrets, personal data,
+authentication or session values, user identifiers, and sensitive attribute values before any
+excerpt enters the packet; prefer an access-controlled source link plus the smallest necessary
+excerpt.
 Hand pipeline-config changes to the `observability-engineer` agent and app-side instrumentation
 changes to the `software-engineer` agent; if the missing signal is part of an active unknown-cause incident,
 hand the time-bounded evidence to the responder with `incident-investigation` (`sre-assistant` only for a

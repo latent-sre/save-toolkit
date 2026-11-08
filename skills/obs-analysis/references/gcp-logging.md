@@ -29,9 +29,10 @@ retroactive: they cannot reconstruct an earlier incident.
 
 ## Correlate one request
 
-Cloud Run request logs carry `trace="projects/<project>/traces/<trace-id>"`. App stdout/stderr
+Request logs carry `trace` as `projects/<project>/traces/<trace-id>` or a bare trace ID; match
+both forms. App stdout/stderr
 carries it only through `logging.googleapis.com/trace` or a Cloud Logging client library; request
-rows alone cannot establish missing app logging. For [Cloud Trace](./gcp-trace.md), strip the
+rows alone cannot establish missing app logging. For [Cloud Trace](./gcp-trace.md), strip any
 `projects/<project>/traces/` prefix; a W3C trace id is 32 hex characters. Prefer exact-field `=` to
 global `SEARCH()`, escaping quotes and backslashes using Logging's quoted-string rules.
 
@@ -65,9 +66,9 @@ Check that the selected log bucket is upgraded before promising SQL aggregation 
 
 ## Tips & gotchas
 
-- `_Default` sink excludes some logs; Data Access audit logs are opt-in. Check sink/exclusions
+- `_Default` sink excludes some logs; Data Access audit logs are off by default except for BigQuery. Check sink/exclusions
   before interpreting absence.
 - `entries.list` has a non-increasable quota of 60 calls/min per project; unbounded reads can
   starve console users.
-- `_Required` retention is 400 days, not configurable. `_Default` and user-created buckets default
-  to 30 days, configurable per bucket. Past-retention absence does not establish absence at write time.
+- `_Required` retention is 400 days, not configurable. Project `_Default` and user-created buckets
+  default to 30 days, configurable per bucket; folder- and organization-level `_Default` is fixed. Past-retention absence does not establish absence at write time.

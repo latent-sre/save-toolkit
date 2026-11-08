@@ -37,8 +37,7 @@ need literal-regex escaping, then query-string encoding; anchors do not escape m
 Uncertain encoding requires a sanitized identifier, not a wider search.
 
 Return the answer and evidence limits; query work also retains exact query, scope/window,
-source/result, references used and method-specific assumptions. Preserve incoming evidence labels.
-Keep unknowns and hypotheses
+source/result, references used and method-specific assumptions. Keep unknowns and hypotheses
 distinct from observations. Prefer access-controlled links and minimal excerpts; redact secrets,
 personal/user/session identifiers, sensitive headers/bodies, SQL literals and label/tag/attribute
 values. Never paste raw payloads.

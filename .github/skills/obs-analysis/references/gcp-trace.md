@@ -23,7 +23,8 @@
   Application sampler,
   parent-context policy and collector sampling independently constrain coverage. Bind absence
   claims to span source, applicable sampling and export/backend evidence.
-- Per-project regional trace-ingest quotas differ: 2.4 GB/min in major regions, 300 MB/min elsewhere.
+- Telemetry API trace-ingest quotas differ by region: 2.4 GB/min in major regions, 300 MB/min
+  elsewhere; the Cloud Trace API has its own quotas.
   Check the API dashboard before attributing sustained high-volume drops to quota.
 - `_Trace` retention is 30 days; per-span caps include 1,024 attributes and 256 events. Expired
   traces cannot establish whether original sampling/export succeeded.
