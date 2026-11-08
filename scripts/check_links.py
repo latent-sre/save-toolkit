@@ -87,6 +87,8 @@ LIVE_DOC_ROOTS = (
 LIVE_DOC_DIR_GLOBS = (
     ("docs", "*.md"),
     ("docs/reviews", "*.md"),
+    ("docs/fleet-evaluation", "*.md"),
+    ("docs/sre-workbench", "*.md"),
     ("evals/docs", "*.md"),
 )
 
@@ -530,14 +532,49 @@ def _check_direct_bundle_links(skill_path: Path, body: str) -> list[str]:
         if relative is not None:
             with contextlib.suppress(ValueError):
                 resolved.add((skill_path.parent / relative).resolve().relative_to(skill_root.resolve()).as_posix())
-    for bundle in _bundle_files(skill_root):
-        relative = bundle.relative_to(skill_root).as_posix()
-        if relative in resolved:
+    bundles = {bundle.relative_to(skill_root).as_posix(): bundle for bundle in _bundle_files(skill_root)}
+    reachable = set(resolved) | _scripts_loaded_by(bundles, resolved)
+    for relative in bundles:
+        if relative in reachable:
             continue
         failures.append(
             f"{skill_path.as_posix()}: bundled file not linked directly from SKILL.md body: {relative}"
         )
     return failures
+
+
+def _scripts_loaded_by(bundles: dict[str, Path], linked: set[str]) -> set[str]:
+    """Scripts that a linked script, or one it loads, names as a module to load.
+
+    Documents still need a direct SKILL.md link: a model reading A partway loses A's pointer to B.
+    A script another script loads is never read by the model, so its loader is its reference.
+    """
+    scripts = {relative: path for relative, path in bundles.items() if relative.startswith("scripts/")}
+    loaded: set[str] = set()
+    frontier = [relative for relative in scripts if relative in linked]
+    seen = set(frontier)
+    while frontier:
+        try:
+            text = scripts[frontier.pop()].read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            continue
+        for relative, path in scripts.items():
+            if relative in seen or not _names_module(text, path):
+                continue
+            seen.add(relative)
+            loaded.add(relative)
+            frontier.append(relative)
+    return loaded
+
+
+def _names_module(text: str, path: Path) -> bool:
+    stem = re.escape(path.stem)
+    name = re.escape(path.name)
+    return re.search(
+        rf"""['"](?:{stem}|{name})['"]|^\s*(?:import\s+{stem}\b|from\s+{stem}\s+import\b)""",
+        text,
+        re.MULTILINE,
+    ) is not None
 
 
 def _check_guide(root: Path) -> list[str]:

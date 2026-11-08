@@ -75,7 +75,7 @@ invocations, inspect overlapping triggers and discovery-listing omissions separa
 | Rule | Failure it prevents |
 |---|---|
 | A reference file over 100 lines opens with a `## Contents` list | Partial (`head`-style) reads hide everything below the preview window |
-| Bundle references one level deep from SKILL.md; sibling cross-links are fine when every file is also linked from SKILL.md (the link checker enforces the direct link) | A chain — SKILL.md → A → B — loses the pointer to B on a partial read of A |
+| Bundle references one level deep from SKILL.md; sibling cross-links are fine when every file is also linked from SKILL.md (the link checker enforces the direct link; a script that a linked script loads needs none, because the model never reads it) | A chain — SKILL.md → A → B — loses the pointer to B on a partial read of A |
 | No relative link that escapes the skill's own folder; duplicate shared prose between skills instead, and compose at the invocation layer | A skill ships as a self-contained folder per surface (claude.ai zip, API upload, filesystem, plugin), so an escaping link breaks silently once the folder ships alone |
 | No time-sensitive prose ("before August 2026, use X"); superseded guidance goes under an "old patterns" heading | Silent staleness |
 

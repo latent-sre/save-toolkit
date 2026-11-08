@@ -26,6 +26,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - `production-change-gate` tightens environment, immutable-release and rollback evidence, completes its worked example, and folds artifact evidence into release readiness.
 - `obs-analysis` merges its method and Cloud Monitoring references, drops the inventory templates, fixes redaction and Log Cache wording, and moves to Splunk 10.6 and semconv 1.45.
 - `obs-alerting` and `obs-pipeline` correct promtool, freshness, Mimir suffix and collector-counter guidance; `error_budget.py` flags pairs an SLO cannot fire.
+- The bundle-link check exempts scripts that a linked script loads and now scans `docs/fleet-evaluation` and `docs/sre-workbench`.
 
 ## [0.52.0] - 2026-11-04
 
