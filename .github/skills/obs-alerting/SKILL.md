@@ -18,10 +18,9 @@ For a bounded check or explanation, answer from the supplied rule and evidence; 
 Design and verification steps below apply only to the artifact or readiness work requested.
 Redact sensitive label and tag values from query evidence; prefer an access-controlled link plus
 the smallest necessary excerpt.
-**Grafana implementation lives in `grafana`.** Load it for rule inspection/create/update,
-pause/resume, silences, provisioning formats, evaluation settings, contact points, notification
-policies, or missing-notification investigation. This skill owns alert intent, SLOs, burn rates,
-and verification criteria; it does not grant live access.
+**Grafana implementation lives in `grafana`;** load it for any Grafana rule, silence, routing, or
+missing-notification work. This skill owns alert intent, SLOs, burn rates, and verification
+criteria; it does not grant live access.
 
 ## SLI, SLO, and burn rate
 
@@ -48,9 +47,13 @@ Read only the row needed for the task:
 ## Scheduled work — alert on staleness, not errors
 
 For a backup, sync, or scheduled-job alert, use freshness rather than a request burn pair. Design
-`*_last_success_timestamp_seconds` and an age threshold from the schedule plus a defensible grace
-period. Define no-data behavior: a missing timestamp is silence, never an all-clear. A job that never
-runs emits no errors. Freshness complements request-driven SLIs; it does not replace them.
+`*_last_success_timestamp_seconds` and an age threshold of at least two full schedule intervals.
+Define no-data behavior: a missing timestamp is silence, never an all-clear. In Prometheus,
+`time() - x > t` returns nothing once the series vanishes, so the alert resolves; pair it with an
+`absent()` rule. In Grafana, a vanished series goes to Normal (missing series), and the
+`DatasourceNoData`/`DatasourceError` alerts may not match the notification policies and silences
+written for the rule. A job that never runs emits no errors. Freshness complements request-driven
+SLIs; it does not replace them.
 
 Trace shared dependencies of the job, signal store, evaluator and notification path. If the signal
 store fails, an age query cannot evaluate: specify query-error notification or an independent
@@ -63,28 +66,17 @@ To claim an alert implementation verified, supply actual evidence for these chec
 review may be handed off with the missing proof explicitly `[unverified]`:
 
 - Validate before any reload: rule and config syntax pass their checkers (for Prometheus-format
-  sources, `promtool check rules` / `promtool check config`) so a bad file never reaches the
-  evaluator.
-- **Force the alert's condition and observe it both fire and resolve** — a deliberately failing
-  safe target, a controlled non-production rule with an always-true expression routed only to a
-  test contact point, or `promtool test rules` to prove the burn-rate arithmetic and the long/short
-  window pair. Never force a production receiver. `promtool check` and `promtool test` are
-  agent-runnable **in the `observability-engineer` lane only** (`test` creates a disk-backed
-  temporary TSDB — run it in a scratch directory); an `sre-assistant` loading this skill routes both to a
-  human and preserves the exact output. A rule that has only ever evaluated false is
-  unverified; so is one never observed resolving after recovery.
-- The notification route delivered to the intended contact point.
+  sources, `promtool check rules` / `promtool check config`; these do not check Grafana-managed
+  rules) so a bad file never reaches the evaluator.
+- **Force the alert's condition and observe it fire, resolve, and deliver to the intended contact
+  point** — a deliberately failing safe target, or a controlled non-production rule with an
+  always-true expression routed only to a test contact point. Never force a production receiver.
+  `promtool test rules` proves the burn-rate arithmetic and the long/short window pair on
+  synthetic series only; live fire/resolve and delivery still need their own checks. `promtool
+  check` and `promtool test` are agent-runnable **in the `observability-engineer` lane only**
+  (`test` creates a disk-backed temporary TSDB in the OS temp directory whatever the working
+  directory; set `TMPDIR` on POSIX or `TMP` on Windows to relocate it); an `sre-assistant` loading
+  this skill routes both to a human and preserves the exact output. A rule that has only ever
+  evaluated false is unverified; so is one never observed resolving after recovery.
 - A paging alert's runbook link resolves to a runbook that exists — a dead link at 3 a.m. is a
   design defect, not a docs chore.
-
-## The bar for asserting cause
-
-Correlation, time order, and a path difference rank hypotheses; they do not prove cause. Promote
-one only with a disprovable mechanism, corroboration from an independent signal class, a
-disconfirmation test, and — for a network path — the blast radius. Below that bar, call it a
-leading hypothesis and keep the alternatives open.
-
-## Don't
-
-- Don't choose extra nines because they sound reliable; every nine raises operating cost. Match the
-  target to user need and what the team can actually defend.

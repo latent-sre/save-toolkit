@@ -35,7 +35,7 @@ alert.suppress.fields = service,alert_type
 ```
 
 Field-based suppression works only on per-result alerts (`alert.digest_mode = 0`); a digest alert
-throttles by time alone, so one service's trigger mutes all others. In Enterprise 10.4,
+throttles by time alone, so one service's trigger mutes all others.
 `alert.suppress.group_name` shares suppression only among alerts with the same user owner; a matching
 group name alone is insufficient. Compare suppression duration with the runbook escalation time-box
 so continuing burn is not hidden.

@@ -24,6 +24,7 @@ For the selected example pair:
 | Long only | No page; short window recovered, but budget may already be spent |
 | Short only | No page; unconfirmed spike, re-check |
 | Neither | Below the pair's threshold, not proof of remaining budget |
+| Unreachable | The pair can never fire at this SLO; choose a pair the objective can reach |
 
 ## Calculator
 
