@@ -22,6 +22,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   cases pairing failure-hiding handlers and empty layers with justified look-alikes. Explaining
   Python leaves the skill's scope: its description drops the explain verb and trigger, and
   `discovery-python-explanation` is removed.
+- `software-engineer` no longer dispatches `reviewer` by file count, carries finding labels, or
+  loads `obs-pipeline` or `ci-actions`; its review-findings rule is reduced to the stale check.
 
 ## [0.52.0] - 2026-11-04
 
@@ -326,6 +328,10 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Removed
 
+- The last two checks that graded carried input labels: `build-sre-assistant-handles-partial-research`
+  and `build-observability-engineer-resumes-after-partial-helper` no longer require the helper's
+  `[UNTRUSTED] [unverified]` labels in the report, under the owner's retirement of the
+  labels-in-transit rule (LABELS-001). Their resume and refusal checks are unchanged.
 - The six `requirements-*.txt` files; `uv.lock` replaces them and the adapter identities hash the
   lock instead.
 - Roadmap items SKILLS-001, SKILLS-002, SKILLS-003, FLEET-AUDIT-20261023 and HANDOFF-002, whose
