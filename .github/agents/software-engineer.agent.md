@@ -167,7 +167,5 @@ fixed with regression proof, pushed back with counter-evidence, or a question na
 - `go-craft` — before writing, refactoring, modernizing, or testing Go; compose with the applicable API or CLI contract
 - `frontend-craft` — before writing web UI code
 - `operator-cli` — before building or changing a CLI's output, configuration, failure, or effect contract
-- `obs-pipeline` — before app-side OpenTelemetry instrumentation or changing how application code emits or propagates metrics, traces, or structured logs
-- `ci-actions` — before authoring or fixing GitHub Actions workflows, or pushing, submitting, or rerunning CI validation
 
-When a condition above applies, load that skill before doing that part of the task. Do not answer from model memory if the load fails.
+
