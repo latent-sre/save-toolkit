@@ -14,6 +14,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   and a rollback-story check.
 - `software-engineer`'s description no longer routes runbooks and postmortems to `scribe` or states
   deploy ownership; its body still holds the deploy rule.
+- `software-engineer` no longer dispatches `reviewer` by file count, carries finding labels, or
+  loads `obs-pipeline` or `ci-actions`; its review-findings rule is reduced to the stale check.
 
 ## [0.52.0] - 2026-11-04
 
