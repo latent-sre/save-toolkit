@@ -60,10 +60,28 @@ SLUG = re.compile(r"[a-z0-9-]{1,100}\Z")
 PNG_SIGNATURE = bytes((137, 80, 78, 71, 13, 10, 26, 10))
 TEMPLATE =re.compile(r"\$(?:[A-Za-z_]|\{)|\[\[[A-Za-z_][^\]]*\]\]")
 MACRO = re.compile(r"\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)")
+# Grafana's Prometheus backend expands these from the request's intervalMs, time range and the
+# datasource scrape interval; the expanded value can differ from the panel's.
+BACKEND_MACROS = frozenset({"__interval", "__interval_ms", "__range", "__range_s", "__range_ms",
+                            "__rate_interval", "__rate_interval_ms"})
+NEXT_TOKEN = re.compile(r"[A-Za-z0-9_+/=-]{1,1024}\Z")
+V2_LAYOUTS = {"GridLayout": "items", "AutoGridLayout": "items", "RowsLayout": "rows", "TabsLayout": "tabs"}
+V2_VARIABLES = {"QueryVariable": "query", "TextVariable": "textbox", "ConstantVariable": "constant",
+                "DatasourceVariable": "datasource", "IntervalVariable": "interval", "CustomVariable": "custom",
+                "GroupByVariable": "groupby", "AdhocVariable": "adhoc", "SwitchVariable": "switch"}
+MAX_LAYOUT_DEPTH = 16
 
 
 class SafeError(Exception):
-    """A static error code safe to expose; never constructed from external text."""
+    """A static error code safe to expose; never constructed from external text.
+
+    `status` carries the numeric HTTP status of a rejected response, which is not secret and
+    separates authentication, permission, missing-resource and server failures.
+    """
+
+    def __init__(self, code, status=None):
+        super().__init__(code)
+        self.status = status if isinstance(status, int) and not isinstance(status, bool) else None
 
 
 class _Parser(argparse.ArgumentParser):
@@ -91,7 +109,7 @@ def parse_args(argv):
     expression.add_argument("--expr")
     expression.add_argument("--expr-base64")
     search = commands.add_parser("search", add_help=False, allow_abbrev=False)
-    search.add_argument("--query", required=True)
+    search.add_argument("--query")
     search.add_argument("--page", type=int)
     search.add_argument("--folder-uid")
     search.add_argument("--tag")
@@ -99,6 +117,7 @@ def parse_args(argv):
     alert_scope = alerts.add_mutually_exclusive_group()
     alert_scope.add_argument("--folder-uid")
     alert_scope.add_argument("--uid")
+    alerts.add_argument("--group-next-token")
     annotations = commands.add_parser("annotations", add_help=False, allow_abbrev=False)
     annotations.add_argument("--from", dest="from_ms", type=int, required=True)
     annotations.add_argument("--to", dest="to_ms", type=int, required=True)
@@ -116,13 +135,13 @@ def parse_args(argv):
     render.add_argument("--height", type=int)
     args = parser.parse_args(argv)
     expected = {"dashboard": {"--uid"}, "query": {"--datasource", "--kind", "--from", "--to", "--expr"},
-                "search": {"--query"}, "alerts": set(), "annotations": {"--from", "--to"}, "silences": set(),
+                "search": set(), "alerts": set(), "annotations": {"--from", "--to"}, "silences": set(),
                 "render": {"--uid", "--panel", "--from", "--to"}}[args.command]
     if args.command == "query" and args.expr_base64 is not None:
         expected.remove("--expr")
         expected.add("--expr-base64")
     for name in ("folder_uid", "dashboard_uid", "panel", "uid", "page", "tag", "id", "mode", "output",
-                 "interval_ms", "rate_interval_ms", "width", "height"):
+                 "interval_ms", "rate_interval_ms", "width", "height", "group_next_token", "query"):
         if getattr(args, name, None) is not None:
             expected.add("--" + name.replace("_", "-"))
     # Separate named flags, each exactly once except a repeated --var; no positional or --flag=value variants.
@@ -137,9 +156,13 @@ def parse_args(argv):
     if any(uid is not None and not UID.fullmatch(uid) for uid in uids):
         raise SafeError("invalid_arguments")
     if args.command == "search" and (
-            not SEARCH_TEXT.fullmatch(args.query) or not args.query.strip()
+            (args.query is None and args.folder_uid is None)
+            or (args.query is not None and (not SEARCH_TEXT.fullmatch(args.query) or not args.query.strip()))
             or (args.page is not None and not 1 <= args.page <= MAX_SEARCH_PAGE)
             or (args.tag is not None and (not SEARCH_TEXT.fullmatch(args.tag) or not args.tag.strip()))):
+        raise SafeError("invalid_arguments")
+    if args.command == "alerts" and args.group_next_token is not None and (
+            args.uid is not None or not NEXT_TOKEN.fullmatch(args.group_next_token)):
         raise SafeError("invalid_arguments")
     if args.command == "silences" and args.id is not None and not SILENCE_ID.fullmatch(args.id):
         raise SafeError("invalid_arguments")
@@ -182,11 +205,13 @@ def parse_args(argv):
                 raise SafeError("invalid_arguments") from None
         if not args.expr.strip() or len(args.expr) > MAX_EXPRESSION:
             raise SafeError("unresolved_or_invalid_expression")
-        if any(ord(char) < 32 for char in args.expr):
+        # Multi-line PromQL/LogQL is whitespace to the backend; other control characters are refused.
+        if any(ord(char) < 32 and char not in "\t\n\r" for char in args.expr):
             raise SafeError("invalid_arguments")
-        args.original_expr, args.substitutions = args.expr, {}
+        args.original_expr, args.substitutions, args.backend_expanded = args.expr, {}, []
         args.expr = _resolve_expression(args)
-        if len(args.expr) > MAX_EXPRESSION or TEMPLATE.search(args.expr):
+        unresolved = MACRO.sub(lambda match: "" if match.group(0) in args.backend_expanded else match.group(0), args.expr)
+        if len(args.expr) > MAX_EXPRESSION or TEMPLATE.search(unresolved):
             raise SafeError("unresolved_or_invalid_expression")
         args.interval_ms = args.interval_ms or minimum_interval
     return args
@@ -202,28 +227,41 @@ def _decode_render_variable(value):
             raise ValueError()
         decoded = raw.decode('utf-8', errors='strict')
         name, separator, literal = decoded.partition('=')
-        if (not separator or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,63}', name)
-                or not 1 <= len(literal) <= 100 or not all(char.isprintable() for char in literal)):
+        if not separator or not valid_variable(name, literal):
             raise ValueError()
         return decoded
     except (ValueError, UnicodeError):
         raise SafeError('invalid_arguments') from None
 
 
+def valid_variable(name, value):
+    """One scalar dashboard variable: an identifier name and 1-100 printable characters."""
+    return re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,63}", name) is not None and 1 <= len(value) <= 100 and value.isprintable()
+
+
 def _resolve_expression(args):
-    """Replace only exact builtins with known window or explicitly supplied interval values."""
+    """Substitute explicit interval inputs; leave the other exact built-ins to the Prometheus backend.
+
+    Loki keeps local range substitution and needs an explicit interval, as before.
+    """
     milliseconds = args.to_ms - args.from_ms
     seconds = str(milliseconds // 1000) + (f".{milliseconds % 1000:03d}".rstrip("0") if milliseconds % 1000 else "")
-    replacements = {"__range": f"{milliseconds // 1000}s" if milliseconds % 1000 == 0 else f"{milliseconds}ms",
-                    "__range_s": seconds, "__range_ms": str(milliseconds)}
+    replacements = {}
+    if args.kind == "loki":
+        replacements = {"__range": f"{milliseconds // 1000}s" if milliseconds % 1000 == 0 else f"{milliseconds}ms",
+                        "__range_s": seconds, "__range_ms": str(milliseconds)}
     if args.interval_ms is not None:
         replacements.update({"__interval": f"{args.interval_ms}ms", "__interval_ms": str(args.interval_ms)})
     if args.rate_interval_ms is not None:
-        replacements["__rate_interval"] = f"{args.rate_interval_ms}ms"
+        replacements.update({"__rate_interval": f"{args.rate_interval_ms}ms",
+                             "__rate_interval_ms": str(args.rate_interval_ms)})
 
     def replace(match):
-        replacement = replacements.get(match.group(1) or match.group(2))
+        name = match.group(1) or match.group(2)
+        replacement = replacements.get(name)
         if replacement is None:
+            if args.kind == "prometheus" and name in BACKEND_MACROS and match.group(0) not in args.backend_expanded:
+                args.backend_expanded.append(match.group(0))
             return match.group(0)
         args.substitutions[match.group(0)] = replacement
         return replacement
@@ -318,9 +356,9 @@ class _Connection:
         except Exception:
             raise SafeError("request_failed") from None
         if 300 <= status < 400:
-            raise SafeError("redirect_rejected")
+            raise SafeError("redirect_rejected", status)
         if status < 200 or status >= 300:
-            raise SafeError("http_error")
+            raise SafeError("http_error", status)
         if len(raw) > MAX_RESPONSE:
             raise SafeError("response_too_large")
         try:
@@ -346,11 +384,11 @@ class _Connection:
         except Exception:
             raise SafeError("request_failed") from None
         if 300 <= status < 400:
-            raise SafeError("redirect_rejected")
+            raise SafeError("redirect_rejected", status)
         if status == 429:
-            raise SafeError("renderer_busy")
+            raise SafeError("renderer_busy", status)
         if status < 200 or status >= 300:
-            raise SafeError("http_error")
+            raise SafeError("http_error", status)
         if len(raw) > MAX_IMAGE:
             raise SafeError("response_too_large")
         # A login page or error body served with 200 is not an image.
@@ -457,25 +495,188 @@ def http_transport(request, limit=MAX_RESPONSE, timeout=TIMEOUT):
         return status, b""
 
 
-def _dashboard(grafana, args):
-    response = grafana.read("/api/dashboards/uid/" + args.uid)
-    dashboard = response.get("dashboard")
-    if not isinstance(dashboard, dict) or dashboard.get("uid") != args.uid or not isinstance(response.get("meta"), dict):
+def _app_platform_dashboard(grafana, uid, version):
+    """GET one `/apis` dashboard object at `version`; return its spec, metadata and stored version."""
+    namespace = "default" if grafana.organization == 1 else f"org-{grafana.organization}"
+    resource = grafana.read(f"/apis/dashboard.grafana.app/{version}/namespaces/{namespace}/dashboards/{uid}")
+    metadata, spec, status = resource.get("metadata"), resource.get("spec"), resource.get("status")
+    if (resource.get("kind") != "Dashboard" or resource.get("apiVersion") != "dashboard.grafana.app/" + version
+            or not isinstance(metadata, dict) or metadata.get("name") != uid
+            or metadata.get("namespace") != namespace or not isinstance(spec, dict)):
         raise SafeError("invalid_dashboard_response")
+    conversion = status.get("conversion") if isinstance(status, dict) else None
+    conversion = conversion if isinstance(conversion, dict) else {}
+    if conversion.get("failed"):
+        raise SafeError("dashboard_conversion_failed")
+    # A read at the stored version carries no conversion status.
+    stored = conversion.get("storedVersion") if isinstance(conversion.get("storedVersion"), str) else version
+    return resource, namespace, stored
+
+
+def _load_dashboard(grafana, uid):
+    """Read the legacy model and the stored version; a V2-stored dashboard is read natively.
+
+    The legacy read of a V2-stored dashboard is a silent Classic down-conversion (tabs become
+    rows), so the stored version comes from a v0alpha1 `/apis` read's conversion status.
+    Returns the stored `dashboard`, legacy `meta`, `model`, and for V2 the mapped `panel_view`.
+    """
+    response = grafana.read("/api/dashboards/uid/" + uid)
+    dashboard, meta = response.get("dashboard"), response.get("meta")
+    if not isinstance(dashboard, dict) or not isinstance(meta, dict):
+        raise SafeError("invalid_dashboard_response")
+    stored = meta["apiVersion"].rsplit("/", 1)[-1] if isinstance(meta.get("apiVersion"), str) else ""
+    model = {"format": "classic", "stored_version": None, "storage_check": "not_needed"}
+    if not stored.startswith("v2") and not any(key in dashboard for key in ("elements", "layout", "spec")):
+        if dashboard.get("uid") != uid:
+            raise SafeError("invalid_dashboard_response")
+        try:
+            stored = _app_platform_dashboard(grafana, uid, "v0alpha1")[2]
+            model.update(stored_version=stored, storage_check="verified")
+        except SafeError as error:
+            # Older or restricted instances: the legacy model stays usable, its storage unknown.
+            model.update(storage_check="unavailable", **({"http_status": error.status} if error.status else {}))
+            return {"dashboard": dashboard, "meta": meta, "model": model}
+        if not stored.startswith("v2"):
+            return {"dashboard": dashboard, "meta": meta, "model": model}
+    version = stored if stored in ("v2beta1", "v2") else "v2beta1"
+    try:
+        resource, namespace, stored = _app_platform_dashboard(grafana, uid, version)
+    except SafeError as error:
+        if str(error) in ("invalid_dashboard_response", "dashboard_conversion_failed"):
+            raise
+        raise SafeError("v2_dashboard_unavailable", error.status) from None
+    return {"dashboard": resource, "meta": meta,
+            "panel_view": v2_panel_view(resource["spec"], uid=uid, version=resource["metadata"].get("generation")),
+            "model": {"format": "v2", "stored_version": stored, "api_version": version, "namespace": namespace,
+                      "storage_check": "verified", "panel_view": "mapped_from_v2"}}
+
+
+def _v2_datasource(kind):
+    """V2 queries name the datasource type as `group` and the datasource UID as `datasource.name`."""
+    source = kind.get("datasource") if isinstance(kind.get("datasource"), dict) else {}
+    return {key: value for key, value in (("type", kind.get("group")), ("uid", source.get("name"))) if isinstance(value, str)}
+
+
+def _v2_panel(name, element, repeat, context):
+    if not isinstance(element, dict) or not isinstance(element.get("spec"), dict):
+        raise SafeError("invalid_panel_tree")
+    body = element["spec"]
+    panel = {"id": body.get("id"), "title": body.get("title"), "_element": name, "_parent_context": context}
+    if element.get("kind") == "LibraryPanel":
+        panel.update(type="library-panel", libraryPanel=body.get("libraryPanel"))
+    elif element.get("kind") == "Panel":
+        viz, data = body.get("vizConfig"), body.get("data")
+        if (not isinstance(viz, dict) or not isinstance(viz.get("spec", {}), dict)
+                or not isinstance(data, dict) or not isinstance(data.get("spec"), dict)):
+            raise SafeError("invalid_panel_tree")
+        viz_spec, group = viz.get("spec", {}), data["spec"]
+        panel.update({key: value for key, value in (
+            ("type", viz.get("group")), ("description", body.get("description")),
+            ("options", viz_spec.get("options")), ("fieldConfig", viz_spec.get("fieldConfig"))) if value is not None})
+        options, queries = group.get("queryOptions") or {}, group.get("queries") or []
+        transformations = group.get("transformations") or []
+        if not isinstance(options, dict) or not isinstance(queries, list) or not isinstance(transformations, list):
+            raise SafeError("invalid_panel_tree")
+        panel.update({key: options[key] for key in ("interval", "maxDataPoints", "timeFrom", "timeShift") if key in options})
+        if transformations:
+            panel["transformations"] = [{"id": item.get("group"), **(item.get("spec") or {})} if isinstance(item, dict) else item
+                                        for item in transformations]
+        panel["targets"] = []
+        for query in queries:
+            spec = query.get("spec") if isinstance(query, dict) else None
+            data_query = spec.get("query") if isinstance(spec, dict) else None
+            if not isinstance(data_query, dict) or not isinstance(data_query.get("spec", {}), dict):
+                raise SafeError("invalid_panel_tree")
+            panel["targets"].append({**data_query.get("spec", {}), "refId": spec.get("refId", "A"),
+                                     "hide": spec.get("hidden") is True, "datasource": _v2_datasource(data_query)})
+    else:
+        raise SafeError("unsupported_dashboard_model")
+    if repeat:
+        panel["repeat"] = repeat.get("value") if isinstance(repeat, dict) else repeat
+    return panel
+
+
+def v2_panel_view(spec, *, uid=None, version=None):
+    """Map a V2 spec onto the Classic panel/target/templating shape the planner and checks read.
+
+    Panels keep their numeric `id` plus `_element` (the element name); repeated or variable-scoped
+    rows and tabs become `_parent_context`. Layouts are flattened in document order.
+    """
+    elements, layout, variables = spec.get("elements"), spec.get("layout"), spec.get("variables", [])
+    if not isinstance(elements, dict) or not isinstance(layout, dict) or not isinstance(variables, list):
+        raise SafeError("invalid_panel_tree")
+    panels, pending = [], [(layout, [], 0)]
+    while pending:
+        node, context, depth = pending.pop()
+        if depth > MAX_LAYOUT_DEPTH or not isinstance(node, dict) or not isinstance(node.get("spec"), dict):
+            raise SafeError("invalid_panel_tree")
+        key = V2_LAYOUTS.get(node.get("kind"))
+        if key is None:
+            raise SafeError("unsupported_dashboard_model")
+        children = node["spec"].get(key)
+        if not isinstance(children, list) or not all(isinstance(child, dict) and isinstance(child.get("spec"), dict)
+                                                     for child in children):
+            raise SafeError("invalid_panel_tree")
+        if key == "items":
+            for item in children:
+                reference = item["spec"].get("element")
+                name = reference.get("name") if isinstance(reference, dict) else None
+                if not isinstance(name, str) or name not in elements:
+                    raise SafeError("invalid_panel_tree")
+                panels.append(_v2_panel(name, elements[name], item["spec"].get("repeat"), context))
+        else:
+            for section in reversed(children):
+                scoped = [name for name, value in (("repeat", section["spec"].get("repeat")),
+                                                   ("scopedVars", section["spec"].get("variables"))) if value]
+                pending.append((section["spec"].get("layout"), context + scoped, depth + 1))
+    templating = []
+    for variable in variables:
+        if not isinstance(variable, dict) or not isinstance(variable.get("spec"), dict):
+            raise SafeError("invalid_panel_tree")
+        body = variable["spec"]
+        item = {key: body[key] for key in ("name", "label", "current", "multi", "includeAll", "allValue", "filters", "hide")
+                if key in body}
+        item["type"] = V2_VARIABLES.get(variable.get("kind"), "unknown")
+        query = body.get("query")
+        if isinstance(query, dict):
+            item.update(query=query.get("spec") if isinstance(query.get("spec"), dict) else {}, datasource=_v2_datasource(query))
+        elif query is not None:
+            item["query"] = query
+        if variable.get("kind") in ("AdhocVariable", "GroupByVariable"):
+            item["datasource"] = _v2_datasource(variable)
+        templating.append(item)
+    view = {"uid": uid, "version": version, "title": spec.get("title"), "tags": spec.get("tags") or [],
+            "templating": {"list": templating}, "panels": panels}
+    time_settings = spec.get("timeSettings")
+    if isinstance(time_settings, dict):
+        view.update(time={"from": time_settings.get("from"), "to": time_settings.get("to")},
+                    timezone=time_settings.get("timezone"))
+    return view
+
+
+def _dashboard(grafana, args):
+    loaded = _load_dashboard(grafana, args.uid)
+    model = loaded.get("panel_view", loaded["dashboard"])
     if args.panel is not None:
-        panel = _panel(dashboard, args.panel)
+        panel = _panel(model, args.panel)
         if panel is None:
             raise SafeError("panel_not_found")
         # Raw configuration: variables, queries and transformations have not been executed/resolved.
-        context = {name: dashboard.get(name) for name in ("uid", "version", "title", "time", "timezone", "templating")}
-        return {"ok": True, "operation": "dashboard", "dashboard": context, "panel_id": args.panel,
-                "panel": panel, "coverage": "configuration_only"}
-    return {"ok": True, "operation": "dashboard", "dashboard": dashboard, "meta": response["meta"],
-            "coverage": "configuration_only"}
+        context = {name: model.get(name) for name in ("uid", "version", "title", "time", "timezone", "templating")}
+        result = {"ok": True, "operation": "dashboard", "dashboard": context, "panel_id": args.panel,
+                  "panel": panel, "coverage": "configuration_only"}
+    else:
+        result = {"ok": True, "operation": "dashboard", "dashboard": loaded["dashboard"], "meta": loaded["meta"],
+                  "coverage": "configuration_only"}
+        if "panel_view" in loaded:
+            result["panel_view"] = loaded["panel_view"]
+    if "model" in loaded:
+        result["model"] = loaded["model"]
+    return result
 
 
 def _query(grafana, args):
-    datasource = grafana.read("/api/datasources/uid/" + args.datasource + "?ds_type=" + args.kind)
+    datasource = grafana.read("/api/datasources/uid/" + args.datasource)
     if "orgId" in datasource and (type(datasource["orgId"]) is not int or datasource["orgId"] != grafana.organization):
         raise SafeError("organization_mismatch")
     if datasource.get("uid") != args.datasource or datasource.get("type") != args.kind:
@@ -495,20 +696,28 @@ def _query(grafana, args):
     if response.get("error") or not isinstance(results, dict) or set(results) != {"A"} or not isinstance(results["A"], dict):
         raise SafeError("query_failed")
     result_a = results["A"]
-    try:
-        failed = bool(result_a.get("error")) or int(result_a.get("status", 200)) >= 400
-    except (ValueError, TypeError):
-        failed = True
-    if failed or not isinstance(result_a.get("frames"), list):
+    if result_failed(result_a) or not isinstance(result_a.get("frames"), list):
         raise SafeError("query_failed")
+    expression = {"original": args.original_expr, "resolved": args.expr, "substitutions": args.substitutions,
+                  "backend_expanded": args.backend_expanded}
+    if args.backend_expanded:
+        # Expanded server-side from intervalMs/maxDataPoints here, not the panel's width or min interval.
+        expression["panel_equivalence"] = "not_established"
     result = {"ok": True, "operation": "query", "datasource": args.datasource, "kind": args.kind,
               "from": str(args.from_ms), "to": str(args.to_ms), "mode": args.mode, "output": args.output,
-              "evaluation_time_ms": args.to_ms if args.mode == "instant" else None,
-              "expression": {"original": args.original_expr, "resolved": args.expr, "substitutions": args.substitutions},
+              "evaluation_time_ms": args.to_ms if args.mode == "instant" else None, "expression": expression,
               "summary": _query_summary(result_a, response, args), "coverage": "not_established", "limits": limits}
     if args.output == "full":
         result["results"] = results
     return result
+
+
+def result_failed(entry):
+    """A `/api/ds/query` result entry that reports an error or a non-2xx status."""
+    try:
+        return bool(entry.get("error")) or int(entry.get("status", 200)) >= 400
+    except (ValueError, TypeError, OverflowError):
+        return True
 
 
 def _finite(value):
@@ -644,7 +853,9 @@ def _query_summary(result, response, args):
 
 
 def _search(grafana, args):
-    path = "/api/search?type=dash-db&limit=" + str(LIST_LIMIT) + "&query=" + quote(args.query, safe="")
+    path = "/api/search?type=dash-db&limit=" + str(LIST_LIMIT)
+    if args.query is not None:
+        path += "&query=" + quote(args.query, safe="")
     if args.page is not None:
         path += "&page=" + str(args.page)
     if args.folder_uid is not None:
@@ -674,7 +885,9 @@ def _alerts(grafana, args):
             raise SafeError("organization_mismatch")
         return {"ok": True, "operation": "alerts", "uid": args.uid, "rule": rule, "coverage": "configuration_only"}
     path = "/api/prometheus/grafana/api/v1/rules?group_limit=" + str(LIST_LIMIT) + "&limit_alerts=" + str(ALERTS_PER_RULE)
-    response = grafana.read(path + ("&folder_uid=" + args.folder_uid if args.folder_uid else ""))
+    path += "&folder_uid=" + args.folder_uid if args.folder_uid else ""
+    path += "&group_next_token=" + quote(args.group_next_token, safe="") if args.group_next_token else ""
+    response = grafana.read(path)
     data = response.get("data")
     if response.get("status") != "success" or not isinstance(data, dict) or not isinstance(data.get("groups"), list):
         raise SafeError("query_failed")
@@ -682,8 +895,21 @@ def _alerts(grafana, args):
     # Grafana answers an inaccessible or unknown folder_uid with every visible folder.
     if args.folder_uid and any(group.get("folderUid") != args.folder_uid for group in groups):
         raise SafeError("folder_mismatch")
+    # Each rule's instance list stops at limit_alerts; its totals count every instance by state
+    # (an errored instance can count twice, so this can over-report but not miss a cut list).
+    cut = []
+    for group in groups:
+        for rule in group.get("rules") if isinstance(group.get("rules"), list) else []:
+            alerts, totals = (rule.get("alerts"), rule.get("totals")) if isinstance(rule, dict) else (None, None)
+            total = sum(v for v in totals.values() if type(v) is int) if isinstance(totals, dict) else None
+            if isinstance(alerts, list) and len(alerts) >= ALERTS_PER_RULE and (total is None or total > len(alerts)):
+                cut.append({"uid": rule.get("uid"), "returned": len(alerts), "total": total})
+    token = data.get("groupNextToken")
+    token = token if isinstance(token, str) and token else None
     return {"ok": True, "operation": "alerts", "folder_uid": args.folder_uid, "groups": groups,
-            "totals": data.get("totals"), "truncated": bool(data.get("groupNextToken")),
+            "totals": data.get("totals"), "truncated": bool(token or cut), "groups_truncated": bool(token),
+            "group_next_token": token if token and NEXT_TOKEN.fullmatch(token) else None,
+            "instances_truncated_rules": cut[:LIST_LIMIT], "instances_truncated_rule_count": len(cut),
             "coverage": "permission_scoped", "limits": {"group_limit": LIST_LIMIT, "limit_alerts": ALERTS_PER_RULE}}
 
 
@@ -705,29 +931,43 @@ def _silences(grafana, args):
             "coverage": "permission_scoped"}
 
 
-def _panel(dashboard, panel_id):
-    """Select a unique non-row Classic panel only after validating the complete panel tree."""
+def dashboard_panels(dashboard):
+    """Validate a whole Classic tree (or mapped V2 view); return its non-row panels in order.
+
+    Each panel gains `_parent_context`: the repeat/scopedVars keys of enclosing rows or sections.
+    """
     if any(key in dashboard for key in ("elements", "layout", "spec")):
         raise SafeError("unsupported_dashboard_model")
     top = dashboard.get("panels")
     if not isinstance(top, list):
         raise SafeError("invalid_panel_tree")
-    pending, ids, selected = list(top), set(), None
+    pending, ids, found = [(panel, []) for panel in reversed(top)], set(), []
     while pending:
-        panel = pending.pop()
+        panel, inherited = pending.pop()
         if (not isinstance(panel, dict) or type(panel.get("id")) is not int
                 or not 1 <= panel["id"] <= 2**31 - 1 or not isinstance(panel.get("type"), str) or not panel["type"]):
             raise SafeError("invalid_panel_tree")
         if panel["id"] in ids:
             raise SafeError("ambiguous_panel_id")
         ids.add(panel["id"])
-        if "panels" in panel:
-            if panel["type"] != "row" or not isinstance(panel["panels"], list):
-                raise SafeError("invalid_panel_tree")
-            pending.extend(panel["panels"])
-        if panel["id"] == panel_id and panel["type"] != "row":
-            selected = panel
-    return selected
+        if "panels" in panel and (panel["type"] != "row" or not isinstance(panel["panels"], list)):
+            raise SafeError("invalid_panel_tree")
+        if panel["type"] == "row":
+            context = inherited + [key for key in ("repeat", "scopedVars") if panel.get(key)]
+            pending.extend((child, context) for child in reversed(panel.get("panels", [])))
+        else:
+            stored = panel.get("_parent_context")
+            own = [key for key in ("repeat", "scopedVars") if isinstance(stored, list) and key in stored]
+            found.append({**panel, "_parent_context": own + inherited})
+    return found
+
+
+def _panel(dashboard, panel_id):
+    """Select a unique non-row panel only after validating the complete panel tree."""
+    for panel in dashboard_panels(dashboard):
+        if panel["id"] == panel_id:
+            return {key: value for key, value in panel.items() if key != "_parent_context" or value}
+    return None
 
 
 def _render_dir():
@@ -758,10 +998,8 @@ def _save_image(raw):
 
 
 def _render(grafana, args):
-    response = grafana.read("/api/dashboards/uid/" + args.uid)
-    dashboard, meta = response.get("dashboard"), response.get("meta")
-    if not isinstance(dashboard, dict) or dashboard.get("uid") != args.uid or not isinstance(meta, dict):
-        raise SafeError("invalid_dashboard_response")
+    loaded = _load_dashboard(grafana, args.uid)
+    meta, dashboard = loaded["meta"], loaded.get("panel_view", loaded["dashboard"])
     panel = _panel(dashboard, args.panel)
     if panel is None:
         raise SafeError("panel_not_found")
@@ -811,7 +1049,10 @@ def main(argv=None, *, environ=None, transport=None, output=None):
         serialized = json.dumps(result, ensure_ascii=True, allow_nan=False)
         code = 0
     except SafeError as error:
-        serialized, code = json.dumps({"ok": False, "error": str(error)}), 2
+        failure = {"ok": False, "error": str(error)}
+        if error.status is not None:
+            failure["http_status"] = error.status
+        serialized, code = json.dumps(failure), 2
     except Exception:
         # Process boundary: prevent unexpected library errors exposing credential material.
         serialized, code = '{"ok": false, "error": "request_failed"}', 2

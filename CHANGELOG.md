@@ -27,6 +27,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - `obs-analysis` merges its method and Cloud Monitoring references, drops the inventory templates, fixes redaction and Log Cache wording, and moves to Splunk 10.6 and semconv 1.45.
 - `obs-alerting` and `obs-pipeline` correct promtool, freshness, Mimir suffix and collector-counter guidance; `error_budget.py` flags pairs an SLO cannot fire.
 - The bundle-link check exempts scripts that a linked script loads and now scans `docs/fleet-evaluation` and `docs/sre-workbench`.
+- `grafana` reads V2 dashboards natively, lets Grafana expand its built-in macros (live coverage 16 to 41 of 47 targets), fixes alert truncation and error reporting, and drops compare, impact, alert-preview and the VS Code opener.
 
 ## [0.52.0] - 2026-11-04
 

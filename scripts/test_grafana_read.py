@@ -36,13 +36,31 @@ BOARD = {"dashboard": {"uid": "board", "version": 3, "panels": [
 SILENCE_ID = "12345678-1234-1234-1234-123456789abc"
 
 
+PROBE = "/apis/dashboard.grafana.app/v0alpha1/namespaces/"
+
+
+def stored_version_response(url, stored="v0alpha1"):
+    """The v0alpha1 read that reports a dashboard's stored version in its conversion status."""
+    namespace, uid = url.split(PROBE, 1)[1].split("/dashboards/")
+    return {"apiVersion": "dashboard.grafana.app/v0alpha1", "kind": "Dashboard",
+            "metadata": {"name": uid, "namespace": namespace, "generation": 3},
+            "spec": {}, "status": {"conversion": {"failed": False, "storedVersion": stored}}}
+
+
 class Transport:
-    def __init__(self, *responses, org_response=None):
+    """Queued responses; the stored-version check is answered as Classic and kept out of `requests`."""
+
+    def __init__(self, *responses, org_response=None, stored="v0alpha1"):
         self.responses = [(200, {"id": 7}) if org_response is None else org_response, *responses]
         self.requests = []
+        self.probes = []
         self.bounds = []
+        self.stored = stored
 
     def __call__(self, request, **bounds):
+        if PROBE in request.full_url and self.stored is not None:
+            self.probes.append(request)
+            return 200, json.dumps(stored_version_response(request.full_url, self.stored)).encode()
         self.requests.append(request)
         self.bounds.append(bounds)
         response = self.responses.pop(0)
@@ -91,17 +109,182 @@ def test_panel_selection_rejects_malformed_ambiguous_or_missing_panels(panels, e
     assert code == 2 and result["error"] == error and len(transport.requests) == 2
 
 
-@pytest.mark.parametrize("model", [{"elements": {}, "layout": {}}, {"kind": "Dashboard", "spec": {} }])
-def test_selected_panel_explicitly_refuses_v2(model):
-    transport = Transport((200, {"dashboard": {"uid": "board", "panels": [], **model}, "meta": {}}))
-    assert invoke([*DASHBOARD, "--panel", "7"], transport)[1]["error"] == "unsupported_dashboard_model"
+def v2_query(group, uid, spec, ref="A", hidden=False):
+    return {"kind": "PanelQuery", "spec": {"refId": ref, "hidden": hidden, "query": {
+        "kind": "DataQuery", "group": group, "version": "v0", "datasource": {"name": uid}, "spec": spec}}}
 
 
-def test_full_dashboard_still_returns_uninterpreted_model_and_metadata():
-    board = {"dashboard": {"uid": "board", "elements": {}, "layout": {}}, "meta": {"slug": "board"}}
-    code, result, _ = invoke(DASHBOARD, Transport((200, board)))
-    assert code == 0 and result["dashboard"] == board["dashboard"] and result["meta"] == board["meta"]
-    assert "panel" not in result
+def v2_panel(number, title, group, queries, **extra):
+    return {"kind": "Panel", "spec": {"id": number, "title": title, "links": [], "description": "about " + title,
+                                      "data": {"kind": "QueryGroup", "spec": {"queries": queries, "transformations": [],
+                                                                              "queryOptions": {}}},
+                                      "vizConfig": {"kind": "VizConfig", "group": group, "version": "13.3.0",
+                                                    "spec": {"options": {}, "fieldConfig": {"defaults": {"unit": "s"},
+                                                                                            "overrides": []}}}, **extra}}
+
+
+def grid(*names, repeat=None):
+    items = [{"kind": "GridLayoutItem", "spec": {"x": 0, "y": 0, "width": 12, "height": 8,
+                                                 "element": {"kind": "ElementReference", "name": name},
+                                                 **({"repeat": repeat} if repeat else {})}} for name in names]
+    return {"kind": "GridLayout", "spec": {"items": items}}
+
+
+# Synthetic V2 model in the v2beta1/v2 shape (apps/dashboard/kinds/v2 DashboardSpec): tabs hold rows,
+# rows hold grid or auto-grid layouts, elements hold panels and library panels.
+V2_SPEC = {
+    "title": "Synthetic V2", "tags": ["synthetic"], "cursorSync": "Off", "preload": False, "links": [], "annotations": [],
+    "timeSettings": {"from": "now-1h", "to": "now", "timezone": "utc", "autoRefresh": "", "fiscalYearStartMonth": 0,
+                     "hideTimepicker": False, "autoRefreshIntervals": []},
+    "variables": [
+        {"kind": "QueryVariable", "spec": {"name": "job", "multi": False, "includeAll": True, "current": {"value": "api"},
+                                           "query": {"kind": "DataQuery", "group": "prometheus", "version": "v0",
+                                                     "datasource": {"name": "metrics-1"},
+                                                     "spec": {"query": "label_values(up, job)"}}}},
+        {"kind": "CustomVariable", "spec": {"name": "env", "query": "a,b", "includeAll": False}},
+    ],
+    "elements": {
+        "panel-1": v2_panel(1, "Request rate", "timeseries", [
+            v2_query("prometheus", "metrics-1", {"expr": "sum(rate(requests_total[$__rate_interval]))"}),
+            v2_query("prometheus", "metrics-1", {"expr": "up"}, ref="B", hidden=True)]),
+        "panel-2": v2_panel(2, "Errors", "logs", [v2_query("loki", "logs-1", {"expr": '{app="api"} |= "error"',
+                                                                               "queryType": "range"})]),
+        "panel-3": v2_panel(3, "Per host", "stat", [v2_query("prometheus", "metrics-1", {"expr": "up"})]),
+        "panel-4": {"kind": "LibraryPanel", "spec": {"id": 4, "title": "Shared", "libraryPanel": {"uid": "lib-1", "name": "Shared"}}},
+        "panel-9": v2_panel(9, "Unreferenced", "stat", []),
+    },
+    "layout": {"kind": "TabsLayout", "spec": {"tabs": [
+        {"kind": "TabsLayoutTab", "spec": {"title": "Overview", "layout": {"kind": "RowsLayout", "spec": {"rows": [
+            {"kind": "RowsLayoutRow", "spec": {"title": "Traffic", "collapse": False, "layout": grid("panel-1", "panel-2")}},
+            {"kind": "RowsLayoutRow", "spec": {"title": "Hosts", "repeat": {"mode": "variable", "value": "job"},
+                                               "layout": {"kind": "AutoGridLayout", "spec": {
+                                                   "columnWidthMode": "standard", "rowHeightMode": "standard",
+                                                   "items": [{"kind": "AutoGridLayoutItem", "spec": {
+                                                       "element": {"kind": "ElementReference", "name": "panel-3"}}}]}}}},
+        ]}}}},
+        {"kind": "TabsLayoutTab", "spec": {"title": "Shared", "layout": grid("panel-4")}},
+    ]}},
+}
+
+
+def v2_resource(spec=None, *, version="v2", uid="board", namespace="org-7", **extra):
+    return {"apiVersion": "dashboard.grafana.app/" + version, "kind": "Dashboard",
+            "metadata": {"name": uid, "namespace": namespace, "generation": 5, "resourceVersion": "12"},
+            "spec": V2_SPEC if spec is None else spec, **extra}
+
+
+# The legacy read of a V2-stored dashboard is a silent Classic down-conversion.
+DOWN_CONVERTED = {"dashboard": {"uid": "board", "version": 5, "panels": [{"id": 1, "type": "timeseries"}]},
+                  "meta": {"slug": "synthetic-v2", "folderUid": "ops", "apiVersion": "v0alpha1"}}
+
+
+def test_v2_stored_dashboard_is_read_natively_with_identity_preserving_panel_view():
+    transport = Transport((200, DOWN_CONVERTED), (200, v2_resource()), stored="v2")
+    code, result, _ = invoke(DASHBOARD, transport)
+    assert code == 0, result
+    assert transport.probes[0].full_url.endswith("/apis/dashboard.grafana.app/v0alpha1/namespaces/org-7/dashboards/board")
+    assert transport.requests[-1].full_url.endswith("/apis/dashboard.grafana.app/v2/namespaces/org-7/dashboards/board")
+    assert all(request.method == "GET" for request in [*transport.requests, *transport.probes])
+    assert result["dashboard"] == v2_resource() and result["meta"] == DOWN_CONVERTED["meta"]
+    assert result["model"] == {"format": "v2", "stored_version": "v2", "api_version": "v2", "namespace": "org-7",
+                               "storage_check": "verified", "panel_view": "mapped_from_v2"}
+    view = result["panel_view"]
+    assert (view["uid"], view["version"], view["title"], view["tags"]) == ("board", 5, "Synthetic V2", ["synthetic"])
+    # Document order across tabs, rows and auto-grid; unreferenced elements are not displayed.
+    assert [(p["id"], p["_element"], p["type"], p["_parent_context"]) for p in view["panels"]] == [
+        (1, "panel-1", "timeseries", []), (2, "panel-2", "logs", []), (3, "panel-3", "stat", ["repeat"]),
+        (4, "panel-4", "library-panel", [])]
+    first = view["panels"][0]
+    assert first["targets"] == [
+        {"expr": "sum(rate(requests_total[$__rate_interval]))", "refId": "A", "hide": False,
+         "datasource": {"type": "prometheus", "uid": "metrics-1"}},
+        {"expr": "up", "refId": "B", "hide": True, "datasource": {"type": "prometheus", "uid": "metrics-1"}}]
+    assert first["fieldConfig"]["defaults"]["unit"] == "s" and first["description"] == "about Request rate"
+    assert view["panels"][3]["libraryPanel"] == {"uid": "lib-1", "name": "Shared"}
+    assert view["templating"]["list"] == [
+        {"name": "job", "current": {"value": "api"}, "multi": False, "includeAll": True, "type": "query",
+         "query": {"query": "label_values(up, job)"}, "datasource": {"type": "prometheus", "uid": "metrics-1"}},
+        {"name": "env", "includeAll": False, "type": "custom", "query": "a,b"}]
+
+
+def test_v2_panel_selection_and_render_use_the_mapped_view(capture_dir):
+    transport = Transport((200, DOWN_CONVERTED), (200, v2_resource()), stored="v2")
+    code, result, _ = invoke([*DASHBOARD, "--panel", "3"], transport)
+    assert code == 0 and result["panel"]["_element"] == "panel-3" and result["panel"]["_parent_context"] == ["repeat"]
+    assert result["dashboard"]["version"] == 5 and result["model"]["format"] == "v2"
+    transport = Transport((200, DOWN_CONVERTED), (200, v2_resource()), (200, PNG), stored="v2")
+    code, result, _ = invoke([*RENDER[:3], "--panel", "2", *RENDER[5:]], transport)
+    assert code == 0 and result["panel_title"] == "Errors" and result["dashboard_version"] == 5
+    assert "/render/d-solo/board/synthetic-v2?" in transport.requests[-1].full_url
+
+
+def test_v2_body_or_version_in_legacy_read_skips_the_storage_check():
+    legacy = {"dashboard": {"elements": {}, "layout": {}}, "meta": {"apiVersion": "v2beta1"}}
+    transport = Transport((200, legacy), (200, v2_resource(version="v2beta1")))
+    code, result, _ = invoke(DASHBOARD, transport)
+    assert code == 0 and not transport.probes and result["model"]["api_version"] == "v2beta1"
+    assert transport.requests[-1].full_url.endswith("/apis/dashboard.grafana.app/v2beta1/namespaces/org-7/dashboards/board")
+
+
+def test_organization_one_uses_the_default_namespace():
+    transport = Transport((200, DOWN_CONVERTED), (200, v2_resource(namespace="default")), stored="v2", org_response=(200, {"id": 1}))
+    code, result, _ = invoke(DASHBOARD, transport, env={**ENV, "GRAFANA_ORG_ID": "1"})
+    assert code == 0 and result["model"]["namespace"] == "default"
+    assert "/namespaces/default/dashboards/board" in transport.probes[0].full_url
+
+
+def test_classic_storage_is_verified_and_an_unavailable_check_keeps_the_legacy_model():
+    code, result, _ = invoke(DASHBOARD, Transport((200, BOARD)))
+    assert code == 0 and result["model"] == {"format": "classic", "stored_version": "v0alpha1", "storage_check": "verified"}
+    assert "panel_view" not in result
+    transport = Transport((200, BOARD), (404, b""), stored=None)
+    code, result, _ = invoke(DASHBOARD, transport)
+    assert code == 0 and result["dashboard"] == BOARD["dashboard"]
+    assert result["model"] == {"format": "classic", "stored_version": None, "storage_check": "unavailable", "http_status": 404}
+
+
+@pytest.mark.parametrize("response,error,status", [
+    ((404, b""), "v2_dashboard_unavailable", 404),
+    ((200, v2_resource(namespace="org-8")), "invalid_dashboard_response", None),
+    ((200, v2_resource(uid="other")), "invalid_dashboard_response", None),
+    ((200, v2_resource(version="v2beta1")), "invalid_dashboard_response", None),
+    ((200, v2_resource(status={"conversion": {"failed": True, "storedVersion": "v2"}})), "dashboard_conversion_failed", None),
+])
+def test_v2_object_identity_and_conversion_are_checked(response, error, status):
+    code, result, _ = invoke(DASHBOARD, Transport((200, DOWN_CONVERTED), response, stored="v2"))
+    assert code == 2 and result["error"] == error and result.get("http_status") == status
+
+
+def _layout_with(layout=None, elements=None):
+    return {**V2_SPEC, "layout": V2_SPEC["layout"] if layout is None else layout,
+            "elements": V2_SPEC["elements"] if elements is None else elements}
+
+
+def _nested_rows(depth):
+    layout = grid("panel-1")
+    for _ in range(depth):
+        layout = {"kind": "RowsLayout", "spec": {"rows": [{"kind": "RowsLayoutRow", "spec": {"layout": layout}}]}}
+    return layout
+
+
+@pytest.mark.parametrize("spec,error", [
+    (_layout_with({"kind": "CanvasLayout", "spec": {"items": []}}), "unsupported_dashboard_model"),
+    (_layout_with(grid("panel-404")), "invalid_panel_tree"),
+    (_layout_with(grid("panel-1", "panel-1")), "ambiguous_panel_id"),
+    (_layout_with(elements={**V2_SPEC["elements"], "panel-2": {"kind": "Future", "spec": {"id": 2}}}), "unsupported_dashboard_model"),
+    (_layout_with(elements={**V2_SPEC["elements"], "panel-1": {"kind": "Panel", "spec": {"id": 1}}}), "invalid_panel_tree"),
+    (_layout_with(_nested_rows(17)), "invalid_panel_tree"),
+    ({**V2_SPEC, "variables": {}}, "invalid_panel_tree"),
+])
+def test_malformed_or_unknown_v2_structures_are_refused_not_half_read(spec, error):
+    transport = Transport((200, DOWN_CONVERTED), (200, v2_resource(spec)), stored="v2")
+    code, result, _ = invoke([*DASHBOARD, "--panel", "1"], transport)
+    assert code == 2 and result["error"] == error
+
+
+def test_v2_layout_depth_limit_admits_its_bound():
+    view = reader.v2_panel_view(_layout_with(_nested_rows(16)))
+    assert [panel["id"] for panel in view["panels"]] == [1]
 
 
 @pytest.mark.parametrize("page,count,next_page", [(1, 0, None), (2, 99, None), (2, 100, 3), (100, 100, None)])
@@ -164,6 +347,18 @@ def test_exact_alert_rule_organization_field_is_optional_after_org_preflight():
 def test_new_read_options_preserve_http_and_response_bounds(args, response, error):
     code, result, text = invoke(args, Transport(response))
     assert code == 2 and result["error"] == error and "test-secret-token" not in text
+
+
+@pytest.mark.parametrize("status", [401, 403, 404, 500])
+def test_http_error_reports_numeric_status_without_body(status):
+    code, result, text = invoke(["search", "--query", "x"], Transport((status, b"test-secret-token")))
+    assert code == 2 and result == {"ok": False, "error": "http_error", "http_status": status}
+    assert "test-secret-token" not in text
+
+
+def test_errors_without_a_response_carry_no_status():
+    code, result, _ = invoke(["search", "--query", "x"], Transport((200, b" " * (reader.MAX_RESPONSE + 1))))
+    assert code == 2 and "http_status" not in result
 
 
 @pytest.mark.parametrize("payload", [{}, {"id": "other"}, {"id": 7}])
@@ -307,7 +502,7 @@ def test_query_checks_datasource_and_only_posts_to_query_endpoint():
     assert code == 0 and result["coverage"] == "not_established"
     assert [(r.method, r.full_url) for r in transport.requests] == [
         ("GET", "https://monitor.example/grafana/api/org"),
-        ("GET", "https://monitor.example/grafana/api/datasources/uid/metrics-1?ds_type=prometheus"),
+        ("GET", "https://monitor.example/grafana/api/datasources/uid/metrics-1"),
         ("POST", "https://monitor.example/grafana/api/ds/query"),
     ]
     body = json.loads(transport.requests[2].data)
@@ -520,27 +715,51 @@ def test_log_only_frames_exceeding_point_hint_have_an_observed_warning():
     assert "observed_frames_exceed_requested_point_hint" in summary["warnings"]
 
 
-def test_query_macros_are_resolved_before_request_and_receipt_records_exact_substitutions():
-    expr = "$__range ${__range_s} $__range_ms $__interval ${__interval_ms} $__rate_interval"
+def test_explicit_intervals_are_substituted_and_other_builtins_reach_the_prometheus_backend():
+    expr = "$__range ${__range_s} $__range_ms $__interval ${__interval_ms} $__rate_interval ${__rate_interval_ms}"
     transport = Transport((200, {"uid": "metrics-1", "type": "prometheus"}), (200, {"results": {"A": {"frames": []}}}))
     code, result, _ = invoke([*QUERY[:-1], expr, "--interval-ms", "2000", "--rate-interval-ms", "15000"], transport)
     assert code == 0
-    assert result["expression"] == {"original": expr, "resolved": "60s 60 60000 2000ms 2000 15000ms", "substitutions": {
-        "$__range": "60s", "${__range_s}": "60", "$__range_ms": "60000", "$__interval": "2000ms",
-        "${__interval_ms}": "2000", "$__rate_interval": "15000ms"}}
+    assert result["expression"] == {
+        "original": expr, "resolved": "$__range ${__range_s} $__range_ms 2000ms 2000 15000ms 15000",
+        "substitutions": {"$__interval": "2000ms", "${__interval_ms}": "2000", "$__rate_interval": "15000ms",
+                          "${__rate_interval_ms}": "15000"},
+        "backend_expanded": ["$__range", "${__range_s}", "$__range_ms"], "panel_equivalence": "not_established"}
     query = json.loads(transport.requests[-1].data)["queries"][0]
     assert query["expr"] == result["expression"]["resolved"] and query["intervalMs"] == 2000
+    assert query["maxDataPoints"] == 1000
 
 
-def test_fractional_range_macro_and_base64_transport_preserve_exact_window():
+@pytest.mark.parametrize("expr", ["rate(up[$__rate_interval])", "rate(up[${__rate_interval}]) * $__interval_ms",
+                                  "increase(up[$__range]) / $__range_s", "sum(\n  rate(up[$__rate_interval])\n)\t"])
+def test_builtin_macros_without_inputs_are_sent_unsubstituted_with_interval_and_point_hints(expr):
+    transport = Transport((200, {"uid": "metrics-1", "type": "prometheus"}), (200, {"results": {"A": {"frames": []}}}))
+    code, result, _ = invoke([*QUERY[:-1], expr], transport)
+    assert code == 0, result
+    query = json.loads(transport.requests[-1].data)["queries"][0]
+    # The backend expands the macros from these two hints and the datasource scrape interval.
+    assert query["expr"] == expr and query["intervalMs"] == 1000 and query["maxDataPoints"] == 1000
+    assert result["expression"]["substitutions"] == {} and result["expression"]["backend_expanded"]
+    assert result["expression"]["panel_equivalence"] == "not_established"
+
+
+def test_plain_expression_reports_no_backend_expansion():
+    transport = Transport((200, {"uid": "metrics-1", "type": "prometheus"}), (200, {"results": {"A": {"frames": []}}}))
+    code, result, _ = invoke(QUERY, transport)
+    assert code == 0 and result["expression"]["backend_expanded"] == []
+    assert "panel_equivalence" not in result["expression"]
+
+
+def test_loki_keeps_local_range_substitution_with_exact_fractional_window():
     args = list(QUERY)
-    args[8] = "61001"
+    args[4], args[8] = "loki", "61001"
     expr = "$__range + $__range_s + ${__range_ms}"
     args[-2:] = ["--expr-base64", base64.b64encode(expr.encode()).decode()]
-    transport = Transport((200, {"uid": "metrics-1", "type": "prometheus"}), (200, {"results": {"A": {"frames": []}}}))
+    transport = Transport((200, {"uid": "metrics-1", "type": "loki"}), (200, {"results": {"A": {"frames": []}}}))
     code, result, _ = invoke(args, transport)
     assert code == 0 and result["expression"]["original"] == expr
     assert result["expression"]["resolved"] == "60001ms + 60.001 + 60001"
+    assert result["expression"]["backend_expanded"] == []
 
 
 def test_explicit_intervals_cannot_increase_request_density_or_guess_loki_scrape_rate():
@@ -562,13 +781,24 @@ def test_expression_receipt_and_summary_mask_authentication_values():
     assert result["expression"]["original"] == result["expression"]["resolved"] == 'up{job="[REDACTED]"}'
 
 
-@pytest.mark.parametrize("expr,options", [("$__range_bad", []), ("${__range:raw}", []), ("$service", []),
-    ("$__interval", []), ("$__interval_ms", []), ("$__rate_interval", []), ("[[service]]", []),
-    ("$__interval_bad", ["--interval-ms", "2000"]), ("${__rate_interval_bad}", ["--rate-interval-ms", "2000"])])
-def test_unknown_or_unconfigured_macros_are_refused_before_authentication(expr, options):
+@pytest.mark.parametrize("expr,options,kind", [("$__range_bad", [], "prometheus"), ("${__range:raw}", [], "prometheus"),
+    ("$service", [], "prometheus"), ("rate(up{job=\"$job\"}[$__rate_interval])", [], "prometheus"),
+    ("${__interval:raw}", [], "prometheus"), ("[[service]]", [], "prometheus"), ("$__auto", [], "prometheus"),
+    ("$__interval", [], "loki"), ("$__interval_ms", [], "loki"), ("$__rate_interval", [], "loki"),
+    ("$__interval_bad", ["--interval-ms", "2000"], "prometheus"), ("${__rate_interval_bad}", ["--rate-interval-ms", "2000"], "prometheus")])
+def test_unknown_or_unconfigured_macros_are_refused_before_authentication(expr, options, kind):
     transport = Transport()
-    code, result, _ = invoke([*QUERY[:-1], expr, *options], transport)
+    args = [*QUERY[:-1], expr, *options]
+    args[4] = kind
+    code, result, _ = invoke(args, transport)
     assert code == 2 and result["error"] == "unresolved_or_invalid_expression" and not transport.requests
+
+
+@pytest.mark.parametrize("expr", ["up\x00", "up\x1b[31m", "up\x7f\x01"])
+def test_other_control_characters_remain_refused(expr):
+    transport = Transport()
+    code, result, _ = invoke([*QUERY[:-1], expr], transport)
+    assert code == 2 and result["error"] == "invalid_arguments" and not transport.requests
 
 
 @pytest.mark.parametrize("options", [["--mode", "wrong"], ["--output", "wrong"], ["--interval-ms", "999"],
@@ -725,6 +955,46 @@ def test_list_truncation_and_masking_are_reported():
     assert code == 0 and result["truncated"] is True and "test-secret-token" not in text
     paged = {"status": "success", "data": {"groups": [], "groupNextToken": "next"}}
     assert invoke(["alerts"], Transport((200, paged)))[1]["truncated"] is True
+
+
+def _rule(uid, returned, totals):
+    rule = {"uid": uid, "alerts": [{"state": "Alerting"}] * returned}
+    return {**rule, "totals": totals} if totals is not None else rule
+
+
+@pytest.mark.parametrize("rule,cut", [
+    (_rule("r", 20, {"alerting": 25}), {"uid": "r", "returned": 20, "total": 25}),
+    (_rule("r", 20, None), {"uid": "r", "returned": 20, "total": None}),
+    (_rule("r", 20, {"alerting": 12, "normal": 8}), None),
+    (_rule("r", 3, {"alerting": 3}), None),
+])
+def test_per_rule_instance_truncation_compares_totals_with_returned_alerts(rule, cut):
+    payload = {"status": "success", "data": {"groups": [{"name": "g", "folderUid": "payments", "rules": [rule]}]}}
+    code, result, _ = invoke(["alerts", "--folder-uid", "payments"], Transport((200, payload)))
+    assert code == 0 and result["groups_truncated"] is False and result["group_next_token"] is None
+    assert result["instances_truncated_rules"] == ([cut] if cut else [])
+    assert result["instances_truncated_rule_count"] == (1 if cut else 0) and result["truncated"] is bool(cut)
+
+
+def test_group_continuation_token_is_returned_and_accepted():
+    token = "cGF5bWVudHMvY2hlY2tvdXQ="
+    paged = {"status": "success", "data": {"groups": [], "groupNextToken": token}}
+    code, result, _ = invoke(["alerts", "--folder-uid", "payments"], Transport((200, paged)))
+    assert code == 0 and result["groups_truncated"] is True and result["group_next_token"] == token
+    transport = Transport((200, {"status": "success", "data": {"groups": []}}))
+    code, result, _ = invoke(["alerts", "--folder-uid", "payments", "--group-next-token", token], transport)
+    assert code == 0 and result["truncated"] is False
+    assert transport.requests[-1].full_url.endswith("&folder_uid=payments&group_next_token=cGF5bWVudHMvY2hlY2tvdXQ%3D")
+    unusable = {"status": "success", "data": {"groups": [], "groupNextToken": "not usable"}}
+    result = invoke(["alerts"], Transport((200, unusable)))[1]
+    assert result["truncated"] is True and result["group_next_token"] is None
+
+
+def test_folder_only_search_omits_the_query_parameter():
+    transport = Transport((200, [{"uid": "board", "folderUid": "payments"}]))
+    code, result, _ = invoke(["search", "--folder-uid", "payments"], transport)
+    assert code == 0 and result["query"] is None and result["items"][0]["uid"] == "board"
+    assert transport.requests[-1].full_url.endswith("/api/search?type=dash-db&limit=100&folderUIDs=payments")
 
 
 @pytest.fixture
@@ -994,11 +1264,12 @@ def test_missing_or_incomplete_auth_never_calls_network(env):
 @pytest.mark.parametrize("args", [
     ["dashboard", "--uid", "../other"], ["dashboard", "--uid", "ok", "--uid", "other"],
     ["dashboard", "--uid", "ok", "--url", "https://secret"],
-    [*QUERY[:-1], "$__interval"], [*QUERY[:-1], "[[service]]"], [*QUERY[:-1], ""],
+    [*QUERY[:-1], "$service"], [*QUERY[:-1], "[[service]]"], [*QUERY[:-1], ""],
     ["query", "--datasource", "metrics-1", "--kind", "prometheus", "--from", "0", "--to", "86400001", "--expr", "up"],
-    ["search"], ["search", "--query", 'edge"; x'], ["search", "--query", "   "], ["search", "--query", "x" * 101],
+    ["search"], ["search", "--tag", "ops"], ["search", "--query", 'edge"; x'], ["search", "--query", "   "], ["search", "--query", "x" * 101],
     ["search", "--query", "edge", "--query", "other"], ["alerts", "--folder-uid", "../other"], ["alerts", "--folder-uid", ""],
-    ["alerts", "extra"], ["annotations", "--from", "0", "--to", "86400001"], ["annotations", "--from", "5", "--to", "5"],
+    ["alerts", "extra"], ["alerts", "--group-next-token", "a&b"], ["alerts", "--group-next-token", ""],
+    ["alerts", "--uid", "rule-1", "--group-next-token", "eA=="], ["annotations", "--from", "0", "--to", "86400001"], ["annotations", "--from", "5", "--to", "5"],
     ["annotations", "--from", "0", "--to", "1000", "--dashboard-uid", "a/b"], ["silences", "--uid", "board"],
     [*RENDER[:-2], "--to", str(1000 + 7 * 86400000 + 1)], [*RENDER[:4], "0", *RENDER[5:]], [*RENDER[:4], "x", *RENDER[5:]],
     [*RENDER, "--var", "bad name=1"], [*RENDER, "--var", "host=a b"], [*RENDER, "--var", "host=$(id)"],
@@ -1043,7 +1314,7 @@ def test_native_powershell_preserves_expression_into_request_body(tmp_path, shel
     # The shim only substitutes the offline entrypoint for the fixed Python
     # helper. The wrapper and actual native Python argv transfer are exercised.
     script = (
-        f"function python {{ & '{sys.executable}' -I -S '{probe}' @($args[3..($args.Count-1)]) }}\n"
+        f"function python {{ if ($args[2] -eq '-c') {{ & '{sys.executable}' @args; return }}; & '{sys.executable}' -I -S '{probe}' @($args[3..($args.Count-1)]) }}\n"
         f"& '{PATH.with_suffix('.ps1')}' -Datasource metrics-1 -Kind prometheus -From 1000 -To 61000 -Expr '" + expression + "'\nexit $LASTEXITCODE"
     )
     result = subprocess.run([executable, "-NoProfile", "-NonInteractive", "-EncodedCommand", base64.b64encode(script.encode("utf-16le")).decode()],
@@ -1071,7 +1342,8 @@ def test_powershell_wrapper_returns_static_launch_failure_or_helper_exit(tmp_pat
     if not executable:
         pytest.skip(f"{shell} unavailable")
     probe = _request_probe(tmp_path)
-    shim = "throw 'synthetic-secret-launch-error'" if failure == "launch" else f"& '{sys.executable}' -I -S '{probe}' dashboard --uid ../invalid"
+    shim = ("throw 'synthetic-secret-launch-error'" if failure == "launch" else
+            f"if ($args[2] -eq '-c') {{ & '{sys.executable}' @args; return }}; & '{sys.executable}' -I -S '{probe}' dashboard --uid ../invalid")
     script = (
         f"function python {{ {shim} }}\n"
         f"& '{PATH.with_suffix('.ps1')}' -Datasource metrics-1 -Kind prometheus -From 1000 -To 61000 -Expr 'up'\nexit $LASTEXITCODE"
@@ -1083,6 +1355,29 @@ def test_powershell_wrapper_returns_static_launch_failure_or_helper_exit(tmp_pat
     assert "synthetic-secret" not in result.stdout + result.stderr
 
 
+@pytest.mark.parametrize("shell", ["powershell.exe", "pwsh"])
+@pytest.mark.skipif(sys.platform != "win32", reason="Native Windows wrapper status")
+@pytest.mark.parametrize("interpreter", [
+    # The Windows Store alias stub prints guidance and exits 9009; an old interpreter fails the check.
+    "cmd /c 'echo Python was not found; run without arguments to install from the Microsoft Store & exit /b 9009'",
+    f"& '{sys.executable}' -I -S -c 'raise SystemExit(1)'",
+], ids=["store_stub", "old_interpreter"])
+def test_powershell_wrapper_refuses_unusable_interpreter_with_static_json(tmp_path, shell, interpreter):
+    executable = shutil.which(shell)
+    if not executable:
+        pytest.skip(f"{shell} unavailable")
+    marker = tmp_path / "helper-ran"
+    script = (
+        f"function python {{ if ($args[2] -eq '-c') {{ {interpreter}; return }}; New-Item '{marker}' | Out-Null }}\n"
+        f"& '{PATH.with_suffix('.ps1')}' -Datasource metrics-1 -Kind prometheus -From 1000 -To 61000 -Expr 'up'\nexit $LASTEXITCODE"
+    )
+    result = subprocess.run([executable, "-NoProfile", "-NonInteractive", "-EncodedCommand", base64.b64encode(script.encode("utf-16le")).decode()],
+                            text=True, capture_output=True, timeout=20)
+    assert result.returncode == 2
+    assert json.loads(result.stdout) == {"ok": False, "error": "helper_launch_failed"}
+    assert not marker.exists()
+
+
 @pytest.mark.parametrize("expression", ['{service="edge"} |= "error"', 'up{job=~"checkout$"}', 'up{job="caf\u00e9"}'])
 def test_base64_preserves_exact_utf8_expression(expression):
     encoded = base64.b64encode(expression.encode()).decode()
@@ -1090,7 +1385,7 @@ def test_base64_preserves_exact_utf8_expression(expression):
 
 
 @pytest.mark.parametrize("encoded", ["!", "dXA", "dXA=\n", "dXB=", "/w==", "", "QQ==" * 22000,
-                                     base64.b64encode(b"$__interval").decode(), base64.b64encode(b"up\n").decode()],
+                                     base64.b64encode(b"$service").decode(), base64.b64encode(b"up\x01").decode()],
                          ids=["alphabet", "padding", "whitespace", "noncanonical", "invalid_utf8", "empty", "oversized", "template", "control"])
 def test_encoded_expression_keeps_validation_and_static_errors(encoded):
     transport = Transport()

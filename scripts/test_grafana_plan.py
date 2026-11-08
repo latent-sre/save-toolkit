@@ -90,5 +90,5 @@ def test_fallback_request_estimate_includes_blocked_panels():
     dashboard['panels'][0]['libraryPanel'] = {'uid': 'shared'}
     result = build(dashboard, render='fallback')
     assert result['request_estimate']['renders'] == 1
-    assert result['request_estimate']['total_upper_bound'] == 7
+    assert result['request_estimate']['total_upper_bound'] == 13
     assert result['panels'][0]['next_action'] == 'collect_panel_render_with_scope_limitations'

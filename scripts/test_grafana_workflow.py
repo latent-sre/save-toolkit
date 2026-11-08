@@ -1,5 +1,4 @@
 """Workflow integration tests use the real read client and a fake HTTP boundary."""
-import hashlib
 import io
 import json
 import os
@@ -107,7 +106,7 @@ class HTTP:
     def __init__(self, panel=None, *, query=None, org=1, rules=None, items=None):
         self.board = {'dashboard': {'uid': 'board', 'version': 1, 'title': 'private-token',
                                     'panels': [sample_panel() if panel is None else panel]}, 'meta': {'folderUid': 'ops'}}
-        self.calls = []
+        self.calls, self.probes, self.stored = [], [], 'v0alpha1'
         self.org, self.rules = org, rules or []
         self.items = [{'uid': 'board', 'folderUid': 'ops'}] if items is None else items
         self.query = query or {'results': {'A': {'frames': [{'schema': {'fields': [
@@ -115,24 +114,33 @@ class HTTP:
             'data': {'values': [[1000, 31000, 61000], [1, 1, 1]]}}]}}}
 
     def __call__(self, request, **bounds):
-        self.calls.append(request)
         assert 0 < bounds['timeout'] <= 45
         path = request.full_url.split('example.test')[-1]
+        if path.startswith('/apis/dashboard.grafana.app/v0alpha1/'):
+            # The stored-version check is recorded apart from the calls the tests count.
+            self.probes.append(request)
+            uid = path.rsplit('/', 1)[-1]
+            return 200, json.dumps({'apiVersion': 'dashboard.grafana.app/v0alpha1', 'kind': 'Dashboard',
+                                    'metadata': {'name': uid, 'namespace': 'default'}, 'spec': {},
+                                    'status': {'conversion': {'storedVersion': self.stored}}}).encode()
+        self.calls.append(request)
         if path == '/api/org':
             result = {'id': self.org}
         elif path == '/api/dashboards/uid/board':
             result = self.board
         elif path.startswith('/api/datasources/uid/'):
-            uid = path.split('/uid/')[1].split('?')[0]
-            result = {'uid': uid, 'type': path.split('ds_type=')[1]}
+            uid = path.split('/uid/')[1]
+            result = {'uid': uid, 'type': 'loki' if uid == 'logs' else 'prometheus'}
         elif path == '/api/ds/query':
             result = self.query
         elif path.startswith('/api/annotations'):
             result = []
         elif path.startswith('/api/search'):
             result = self.items
-        elif path == '/api/v1/provisioning/alert-rules':
-            result = self.rules
+        elif path == '/api/v1/provisioning/alert-rules/export?format=json&folderUid=ops':
+            if not self.rules:
+                return 404, b''
+            result = {'apiVersion': 1, 'groups': self.rules}
         elif path.startswith('/api/prometheus/grafana/api/v1/rules'):
             result = {'status': 'success', 'data': {'groups': []}}
         elif path.startswith('/render/d-solo/'):
@@ -166,12 +174,33 @@ def test_context_dependent_panels_are_not_replayed_with_wrong_scope(tmp_path, pa
 
 @pytest.mark.parametrize('target', [{'expr': 'up', 'datasource': {'uid': 'db', 'type': 'mysql'}},
     {'expr': 'up{host="$host"}'}, {'expr': 'up', 'format': 'table'}, {'expr': 'up', 'interval': '30s'},
-    {'expr': 'up', 'instant': False, 'range': False}, {'expr': '$__rate_interval'}])
+    {'expr': 'up', 'instant': False, 'range': False}, {'expr': 'rate(up[${__rate_interval:raw}])'}])
 def test_unsupported_targets_keep_their_gap_and_do_not_issue_queries(tmp_path, target):
     http = HTTP(sample_panel(targets=[target]))
     code, _, report = run_workflow(tmp_path, http)
     assert code == 0 and report['panels'][0]['targets'][0]['status'] == 'unsupported'
     assert not any(call.method == 'POST' for call in http.calls)
+
+
+def test_builtin_macros_and_multiline_expressions_run_with_backend_expansion_recorded(tmp_path):
+    expressions = ['sum(rate(up[$__rate_interval]))', 'increase(up[$__range])', 'sum by (job) (\n\trate(up[5m])\n)']
+    http = HTTP(sample_panel(targets=[{'refId': ref, 'expr': expr} for ref, expr in zip('ABC', expressions, strict=True)]))
+    code, _, report = run_workflow(tmp_path, http, ['--render', 'none'])
+    assert code == 0
+    sent = [json.loads(call.data)['queries'][0] for call in http.calls if call.method == 'POST']
+    assert [query['expr'] for query in sent] == expressions and all(query['intervalMs'] == 1000 for query in sent)
+    targets = report['panels'][0]['targets']
+    assert [target['status'] for target in targets] == ['values_returned'] * 3
+    assert [target['result']['expression']['backend_expanded'] for target in targets] == [['$__rate_interval'], ['$__range'], []]
+    assert targets[0]['result']['expression']['panel_equivalence'] == 'not_established'
+
+
+def test_explicit_rate_interval_still_substitutes_locally(tmp_path):
+    http = HTTP(sample_panel(targets=[{'refId': 'A', 'expr': 'rate(up[$__rate_interval])'}]))
+    code, _, report = run_workflow(tmp_path, http, ['--render', 'none', '--rate-interval-ms', '60000'])
+    assert code == 0
+    assert [json.loads(call.data)['queries'][0]['expr'] for call in http.calls if call.method == 'POST'] == ['rate(up[60000ms])']
+    assert report['panels'][0]['targets'][0]['result']['expression']['backend_expanded'] == []
 
 
 def test_explicit_variables_and_both_query_modes_are_recorded(tmp_path):
@@ -216,15 +245,128 @@ def test_existing_output_is_refused_before_connecting(tmp_path):
     assert code == 2 and response['error'] == 'output_directory_exists' and not http.calls
 
 
-def test_folder_map_filters_alerts_and_never_runs_data_queries(tmp_path):
-    http = HTTP(rules=[{'uid': 'rule', 'folderUID': 'ops', 'orgID': 1, 'title': 'Alert', 'data': []},
-                       {'uid': 'elsewhere', 'folderUID': 'elsewhere', 'orgID': 1, 'title': 'Unrelated'}])
+def test_missing_output_parent_is_a_specific_error_before_connecting(tmp_path):
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    http, output = HTTP(), io.StringIO()
+    destination = tmp_path / 'absent' / 'capture'
+    code = workflow.main(['investigate', '--uid', 'board', '--from', '1000', '--to', '61000', '--render', 'none',
+                          '--agent-json', '--output-dir', str(destination)], environ=ENV, transport=http, output=output)
+    assert code == 2 and json.loads(output.getvalue()) == {'ok': False, 'error': 'output_parent_missing'}
+    assert not http.calls and not (tmp_path / 'absent').exists()
+
+
+def test_failed_reads_keep_their_http_status(tmp_path):
+    http = HTTP()
+
+    def transport(request, **bounds):
+        return (503, b'unavailable') if request.full_url.endswith('/api/ds/query') else http(request, **bounds)
+
+    code, _, report = run_workflow(tmp_path, transport, ['--render', 'none'])
+    assert code == 0
+    assert report['panels'][0]['targets'][0] | {'status': 'query_failed', 'error': 'http_error', 'http_status': 503} == \
+        report['panels'][0]['targets'][0]
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    output = io.StringIO()
+    assert workflow.main(['plan', '--uid', 'board', '--from', '1000', '--to', '61000', '--agent-json'], environ=ENV,
+                         transport=lambda request, **bounds: (401, b''), output=output) == 2
+    assert json.loads(output.getvalue()) == {'ok': False, 'error': 'http_error', 'http_status': 401}
+
+
+def test_capture_timestamps_and_doctor_capabilities_match_the_commands(tmp_path):
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    code, _, report = run_workflow(tmp_path, HTTP(), ['--render', 'none'])
+    assert code == 0 and report['provenance']['retrieved_at_utc'].endswith('Z')
+    assert report['panels'][0]['targets'][0]['result']['retrieved_at_utc'].endswith('Z')
+    capabilities = workflow.doctor(ENV, lambda *args, **kwargs: pytest.fail('network'))['capabilities']
+    commands = set(workflow._argument_parser()._subparsers._group_actions[0].choices) - {'doctor'}
+    assert set(capabilities) == commands
+
+
+V2_ELEMENTS = {
+    'panel-1': {'kind': 'Panel', 'spec': {'id': 1, 'title': 'Rate', 'links': [], 'vizConfig': {
+        'kind': 'VizConfig', 'group': 'timeseries', 'version': '13.3.0', 'spec': {'options': {}, 'fieldConfig': {
+            'defaults': {'unit': 's'}, 'overrides': []}}}, 'data': {'kind': 'QueryGroup', 'spec': {
+        'transformations': [], 'queryOptions': {}, 'queries': [{'kind': 'PanelQuery', 'spec': {
+            'refId': 'A', 'hidden': False, 'query': {'kind': 'DataQuery', 'group': 'prometheus', 'version': 'v0',
+                                                     'datasource': {'name': 'prom'},
+                                                     'spec': {'expr': 'rate(up[5m])'}}}}]}}}},
+}
+V2_TABS = {'kind': 'TabsLayout', 'spec': {'tabs': [{'kind': 'TabsLayoutTab', 'spec': {'title': 'One', 'layout': {
+    'kind': 'RowsLayout', 'spec': {'rows': [{'kind': 'RowsLayoutRow', 'spec': {'title': 'Row', 'layout': {
+        'kind': 'GridLayout', 'spec': {'items': [{'kind': 'GridLayoutItem', 'spec': {
+            'x': 0, 'y': 0, 'width': 24, 'height': 8, 'element': {'kind': 'ElementReference', 'name': 'panel-1'}}}]}}}}]}}}}]}}
+
+
+class V2HTTP(HTTP):
+    """A V2-stored dashboard: the legacy read is a down-conversion and the native object is v2."""
+
+    def __init__(self):
+        super().__init__(items=[{'uid': 'board', 'folderUid': 'ops'}])
+        self.stored = 'v2'
+        self.board['dashboard']['panels'] = [{'id': 99, 'type': 'row', 'panels': []}]
+
+    def __call__(self, request, **bounds):
+        if '/apis/dashboard.grafana.app/v2/' in request.full_url:
+            self.calls.append(request)
+            return 200, json.dumps({'apiVersion': 'dashboard.grafana.app/v2', 'kind': 'Dashboard',
+                                    'metadata': {'name': 'board', 'namespace': 'default', 'generation': 4},
+                                    'spec': {'title': 'Synthetic', 'elements': V2_ELEMENTS, 'layout': V2_TABS,
+                                             'variables': []}}).encode()
+        return super().__call__(request, **bounds)
+
+
+@pytest.mark.parametrize('command', ['investigate', 'plan'])
+def test_v2_dashboard_investigation_and_plan_use_the_native_model(tmp_path, command):
+    http = V2HTTP()
+    code, _, report = run_workflow(tmp_path, http, ['--render', 'none'],
+                                   command=[command, '--uid', 'board', '--from', '1000', '--to', '61000'])
+    assert code == 0
+    plan = report if command == 'plan' else report['query_plan']
+    assert [(panel['id'], panel['title']) for panel in plan['panels']] == [(1, 'Rate')]
+    assert plan['panels'][0]['targets'][0]['status'] == 'planned'
+    if command == 'investigate':
+        assert report['dashboard']['version'] == 4 and report['dashboard_capture']['model']['format'] == 'v2'
+        assert report['panels'][0]['targets'][0]['status'] == 'values_returned'
+        assert 'dashboard_changed_during_capture' not in report['gaps']
+        assert report['dashboard_version_at_end'] == 4
+
+
+def test_v2_dashboard_dependencies_and_hygiene_read_the_mapped_view(tmp_path):
+    code, _, report = run_workflow(tmp_path, V2HTTP(), command=['dependencies', '--folder-uid', 'ops'])
+    assert code == 0
+    assert {node['kind'] for node in report['nodes']} >= {'dashboard', 'panel', 'query', 'datasource', 'metric'}
+    assert not any(gap['code'] == 'unsupported_dashboard_model' for gap in report['gaps'])
+    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
+    output = io.StringIO()
+    assert workflow.main(['analyze', '--package-dir', str(tmp_path / 'capture'), '--analysis', 'hygiene', '--agent-json'],
+                         environ={}, output=output) == 0, output.getvalue()
+    hygiene = json.loads(output.getvalue())['data']['hygiene']['dashboards'][0]
+    assert hygiene['ok'] and hygiene['panel_count'] == 1
+
+
+def test_folder_map_reads_folder_scoped_export_and_never_runs_data_queries(tmp_path):
+    http = HTTP(rules=[{'orgId': 1, 'name': 'group', 'folder': 'Ops', 'rules': [
+        {'uid': 'rule', 'title': 'Alert', 'condition': 'A', 'dashboardUid': 'board', 'panelId': 1,
+         'data': [{'refId': 'A', 'datasourceUid': 'prom', 'model': {'expr': 'up', 'datasource': {'type': 'prometheus'}}}]}]}])
     code, _, report = run_workflow(tmp_path, http, command=['dependencies', '--folder-uid', 'ops'])
     assert code == 0
-    assert [capture['rule']['uid'] for capture in report['alert_captures']] == ['rule']
-    assert 'Unrelated' not in json.dumps(report)
+    assert [call.full_url.split('example.test')[1] for call in http.calls if 'alert-rules' in call.full_url] == [
+        '/api/v1/provisioning/alert-rules/export?format=json&folderUid=ops']
+    rule = report['alert_captures'][0]['rule']
+    assert rule['folderUID'] == 'ops' and rule['annotations'] == {'__dashboardUid__': 'board', '__panelId__': '1'}
+    assert {edge['relation'] for edge in report['edges']} >= {'annotates_dashboard', 'annotates_panel', 'evaluates_condition'}
     assert report['discovery']['coverage'] == 'permission_scoped'
     assert all(call.method == 'GET' for call in http.calls)
+
+
+@pytest.mark.parametrize('rules,gap', [
+    ([], {'code': 'alert_definitions_none_visible', 'source': 'folder:ops', 'http_status': 404}),
+    ([{'orgId': 2, 'name': 'group', 'rules': []}],
+     {'code': 'alert_definitions_organization_mismatch', 'source': 'folder:ops', 'error': 'organization_mismatch'}),
+])
+def test_folder_map_reports_empty_or_foreign_rule_exports_as_gaps(tmp_path, rules, gap):
+    code, _, report = run_workflow(tmp_path, HTTP(rules=rules), command=['dependencies', '--folder-uid', 'ops'])
+    assert code == 0 and gap in report['gaps'] and report['alert_captures'] == []
 
 
 def test_folder_map_refuses_unscoped_search_response(tmp_path):
@@ -234,60 +376,15 @@ def test_folder_map_refuses_unscoped_search_response(tmp_path):
     assert len(http.calls) == 2
 
 
-def test_preview_uses_report_query_without_credentials_or_network(tmp_path):
-    http = HTTP()
-    code, _, investigation = run_workflow(tmp_path, http)
-    assert code == 0
-    source = tmp_path / 'source.json'
-    source.write_text(json.dumps(investigation))
-    preview_dir = tmp_path / 'offline'
-    preview_dir.mkdir()
-
-    def no_network(*_args, **_kwargs):
-        pytest.fail('Offline preview attempted network access')
-
-    code, _, report = run_workflow(preview_dir, no_network, command=[
-        'alert-preview', '--report-file', str(source), '--panel', '1', '--ref-id', 'A',
-        '--operator', 'gt', '--threshold', '0', '--pending-ms', '30000', '--step-ms', '30000'])
-    assert code == 0 and report['coverage'] == 'sampled_threshold_preview'
-    assert report['series'][0]['intervals'][0]['start_ms'] == 31000
-    assert report['notification_delivery'] == 'not_evaluated'
-
-
-@pytest.mark.parametrize('source_flag', ['--source-id', '--package-dir'])
-def test_packaged_preview_identifies_exact_verified_report_bytes(tmp_path, monkeypatch, source_flag):
-    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
-    code, _, _ = run_workflow(tmp_path, HTTP())
-    assert code == 0
-    package = tmp_path / 'capture'
-    raw = (package / 'report.json').read_bytes()
-    canonical = json.dumps(json.loads(raw), sort_keys=True, allow_nan=False).encode()
-    assert raw != canonical, 'Fixture must distinguish source bytes from reserialization'
-    monkeypatch.setattr(workflow, '_capture_path', lambda *_args, **_kwargs: package)
-    output = io.StringIO()
-    assert workflow.main(['alert-preview', source_flag, 'sample' if source_flag == '--source-id' else str(package),
-                          '--panel', '1', '--ref-id', 'A', '--operator', 'gt', '--threshold', '0',
-                          '--pending-ms', '0', '--step-ms', '30000', '--agent-json'],
-                         environ={}, output=output) == 0, output.getvalue()
-    preview = json.loads(output.getvalue())['data']
-    assert preview['source_integrity'] == 'manifest_verified'
-    assert preview['source_sha256'] == hashlib.sha256(raw).hexdigest()
-
-
-@pytest.mark.parametrize('operation,section,report', [
-    ('dependencies', 'nodes', {'operation': 'dependencies', 'nodes': [{'id': 'metric:up', 'kind': 'metric', 'key': 'up'}],
-                               'edges': [], 'gaps': []}),
-    ('compare', 'values', {'operation': 'compare_captures', 'values': [{'target': [1, 'A', 'range'], 'status': 'compared'}]}),
-])
-def test_oversized_saved_output_has_executable_section_recovery(tmp_path, monkeypatch, operation, section, report):
+def test_oversized_saved_output_has_executable_section_recovery(tmp_path, monkeypatch):
+    section = 'nodes'
+    report = {'operation': 'dependencies', 'nodes': [{'id': 'metric:up', 'kind': 'metric', 'key': 'up'}], 'edges': [], 'gaps': []}
     workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
     monkeypatch.setattr(workflow, '_capture_path', lambda identifier, **kwargs: tmp_path / identifier)
     # Keep the actual report small while forcing only its first response over budget.
     monkeypatch.setattr(workflow, 'MAX_AGENT_BYTES', 100)
-    argv = (['dependencies', '--folder-uid', 'ops'] if operation == 'dependencies' else
-            ['compare', '--before-id', 'first', '--after-id', 'second'])
-    args = workflow.parse_args([*argv, '--capture-id', 'saved', '--agent-json'])
-    response = workflow._prepare_response(args, workflow._Execution(report, {}), tmp_path / 'saved', {})
+    args = workflow.parse_args(['dependencies', '--folder-uid', 'ops', '--capture-id', 'saved', '--agent-json'])
+    response = workflow._prepare_response(args, workflow._Execution(report, {}), tmp_path / 'saved')
     assert response['status'] == 'output_truncated'
     recovery = response['recovery']
     assert recovery['arguments'] == ['inspect', '--source-id', 'saved', '--agent-json']
@@ -340,12 +437,6 @@ def test_section_inspection_rejects_ambiguous_or_out_of_bounds_selection(options
         workflow.parse_args(['inspect', '--source-id', 'saved', '--agent-json', *options])
 
 
-def test_open_report_cannot_dispatch_twice():
-    workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
-    with pytest.raises(workflow.reader.SafeError, match='invalid_arguments'):
-        workflow.parse_args(['open-report', '--source-id', 'saved', '--capture-id', 'copy', '--open-vscode'])
-
-
 def test_basic_auth_redaction_does_not_rewrite_the_query_before_execution(tmp_path):
     workflow = load_path(ROOT / 'skills/grafana/scripts/grafana_workflow.py', 'grafana_workflow')
     http = HTTP(sample_panel(targets=[{'refId': 'A', 'expr': 'up{host="example-host"}'}]))
@@ -385,13 +476,14 @@ def test_dependency_collection_failures_are_visible_outside_raw_json(tmp_path):
         {'refId': str(target), 'expr': 'sum(up)'} for target in range(100)]) for index in range(1, 4)]
 
     def transport(request, **bounds):
-        if request.full_url.endswith('/api/v1/provisioning/alert-rules'):
+        if '/api/v1/provisioning/alert-rules/export' in request.full_url:
             return 403, b'Forbidden'
         return http(request, **bounds)
 
     code, _, report = run_workflow(tmp_path, transport, command=['dependencies', '--folder-uid', 'ops'])
     assert code == 0
-    assert {'code': 'alert_definitions_http_error', 'source': 'folder:ops'} in report['gaps']
+    assert {'code': 'alert_definitions_http_error', 'source': 'folder:ops', 'error': 'http_error',
+            'http_status': 403} in report['gaps']
     html = (tmp_path / 'capture' / 'report.html').read_text()
     assert 'alert_definitions_http_error' in html.split('<details>')[0]
 
@@ -513,10 +605,6 @@ def test_agent_capture_offline_analysis_and_inspection(tmp_path, monkeypatch):
             statistics = data['target']['series_statistics']['series'][0]
             assert statistics['statistics']['mean'] == 1.0
             assert statistics['evidence_ref'] == '/panels/0/targets/0/result/results/A/frames/0/data/values/1'
-    output = io.StringIO()
-    assert workflow.main(['compare', '--before-id', 'sample', '--after-id', 'sample', '--agent-json'],
-                         environ={}, transport=no_network, output=output) == 0, output.getvalue()
-    assert not json.loads(output.getvalue())['data']['configuration']['changed']
     output = io.StringIO()
     assert workflow.main(['inspect', '--source-id', 'sample', '--panel', '1', '--ref-id', 'A',
                           '--mode', 'range', '--view', 'rows', '--offset', '1', '--limit', '1', '--agent-json'],

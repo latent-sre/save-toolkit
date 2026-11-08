@@ -345,13 +345,10 @@ def grafana_helper_allowed(command: str, powershell: bool = False, *, shell_inde
                 # Windows PowerShell 5.1 can strip embedded native-argv quotes.
                 return False
             if not arguments or arguments[0] not in {
-                    'plan', 'investigate', 'dependencies', 'doctor', 'verify-package', 'analyze',
-                    'compare', 'impact', 'inspect', 'alert-preview'}:
+                    'plan', 'investigate', 'dependencies', 'doctor', 'verify-package', 'analyze', 'inspect'}:
                 return False
-            # Agent execution never chooses a file path, opens an editor, or imports raw JSON.
-            if '--agent-json' not in arguments or any(flag in arguments for flag in (
-                    '--output-dir', '--package-dir', '--query-file', '--report-file',
-                    '--before', '--after', '--open-vscode')):
+            # Agent execution never chooses a file path; captures are named by fixed IDs.
+            if '--agent-json' not in arguments or any(flag in arguments for flag in ('--output-dir', '--package-dir')):
                 return False
             helper = runpy.run_path(str(workflow), run_name='_grafana_workflow_guard')
             helper['parse_args'](arguments)

@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Pure, bounded Classic dashboard query planning for agent consumers.
+"""Pure, bounded dashboard query planning over the Classic panel shape (V2 arrives mapped).
 
 Callbacks provide the installed reader's model validation and query command
 contract. No network, filesystem, query evaluation, or telemetry health inference.
@@ -171,7 +170,9 @@ def build_plan(dashboard, args, variables, *, panel_reader, target_builder, erro
                                         if render_policy != 'none' else 'resolve_query_context'})
     plan.update(queries_planned=queries, targets_inspected=inspected, missing_inputs=sorted(missing),
                 request_estimate={'queries': queries, 'renders': renders,
-                                  'total_upper_bound': 5 + queries * 2 + renders * 2})
+                                  # A dashboard read is up to 3 requests (legacy, stored-version
+                                  # check, native V2), twice per run and once per render.
+                                  'total_upper_bound': 9 + queries * 2 + renders * 4})
     plan['status'] = 'partial' if plan['gaps'] or any(
         panel['gaps'] or any(target['status'] in ('unsupported', 'not_run') for target in panel['targets'])
         for panel in plan['panels']) else 'planned'

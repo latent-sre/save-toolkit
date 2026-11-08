@@ -17,6 +17,12 @@ $ErrorActionPreference = 'Stop'
 try {
     $utf8 = [Text.UTF8Encoding]::new($false, $true)
     $encodedExpression = [Convert]::ToBase64String($utf8.GetBytes($Expr))
+    # The Windows Store alias stub and older interpreters exit non-zero here; their output is discarded.
+    $null = & python -I -S -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 14) else 1)' 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Output '{"ok":false,"error":"helper_launch_failed"}'
+        exit 2
+    }
     $helperPath = Join-Path $PSScriptRoot 'grafana_read.py'
     $helperArguments = @('-I', '-S', $helperPath, 'query', '--datasource', $Datasource,
         '--kind', $Kind, '--from', $From, '--to', $To, '--expr-base64', $encodedExpression)
