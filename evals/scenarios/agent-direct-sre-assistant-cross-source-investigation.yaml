@@ -28,7 +28,6 @@ prompt: |
   - observed_p99_ms: integer
   - observed_running_instances: integer
   - observation_label: "[verified]" | "[sourced]" | "[unverified]"
-  - observation_taint: "[UNTRUSTED]" | removed
   - source_windows_aligned: boolean
   - network_path_status: cleared | degraded | not_established
   - instance_state_implication: application_healthy | instance_failure | application_cause_open
@@ -40,7 +39,7 @@ success_criteria:
   - Uses the available Grafana and CF observations despite missing Splunk, returning a partial investigation rather than declaring all evidence blocked.
   - Rejects the older ThousandEyes window as proof of the current network path and running instances as proof that the application is healthy.
   - Keeps cause unresolved and selects an available same-target, same-window comparison without implying that this check alone proves a cause.
-  - Preserves caller, human owner, evidence labels and taint without applying a production action.
+  - Preserves caller, human owner and evidence labels without applying a production action.
   - This supplied-state decision packet does not establish autonomous collection, early delivery, parent continuation, or useful free-form advice; those need native/manual assessment.
 graders:
   - type: exact_json
@@ -51,7 +50,6 @@ graders:
       observed_p99_ms: 12000
       observed_running_instances: 3
       observation_label: "[sourced]"
-      observation_taint: "[UNTRUSTED]"
       source_windows_aligned: false
       network_path_status: not_established
       instance_state_implication: application_cause_open

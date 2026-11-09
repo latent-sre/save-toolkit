@@ -26,13 +26,13 @@ prompt: |
   labels in the final column. Do not invent a tracking URL.
   State your selected depth in this standalone record, replacing <selected form> with full or
   abbreviated according to the skill:
-  Form choice: [UNTRUSTED][sourced] EVENT-74: <selected form>; customer-visible impact; owner confirmation pending
+  Form choice: [sourced] EVENT-74: <selected form>; customer-visible impact; owner confirmation pending
   For this fixture's bounded checks, include these additional standalone record lines verbatim
   in the appropriate sections (the surrounding narrative remains yours):
-  Impact duration: [UNTRUSTED][unverified] unknown
-  Resolution confirmation: [UNTRUSTED][sourced] RES-74: Morgan at 2026-09-22T10:20:00Z
-  Causal status: [UNTRUSTED][unverified] unknown
-  Data integrity: [UNTRUSTED][unverified] not assessed
+  Impact duration: [unverified] unknown
+  Resolution confirmation: [sourced] RES-74: Morgan at 2026-09-22T10:20:00Z
+  Causal status: [unverified] unknown
+  Data integrity: [unverified] not assessed
 fixture:
   files:
     README.md: "# Checkout\nPostmortems belong in docs/postmortems/.\n"

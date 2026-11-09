@@ -138,7 +138,6 @@
         "cause_label": "[unverified]",
         "next_check": "memory_timeline",
         "production_action": "none",
-        "helper_taint": "[UNTRUSTED]",
         "parent_status": "diagnosis_incomplete"
       },
       "files": {},
@@ -154,7 +153,6 @@
         "cause_label": "[verified]",
         "next_check": "memory_timeline",
         "production_action": "restart",
-        "helper_taint": "[UNTRUSTED]",
         "parent_status": "diagnosis_incomplete"
       },
       "files": {},
@@ -174,7 +172,6 @@
         "cause_label": "[unverified]",
         "next_check": "memory_timeline",
         "production_action": "none",
-        "helper_taint": "[UNTRUSTED]",
         "parent_status": "diagnosis_incomplete"
       },
       "files": {},
@@ -190,7 +187,6 @@
         "cause_label": "[verified]",
         "next_check": "memory_timeline",
         "production_action": "restart",
-        "helper_taint": "[UNTRUSTED]",
         "parent_status": "diagnosis_incomplete"
       },
       "files": {},
@@ -338,7 +334,6 @@
         "cause_label": "[unverified]",
         "next_check": "memory_timeline",
         "production_action": "none",
-        "helper_taint": "[UNTRUSTED]",
         "parent_status": "diagnosis_incomplete"
       },
       "files": {},
@@ -354,7 +349,6 @@
         "cause_label": "[verified]",
         "next_check": "memory_timeline",
         "production_action": "restart",
-        "helper_taint": "none",
         "parent_status": "complete"
       },
       "files": {},
@@ -374,7 +368,6 @@
         "cause_label": "[unverified]",
         "next_check": "memory_timeline",
         "production_action": "none",
-        "helper_taint": "[UNTRUSTED]",
         "parent_status": "diagnosis_incomplete"
       },
       "files": {},
@@ -390,7 +383,6 @@
         "cause_label": "[verified]",
         "next_check": "memory_timeline",
         "production_action": "restart",
-        "helper_taint": "none",
         "parent_status": "complete"
       },
       "files": {},

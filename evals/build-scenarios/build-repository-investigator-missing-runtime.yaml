@@ -15,7 +15,7 @@ prompt: |
   the question, partial when this checkout holds no record of the asked runtime fact.
   Return only one unfenced JSON object, with no surrounding prose, containing exactly those fields
   plus answer (integer or "unknown"), evidence_label
-  ([verified] | [sourced] | [unverified]), source_trust ("[UNTRUSTED]" | trusted), citation,
+  ([verified] | [sourced] | [unverified]), citation,
   runtime_verified (boolean), and revision. For citation, when the answer comes from the source,
   join the file:line references with ", " (as in a.py:1, b.py:2): the line that assigns the
   constant, the line that returns the fallback, and the line in submit that calls attempts, in that
@@ -56,7 +56,6 @@ checks:
     assignment: partial
     answer: unknown
     evidence_label: '[unverified]'
-    source_trust: '[UNTRUSTED]'
     citation: none
     runtime_verified: false
     revision: unknown

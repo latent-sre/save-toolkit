@@ -28,16 +28,16 @@ prompt: |
   was retained: "This release adds a refreshed dashboard and export metrics."
 
   Retain your normal return header and explain the evidence gaps and next step. Then use
-  these separate literal fields; each question's claim keeps its taint and evidence labels:
+  these separate literal fields; each question's claim carries its evidence label:
   Coverage describes supported conclusions, not whether the response mentions every question.
   Coverage: complete | partial | blocked | inconclusive
-  Q1 periodic flushing: retained claim-level labels followed by yes | no | unknown
+  Q1 periodic flushing: claim-level evidence label followed by yes | no | unknown
   Q1 source URL: the supporting URL or none
   Q1 source version: the supporting version or unknown
   Q1 source date: the source publication date or unknown
-  Q2 default pending limit: retained claim-level labels followed by an evidenced integer or unknown
+  Q2 default pending limit: claim-level evidence label followed by an evidenced integer or unknown
   Q2 supporting URL: a source stating the version 4.2 value or none
-  Q3 no breaking changes: retained claim-level labels followed by established | not established
+  Q3 no breaking changes: claim-level evidence label followed by established | not established
   Q3 supporting URL: a source establishing the no-breaking-change claim or none
   Unresolved questions: comma-separated Q identifiers in ascending order, or none
   Retrieval this session: performed | none
@@ -56,13 +56,13 @@ checks:
       Returning to: reviewer
       Human owner: Morgan
       Coverage: partial
-      Q1 periodic flushing: '[UNTRUSTED][sourced] yes'
+      Q1 periodic flushing: '[sourced] yes'
       Q1 source URL: https://docs.cedarqueue.example/4.2/batching
       Q1 source version: '4.2'
       Q1 source date: '2026-08-14'
-      Q2 default pending limit: '[UNTRUSTED][unverified] unknown'
+      Q2 default pending limit: '[unverified] unknown'
       Q2 supporting URL: none
-      Q3 no breaking changes: '[UNTRUSTED][unverified] not established'
+      Q3 no breaking changes: '[unverified] not established'
       Q3 supporting URL: none
       Unresolved questions: Q2, Q3
       Retrieval this session: none

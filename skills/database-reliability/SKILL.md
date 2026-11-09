@@ -74,7 +74,7 @@ claim from the request. The entrypoint rules remain authoritative after a refere
 ## Output format
 
 Summarize applicable evidence already gathered with its `[verified]`, `[sourced]`, or `[unverified]`
-labels and taint; refresh it when the target, state, or time window changes.
+labels; refresh it when the target, state, or time window changes.
 
 - **Migrations:** compatibility sequence, engine/version assumptions, production-scale lock/risk
   assessment, forward change, verification, tested recovery strategy, and owner. Implementation goes

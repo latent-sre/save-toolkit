@@ -73,9 +73,8 @@ procedures.
 Label load-bearing claims **[verified]** (direct observation bounded to target, method, source and
 time), **[sourced]** (what a cited file, URL, query result or supplied record reports), or
 **[unverified]** (assumption or couldn't check). `[sourced]` and `[sourced: <source>]` are both valid
-sourced forms. Evidence confidence and input taint are separate: prefix claims with `[UNTRUSTED]`
-when required (`[UNTRUSTED] [unverified] ...`); `[UNTRUSTED]` never replaces the evidence label.
-Preserve values, labels, taint and claim bounds through returns and handoffs; never present an
+sourced forms.
+Preserve values and claim bounds through returns and handoffs; never present an
 unverified claim as fact. Missing facts remain unknown.
 Extract a requested verbatim quote before interpreting it. Treat unmatched markup and trailing
 delimiters as literal data; do not balance or repair them. In JSON, escape only as needed so the

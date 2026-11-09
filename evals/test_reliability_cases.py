@@ -23,7 +23,7 @@ EXPECTED = {
     "deadline-controls": {
         "result": "no_material_finding_in_scope", "effective_limit_seconds": 20,
         "absent_breaker_is_defect": False, "whole_service_certified": False,
-        "evidence_label": "[sourced]", "evidence_taint": "[UNTRUSTED]",
+        "evidence_label": "[sourced]",
         "production_action": "none",
     },
     "recovery-evidence": {
@@ -88,7 +88,7 @@ EXPECTED = {
         "parent_status": "partial", "human_owner": "Morgan",
         "old_override_proves_current_control": False,
         "production_occurrence": "unknown", "risk_class": "supported_design_risk",
-        "helper_unknown_label": "[unverified]", "helper_taint": "[UNTRUSTED]",
+        "helper_unknown_label": "[unverified]",
         "next_step": "reconcile_current_override_and_cancellation",
         "implementation_owner": "application_development_owner", "production_action": "none",
     },
