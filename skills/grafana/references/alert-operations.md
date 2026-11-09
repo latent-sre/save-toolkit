@@ -1,7 +1,6 @@
 # Inspect and change Grafana alerts
 
-Console: Alerts & IRM → Alerting → Alert rules; select the folder, rule, and instance. Inspect its
-query, evaluation history, labels, health, and notification destination. For a missing notification,
+Console: Alerts & IRM → Alerting → Alert rules; select the folder, rule, and instance. For a missing notification,
 trace evaluation → instance state → selected Alertmanager → matching route → silence/mute/inhibition
 → grouping/timers → delivery evidence. Reading a contact point does not prove a message arrived.
 
@@ -16,19 +15,14 @@ For a known rule, use the bundled helper's `alerts --uid <rule-uid>` for its exa
 names are not unique. Preserve `configuration_only` on the definition and the state read's
 truncation/instance limits. A missing sampled instance does not prove a rule is inactive.
 
-Report visible rule totals, evaluation errors, paused/pending/firing counts and scope/time
-separately.
-
-For a missing page, inspect the relevant instance's effective labels, selected Alertmanager,
-silence/inhibition associations, existing route, and timers without sending a test message. List
+For a missing page, walk that trace without sending a test message. List
 silences on that same Alertmanager; four active silences do not establish which alerts they affect.
 Do not expose contact-point credentials or claim delivery/acknowledgement from configuration alone.
 
 ## Bind the rule and owner
 
 Read the exact instance/org, folder UID, rule UID, group and interval, datasource UIDs, effective
-grants, and stored provenance. Grafana-managed and datasource-managed rules have different
-evaluators. File/Terraform/Git-managed rules change only through their owning source and its apply
+grants, and stored provenance. File/Terraform/Git-managed rules change only through their owning source and its apply
 path. An API-owned rule is editable only when this task's operator owns that provisioning workflow.
 
 A provisioning-API write carrying the `X-Disable-Provenance` header, with any value including
@@ -38,24 +32,20 @@ converts a UI-created rule to API-managed, which the console then treats as read
 header for an unmanaged rule, omit it entirely for an API-owned rule, and never change provenance
 as a side effect.
 
-Where the target serves `rules.alerting.grafana.app/v1beta1` (`alertrules`, `recordingrules`), prefer
-it: it replaces the deprecated rule provisioning endpoints and enforces `metadata.resourceVersion`
-compare-and-swap. Discover it with `GET /apis/rules.alerting.grafana.app/` and use only the paths and
-fields the target lists; the first OSS release serving it is unconfirmed. The helper and the table
-below use the deprecated legacy API. Unavailable routes are compatibility gaps, not empty inventory.
+Where the target serves `rules.alerting.grafana.app/v1beta1` (`alertrules`, `recordingrules`; OSS
+13.3.0+), prefer it: it replaces the deprecated rule provisioning endpoints. Discover it with
+`GET /apis/rules.alerting.grafana.app/` and use only the paths and fields the target lists. The
+helper and the table below use the deprecated legacy API. Unavailable routes are compatibility gaps, not empty inventory.
 Do not transplant dashboard concurrency fields. Confirm target behavior before writing.
 
 | Operation | Legacy rule provisioning API |
 |---|---|
-| Inspect one rule | `GET /api/v1/provisioning/alert-rules/<uid>` |
-| Inspect its group | `GET /api/v1/provisioning/folder/<folderUid>/rule-groups/<group>` |
 | Create one rule | `POST /api/v1/provisioning/alert-rules` with an explicit unused `uid` |
 | Update or pause/resume one rule | `PUT /api/v1/provisioning/alert-rules/<uid>` with the full valid rule body; pause uses `isPaused` |
 
 An export is recovery/source material, not a replayable update body: provisioning exports use a
 different schema. Never use a group PUT for a single-rule edit; it can replace the group's rules and
-change every member's provenance, and it is looser than the single-rule path: it can reset an
-API-owned rule to unmanaged.
+change the provenance of every rule it modifies, including resetting an API-owned rule to unmanaged.
 
 ## Apply the requested change
 
@@ -75,11 +65,13 @@ API-owned rule to unmanaged.
 4. Validate body/query on bounded healthy/bad windows where available and verify the existing
    destination. Paging requires an owner/approved runbook. Show full diff, target, effect and recovery;
    never validate by sending a test notification to production.
-5. On `rules.alerting.grafana.app`, send the `metadata.resourceVersion` from the read just made. The
-   legacy contract has no compare-and-swap: establish a coordinated single-writer window with the
-   resource owner, re-read immediately before dispatch and stop on drift. A fresh GET alone does not
-   close the race. If neither control is available, return the prepared change for the owning executor.
-6. Write the one rule once. On a rule, a 409 is a provenance mismatch or an optimistic-lock conflict;
+5. On 13.3.0 the legacy-backed `alertrules` store does not compare `metadata.resourceVersion`: do
+   not treat it as compare-and-swap unless a stale-write test on this target returns a conflict. The
+   provisioning API has none. Without compare-and-swap, establish a coordinated single-writer window
+   with the resource owner, re-read immediately before dispatch and stop on drift. A fresh GET alone
+   does not close the race. If no window is available, return the prepared change for the owning
+   executor.
+6. Write the one rule once. On a rule, a 409 is a provenance, optimistic-lock or unique-constraint (used UID) conflict;
    notification resources answer a provenance error with 403. Stop and re-read; do not retry. Retain
    the response and UID; read it back into a fresh result and compare intended fields, UID,
    folder/group, provenance, and pause state. Check evaluation after its next scheduled run with a

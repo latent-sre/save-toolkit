@@ -27,8 +27,7 @@ authorize writes.
    and no-data behavior. Prefer counts and protected links to payloads.
 6. **Inspect presentation where available.** Follow [visual verification](./visual-verification.md)
    at matching query/image scope.
-7. **Return evidence and proposed repairs.** Keep source findings, live observations, and unchecked
-   claims distinct. Do not save, import, restore, create snapshots/test resources, trigger alerts,
+7. **Return evidence and proposed repairs.** Do not save, import, restore, create snapshots/test resources, trigger alerts,
    or alter permissions during this review. Write concurrency, rollback, alert firing/resolution,
    and notification delivery need separate evidence; read-only success does not establish them.
 
@@ -57,13 +56,10 @@ findings (advisories allowed), 1 requires review, 2 means uncheckable. `--quiet`
 
 Query analysis distinguishes bounded PromQL parsing, text heuristics for unresolved templates or
 missing parsers, and `not_checked` for exceeded limits. Inspect gaps even with no findings. The report
-establishes static hygiene only, not schema/query/render validation or health; V2 remains unsupported.
+establishes static hygiene only, not schema/query/render validation or health; an unknown V2 layout or
+element kind is refused as uncheckable (`unsupported_v2`, exit 2).
 
-## Grafana 13.2 checks
+## Version checks
 
-| Check | What to establish |
-|---|---|
-| Dashboard APIs | Discover served/preferred versions, then read the stored version. On one observed 13.2.2 target, sampled dashboards remained `v0alpha1` while `v2` was preferred. |
-| History access | Use both history paths in `http-api`; one observed target answered 403 on legacy history only. Do not interpret 403 as no history or seek write grants just to finish a review. |
-| View panel sidebar | Public preview; inspect availability before relying on it. Viewers can explore visualization options without an edit grant. |
-| Plugins and saved queries | Record installed plugin versions separately from Grafana's version. Saved queries are GA for Enterprise/Cloud; discover entitlement and grants before recommending them. |
+- Do not seek write grants just to finish a review.
+- Saved queries are GA for Enterprise; discover entitlement and grants before recommending them.
