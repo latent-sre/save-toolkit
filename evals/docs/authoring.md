@@ -419,8 +419,7 @@ and host with any such result. See the historical
 The expanded SRE workflow now requires an actual unhinted incident/runbook dispatch, helper return
 and caller continuation as a product acceptance case on each claimed host. A routing probe or a
 supplied-state JSON decision alone does not satisfy that requirement; one success does not establish
-general dispatch reliability. The pending cases live in
-[host acceptance](../../docs/vscode-plugin-acceptance.md#expanded-investigation-acceptance-pending).
+general dispatch reliability.
 
 ### Native incident conversation
 

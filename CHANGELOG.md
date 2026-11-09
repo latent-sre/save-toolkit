@@ -39,6 +39,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - `operational-docs` merges its disposition policy into knowledge closeout and drops carried labels; the Confluence converter reads the template for its banner and checks, suppresses script and style content, and keeps table structure; `resilience-analysis` and `toil-reduction` trim repeats.
 - Generated handoff prompts no longer ask receivers to preserve evidence labels.
 - Agents no longer carry input evidence labels or `[UNTRUSTED]` taint through their reports, and the evals no longer require it; agents still label their own claims.
+- `agent-authoring` corrects its Claude Code and Copilot host facts for current versions and drops about 4.9 KB of detail the fleet does not use. The VS Code plugin acceptance document is removed; `COPILOT-HARNESS-001` tracks delegation on the default Copilot harness.
 
 ## [0.52.0] - 2026-11-04
 
