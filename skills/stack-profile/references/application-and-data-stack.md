@@ -13,7 +13,7 @@ or run Java locally. Return source changes to the application owner; service inv
 grant authoring authority.
 
 **CI uses GitHub environment secrets, not GitHub OIDC.** Do not design a GitHub-OIDC→CredHub
-exchange; CredHub authenticates through UAA.
+exchange; CredHub authenticates UAA users and clients, and CF app instances by mTLS instance identity.
 
 ## Toolchain by language
 
@@ -26,15 +26,15 @@ with `api-craft` and `operator-cli`.
 | Language | Format and lint | Types and analysis | Tests | Environment or runtime |
 |---|---|---|---|---|
 | Python | `ruff` for both lint and format, with the `B` (bugbear) rules selected | `mypy` or `pyright`; prefer `dataclasses`/`pydantic` to loose dicts | `pytest` with `parametrize`, fixtures, `tmp_path`, `monkeypatch`, and an injected clock | `uv` (`poetry` is fine for a published library); never `pip install` into system Python |
-| TypeScript/JavaScript | ESLint with `@typescript-eslint/no-floating-promises` and `no-misused-promises` | `strict` on, no `any`, `unknown` narrowed at the boundary; branded IDs and exhaustively switched discriminated unions | Vitest or Jest; React Testing Library for React, Vue Test Utils for Vue; MSW at the network boundary; Playwright for the few critical journeys | The repository's package manager and its `tsconfig` target; pin `typescript` to a release typescript-eslint supports (6.x while TypeScript 7 ships no compiler API) |
+| TypeScript/JavaScript | `oxlint` is the frontend default, type-aware (`oxlint-tsgolint`) with `typescript/no-floating-promises` and `typescript/no-misused-promises` | `strict` on, no `any`, `unknown` narrowed at the boundary; branded IDs and exhaustively switched discriminated unions | Vitest or Jest; React Testing Library for React, Vue Test Utils for Vue; MSW at the network boundary; Playwright for the few critical journeys | The repository's package manager and its `tsconfig` target; TypeScript 7 (oxlint's type-aware mode requires 7.0+, so no TypeScript 6 pin) |
 | Go | `gofmt`/`goimports` enforced in CI | `go vet`, and `golangci-lint` on the baseline `staticcheck`, `govet`, `errcheck`, `ineffassign`, `unused` | Table-driven `t.Run` subtests; `go test -race` targeted at concurrent code | `go.mod`'s `go` directive gates semantics; Semantic Import Versioning (`/v2`) |
 | Bash | `shellcheck` clean, or a justified `# shellcheck disable=` carrying a reason | Header: `#!/usr/bin/env bash`, `set -Eeuo pipefail`, and the bare `shopt -s inherit_errexit` — the Bash 5.1 floor below allows it, so no `\|\| true` guard | `bats`: exit codes, stdout/stderr, idempotency | Bash 5.1 floor (see Hosts and runners) |
-| PowerShell | PSScriptAnalyzer failing CI on `Error`, enforcing `PSUseApprovedVerbs`, `PSAvoidUsingCmdletAliases`, `PSUseShouldProcessForStateChangingFunctions`, `PSAvoidUsingInvokeExpression`, `PSAvoidUsingPlainTextForPassword`, `PSAvoidUsingConvertToSecureStringWithPlainText` | `[CmdletBinding()]`, approved verbs, `SupportsShouldProcess` on state changes; emit objects, never `Write-Host` for data | Pester 5 — Discovery then Run, so setup goes in `BeforeAll`/`BeforeEach` | State whether you target Windows PowerShell 5.1 or PowerShell 7+ |
+| PowerShell | PSScriptAnalyzer failing CI on `Error`, enforcing `PSUseApprovedVerbs`, `PSAvoidUsingCmdletAliases`, `PSUseShouldProcessForStateChangingFunctions`, `PSAvoidUsingInvokeExpression`, `PSAvoidUsingPlainTextForPassword`, `PSAvoidUsingConvertToSecureStringWithPlainText` | `[CmdletBinding()]`, approved verbs, `SupportsShouldProcess` on state changes; emit objects, never `Write-Host` for data | Pester 6 — Discovery then Run, so setup goes in `BeforeAll`/`BeforeEach` | State whether you target Windows PowerShell 5.1 or PowerShell 7+ |
 
 ## Frameworks
 
 - **Backend:** FastAPI is established; other frameworks remain task/repository/contract choices.
-  Huma is a Go option, not the default; Spring Boot remains support-only. `api-craft` owns HTTP/
+  Spring Boot remains support-only. `api-craft` owns HTTP/
   integration guidance, with identity, document workflows and verification selected per service.
 - **Frontend:** React is the focus; Vue is in use. `frontend-craft` owns approved mixable kits,
   per-app identity, typed service integration and localhost/PCF serving; preserve the repository's framework.

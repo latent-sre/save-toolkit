@@ -4,22 +4,14 @@ Preserve required coverage and the [parent execution boundaries](../SKILL.md).
 
 ## Measure before choosing the lever
 
-Compare queue time, critical path, setup/install/test/upload, cache hits/misses, retries, runner
-class and concurrency across normal and slow attempts. Separate elapsed time from total runner use.
-
 `gh run list -w <workflow file> -b <default branch> -e <event> -s success -L 20
 --json databaseId,attempt,createdAt,updatedAt` selects comparable runs. For each, `gh api --paginate
-repos/{owner}/{repo}/actions/runs/<id>/jobs` supplies job/step timings; queue delay is job
-`started_at − created_at`. Compare median and slow tail, not one warm-cache run.
+repos/{owner}/{repo}/actions/runs/<id>/attempts/<attempt>/jobs` supplies that attempt's job/step
+timings; queue delay is job `started_at − created_at`. Compare median and slow tail, not one
+warm-cache run.
 
-| Bottleneck | Candidate change and constraint |
-|---|---|
-| Queue | Remove duplicate runs/cancel superseded validation; more capacity cannot shorten serial work |
-| Checkout/setup | Avoid unnecessary history/submodules/LFS, retaining history needed by version/diff tools |
-| Dependencies/build | Compatible lock-aware cache only when restore/upload costs less than rebuilding |
-| Tests | Duration-balanced shards with complete coverage, isolated shared state and bounded pressure |
-| Matrix | Remove unsupported axes; retain supported targets and required-check identities |
-| Uploads | Narrow paths/compression/retention while preserving failure and release/recovery evidence |
+When optimizing, keep the history version/diff tools need, shard tests without losing coverage or
+isolation, and keep required-check identities and failure/recovery uploads.
 
 ## Jobs, matrices and failure behavior
 
@@ -44,11 +36,10 @@ ordinary PR-created caches belong to the merge ref. Analyze privileged-event/cus
 and writers separately; untrusted output must not poison privileged consumers. Preserve setup-action
 security defaults unless event/cache scope is reviewed. Where supported, caller `cache-mode: read`
 bounds reusable-workflow callee access; low-trust defaults alone do not. Do not grant write to silence
-a warning: use a trusted producer. Check server/validator support for newer syntax.
+a warning: use a trusted producer. Check server support for newer syntax; `actionlint` 1.7.12 reports
+`cache-mode:` as an unexpected key, so that failure alone does not make the syntax invalid.
 
-Give matrix artifacts unique names and fail on a missing required release artifact. Tune compression
-for the data and retention for its purpose. Promote the producing run's digest-bound bytes, never
-ambiguous latest artifacts or a deploy-job rebuild.
+Give matrix artifacts unique names and fail on a missing required release artifact.
 
 ## Events, required checks and cancellation
 
@@ -63,8 +54,9 @@ only. Keys need workflow/ref and relevant job/matrix dimensions; reusable calls 
 key distinct from the caller's group. Deploy groups stay stable per target, automatic cancellation off.
 `queue: single` still replaces pending work with `cancel-in-progress: false`; where supported,
 `queue: max` retains up to 100 pending runs and forbids `cancel-in-progress: true`. FIFO follows
-entry into waiting, not dispatch/commit order; a full queue cancels excess arrivals. Verify server/
-validator support and reconcile the candidate before promotion: concurrency is not a deployment ledger.
+entry into waiting, not dispatch/commit order; a full queue cancels excess arrivals. Verify server
+support (`actionlint` 1.7.12 also rejects `queue:` as an unexpected key) and reconcile the candidate
+before promotion: concurrency is not a deployment ledger.
 
 ## Runner choice
 
@@ -76,4 +68,7 @@ runners need measured benefit or a network/hardware requirement.
 For self-hosting, confirm stack boundary, owner/network scope, restricted groups and least privilege.
 Keep untrusted jobs off persistent runners with credentials/internal reach. Ephemeral registration
 does not erase files: require cleanup/replacement after completion, forced cancellation and host loss
-before reuse. Check minimum runner compatibility when upgrading actions.
+before reuse. Check minimum runner compatibility when upgrading actions. On github.com and
+data-residency Enterprise Cloud (not Enterprise Server), a runner that has not installed a release
+within 30 days of its publication stops receiving jobs; with auto-update off or no route to the
+update service, schedule manual upgrades.
