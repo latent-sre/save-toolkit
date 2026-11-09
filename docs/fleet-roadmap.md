@@ -95,7 +95,7 @@ evidence, and extend the tool as new operational needs appear.
 **Owner:** Maintainers accept the release; a maintainer session owns the plugin contract and
 `software-engineer` owns helper/adapter repairs.
 **Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
-to a previously accepted one. The [acceptance cases](vscode-plugin-acceptance.md) pass on those
+to a previously accepted one. The acceptance cases pass on those
 exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
 **Next action:** Run the new Format acceptance case first: the plugin now declares Agent Plugins
 1.0 because VS Code ranks `.claude-plugin/plugin.json` above a schema-less selector manifest, and no
@@ -131,7 +131,7 @@ bind the operations-repository path, and verify one complete dashboard investiga
 Identify the existing SSO/browser/CLI session and credential mechanism, including protected personal
 credentials where needed. Complete CF target/output/time bounds, browser runtime verification and an
 isolated analysis path only with their matching controls. Use the
-[expanded host acceptance cases](vscode-plugin-acceptance.md#expanded-investigation-acceptance-pending)
+expanded host acceptance cases
 for both hosts. The source update adds selected browser interactions and one installed helper grant,
 not general HTTP, script, page-code or standard Copilot terminal access;
 Helix/BigQuery remains an unconnected placeholder. INCIDENT-QUALITY-001 retains behavioral acceptance.
@@ -396,6 +396,21 @@ the operational-contract report used by merged PR #237) were removed on 2026-11-
 [pre-removal snapshot](https://github.com/latent-sre/save-toolkit/tree/7ac287d518df1f5b8c9397642a8204b0909ca2ac/docs/reviews); their results apply only to the snapshots they name.
 **SRE task:** Get a useful next check or closeout without mistaking a helper's completed assignment
 or an untimed aggregate for evidence of incident recovery or cause.
+
+### COPILOT-HARNESS-001 — decide fleet delegation on the default Copilot harness
+
+**Status:** `decision-needed` (2026-11-08); VS Code now starts new sessions on the Copilot harness,
+where the fleet's `agents:` and `handoffs:` do not apply. The installed-host acceptance document was
+removed because it described the earlier harness.
+**Owner:** The human owner decides; a maintainer session owns the generator and lane text.
+**Outcome:** The fleet states how delegation works on the default Copilot harness, its lanes do not
+depend on a Local-only field there, and acceptance cases exist for the chosen harness.
+**Next action:** The owner chooses between keeping delegation Local-only, projecting to the harness's
+own mechanism, or no delegation on Copilot. Then write acceptance cases for that harness and confirm
+its browser tool names and `AGENTS.md` delivery on an installed host.
+**Evidence:** [VS Code agent harnesses](https://code.visualstudio.com/docs/agents/run/agent-harnesses).
+**SRE task:** Use the fleet's delegating lanes from a default Copilot session, knowing which handoffs
+work there.
 
 ### PCF-DEPLOY-001 — give pcf-deploy an Apps Manager path for SREs without the cf CLI
 

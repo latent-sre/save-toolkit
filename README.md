@@ -148,7 +148,7 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 | Host surface | Contract shipped | Current evidence boundary |
 |---|---|---|
 | Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre-assistant` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
-| VS Code 1.137.0 | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-09-10 the maintainer ran the [acceptance cases](docs/vscode-plugin-acceptance.md) against an installed 0.40.0 candidate and reported all passing, including the forbidden-child case that ran anyway on 1.135.0. Owner-reported from a live session; no transcript was filed, so this row is the record. The separate agent-scoped hook canary remains unrun and `hooks/copilot-hooks.json` still ships empty |
+| VS Code 1.137.0 | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-09-10 the maintainer ran the acceptance cases against an installed 0.40.0 candidate and reported all passing, including the forbidden-child case that ran anyway on 1.135.0. Owner-reported from a live session; no transcript was filed, so this row is the record. The separate agent-scoped hook canary remains unrun and `hooks/copilot-hooks.json` still ships empty |
 | First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the `RELEASE-001` acceptance run passes on that exact build |
 
 ### Other hosts
@@ -164,7 +164,7 @@ Claude's candidate supports a small native command set and the bundled Grafana r
 Selected native VS Code and Playwright browser interactions require a protected read-only session.
 The standard
 Copilot profile remains without terminal tools; its command preview must pass the
-[installed-host canary](docs/vscode-plugin-acceptance.md#command-preview-canary) before adoption.
+installed-host canary before adoption.
 
 **VS Code / Copilot Chat (beta plugin):** confirm `chat.plugins.enabled` is on, run
 **Chat: Install Plugin From Source**, and enter `https://github.com/latent-sre/save-toolkit`.
@@ -194,9 +194,6 @@ Open a neutral test workspace for that plugin check; opening this repository its
 `.github/agents/` and `.github/skills/` as workspace customizations and can hide duplicate-install
 mistakes. Opening the repository without installing the plugin discovers those standard
 directories directly; no custom skill-location setting is needed.
-Use the maintained [VS Code plugin acceptance procedure](docs/vscode-plugin-acceptance.md) for
-discovery, installed helpers, delegation, return/resume, and disable/uninstall checks. Its release
-section names the immutable-artifact and rollback evidence still required for supported use.
 
 **Codex:** the fleet is not distributed to Codex. Codex working *in* this repository picks up the
 root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs

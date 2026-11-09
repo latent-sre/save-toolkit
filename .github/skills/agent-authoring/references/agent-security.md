@@ -32,8 +32,9 @@ attacker-influenced evidence as untrusted. Cutting a leg does not replace defens
 
 ## Controls this fleet relies on
 
-- Prefer tool absence, then the hook allowlist and host network controls. Denying `WebFetch` does
-  not stop Bash; command-text matching is not network isolation.
+- Prefer tool absence, then the hook allowlist and host network controls. Absent managed settings
+  or a Team/Enterprise login, an installed mod can approve a call the hook blocked. Denying
+  `WebFetch` does not stop Bash; command-text matching is not network isolation.
 - Secrets stay out of model context: inject at the boundary; never paste a token where injected
   text could read it back.
 - Envelope tool results with a named source (`<untrusted_tool_result source="web_fetch">`) and

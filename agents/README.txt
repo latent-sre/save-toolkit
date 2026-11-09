@@ -113,7 +113,7 @@ The source update therefore does not claim complete credential isolation or veri
 installed-host browser behavior. Finish those boundaries alongside the first real
 Grafana workflow; do not add general shell/Python/browser grants to bypass gaps.
 
-Use ../docs/vscode-plugin-acceptance.md for the pending installed-host cases:
+Pending installed-host cases:
 session reuse/expiry; allowed reads and denied effects; wrong targets; synthetic
 personal credentials in normal/failure output and images; direct-file and helper
 tampering; returned image delivery; automatic dispatch, early finding and caller

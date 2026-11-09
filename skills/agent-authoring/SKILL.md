@@ -68,9 +68,7 @@ summary becomes a shortcut that displaces the body.
 | Omits a required element | Required slot in a template it must fill |
 | Behavior should depend on a condition | Conditional keyed to an observable predicate |
 
-Express exceptions as conditions keyed to observable predicates; replace vague clauses such as
-"unless it matters". Use a positive recipe for human-facing shape, not a don't-list. Before editing
-instructions, locate the layer that owns the failure — routing metadata, instructions, context
+Before editing instructions, locate the layer that owns the failure — routing metadata, instructions, context
 assembly, tool/output schema, orchestration, wrapper/model/runtime, or the evaluator — and fix it
 there: strict schema for machine-consumed shape, code or a tool gate for fixed branches and effects,
 the harness for context selection.
@@ -114,7 +112,7 @@ authorizes a self-modifying loop.
 |---|---|
 | A prompt, agent body, skill body, description, or grader | [artifact guidance](./references/artifact.md) |
 | A tool contract, or promoting a shell prototype to a tool | [tool contracts](./references/artifact.md#tool-contracts) |
-| Agent or skill frontmatter, delegation/handoff edges, or their projections | [Claude Code frontmatter](./references/claude-code-frontmatter.md), the canonical source contract, including `Agent(...)` grants, their spawn-depth limit (three layers by default; `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`), and the MCP output cap; follow this fleet's edge-change procedure in the Save Toolkit repository's `CONTRIBUTING.md` |
+| Agent or skill frontmatter, delegation/handoff edges, or their projections | [Claude Code frontmatter](./references/claude-code-frontmatter.md), the canonical source contract, including `Agent(...)` grants and their spawn-depth limit (three layers by default; `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`); follow this fleet's edge-change procedure in the Save Toolkit repository's `CONTRIBUTING.md` |
 | VS Code/Copilot projection or handoff work | Also read [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) for `agents:`, `handoffs:`, and tool aliases |
 | Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
 | A cold-start packet, bounded evidence, receiving a helper's return, or replaying context | [context and handoffs](./references/artifact.md#context-and-handoffs) |
