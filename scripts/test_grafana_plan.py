@@ -72,6 +72,21 @@ def test_unsupported_variable_contexts_are_explicit(expression, variables):
         plan.substitute(expression, variables)
 
 
+def test_regex_format_variable_is_named_by_its_base_name_in_missing_inputs():
+    dashboard = board()
+    dashboard['panels'][0]['targets'][0]['expr'] = 'up{host=~"${host:regex}"}'
+    assert build(dashboard, {'host': 'node.example'})['missing_inputs'] == []
+    assert build(dashboard)['missing_inputs'] == ['host']
+
+
+def test_panel_time_comparison_is_an_explicit_gap_not_a_primary_only_query():
+    dashboard = board()
+    dashboard['panels'][0]['timeCompare'] = '1d'
+    result = build(dashboard)
+    assert result['panels'][0]['gaps'] == ['unsupported_panel_timeCompare']
+    assert result['queries_planned'] == 0
+
+
 def test_plan_exposes_missing_inputs_and_query_budget_without_commands_for_skipped_targets():
     dashboard = board()
     dashboard['panels'][0]['targets'] = [{'refId': 'A', 'expr': 'up{host="$host"}'},

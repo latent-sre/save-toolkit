@@ -117,7 +117,7 @@ def build_plan(dashboard, args, variables, *, panel_reader, target_builder, erro
     missing = set()
     for panel in all_panels[:args.max_panels]:
         blocked = panel.get('_parent_context', []) + [key for key in (
-            'libraryPanel', 'repeat', 'scopedVars', 'timeFrom', 'timeShift') if panel.get(key)]
+            'libraryPanel', 'repeat', 'scopedVars', 'timeFrom', 'timeShift', 'timeCompare') if panel.get(key)]
         item = {'id': panel['id'], 'title': panel.get('title'), 'type': panel['type'],
                 'blocked': bool(blocked), 'targets': [],
                 'gaps': ['unsupported_panel_' + key for key in blocked]}
@@ -159,7 +159,7 @@ def build_plan(dashboard, args, variables, *, panel_reader, target_builder, erro
                 for expression in (target.get('expr'), uid):
                     if isinstance(expression, str):
                         missing.update(name for match in MACRO.finditer(expression)
-                                       if (name := match.group(1) or match.group(2)) not in variables
+                                       if (name := (match.group(1) or match.group(2)).partition(':')[0]) not in variables
                                        and not name.startswith('__'))
                 if isinstance(uid, str):
                     uid = substitute(uid, variables, context='datasource')

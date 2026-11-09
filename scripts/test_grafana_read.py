@@ -282,6 +282,12 @@ def test_malformed_or_unknown_v2_structures_are_refused_not_half_read(spec, erro
     assert code == 2 and result["error"] == error
 
 
+def test_v2_panel_keeps_its_time_comparison_for_the_planner():
+    element = v2_panel(1, "Compared", "timeseries", [])
+    element["spec"]["data"]["spec"]["queryOptions"] = {"timeCompare": "1d"}
+    assert reader._v2_panel("panel-1", element, None, [])["timeCompare"] == "1d"
+
+
 def test_v2_layout_depth_limit_admits_its_bound():
     view = reader.v2_panel_view(_layout_with(_nested_rows(16)))
     assert [panel["id"] for panel in view["panels"]] == [1]

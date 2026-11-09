@@ -577,7 +577,7 @@ def _v2_panel(name, element, repeat, context):
         transformations = group.get("transformations") or []
         if not isinstance(options, dict) or not isinstance(queries, list) or not isinstance(transformations, list):
             raise SafeError("invalid_panel_tree")
-        panel.update({key: options[key] for key in ("interval", "maxDataPoints", "timeFrom", "timeShift") if key in options})
+        panel.update({key: options[key] for key in ("interval", "maxDataPoints", "timeFrom", "timeShift", "timeCompare") if key in options})
         if transformations:
             panel["transformations"] = [{"id": item.get("group"), **(item.get("spec") or {})} if isinstance(item, dict) else item
                                         for item in transformations]
