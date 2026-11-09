@@ -31,6 +31,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - The Grafana workflow accepts `${var:regex}` and queries starting with `-`; `resilience-analysis` covers readiness audits, `gcp-ops` counts rejected requests, and the Confluence importer keeps inline text intact.
 - `incident-investigation` drops its leftover carried-label clauses and corrects verified mitigation and symptom facts.
 - `gcp-ops` and `akamai-edge` correct verified facts and trim repeats; the placeholder GCP project inventory is removed.
+- `agent-authoring` corrects verified host facts, marks the Copilot `agents:`/`handoffs:` projection as legacy-only, and merges `context.md` and `skill-portability.md` into their siblings.
 
 ## [0.52.0] - 2026-11-04
 
