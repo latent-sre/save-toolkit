@@ -1,10 +1,9 @@
 # Temporary silences
 
-Silences suppress notifications temporarily. Recurring mute timings are a different operation.
+Recurring mute timings are a different operation.
 Ending a silence can notify still-firing alerts again.
 
-Console: Alerts & IRM → Alerting → Silences. Select Alertmanager, preview matches, set start/end
-and owner/reason; Unsilence ends early. Preview shows only current firing instances, not every
+Console: Alerts & IRM → Alerting → Silences. Preview shows only current firing instances, not every
 future alert the matchers will suppress.
 
 The helper's `silences` and `silences --id <uuid>` read only the built-in Grafana Alertmanager.
@@ -59,12 +58,11 @@ Use the actual target's supported route and permissions. The Grafana 13.3 client
 | End early | `DELETE /api/alertmanager/<am>/api/v2/silence/<id>` |
 
 `<am>` is `grafana` for the built-in Alertmanager or the discovered datasource UID for the external
-one; never substitute its display name. The POST body carries `matchers` (name, value, regex/equality
-flags supported by that server), `startsAt`, `endsAt`, `createdBy`, and `comment`. Create omits
+one; never substitute its display name. Create omits
 `id`; an update sends the existing `id` and can return a different one (step 5). A rule-specific
 silence can use `__alert_rule_uid__=<uid>`; verify the label applies to this Alertmanager's alerts
 rather than assuming external alerts carry it. Grafana rejects an update that changes the
-`__alert_rule_uid__` matcher with 400: create a new silence instead. Discover response ID spelling from the API/tool response and verify it through readback.
+`__alert_rule_uid__` matcher with 400: create a new silence instead. POST returns `silenceID`; reads use `id`.
 
 A timeout after POST is UNKNOWN under the parent's [result rule](../SKILL.md#return-the-result).
 Do not create another silence. Read the returned ID if known; otherwise list the same

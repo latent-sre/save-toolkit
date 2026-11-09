@@ -10,36 +10,10 @@ Use the invoked lane's permitted query path and output protections. The standard
 no Splunk execution path: return the query for an authorized executor. Diagnostic reads do not
 permit saved-search edits or other writes.
 
-### Which errors started at the same time as the impact?
-
-```spl
-index=<app_index> sourcetype=<error_sourcetype> earliest=<start_epoch> latest=<end_epoch>
-| bin _time span=1m
-| stats count by _time, error_type
-| sort 0 - _time
-```
-
-An onset shortlist, not a complete baseline. Check extraction/ingestion; use
-[complete buckets](./spl.md#spot-a-spike-vs-the-baseline-anomaly-detection) for quiet periods and trailing baselines.
-
 ### Did error rate change across the deploy? Where did one request fail across services?
 
 Use SPL's [deploy comparison](./spl.md#compare-before-vs-after-a-deploy) and
 [cross-service correlation](./spl.md#correlate-one-request-across-services).
-
-### Which callers are driving the current load?
-
-Use request-completion events and a discovered caller field; compare the top counts with the
-usual caller mix rather than treating a large caller as a fault.
-
-```spl
-index=<app_index> sourcetype=<request_completion_sourcetype> earliest=-30m latest=now
-| stats count AS requests by <caller_field>
-| sort - requests
-| head 20
-```
-
-`stats by` drops missing caller fields; compare `count(<caller_field>)` against `count` first.
 
 ### Is the Akamai edge failing or missing cache for one hostname or region?
 
@@ -66,6 +40,4 @@ refusal before use; it does not prove live extraction.
 Add `country` (client origin) or `serverCountry` (serving location) for regional grouping;
 `stats count by errorCode` narrows a spike. Inspect `reqHost` shape before filtering (it mirrors
 Host). `akamai-edge`'s DataStream caveats still apply: low-latency streams are less complete and
-delivery failures lose lines. Other destinations need equivalent fields in their own dialect.
-
-Metric queries use the [metric method](./signal-methods.md#metrics), not this log catalog.
+delivery failures lose lines.

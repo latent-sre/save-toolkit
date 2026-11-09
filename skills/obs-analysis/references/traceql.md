@@ -1,10 +1,5 @@
 # Tempo TraceQL for trace investigation
 
-Primary reference:
-
-- [Construct a TraceQL query](https://grafana.com/docs/tempo/latest/traceql/construct-traceql-queries/)
-- [Grafana Tempo query-builder examples](https://grafana.com/docs/grafana/latest/datasources/tempo/query-editor/traceql-search/)
-
 ## Scope and spanset rules
 
 Intrinsics use `scope:name` (short forms such as `duration` also work); custom attributes use `scope.name`. Conditions inside one pair of
@@ -12,7 +7,7 @@ braces must match the same span; spansets joined with `&&` may match different s
 
 ## Beyond the basic shapes — version-gated TraceQL
 
-Structural operators (`>` child, `>>` descendant, `<<` ancestor, `~` sibling), metrics functions,
+Structural operators, metrics functions,
 `select()` and event/link/instrumentation scopes depend on the deployed version and block format.
 Check those capabilities before using them in shared queries.
 

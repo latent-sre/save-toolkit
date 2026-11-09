@@ -1,8 +1,5 @@
 # Cloud Logging dialect for log investigation
 
-Syntax references: [Logging query language](https://docs.cloud.google.com/logging/docs/view/logging-query-language)
-and [`gcloud logging read`](https://docs.cloud.google.com/sdk/gcloud/reference/logging/read).
-
 ## Start narrow
 
 Logging filters select entries; they do not aggregate. Choose Logs Explorer's histogram,
@@ -18,14 +15,11 @@ Observability Analytics SQL, or a log-based metric for time-series/top-N work.
   filter also admits app stderr and is not a request denominator. Under PowerShell, use
   `logName=projects/<project>/logs/run.googleapis.com%2Frequests` to avoid forbidden parentheses.
 - `SEARCH("world")` matches token boundaries, not `worlds`, and cannot match non-text fields.
-- Inspect one entry's payload shape before filtering: `jsonPayload.<field>` and `textPayload`
-  differ, and a predicate on an absent field silently matches nothing.
 
 ## Read it over time
 
-Analytics `GROUP BY` omits empty buckets. Generate the bounded bucket series and left-join counts;
-zero-fill only after checking freshness and ingestion coverage. Log-based metrics are not
-retroactive: they cannot reconstruct an earlier incident.
+Zero-fill Analytics buckets only after checking freshness and ingestion coverage. Log-based
+metrics are not retroactive: they cannot reconstruct an earlier incident.
 
 ## Correlate one request
 
@@ -61,8 +55,7 @@ gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.servic
 
 ## Observability Analytics (SQL over logs)
 
-Observability Analytics (formerly Log Analytics) provides BigQuery-backed SQL over logs and traces.
-Check that the selected log bucket is upgraded before promising SQL aggregation or gap filling.
+Observability Analytics (formerly Log Analytics): check that the selected log bucket is upgraded before promising SQL aggregation or gap filling.
 
 ## Tips & gotchas
 

@@ -10,8 +10,7 @@ alternatives open.
 
 - Bind test/agent IDs, target, first/last times and collection cadence; compare failing and healthy
   regions/vantages, including inside versus outside.
-- Use Path Visualization for hop loss/latency and BGP for reachability/route changes. Preserve
-  healthy controls, hop/AS deltas and DNS observations.
+- Preserve healthy controls, hop/AS deltas and DNS observations.
 - Compare the same window with `cf app`, events and app logs for the route/dependency. Keep
   platform-edge health separate from user-facing errors and synthetic results.
 - Send network evidence to network/platform owners; a clean path with app errors remains an app
@@ -21,8 +20,7 @@ Return these observations, scope and unresolved alternatives to the responder or
 
 ## Designing checks
 
-Pair Cloud and Enterprise Agents when the inside-versus-outside comparison changes the response
-path. Exercise failure, recovery, and delivery from a safe target before declaring coverage. Hand
+Exercise failure, recovery, and delivery from a safe target before declaring coverage. Hand
 steady-state tuning to the `observability-engineer` agent with the coverage gap, proposed test and
 vantages, threshold evidence, expected cost, runbook, validation plan, and rollback condition.
 

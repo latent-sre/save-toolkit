@@ -15,14 +15,9 @@ Apply only changed-path steps for scoped fixes; service-wide work uses the full 
    is justified. Python uses the managed environment/lock workflow, never system installation;
    review dependency/lock diffs before deployment.
 
-   For Spring Boot, inspect build and buildpack configuration, not an assumed team standard:
-   - `-javaagent` instruments bytecode at startup with broad library coverage. PCF can inject it;
-     check for duplicate agents.
-   - `io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter` with
-     `opentelemetry-instrumentation-bom` suits native images, unacceptable agent overhead,
-     incompatible agents or `application.yml`/declarative YAML configuration. Docs list Boot
-     2.6+/3.1+; current instrumentation releases also test Boot 4.
-   Use one path; application owners handle dependency changes.
+   For Spring Boot, inspect build and buildpack configuration, not an assumed team standard; PCF
+   can inject `-javaagent`, so check for duplicate agents. Use one path; application owners handle
+   dependency changes.
 
 2. **Resource identity:** emit `service.name`, `service.version`, `deployment.environment.name`.
    The latter replaces deprecated `deployment.environment` (semconv 1.27.0, stable 1.41.0);
@@ -48,8 +43,8 @@ Apply only changed-path steps for scoped fixes; service-wide work uses the full 
      `decision_cache` is off by default (both sizes 0); once sized, it can preserve an earlier keep
      decision for late spans, not guarantee it.
      Size capacity/cache and monitor drops rather than promising every error trace.
-     Contrib v0.165.0 adds `sampling_strategy` (default `trace-complete`; `span-ingest` changes how
-     `decision_wait` applies) and a `traces_dropped_too_large` drop metric.
+     Since contrib v0.149.0: `sampling_strategy` (default `trace-complete`; `span-ingest` changes how
+     `decision_wait` applies) and the `traces_dropped_too_large` drop metric.
 
 4. **Correlation:** emit structured logs with approved trace/span fields; verify actual exemplar
    metric→trace and shared-ID trace→log links, not merely signal coexistence.

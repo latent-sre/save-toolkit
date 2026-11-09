@@ -1,6 +1,6 @@
 # Verify rendered panels
 
-Use when appearance matters. Query data, rendering capability, an image response and an inspected
+Query data, rendering capability, an image response and an inspected
 image are separate evidence; API success is not visual inspection.
 
 ## Pick an available path
@@ -70,23 +70,17 @@ them. Never inspect credential files or copy cookies to manufacture access.
    supported read contract; retain instant/range mode, step, macro substitutions, and per-query
    status. One target's sample does not verify every series. The SRE agent queries and renders only through the helper's `query` and
    `render`, never arbitrary HTTP or render URLs.
-   Use `--mode instant` for an instant panel. Without explicit intervals, Grafana's Prometheus
-   backend expands the built-in macros and can choose a different value from the panel's; supply the
+   Use `--mode instant` for an instant panel. Supply the
    observed `--interval-ms` or `--rate-interval-ms` when the comparison depends on it. Compare actual returned
    bounds and counts in `summary`; backend alignment and sampling may differ from the render.
 3. Render one panel at a time. The helper's `render` takes integer panel IDs and up to five
-   simple `--var` values. It defaults to 1200×600; choose `--width` (400–2400) and `--height`
-   (200–1600) when labels or legends need more space. The byte/time limits remain fixed. Changing
+   simple `--var` values. Use `--width` and `--height` when labels or legends need more space. Changing
    dimensions can change Grafana's calculated query interval, so re-check the query context when
    comparing images at another size. Use the browser for unsupported view controls.
    A requested 526×202, the size of one stock rendering-limit image, is rejected; other stock
    images are caught because their dimensions differ from the requested size.
-4. Open the image; HTTP 200 or a PNG signature is insufficient. Check panel identity, values,
-   axes, units, legends, window, clipping and missing-data presentation. Reject login/loading/error
+4. Open the image; HTTP 200 or a PNG signature is insufficient. Reject login/loading/error
    states, wrong panels, stale windows, or Grafana's stock "rendering limit" image.
-5. Compare visible values with the matching query results after transformations and reductions,
-   allowing for late samples and distinct evaluation times; explain any mismatch before calling the
-   panel correct. A threshold drawn on a graph is not a measurement.
 
 A full layout/interaction check needs the browser, including lower rows and variable controls;
 single-panel renders do not establish either.
@@ -97,7 +91,7 @@ Return the dashboard/panel link, configuration identity, absolute window and var
 evidence, image location, actual visual observations, and unchecked scope. Keep images private
 because they contain queried data.
 
-Distinguish auth/permission, renderer/callback, timeout/capacity and query/plugin failures. A 403
+A 403
 does not prove a missing renderer; timeouts do not justify concurrency increases or TLS bypass.
 Server configuration goes to its owner. Helper errors narrow the check:
 
@@ -112,6 +106,6 @@ Server configuration goes to its owner. Helper errors narrow the check:
 | `request_failed` | Network failure or the helper's 45-second client timeout |
 
 Grafana 13 removed the Image Renderer plugin; the standalone rendering service is the supported
-server path, and an Editor token cannot install or configure it. Never recommend installing the
-deprecated plugin. Since Grafana 13.0 render requests authenticate with JWT by default, which needs
-a non-empty `renderer_token` in the server configuration; report a missing token to the owner.
+server path, and an Editor token cannot install or configure it. Since Grafana 13.0 render requests
+authenticate with JWT by default, which needs a `renderer_token` that is neither empty nor `-` and
+matches the renderer's; report a bad one to the owner.

@@ -33,25 +33,13 @@ service-account token. Every request carries `X-Grafana-Org-Id`, and the helper 
 `/api/org` first, failing closed on a mismatch. It masks the configured credentials in its JSON and
 returns static errors. Masking covers its own output only; returned telemetry remains private.
 
-Substitute the installed path and discovered UIDs; times are examples, not the incident window.
 Every form except a raw `--expr` query works in both shells:
 
 ```text
 python -I -S "<absolute-installed-path>/grafana_read.py" dashboard --uid dashboard-uid
-python -I -S "<absolute-installed-path>/grafana_read.py" dashboard --uid dashboard-uid --panel 5
-python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource metrics-uid --kind prometheus --from 1758400000000 --to 1758403600000 --expr 'up'
 python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource logs-uid --kind loki --from 1758400000000 --to 1758403600000 --expr '{service="example"} |= "error"'
 python -I -S "<absolute-installed-path>/grafana_read.py" search --query 'checkout latency'
-python -I -S "<absolute-installed-path>/grafana_read.py" search --query orders --folder-uid trading --tag production --page 2
-python -I -S "<absolute-installed-path>/grafana_read.py" search --folder-uid trading
-python -I -S "<absolute-installed-path>/grafana_read.py" alerts --folder-uid folder-uid
-python -I -S "<absolute-installed-path>/grafana_read.py" alerts --folder-uid folder-uid --group-next-token returned-token
-python -I -S "<absolute-installed-path>/grafana_read.py" alerts --uid rule-uid
-python -I -S "<absolute-installed-path>/grafana_read.py" annotations --from 1758400000000 --to 1758403600000 --dashboard-uid dashboard-uid
-python -I -S "<absolute-installed-path>/grafana_read.py" silences
-python -I -S "<absolute-installed-path>/grafana_read.py" silences --id 11111111-2222-3333-4444-555555555555
 python -I -S "<absolute-installed-path>/grafana_read.py" render --uid dashboard-uid --panel 5 --from 1758400000000 --to 1758403600000 --var host=example
-python -I -S "<absolute-installed-path>/grafana_read.py" render --uid dashboard-uid --panel 5 --from 1758400000000 --to 1758403600000 --width 1600 --height 900
 ```
 
 On **Windows PowerShell 5.1 or PowerShell 7**, run queries through the installed wrapper, which
@@ -93,8 +81,7 @@ Reading results:
   result is what this identity saw within the limits, not proof that none exists.
 - Search fetches one page per invocation. Keep the query, folder and tag fixed when following
   `next_page`; a full page means more results may exist, not that they do. Stop at the task's cap
-  and retain `truncated` even when page 100 has no permitted next page. Search is not a stable
-  snapshot: concurrent dashboard changes can cause duplicates or omissions across pages.
+  and retain `truncated` even when page 100 has no permitted next page.
 - Selected panels retain stored targets, transformations, field configuration and dashboard context,
   not necessarily the viewer's current selections. References/macros remain unresolved; no query or
   transformation runs.
@@ -187,7 +174,6 @@ curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =https
 curl.exe -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =https --header "Authorization: Bearer $env:GRAFANA_SA_TOKEN" "$env:GRAFANA_URL/api/health"
 ```
 
-Use `curl.exe` on Windows; in Windows PowerShell 5.1, `curl` is an alias for `Invoke-WebRequest`.
 The form is one line, GET only, with no redirects, TLS bypass, file output, upload or extra headers.
 Folder pages are bounded to 100 items and 100 pages. It never permits datasource proxy URLs, query
 POSTs, render URLs or `Invoke-RestMethod`; use the helper's `query` and `render`. A 200 response or

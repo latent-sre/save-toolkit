@@ -1,11 +1,5 @@
 # PromQL dialect for metric investigation
 
-Primary references: [querying basics](https://prometheus.io/docs/prometheus/latest/querying/basics/),
-[operators](https://prometheus.io/docs/prometheus/latest/querying/operators/),
-[functions](https://prometheus.io/docs/prometheus/latest/querying/functions/),
-[histogram practices](https://prometheus.io/docs/practices/histograms/),
-[Grafana Mimir HTTP API](https://grafana.com/docs/mimir/latest/references/http-api/).
-
 ## Encode copied label values
 
 The identifier `order-router.v2` renders as `app="order-router.v2"`. In a double-quoted PromQL
@@ -20,8 +14,8 @@ As a regex, `order-router.v2` becomes regex text `order-router\.v2` and the rend
 Confirm deployed versions and flags before adopting these features.
 
 - **Histogram representation matters:** native `histogram_quantile` inputs use neither `_bucket`
-  nor `le`; classic aggregation must retain `le`. Check the scraped representation before treating
-  a classic query's empty result as no data. Apply `rate()` before aggregation for request quantiles.
+  nor `le`. Check the scraped representation before treating
+  a classic query's empty result as no data.
 - Duration helpers and extended range selectors depend on deployed versions/flags; check their
   availability and extrapolation semantics before using them in shared rules.
 - **Sustained `prometheus_remote_storage_*` failures** mean the query may be missing recent samples
