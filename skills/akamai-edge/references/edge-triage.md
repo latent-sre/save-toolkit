@@ -10,7 +10,8 @@ Control Center and the Edge Diagnostics API expose:
 - **Translate Error String** — paste the error reference from an Akamai error page (for
   "Reference #9.6f64d440.1318965461.2f2b078" enter `#9.6f64d440.1318965461.2f2b078`, letters
   lowercase, up to 10 at once) and get the error summary plus edge logs. **Decode promptly: the
-  logs behind a reference number survive only ~6–24 hours** depending on server and traffic.
+  logs behind a reference number last 6 or 24 hours** depending on server and traffic, so budget
+  for 6. For a blocked request, the AppSec error translator in the WAF section reaches back 31 days.
   Enable *Trace forward logs* to include every edge server in the request path, not just the one
   that errored. Also accepts a Global Request Number (GRN, same format).
 - **Get Error Statistics** — per URL or CP code, splits errors into the two legs: **client→edge**
@@ -33,8 +34,9 @@ Legacy support on other properties remains unconfirmed; check the actual propert
 - `Akamai-Debug: <auth-token> cache vars` ≈ the legacy set `Pragma: akamai-x-get-request-id, akamai-x-cache-on,
   akamai-x-cache-remote-on, akamai-x-check-cacheable, akamai-x-get-cache-key,
   akamai-x-get-true-cache-key, akamai-x-get-extracted-values`.
-- The human supplies the token first, or in the case-sensitive `akamaidebugtoken` cookie with
-  options alone in the header. An invalid/expired token returns `Akamai-Debug-Status` and no other
+- Give the human the exact `curl -H "Akamai-Debug: …"` line with a token placeholder and the
+  expected headers. The human supplies the token first, or in the case-sensitive
+  `akamaidebugtoken` cookie with options alone in the header. An invalid/expired token returns `Akamai-Debug-Status` and no other
   debug headers; absent cache headers then say nothing about cache health. Never quote the token.
 - The behavior can also emit an `Akamai-GRN` response header — feed it straight into Translate
   Error String.
@@ -60,10 +62,6 @@ stale content — an origin-leg finding, not a healthy edge; a delete purge remo
 `akamai-x-cache-remote-on` adds `X-Cache-Remote` for tiered distribution / SiteShield: child-miss +
 parent-hit reads as a miss on `X-Cache` and a hit on `X-Cache-Remote` — offload is working even
 though the child missed.
-
-Production debug-header requests stay **recommend-for-human** whatever tools the invoking lane
-holds; show the exact `curl -H "Akamai-Debug: …"` line with a token placeholder and the expected
-headers. Other observations follow the invoking agent's granted, scoped, output-protected read paths.
 
 ## DataStream 2 — the sustained/fleet-wide evidence
 
@@ -100,9 +98,6 @@ Use **Traffic by Hostname**, not the discontinued Traffic report's filters. Repo
 `(edge − origin) / edge × 100` is a working formula, not a quotation: the API defines
 `offloadedHitsPercentage` in prose.
 
-For falling offload/rising origin traffic, compare property activations, cache keys and TTL before
-attributing capacity trouble.
-
 ## App & API Protector (WAF) — "is the WAF blocking real users?"
 
 Read-only triage path:
@@ -113,11 +108,10 @@ Read-only triage path:
 2. **Events report / WAF activity by attack group** — applied actions, targeted
    hostnames/policies, source geographies.
 3. What the client saw: the standard deny is an **HTTP 403**, but properties may use **custom deny
-   actions** (custom HTML/JSON, up to 20 per config) — so "no 403 in client logs" does not clear
-   the WAF. Whether the default deny page's reference number decodes in Translate Error String is
-   unconfirmed — try it, don't assert it.
-4. **SIEM Integration** can deliver security events to Splunk; offset/time-based API fetches can
-   replay the last **12 hours**. Older records depend on destination retention and portal availability.
-
-Evidence of a false positive — the sampled requests, the rule id, the affected user share — goes to
-the human security policy owner. This fleet never tunes or disables a protection itself.
+   actions** (custom HTML/JSON and a different status code, up to 20 per config) — so "no 403 in
+   client logs" does not clear the WAF. For a blocked request's reference number,
+   `GET /appsec/v1/error-translator/{errorReferenceCode}` covers the past 31 days and returns
+   failure categories including `WAF`.
+4. **SIEM Integration** can deliver security events to Splunk. An offset fetch resumes from the
+   last pull; replay is time-based (`from`/`to`) and limited to the last **12 hours**. Older records
+   depend on destination retention and portal availability.

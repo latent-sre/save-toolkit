@@ -30,6 +30,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - `grafana` reads V2 dashboards natively, lets Grafana expand its built-in macros (live coverage 16 to 41 of 47 targets), fixes alert truncation and error reporting, and drops compare, impact, alert-preview and the VS Code opener.
 - The Grafana workflow accepts `${var:regex}` and queries starting with `-`; `resilience-analysis` covers readiness audits, `gcp-ops` counts rejected requests, and the Confluence importer keeps inline text intact.
 - `incident-investigation` drops its leftover carried-label clauses and corrects verified mitigation and symptom facts.
+- `gcp-ops` and `akamai-edge` correct verified facts and trim repeats; the placeholder GCP project inventory is removed.
 
 ## [0.52.0] - 2026-11-04
 

@@ -13,21 +13,18 @@ argument-hint: "[the GCP service or symptom]"
 
 # GCP application-side triage (console or gcloud, read-only)
 
-Observe the named Cloud Run service through an authorized, protected read/output path. Before
-`describe` or log reads, establish that credentials in environment variables (including
-`VCAP_SERVICES`), logs and errors are removed before reaching the model. The guard admits command
-syntax; it does not mask output. Without that protection or shell access, the human uses the
-console or CLI and returns scoped, sanitized observations. Never request raw configuration or
-credential dumps. Changes require the human release owner's exact approval evidence.
+Observe the named Cloud Run service through an authorized read path that removes credentials
+(environment values including `VCAP_SERVICES`, logs, errors) before they reach the model; the guard
+admits command syntax and does not mask output. Without that protection or shell access, the human
+uses the console or CLI and returns scoped, sanitized observations. Never request raw configuration
+or credential dumps. Changes require the human release owner's exact approval evidence.
 
 ## First look
 
 Confirm the caller's project, service and region in **Cloud Run → Services**. In the CLI,
 `gcloud config get-value project` and `gcloud config get-value run/region` show ambient target
-defaults; use the caller's explicit target in every command. Configuration reads must select one
-reviewed property: `project`, `core/project`, `run/region`, `compute/region`, or `compute/zone`,
-using `config list` or `config get-value` without extra flags. Broad listings, section-wide reads,
-account identity and credential properties are excluded; configuration can contain passwords.
+defaults; use the caller's explicit target in every command, and read only single named properties,
+because configuration can contain passwords.
 
 | Question | Cloud Console | `gcloud` equivalent |
 |---|---|---|
@@ -35,8 +32,6 @@ account identity and credential properties are excluded; configuration can conta
 | All requests or some, since when, at max instances? | Service → **Metrics**: request count, request latencies, container instance count, memory utilization | No GA `gcloud` read; `request_count` by `response_code_class` through obs-analysis' Cloud Monitoring reference. It excludes requests rejected at max instances: count those from request logs (`httpRequest.status=429`) |
 | Which revisions exist? | Service → **Revision history** | `gcloud run revisions list --service <service> --region <region> --project <project>` |
 | Recent request/container errors? | Service → **Logs**; select the last hour | `gcloud run services logs read <service> --freshness=1h --limit=100 --region <region> --project <project>` |
-
-The log CLI bounds age and count.
 
 Bring back the target, revision names/traffic allocation, observation time and log window in UTC,
 and a small sanitized error excerpt. A revision's existence is not proof it serves traffic or
@@ -46,8 +41,8 @@ access or data is not health evidence. For a different log window, use the log
 query guidance below. If the service name is unknown, use
 `gcloud run services list --region <region> --project <project>`.
 
-When the caller has not supplied the project, region or service, read the human-maintained
-[references/projects.md](./references/projects.md); a placeholder row means ask the caller.
+When the caller has not supplied the project, region or service, use the team's own inventory; if
+it has no match, ask the caller.
 
 ## Revisions — correlate changes with symptoms
 
@@ -62,7 +57,6 @@ instead sends 100% to the latest revision and restores automatic promotion on la
 
 After listing revisions, inspect one with
 `gcloud run revisions describe <revision> --region <region> --project <project>`.
-As with `cf events`, a revision near symptom onset is a hypothesis, not proof of cause.
 
 For startup failures, compare the last observed successful start with the failing starts: revision,
 time, warm-up duration, dependency errors and evidence that listening actually began. Include new
@@ -76,16 +70,14 @@ another attempt. Missing comparisons or recovery evidence stay explicit gaps.
 
 ```bash
 gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.service_name=<service> AND resource.labels.location=<region> AND NOT severity=DEFAULT AND NOT severity=DEBUG AND NOT severity=INFO AND NOT severity=NOTICE AND NOT severity=WARNING' --freshness=1h --limit=50 --project <project>
-gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.service_name=<service> AND resource.labels.location=<region> AND httpRequest.status=429' --freshness=1h --limit=50 --project <project>
 ```
 
-The first read keeps ERROR and higher severities using PowerShell-safe exclusions; the second
-captures 429s logged at WARNING. Correlate the message, capacity and revision before assigning cause.
-Keep the single quotes, freshness and count bounds. Accept `<service>` and `<region>` only as
-lowercase letters, digits and inner hyphens; otherwise stop and ask. `--project` selects the log
-project; `resource.labels.location` selects the Cloud Run region.
-Distinguish the requested filter/window/limit from the returned export's demonstrated coverage;
-record unknown truncation or sampling instead of assuming the request was applied.
+This keeps ERROR and higher severities using PowerShell-safe exclusions, so it omits 429 aborts
+logged at WARNING: for those, replace the severity terms with `httpRequest.status=429`. Correlate
+the message, capacity and revision before assigning cause. Keep the single quotes, freshness and
+count bounds. Accept `<service>` and `<region>` only as lowercase letters, digits and inner hyphens;
+otherwise stop and ask. Record unknown truncation or sampling instead of assuming the request was
+applied.
 
 For historical UTC windows, other filter shapes, shell restrictions or log bucket/view selection,
 load `obs-analysis` and its **Cloud Logging dialect** reference; it owns those mechanics and sources.
@@ -101,9 +93,9 @@ configured):
 | 429 | "…aborted because there was no available instance." | Instance count against max instances (Metrics). Below max does not clear scaling: a traffic spike, slow startup, or long requests also produce this. A raise is a change to recommend |
 | 500 | "…no available instance", or "…instance could not start successfully" | The first reads as the 429 row; the second is often a failed Secret Manager access or startup error, so read the container's startup logs |
 | 503 | "…the HTTP response was malformed or connection to the instance had an error." | In order: an [OOM](#oom-evidence) line; `LIVENESS HTTP probe failed` if configured; a framework timeout shorter than the request (Node `server.setTimeout`, Gunicorn `WORKER TIMEOUT`); VPC connector throughput. Over 800 requests/s per instance might exhaust TCP sockets; confirm evidence of that bottleneck and container support for [HTTP/2 cleartext (`h2c`)](https://docs.cloud.google.com/run/docs/configuring/http2#before_you_configure) before recommending HTTP/2 |
+| 503 | "…probably has reached its maximum container instance limit." | Instance count against max instances, and CPU load (Metrics). Raising max instances or lowering concurrency is a change to recommend |
 | 504 | "…reached the maximum request timeout." | Compare the revision's request timeout with the slow downstream call. A [504 can leave application work running](https://docs.cloud.google.com/run/docs/configuring/request-timeout); check completion/effects and retry safety before recommending a retry or timeout increase |
 
-- **Cold starts** — min-instances is a billed change to recommend, not assume.
 - **Concurrency/saturation** — exact defaults vary by deploy path: read them from
   the affected revision and service configuration, don't quote memory.
 
@@ -121,7 +113,9 @@ limit before recommending a bump; the current service template may describe a la
 
 A growing Pub/Sub backlog looks the same on backlog size alone whether subscribers are too slow for
 the arrival rate or a subset of messages fails on every delivery. Before choosing, read
-`subscription/oldest_unacked_message_age` beside `num_undelivered_messages`: an oldest age rising as
+`subscription/oldest_unacked_message_age` beside `num_undelivered_messages` (where monitoring must
+survive a single-region outage, use `subscription/oldest_unacked_message_age_by_region` and
+`subscription/num_unacked_messages_by_region`; the global metrics gap): an oldest age rising as
 fast as wall-clock time shows that the oldest cohort has not cleared during that window, not why.
 A large same-publish-time cohort can keep age rising at wall-clock rate while acknowledgements
 succeed; a long-running leased message can do the same. Slower age growth alone does not prove
@@ -158,22 +152,14 @@ incident fast path.
 
 ## Credential-bearing reads are human-only
 
-Claude's fleet credential tripwire denies `gcloud auth print-access-token`, `print-identity-token`,
-`application-default print-access-token`, `secrets versions access` and `kms decrypt`, as it denies
-`cf env`, across roster lanes: live credentials must never meet an agent that holds egress.
-The separate `sre-assistant` gcloud allowlist also denies `--impersonate-service-account` and
-`--flags-file`; those flag checks do not cover other lanes. Task authority and protected-output
-requirements still apply. A human runs a genuinely needed credential-bearing read and returns
-the smallest sanitized excerpt.
+A human runs a genuinely needed credential-bearing read and returns the smallest sanitized excerpt.
 
 ## Provisional project/platform ownership
 
-The GCP ownership split is **unconfirmed, not yet ratified**; `stack-profile` carries the working
-proposal, and Google's customer/provider boundary does not settle our internal owners. Confirm the
-responsible owner before recommending a change, and escalate with `pcf-ops`'s packet: symptom and
-UTC timing (onset unknown if not established), scope across services/projects, checks and their
-limits, shared dependencies, and the evidence the receiving owner can add. Running instances and
-clean logs do not certify the service healthy; broad impact justifies involving owners without
+`stack-profile` carries the working ownership proposal. Confirm the responsible owner before
+recommending a change, and escalate with `pcf-ops`'s packet: symptom and UTC timing (onset unknown
+if not established), scope across services/projects, checks and their limits, shared dependencies,
+and the evidence the receiving owner can add. Broad impact justifies involving owners without
 proving fault ownership.
 
 ## Cloud Foundry → Cloud Run mapping

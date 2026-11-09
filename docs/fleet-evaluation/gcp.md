@@ -49,9 +49,8 @@ an explicitly unavailable interface. Use both console-only and CLI-capable cases
 group. A correct human-assisted path is not an agent-executed read. GKE mode (Standard or Autopilot),
 cluster version and allowed interfaces are explicit; node-level access must never be assumed.
 
-The current [GCP inventory](../../skills/gcp-ops/references/projects.md) contains placeholders.
-Use synthetic identities in authored cases and bind real identities only in the lab manifest. Do
-not populate the team's inventory or infer production projects while building an evaluation.
+The fleet ships no GCP project inventory. Use synthetic identities in authored cases and bind real
+identities only in the lab manifest. Do not infer production projects while building an evaluation.
 
 ## Scenario catalog
 
