@@ -1,7 +1,7 @@
 # Log query starting points
 
 Selectors and field names below are examples/placeholders, not established team targets. Resolve
-through [inventory](./indexes.md); use [SPL](./spl.md) for dialect semantics. A maintained entry
+them on the target; use [SPL](./spl.md) for dialect semantics. A maintained entry
 records its purpose, owner and target/query/window/result evidence from a named authorized executor.
 Running an example does not make it accepted team policy. Keep sensitive parameters in an
 access-controlled saved search rather than this catalog.
@@ -22,26 +22,10 @@ index=<app_index> sourcetype=<error_sourcetype> earliest=<start_epoch> latest=<e
 An onset shortlist, not a complete baseline. Check extraction/ingestion; use
 [complete buckets](./spl.md#spot-a-spike-vs-the-baseline-anomaly-detection) for quiet periods and trailing baselines.
 
-### Did error rate change across the deploy?
+### Did error rate change across the deploy? Where did one request fail across services?
 
-Use [SPL's deploy comparison](./spl.md#overall-deploy-error-rate) on one completion event per
-eligible request/attempt, with equal windows around the known deploy time.
-Its overall rate needs no `error_type`; the optional class breakdown keeps the phase denominator.
-Missing/invalid status leaves the ratio null; no traffic or a missing phase is not healthy zero.
-
-### Where did one request fail across services?
-
-Resolve the shared correlation field on each service; logged hops are not a complete call graph.
-
-```spl
-index=<app_index> <correlation_field>="<validated_and_spl_escaped_id>" earliest=<start_epoch> latest=<end_epoch>
-| table _time, service, status, latency_ms
-| sort 0 _time
-```
-
-[`sort`](https://help.splunk.com/en/splunk-enterprise/spl-search-reference/10.4/search-commands/sort)
-defaults to 10,000 rows; `sort 0` preserves the path at extra cost. Keep the window tight;
-missing hops remain telemetry gaps until explained independently.
+Use SPL's [deploy comparison](./spl.md#compare-before-vs-after-a-deploy) and
+[cross-service correlation](./spl.md#correlate-one-request-across-services).
 
 ### Which callers are driving the current load?
 
@@ -84,4 +68,4 @@ Add `country` (client origin) or `serverCountry` (serving location) for regional
 Host). `akamai-edge`'s DataStream caveats still apply: low-latency streams are less complete and
 delivery failures lose lines. Other destinations need equivalent fields in their own dialect.
 
-Metric queries use the metric-analysis path in `obs-analysis`, not this log catalog.
+Metric queries use the [metric method](./signal-methods.md#metrics), not this log catalog.

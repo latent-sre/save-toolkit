@@ -143,24 +143,6 @@ def test_visible_series_table_capped(evidence, tmp_path):
     assert "Series display truncated" in visible
 
 
-def test_alert_preview_visible_intervals_and_limits_are_escaped(evidence, tmp_path):
-    value = {"operation": "alert_preview", "status": "gaps", "operator": "gt", "threshold": 80,
-             "pending_ms": 2000, "step_ms": 1000, "coverage": "sampled_threshold_preview",
-             "initial_state": "unknown", "pre_window_history": "not_replayed", "end_censored": True,
-             "notification_delivery": "not_evaluated", "saved_rule_replay": False,
-             "series": [{"field": "<watts>", "labels": {"gpu": "<script>"}, "status": "gaps",
-                         "missing_evaluations": 1, "evaluated_samples": 4, "warnings": ["<warning>"],
-                         "intervals": [{"start_ms": 3000, "end_ms": 4000, "first_breach_ms": 1000, "end_reason": "missing_data"}],
-                         "missing_data_periods": [{"start_ms": 4000, "end_ms": None}],
-                         "pending_at_end": {"first_breach_ms": 5000, "observed_duration_ms": 1000}}]}
-    evidence.write_package(value, tmp_path / "out")
-    visible = (tmp_path / "out/report.html").read_text("utf-8").split("<details>")[0]
-    for expected in ("Firing intervals", "3000", "Missing data periods", "4000", "Pending at end", "5000",
-                     "sampled_threshold_preview", "not_replayed", "not_evaluated", "&lt;watts&gt;", "&lt;script&gt;", "&lt;warning&gt;"):
-        assert expected in visible
-    assert "<script>" not in visible
-
-
 def test_dependency_report_visible_named_edges_gaps_and_limits(evidence, tmp_path):
     value = {"operation": "dependencies", "coverage": "configuration_references_only", "truncated": True,
              "nodes": [{"id": "panel:1", "kind": "panel", "title": "GPU <power>"},

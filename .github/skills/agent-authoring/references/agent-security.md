@@ -8,20 +8,18 @@ Verify the `README.md` roster against frontmatter and guard tests; this referenc
 Sensitive data, untrusted content and external effects create an injection path that wording alone
 does not contain. Cut a leg structurally, in this order:
 
-- Remove egress/effect tools; use a fixed local report channel with minimized private excerpts and
-  [UNTRUSTED] output.
+- Remove egress/effect tools; use a fixed local report channel with minimized private excerpts.
 - Isolate untrusted-content processing without credentials or repo access; return a structured summary.
 - Restrict inputs to a vetted set.
 
 As a fallback (Rule of Two), an agent without a human in the loop holds at most two legs. With all
 three, the human approves the concrete sensitive action, content, destination and rollback, treating model output and
-attacker-influenced evidence as [UNTRUSTED]. Cutting a leg does not replace defense in depth.
+attacker-influenced evidence as untrusted. Cutting a leg does not replace defense in depth.
 
 ## Trust boundaries that always apply
 
-- Taint survives handoffs. Child output is narration, not promoted evidence; a separate context is
-  not a separate trust domain. Use structured returns (such as findings with `file:line` and verdict
-  enums), retaining [UNTRUSTED] labels.
+- Child output is narration, not promoted evidence; a separate context is not a separate trust
+  domain. Use structured returns (such as findings with `file:line` and verdict enums).
 - Delegation is not isolation. Running an untrusted checkout's tests, build hooks, or package
   scripts executes attacker-controlled code wherever it runs. This fleet provides no
   credential-free untrusted-code runner; use independently established isolated CI or label the
@@ -35,8 +33,7 @@ attacker-influenced evidence as [UNTRUSTED]. Cutting a leg does not replace defe
 ## Controls this fleet relies on
 
 - Prefer tool absence, then the hook allowlist and host network controls. Denying `WebFetch` does
-  not stop Bash; command-text matching is not network isolation. Egress allowlists need sandbox/host
-  enforcement. Prefer auditable dedicated tools to raw `bash`/`curl`.
+  not stop Bash; command-text matching is not network isolation.
 - Secrets stay out of model context: inject at the boundary; never paste a token where injected
   text could read it back.
 - Envelope tool results with a named source (`<untrusted_tool_result source="web_fetch">`) and

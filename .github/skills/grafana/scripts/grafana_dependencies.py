@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Bounded, offline configuration references from masked Grafana captures.
 
 No expression execution, network access, or health inference. PromQL AST selectors
@@ -8,7 +7,7 @@ Python 3.14+; promql-parser is loaded only for Prometheus expression inspection.
 
 import hashlib
 import json
-from collections import Counter, deque
+from collections import Counter
 from pathlib import Path
 from runpy import run_path
 
@@ -33,6 +32,11 @@ def _text(value):
 
 def _scope(capture):
     return (_text(capture.get("grafana_url")), str(capture.get("organization_id", "unknown")))
+
+
+def _model(capture):
+    """The Classic model, or the reader's mapped panel view of a V2 dashboard."""
+    return capture.get("panel_view", capture.get("dashboard", {}))
 
 
 class _Graph:
@@ -216,7 +220,7 @@ def _panels(graph, items, owner):
 
 
 def _dashboard(graph, capture, occurrence, ambiguous, panel_index, dashboard_index):
-    dashboard = capture.get("dashboard", {})
+    dashboard = _model(capture)
     if not isinstance(dashboard, dict):
         graph.gap("malformed_dashboard")
         return
@@ -294,13 +298,13 @@ def build_map(dashboards: list[dict], alerts: list[dict] | None = None) -> dict:
     inputs, panel_index, dashboard_index = [], {}, {}
     dashboards = graph.bounded(dashboards, MAX_DASHBOARDS, None, "dashboards")
     alerts = graph.bounded(alerts if alerts is not None else [], MAX_ALERTS, None, "alerts")
-    counts = Counter((_scope(c), _text(c["dashboard"].get("uid"))) for c in dashboards if isinstance(c, dict) and isinstance(c.get("dashboard"), dict))
+    counts = Counter((_scope(c), _text(_model(c).get("uid"))) for c in dashboards if isinstance(c, dict) and isinstance(_model(c), dict))
     for index, capture in enumerate(dashboards):
         if not isinstance(capture, dict):
             graph.gap("malformed_dashboard_capture")
             continue
         inputs.append(_provenance(graph, capture, "dashboard", index))
-        dashboard = capture.get("dashboard", {})
+        dashboard = _model(capture)
         uid = _text(dashboard.get("uid")) if isinstance(dashboard, dict) else ""
         _dashboard(graph, capture, index, counts[(_scope(capture), uid)] > 1, panel_index, dashboard_index)
     counts = Counter((_scope(c), _text(c["rule"].get("uid"))) for c in alerts if isinstance(c, dict) and isinstance(c.get("rule"), dict))
@@ -362,82 +366,4 @@ def _provenance(graph, capture, kind, index):
                 result[key] = value
     if "grafana_url" not in capture or "organization_id" not in capture:
         graph.gap("input_scope_unspecified", input_kind=kind, input_index=index)
-    return result
-
-
-def reverse_impact(graph, *, node_id=None, kind=None, key=None, max_results=200):
-    """Find reverse configuration references; absence never establishes no runtime impact.
-
-    Select an exact graph ID or kind and exact natural key (UID, metric/variable name,
-    panel ID, or query ref ID). Ambiguous natural keys require an explicit graph ID.
-    JSON pointers refer to the input graph, including the edge that discovered a node.
-    """
-    keys = {"dashboard": "uid", "alert": "uid", "datasource": "uid", "metric": "name",
-            "variable": "name", "panel": "panel_id", "query": "ref_id", "alert_query": "ref_id",
-            "datasource_reference": "name", "library_panel_reference": "uid"}
-    if type(max_results) is not int or not 1 <= max_results <= MAX_NODES:
-        raise ValueError("invalid_result_limit")
-    if node_id is not None:
-        if not isinstance(node_id, str) or not node_id or kind is not None or key is not None:
-            raise ValueError("invalid_node_selection")
-    elif kind not in keys or not isinstance(key, (str, int)) or isinstance(key, bool):
-        raise ValueError("invalid_node_selection")
-    if not isinstance(graph, dict) or graph.get("operation") != "dependencies" or graph.get("schema_version") != 1:
-        raise ValueError("invalid_dependency_graph")
-    nodes, edges, gaps = graph.get("nodes"), graph.get("edges"), graph.get("gaps", [])
-    if (not isinstance(nodes, list) or len(nodes) > MAX_NODES or not isinstance(edges, list)
-            or len(edges) > MAX_EDGES or not isinstance(gaps, list)):
-        raise ValueError("invalid_dependency_graph")
-    indexed, incoming = {}, {}
-    for index, node in enumerate(nodes):
-        if (not isinstance(node, dict) or not isinstance(node.get("id"), str)
-                or not node["id"] or node["id"] in indexed):
-            raise ValueError("invalid_dependency_graph")
-        # Only bounded scalar identity fields enter the digest, never copied expressions.
-        selected = {field: _text(value) if isinstance(value, str) else value
-                    for field, value in node.items() if field in ("id", "kind", "uid", "name", "title", "panel_id", "ref_id")
-                    and (isinstance(value, str) or type(value) is int or value is None)}
-        indexed[node["id"]] = (selected, index)
-    for index, edge in enumerate(edges):
-        if (not isinstance(edge, dict) or not isinstance(edge.get("source"), str)
-                or not isinstance(edge.get("target"), str) or edge["source"] not in indexed
-                or edge["target"] not in indexed or not isinstance(edge.get("relation"), str)):
-            raise ValueError("invalid_dependency_graph")
-        incoming.setdefault(edge["target"], []).append((edge["source"], _text(edge["relation"]), index))
-    matches = [node for node, _ in indexed.values() if node["id"] == node_id] if node_id is not None else [
-        node for node, _ in indexed.values() if node.get("kind") == kind and str(node.get(keys[kind])) == str(key)]
-    status = "selected" if len(matches) == 1 else "ambiguous" if matches else "not_found"
-    discovery = graph.get("discovery")
-    source_truncated = bool(graph.get("truncated")) or (isinstance(discovery, dict) and bool(discovery.get("truncated")))
-    result = {"schema_version": 1, "operation": "reverse-impact", "status": status,
-              "coverage": "reverse_configuration_references_only", "health": "not_assessed",
-              "source_coverage": _text(graph.get("coverage")), "source_truncated": source_truncated,
-              "matches": matches[:max_results], "references": [], "gaps": [],
-              "source_gaps": [{"evidence_ref": f"/gaps/{i}", "code": _text(g.get("code")) if isinstance(g, dict) else _text(g)}
-                              for i, g in enumerate(gaps[:MAX_GAPS])],
-              "truncated": source_truncated or len(gaps) > MAX_GAPS or len(matches) > max_results,
-              "limits": {"results": max_results, "source_gaps": MAX_GAPS},
-              "limitations": ["Configuration references only; annotation links are not runtime dependencies.",
-                              "Unresolved or absent graph edges can hide affected resources."]}
-    if status != "selected":
-        result["gaps"].append("selection_ambiguous" if matches else "selection_not_found")
-        return result
-    result["selected_evidence_ref"] = "/nodes/" + str(indexed[matches[0]["id"]][1])
-    visited, queue = {matches[0]["id"]}, deque([(matches[0]["id"], 0)])
-    while queue:
-        target, distance = queue.popleft()
-        for source, relation, edge_index in incoming.get(target, []):
-            if source in visited:
-                continue
-            if len(result["references"]) >= max_results:
-                result["truncated"] = True
-                result["gaps"].append("reverse_reference_limit_reached")
-                return result
-            visited.add(source)
-            node, node_index = indexed[source]
-            result["references"].append({"node": node, "distance": distance + 1,
-                                         "evidence_ref": f"/nodes/{node_index}",
-                                         "via": {"target": target, "relation": relation,
-                                                 "evidence_ref": f"/edges/{edge_index}"}})
-            queue.append((source, distance + 1))
     return result

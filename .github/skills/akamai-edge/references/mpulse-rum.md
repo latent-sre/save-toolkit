@@ -12,9 +12,7 @@ Boomerang browser beacons feed mPulse aggregates and its REST/JSON Query API. Re
 
 ## Diagnosing a regression — the slicing method
 
-Compare equal-duration windows and browser/OS/device/network/geography/ISP populations. A bot wave,
-campaign or instrumentation change can change the aggregate without a site regression.
-These are hypotheses to test, not causal verdicts:
+Compare equal-duration windows and browser/OS/device/network/geography/ISP populations:
 
 | Change | Discriminating evidence |
 |---|---|

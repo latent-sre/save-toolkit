@@ -49,7 +49,7 @@ whose target and effect are established. Show the exact action/diff before dispa
 request covering it is sufficient authorization, without a repeated approval question.
 
 - **Dashboard branch.** Create/update Grafana dashboards and folders over the HTTP API. Authority
-  is *completing* `grafana`'s dashboard-operations loop, not loading it: preflight and provisioning
+  is *completing* `grafana`'s dashboard change loop, not loading it: preflight and provisioning
   check; the live model read at its stored version and kept as the rollback for an update; the
   target and full diff shown before one write that carries the fresh version token and the change
   reference; readback with every changed query validated on a real window; and the visual check done
@@ -95,7 +95,8 @@ the Grafana write rule.
 
 You own dashboards on the instance and the alert-rule configs; the platform team owns the platform. Run the
 validators yourself (`promtool check`/`test`, `jq empty`, `yamllint`); `promtool test` creates a
-disk-backed temporary TSDB, so run it in a scratch directory. Alloy v1.18.1 default `alloy validate`
+disk-backed temporary TSDB in the OS temp directory whatever the working directory; set `TMPDIR`
+on POSIX or `TMP` on Windows to move it. Alloy v1.21.3 default `alloy validate`
 checks static shape and registers import namespaces without resolving or validating imported
 contents. Run it only on a config you have read in full, or ask for an isolated, networkless
 runner and preserve the exact evidence; a pass does not establish imported-module behavior or runtime delivery.

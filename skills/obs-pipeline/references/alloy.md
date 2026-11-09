@@ -31,7 +31,7 @@ Use Application Default Credentials with the writer's `roles/telemetry.writer`, 
 Consumer role and quota project. An OTLP/HTTP exporter uses the root URL
 `https://telemetry.googleapis.com`; do not reuse the gRPC `host:port` shape for it.
 
-`otelcol.auth.google` is **public preview** in Alloy v1.18.1 and requires Alloy to start with
+`otelcol.auth.google` is **public preview** in Alloy v1.21.3 and requires Alloy to start with
 `--stability.level=public-preview` (or a lower stability level). The exact project, permissions,
 deployment flag, and canary result remain unconfirmed for the target environment.
 
@@ -43,13 +43,12 @@ deployment flag, and canary result remain unconfirmed for the target environment
   after signal-specific filtering. No secrets, PII or unbounded identity in labels. Confirm a shared
   processor's data model/drop policy works for each connected signal.
 - **Exporters**: map each configured signal to its actual destination, protocol, and failure policy
-  (LGTM, Google Telemetry API, or a verified gateway). Confirm each feed's route and owner;
-  PCF-platform-owned Splunk and Wavefront feeds remain platform responsibilities, so hand their
-  gaps to that owner rather than wiring replacement exporters.
+  (LGTM, Google Telemetry API, or a verified gateway). Confirm each feed's route and owner under
+  the [parent feed-ownership rule](../SKILL.md).
 
 ## Debugging a running Alloy
 
-- Validate before `/-/reload`. In v1.18.1, `alloy validate <config>` checks static shape/registers
+- Validate before `/-/reload`. In v1.21.3, `alloy validate <config>` checks static shape/registers
   import namespaces without resolving or validating imported contents; success cannot prove remote
   modules work. The SRE guard denies it, as well as `alloy fmt -w`, `alloy run` and `alloy tools`.
   Request a human or an authorized isolated, networkless runner.

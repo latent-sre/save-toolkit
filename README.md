@@ -74,13 +74,12 @@ will offer it).
 The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 
 - **Incident and operations** — `incident-investigation`, `root-cause`, `operational-docs`
-  (runbooks, postmortems, knowledge closeout, and ownership lookups), `service-lifecycle`
-  (audit, onboard, and retire modes)
+  (runbooks, postmortems, knowledge closeout, and ownership lookups)
 - **Observability** — `obs-analysis` (logs, metrics, and traces), `obs-alerting`,
   `obs-pipeline`, `grafana` (dashboard design and Grafana UI/API operations)
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `production-change-gate`
-- **Reliability improvement** — `resilience-analysis`, `toil-reduction`; existing readiness coverage stays in `service-lifecycle`
+- **Reliability improvement** — `resilience-analysis` (including existing service readiness), `toil-reduction`
 - **Engineering craft** — `api-craft`, `python-craft`, `go-craft`, `frontend-craft`, `operator-cli`,
   `ci-actions`, `database-reliability`
 - **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`
@@ -134,12 +133,11 @@ agents/ + skills/ (canonical)
   pause/resume, and temporary silence create/update/expire under its complete change-authority
   rule. The [`grafana`](skills/grafana/SKILL.md) skill covers operational reads and alert/silence
   procedures, dashboard design and implementation. A handoff alone does not authorize a write.
-- **The team's own inventories are not in this repository.** The log-index, metrics, PCF-foundation,
-  and GCP-project references under `skills/obs-analysis`, `skills/pcf-ops`, and
-  `skills/gcp-ops` ship as `<app>`/`<index>` placeholders, and service cards, alert cards, and
-  runbooks are read from `operations/`, `runbooks/`, and `postmortems/` under the team's knowledge
-  repository root. Until those
-  are filled in, "where are the dashboards, logs, and runbooks for this service" has no answer
+- **The team's own inventories are not in this repository.** The query references under
+  `skills/obs-analysis` use `<app>`/`<index>` placeholders, the PCF and GCP skills take the
+  foundation or project from the caller, and service cards, alert cards, and runbooks are read
+  from `operations/`, `runbooks/`, and `postmortems/` under the team's knowledge repository root.
+  Until those are supplied, "where are the dashboards, logs, and runbooks for this service" has no answer
   here by design; the skills say so rather than guess.
 
 ### Host guarantees and limits

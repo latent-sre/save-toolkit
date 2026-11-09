@@ -113,9 +113,6 @@ def test_only_fixed_powershell_wrapper_preserves_readable_expressions():
     'inspect --source-id capture-one --panel 1 --ref-id A --mode range --agent-json',
     'inspect --source-id capture-one --agent-json',
     'inspect --source-id capture-one --pointer /values/0 --offset 0 --limit 25 --agent-json',
-    'compare --before-id first --after-id second --agent-json',
-    'impact --source-id folder-one --kind datasource --key metrics --agent-json',
-    'alert-preview --source-id capture-one --panel 1 --ref-id A --operator gt --threshold 1 --pending-ms 30000 --step-ms 30000 --agent-json',
 ])
 def test_agent_workflow_installed_fixed_commands(tool, arguments):
     assert decision(f'{WORKFLOW} {arguments}', tool) == 'allow'
@@ -131,8 +128,12 @@ def test_agent_workflow_installed_fixed_commands(tool, arguments):
     'analyze --source-id capture --agent-json > output.json',
     'doctor --agent-json; echo unsafe',
     'doctor --agent-json --agent-json',
+    # Removed commands and flags stay denied even in otherwise fixed forms.
     'open-report --source-id capture --agent-json',
     'compare --before one --after two --agent-json',
+    'compare --before-id first --after-id second --agent-json',
+    'impact --source-id folder-one --kind datasource --key metrics --agent-json',
+    'alert-preview --source-id capture-one --panel 1 --ref-id A --operator gt --threshold 1 --pending-ms 30000 --step-ms 30000 --agent-json',
     'alert-preview --query-file private.json --operator gt --threshold 1 --pending-ms 0 --step-ms 1000 --agent-json',
 ])
 def test_agent_workflow_does_not_grant_arbitrary_paths_or_effects(tool, arguments):
@@ -152,8 +153,8 @@ def test_workflow_powershell_does_not_silently_strip_variable_quotes():
     "plan --uid board --from 1000 --to 61000 --var 'host=%COMSPEC%' --agent-json",
     "plan --uid board --from 1000 --to 61000 --var 'host=!COMSPEC!' --agent-json",
     "plan --uid board --from 1000 --to 61000 --var 'host=foo^&whoami' --agent-json",
-    "impact --source-id saved --kind metric --key 'up& whoami & rem ' --agent-json",
-    "impact --source-id saved --node-id 'metric:up>marker' --agent-json",
+    "inspect --source-id saved --pointer '/up& whoami & rem ' --agent-json",
+    "inspect --source-id saved --pointer '/metric:up>marker' --agent-json",
     "inspect --source-id saved --panel 1 --ref-id 'A&(whoami)' --agent-json",
     "plan --uid board --from 1000 --to 61000 --var 'host=two words' --agent-json",
     'plan --uid board --from 1000 --to 61000 --var host=~ --agent-json',
@@ -211,11 +212,33 @@ def test_wrapper_optional_flags_do_not_replace_required_flags(flag, value):
     assert decision(f"{WRAPPER} {query} -Mode instant", "PowerShell") == "deny"
 
 
-def test_wrapper_macros_require_explicit_intervals_and_keep_literal_shell_transport():
+def test_wrapper_macros_reach_the_prometheus_backend_with_or_without_explicit_intervals():
     query = "-Datasource metrics -Kind prometheus -From 1000 -To 61000 -Expr 'rate(up[$__rate_interval]) + $__range_s + $__interval_ms'"
-    assert decision(f"{WRAPPER} {query} -IntervalMs 2000 -RateIntervalMs 15000", "PowerShell") == "allow"
-    assert decision(f"{WRAPPER} {query} -IntervalMs 2000", "PowerShell") == "deny"
-    assert decision(f"{WRAPPER} {query} -RateIntervalMs 15000", "PowerShell") == "deny"
+    for options in (" -IntervalMs 2000 -RateIntervalMs 15000", " -IntervalMs 2000", " -RateIntervalMs 15000", ""):
+        assert decision(f"{WRAPPER} {query}{options}", "PowerShell") == "allow"
+    # Loki intervals and dashboard variables keep the explicit-input rule.
+    loki = "-Datasource logs -Kind loki -From 1000 -To 61000 -Expr 'count_over_time({app=\"api\"}[$__interval])'"
+    assert decision(f"{WRAPPER} {loki}", "PowerShell") == "deny"
+    assert decision(f"{WRAPPER} {query.replace('$__range_s', '$job')}", "PowerShell") == "deny"
+
+
+@pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
+def test_multiline_expressions_travel_only_as_base64(tool):
+    encoded = base64.b64encode(b"sum by (job) (\n\trate(up[$__rate_interval])\n)").decode()
+    assert decision(f"{PREFIX} query --datasource metrics --kind prometheus --from 1000 --to 61000 --expr-base64 {encoded}", tool) == "allow"
+    assert decision(f"{PREFIX} query --datasource metrics --kind prometheus --from 1000 --to 61000 --expr 'sum(\nup)'", tool) == "deny"
+    control = base64.b64encode(b"up\x1b[2J").decode()
+    assert decision(f"{PREFIX} query --datasource metrics --kind prometheus --from 1000 --to 61000 --expr-base64 {control}", tool) == "deny"
+
+
+@pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
+@pytest.mark.parametrize("arguments,expected", [
+    ("search --folder-uid payments", "allow"), ("search --tag ops", "deny"),
+    ("alerts --folder-uid payments --group-next-token cGF5bWVudHM=", "allow"),
+    ("alerts --uid rule-1 --group-next-token cGF5bWVudHM=", "deny"),
+])
+def test_new_read_options_use_the_helper_grammar(tool, arguments, expected):
+    assert decision(f"{PREFIX} {arguments}", tool) == expected
 
 
 @pytest.mark.parametrize("tool", ["Bash", "PowerShell"])

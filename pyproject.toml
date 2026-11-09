@@ -45,7 +45,6 @@ test = [
 ]
 # Grafana analysis workflows (skills/grafana/scripts); run with `python -I` in the project environment.
 grafana = [
-    "deepdiff>=9.1.0",
     "pillow>=13.0.0",
     "polars>=2.0.0",
     "promql-parser>=0.11.0",

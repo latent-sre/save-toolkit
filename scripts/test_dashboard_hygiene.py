@@ -54,6 +54,38 @@ def clean_model() -> dict:
     }
 
 
+def v2_model(*, wrapped: bool = False) -> dict:
+    """The clean fixture in the V2 (v2beta1/v2) shape: one grid item in a row, typed per-query sources."""
+    classic = clean_model()
+    panel = classic["panels"][0]
+    query = {"kind": "PanelQuery", "spec": {"refId": "A", "hidden": False, "query": {
+        "kind": "DataQuery", "group": "prometheus", "version": "v0", "datasource": {"name": "${datasource}"},
+        "spec": {"expr": panel["targets"][0]["expr"]}}}}
+    spec = {
+        "title": classic["title"], "tags": classic["tags"], "cursorSync": "Off", "preload": False, "links": [],
+        "annotations": [], "timeSettings": {"from": "now-6h", "to": "now"},
+        "variables": [
+            {"kind": "DatasourceVariable", "spec": {"name": "datasource", "pluginId": "prometheus"}},
+            {"kind": "QueryVariable", "spec": {"name": "job", "multi": True, "includeAll": True, "allValue": ".+",
+                                               "query": {"kind": "DataQuery", "group": "prometheus", "version": "v0",
+                                                         "spec": {"query": "label_values(job)"}}}},
+        ],
+        "elements": {"panel-1": {"kind": "Panel", "spec": {
+            "id": 1, "title": panel["title"], "description": panel["description"], "links": [],
+            "data": {"kind": "QueryGroup", "spec": {"queries": [query], "transformations": [], "queryOptions": {}}},
+            "vizConfig": {"kind": "VizConfig", "group": "timeseries", "version": "13.3.0",
+                          "spec": {"options": {}, "fieldConfig": {"defaults": panel["fieldConfig"]["defaults"], "overrides": []}}},
+        }}},
+        "layout": {"kind": "RowsLayout", "spec": {"rows": [{"kind": "RowsLayoutRow", "spec": {
+            "title": "Errors", "layout": {"kind": "GridLayout", "spec": {"items": [{"kind": "GridLayoutItem", "spec": {
+                "x": 0, "y": 0, "width": 24, "height": 8, "element": {"kind": "ElementReference", "name": "panel-1"}}}]}}}}]}},
+    }
+    if wrapped:
+        return {"apiVersion": "dashboard.grafana.app/v2", "kind": "Dashboard",
+                "metadata": {"name": classic["uid"], "namespace": "default"}, "spec": spec}
+    return spec
+
+
 def clean_model_with(path: tuple, value: object) -> dict:
     """The clean fixture with the value at `path`, a sequence of keys and list indexes, replaced."""
     model = clean_model()
@@ -437,13 +469,33 @@ class JsonReportTest(unittest.TestCase):
         }], report["findings"])
         self.assertEqual(report, self._report(json.dumps(model), 0, "--quiet"))
 
+    def test_v2_models_are_mapped_and_every_rule_still_applies(self) -> None:
+        for wrapped in (False, True):
+            with self.subTest(wrapped=wrapped):
+                report = self._report(json.dumps(v2_model(wrapped=wrapped)), 0)
+                self.assertTrue(report["ok"])
+                self.assertEqual(([], 1), (report["findings"], report["panel_count"]))
+                classic = self._report(json.dumps(clean_model()), 0)
+                self.assertEqual([item["mode"] for item in classic["query_analysis"]],
+                                 [item["mode"] for item in report["query_analysis"]])
+        model = v2_model()
+        panel = model["elements"]["panel-1"]["spec"]
+        panel["vizConfig"]["spec"]["fieldConfig"]["defaults"].pop("unit")
+        panel["data"]["spec"]["queries"][0]["spec"]["query"]["spec"]["expr"] = "sum(rate(x_total[5m]))"
+        model["variables"][1]["spec"].pop("allValue")
+        report = self._report(json.dumps(model), 1)
+        self.assertEqual({"panel-units", "target-rate-interval", "template-all-value"},
+                         {finding["rule"] for finding in report["findings"]})
+
     def test_invalid_and_unsupported_inputs_return_json_errors(self) -> None:
         for content, code, detail in (
             (None, "input_read_error", "cannot check"),
             ("{", "invalid_json", "cannot check"),
             (json.dumps({"panels": [None]}), "invalid_shape", "$.panels[0]"),
             (json.dumps({"title": "v2", "elements": {}, "layout": {}}),
-             "unsupported_v2", "V2"),
+             "unsupported_v2", "dashboard-linter"),
+            (json.dumps({"title": "v2", "elements": {}, "layout": {"kind": "CanvasLayout", "spec": {"items": []}}}),
+             "unsupported_v2", "unsupported_dashboard_model"),
             (json.dumps({"title": "missing panels"}), "unsupported_model", "no `panels` key"),
             # Valid row nesting reaches either the decoder or row-walk recursion limit.
             # Nested arrays instead become invalid_shape when a decoder accepts their depth.

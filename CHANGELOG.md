@@ -16,6 +16,28 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   deploy ownership; its body still holds the deploy rule.
 - `software-engineer` no longer dispatches `reviewer` by file count, carries finding labels, or
   loads `obs-pipeline` or `ci-actions`; its review-findings rule is reduced to the stale check.
+- `software-engineer` names a review it skipped under **Check first** and drops repeated deploy and
+  workflow pointers.
+- `service-lifecycle` is retired: readiness audits load `resilience-analysis`, and decommissioning a
+  live service goes through `production-change-gate`.
+- The observability references correct Splunk per-field throttling, Tempo 3.x oversized-trace drops,
+  the tail-sampling decision cache default, and other vendor details; four skills shed repeated text.
+- `operator-cli` corrects its signal, PowerShell and broken-pipe rules and adds environment binding, crash-safe receipts and locks, and match-all refusal.
+- `production-change-gate` tightens environment, immutable-release and rollback evidence, completes its worked example, and folds artifact evidence into release readiness.
+- `obs-analysis` merges its method and Cloud Monitoring references, drops the inventory templates, fixes redaction and Log Cache wording, and moves to Splunk 10.6 and semconv 1.45.
+- `obs-alerting` and `obs-pipeline` correct promtool, freshness, Mimir suffix and collector-counter guidance; `error_budget.py` flags pairs an SLO cannot fire.
+- The bundle-link check exempts scripts that a linked script loads and now scans `docs/fleet-evaluation` and `docs/sre-workbench`.
+- `grafana` reads V2 dashboards natively, lets Grafana expand its built-in macros (live coverage 16 to 41 of 47 targets), fixes alert truncation and error reporting, and drops compare, impact, alert-preview and the VS Code opener.
+- The Grafana workflow accepts `${var:regex}` and queries starting with `-`; `resilience-analysis` covers readiness audits, `gcp-ops` counts rejected requests, and the Confluence importer keeps inline text intact.
+- `incident-investigation` drops its leftover carried-label clauses and corrects verified mitigation and symptom facts.
+- `gcp-ops` and `akamai-edge` correct verified facts and trim repeats; the placeholder GCP project inventory is removed.
+- `agent-authoring` corrects verified host facts, marks the Copilot `agents:`/`handoffs:` projection as legacy-only, and merges `context.md` and `skill-portability.md` into their siblings.
+- `api-craft`, `go-craft` and `database-reliability` correct verified facts and trim repeats; Huma is removed.
+- `ci-actions` and `stack-profile` correct verified facts; `ci-actions` drops generic rules and `stack-profile` records oxlint as the frontend default.
+- `pcf-ops` and `pcf-deploy` correct verified platform facts, add the App Autoscaler unbind effect and Apps Manager Revisions, and drop `foundations.md`.
+- `frontend-craft` moves the React lint default to oxlint, sets the Node floor to Active LTS from the lockfile, and corrects verified toolchain, serving and licence facts.
+- `operational-docs` merges its disposition policy into knowledge closeout and drops carried labels; the Confluence converter reads the template for its banner and checks, suppresses script and style content, and keeps table structure; `resilience-analysis` and `toil-reduction` trim repeats.
+- Generated handoff prompts no longer ask receivers to preserve evidence labels.
 
 ## [0.52.0] - 2026-11-04
 

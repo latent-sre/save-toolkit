@@ -72,8 +72,9 @@ worked procedure unconditionally.
   confirmed and the plan needs route-level rollback during soak.
 - **Rolling** replaces instances inside one app. Plan it only when overlapping old/new instances are
   compatible and its proposed blast radius fits the change; approval is required before execution.
-- **Canary** pauses at bounded instance percentages. Use it only after the deployed CLI and CAPI
-  prove support for the intended flags and quota covers the temporary extra instance.
+- **Canary** pauses at bounded instance percentages. CAPI marks it experimental and subject to
+  change. Use it only after the deployed CLI and CAPI prove support for the intended flags and quota
+  covers up to `max_in_flight` temporary new instances, plus one more while paused.
 - **Cancel is not rollback.** Cancelling a deployment can leave configuration or binding changes and
   does not guarantee zero downtime. The plan must name what restores the prior safe state.
 

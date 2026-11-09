@@ -17,11 +17,10 @@ Primary references:
 For a value verified to contain only ASCII letters, digits, `.`, `_`, and `-`, use quoted exact
 matching: `ts(app.http.requests.count, app="order-router.v2")`. Validate the tag key independently;
 it is syntax, not a value. This recipe does not cover quotes, backslashes, delimiters, or control
-characters: use a target-validated WQL literal encoder for those values, or stop for a sanitized
-identifier. Inspect the rendered query after any additional client encoding.
+characters: those need a target-validated WQL literal encoder.
 
 WQL regex patterns use `/.../`; backslashes escape special characters, and `^`/`$` anchors are
-unsupported. Do not copy PromQL's `=~` syntax or treat anchoring as escaping.
+unsupported. Do not copy PromQL's `=~` syntax.
 
 ## Query shapes — guardrails
 

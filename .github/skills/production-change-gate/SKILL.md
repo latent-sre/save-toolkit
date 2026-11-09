@@ -20,8 +20,9 @@ rule deletion and shared notification infrastructure remain on this gate.
 
 > **The checklist is not the enforcement.** It records a human decision. The load-bearing control
 > is the least-privilege production role or credential held by the named human or protected
-> automation, and for a deployment the protected environment that gates the deployment credential.
-> Branch protection protects source history; it is not a production boundary.
+> automation, and for a deployment the protected environment that gates the deployment credential,
+> once its protection is evidenced. Branch protection protects source history; it is not a
+> production boundary.
 
 | The question | Read, then run | Verdict line |
 |---|---|---|
@@ -43,20 +44,19 @@ Classify first, then check only what the tier needs.
 | 3 | Destructive or access-path change: data deletion, storage or backup, credential or identity, DNS, firewall, VPN, proxy, remote access | As Tier 2 plus a proven backup or recovery path; stop until the named action and target are approved |
 
 Approval covers only the command, target, and applying actor shown; a material change re-enters
-the gate. During a declared incident, ITO's approval in the TLC may cover a bounded envelope instead
-(see the [incident fast path](./references/incident-fast-path.md)). For covered actions, its
-short checklist replaces the production table below.
+the gate. During a declared incident, the [incident fast path](./references/incident-fast-path.md)
+governs its covered actions; urgency without a declared incident does not open it.
 
 | Item | Passes when |
 |---|---|
 | Readiness evidence | A new-artifact deployment attaches the exact candidate commit's independent review, green checks, the release artifact, the `gate: release` PASS record, and the named production approver. A non-deployment action attaches the current command or diff and named approval instead. Rolling back to the previously live artifact reuses that artifact's records. |
-| Execution boundary on | Evidence that the named human or protected automation, not the agent, holds the least-privilege role or credential for this exact action (for a deployment, the protected environment gating the credential). Naming an executor or promising not to act is not evidence; repository approval counts are not production authority. Deferred during a declared incident. |
+| Execution boundary on | Evidence that the named human or protected automation, not the agent, holds the least-privilege role or credential for this exact action (for a deployment, the protected environment gating the credential, with evidence for the plan and repository visibility, required reviewers, prevented self-review, admin bypass off, and the deployment branch/tag restriction; `ci-actions`' security and provenance reference covers these checks). Naming an executor or promising not to act is not evidence; repository approval counts are not production authority. |
 | Approved | An authorized human approved this exact target, command or diff, applying actor, and time, with a `Valid until` UTC deadline and the change record where the process requires one (name the system; `stack-profile` owns the Remedy/Jira fact). |
 | Binding current | Immediately before execution the executor confirms the approval has not expired and the current target, action, actor, and candidate or configuration identity match the approved record. Any mismatch is BLOCKED and re-enters. |
 | Blast radius | Affected apps, routes, spaces, users or traffic share, and the worst credible failure are recorded. |
 | Backout / recovery | Exact rollback where feasible; otherwise state what cannot be undone and provide an evidence-backed recovery path, verification and stop conditions. The human release owner owns execution; unresolved recovery evidence blocks approval. Prefer reversible actions; recovery does not make an action reversible or lower its tier. |
 | Plan shown | Every command and the manifest or configuration diff are shown; approval covers no undisclosed side effect. |
-| Timing, monitoring, comms | Peak and freeze periods considered; a named human watches the golden signals with agreed abort criteria; stakeholders and on-call are told before and after. During an incident ITO's TLC and update cadence satisfy these; never delay a mitigation for a notification. |
+| Timing, monitoring, comms | Peak and freeze periods considered; a named human watches the golden signals with agreed abort criteria; stakeholders and on-call are told before and after. |
 
 ## Verdict
 
@@ -112,8 +112,5 @@ Retry permission: <ALLOWED | BLOCKED_PENDING_RECONCILIATION>
 |---|---|
 | Preparing a Tier 2 or 3 approval-request packet, or an explicit ask for the template | [Tier 2 approval example](./references/tier-2-approval-example.md) |
 | A declared incident needing reversible Tier 0–2 mitigation, a bounded envelope, rollback to the live artifact, or post-incident reconciliation | [Incident fast path](./references/incident-fast-path.md) |
-| Proving a release artifact is the immutable one that was tested | [Release artifact evidence](./references/release-artifact-evidence.md) |
+| Proving a release artifact is the immutable one that was tested | [Release readiness: artifact evidence](./references/release-readiness.md#artifact-evidence) |
 | A `cf` state-changing command (restart, restage, scale, set-env, push, rollback) | Load `pcf-ops` and read its state-changing command effects reference for blast radius and for whether the action creates a new artifact |
-
-Urgency without a declared incident does not open the fast path. A new artifact and every Tier 3
-action stay on the full checklist at any severity.

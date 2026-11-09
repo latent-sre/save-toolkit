@@ -381,6 +381,69 @@ class ConfluenceContentTest(ConverterTest):
                 )
                 self.assertIn("Image attachments not copied: 1", proc.stdout)
 
+    def test_inline_markup_cannot_change_a_command_written_in_prose(self) -> None:
+        _, draft = self.convert(
+            '<h1>Recovery</h1><h2>Procedure</h2>'
+            '<p>Run cf map-route <strong>APP</strong>-blue example.com, then cf restart '
+            '&lt;app&gt; and <code>cf logs &lt;app&gt; --recent</code>.</p>'
+            '<table><tr><td>Running</td><td>Wait</td></tr></table>'
+        )
+        procedure = slot_text(draft, "Procedure")
+        self.assertIn("APP-blue example.com", procedure)
+        self.assertIn(r"cf restart \<app\>", procedure)
+        self.assertIn("`cf logs <app> --recent`", procedure)
+        self.assertIn("Running | Wait", draft)
+
+    def test_draft_carries_the_template_approval_banner_and_post_incident_checks(self) -> None:
+        _, draft = self.convert(VIEW_HTML)
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        def section(heading: str) -> str:
+            return template.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0].strip("\n")
+
+        banner = "\n".join(line for line in section("Procedure").splitlines() if line.startswith(">"))
+        self.assertIn("approval before you run it", banner)
+        self.assertTrue(slot_text(draft, "Procedure").startswith(banner + "\n"))
+        self.assertEqual(section("Post-Incident"), slot_text(draft, "Post-Incident").strip("\n"))
+
+    def test_an_unreadable_template_fails_without_writing_a_draft(self) -> None:
+        converter = load_converter("confluence_import_template_test")
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "page.html"
+            output = Path(tmp) / "draft.md"
+            source.write_text(VIEW_HTML, encoding="utf-8")
+            stderr = io.StringIO()
+            with patch.object(converter, "TEMPLATE", Path(tmp) / "absent.md"), patch.object(sys, "stderr", stderr):
+                returncode = converter.main([str(source), "-o", str(output), "--service-id", "worker"])
+            self.assertEqual(1, returncode)
+            self.assertFalse(output.exists())
+            self.assertIn("template", stderr.getvalue())
+
+    def test_script_and_style_content_never_becomes_prose(self) -> None:
+        for tag in ("script", "style"):
+            with self.subTest(tag=tag):
+                proc, draft = self.convert(
+                    f'<h1>Recovery</h1><p>Visible before.</p><{tag}>var concealed = 1;</{tag}><p>Visible after.</p>'
+                )
+                self.assertIn("Visible before.", draft)
+                self.assertIn("Visible after.", draft)
+                self.assertNotIn("concealed", draft)
+                self.assertIn("Unsupported media dropped: 1", proc.stdout)
+
+    def test_table_cells_stay_separated_and_on_their_row(self) -> None:
+        _, draft = self.convert(
+            '<h1>Recovery</h1><h2>Procedure</h2><table>'
+            '<tr><th>Symptom seen</th><th>Next action</th></tr>'
+            '<tr><td><p>Queue depth growing</p></td><td><p>Page the</p><p>payments lead</p></td></tr>'
+            '<tr><td></td><td>Only action<br>second line</td></tr></table>'
+            '<p>After the table.</p><p>Second paragraph.</p>'
+        )
+        self.assertIn(
+            "Symptom seen | Next action\n\nQueue depth growing | Page the payments lead\n\n"
+            "| Only action second line\n\nAfter the table.\n\nSecond paragraph.",
+            slot_text(draft, "Procedure"),
+        )
+
     def test_reference_labels_preserve_text_and_destinations_as_literal_markdown(self) -> None:
         proc, draft = self.convert(
             '<p><a href="https://example.com/console?q=1&amp;b=2">'

@@ -5,23 +5,11 @@ human release owner, not agent execution.
 
 ## Declarative manifest
 
-Keep the application manifest in version control and review its exact diff:
-
-```yaml
-applications:
-  - name: order-router
-    instances: 3
-    memory: 1G
-    buildpacks: [java_buildpack_offline]
-    routes:
-      - route: order-router.apps.example.com
-    env:
-      SPRING_PROFILES_ACTIVE: prod
-```
+Keep the application manifest in version control and review its exact diff. For the sequence below
+it needs exactly one `applications` stanza, named `order-router`.
 
 Use approved bindings/credential service for secrets, never manifest values. Target manifest/binding
-behavior stays `[unverified]` until observed. Adapt an existing project manifest narrowly; this
-example applies only when the repository has neither manifest nor starter.
+behavior stays `[unverified]` until observed. Adapt an existing project manifest narrowly.
 
 ## Classic blue-green plan
 

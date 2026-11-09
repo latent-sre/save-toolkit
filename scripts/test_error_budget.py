@@ -45,8 +45,63 @@ class ErrorBudgetCliTests(unittest.TestCase):
             "--slo", "99.9", "--bad-minutes", "1", "--bad-events", "2",
             "--total-events", "1000",
         )
-        self.assertNotEqual(proc.returncode, 0)
+        self.assertEqual(proc.returncode, 2, proc.stderr)
         self.assertIn("cannot be combined", proc.stderr)
+
+    def test_request_budget_example_consumes_twenty_percent(self) -> None:
+        report = self.report("--slo", "99.9", "--bad-events", "200", "--total-events", "1000000")
+        self.assertIn("budget = 1,000 failed requests", report)
+        self.assertIn("consumed:  200 bad  (20.0% of budget)  [ok]", report)
+        self.assertIn("remaining: 800 bad requests", report)
+        self.assertIn("observed availability: 99.9800%", report)
+
+    def test_request_budget_overspend_reports_over_budget(self) -> None:
+        report = self.report("--slo", "99.9", "--bad-events", "2000", "--total-events", "1000000")
+        self.assertIn("(200.0% of budget)  [OVER BUDGET]", report)
+        self.assertIn("remaining: -1,000 bad requests", report)
+
+    def test_unusable_counts_and_flag_combinations_are_usage_errors(self) -> None:
+        for options, message in (
+            (("--bad-events", "11", "--total-events", "10"), "cannot exceed --total-events"),
+            (("--bad-events", "0", "--total-events", "0"), "--total-events must be > 0"),
+            (("--bad-events", "-1", "--total-events", "10"), "--bad-events must be >= 0"),
+            (("--bad-events", "nan", "--total-events", "10"), "--bad-events must be a finite number"),
+            (("--bad-events", "1", "--total-events", "nan"), "--total-events must be a finite number"),
+            (("--bad-minutes", "-1"), "--bad-minutes must be >= 0"),
+            (("--bad-minutes", "nan"), "--bad-minutes must be a finite number"),
+            (("--window-days", "0", "--bad-minutes", "0"), "--window-days must be > 0"),
+            (("--sli-short", "99"), "--sli-short requires --sli-long"),
+        ):
+            with self.subTest(options=options):
+                proc = run_calculator("--slo", "99.9", *options)
+                self.assertEqual(proc.returncode, 2, proc.stderr)
+                self.assertIn(message, proc.stderr)
+                self.assertNotIn("Traceback", proc.stderr)
+
+    def test_bad_minutes_cannot_exceed_the_status_window(self) -> None:
+        proc = run_calculator("--slo", "99.9", "--window-days", "1", "--bad-minutes", "1441")
+        self.assertEqual(proc.returncode, 2, proc.stderr)
+        self.assertIn("--bad-minutes cannot exceed the 1-day window (1440 min)", proc.stderr)
+        self.assertIn("[OVER BUDGET]", self.report("--slo", "99.9", "--window-days", "1",
+                                                   "--bad-minutes", "1440"))
+
+    def test_a_pair_the_slo_cannot_reach_says_it_can_never_fire(self) -> None:
+        # 14.4x of a 10% budget and 6x of a 20% budget both exceed 100% bad events.
+        for slo, long_window, short_window in (("90", "1h", "5m"), ("80", "6h", "30m")):
+            with self.subTest(slo=slo, pair=(long_window, short_window)):
+                report = self.report("--slo", slo, "--sli-long", "0", "--sli-short", "0",
+                                     "--long-window", long_window, "--short-window", short_window)
+                self.assertIn(f"the {long_window}/{short_window} pair can never fire at this SLO", report)
+                self.assertNotIn("below the", report)
+        # 14.4x of a 6.9% budget is reachable, so a total outage still pages.
+        report = self.report("--slo", "93.1", "--sli-long", "0", "--sli-short", "0")
+        self.assertIn("severity: PAGE (fast burn)", report)
+
+    def test_burn_values_and_exhaustion_projection_are_printed(self) -> None:
+        report = self.report("--slo", "99.9", "--sli-long", "98.5", "--sli-short", "99.0")
+        self.assertIn("burn (1h):  SLI 98.5%  ->  15.00x", report)
+        self.assertIn("burn (5m): SLI 99.0%  ->  10.00x", report)
+        self.assertIn("the full 28d budget is gone in 1.87 d (2688 min)", report)
 
     def test_both_windows_must_cross_the_bound_threshold_to_page(self) -> None:
         report = self.report(
@@ -157,6 +212,10 @@ class StructuredResultTests(unittest.TestCase):
                                                        "1h", "5m")
                 self.assertEqual(outcome, verdict.outcome)
                 self.assertEqual("PAGE (fast burn)", verdict.action)
+
+    def test_burn_verdict_marks_a_pair_the_slo_cannot_reach(self) -> None:
+        verdict = self.calculator.burn_verdict(Decimal("90"), Decimal("0"), Decimal("0"), "1h", "5m")
+        self.assertEqual("unreachable", verdict.outcome)
 
     def test_invalid_inputs_raise_with_the_flag_named(self) -> None:
         fields = dict(slo=Decimal("99.9"), window_days=28.0, bad_minutes=1.0, bad_events=2.0, total_events=10.0,

@@ -10,7 +10,7 @@ argument-hint: "[the database or query symptom]"
 # Database reliability
 
 Keep data **correct, durable, and fast**, and make schema change safe in production. Our apps run on
-PCF and bind to managed relational services (Postgres / MS SQL; a few apps embed SQLite, which is
+PCF and use bound service instances of managed databases (Postgres / MS SQL; a few apps embed SQLite, which is
 not an operated engine — the one rule that matters is in `stack-profile`) — you operate at the
 *application + data* layer, not the DB platform internals. `software-engineer` writes persistence
 and migration code, loading `api-craft` when it serves an HTTP contract; this skill owns operating
@@ -36,6 +36,7 @@ it safely, diagnosing it, and proving recovery.
   shape; backfill in bounded batches; dual-write/read while both shapes coexist; switch only after
   verification; contract in a later deploy after proving nothing reads the old shape.
 - Never rename or drop a shape in the same deploy while currently running code still uses it.
+- Use the repository's migration tooling, not ad-hoc production SQL.
 - Freeze the exact engine, version/edition, topology, table size, traffic pattern, migration-tool
   transaction mode, and compatibility window before choosing DDL. Treat missing target facts as
   `[unverified]`, not as permission to assume an online path.

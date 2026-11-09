@@ -1,7 +1,7 @@
 # Runbook method
 
-A runbook covers one alert, task, or failure mode. Read actual configuration and existing documents
-before drafting; memory is not configuration evidence.
+Read actual configuration and existing documents before drafting; memory is not configuration
+evidence.
 
 ## Match the edit
 
@@ -45,8 +45,7 @@ Otherwise preserve the fields and record missing evidence as `[unverified]`.
 - Keep `[sourced]` syntax from cited documentation separate from execution on the named target.
   Retain `[verified]` execution only from an incoming authorized record binding the exact command,
   target, actor and result. Without it, execution stays `[unverified]`; an unsourced command also
-  stays `[unverified]`. Never execute from the documentation lane, even a read-only command, to
-  fill syntax or output evidence gaps.
+  stays `[unverified]`.
 
 Before publishing a procedure change, walk the affected branches in order as a responder new to
 the service; the first unsupported decision is a finding. Check direct branch entry, inherited
@@ -71,13 +70,9 @@ script, then automation supported by evidence.
 
 ## Imports and links
 
-For one-way Confluence import, read [Confluence import](./confluence-import.md). A human or
-`software-engineer` runs [confluence_to_runbook.py](../scripts/confluence_to_runbook.py) on supplied
-exported bytes without overwriting an existing runbook. Keep source URL, version, and dates;
-imported command claims stay `[unverified]`.
+For one-way Confluence import, read [Confluence import](./confluence-import.md).
 
 Link every paging alert to its runbook; the service card links one runbook per failure mode. Return
 the runbook path and paging-alert names to the caller; recommend `observability-engineer` for
-alert-definition changes. Use the existing alert or notification route's link mechanism. Grafana
-commonly uses `runbook_url`; a Splunk lookup or Moogsoft enrichment applies only where that route
-uses it. Missing or contradicted runbooks follow the closeout path above.
+alert-definition changes. Use the existing alert or notification route's link mechanism: Grafana's
+`runbook_url`, or a Splunk lookup or Moogsoft enrichment only where that route uses it.

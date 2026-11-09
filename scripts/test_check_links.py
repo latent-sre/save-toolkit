@@ -447,6 +447,29 @@ class LinkCheckerTests(Fixture):
         failures = check_links.check(self.root)
         self.assertTrue(any("not linked directly" in item for item in failures))
 
+    def test_script_loaded_by_a_linked_script_needs_no_link(self):
+        self.skill("# Probe\n\nRun [main](./scripts/main.py).\n")
+        self.write("skills/probe-skill/scripts/main.py", "lib = _module('helper')\n")
+        self.write("skills/probe-skill/scripts/helper.py", "from runpy import run_path\nrun_path('deep.py')\n")
+        self.write("skills/probe-skill/scripts/deep.py", "x = 1\n")
+        self.assertEqual([], check_links.check(self.root))
+
+    def test_script_loaded_only_by_an_unlinked_script_is_an_orphan(self):
+        self.skill("# Probe\n\nRun [main](./scripts/main.py).\n")
+        self.write("skills/probe-skill/scripts/main.py", "x = 1\n")
+        self.write("skills/probe-skill/scripts/stray.py", "import helper\n")
+        self.write("skills/probe-skill/scripts/helper.py", "y = 2\n")
+        failures = check_links.check(self.root)
+        for orphan in ("scripts/stray.py", "scripts/helper.py"):
+            self.assertTrue(any(item.endswith(orphan) for item in failures), failures)
+
+    def test_a_script_naming_a_reference_does_not_link_it(self):
+        self.skill("# Probe\n\nRun [main](./scripts/main.py).\n")
+        self.write("skills/probe-skill/scripts/main.py", "open('notes.md')\n")
+        self.write("skills/probe-skill/references/notes.md", "# Notes\n")
+        failures = check_links.check(self.root)
+        self.assertTrue(any(item.endswith("references/notes.md") for item in failures), failures)
+
     def test_root_sidecar_must_be_directly_linked(self):
         self.skill()
         self.write(
@@ -565,6 +588,13 @@ class LiveDocLinkTests(Fixture):
             any("evals/README.md" in item and "dead link" in item for item in failures),
             failures,
         )
+
+    def test_fleet_evaluation_and_workbench_docs_are_checked(self) -> None:
+        for folder in ("docs/fleet-evaluation", "docs/sre-workbench"):
+            self.write(f"{folder}/guide.md", "See [missing](missing.md).\n")
+        failures = check_links._check_live_doc_links(self.root)
+        for folder in ("docs/fleet-evaluation", "docs/sre-workbench"):
+            self.assertTrue(any(f"{folder}/guide.md" in item and "dead link" in item for item in failures), failures)
 
     def test_moved_eval_guides_are_checked(self) -> None:
         self.write("evals/docs/running.md", "See [missing](missing.md).\n")

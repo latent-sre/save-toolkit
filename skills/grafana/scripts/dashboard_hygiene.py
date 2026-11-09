@@ -8,14 +8,14 @@ no implemented rule fired, not that the dashboard is correct. PromQL checks run 
 reference whose type is `prometheus`; other or untyped references need their dialect's query
 validation. Findings need human review:
 fixed UIDs can be intentional in provisioned dashboards, and a `_total` suffix is not type evidence.
-Prefer dashboard-linter where installed for real query/schema validation; this helper is the
-portable fallback for Classic/V1 models.
+Prefer dashboard-linter (v0.5.2+ reads V2) where installed for real query/schema validation; this
+helper is the portable fallback.
 
 Which model shapes it accepts:
   * Classic / V1 `spec`  — the `panels[]` + `templating.list[]` shape
   * an app-platform wrapper — `{apiVersion, kind, metadata, spec}`; the `spec` is unwrapped
-  * V2 (`elements`/`layout`) is DETECTED AND REFUSED rather than half-checked: its panels live in a
-    different structure, and silently checking zero panels would be worse than saying so.
+  * V2 (`elements`/`layout`, v2beta1/v2 query shape) — mapped onto the Classic panel shape first;
+    every rule applies, and an unknown layout or element kind is refused rather than half-checked.
 
 Exit codes: 0 no review-required findings (advisories may remain), 1 review required,
 2 the input could not be checked. Findings are heuristics, not proven defects.
@@ -36,6 +36,7 @@ from typing import NamedTuple
 
 _module = run_path(str(Path(__file__).with_name("grafana_modules.py")))["load_module"]
 promql = _module("grafana_promql")
+reader = _module("grafana_read")
 
 # Panel types for which a unit is meaningful. A `text` or `row` panel has no unit, and flagging one
 # would train people to ignore the checker.
@@ -360,12 +361,15 @@ def main(argv: list[str] | None = None) -> int:
     try:
         spec, root_path = locate_spec(model)
         if "elements" in spec or "layout" in spec:
-            return cannot_check(
-                "unsupported_v2",
-                "refusing to check a V2 (dynamic) dashboard: its panels live under spec.elements, which "
-                "this checker does not read. Validate the actual V2 candidate with a V2-capable linter "
-                "(dashboard-linter v0.2.0+), or report the validation gap; keep its stored version.",
-            )
+            try:
+                spec = reader.v2_panel_view(spec)
+            except reader.SafeError as error:
+                return cannot_check(
+                    "unsupported_v2",
+                    f"cannot map this V2 dashboard ({error}); validate it with grafana/dashboard-linter "
+                    "(v0.5.2+ reads V2), or report the validation gap; keep its stored version.",
+                )
+            root_path += "(v2 mapped)"
         if "panels" not in spec:
             return cannot_check("unsupported_model", "no `panels` key: this does not look like a Classic/V1 dashboard model")
         panels = validate_shape(spec, root_path)

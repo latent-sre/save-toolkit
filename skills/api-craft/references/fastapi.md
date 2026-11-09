@@ -24,7 +24,7 @@ Read FastAPI, Pydantic, Starlette and Python versions from manifests/lockfiles.
 
 ## Concurrency and data
 
-- Keep blocking library calls off the event loop; plain `def` routes/dependencies use the thread pool.
+- Plain `def` routes/dependencies use the thread pool.
 - SQLAlchemy: one `AsyncSession` per request/task with `expire_on_commit=False`; load serialization
   data before returning. Implicit lazy loading or post-commit attribute refresh at response time
   fails (`MissingGreenlet`).
@@ -39,12 +39,13 @@ Read FastAPI, Pydantic, Starlette and Python versions from manifests/lockfiles.
   Assert startup and cleanup.
 - For in-process [OpenAPI checks](./openapi.md), use
   `schemathesis.openapi.from_asgi(schema_path, app)` with the service's actual schema URL path, or
-  `schemathesis.openapi.from_dict(app.openapi())` with `case.call_and_validate(app=app)` inside
-  lifespan when no schema route is served. Schemathesis `from_asgi` owns lifespan; do not also wrap
-  the app in a `TestClient` or `LifespanManager`.
+  `schemathesis.openapi.from_dict(app.openapi())` with `case.call_and_validate(app=app)` when no
+  schema route is served. Schemathesis's ASGI transport runs the app's lifespan itself in both
+  cases; do not also wrap the app in a `TestClient` or `LifespanManager`.
   Keep test credentials isolated.
 - Configure Uvicorn's graceful timeout inside the deployment deadline.
 - Behind a proxy, trust only its known addresses through `--forwarded-allow-ips`; `'*'` requires
-  the ingress to be the sole route to the app.
+  the ingress to be the sole route to the app and to remove client-supplied forwarded headers
+  before setting its own; otherwise clients can spoof their address.
 - `--workers N`/`WEB_CONCURRENCY` creates N processes and pools; budget memory and database
   connections across them.

@@ -10,23 +10,23 @@ prompt: |
   I authorize this documentation-only draft from the fictional evidence below. Follow the
   repository's established postmortem location and the operational-docs postmortem method. No other artifact is
   requested; give other closeout consequences dispositions in the same Follow-ups record.
-  [UNTRUSTED][sourced] EVENT-72: checkout requests failed from 2026-09-22T10:00:00Z until
+  [sourced] EVENT-72: checkout requests failed from 2026-09-22T10:00:00Z until
   2026-09-22T10:12:00Z; error-rate monitoring recorded recovery at 10:12 UTC.
-  [UNTRUSTED][sourced] RES-72: human lead Morgan confirmed resolution at 2026-09-22T10:20:00Z.
+  [sourced] RES-72: human lead Morgan confirmed resolution at 2026-09-22T10:20:00Z.
   Severity P3. Service checkout. Release identifier R72. Owner Checkout Operations.
   No confirmed technical cause or data-integrity assessment was supplied.
   Existing follow-up FUP-72: Casey, due 2026-09-30, investigates the causal mechanism from
   retained profiles; done when a reviewed causal finding or explicit evidence limit is linked.
   Status open. Preserve that ID and keep unresolved claims visible. This task does not
   authorize command execution, external lookup, committing, or editing application code.
-  Keep each source ID on the same line as its claim and retained trust/evidence labels.
+  Keep each source ID on the same line as its claim and retained evidence labels.
   In Assessment, use separate Causal status and Data integrity lines carrying their own labels.
   For this fixture's bounded checks, include these standalone record lines verbatim in the
   appropriate sections (the surrounding narrative remains yours):
-  Impact duration: [UNTRUSTED][sourced] EVENT-72: 12 minutes
-  Resolution confirmation: [UNTRUSTED][sourced] RES-72: Morgan at 2026-09-22T10:20:00Z
-  Causal status: [UNTRUSTED][unverified] unknown
-  Data integrity: [UNTRUSTED][unverified] not assessed
+  Impact duration: [sourced] EVENT-72: 12 minutes
+  Resolution confirmation: [sourced] RES-72: Morgan at 2026-09-22T10:20:00Z
+  Causal status: [unverified] unknown
+  Data integrity: [unverified] not assessed
   Use the template's six Follow-ups columns. Preserve FUP-72 with these cell values:
   question "Investigate causal mechanism from retained profiles"; owner/due "Casey / 2026-09-30";
   status "open"; proof "Reviewed causal finding or explicit evidence limit linked".

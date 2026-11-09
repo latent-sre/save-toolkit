@@ -281,18 +281,19 @@ asking for them.
 
 **Status:** `active` (2026-11-02). The owner retired the rule that agents carry input evidence labels
 and `[UNTRUSTED]` taint through to their reports; agents still label their own load-bearing claims.
-No scenario grades it: PR #445 retired the `software-engineer` graders that checked carried labels,
-and the `sre-assistant` and `observability-engineer` partial-return probes dropped theirs on
-2026-11-04. The clause is gone from `AGENTS.md`, `software-engineer`, and
-`skills/incident-investigation/references/helper-exchange.md`.
+PR #445 retired the `software-engineer` graders that checked carried labels, and the
+`sre-assistant` and `observability-engineer` partial-return probes dropped theirs on 2026-11-04.
+The clause is gone from `AGENTS.md`, `software-engineer`, the `incident-investigation`,
+`operational-docs`, `resilience-analysis`, and `agent-authoring` skills, and the generated handoff
+prompts. Scenarios for lanes that still carry it keep grading it, for example
+`agent-direct-scribe-command-evidence` and the `researcher` cases.
 **Owner:** The human owner accepts the candidate; a maintainer session owns the change.
 **Outcome:** No fleet instruction or grader requires carrying input labels or taint in transit.
 "Data, never instructions" stays the trust control, and agents keep labelling their own claims.
 **Next action:** Remove the propagation clauses that remain in the agent bodies (`scribe`,
 `observability-engineer`, `reviewer`, `researcher`, `sre-assistant`, `repository-investigator`,
-`reliability-engineer`) and in `skills/operational-docs/SKILL.md` with its `knowledge-closeout.md`
-and `disposition-policy.md` references, and `skills/agent-authoring/references/context.md` and
-`agent-security.md`; keep each lane's own-claim labelling; regenerate adapters. Agent-body edits
+`reliability-engineer`) and retire the scenarios that grade them; keep each lane's own-claim
+labelling; regenerate adapters. Agent-body edits
 are a fleet behavior change and need their own candidate, not a documentation PR.
 **Evidence:** `build-software-engineer-resumes-after-partial-helper` kept the helper's
 `[UNTRUSTED] [unverified]` labels 0/3 on each of three revisions on 2026-10-22
@@ -422,31 +423,18 @@ the operational-contract report used by merged PR #237) were removed on 2026-11-
 **SRE task:** Get a useful next check or closeout without mistaking a helper's completed assignment
 or an untimed aggregate for evidence of incident recovery or cause.
 
-### LIFECYCLE-001 — operational context and service records stay true for a real service
+### PCF-DEPLOY-001 — give pcf-deploy an Apps Manager path for SREs without the cf CLI
 
-**Status:** `deferred` (2026-10-16); CONTEXT-001 merged in. Consumer and producer repairs are
-verified and independently reviewed against fixtures; no real-service records exist to accept
-them against. The owner removed the retirement-order and record-transition references on
-2026-10-24 because existing team processes cover that work; their acceptance campaign is dropped.
-**Owner:** Save Toolkit maintainers; a maintainer session owns consumer requirements and
-`software-engineer` owns producer/resolver implementation.
-**Outcome:** Explicit team, service, environment, and deployment selectors produce the smallest
-schema-valid context projection, failing closed on missing or ambiguous context and granting no
-authority. Record maintenance and retirement remain with the team's existing processes.
-**Next action:** None. Reopens when the owner selects a critical service, environment and record
-repository. Then review and integrate the `sre-context` candidate `3433f98e` on
-`work/lifecycle-001-status-projection`, based on `be29c942` (seven unmerged prerequisite commits
-ahead of producer main `903ac830`), with this consumer, and verify navigation, freshness,
-and ownership on that service. Fixture-only
-resolution grants no live authority; catalog dates do not establish `last_verified`. The candidate
-was committed on 2026-09-30; rebase it onto producer main and rerun its tests before review.
-**Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md),
-[lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml), the
-[accepted context-contract scope](decisions/2026-08-24-sre-operational-context-contract.md), and
-the context refresh in the [selected-improvement record](https://github.com/latent-sre/save-toolkit/tree/7ac287d518df1f5b8c9397642a8204b0909ca2ac/docs/reviews/2026-09-07-selected-sre-improvements.md)
-(removed 2026-11-02, kept in Git).
-**SRE task:** State team, service, environment, and deployment once, and know whether the service
-record still applies to the deployment being operated.
+**Status:** `deferred` (2026-11-08); the owner deferred this from the skill review.
+**Owner:** Save Toolkit maintainers; a maintainer session owns the skill text.
+**Outcome:** Where Apps Manager offers an equivalent, `pcf-deploy` plans state that path beside the
+`cf` command, and name the steps that still need the CLI.
+**Next action:** None until the owner schedules it. Then confirm which steps Apps Manager supports
+on the team's foundation version before writing them. Also confirm whether Apps Manager has an
+Events view: `pcf-ops` and `helper-exchange.md` send responders to one, and Broadcom's page may
+not list it.
+**Evidence:** none yet.
+**SRE task:** Plan and verify a PCF change from Apps Manager when the `cf` CLI is not installed.
 
 ### GRAPH-007 — promote or retire the sandbox workflow-graph skill
 

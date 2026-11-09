@@ -16,17 +16,19 @@ disagreement; `RELEASE-001` owns host verification. A supported header is not pr
 VS Code loads agent `.md` files from `.github/agents/` in a workspace and from
 `com.github.copilot/agents/` in an Agent Plugins 1.0 plugin; the fleet emits the same
 `<name>.agent.md` to both. Local VS Code, the VS Code Copilot harness, and GitHub's cloud agent
-have different field contracts. An omitted `target` follows the selected editor harness, not
+have different field contracts. **The emitted `agents:` and `handoffs:` work only on VS Code's Local
+harness, which VS Code calls legacy;** the Copilot harness accepts neither, so the subagent allowlist
+and handoff buttons do not apply there. An omitted `target` follows the selected editor harness, not
 necessarily Local. Unsupported attributes receive editor hints; malformed supported values can
 still be errors. Schema acceptance does not establish runtime enforcement.
 
 | Field | Disposition here |
 |---|---|
-| `name`, `description` | Both emitted. `name` is optional (VS Code falls back to the file name; GitHub marks it optional); `description` is the trigger and the chat-input placeholder |
+| `name`, `description` | Both emitted. `name` is optional (VS Code falls back to the file name; GitHub marks it optional); `description` is the trigger |
 | `tools` | Tool or tool-set names — aliases below. Emitted, mapped from the Claude grant |
 | `agents` | **Local VS Code** subagent names; `*` allows all, `[]` prevents any. Emitted from the canonical `Agent(...)` grant. The Copilot-harness converter does not forward it; cloud enforcement is not documented. Local discovery scoping is not proof of deterministic invocation or nested-edge enforcement; `RELEASE-001` owns those host checks |
 | `handoffs` | Human-selected ownership transfer — **Local VS Code only**; ignored on GitHub cloud and not forwarded by the VS Code Copilot converter. Emitted for the six lanes in `COPILOT_HANDOFFS_BY_SOURCE`, independently of `Agent(...)` grants. A handoff is a user-selected context transition, not a subagent call, approval, or delegation authority; every write-capable receiver re-checks approval and target binding, and `researcher` is never a target because handoffs carry conversation context. Neither `agents:` nor `handoffs:` is a sandbox |
-| `argument-hint` | **Local VS Code only** on agents; ignored on GitHub cloud and unsupported by the Copilot-harness schema. Not emitted on agents; the fleet uses it on skills |
+| `argument-hint` | Input hint shown in the chat input. **Local VS Code only** on agents; ignored on GitHub cloud and unsupported by the Copilot-harness schema. Not emitted on agents; the fleet uses it on skills |
 | `model` | Single model name on GitHub cloud; VS Code Local and Copilot also accept a prioritized array. Unused; Claude generation aliases are not Copilot model display names |
 | `user-invocable` | Boolean, default `true`; `false` hides the agent from the chat dropdown. Unused — every fleet lane is meant to be reachable by the human SRE |
 | `disable-model-invocation` | Boolean, default `false`. Local VS Code excludes the agent from automatic subagent selection, but a caller's explicit `agents` list can override it; GitHub cloud uses it to prevent automatic selection. Unused on agents; do not treat it as an access boundary |
@@ -36,26 +38,16 @@ still be errors. Schema acceptance does not establish runtime enforcement.
 | `metadata` | GitHub only; not used by VS Code or other IDE custom agents. Unused |
 | `infer` | **Retired** — replaced by `user-invocable` and `disable-model-invocation`. Never emit |
 
-Additional Copilot-harness fields (`skills`, `reasoning-effort`, `model-policy`, `github`,
-`deferred-tool-loading`, `strict-tools-list`, `include-custom-instructions`) are unused here.
-The converter does not forward the last five; recognizing a field in the editor is not sufficient
-reason to add it. Keep existing grants and unset targets unless a host-qualified use case needs a
-change.
+Copilot-harness `skills`, `reasoning-effort`, `model-policy`, `github`, `deferred-tool-loading`,
+`strict-tools-list`, and `include-custom-instructions`, and Local-only `advancedOptions`, are unused
+here; recognizing a field in the editor is not sufficient reason to add it.
 
 Claude grants use full plugin names (`Agent(save-toolkit:reviewer)`); the generator projects the
 same targets to bare Copilot names, removing only this plugin's namespace without widening the target set. The `README.md` roster owns the edge list.
 
 ## Handoff entries
 
-Local VS Code only; entries in `handoffs`:
-
-| Field | Disposition here |
-|---|---|
-| `label` | Display text on the handoff button. Emitted |
-| `agent` | Target agent identifier to switch to. Emitted |
-| `prompt` | Prompt text sent to the target. Emitted |
-| `send` | Boolean, default `false`; `true` auto-submits so one click starts the receiver. Emitted `true` |
-| `model` | Optional model for the handoff, formatted `Model Name (vendor)`. Unused — follows the unpinned agent-model policy above |
+Local VS Code only: each entry emits `label`, `agent`, `prompt`, and `send: true` so one click starts the receiver; the optional per-handoff `model` is unused, following the unpinned agent-model policy above.
 
 ## Tool aliases
 
@@ -65,15 +57,13 @@ GitHub cloud also accepts `<server>/*`, `["*"]` for everything, and `[]` for no 
 VS Code Copilot conversion maps both an empty and missing list to `null` (all tools). Keep explicit,
 nonempty grants and verify actual host provisioning before claiming tool absence.
 
-| Alias | Claude tools mapped to it | Used |
-|---|---|---|
-| `read` | `Read` | yes |
-| `search` | `Grep`, `Glob` | yes |
-| `edit` | `Write`, `Edit`, `NotebookEdit` | yes |
-| `execute` | `Bash`, `PowerShell` | yes |
-| `web` | `WebFetch`, `WebSearch` | yes — VS Code only; not applicable on Copilot cloud agent |
-| `agent` | `Agent` | yes |
-| `todo` | `TodoWrite` | yes — builders and the reviewer for bounded investigation. VS Code provisions it; the cloud coding agent does not. `TodoWrite` itself is disabled by default on Claude Code and stays only as this mapping's source |
+`read` (`Read`), `search` (`Grep`, `Glob`), `edit` (`Write`, `Edit`, `NotebookEdit`), `execute`
+(`Bash`, `PowerShell`), `web` (`WebFetch`, `WebSearch`; VS Code only, not applicable on Copilot cloud
+agent), `agent` (`Agent`), and `todo` (`TodoWrite`).
+
+`todo` goes to builders and the reviewer for bounded investigation; VS Code provisions it and the
+cloud coding agent does not. `TodoWrite` is not provided by default on Claude Code and stays only as
+this mapping's source.
 
 `EnterWorktree` / `ExitWorktree` have **no Copilot alias** and are deliberately unmapped — the
 projection drops them rather than substituting `execute`, which would widen authority on a host
@@ -83,7 +73,8 @@ detail in the Save Toolkit repository's `docs/copilot-projection.md`.
 ## Skills
 
 Copilot discovers workspace skills from `.github/skills`, `.claude/skills`, and `.agents/skills`,
-and personal skills from `~/.copilot/skills`, `~/.claude/skills`, and `~/.agents/skills`. This fleet's
+and personal skills from `~/.copilot/skills` and `~/.agents/skills`; VS Code lists `~/.claude/skills`
+for its Anthropic Claude harness. This fleet's
 workspace projection lives at `.github/skills/`; the installed plugin reads canonical `skills/`
 under Agent Plugins 1.0. Installed plugin skills keep their `save-toolkit:` names; the `.github/` workspace copies use bare
 names.
@@ -92,18 +83,46 @@ The [VS Code skill header reference](https://code.visualstudio.com/docs/agent-cu
 documents invocation behavior; the [Agent Skills specification](https://agentskills.io/specification)
 defines portable metadata. Verify installed-plugin discovery separately.
 
+Every fleet skill emits `name` (leave plugin namespacing to the host), `description` (at most 1,024
+characters), and `argument-hint` (ignored on Copilot cloud). `compatibility` carries host and access
+prerequisites (for example `pcf-deploy`) and is descriptive, not an access check. `user-invocable`
+stays unset so every fleet skill is reachable by the human; `metadata` and `license` are unused, the
+plugin manifest carrying MIT. Experimental `context` is unused; adopt it only after a bounded host
+check of the skill's ownership and evidence-return contract.
+
 | Field | Disposition here |
 |---|---|
-| `name` | Required; 1–64 lowercase letters, digits, or hyphens; no leading, trailing, or consecutive hyphens. Must match the parent directory. Emitted on all skills; leave plugin namespacing to the host |
-| `description` | Required; what the skill does and when to use it, at most 1,024 characters. Emitted; the fleet enforces the same character limit |
-| `argument-hint` | Emitted on all skills; ignored on Copilot cloud |
-| `user-invocable` | Optional, default `true`. `false` hides the skill from the slash-command menu while allowing automatic loading. Unused — keep every fleet skill reachable by the human |
 | `disable-model-invocation` | Optional, default `false`. `true` disables automatic loading; used by `pcf-deploy` for manual-only invocation. Setting this to `true` together with `user-invocable: false` disables both entry paths |
-| `context` | **Experimental**, unused; no current adoption requirement. Default is inline; `fork` runs the skill in a dedicated subagent context and returns only its final result to the parent. Requires `github.copilot.chat.skillTool.enabled`; adopt only after a bounded host check of the skill's ownership and evidence-return contract |
-| `compatibility` | Optional portable metadata, 1–500 characters describing environment requirements. Used for host and access prerequisites (for example `pcf-deploy`); descriptive, not an access check |
-| `metadata` | Optional portable string-to-string mapping. Unused |
-| `license` | Optional. Unused; the plugin manifest carries MIT |
-| `allowed-tools` | Experimental in the portable specification: a space-separated list of pre-approved tools, with implementation-dependent support. VS Code's skill-header table does not document it; Copilot enforcement is unverified. Fleet policy avoids tool preapproval: **do not use**; do not treat it as a restricting allowlist |
+| `allowed-tools` | Experimental in the portable specification: a space-separated list of pre-approved tools, with implementation-dependent support. Copilot CLI documents it as tool pre-approval; VS Code's skill-header table does not document it, and enforcement on an installed host is unverified. Fleet policy avoids tool preapproval: **do not use**; do not treat it as a restricting allowlist |
+
+### Portable frontmatter
+
+Host-specific fields may be rejected by packaging or ignored at runtime; do not assume a control
+survives projection. The portable six are `name`, `description`, `license`, `compatibility`,
+`metadata`, and `allowed-tools`. This fleet writes `compatibility` as one single-line scalar so the
+local gate measures its 500-character limit exactly.
+
+Outside the portable specification, which does not mean unsupported by every other host:
+
+- `argument-hint` is used on every fleet skill; VS Code recognizes it, the portable spec does not.
+- `disable-model-invocation` makes `pcf-deploy` explicit-only on Claude and VS Code; that invocation
+  gate does not travel in portable metadata.
+- Other nonportable fields are unused here. VS Code recognizes `user-invocable` and experimental
+  `context: fork`; its `disallowedTools` and `hooks` support on agent files does not establish
+  support for skill-header restrictions.
+
+Portable `allowed-tools` preapproves tools; it does not restrict them. Ignored fields remove their
+controls, and VS Code tool lists are user-overridable defaults, not an enforcement boundary.
+
+| Host / spec | Limit | Scope |
+|---|---|---|
+| GitHub Copilot custom agents | 30,000 characters of Markdown below one `.agent.md` frontmatter | Per generated profile, including its host contract — not an aggregate fleet budget, not a skill-body limit; GitHub does not define "character" (code points vs UTF-16 units), so report the official contract and the counting semantics separately |
+| Agent Skills specification | `description` ≤1,024 characters; `SKILL.md` recommended under 5,000 tokens and 500 lines, resources on demand | Authoring recommendations, not body validators |
+| VS Code | No matching body-length check in public source | — |
+
+Before publishing to the portable spec, strip to the portable six and preserve dropped
+invocation/authority boundaries in the body. Prose remains cooperative; it does not replace a host
+control lost during publication.
 
 Hook entry shape, PreToolUse decisions, launcher behavior, and manifest format detection are host
 contract for the guard and generator, not authoring frontmatter; they live in the Save Toolkit

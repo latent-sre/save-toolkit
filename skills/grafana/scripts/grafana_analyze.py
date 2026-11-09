@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Offline, bounded agent evidence views of captured Grafana data.
 
 No telemetry reads, expression execution, or health inference. Source JSON pointers
@@ -78,9 +77,11 @@ def _hygiene(captures):
                 "findings": [], "query_analysis": [], "gaps": []}
         results.append(item)
         try:
-            if not isinstance(capture, dict) or not isinstance(capture.get("dashboard"), dict):
+            # A V2 capture carries the reader's mapped panel view beside the stored object.
+            model = capture.get("panel_view", capture.get("dashboard")) if isinstance(capture, dict) else None
+            if not isinstance(model, dict):
                 raise ValueError("dashboard_model_unavailable")
-            model = _copy(capture["dashboard"], MAX_MODEL_BYTES)
+            model = _copy(model, MAX_MODEL_BYTES)
             spec, _ = hygiene.locate_spec(model)
             if "elements" in spec or "layout" in spec or "panels" not in spec:
                 raise ValueError("unsupported_dashboard_model")

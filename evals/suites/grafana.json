@@ -6,7 +6,6 @@
     "evals/test_eval005_scenario.py",
     "evals/test_grafana_create_contract.py",
     "scripts/test_dashboard_hygiene.py",
-    "scripts/test_grafana_alert_preview.py",
     "scripts/test_grafana_analyze.py",
     "scripts/test_grafana_capture.py",
     "scripts/test_grafana_dependencies.py",
@@ -18,7 +17,6 @@
     "scripts/test_grafana_query_transport.py",
     "scripts/test_grafana_read.py",
     "scripts/test_grafana_review_contract.py",
-    "scripts/test_grafana_vscode.py",
     "scripts/test_grafana_workflow.py"
   ],
   "native_scenarios": [

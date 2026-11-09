@@ -1,26 +1,26 @@
 # Stack: toolchain, kits and libraries
 
-Preserve repository choices; verify compatibility and licences for added capabilities.
+Verify compatibility and licences for added capabilities.
 
 ## React toolchain
 
 - **React 19.3, Vite 8 and strict TypeScript.** Scaffold with
-  `npm create vite@latest -- --template react-ts`. Node 22.12+ (24 LTS); npm with one committed
-  lockfile (keep pnpm where already used).
-- **TypeScript 6** (`<6.1.0`) while `typescript-eslint` requires the classic compiler API absent
-  from native TypeScript 7 (`@typescript/native`). Run `tsc --noEmit` for typechecking. Use
-  `"paths": { "@/*": ["./src/*"] }` without `baseUrl` (deprecated in TypeScript 6 (`TS5101`) and
-  removed in TypeScript 7), mirrored by Vite's `resolve.alias`.
+  `npm create vite@latest -- --template react-ts`. Node: the current Active LTS; take the floor
+  from the lockfile's `engines`. npm with one committed lockfile (keep pnpm where already used).
+- **TypeScript 7,** as the scaffold pins it. Typecheck with `tsc -b`: the scaffold's root
+  `tsconfig.json` has `files: []` plus project references, so `tsc --noEmit` checks no files there.
+  Set `"paths": { "@/*": ["./src/*"] }` in `tsconfig.json` and `tsconfig.app.json` without
+  `baseUrl` (removed in TypeScript 7), mirrored by Vite's `resolve.alias`.
 - **React Compiler:** `babel({ presets: [reactCompilerPreset()] })` beside `react()`
   (`@vitejs/plugin-react`, `@rolldown/plugin-babel`, `@babel/core`,
-  `babel-plugin-react-compiler`) plus `eslint-plugin-react-hooks` recommended rules; or experimental
-  `react({ compiler: { reportDiagnostics: true } })` with `oxc-transform-react` (`>=0.152`;
-  `compiler.logDiagnostics` is deprecated in `@vitejs/plugin-react` 6.1.2+).
-- **Tailwind v4:** `@tailwindcss/vite`; `@import` [theme.css](../assets/theme.css) in the Tailwind
-  stylesheet right after `@import "tailwindcss"`.
-- **Lint and tests:** ESLint 10 flat config with `typescript-eslint` type-checked promise rules,
-  React hooks/refresh plugins and Prettier (or repo-standard oxlint / Biome 2). Vitest 5, Testing
-  Library, MSW 3, jsdom (or Vitest browser mode for layout) and `vitest-axe`.
+  `babel-plugin-react-compiler`). `eslint-plugin-react-hooks` recommended rules run under ESLint or
+  oxlint's alpha `jsPlugins`.
+- **Tailwind v4:** `@tailwindcss/vite`.
+- **Lint and tests:** the scaffold's oxlint, adding `oxlint-tsgolint` and `oxlint --type-aware` for
+  `typescript/no-floating-promises` and `typescript/no-misused-promises` (or repo-standard ESLint /
+  Biome 2), and Prettier. Vitest 5, Testing Library, MSW 3, jsdom (or Vitest browser mode for
+  layout) and `axe-core` directly; its `color-contrast` rule does not work in jsdom, so disable it
+  there and check contrast in the browser.
 
 For Vue apps, use [Vue](./vue.md).
 
@@ -31,10 +31,10 @@ the mixing rules, not a one-kit limit.
 
 | Kit | Fit and integration | Licence |
 |---|---|---|
-| **shadcn/ui** | Default base: CLI source (`shadcn`), Tailwind v4 + CSS tokens; Base UI default, Radix (`-b radix`) or React Aria (`-b aria`); no provider | MIT |
+| **shadcn/ui** | Default base: CLI source (`shadcn`), Tailwind v4 + CSS tokens; Base UI default, Radix (`-b radix`) or React Aria (`-b aria`); `TooltipProvider` at the root for tooltips | MIT |
 | **Radix UI** | Unstyled `radix-ui` primitives; Radix Themes adds CSS and `<Theme>` | MIT |
 | **Base UI** | Unstyled `@base-ui/react` primitives; no provider; isolate app root (`isolation: isolate`) | MIT |
-| **HeroUI v3** | Styled React Aria kit; Tailwind v4, `@heroui/styles` after Tailwind; no provider | MIT |
+| **HeroUI v3** | Styled React Aria kit; Tailwind v4, `@heroui/styles` after Tailwind; no provider | Apache-2.0 |
 | **Mantine 9** | Workbench suite: components, hooks, forms, dates, charts, notifications; `MantineProvider` and `styles.layer.css` | MIT |
 | **Material UI 9** | Material Design + MUI X data-grid; theme provider, Emotion and `StyledEngineProvider enableCssLayer` | Core MIT; X Pro/Premium commercial |
 | **daisyUI 5** | Tailwind `@plugin "daisyui"`; no provider; prefix (`prefix: "d-"`) when mixing | MIT |
@@ -61,8 +61,7 @@ Use one icon set (Lucide, Tabler or Material Symbols). Prefer base-kit drawers o
    kit providers, including colours, radius and fonts.
 3. **One interaction system per primitive:** keep a single owner for dialogs/modals, tooltips,
    toasts, icons and dates across the app to avoid competing focus traps and portal roots.
-4. **Avoid collisions:** prefix daisyUI/Tailwind where needed; weigh bundle/provider cost against
-   the existing kit.
+4. **Weigh additions** by bundle and provider cost against the existing kit.
 5. **Bridge animated collections:** provide `cn` and shadcn token variables when mounting
    shadcn-registry animations on another base kit.
 
@@ -71,7 +70,7 @@ Use one icon set (Lucide, Tabler or Material Symbols). Prefer base-kit drawers o
 | Need | Default and alternatives |
 |---|---|
 | Server state | **TanStack Query 5**, endpoint `queryOptions`; query layer owns retries |
-| Typed API | **openapi-typescript**, **openapi-fetch**, **openapi-react-query**; **@hey-api/openapi-ts** (with TanStack plugin); see [API](./api.md) |
+| Typed API | **openapi-typescript** (generate from a separate tooling package pinned to TypeScript 5: its `^5.x` peer and compiler API do not work with the app's TypeScript 7), **openapi-fetch**, **openapi-react-query**; **@hey-api/openapi-ts** (with TanStack plugin; its peer range allows TypeScript 7 but it still imports the classic compiler API, so isolate it the same way); see [API](./api.md) |
 | Routing | **TanStack Router** (`@tanstack/router-plugin` + Zod 4 search validation) for new apps; keep **React Router** (`nuqs` for typed URL state) in existing apps |
 | Tables | **TanStack Table 9** (`tableFeatures({...})` + `useTable`, keeping `features`, `columns` and empty-array fallbacks outside render or memoized; `useReactTable` is removed) and **TanStack Virtual**; **AG Grid Community** (MIT); **Perspective** |
 | Forms & dates | **react-hook-form** + **@hookform/resolvers** + **Zod 4**, or **TanStack Form**; **date-fns 4** + **@date-fns/tz** |

@@ -14,12 +14,16 @@ limit and threshold here is fictional: this is neither foundation evidence nor r
 > app instances. This supports app capacity as a mitigation target; 502s alone would not.
 > **Exact command**: Apps Manager -> the `order-router` app's **Overview** page -> **Scale**, instances
 > 4 -> 6 (`cf scale order-router -i 6` where the CLI is installed).
+> **Approver**: `<authorized human>`, approval time `<UTC>`.
 > **Valid until**: `<UTC>` — after this deadline the change re-enters approval.
 > **Execution boundary**: `<named release owner>` holds the least-privilege `prod` space role that
 > can scale `order-router`; `<evidence: role assignment record>`. I hold no role that can apply it.
 > **Change record**: `<change system and ID, per stack-profile>`.
-> **Blast radius**: no restart of existing instances (`-i` only adds); ~40s until new instances pass
-> health checks in the supplied rehearsal. No config or code changes.
+> **Blast radius**: all `order-router` routes, carrying 100% of its traffic. No restart of existing
+> instances (`-i` only adds); ~40s until new instances pass health checks in the supplied rehearsal.
+> No config or code changes. Worst credible failure: the downstream dependency does not sustain six
+> instances despite its tested headroom, raising 502s and latency for all `order-router` traffic
+> until the rollback below completes.
 > **Verification**: the **Overview** instance table shows 6 running (`cf app order-router` shows
 > `instances: 6/6`) within 3 min; for the affected routes, 502s stay below 0.1% and request p95 below
 > 300 ms for 10 continuous minutes. Running instances alone do not establish recovery.

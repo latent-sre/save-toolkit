@@ -103,36 +103,6 @@ def _table(title: str, headers: tuple, rows: list) -> str:
     return "\n".join(output)
 
 
-def _preview_overview(report: dict) -> str:
-    output = ["<h2>Sampled alert preview</h2><dl>"]
-    for key in ("status", "operator", "threshold", "pending_ms", "step_ms", "evaluation_slots", "coverage",
-                "initial_state", "pre_window_history", "end_censored", "notification_delivery", "saved_rule_replay", "limits"):
-        output.append(f"<dt>{_escape(key)}</dt><dd>{_escape(report.get(key, 'unknown'))}</dd>")
-    output.append("</dl><p>This is a sampled threshold preview, not a replay of a saved rule or notification delivery. "
-                  "Missing samples reset pending state. Null interval ends remain open at the last observed evaluation; no future state is inferred.</p>")
-    for warning in report.get("warnings", []):
-        output.append(f"<p>Warning: {_escape(warning)}</p>")
-    if report.get("unsupported_frames"):
-        output.append(_table("Unsupported frames", ("Frame", "Reason"),
-                             [[item.get("frame_index"), item.get("reason")] for item in report["unsupported_frames"]]))
-    for series in report.get("series", [])[:100]:
-        output.append(f"<article><h3>{_escape(series.get('field', 'unnamed'))} {_escape(series.get('labels', {}))}</h3>"
-                      f"<p>Status: {_escape(series.get('status', 'unknown'))}; evaluated samples: {_escape(series.get('evaluated_samples', 'unknown'))}; "
-                      f"missing evaluations: {_escape(series.get('missing_evaluations', 'unknown'))}.</p>")
-        for warning in series.get("warnings", []):
-            output.append(f"<p>Warning: {_escape(warning)}</p>")
-        output.append(_table("Firing intervals", ("Start ms", "End ms", "First breach ms", "End reason"),
-                             [[row.get(key) for key in ("start_ms", "end_ms", "first_breach_ms", "end_reason")] for row in series.get("intervals", [])]))
-        output.append(_table("Missing data periods", ("Start ms", "End ms"),
-                             [[row.get("start_ms"), row.get("end_ms")] for row in series.get("missing_data_periods", [])]))
-        output.append(f"<p>Pending at end: {_escape(series.get('pending_at_end') or 'none observed')}. "
-                      f"Last evaluation ms: {_escape(series.get('last_evaluation_ms', 'unknown'))}; "
-                      f"end censored: {_escape(series.get('end_censored', 'unknown'))}.</p></article>")
-    if len(report.get("series", [])) > 100:
-        output.append("<p>Preview series display limited to 100; complete evidence retained below.</p>")
-    return "\n".join(output)
-
-
 def _dependency_overview(report: dict) -> str:
     nodes = sorted(report.get("nodes", []), key=lambda node: (str(node.get("kind", "")), str(node.get("id", ""))))
     by_id = {node.get("id"): node for node in nodes}
@@ -186,9 +156,7 @@ def _render_html(report: dict, image_names: set[str]) -> bytes:
         parts.append("<h2>Investigation gaps</h2><ul>" + "".join(f"<li>{_escape(gap)}</li>" for gap in report["gaps"]) + "</ul>")
     if report.get("context"):
         parts.append(_context_overview(report["context"]))
-    if report.get("operation") == "alert_preview":
-        parts.append(_preview_overview(report))
-    elif report.get("operation") == "dependencies":
+    if report.get("operation") == "dependencies":
         parts.append(_dependency_overview(report))
     for panel in report.get("panels", []):
         parts.append(f"<article><h2>Panel {_escape(panel.get('id', '?'))}: {_escape(panel.get('title', 'Untitled'))}</h2>")
@@ -292,7 +260,7 @@ def _trim_candidates(report: dict):
                 targets.append((size, target, {'panel_id': panel.get('id'), 'ref_id': target.get('ref_id'), 'mode': target.get('mode')}))
     for _, target, identity in sorted(targets, key=lambda item: item[0], reverse=True):
         yield target, 'result', identity
-    for key in ('dashboard_capture', 'context', 'dashboard', 'query_plan', 'hygiene', 'series', 'nodes', 'edges'):
+    for key in ('dashboard_capture', 'context', 'dashboard', 'query_plan', 'hygiene', 'nodes', 'edges'):
         if key in report:
             yield report, key, {'field': key}
 

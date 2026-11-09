@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Bounded statistics for captured raw Grafana numeric columns, without I/O.
 
 The reader owns supported wire shapes. Polars owns aggregate calculations; nulls,
@@ -114,11 +113,7 @@ class FrameStatistics:
             gaps.append({"code": "unsupported_query_results", "evidence_ref": pointer + "/results"})
         else:
             entry = raw["A"]
-            try:
-                failed = bool(entry.get("error")) or int(entry.get("status", 200)) >= 400
-            except (TypeError, ValueError, OverflowError):
-                failed = True
-            if failed or not isinstance(entry.get("frames"), list):
+            if reader.result_failed(entry) or not isinstance(entry.get("frames"), list):
                 gaps.append({"code": "unsupported_query_results", "evidence_ref": pointer + "/results/A"})
             else:
                 self._frames(entry["frames"], pointer + "/results/A/frames", result)

@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Pure, bounded Classic dashboard query planning for agent consumers.
+"""Pure, bounded dashboard query planning over the Classic panel shape (V2 arrives mapped).
 
 Callbacks provide the installed reader's model validation and query command
 contract. No network, filesystem, query evaluation, or telemetry health inference.
@@ -30,12 +29,17 @@ def substitute(expression, variables, *, context='query'):
 
     Quoted matcher regexes escape regex metacharacters before query-string
     escaping. Unquoted substitutions retain a conservative token contract.
+    `${name:regex}` is accepted only in a quoted regex matcher, where one
+    escaped literal is exactly what Grafana's regex format produces for one value.
     Built-in macros are left to the reader's versioned query validation.
     """
     def replace(match):
         name = match.group(1) or match.group(2)
         if name.startswith('__'):
             return match.group(0)
+        name, separator, modifier = name.partition(':')
+        if separator and modifier != 'regex':
+            raise ValueError('unsupported_variable_interpolation')
         value = variables.get(name)
         if (not isinstance(value, str) or not 1 <= len(value) <= 100 or
                 any(ord(char) < 32 or ord(char) == 127 for char in value)):
@@ -44,12 +48,16 @@ def substitute(expression, variables, *, context='query'):
         if escaped:
             raise ValueError('unsupported_variable_interpolation')
         if not quote:
+            if separator:
+                raise ValueError('unsupported_variable_interpolation')
             pattern = r'[A-Za-z0-9_.:-]+' if context == 'datasource' else r'[A-Za-z0-9_:]+'
             if not re.fullmatch(pattern, value):
                 raise ValueError('unsupported_variable_interpolation')
             return value
         prefix = expression[:opening].rstrip()
         if not prefix.endswith(('=', '!=', '=~', '!~', '|~')):
+            raise ValueError('unsupported_variable_interpolation')
+        if separator and not prefix.endswith(('=~', '!~', '|~')):
             raise ValueError('unsupported_variable_interpolation')
         if prefix.endswith(('=~', '!~', '|~')):
             value = re.sub(r'([\\.^$*+?{}\[\]()|])', r'\\\1', value)
@@ -109,7 +117,7 @@ def build_plan(dashboard, args, variables, *, panel_reader, target_builder, erro
     missing = set()
     for panel in all_panels[:args.max_panels]:
         blocked = panel.get('_parent_context', []) + [key for key in (
-            'libraryPanel', 'repeat', 'scopedVars', 'timeFrom', 'timeShift') if panel.get(key)]
+            'libraryPanel', 'repeat', 'scopedVars', 'timeFrom', 'timeShift', 'timeCompare') if panel.get(key)]
         item = {'id': panel['id'], 'title': panel.get('title'), 'type': panel['type'],
                 'blocked': bool(blocked), 'targets': [],
                 'gaps': ['unsupported_panel_' + key for key in blocked]}
@@ -151,7 +159,7 @@ def build_plan(dashboard, args, variables, *, panel_reader, target_builder, erro
                 for expression in (target.get('expr'), uid):
                     if isinstance(expression, str):
                         missing.update(name for match in MACRO.finditer(expression)
-                                       if (name := match.group(1) or match.group(2)) not in variables
+                                       if (name := (match.group(1) or match.group(2)).partition(':')[0]) not in variables
                                        and not name.startswith('__'))
                 if isinstance(uid, str):
                     uid = substitute(uid, variables, context='datasource')
@@ -171,7 +179,9 @@ def build_plan(dashboard, args, variables, *, panel_reader, target_builder, erro
                                         if render_policy != 'none' else 'resolve_query_context'})
     plan.update(queries_planned=queries, targets_inspected=inspected, missing_inputs=sorted(missing),
                 request_estimate={'queries': queries, 'renders': renders,
-                                  'total_upper_bound': 5 + queries * 2 + renders * 2})
+                                  # A dashboard read is up to 3 requests (legacy, stored-version
+                                  # check, native V2), twice per run and once per render.
+                                  'total_upper_bound': 9 + queries * 2 + renders * 4})
     plan['status'] = 'partial' if plan['gaps'] or any(
         panel['gaps'] or any(target['status'] in ('unsupported', 'not_run') for target in panel['targets'])
         for panel in plan['panels']) else 'planned'

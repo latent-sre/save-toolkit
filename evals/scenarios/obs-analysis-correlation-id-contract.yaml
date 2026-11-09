@@ -4,7 +4,7 @@ split: regression
 skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-analysis/references/log-analysis.md
+  - skills/obs-analysis/references/signal-methods.md
 prompt: |
   Follow correlation id 7f3c9a2e-51d4-4b8e-9c0a-2d6f1e8b4a17 through order-router and ledger.
   The customer error page calls this a correlation id; no trace id or mapping has been supplied.

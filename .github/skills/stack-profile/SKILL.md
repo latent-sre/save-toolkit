@@ -21,12 +21,11 @@ never retail ones. Most incidents trace to dependencies, most often order manage
 apps, and the quote plant.
 
 ## Runtime
-On-prem servers + PCF (VMware Tanzu Application Service); this is what runs today. **The team
+On-prem servers + PCF (VMware Tanzu Application Service, now Elastic Application Runtime for Tanzu Platform); this is what runs today. **The team
 operates PCF through Apps Manager**, not the command line: many SREs do not have the `cf` CLI
 installed. Skills give first checks as Apps Manager views with the `cf` v8 (CAPI V3) equivalent as
-a fallback, and the `sre-assistant` agent says when `cf` is absent where it runs rather than pretending to
-have observed the platform. **GCP migration is in progress**: GCP is an approved target, arriving (as planned) as
-reference files inside the obs skills plus the `gcp-ops` triage skill, not as a restructure. The
+a fallback; without a protected output path, the `sre-assistant` agent runs no raw `cf` command and
+asks for the Apps Manager view or a sanitized observation. **GCP migration is in progress**: GCP is an approved target. The
 landing runtime is **decision-pending** (Cloud Run is the primary candidate for TAS-shaped apps;
 GKE only if a workload demands it) — do not present either as decided or propose GKE; flag the need
 instead. Record the decision here when a human owner accepts it. **No self-managed Kubernetes**
@@ -38,8 +37,7 @@ The incumbent and additive observability stacks coexist as first-class; no liste
 by team decision. During an incident the responder opens, in order: Apps Manager for what changed
 and instance state, **Grafana** for dashboards and alert state, Splunk for logs beyond the last
 minutes, and **Wavefront and PCF App Metrics** for application metrics. The observability-stack
-reference holds the signal inventory, query languages, lifecycle evidence, and the additive and GCP
-backends.
+reference holds the signal inventory, query languages, and the additive and GCP backends.
 
 ## Read only the conditional stack facts the request needs
 
@@ -63,9 +61,9 @@ investigation board, and recommendations based on supplied impact and policy. Wh
 not recorded yet.
 
 ## Change management
-Change records live in **both BMC Remedy and Jira**. `production-change-gate` refers to "the formal
-change record" generically; name whichever system governs the change in hand rather than assuming
-one.
+Change records live in **both BMC Remedy and Jira**. `production-change-gate` asks for the change record
+and leaves the system to this profile; name whichever system governs the change in hand rather than
+assuming one.
 
 ## Documentation home
 **The team-owned GitHub repository is the living source.** Confluence still holds operational
@@ -75,20 +73,17 @@ not a destination to write to.
 
 For the document lanes: `scribe` authors into the repository; the `operational-docs` runbook method
 owns the import path.
-Never write new operational documentation into Confluence.
-
-## Stay in lane
-Stay in the app/ops lane; hand platform-internal problems to the platform team. GCP managed
-services are in-lane **for the migration** (Cloud Run, Cloud Logging/Monitoring/Trace, Secret
-Manager). On-prem/PCF infra-layer fixes remain out of lane.
 
 ## The platform boundary
-We own our apps up to the platform edge; we do not operate the platform. On PCF: BOSH, Ops Manager,
-Diego cells, Gorouter, CredHub/UAA, and foundation upgrades belong to the platform team; `pcf-ops`
-owns which symptoms are platform-side and the evidence to escalate with. On GCP the boundary moves
+Stay in the app/ops lane; hand platform-internal problems to the platform team. We own our apps up
+to the platform edge; we do not operate the platform. On PCF: BOSH, Ops Manager (now Foundation
+Core), Diego cells, Gorouter, CredHub/UAA, and foundation upgrades belong to the platform team;
+`pcf-ops` owns which symptoms are platform-side and the evidence to escalate with. On-prem/PCF
+infra-layer fixes remain out of lane. GCP managed services are in-lane **for the migration** (Cloud
+Run, Cloud Logging/Monitoring/Trace, Secret Manager). On GCP the boundary moves
 and is **not yet ratified**: the team owns more (service config, revisions, project-scoped
 observability), while org policy, folder/project structure, shared networking, and IAM beyond
 project scope sit with the cloud platform owner. Treat that split
-as unconfirmed until recorded here; the `gcp-ops` skill carries the working boundary rules. Akamai
+as unconfirmed until recorded here; the `gcp-ops` skill owns the GCP escalation path. Akamai
 delivery and WAF config is team-owned change-managed work (see the `akamai-edge` skill); Akamai the
 platform — the edge network itself — is Akamai's.

@@ -30,7 +30,7 @@ Load `operational-docs`, then read the required references within that skill:
 |---|---|---|
 | **Runbook mode** | One alert, operational task, failure mode, or routine procedure | `references/runbook.md` |
 | **Postmortem mode** | One human-resolved incident retrospective | `references/postmortem.md` |
-| **Knowledge closeout mode** | Approved service/alert changes, resolved-incident lessons, drills, audits, or discoveries, including intake from `service-lifecycle` or a service owner | `references/knowledge-closeout.md` and `references/disposition-policy.md` |
+| **Knowledge closeout mode** | Approved service/alert changes, resolved-incident lessons, drills, audits, or discoveries, including intake from a service owner | `references/knowledge-closeout.md` |
 
 Follow the selected method's edit-size, structure, template, status, and verification rules. If the
 skill or a required reference cannot be loaded, report the gap and stop. Read the closeout method

@@ -30,7 +30,6 @@
     "discovery-reliability-defers-change-review",
     "discovery-reliability-defers-observability",
     "discovery-reliability-defers-root-cause",
-    "discovery-reliability-defers-service-lifecycle",
     "discovery-reliability-defers-small-toil-arithmetic",
     "discovery-reliability-engineer-assessment",
     "discovery-reliability-toil-assessment",

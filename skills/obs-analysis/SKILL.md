@@ -16,14 +16,14 @@ Supplied-evidence explanations need no new retrieval, baseline, or full investig
 
 | Need | References |
 |---|---|
-| Logs / correlation IDs | [Method](./references/log-analysis.md); [SPL](./references/spl.md), [LogQL](./references/logql.md), [Cloud Logging](./references/gcp-logging.md) |
-| Metrics | [Method](./references/metric-analysis.md); [WQL](./references/wql.md), [PromQL](./references/promql.md), [Cloud Monitoring](./references/gcp-monitoring.md) |
-| Traces | [Method](./references/trace-analysis.md); [TraceQL](./references/traceql.md), [Cloud Trace](./references/gcp-trace.md); [OTel](./references/otel-semantics.md) for status, attributes, propagation or sampling |
-| Target fields/selectors | [Log inventory](./references/indexes.md), [metric inventory](./references/metrics.md) |
+| Logs / correlation IDs | [Method](./references/signal-methods.md#logs); [SPL](./references/spl.md), [LogQL](./references/logql.md), [Cloud Logging](./references/gcp-logging.md) |
+| Metrics | [Method](./references/signal-methods.md#metrics); [WQL](./references/wql.md), [PromQL](./references/promql.md), [Cloud Monitoring](./references/promql.md#cloud-monitoring) |
+| Traces | [Method](./references/signal-methods.md#traces); [TraceQL](./references/traceql.md), [Cloud Trace](./references/gcp-trace.md); [OTel](./references/otel-semantics.md) for status, attributes, propagation or sampling |
 | Recurring log queries | [Catalog](./references/query-catalog.md) |
 
-PCF history uses Splunk; Apps Manager retains only recent minutes. `stack-profile` owns backend
-choices. `grafana` owns navigation/configuration; a query does not start a change workflow.
+PCF history uses Splunk. Apps Manager logs come from Log Cache, which is capped by entry count and
+memory, not time: record the interval it actually covers. `stack-profile` owns backend choices; a
+query does not start a change workflow.
 Proposed saved searches/alerts/dashboards go to the caller for `observability-engineer`, app
 instrumentation gaps for `software-engineer`. This skill grants no write or incident ownership.
 
@@ -34,11 +34,11 @@ around the platform's actual deploy/traffic-change time, not a dashboard annotat
 Validate copied identifiers against their documented shape; preserve trace IDs exactly. Never
 concatenate raw values: use the dialect's literal encoding and prefer exact match. Regex values
 need literal-regex escaping, then query-string encoding; anchors do not escape metacharacters.
-Uncertain encoding requires a sanitized identifier, not a wider search.
+Inspect the rendered query after every client, API or shell encoding layer. Uncertain encoding
+requires a sanitized identifier, not a wider search.
 
 Return the answer and evidence limits; query work also retains exact query, scope/window,
-source/result, references used and method-specific assumptions. Preserve incoming evidence labels.
-Keep unknowns and hypotheses
+source/result, references used and method-specific assumptions. Keep unknowns and hypotheses
 distinct from observations. Prefer access-controlled links and minimal excerpts; redact secrets,
-personal/user/session identifiers, sensitive headers/bodies, SQL literals and label/tag/attribute
-values. Never paste raw payloads.
+personal/user/session identifiers, sensitive headers/bodies, SQL literals and sensitive
+label/tag/attribute values. Never paste raw payloads.

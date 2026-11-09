@@ -1,15 +1,19 @@
 # Moogsoft Onprem correlation and noise reduction
 
-The recorded stack is Onprem v9.x; verify installed release/support contract against
+The recorded stack is Onprem v9.x. Only Onprem 9.2 and later remain in standard support; verify the
+installed release and support contract against
 [product notices](https://docs.moogsoft.com/v9/en/product-notices.html) before upgrade advice.
-The major version does not establish support. Cloud terminology differs from Onprem **Situations**.
+Cloud terminology differs from Onprem **Situations**.
 
 Events deduplicate by [`signature`](https://docs.moogsoft.com/v9/en/data-ingestion.html) into alerts;
 [Cookbook Recipes and Tempus](https://docs.moogsoft.com/v9/en/clustering-algorithm-guide.html) cluster
 alerts by configured attributes and temporal proximity respectively. Situations notify/page.
 [Maintenance](https://docs.moogsoft.com/v9/en/schedule-maintenance-downtime.html) still deduplicates
 events into `In Maintenance` alerts, excluded from Situations by default but configurable.
-Confirm local fields/algorithms/maintenance behavior; correlation is not cause.
+Confirm local fields/algorithms/maintenance behavior. Correlation and time order rank hypotheses,
+not cause: promote one only with a disprovable mechanism, corroboration from an independent signal
+class, and a disconfirmation test; below that bar, call it a leading hypothesis and keep the
+alternatives open.
 
 ## During an alert storm
 
@@ -31,15 +35,6 @@ the incident responder or their dispatched SRE helper.
 Hand correlation tuning to the `observability-engineer` agent with before and after replay evidence,
 false-merge and missed-cluster examples, proposed key or Recipe changes, and rollback criteria.
 
-## Local inventory
-
-Names, IDs, field maps, and links only, never credentials.
-
-| Source | Integration | Event `signature` formula | Fields mapped | Replay evidence / watch-out | Owner |
-|---|---|---|---|---|---|
-| `<Splunk>` | `<integration name>` | `<source>:<service>:<check>` | `source/service/check → <fields>` | `<incident set / false merge or leaked duplicate>` | `<owner>` |
-| `<Wavefront>` | `<integration name>` | `<formula>` | `<fields>` | `<evidence>` | `<owner>` |
-| `<ThousandEyes>` | `<integration name>` | `<formula>` | `<fields>` | `<evidence>` | `<owner>` |
-
-Record beside it the Situation notification route by service, the ticket integration and its owner,
-and each maintenance window's source, owner, and start/end verification.
+Record each source's integration, `signature` formula, field map, replay evidence and owner, the
+Situation routes, ticket integration and maintenance windows in the team's own inventory: names, IDs
+and links only, never credentials.

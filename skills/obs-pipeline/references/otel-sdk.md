@@ -21,7 +21,7 @@ Apply only changed-path steps for scoped fixes; service-wide work uses the full 
    - `io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter` with
      `opentelemetry-instrumentation-bom` suits native images, unacceptable agent overhead,
      incompatible agents or `application.yml`/declarative YAML configuration. Docs list Boot
-     2.6+/3.1+; instrumentation 2.31.1 also tests Boot 4.
+     2.6+/3.1+; current instrumentation releases also test Boot 4.
    Use one path; application owners handle dependency changes.
 
 2. **Resource identity:** emit `service.name`, `service.version`, `deployment.environment.name`.
@@ -45,8 +45,11 @@ Apply only changed-path steps for scoped fixes; service-wide work uses the full 
    - `num_traces` defaults to 50,000 in memory; new arrivals can evict oldest traces before sampling.
      Watch `otelcol_processor_tail_sampling_sampling_trace_dropped_too_early`.
    - `decision_wait` defaults to 30s; late spans miss the decision. The sampled/non-sampled LRU
-     `decision_cache` can preserve an earlier keep decision for late spans, not guarantee it.
+     `decision_cache` is off by default (both sizes 0); once sized, it can preserve an earlier keep
+     decision for late spans, not guarantee it.
      Size capacity/cache and monitor drops rather than promising every error trace.
+     Contrib v0.165.0 adds `sampling_strategy` (default `trace-complete`; `span-ingest` changes how
+     `decision_wait` applies) and a `traces_dropped_too_large` drop metric.
 
 4. **Correlation:** emit structured logs with approved trace/span fields; verify actual exemplar
    metric→trace and shared-ID trace→log links, not merely signal coexistence.

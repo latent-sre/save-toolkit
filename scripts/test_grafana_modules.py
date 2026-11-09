@@ -71,7 +71,7 @@ def test_a_foreign_cached_module_is_refused(monkeypatch):
         load('grafana_read')
 
 
-@pytest.mark.parametrize('first', ['grafana_analyze', 'grafana_frames', 'grafana_alert_preview', 'grafana_capture'])
+@pytest.mark.parametrize('first', ['grafana_analyze', 'grafana_frames', 'grafana_capture'])
 def test_fresh_process_import_orders_share_reader_and_keep_optional_libraries_lazy(tmp_path, first):
     # A working-directory sibling must never win even if its name matches the bundle.
     for name in ('grafana_modules', 'grafana_read', 'grafana_frames', 'promql_parser'):
@@ -86,13 +86,12 @@ load(sys.argv[2])
 workflow = runpy.run_path(str(root / 'grafana_workflow.py'))
 reader = workflow['reader']
 assert load('grafana_frames').reader is reader
-assert load('grafana_alert_preview').reader is reader
 assert load('grafana_analyze').frames is load('grafana_frames')
 assert load('grafana_capture')._module('grafana_evidence') is load('grafana_evidence')
 assert workflow['parse_args'](['doctor', '--agent-json']).command == 'doctor'
 assert reader.parse_args(['dashboard', '--uid', 'board']).uid == 'board'
 assert sys.path == search_path
-assert not {'polars', 'promql_parser', 'deepdiff', 'PIL'} & sys.modules.keys()
+assert not {'polars', 'promql_parser', 'PIL'} & sys.modules.keys()
 """
     result = subprocess.run([sys.executable, '-I', '-S', '-c', code, str(SCRIPTS), first],
                             cwd=tmp_path, capture_output=True, text=True, timeout=30)
