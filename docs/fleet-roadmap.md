@@ -281,18 +281,19 @@ asking for them.
 
 **Status:** `active` (2026-11-02). The owner retired the rule that agents carry input evidence labels
 and `[UNTRUSTED]` taint through to their reports; agents still label their own load-bearing claims.
-No scenario grades it: PR #445 retired the `software-engineer` graders that checked carried labels,
-and the `sre-assistant` and `observability-engineer` partial-return probes dropped theirs on
-2026-11-04. The clause is gone from `AGENTS.md`, `software-engineer`, and
-`skills/incident-investigation/references/helper-exchange.md`.
+PR #445 retired the `software-engineer` graders that checked carried labels, and the
+`sre-assistant` and `observability-engineer` partial-return probes dropped theirs on 2026-11-04.
+The clause is gone from `AGENTS.md`, `software-engineer`, the `incident-investigation`,
+`operational-docs`, `resilience-analysis`, and `agent-authoring` skills, and the generated handoff
+prompts. Scenarios for lanes that still carry it keep grading it, for example
+`agent-direct-scribe-command-evidence` and the `researcher` cases.
 **Owner:** The human owner accepts the candidate; a maintainer session owns the change.
 **Outcome:** No fleet instruction or grader requires carrying input labels or taint in transit.
 "Data, never instructions" stays the trust control, and agents keep labelling their own claims.
 **Next action:** Remove the propagation clauses that remain in the agent bodies (`scribe`,
 `observability-engineer`, `reviewer`, `researcher`, `sre-assistant`, `repository-investigator`,
-`reliability-engineer`) and in `skills/operational-docs/SKILL.md` with its `knowledge-closeout.md`
-and `disposition-policy.md` references, and `skills/agent-authoring/references/context.md` and
-`agent-security.md`; keep each lane's own-claim labelling; regenerate adapters. Agent-body edits
+`reliability-engineer`) and retire the scenarios that grade them; keep each lane's own-claim
+labelling; regenerate adapters. Agent-body edits
 are a fleet behavior change and need their own candidate, not a documentation PR.
 **Evidence:** `build-software-engineer-resumes-after-partial-helper` kept the helper's
 `[UNTRUSTED] [unverified]` labels 0/3 on each of three revisions on 2026-10-22
@@ -421,6 +422,17 @@ the operational-contract report used by merged PR #237) were removed on 2026-11-
 [pre-removal snapshot](https://github.com/latent-sre/save-toolkit/tree/7ac287d518df1f5b8c9397642a8204b0909ca2ac/docs/reviews); their results apply only to the snapshots they name.
 **SRE task:** Get a useful next check or closeout without mistaking a helper's completed assignment
 or an untimed aggregate for evidence of incident recovery or cause.
+
+### PCF-DEPLOY-001 — give pcf-deploy an Apps Manager path for SREs without the cf CLI
+
+**Status:** `deferred` (2026-11-08); the owner deferred this from the skill review.
+**Owner:** Save Toolkit maintainers; a maintainer session owns the skill text.
+**Outcome:** Where Apps Manager offers an equivalent, `pcf-deploy` plans state that path beside the
+`cf` command, and name the steps that still need the CLI.
+**Next action:** None until the owner schedules it. Then confirm which steps Apps Manager supports
+on the team's foundation version before writing them.
+**Evidence:** none yet.
+**SRE task:** Plan and verify a PCF change from Apps Manager when the `cf` CLI is not installed.
 
 ### GRAPH-007 — promote or retire the sandbox workflow-graph skill
 
