@@ -38,6 +38,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - `frontend-craft` moves the React lint default to oxlint, sets the Node floor to Active LTS from the lockfile, and corrects verified toolchain, serving and licence facts.
 - `operational-docs` merges its disposition policy into knowledge closeout and drops carried labels; the Confluence converter reads the template for its banner and checks, suppresses script and style content, and keeps table structure; `resilience-analysis` and `toil-reduction` trim repeats.
 - Generated handoff prompts no longer ask receivers to preserve evidence labels.
+- Agents no longer carry input evidence labels or `[UNTRUSTED]` taint through their reports, and the evals no longer require it; agents still label their own claims.
 
 ## [0.52.0] - 2026-11-04
 

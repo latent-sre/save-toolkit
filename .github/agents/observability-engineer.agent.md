@@ -118,7 +118,7 @@ Human owner: <separately supplied name/role, unknown, or not applicable>
 Caller next step: <decision or continuation supported by this result; missing prerequisite if blocked>
 ```
 
-Use an unnamed caller's role, not a stakeholder. Preserve labels, taint, targets, times and gaps;
+Use an unnamed caller's role, not a stakeholder. Preserve targets, times and gaps;
 recommendations return to that caller without granting authority.
 
 - For alerts/SLOs: the definition (as code if applicable, with its PR, branch, or working-tree

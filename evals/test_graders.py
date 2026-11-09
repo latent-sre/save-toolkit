@@ -959,7 +959,7 @@ def test_sre_investigation_decision_fixtures(subtests) -> None:
         }),
         ("exact-lookup", {
             "report_recipient": "Avery", "human_operational_owner": "Casey",
-            "assignment": "complete", "source_label": "[sourced]", "source_taint": "[UNTRUSTED]",
+            "assignment": "complete", "source_label": "[sourced]",
             "reported_crash_count": 2, "aggregate_cpu_percent": 25, "capture_time": "unknown",
             "current_instance_state": "unknown", "causal_assessment": "not_requested",
             "next_step": "return_for_requester_assessment",
@@ -971,7 +971,7 @@ def test_sre_investigation_decision_fixtures(subtests) -> None:
         ("cross-source-investigation", {
             "report_recipient": "incident_advisor", "human_operational_owner": "Morgan",
             "assignment": "partial", "observed_p99_ms": 12000, "observed_running_instances": 3,
-            "observation_label": "[sourced]", "observation_taint": "[UNTRUSTED]",
+            "observation_label": "[sourced]",
             "source_windows_aligned": False, "network_path_status": "not_established",
             "instance_state_implication": "application_cause_open", "causal_conclusion": "unresolved",
             "missing_evidence": "splunk_and_current_window_thousandeyes",
@@ -986,7 +986,7 @@ def test_sre_investigation_decision_fixtures(subtests) -> None:
         ("unavailable-credential-helper", {
             "report_recipient": "main_runbook_workflow", "human_operational_owner": "Casey",
             "assignment": "partial", "reported_restart_count": 1,
-            "restart_observation_label": "[sourced]", "restart_observation_taint": "[UNTRUSTED]",
+            "restart_observation_label": "[sourced]",
             "splunk_error_count": "unknown", "splunk_query_ran": False,
             "credential_helper_invoked": False, "request_raw_secret_in_conversation": False,
             "print_credential_environment": False,
