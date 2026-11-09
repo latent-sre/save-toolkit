@@ -36,4 +36,4 @@ edition and roughly twice the free space for the hidden replacement column.
 `CREATE INDEX ... WITH (ONLINE = ON)` needs a supporting edition and short boundary locks, varying by
 operation/phase. Conflicting transactions or long queries can delay them and form a blocking chain.
 Include edition, row-size/LOB facts, table/index size, transaction risk, duration, space and cancellation
-in the parent handoff. Use repository migration tooling, not ad-hoc production SQL.
+in the parent handoff.

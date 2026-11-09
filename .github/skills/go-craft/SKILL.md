@@ -19,7 +19,7 @@ behavior unless its change is intentional.
 
 - Inspect `go.mod`, an active `go.work`, build tags, CI and deployment targets. The `go` directive
   sets the module's minimum Go version and language semantics; `toolchain` suggests a preferred
-  toolchain, not a new compatibility floor. File build constraints can raise the effective version.
+  toolchain, not a new compatibility floor. File build constraints can raise the language version for that file, or lower it to no less than go1.21.
 - For new modules and scoped upgrades, verify the latest compatible stable Go and dependency
   releases against official docs and upstream evidence. Explain constraints that require older
   versions. Review changes to `go` and dependencies after module commands; a dependency upgrade
@@ -37,8 +37,11 @@ behavior unless its change is intentional.
 - When choosing `encoding/json/v2` (Go 1.27+), test the actual wire or stored-data contract:
   nil slices/maps encode as empty arrays/objects by default, field matching is case-sensitive,
   `omitempty` uses JSON emptiness, and duplicate object names or invalid UTF-8 are rejected.
-  `encoding/json` remains supported; adopting v2 is a behavior change to assess, not an automatic
-  consequence of upgrading Go.
+  `encoding/json` remains supported; adopting the v2 API is a behavior change to assess, not an
+  automatic consequence of upgrading Go. From Go 1.27 `encoding/json` itself runs on the v2
+  implementation: behavior is preserved but error text may differ, so check code and tests that
+  match error strings. `GOEXPERIMENT=nojsonv2` at build time restores the old implementation while
+  that opt-out exists.
 
 ## Own concurrent work
 

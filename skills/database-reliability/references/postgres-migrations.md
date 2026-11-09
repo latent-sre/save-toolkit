@@ -20,7 +20,9 @@ A seconds-scale `lock_timeout` cancels those waits, leaving an INVALID index; re
 failure while the old transaction lives. Have the DBA inspect database-wide `xact_start` and
 `backend_xmin` in `pg_stat_activity`. Avoid a short `lock_timeout` for this build: ordinary
 reads/writes proceed, but vacuum and other table DDL wait. The DBA monitors and cancels at an
-agreed deadline. After failure/cancellation, inspect catalog and migration records; use
+agreed deadline. A unique build that fails in the second scan leaves an INVALID index that still
+enforces uniqueness, so writes can fail on it until it is dropped. After failure/cancellation,
+inspect catalog and migration records; use
 `DROP INDEX CONCURRENTLY` only for the INVALID index created by that attempt, never a pre-existing
 valid index, before retrying.
 
@@ -49,18 +51,15 @@ backfill or validation. The constraint syntax depends on the major:
   `SET NOT NULL` step is needed.
 - **12–17**: use `CHECK (col IS NOT NULL) NOT VALID`; after the backfill, validate it and only then
   run `SET NOT NULL`; the validated check lets these versions skip the second scan.
-- **Before 12**: do not assume the validated check avoids the final scan; assess that scan and its
-  lock duration on the exact version before scheduling the change. Scan avoidance was introduced in
-  [PostgreSQL 12](https://www.postgresql.org/docs/12/release-12.html).
 
-On PostgreSQL 18+, generated columns are **virtual by default** and computed on read. Adding one no
-longer rewrites the table, but moves computation to queries; specify `STORED` when that is the intended
-behavior.
+On PostgreSQL 18+, generated columns are **virtual by default** and computed on read. Adding a virtual
+one needs no table rewrite but moves computation to queries; it cannot be indexed (index the
+base-column expression instead) and logical replication does not publish it. Adding a `STORED` one
+still rewrites the table and its indexes.
 
 ## Index and tool behavior
 
 - Prefer `CREATE INDEX CONCURRENTLY` for a hot table and `ADD COLUMN` without a volatile default, but
   verify lock acquisition, runtime, partial-failure cleanup, and the migration tool's transaction mode.
-- Use the repository's migration tooling, not ad-hoc production SQL.
 - Add production-scale scan/rewrite, replication/log impact, cancellation and retry identity to the
   parent migration handoff.

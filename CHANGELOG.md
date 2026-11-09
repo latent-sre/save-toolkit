@@ -32,6 +32,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - `incident-investigation` drops its leftover carried-label clauses and corrects verified mitigation and symptom facts.
 - `gcp-ops` and `akamai-edge` correct verified facts and trim repeats; the placeholder GCP project inventory is removed.
 - `agent-authoring` corrects verified host facts, marks the Copilot `agents:`/`handoffs:` projection as legacy-only, and merges `context.md` and `skill-portability.md` into their siblings.
+- `api-craft`, `go-craft` and `database-reliability` correct verified facts and trim repeats; Huma is removed.
 
 ## [0.52.0] - 2026-11-04
 

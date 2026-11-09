@@ -30,7 +30,7 @@ Use every matching row and no others.
 | HTTP API, including a webhook receiver | [API contract](./references/api-contract.md) |
 | OpenAPI document, generated client or schema checks | [OpenAPI](./references/openapi.md) |
 | FastAPI | [FastAPI](./references/fastapi.md) |
-| Go HTTP server; Huma only when selected | [Go](./references/go.md) |
+| Go HTTP server | [Go](./references/go.md) |
 | Retryable or concurrent API write, including remote effects | [API writes](./references/api-writes.md) |
 | HTTP client or upstream API integration | [Consuming APIs](./references/consuming-apis.md) |
 | Durable work accepted by an API, including asynchronous webhook processing | [Background work](./references/background-work.md) |
