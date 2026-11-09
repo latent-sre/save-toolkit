@@ -14,20 +14,8 @@ argument-hint: "[service, missing signal, or telemetry route]"
 If a bounded backend query finds the signal but a panel does not, carry that evidence to `grafana`
 for datasource, variable, query-window, and presentation checks before changing the pipeline.
 
-Treat the pipeline as one path with four independently failing boundaries:
-
-```text
-app → SDK/agent → collector/Alloy → backend
-```
-
-An SDK that exports OTLP straight to Loki, Mimir, or Tempo has no collector boundary; check the
-other three.
-
-| Signal | App emission | Transport and processing | Backend |
-|---|---|---|---|
-| Structured logs | approved JSON fields plus trace/span correlation | OTLP or file receiver → redact/filter/batch → route | Loki |
-| Metrics | OTel instruments with bounded attributes | OTLP receiver → resource/attribute processing → route | Mimir |
-| Traces | spans with propagated W3C trace context | OTLP receiver → sampling/batch → route | Tempo |
+An SDK that exports OTLP straight to Loki, Mimir, or Tempo has no collector boundary; skip step 3
+below.
 
 Identify the affected Splunk or Wavefront/PCF App Metrics feed and its owner before changing it.
 Confirmed PCF-platform-owned feeds stay with that owner: hand their gaps to it rather than wiring
@@ -60,9 +48,7 @@ Read only the reference needed for the task:
 | Instrumentation, RED/USE, propagation, sampling, correlation, or completion criteria | [OTel SDK method](./references/otel-sdk.md) |
 | Alloy receivers, processors, exporters, routing, pipeline health, or end-to-end canary | [Alloy pipeline](./references/alloy.md) |
 
-**Cardinality:** bounded dimensions become metric labels/tags; unbounded identity (user/request/trace
-IDs, full URLs, emails, raw SQL) goes to traces and logs, **never** metric labels, because each value
-creates a new time series.
+Never put secrets, personal data, or user or request identifiers in metric labels.
 
 ## OTel naming — dotted namespaces and instrument metadata
 - **The OTel name is the source of truth:** namespaces delimited by **dots**, `snake_case` only *within*
@@ -70,13 +56,12 @@ creates a new time series.
   unit in the name only to resolve ambiguity). Base units (seconds, bytes); dimensions in
   attributes, not the name. Pluralization follows the unit: a name whose value carries a real unit,
   or the dimensionless unit `1` (`system.cpu.utilization`), stays singular; a count of discrete
-  things with an annotation unit such as `{fault}` is pluralized (`system.paging.faults`,
-  `system.network.packets`); UpDownCounter names are never pluralized.
+  things with an annotation unit such as `{fault}` is pluralized (`system.paging.faults`);
+  UpDownCounter names are never pluralized.
 - Wavefront takes dot-delimited names + point tags
   (`app.http.request.duration`) — the OTel shape, near-unchanged. Resource attributes become point
   tags only when the proxy sets `otlpResourceAttrsOnMetricsIncluded=true`, and a metric over the
-  point-tag limit is dropped. Keep the bounded-tag discipline; this section owns the emitted
-  naming/tag contract.
+  point-tag limit is dropped.
 - A Prometheus-style exporter translates dotted names for you by default; do not pre-bake exporter
   suffixes into the OTel name. The stored name depends on the route: Mimir's OTLP endpoint adds no
   unit or type suffixes by default (`distributor.otel-metric-suffixes-enabled = false`), while the

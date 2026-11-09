@@ -28,7 +28,7 @@ supported tool/API calls to an authorized agent. Missing access leaves an unappl
 | Create, inspect, update, or end a temporary silence | [Silence operations](./references/silences.md) |
 | Terminal reads: search, models, alert state, silences, annotations, bounded queries, images | [Command access](./references/command-access.md): [Python helper](./scripts/grafana_read.py) and [PowerShell wrapper](./scripts/grafana_read.ps1) |
 | Create/edit/import a dashboard or create/update a folder | [HTTP API change loop](./references/http-api.md#dashboard-change-loop) |
-| Review or upgrade assessment; check exported Classic, V1 or V2 JSON (dashboard-linter v0.5.2+ validates V2 schema) | [Read-only review](./references/read-only-review.md), [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
+| Review or upgrade assessment; check exported Classic, V1 or V2 JSON | [Read-only review](./references/read-only-review.md), [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
 | API versions, concurrency, history, recovery; model/variable details | [HTTP API](./references/http-api.md), [Dashboard JSON](./references/json-model.md) |
 | Grafana provisioning, evaluation settings, rule groups, contact points, or policies | [Alerting configuration](./references/grafana-alerting.md) |
 | A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [HTTP API tooling and scope](./references/http-api.md#credentials-and-effective-scope); none is adopted |

@@ -11,18 +11,16 @@ clients never receive it.
 
 ## Dashboard change loop
 
-1. **Name the job:** which question this dashboard answers, and for whom; presentation follows
-   [dashboard design](./dashboard-design.md).
-2. **Preflight and discover; never invent.** Run the [preflight](#preflight-once-per-target-and-after-every-upgrade).
+1. **Preflight and discover; never invent.** Run the [preflight](#preflight-once-per-target-and-after-every-upgrade).
    Prove a create's uid is absent and stop on collisions. Resolve names, labels and UIDs from the target.
-3. **Read and export before editing** at the stored version ([read and export](#read-and-export)).
+2. **Read and export before editing** at the stored version ([read and export](#read-and-export)).
    A create has no prior model or token: choose its stable uid, name the human or protected
    executor who owns recovery if removal is needed, and author only the requested model.
-4. **Make only the requested change.** Preserve unknown fields and the stored schema;
+3. **Make only the requested change.** Preserve unknown fields and the stored schema;
    [JSON model](./json-model.md) covers Classic/V1/V2 shapes, variables and panels.
-5. **Validate** with the [pre-write checks](./json-model.md#check-before-writing).
-6. **Show the target and full diff, then write once** ([create, import, update](#create-import-update)).
-7. **Verify behavior, storage and the durable record** ([verify, then record](#verify-then-record));
+4. **Validate** with the [pre-write checks](./json-model.md#check-before-writing).
+5. **Show the target and full diff, then write once** ([create, import, update](#create-import-update)).
+6. **Verify behavior, storage and the durable record** ([verify, then record](#verify-then-record));
    report unavailable evidence, never an inspection that did not happen.
 
 Folder create/update uses the [folder procedure](#folder-create-and-update) under the same
@@ -54,7 +52,7 @@ writing:
 | App platform | `/apis/dashboard.grafana.app/<version>/namespaces/<ns>/dashboards` for create and list; `…/dashboards/<uid>` for read, update, delete | version-pinned; stable-version history |
 | Legacy | `/api/dashboards/*`, `/api/search`, `/api/folders`, `/api/datasources` | discovery and Classic fallback after checking the target's grants |
 
-The namespace is `default` for org 1, `org-<id>` otherwise, `stacks-<id>` on Grafana Cloud.
+The namespace is `default` for org 1, `org-<id>` otherwise.
 App-platform identity is `metadata.name` (the dashboard uid), not the server-minted `metadata.uid`.
 On an app-platform 404, verify uid, version, and served APIs before falling back to legacy.
 
@@ -88,8 +86,7 @@ Read the stored shape at the pinned version into `live.json` and keep it as the 
 Stop, because the owning source must change and no API write is durable, when the legacy DTO
 `GET /api/dashboards/uid/<uid>` reports `meta.canSave: false` or `meta.provisioned: true`, or when
 the app-platform object's `grafana.app/managedBy` annotation names a manager (`grafana.app/managerId`
-identifies it) without `grafana.app/managerAllowsEdits: "true"`. Legacy
-`GET /api/dashboards/uid/<uid>/versions` shows who last saved and how. A portable Classic export
+identifies it) without `grafana.app/managerAllowsEdits: "true"`. A portable Classic export
 keeps the stable uid, drops the numeric id, and strips app-platform `status`, `resourceVersion`,
 and `generation`; instance URLs and folder or data-source uids leave only under a separate
 authorization.
@@ -102,7 +99,7 @@ with `apiVersion` set to the pinned `dashboard.grafana.app/<version>`, `metadata
 stable uid accepted by the selected API, the folder in the `grafana.app/folder` annotation, the change reference
 in `grafana.app/message`, and no `metadata.resourceVersion` or `generation` (those are the server's
 concurrency fields, absent on a create); success is 201. Legacy: `POST /api/dashboards/db` with `id: null`, `folderUid`, `message`, and
-`overwrite: false`; success is 200. A 409 or `name-exists` means the uid is taken: stop and
+`overwrite: false`; success is 200. A 409 means the uid is taken: stop and
 reconcile, never switch to `overwrite: true`. Before dispatch, name the human or protected executor
 who owns recovery if removal is needed: a create has no prior dashboard version to restore, and
 this lane has no deletion authority.
@@ -133,7 +130,7 @@ still land.
 
 ## Folder create and update
 
-Read folder permissions and namespace: create needs `folders:create` or `folders:write`, update
+Read folder permissions and namespace: create needs `folders:create`, update
 needs `folders:write`, and target checks and readback need `folders:read`. A nested folder needs
 the parent-specific grant and is limited by `max_nested_folder_depth` (default 4, hard cap 7).
 Dashboard lifecycle evidence does not verify folders.
@@ -172,9 +169,8 @@ Dashboard lifecycle evidence does not verify folders.
    mistake missing telemetry for an expected empty result.
 3. Follow [visual verification](./visual-verification.md) through an authorized browser or a server
    render. For a server render, use the instance's generated image link or derive the same-origin
-   `GET /render/d-solo/<uid>/<slug>` route, preserving a deployment subpath. Carry `orgId`,
-   `panelId`, absolute `from`/`to`, `tz` and URL-encoded `var-<name>` selections, repeating a
-   parameter for multi-values; use the actual panel ID or scene key. Start from one panel at
+   `GET /render/d-solo/<uid>/<slug>` route, preserving a deployment subpath. Carry `orgId`, `tz`, the
+   `var-<name>` selections and absolute window; use the actual panel ID or scene key. Start from one panel at
    1200×600 with `scale=1`, a 45-second client timeout and an 8 MiB bound, one render at a time.
    Authenticate through the existing credential path, never in the URL, follow no redirects, and
    never call the renderer service directly with the service-account token. Grafana answers its own
@@ -187,7 +183,7 @@ Dashboard lifecycle evidence does not verify folders.
    or fall back to legacy `GET /api/dashboards/uid/<uid>/versions?limit=20` and `/versions/<n>`
    for a full prior model.
 
-   One observed target returned 403 for legacy history while stable app-platform history worked.
+   Legacy history requires `dashboards:write`; a read-only identity gets 403.
    Preserve endpoint-specific results; neither 403 nor a history read proves absence of versions or
    verification of a new save.
 
@@ -198,8 +194,7 @@ operation-written state separately from the pre-change export. Before restoring,
 live read with that operation-written state: spec, folder, and other editable fields must match; a
 changed concurrency token also requires reconciliation. Stop on intervening edits or missing
 comparison evidence; a fresh token alone does not authorize replacing another editor's changes.
-For example, restoring query Q0 after writing Q1 must not erase a later title T1. Hand off the
-drift and proposed scoped inverse for review under the existing authority. Only after the
+Hand off the drift and proposed scoped inverse for review under the existing authority. Only after the
 comparison passes, put the saved spec into the current envelope, drop `status`, and apply it like
 any other update with the fresh concurrency token; the legacy path takes `dashboard.version` from
 that fresh read. Re-diff the complete restore, preserve scope, and stop on conflict. Provisioned or

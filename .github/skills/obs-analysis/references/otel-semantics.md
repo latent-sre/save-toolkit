@@ -1,16 +1,5 @@
 # OpenTelemetry semantics for reading traces
 
-Primary references:
-
-- [OpenTelemetry Tracing API](https://opentelemetry.io/docs/specs/otel/trace/api/)
-- [HTTP span semantic conventions](https://opentelemetry.io/docs/specs/semconv/http/http-spans/)
-- [HTTP semantic-convention migration](https://opentelemetry.io/docs/specs/semconv/non-normative/http-migration/)
-- [database client span semantic conventions](https://opentelemetry.io/docs/specs/semconv/db/database-spans/)
-- [database semantic-convention migration](https://opentelemetry.io/docs/specs/semconv/non-normative/db-migration/)
-- [service attributes](https://opentelemetry.io/docs/specs/semconv/registry/attributes/service/)
-- [OpenTelemetry sampling](https://opentelemetry.io/docs/concepts/sampling/)
-- [W3C Trace Context](https://www.w3.org/TR/trace-context/)
-
 ## Span kinds
 
 Confirm both span kinds before treating parent/child as a network hop. Deferred work can use links

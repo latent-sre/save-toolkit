@@ -10,8 +10,7 @@ argument-hint: "[service, SLO, alert, storm, or synthetic check]"
 
 # Alert, correlate, page
 
-Page on user-visible symptoms that require action now. Use an SLI and error budget to distinguish a
-significant sustained burn from a transient component signal; use correlation and synthetics to rank
+Use correlation and synthetics to rank
 where responders should look, never to manufacture a root cause. Every paging alert has an owner, an actionable summary, and a runbook link.
 
 For a bounded check or explanation, answer from the supplied rule and evidence; name its limits.
@@ -24,15 +23,13 @@ criteria; it does not grant live access.
 
 ## SLI, SLO, and burn rate
 
-When defining an SLI, name the journey, **good events / valid events**, exclusions, and request/time
-unit; for an SLO, name its objective horizon. Retain query, backend, target, time range and result.
-Without reproducible query evidence, the SLI is proposed, not verified.
+Retain each SLI's query, backend, target, time range and result. Without reproducible query
+evidence, the SLI is proposed, not verified.
 
-**Burn rate = observed bad-event fraction / the SLO's allowed bad-event fraction.** Keep request- and
+Keep request- and
 time-based budgets in their own units; never translate a request-ratio budget to downtime minutes,
 and separate consumed-budget status from the current alert verdict. For burn-rate work, load the
-method below: both windows must meet the pair's threshold — a one-window spike is not a page, and
-neither outcome proves the service is in budget.
+method below.
 
 Read only the row needed for the task:
 
@@ -50,10 +47,9 @@ For a backup, sync, or scheduled-job alert, use freshness rather than a request 
 `*_last_success_timestamp_seconds` and an age threshold of at least two full schedule intervals.
 Define no-data behavior: a missing timestamp is silence, never an all-clear. In Prometheus,
 `time() - x > t` returns nothing once the series vanishes, so the alert resolves; pair it with an
-`absent()` rule. In Grafana, a vanished series goes to Normal (missing series), and the
-`DatasourceNoData`/`DatasourceError` alerts may not match the notification policies and silences
-written for the rule. A job that never runs emits no errors. Freshness complements request-driven
-SLIs; it does not replace them.
+`absent()` rule. In Grafana, one vanished series among others goes to Normal (MissingSeries); no
+series at all is No Data, and `DatasourceNoData`/`DatasourceError` alerts may not match the rule's
+notification policies and silences.
 
 Trace shared dependencies of the job, signal store, evaluator and notification path. If the signal
 store fails, an age query cannot evaluate: specify query-error notification or an independent
@@ -67,7 +63,7 @@ review may be handed off with the missing proof explicitly `[unverified]`:
 
 - Validate before any reload: rule and config syntax pass their checkers (for Prometheus-format
   sources, `promtool check rules` / `promtool check config`; these do not check Grafana-managed
-  rules) so a bad file never reaches the evaluator.
+  rules).
 - **Force the alert's condition and observe it fire, resolve, and deliver to the intended contact
   point** — a deliberately failing safe target, or a controlled non-production rule with an
   always-true expression routed only to a test contact point. Never force a production receiver.
@@ -78,5 +74,4 @@ review may be handed off with the missing proof explicitly `[unverified]`:
   directory; set `TMPDIR` on POSIX or `TMP` on Windows to relocate it); an `sre-assistant` loading
   this skill routes both to a human and preserves the exact output. A rule that has only ever
   evaluated false is unverified; so is one never observed resolving after recovery.
-- A paging alert's runbook link resolves to a runbook that exists — a dead link at 3 a.m. is a
-  design defect, not a docs chore.
+- A paging alert's runbook link resolves to a runbook that exists.
