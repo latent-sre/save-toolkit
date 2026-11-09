@@ -1,7 +1,5 @@
 # Consume the API
 
-Reuse the service's client and contract; load only applicable sections.
-
 ## Typed client
 
 Use the canonical OpenAPI document when available; verify the selected generator handles streaming
@@ -23,8 +21,7 @@ retirement. Honour documented `Retry-After`; retry failures only for safe reques
 For field errors, map `errors[].loc` or FastAPI `detail[].loc`, preserve input and associate `msg`
 with the field (`aria-describedby` where needed). Missing resources get a designed missing/empty state.
 
-Show errors inside the failing region with next step, status, time/zone and correlation ID
-(`request_id` or `X-Request-ID`); never dump raw JSON, stack traces or a problem `type` URI.
+Never show raw JSON, stack traces or a problem `type` URI.
 
 ## Cursor pages
 
@@ -47,14 +44,11 @@ For `202`, poll the status resource with backoff, show progress and allow naviga
 Cookie-authenticated writes follow the server's validated CSRF token/header contract; an arbitrary
 custom header is not a substitute.
 
-## Cache and retries
+## Freshness
 
-Include path, filters, sort, cursor and user/tenant scope in query keys. Set `staleTime` and
-refetch behaviour for the workflow; choose either polling or streaming per resource.
-
-Let the query layer own bounded read retries, honouring `Retry-After` and skipping non-retryable
-statuses. Show `dataUpdatedAt` and stale/disconnected state after refresh failure; surface applicable
-deprecation notices without repeated noise.
+Include path, filters, sort, cursor and user/tenant scope in query keys. Show `dataUpdatedAt` and
+stale/disconnected state after refresh failure; surface applicable deprecation notices without
+repeated noise.
 
 ## Live data
 
