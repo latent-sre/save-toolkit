@@ -8,26 +8,23 @@
 - For error spikes, count inside complete fixed-width buckets. Filtering failures first erases
   quiet buckets and biases the baseline. Exclude the current bucket from its trailing baseline;
   retain first anomalous and last known-normal buckets plus timed deploy/config events.
-- Group stable service, route, status, error type or host; show counts and traffic share.
-  Traffic growth alone is not a worse error rate. Request ratios need a verified completion
-  population and classification coverage, not a denominator of arbitrary application logs.
+- Request ratios need a verified completion population and classification coverage, not a
+  denominator of arbitrary application logs.
 - A request/correlation ID starts in logs. Map it to an actual trace ID before a trace lookup.
   A hop without a common identifier is a telemetry gap; recommend instrumentation to the caller.
-- Keep field-extraction assumptions and comparison boundaries with query evidence. Complete
-  time buckets do not prove complete ingestion; no events may mean missing telemetry.
 
 ## Metrics
 
 - A fleet request percentile needs the same population's distributions merged across instances;
   per-instance percentiles, point values and precomputed quantiles cannot recover it.
-- Determine cumulative counter, interval delta, or gauge before applying a rate. Bind failures and
+- Bind failures and
   eligible requests to the same population/window; absent denominators or zero traffic are not
   healthy zero.
 - Distinguish a reported zero, a late point, a previously known series that stopped, and a
   selector that never matched. Display gap-filling can hide collection loss. Record reporting
   interval, lookback and applicable alert no-data policy; missing metadata remains a gap.
 - For unusual query functions, confirm official backend documentation and retain its URL,
-  retrieval date and evidence label. Backend syntax is in [WQL](./wql.md) or [PromQL](./promql.md).
+  retrieval date and evidence label.
 
 Query evidence includes meaning/type, units, population, cadence, grouping and missing-data
 interpretation. An alert/SLO recommendation to `observability-engineer` also needs the exact
@@ -44,10 +41,8 @@ the representative trace was selected. One sampled request does not establish pr
 - In a full investigation, compare slow and known-normal traces from the same route/deployment
   cohort, or name the missing comparison. A wide client span with a narrow server span only
   hypothesizes time outside the handler.
-- For asynchronous work, use links, timestamps and message identity; distinguish queue delay
-  from consumer processing instead of imposing synchronous nesting.
 - Interpret status and protocol outcome under the span kind's [OTel convention](./otel-semantics.md).
-  An unset status is not success. Correlate logs by the same trace ID, UTC time and service.
+  An unset status is not success.
 - Absent spans/traces/logs can result from sampling, retention, size limits, propagation, export
   or instrumentation gaps; they do not prove the request or call never happened.
 

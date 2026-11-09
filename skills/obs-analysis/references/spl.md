@@ -2,26 +2,13 @@
 
 Index, sourcetype, correlation and extraction placeholders are not discovered values: resolve each
 on the target and confirm it on one real event.
-Syntax basis: Splunk Enterprise 10.6 references for
-[comments](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.6/use-the-search-app/add-comments-to-searches),
-[quoting](https://help.splunk.com/en/splunk-enterprise/search/search-manual/10.6/use-the-search-app/anatomy-of-a-search),
-[`timechart`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.6/search-commands/timechart),
-[`streamstats`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.6/search-commands/streamstats),
-and [`sort`](https://help.splunk.com/en/splunk-enterprise/search/spl-search-reference/10.6/search-commands/sort).
-Target version and extractions still require confirmation.
+Syntax basis: Splunk Enterprise 10.6; target version and extractions still require confirmation.
 
 ## SPL comments
 
 Classic SPL uses triple backticks: `` ```comment``` ``. `#` is not a comment; SPL2's `//` and
 `/* */` are a different language. Comments cannot precede generating commands (`tstats`,
-`makeresults`, `multisearch`, `gentimes`) or appear inside quoted strings. Do not substitute an
-app-scoped comment macro.
-
-## Start narrow
-
-Filtering `status>=500` requires a verified extraction; use `rex` when needed. Adding a raw
-`"error"` keyword drops 5xx events without that word. Fields are case-sensitive; an absent field
-can make a predicate return nothing.
+`makeresults`, `multisearch`, `gentimes`) or appear inside quoted strings.
 
 ## Is the source current?
 
@@ -50,7 +37,7 @@ decision. Recent indexing proves arrival for returned events only; measure per-e
 
 `stats count by error_type, service` omits events without grouping fields. Verify `error_type` on
 known errors with `stats count(error_type) AS classified, count`; a low classified ratio in ordinary
-traffic may simply mean few errors. Group by stable error/service/route fields, not raw messages.
+traffic may simply mean few errors.
 
 ## PCF apps in Splunk
 
@@ -81,10 +68,8 @@ index=<app_index> sourcetype=<request_completion_sourcetype> earliest=<start_epo
     AND ((sd>0 AND error_rate>baseline+3*sd) OR (sd=0 AND error_rate>baseline))
 ```
 
-Minimum-error and ratio-increase thresholds are owner-supplied numeric policy. The `sd=0` branch
-keeps flat-baseline spikes detectable. Twelve valid preceding buckets are required; a null breaks
-coverage. `current=f` excludes the candidate from its baseline. Preserve chronological order
-without truncation. Complete buckets do not independently prove complete ingestion.
+Minimum-error and ratio-increase thresholds are owner-supplied numeric policy. Preserve
+chronological order without truncation.
 
 For seasonal comparison, cover both weeks and reuse only `timechart`/`error_rate`, then keep `_time`
 and `error_rate` and apply `timewrap 1week series=short`. Compare `s0` (latest) with `s1` (previous)
@@ -103,7 +88,7 @@ index=<app_index> (request_id="<validated_and_spl_escaped_id>" OR trace_id="<val
 | table _time host service status message
 ```
 
-Use `(index=a OR index=b)`, not a list inside `index=`. `sort 0` keeps the full path instead of the
+`sort 0` keeps the full path instead of the
 default 10,000-row truncation, at extra cost. Use `index=*` only for one id crossing services that cannot be enumerated, with
 a tight window; it covers public indexes, not internal `_*`, and may miss role-restricted data.
 
@@ -139,8 +124,6 @@ not zero-fill. Without usable error classification, use the overall query above.
 
 ## Fast paths at scale — tstats, data models, TERM/PREFIX
 
-`tstats` reads indexed metadata (tsidx), not raw events.
-
 - `summariesonly=t` silently omits unsummarized data, including recent incident events when
   acceleration lags. Default `f` includes the unsummarized remainder at additional cost. Record
   the mode; a summary's quiet tail is not a live all-clear.
@@ -149,15 +132,10 @@ not zero-fill. Without usable error classification, use the overall query above.
 - `TERM(10.0.0.5)` keeps minor breakers in one indexed term, but matches only where major
   breakers (spaces, commas) bound it in the raw event: it misses `ip=10.0.0.5`.
   With `tstats`, `PREFIX(kbps=)` extracts values; omitting the delimiter yields `=10`-shaped values.
-- Prefer search-time extraction. Index-time extraction changes indexing cost and configuration;
-  route that recommendation to `observability-engineer`.
-- Use Job Inspector's component costs and `scanCount` versus `eventCount` before rewriting a slow
-  search: many scanned events with few matches suggests under-scoping or a non-index-selective filter.
+- Route any index-time extraction recommendation to `observability-engineer`.
 
 ## Tips & gotchas (Splunk-specific — where the default bites)
 
-- `_time` displays in search timezone, not necessarily the event's.
 - `timechart ... by <field>` defaults to the top ten series and folds others into `OTHER`.
   Use `limit=0`, or state the limit, when rare codes/hosts matter.
-- `transaction` groups events at substantial cost; prefer `stats by <id>` for correlation when
-  suitable, without claiming target performance until measured.
+- Field names are case-sensitive.

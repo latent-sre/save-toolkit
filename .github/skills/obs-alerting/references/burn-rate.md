@@ -1,8 +1,7 @@
 # Multi-window error-budget burn rate
 
 Carry the reviewed good/valid-event query and results into the alert definition; this reference
-supplies no backend query. Keep request/time units and consumed-budget status distinct under the
-[parent SLI rules](../SKILL.md#sli-slo-and-burn-rate).
+supplies no backend query.
 
 ## The pairs
 
@@ -10,8 +9,7 @@ supplies no backend query. Keep request/time units and consumed-budget status di
 30-day examples, not team policy. Select actual windows/thresholds/actions from the owner's reviewed
 SLO and alert rule; the calculator lists its supported pairs on a mismatch.
 
-Both windows must meet or exceed their pair's threshold: AND, never OR or mixed pairs. Tiny
-low-traffic denominators need separate judgment. Measure actual consumed request budget from
+Both windows must meet or exceed their pair's threshold: AND, never OR or mixed pairs. Measure actual consumed request budget from
 eligible events; changing the objective horizon does not rescale these fixed example thresholds.
 
 ## Verdict boundary
@@ -38,6 +36,3 @@ $budgetPython = '<verified project Python executable>'
 & $budgetPython $budgetScript --slo 99.9 --window-days 28 --bad-events 200 --total-events 1000000
 & $budgetPython $budgetScript --slo 99.9 --sli-long 98.5 --sli-short 98.5 --long-window 1h --short-window 5m
 ```
-
-These fictional inputs consume 20% of request budget in the first case and yield example PAGE at
-15× in both windows in the second. The latter does not establish whole-horizon consumed budget.
