@@ -11,16 +11,15 @@ argument-hint: "[service or design, user outcome, environment, evidence]"
 
 # Resilience analysis
 
-Produce a supported engineering decision about a service's failure behavior. Load `stack-profile`
-for applicable ownership and platform constraints. This method grants no access, execution, design
-approval, or change authority. Use available source and observations; an experiment remains proposed
-until an authorized actor supplies results from an established verification environment.
+Load `stack-profile` for applicable ownership and platform constraints. This method grants no access,
+execution, design approval, or change authority; an experiment remains proposed until an authorized
+actor supplies results from an established verification environment.
 
 ## Establish the outcome and evidence
 
 Name the critical user transaction or batch/data outcome, environment, relevant requirements and
 scope. Use accepted SLOs, recovery objectives and constraints; missing targets remain unknown or
-explicit proposals for the human owner. External practices are guidance, not company policy.
+explicit proposals for the human owner.
 
 Compare intended behavior (design/runbook), implemented behavior (effective code/configuration and
 tests), and observed behavior (targeted telemetry or exercise results). Bind each to its revision,
@@ -62,14 +61,13 @@ evidence label:
 | Verification gap | An important claim lacks adequate evidence; this does not prove the control is absent |
 | Improvement opportunity | A supported benefit may justify work without a demonstrated defect |
 
-Use `[verified]`, `[sourced]`, `[unverified]` with their target, method and time; preserve
-`[UNTRUSTED]` data through summaries. Inspect beyond missing pattern names: no circuit breaker is
-not a defect when other controls meet the requirement. No observed incident is not proof of resilience.
-Allow no material finding within the inspected scope and retain coverage gaps.
+Use `[verified]`, `[sourced]`, `[unverified]` with their target, method and time. Inspect beyond
+missing pattern names: no circuit breaker is not a defect when other controls meet the requirement.
+No observed incident is not proof of resilience. Allow no material finding within the inspected
+scope and retain coverage gaps.
 
-Prioritize user impact, plausible exposure, recovery difficulty, uncertainty and engineering cost.
-State why the proposed work outranks alternatives; avoid invented probability scores. A missing
-required verification can matter urgently without proving that recovery will fail.
+State why the proposed work outranks alternatives. A missing required verification can matter
+urgently without proving that recovery will fail.
 
 ## Existing-service readiness
 
@@ -102,5 +100,6 @@ protected work runs concurrently. Count active work, permit waiters and retries 
 occupancy; representative demand alone may never exercise the protection. Preserve actual results
 separately from the proposed test. Assess findings and coverage, not a blanket reliability score; test passes do not
 approve a deployment. See [worked contrasts](references/worked-contrasts.md) for supported risks,
-effective controls and missing evidence. Read [sources](references/sources.md) when checking a
-practice's provenance or adapting this method.
+effective controls and missing evidence. External practices, including Google SRE guidance on
+non-abstract design, cascading failures, reliability testing and SLOs, are guidance, not company
+policy; check platform documentation for version-specific mechanisms.

@@ -190,16 +190,16 @@ resolved_at: "2026-09-22T10:12:00Z"
 resolution_confirmed_at: "2026-09-22T10:20:00Z"
 ---
 ## Summary
-Impact duration: [UNTRUSTED][sourced] EVENT-72: 12 minutes
+Impact duration: [sourced] EVENT-72: 12 minutes
 ## Timeline (UTC)
-Resolution confirmation: [UNTRUSTED][sourced] RES-72: Morgan at 2026-09-22T10:20:00Z
+Resolution confirmation: [sourced] RES-72: Morgan at 2026-09-22T10:20:00Z
 ## Assessment
-Causal status: [UNTRUSTED][unverified] unknown
-Data integrity: [UNTRUSTED][unverified] not assessed
+Causal status: [unverified] unknown
+Data integrity: [unverified] not assessed
 ## Follow-ups
 | ID / tracking link | Action or question / scope | Owner / due | Status / prerequisite | Artifact / proof of done | Evidence / reason |
 |---|---|---|---|---|---|
-| FUP-72 | Investigate causal mechanism from retained profiles | Casey / 2026-09-30 | open | Reviewed causal finding or explicit evidence limit linked | EVENT-72 [UNTRUSTED][sourced] |
+| FUP-72 | Investigate causal mechanism from retained profiles | Casey / 2026-09-30 | open | Reviewed causal finding or explicit evidence limit linked | EVENT-72 [sourced] |
 '''
 
 
@@ -217,12 +217,11 @@ def test_postmortem_artifact_rejects_time_promotion_and_missing_followup(tmp_pat
 
 
 @pytest.mark.parametrize("old,new", [
-    ("Causal status: [UNTRUSTED][unverified]", "Causal status: [UNTRUSTED][verified]"),
-    ("Causal status: [UNTRUSTED][unverified]", "Causal status: [UNTRUSTED][sourced]"),
-    ("Data integrity: [UNTRUSTED][unverified]", "Data integrity: [UNTRUSTED][sourced]"),
-    ("EVENT-72 [UNTRUSTED][sourced]", "EVENT-72 [sourced]"),
-    ("[UNTRUSTED][sourced] RES-72", "[UNTRUSTED] RES-72"),
-    ("[UNTRUSTED]", ""),
+    ("Causal status: [unverified]", "Causal status: [verified]"),
+    ("Causal status: [unverified]", "Causal status: [sourced]"),
+    ("Data integrity: [unverified]", "Data integrity: [sourced]"),
+    ("EVENT-72 [sourced]", "EVENT-72"),
+    ("[sourced] RES-72", "RES-72"),
 ])
 def test_postmortem_rejects_single_claim_promotion_or_label_loss(tmp_path, old, new):
     assert old in POSTMORTEM
@@ -237,14 +236,14 @@ def test_postmortem_rejects_single_claim_promotion_or_label_loss(tmp_path, old, 
     ("Reviewed causal finding or explicit evidence limit linked", "Dashboard is blue"),
     ("Reviewed causal finding or explicit evidence limit linked", ""),
     ("12 minutes", "20 minutes"),
-    ("Causal status: [UNTRUSTED][unverified] unknown",
-     "Causal status: [UNTRUSTED][unverified] confirmed memory leak"),
-    ("Data integrity: [UNTRUSTED][unverified] not assessed",
-     "Data integrity: [UNTRUSTED][unverified] confirmed no data loss"),
-    ("Impact duration: [UNTRUSTED][sourced] EVENT-72: 12 minutes",
-     "Impact duration: 12 minutes\nEVENT-72 [UNTRUSTED][sourced]: source retained"),
-    ("Resolution confirmation: [UNTRUSTED][sourced] RES-72: Morgan at 2026-09-22T10:20:00Z",
-     "Resolution confirmation: Morgan at 2026-09-22T10:20:00Z\nRES-72 [UNTRUSTED][sourced]: source retained"),
+    ("Causal status: [unverified] unknown",
+     "Causal status: [unverified] confirmed memory leak"),
+    ("Data integrity: [unverified] not assessed",
+     "Data integrity: [unverified] confirmed no data loss"),
+    ("Impact duration: [sourced] EVENT-72: 12 minutes",
+     "Impact duration: 12 minutes\nEVENT-72 [sourced]: source retained"),
+    ("Resolution confirmation: [sourced] RES-72: Morgan at 2026-09-22T10:20:00Z",
+     "Resolution confirmation: Morgan at 2026-09-22T10:20:00Z\nRES-72 [sourced]: source retained"),
 ])
 def test_postmortem_rejects_changed_fixture_facts_and_followup(tmp_path, old, new):
     assert old in POSTMORTEM, "counterexample must change the positive control"
@@ -253,14 +252,19 @@ def test_postmortem_rejects_changed_fixture_facts_and_followup(tmp_path, old, ne
         DOCUMENTS.check_postmortem(tmp_path)
 
 
+def test_postmortem_accepts_a_retained_trust_prefix(tmp_path):
+    write_tree(tmp_path, {"docs/postmortems/INC-72.md": POSTMORTEM.replace("[sourced]", "[UNTRUSTED][sourced]")})
+    DOCUMENTS.check_postmortem(tmp_path)
+
+
 POSTMORTEM_FULL = POSTMORTEM.replace("72", "74").replace(
     "severity: P3", "severity: null"
 ).replace(
     'resolved_at: "2026-09-22T10:12:00Z"', "resolved_at: null"
 ).replace(
-    "Impact duration: [UNTRUSTED][sourced] EVENT-74: 12 minutes",
-    "Impact duration: [UNTRUSTED][unverified] unknown\n"
-    "Form choice: [UNTRUSTED][sourced] EVENT-74: full; customer-visible impact; owner confirmation pending"
+    "Impact duration: [sourced] EVENT-74: 12 minutes",
+    "Impact duration: [unverified] unknown\n"
+    "Form choice: [sourced] EVENT-74: full; customer-visible impact; owner confirmation pending"
 ).replace(
     "## Follow-ups",
     "## Full analysis\n### Impact\nCustomer-visible request failures; end time is unknown.\n"
@@ -275,16 +279,16 @@ POSTMORTEM_FULL = POSTMORTEM.replace("72", "74").replace(
     (None, None),
     ("severity: null", "severity: P1"),
     ("resolved_at: null", 'resolved_at: "2026-09-22T10:20:00Z"'),
-    ("Impact duration: [UNTRUSTED][unverified] unknown",
-     "Impact duration: [UNTRUSTED][unverified] 20 minutes"),
+    ("Impact duration: [unverified] unknown",
+     "Impact duration: [unverified] 20 minutes"),
     ("## Full analysis", "## Abbreviated analysis"),
     ("### Causal analysis", "### Notes"),
     ("customer-visible impact", "internal maintenance"),
     ("owner confirmation pending", "owner approved"),
     ("| open |", "| completed |"),
     ("Reviewed causal finding or explicit evidence limit linked", ""),
-    ("Causal status: [UNTRUSTED][unverified] unknown",
-     "Causal status: [UNTRUSTED][unverified] confirmed memory leak"),
+    ("Causal status: [unverified] unknown",
+     "Causal status: [unverified] confirmed memory leak"),
 ])
 def test_full_postmortem_preserves_unknown_metadata_and_pending_review(tmp_path, old, new):
     if old is not None:
@@ -323,7 +327,7 @@ def test_postmortem_scenario_command_reports_supervised_outcome(tmp_path, full, 
 
 
 @pytest.mark.parametrize("mutation", [None, "contact", "lifecycle", "review_date", "provenance", "index",
-                                     "audit_label", "audit_taint", "audit_promotion",
+                                     "audit_label", "audit_promotion",
                                      "detached_marker", "wrong_owner_record", "wrong_contact_record",
                                      "owner_prefix_record", "contact_prefix_record"])
 def test_closeout_artifact_rejects_partial_or_unrelated_change(tmp_path, mutation):
@@ -334,10 +338,10 @@ def test_closeout_artifact_rejects_partial_or_unrelated_change(tmp_path, mutatio
             "#checkout-platform", "#checkout-operations")
         if relative.endswith("services/checkout.md"):
             correction = "Owner: Checkout Operations. Staffed contact: #checkout-operations."
-            record = "[UNTRUSTED][sourced] AUDIT-73: " + correction
+            record = "[sourced] AUDIT-73: " + correction
             text = text.replace("[sourced] " + correction, record)
             if mutation == "detached_marker":
-                text = text.replace(record, correction + "\n[UNTRUSTED][sourced] AUDIT-73: source retained.")
+                text = text.replace(record, correction + "\n[sourced] AUDIT-73: source retained.")
             elif mutation in ("wrong_owner_record", "wrong_contact_record", "owner_prefix_record",
                               "contact_prefix_record"):
                 old, new = {"wrong_owner_record": ("Checkout Operations", "Wrong Team"),
@@ -350,10 +354,9 @@ def test_closeout_artifact_rejects_partial_or_unrelated_change(tmp_path, mutatio
                        "provenance": ("AUDIT-73", "unknown")}
             if mutation in old_new:
                 text = text.replace(*old_new[mutation])
-            audit_labels = {"audit_label": "[UNTRUSTED]", "audit_taint": "[sourced]",
-                            "audit_promotion": "[UNTRUSTED][verified]"}
+            audit_labels = {"audit_label": "", "audit_promotion": "[verified]"}
             if mutation in audit_labels:
-                text = text.replace("[UNTRUSTED][sourced] AUDIT-73", audit_labels[mutation] + " AUDIT-73")
+                text = text.replace("[sourced] AUDIT-73", audit_labels[mutation] + " AUDIT-73")
         if mutation == "index" and relative.endswith("index.md"):
             text = source
         files[relative] = text
@@ -378,16 +381,16 @@ def alert_closeout(tmp_path):
             text = text.replace("definition_version: 5", "definition_version: null")
             text = text.replace("source_receipt: EXPORT-80", "source_receipt: RULE-81")
             text = text.replace("EXPORT-80 recovery/queue-lag.yaml", "RULE-81 API-owned " + api)
-            text = text.replace("Version evidence: [UNTRUSTED][sourced] 5.",
-                                "Version evidence: [UNTRUSTED][unverified] unknown.")
+            text = text.replace("Version evidence: [sourced] 5.",
+                                "Version evidence: [unverified] unknown.")
         elif relative.endswith("alerts/queue-depth.md"):
             text = text.replace("source_definition: unknown", "source_definition: " + source)
             text = text.replace("definition_version: null", "definition_version: " + revision)
             text = text.replace("source_receipt: null", "source_receipt: SOURCE-82")
-            text = text.replace("Definition provenance: [UNTRUSTED][unverified] unknown.",
-                                "Definition provenance: [UNTRUSTED][sourced] SOURCE-82 source-managed " + source)
-            text = text.replace("Version evidence: [UNTRUSTED][unverified] unknown.",
-                                "Version evidence: [UNTRUSTED][sourced] " + revision)
+            text = text.replace("Definition provenance: [unverified] unknown.",
+                                "Definition provenance: [sourced] SOURCE-82 source-managed " + source)
+            text = text.replace("Version evidence: [unverified] unknown.",
+                                "Version evidence: [sourced] " + revision)
         elif relative.endswith("index.md"):
             text = text.replace("recovery/queue-lag.yaml", api).replace("| unknown |", "| " + source + " |")
         files[relative] = text
@@ -409,11 +412,11 @@ def test_alert_closeout_accepts_api_receipt_and_exact_source_revision(alert_clos
      "source_definition: recovery/queue-lag.yaml"),
     ("alerts/queue-lag.md", "definition_version: null", "definition_version: 5"),
     ("alerts/queue-lag.md", "source_receipt: RULE-81", "source_receipt: EXPORT-80"),
-    ("alerts/queue-lag.md", "Version evidence: [UNTRUSTED][unverified]",
-     "Version evidence: [UNTRUSTED][sourced]"),
-    ("alerts/queue-lag.md", "Definition provenance: [UNTRUSTED][sourced] RULE-81 API-owned",
-     "Definition provenance: [UNTRUSTED][sourced] RULE-81: marker only.\nAPI-owned"),
-    ("alerts/queue-lag.md", "Definition provenance: [UNTRUSTED][sourced]", "Definition provenance: [sourced]"),
+    ("alerts/queue-lag.md", "Version evidence: [unverified]",
+     "Version evidence: [sourced]"),
+    ("alerts/queue-lag.md", "Definition provenance: [sourced] RULE-81 API-owned",
+     "Definition provenance: [sourced] RULE-81: marker only.\nAPI-owned"),
+    ("alerts/queue-lag.md", "Definition provenance: [sourced]", "Definition provenance:"),
     ("alerts/queue-depth.md", "source_definition: alert-definitions/config/queue-depth.yaml@" + "b" * 40,
      "source_definition: alert-definitions/config/queue-depth.yaml@main"),
     ("alerts/queue-depth.md", "definition_version: " + "b" * 40, "definition_version: null"),

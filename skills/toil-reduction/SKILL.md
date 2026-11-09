@@ -104,14 +104,10 @@ quoting a break-even month. Read
 ## Design and verify the improvement
 
 Recommend a bounded change with its mechanism, owner, alternatives, expected benefit and acceptance
-criteria. When automation is the recommendation, also specify:
-
-- Inputs and target binding: what triggers it, and the exact service/environment it may act on.
-- Idempotency and partial/unknown outcomes: what a re-run, a half-completed run and an
-  unconfirmed result do.
-- Retry limits, observability and recovery: when it stops, what it logs or alerts, and how a
-  human reverses or completes its work.
-- A maintainable manual fallback for when it is unavailable or wrong.
+criteria. When automation is the recommendation, also specify its trigger and exact target,
+idempotency and partial and unknown outcomes (what a re-run, a half-completed run and an unconfirmed
+result do), retry limits, what it logs or alerts, how a human reverses or completes its work, and a
+maintainable manual fallback.
 
 These are implementation requirements, not permission to execute; `production-change-gate` retains live
 authority and `software-engineer` or the application owner implements the accepted work.
@@ -131,7 +127,7 @@ closed schema or JSON only, carry these meanings in its permitted fields and do 
 Baseline: <occurrences and total effort per window; window, sources and coverage limits>
 Options: <elimination, cause correction, simplification, self-service, automation, acceptance — each kept or rejected, with why>
 Calculation: <baseline, residual and maintenance effort, net saving and break-even or why none exists; ranges and assumptions>
-Classification: <toil | accepted work | enduring-value work — by this test: manual and recurring with little enduring value is toil (growth with volume is supporting evidence, not a requirement); judgment, deliberate practice or rare recovery is accepted work; work that creates lasting capability is enduring-value work>
+Classification: <toil | accepted work | enduring-value work | overhead — by this test: manual and recurring with little enduring value is toil (growth with volume is supporting evidence, not a requirement); judgment, deliberate practice or rare recovery is accepted work; work that creates lasting capability is enduring-value work; administrative work not tied to running a service (team meetings, goal setting, HR paperwork) is overhead>
 Recommendation: <bounded change, mechanism and alternatives>
 Owner: <implementation owner; acceptance owner and revisit trigger when accepting>
 Verification: <before/after comparison under comparable demand, and what remains unmeasured>

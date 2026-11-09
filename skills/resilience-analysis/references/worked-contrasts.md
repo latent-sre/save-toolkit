@@ -36,10 +36,8 @@ and partial-commit contract. The example supplies neither an SLO nor production 
 ## Proof that exercises the protection
 
 Propose an authorized, same-version test that overloads ledger admission and delays `ledger.post`
-beyond the chosen deadline, while account reads and duplicate deliveries run. Representative demand
-alone may never reach the admission limit. Count active ledger work, permit waiters and retries in
-shared-slot occupancy; measure completed/failed transactions, queue age, duplicate credits and
-cancellation time.
+beyond the chosen deadline, while account reads and duplicate deliveries run. Measure shared-slot
+occupancy, completed/failed transactions, queue age, duplicate credits and cancellation time.
 
 The proposal is falsified if reads lose reserved capacity, workers remain occupied after cancellation,
 or redelivery duplicates an effect. Stop at agreed queue-age/error bounds, remove the delay, then verify

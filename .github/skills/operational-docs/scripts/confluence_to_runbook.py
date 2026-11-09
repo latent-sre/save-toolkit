@@ -63,6 +63,7 @@ _SLOT_PATTERNS = tuple(
 
 UNVERIFIED_MARK = "*Imported command — [unverified] until rehearsed on the target.*"
 SERVICE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+TEMPLATE = Path(__file__).resolve().parents[1] / "assets" / "runbook-template.md"
 
 
 @dataclass
@@ -149,6 +150,8 @@ class _Extractor(HTMLParser):
         self._text: list[str] = []
         self._lists: list[_List] = []
         self._link: tuple[int, str] | None = None
+        self._in_cell = False
+        self._row_cells = 0
 
     def _destination(self, value: str | None) -> str:
         value = (value or "").strip()
@@ -183,7 +186,7 @@ class _Extractor(HTMLParser):
         blocks.append((kind, text))
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in {"iframe", "object", "embed", "video", "audio", "svg"} and not self._ac_depth:
+        if tag in {"iframe", "object", "embed", "video", "audio", "svg", "script", "style"} and not self._ac_depth:
             self.media_count += 1
             if tag != "embed":  # Void media has no descendants to suppress.
                 self._media.append(tag)
@@ -227,11 +230,18 @@ class _Extractor(HTMLParser):
             self._flush_text()
             if self._lists:
                 self._lists[-1].items.append((_integer(attributes.get("value")), []))
+        elif tag in {"td", "th"}:
+            self._text.append(" | " if self._row_cells else " ")
+            self._row_cells += 1
+            self._in_cell = True
         elif tag in {"p", "tr", "br"}:
-            if tag != "br" or self._link is None:
-                self._flush_text()
-            else:
+            if tag == "tr":
+                self._row_cells = 0
+            # A row stays one line: paragraphs and breaks inside a cell only separate words.
+            if tag != "tr" and (self._in_cell or (tag == "br" and self._link is not None)):
                 self._text.append(" ")
+            else:
+                self._flush_text()
         elif tag in _WORD_BREAKS:
             self._text.append(" ")
         elif self._code_span(tag):
@@ -256,6 +266,8 @@ class _Extractor(HTMLParser):
             self._text.append(" ")
         elif self._code_span(tag) and not self._in_title:
             self._text.append("`")
+        if tag in {"td", "th", "tr", "table"}:
+            self._in_cell = False
         if tag == "title":
             self._in_title = False
         elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
@@ -274,7 +286,7 @@ class _Extractor(HTMLParser):
         elif tag in {"ul", "ol"} and self._lists:
             self._flush_text()
             self._append_block("text", self._lists.pop().render())
-        elif tag in {"li", "p", "tr"}:
+        elif tag in {"li", "tr"} or (tag == "p" and not self._in_cell):
             self._flush_text()
 
     def handle_data(self, data: str) -> None:
@@ -406,8 +418,18 @@ def _losses(parser: _Extractor) -> list[str]:
     ]
 
 
+def _template_section(heading: str) -> str:
+    """One template section, so a draft carries its safety text unchanged or is not written."""
+    try:
+        text = TEMPLATE.read_text(encoding="utf-8")
+        return text.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0].strip("\n")
+    except (OSError, IndexError) as exc:
+        raise ValueError(f"cannot read the “{heading}” section of the runbook template {TEMPLATE}") from exc
+
+
 def _render_draft(title: str, service_id: str, owner: str, mapped: dict[str, list[str]],
                   unmapped: list[str], provenance: list[str]) -> str:
+    banner = [line for line in _template_section("Procedure").splitlines() if line.startswith(">")]
     lines = [
         "---",
         "schema_version: 1",
@@ -435,13 +457,13 @@ def _render_draft(title: str, service_id: str, owner: str, mapped: dict[str, lis
     ]
     for slot in SLOTS:
         lines += [f"## {slot}", ""]
+        if slot == "Procedure":
+            lines += [*banner, ""]
         lines += mapped.get(slot) or ["<fill in — not present in the source page>", ""]
     lines += [
         "## Post-Incident",
         "",
-        "- [ ] Append an Incident history row: version used, steps that held, steps that failed",
-        "      or were missing, and the follow-up reference.",
-        "- [ ] Create a learning disposition for every missing, contradicted, or newly useful step.",
+        *_template_section("Post-Incident").splitlines(),
         "",
         "## Incident history (living-runbook accretion)",
         "",

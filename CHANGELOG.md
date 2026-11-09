@@ -36,6 +36,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - `ci-actions` and `stack-profile` correct verified facts; `ci-actions` drops generic rules and `stack-profile` records oxlint as the frontend default.
 - `pcf-ops` and `pcf-deploy` correct verified platform facts, add the App Autoscaler unbind effect and Apps Manager Revisions, and drop `foundations.md`.
 - `frontend-craft` moves the React lint default to oxlint, sets the Node floor to Active LTS from the lockfile, and corrects verified toolchain, serving and licence facts.
+- `operational-docs` merges its disposition policy into knowledge closeout and drops carried labels; the Confluence converter reads the template for its banner and checks, suppresses script and style content, and keeps table structure; `resilience-analysis` and `toil-reduction` trim repeats.
 
 ## [0.52.0] - 2026-11-04
 
