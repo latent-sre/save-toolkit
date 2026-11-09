@@ -2,7 +2,7 @@
 
 ## Choose a comparison
 
-For known PCF apps, start with Apps Manager → app → Events unless supplied evidence makes a
+For known PCF apps, start with Apps Manager → app → Overview → app events unless supplied evidence makes a
 comparison below more useful or urgent; explain that choice. Use an accessible ticket, safe excerpt
 or console view without requiring the responder to know the telemetry stack.
 

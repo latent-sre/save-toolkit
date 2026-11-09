@@ -29,6 +29,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - The bundle-link check exempts scripts that a linked script loads and now scans `docs/fleet-evaluation` and `docs/sre-workbench`.
 - `grafana` reads V2 dashboards natively, lets Grafana expand its built-in macros (live coverage 16 to 41 of 47 targets), fixes alert truncation and error reporting, and drops compare, impact, alert-preview and the VS Code opener.
 - The Grafana workflow accepts `${var:regex}` and queries starting with `-`; `resilience-analysis` covers readiness audits, `gcp-ops` counts rejected requests, and the Confluence importer keeps inline text intact.
+- `incident-investigation` drops its leftover carried-label clauses and corrects verified mitigation and symptom facts.
 
 ## [0.52.0] - 2026-11-04
 

@@ -1,7 +1,7 @@
 # Closeout packet
 
-Use the known facts below; retain material unknowns without padding optional empty slots. Evidence
-labels travel unchanged. This supplies the postmortem and knowledge closeout. Return it to the invoking caller
+Use the known facts below; retain material unknowns without padding optional empty slots.
+This supplies the postmortem and knowledge closeout. Return it to the invoking caller
 (the human requester for direct use), who arranges the next handoff; this skill authors neither artifact.
 The UTC fields below are the receiving contract, not a change to the Eastern conversation display.
 Convert only dated, zoned source times; retain an unresolved source time with its gap rather than
@@ -23,7 +23,7 @@ Mitigation:       <what a human confirmed applied, when, verified how; attempts 
 Worked / slow:    <what helped; what cost time; where the team got lucky>
 Follow-ups:       <reuse the board's IDs/rows: discoveries, actions (owner/due/status), decisions (who asked/decided, UTC), and unknowns with evidence; include rows if the recipient cannot access the source>
 Knowledge repo:   <root> · read: <paths> · missing or stale: <paths>
-Evidence:         <sanitized excerpts or access-controlled references — pasted outputs, sre-assistant agent packets, dashboard ranges — each with its label; credential-bearing output is never carried: record that it was exposed, where, and to whom>
+Evidence:         <sanitized excerpts or access-controlled references — pasted outputs, sre-assistant agent packets, dashboard ranges; credential-bearing output is never carried: record that it was exposed, where, and to whom>
 
 Next owners:
 1. `scribe`, postmortem mode — this packet is the source.
