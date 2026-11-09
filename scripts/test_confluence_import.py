@@ -381,6 +381,19 @@ class ConfluenceContentTest(ConverterTest):
                 )
                 self.assertIn("Image attachments not copied: 1", proc.stdout)
 
+    def test_inline_markup_cannot_change_a_command_written_in_prose(self) -> None:
+        _, draft = self.convert(
+            '<h1>Recovery</h1><h2>Procedure</h2>'
+            '<p>Run cf map-route <strong>APP</strong>-blue example.com, then cf restart '
+            '&lt;app&gt; and <code>cf logs &lt;app&gt; --recent</code>.</p>'
+            '<table><tr><td>Running</td><td>Wait</td></tr></table>'
+        )
+        procedure = slot_text(draft, "Procedure")
+        self.assertIn("APP-blue example.com", procedure)
+        self.assertIn(r"cf restart \<app\>", procedure)
+        self.assertIn("`cf logs <app> --recent`", procedure)
+        self.assertIn("Running Wait", draft)
+
     def test_reference_labels_preserve_text_and_destinations_as_literal_markdown(self) -> None:
         proc, draft = self.convert(
             '<p><a href="https://example.com/console?q=1&amp;b=2">'

@@ -47,7 +47,8 @@ deployed runtime configuration; never quote upstream defaults as the tenant's li
   authoring support ended; the console cannot create new MQL charts/dashboards/policies, but
   existing assets remain editable without migration and the API permits creation.
 - Legacy pre-UTF-8 name mapping converts the first `/` to `:` and other special characters to `_`
-  (e.g. `run.googleapis.com/request_count`). Resolve actual names in the console PromQL editor.
+  (e.g. `run.googleapis.com/request_count`, which excludes requests rejected at max instances).
+  Resolve actual names in the console PromQL editor.
 - Managed Prometheus and native Cloud Monitoring metrics share a query backend. For Mimir queries
   that fail here, check `…/stackdriver/docs/managed-prometheus/promql-differences`. Non-PromQL API
   queries of Prometheus-ingested metrics use monitored-resource type `prometheus_target`.

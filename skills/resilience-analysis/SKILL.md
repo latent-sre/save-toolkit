@@ -71,6 +71,17 @@ Prioritize user impact, plausible exposure, recovery difficulty, uncertainty and
 State why the proposed work outranks alternatives; avoid invented probability scores. A missing
 required verification can matter urgently without proving that recovery will fail.
 
+## Existing-service readiness
+
+For a general readiness audit, inspect each applicable surface and report it as passed, a finding,
+or a gap, with evidence and its age: owner and on-call path; runtime and health check; deploy and
+exact rollback path; telemetry arrival; SLI/SLO and paging alerts with runbook links; runbook and
+service record; critical dependencies, limits and headroom; backup scope with a dated restore
+rehearsal. Load the owning skill only for the surface you are on. A readiness gap needs the surface,
+the evidence inspected and the consequence, not a failure path. A control present but unrecorded is
+a documentation gap; absent from both is a readiness gap. Then trace failure paths for the surfaces
+that matter. An audit changes nothing and approves nothing.
+
 ## Engineer the improvement and proof
 
 Compare the smallest effective change with existing controls and consequential alternatives. Specify

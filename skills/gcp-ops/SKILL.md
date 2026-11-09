@@ -32,7 +32,7 @@ account identity and credential properties are excluded; configuration can conta
 | Question | Cloud Console | `gcloud` equivalent |
 |---|---|---|
 | Service details? | Select the service to open its details | `gcloud run services describe <service> --region <region> --project <project>` |
-| All requests or some, since when, at max instances? | Service → **Metrics**: request count, request latencies, container instance count, memory utilization | No GA `gcloud` read; `request_count` by `response_code_class` through obs-analysis' Cloud Monitoring reference |
+| All requests or some, since when, at max instances? | Service → **Metrics**: request count, request latencies, container instance count, memory utilization | No GA `gcloud` read; `request_count` by `response_code_class` through obs-analysis' Cloud Monitoring reference. It excludes requests rejected at max instances: count those from request logs (`httpRequest.status=429`) |
 | Which revisions exist? | Service → **Revision history** | `gcloud run revisions list --service <service> --region <region> --project <project>` |
 | Recent request/container errors? | Service → **Logs**; select the last hour | `gcloud run services logs read <service> --freshness=1h --limit=100 --region <region> --project <project>` |
 
@@ -98,7 +98,8 @@ configured):
 | Code | Documented message | First check |
 |---|---|---|
 | Start fails | "Container failed to start. Failed to start and then listen on the port defined by the PORT environment variable." (search `listen on the port`) | The app must listen on `0.0.0.0:$PORT`, not `127.0.0.1`; the PCF `$PORT` discipline transfers exactly |
-| 429 | "…aborted because there was no available instance." | Container instance count against max instances (Metrics); a raise is a change to recommend |
+| 429 | "…aborted because there was no available instance." | Instance count against max instances (Metrics). Below max does not clear scaling: a traffic spike, slow startup, or long requests also produce this. A raise is a change to recommend |
+| 500 | "…no available instance", or "…instance could not start successfully" | The first reads as the 429 row; the second is often a failed Secret Manager access or startup error, so read the container's startup logs |
 | 503 | "…the HTTP response was malformed or connection to the instance had an error." | In order: an [OOM](#oom-evidence) line; `LIVENESS HTTP probe failed` if configured; a framework timeout shorter than the request (Node `server.setTimeout`, Gunicorn `WORKER TIMEOUT`); VPC connector throughput. Over 800 requests/s per instance might exhaust TCP sockets; confirm evidence of that bottleneck and container support for [HTTP/2 cleartext (`h2c`)](https://docs.cloud.google.com/run/docs/configuring/http2#before_you_configure) before recommending HTTP/2 |
 | 504 | "…reached the maximum request timeout." | Compare the revision's request timeout with the slow downstream call. A [504 can leave application work running](https://docs.cloud.google.com/run/docs/configuring/request-timeout); check completion/effects and retry safety before recommending a retry or timeout increase |
 
@@ -149,7 +150,7 @@ onset (the split in `services describe`, the deploy record, or pre-onset request
 `resource.labels.revision_name`) and had a normal error rate then. Put both in the packet.
 
 Tier 2, human release owner, with the exact revision names, verification (request count by
-response class on the service's Metrics tab), and a command that restores the intended prior
+response class on the service's Metrics tab, plus 429s from request logs, which that metric excludes), and a command that restores the intended prior
 traffic allocation or `--to-latest` tracking policy. Traffic changes are not instantaneous —
 in-flight requests may land on either revision during the transition. During a declared incident,
 `incident-investigation` advises and ITO approves in the TLC under `production-change-gate`'s

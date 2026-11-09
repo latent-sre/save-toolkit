@@ -93,6 +93,17 @@ class _List:
         return "\n".join(output).rstrip("\n")
 
 
+# Elements whose boundaries separate words even though they do not end a block here.
+_WORD_BREAKS = {"td", "th", "div", "dt", "dd", "blockquote", "section", "article", "caption"}
+
+
+def _escape_markup(text: str) -> str:
+    """Keep literal angle brackets visible; code spans and link destinations are already literal."""
+    parts = re.split(r"(`[^`]*`|\]\(<[^>]*>\))", text)
+    return "".join(part if index % 2 else re.sub(r"(?<!\\)[<>]", r"\\\g<0>", part)
+                   for index, part in enumerate(parts))
+
+
 def _reference(label: str, destination: str = "") -> str:
     """A Markdown link whose label is literal text, or the escaped label alone without a destination."""
     label = " ".join(label.split())
@@ -154,13 +165,14 @@ class _Extractor(HTMLParser):
     def _finish_link(self) -> None:
         if self._link is not None:
             start, destination = self._link
-            label = " ".join(self._text[start:]).strip() or destination
+            label = "".join(self._text[start:]).strip() or destination
             self._text[start:] = [_reference(label, destination)]
             self._link = None
 
     def _flush_text(self) -> None:
         self._finish_link()
-        text = " ".join(part for part in self._text if part).strip()
+        # Inline fragments keep the spacing the source gave them: "<b>APP</b>-blue" is one word.
+        text = _escape_markup(re.sub(r" {2,}", " ", "".join(self._text)).strip())
         self._text = []
         if text:
             self._append_block("text", text)
@@ -192,9 +204,9 @@ class _Extractor(HTMLParser):
                 self._link = (len(self._text), self._destination(attributes["href"]))
         elif tag == "img":
             self.image_count += 1
-            self._text.append("Image: " + _reference(
+            self._text.append(" Image: " + _reference(
                 attributes.get("alt") or "image", self._destination(attributes.get("src"))
-            ))
+            ) + " ")
         elif tag == "title":
             self._in_title = True
         elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
@@ -218,6 +230,15 @@ class _Extractor(HTMLParser):
         elif tag in {"p", "tr", "br"}:
             if tag != "br" or self._link is None:
                 self._flush_text()
+            else:
+                self._text.append(" ")
+        elif tag in _WORD_BREAKS:
+            self._text.append(" ")
+        elif self._code_span(tag):
+            self._text.append("`")
+
+    def _code_span(self, tag: str) -> bool:
+        return tag in {"code", "tt"} and self._pre is None and self._heading is None and self._link is None
 
     def handle_endtag(self, tag: str) -> None:
         if self._media:
@@ -231,6 +252,10 @@ class _Extractor(HTMLParser):
             return
         if tag == "a":
             self._finish_link()
+        if tag in _WORD_BREAKS:
+            self._text.append(" ")
+        elif self._code_span(tag) and not self._in_title:
+            self._text.append("`")
         if tag == "title":
             self._in_title = False
         elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
@@ -263,8 +288,8 @@ class _Extractor(HTMLParser):
             self._heading += data
         elif self._pre is not None:
             self._pre.append(data)
-        elif data.strip():
-            self._text.append(re.sub(r"\s+", " ", data).strip())
+        elif data:
+            self._text.append(re.sub(r"\s+", " ", data))
 
     def close(self) -> None:
         self._flush_text()

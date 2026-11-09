@@ -94,8 +94,8 @@ summary, actual timestamps and limits. Status distinguishes `values_returned`, `
 Zero is a value; returned data is not a health assessment. Mixed panels retain per-target outcomes.
 
 Explicit scalar variables use context-aware literal escaping for supported quoted matchers;
-regex matchers escape literal metacharacters. Missing values, format modifiers, multi-value/All
-semantics, unknown datasources, table queries and custom target intervals are reported as
+regex matchers escape literal metacharacters, including `${var:regex}` with one explicit value.
+Missing values, other format modifiers, multi-value/All semantics, unknown datasources, table queries and custom target intervals are reported as
 unsupported. Saved variable defaults are not substituted into queries. Multi-line expressions run
 as written. Prometheus built-in macros go to Grafana's backend, which expands them from the
 request's interval and point hints and the scrape interval; each result's

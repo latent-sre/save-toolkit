@@ -50,10 +50,22 @@ def test_quoted_scalar_regex_and_literal_values_preserve_scope():
     assert plan.substitute('$source', {'source': 'prod-metrics'}, context='datasource') == 'prod-metrics'
 
 
+def test_regex_format_substitutes_one_escaped_value_in_a_regex_matcher():
+    assert plan.substitute('up{host=~"${host:regex}"}', {'host': 'node.example'}) == 'up{host=~"node\\\\.example"}'
+    assert plan.substitute('up{host!~"${host:regex}"}', {'host': 'a'}) == 'up{host!~"a"}'
+    assert plan.substitute('{app="x"} |~ `${word:regex}`', {'word': 'a.b'}) == '{app="x"} |~ `a\\.b`'
+    assert plan.substitute('rate(up{host=~"${host:regex}"}[$__rate_interval])', {'host': 'a'}) == (
+        'rate(up{host=~"a"}[$__rate_interval])')
+
+
 @pytest.mark.parametrize('expression,variables', [
     ('$host', {'host': 'node.example/path'}), ('up{host="${host:regex}"}', {'host': 'a'}),
     ('up{host="$missing"}', {}), ('label_replace(up,"x","a","b","$host")', {'host': '.*'}),
     ('[[host]]', {'host': 'a'}), ('up{host="$host"}', {'host': ['a', 'b']}),
+    ('up{host=~"${host:raw}"}', {'host': 'a'}), ('up{host=~"${host:pipe}"}', {'host': 'a'}),
+    ('up{host=~"${host:regex:x}"}', {'host': 'a'}), ('${host:regex}', {'host': 'a'}),
+    ('up{host=~"${host:regex}"}', {}), ('up{host=~"${host:regex}"}', {'host': ['a', 'b']}),
+    ('label_replace(up,"x","a","b","${host:regex}")', {'host': 'a'}),
 ])
 def test_unsupported_variable_contexts_are_explicit(expression, variables):
     with pytest.raises(ValueError, match='unsupported_variable_interpolation'):

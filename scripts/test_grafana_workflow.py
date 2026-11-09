@@ -213,6 +213,18 @@ def test_explicit_variables_and_both_query_modes_are_recorded(tmp_path):
     assert report['variables'] == {'host': 'example-host'}
 
 
+def test_regex_format_variable_and_leading_minus_reach_the_backend(tmp_path):
+    http = HTTP(sample_panel(targets=[
+        {'refId': 'A', 'expr': 'rate(up{host=~"${host:regex}"}[$__rate_interval])'},
+        {'refId': 'B', 'expr': '-rate(up{host=~"${host:regex}"}[$__rate_interval])'}]))
+    code, _, report = run_workflow(tmp_path, http, ['--var', 'host=node.a'])
+    assert code == 0
+    queries = [json.loads(call.data)['queries'][0]['expr'] for call in http.calls if call.method == 'POST']
+    assert queries == ['rate(up{host=~"node\\\\.a"}[$__rate_interval])', '-rate(up{host=~"node\\\\.a"}[$__rate_interval])']
+    statuses = [target['status'] for panel in report['panels'] for target in panel['targets']]
+    assert 'unsupported' not in statuses
+
+
 def test_query_failure_is_not_empty_data(tmp_path):
     http = HTTP(query={'results': {'A': {'error': 'private-token rejected', 'frames': []}}})
     code, _, report = run_workflow(tmp_path, http)

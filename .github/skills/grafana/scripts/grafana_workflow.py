@@ -162,8 +162,12 @@ def _target_argv(panel, target, args, variables):
         modes = [mode] if mode in ('range', 'instant') else []
     if not modes:
         raise reader.SafeError('unsupported_query_mode')
+    resolved = _substitute(expr, variables)
+    # A query opening with '-' (a mirrored series) would otherwise parse as a command-line flag.
+    expression = (['--expr-base64', base64.b64encode(resolved.encode('utf-8')).decode('ascii')]
+                  if resolved.startswith('-') else ['--expr', resolved])
     common = ['query', '--datasource', uid, '--kind', kind, '--from', str(args.from_ms),
-              '--to', str(args.to_ms), '--expr', _substitute(expr, variables)]
+              '--to', str(args.to_ms), *expression]
     for flag, value in (('--interval-ms', args.interval_ms), ('--rate-interval-ms', args.rate_interval_ms if kind == 'prometheus' else None)):
         if value is not None:
             common.extend([flag, str(value)])

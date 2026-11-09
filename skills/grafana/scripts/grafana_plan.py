@@ -29,12 +29,17 @@ def substitute(expression, variables, *, context='query'):
 
     Quoted matcher regexes escape regex metacharacters before query-string
     escaping. Unquoted substitutions retain a conservative token contract.
+    `${name:regex}` is accepted only in a quoted regex matcher, where one
+    escaped literal is exactly what Grafana's regex format produces for one value.
     Built-in macros are left to the reader's versioned query validation.
     """
     def replace(match):
         name = match.group(1) or match.group(2)
         if name.startswith('__'):
             return match.group(0)
+        name, separator, modifier = name.partition(':')
+        if separator and modifier != 'regex':
+            raise ValueError('unsupported_variable_interpolation')
         value = variables.get(name)
         if (not isinstance(value, str) or not 1 <= len(value) <= 100 or
                 any(ord(char) < 32 or ord(char) == 127 for char in value)):
@@ -43,12 +48,16 @@ def substitute(expression, variables, *, context='query'):
         if escaped:
             raise ValueError('unsupported_variable_interpolation')
         if not quote:
+            if separator:
+                raise ValueError('unsupported_variable_interpolation')
             pattern = r'[A-Za-z0-9_.:-]+' if context == 'datasource' else r'[A-Za-z0-9_:]+'
             if not re.fullmatch(pattern, value):
                 raise ValueError('unsupported_variable_interpolation')
             return value
         prefix = expression[:opening].rstrip()
         if not prefix.endswith(('=', '!=', '=~', '!~', '|~')):
+            raise ValueError('unsupported_variable_interpolation')
+        if separator and not prefix.endswith(('=~', '!~', '|~')):
             raise ValueError('unsupported_variable_interpolation')
         if prefix.endswith(('=~', '!~', '|~')):
             value = re.sub(r'([\\.^$*+?{}\[\]()|])', r'\\\1', value)
