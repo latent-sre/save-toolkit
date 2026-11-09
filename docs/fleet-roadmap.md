@@ -430,7 +430,9 @@ or an untimed aggregate for evidence of incident recovery or cause.
 **Outcome:** Where Apps Manager offers an equivalent, `pcf-deploy` plans state that path beside the
 `cf` command, and name the steps that still need the CLI.
 **Next action:** None until the owner schedules it. Then confirm which steps Apps Manager supports
-on the team's foundation version before writing them.
+on the team's foundation version before writing them. Also confirm whether Apps Manager has an
+Events view: `pcf-ops` and `helper-exchange.md` send responders to one, and Broadcom's page may
+not list it.
 **Evidence:** none yet.
 **SRE task:** Plan and verify a PCF change from Apps Manager when the `cf` CLI is not installed.
 

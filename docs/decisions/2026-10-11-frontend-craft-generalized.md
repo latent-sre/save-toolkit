@@ -64,9 +64,9 @@ Recorded after the candidate's first review, on the owner's answers of 2026-10-1
 
 16. **One identity per app.** No shared brand or family resemblance is required across the
     team's apps; each brief chooses its own palette, type and signature.
-17. **npm and Node 22 or 24.** npm is the package manager for a new app, with one committed
-    lockfile; pnpm only where a repository already uses it. Node 22.12 or later, 24 being the
-    active LTS line.
+17. **npm and Active LTS Node.** npm is the package manager for a new app, with one committed
+    lockfile; pnpm only where a repository already uses it. Node is the current Active LTS, with
+    the floor taken from the lockfile.
 18. **The GUI mix is a mix.** The team builds across the archetypes and defines the weighting
     after a few runs rather than up front; the archetypes stay evenly weighted until then
     (`FRONTEND-003` in the roadmap; `FRONTEND-001` and `FRONTEND-002` are the owner's own follow-up items on the `work/frontend-backlog` branch).
@@ -87,7 +87,8 @@ app; React only; keyboard-first as the default look; a single default stack.
   owner closed `ROUTE-004` on that case; the asset contract test is rewritten for the new files.
 - Library facts in the skill were verified against registries and primary documentation on
   2026-10-11 [verified]: Vite 8, React 19.3, TypeScript 7 as the latest major with no compiler
-  API (so new apps pin 6.x while typescript-eslint needs it), Tailwind 4.3, shadcn on Base UI by
+  API (React apps now use oxlint on TypeScript 7; Vue stays on 6.x until `vue-tsc` and
+  typescript-eslint support 7), Tailwind 4.3, shadcn on Base UI by
   default, HeroUI 3, Mantine 9, Material UI 9, daisyUI 5, Motion 14, TanStack Table 9, MSW 3,
   Vitest 5. Instruction files carry the facts without dates, per the fleet rule; this record is
   where the verification date lives.
@@ -95,8 +96,8 @@ app; React only; keyboard-first as the default look; a single default stack.
   stance accepts; the staticfile buildpack's `location_include` nesting and the `.profile`
   runtime-configuration write were reproduced against the buildpack's own nginx template locally
   [verified: 2026-10-11, nginx 1.24] but not yet on a foundation, so the serving contract is the
-  proof there; the TypeScript 6 pin is a dated workaround to revisit when typescript-eslint
-  supports 7.1.
+  proof there; Vue's TypeScript 6 pin is a dated workaround to revisit when `vue-tsc` and
+  typescript-eslint support 7.
 - The rendered proof the owner asked for is retained as
   [docs/reviews/2026-10-11-frontend-craft-proof](../reviews/2026-10-11-frontend-craft-proof/README.md):
   an operator console built from the skill's defaults, typechecked, tested, built, and screenshotted in
