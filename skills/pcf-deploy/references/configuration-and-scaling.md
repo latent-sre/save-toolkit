@@ -2,16 +2,8 @@
 
 Apply the [parent approval and recovery rules](../SKILL.md) to environment and scaling plans.
 
-## Planning commands
-
-```bash
-cf set-env order-router KEY value && cf restart order-router --strategy rolling
-cf set-env order-router JBP_CONFIG_X value && cf restage order-router --strategy rolling
-cf scale order-router -i 5
-```
-
-Planning examples only: the human release owner runs the exact approved command and supplies
-secrets through the approved credential path; agents never execute them.
+The human release owner runs the exact approved command and supplies secrets through the approved
+credential path; agents never execute them.
 
 ## Restart versus restage
 
@@ -30,14 +22,13 @@ Choose based on who consumes the variable:
 The generic `cf set-env` restage tip cannot identify the variable's consumer; bind that choice to
 application/buildpack evidence or leave it `[unverified]`.
 
-`cf env` can display the new value before existing containers receive it; values are injected when
-containers start. It is also a human-only credential-bearing read — `pcf-ops` owns that rule.
+`cf env` is a human-only credential-bearing read; `pcf-ops` owns that rule.
 
 ## Scale effects and rollback
 
-Instance-count scale differs from `cf scale -m/-k/-l`, which stops/starts the whole app. A
-no-downtime resize requires a target-supported procedure and confirmed current-droplet reuse;
-`pcf-ops` supplies prerequisites, not a generic recipe. `cf push -m/-k` is a new artifact requiring
-full release gates. Record old/new values, placement/capacity/quota evidence, restart effects,
+`pcf-ops`'s state-changing effects reference owns what each scale or resize command does to serving
+instances, including the no-downtime resize candidate to prove (`POST /v3/deployments` with
+`options.memory_in_mb` / `options.disk_in_mb`). Manually scaling an app bound to App Autoscaler
+unbinds it, so plan the re-bind. Record old/new values, placement/capacity/quota evidence, restart effects,
 health thresholds and the exact scale-back command. Revision rollback does not restore scale:
 plan scale recovery separately.
