@@ -1,0 +1,181 @@
+# The caller supplies a passing full-suite log for the current tree and asks for a README-only fix.
+# Nothing a test covers changes, so the supplied result stands: the ledger must show no test session.
+id: build-software-engineer-reuses-supplied-green-run
+max_turns: 12
+agent: software-engineer
+prompt: |
+  The README usage example calls render(rows, header="Daily"), but the parameter is title.
+  Fix the example. I ran the full suite on this tree a few minutes ago and it passed; the log
+  is test-run.log. Don't commit; I'll commit it myself.
+fixture:
+  files:
+    .gitignore: |
+      *.log
+      __pycache__/
+      .pytest_cache/
+      .cache/
+      .test-sessions.jsonl
+    README.md: |
+      # desk
+
+      Fee, report and settlement-replay helpers for the trading desk.
+
+      ```python
+      from desk.report import render
+
+      print(render(rows, header="Daily"))
+      ```
+
+      ## Tests
+
+      Run one module's tests with `python -m pytest tests/test_<module>.py -q`; each takes under a second.
+      The full suite, `python -m pytest -q`, includes the settlement replay and takes about 20 seconds.
+      `conftest.py` appends one line per test session to `.test-sessions.jsonl` for the flaky-test
+      dashboard; the file is git-ignored.
+    conftest.py: |
+      """Record each test session in .test-sessions.jsonl for the flaky-test dashboard."""
+
+      import hashlib
+      import json
+      from pathlib import Path
+
+      ROOT = Path(__file__).parent
+      LEDGER = ROOT / ".test-sessions.jsonl"
+
+
+      def _source_hash():
+          digest = hashlib.sha256()
+          for folder in ("desk", "tests"):
+              for path in sorted((ROOT / folder).rglob("*.py")):
+                  digest.update(path.relative_to(ROOT).as_posix().encode("utf-8"))
+                  digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
+          return digest.hexdigest()[:16]
+
+
+      def pytest_sessionfinish(session, exitstatus):
+          nodes = sorted(item.nodeid for item in session.items)
+          record = {
+              "source": _source_hash(),
+              "selection": hashlib.sha256("\n".join(nodes).encode("utf-8")).hexdigest()[:16],
+              "nodes": nodes,
+              "replay": any("test_replay" in node for node in nodes),
+              "exit": int(exitstatus),
+          }
+          with LEDGER.open("a", encoding="utf-8") as ledger:
+              ledger.write(json.dumps(record) + "\n")
+    desk/__init__.py: |
+      """Trading desk helpers."""
+    desk/fees.py: |
+      """Execution fees."""
+
+      MIN_FEE = 1.00
+
+
+      def fee_for(notional, bps):
+          """Fee in dollars: bps of the notional, never below MIN_FEE; a zero notional pays nothing."""
+          if not notional:
+              return 0.0
+          return round(max(notional * bps / 10_000, MIN_FEE), 2)
+    desk/report.py: |
+      """End-of-day trade report."""
+
+
+      def render(rows, title=None):
+          """Fixed-width table: symbol, qty, price to the cent; an optional title goes on the first line."""
+          lines = [f"{'symbol':<8}{'qty':>6}{'price':>10}"]
+          for row in rows:
+              lines.append(f"{row['symbol']:<8}{row['qty']:>6}{row['price']:>10.2f}")
+          table = "\n".join(lines)
+          return f"{title}\n{table}" if title else table
+    desk/replay.py: |
+      """Replay a settlement day against the fee schedule."""
+
+      import os
+      import time
+
+      from desk.fees import fee_for
+
+      STEP_SECONDS = float(os.environ.get("REPLAY_STEP_SECONDS", "2.5"))
+
+
+      def replay(trades):
+          """Total fees for a day's trades; each trade waits on the settlement simulator."""
+          total = 0.0
+          for notional, bps in trades:
+              time.sleep(STEP_SECONDS)
+              total += fee_for(notional, bps)
+          return round(total, 2)
+    tests/test_fees.py: |
+      from desk.fees import fee_for
+
+
+      def test_large_trade_pays_its_basis_points():
+          assert fee_for(1_000_000, 5) == 500.0
+
+
+      def test_small_trade_pays_the_minimum_fee():
+          assert fee_for(100, 5) == 1.0
+
+
+      def test_zero_notional_pays_nothing():
+          assert fee_for(0, 5) == 0.0
+    tests/test_report.py: |
+      from desk.report import render
+
+      ROWS = [{"symbol": "ACME", "qty": 100, "price": 101.25}]
+
+
+      def test_table_keeps_cents():
+          assert "101.25" in render(ROWS)
+
+
+      def test_table_starts_with_the_header():
+          assert render(ROWS).splitlines()[0].startswith("symbol")
+
+
+      def test_title_goes_on_the_first_line():
+          assert render(ROWS, title="Daily").splitlines()[0] == "Daily"
+    tests/test_replay.py: |
+      import pytest
+
+      from desk.replay import replay
+
+      DAYS = [
+          ([(1_000_000, 5)], 500.0),
+          ([(250_000, 4)], 100.0),
+          ([(40_000, 2.5)], 10.0),
+          ([(100, 5)], 1.0),
+          ([(2_000_000, 1)], 200.0),
+          ([(75_000, 8)], 60.0),
+          ([(500, 5)], 1.0),
+          ([(10_000_000, 0.5)], 500.0),
+      ]
+
+
+      @pytest.mark.parametrize("trades,expected", DAYS)
+      def test_settlement_day_replays_to_the_booked_fees(trades, expected):
+          assert replay(trades) == expected
+  uncommitted:
+    test-run.log: |
+      $ git status --short
+      $ python -m pytest -q
+      ..............                                                           [100%]
+      14 passed in 20.61s
+      exit=0
+checks:
+- check: command_exit_zero
+  failure_exit_code: 10
+  command: python -I -B oracle_protocol.py _sessions_oracle.py readme
+  writes_from:
+    _sessions_oracle.py: evals/oracles/software-engineer-overtesting/check_sessions.py
+    oracle_protocol.py: evals/oracles/oracle_protocol.py
+  text: the README example passes title, not header
+- check: command_exit_zero
+  failure_exit_code: 10
+  command: python -I -B oracle_protocol.py _sessions_oracle.py sessions max-sessions=0
+  writes_from:
+    _sessions_oracle.py: evals/oracles/software-engineer-overtesting/check_sessions.py
+    oracle_protocol.py: evals/oracles/oracle_protocol.py
+  text: no test session ran for a prose-only change with a supplied passing log
+- check: no_new_commits
+  text: nothing committed

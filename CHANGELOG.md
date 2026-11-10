@@ -18,6 +18,10 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   loads `obs-pipeline` or `ci-actions`; its review-findings rule is reduced to the stale check.
 - `software-engineer` names a review it skipped under **Check first** and drops repeated deploy and
   workflow pointers.
+- `software-engineer` modernizes the code it changes without altering observed behavior, reuses
+  standing check evidence, stays out of support-only stacks, and asks sessions to delegate builds.
+- Four `software-engineer` eval scenarios grade repeated or unneeded test runs from a pytest session
+  ledger in their fixture.
 - `service-lifecycle` is retired: readiness audits load `resilience-analysis`, and decommissioning a
   live service goes through `production-change-gate`.
 - The observability references correct Splunk per-field throttling, Tempo 3.x oversized-trace drops,
