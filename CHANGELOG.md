@@ -42,6 +42,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - `grafana` drops common knowledge and Grafana Cloud references, and corrects stale traps, including that the rule API does not enforce compare-and-swap on 13.3.0.
 - `obs-alerting`, `obs-analysis` and `obs-pipeline` drop common knowledge and doc-link headers, and correct stale claims, including Grafana's No Data behaviour for a vanished series.
 - `agent-authoring` corrects its Claude Code and Copilot host facts for current versions and drops about 4.9 KB of detail the fleet does not use. The VS Code plugin acceptance document is removed; `COPILOT-HARNESS-001` tracks delegation on the default Copilot harness.
+- `software-engineer` is rewritten: it names the decisions it makes without asking, may modernize the code it changes, adds a test only for behavior nothing pins, and runs each check once to a log with its exit code, citing that result until something it covers changes.
 
 ## [0.52.0] - 2026-11-04
 
