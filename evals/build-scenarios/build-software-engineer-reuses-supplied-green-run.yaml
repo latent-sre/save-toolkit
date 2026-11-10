@@ -41,6 +41,7 @@ fixture:
 
       ROOT = Path(__file__).parent
       LEDGER = ROOT / ".test-sessions.jsonl"
+      RAN = []
 
 
       def _source_hash():
@@ -52,8 +53,13 @@ fixture:
           return digest.hexdigest()[:16]
 
 
+      def pytest_runtest_logreport(report):
+          if report.when == "call":
+              RAN.append(report.nodeid)
+
+
       def pytest_sessionfinish(session, exitstatus):
-          nodes = sorted(item.nodeid for item in session.items)
+          nodes = sorted(RAN)
           record = {
               "source": _source_hash(),
               "selection": hashlib.sha256("\n".join(nodes).encode("utf-8")).hexdigest()[:16],

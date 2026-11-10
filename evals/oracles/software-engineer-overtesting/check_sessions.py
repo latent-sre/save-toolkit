@@ -3,9 +3,10 @@
 Usage: check_sessions.py MODE [LIMIT ...]
 Behavior modes (readme, fees, strip-title, qty-width) exercise the candidate's code or prose.
 The `sessions` mode reads `.test-sessions.jsonl`, which the fixture's conftest.py appends to once per
-pytest session, and applies the named limits:
+pytest session. The ledger records the tests that executed, so a session that executed none (for
+example `--collect-only`) is ignored. The mode applies the named limits:
   max-sessions=N   at most N sessions in total
-  max-full=N       at most N sessions that collected the slow replay tests
+  max-full=N       at most N sessions that ran the slow replay tests
   min-full=N       at least N such sessions
   max-repeats=N    at most N sessions repeating an earlier selection on unchanged source files
   verified=PATH    some passing session ran tests under PATH against the current source files
@@ -39,7 +40,8 @@ def source_hash() -> str:
 def sessions() -> list[dict]:
     if not LEDGER.exists():
         return []
-    return [json.loads(line) for line in LEDGER.read_text(encoding="utf-8").splitlines() if line.strip()]
+    records = [json.loads(line) for line in LEDGER.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [record for record in records if record["nodes"]]
 
 
 def check_sessions(limits: list[str]) -> None:
