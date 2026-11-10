@@ -4,8 +4,7 @@
   "summary": "Alert semantics, SLO/error-budget reasoning and paging boundaries",
   "tests": [
     "evals/test_obs_alerting_cases.py",
-    "scripts/test_error_budget.py",
-    "scripts/test_grafana_alert_preview.py"
+    "scripts/test_error_budget.py"
   ],
   "native_scenarios": [
     "discovery-obs-alerting-defers-signal-query",

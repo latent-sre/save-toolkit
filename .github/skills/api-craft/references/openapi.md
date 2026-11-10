@@ -24,17 +24,18 @@ not establish object authorization, idempotency or crash recovery.
 
 ## Generator traps
 
-- Preserve stable, unique operation IDs using FastAPI's `generate_unique_id_function` or Huma's
-  `OperationID` when defaults do not match the client contract.
-- Name generic page models when clients require stable names. Huma drops package paths and Go
-  aliases keep their target's name; check collisions in generated output.
+- Preserve stable, unique operation IDs using FastAPI's `generate_unique_id_function` when defaults
+  do not match the client contract.
+- Name generic page models when clients require stable names; check collisions in generated output.
 - Choose input/output schema separation deliberately; FastAPI's
   `separate_input_output_schemas=False` merges them.
 - Missing and nullable are different. In Pydantic v2, a nullable field without a default is required.
   Check omitted fields and nil versus empty collections against the actual serializer and document.
 - Check the emitted OpenAPI version and streaming constructs against the actual consumer generator.
-  Support for ordinary `schema` does not establish support for OpenAPI 3.2 `itemSchema`; generate
-  the client and verify event types rather than accepting `unknown` as a typed stream.
+  Support for ordinary `schema` does not establish support for OpenAPI 3.2 `itemSchema`, and
+  FastAPI's streaming routes emit `itemSchema` in a document labelled 3.1.0, so the version field
+  does not reveal it. Generate the client and verify event types rather than accepting `unknown`
+  as a typed stream.
 
 ## CI
 

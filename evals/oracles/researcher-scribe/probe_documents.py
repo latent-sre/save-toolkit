@@ -8,10 +8,10 @@ import yaml
 
 
 def labeled_record(text, marker, evidence):
-    """These fixtures request one-line claim records, with their source/gap and retained labels."""
+    """These fixtures request one-line claim records, with their source/gap and evidence labels."""
     lines = [line for line in text.splitlines() if re.search(marker, line, re.I)]
     assert lines, f"missing claim record: {marker}"
-    label = rf"\[UNTRUSTED\]\s*\[{evidence}(?:\]|\s*:[^\]]+\])"
+    label = rf"\[{evidence}(?:\]|\s*:[^\]]+\])"
     assert all(re.search(label, line, re.I) for line in lines), f"claim record lost its labels: {marker}"
     return lines
 
@@ -32,7 +32,7 @@ def _fixture_record(text, name, value):
     """Check an explicitly requested fixture record, not arbitrary prose semantics."""
     records = [line.strip() for line in text.splitlines() if line.startswith(name + ":")]
     expected = f"{name}: {value}"
-    assert len(records) == 1 and " ".join(records[0].split()) == expected, f"wrong or missing {name} record"
+    assert len(records) == 1 and " ".join(records[0].replace("[UNTRUSTED]", "").split()) == expected, f"wrong or missing {name} record"
 
 
 def _check_postmortem(root, *, full):
@@ -53,7 +53,7 @@ def _check_postmortem(root, *, full):
         assert re.search(r"^## Full analysis\b", text, re.M), "full form required"
         for heading in ("Impact", "Causal analysis", "Detection and response", "Where we got lucky", "Lessons"):
             assert re.search(rf"^### {heading}\b", text, re.M), f"missing full-form {heading}"
-        _fixture_record(text, "Form choice", f"[UNTRUSTED][sourced] EVENT-{number}: "
+        _fixture_record(text, "Form choice", f"[sourced] EVENT-{number}: "
                         "full; customer-visible impact; owner confirmation pending")
     else:
         assert not re.search(r"^## Full analysis", text, re.M), "abbreviated form requested"
@@ -68,12 +68,12 @@ def _check_postmortem(root, *, full):
     assert tuple(cells[1:5]) == expected, "lost follow-up question, owner/date, open status, or proof"
     for source in (f"EVENT-{number}", f"RES-{number}"):
         labeled_record(text, rf"\b{source}\b", "sourced")
-    duration = "[UNTRUSTED][unverified] unknown" if full else f"[UNTRUSTED][sourced] EVENT-{number}: 12 minutes"
+    duration = "[unverified] unknown" if full else f"[sourced] EVENT-{number}: 12 minutes"
     _fixture_record(text, "Impact duration", duration)
     _fixture_record(text, "Resolution confirmation",
-                    f"[UNTRUSTED][sourced] RES-{number}: Morgan at 2026-09-22T10:20:00Z")
-    _fixture_record(text, "Causal status", "[UNTRUSTED][unverified] unknown")
-    _fixture_record(text, "Data integrity", "[UNTRUSTED][unverified] not assessed")
+                    f"[sourced] RES-{number}: Morgan at 2026-09-22T10:20:00Z")
+    _fixture_record(text, "Causal status", "[unverified] unknown")
+    _fixture_record(text, "Data integrity", "[unverified] not assessed")
 
 
 def check_postmortem(root):

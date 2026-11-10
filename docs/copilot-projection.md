@@ -4,8 +4,7 @@ How `scripts/generate_platform_adapters.py` projects this fleet's canonical agen
 VS Code and GitHub Copilot, and why each lane receives the tools it does. The generator and
 `scripts/test_platform_adapters.py` are the source of truth; this file records the decisions they
 encode. Field-level host facts live in the
-[Copilot & VS Code frontmatter reference](../skills/agent-authoring/references/copilot-frontmatter.md);
-installed-host checks live in [VS Code plugin acceptance](vscode-plugin-acceptance.md).
+[Copilot & VS Code frontmatter reference](../skills/agent-authoring/references/copilot-frontmatter.md).
 
 ## Adapter behavior
 
@@ -19,14 +18,12 @@ installed-host checks live in [VS Code plugin acceptance](vscode-plugin-acceptan
   control is only as strong as the host it is proven on.
 - The root manifest declares Agent Plugins 1.0, so the installed plugin reads canonical `skills/`
   and takes Copilot agents and hooks from `com.github.copilot/`. Without that schema VS Code ranks
-  `.claude-plugin/plugin.json` first and loads the Claude agents instead; see
-  [manifest format detection](vscode-plugin-acceptance.md#manifest-format-detection).
+  `.claude-plugin/plugin.json` first and loads the Claude agents instead.
 - Agent resource links resolve from their generated location: workspace agents use
   `.github/skills/`, while installed agents use root `skills/`.
-- Unset agent `target` follows the selected VS Code editor harness. `agents` and `handoffs`
-  describe Local behavior; the Copilot-harness converter does not forward either field or `target`.
-  A valid shared header therefore does not establish the same delegation controls on every host.
-  Keep explicit nonempty tool grants: that converter maps empty or missing tools to all tools.
+- The `agents` and `handoffs` projection works only on VS Code's Local harness, so a valid shared
+  header does not establish the same delegation controls on every host. The field reference above
+  has the per-host detail.
 
 ## Body budgets
 
@@ -43,7 +40,9 @@ not been established, so the default retains tool absence.
 The standard projection also withholds individual terminal tools. A separately exported VS Code
 command preview grants only `execute/runInTerminal` and `execute/getTerminalOutput`, sets
 `target: vscode`, and adds agent-scoped hooks with Windows/POSIX launchers. It is not an accepted
-replacement without a human decision on its best-effort guard and installed-host evidence.
+replacement without a human decision on its best-effort guard and installed-host evidence. On the
+Copilot runtime, a `preToolUse` timeout (15 seconds in this profile) falls through to normal
+permissions instead of denying the call.
 The preview's explicit `--copilot` guard mode uses agent-hook scoping, not Claude's `agent_type`.
 
 ## Capability choices
@@ -59,7 +58,7 @@ The preview's explicit `--copilot` guard mode uses agent-hook scoping, not Claud
 | `researcher` | Public web access; no local files or shell. Adding exact Context7/GitHits tools needs the target host's registered tool IDs, not wildcard MCP grants. On Copilot cloud agent `web` does not apply, so researcher has no working tool there; route cited research through VS Code or Claude |
 
 Do not broaden `execute` or use `tools: ["*"]` merely to fix a missing interpreter, credential,
-or hook path. Copilot's execution tools use the configured terminal; a separate Claude PowerShell
+or hook path. A separate Claude PowerShell
 grant is not needed to run PowerShell through Copilot. Tool presence permits execution, not
 production changes or access beyond the human's assignment.
 
@@ -67,10 +66,11 @@ production changes or access beyond the human's assignment.
 
 Browser investigation grants are exclusive to the SRE lane. The generator derives native VS Code
 `openBrowserPage`, `navigatePage`, `readPage`, `screenshotPage`, `clickElement`, `hoverElement` and
-`typeInPage` from the corresponding exact canonical Playwright capabilities. Upstream
-`browserChatToolReferenceNames.ts` owns these native names; installed-host availability still
-needs verification. There is no wildcard, dialog, upload or page-code grant.
-MCP still needs a registered server; native VS Code uses a shared integrated-browser page.
+`typeInPage` from the corresponding exact canonical Playwright capabilities. The documented agent-file
+form is `browser/<tool>`, but the generator still emits the bare names, pending a host check. There
+is no wildcard, dialog, upload or page-code grant.
+MCP still needs a registered server; native VS Code opens an isolated page, or uses a page the human
+explicitly shares, with that tab's sign-in.
 Neither frontmatter nor a viewing-only prompt enforces read-only account rights, secret masking,
 origin confinement or image delivery. The
 [Grafana visual reference](../skills/grafana/references/visual-verification.md) owns those

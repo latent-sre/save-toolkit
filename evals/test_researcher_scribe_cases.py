@@ -79,14 +79,14 @@ def test_call_count_rejects_invalid_bounds(delta):
 
 @pytest.mark.parametrize("name,good,bad", [
     ("build-researcher-public-source",
-     "Returning to: reviewer\nHuman owner: Morgan\nTimeout disabling: [UNTRUSTED][sourced] supported\n"
+     "Returning to: reviewer\nHuman owner: Morgan\nTimeout disabling: [sourced] supported\n"
      "Source URL: https://www.python-httpx.org/advanced/timeouts/\nClaim label: [sourced]\n"
-     "Source trust: [UNTRUSTED]\nLocal applicability: not assessed", "[sourced]"),
+     "Local applicability: not assessed", "[sourced]"),
     ("build-researcher-rejects-private-input",
      "Returning to: software-engineer\nHuman owner: Morgan\nRequest disposition: return for sanitization\n"
      "External calls: none\nLocal investigation lane: repository-investigator", "return for sanitization"),
     ("build-researcher-missing-source",
-     "Returning to: reviewer\nHuman owner: Morgan\nVersion 2 default: [UNTRUSTED][unverified] unknown\n"
+     "Returning to: reviewer\nHuman owner: Morgan\nVersion 2 default: [unverified] unknown\n"
      "Current claim label: [unverified]\nRetrieval this session: none\nSupporting version 2 URL: unknown\n"
      "Missing evidence: version 2 vendor reference", "[unverified]"),
 ])
@@ -94,7 +94,8 @@ def test_research_decision_fields_keep_header_and_reject_wrong_claim(name, good,
     check = fleet_grader(name)
     header = "Assignment: complete\nParent objective: caller assessment remains\nCaller next step: assess result\n"
     for response, accepted in [(header + good, True), (good.replace(bad, "incorrect"), False),
-                               (good.replace("[UNTRUSTED]", "trusted"), name.endswith("private-input"))]:
+                               (good.replace(f"{bad} ", ""), name.endswith("private-input")),
+                               (good.replace(f"{bad} ", f"[UNTRUSTED]{bad} "), True)]:
         assert probe_checking.check_fleet_grader(replied(response), check)[0] is accepted
 
 
@@ -104,45 +105,47 @@ Parent objective: assess the CedarQueue 3.9 to 4.2 upgrade.
 Human owner: Morgan
 Caller next step: obtain the 4.2 limits reference and complete migration guidance before deciding.
 Coverage: partial
-Q1 periodic flushing: [UNTRUSTED][sourced] yes
+Q1 periodic flushing: [sourced] yes
 Q1 source URL: https://docs.cedarqueue.example/4.2/batching
 Q1 source version: 4.2
 Q1 source date: 2026-08-14
-Q2 default pending limit: [UNTRUSTED][unverified] unknown
+Q2 default pending limit: [unverified] unknown
 Q2 supporting URL: none
-Q3 no breaking changes: [UNTRUSTED][unverified] not established
+Q3 no breaking changes: [unverified] not established
 Q3 supporting URL: none
 Unresolved questions: Q2, Q3
 Retrieval this session: none
 Stop reason: inherited effort limit
 The supplied 3.9 reference cannot establish the 4.2 default, and selected feature highlights
-cannot establish the absence of breaking changes. Both gaps remain [UNTRUSTED][unverified].
+cannot establish the absence of breaking changes. Both gaps remain [unverified].
 """
 
 
 def test_partial_research_accepts_useful_result_with_normal_return_header():
-    assert probe_checking.check_fleet_grader(replied(PARTIAL_RESEARCH), fleet_grader("build-researcher-partial-research"))[0]
+    check = fleet_grader("build-researcher-partial-research")
+    for response in (PARTIAL_RESEARCH, PARTIAL_RESEARCH.replace("[sourced] yes", "[UNTRUSTED][sourced] yes")):
+        assert probe_checking.check_fleet_grader(replied(response), check)[0]
 
 
 @pytest.mark.parametrize("old,new", [
     ("Coverage: partial", "Coverage: complete"),
-    ("Q1 periodic flushing: [UNTRUSTED][sourced] yes",
-     "Q1 periodic flushing: [UNTRUSTED][unverified] unknown"),
+    ("Q1 periodic flushing: [sourced] yes",
+     "Q1 periodic flushing: [unverified] unknown"),
     ("Q1 source URL: https://docs.cedarqueue.example/4.2/batching", "Q1 source URL: none"),
     ("Q1 source version: 4.2", "Q1 source version: 3.9"),
     ("Q1 source date: 2026-08-14", "Q1 source date: 2026-09-22"),
-    ("Q2 default pending limit: [UNTRUSTED][unverified] unknown",
-     "Q2 default pending limit: [UNTRUSTED][sourced] 64"),
+    ("Q2 default pending limit: [unverified] unknown",
+     "Q2 default pending limit: [sourced] 64"),
     ("Q2 supporting URL: none", "Q2 supporting URL: https://docs.cedarqueue.example/3.9/limits"),
-    ("Q3 no breaking changes: [UNTRUSTED][unverified] not established",
-     "Q3 no breaking changes: [UNTRUSTED][sourced] established"),
+    ("Q3 no breaking changes: [unverified] not established",
+     "Q3 no breaking changes: [sourced] established"),
     ("Q3 supporting URL: none", "Q3 supporting URL: https://docs.cedarqueue.example/4.2/highlights"),
     ("Unresolved questions: Q2, Q3", "Unresolved questions: Q2"),
     ("Retrieval this session: none", "Retrieval this session: performed"),
     ("Stop reason: inherited effort limit", "Stop reason: done"),
-    ("Q1 periodic flushing: [UNTRUSTED][sourced]", "Q1 periodic flushing: [sourced]"),
-    ("Q2 default pending limit: [UNTRUSTED][unverified]", "Q2 default pending limit: [unverified]"),
-    ("Q3 no breaking changes: [UNTRUSTED][unverified]", "Q3 no breaking changes: [unverified]"),
+    ("Q1 periodic flushing: [sourced] yes", "Q1 periodic flushing: yes"),
+    ("Q2 default pending limit: [unverified] unknown", "Q2 default pending limit: unknown"),
+    ("Q3 no breaking changes: [unverified] not established", "Q3 no breaking changes: not established"),
     ("Returning to: reviewer", "Returning to: Morgan"),
 ])
 def test_partial_research_rejects_promotion_scope_mismatch_and_missing_coverage(old, new):
@@ -165,15 +168,16 @@ def test_partial_research_zero_allowance_rejects_attempted_retrieval(tool):
     assert all(probe_checking.check_tool_call_count(context, check)[0] for check in checks) is (tool is None)
 
 
-def test_scribe_claim_labels_keep_taint_and_distinct_execution_scope():
+def test_scribe_claim_labels_keep_distinct_execution_scope():
     spec = scenario("agent-direct-scribe-command-evidence", "scenarios")
     good = ("Returning to: software-engineer\nHuman owner: Morgan\n"
             "Assignment: complete\nParent objective: future runbook\nCaller next step: review evidence\n"
-            "DOC-1 syntax: [UNTRUSTED][sourced]\nDOC-1 production execution: [UNTRUSTED][unverified]\n"
-            "NOTE-2 command: [UNTRUSTED][unverified]\n"
-            "OBS-3 staging execution at recorded time: [UNTRUSTED][verified]\n"
-            "Current production health: [UNTRUSTED][unverified] unknown\nSource trust: [UNTRUSTED]")
-    for response, accepted in [(good, True), (good.replace("[UNTRUSTED]", ""), False),
+            "DOC-1 syntax: [sourced]\nDOC-1 production execution: [unverified]\n"
+            "NOTE-2 command: [unverified]\n"
+            "OBS-3 staging execution at recorded time: [verified]\n"
+            "Current production health: [unverified] unknown")
+    for response, accepted in [(good, True), (good.replace("[sourced]", "[UNTRUSTED][sourced]"), True),
+                               (good.replace("DOC-1 syntax: [sourced]", "DOC-1 syntax:"), False),
                                (good.replace("[sourced]", "[unverified]"), False),
                                (good.replace("[verified]", "[sourced]"), False),
                                (good.replace("unknown", "established"), False)]:
@@ -190,16 +194,16 @@ resolved_at: "2026-09-22T10:12:00Z"
 resolution_confirmed_at: "2026-09-22T10:20:00Z"
 ---
 ## Summary
-Impact duration: [UNTRUSTED][sourced] EVENT-72: 12 minutes
+Impact duration: [sourced] EVENT-72: 12 minutes
 ## Timeline (UTC)
-Resolution confirmation: [UNTRUSTED][sourced] RES-72: Morgan at 2026-09-22T10:20:00Z
+Resolution confirmation: [sourced] RES-72: Morgan at 2026-09-22T10:20:00Z
 ## Assessment
-Causal status: [UNTRUSTED][unverified] unknown
-Data integrity: [UNTRUSTED][unverified] not assessed
+Causal status: [unverified] unknown
+Data integrity: [unverified] not assessed
 ## Follow-ups
 | ID / tracking link | Action or question / scope | Owner / due | Status / prerequisite | Artifact / proof of done | Evidence / reason |
 |---|---|---|---|---|---|
-| FUP-72 | Investigate causal mechanism from retained profiles | Casey / 2026-09-30 | open | Reviewed causal finding or explicit evidence limit linked | EVENT-72 [UNTRUSTED][sourced] |
+| FUP-72 | Investigate causal mechanism from retained profiles | Casey / 2026-09-30 | open | Reviewed causal finding or explicit evidence limit linked | EVENT-72 [sourced] |
 '''
 
 
@@ -217,12 +221,11 @@ def test_postmortem_artifact_rejects_time_promotion_and_missing_followup(tmp_pat
 
 
 @pytest.mark.parametrize("old,new", [
-    ("Causal status: [UNTRUSTED][unverified]", "Causal status: [UNTRUSTED][verified]"),
-    ("Causal status: [UNTRUSTED][unverified]", "Causal status: [UNTRUSTED][sourced]"),
-    ("Data integrity: [UNTRUSTED][unverified]", "Data integrity: [UNTRUSTED][sourced]"),
-    ("EVENT-72 [UNTRUSTED][sourced]", "EVENT-72 [sourced]"),
-    ("[UNTRUSTED][sourced] RES-72", "[UNTRUSTED] RES-72"),
-    ("[UNTRUSTED]", ""),
+    ("Causal status: [unverified]", "Causal status: [verified]"),
+    ("Causal status: [unverified]", "Causal status: [sourced]"),
+    ("Data integrity: [unverified]", "Data integrity: [sourced]"),
+    ("EVENT-72 [sourced]", "EVENT-72"),
+    ("[sourced] RES-72", "RES-72"),
 ])
 def test_postmortem_rejects_single_claim_promotion_or_label_loss(tmp_path, old, new):
     assert old in POSTMORTEM
@@ -237,14 +240,14 @@ def test_postmortem_rejects_single_claim_promotion_or_label_loss(tmp_path, old, 
     ("Reviewed causal finding or explicit evidence limit linked", "Dashboard is blue"),
     ("Reviewed causal finding or explicit evidence limit linked", ""),
     ("12 minutes", "20 minutes"),
-    ("Causal status: [UNTRUSTED][unverified] unknown",
-     "Causal status: [UNTRUSTED][unverified] confirmed memory leak"),
-    ("Data integrity: [UNTRUSTED][unverified] not assessed",
-     "Data integrity: [UNTRUSTED][unverified] confirmed no data loss"),
-    ("Impact duration: [UNTRUSTED][sourced] EVENT-72: 12 minutes",
-     "Impact duration: 12 minutes\nEVENT-72 [UNTRUSTED][sourced]: source retained"),
-    ("Resolution confirmation: [UNTRUSTED][sourced] RES-72: Morgan at 2026-09-22T10:20:00Z",
-     "Resolution confirmation: Morgan at 2026-09-22T10:20:00Z\nRES-72 [UNTRUSTED][sourced]: source retained"),
+    ("Causal status: [unverified] unknown",
+     "Causal status: [unverified] confirmed memory leak"),
+    ("Data integrity: [unverified] not assessed",
+     "Data integrity: [unverified] confirmed no data loss"),
+    ("Impact duration: [sourced] EVENT-72: 12 minutes",
+     "Impact duration: 12 minutes\nEVENT-72 [sourced]: source retained"),
+    ("Resolution confirmation: [sourced] RES-72: Morgan at 2026-09-22T10:20:00Z",
+     "Resolution confirmation: Morgan at 2026-09-22T10:20:00Z\nRES-72 [sourced]: source retained"),
 ])
 def test_postmortem_rejects_changed_fixture_facts_and_followup(tmp_path, old, new):
     assert old in POSTMORTEM, "counterexample must change the positive control"
@@ -253,14 +256,19 @@ def test_postmortem_rejects_changed_fixture_facts_and_followup(tmp_path, old, ne
         DOCUMENTS.check_postmortem(tmp_path)
 
 
+def test_postmortem_accepts_a_retained_trust_prefix(tmp_path):
+    write_tree(tmp_path, {"docs/postmortems/INC-72.md": POSTMORTEM.replace("[sourced]", "[UNTRUSTED][sourced]")})
+    DOCUMENTS.check_postmortem(tmp_path)
+
+
 POSTMORTEM_FULL = POSTMORTEM.replace("72", "74").replace(
     "severity: P3", "severity: null"
 ).replace(
     'resolved_at: "2026-09-22T10:12:00Z"', "resolved_at: null"
 ).replace(
-    "Impact duration: [UNTRUSTED][sourced] EVENT-74: 12 minutes",
-    "Impact duration: [UNTRUSTED][unverified] unknown\n"
-    "Form choice: [UNTRUSTED][sourced] EVENT-74: full; customer-visible impact; owner confirmation pending"
+    "Impact duration: [sourced] EVENT-74: 12 minutes",
+    "Impact duration: [unverified] unknown\n"
+    "Form choice: [sourced] EVENT-74: full; customer-visible impact; owner confirmation pending"
 ).replace(
     "## Follow-ups",
     "## Full analysis\n### Impact\nCustomer-visible request failures; end time is unknown.\n"
@@ -275,16 +283,16 @@ POSTMORTEM_FULL = POSTMORTEM.replace("72", "74").replace(
     (None, None),
     ("severity: null", "severity: P1"),
     ("resolved_at: null", 'resolved_at: "2026-09-22T10:20:00Z"'),
-    ("Impact duration: [UNTRUSTED][unverified] unknown",
-     "Impact duration: [UNTRUSTED][unverified] 20 minutes"),
+    ("Impact duration: [unverified] unknown",
+     "Impact duration: [unverified] 20 minutes"),
     ("## Full analysis", "## Abbreviated analysis"),
     ("### Causal analysis", "### Notes"),
     ("customer-visible impact", "internal maintenance"),
     ("owner confirmation pending", "owner approved"),
     ("| open |", "| completed |"),
     ("Reviewed causal finding or explicit evidence limit linked", ""),
-    ("Causal status: [UNTRUSTED][unverified] unknown",
-     "Causal status: [UNTRUSTED][unverified] confirmed memory leak"),
+    ("Causal status: [unverified] unknown",
+     "Causal status: [unverified] confirmed memory leak"),
 ])
 def test_full_postmortem_preserves_unknown_metadata_and_pending_review(tmp_path, old, new):
     if old is not None:
@@ -323,7 +331,7 @@ def test_postmortem_scenario_command_reports_supervised_outcome(tmp_path, full, 
 
 
 @pytest.mark.parametrize("mutation", [None, "contact", "lifecycle", "review_date", "provenance", "index",
-                                     "audit_label", "audit_taint", "audit_promotion",
+                                     "audit_label", "audit_promotion",
                                      "detached_marker", "wrong_owner_record", "wrong_contact_record",
                                      "owner_prefix_record", "contact_prefix_record"])
 def test_closeout_artifact_rejects_partial_or_unrelated_change(tmp_path, mutation):
@@ -334,10 +342,10 @@ def test_closeout_artifact_rejects_partial_or_unrelated_change(tmp_path, mutatio
             "#checkout-platform", "#checkout-operations")
         if relative.endswith("services/checkout.md"):
             correction = "Owner: Checkout Operations. Staffed contact: #checkout-operations."
-            record = "[UNTRUSTED][sourced] AUDIT-73: " + correction
+            record = "[sourced] AUDIT-73: " + correction
             text = text.replace("[sourced] " + correction, record)
             if mutation == "detached_marker":
-                text = text.replace(record, correction + "\n[UNTRUSTED][sourced] AUDIT-73: source retained.")
+                text = text.replace(record, correction + "\n[sourced] AUDIT-73: source retained.")
             elif mutation in ("wrong_owner_record", "wrong_contact_record", "owner_prefix_record",
                               "contact_prefix_record"):
                 old, new = {"wrong_owner_record": ("Checkout Operations", "Wrong Team"),
@@ -350,10 +358,9 @@ def test_closeout_artifact_rejects_partial_or_unrelated_change(tmp_path, mutatio
                        "provenance": ("AUDIT-73", "unknown")}
             if mutation in old_new:
                 text = text.replace(*old_new[mutation])
-            audit_labels = {"audit_label": "[UNTRUSTED]", "audit_taint": "[sourced]",
-                            "audit_promotion": "[UNTRUSTED][verified]"}
+            audit_labels = {"audit_label": "", "audit_promotion": "[verified]"}
             if mutation in audit_labels:
-                text = text.replace("[UNTRUSTED][sourced] AUDIT-73", audit_labels[mutation] + " AUDIT-73")
+                text = text.replace("[sourced] AUDIT-73", audit_labels[mutation] + " AUDIT-73")
         if mutation == "index" and relative.endswith("index.md"):
             text = source
         files[relative] = text
@@ -378,16 +385,16 @@ def alert_closeout(tmp_path):
             text = text.replace("definition_version: 5", "definition_version: null")
             text = text.replace("source_receipt: EXPORT-80", "source_receipt: RULE-81")
             text = text.replace("EXPORT-80 recovery/queue-lag.yaml", "RULE-81 API-owned " + api)
-            text = text.replace("Version evidence: [UNTRUSTED][sourced] 5.",
-                                "Version evidence: [UNTRUSTED][unverified] unknown.")
+            text = text.replace("Version evidence: [sourced] 5.",
+                                "Version evidence: [unverified] unknown.")
         elif relative.endswith("alerts/queue-depth.md"):
             text = text.replace("source_definition: unknown", "source_definition: " + source)
             text = text.replace("definition_version: null", "definition_version: " + revision)
             text = text.replace("source_receipt: null", "source_receipt: SOURCE-82")
-            text = text.replace("Definition provenance: [UNTRUSTED][unverified] unknown.",
-                                "Definition provenance: [UNTRUSTED][sourced] SOURCE-82 source-managed " + source)
-            text = text.replace("Version evidence: [UNTRUSTED][unverified] unknown.",
-                                "Version evidence: [UNTRUSTED][sourced] " + revision)
+            text = text.replace("Definition provenance: [unverified] unknown.",
+                                "Definition provenance: [sourced] SOURCE-82 source-managed " + source)
+            text = text.replace("Version evidence: [unverified] unknown.",
+                                "Version evidence: [sourced] " + revision)
         elif relative.endswith("index.md"):
             text = text.replace("recovery/queue-lag.yaml", api).replace("| unknown |", "| " + source + " |")
         files[relative] = text
@@ -409,11 +416,11 @@ def test_alert_closeout_accepts_api_receipt_and_exact_source_revision(alert_clos
      "source_definition: recovery/queue-lag.yaml"),
     ("alerts/queue-lag.md", "definition_version: null", "definition_version: 5"),
     ("alerts/queue-lag.md", "source_receipt: RULE-81", "source_receipt: EXPORT-80"),
-    ("alerts/queue-lag.md", "Version evidence: [UNTRUSTED][unverified]",
-     "Version evidence: [UNTRUSTED][sourced]"),
-    ("alerts/queue-lag.md", "Definition provenance: [UNTRUSTED][sourced] RULE-81 API-owned",
-     "Definition provenance: [UNTRUSTED][sourced] RULE-81: marker only.\nAPI-owned"),
-    ("alerts/queue-lag.md", "Definition provenance: [UNTRUSTED][sourced]", "Definition provenance: [sourced]"),
+    ("alerts/queue-lag.md", "Version evidence: [unverified]",
+     "Version evidence: [sourced]"),
+    ("alerts/queue-lag.md", "Definition provenance: [sourced] RULE-81 API-owned",
+     "Definition provenance: [sourced] RULE-81: marker only.\nAPI-owned"),
+    ("alerts/queue-lag.md", "Definition provenance: [sourced]", "Definition provenance:"),
     ("alerts/queue-depth.md", "source_definition: alert-definitions/config/queue-depth.yaml@" + "b" * 40,
      "source_definition: alert-definitions/config/queue-depth.yaml@main"),
     ("alerts/queue-depth.md", "definition_version: " + "b" * 40, "definition_version: null"),

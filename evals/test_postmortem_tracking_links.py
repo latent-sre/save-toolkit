@@ -23,24 +23,24 @@ resolved_at: "2026-09-22T10:12:00Z"
 resolution_confirmed_at: "2026-09-22T10:20:00Z"
 ---
 ## Summary
-Impact duration: [UNTRUSTED][sourced] EVENT-{number}: 12 minutes
+Impact duration: [sourced] EVENT-{number}: 12 minutes
 ## Timeline
-Resolution confirmation: [UNTRUSTED][sourced] RES-{number}: Morgan at 2026-09-22T10:20:00Z
+Resolution confirmation: [sourced] RES-{number}: Morgan at 2026-09-22T10:20:00Z
 ## Assessment
-Causal status: [UNTRUSTED][unverified] unknown
-Data integrity: [UNTRUSTED][unverified] not assessed
+Causal status: [unverified] unknown
+Data integrity: [unverified] not assessed
 ## Follow-ups
 | ID / tracking link | Action or question / scope | Owner / due | Status / prerequisite | Artifact / proof of done | Evidence / reason |
 |---|---|---|---|---|---|
-| FUP-{number} | Investigate causal mechanism from retained profiles | Casey / 2026-09-30 | open | Reviewed causal finding or explicit evidence limit linked | EVENT-{number} [UNTRUSTED][sourced] |
+| FUP-{number} | Investigate causal mechanism from retained profiles | Casey / 2026-09-30 | open | Reviewed causal finding or explicit evidence limit linked | EVENT-{number} [sourced] |
 '''
     if full:
         artifact = artifact.replace("severity: P3", "severity: null").replace(
             'resolved_at: "2026-09-22T10:12:00Z"', "resolved_at: null"
         ).replace(
-            "Impact duration: [UNTRUSTED][sourced] EVENT-74: 12 minutes",
-            "Impact duration: [UNTRUSTED][unverified] unknown\n"
-            "Form choice: [UNTRUSTED][sourced] EVENT-74: full; customer-visible impact; owner confirmation pending"
+            "Impact duration: [sourced] EVENT-74: 12 minutes",
+            "Impact duration: [unverified] unknown\n"
+            "Form choice: [sourced] EVENT-74: full; customer-visible impact; owner confirmation pending"
         )
         artifact += ("## Full analysis\n### Impact\n### Causal analysis\n### Detection and response\n"
                      "### Where we got lucky\n### Lessons\n")

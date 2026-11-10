@@ -19,7 +19,7 @@ prompt: |
 
   The selected VS Code handoff auto-submitted this prompt:
   "Continue only the explicitly approved operational knowledge closeout in this conversation.
-  Preserve evidence labels, re-read the caller-authorized scope, and state what was not done. If
+  Re-read the caller-authorized scope, and state what was not done. If
   approval or checkout binding is absent, report the gap without writing."
 
   End with one decision block. Use each label only once in the entire response and do not append

@@ -64,7 +64,7 @@ will offer it).
 | `sre-assistant` | Bounded read-only lookup or investigation (guarded Bash/PowerShell on Claude), dispatched by a human or invoking workflow | Returns findings and recommendations; the caller retains the broader investigation; delegates only sanitized public fact checks to `researcher` |
 | `observability-engineer` | Observability and dispatched Grafana changes (unguarded Bash; applies scoped dashboards, alert rules, and silences) | Delegates docs to `scribe` and sanitized public lookups to `researcher`; active diagnosis stays with the responder using `incident-investigation` (bounded investigative work to `sre-assistant`), and automation goes to `software-engineer` |
 | `scribe` | Write evidence-bound runbooks, resolved-incident postmortems, and approved service/application/alert knowledge | Local document writer with no shell, web, external MCP, or delegation authority |
-| `software-engineer` | Build, fix, refactor, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
+| `software-engineer` | Build, fix, refactor, modernize, and test code or operations tooling | Routes requested or risk-triggered review to `reviewer`, operational docs to `scribe`, and sanitized public lookups to `researcher` |
 | `principal-engineer` | System design and architecture before code: contract changes, migrations, new-service architecture, and tool or platform selection | Returns a design record or proposed ADR for the human owner to accept; bounded facts from `repository-investigator`, protected observations from `sre-assistant`, and sanitized research from `researcher`; implementation goes to `software-engineer` |
 | `repository-investigator` | Local-only answers about private, current, or uncommitted checkout behavior | Cites `file:line`; no shell, write, web, external MCP, skill, or delegation |
 | `reliability-engineer` | Service reliability assessment, resilience design, and toil reduction | Local evidence and design documents; bounded facts from `repository-investigator`, protected observations from `sre-assistant`, and sanitized research from `researcher`; implementation stays with its existing owner |
@@ -74,13 +74,12 @@ will offer it).
 The skills, by area (each `skills/<name>/SKILL.md` carries its own description and triggers):
 
 - **Incident and operations** — `incident-investigation`, `root-cause`, `operational-docs`
-  (runbooks, postmortems, knowledge closeout, and ownership lookups), `service-lifecycle`
-  (audit, onboard, and retire modes)
+  (runbooks, postmortems, knowledge closeout, and ownership lookups)
 - **Observability** — `obs-analysis` (logs, metrics, and traces), `obs-alerting`,
   `obs-pipeline`, `grafana` (dashboard design and Grafana UI/API operations)
 - **Platform** — `stack-profile`, `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`
 - **Change gates** — `production-change-gate`
-- **Reliability improvement** — `resilience-analysis`, `toil-reduction`; existing readiness coverage stays in `service-lifecycle`
+- **Reliability improvement** — `resilience-analysis` (including existing service readiness), `toil-reduction`
 - **Engineering craft** — `api-craft`, `python-craft`, `go-craft`, `frontend-craft`, `operator-cli`,
   `ci-actions`, `database-reliability`
 - **For maintainers: the fleet itself and the graphs it designs** — `agent-authoring`
@@ -134,12 +133,11 @@ agents/ + skills/ (canonical)
   pause/resume, and temporary silence create/update/expire under its complete change-authority
   rule. The [`grafana`](skills/grafana/SKILL.md) skill covers operational reads and alert/silence
   procedures, dashboard design and implementation. A handoff alone does not authorize a write.
-- **The team's own inventories are not in this repository.** The log-index, metrics, PCF-foundation,
-  and GCP-project references under `skills/obs-analysis`, `skills/pcf-ops`, and
-  `skills/gcp-ops` ship as `<app>`/`<index>` placeholders, and service cards, alert cards, and
-  runbooks are read from `operations/`, `runbooks/`, and `postmortems/` under the team's knowledge
-  repository root. Until those
-  are filled in, "where are the dashboards, logs, and runbooks for this service" has no answer
+- **The team's own inventories are not in this repository.** The query references under
+  `skills/obs-analysis` use `<app>`/`<index>` placeholders, the PCF and GCP skills take the
+  foundation or project from the caller, and service cards, alert cards, and runbooks are read
+  from `operations/`, `runbooks/`, and `postmortems/` under the team's knowledge repository root.
+  Until those are supplied, "where are the dashboards, logs, and runbooks for this service" has no answer
   here by design; the skills say so rather than guess.
 
 ### Host guarantees and limits
@@ -150,7 +148,7 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 | Host surface | Contract shipped | Current evidence boundary |
 |---|---|---|
 | Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre-assistant` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
-| VS Code 1.137.0 | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-09-10 the maintainer ran the [acceptance cases](docs/vscode-plugin-acceptance.md) against an installed 0.40.0 candidate and reported all passing, including the forbidden-child case that ran anyway on 1.135.0. Owner-reported from a live session; no transcript was filed, so this row is the record. The separate agent-scoped hook canary remains unrun and `hooks/copilot-hooks.json` still ships empty |
+| VS Code 1.137.0 | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-09-10 the maintainer ran the acceptance cases against an installed 0.40.0 candidate and reported all passing, including the forbidden-child case that ran anyway on 1.135.0. Owner-reported from a live session; no transcript was filed, so this row is the record. The separate agent-scoped hook canary remains unrun and `hooks/copilot-hooks.json` still ships empty |
 | First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the `RELEASE-001` acceptance run passes on that exact build |
 
 ### Other hosts
@@ -166,7 +164,7 @@ Claude's candidate supports a small native command set and the bundled Grafana r
 Selected native VS Code and Playwright browser interactions require a protected read-only session.
 The standard
 Copilot profile remains without terminal tools; its command preview must pass the
-[installed-host canary](docs/vscode-plugin-acceptance.md#command-preview-canary) before adoption.
+installed-host canary before adoption.
 
 **VS Code / Copilot Chat (beta plugin):** confirm `chat.plugins.enabled` is on, run
 **Chat: Install Plugin From Source**, and enter `https://github.com/latent-sre/save-toolkit`.
@@ -196,9 +194,6 @@ Open a neutral test workspace for that plugin check; opening this repository its
 `.github/agents/` and `.github/skills/` as workspace customizations and can hide duplicate-install
 mistakes. Opening the repository without installing the plugin discovers those standard
 directories directly; no custom skill-location setting is needed.
-Use the maintained [VS Code plugin acceptance procedure](docs/vscode-plugin-acceptance.md) for
-discovery, installed helpers, delegation, return/resume, and disable/uninstall checks. Its release
-section names the immutable-artifact and rollback evidence still required for supported use.
 
 **Codex:** the fleet is not distributed to Codex. Codex working *in* this repository picks up the
 root [`AGENTS.md`](AGENTS.md) automatically, which is all it needs

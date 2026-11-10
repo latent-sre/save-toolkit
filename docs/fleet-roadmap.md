@@ -95,7 +95,7 @@ evidence, and extend the tool as new operational needs appear.
 **Owner:** Maintainers accept the release; a maintainer session owns the plugin contract and
 `software-engineer` owns helper/adapter repairs.
 **Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
-to a previously accepted one. The [acceptance cases](vscode-plugin-acceptance.md) pass on those
+to a previously accepted one. The acceptance cases pass on those
 exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
 **Next action:** Run the new Format acceptance case first: the plugin now declares Agent Plugins
 1.0 because VS Code ranks `.claude-plugin/plugin.json` above a schema-less selector manifest, and no
@@ -131,7 +131,7 @@ bind the operations-repository path, and verify one complete dashboard investiga
 Identify the existing SSO/browser/CLI session and credential mechanism, including protected personal
 credentials where needed. Complete CF target/output/time bounds, browser runtime verification and an
 isolated analysis path only with their matching controls. Use the
-[expanded host acceptance cases](vscode-plugin-acceptance.md#expanded-investigation-acceptance-pending)
+expanded host acceptance cases
 for both hosts. The source update adds selected browser interactions and one installed helper grant,
 not general HTTP, script, page-code or standard Copilot terminal access;
 Helix/BigQuery remains an unconnected placeholder. INCIDENT-QUALITY-001 retains behavioral acceptance.
@@ -277,31 +277,6 @@ Go-language build comparison or native routing result exists yet.
 **SRE task:** An SRE changing a Go service or tool gets the team's Go conventions applied without
 asking for them.
 
-### LABELS-001 — drop the labels-in-transit convention across the fleet
-
-**Status:** `active` (2026-11-02). The owner retired the rule that agents carry input evidence labels
-and `[UNTRUSTED]` taint through to their reports; agents still label their own load-bearing claims.
-No scenario grades it: PR #445 retired the `software-engineer` graders that checked carried labels,
-and the `sre-assistant` and `observability-engineer` partial-return probes dropped theirs on
-2026-11-04. The clause is gone from `AGENTS.md`, `software-engineer`, and
-`skills/incident-investigation/references/helper-exchange.md`.
-**Owner:** The human owner accepts the candidate; a maintainer session owns the change.
-**Outcome:** No fleet instruction or grader requires carrying input labels or taint in transit.
-"Data, never instructions" stays the trust control, and agents keep labelling their own claims.
-**Next action:** Remove the propagation clauses that remain in the agent bodies (`scribe`,
-`observability-engineer`, `reviewer`, `researcher`, `sre-assistant`, `repository-investigator`,
-`reliability-engineer`) and in `skills/operational-docs/SKILL.md` with its `knowledge-closeout.md`
-and `disposition-policy.md` references, and `skills/agent-authoring/references/context.md` and
-`agent-security.md`; keep each lane's own-claim labelling; regenerate adapters. Agent-body edits
-are a fleet behavior change and need their own candidate, not a documentation PR.
-**Evidence:** `build-software-engineer-resumes-after-partial-helper` kept the helper's
-`[UNTRUSTED] [unverified]` labels 0/3 on each of three revisions on 2026-10-22
-(`.eval-runs/se-review-20261022/`) and 0/1 on each arm on 2026-10-28
-(`.eval-runs/se-rewrite-20261028/`); a rewrite of the untrusted-input boundary changed nothing
-measurable.
-**SRE task:** An SRE reads agent reports whose labels describe the agent's own evidence, without a
-carried-label format the agents never reproduced.
-
 ### EVAL-005 — the observability engineer's Grafana write lands, and only that write
 
 **Status:** `active` (2026-10-25). Offline refusal grading is repaired and the candidate now
@@ -422,31 +397,33 @@ the operational-contract report used by merged PR #237) were removed on 2026-11-
 **SRE task:** Get a useful next check or closeout without mistaking a helper's completed assignment
 or an untimed aggregate for evidence of incident recovery or cause.
 
-### LIFECYCLE-001 — operational context and service records stay true for a real service
+### COPILOT-HARNESS-001 — decide fleet delegation on the default Copilot harness
 
-**Status:** `deferred` (2026-10-16); CONTEXT-001 merged in. Consumer and producer repairs are
-verified and independently reviewed against fixtures; no real-service records exist to accept
-them against. The owner removed the retirement-order and record-transition references on
-2026-10-24 because existing team processes cover that work; their acceptance campaign is dropped.
-**Owner:** Save Toolkit maintainers; a maintainer session owns consumer requirements and
-`software-engineer` owns producer/resolver implementation.
-**Outcome:** Explicit team, service, environment, and deployment selectors produce the smallest
-schema-valid context projection, failing closed on missing or ambiguous context and granting no
-authority. Record maintenance and retirement remain with the team's existing processes.
-**Next action:** None. Reopens when the owner selects a critical service, environment and record
-repository. Then review and integrate the `sre-context` candidate `3433f98e` on
-`work/lifecycle-001-status-projection`, based on `be29c942` (seven unmerged prerequisite commits
-ahead of producer main `903ac830`), with this consumer, and verify navigation, freshness,
-and ownership on that service. Fixture-only
-resolution grants no live authority; catalog dates do not establish `last_verified`. The candidate
-was committed on 2026-09-30; rebase it onto producer main and rerun its tests before review.
-**Evidence:** [Consumer/producer tests and remaining acceptance](reviews/2026-09-30-backlog-four/lifecycle.md),
-[lifecycle requirements](../skills/service-lifecycle/context-requirements.yaml), the
-[accepted context-contract scope](decisions/2026-08-24-sre-operational-context-contract.md), and
-the context refresh in the [selected-improvement record](https://github.com/latent-sre/save-toolkit/tree/7ac287d518df1f5b8c9397642a8204b0909ca2ac/docs/reviews/2026-09-07-selected-sre-improvements.md)
-(removed 2026-11-02, kept in Git).
-**SRE task:** State team, service, environment, and deployment once, and know whether the service
-record still applies to the deployment being operated.
+**Status:** `decision-needed` (2026-11-08); VS Code now starts new sessions on the Copilot harness,
+where the fleet's `agents:` and `handoffs:` do not apply. The installed-host acceptance document was
+removed because it described the earlier harness.
+**Owner:** The human owner decides; a maintainer session owns the generator and lane text.
+**Outcome:** The fleet states how delegation works on the default Copilot harness, its lanes do not
+depend on a Local-only field there, and acceptance cases exist for the chosen harness.
+**Next action:** The owner chooses between keeping delegation Local-only, projecting to the harness's
+own mechanism, or no delegation on Copilot. Then write acceptance cases for that harness and confirm
+its browser tool names and `AGENTS.md` delivery on an installed host.
+**Evidence:** [VS Code agent harnesses](https://code.visualstudio.com/docs/agents/run/agent-harnesses).
+**SRE task:** Use the fleet's delegating lanes from a default Copilot session, knowing which handoffs
+work there.
+
+### PCF-DEPLOY-001 — give pcf-deploy an Apps Manager path for SREs without the cf CLI
+
+**Status:** `deferred` (2026-11-08); the owner deferred this from the skill review.
+**Owner:** Save Toolkit maintainers; a maintainer session owns the skill text.
+**Outcome:** Where Apps Manager offers an equivalent, `pcf-deploy` plans state that path beside the
+`cf` command, and name the steps that still need the CLI.
+**Next action:** None until the owner schedules it. Then confirm which steps Apps Manager supports
+on the team's foundation version before writing them. Also confirm whether Apps Manager has an
+Events view: `pcf-ops` and `helper-exchange.md` send responders to one, and Broadcom's page may
+not list it.
+**Evidence:** none yet.
+**SRE task:** Plan and verify a PCF change from Apps Manager when the `cf` CLI is not installed.
 
 ### GRAPH-007 — promote or retire the sandbox workflow-graph skill
 

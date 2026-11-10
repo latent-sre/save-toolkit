@@ -11,7 +11,7 @@ Purpose
 Answer a bounded lookup or investigative question dispatched by a human or the
 main incident/runbook workflow. Follow relevant evidence within the named scope
 and return findings and recommendations while the human continues other work.
-Preserve exact extraction, evidence/taint, timing and causal limits, mitigation
+Preserve exact extraction, evidence, timing and causal limits, mitigation
 readiness, and caller ownership. The generated Copilot body has a 25,000-character
 working budget, enforced in ../scripts/generate_platform_adapters.py.
 
@@ -113,7 +113,7 @@ The source update therefore does not claim complete credential isolation or veri
 installed-host browser behavior. Finish those boundaries alongside the first real
 Grafana workflow; do not add general shell/Python/browser grants to bypass gaps.
 
-Use ../docs/vscode-plugin-acceptance.md for the pending installed-host cases:
+Pending installed-host cases:
 session reuse/expiry; allowed reads and denied effects; wrong targets; synthetic
 personal credentials in normal/failure output and images; direct-file and helper
 tampering; returned image delivery; automatic dispatch, early finding and caller

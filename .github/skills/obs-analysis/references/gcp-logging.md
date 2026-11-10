@@ -1,8 +1,5 @@
 # Cloud Logging dialect for log investigation
 
-Syntax references: [Logging query language](https://docs.cloud.google.com/logging/docs/view/logging-query-language)
-and [`gcloud logging read`](https://docs.cloud.google.com/sdk/gcloud/reference/logging/read).
-
 ## Start narrow
 
 Logging filters select entries; they do not aggregate. Choose Logs Explorer's histogram,
@@ -18,20 +15,18 @@ Observability Analytics SQL, or a log-based metric for time-series/top-N work.
   filter also admits app stderr and is not a request denominator. Under PowerShell, use
   `logName=projects/<project>/logs/run.googleapis.com%2Frequests` to avoid forbidden parentheses.
 - `SEARCH("world")` matches token boundaries, not `worlds`, and cannot match non-text fields.
-- Inspect one entry's payload shape before filtering: `jsonPayload.<field>` and `textPayload`
-  differ, and a predicate on an absent field silently matches nothing.
 
 ## Read it over time
 
-Analytics `GROUP BY` omits empty buckets. Generate the bounded bucket series and left-join counts;
-zero-fill only after checking freshness and ingestion coverage. Log-based metrics are not
-retroactive: they cannot reconstruct an earlier incident.
+Zero-fill Analytics buckets only after checking freshness and ingestion coverage. Log-based
+metrics are not retroactive: they cannot reconstruct an earlier incident.
 
 ## Correlate one request
 
-Cloud Run request logs carry `trace="projects/<project>/traces/<trace-id>"`. App stdout/stderr
+Request logs carry `trace` as `projects/<project>/traces/<trace-id>` or a bare trace ID; match
+both forms. App stdout/stderr
 carries it only through `logging.googleapis.com/trace` or a Cloud Logging client library; request
-rows alone cannot establish missing app logging. For [Cloud Trace](./gcp-trace.md), strip the
+rows alone cannot establish missing app logging. For [Cloud Trace](./gcp-trace.md), strip any
 `projects/<project>/traces/` prefix; a W3C trace id is 32 hex characters. Prefer exact-field `=` to
 global `SEARCH()`, escaping quotes and backslashes using Logging's quoted-string rules.
 
@@ -60,14 +55,13 @@ gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.servic
 
 ## Observability Analytics (SQL over logs)
 
-Observability Analytics (formerly Log Analytics) provides BigQuery-backed SQL over logs and traces.
-Check that the selected log bucket is upgraded before promising SQL aggregation or gap filling.
+Observability Analytics (formerly Log Analytics): check that the selected log bucket is upgraded before promising SQL aggregation or gap filling.
 
 ## Tips & gotchas
 
-- `_Default` sink excludes some logs; Data Access audit logs are opt-in. Check sink/exclusions
+- `_Default` sink excludes some logs; Data Access audit logs are off by default except for BigQuery. Check sink/exclusions
   before interpreting absence.
 - `entries.list` has a non-increasable quota of 60 calls/min per project; unbounded reads can
   starve console users.
-- `_Required` retention is 400 days, not configurable. `_Default` and user-created buckets default
-  to 30 days, configurable per bucket. Past-retention absence does not establish absence at write time.
+- `_Required` retention is 400 days, not configurable. Project `_Default` and user-created buckets
+  default to 30 days, configurable per bucket; folder- and organization-level `_Default` is fixed. Past-retention absence does not establish absence at write time.

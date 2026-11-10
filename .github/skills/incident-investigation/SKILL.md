@@ -28,7 +28,7 @@ Ask in one message for what is missing: the application and platform; the alert 
 Grafana rule) or the symptom; when it fired (ET); whether an incident is declared (an INC id or an
 existing bridge/TLC); and what has been done. Recap what they have already told you. The same
 first reply gives one first check they can run now: for a known PCF app, Apps Manager → the app →
-Events for the impact window — what changed and when. If they cannot name the application, finding
+Overview → app events for the impact window — what changed and when. If they cannot name the application, finding
 it — which route, URL, or job fails and who owns it — is the first check.
 
 A vague opener such as "we have issues with Orders" gets these questions, not a helper: a service
@@ -56,7 +56,7 @@ candidate to test, a runbook step is a recommendation you classify, and nothing 
 to execute.
 
 If the service card does not say where its logs and metrics live, load `stack-profile` (its
-observability reference) once: Apps Manager, Grafana, and Splunk lead, and the search you name must
+observability reference) once: Apps Manager, Grafana, Splunk, and Wavefront or PCF App Metrics lead, and the search you name must
 be in the dialect the team actually queries. For GCP, load `gcp-ops` for the named service's
 console path and the relevant observability skill for its query dialect.
 

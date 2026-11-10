@@ -19,6 +19,7 @@ export interface Problem {
   /** A stable URI naming the error class; compare this, never the title. "about:blank" when unnamed. */
   type: string;
   title: string;
+  /** For display. A problem body's value is advisory and can differ from the response; branch on response.status. */
   status: number;
   /** What happened and what to do, for people. */
   detail?: string;

@@ -37,19 +37,16 @@ observed failure, and success criteria.
    | Explicit new behavior | Define and check the cases; never invent a failing baseline |
    | Pure rewording without a routing or behavior change | No live eval |
 
-3. **Minimal change** — implement only the agreed repair, new behavior, or wording change.
-4. **Retest only when step 2 calls for it.** Fresh context and multiple reps only when live behavioral
+3. **Retest only when step 2 calls for it.** Fresh context and multiple reps only when live behavioral
    evidence is required.
-5. **Use the bounded candidate loop when evaluating.** [Artifact guidance](./references/artifact.md)
+4. **Use the bounded candidate loop when evaluating.** [Artifact guidance](./references/artifact.md)
    owns the frozen criteria, comparable baseline/candidate conditions, candidate and cost budgets,
-   termination, and evidence distinctions. Only human acceptance of the exact candidate revision
-   promotes it.
+   termination, and evidence distinctions.
 
 ## Rules this fleet has settled
 
-**Cite only what changes what a reader does.** Keep a pin that bounds a claim (file, revision,
-lines). Provenance — who checked, when, what they read — goes in the review that established the
-fact. A date is a fact when it bounds reliance, provenance when it only records a check.
+**Cite only what changes what a reader does:** keep a pin that bounds a claim (file, revision,
+lines), and put provenance in the review that established the fact.
 
 **1. Description = scope-bearing routing metadata**: capability or user goal, invocation
 conditions, meaningful exclusions. Never step-by-step procedure or tool choreography — a procedural
@@ -58,8 +55,6 @@ summary becomes a shortcut that displaces the body.
 | Symptom | Fix |
 |---|---|
 | Never triggers, or a neighbor fires in its place | First check the listing: the `/context` Skills row or the `--debug` over-budget line. A names-only entry is a budget problem, not a wording problem ([Claude Code frontmatter](./references/claude-code-frontmatter.md)) |
-| Never triggers | Use recognizable user phrasing |
-| Fires too often | Narrow the capability or exclusion boundary |
 | Wrong lane | Name the neighboring owner, whose own description or body must accept that work |
 | Triggers, then follows the wrong steps | Move procedural choreography from the description into the body |
 
@@ -73,9 +68,7 @@ summary becomes a shortcut that displaces the body.
 | Omits a required element | Required slot in a template it must fill |
 | Behavior should depend on a condition | Conditional keyed to an observable predicate |
 
-Express exceptions as conditions keyed to observable predicates; replace vague clauses such as
-"unless it matters". Use a positive recipe for human-facing shape, not a don't-list. Before editing
-instructions, locate the layer that owns the failure — routing metadata, instructions, context
+Before editing instructions, locate the layer that owns the failure — routing metadata, instructions, context
 assembly, tool/output schema, orchestration, wrapper/model/runtime, or the evaluator — and fix it
 there: strict schema for machine-consumed shape, code or a tool gate for fixed branches and effects,
 the harness for context selection.
@@ -93,24 +86,17 @@ and the listing-size delta stated in the PR.
 
 Routing and live coordination stay in the main session. When multi-agent is justified, the default
 is orchestrator–workers: the caller owns plan and synthesis; workers get bounded mandates, separate
-context slices, and explicit write ownership. Choose coordination from dependencies — a pipeline
-when one stage consumes another's output; fan-out with parent synthesis that reconciles rather than
-concatenates for independent slices; a barrier only where the next decision needs every input;
-adversarial review judged by evidence, not votes, for a consequential conclusion; a bounded
-discovery loop with time/cost and round limits set first when the amount of work is unknown.
+context slices, and explicit write ownership.
 
 **4. Which graph.**
 
 | Request | Is | Owner |
 |---|---|---|
-| Roster, delegation/handoff edges, context and authority boundaries, joins, termination | Agent workflow graph | This skill |
-| Source-code import graph, knowledge graph, GraphRAG | A different capability | Not this skill |
+| Roster, delegation edges, context and authority boundaries, joins, termination | Agent workflow graph | This skill |
 | The executable workflow/state graph the fleet's agents run on — typed state, node and edge classes, effects, checkpoints, cancellation, termination | Executable agent workflow graph | This skill, including its roster rules; implementation `software-engineer`; runtime a `stack-profile` decision, never LangGraph because the design is graph-shaped |
-| A team service's executable workflow graph | Service architecture | `principal-engineer` |
+| Source-code, knowledge, or GraphRAG graph; a team service's executable workflow graph | Not this skill | Service graph: `principal-engineer` |
 
-**5. Loop Engineering** — the bounded gather/action/verify/repeat contract inside a lane: entry
-state, verifier, iteration/candidate/cost/time budget, success and no-progress termination, safety
-stop, promotion authority, durable evidence. Prompt/skill loop: [artifact
+**5. Loop Engineering.** Prompt/skill loop: [artifact
 guidance](./references/artifact.md). Lane loop: name the verifier before the work; a lane without
 one can only emit [unverified] claims, and a graph edge never substitutes for it. Before blaming the
 model, bisect the wrapper layers: an agent's own assertion read back as fact (user corrections
@@ -126,11 +112,11 @@ authorizes a self-modifying loop.
 |---|---|
 | A prompt, agent body, skill body, description, or grader | [artifact guidance](./references/artifact.md) |
 | A tool contract, or promoting a shell prototype to a tool | [tool contracts](./references/artifact.md#tool-contracts) |
-| Agent or skill frontmatter, delegation/handoff edges, or their projections | [Claude Code frontmatter](./references/claude-code-frontmatter.md), the canonical source contract, including `Agent(...)` grants, their depth limit, and the MCP output cap; follow this fleet's edge-change procedure in the Save Toolkit repository's `CONTRIBUTING.md` |
+| Agent or skill frontmatter, delegation/handoff edges, or their projections | [Claude Code frontmatter](./references/claude-code-frontmatter.md), the canonical source contract, including `Agent(...)` grants and their spawn-depth limit (three layers by default; `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`); follow this fleet's edge-change procedure in the Save Toolkit repository's `CONTRIBUTING.md` |
 | VS Code/Copilot projection or handoff work | Also read [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) for `agents:`, `handoffs:`, and tool aliases |
 | Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
-| A cold-start packet, bounded evidence, receiving a helper's return, or replaying context | [context and handoffs](./references/context.md) |
-| Relying on a frontmatter field to enforce anything, or publishing a skill beyond this plugin | [skill portability](./references/skill-portability.md) — the portable set can grant, never restrict |
+| A cold-start packet, bounded evidence, receiving a helper's return, or replaying context | [context and handoffs](./references/artifact.md#context-and-handoffs) |
+| Relying on a frontmatter field to enforce anything, or publishing a skill beyond this plugin | [portable frontmatter](./references/copilot-frontmatter.md#portable-frontmatter) — the portable set can grant, never restrict |
 
 ## Promotion and composition
 

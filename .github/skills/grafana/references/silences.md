@@ -1,15 +1,13 @@
 # Temporary silences
 
-Silences suppress notifications temporarily, not evaluation. Recurring mute schedules and rule
-pauses are different operations. Ending a silence can notify still-firing alerts again.
+Recurring mute timings are a different operation.
+Ending a silence can notify still-firing alerts again.
 
-Console: Alerts & IRM → Alerting → Silences. Select Alertmanager, preview matches, set start/end
-and owner/reason; Unsilence ends early. Preview shows only current firing instances, not every
+Console: Alerts & IRM → Alerting → Silences. Preview shows only current firing instances, not every
 future alert the matchers will suppress.
 
-The helper's `silences` and `silences --id <uuid>` read the built-in Grafana Alertmanager, not
-external ones. Retain Alertmanager identity, matchers/window/status. An active object proves
-neither target association nor stopped delivery.
+The helper's `silences` and `silences --id <uuid>` read only the built-in Grafana Alertmanager.
+Retain Alertmanager identity, matchers/window/status.
 
 ## Prepare, apply, verify
 
@@ -31,17 +29,18 @@ neither target association nor stopped delivery.
    not promise compare-and-swap: coordinate a single-writer window for changes to a shared silence
    or return the prepared change to its owner. A re-read alone is not mutual exclusion.
 5. Write once, retain the returned silence ID, then fetch that ID from the same Alertmanager.
-   An update keeps its ID only when the matchers, and for an active silence the start time, are
-   unchanged; otherwise Alertmanager expires the original and returns a new ID, so also read the
-   original ID's state. Verify matchers, timestamps, owner/comment, and active/pending/expired
-   state as appropriate.
+   An update keeps its ID only when the silence is unexpired with unchanged matchers and is either
+   active with an unchanged start time and a future `endsAt`, or pending with a future `startsAt`.
+   Otherwise Alertmanager
+   expires the original and returns a new ID, so also read the original ID's state. An unknown `id`
+   returns NotFound. Verify matchers, timestamps, owner/comment, and active/pending/expired state.
    For suppression, check matching instances' silence association when available; for early expiry,
    verify expired state and inspect overlapping silences before claiming notifications can resume.
    Neither result proves delivery or service recovery.
 6. Return ID/link, intended effect, observed state, expiry and recovery owner. Preserve verified
-   operation-written state from step 5. Before recovery, compare fresh state with that record and
-   reuse step 4's single-writer checks; stop for the named owner on intervening edits or missing
-   comparison evidence. A fresh read alone authorizes no overwrite. To undo a create, expire the returned ID. To undo an edit that returned a new ID, expire that ID, verify
+   operation-written state from step 5; before recovery, compare fresh state with it under step 4's
+   single-writer checks and stop for the named owner on intervening edits or missing comparison
+   evidence. To undo a create, expire the returned ID. To undo an edit that returned a new ID, expire that ID, verify
    the original ID's state, and recreate the prior scope as a new silence only while its window is
    still valid and authorized. To undo an in-place edit, re-apply the captured body under the same
    ID within its still-valid window. An expired silence cannot be unexpired. Lost notifications
@@ -49,26 +48,26 @@ neither target association nor stopped delivery.
 
 ## Agent API mapping
 
-Use the actual target's supported route and permissions. The Grafana 13.2 client uses:
+Use the actual target's supported route and permissions. The Grafana 13.3 client uses:
 
 | Operation | Path under the trusted Grafana origin |
 |---|---|
 | List | `GET /api/alertmanager/<am>/api/v2/silences` |
 | Read one | `GET /api/alertmanager/<am>/api/v2/silence/<id>` |
 | Create or update | `POST /api/alertmanager/<am>/api/v2/silences` |
-| End early | `DELETE /api/alertmanager/<am>/api/v2/silence/<id>` — expires, not permanent deletion |
+| End early | `DELETE /api/alertmanager/<am>/api/v2/silence/<id>` |
 
 `<am>` is `grafana` for the built-in Alertmanager or the discovered datasource UID for the external
-one; never substitute its display name. The POST body carries `matchers` (name, value, regex/equality
-flags supported by that server), `startsAt`, `endsAt`, `createdBy`, and `comment`. Create omits
+one; never substitute its display name. Create omits
 `id`; an update sends the existing `id` and can return a different one (step 5). A rule-specific
 silence can use `__alert_rule_uid__=<uid>`; verify the label applies to this Alertmanager's alerts
-rather than assuming external alerts carry it. Discover response ID spelling from the API/tool response and verify it through readback.
+rather than assuming external alerts carry it. Grafana rejects an update that changes the
+`__alert_rule_uid__` matcher with 400: create a new silence instead. POST returns `silenceID`; reads use `id`.
 
-A timeout after POST has UNKNOWN outcome. Do not create another silence. Read the returned ID if
-known; otherwise list the same Alertmanager's silences and reconcile the full matcher/time/owner/
-comment payload and available audit evidence. Check for duplicates and late arrival; an empty list
-on one read is not proof of no write. For uncertain expiry, read the exact ID and its status.
-Incomplete evidence blocks redispatch and names the human reconciliation owner.
+A timeout after POST is UNKNOWN under the parent's [result rule](../SKILL.md#return-the-result).
+Do not create another silence. Read the returned ID if known; otherwise list the same
+Alertmanager's silences and reconcile the full matcher/time/owner/comment payload and available
+audit evidence, checking for duplicates and late arrival. For uncertain expiry, read the exact ID
+and its status.
 
 Target writes and HA reconciliation are unconfirmed until exercised.

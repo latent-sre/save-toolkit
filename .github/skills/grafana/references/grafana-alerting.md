@@ -1,25 +1,21 @@
 # Grafana 13 unified alerting as code
 
-Alert rules are independent resources, not legacy per-panel dashboard alerts.
-
-
 `stack-profile` owns the current minor. Confirm the exact target patch against the current vendor
 advisory before a security verdict; neither a major/minor label nor an old QA result establishes a
 security floor. Inspect alert-author and datasource grants separately; version evidence alone does
 not establish which data an author can query.
 
-Grafana evaluates Grafana-managed rules; Prometheus-family backends store/evaluate datasource-managed
-rules. Keep one evaluation owner per rule, without duplicate rules across paths.
+Keep one evaluation owner per rule, without duplicate rules across paths.
 
-## The four evaluation knobs, and the spellings that fail to load
+## The four evaluation knobs and their spellings
 
 - **`for`** filters flapping on entry; keep-firing-for holds a clearing alert in the Recovering
   state and a re-fire during it returns to Alerting without a new notification. The provisioning
   HTTP API body spells it **`keep_firing_for`**; file-provisioning YAML and the YAML/JSON export use
   **`keepFiringFor`**.
-  Verify the running rule's state, not the YAML, before trusting the filter.
-- **Recovery threshold** supplies query-side hysteresis. Choose it from the signal/response intent
-  when threshold oscillation causes noise.
+  A wrong key is ignored, not rejected: verify the running rule's state, not the YAML, before
+  trusting the filter.
+- **Recovery threshold** supplies query-side hysteresis.
 - **No-data and execution-error states** are a decision per rule: for a paging burn-rate rule,
   silent telemetry mapped to Normal is the false all-clear, and an erroring query mapped to Normal
   disarms the alert invisibly. In file-provisioning YAML "Normal" is spelled `OK`
@@ -31,56 +27,35 @@ Review all four per rule; the defaults are not a decision.
 
 ## Provisioning paths
 
-Three as-code mechanisms: file provisioning under `provisioning/alerting/`, Terraform, and the
-provisioning HTTP API. Export endpoints (`…/export?format=yaml|json|hcl`) emit provisioning-ready
-formats, but **the export JSON is not accepted by the HTTP API update endpoints** (different
-schemas), and the provisioning HTTP API docs sit under an `api-legacy` path with a deprecation
-pointer to the App Platform APIs, so pin the mechanism per environment and record it `[sourced]`.
-Grafana-managed recording rules exist against any alerting-compatible source (the output name must be
-a valid Prometheus metric name) under the same one-owner rule.
+Export endpoints (`…/export?format=yaml|json|hcl`) emit file and Terraform
+formats, not HTTP API update bodies; rule API paths are in [alert operations](./alert-operations.md).
+The contact point, notification policy, template, and mute-timing provisioning endpoints are
+deprecated and will be removed in a future release.
+Grafana-managed recording rules write their output to a Prometheus-compatible target datasource
+(or the configured `default_datasource_uid`); the output name must be a valid Prometheus metric
+name.
 
 ## Rule groups as code
 
 File-provisioned resources cannot be durably edited in the UI: change the source and use the
-controlled restart or hot-reload path for the target. Group rules that share an evaluation interval,
-keep stable rule and folder identifiers, and version-control the exported YAML or JSON. Record the
-inventory:
+controlled restart or hot-reload path for the target.
 
-| Rule group | Folder UID | Interval | Rule UID / purpose | Source path | Evaluation owner |
-|---|---|---|---|---|---|
-| `<service-slo>` | `<uid>` | `<interval>` | `<uid>` / `<burn pair>` | `<repo path>` | `<Grafana or backend>` |
-
-Paging rules carry a usable runbook link, normally in `runbook_url`. Use the labels and annotations
-required by the actual notification route; this reference does not establish a team-wide label schema.
-Never place a token or other secret in a rule, label, annotation, or tracked provider file.
+Paging rules carry a usable runbook link, normally in `runbook_url`.
+Never place a secret in a rule, label, annotation, or tracked provider file.
 
 ## Contact points and notification policies
 
-Keep runbook links/measured values in rule annotations; contact-point templates format those facts
-rather than recomputing them independently.
-
-**Full-tree warning.** Grafana treats the notification policy tree as one resource:
-applying a provisioned tree overwrites every policy in it. Export the full current tree immediately
+**Full-tree warning.** Since Grafana 13.2 an instance can hold several named notification policy
+trees; each tree is its own resource, and a rule can select which tree routes it. Applying a
+provisioned tree overwrites every policy in that tree. Export the full current tree immediately
 before review, keep every existing branch in the proposed source, and retain the prior export for
-rollback before any controlled apply. Record the routes:
+rollback before any controlled apply.
 
-| Match labels | Contact point | Grouping / timing | Correlation destination | Owner / test evidence |
-|---|---|---|---|---|
-| `<service, severity>` | `<name>` | `<group_by / intervals>` | `<Moogsoft integration>` | `<owner / test record>` |
+## Change and rollback
 
-Test the full path with a controlled non-production rule: evaluation, firing, policy match, contact
-point, correlation, acknowledgement, resolution, and runbook link. A green rule preview alone does
-not prove notification delivery.
-
-## Review and rollback
-
-Read-only review never forces conditions or sends notifications. Definitions and healthy evaluation
-do not prove fire/resolve or delivery; keep those checks `[unverified]` until exercised.
-
-For individual live Grafana-managed rule changes, use [alert operations](./alert-operations.md);
-who may write is set in the parent skill's [Access and authority](../SKILL.md#access-and-authority).
-Repository/provisioner-owned rules keep their source/apply path; a direct API change must not
-bypass that owner. Temporary silences use the [silence procedure](./silences.md).
+Live Grafana-managed rule changes use [alert operations](./alert-operations.md), under the parent's
+[Access and authority](../SKILL.md#access-and-authority); temporary silences use the
+[silence procedure](./silences.md). Repository/provisioner-owned rules keep their source/apply path.
 
 Submit source-managed rule-group and policy changes through a pull request that captures the target Grafana minor,
 source revision, before and after export, validation result, and notification-path evidence. Roll

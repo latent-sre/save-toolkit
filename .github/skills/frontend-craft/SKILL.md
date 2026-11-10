@@ -44,10 +44,9 @@ they replace remains an explicit gap.
   without dropping the page heading. Every async path ends in a rendered state. Show an actionable
   error, a copyable request ID, time and zone, and safe retry; report boundary catches and
   unhandled rejections to browser error reporting with request ID and release, without secrets.
-- **State ownership.** Server state lives in the query cache with visible data age; UI state stays
-  local. Put shareable, non-sensitive filters, sort, page and tabs in the URL. Add a global store
-  only for state shared by distant components. Choose pagination or virtualization from rendered
-  rows, interaction and measured cost; preserve server filtering.
+- **State ownership.** Put shareable, non-sensitive filters, sort, page and tabs in the URL. Add a
+  global store only for state shared by distant components. Choose pagination or virtualization
+  from rendered rows, interaction and measured cost.
 - **Permissions and actions.** For authenticated apps, show the signed-in identity and role.
   Disable visible but forbidden actions with a reason; hide areas the user can never use.
   Reversible actions offer undo; destructive or bulk actions confirm target, count and environment
@@ -79,9 +78,12 @@ Choose browser verification scope from the change:
   other application-wide changes expand verification across the app.
 
 Within that scope, exercise workflows against the running backend and use the host's Playwright
-MCP server (or ask the caller when unavailable) to inspect the UI, run axe, test keyboard navigation,
-and check the console for CSP violations and missing styles. For both new and existing apps, run
-the serving contract on a served production build. Do not install Playwright packages or download
+MCP server (or ask the caller when unavailable) to inspect the UI, test keyboard navigation,
+and check the console for CSP violations and missing styles. It has no axe tool: load the `axe-core`
+dev dependency same-origin and call `axe.run()` through `browser_evaluate`, or report axe as not
+run. For both new and existing apps, run the serving contract against a production build behind
+the production server configuration, locally or on a non-production route; report it as unverified
+when neither is available. Do not install Playwright packages or download
 browsers for MCP verification. Report the brief when required, workflows, added dependencies/licences,
 verification scope and results, screenshots and any unverified gaps.
 
@@ -92,7 +94,7 @@ Copy and adapt only files needed for selected capabilities; reuse equivalent app
 | Capability | Assets and destination |
 |---|---|
 | App identity | [theme.css](./assets/theme.css) → `src/styles/theme.css` (`@import` right after `@import "tailwindcss"`, or import once before kit styles) |
-| API errors | [problem.ts](./assets/problem.ts), [test](./assets/problem.test.ts) → beside the client |
-| Idempotency-Key writes | [idempotent-write.ts](./assets/idempotent-write.ts), [test](./assets/idempotent-write.test.ts) → beside the client (imports `problem.ts`) |
-| Runtime configuration | [runtime-config.ts](./assets/runtime-config.ts), [test](./assets/runtime-config.test.ts) → bootstrap |
+| API errors | [problem.ts](./assets/problem.ts) → beside the client; port the assertions from [its test](./assets/problem.test.ts) |
+| Idempotency-Key writes | [idempotent-write.ts](./assets/idempotent-write.ts) → beside the client (imports `problem.ts`); port the assertions from [its test](./assets/idempotent-write.test.ts) |
+| Runtime configuration | [runtime-config.ts](./assets/runtime-config.ts) → bootstrap; port the assertions from [its test](./assets/runtime-config.test.ts) |
 | Served-build checks | [serving-contract.mjs](./assets/serving-contract.mjs) → build configuration |

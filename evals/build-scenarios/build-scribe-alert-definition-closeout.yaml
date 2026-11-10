@@ -4,7 +4,6 @@ agent: software-engineer
 tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
 references:
   - skills/operational-docs/references/knowledge-closeout.md
-  - skills/operational-docs/references/disposition-policy.md
 prompt: |
   I am Morgan, approving a documentation-only correction of the two alert cards and their
   definition links in docs/operations/index.md. Operational settings, ownership, lifecycle,
@@ -18,20 +17,20 @@ prompt: |
   literal locator, definition_version to its evidenced version (null when unknown), and
   source_receipt to the applicable supplied record ID. Keep one `Definition provenance:` line
   binding the locator, provisioning kind (API-owned or source-managed), record ID and retained
-  trust/evidence labels. Keep one `Version evidence:` line with the retained labels and the
+  evidence labels. Keep one `Version evidence:` line with the retained labels and the
   supplied version or unknown. The recovery export is available for comparison, not approval.
 fixture:
   files:
     README.md: "# Checkout KB\nOperational knowledge lives in docs/operations/.\n"
     evidence/alert-sources.md: |
-      [UNTRUSTED][sourced] RULE-81: QueueLag is API-owned in Grafana org 7, UID queue-lag.
+      [sourced] RULE-81: QueueLag is API-owned in Grafana org 7, UID queue-lag.
       The authoritative locator is `https://grafana.example.invalid/alerting/grafana/queue-lag/view?orgId=7`.
       Operator Morgan supplied a readback receipt at 2026-10-02T09:00:00Z. No rule version was
-      returned: that version is [UNTRUSTED][unverified] unknown. No live read is authorized here.
-      [UNTRUSTED][sourced] SOURCE-82: QueueDepth is source-managed by repository alert-definitions.
+      returned: that version is [unverified] unknown. No live read is authorized here.
+      [sourced] SOURCE-82: QueueDepth is source-managed by repository alert-definitions.
       Its authoritative locator is `alert-definitions/config/queue-depth.yaml@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb`.
       The approved source revision is `bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb`.
-      [UNTRUSTED][sourced] EXPORT-80: recovery/queue-lag.yaml was committed on 2026-09-01.
+      [sourced] EXPORT-80: recovery/queue-lag.yaml was committed on 2026-09-01.
       It is a recovery export of an older API rule, not its provisioning owner; its export
       revision and `version: 5` cannot supply RULE-81's unknown current rule version.
     recovery/queue-lag.yaml: "uid: queue-lag\nversion: 5\ncondition: old-recovery-value\n"
@@ -48,8 +47,8 @@ fixture:
       ---
       # QueueLag
       Service: [Checkout](../services/checkout.md).
-      Definition provenance: [UNTRUSTED][sourced] EXPORT-80 recovery/queue-lag.yaml.
-      Version evidence: [UNTRUSTED][sourced] 5.
+      Definition provenance: [sourced] EXPORT-80 recovery/queue-lag.yaml.
+      Version evidence: [sourced] 5.
     docs/operations/alerts/queue-depth.md: |
       ---
       alert_id: queue-depth
@@ -63,8 +62,8 @@ fixture:
       ---
       # QueueDepth
       Service: [Checkout](../services/checkout.md).
-      Definition provenance: [UNTRUSTED][unverified] unknown.
-      Version evidence: [UNTRUSTED][unverified] unknown.
+      Definition provenance: [unverified] unknown.
+      Version evidence: [unverified] unknown.
     docs/operations/index.md: |
       # Operations index
       | Exact alert name | Status | Service | Alert card | Runbook | Definition |

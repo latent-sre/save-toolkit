@@ -10,7 +10,11 @@ Two SLI units are supported and never mixed:
   Its budget is a count of failed requests; converting it to downtime assumes uniform traffic.
 
 Burn-rate severity requires two measurements and one of three bound long/short window pairs. A
-single window can show arithmetic but cannot emit PAGE or TICKET.
+single window can show arithmetic but cannot emit PAGE or TICKET. A pair whose threshold times the
+SLO's allowed bad fraction exceeds 100% can never fire at that SLO, and the verdict says so.
+
+Exit status is 0 whenever the calculation runs, whatever it reports (PAGE, TICKET, EXHAUSTED or
+OVER BUDGET included): read the printed verdict, not the exit code. A usage error exits 2.
 
 The calculations (``time_status``, ``request_status``, ``burn_verdict``) are pure functions that
 return records; ``main`` validates the flags into ``Inputs`` and only renders those records.
@@ -44,14 +48,18 @@ def _decimal_percentage(text: str) -> Decimal:
     return value
 
 
-def _meets_burn_threshold(slo: Decimal, sli: Decimal, threshold: float) -> bool:
-    """Compare the decimal SLI to the exact cutoff without rounding a burn-rate quotient."""
+def _burn_cutoff(slo: Decimal, threshold: float) -> Decimal:
+    """The highest SLI percent that meets the threshold; below zero, no SLI can."""
     with localcontext() as context:
         # Validated SLOs are between 0 and 100; eight extra digits cover 100 and the
         # fixed thresholds (at most 14.4) without losing the SLO's decimal places.
         context.prec = max(28, 8 - slo.as_tuple().exponent)
-        cutoff = Decimal(100) - Decimal(str(threshold)) * (Decimal(100) - slo)
-    return sli <= cutoff
+        return Decimal(100) - Decimal(str(threshold)) * (Decimal(100) - slo)
+
+
+def _meets_burn_threshold(slo: Decimal, sli: Decimal, threshold: float) -> bool:
+    """Compare the decimal SLI to the exact cutoff without rounding a burn-rate quotient."""
+    return sli <= _burn_cutoff(slo, threshold)
 
 
 def fmt_minutes(minutes: float) -> str:
@@ -118,6 +126,10 @@ class Inputs:
         _finite("--total-events", self.total_events, exclusive_min=0)
         _finite("--sli-long", self.sli_long, minimum=0, maximum=100)
         _finite("--sli-short", self.sli_short, minimum=0, maximum=100)
+        window_minutes = self.window_days * 24 * 60
+        if self.bad_minutes is not None and self.bad_minutes > window_minutes:
+            raise ValueError(f"--bad-minutes cannot exceed the {self.window_days:g}-day window "
+                             f"({window_minutes:g} min)")
 
         if self.request_mode and self.bad_minutes is not None:
             raise ValueError("--bad-minutes (time-based SLI) cannot be combined with "
@@ -147,7 +159,8 @@ class BurnVerdict:
     """One window pair's severity decision.
 
     ``outcome`` names the burn-rate.md verdict boundary that applied: "both", "long only",
-    "short only" or "neither" window met the pair's threshold. ``severity`` is what to tell the reader.
+    "short only" or "neither" window met the pair's threshold, or "unreachable" when no SLI can meet
+    it at this SLO. ``severity`` is what to tell the reader.
     """
 
     action: str
@@ -212,6 +225,12 @@ def burn_verdict(slo: Decimal, sli_long: Decimal, sli_short: Decimal,
             f"no page -- short-window spike ({burn_short:.2f}x) the long window ({burn_long:.2f}x) hasn't "
             "confirmed. Re-check in minutes; a real burn trips both."
         )
+    elif _burn_cutoff(slo, threshold) < 0:
+        outcome, severity = "unreachable", (
+            f"the {long_window}/{short_window} pair can never fire at this SLO -- {threshold}x its "
+            f"{budget_fraction(slo) * 100:.4g}% error budget exceeds 100% bad events, so even a total "
+            "outage stays below it. Use a threshold this SLO can reach."
+        )
     else:
         outcome, severity = "neither", (
             f"below the {threshold}x threshold for the {long_window}/{short_window} pair. This says nothing "
@@ -223,6 +242,8 @@ def burn_verdict(slo: Decimal, sli_long: Decimal, sli_short: Decimal,
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="SLO error-budget and burn-rate calculator",
+        epilog="exit status: 0 whenever the calculation runs, whatever it reports\n"
+               "(PAGE, TICKET, EXHAUSTED or OVER BUDGET included); 2 for a usage error",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--slo", type=_decimal_percentage, required=True, help="SLO target percent, e.g. 99.9")

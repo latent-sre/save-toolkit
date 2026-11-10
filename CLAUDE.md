@@ -10,7 +10,7 @@ defaults below.
 
 ## Done means proven
 - Turn tasks into verifiable goals before starting: "fix the bug" → "a test reproduces it, then passes."
-- No completion claims without fresh evidence — show the command and its output. If unverified, say "written but not verified."
+- No completion claims without evidence — cite the command and its output; a result stands while what it covered is unchanged. If unverified, say "written but not verified."
 - Live-state claims are completion claims: any report on running work (a job, batch, process, deploy) must cite the command and output that proved it, and processes are identified by command line, never by name or count. If the evidence can't distinguish alive from dead, say "unknown — here's the check that would settle it" instead of a best guess.
 - After three failed fix attempts the diagnosis is wrong, not the patch. Stop patching; use the root-cause skill.
 - Prove the detector before trusting a negative. "No hits", "nothing enforces this", "not covered", and "the suite is green" are claims about the *instrument*, not the code, until the instrument is shown to fire: grep for a string you know is present, delete the file the rule guards, or mutate the predicate the test names and watch it fail. Report an unproven negative as "searched for X, did not confirm the search would find it" — never as an absence.

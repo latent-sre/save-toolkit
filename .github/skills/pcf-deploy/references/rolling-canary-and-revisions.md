@@ -5,17 +5,11 @@ never agent execution authority.
 
 ## Built-in strategies
 
-```bash
-cf push order-router -f manifest.yml --strategy rolling
-cf push order-router -f manifest.yml --strategy canary
-cf continue-deployment order-router
-cf cancel-deployment order-router
-```
-
-`--instance-steps 5,10,20` sets successive web-instance percentages. Each step pauses for continue
-or cancel; continuing after the final step completes rollout. Each canary instance after the first
-removes one old instance, so a multi-instance step removes several. Quota must cover the one extra
-instance held above target until completion.
+With `cf push --strategy canary`, `--instance-steps 5,10,20` sets successive web-instance
+percentages. CAPI marks canary experimental and subject to change. Each step pauses for
+`cf continue-deployment` or `cf cancel-deployment`; continuing after the final step completes
+rollout. Each canary instance after the first removes one old instance, so a multi-instance step
+removes several. Quota must cover up to `max_in_flight` new instances, plus one more while paused.
 
 `--max-in-flight N` limits simultaneous new starts, including within canary steps. Default 1 limits
 blast radius; a larger bound needs explicit acceptance in the approved packet.

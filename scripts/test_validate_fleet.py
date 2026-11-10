@@ -259,7 +259,7 @@ class FleetValidatorTests(unittest.TestCase):
     def test_retired_learning_machinery_stays_absent(self) -> None:
         retained = (
             Path("skills/operational-docs/SKILL.md"),
-            Path("skills/operational-docs/references/disposition-policy.md"),
+            Path("skills/operational-docs/references/knowledge-closeout.md"),
             Path("skills/operational-docs/assets/service-card-template.md"),
             Path("skills/operational-docs/assets/alert-card-template.md"),
             Path("skills/operational-docs/assets/knowledge-index-template.md"),

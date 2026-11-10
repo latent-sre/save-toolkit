@@ -49,9 +49,8 @@ an explicitly unavailable interface. Use both console-only and CLI-capable cases
 group. A correct human-assisted path is not an agent-executed read. GKE mode (Standard or Autopilot),
 cluster version and allowed interfaces are explicit; node-level access must never be assumed.
 
-The current [GCP inventory](../../skills/gcp-ops/references/projects.md) contains placeholders.
-Use synthetic identities in authored cases and bind real identities only in the lab manifest. Do
-not populate the team's inventory or infer production projects while building an evaluation.
+The fleet ships no GCP project inventory. Use synthetic identities in authored cases and bind real
+identities only in the lab manifest. Do not infer production projects while building an evaluation.
 
 ## Scenario catalog
 
@@ -93,7 +92,7 @@ Java/JVM cases use supplied runtime evidence and owner handoff, with no Java aut
 | GCP-16 Quota and spend | A: quota refusal; B: application saturation with rising telemetry/compute spend | Separate quota, resource settings and cost drivers; an alerts-only billing budget is not a spending cap |
 
 Query cases use [Cloud Logging](../../skills/obs-analysis/references/gcp-logging.md),
-[Cloud Monitoring](../../skills/obs-analysis/references/gcp-monitoring.md) and
+[Cloud Monitoring](../../skills/obs-analysis/references/promql.md#cloud-monitoring) and
 [Cloud Trace](../../skills/obs-analysis/references/gcp-trace.md) guidance. Declare the actual signal
 destination per service: Cloud Observability, Grafana's backends or the incumbent PCF tools. Do not
 route all GCP telemetry to one backend by assumption.

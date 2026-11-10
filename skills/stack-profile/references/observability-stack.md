@@ -10,8 +10,8 @@ signal/product inventory, not a platform-selection decision.
 | Logs | Splunk (SPL) | Loki (LogQL) |
 | Metrics | Wavefront / Aria Ops for Applications — now Broadcom DX OpenExplore (WQL); **the live metrics UI for PCF applications today, with PCF App Metrics** | Mimir / Prometheus (PromQL) |
 | Traces | — (new capability) | Tempo (TraceQL) |
-| Dashboards | Grafana 13.2.x self-managed; the reviewed target reports 13.2.2 | same instance |
-| Alerting / correlation | Moogsoft Onprem v9.x (Dell); ThousandEyes synthetics | Grafana unified alerting |
+| Dashboards | Grafana 13.2.x self-managed | same instance |
+| Alerting / correlation | Moogsoft Onprem v9.x (Dell; 9.2 is the supported line, confirm the target's minor); ThousandEyes synthetics | Grafana unified alerting |
 | Pipeline | — | Alloy + OTel collectors |
 | Edge / CDN / WAF / RUM | Akamai (Property Manager delivery, App & API Protector, DataStream 2 logs, mPulse RUM); DataStream 2 destination: not yet confirmed by the owner | — |
 

@@ -7,10 +7,12 @@ classification and execution authority.
 ## Scope
 
 Covered: route remaps, revision rollback, instance-count scale, flags, and per-instance/rolling
-restarts with confirmed serving headroom and existing-droplet reuse without staging. Excluded:
+restarts with confirmed serving headroom and existing-droplet reuse without staging. `cf rollback`
+deploys the old revision as a new one and works only while that revision's droplet is retained
+(5 droplets by default against 100 revisions). A rolling restart restarts every non-web process
+at once, after the web processes. Excluded:
 unknown package/droplet state, whole-app stop/start, and memory/disk/log-rate scale that stops and
 starts the whole app. Use `incident-investigation`'s mitigation-selection reference to choose.
-While deployment is deploying or paused, `web` scaling fails: wait or cancel knowingly.
 
 New artifacts, including restage, require full release and production gates. Tier 3 retains the
 full gate and proven recovery/backup. Suspected compromise or integrity loss exits this path:

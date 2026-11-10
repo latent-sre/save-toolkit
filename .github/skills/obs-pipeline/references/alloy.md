@@ -11,8 +11,7 @@ Alloy build/configuration. Examples do not establish target compatibility or del
 
 ## Pipeline shapes
 
-For three-signal OTLP to Google's Telemetry API, the gRPC exporter requires `host:port`, even
-though Grafana's Google-auth example omits the port:
+For three-signal OTLP to Google's Telemetry API over gRPC:
 
 ```alloy
 otelcol.exporter.otlp "default" {
@@ -31,25 +30,22 @@ Use Application Default Credentials with the writer's `roles/telemetry.writer`, 
 Consumer role and quota project. An OTLP/HTTP exporter uses the root URL
 `https://telemetry.googleapis.com`; do not reuse the gRPC `host:port` shape for it.
 
-`otelcol.auth.google` is **public preview** in Alloy v1.18.1 and requires Alloy to start with
-`--stability.level=public-preview` (or a lower stability level). The exact project, permissions,
-deployment flag, and canary result remain unconfirmed for the target environment.
+`otelcol.auth.google` is **public preview** in Alloy v1.21.3 and requires Alloy to start with
+`--stability.level=public-preview` (or a lower stability level).
 
 ## Discipline that stays regardless of syntax
 
 - **Receivers**: keep protocol, bind address, authentication, and TLS explicit; never expose a
   receiver beyond its intended network boundary.
-- **Processors**: approved resource attributes, redaction, memory/cardinality bounds, then batching
-  after signal-specific filtering. No secrets, PII or unbounded identity in labels. Confirm a shared
-  processor's data model/drop policy works for each connected signal.
+- **Processors**: approved resource attributes and redaction. No secrets, PII or unbounded identity
+  in labels. Confirm a shared processor's data model/drop policy works for each connected signal.
 - **Exporters**: map each configured signal to its actual destination, protocol, and failure policy
-  (LGTM, Google Telemetry API, or a verified gateway). Confirm each feed's route and owner;
-  PCF-platform-owned Splunk and Wavefront feeds remain platform responsibilities, so hand their
-  gaps to that owner rather than wiring replacement exporters.
+  (LGTM, Google Telemetry API, or a verified gateway). Confirm each feed's route and owner under
+  the [parent feed-ownership rule](../SKILL.md).
 
 ## Debugging a running Alloy
 
-- Validate before `/-/reload`. In v1.18.1, `alloy validate <config>` checks static shape/registers
+- Validate before `/-/reload`. In v1.21.3, `alloy validate <config>` checks static shape/registers
   import namespaces without resolving or validating imported contents; success cannot prove remote
   modules work. The SRE guard denies it, as well as `alloy fmt -w`, `alloy run` and `alloy tools`.
   Request a human or an authorized isolated, networkless runner.
@@ -77,13 +73,12 @@ deployment flag, and canary result remain unconfirmed for the target environment
 - **`loki.write`** retries with backoff (defaults: 500ms → 5m, 10 retries, retry on 429) and then
   **drops the batch**, logging "final error sending batch, no retries left, dropping data" — that
   log line is the loss evidence to grep for.
-- Read actual per-signal accepted/refused/dropped/sent/failed metric names from the deployed build.
 - Alert on sustained receive/export failure and queue or memory saturation; the alert must
   distinguish source silence from collector failure and link a recovery procedure.
 
 ## Health-check the pipeline itself
 
-Retain the exact-config validation receipt above. Check `/-/ready` plus accepted/refused/dropped/
+Retain the exact-config validation receipt above. Check `/-/ready` plus the deployed build's accepted/refused/dropped/
 queued/sent/failed telemetry for every configured signal, and confirm the stated alert coverage.
 
 ## End-to-end canary

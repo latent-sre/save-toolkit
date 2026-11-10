@@ -35,6 +35,6 @@ request covering the run; local edit/test permission alone does not authorize re
    without a receipt leaves submission UNKNOWN: reconcile run history before retrying and return
    the gap if the outcome cannot be established. Keep retries within the authorized scope.
 
-Report execution separately from required-check eligibility: green `workflow_dispatch` may not
-satisfy the PR ruleset. Check event and actual PR/ruleset result before claiming passage. CI validation
+Report execution separately from required-check eligibility: a green `workflow_dispatch` does not
+satisfy a required status check, even on the PR head commit. Check event and actual PR/ruleset result before claiming passage. CI validation
 is not deployment evidence; the human release owner retains deployment/publication execution.

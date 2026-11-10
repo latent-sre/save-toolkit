@@ -89,7 +89,7 @@ The 64 cases are proposed local designs, not an imported or executed public GCP 
 
 | Source | Supported fact and limit |
 |---|---|
-| [GCP skill](../../skills/gcp-ops/SKILL.md), [inventory](../../skills/gcp-ops/references/projects.md) and [migration map](../../skills/gcp-ops/references/cf-to-cloud-run.md) | [verified] Console/protected-read paths, credential exclusions, provisional platform boundary and placeholder inventory; neither real target access nor production runtime selection is established |
+| [GCP skill](../../skills/gcp-ops/SKILL.md) and [migration map](../../skills/gcp-ops/references/cf-to-cloud-run.md) | [verified] Console/protected-read paths, credential exclusions, and provisional platform boundary; neither real target access nor production runtime selection is established |
 | [Existing GCP discovery case](../../evals/scenarios/discovery-gcp-ops-cloud-run-503.yaml) and [query contract](../../evals/scenarios/obs-logs-query-shape-contract.yaml) | [verified] Reusable routing/query controls exist; they do not provide the planned GCP incident catalog or live-cloud evidence |
 | [Cloud Run troubleshooting](https://docs.cloud.google.com/run/docs/troubleshooting) and [request timeout](https://docs.cloud.google.com/run/docs/configuring/request-timeout) | [sourced] Startup/serving diagnostic paths; a 504 does not necessarily terminate processing. Exact causes require case evidence |
 | [Cloud Monitoring alert troubleshooting](https://docs.cloud.google.com/monitoring/alerts/troubleshooting-alerts) and [missing notifications](https://docs.cloud.google.com/monitoring/alerts/troubleshoot-missing-notifications) | [sourced] Data gaps, condition evaluation and notification delivery are distinct diagnostic concerns |

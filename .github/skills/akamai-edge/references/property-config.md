@@ -37,8 +37,9 @@ Include version diff, staging evidence, hostname/CP-code blast radius, exact ver
 applicable rollback and expected duration. Prepare recovery before activation; recheck fallback
 eligibility/version/expiry afterward. Production activation needs the human release owner and
 `production-change-gate` (Tier 2 minimum); WAF/security changes retain their security owner.
-Origin/hostname/security activations are Tier 3 access-path changes. Recovery must be eligible
-Fast Fallback, tested previous-version activation, or another proven path.
+Treat origin/hostname/security activations as Tier 3 access-path changes; that is this skill's
+reading, since the gate does not name CDN changes, so confirm the tier with the release owner.
+Recovery must be eligible Fast Fallback, tested previous-version activation, or another proven path.
 
 ## Cache purge
 
@@ -48,12 +49,12 @@ and verification.
 
 | Choice | Default | Why |
 |---|---|---|
-| Method | **Invalidate**, "the default and most popular behavior": the next request revalidates with origin (`If-Modified-Since`), and stale content can still be served if the origin is unreachable | **Delete** removes the object and "can increase the load and bandwidth on your origin more than invalidate"; keep it for content that must not be served (compliance, copyright) |
+| Method | **Invalidate**, "the default and most popular behavior": the next request revalidates with origin (`If-Modified-Since`); when configured to do so, the edge can keep serving stale content if the origin is unreachable | **Delete** removes the object and "can increase the load and bandwidth on your origin more than invalidate"; keep it for content that must not be served (compliance, copyright) |
 | Scope | Narrowest that covers the change: URL, then cache tag, then CP code (ARL also exists) | A wide scope revalidates everything under it at once — state the expected origin load |
 | Network | `staging` to rehearse; `production` (the API default) for users | A production purge has no undo; origin refetches the content |
 
-During an origin brownout, avoid deletion while serving stale content remains acceptable: it
-removes the available copies (`TCP_REFRESH_FAIL_HIT`). If content must no longer be served, give
+During an origin brownout, verify the property is configured to serve stale content before relying
+on it, and avoid deletion while that remains acceptable. If content must no longer be served, give
 the responsible human/security owner a narrowly scoped deletion for approval through the change
 gate, with the availability consequence explicit; invalidation can keep serving that content.
 Verify with a debug request; inferred from the X-Cache definitions
@@ -62,24 +63,20 @@ and not yet confirmed: after invalidate, a server that held the object answers `
 
 ## Config-as-code paths
 
-- **PAPI** manages rule trees, versions and activations.
 - **Terraform:** property provisioning requires rule format ≥ `v2023-01-05`; `cli-terraform`
   exports an existing property to configuration plus an import script. Select tooling with the
   owning team; this is an option, not a mandated replacement for Property Manager CLI.
 - **Akamai CLI `property-manager`** — local snippet-based editing and the multi-environment
-  pipeline workflow; current maintenance status unconfirmed.
+  pipeline workflow; its last release is v0.7.8, years old, so check its maintenance before adopting it.
 - **Akamai Sandbox:** tests a development rule tree before activation through a local Sandbox
-  Client at `http://localhost:<connector_port>`. It can support iteration; it does not replace
+  Client on the host and port set in `sandboxServerInfo` in its config. It can support iteration; it does not replace
   approved staging validation.
 
 ## Review checklist for a property diff
 
 - Cache-key changes (`X-True-Cache-Key` impact) and TTL changes — these move offload and can
   stampede origin on activation; state the expected offload delta.
-- Origin settings (hostname, ports, SNI, timeouts) — a typo here is a total outage that staging
-  won't catch if staging points elsewhere.
 - Rule ordering/criteria — conflicting behaviors use the bottom-most match; complementary behaviors
   can accumulate. A child rule applies only when its parent matches.
 - Behaviors that change debugging itself (Enhanced Debug key rotation, `disablePragma`, GRN) —
   check that debug access remains available after the change.
-- Hostnames added/removed from the property — that is blast radius, list them in the packet.

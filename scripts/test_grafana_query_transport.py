@@ -37,7 +37,7 @@ def _native_probe(tmp_path, shell, options, expression=EXPRESSION):
     )
     script = (
         "$ErrorActionPreference = 'Stop'\n"
-        f"function python {{ & '{sys.executable}' -I -S '{probe}' @($args[3..($args.Count-1)]) }}\n"
+        f"function python {{ if ($args[2] -eq '-c') {{ & '{sys.executable}' @args; return }}; & '{sys.executable}' -I -S '{probe}' @($args[3..($args.Count-1)]) }}\n"
         f"& '{HELPER.with_suffix('.ps1')}' -Datasource metrics -Kind prometheus -From 1000 -To 61000 "
         f"-Expr '{expression}' {options}\nexit $LASTEXITCODE"
     )
@@ -60,9 +60,10 @@ def test_native_wrapper_passes_all_options_and_literal_macros_then_python_expand
         assert argv.count(flag) == 1
         assert argv[argv.index(flag) + 1] == value
     query = report["requests"][-1]["body"]["queries"][0]
-    assert "$__" not in query["expr"]
+    # Explicit intervals are substituted; the range macro is left for the Prometheus backend.
+    assert "$__rate_interval" not in query["expr"] and "$__interval_ms" not in query["expr"]
     assert 'job="caf\u00e9"' in query["expr"]
-    assert "+ 60 + 2000" in query["expr"]
+    assert "[15000ms]) + $__range_s + 2000" in query["expr"]
     assert query["intervalMs"] == 2000
     assert query["instant"] is (mode == "instant")
     assert query["range"] is (mode == "range")

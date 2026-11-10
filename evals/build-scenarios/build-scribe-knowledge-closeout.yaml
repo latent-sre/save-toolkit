@@ -4,7 +4,6 @@ agent: software-engineer
 tools: [Read, Edit, Write, Grep, Glob, Bash, Skill, Task]
 references:
   - skills/operational-docs/references/knowledge-closeout.md
-  - skills/operational-docs/references/disposition-policy.md
 # The real caller supplies the seeded checkout binding; no fake fixed commit is passed to scribe.
 prompt: |
   I am Morgan, authorizing a bounded documentation closeout in this reviewed fixture repository.
@@ -15,12 +14,12 @@ prompt: |
   yourself. Supply your caller identity separately from my human ownership and let the helper
   return its diff and dispositions to you. Inspect the result and finish this assignment without
   committing, running application code, network lookup, or any live operation.
-  [UNTRUSTED][sourced] AUDIT-73, 2026-09-22: the approved owning team is Checkout Operations;
+  [sourced] AUDIT-73, 2026-09-22: the approved owning team is Checkout Operations;
   the staffed contact is #checkout-operations. This is a contact correction only. The existing
   service, lifecycle, operating procedure, review date, and rehearsal evidence are unchanged.
   Existing tracker FUP-73 records the correction and is owned by Morgan. No other work is needed.
   In the service card, keep AUDIT-73 on the same line as the correction and its retained
-  trust/evidence labels. Pass this evidence-format requirement to the helper.
+  evidence labels. Pass this evidence-format requirement to the helper.
 fixture:
   files:
     README.md: "# Checkout\nOperational knowledge lives in docs/operations/.\n"

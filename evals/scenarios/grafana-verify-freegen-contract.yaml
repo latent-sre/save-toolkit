@@ -9,12 +9,12 @@ prompt: |
   Read the dashboard HTTP API reference. Write short labelled answers only, no
   explanation; do not edit files or call APIs. You saved a dashboard change whose
   main panel uses a rate window macro. A: how do you verify the changed query
-  through the query API, given what that API does not expand? B: the server render
+  through the query API so the rate window matches the one the panel used? B: the server render
   of the panel returns HTTP 200 with an image; why is that alone not proof the
   panel rendered? C: you forgot the save message on the write; can it be added to
   that version afterwards?
 success_criteria:
-  - Substitutes a concrete rate window, checks rendered dimensions against stock images, and treats save messages as write-time only.
+  - Pins a concrete rate window or the panel's interval and scrape cadence so the backend's expansion matches the panel, checks rendered dimensions against stock images, and treats save messages as write-time only.
 graders:
   - type: regex
     pattern: '__rate_interval|rate.interval'

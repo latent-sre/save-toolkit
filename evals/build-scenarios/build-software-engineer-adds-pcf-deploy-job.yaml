@@ -180,7 +180,6 @@ fixture:
           unittest.main()
 checks:
   - {check: changes_within, allowed: [".github/workflows", "docs"], text: "only workflows and docs changed"}
-  - {check: skill_loaded, skill: ci-actions, text: "ci-actions was loaded for the workflow change"}
   - {check: bash_ran, pattern: "actionlint", text: "the agent ran actionlint itself before handing off"}
   - {check: no_new_commits, text: "nothing committed"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}

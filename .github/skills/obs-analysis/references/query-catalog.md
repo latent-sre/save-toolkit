@@ -1,7 +1,7 @@
 # Log query starting points
 
 Selectors and field names below are examples/placeholders, not established team targets. Resolve
-through [inventory](./indexes.md); use [SPL](./spl.md) for dialect semantics. A maintained entry
+them on the target; use [SPL](./spl.md) for dialect semantics. A maintained entry
 records its purpose, owner and target/query/window/result evidence from a named authorized executor.
 Running an example does not make it accepted team policy. Keep sensitive parameters in an
 access-controlled saved search rather than this catalog.
@@ -10,52 +10,10 @@ Use the invoked lane's permitted query path and output protections. The standard
 no Splunk execution path: return the query for an authorized executor. Diagnostic reads do not
 permit saved-search edits or other writes.
 
-### Which errors started at the same time as the impact?
+### Did error rate change across the deploy? Where did one request fail across services?
 
-```spl
-index=<app_index> sourcetype=<error_sourcetype> earliest=<start_epoch> latest=<end_epoch>
-| bin _time span=1m
-| stats count by _time, error_type
-| sort 0 - _time
-```
-
-An onset shortlist, not a complete baseline. Check extraction/ingestion; use
-[complete buckets](./spl.md#spot-a-spike-vs-the-baseline-anomaly-detection) for quiet periods and trailing baselines.
-
-### Did error rate change across the deploy?
-
-Use [SPL's deploy comparison](./spl.md#overall-deploy-error-rate) on one completion event per
-eligible request/attempt, with equal windows around the known deploy time.
-Its overall rate needs no `error_type`; the optional class breakdown keeps the phase denominator.
-Missing/invalid status leaves the ratio null; no traffic or a missing phase is not healthy zero.
-
-### Where did one request fail across services?
-
-Resolve the shared correlation field on each service; logged hops are not a complete call graph.
-
-```spl
-index=<app_index> <correlation_field>="<validated_and_spl_escaped_id>" earliest=<start_epoch> latest=<end_epoch>
-| table _time, service, status, latency_ms
-| sort 0 _time
-```
-
-[`sort`](https://help.splunk.com/en/splunk-enterprise/spl-search-reference/10.4/search-commands/sort)
-defaults to 10,000 rows; `sort 0` preserves the path at extra cost. Keep the window tight;
-missing hops remain telemetry gaps until explained independently.
-
-### Which callers are driving the current load?
-
-Use request-completion events and a discovered caller field; compare the top counts with the
-usual caller mix rather than treating a large caller as a fault.
-
-```spl
-index=<app_index> sourcetype=<request_completion_sourcetype> earliest=-30m latest=now
-| stats count AS requests by <caller_field>
-| sort - requests
-| head 20
-```
-
-`stats by` drops missing caller fields; compare `count(<caller_field>)` against `count` first.
+Use SPL's [deploy comparison](./spl.md#compare-before-vs-after-a-deploy) and
+[cross-service correlation](./spl.md#correlate-one-request-across-services).
 
 ### Is the Akamai edge failing or missing cache for one hostname or region?
 
@@ -82,6 +40,4 @@ refusal before use; it does not prove live extraction.
 Add `country` (client origin) or `serverCountry` (serving location) for regional grouping;
 `stats count by errorCode` narrows a spike. Inspect `reqHost` shape before filtering (it mirrors
 Host). `akamai-edge`'s DataStream caveats still apply: low-latency streams are less complete and
-delivery failures lose lines. Other destinations need equivalent fields in their own dialect.
-
-Metric queries use the metric-analysis path in `obs-analysis`, not this log catalog.
+delivery failures lose lines.

@@ -8,15 +8,15 @@ Use Vue when selected by the caller or neighbouring apps; shared [design](./desi
 Use stable Vue, TypeScript and Vite (`npm create vue@latest` with TypeScript, Router, Vitest and
 ESLint); check tool compatibility before upgrades.
 Pin TypeScript 6: `vue-tsc` 3.3 fails on TypeScript 7 (`typescript/lib/tsc` is not exported)
-despite its `>=5.0.0` peer range, and `@vue/eslint-config-typescript` / `typescript-eslint`
-type-checked rules require `<6.1.0`. Check both before upgrading. Use Node
-22.12+, ESLint flat config (`eslint-plugin-vue`, `@vue/eslint-config-typescript`), Vitest, Vue
-Test Utils and MSW.
+despite its `>=5.0.0` peer range, and `typescript-eslint` type-checked rules (used through
+`@vue/eslint-config-typescript`) require `<6.1.0`. Check both before upgrading. Node: the current
+Active LTS; take the floor from the lockfile's `engines`. Use ESLint flat config
+(`eslint-plugin-vue`, `@vue/eslint-config-typescript`), Vitest, Vue Test Utils and MSW.
 
 ## Kits
 
-Default: **shadcn-vue**, **Reka UI**, **Tailwind v4**, **motion-v**, **@lucide/vue** and
-**VueUse** (all MIT). Optional animated collections: **Inspira UI** and **Vue Bits**. Full-system
+Default: **shadcn-vue**, **Reka UI**, **Tailwind v4**, **motion-v**, **@lucide/vue** (ISC) and
+**VueUse** (others MIT). Optional animated collections: **Inspira UI** and **Vue Bits**. Full-system
 alternatives: **Nuxt UI** (Reka/Tailwind, MIT, supports plain Vite) and **Vuetify** (MIT; follow
 its Tailwind layer guide). **PrimeVue 5** uses its own licence requiring owner approval. Apply the
 [stack mixing rules](./stack.md#mixing-kits) and shared theme tokens.

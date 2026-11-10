@@ -17,7 +17,7 @@ or defaults.
 - Choose **lookup** for exact observations/extraction, or **investigation** for comparison,
   interpretation and testing plausible causes within the named scope. Give the target/environment,
   absolute window/timezone, sources, known file paths/workspace, access limits and relevant prior
-  findings with their evidence labels. Do not load the whole advisor into the helper.
+  findings. Do not load the whole advisor into the helper.
 - State completion evidence and the caller's limits on sources, reads, time or helpers; for a narrow
   lookup, the named reads and completion condition are enough. Count discovery against the helper
   limit. Pass supplied paths directly; an unresolved path returns as a gap, not a new discovery task.

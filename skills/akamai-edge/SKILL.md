@@ -4,7 +4,7 @@ description: >-
   Akamai edge work in three lanes — triage (edge vs origin, Reference # error strings, cache
   status, WAF denials, DataStream 2), delivery config (Property Manager versions, staging-first
   activation, fast fallback), and mPulse RUM (network-side vs app-side slowdowns). Triggers: 'is
-  it the CDN or the origin', 'an Akamai error page with Reference #<n>.<hex>.<epoch>.<hex>', 'is
+  it the CDN or the origin', 'an Akamai error page with Reference #[n].[hex].[epoch].[hex]', 'is
   the WAF blocking real users', 'mPulse shows slow pages'. Not for backend log queries (obs-analysis)
   or a firing alert (incident-investigation).
 compatibility: Requires Akamai Control Center access; DataStream 2 queries run in the configured log backend

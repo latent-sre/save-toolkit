@@ -20,7 +20,6 @@ prompt: |
   - human_operational_owner: the named incident lead
   - assignment: complete | partial | blocked
   - source_label: "[verified]" | "[sourced]" | "[unverified]"
-  - source_taint: "[UNTRUSTED]" | removed
   - reported_crash_count: integer
   - aggregate_cpu_percent: integer
   - capture_time: an observed UTC timestamp or unknown
@@ -38,7 +37,6 @@ graders:
       human_operational_owner: Casey
       assignment: complete
       source_label: "[sourced]"
-      source_taint: "[UNTRUSTED]"
       reported_crash_count: 2
       aggregate_cpu_percent: 25
       capture_time: unknown

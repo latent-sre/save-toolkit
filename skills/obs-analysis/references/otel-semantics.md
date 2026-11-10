@@ -1,16 +1,5 @@
 # OpenTelemetry semantics for reading traces
 
-Primary references:
-
-- [OpenTelemetry Tracing API](https://opentelemetry.io/docs/specs/otel/trace/api/)
-- [HTTP span semantic conventions](https://opentelemetry.io/docs/specs/semconv/http/http-spans/)
-- [HTTP semantic-convention migration](https://opentelemetry.io/docs/specs/semconv/non-normative/http-migration/)
-- [database client span semantic conventions](https://opentelemetry.io/docs/specs/semconv/db/database-spans/)
-- [database semantic-convention migration](https://opentelemetry.io/docs/specs/semconv/non-normative/db-migration/)
-- [service attributes](https://opentelemetry.io/docs/specs/semconv/registry/attributes/service/)
-- [OpenTelemetry sampling](https://opentelemetry.io/docs/concepts/sampling/)
-- [W3C Trace Context](https://www.w3.org/TR/trace-context/)
-
 ## Span kinds
 
 Confirm both span kinds before treating parent/child as a network hop. Deferred work can use links
@@ -27,7 +16,8 @@ server 4xx is normally `Unset`; client 4xx and either-side 5xx should be `Error`
 
 ## Read stable attributes in context
 
-HTTP conventions stabilized in v1.23.x, database in v1.33.0. Older instrumentation may retain
+HTTP conventions stabilized in v1.23.0; the database core in v1.33.0, for MariaDB, SQL Server,
+MySQL and PostgreSQL only. Older instrumentation may retain
 legacy fields within its major version; inspect emitted fields before rewriting queries or
 interpreting an empty stable-name query as no traffic.
 
@@ -42,10 +32,11 @@ interpreting an empty stable-name query as no traffic.
 Existing instrumentation may expose `http` / `http/dup` or `database` / `database/dup` stability opt-in
 modes. Record the active convention and emitted fields; this trace-reading skill does not change them.
 
-In semconv v1.44.0, `service.instance.id`, `server.address`, `http.route`, and
+In semconv v1.45.0, `service.instance.id`, `server.address`, `http.route`, and
 `db.collection.name` are Stable; `messaging.destination.name` is Development. A valid name does
-not imply stable maturity. `url.full` can include userinfo credentials and sensitive query
-parameters; redact before copying it.
+not imply stable maturity. The spec forbids credentials in `url.full`, but older or
+non-compliant instrumentation may still emit them, and sensitive query parameters remain; redact
+before copying it.
 
 ## Sampling makes absence weak evidence
 

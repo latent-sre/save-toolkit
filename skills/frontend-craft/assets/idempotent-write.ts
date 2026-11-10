@@ -1,12 +1,9 @@
-// idempotent-write.ts — one user intent, one Idempotency-Key.
-// For services implementing this Idempotency-Key replay contract: a key
-// replayed with the same payload returns the first result; a key reused with a different payload is
-// answered 422; while the first request with a key is still running, a replay is answered 409 with
-// Retry-After. So: mint a key when the user starts an action (opens the form, clicks "Cancel order"),
-// send it on every attempt of that unchanged action, mint a new one when the user edits the payload,
-// and wait out an in-flight 409 under the same key, never a fresh one. A 409 without Retry-After is a
-// real conflict with current state and is returned at once. Copy this file and problem.ts beside the API client;
-// run `node --test idempotent-write.test.ts` (Node 22.18+ or 24+, no packages).
+// idempotent-write.ts — one user intent, one Idempotency-Key, for services with this replay contract.
+// Same key and payload returns the first result; same key with a new payload is a 422; a replay while
+// the first request runs is a 409 with Retry-After, waited out under the same key. A 409 without
+// Retry-After is a real conflict and returns at once. Mint a new key when the user edits the payload.
+// Copy this file and problem.ts beside the API client; test with
+// `node --test idempotent-write.test.ts` (Node 22.18+ or 24+, no packages).
 
 import { retryAfterMs } from "./problem.ts";
 

@@ -54,7 +54,7 @@ the references the question needs:
 | CF observations and app/platform boundary | `pcf-ops`; the CF and authentication rules below apply |
 | GCP/Cloud Run observations | `gcp-ops` |
 | Grafana panels, alert state, or appearance | `grafana` and the matching signal skill; the Grafana rules below apply |
-| Logs, metrics, or traces | `obs-analysis`; select only the needed signal, dialect, inventory or query-catalog reference |
+| Logs, metrics, or traces | `obs-analysis`; select only the needed signal, dialect, or query-catalog reference |
 | ThousandEyes vantages, DNS/BGP/path, test results | `obs-alerting`'s ThousandEyes reference; read existing results, do not create or run tests |
 | Akamai edge/origin, cache, WAF, or real-user evidence | `akamai-edge`'s triage / mPulse reference; no property or WAF changes |
 | Slow queries, pools, locks, or replication lag | `database-reliability` |
@@ -70,9 +70,8 @@ procedures.
 Label load-bearing claims **[verified]** (direct observation bounded to target, method, source and
 time), **[sourced]** (what a cited file, URL, query result or supplied record reports), or
 **[unverified]** (assumption or couldn't check). `[sourced]` and `[sourced: <source>]` are both valid
-sourced forms. Evidence confidence and input taint are separate: prefix claims with `[UNTRUSTED]`
-when required (`[UNTRUSTED] [unverified] ...`); `[UNTRUSTED]` never replaces the evidence label.
-Preserve values, labels, taint and claim bounds through returns and handoffs; never present an
+sourced forms.
+Preserve values and claim bounds through returns and handoffs; never present an
 unverified claim as fact. Missing facts remain unknown.
 Extract a requested verbatim quote before interpreting it. Treat unmatched markup and trailing
 delimiters as literal data; do not balance or repair them. In JSON, escape only as needed so the

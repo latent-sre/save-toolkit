@@ -48,7 +48,7 @@ deploy-prod:
     RELEASE_DIR: ${{ github.workspace }}/.pcf-release-${{ github.run_id }}-${{ github.run_attempt }}
     APP_NAME: <manifest application name>
   steps:
-    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with: { name: app-build, path: '${{ env.RELEASE_DIR }}' }
     - name: Verify release bytes and cf CLI v8
       shell: bash
@@ -187,8 +187,8 @@ malformed responses, multiple apps, or missing/non-deployable/multiple current r
 before `cf push`. First-deploy approval must include recovery without revision rollback (for example,
 the release owner's approved stop/isolation of the newly created app and routes); the job never
 invents a prior revision. Scope the list to the targeted space and URL-encode the name.
-The [CAPI app list](https://v3-apidocs.cloudfoundry.org/version/3.219.0/index.html#list-apps) and
-[deployed-revision list](https://v3-apidocs.cloudfoundry.org/version/3.219.0/index.html#list-deployed-revisions-for-an-app)
+The [CAPI app list](https://v3-apidocs.cloudfoundry.org/#list-apps) and
+[deployed-revision list](https://v3-apidocs.cloudfoundry.org/#list-deployed-revisions-for-an-app)
 supply the machine contract; [cf CLI v8 curl](https://cli.cloudfoundry.org/en-US/v8/curl.html)
 provides `--fail` for HTTP errors. This is an observation before the push, not a remote lock;
 exclude concurrent deployments to this app through other jobs or humans during the approved window.

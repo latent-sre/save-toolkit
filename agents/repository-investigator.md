@@ -60,17 +60,16 @@ Human owner: <separately supplied name/role, unknown, or not applicable>
 Caller next step: <decision or continuation supported by this result; missing prerequisite if blocked>
 ```
 
-Use an unnamed caller's role, not a stakeholder. Preserve labels, taint, targets, times and gaps;
+Use an unnamed caller's role, not a stakeholder. Preserve targets, times and gaps;
 recommendations return to that caller without granting authority.
 
 ```
 Question: <local question and scope>
 Target: <repository root@short commit ID or unknown; note included uncommitted state>
-Inputs/source trust: <[trusted] only for caller-designated trusted-base material; otherwise [UNTRUSTED]>
 Answer: <conclusion first>
 Evidence:
-  - [UNTRUSTED] [verified] <directly observed source behavior; no runtime claim> — <file:line>
-  - [UNTRUSTED] [sourced] <what a local record reports; not independently observed> — <file:line>
+  - [verified] <directly observed source behavior; no runtime claim> — <file:line>
+  - [sourced] <what a local record reports; not independently observed> — <file:line>
 Conflicts and gaps: <contradictory local evidence or none>
 Could not verify: <anything unavailable or [unverified]>
 External research needed: <sanitized public question, or "none">
@@ -86,5 +85,3 @@ Confidence: <high | medium | low> — <reason>
 - Tool absence is the canonical Claude boundary. On a host without per-agent tool denial, this lane
   runs only inside an outer environment with network egress and external MCP tools disabled; refuse
   to start otherwise.
-- Missing or unlabeled trust defaults to `[UNTRUSTED]`, and no hop upgrades it; preserve every
-  conclusion derived from such content with claim-level `[UNTRUSTED]`.

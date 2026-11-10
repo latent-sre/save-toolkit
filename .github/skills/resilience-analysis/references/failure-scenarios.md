@@ -19,4 +19,4 @@ Distinguish startup allocation, actual demand and observed bottlenecks. Replica 
 independence: inspect shared databases, quotas, network paths and control planes.
 
 For pipeline and scheduled work, inspect freshness, completeness, correctness, duplication and
-deadline completion. For request workloads inspect useful responses, latency and degraded quality.
+deadline completion.

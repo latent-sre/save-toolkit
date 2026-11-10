@@ -207,7 +207,8 @@ justified whole-codebase rewrites in scope that preserve required contracts. It 
 control flow, simpler calls, layer removal, ordered records, indexed membership with streaming, and
 transport-independent policy boundaries, and pairs empty forwarding layers and failure-hiding handlers
 with look-alikes that own a transaction or a documented boundary translation. It loads the Python
-refactoring and design references and the builder bar so their design guidance is assessed together. `python-new-code-judgment` checks a
+refactoring and design references so their design guidance is assessed together.
+`python-new-code-judgment` checks a
 direct implementation for a bounded task, an importable core serving CLI and notebook consumers,
 bounded streaming with publication after validation, and an unresolved partial-failure contract.
 These supplied-state decisions do not prove execution or consumer discovery. `discovery-python-improvement` checks routing
@@ -420,8 +421,7 @@ and host with any such result. See the historical
 The expanded SRE workflow now requires an actual unhinted incident/runbook dispatch, helper return
 and caller continuation as a product acceptance case on each claimed host. A routing probe or a
 supplied-state JSON decision alone does not satisfy that requirement; one success does not establish
-general dispatch reliability. The pending cases live in
-[host acceptance](../../docs/vscode-plugin-acceptance.md#expanded-investigation-acceptance-pending).
+general dispatch reliability.
 
 ### Native incident conversation
 

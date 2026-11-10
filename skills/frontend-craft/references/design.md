@@ -44,13 +44,9 @@ fixed ok, warn, critical, info and unknown hues paired with text/icons; categori
 stay distinct. Prioritize the worst state in status lists. Right-align numeric columns with
 `tabular-nums`.
 
-Optional pairings: IBM Plex Sans/Mono for a workbench, Public Sans/JetBrains Mono for a catalog,
-or Instrument Sans/Serif for editorial content. Choose for the brief; these are not required fonts.
-
 ## Actions and motion
 
-Row/card actions must work on hover, focus and touch. Icon-only controls need accessible names
-and tooltips; show pending/completed state at the action.
+Icon-only controls need accessible names and tooltips.
 
 Use theme durations (120–280 ms on opacity/transform): CSS transitions for hover/press/focus;
 `@starting-style` + `transition-behavior: allow-discrete` (or kit primitives) for dialogs/popovers;

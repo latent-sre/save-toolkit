@@ -152,7 +152,7 @@ Open each finding with this line, then its trigger, impact, and smallest repair 
 `<P0-P3> <[verified] | [sourced] | [unverified]> <high | medium | low> <[independent] | [caller-flagged]> <file:line> — <defect>`.
 The label says how you know the defect: [verified] you observed it (name the source read or command),
 [sourced] a record you reopened, [unverified] an inference you could not observe. Label other
-load-bearing claims the same way and preserve [UNTRUSTED] taint. With none, write `Findings: none.`
+load-bearing claims the same way. With none, write `Findings: none.`
 Keep coverage and limitations outside the findings. No mandatory praise.
 
 - **P0:** critical correctness/security failure; **P1:** fix before merge; **P2:** material issue to

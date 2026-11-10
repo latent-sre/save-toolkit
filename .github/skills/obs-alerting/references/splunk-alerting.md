@@ -1,12 +1,8 @@
 # Splunk saved-search alerting
 
-Apply the [parent verification and paging rules](../SKILL.md). Target version/licence behavior
-remains unconfirmed until validated.
+Apply the [parent verification and paging rules](../SKILL.md).
 
 ## The scheduled-alert contract
-
-Prefer scheduled alerts: real-time holds a search process open indefinitely. Justify real-time
-when seconds materially change the response.
 
 ```ini
 # Five-minute windows with an illustrative two-minute indexing allowance.
@@ -16,46 +12,37 @@ dispatch.earliest_time = -7m@m
 dispatch.latest_time = -2m@m
 ```
 
-- Measure source indexing delay (`_indextime - _time`); handle late arrivals with bounded overlap
+- Handle late arrivals with bounded overlap
   and deduplication. Check skipped runs and event-time gaps before claiming complete coverage.
 - **Timezone:** Splunk Cloud evaluates cron in UTC; Splunk Enterprise uses the search head's
   timezone. Record which applies next to every schedule.
 - Trigger conditions are `counttype` with `relation` and `quantity`, or `alert_condition`, a
-  secondary search that replaces the trio when set; `alert_type`, `alert_comparator`, and
+  secondary search; do not combine the two; `alert_type`, `alert_comparator`, and
   `alert_threshold` are the REST API's names and configure nothing in the file.
   `alert.digest_mode` decides whole-result-set versus per-result actions.
 
 ## Throttling is part of the design
 
 ```ini
+alert.digest_mode = 0
 alert.suppress = 1
 alert.suppress.period = 30m
-# Required for per-result throttling:
 alert.suppress.fields = service,alert_type
 ```
 
-`alert.suppress.fields` prevents one service muting all others. In Enterprise 10.4,
+Field-based suppression works only on per-result alerts (`alert.digest_mode = 0`); a digest alert
+throttles by time alone, so one service's trigger mutes all others.
 `alert.suppress.group_name` shares suppression only among alerts with the same user owner; a matching
 group name alone is insufficient. Compare suppression duration with the runbook escalation time-box
 so continuing burn is not hidden.
 
 ## Actions carry results outward
 
-- **Webhook:** `alert_actions.conf` defaults `enable_allowlist = false`, permitting arbitrary
-  endpoints. Include enabling it with only actual approved receiver URLs in the alert review.
+- **Webhook:** On Splunk Enterprise, `alert_actions.conf` defaults `enable_allowlist = false`,
+  permitting arbitrary endpoints. Include enabling it with only actual approved receiver URLs in the
+  alert review.
 - **Email:** restrict allowed recipient domains; results by email is an exfiltration surface.
 - Apply the fleet's redaction rules to what the search returns, not only to where it posts.
-
-## The runbook link
-
-Discover the existing paging-runbook link mechanism. This lookup is an optional pattern, neither
-an assumed deployed resource nor an official example:
-
-```spl
-... | lookup instructions_lookup alert_type OUTPUT runbook_url
-```
-
-If selected, use the actual lookup name and version its mapping with the runbook inventory.
 
 ## Verification, Splunk-shaped
 

@@ -90,6 +90,7 @@ def exact_fields(response: str, fields: dict[str, str]) -> tuple[bool, str]:
     A closed literal-field assertion for structured packets: unlike `contains_all`, it rejects a
     prefix match on the label, a duplicated field, and a value that merely contains the expected
     text. Display-only Markdown around the label is tolerated; the value is compared verbatim.
+    An `[UNTRUSTED]` marker echoed from the input is dropped first: carrying it is not required.
     """
     if not isinstance(fields, dict) or not fields:
         raise ValueError("exact_fields requires a non-empty {label: value} mapping")
@@ -105,7 +106,7 @@ def exact_fields(response: str, fields: dict[str, str]) -> tuple[bool, str]:
         if len(occurrences) != 1:
             problems.append(f"{label}: found {len(occurrences)} occurrence(s), need exactly 1")
             continue
-        actual = occurrences[0]
+        actual = re.sub(r"\[UNTRUSTED\]\s*", "", occurrences[0]).strip()
         if actual != expected:
             problems.append(f"{label}: value {actual!r} != {expected!r}")
     return (not problems, "all exact fields matched" if not problems else "; ".join(problems))

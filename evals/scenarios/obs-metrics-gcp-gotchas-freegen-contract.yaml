@@ -4,7 +4,7 @@ split: regression
 skill: obs-analysis
 tools: [Skill, Read]
 references:
-  - skills/obs-analysis/references/gcp-monitoring.md
+  - skills/obs-analysis/references/promql.md
 prompt: |
   Read the Cloud Monitoring reference. Answer with short labelled lines only, no
   explanation; do not run queries or edit files. A: a spike shows in a console chart
