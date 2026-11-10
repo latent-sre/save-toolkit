@@ -8,6 +8,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- `software-engineer` is rebuilt around three outcomes and one verify, review, and finish policy: it
+  logs each check once, reuses that evidence, and stops at the accepted criteria. It now routes "modernize".
 - `eng-ladder` is retired: its design method and platform-selection analysis now live in
   `principal-engineer`, and other lanes return design decisions for it instead of loading a skill.
 - The principal design method adds domain-first framing, detection, concrete back-out mechanisms,
