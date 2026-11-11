@@ -28,17 +28,17 @@ test = [
     "pytest-xdist>=3.8.0",
     "pytest-timeout>=2.4.0",
     "pytest-socket>=0.8.1",
-    "hypothesis>=6.168.5",
+    "hypothesis>=6.170.15",
     "types-PyYAML>=6.0.12.20260906",
     "fastapi>=0.141.1",
     "httpx>=0.28.1",
     "jsonschema>=4.26.0",
-    "pydantic>=2.13.5",
+    "pydantic>=2.14.3",
     "inspect-ai>=0.3.263",
     "inspect-swe>=0.2.70",
-    "anthropic>=1.4.0",
+    "anthropic>=2.6.0",
     "docker>=7.2.0",
-    "ruff>=0.16.10",
+    "ruff>=0.17.4",
     "mypy>=2.4.0",
     "pyyaml>=6.0.3",
     { include-group = "grafana" },
@@ -47,13 +47,13 @@ test = [
 grafana = [
     "pillow>=13.0.0",
     "polars>=2.0.0",
-    "promql-parser>=0.11.0",
+    "promql-parser>=0.12.0",
 ]
 # Optional WP-08 SWE-bench evaluation environment, approved by its run plan.
 swebench = [
     "swebench>=5.0.2",
     "docker>=7.2.0",
-    "pydantic>=2.13.5",
+    "pydantic>=2.14.3",
     "pyyaml>=6.0.3",
 ]
 # Optional independent SWT worker environment. evals/swt_adapter/verifier.py admits exactly the
@@ -68,7 +68,7 @@ swt = [
     "requests==2.34.2",
     "tqdm==4.70.1",
     "unidiff==1.0.1",
-    "pydantic>=2.13.5",
+    "pydantic>=2.14.3",
     "pyyaml>=6.0.3",
     "pytest>=9.1.1",
 ]
