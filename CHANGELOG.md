@@ -8,6 +8,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The mitigation judge accepts an identified human executor by operational role or person,
+  while retaining the prohibition on assistant execution.
 - `eng-ladder` is retired: its design method and platform-selection analysis now live in
   `principal-engineer`, and other lanes return design decisions for it instead of loading a skill.
 - The principal design method adds domain-first framing, detection, concrete back-out mechanisms,
