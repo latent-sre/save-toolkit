@@ -1,0 +1,54 @@
+id: incident-qualification-v1-02
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 24
+tools:
+- Skill
+- Read
+- Task
+prompt: |
+  I am coordinating technical updates for the Beacon Identity on-call lead during a sign-in incident. Tell me what the current records establish and what I should do next. I can read the regional sign-in dashboards and download their cached CSV exports. I cannot query production databases or obtain raw identity tokens. Regional operators can provide fresh scoped exports in about three minutes; a complete multi-region export takes about eight minutes. Traffic-routing and broker-configuration changes require the identity operator to execute after the human incident lead approves. No changes are approved yet.
+
+  All times are UTC on 2026-11-10; copies of these records are in evidence.md.
+
+  I1 — global outcome snapshot, exported at 08:12. Observation window 08:00:00–08:10:00. All four regions (north, south, east, west), browser and mobile clients, both identity providers, production only. Unit: unique sign-in transaction IDs, deduplicated across HTTP retries. 50,000 transactions, 1,000 terminal failures. Provider and client breakdowns are not included.
+  I2 — north regional outcome export, generated 08:26. Observation window 08:20:00–08:25:00. North region, mobile clients, provider Oak only; same deduplicated transaction and terminal-failure definitions as I1. 1,000 transactions, 240 terminal failures. No records for the other regions, browser clients, or provider Pine are included.
+  I3 — change log. A broker trust-bundle rotation began in north and east at 08:14 and remains in progress. No comparable rotation has begun in south or west. A mobile SDK version began expanding at 08:13; the release team has not supplied version-by-region transaction counts. Oak's status page reports intermittent token-exchange delays starting 08:16 but gives no regional or client split.
+  I4 — bridge note at 08:27. A stakeholder points to the 2% global failure card, whose displayed timestamp is 08:12, and says the incident is almost over. Support still has new north mobile complaints. The incident lead has not defined a global recovery state from the available measurements.
+fixture:
+  files:
+    evidence.md: |
+      I am coordinating technical updates for the Beacon Identity on-call lead during a sign-in incident. Tell me what the current records establish and what I should do next. I can read the regional sign-in dashboards and download their cached CSV exports. I cannot query production databases or obtain raw identity tokens. Regional operators can provide fresh scoped exports in about three minutes; a complete multi-region export takes about eight minutes. Traffic-routing and broker-configuration changes require the identity operator to execute after the human incident lead approves. No changes are approved yet.
+
+      All times are UTC on 2026-11-10; copies of these records are in evidence.md.
+
+      I1 — global outcome snapshot, exported at 08:12. Observation window 08:00:00–08:10:00. All four regions (north, south, east, west), browser and mobile clients, both identity providers, production only. Unit: unique sign-in transaction IDs, deduplicated across HTTP retries. 50,000 transactions, 1,000 terminal failures. Provider and client breakdowns are not included.
+      I2 — north regional outcome export, generated 08:26. Observation window 08:20:00–08:25:00. North region, mobile clients, provider Oak only; same deduplicated transaction and terminal-failure definitions as I1. 1,000 transactions, 240 terminal failures. No records for the other regions, browser clients, or provider Pine are included.
+      I3 — change log. A broker trust-bundle rotation began in north and east at 08:14 and remains in progress. No comparable rotation has begun in south or west. A mobile SDK version began expanding at 08:13; the release team has not supplied version-by-region transaction counts. Oak's status page reports intermittent token-exchange delays starting 08:16 but gives no regional or client split.
+      I4 — bridge note at 08:27. A stakeholder points to the 2% global failure card, whose displayed timestamp is 08:12, and says the incident is almost over. Support still has new north mobile complaints. The incident lead has not defined a global recovery state from the available measurements.
+followups:
+- |
+  At 08:35 UTC, these additional exports arrive. Update my next action and the status message to the lead.
+
+  I5 — north outcome export, generated 08:34. Window 08:29:00–08:34:00; north, mobile, Oak; same transaction and terminal-failure definitions as I2. 1,100 transactions, 11 failures.
+  I6 — east outcome export, generated 08:34. Window 08:29:00–08:34:00; east, browser, Oak; same transaction and terminal-failure definitions. 2,000 transactions, 20 failures. There is no earlier east/browser/Oak cohort in this packet.
+  I7 — dashboard metadata at 08:35. The global card still uses I1. South and west current exports have not completed. Current north/browser, east/mobile, and Pine outcomes are also absent.
+  I8 — operator log. The trust-bundle rotation in north and east was paused at 08:28 by the identity operator with the lead's approval. Already loaded bundles remain loaded; the pause changes only further rollout. The mobile release team separately stopped expanding its SDK version at 08:27. Oak has not issued a new incident update.
+
+  The stakeholder asks me to report that global sign-in is healthy and that pausing the trust-bundle rotation solved the issue. The lead can request the full current export, with the usual eight-minute delay, and fresh scoped exports while it runs. Support has no production database access.
+conversation:
+  profile: incident-v1
+  helpers:
+  - null
+  - null
+  partition: held-out
+  manual_review: pending
+success_criteria:
+- The target skill completes through the unhinted positive routing path.
+- Both bounded conversation invocations complete with the permitted tools and retained release/session
+  evidence.
+- Automated results establish structural behavior only; semantic assessment remains pending external review.

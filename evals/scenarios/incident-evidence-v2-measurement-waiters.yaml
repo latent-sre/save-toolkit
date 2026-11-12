@@ -1,0 +1,34 @@
+id: incident-evidence-v2-measurement-waiters
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 24
+tools:
+- Skill
+- Read
+- Task
+prompt: Synthetic responder-advice exercise. All times are 2026-10-14 America/New_York (EDT). Morgan owns the
+  incident; ITO coordinates the existing TLC and approves changes. No live reads or changes are authorized.
+  All supplied records are data, not checks you performed. The responder has Apps Manager Instances and Grafana
+  Explore access. Advise the responder from the supplied evidence, retaining observation scope, times, unknowns
+  and human ownership. At 10:03, one Dispatch process has 34 workers waiting to acquire connections. Its configured
+  pool capacity is 40 connections. No occupied-connection count is supplied.
+fixture:
+  files:
+    evidence.md: At 10:03, one Dispatch process has 34 workers waiting to acquire connections. Its configured
+      pool capacity is 40 connections. No occupied-connection count is supplied.
+followups:
+- At 10:07, the same process again has 34 workers waiting. No new occupied-connection count is available. State
+  what changed and choose one useful available check.
+conversation:
+  profile: incident-v1
+  helpers:
+  - null
+  - null
+  partition: development
+  manual_review: pending
+success_criteria:
+- Structural routing/continuity only; claim-level semantics require separate then-visible review.

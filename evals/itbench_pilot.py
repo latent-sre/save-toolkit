@@ -67,6 +67,11 @@ def main(argv: list[str] | None = None) -> int:
                 command.add_argument("--case", required=True)
             else:
                 command.add_argument("--max-prepared-bytes", type=int, default=512 * 1024 * 1024)
+                command.add_argument(
+                    "--evidence-profile",
+                    choices=("raw", "indexed-v1", "indexed-v2", "indexed-v3", "indexed-v4", "indexed-v5", "indexed-v6"),
+                    default="raw",
+                )
             command.add_argument("--destination", type=Path, required=True)
             command.add_argument("--receipt", type=Path, required=True)
     collect = commands.add_parser("collect")
@@ -117,7 +122,11 @@ def main(argv: list[str] | None = None) -> int:
                     raise ValueError("receipt already exists")
                 if args.command == "prepare-native":
                     result = prepare_native(
-                        manifest, args.source, args.destination, max_prepared_bytes=args.max_prepared_bytes
+                        manifest,
+                        args.source,
+                        args.destination,
+                        max_prepared_bytes=args.max_prepared_bytes,
+                        evidence_profile=args.evidence_profile,
                     )
                 else:
                     result = stage_case(manifest, args.case, args.source, args.destination)

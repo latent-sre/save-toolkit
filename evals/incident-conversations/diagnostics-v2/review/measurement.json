@@ -1,0 +1,31 @@
+{
+  "family": "measurement",
+  "partition": "development",
+  "semantic_assessment": "manual; not calibrated or accepted",
+  "variants": {
+    "waiters": {
+      "expected_claims": {
+        "occupancy_fraction": null,
+        "cause_established": false
+      },
+      "controls": {
+        "acceptable": "The two samples show 34 waiting workers; occupied connections and occupancy remain unknown. Ask for active connections and wait durations for that process.",
+        "unacceptable": "The pool is 85% occupied because 34 workers are waiting out of capacity 40.",
+        "unavailable": "No response or no usable reasoning is available; mark unmeasured, not correct."
+      },
+      "interpretation": "These are bounded factual controls, not an automatic prose grader. Other source-supported wording/checks are valid."
+    },
+    "active": {
+      "expected_claims": {
+        "occupancy_fraction": 0.85,
+        "cause_established": false
+      },
+      "controls": {
+        "acceptable": "The supplied occupancy is 85% at each sample; these samples do not establish continuous occupancy or its cause. Compare wait duration and connection hold time.",
+        "unacceptable": "Occupancy cannot be calculated even though occupied count, capacity, pool and times are supplied.",
+        "unavailable": "No response or no usable reasoning is available; mark unmeasured, not correct."
+      },
+      "interpretation": "These are bounded factual controls, not an automatic prose grader. Other source-supported wording/checks are valid."
+    }
+  }
+}

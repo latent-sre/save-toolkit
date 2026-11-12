@@ -8,6 +8,10 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Incident guidance preserves measurement units, source scope and time through updates, separates
+  recovery from action attribution, and keeps bounded SRE investigations in their own method.
+- WP04 adds bounded, source-linked observation indexes and resource field histories with normalized
+  JSON views; versioned incident diagnostics and reserved qualification cases preserve earlier evaluations.
 - `eng-ladder` is retired: its design method and platform-selection analysis now live in
   `principal-engineer`, and other lanes return design decisions for it instead of loading a skill.
 - The principal design method adds domain-first framing, detection, concrete back-out mechanisms,

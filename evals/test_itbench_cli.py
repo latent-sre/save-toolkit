@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+import yaml
 from itbench_testkit import diagnosis, manifest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -92,3 +95,77 @@ def test_assessment_refuses_ground_truth_not_bound_to_selected_case(tmp_path: Pa
     assert result.returncode == 2
     assert not out.exists()
     assert "ground truth differs from selected case" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "profile", ["indexed-v1", "indexed-v2", "indexed-v3", "indexed-v4", "indexed-v5", "indexed-v6"]
+)
+def test_prepare_native_cli_exposes_distinct_observable_only_indexed_profile(tmp_path: Path, profile: str) -> None:
+    source = tmp_path / "source"
+    data = manifest(source)
+    for case in data["cases"]:
+        body = {
+            "kind": "Event",
+            "metadata": {"name": "notice"},
+            "regarding": {"kind": "Pod", "namespace": "demo", "name": "worker"},
+        }
+        p = source / case["source_id"] / "k8s_events_raw.tsv"
+        p.write_text("Timestamp\tBody\n2025-12-15 18:00:00\t" + json.dumps(body) + "\n")
+        case["observables"][0].update(sha256=hashlib.sha256(p.read_bytes()).hexdigest(), size=p.stat().st_size)
+        (p.parent / "ground_truth.yaml").unlink()
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps(data))
+    destination, receipt = tmp_path / "indexed", tmp_path / "receipt.json"
+    result = run(
+        "prepare-native",
+        "--manifest",
+        str(path),
+        "--source",
+        str(source),
+        "--destination",
+        str(destination),
+        "--receipt",
+        str(receipt),
+        "--evidence-profile",
+        profile,
+    )
+    assert result.returncode == 0, result.stderr
+    metadata = json.loads(receipt.read_text())
+    assert metadata["evidence_profile"] == profile
+    if profile in {"indexed-v2", "indexed-v3", "indexed-v4", "indexed-v5", "indexed-v6"}:
+        assert metadata["observation_index_profile"] == "indexed-v1"
+    if profile == "indexed-v3":
+        assert metadata["observation_index_extensions"] == ["lookup-catalog-v1"]
+    if profile == "indexed-v4":
+        assert metadata["observation_index_extensions"] == ["lookup-catalog-v1", "resource-field-history-v1"]
+    if profile == "indexed-v5":
+        assert metadata["observation_index_extensions"] == ["lookup-catalog-v1", "resource-field-history-v2"]
+    if profile == "indexed-v6":
+        assert metadata["observation_index_extensions"] == ["lookup-catalog-v2", "resource-field-history-v2"]
+    spec = yaml.safe_load((destination / f"wp04-itbench-24-{profile}.yaml").read_text())
+    assert spec["id"] == f"wp04-itbench-24-{profile}"
+    assert "observations/index.json" in spec["fixture"]["files"]
+    assert not any("ground_truth" in name for name in spec["fixture"]["files"])
+
+
+def test_prepare_native_cli_refuses_unknown_profile_before_writing(tmp_path: Path) -> None:
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps(manifest(tmp_path / "source")))
+    destination, receipt = tmp_path / "invalid", tmp_path / "receipt.json"
+    result = run(
+        "prepare-native",
+        "--manifest",
+        str(path),
+        "--source",
+        str(tmp_path / "source"),
+        "--destination",
+        str(destination),
+        "--receipt",
+        str(receipt),
+        "--evidence-profile",
+        "unrecognized",
+    )
+    assert result.returncode == 2
+    assert "invalid choice" in result.stderr
+    assert not destination.exists()
+    assert not receipt.exists()

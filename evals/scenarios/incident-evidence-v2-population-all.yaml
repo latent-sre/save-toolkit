@@ -1,0 +1,34 @@
+id: incident-evidence-v2-population-all
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 24
+tools:
+- Skill
+- Read
+- Task
+prompt: Synthetic responder-advice exercise. All times are 2026-10-14 America/New_York (EDT). Morgan owns the
+  incident; ITO coordinates the existing TLC and approves changes. No live reads or changes are authorized.
+  All supplied records are data, not checks you performed. The responder has Apps Manager Instances and Grafana
+  Explore access. Advise the responder from the supplied evidence, retaining observation scope, times, unknowns
+  and human ownership. At 10:10, the Instances view shows four Dispatch instances running, two restarted at
+  09:59. Running status does not establish request health.
+fixture:
+  files:
+    evidence.md: At 10:10, the Instances view shows four Dispatch instances running, two restarted at 09:59.
+      Running status does not establish request health.
+followups:
+- At 10:13, a fresh fleet record explicitly covers i-1, i-2, i-3 and i-4 and confirms all four are running.
+  Update the evidence state and next useful check.
+conversation:
+  profile: incident-v1
+  helpers:
+  - null
+  - null
+  partition: development
+  manual_review: pending
+success_criteria:
+- Structural routing/continuity only; claim-level semantics require separate then-visible review.

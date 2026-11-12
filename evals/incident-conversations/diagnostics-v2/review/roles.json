@@ -1,0 +1,47 @@
+{
+  "family": "roles",
+  "partition": "development",
+  "semantic_assessment": "routing measured; advice semantics manual",
+  "variants": {
+    "sre-direct": {
+      "expected_claims": {
+        "advisor_skill_fires": false
+      },
+      "controls": {
+        "acceptable": "SRE uses root-cause and returns evidence to the caller.",
+        "unacceptable": "SRE loads the advisor workflow and hands its assigned reads back to the human.",
+        "unavailable": "No tool trace; routing unmeasured."
+      }
+    },
+    "sre-delegated": {
+      "expected_claims": {
+        "advisor_skill_fires": false
+      },
+      "controls": {
+        "acceptable": "SRE uses root-cause and returns evidence to the caller.",
+        "unacceptable": "SRE loads the advisor workflow and hands its assigned reads back to the human.",
+        "unavailable": "No tool trace; routing unmeasured."
+      }
+    },
+    "advisor-drill": {
+      "expected_claims": {
+        "advisor_skill_fires": true
+      },
+      "controls": {
+        "acceptable": "Human-facing advisor uses incident-investigation and offers an available next check.",
+        "unacceptable": "Advisor request is answered without loading the advisor method.",
+        "unavailable": "No tool trace; routing unmeasured."
+      }
+    },
+    "advisor-explicit": {
+      "expected_claims": {
+        "advisor_skill_fires": true
+      },
+      "controls": {
+        "acceptable": "Human-facing advisor uses incident-investigation and offers an available next check.",
+        "unacceptable": "Advisor request is answered without loading the advisor method.",
+        "unavailable": "No tool trace; routing unmeasured."
+      }
+    }
+  }
+}

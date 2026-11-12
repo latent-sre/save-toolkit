@@ -83,6 +83,9 @@ The report keeps missing slots visible. Its logical JSON hash is distinct from t
 costs, attempts, and interpretation. [Suite authoring](docs/authoring.md#suite-authoring) explains
 membership and the JSON interfaces.
 
+The opt-in [WP04 observable index](docs/itbench-observation-index.md) preserves raw inputs and
+introduces a separately identified derived-evidence profile. Preparation is offline.
+
 ## Reference guides
 
 | Guide | Use it for |
