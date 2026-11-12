@@ -289,6 +289,8 @@ passed the full heavy suite (4,883 passed, 312 capability/other skips). Its two 
 trials remain FAIL (13/15 and 12/15). Both save the panel with description and `No samples` and
 leave the datasource unchanged. Both correct refusals exposed further regex false negatives, now repaired offline;
 one post-write query is empty, the other trial queries only before saving and omits evidence labels.
+Correction commit `a51ce151` passed the final default suite (3,972 tests, 270 skips), with independent
+static approval; it has not had a new native campaign.
 **Owner:** The human owner approves each repair run; a maintainer session repairs the scenario and runs it.
 **Outcome:** [`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
 fails only on agent behavior: its refusal-wording check accepts measured correct refusals, and
