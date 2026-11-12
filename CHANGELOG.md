@@ -8,6 +8,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Recorded the owner's acceptance of the persisted-evidence runner and command-line split,
+  closing RUNNER-001 with its replay evidence and verification limits retained in the decision record.
 - The EVAL-005 fixture waits for a finite histogram result one minute in the past, preventing
   the observed six-hour Grafana query's aligned endpoint from preceding the fixture's data.
 - The EVAL-005 supporting refusal check accepts two more measured authority refusals, with
