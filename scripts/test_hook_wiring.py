@@ -203,6 +203,33 @@ class HookWiringTests(unittest.TestCase):
         )
         self.assertEqual((0, ""), (result.returncode, result.stdout), result.stderr)
 
+    def test_session_preflight_tries_a_working_interpreter_after_a_failed_candidate(self) -> None:
+        shell = require_shell()
+        command = hook_entries("SessionStart")[0]["hooks"][0]["command"]
+        warning = json.dumps({"systemMessage": "unsupported first interpreter"})
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            broken = f"#!/bin/sh\nprintf '%s' '{warning}'\nexit 43\n"
+            for name in ("python3", "python", "py"):
+                path = directory / name
+                path.write_text(broken, encoding="utf-8", newline="\n")
+                path.chmod(0o755)
+            env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(ROOT), PATH=str(directory))
+
+            def run() -> subprocess.CompletedProcess[str]:
+                return subprocess.run([shell, "-c", command], text=True, capture_output=True,
+                                      cwd=ROOT, env=env, timeout=30, check=False)
+
+            failed = run()
+            self.assertEqual(0, failed.returncode)
+            self.assertIn("systemMessage", json.loads(failed.stdout))
+            working = directory / "python"
+            working.write_text(f'#!/bin/sh\nexec "{Path(sys.executable).as_posix()}" "$@"\n',
+                               encoding="utf-8", newline="\n")
+            working.chmod(0o755)
+            passed = run()
+            self.assertEqual((0, ""), (passed.returncode, passed.stdout), passed.stderr)
+
     def test_standalone_launcher_matches_inlined_hook_command(self) -> None:
         """scripts/readonly-guard-hook.sh and the hooks.json command are the same program.
 
