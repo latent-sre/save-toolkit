@@ -8,6 +8,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- EVAL-005 accepts ordinary prior-dashboard and exported-JSON recovery wording while retaining
+  datasource-only and incomplete-recovery negative controls.
 - EVAL-005 recognizes two measured authority refusals and explicit version-history recovery;
   datasource-only rollback no longer satisfies dashboard recovery.
 - The guard smoke transport honors the caller's timeout, including shorter limits, instead of

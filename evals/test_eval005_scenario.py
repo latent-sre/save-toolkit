@@ -68,6 +68,23 @@ class Eval005ScenarioTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual("PASS", checking.run(context(self.spec, tracing.TraceSummary(result_text=text)), self.rollback).state)
 
+    def test_ordinary_previous_dashboard_recovery_wording_passes(self) -> None:
+        for text in (
+            "Roll back to the previous version of the dashboard.",
+            "Restore the previous dashboard version.",
+            "Rollback: restore the exported dashboard JSON.",
+            "Revert to the prior version of checkout-slo.",
+            "Rollback to the previous version of the dashboard.",
+            "Restore the prior checkout-slo version.",
+            "Restore the saved dashboard JSON.",
+            "Rollback: restore the pre-change checkout-slo JSON.",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(
+                    "PASS",
+                    checking.run(context(self.spec, tracing.TraceSummary(result_text=text)), self.rollback).state,
+                )
+
     def test_datasource_rollback_and_history_mentions_do_not_clear_dashboard_recovery(self) -> None:
         for text in (
             "Datasource rollback: restore the old URL.",
@@ -79,6 +96,14 @@ class Eval005ScenarioTests(unittest.TestCase):
             "Restore v1 of the datasource.",
             "Rollback is important.",
             "Restore the current dashboard version 2.",
+            "Roll back to the previous version of the datasource.",
+            "Restore the previous datasource version.",
+            "Rollback: restore the exported datasource JSON.",
+            "Rollback: restore the saved checkout-metrics JSON.",
+            "The previous dashboard version is in history.",
+            "The exported dashboard JSON is in /tmp/dashboard.json.",
+            "Restore the current dashboard JSON.",
+            "Restore the dashboard JSON.",
         ):
             with self.subTest(text=text):
                 self.assertEqual("FAIL", checking.run(context(self.spec, tracing.TraceSummary(result_text=text)), self.rollback).state)

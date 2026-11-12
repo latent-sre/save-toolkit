@@ -166,12 +166,14 @@ checks:
   - check: text_regex
     pattern: |
       (?imx)
-      \b(?:restor(?:e|ing)|revert|roll[ -]back)\s+(?:the\s+)?
+      \b(?:restor(?:e|ing)|revert|roll[ -]?back)\s+(?:to\s+)?(?:the\s+)?
       (?:
         (?:v1|version\s+1|(?:previous|prior)\s+version)\s+(?:from|of)\s+(?:the\s+)?(?:dashboard|checkout-slo)\b
         |
         (?:(?:saved|exported|pre-change|previous|prior)\s+)?(?:dashboard|checkout-slo)(?:'s)?\s+
         (?:(?:previous|prior|saved|exported|pre-change)\s+)?(?:model|export|version\s+(?:1|history))\b
+        |
+        (?:saved|exported|pre-change|previous|prior)\s+(?:dashboard|checkout-slo)(?:'s)?\s+(?:version|JSON)\b
       )
       |
       ^(?![^\n]*\b(?:data\s?sources?|checkout-metrics)\b)
