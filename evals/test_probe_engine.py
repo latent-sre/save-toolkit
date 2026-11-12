@@ -938,6 +938,7 @@ def _candidate_trial(tmp_path: Path, spec: dict, body: str) -> dict:
         return trials.run_trial(spec, run_number=1, settings=settings)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows filenames cannot contain arbitrary undecodable bytes")
 def test_a_state_file_with_a_non_utf8_name_does_not_cost_the_verdict(tmp_path: Path) -> None:
     """Rule 5: an error caused by the candidate's own output is a failure. A state file whose name is
     not UTF-8 crashed the attempt before its FAIL was published, and the batch with it."""
@@ -956,6 +957,7 @@ def test_a_state_file_with_a_non_utf8_name_does_not_cost_the_verdict(tmp_path: P
     ) == []
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows filenames cannot contain arbitrary undecodable bytes")
 @pytest.mark.parametrize(
     "check",
     [

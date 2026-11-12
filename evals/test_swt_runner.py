@@ -12,6 +12,8 @@ import pytest
 from probe.records import RecordV1
 from swt_adapter import core, runner
 
+from scripts.testkit import require_symlink
+
 
 def test_native_author_prompt_contains_no_hidden_fields():
     command = runner.author_command(
@@ -114,7 +116,7 @@ def test_admission_reopens_digest_bound_actual_smoke(tmp_path, damage):
         approval["smoke_receipt"] = "../smoke.json"
     elif damage == "symlink":
         smoke_path.rename(tmp_path / "real.json")
-        smoke_path.symlink_to(tmp_path / "real.json")
+        require_symlink(smoke_path, tmp_path / "real.json")
     else:
         if damage == "case":
             smoke["instance_id"] = "other"

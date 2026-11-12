@@ -12,6 +12,8 @@ from pathlib import Path
 
 import testing_block as block
 
+from scripts.testkit import require_symlink
+
 
 class TestingBlockTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -201,7 +203,7 @@ class TestingBlockTests(unittest.TestCase):
         self.assertIsNone(report["attempts"][0]["state"])
         self.assertTrue(report["attempts"][0]["problems"])
 
-    def test_invalid_attempt_and_symlink_do_not_disappear(self) -> None:
+    def test_invalid_attempt_does_not_disappear(self) -> None:
         self.record()
         path = self.root / "records/broken/record.json"
         path.parent.mkdir()
@@ -209,7 +211,10 @@ class TestingBlockTests(unittest.TestCase):
         report = block.report(self.root / "block", self.root / "records")
         self.assertEqual(2, report["attempt_count"])
         self.assertEqual(2, report["unknown_cost_attempts"])
-        (self.root / "records/linked").symlink_to(self.root / "block", target_is_directory=True)
+
+    def test_symlink_does_not_disappear(self) -> None:
+        (self.root / "records").mkdir()
+        require_symlink(self.root / "records/linked", self.root / "block", target_is_directory=True)
         with self.assertRaises(ValueError):
             block.report(self.root / "block", self.root / "records")
 

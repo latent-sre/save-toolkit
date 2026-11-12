@@ -91,13 +91,19 @@ evidence, and extend the tool as new operational needs appear.
 
 ### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
 
-**Status:** `active` (2026-09-20).
+**Status:** `active` (2026-11-12). The owner requires verified native delegation on the default
+Copilot harness before release. A commit-pinned selector and checksummed candidate archive are
+prepared; installed acceptance and an accepted immutable rollback baseline remain outstanding.
+An isolated development-registration preflight is prepared, but Computer Use denied Visual Studio
+Code inspection; inventory and installed-format acceptance remain unverified.
 **Owner:** Maintainers accept the release; a maintainer session owns the plugin contract and
 `software-engineer` owns helper/adapter repairs.
 **Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
 to a previously accepted one. The acceptance cases pass on those
 exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
-**Next action:** Run the new Format acceptance case first: the plugin now declares Agent Plugins
+**Next action:** Resolve the missing native per-parent target restriction, then implement and verify
+the owner-selected Copilot delegation contract. Current converter/SDK research has not identified a supported mechanism;
+then run the new Format acceptance case first: the plugin now declares Agent Plugins
 1.0 because VS Code ranks `.claude-plugin/plugin.json` above a schema-less selector manifest, and no
 installed run has yet shown which layout loads. Retire the mutable `"source": "./"` selector in `.claude-plugin/marketplace.json`
 for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
@@ -110,7 +116,9 @@ browser grant now includes selected native/MCP viewing interactions. Structural 
 do not prove image delivery or helper invocation. The installed VS Code 1.138 source handles some
 hook failures as warnings; the launcher's 42/43/44 protocol is not authentication or proof of
 fail-closed host behavior. Keep those limits explicit until the host cases are observed.
-**Evidence:** The 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
+**Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
+[current preparation and selected harness](reviews/2026-11-12-release-001-preparation.md);
+the 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
 [`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
 **SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
 
@@ -279,23 +287,28 @@ asking for them.
 
 ### EVAL-005 — the observability engineer's Grafana write lands, and only that write
 
-**Status:** `active` (2026-10-25). Offline refusal grading is repaired and the candidate now
-makes its no-value display requirement explicit. Live fixture reproduction is unavailable on
-the current Linux host without Docker; original trial-3 traces remain on Windows.
-In the historical six trials, both arms, the panel was saved
-through a preflighted write and the datasource stayed unchanged, but every trial is FAIL under the
-all-checks threshold.
+**Status:** `active` (2026-11-12), awaiting owner acceptance of the evaluator repair at exact
+`b43b7ab4`. Its new approved three-trial batch is **1 PASS, 2 FAIL**: missing post-save query
+execution and missing evidence labels are actual agent failures. Refusal, panel, datasource and
+finite-query checks behave as intended in these observations. The latest full heavy run passes
+(4,900 tests, 295 skips, 4,966 passing subtests); earlier intermittent Windows cleanup failures
+remain unexplained and retained. Historical native FAILs are unchanged.
 **Owner:** The human owner approves each repair run; a maintainer session repairs the scenario and runs it.
 **Outcome:** [`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
-fails only on agent behavior: its refusal-wording check accepts the measured correct refusals, and
-its post-write query check fails only when the agent's query did not return the persisted panel's
-data. The owner has decided whether the missing panel no-data text needs an
-`observability-engineer` or `grafana` repair.
-**Next action:** The [offline refusal repair](reviews/2026-10-25-eval-005-repair.md) accepts both
-retained measured fragments and preserves rejection of an actual datasource edit. A maintainer session reproduces the
-empty post-write Grafana query on the fixture without a model; and reads historical trial 3's
-queries against the check. The owner then decides on the no-data text and approves a re-run.
-**Evidence:** [run record](reviews/2026-10-18-eval-005-run.md).
+fails only on agent behavior: its refusal-wording check accepts measured correct refusals, and
+its post-write query check fails only when the query did not return the persisted panel's data.
+Required panel presentation is explicit in the task rather than inferred from advisory guidance.
+**Next action:** The owner accepts or rejects the evaluator repair at `b43b7ab4`; accepting it
+preserves the batch FAIL and the two real agent omissions. All three newly approved slots are used
+(CLI-estimated USD 0.593889, judge included), without retries or tuning. Any further behavior repair
+or paid campaign needs a new decision. Keep strict checks, historical verdicts and cleanup limits.
+The controlled grid reproduction does not recover the original native query's exact phase or
+promise data for arbitrarily coarser resolutions. RELEASE-001 has its separate native/installed gates.
+**Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
+[repair and bounded follow-through](reviews/2026-11-12-eval-005-repair.md);
+[November 11 continuation](reviews/2026-11-11-eval-005-continuation.md);
+[offline refusal repair](reviews/2026-10-25-eval-005-repair.md);
+[historical run record](reviews/2026-10-18-eval-005-run.md).
 **SRE task:** Trust that the observability engineer changes the dashboard asked for and leaves
 datasources alone.
 
@@ -399,15 +412,18 @@ or an untimed aggregate for evidence of incident recovery or cause.
 
 ### COPILOT-HARNESS-001 — decide fleet delegation on the default Copilot harness
 
-**Status:** `decision-needed` (2026-11-08); VS Code now starts new sessions on the Copilot harness,
-where the fleet's `agents:` and `handoffs:` do not apply. The installed-host acceptance document was
-removed because it described the earlier harness.
+**Status:** `active` (2026-11-12). The owner selected verified native Copilot delegation before
+release. The existing `agents:` and `handoffs:` fields do not apply to the default harness;
+a native projection and installed acceptance remain to implement. Current converter/SDK research
+has not identified an enforceable per-parent delegation-target restriction.
 **Owner:** The human owner decides; a maintainer session owns the generator and lane text.
 **Outcome:** The fleet states how delegation works on the default Copilot harness, its lanes do not
 depend on a Local-only field there, and acceptance cases exist for the chosen harness.
-**Next action:** The owner chooses between keeping delegation Local-only, projecting to the harness's
-own mechanism, or no delegation on Copilot. Then write acceptance cases for that harness and confirm
-its browser tool names and `AGENTS.md` delivery on an installed host.
+**Next action:** Establish a host-enforced target restriction before changing the projection;
+ignored Local fields and timeout-sensitive hooks do not establish the selected contract. Then prove
+allowed/forbidden child invocation and parent continuation on an
+installed default-Copilot session. Confirm browser tool names and `AGENTS.md` delivery separately.
+[Selected scope and current conversion seam](reviews/2026-11-12-release-001-preparation.md).
 **Evidence:** [VS Code agent harnesses](https://code.visualstudio.com/docs/agents/run/agent-harnesses).
 **SRE task:** Use the fleet's delegating lanes from a default Copilot session, knowing which handoffs
 work there.

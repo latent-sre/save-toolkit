@@ -8,6 +8,18 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The EVAL-005 fixture waits for a finite histogram result one minute in the past, preventing
+  the observed six-hour Grafana query's aligned endpoint from preceding the fixture's data.
+- The EVAL-005 supporting refusal check accepts two more measured authority refusals, with
+  negative controls; its audited datasource and post-write query requirements stay strict.
+- SessionStart tries the remaining Python interpreters after a failed guard preflight, matching
+  the guard launcher's fallback when an older Python comes first on PATH.
+- Windows evaluation checks use the existing capability skips and an explicit fixture shell;
+  the Inspect pilot test checks the actual omitted requirements instead of a stale count.
+- The observability dashboard write loop explicitly reruns changed queries after the save;
+  the EVAL-005 task explicitly requests the panel description its check requires.
+- The mitigation judge accepts an identified human executor by operational role or person,
+  while retaining the prohibition on assistant execution.
 - `eng-ladder` is retired: its design method and platform-selection analysis now live in
   `principal-engineer`, and other lanes return design decisions for it instead of loading a skill.
 - The principal design method adds domain-first framing, detection, concrete back-out mechanisms,

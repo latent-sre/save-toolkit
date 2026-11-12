@@ -13,6 +13,8 @@ import pytest
 from probe.records import RecordV1
 from swebench_adapter import artifacts
 
+from scripts.testkit import require_symlink
+
 BASE = Path(__file__).parent / "fixtures/v1-bundle/runs/eval-synthetic-gain/incumbent/run-1/record.json"
 
 
@@ -98,11 +100,11 @@ def test_broken_evidence_is_visible_and_never_a_measured_pass(tmp_path, damage):
             value["evidence"]["outputs/response.md"] = "../../outside"
             dump(folder / "record.json", value)
         if damage == "evidence-symlink":
-            response.symlink_to(tmp_path / "outside")
+            require_symlink(response, tmp_path / "outside")
             (tmp_path / "outside").write_text("must not read")
     elif damage == "record-symlink":
         (folder / "record.json").rename(tmp_path / "outside.json")
-        (folder / "record.json").symlink_to(tmp_path / "outside.json")
+        require_symlink(folder / "record.json", tmp_path / "outside.json")
     elif damage == "billing":
         dump(folder / "billing.json", {"before": {"usage": 0}, "after": {"usage": 1}, "measured_usd": -1, "complete": True})
     elif damage == "binding":
@@ -233,7 +235,7 @@ def test_symlinked_case_folder_is_reported_without_reading_target(tmp_path):
     attempt(outside)
     bundle = tmp_path / "bundle"
     bundle.mkdir()
-    (bundle / "eval-good").symlink_to(outside / "eval-good", target_is_directory=True)
+    require_symlink(bundle / "eval-good", outside / "eval-good", target_is_directory=True)
     report = campaign_report.build_report(bundle, selection("good"), "claude")
     assert report["counts"]["invalid_slots"] == 1
     assert report["counts"]["measured_slots"] == 0

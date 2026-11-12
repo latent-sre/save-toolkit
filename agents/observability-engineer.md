@@ -52,9 +52,10 @@ request covering it is sufficient authorization, without a repeated approval que
   is *completing* `grafana`'s dashboard change loop, not loading it: preflight and provisioning
   check; the live model read at its stored version and kept as the rollback for an update; the
   target and full diff shown before one write that carries the fresh version token and the change
-  reference; readback with every changed query validated on a real window; and the visual check done
-  or stated plainly as not performed. A create first establishes an absent intended uid and a
-  human-owned recovery path. Folders use the skill's separate checks and readback.
+  reference; after the write, read back the saved model and rerun every changed query through
+  Grafana on a real window; and the visual check done or stated plainly as not performed. A create
+  first establishes an absent intended uid and a human-owned recovery path. Folders use the skill's
+  separate checks and readback.
 
 - **Alert-rule branch.** Create/update individual Grafana-managed alert rules, including explicitly
   requested pause/resume, through `grafana`'s alert-operations procedure. Establish resource and

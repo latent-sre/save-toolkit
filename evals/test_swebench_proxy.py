@@ -11,6 +11,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
+from scripts.testkit import require_symlink
+
 KEY = "sk-test-credential-never-deliver-to-agent"
 TOKEN = "attempt-placeholder"
 MODEL = "anthropic/claude-sonnet-test"
@@ -293,16 +295,12 @@ def test_usage_network_failure_is_sanitized():
         proxy.close()
 
 
-def test_key_file_requires_protected_regular_nonsymlink_input(tmp_path):
+def test_key_file_requires_protected_regular_single_line_input(tmp_path):
     module = importlib.import_module("swebench_adapter.proxy")
     path = tmp_path / "key"
     path.write_text(KEY + "\n")
     path.chmod(0o600)
     assert module.read_key(path) == KEY
-    link = tmp_path / "link"
-    link.symlink_to(path)
-    with pytest.raises(ValueError):
-        module.read_key(link)
     with pytest.raises(ValueError):
         module.read_key(tmp_path)
     if os.name == "posix":
@@ -314,6 +312,17 @@ def test_key_file_requires_protected_regular_nonsymlink_input(tmp_path):
     with pytest.raises(ValueError) as error:
         module.read_key(path)
     assert KEY not in str(error.value)
+
+
+def test_key_file_rejects_symlink(tmp_path):
+    module = importlib.import_module("swebench_adapter.proxy")
+    path = tmp_path / "key"
+    path.write_text(KEY + "\n")
+    path.chmod(0o600)
+    link = tmp_path / "link"
+    require_symlink(link, path)
+    with pytest.raises(ValueError):
+        module.read_key(link)
 
 
 @pytest.mark.parametrize(
