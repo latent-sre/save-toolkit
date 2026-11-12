@@ -8,6 +8,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The EVAL-005 supporting refusal check accepts two more measured authority refusals, with
+  negative controls; its audited datasource and post-write query requirements stay strict.
 - SessionStart tries the remaining Python interpreters after a failed guard preflight, matching
   the guard launcher's fallback when an older Python comes first on PATH.
 - Windows evaluation checks use the existing capability skips and an explicit fixture shell;
