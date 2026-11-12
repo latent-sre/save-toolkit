@@ -94,6 +94,8 @@ evidence, and extend the tool as new operational needs appear.
 **Status:** `active` (2026-11-12). The owner requires verified native delegation on the default
 Copilot harness before release. A commit-pinned selector and checksummed candidate archive are
 prepared; installed acceptance and an accepted immutable rollback baseline remain outstanding.
+An isolated development-registration preflight is prepared, but Computer Use denied Visual Studio
+Code inspection; inventory and installed-format acceptance remain unverified.
 **Owner:** Maintainers accept the release; a maintainer session owns the plugin contract and
 `software-engineer` owns helper/adapter repairs.
 **Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back

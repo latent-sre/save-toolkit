@@ -40,7 +40,7 @@ Local-only fields and a Copilot profile without delegation do not satisfy that c
 
 | Case | Required observation | Current state |
 |---|---|---|
-| Format and identity | One plugin in an isolated profile and neutral workspace; record host, extension, harness, model and installed digest; prove the correct host projection loaded | Unrun on these bytes |
+| Format and identity | One plugin in an isolated profile and neutral workspace; record host, extension, harness, model and installed digest; prove the correct host projection loaded | Development-registration preflight prepared; UI inspection denied; shipping installation unrun |
 | Inventory and tools | Actual current agents, skills and ADR command appear; inspect effective tools; standard SRE has no terminal capability | Unrun |
 | Helper resolution | Installed helper resolves from the plugin, even with an impostor in the neutral workspace | Structural tests exist; installed run pending |
 | Allowed delegation and return | Actual allowed child completes and parent uses its result, under the owner-selected Copilot contract | Native implementation and installed proof pending |
@@ -117,3 +117,31 @@ is no justified generator change yet: emitting an invented SDK field, keeping ig
 or relying on a timeout-sensitive hook would not resolve the gap. The next design work must establish
 a host-enforced native mechanism or explicitly propose a different integration for owner review;
 neither is approved by the current scope selection alone.
+
+## Isolated format preflight
+
+[sourced] Current documentation distinguishes installing a plugin from source from registering an
+existing development directory through experimental `chat.pluginLocations`. Separate `--user-data-dir`
+instances isolate settings and UI state.
+[Plugin registration](https://github.com/microsoft/vscode-docs/blob/main/docs/agents/reference/agent-plugin-reference.md#local-plugin-registration),
+[installation flow](https://github.com/microsoft/vscode-docs/blob/main/docs/agent-customization/agent-plugins.md#install-a-plugin-from-source),
+[CLI isolation](https://github.com/microsoft/vscode-docs/blob/main/docs/configure/command-line.md).
+
+[verified] The prepared `020c43c5` source archive was extracted under
+`C:/fleet-release-tmp/release001-format-20261112/plugin`; its archive checksum matches the receipt
+above and its measured plugin digest is
+`1e56224b775d4e75a3bdf2d8dd2da14321e751cdd6ed29160c597eb3a360bfc8`, also the runtime digest used by
+the later EVAL-005 trials. A neutral sibling workspace contains only a task-created README, with no
+workspace agents or skills. Dedicated user-data and extension directories were supplied to VS Code
+1.146.0, sync was disabled for that instance, and only its settings register this plugin directory.
+The returned window title is `Save Toolkit RELEASE-001 Format — neutral`.
+
+[verified] Computer Use then denied inspection: `Computer Use was not approved to use Visual Studio Code`.
+No alternative app-control route was attempted. No model prompt, authentication interaction or UI
+installation occurred. The normal profile was not targeted. Task-created settings and the denial
+are retained at `.eval-runs/release001-format-20261112/`; user-data contents were not collected.
+
+[unverified] The plugin inventory, effective harness, loaded projection and installed shipping bytes
+remain unobserved. Development registration is a preflight, not installed-release acceptance. The
+next UI observation requires the owner to enable Visual Studio Code access for Computer Use. The
+separate native target-restriction and rollback-baseline gaps remain open.
