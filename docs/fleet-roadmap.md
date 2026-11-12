@@ -257,23 +257,48 @@ asking for them.
 
 ### EVAL-005 — the observability engineer's Grafana write lands, and only that write
 
-**Status:** `active` (2026-11-12), awaiting owner acceptance of the evaluator repair at exact
-`b43b7ab4`. Its new approved three-trial batch is **1 PASS, 2 FAIL**: missing post-save query
+**Status:** `active` (2026-11-12). The owner approved the Bash timeout and agent-behavior follow-up,
+commit and PR with USD 50 aggregate new testing budget. The timeout regression and agent checkpoint
+are committed at `097c2bbb`; its failed qualification is retained. The Windows ownership correction
+at `3b33c0fb` passed exact clean heavy qualification: 4,915 tests, 295 skips and 4,971 subtests.
+Its completed six-slot Sonnet comparison recorded **2 PASS, 1 FAIL in each arm**, at CLI-estimated
+USD 1.106043 including six Sonnet 5.5 judgments. No cleanup or identity failure recurred.
+The [owned Windows cleanup continuation](reviews/2026-11-12-eval-005-repair.md#owned-windows-cleanup-continuation)
+reproduces exited-parent cleanup failure and replaces PID-tree discovery with existing job ownership.
+The batch exposed two supporting-text matcher defects; offline corrections retain the incumbent's
+genuine missing-label FAIL and rescore the candidate 3/3 PASS. Original live grades remain sealed;
+this is not a live result on the corrected case or human acceptance. Final corrected source
+`783d82dd` passed exact clean heavy qualification: 4,918 tests, 295 skips and 4,997 subtests.
+PR #494's further ordinary recovery-wording finding is corrected at `1e2277c8`: eight positive
+controls failed before the fix, then the checker/service controls passed 47 tests and 222 subtests.
+Independent review approved that exact source, whose coordinated default suite passed 4,002 tests,
+253 skips and 4,242 subtests. No runner, agent, service-fixture or judge bytes changed in this follow-up;
+the earlier heavy receipt remains retained. Six fresh and three historical saved traces have zero
+check or verdict differences from the previous corrected matcher. No additional paid call was made.
+The earlier evaluator repair at exact
+`b43b7ab4` still awaits acceptance. Its completed three-trial batch is **1 PASS, 2 FAIL**: missing post-save query
 execution and missing evidence labels are actual agent failures. Refusal, panel, datasource and
-finite-query checks behave as intended in these observations. The latest full heavy run passes
-(4,900 tests, 295 skips, 4,966 passing subtests); earlier intermittent Windows cleanup failures
+finite-query checks behave as intended in these observations. The prior candidate qualification
+passed its heavy run (4,900 tests, 295 skips, 4,966 passing subtests); earlier intermittent Windows cleanup failures
 remain unexplained and retained. Historical native FAILs are unchanged.
 **Owner:** The human owner approves each repair run; a maintainer session repairs the scenario and runs it.
 **Outcome:** [`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
 fails only on agent behavior: its refusal-wording check accepts measured correct refusals, and
 its post-write query check fails only when the query did not return the persisted panel's data.
 Required panel presentation is explicit in the task rather than inferred from advisory guidance.
-**Next action:** The owner accepts or rejects the evaluator repair at `b43b7ab4`; accepting it
-preserves the batch FAIL and the two real agent omissions. All three newly approved slots are used
-(CLI-estimated USD 0.593889, judge included), without retries or tuning. Any further behavior repair
-or paid campaign needs a new decision. Keep strict checks, historical verdicts and cleanup limits.
+**Next action:** The owner reviews the qualified source and retained evidence for exact-candidate
+acceptance. Independent static reviews have no open findings. All six new native slots are completed;
+no further paid call or prompt tuning is planned. USD 48.893957 of the testing authorization remains
+unspent, including USD 40 never scheduled. Preserve both arms' live FAILs and separate offline results.
+The historical three slots (CLI-estimated USD 0.593889, judge included) remain exhausted and sealed.
 The controlled grid reproduction does not recover the original native query's exact phase or
 promise data for arbitrarily coarser resolutions. RELEASE-001 has its separate native/installed gates.
+The historical [Windows cleanup follow-up](reviews/2026-11-12-eval-005-repair.md#windows-cleanup-diagnostic-follow-up)
+retains the earlier termination diagnostics and guard smoke-test timeout. The ownership correction
+supersedes its taskkill implementation; the original intermittent failures' exact sequence remains unknown. The
+[timeout and behavior follow-through](reviews/2026-11-12-eval-005-repair.md#guard-timeout-and-agent-behavior-follow-through)
+records the timeout correction, earlier failed qualification and captured taskkill output. That
+recurrence reports a terminated child and an already-gone parent; no exit-code suppression was added.
 **Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
 [repair and bounded follow-through](reviews/2026-11-12-eval-005-repair.md);
 [November 11 continuation](reviews/2026-11-11-eval-005-continuation.md);

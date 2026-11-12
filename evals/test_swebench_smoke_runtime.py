@@ -164,7 +164,7 @@ class SmokeDocker(Docker):
                     capture_output=True,
                     env=env,
                     check=False,
-                    timeout=10,
+                    timeout=timeout,
                 )
                 code, out, err = result.returncode, result.stdout, result.stderr
             elif args[-3:-1] == ["python3", "-c"]:
@@ -456,6 +456,22 @@ def test_guard_wrapper_zero_exit_with_deny_json_is_interpreted_as_deny(runtime):
     assert deny["returncode"] == 0
     assert json.loads(deny["stdout"])["hookSpecificOutput"]["permissionDecision"] == "deny"
     assert receipt["checks"]["guard_allow"] and receipt["checks"]["guard_deny"]
+
+
+@pytest.mark.parametrize("timeout", [None, 3])
+def test_guard_transport_uses_the_callers_timeout(runtime, monkeypatch, timeout):
+    observed = []
+
+    def execute(args, **kwargs):
+        observed.append(kwargs["timeout"])
+        return subprocess.CompletedProcess(args, 0, b"guard output", b"")
+
+    runtime.docker.mounts["/opt/fleet"] = runtime.config["plugin_root"]
+    monkeypatch.setattr(subprocess, "run", execute)
+    kwargs = {} if timeout is None else {"timeout": timeout}
+    result = runtime.docker.call(["exec", "owned-container", "bash", "-c", "reviewed guard command"], **kwargs)
+    assert observed == [120 if timeout is None else timeout]
+    assert result.stdout == b"guard output"
 
 
 def test_guard_wrapper_unavailable_cannot_satisfy_expected_credential_denial(runtime):
