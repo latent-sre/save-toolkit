@@ -269,6 +269,12 @@ The batch exposed two supporting-text matcher defects; offline corrections retai
 genuine missing-label FAIL and rescore the candidate 3/3 PASS. Original live grades remain sealed;
 this is not a live result on the corrected case or human acceptance. Final corrected source
 `783d82dd` passed exact clean heavy qualification: 4,918 tests, 295 skips and 4,997 subtests.
+PR #494's further ordinary recovery-wording finding is corrected at `1e2277c8`: eight positive
+controls failed before the fix, then the checker/service controls passed 47 tests and 222 subtests.
+Independent review approved that exact source, whose coordinated default suite passed 4,002 tests,
+253 skips and 4,242 subtests. No runner, agent, service-fixture or judge bytes changed in this follow-up;
+the earlier heavy receipt remains retained. Six fresh and three historical saved traces have zero
+check or verdict differences from the previous corrected matcher. No additional paid call was made.
 The earlier evaluator repair at exact
 `b43b7ab4` still awaits acceptance. Its completed three-trial batch is **1 PASS, 2 FAIL**: missing post-save query
 execution and missing evidence labels are actual agent failures. Refusal, panel, datasource and
