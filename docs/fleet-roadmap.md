@@ -289,9 +289,12 @@ asking for them.
 
 **Status:** `active` (2026-11-12). The owner approved the Bash timeout and agent-behavior follow-up,
 commit and PR with USD 50 aggregate new testing budget. The timeout regression and agent checkpoint
-are committed at `097c2bbb`, but exact-candidate qualification failed on Windows cleanup:
+are committed at `097c2bbb`; its exact-candidate qualification failed on Windows cleanup:
 4,902 passed, one failed, 295 skipped and 4,972 passing subtests. The guard checks passed.
 No new native call started (USD 0 new model spend); native behavior improvement is unverified.
+The [owned Windows cleanup continuation](reviews/2026-11-12-eval-005-repair.md#owned-windows-cleanup-continuation)
+reproduces exited-parent cleanup failure and replaces PID-tree discovery with existing job ownership;
+focused regressions pass, while final review and exact-candidate qualification are pending.
 The earlier evaluator repair at exact
 `b43b7ab4` still awaits acceptance. Its completed three-trial batch is **1 PASS, 2 FAIL**: missing post-save query
 execution and missing evidence labels are actual agent failures. Refusal, panel, datasource and
@@ -303,7 +306,7 @@ remain unexplained and retained. Historical native FAILs are unchanged.
 fails only on agent behavior: its refusal-wording check accepts measured correct refusals, and
 its post-write query check fails only when the query did not return the persisted panel's data.
 Required panel presentation is explicit in the task rather than inferred from advisory guidance.
-**Next action:** Resolve the captured Windows cleanup lifecycle failure and qualify a new frozen
+**Next action:** Review the job ownership correction and qualify a new frozen
 candidate before the newly authorized comparison: three fresh incumbent and three candidate native Sonnet
 trials, Sonnet 5.5 judge, USD 1 requested per invocation and USD 10 scheduling ceiling. Keep USD 40
 unscheduled, stop on cleanup/authentication/identity failure, and retain strict checks and every verdict.

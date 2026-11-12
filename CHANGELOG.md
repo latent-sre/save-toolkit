@@ -12,8 +12,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   imposing a separate ten-second limit.
 - Observability dashboard completion reports explicitly separate saved-panel readback from
   post-save query verification and label the evidence for each.
-- Windows eval cleanup failures retain bounded `taskkill` output in their tracebacks so the
-  termination error can be diagnosed without losing the original failure.
+- Windows eval processes start under private job ownership and verify empty-job accounting on
+  cleanup, covering ordinary descendants even after the root process exits.
 - The EVAL-005 fixture waits for a finite histogram result one minute in the past, preventing
   the observed six-hour Grafana query's aligned endpoint from preceding the fixture's data.
 - The EVAL-005 supporting refusal check accepts two more measured authority refusals, with

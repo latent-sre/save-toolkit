@@ -16,7 +16,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import traceback
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -513,6 +512,13 @@ class NativeConversationRunTests(unittest.TestCase):
 
 
 class CliProcessCleanupTests(unittest.TestCase):
+    def setUp(self):
+        patcher = mock.patch.object(probe_invocation, "WindowsJob")
+        self.jobs = patcher.start()
+        self.addCleanup(patcher.stop)
+        self.job = self.jobs.return_value
+        self.job.close.return_value = True
+
     def invoke(self):
         return probe_invocation.run_cli(["stub"], cwd=".", env={}, stdout=io.StringIO(), stderr=io.StringIO(), timeout=2)
 
@@ -529,32 +535,32 @@ class CliProcessCleanupTests(unittest.TestCase):
             process.kill.assert_called_once_with()
             self.assertEqual([mock.call(timeout=2), mock.call(timeout=10)], process.wait.call_args_list)
 
-    def test_windows_terminates_tree_before_reaping_parent(self):
+    def test_windows_owns_suspended_root_and_terminates_job_before_reaping(self):
         with mock.patch.object(probe_invocation.sys, "platform", "win32"), \
-                mock.patch.object(subprocess, "Popen") as launch, mock.patch.object(subprocess, "run") as taskkill:
+                mock.patch.object(subprocess, "Popen") as launch:
             process = launch.return_value
             process.pid = 12345
             expired = subprocess.TimeoutExpired(["stub"], 2)
             process.wait.side_effect = [expired, 1]
             order = mock.Mock()
-            order.attach_mock(taskkill, "taskkill")
+            order.attach_mock(self.job.assign_and_resume, "assign")
+            order.attach_mock(self.job.close, "close")
             order.attach_mock(process.kill, "kill")
             order.attach_mock(process.wait, "wait")
             with self.assertRaises(subprocess.TimeoutExpired) as caught:
                 self.invoke()
             self.assertIs(expired, caught.exception)
             self.assertFalse(launch.call_args.kwargs["start_new_session"])
-            self.assertEqual(["wait", "taskkill", "kill", "wait"], [call[0] for call in order.mock_calls])
-            taskkill.assert_called_once_with(["taskkill", "/PID", "12345", "/T", "/F"], check=True,
-                                             capture_output=True, timeout=10)
+            self.assertTrue(launch.call_args.kwargs["creationflags"] & 4)
+            self.assertEqual(["assign", "wait", "close", "kill", "wait"], [call[0] for call in order.mock_calls])
+            self.job.assign_and_resume.assert_called_once_with(12345)
 
     def test_cleanup_failure_propagates_instead_of_becoming_an_ordinary_timeout(self):
-        for error in (FileNotFoundError("taskkill"), subprocess.CalledProcessError(1, ["taskkill"]),
-                      subprocess.TimeoutExpired(["taskkill"], 10)):
+        for error in (OSError("job cleanup failed"), RuntimeError("job accounting unavailable")):
             with self.subTest(error=type(error).__name__), \
                     mock.patch.object(probe_invocation.sys, "platform", "win32"), \
                     mock.patch.object(subprocess, "Popen") as launch, \
-                    mock.patch.object(subprocess, "run", side_effect=error):
+                    mock.patch.object(self.job, "close", side_effect=error):
                 process = launch.return_value
                 process.wait.side_effect = [subprocess.TimeoutExpired(["stub"], 2), 1]
                 with self.assertRaisesRegex(RuntimeError, "process-tree cleanup failed") as caught:
@@ -563,33 +569,75 @@ class CliProcessCleanupTests(unittest.TestCase):
                 process.kill.assert_called_once_with()
                 self.assertEqual(2, process.wait.call_count)
 
-    def test_windows_cleanup_failure_traceback_preserves_taskkill_output(self):
-        command = ["taskkill", "/PID", "12345", "/T", "/F"]
-        cases = ((128, b"missing root\xff"), (255, "diagnostic \u03bb"), (None, b"taskkill unfinished"))
+    def test_windows_incomplete_job_cleanup_is_hard_on_success_and_timeout(self):
         calls = (("cli", self.invoke), ("grading", lambda: probe_invocation.run_command("stub", cwd=".", env={}, timeout=2)))
-        for (status, diagnostic), (kind, invoke) in itertools.product(cases, calls):
-            output = "owned child stopped" if isinstance(diagnostic, str) else b"owned child stopped"
-            error = (subprocess.CalledProcessError(status, command, output=output, stderr=diagnostic)
-                     if status is not None else subprocess.TimeoutExpired(command, 10, output=output, stderr=diagnostic))
-            with self.subTest(status=status, kind=kind), \
+        for expired, (kind, invoke) in itertools.product((False, True), calls):
+            with self.subTest(expired=expired, kind=kind), \
                     mock.patch.object(probe_invocation.sys, "platform", "win32"), \
-                    mock.patch.object(subprocess, "Popen") as launch, \
-                    mock.patch.object(subprocess, "run", side_effect=error):
+                    mock.patch.object(subprocess, "Popen") as launch:
                 process = launch.return_value
                 process.pid = 12345
-                process.wait.side_effect = [subprocess.TimeoutExpired(["stub"], 2), 1] if kind == "cli" else [1]
-                process.communicate.side_effect = subprocess.TimeoutExpired("stub", 2)
+                process.returncode = 0
+                process.wait.side_effect = ([subprocess.TimeoutExpired(["stub"], 2) if expired else 0, 1]
+                                            if kind == "cli" else [1])
+                process.communicate.side_effect = subprocess.TimeoutExpired("stub", 2) if expired else None
+                process.communicate.return_value = ("answer", "")
+                self.job.close.return_value = False
                 with self.assertRaisesRegex(RuntimeError, "process-tree cleanup failed") as caught:
                     invoke()
-                self.assertIs(error, caught.exception.__cause__)
-                rendered = "".join(traceback.format_exception(caught.exception))
-                self.assertIn("owned child stopped", rendered)
-                self.assertIn("taskkill", rendered)
-                diagnostic = error.stderr
-                if isinstance(diagnostic, bytes):
-                    diagnostic = diagnostic.decode("utf-8", "replace")
-                self.assertIn(diagnostic, rendered)
+                self.assertIn("Windows job cleanup incomplete", str(caught.exception.__cause__))
                 process.kill.assert_called_once_with()
+
+    def test_windows_job_creation_failure_prevents_spawn(self):
+        with mock.patch.object(probe_invocation.sys, "platform", "win32"), \
+                mock.patch.object(subprocess, "Popen") as launch:
+            self.jobs.side_effect = OSError("ownership unavailable")
+            with self.assertRaisesRegex(OSError, "ownership unavailable"):
+                self.invoke()
+            launch.assert_not_called()
+
+    def test_windows_assignment_failure_kills_root_without_running_it(self):
+        with mock.patch.object(probe_invocation.sys, "platform", "win32"), \
+                mock.patch.object(subprocess, "Popen") as launch:
+            self.job.assign_and_resume.side_effect = OSError("assignment unavailable")
+            with self.assertRaisesRegex(OSError, "assignment unavailable"):
+                self.invoke()
+            self.assertTrue(launch.call_args.kwargs["creationflags"] & 4)
+            launch.return_value.kill.assert_called_once_with()
+            launch.return_value.wait.assert_called_once_with(timeout=10)
+            self.job.close.assert_called_once_with()
+
+    def test_windows_spawn_failure_closes_unused_job(self):
+        with mock.patch.object(probe_invocation.sys, "platform", "win32"), \
+                mock.patch.object(subprocess, "Popen", side_effect=OSError("spawn unavailable")):
+            with self.assertRaisesRegex(OSError, "spawn unavailable"):
+                self.invoke()
+            self.job.close.assert_called_once_with()
+            self.job.assign_and_resume.assert_not_called()
+
+    def test_windows_spawn_and_cleanup_failure_preserves_spawn_cause(self):
+        error = OSError("spawn unavailable")
+        with mock.patch.object(probe_invocation.sys, "platform", "win32"), \
+                mock.patch.object(subprocess, "Popen", side_effect=error):
+            self.job.close.return_value = False
+            with self.assertRaisesRegex(RuntimeError, "cleanup failed before spawn") as caught:
+                self.invoke()
+            self.assertIs(error, caught.exception.__cause__)
+
+    def test_windows_failed_cleanup_leaves_active_pipe_readers_in_charge_of_closing(self):
+        with mock.patch.object(probe_invocation.sys, "platform", "win32"), \
+                mock.patch.object(subprocess, "Popen") as launch:
+            process = launch.return_value
+            process.communicate.side_effect = subprocess.TimeoutExpired("stub", 2)
+            process.stdout_thread.is_alive.return_value = True
+            process.stderr_thread.is_alive.return_value = True
+            self.job.close.return_value = False
+            with self.assertRaisesRegex(RuntimeError, "process-tree cleanup failed"):
+                probe_invocation.run_command("stub", cwd=".", env={}, timeout=2)
+            process.stdout.close.assert_not_called()
+            process.stderr.close.assert_not_called()
+            process.stdout_thread.join.assert_called_once_with(timeout=1)
+            process.stderr_thread.join.assert_called_once_with(timeout=1)
 
     @unittest.skipIf(sys.platform == "win32", "POSIX process groups")
     def test_group_already_gone_preserves_the_original_timeout(self):
