@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; working update 2026-11-02, merged-item closure.** This is the only backlog.
+> **Status: live; working update 2026-11-12, owner-accepted runner closure.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -41,36 +41,6 @@ on a host with Claude credentials and a current judge calibration, and files the
 records the design and its rollback.
 **SRE task:** Read one `inspect view` log of a fleet regression instead of a directory of records,
 trusting it only once it is known to say what the native batch says.
-
-### RUNNER-001 — rewrite the eval runner's core around a persisted evidence artifact
-
-**Status:** `active` (2026-11-02); the owner accepted the
-[design record](decisions/2026-11-02-probe-runner-refactor.md) for implementation. Stage 0, the
-goldens, landed on PR #455 with a follow-up for native conversations and the batch view; the owner's
-decisions the plan left open are recorded in the design record's amendment of 2026-11-02. Stage 1,
-`evidence.json` written by every graded attempt and by a regrade of an older run through `legacy`,
-landed on PR #458 and stage 2, the check registry as a package with probes marked, the two import
-cycles removed and the identity widened, on PR #459. Stage 3, the evidence engine grading every
-attempt in shadow with the result rules named and the attempt's life recorded, landed on PR #460.
-The owner waived the shadow gate on 2026-11-03 (no private iteration ran under stage 3); stage 4,
-the cut-over to the evidence engine as the one grading path, landed on PR #461. Stage 5, the
-command-line split the owner brought into scope on 2026-11-03, is implemented and awaits the
-owner's acceptance.
-**Owner:** The human owner accepts each stage's exact candidate; a maintainer session implements the
-stages in order.
-**Outcome:** An attempt writes one versioned `evidence.json`; grading is a pure function of scenario
-and evidence shared by live grade and regrade; the eight threat-model rules are named units with a
-test each; the twelve live-only checks run as probes whose outcomes are evidence; old run directories
-stay readable through a quarantined legacy loader; every CLI subcommand, saved-run interface, v1
-record and result rule is unchanged.
-**Next action:** `rescore` one private iteration under the stage 4 runner and `diff` against a
-rescore under the stage 3 runner, and run `check-evidence` on the first iteration the stage 4
-runner writes: zero changed verdicts and zero differences prove the cut-over on real runs, which the
-goldens alone do not. Then accept stage 5's candidate, the last the record scopes.
-**Evidence:** [Design record](decisions/2026-11-02-probe-runner-refactor.md); per-stage evidence lands
-in each stage's pull request.
-**SRE task:** Trust that a regrade of a saved attempt reaches the same verdict as its live grade for a
-stated reason, and read which result rule produced it.
 
 ### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
 
