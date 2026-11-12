@@ -294,12 +294,16 @@ static approval; it has not had a new native campaign.
 A controlled replay reproduced the minute-alignment empty-range mechanism; the fixture now requires
 one-minute-old finite data. A fresh model-free fixture passes all six query controls and seven
 service checks, without establishing native acceptance or the original empty request's exact cause.
+Readiness candidate `2bce1b29` has static approval, but its new full heavy gate failed four Windows
+timeout-cleanup controls (4,879 passed, 312 skipped). Those four pass in the focused four-worker
+check; the intermittent failure's cause remains unconfirmed and qualification is still failed.
 **Owner:** The human owner approves each repair run; a maintainer session repairs the scenario and runs it.
 **Outcome:** [`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
 fails only on agent behavior: its refusal-wording check accepts measured correct refusals, and
 its post-write query check fails only when the query did not return the persisted panel's data.
 Required panel presentation is explicit in the task rather than inferred from advisory guidance.
-**Next action:** Retain strict service-state and post-write query checks and bind any further run to
+**Next action:** Resolve or disposition the intermittent Windows timeout-cleanup failure before
+another paid campaign. Retain strict service-state and post-write query checks and bind any further run to
 the repaired readiness scenario. Preserve request/response timing; the controlled reproduction
 does not recover the original native request's phase. Post-write execution
 and evidence-label misses remain behavioral failures. The three-call continuation is complete;
