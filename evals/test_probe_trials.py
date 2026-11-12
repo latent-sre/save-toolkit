@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -545,7 +546,7 @@ class CliProcessCleanupTests(unittest.TestCase):
             self.assertFalse(launch.call_args.kwargs["start_new_session"])
             self.assertEqual(["wait", "taskkill", "kill", "wait"], [call[0] for call in order.mock_calls])
             taskkill.assert_called_once_with(["taskkill", "/PID", "12345", "/T", "/F"], check=True,
-                                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=10)
+                                             capture_output=True, timeout=10)
 
     def test_cleanup_failure_propagates_instead_of_becoming_an_ordinary_timeout(self):
         for error in (FileNotFoundError("taskkill"), subprocess.CalledProcessError(1, ["taskkill"]),
@@ -561,6 +562,34 @@ class CliProcessCleanupTests(unittest.TestCase):
                 self.assertIs(error, caught.exception.__cause__)
                 process.kill.assert_called_once_with()
                 self.assertEqual(2, process.wait.call_count)
+
+    def test_windows_cleanup_failure_traceback_preserves_taskkill_output(self):
+        command = ["taskkill", "/PID", "12345", "/T", "/F"]
+        cases = ((128, b"missing root\xff"), (255, "diagnostic \u03bb"), (None, b"taskkill unfinished"))
+        calls = (("cli", self.invoke), ("grading", lambda: probe_invocation.run_command("stub", cwd=".", env={}, timeout=2)))
+        for (status, diagnostic), (kind, invoke) in itertools.product(cases, calls):
+            output = "owned child stopped" if isinstance(diagnostic, str) else b"owned child stopped"
+            error = (subprocess.CalledProcessError(status, command, output=output, stderr=diagnostic)
+                     if status is not None else subprocess.TimeoutExpired(command, 10, output=output, stderr=diagnostic))
+            with self.subTest(status=status, kind=kind), \
+                    mock.patch.object(probe_invocation.sys, "platform", "win32"), \
+                    mock.patch.object(subprocess, "Popen") as launch, \
+                    mock.patch.object(subprocess, "run", side_effect=error):
+                process = launch.return_value
+                process.pid = 12345
+                process.wait.side_effect = [subprocess.TimeoutExpired(["stub"], 2), 1] if kind == "cli" else [1]
+                process.communicate.side_effect = subprocess.TimeoutExpired("stub", 2)
+                with self.assertRaisesRegex(RuntimeError, "process-tree cleanup failed") as caught:
+                    invoke()
+                self.assertIs(error, caught.exception.__cause__)
+                rendered = "".join(traceback.format_exception(caught.exception))
+                self.assertIn("owned child stopped", rendered)
+                self.assertIn("taskkill", rendered)
+                diagnostic = error.stderr
+                if isinstance(diagnostic, bytes):
+                    diagnostic = diagnostic.decode("utf-8", "replace")
+                self.assertIn(diagnostic, rendered)
+                process.kill.assert_called_once_with()
 
     @unittest.skipIf(sys.platform == "win32", "POSIX process groups")
     def test_group_already_gone_preserves_the_original_timeout(self):

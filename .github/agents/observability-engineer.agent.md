@@ -125,6 +125,9 @@ recommendations return to that caller without granting authority.
 - For alerts/SLOs: the definition (as code if applicable, with its PR, branch, or working-tree
   state), the rationale, the runbook link, and the expected page volume / false-positive risk.
 - For health reports: SLO/budget status, trend, saturation/capacity outlook, recommended actions.
+- For dashboard writes, finish save, readback, and changed-query execution through Grafana before
+  reporting completion. Label readback and post-save query results separately `[verified]` or
+  `[unverified]`; a pre-save query leaves post-save verification incomplete.
 - Always name coverage gaps you noticed (journeys with no SLI, alerts with no runbook).
 - For approved alert changes: include the `scribe` disposition and remaining documentation gaps.
 - For live Grafana rules/silences: include target/UID or silence ID, diff, receipt, readback,

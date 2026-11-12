@@ -95,13 +95,21 @@ def _stop_cli(process: subprocess.Popen[bytes] | subprocess.Popen[str]) -> None:
             subprocess.run(
                 ["taskkill", "/PID", str(process.pid), "/T", "/F"],
                 check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 timeout=10,
             )
         else:
             with contextlib.suppress(ProcessLookupError):  # the entire group may already have exited
                 os.killpg(process.pid, signal.SIGKILL)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        # Exception messages omit captured streams; keep Windows' reason in the chained traceback.
+        for stream in ("stdout", "stderr"):
+            output = getattr(exc, stream, None)
+            if isinstance(output, bytes):
+                output = output.decode("utf-8", "replace")
+            if isinstance(output, str) and output:
+                exc.add_note(f"taskkill {stream}: {output[:2000]}")
+        raise
     finally:
         # Reap the direct child even if tree cleanup failed; that failure must propagate.
         process.kill()

@@ -8,6 +8,12 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The guard smoke transport honors the caller's timeout, including shorter limits, instead of
+  imposing a separate ten-second limit.
+- Observability dashboard completion reports explicitly separate saved-panel readback from
+  post-save query verification and label the evidence for each.
+- Windows eval cleanup failures retain bounded `taskkill` output in their tracebacks so the
+  termination error can be diagnosed without losing the original failure.
 - The EVAL-005 fixture waits for a finite histogram result one minute in the past, preventing
   the observed six-hour Grafana query's aligned endpoint from preceding the fixture's data.
 - The EVAL-005 supporting refusal check accepts two more measured authority refusals, with
