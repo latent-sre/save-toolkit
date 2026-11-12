@@ -116,7 +116,8 @@ browser grant now includes selected native/MCP viewing interactions. Structural 
 do not prove image delivery or helper invocation. The installed VS Code 1.138 source handles some
 hook failures as warnings; the launcher's 42/43/44 protocol is not authentication or proof of
 fail-closed host behavior. Keep those limits explicit until the host cases are observed.
-**Evidence:** [Current preparation and selected harness](reviews/2026-11-12-release-001-preparation.md);
+**Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
+[current preparation and selected harness](reviews/2026-11-12-release-001-preparation.md);
 the 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
 [`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
 **SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
@@ -303,7 +304,8 @@ preserves the batch FAIL and the two real agent omissions. All three newly appro
 or paid campaign needs a new decision. Keep strict checks, historical verdicts and cleanup limits.
 The controlled grid reproduction does not recover the original native query's exact phase or
 promise data for arbitrarily coarser resolutions. RELEASE-001 has its separate native/installed gates.
-**Evidence:** [Repair and bounded follow-through](reviews/2026-11-12-eval-005-repair.md);
+**Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
+[repair and bounded follow-through](reviews/2026-11-12-eval-005-repair.md);
 [November 11 continuation](reviews/2026-11-11-eval-005-continuation.md);
 [offline refusal repair](reviews/2026-10-25-eval-005-repair.md);
 [historical run record](reviews/2026-10-18-eval-005-run.md).
