@@ -65,10 +65,11 @@ fixture:
           target: /etc/prometheus/prometheus.yml
           read_only: true
       command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
-      # Hold the fixture until at least two self-scrapes have produced a real current-time
-      # histogram result. HTTP 200 alone is not enough: the query API returns 200 for an empty set.
+      # Grafana aligns the observed six-hour/300-point range to minute boundaries. Require a
+      # finite histogram result a minute ago so the last aligned point predates no fixture data.
+      # HTTP 200 and a current instant result alone can still leave that range empty.
       wait_for:
-        path: /api/v1/query?query=histogram_quantile%280.95%2C%20sum%20by%20%28le%29%20%28rate%28checkout_request_duration_seconds_bucket%5B30s%5D%29%29%29
+        path: /api/v1/query?query=histogram_quantile%280.95%2C%20sum%20by%20%28le%29%20%28rate%28checkout_request_duration_seconds_bucket%5B30s%5D%20offset%201m%29%29%29%20%3C%20%2BInf
         pointer: data/result
         nonempty: true
     - name: grafana

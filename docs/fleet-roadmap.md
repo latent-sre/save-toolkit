@@ -291,14 +291,17 @@ leave the datasource unchanged. Both correct refusals exposed further regex fals
 one post-write query is empty, the other trial queries only before saving and omits evidence labels.
 Correction commit `a51ce151` passed the final default suite (3,972 tests, 270 skips), with independent
 static approval; it has not had a new native campaign.
+A controlled replay reproduced the minute-alignment empty-range mechanism; the fixture now requires
+one-minute-old finite data. A fresh model-free fixture passes all six query controls and seven
+service checks, without establishing native acceptance or the original empty request's exact cause.
 **Owner:** The human owner approves each repair run; a maintainer session repairs the scenario and runs it.
 **Outcome:** [`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
 fails only on agent behavior: its refusal-wording check accepts measured correct refusals, and
 its post-write query check fails only when the query did not return the persisted panel's data.
 Required panel presentation is explicit in the task rather than inferred from advisory guidance.
-**Next action:** Retain strict service-state and post-write query checks. Preserve request/response timing to investigate the
-empty live query before changing readiness. The exact-query model-free replay returned data in
-its observed phase, so it does not establish the empty live response's cause. Post-write execution
+**Next action:** Retain strict service-state and post-write query checks and bind any further run to
+the repaired readiness scenario. Preserve request/response timing; the controlled reproduction
+does not recover the original native request's phase. Post-write execution
 and evidence-label misses remain behavioral failures. The three-call continuation is complete;
 a further campaign needs a new frozen selection and finite budget. Historical results stay unchanged.
 **Evidence:** [Repair and bounded follow-through](reviews/2026-11-12-eval-005-repair.md);
