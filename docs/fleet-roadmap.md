@@ -289,12 +289,15 @@ asking for them.
 
 **Status:** `active` (2026-11-12). The owner approved the Bash timeout and agent-behavior follow-up,
 commit and PR with USD 50 aggregate new testing budget. The timeout regression and agent checkpoint
-are committed at `097c2bbb`; its exact-candidate qualification failed on Windows cleanup:
-4,902 passed, one failed, 295 skipped and 4,972 passing subtests. The guard checks passed.
-No new native call started (USD 0 new model spend); native behavior improvement is unverified.
+are committed at `097c2bbb`; its failed qualification is retained. The Windows ownership correction
+at `3b33c0fb` passed exact clean heavy qualification: 4,915 tests, 295 skips and 4,971 subtests.
+Its completed six-slot Sonnet comparison recorded **2 PASS, 1 FAIL in each arm**, at CLI-estimated
+USD 1.106043 including six Sonnet 5.5 judgments. No cleanup or identity failure recurred.
 The [owned Windows cleanup continuation](reviews/2026-11-12-eval-005-repair.md#owned-windows-cleanup-continuation)
-reproduces exited-parent cleanup failure and replaces PID-tree discovery with existing job ownership;
-focused regressions pass, while final review and exact-candidate qualification are pending.
+reproduces exited-parent cleanup failure and replaces PID-tree discovery with existing job ownership.
+The batch exposed two supporting-text matcher defects; offline corrections retain the incumbent's
+genuine missing-label FAIL and rescore the candidate 3/3 PASS. Original live grades remain sealed;
+this is not a live result on the corrected case or human acceptance. Final checker qualification is pending.
 The earlier evaluator repair at exact
 `b43b7ab4` still awaits acceptance. Its completed three-trial batch is **1 PASS, 2 FAIL**: missing post-save query
 execution and missing evidence labels are actual agent failures. Refusal, panel, datasource and
@@ -306,19 +309,18 @@ remain unexplained and retained. Historical native FAILs are unchanged.
 fails only on agent behavior: its refusal-wording check accepts measured correct refusals, and
 its post-write query check fails only when the query did not return the persisted panel's data.
 Required panel presentation is explicit in the task rather than inferred from advisory guidance.
-**Next action:** Review the job ownership correction and qualify a new frozen
-candidate before the newly authorized comparison: three fresh incumbent and three candidate native Sonnet
-trials, Sonnet 5.5 judge, USD 1 requested per invocation and USD 10 scheduling ceiling. Keep USD 40
-unscheduled, stop on cleanup/authentication/identity failure, and retain strict checks and every verdict.
-The historical three slots (CLI-estimated USD 0.593889, judge included) remain exhausted and sealed;
-the new allocation does not reuse them. No retry-to-green, automatic tuning or candidate acceptance follows.
+**Next action:** Finish review and exact-candidate qualification of the bounded checker correction,
+then the owner reviews the resulting source and evidence. All six new native slots are completed;
+no further paid call or prompt tuning is planned. USD 48.893957 of the testing authorization remains
+unspent, including USD 40 never scheduled. Preserve both arms' live FAILs and separate offline results.
+The historical three slots (CLI-estimated USD 0.593889, judge included) remain exhausted and sealed.
 The controlled grid reproduction does not recover the original native query's exact phase or
 promise data for arbitrarily coarser resolutions. RELEASE-001 has its separate native/installed gates.
 The [Windows cleanup follow-up](reviews/2026-11-12-eval-005-repair.md#windows-cleanup-diagnostic-follow-up)
 retains termination diagnostics for a recurrence; its full run retains a guard smoke-test timeout,
 and it does not establish the original cleanup failures' cause. The
 [timeout and behavior follow-through](reviews/2026-11-12-eval-005-repair.md#guard-timeout-and-agent-behavior-follow-through)
-records the timeout correction, new failed qualification and captured taskkill output. The current
+records the timeout correction, earlier failed qualification and captured taskkill output. That
 recurrence reports a terminated child and an already-gone parent; no exit-code suppression was added.
 **Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
 [repair and bounded follow-through](reviews/2026-11-12-eval-005-repair.md);

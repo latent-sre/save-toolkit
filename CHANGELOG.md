@@ -8,6 +8,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- EVAL-005 recognizes two measured authority refusals and explicit version-history recovery;
+  datasource-only rollback no longer satisfies dashboard recovery.
 - The guard smoke transport honors the caller's timeout, including shorter limits, instead of
   imposing a separate ten-second limit.
 - Observability dashboard completion reports explicitly separate saved-panel readback from
