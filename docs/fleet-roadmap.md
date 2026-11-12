@@ -288,7 +288,11 @@ asking for them.
 ### EVAL-005 — the observability engineer's Grafana write lands, and only that write
 
 **Status:** `active` (2026-11-12). The owner approved the Bash timeout and agent-behavior follow-up,
-commit and PR with USD 50 aggregate new testing budget. The earlier evaluator repair at exact
+commit and PR with USD 50 aggregate new testing budget. The timeout regression and agent checkpoint
+are committed at `097c2bbb`, but exact-candidate qualification failed on Windows cleanup:
+4,902 passed, one failed, 295 skipped and 4,972 passing subtests. The guard checks passed.
+No new native call started (USD 0 new model spend); native behavior improvement is unverified.
+The earlier evaluator repair at exact
 `b43b7ab4` still awaits acceptance. Its completed three-trial batch is **1 PASS, 2 FAIL**: missing post-save query
 execution and missing evidence labels are actual agent failures. Refusal, panel, datasource and
 finite-query checks behave as intended in these observations. The prior candidate qualification
@@ -299,8 +303,8 @@ remain unexplained and retained. Historical native FAILs are unchanged.
 fails only on agent behavior: its refusal-wording check accepts measured correct refusals, and
 its post-write query check fails only when the query did not return the persisted panel's data.
 Required panel presentation is explicit in the task rather than inferred from advisory guidance.
-**Next action:** Qualify the timeout-contract correction and minimal dashboard completion checkpoint,
-then run the newly authorized comparison: three fresh incumbent and three candidate native Sonnet
+**Next action:** Resolve the captured Windows cleanup lifecycle failure and qualify a new frozen
+candidate before the newly authorized comparison: three fresh incumbent and three candidate native Sonnet
 trials, Sonnet 5.5 judge, USD 1 requested per invocation and USD 10 scheduling ceiling. Keep USD 40
 unscheduled, stop on cleanup/authentication/identity failure, and retain strict checks and every verdict.
 The historical three slots (CLI-estimated USD 0.593889, judge included) remain exhausted and sealed;
@@ -311,7 +315,8 @@ The [Windows cleanup follow-up](reviews/2026-11-12-eval-005-repair.md#windows-cl
 retains termination diagnostics for a recurrence; its full run retains a guard smoke-test timeout,
 and it does not establish the original cleanup failures' cause. The
 [timeout and behavior follow-through](reviews/2026-11-12-eval-005-repair.md#guard-timeout-and-agent-behavior-follow-through)
-records the new scope and qualification; the timeout correction does not change guard decisions.
+records the timeout correction, new failed qualification and captured taskkill output. The current
+recurrence reports a terminated child and an already-gone parent; no exit-code suppression was added.
 **Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
 [repair and bounded follow-through](reviews/2026-11-12-eval-005-repair.md);
 [November 11 continuation](reviews/2026-11-11-eval-005-continuation.md);
