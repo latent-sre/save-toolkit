@@ -18,6 +18,8 @@ from urllib.parse import urlsplit
 
 from probe.fingerprints import HARNESS_FILES, plugin_digest
 
+from .storage import validate_storage_mode
+
 _ROOT = Path(__file__).resolve().parents[2]
 _MAX_JSON = 8 * 1024 * 1024
 _FIELDS = frozenset(
@@ -33,10 +35,20 @@ _FIELDS = frozenset(
         "proxy_bind",
         "proxy_target",
         "storage_quota",
+        "storage_mode",
         "api_key_helper",
     }
 )
-_RUNTIME = ("model", "haiku_model", "images", "proxy_bind", "proxy_target", "storage_quota", "api_key_helper")
+_RUNTIME = (
+    "model",
+    "haiku_model",
+    "images",
+    "proxy_bind",
+    "proxy_target",
+    "storage_quota",
+    "storage_mode",
+    "api_key_helper",
+)
 _CHECKS = (
     "reference_resolves",
     "empty_rejected",
@@ -119,7 +131,11 @@ def load_config(path: Path) -> dict[str, Any]:
         config = json.loads(raw, object_pairs_hook=_pairs, parse_constant=_constant)
     except OSError, ValueError, UnicodeError, RecursionError:
         raise ValueError("invalid configuration JSON") from None
-    if not isinstance(config, dict) or set(config) - _FIELDS or (_FIELDS - {"api_key_helper"}) - set(config):
+    if (
+        not isinstance(config, dict)
+        or set(config) - _FIELDS
+        or (_FIELDS - {"api_key_helper", "storage_mode"}) - set(config)
+    ):
         raise ValueError("invalid configuration fields")
     if _secret(config):
         raise ValueError("configuration must not contain credentials")
@@ -172,8 +188,9 @@ def load_config(path: Path) -> dict[str, Any]:
     for name in ("storage_quota", "api_key_helper"):
         if type(config[name]) is not bool:
             raise ValueError(f"invalid configuration {name}")
-    if config["storage_quota"] is not True:
-        raise ValueError("a hard storage quota is required")
+    config["storage_mode"] = validate_storage_mode(
+        quota=config["storage_quota"], mode=config.get("storage_mode", "quota")
+    )
     config.update(plugin_root=str(plugin), cli_path=str(cli))
     return config
 
@@ -201,6 +218,7 @@ def adapter_digest() -> str:
 
 def binding(config: Mapping[str, Any], manifest: Mapping[str, Any]) -> dict[str, Any]:
     """Bind exact selection, measured plugin, CLI, adapter and runtime configuration."""
+    mode = validate_storage_mode(quota=config.get("storage_quota"), mode=config.get("storage_mode", "quota"))
     try:
         if not _native_cli(Path(config["cli_path"]), config["cli_sha256"]):
             raise ValueError("configuration cli changed")
@@ -211,7 +229,8 @@ def binding(config: Mapping[str, Any], manifest: Mapping[str, Any]) -> dict[str,
             "cli_sha256": config["cli_sha256"],
             "cli_version": config["cli_version"],
             "adapter_sha256": adapter_digest(),
-            **{name: config[name] for name in _RUNTIME},
+            **{name: config[name] for name in _RUNTIME if name != "storage_mode"},
+            "storage_mode": mode,
         }
         return dict(json.loads(_canonical(result)))
     except OSError:
@@ -314,7 +333,10 @@ def smoke_problem(receipt: Mapping[str, Any], bound: Mapping[str, Any]) -> str |
     checks = receipt.get("checks")
     if not isinstance(checks, Mapping):
         return "smoke checks are missing"
-    for name in _CHECKS:
+    required_checks: tuple[str, ...] = _CHECKS
+    if bound.get("storage_mode") == "monitored":
+        required_checks = tuple("storage_monitor" if name == "storage_cap" else name for name in _CHECKS)
+    for name in required_checks:
         if checks.get(name) is not True:
             return f"smoke check {name} is missing or did not pass"
     cleanup = receipt.get("cleanup")

@@ -23,6 +23,7 @@ from unittest import mock
 
 import compare_runs as comparison
 from probe_testkit import all_scenarios, read_json
+from swebench_adapter import artifacts as repair_artifacts
 
 BUNDLE = Path(__file__).resolve().parent / "fixtures" / "v1-bundle"
 RUNS = BUNDLE / "runs"
@@ -270,6 +271,9 @@ class ComparisonTests(unittest.TestCase):
             (None, REPAIR_PROFILE, "not_compared"),
             (REPAIR_PROFILE, {**REPAIR_PROFILE, "name": "other-repair"}, "not_compared"),
             (REPAIR_PROFILE, {**REPAIR_PROFILE, "authentication": "other-proxy"}, "not_compared"),
+            (repair_artifacts.execution_profile("quota"), repair_artifacts.execution_profile("monitored"), "not_compared"),
+            (repair_artifacts.execution_profile("monitored"), repair_artifacts.execution_profile("quota"), "not_compared"),
+            (repair_artifacts.execution_profile("monitored"), repair_artifacts.execution_profile("monitored"), "gain"),
         ):
             with self.subTest(old=old, new=new), tempfile.TemporaryDirectory() as tmp:
                 runs = Path(tmp) / "runs"
@@ -288,19 +292,24 @@ class ComparisonTests(unittest.TestCase):
                 self.assertEqual(new, gain["candidate"]["conditions"]["execution_profile"])
 
     def test_execution_profiles_must_match_to_pool_trials(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            runs = Path(tmp) / "runs"
-            shutil.copytree(RUNS / "eval-synthetic-threshold", runs / "eval-synthetic-threshold")
-            path = runs / "eval-synthetic-threshold" / "candidate" / "run-1" / "record.json"
-            record = read_json(path)
-            record["conditions"]["execution_profile"] = REPAIR_PROFILE
-            path.write_text(json.dumps(record), encoding="utf-8")
-            held = comparison.read_label(runs, "candidate")
-            spec = next(s for s in all_scenarios(BUNDLE / "scenarios") if s["id"] == "synthetic-threshold")
-            # Assess the pool directly so label-wide rejection cannot hide a missing pool constraint.
-            arm = comparison._assess(held.cases["synthetic-threshold"], spec)
-        self.assertEqual(("INCONCLUSIVE", "the trials are not one measurement: they differ in execution_profile"),
-                         (arm["verdict"], arm["reason"]))
+        for default, changed in (
+            (None, REPAIR_PROFILE),
+            (repair_artifacts.execution_profile("quota"), repair_artifacts.execution_profile("monitored")),
+            (repair_artifacts.execution_profile("monitored"), repair_artifacts.execution_profile("quota")),
+        ):
+            with self.subTest(default=default, changed=changed), tempfile.TemporaryDirectory() as tmp:
+                runs = Path(tmp) / "runs"
+                shutil.copytree(RUNS / "eval-synthetic-threshold", runs / "eval-synthetic-threshold")
+                for path in (runs / "eval-synthetic-threshold" / "candidate").glob("run-*/record.json"):
+                    record = read_json(path)
+                    record["conditions"]["execution_profile"] = changed if path.parent.name == "run-1" else default
+                    path.write_text(json.dumps(record), encoding="utf-8")
+                held = comparison.read_label(runs, "candidate")
+                spec = next(s for s in all_scenarios(BUNDLE / "scenarios") if s["id"] == "synthetic-threshold")
+                # Assess the pool directly so label-wide rejection cannot hide a missing pool constraint.
+                arm = comparison._assess(held.cases["synthetic-threshold"], spec)
+            self.assertEqual(("INCONCLUSIVE", "the trials are not one measurement: they differ in execution_profile"),
+                             (arm["verdict"], arm["reason"]))
 
     def test_a_label_measured_two_ways_across_its_cases_measures_none(self) -> None:
         """A label reused for another candidate, or continued case by case across a CLI upgrade, would add

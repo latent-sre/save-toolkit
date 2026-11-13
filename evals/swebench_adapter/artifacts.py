@@ -18,6 +18,15 @@ _PATH = re.compile(r"[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)
 _MARKERS = (b"sk-or-", b"sk-ant-", b"ghp_", b"AKIA")
 
 
+def execution_profile(storage_mode: str = "quota") -> dict[str, str]:
+    """Keep independently verified measurements separate by storage policy."""
+    if storage_mode == "quota":
+        return dict(PROFILE)
+    if storage_mode == "monitored":
+        return {**PROFILE, "name": "static-repair-independently-verified-dec13-monitored-storage"}
+    raise ValueError("unsupported storage mode")
+
+
 def screen(data: bytes, secrets: Sequence[str] = ()) -> None:
     """Reject disclosure before persistence; errors contain no candidate output."""
     if any(marker in data for marker in _MARKERS) or any(secret.encode() in data for secret in secrets if secret):
@@ -97,6 +106,7 @@ def make_record(
     estimated_cost: float | None,
     evidence: Mapping[str, str],
     after_assessment: str | None = None,
+    storage_mode: str = "quota",
 ) -> dict[str, Any]:
     """Keep verifier results and CLI cost estimates separate from measured billing."""
     raw = {
@@ -116,7 +126,7 @@ def make_record(
             "runtime": dict(runtime),
             "turn_limit": 64,
             "wall_clock_seconds": 2700,
-            "execution_profile": PROFILE,
+            "execution_profile": execution_profile(storage_mode),
         },
         "attempt": {"label": label, "slot": 1, "number": 1, "state": "final", "started_at": started, "ended_at": ended},
         "run_end": {"kind": ending, "stop": stop, "reason": reason},

@@ -36,6 +36,25 @@ would have to enter the container.
 
 ## Task selection
 
+### Owner amendment: Docker Desktop monitored storage, 2026-11-12
+
+[sourced] The owner clarified approval of the Docker Desktop exception after reviewing the
+unenforced quota probe and shared-storage implications. The Windows Desktop host remains selected.
+For this campaign, explicit monitored storage may replace the hard writable-layer quota: 10 GiB
+is the stop target, periodic observation can overshoot it, and shared Docker storage can be affected.
+This exception is not permission to report an enforced 10 GiB cap.
+
+The adapter must retain strict quota mode by default. The exception uses
+`storage_mode: monitored` with `storage_quota: false`, a distinct smoke/result identity, observed
+threshold-stop and cleanup controls, and sampled storage evidence. Unknown measurement stops the
+attempt. Hard-mode smoke retains its actual quota-rejection check; monitored smoke uses a separate
+monitor check. Models, credentials, case admission, network and compute limits, independent
+verification, spending and separately started smoke/first-trial/batch steps retain their conditions.
+
+The original hard-quota requirements below describe quota mode; this dated owner amendment governs
+the explicit monitored Desktop exception. Implementation and host qualification evidence must be
+recorded before any benchmark execution under it.
+
 From `SWE-bench/SWE-bench_Verified` on Hugging Face, at a revision recorded with the selection, keep
 tasks whose `difficulty` annotation is "<15 min fix" or "15 min - 1 hour" (the column name is confirmed
 when the selection runs). Sort repositories by name and take the first 10 that have an eligible task;

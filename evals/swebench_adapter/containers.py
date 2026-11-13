@@ -18,10 +18,10 @@ from typing import Any, BinaryIO
 from probe.backing import SERVICE_RELAY_IMAGE, SERVICE_RELAY_SCRIPT
 
 from .limits import STORAGE_LIMIT
+from .storage import MONITORED_STORAGE_INTERVAL, validate_storage_mode
 
 STDOUT_LIMIT = 64 * 1024 * 1024
 STDERR_LIMIT = 1024 * 1024
-STORAGE_INTERVAL = 60.0
 _NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,62}")
 _IMAGE = re.compile(r"(?:[A-Za-z0-9][A-Za-z0-9._:/-]*@)?sha256:[0-9a-f]{64}")
 _CREDENTIAL = re.compile(r"sk-|gh[pousr]_|AKIA|ASIA|ya29\.|-----BEGIN .*PRIVATE KEY")
@@ -138,6 +138,25 @@ class DockerResources:
         self.prefix = prefix
         self._containers: list[str] = []
         self._networks: list[str] = []
+        self._storage_observations: dict[str, dict[str, Any]] = {}
+
+    @property
+    def storage_observations(self) -> dict[str, dict[str, Any]]:
+        """Return cumulative sampled storage evidence without mutable aliases."""
+        return {name: dict(observation) for name, observation in self._storage_observations.items()}
+
+    def _storage_observation(self, container: str) -> dict[str, Any]:
+        return self._storage_observations.setdefault(
+            container,
+            {
+                "mode": "monitored",
+                "target_bytes": STORAGE_LIMIT,
+                "hard_enforced": False,
+                "observed_peak_bytes": None,
+                "samples": 0,
+                "stop": None,
+            },
+        )
 
     def _own(self, kind: str) -> str:
         name = f"{self.prefix}-{kind}"
@@ -249,9 +268,12 @@ class DockerResources:
         proxy_ip: str,
         *,
         storage_quota: bool,
+        storage_mode: str = "quota",
     ) -> str:
-        if storage_quota is not True:
-            raise ValueError("a hard storage quota is required")
+        try:
+            mode = validate_storage_mode(quota=storage_quota, mode=storage_mode)
+        except ValueError:
+            raise ValueError("a hard storage quota or explicit monitored storage mode is required") from None
         if not isinstance(image, str) or _IMAGE.fullmatch(image) is None:
             raise ValueError("agent image must be an immutable sha256 image identity")
         environment: list[str] = []
@@ -280,6 +302,8 @@ class DockerResources:
         ):
             raise ValueError("CLI and plugin must be valid frozen bind sources")
         name = self._own("agent")
+        if mode == "monitored":
+            self._storage_observation(name)
         self.docker.call(
             [
                 "run",
@@ -293,8 +317,7 @@ class DockerResources:
                 "127.0.0.1",
                 "--add-host",
                 f"model-proxy:{address}",
-                "--storage-opt",
-                "size=10G",
+                *(["--storage-opt", "size=10G"] if mode == "quota" else []),
                 "--mount",
                 f"type=bind,source={cli},target=/opt/claude,readonly",
                 "--mount",
@@ -334,6 +357,18 @@ class DockerResources:
         ):
             return False
         return None
+
+    def remove_container(self, name: str) -> dict[str, Any]:
+        """Retire an owned container before a later stage can leave it unmonitored."""
+        self._container(name)
+        try:
+            removed = self.docker.call(["rm", "--force", name], check=False, timeout=20).returncode == 0
+        except RuntimeError, OSError:
+            removed = False
+        present = self._present("container", name)
+        if present is False:
+            self._containers.remove(name)
+        return {"kind": "container", "name": name, "present": present, "removed": removed}
 
     def cleanup(self) -> list[dict[str, Any]]:
         receipt: list[dict[str, Any]] = []
@@ -384,6 +419,18 @@ class DockerResources:
             raise RuntimeError("Docker execution could not start") from None
         stdout, stderr = bytearray(), bytearray()
         overflow, read_failure = threading.Event(), threading.Event()
+        observation = self._storage_observation(container) if not storage_quota else None
+
+        def measure(now: float) -> str | None:
+            try:
+                size = self._size(container, min(10, max(0.01, wall_seconds - (now - started))))
+            except RuntimeError, OSError:
+                return "monitor_failure"
+            assert observation is not None
+            peak = observation["observed_peak_bytes"]
+            observation["observed_peak_bytes"] = size if peak is None else max(peak, size)
+            observation["samples"] += 1
+            return "storage_limit" if size > STORAGE_LIMIT else None
 
         def drain(stream: BinaryIO | None, output: bytearray, limit: int) -> None:
             if stream is None:
@@ -424,18 +471,16 @@ class DockerResources:
                     stop = "wall_clock"
                     break
                 if not storage_quota and now >= next_storage:
-                    try:
-                        if self._size(container, min(10, max(0.01, wall_seconds - (now - started)))) > STORAGE_LIMIT:
-                            stop = "storage_limit"
-                            break
-                    except RuntimeError, OSError:
-                        stop = "monitor_failure"
+                    stop = measure(now)
+                    if stop:
                         break
-                    next_storage = now + STORAGE_INTERVAL
+                    next_storage = now + MONITORED_STORAGE_INTERVAL
                 if time.monotonic() - started >= wall_seconds:
                     stop = "wall_clock"
                     break
                 if process.poll() is not None:
+                    if not storage_quota:
+                        stop = measure(time.monotonic())
                     break
                 time.sleep(min(0.05, max(0, wall_seconds - (time.monotonic() - started))))
         except KeyboardInterrupt:
@@ -450,6 +495,8 @@ class DockerResources:
             ):
                 stop = "output_limit" if overflow.is_set() else "monitor_failure"
                 self._halt(process, container)
+            if observation is not None and stop is not None:
+                observation["stop"] = stop
         return Execution(
             bytes(stdout),
             bytes(stderr),

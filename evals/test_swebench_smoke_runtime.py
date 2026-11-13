@@ -27,7 +27,7 @@ from probe.backing import SERVICE_RELAY_IMAGE
 from probe_testkit import unelevated_host
 from swebench_adapter import configuration, proxy, runner, selection, smoke
 from swebench_adapter.containers import Docker
-from swebench_adapter.limits import ProcessResult
+from swebench_adapter.limits import STORAGE_LIMIT, ProcessResult
 
 from scripts.testkit import require_shell
 
@@ -63,6 +63,8 @@ class SmokeDocker(Docker):
         self.proxy_port = None
         self.proxy_token = None
         self.connections = []
+        self.operating_system = "Offline Linux"
+        self.storage_quota = True
 
     def call(self, args, *, input=None, timeout=120, check=True):
         args = list(args)
@@ -78,7 +80,7 @@ class SmokeDocker(Docker):
                     "ID": "offline-engine",
                     "ServerVersion": "28.5",
                     "OSType": "linux",
-                    "OperatingSystem": "Offline Linux",
+                    "OperatingSystem": self.operating_system,
                     "KernelVersion": "6.0",
                     "Driver": "overlay2",
                 }
@@ -94,6 +96,7 @@ class SmokeDocker(Docker):
         elif args[:2] == ["run", "-d"]:
             self.resources.add(("container", args[args.index("--name") + 1]))
             if "--mount" in args:
+                self.storage_quota = "--storage-opt" in args
                 for argument in args:
                     if argument.startswith("type=bind,"):
                         fields = dict(part.split("=", 1) for part in argument.split(",") if "=" in part)
@@ -121,7 +124,7 @@ class SmokeDocker(Docker):
                                 "SecurityOpt": ["no-new-privileges"],
                                 "Memory": 2_147_483_648,
                                 "PidsLimit": 256,
-                                "StorageOpt": {"size": "10G"},
+                                "StorageOpt": {"size": "10G"} if self.storage_quota else {},
                             },
                             "Mounts": [{"Destination": name, "RW": False} for name in self.mounts],
                         }
@@ -252,6 +255,7 @@ def runtime(tmp_path, monkeypatch):
         "proxy_bind": "127.0.0.1",
         "proxy_target": "host.docker.internal",
         "storage_quota": True,
+        "storage_mode": "quota",
         "api_key_helper": False,
     }
     docker = SmokeDocker()
@@ -291,6 +295,7 @@ def runtime(tmp_path, monkeypatch):
         assert fields["--docker-host"] == "unix:///var/run/docker.sock"
         assert docker.argv == [docker.executable, "--host", fields["--docker-host"]]
         assert ("--storage-quota" in args) is config["storage_quota"]
+        assert ("--monitored-storage" in args) is (config["storage_mode"] == "monitored")
         task = json.loads(Path(fields["--task"]).read_text())
         patch = Path(fields["--patch"]).read_bytes()
         baseline = "--baseline" in args
@@ -330,6 +335,15 @@ def runtime(tmp_path, monkeypatch):
                 "untracked_policy": "preserved",
             },
             "storage_quota": "--storage-quota" in args,
+            "storage_mode": "monitored" if "--monitored-storage" in args else "quota",
+            "storage": {
+                "mode": "monitored" if "--monitored-storage" in args else "quota",
+                "target_bytes": STORAGE_LIMIT,
+                "hard_enforced": "--storage-quota" in args,
+                "observed_peak_bytes": 100 if "--monitored-storage" in args else None,
+                "samples": 1 if "--monitored-storage" in args else 0,
+                "stop": None,
+            },
             "patch_sha256": hashlib.sha256(patch).hexdigest(),
             "swebench_version": "5.0.2",
             "verifier_image_digest": IMAGE,
@@ -439,6 +453,58 @@ def test_model_free_smoke_runs_reference_and_baseline_with_real_binding_and_arti
     assert json.loads((runtime.output / "smoke.json").read_text()) == receipt
 
 
+def test_monitored_smoke_records_observed_stop_without_claiming_hard_quota(runtime, monkeypatch):
+    runtime.config.update(storage_quota=False, storage_mode="monitored")
+    runtime.docker.operating_system = "Docker Desktop"
+    monkeypatch.setattr(runner.platform, "system", lambda: "Windows")
+    receipt = run(runtime)
+    assert receipt["error"] is None
+    assert all(receipt["checks"].values())
+    assert receipt["checks"]["storage_monitor"] is True
+    assert "storage_cap" not in receipt["checks"]
+    assert observations(runtime)["storage"] == {
+        "mode": "monitored",
+        "target_bytes": STORAGE_LIMIT,
+        "hard_enforced": False,
+        "quota_rejected": False,
+        "samples": 1,
+        "observed_peak_bytes": STORAGE_LIMIT + 1,
+        "stop": "storage_limit",
+    }
+    assert receipt["binding"]["storage_mode"] == "monitored"
+    assert configuration.smoke_problem(receipt, receipt["binding"]) is None
+    assert len(runtime.docker.verifier_calls) == 2
+    assert all("--monitored-storage" in call["args"] for call in runtime.docker.verifier_calls)
+    agent_args = next(args for args, _ in runtime.docker.calls if args[:2] == ["run", "-d"] and "--mount" in args)
+    assert "--storage-opt" not in agent_args
+    assert runtime.docker.processes[0].killed
+    assert not runtime.docker.resources
+
+
+def test_monitored_smoke_cannot_pass_unavailable_storage_measurement(runtime, monkeypatch):
+    runtime.config.update(storage_quota=False, storage_mode="monitored")
+    runtime.docker.operating_system = "Docker Desktop"
+    runtime.docker.size = "unavailable"
+    monkeypatch.setattr(runner.platform, "system", lambda: "Windows")
+    receipt = run(runtime)
+    assert observations(runtime)["storage"]["stop"] == "monitor_failure"
+    assert receipt["checks"]["storage_monitor"] is False
+    assert receipt["checks"]["cleanup"] is True
+    assert "storage_cap" not in receipt["checks"]
+    assert not runtime.docker.resources
+
+
+def test_monitored_smoke_cannot_pass_unconfirmed_cleanup(runtime, monkeypatch):
+    runtime.config.update(storage_quota=False, storage_mode="monitored")
+    runtime.docker.operating_system = "Docker Desktop"
+    runtime.docker.cleanup_error = True
+    monkeypatch.setattr(runner.platform, "system", lambda: "Windows")
+    receipt = run(runtime)
+    assert observations(runtime)["storage"]["stop"] == "storage_limit"
+    assert receipt["checks"]["storage_monitor"] is False
+    assert receipt["checks"]["cleanup"] is False
+
+
 def test_unexpected_resolved_empty_baseline_is_not_rewritten_to_failure(runtime):
     runtime.docker.baseline_resolves = True
     receipt = run(runtime)
@@ -483,12 +549,14 @@ def test_guard_wrapper_unavailable_cannot_satisfy_expected_credential_denial(run
     assert receipt["checks"]["cleanup"]
 
 
-def test_missing_hard_quota_blocks_smoke_before_candidate_execution(runtime):
+def test_missing_hard_quota_blocks_smoke_before_output_or_docker(runtime):
     runtime.config["storage_quota"] = False
-    receipt = run(runtime)
-    assert not receipt["checks"]["storage_cap"]
+    with pytest.raises(ValueError, match="storage"):
+        run(runtime)
     assert not runtime.docker.processes
     assert not runtime.docker.resources
+    assert not runtime.docker.calls
+    assert not runtime.output.exists()
 
 
 @pytest.mark.parametrize("payload", [b'{"quota":true,"written":100}', b'{"quota":false,"written":10200000000}'])

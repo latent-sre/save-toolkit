@@ -122,7 +122,7 @@ part of the incident, without delegating deployment or remediation authority.
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-11-12). The owner accepted [specification](fleet-evaluation/README.md)
+**Status:** `active` (2026-11-13). The owner accepted [specification](fleet-evaluation/README.md)
 revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion boundary on
 2026-10-18. By work package:
 - WP-01 complete: `evals/compare_runs.py`, merged in
@@ -214,6 +214,22 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   a size option but did not enforce it in the bounded write probe; the host is not qualified.
   Windows fixture repairs have focused passing evidence; symlink privilege, native signal
   qualification and the intermittent publication-lock diagnosis remain open in that audit.
+- The [fresh-main WP-04/08 continuation](reviews/2026-11-12-wp04-wp08-readiness.md) regenerates
+  and rehashes all five WP-04 fixtures, reproduces the pending ten-case WP-08 complex proposal,
+  and passes 590 focused checks with eight explicit host skips on `d1a2383d`. Docker 29.9.3 again
+  writes 64 MiB despite a 32 MiB quota. The owner clarified approval of WP-08's Windows Docker
+  Desktop exception: explicit monitored storage retains a 10 GiB target, accepts possible
+  overshoot/shared-storage effects and uses separate smoke/result identities. Its scaled real
+  monitor control detects the overrun and proves cleanup. The reviewed implementation passes
+  5,064 full-suite tests and 5,019 subtests, with 295 skips; full benchmark smoke remains open.
+  WP-04's ordinary fixture path has no trace-level read-boundary check; a Linux namespace or
+  equivalent Docker runtime must still demonstrate hidden-answer isolation before admission.
+  No new model/judge call, campaign spend or exact case acceptance is inferred.
+- The [PR 496 finalization repair](reviews/2026-11-12-wp04-wp08-readiness.md#pr-496-finalization-review-repair-2026-11-13)
+  closes the monitored-author billing gap on rejected traces and error exits: owned cleanup precedes
+  final usage, and unconfirmed author absence suppresses that request while retaining proxy closure,
+  unknown billing and cleanup recovery. Its final qualification is recorded in the PR follow-up;
+  the earlier implementation's full-suite counts above remain historical.
 - WP-03 remains deferred under EVAL-015. WP-06/07's SREGym and recovery work, WP-11's later
   AIOpsLab expansion and WP-14's live GCP exercises retain their delivery/acceptance requirements.
 - WP-15's [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful comparison.
@@ -230,20 +246,20 @@ acceptance tests, delivery phases and explicit open decisions.
   ROUTE-007, HANDOVER-001, WP-09 and WP-10. The owner approved USD 40 aggregate testing
   spend; exact runtime evidence, human tabletops and candidate acceptance remain distinct.
   The owner previously deferred Windows WP-04 and Docker-based WP-09 execution and now
-  requests their preparation. The measured quota failure and Windows verification gaps must
-  be resolved before execution; preparation does not accept a new host or candidate. Bounded Codex subscription
+  requests their preparation. WP-08's approved Desktop storage exception supersedes its hard-quota
+  requirement only in explicit monitored mode; other Windows verification gaps remain. Bounded Codex subscription
   runs are explicitly approved, with dollar costs remaining unknown.
   [Follow-through evidence](reviews/2026-10-25-followthrough.md) records the four-model
   smoke and five-case Linux WP-04 pilot, preserving technical failures, mapping gaps
   and unmeasured upstream/human assessments.
-- WP-08/09: resolve the observed hard-quota failure on the selected Windows Docker Desktop
-  engine, with an owner-approved host amendment if needed. Repair/qualify Windows checks and
-  review the exact implementation and complex-case/run-plan amendment. Freeze
+- WP-08: review the complex-case selection and freeze
   the accepted dataset/selection, licences, CLI, plugin and image identities using the
-  [operator commands](fleet-evaluation/wp08-operator.md). Then start the approved
-  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md)'s model-free smoke, first paid trial
-  and remaining nine Claude tasks as separate owner-started steps. Other models retain their own
-  approvals; WP-09 follows WP-08.
+  [operator commands](fleet-evaluation/wp08-operator.md), including the pinned verifier environment.
+  Qualify the approved Desktop monitored mode with the full smoke. Then start the approved
+  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md)'s first paid trial
+  and remaining nine Claude tasks as separate owner-started steps. Smoke is also owner-started.
+  Other models retain their own
+  approvals; WP-09 follows WP-08 and retains its own runtime/storage qualification.
 - WP-04/05: the bounded pass is concluded; review the
   [final repair packet](reviews/2026-11-12-wp0405-field-history-repair.md) and retain candidate HOLD. The original
   [three rounds](reviews/2026-11-12-wp0405-three-rounds.md) remain concluded and historical judgments

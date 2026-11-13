@@ -217,9 +217,16 @@ def boundary(tmp_path, monkeypatch):
     return SimpleNamespace(task_path=task_path, patch_path=patch_path, output=output, client=client, harness=harness)
 
 
-def run(boundary):
+def run(boundary, **storage_options):
     return verifier.verify(
-        boundary.task_path, boundary.patch_path, boundary.output, RUN_ID, IMAGE, engine_id=ENGINE, docker_host=ENDPOINT
+        boundary.task_path,
+        boundary.patch_path,
+        boundary.output,
+        RUN_ID,
+        IMAGE,
+        engine_id=ENGINE,
+        docker_host=ENDPOINT,
+        **storage_options,
     )
 
 
@@ -240,6 +247,80 @@ def test_command_launches_this_adapter_with_project_interpreter(tmp_path):
         IMAGE,
         "--storage-quota",
     ]
+
+
+def test_command_requires_explicit_monitored_storage_opt_in(tmp_path):
+    command = verifier.verifier_command(
+        tmp_path / "task",
+        tmp_path / "patch",
+        tmp_path / "output",
+        RUN_ID,
+        IMAGE,
+        storage_quota=False,
+        storage_mode="monitored",
+    )
+    assert command[-1] == "--monitored-storage"
+    assert "--storage-quota" not in command
+
+
+@pytest.mark.parametrize("quota,mode", [(False, "quota"), (True, "monitored"), (False, "unknown"), (0, "monitored")])
+def test_command_rejects_inconsistent_storage_policies(tmp_path, quota, mode):
+    with pytest.raises(ValueError, match="storage"):
+        verifier.verifier_command(
+            tmp_path / "task",
+            tmp_path / "patch",
+            tmp_path / "output",
+            RUN_ID,
+            IMAGE,
+            storage_quota=quota,
+            storage_mode=mode,
+        )
+
+
+def test_monitored_receipt_initializes_storage_before_verifier_setup(boundary, monkeypatch):
+    monkeypatch.setattr(verifier.metadata, "version", lambda name: "wrong-version")
+    receipt = run(boundary, storage_quota=False, storage_mode="monitored")
+    assert receipt["outcome"] == "INCONCLUSIVE"
+    assert receipt["storage_mode"] == "monitored" and receipt["storage_quota"] is False
+    assert receipt["storage"] == {
+        "mode": "monitored",
+        "target_bytes": 10_737_418_240,
+        "hard_enforced": False,
+        "observed_peak_bytes": None,
+        "samples": 0,
+        "stop": None,
+    }
+    assert not boundary.client.options
+
+
+def test_monitored_factory_omits_quota_and_keeps_verifier_limits(boundary):
+    receipt = run(boundary, storage_quota=False, storage_mode="monitored")
+    assert receipt["outcome"] == "PASS"
+    assert receipt["storage_mode"] == "monitored" and receipt["storage_quota"] is False
+    assert receipt["storage"]["hard_enforced"] is False
+    assert receipt["storage"]["observed_peak_bytes"] == 0
+    assert receipt["storage"]["samples"] > 0 and receipt["storage"]["stop"] is None
+    assert boundary.client.options == [
+        {
+            "image": IMAGE,
+            "name": CONTAINER,
+            "user": "root",
+            "detach": True,
+            "command": "tail -f /dev/null",
+            "cap_drop": ["ALL"],
+            "security_opt": ["no-new-privileges:true"],
+            "nano_cpus": 2_000_000_000,
+            "mem_limit": "2g",
+            "memswap_limit": "2g",
+            "pids_limit": 256,
+            "network_disabled": True,
+            "privileged": False,
+        }
+    ]
+    assert receipt["observed_base_commit"] == task()["base_commit"]
+    assert receipt["initial_state"]["tracked_clean"] is True and receipt["initial_state"]["index_clean"] is True
+    assert receipt["docker_engine_id"] == ENGINE
+    assert boundary.client.image_lookups == [IMAGE]
 
 
 def test_pass_receipt_binds_identity_and_factory_removes_privileges(boundary):
@@ -464,9 +545,10 @@ def test_missing_dependency_writes_inconclusive_receipt(boundary, monkeypatch):
     assert not boundary.harness.calls
 
 
-def test_actual_image_id_must_match_pinned_digest(boundary):
+@pytest.mark.parametrize("storage_options", [{}, {"storage_quota": False, "storage_mode": "monitored"}])
+def test_actual_image_id_must_match_pinned_digest(boundary, storage_options):
     boundary.client.image_id = "sha256:" + "d" * 64
-    receipt = run(boundary)
+    receipt = run(boundary, **storage_options)
     assert receipt["outcome"] == "INCONCLUSIVE"
     assert not boundary.client.options
 
@@ -499,6 +581,32 @@ def test_cli_exit_matches_written_receipt(boundary):
     assert json.loads((boundary.output / "verifier-receipt.json").read_text())["exit_status"] == 0
 
 
+def test_cli_monitored_flag_executes_without_hard_quota_flag(boundary):
+    command = verifier.verifier_command(
+        boundary.task_path,
+        boundary.patch_path,
+        boundary.output,
+        RUN_ID,
+        IMAGE,
+        storage_quota=False,
+        storage_mode="monitored",
+        engine_id=ENGINE,
+        docker_host=ENDPOINT,
+    )
+    assert verifier.main(command[2:]) == 0
+    receipt = json.loads((boundary.output / "verifier-receipt.json").read_text())
+    assert receipt["storage_mode"] == "monitored" and receipt["storage_quota"] is False
+    assert "storage_opt" not in boundary.client.options[0]
+
+
+def test_cli_refuses_conflicting_storage_flags_before_execution(boundary):
+    command = verifier.verifier_command(boundary.task_path, boundary.patch_path, boundary.output, RUN_ID, IMAGE)
+    with pytest.raises(SystemExit) as error:
+        verifier.main([*command[2:], "--monitored-storage"])
+    assert error.value.code == 2
+    assert not boundary.client.options and not boundary.output.exists()
+
+
 @pytest.mark.parametrize("outcome", ["PASS", "FAIL", "INCONCLUSIVE"])
 def test_baseline_executes_independent_tests_instead_of_empty_shortcut(boundary, outcome):
     boundary.patch_path.write_text("")
@@ -525,17 +633,19 @@ def test_baseline_executes_independent_tests_instead_of_empty_shortcut(boundary,
     assert receipt["baseline"] is True
 
 
-def test_verifier_engine_is_attested_before_container_lookup_or_creation(boundary):
+@pytest.mark.parametrize("storage_options", [{}, {"storage_quota": False, "storage_mode": "monitored"}])
+def test_verifier_engine_is_attested_before_container_lookup_or_creation(boundary, storage_options):
     boundary.client.engine_id = "wrong-engine"
-    receipt = run(boundary)
+    receipt = run(boundary, **storage_options)
     assert receipt["outcome"] == "INCONCLUSIVE"
     assert not boundary.client.options and not boundary.client.candidate_executed
 
 
 @pytest.mark.parametrize("field,value", [("head", "f" * 40), ("tracked_clean", False), ("index_clean", False)])
-def test_wrong_or_dirty_image_baseline_is_refused_before_candidate(boundary, field, value):
+@pytest.mark.parametrize("storage_options", [{}, {"storage_quota": False, "storage_mode": "monitored"}])
+def test_wrong_or_dirty_image_baseline_is_refused_before_candidate(boundary, field, value, storage_options):
     setattr(boundary.client, field, value)
-    receipt = run(boundary)
+    receipt = run(boundary, **storage_options)
     assert receipt["outcome"] == "INCONCLUSIVE"
     assert not boundary.client.candidate_executed
     assert receipt["cleanup"][0]["present"] is False
@@ -577,18 +687,52 @@ def test_verifier_storage_quota_option_reaches_factory(boundary):
     assert boundary.client.options[0]["storage_opt"] == {"size": "10G"}
 
 
-@pytest.mark.parametrize("size", [None, 10_737_418_241])
-def test_verifier_storage_or_monitor_limit_is_inconclusive_before_candidate(boundary, size):
+@pytest.mark.parametrize("size,stop", [(None, "monitor_failure"), (10_737_418_241, "storage_limit")])
+@pytest.mark.parametrize("storage_options", [{}, {"storage_quota": False, "storage_mode": "monitored"}])
+def test_verifier_storage_or_monitor_limit_is_inconclusive_before_candidate(boundary, size, stop, storage_options):
     boundary.client.size = size
-    receipt = run(boundary)
+    receipt = run(boundary, **storage_options)
     assert receipt["outcome"] == "INCONCLUSIVE"
+    assert receipt["stop"] == stop and receipt["storage"]["stop"] == stop
+    assert receipt["storage_bytes"] == size
     assert boundary.client.killed and not boundary.client.candidate_executed
     assert receipt["cleanup"][0]["present"] is False
 
 
+@pytest.mark.parametrize("cleanup_error", [False, True])
+def test_storage_stop_survives_upstream_exception_capture_and_patch_failure_marker(boundary, cleanup_error):
+    boundary.client.size = 10_737_418_241
+
+    def upstream_catches_limit(spec, prediction, client, run_id, **kwargs):
+        try:
+            boundary.harness.create_container(spec, client, run_id, SimpleNamespace(info=lambda _: None)).start()
+        except verifier.ExecutionLimit:
+            log = boundary.harness.RUN_EVALUATION_LOG_DIR / run_id / "wp08" / INSTANCE
+            log.mkdir(parents=True)
+            (log / boundary.harness.LOG_INSTANCE).write_text(">>>>> Patch Apply Failed:\n")
+            if cleanup_error:
+                raise RuntimeError("upstream cleanup failed") from None
+            return None
+        raise AssertionError("storage monitoring did not stop execution")
+
+    boundary.harness.run_instance = upstream_catches_limit
+    receipt = run(boundary, storage_quota=False, storage_mode="monitored")
+    assert (receipt["outcome"], receipt["exit_status"]) == ("INCONCLUSIVE", 2)
+    assert receipt["stop"] == "storage_limit" and receipt["storage_bytes"] == 10_737_418_241
+
+
+def test_storage_stop_reason_survives_unresolved_cleanup(boundary):
+    boundary.client.size = 10_737_418_241
+    boundary.client.remove_error = True
+    receipt = run(boundary, storage_quota=False, storage_mode="monitored")
+    assert receipt["stop"] == "storage_limit"
+    assert receipt["reason"] == "verifier execution stopped: storage_limit"
+    assert receipt["after_assessment"] == "verifier container cleanup is unresolved"
+
+
 @pytest.mark.parametrize("quota", [False, None, 1, "true"])
 def test_verifier_rejects_missing_hard_quota_before_execution(boundary, quota):
-    with pytest.raises(ValueError, match="hard storage quota"):
+    with pytest.raises(ValueError, match="storage"):
         verifier.verify(
             boundary.task_path,
             boundary.patch_path,
@@ -606,7 +750,7 @@ def test_verifier_rejects_missing_hard_quota_before_execution(boundary, quota):
 
 @pytest.mark.parametrize("quota", [False, None, 1, "true"])
 def test_factory_cannot_bypass_hard_quota(boundary, quota):
-    with pytest.raises(ValueError, match="hard storage quota"):
+    with pytest.raises(ValueError, match="storage"):
         verifier._container_factory(IMAGE, "root", task()["base_commit"], {}, storage_quota=quota)
     assert boundary.client.options == []
 

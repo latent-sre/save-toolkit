@@ -85,6 +85,8 @@ class FakeDocker:
         self.relay_id = "sha256:" + "e" * 64
         self.endpoint = "unix:///var/run/docker.sock"
         self.engine_os = "linux"
+        self.operating_system = "Offline Fixture"
+        self.driver_status = [["driver-type", "io.containerd.snapshotter.v1"]]
         self.pinned = None
 
     def pin(self, endpoint):
@@ -111,9 +113,10 @@ class FakeDocker:
                     "ID": self.engine_id,
                     "ServerVersion": "28.5",
                     "OSType": self.engine_os,
-                    "OperatingSystem": "Offline Fixture",
+                    "OperatingSystem": self.operating_system,
                     "KernelVersion": "6.0",
                     "Driver": "overlay2",
+                    "DriverStatus": self.driver_status,
                 }
             ).encode()
         elif args[:2] == ["context", "inspect"]:
@@ -348,6 +351,17 @@ def _setup(tmp_path, monkeypatch):
             "docker_endpoint": docker.endpoint,
             "interrupted": False,
             "storage_quota": "--storage-quota" in args,
+            "storage_mode": "monitored" if "--monitored-storage" in args else "quota",
+            "storage": {
+                "mode": "monitored" if "--monitored-storage" in args else "quota",
+                "target_bytes": 10_737_418_240,
+                "hard_enforced": "--storage-quota" in args,
+                "observed_peak_bytes": 0,
+                "samples": 1,
+                "stop": None,
+            },
+            "stop": None,
+            "storage_bytes": None,
             "baseline": "--baseline" in args,
             "patch_sha256": hashlib.sha256(patch).hexdigest(),
             "swebench_version": "5.0.2",
@@ -397,6 +411,198 @@ def trial(setup):
 
 def folder(setup):
     return setup.output / f"eval-{setup.rows[0]['instance_id']}" / "claude/run-1"
+
+
+def monitored(setup, monkeypatch):
+    setup.config.update(storage_mode="monitored", storage_quota=False)
+    setup.docker.operating_system = "Docker Desktop"
+    monkeypatch.setattr(runner.platform, "system", lambda: "Windows")
+    setup.smoke["binding"] = runner.runtime_binding(setup.config, setup.manifest, setup.docker)
+    setup.smoke["checks"].pop("storage_cap")
+    setup.smoke["checks"]["storage_monitor"] = True
+
+
+@pytest.mark.parametrize("host,engine", [("Linux", "Docker Desktop"), ("Windows", "Ubuntu")])
+def test_monitored_exception_is_scoped_to_windows_desktop(setup, monkeypatch, host, engine):
+    setup.config.update(storage_mode="monitored", storage_quota=False)
+    setup.docker.operating_system = engine
+    monkeypatch.setattr(runner.platform, "system", lambda: host)
+    with pytest.raises(ValueError, match="Docker Desktop"):
+        trial(setup)
+    assert not FakeProxy.instances
+
+
+def test_storage_backend_identity_change_invalidates_smoke(setup):
+    setup.docker.driver_status = [["driver-type", "another-snapshotter"]]
+    with pytest.raises(ValueError, match="smoke binding"):
+        trial(setup)
+    assert not FakeProxy.instances
+
+
+def test_monitored_trial_retains_separate_profile_and_storage_observations(setup, monkeypatch):
+    monitored(setup, monkeypatch)
+    result = trial(setup)
+    assert result["status"] == "PASS"
+    record = json.loads((folder(setup) / "record.json").read_text())
+    assert record["conditions"]["execution_profile"]["name"].endswith("-monitored-storage")
+    assert record["evidence"]["storage"] == "storage.json"
+    observations = json.loads((folder(setup) / "storage.json").read_text())
+    assert observations and all(row["hard_enforced"] is False for row in observations.values())
+    assert all(row["samples"] > 0 for row in observations.values())
+    starts = [args for args, _ in setup.docker.calls if args[:2] == ["run", "-d"]]
+    assert all("--storage-opt" not in args for args in starts)
+    assert not setup.docker.resources
+
+
+def test_monitored_over_target_keeps_measurement_and_inconclusive_result(setup, monkeypatch):
+    monitored(setup, monkeypatch)
+    setup.docker.size = 10_737_418_241
+    result = trial(setup)
+    assert result["status"] == "INCONCLUSIVE" and result["cleanup_ok"]
+    observations = json.loads((folder(setup) / "storage.json").read_text())
+    assert any(row["stop"] == "storage_limit" and row["observed_peak_bytes"] > row["target_bytes"]
+               for row in observations.values())
+    assert not setup.docker.resources
+
+
+def test_monitored_author_is_removed_before_independent_verification(setup, monkeypatch):
+    monitored(setup, monkeypatch)
+    original = runner.run_bounded
+    seen = []
+
+    def verifier_process(args, **kwargs):
+        seen.append(True)
+        assert not any(kind == "container" and name.endswith("-agent")
+                       for kind, name in setup.docker.resources)
+        return original(args, **kwargs)
+
+    monkeypatch.setattr(runner, "run_bounded", verifier_process)
+    result = trial(setup)
+    assert seen and result["status"] == "PASS"
+    rows = json.loads((folder(setup) / "cleanup.json").read_text())
+    author = [row for row in rows if row["name"].endswith("-agent")]
+    assert len(author) == 1 and author[0]["present"] is False and author[0]["removed"] is True
+
+
+def test_monitored_author_removal_failure_stops_before_verification(setup, monkeypatch):
+    monitored(setup, monkeypatch)
+    setup.docker.cleanup_error = True
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("verification must not start while author container still exists")
+
+    monkeypatch.setattr(runner, "run_bounded", unexpected)
+    result = trial(setup)
+    assert result["status"] == "INCONCLUSIVE" and not result["cleanup_ok"]
+    assert (setup.output / "pending-cleanup.json").is_file()
+
+
+def test_monitored_author_final_cleanup_supersedes_failed_first_removal(setup, monkeypatch):
+    monitored(setup, monkeypatch)
+    original = setup.docker.call
+    failed = []
+
+    def transient(args, **kwargs):
+        if args[:2] == ["rm", "--force"] and args[-1].endswith("-agent") and not failed:
+            failed.append(True)
+            return subprocess.CompletedProcess(args, 1, b"", b"transient removal failure")
+        return original(args, **kwargs)
+
+    monkeypatch.setattr(setup.docker, "call", transient)
+    result = trial(setup)
+    assert failed and result["status"] == "INCONCLUSIVE"
+    assert result["cleanup_ok"] and not setup.docker.resources
+    assert not (setup.output / "pending-cleanup.json").exists()
+
+
+@pytest.mark.parametrize("failure", ["identity", "incomplete_trace", "patch_screening", "stream_screening", "setup"])
+def test_monitored_failure_retires_author_before_final_usage(setup, monkeypatch, failure):
+    monitored(setup, monkeypatch)
+    if failure == "identity":
+        setup.docker.trace = trace(model="wrong-model")
+    elif failure == "incomplete_trace":
+        setup.docker.trace = trace() + b"null\n"
+    elif failure == "patch_screening":
+        setup.docker.patch = KEY.encode()
+    elif failure == "stream_screening":
+        setup.docker.trace = KEY.encode()
+    else:
+        setup.docker.setup_error = True
+    usage = FakeProxy.usage
+    remaining_at_final_usage = []
+
+    def observe_usage(self):
+        if self.reads:
+            remaining_at_final_usage.append(set(setup.docker.resources))
+        return usage(self)
+
+    monkeypatch.setattr(FakeProxy, "usage", observe_usage)
+    result = trial(setup)
+    assert result["status"] == "INCONCLUSIVE"
+    assert result["cleanup_ok"] and result["billing_known"]
+    assert len(remaining_at_final_usage) == 1
+    assert not any(kind == "container" and name.endswith("-agent")
+                   for kind, name in remaining_at_final_usage[0])
+    assert FakeProxy.instances[0].closed
+    if failure == "identity":
+        assert result["identity_mismatch"]
+    elif failure == "incomplete_trace":
+        assert result["reason"] == "agent trace is incomplete or malformed"
+    elif failure == "patch_screening":
+        assert not (folder(setup) / "candidate.patch").exists()
+
+
+@pytest.mark.parametrize("absence", ["present", "unknown"])
+def test_monitored_unresolved_author_skips_final_usage_but_closes_proxy(setup, monkeypatch, absence):
+    monitored(setup, monkeypatch)
+    setup.docker.trace = trace(model="wrong-model")
+    if absence == "present":
+        setup.docker.cleanup_error = True
+    else:
+        execute = runner.DockerResources.execute
+
+        def late_unknown(self, *args, **kwargs):
+            result = execute(self, *args, **kwargs)
+            setup.docker.unknown_inspect = True
+            return result
+
+        monkeypatch.setattr(runner.DockerResources, "execute", late_unknown)
+    result = trial(setup)
+    assert result["status"] == "INCONCLUSIVE" and not result["cleanup_ok"]
+    assert not result["billing_known"] and result["measured_usd"] is None
+    assert FakeProxy.instances[0].reads == 1 and FakeProxy.instances[0].closed
+    billing = json.loads((folder(setup) / "billing.json").read_text())
+    assert billing["after"] is None and billing["complete"] is False
+    pending = json.loads((setup.output / "pending-cleanup.json").read_text())
+    assert any(row["name"].endswith("-agent") and row["present"] is not False for row in pending)
+
+
+@pytest.mark.parametrize("stop", ["storage_limit", "monitor_failure"])
+@pytest.mark.parametrize("baseline_observed", [True, False])
+def test_parent_preserves_verifier_storage_stop(setup, monkeypatch, stop, baseline_observed):
+    original = runner.run_bounded
+
+    def stopped(args, **kwargs):
+        result = original(args, **kwargs)
+        output = Path(args[args.index("--output") + 1])
+        receipt = json.loads((output / "verifier-receipt.json").read_text())
+        receipt.update(stop=stop, storage_bytes=10_737_418_241, outcome="INCONCLUSIVE", exit_status=2)
+        receipt["storage"].update(stop=stop, observed_peak_bytes=10_737_418_241)
+        if not baseline_observed:
+            receipt.pop("observed_base_commit")
+            receipt["initial_state"] = {"head": None}
+        dump(output / "verifier-receipt.json", receipt)
+        result.returncode = 2
+        return result
+
+    monkeypatch.setattr(runner, "run_bounded", stopped)
+    result = runner.verify_patch(
+        setup.rows[0], PATCH, setup.tmp / "stopped", "stopped-run", IMAGE, setup.docker,
+        storage_quota=False, storage_mode="monitored",
+    )
+    assert result["outcome"] == "INCONCLUSIVE"
+    assert result["stop"] == stop and result["host_stop"] is None
+    assert result["storage"]["observed_peak_bytes"] == 10_737_418_241
 
 
 def test_agent_environment_and_command_never_inherit_host_credentials(setup, monkeypatch):
@@ -573,15 +779,11 @@ def test_setup_failure_keeps_record_billing_and_cleanup(setup):
     assert not setup.docker.resources and FakeProxy.instances[0].closed
 
 
-def test_missing_hard_quota_is_inconclusive_and_retains_cleanup(setup):
+def test_missing_hard_quota_requires_explicit_mode_before_credentials(setup):
     setup.config["storage_quota"] = False
-    setup.smoke["binding"] = runner.runtime_binding(setup.config, setup.manifest, setup.docker)
-    setup.docker.running = True
-    setup.docker.size = 10_737_418_241
-    result = trial(setup)
-    assert result["status"] == "INCONCLUSIVE"
-    assert result["cleanup_ok"]
-    assert not setup.docker.resources
+    with pytest.raises(ValueError):
+        trial(setup)
+    assert not FakeProxy.instances
 
 
 def test_wall_clock_stop_is_inconclusive_and_retains_cleanup(setup, monkeypatch):
@@ -623,7 +825,10 @@ def test_trial_refuses_overwrite(setup):
     assert len(FakeProxy.instances) == 1
 
 
-def test_batch_requires_first_trial_then_runs_remaining_nine_serially(setup):
+@pytest.mark.parametrize("storage_mode", ["quota", "monitored"])
+def test_batch_requires_first_trial_then_runs_remaining_nine_serially(setup, monkeypatch, storage_mode):
+    if storage_mode == "monitored":
+        monitored(setup, monkeypatch)
     with pytest.raises(ValueError, match="first"):
         runner.run_batch(setup.config, setup.manifest, setup.rows, setup.output, setup.key_file, setup.smoke)
     trial(setup)
@@ -631,6 +836,31 @@ def test_batch_requires_first_trial_then_runs_remaining_nine_serially(setup):
     assert len(results) == 10
     assert [r["instance_id"] for r in results] == [r["instance_id"] for r in setup.manifest["tasks"]]
     assert all(proxy.closed for proxy in FakeProxy.instances)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("samples", 0), ("samples", True), ("observed_peak_bytes", None),
+    ("observed_peak_bytes", True), ("hard_enforced", True), ("target_bytes", 1),
+    ("stop", "storage_limit"),
+])
+def test_monitored_verifier_cannot_assess_without_valid_measurement(setup, monkeypatch, field, value):
+    original = runner.run_bounded
+
+    def corrupt(args, **kwargs):
+        result = original(args, **kwargs)
+        output = Path(args[args.index("--output") + 1])
+        receipt = json.loads((output / "verifier-receipt.json").read_text())
+        receipt["storage"][field] = value
+        dump(output / "verifier-receipt.json", receipt)
+        return result
+
+    monkeypatch.setattr(runner, "run_bounded", corrupt)
+    result = runner.verify_patch(
+        setup.rows[0], PATCH, setup.tmp / "corrupt-storage", "corrupt-storage-run", IMAGE, setup.docker,
+        storage_quota=False, storage_mode="monitored",
+    )
+    assert result["outcome"] == "INCONCLUSIVE"
+    assert result["cleanup"][0]["present"] is False
 
 
 def test_batch_stops_after_three_consecutive_environment_failures(setup):
@@ -692,6 +922,7 @@ def test_verify_patch_forwards_baseline_and_retains_actual_resolved_result(setup
         ("report_path", "../old-report.json"),
         ("evaluated_at", "2020-01-01T00:00:00+00:00"),
         ("baseline", True),
+        ("storage_mode", "monitored"),
         ("cleanup", []),
     ],
 )

@@ -9,6 +9,7 @@ import sys
 import time
 
 import pytest
+from swebench_adapter.limits import STORAGE_LIMIT
 from swebench_adapter.smoke import _STORAGE_PROBE, assess_smoke, cpu_probe
 
 
@@ -139,3 +140,63 @@ def test_watchdog_detection_does_not_establish_hard_containment():
     observed = evidence()
     observed["storage"] = {"stop": "storage_limit", "quota_rejected": False}
     assert not assess_smoke(observed, [{"present": False}])["storage_cap"]
+
+
+def monitored_evidence():
+    observed = evidence()
+    observed["storage"] = {
+        "mode": "monitored",
+        "target_bytes": STORAGE_LIMIT,
+        "hard_enforced": False,
+        "quota_rejected": False,
+        "samples": 2,
+        "observed_peak_bytes": STORAGE_LIMIT + 1,
+        "stop": "storage_limit",
+    }
+    return observed
+
+
+def test_monitored_smoke_accepts_observed_stop_and_omits_hard_quota_check():
+    checks = assess_smoke(monitored_evidence(), [{"present": False}], storage_mode="monitored")
+    assert set(checks) == {
+        "reference_resolves", "empty_rejected", "guard_allow", "guard_deny", "no_cr",
+        "history_pruned", "egress", "cpu_cap", "storage_monitor", "cleanup",
+    }
+    assert all(checks.values())
+
+
+def test_explicit_quota_smoke_preserves_the_default_check_contract():
+    checks = assess_smoke(evidence(), [{"present": False}], storage_mode="quota")
+    assert checks == assess_smoke(evidence(), [{"present": False}])
+    assert "storage_cap" in checks and "storage_monitor" not in checks
+
+
+@pytest.mark.parametrize("storage_mode", [None, False, 1, "", "unknown", [], {}])
+def test_smoke_rejects_unknown_or_malformed_storage_mode(storage_mode):
+    with pytest.raises(ValueError, match="storage"):
+        assess_smoke(evidence(), [{"present": False}], storage_mode=storage_mode)
+
+
+@pytest.mark.parametrize("field,value", [
+    ("mode", "quota"), ("mode", None),
+    ("target_bytes", STORAGE_LIMIT - 1), ("target_bytes", STORAGE_LIMIT + 1),
+    ("hard_enforced", True), ("hard_enforced", None), ("hard_enforced", 0),
+    ("quota_rejected", True), ("quota_rejected", None), ("quota_rejected", 0),
+    ("samples", 0), ("samples", -1), ("samples", True), ("samples", 1.0),
+    ("observed_peak_bytes", STORAGE_LIMIT), ("observed_peak_bytes", None),
+    ("observed_peak_bytes", True), ("observed_peak_bytes", float(STORAGE_LIMIT + 1)),
+    ("stop", None), ("stop", "timeout"),
+])
+def test_monitored_smoke_requires_complete_literal_storage_evidence(field, value):
+    observed = monitored_evidence()
+    observed["storage"][field] = value
+    assert assess_smoke(observed, [{"present": False}], storage_mode="monitored")["storage_monitor"] is False
+
+
+@pytest.mark.parametrize("cleanup", [[], [{"present": True}], [{"present": None}]])
+def test_monitored_storage_proof_requires_observed_cleanup(cleanup):
+    assert assess_smoke(monitored_evidence(), cleanup, storage_mode="monitored")["storage_monitor"] is False
+
+
+def test_quota_rejection_alone_cannot_pass_monitored_storage_smoke():
+    assert assess_smoke(evidence(), [{"present": False}], storage_mode="monitored")["storage_monitor"] is False
