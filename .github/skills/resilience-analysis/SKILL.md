@@ -35,11 +35,8 @@ the convenient one. Source-only work can establish a conditional risk, not curre
 3. Trace **trigger -> component behavior -> propagation -> user effect -> protection -> recovery**.
    Record the existing controls and seek counter-evidence: overall deadlines, cancellation,
    admission limits, replay/deduplication, failover capacity, or a deliberately accepted degraded mode.
-   For retrying code, explain which returns reach another call and which exceptions exit or are
-   handled. Count total calls separately from retries. Distinguish requested timeouts from enforced
-   durations; check backoff and cancellation before claiming a time or slot-occupancy bound.
-   A timeout sum alone proves neither bound.
-   If client behavior is unknown, give the conditional paths instead of assuming a timeout retries.
+   For retrying code, trace which returns or handled exceptions reach another call and which
+   exceptions exit. Count total calls separately from retries; carry these paths into the assessment.
 4. Choose the smallest observation or controlled experiment that distinguishes the remaining
    explanations. An inaccessible source or failed query leaves a gap. Do not claim an alternative
    ruled out because it was not observed, nor trigger a production fault to demonstrate a risk.
@@ -87,9 +84,32 @@ the mechanism it changes, compatibility, degraded behavior, operational burden, 
 acceptance criteria. Return consequential shared-contract decisions for `principal-engineer`. Implementation,
 independent change review and live execution retain their existing owners.
 
-For calculations, show units, measured versus assumed inputs, the equation, uncertainty and validity
-conditions. Account for shared demand and failure capacity. Use existing permitted calculators when
-available; no tool capability may be invented. A model estimate is not measured load-test evidence.
+Include these elements within the caller's permitted sections or fields when their condition applies:
+
+- For a retrying path, **Retry paths:** the condition for another call and the exit paths.
+  When client behavior is unknown, explain conditionally: a false return may permit another call
+  if the retry condition and budget allow;
+  an uncaught exception exits the path; a caught exception depends on its handler. Which behavior a
+  timeout produces stays unknown until source or observations establish it.
+- For retry timing, **Retry-count basis:** the source wording and whether it establishes maximum
+  total calls or retries after the initial call. If that meaning is unresolved, state each compatible
+  total-call count as an interpretation; do not label one selected count as sourced. Keep these
+  alternatives beside every derived sum and later reuse until code or target-bound evidence resolves them.
+- For a numeric timing or capacity claim, **Timing and capacity basis:** the equation and units,
+  with measured and assumed inputs separated. For retry timing, use the retry-count basis, requested versus
+  enforced timeout, backoff, cancellation and slot release.
+  A timeout sum alone bounds neither elapsed time nor occupancy. A throughput estimate from slots
+  needs actual or explicitly hypothetical mean slot residence and capacity after shared demand;
+  a maximum duration alone supplies neither a mean nor a throughput ceiling.
+
+Carry the conditions beside every reused number in recommendations, tables and proposed checks.
+An earlier caveat does not turn conditional arithmetic into a worst case or capacity limit later.
+When supplied evidence already establishes an overall deadline, preserve that scope and examine
+enforcement or release gaps rather than reopening per-attempt scope.
+Reconcile a helper's calculation with its source before endorsing the summary: source-reported
+inputs are sourced; the derived number and its assumptions remain a separate calculation.
+Use existing permitted calculators when available; no tool capability may be invented. A model
+estimate is not measured load-test evidence.
 A concurrency limit protects shared capacity only if admission or waiting does not retain the
 slots being reserved.
 

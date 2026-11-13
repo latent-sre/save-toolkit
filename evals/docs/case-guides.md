@@ -20,7 +20,7 @@ requires manual review of its evidence synthesis and corrected follow-up. The ro
 probe lifecycle, causal diagnosis, small arithmetic, a full toil assessment and accepted
 implementation separately. Offline checks calibrate fixtures and graders; they do not run a model,
 prove host containment, or establish operational benefit. The 2026-10-08 two-trial native
-comparison left the lane unaccepted. See [RELIABILITY-001](../../docs/fleet-roadmap.md#reliability-001--measure-the-timing-repair-on-claude-then-decide-on-the-reliability-lane)
+comparison left the lane unaccepted. See [RELIABILITY-001](../../docs/fleet-roadmap.md#reliability-001--preserve-retry-count-uncertainty-and-qualify-the-native-assessment)
 for the current status, landed timing repair, bounded comparison, and human run-approval and
 acceptance requirements; this guide does not duplicate its live status.
 

@@ -415,27 +415,41 @@ the commit message of `5c5aa742` records the original scenarios as owed.
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.
 
-### RELIABILITY-001 — measure the timing repair on Claude, then decide on the reliability lane
+### RELIABILITY-001 — preserve retry-count uncertainty and qualify the native assessment
 
-**Status:** `active` (2026-11-13); the approved matched native comparison completed.
-[verified] Candidate `1cec1d9b` and timing-only control `dbc5b25d` each completed one
-`claude-sonnet-5-5` native helper-and-resume trial, with 3/3 structural checks and
-USD 0.622769 total reported cost. [sourced: independent blind review] Both samples FAIL:
-timing assumptions are lost when reused, and conditional false-return/exception reasoning is
-omitted; the candidate also accepts helper-derived arithmetic labelled sourced. Full-suite
-qualification remains FAIL: ten Windows encoding/newline fixture failures also reproduce on pristine main;
-all 38 native-conversation checks pass. Independent review found no failing path used by this
-specific comparison; the evidence is bounded and does not establish general readiness.
+**Status:** `active` (2026-11-13); the latest approved one-candidate repair/comparison is
+complete, with semantic failures remaining. [verified] The revised skill requires an explicit
+retry-count basis and demonstrates both count interpretations. A common prompt tells each
+helper its task permits only Read; that context change applies equally to both arms.
+All **ten trials**, five per arm, completed with 3/3 structural checks, twenty CLI invocations,
+complete costs and workspace cleanup. No native tool-boundary stop or retry occurred.
+[sourced: two independent blind reviews] Candidate `3c296315` passes **2/5 complete trials**;
+preceding-repair baseline `6db50f2e` passes **1/5**. These identify plugin SHA-256 prefixes,
+not commits; both sources are bound to base `ff651f94` with dirty plugin inputs. All ten
+samples preserve Read-only helper work, owner/caller, read provenance and conditional
+return/exception reasoning. Revised failures still promote conditional sums into bounds,
+infer a two-attempt ceiling from a maximum duration, or lose assumptions when reusing numbers.
+One revised sample also fails supplied-control coverage. The candidate remains unaccepted;
+five pairs on one regression case do not establish a reliability rate or causal benefit.
+[verified] This loop reports USD **3.131151**; combined spend under the newer USD 20 approval
+is **4.460681**, leaving **15.539319**. The earlier stopped loop and original comparison keep
+their raw failures and missing slots. Focused checks pass 92 tests and 328 subtests; independent
+source/operator review has no remaining material launch blocker. The exact-candidate heavy run
+remains FAIL: **11 failed, 5,289 passed, 295 skipped, 5,077 passing subtests**. Its ten known
+Windows fixture failures remain, plus an unresolved local proxy-test socket abort. That exact
+proxy parameter passed once in a focused check; independent review finds its proxy path outside
+the selected native profile. All 38 native-conversation tests pass. This does not establish
+general readiness or repair the separate full-suite failures.
 **Owner:** The human owner remains the only exact-candidate acceptor; a maintainer session owns
 the evidence and any separately scoped follow-up.
-**Outcome:** The matched comparison establishes whether this sample preserves timing assumptions
-and conditional false-return versus exception behavior through a real helper exchange. The owner
-then accepts the exact candidate, scopes a further repair, or keeps the lane shipped and unaccepted.
-**Next action:** The owner reviews the [comparison packet](reviews/2026-11-13-reliability-native-comparison.md)
-and scopes a narrow branch/timing/provenance repair or retains the lane shipped and unaccepted.
-Both approved slots are consumed; no retry, additional trial or paid judge is scheduled.
-One sample per arm cannot establish a reliability rate. Separate Windows fixture failures remain
-open for any conclusion requiring a green suite.
+**Outcome:** Preserve timing and retry-count assumptions plus conditional return/exception
+behavior through a real helper exchange, then let the human accept the exact candidate or
+retain the lane shipped and unaccepted.
+**Next action:** Review the [latest numerical-reasoning failures and exact candidate](reviews/2026-11-13-reliability-native-comparison.md#retry-count-repair-verification)
+and scope any further repair around justified bounds, attempt-duration assumptions and supplied
+control coverage. Preserve the current denied-tool policy and every historical grade. No extra
+candidate, trial or tuning is scheduled by the unused allowance. Separate Windows fixture and
+proxy-abort failures remain open for any conclusion requiring a green suite.
 **Evidence:** [Current matched comparison](reviews/2026-11-13-reliability-native-comparison.md);
 [historical native failures and instrument repair](reviews/2026-09-30-backlog-four/reliability.md),
 the [Luna closeout](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout),
