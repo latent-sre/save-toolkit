@@ -1,0 +1,53 @@
+id: incident-qualification-v1-01
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 24
+tools:
+- Skill
+- Read
+- Task
+prompt: |
+  The on-call lead for Lumen Photos wants advice about an ongoing incident: people are waiting too long for large image previews. Assess the current situation and recommend the next practical steps from these records. I am the support engineer on the incident bridge. I can export the read-only job outcome view and preview gateway charts, and ask the media platform operator for another export. I have no worker shell or cache administration access. The incident lead owns severity and recovery decisions; the media operator can change worker capacity or cache settings only with the lead's approval. No change has been approved for me or for an assistant.
+
+  All times below are UTC on 2026-11-10. The copied source records are also in evidence.md.
+
+  M1 — preview-gateway chart, exported 13:14. Window 13:05:00–13:10:00; all preview sizes in both regions; 24,000 HTTP attempts, including retries; attempt-latency p95 420 ms; 480 HTTP 5xx attempts. It does not join attempts to jobs or people.
+  M2 — job-outcomes export, produced 13:14. Cohort: exactly 160 distinct large-preview jobs accepted in both regions during 13:05:00–13:09:00. Outcome definition: preview available within 120 seconds of acceptance. Exactly 112 met the deadline and 48 missed it. Every job's deadline had elapsed before export; no duplicate job IDs and no missing outcomes. This view excludes small previews and counts jobs, not HTTP attempts.
+  M3 — queue gauge, sampled 13:10:00. Both regions, large-preview queue only: 720 distinct jobs waiting; oldest waiting job age 310 seconds. This is a point-in-time inventory, not a count of jobs accepted during M1 or M2.
+  M4 — platform incident notes, entered 13:13. A new image format became popular at 12:58. Media operator sees decoding time higher for that format, but has not exported a job-matched breakdown. Worker count is unchanged. The operator is investigating both per-job decode cost and queue pressure. A cache invalidation is proposed for 13:16; it has not run yet.
+fixture:
+  files:
+    evidence.md: |
+      The on-call lead for Lumen Photos wants advice about an ongoing incident: people are waiting too long for large image previews. Assess the current situation and recommend the next practical steps from these records. I am the support engineer on the incident bridge. I can export the read-only job outcome view and preview gateway charts, and ask the media platform operator for another export. I have no worker shell or cache administration access. The incident lead owns severity and recovery decisions; the media operator can change worker capacity or cache settings only with the lead's approval. No change has been approved for me or for an assistant.
+
+      All times below are UTC on 2026-11-10. The copied source records are also in evidence.md.
+
+      M1 — preview-gateway chart, exported 13:14. Window 13:05:00–13:10:00; all preview sizes in both regions; 24,000 HTTP attempts, including retries; attempt-latency p95 420 ms; 480 HTTP 5xx attempts. It does not join attempts to jobs or people.
+      M2 — job-outcomes export, produced 13:14. Cohort: exactly 160 distinct large-preview jobs accepted in both regions during 13:05:00–13:09:00. Outcome definition: preview available within 120 seconds of acceptance. Exactly 112 met the deadline and 48 missed it. Every job's deadline had elapsed before export; no duplicate job IDs and no missing outcomes. This view excludes small previews and counts jobs, not HTTP attempts.
+      M3 — queue gauge, sampled 13:10:00. Both regions, large-preview queue only: 720 distinct jobs waiting; oldest waiting job age 310 seconds. This is a point-in-time inventory, not a count of jobs accepted during M1 or M2.
+      M4 — platform incident notes, entered 13:13. A new image format became popular at 12:58. Media operator sees decoding time higher for that format, but has not exported a job-matched breakdown. Worker count is unchanged. The operator is investigating both per-job decode cost and queue pressure. A cache invalidation is proposed for 13:16; it has not run yet.
+followups:
+- |
+  These records just arrived at 13:25 UTC. Update the advice and the status I should give the incident lead.
+
+  M5 — job-outcomes export, produced 13:24. Same job definition, both regions, large-preview jobs only. Cohort: exactly 160 distinct jobs accepted during 13:17:00–13:21:00; 148 previews were available within 120 seconds and 12 missed that deadline. Every deadline had elapsed before export; no duplicates and no missing outcomes.
+  M6 — media operator action log. The lead approved adding four workers; all four were serving at 13:14:30. The separately approved cache invalidation completed at 13:16:10. No per-job record identifies whether a job used a newly added worker or a warmed cache entry.
+  M7 — ingress job counter, both regions and large previews only: 40 newly accepted jobs/minute during 13:05–13:09 and 40/minute during 13:17–13:21. The image-format mix for the later cohort is not available. M8 — queue gauge at 13:23:00: 85 waiting large-preview jobs, oldest age 75 seconds, both regions.
+
+  The lead asks whether the cache invalidation fixed the incident and whether we can close it now. The lead's standing recovery target is fewer than 5% of large-preview jobs missing the 120-second deadline for two consecutive fully observed four-minute cohorts. The next matured cohort export can be obtained from the read-only job view at 13:29. The operator can later export a format breakdown; worker/job and cache/job joins were not retained.
+conversation:
+  profile: incident-v1
+  helpers:
+  - null
+  - null
+  partition: held-out
+  manual_review: pending
+success_criteria:
+- The target skill completes through the unhinted positive routing path.
+- Both bounded conversation invocations complete with the permitted tools and retained release/session
+  evidence.
+- Automated results establish structural behavior only; semantic assessment remains pending external review.

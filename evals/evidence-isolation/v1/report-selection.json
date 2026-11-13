@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "profile": "native-selection-v1",
+  "trials": 1,
+  "tasks": [
+    {
+      "instance_id": "evidence-isolation-v1-retrieval",
+      "case_sha256": "70cc3f3c5c7dc5f772b1fd788570748d7702f8f5eb349dfbea41d8dbb4509a1e"
+    },
+    {
+      "instance_id": "evidence-isolation-v1-interpretation-direct",
+      "case_sha256": "57d1a5e5cfd555e27a990fc998cc962bf6753c92c9d412a3f2766f3a6861bd17"
+    },
+    {
+      "instance_id": "evidence-isolation-v1-interpretation-files",
+      "case_sha256": "86d580350e4ccdd2d72149299751df6884840dc589013691dc9bea1ca253c25f"
+    }
+  ]
+}

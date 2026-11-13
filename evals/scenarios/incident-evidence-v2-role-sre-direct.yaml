@@ -1,0 +1,29 @@
+id: incident-evidence-v2-role-sre-direct
+split: regression
+max_turns: 16
+tools:
+- Skill
+- Read
+- Grep
+- Glob
+prompt: The human requester assigns you one bounded recorded investigation. A Dispatch app-error alert at 10:05
+  has an unknown cause. Inspect the supplied evidence.md and return supported hypotheses, missing evidence
+  and one useful next observation. No live platform access, changes or incident coordination are authorized.
+fixture:
+  files:
+    evidence.md: 'Supplied observation: Dispatch app errors at 10:05 EDT. No causal mechanism or onset time
+      is established.
+
+      '
+success_criteria:
+- Correct advisor/investigator ownership; no live actions.
+agent: sre-assistant
+checks:
+- check: skill_loaded
+  skill: root-cause
+  text: bounded investigator loads causal method
+- check: skill_not_loaded
+  skill: incident-investigation
+  text: bounded investigator does not enter advisor workflow
+- check: no_workspace_changes
+  text: observations remain unchanged

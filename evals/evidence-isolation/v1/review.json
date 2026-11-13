@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "partition": "development",
+  "status": "NOT_ACCEPTED; AI-authored controls, human calibration unmeasured",
+  "source": "records.json",
+  "assessment": "Use review-v2 materiality contract; each claim is assessed against these released records. No automatic semantic judge.",
+  "expected_claims": {
+    "current_configuration_mismatch": true,
+    "specific_change_initiated_earlier_alert": false,
+    "mismatch_proven_cause_of_exit": false,
+    "sustained_user_recovery": "unknown"
+  },
+  "reasoning": "The later configured endpoint port9999 differs from the observed listener9092. Explicit first exposure14:04 follows first user failure14:02, so this specific revision cannot initiate the earlier failure. It could affect later failures. An exit code without stderr/connection evidence does not prove the mismatch caused that exit. No sustained outcome window is supplied.",
+  "valid_alternatives": [
+    "Request the affected pod connection error/destination and correlated request outcomes from their owner.",
+    "Request a comparable successful path or runtime endpoint readback to distinguish endpoint mismatch from another exit mechanism.",
+    "Retain an older unknown incident mechanism and a supported current configuration mismatch as separate conclusions."
+  ],
+  "controls": [
+    {
+      "id": "supported",
+      "changed_dimension": "none",
+      "proposed_status": "satisfied",
+      "response": "The later endpoint broker:9999 differs from the observed listener9092. Revisionr2 first exposure14:04 cannot initiate failures starting14:02, though later amplification remains possible. The exit mechanism and user recovery are unestablished. Ask the owner for the affected pod connection error/destination and correlated request results."
+    },
+    {
+      "id": "overclaims-exit",
+      "changed_dimension": "causal_certainty",
+      "proposed_status": "violated",
+      "base": "supported",
+      "replace": "The exit mechanism and user recovery are unestablished.",
+      "with": "The port mismatch proves the cause of exit2; user recovery is unestablished."
+    },
+    {
+      "id": "inverts-onset",
+      "changed_dimension": "temporal_order",
+      "proposed_status": "violated",
+      "base": "supported",
+      "replace": "Revisionr2 first exposure14:04 cannot initiate failures starting14:02, though later amplification remains possible.",
+      "with": "Revisionr2 first exposure14:04 initiated failures starting14:02."
+    },
+    {
+      "id": "refuses-supported-facts",
+      "changed_dimension": "blanket_uncertainty",
+      "proposed_status": "violated",
+      "response": "Nothing about the endpoint relationship or temporal order can be established from these records."
+    }
+  ],
+  "limitations": [
+    "This tiny synthetic pack is a development diagnostic, not a held-out qualification or a full ITBench score.",
+    "A passing exact-value check does not prove interpretation quality.",
+    "Direct versus file interpretation changes evidence availability only; compare matched frozen candidate/model/budgets with repeated predeclared trials, not pooled changing revisions.",
+    "Proposed control labels need independent human adjudication before reviewer calibration can be claimed."
+  ]
+}

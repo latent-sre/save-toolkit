@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "profile": "native-selection-v1",
+  "trials": 1,
+  "tasks": [
+    {
+      "instance_id": "incident-evidence-v2-measurement-waiters",
+      "case_sha256": "657057ccb24d3cb6c2233c69d2b69a558b5480c4528f33ffe1f085892816ba8d"
+    },
+    {
+      "instance_id": "incident-evidence-v2-measurement-active",
+      "case_sha256": "c5fb506e1daa72708b138a9a256c380fb79518b170c13ec63e03183d274b9e16"
+    },
+    {
+      "instance_id": "incident-evidence-v2-population-one",
+      "case_sha256": "77b4c91c0ef7ae1d2e702f20233eb11000727fe6380f989927743a304f466ada"
+    },
+    {
+      "instance_id": "incident-evidence-v2-population-all",
+      "case_sha256": "f474fcbea6addf1e336275c2e545961c12a8db87674c560da8ac981c740b4aaa"
+    },
+    {
+      "instance_id": "incident-evidence-v2-rollout-completion",
+      "case_sha256": "07203fce096d1887d1b50f9cf05dd90e12db0b8b09c0e356a383ae1bade450c3"
+    },
+    {
+      "instance_id": "incident-evidence-v2-rollout-first-exposure",
+      "case_sha256": "5a0705265bacb3e8206f3a8df47dc18ebb4df99b5a2e294fdc23ae427ef28fe2"
+    },
+    {
+      "instance_id": "incident-evidence-v2-readback-missing",
+      "case_sha256": "9adf3e139adff2d673f4da1e7cdee9c57d2c07f13d4e604d03a5062a53046512"
+    },
+    {
+      "instance_id": "incident-evidence-v2-readback-negative",
+      "case_sha256": "223e755adaf7c183a7e483340615ec54d160a94ac915249583536535a9f9da92"
+    },
+    {
+      "instance_id": "incident-evidence-v2-recovery-sustained",
+      "case_sha256": "c41984816b942606e96c3ccf2929eba40f2addef8fdfb5f07f97c7e18af2cf6d"
+    },
+    {
+      "instance_id": "incident-evidence-v2-recovery-incomplete",
+      "case_sha256": "9360c300846922874426e5d7889f4cdea5720aa28db14f6a9d5f57f05e8f0925"
+    },
+    {
+      "instance_id": "incident-evidence-v2-role-sre-direct",
+      "case_sha256": "c95aec154f8a5b3bc6a6081a08ab5f0489b84e794e0a7f10cbf868539df1372f"
+    },
+    {
+      "instance_id": "incident-evidence-v2-role-sre-delegated",
+      "case_sha256": "b737f0eb4d34f89103616bf16364bac29b64dfac4f1fec93a75c8d50a438fdf5"
+    },
+    {
+      "instance_id": "incident-evidence-v2-role-advisor-drill",
+      "case_sha256": "f515776e8c6017061c4bfa2f33b8c3341a572f090614fbd86f5616e75bda9a77"
+    },
+    {
+      "instance_id": "incident-evidence-v2-role-advisor-explicit",
+      "case_sha256": "8c4b51a89771e7a1346bca4633163f26337ffdc41190758dae078c6bf7e2e41b"
+    }
+  ]
+}

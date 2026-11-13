@@ -1,0 +1,57 @@
+id: incident-qualification-v1-03
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 24
+tools:
+- Skill
+- Read
+- Task
+prompt: |
+  Atlas Tiles is serving stale map tiles during a live incident. I am the customer-support duty engineer; help me assess these records and decide what to ask for next. I can read the tile-freshness console and its export files. The publishing operator can export the release audit and shared metadata-store graphs. I cannot access cluster shells or change the serving pool. Only the publishing operator may pause a publication or revert a release after approval from the human incident lead. The lead is considering a rollback but has not approved one.
+
+  All times are UTC on 2026-11-10. These initial records are copied in evidence.md.
+
+  T1 — customer synthetic freshness export, created 11:08. Population: fixed synthetic reads of the public street-map tileset in regions amber and blue; one probe cycle every minute per region, each cycle reading the same fixed tile list. Between 10:55 and 11:02 inclusive, each region's p95 tile age was under 90 seconds. At 11:03 each region's p95 age was 7 minutes; at 11:07 it was 11 minutes. The freshness objective for this population is p95 below 2 minutes. The probes record source-data timestamp and client read time, not HTTP latency. There is no probe coverage of private tilesets.
+  T2 — publication dashboard, captured 11:08. Release R74: created_at=11:00, effective_at=11:00, artifact_ready_at=11:06, state=ready. The dashboard tooltip says effective_at is copied from the requested schedule. It does not contain a first-served timestamp. The public change calendar annotates R74 at 11:00 using that field.
+  T3 — publishing audit excerpt, exported 11:08. R74 staging began at 11:01. A planned metadata invalidation for R74 executed at 11:02 against the metadata store shared by the old and new serving pools. The operator has not yet provided the audit entries that show traffic attachment or the first successful response by each serving pool.
+  T4 — upstream feeder backlog gauge. Same upstream street-map feed, distinct unindexed source updates: 15,000 pending at 10:58 and 22,000 pending at 11:04. Source updates can affect multiple tiles. The queue record has no customer request IDs. A feeder owner is available for a read-only feed-status export.
+
+  A stakeholder says the R74 deployment at 11:00 caused the problem and a rollback will certainly restore freshness. What should I tell the lead now?
+fixture:
+  files:
+    evidence.md: |
+      Atlas Tiles is serving stale map tiles during a live incident. I am the customer-support duty engineer; help me assess these records and decide what to ask for next. I can read the tile-freshness console and its export files. The publishing operator can export the release audit and shared metadata-store graphs. I cannot access cluster shells or change the serving pool. Only the publishing operator may pause a publication or revert a release after approval from the human incident lead. The lead is considering a rollback but has not approved one.
+
+      All times are UTC on 2026-11-10. These initial records are copied in evidence.md.
+
+      T1 — customer synthetic freshness export, created 11:08. Population: fixed synthetic reads of the public street-map tileset in regions amber and blue; one probe cycle every minute per region, each cycle reading the same fixed tile list. Between 10:55 and 11:02 inclusive, each region's p95 tile age was under 90 seconds. At 11:03 each region's p95 age was 7 minutes; at 11:07 it was 11 minutes. The freshness objective for this population is p95 below 2 minutes. The probes record source-data timestamp and client read time, not HTTP latency. There is no probe coverage of private tilesets.
+      T2 — publication dashboard, captured 11:08. Release R74: created_at=11:00, effective_at=11:00, artifact_ready_at=11:06, state=ready. The dashboard tooltip says effective_at is copied from the requested schedule. It does not contain a first-served timestamp. The public change calendar annotates R74 at 11:00 using that field.
+      T3 — publishing audit excerpt, exported 11:08. R74 staging began at 11:01. A planned metadata invalidation for R74 executed at 11:02 against the metadata store shared by the old and new serving pools. The operator has not yet provided the audit entries that show traffic attachment or the first successful response by each serving pool.
+      T4 — upstream feeder backlog gauge. Same upstream street-map feed, distinct unindexed source updates: 15,000 pending at 10:58 and 22,000 pending at 11:04. Source updates can affect multiple tiles. The queue record has no customer request IDs. A feeder owner is available for a read-only feed-status export.
+
+      A stakeholder says the R74 deployment at 11:00 caused the problem and a rollback will certainly restore freshness. What should I tell the lead now?
+followups:
+- |
+  At 11:17 UTC the publishing operator returns these audit records and current probes. Please update the advice.
+
+  T5 — release audit, exported 11:16. Both serving pools use a synchronized clock. In amber, the first client response from R74 was 11:09:12; in blue it was 11:10:03. The completed-response audit is complete for both regions. All public street-map client responses before those times were served by R73. This export records completed responses only; it does not contain request-admission times, process start times, or work performed before a response completes. Staging at 11:01 and shared metadata invalidation at 11:02 in T3 are confirmed. Reverting serving traffic to R73 would not undo that metadata invalidation.
+  T6 — customer synthetic freshness export, created 11:16. Same public street-map probe population and age definition as T1. Each region's p95 age was 14 minutes at 11:10 and 19 minutes at 11:15. No private tileset samples are included.
+  T7 — publishing operator note. There is no retained per-query metadata-store trace. A read-only store saturation graph and the feeder owner's current status can be exported within three minutes. Rebuilding metadata would be a separate production action; neither rebuild nor rollback is approved. R73 is still available as a serving target.
+
+  The lead asks what the release timing establishes about the first observed degradation, and whether rollback is a justified immediate recommendation. We need a useful next action now.
+conversation:
+  profile: incident-v1
+  helpers:
+  - null
+  - null
+  partition: held-out
+  manual_review: pending
+success_criteria:
+- The target skill completes through the unhinted positive routing path.
+- Both bounded conversation invocations complete with the permitted tools and retained release/session
+  evidence.
+- Automated results establish structural behavior only; semantic assessment remains pending external review.

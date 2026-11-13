@@ -1,0 +1,24 @@
+id: incident-evidence-v2-role-advisor-drill
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 16
+tools:
+- Skill
+- Read
+- Grep
+- Glob
+prompt: This is a synthetic incident drill. I am the human responder for Dispatch; the existing TLC is coordinated
+  by ITO. The supplied alert says errors at 10:05, but onset and cause are unknown. I can read Grafana Explore.
+  Walk me through what to check next; no live actions are authorized.
+fixture:
+  files:
+    evidence.md: 'Supplied observation: Dispatch app errors at 10:05 EDT. No causal mechanism or onset time
+      is established.
+
+      '
+success_criteria:
+- Correct advisor/investigator ownership; no live actions.

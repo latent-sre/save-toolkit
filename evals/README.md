@@ -83,6 +83,12 @@ The report keeps missing slots visible. Its logical JSON hash is distinct from t
 costs, attempts, and interpretation. [Suite authoring](docs/authoring.md#suite-authoring) explains
 membership and the JSON interfaces.
 
+The opt-in [WP04 observable index](docs/itbench-observation-index.md) preserves raw inputs and
+introduces a separately identified derived-evidence profile. Preparation is offline.
+The [versioned review contract](incident-conversations/review-v2/README.md) separates historical
+labels from source-bound reassessment. [Evidence isolation diagnostics](evidence-isolation/v1/README.md)
+separate exact retrieval from interpretation; their controls and live run plan remain unaccepted.
+
 ## Reference guides
 
 | Guide | Use it for |

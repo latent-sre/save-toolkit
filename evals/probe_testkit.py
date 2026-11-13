@@ -82,6 +82,7 @@ INTENDED_POLARITY = {
     "grafana_dashboard_write": "requires", "grafana_query_succeeded": "requires", "service_array_item": "requires",
     "service_get": "requires", "skill_loaded": "requires", "task_completed": "requires",
     "text_contains_any": "requires", "text_regex": "requires", "verification_completed": "requires",
+    "wp04_submission_v1": "requires",
 }  # fmt: skip
 
 # A measured runtime a batch accepts: one CLI version and host, as a real batch records once.

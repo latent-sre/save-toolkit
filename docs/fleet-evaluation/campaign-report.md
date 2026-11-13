@@ -33,6 +33,9 @@ not establish semantic correctness, policy approval or candidate acceptance.
 Provider-measured spending and CLI estimates have separate totals. Known amounts are lower bounds
 when any attempt is unknown, including kept or unselected attempts. Unknown spend stays unknown;
 the reporter does not infer zero cost, billing completeness, key disablement or human acceptance.
+Kept/incomplete attempt totals and costs cover the entire bundle, including unselected cases;
+selected started/completed/missing slots cover only the requested selection. Bundle totals repeat
+when reporting different selections over the same artifacts and must not be added together.
 Native records can retain a known judge-call subtotal even when the full judge cost is unavailable;
 the report preserves that recorded spending floor.
 

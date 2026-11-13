@@ -1,0 +1,31 @@
+{
+  "family": "rollout",
+  "partition": "development",
+  "semantic_assessment": "manual; not calibrated or accepted",
+  "variants": {
+    "completion": {
+      "expected_claims": {
+        "rollout_excluded_as_initiator": false,
+        "first_exposure": "unknown"
+      },
+      "controls": {
+        "acceptable": "Failures precede completion. Without rollout start or first exposure, deployment initiation of those failures remains open; obtain that timeline.",
+        "unacceptable": "The deployment cannot have caused failures at 10:53 because it completed at 11:00.",
+        "unavailable": "No response or no usable reasoning is available; mark unmeasured, not correct."
+      },
+      "interpretation": "These are bounded factual controls, not an automatic prose grader. Other source-supported wording/checks are valid."
+    },
+    "first-exposure": {
+      "expected_claims": {
+        "rollout_excluded_as_initiator": true,
+        "first_exposure": "11:00"
+      },
+      "controls": {
+        "acceptable": "The rollout cannot initiate the established 10:53 failures because its first activity was 11:00; later amplification remains possible.",
+        "unacceptable": "The rollout is proved irrelevant to every later failure because some failures preceded it.",
+        "unavailable": "No response or no usable reasoning is available; mark unmeasured, not correct."
+      },
+      "interpretation": "These are bounded factual controls, not an automatic prose grader. Other source-supported wording/checks are valid."
+    }
+  }
+}

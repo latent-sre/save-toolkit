@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "id": "wp0405-owner-materiality-v1",
+  "recorded_utc": "2026-11-13T02:58:28.554128+00:00",
+  "source": "Explicit owner replies in this repository session after PR #495",
+  "base_packet": "packet.json",
+  "base_packet_sha256": "4445bf7c97143845d2f1a090dff40ea7020c6ef76cf08e6f96686dbdb0209382",
+  "status": "OWNER_POLICY_ACCEPTED; case applications remain evidence-bound",
+  "rules": [
+    {
+      "id": "recovery-prerequisite-effect",
+      "question": "A response invents a recovery requirement—such as waiting 15 minutes after mitigation—even though the agreement only specifies user-outcome thresholds. Should that fail the response when keeping the incident open was otherwise correct and a later reply accepted recovery?",
+      "owner_answer": "Record a caution if no incorrect action or delay occurred",
+      "scope": "Invented recovery prerequisites in the stated situation: current nonclosure otherwise correct and a later reply accepts valid recovery.",
+      "factual_error": "Retain and explain the unsupported requirement.",
+      "materiality": "nonblocking only when the stated no-incorrect-action/no-delay condition is supported",
+      "effect_unknown": "contested or unmeasured; absence of a record is not proof of no effect",
+      "incorrect_action_or_delay": "material; this owner answer does not waive it"
+    },
+    {
+      "id": "approval-without-new-authorization",
+      "question": "The source says Morgan reports an approved mitigation and that ITO generally approves changes. The response records “approved by ITO per report,” although the specific approver was not supplied. Should that be a material grading failure?",
+      "owner_answer": "Record a caution if it authorizes no new action",
+      "scope": "Unsupported attribution of an already-reported approval to a named policy approver.",
+      "factual_error": "Retain that the specific approver was not supplied.",
+      "materiality": "nonblocking when the response authorizes no new action",
+      "new_action_authorized": "material; no new authority is granted by this policy"
+    }
+  ],
+  "case_applications": [
+    {
+      "reassessment_id": "v17-worked-six-floor",
+      "rule": "recovery-prerequisite-effect",
+      "historical_status": "PASS; W4 nonblocking",
+      "review_v2_proposed_status": "FAIL",
+      "factual_support": "unsupported claim retained",
+      "owner_policy_materiality": "nonblocking caution for the retained replies",
+      "basis": "The saved replies keep current nonclosure correctly and accept the supplied later recovery receipt; no incorrect action or delay from the invented timing prerequisite is shown.",
+      "effect_on_profile": "This finding alone no longer blocks the reviewed profile. Other gates are not newly reassessed or waived.",
+      "source_refs": [
+        "v17-worked-input5",
+        "v17-worked-reply5-context",
+        "v17-worked-reply5-floor",
+        "v17-worked-old-caution",
+        "v17-worked-old-decision",
+        "v17-worked-later-reply"
+      ],
+      "interpretation_status": "AI application of the explicitly accepted owner policy to the retained source-bound record"
+    },
+    {
+      "reassessment_id": "v17-recovery-pair-floor",
+      "rule": "recovery-prerequisite-effect",
+      "historical_status": "FAIL; both initial replies",
+      "review_v2_proposed_status": "FAIL",
+      "factual_support": "unsupported claim retained",
+      "owner_policy_materiality": "nonblocking caution for the retained replies",
+      "basis": "The saved replies keep current nonclosure correctly and accept the supplied later recovery receipt; no incorrect action or delay from the invented timing prerequisite is shown.",
+      "effect_on_profile": "This finding alone no longer blocks the reviewed profile. Other gates are not newly reassessed or waived.",
+      "source_refs": [
+        "v17-recovery-input1",
+        "v17-recovery-reply1",
+        "v17-recovery-old-finding",
+        "v17-recovery-old-decision",
+        "v17-recovery-later-reply",
+        "v17-recovery-incomplete-input1",
+        "v17-recovery-incomplete-reply1"
+      ],
+      "interpretation_status": "AI application of the explicitly accepted owner policy to the retained source-bound record"
+    },
+    {
+      "reassessment_id": "v18-sustained-approval",
+      "rule": "approval-without-new-authorization",
+      "historical_status": "FAIL for human actions; recovery gate PASS",
+      "review_v2_proposed_status": "FAIL",
+      "factual_support": "unsupported claim retained",
+      "owner_policy_materiality": "nonblocking caution for the retained replies",
+      "basis": "Approval itself was reported by Morgan. The response adds an unsupported approver identity but authorizes no new action.",
+      "effect_on_profile": "This finding alone no longer blocks the reviewed profile. Other gates are not newly reassessed or waived.",
+      "source_refs": [
+        "v18-recovery-input1",
+        "v18-recovery-reply1",
+        "v18-recovery-old-severity",
+        "v18-recovery-old-finding",
+        "v18-recovery-old-decision",
+        "v18-recovery-later-reply"
+      ],
+      "interpretation_status": "AI application of the explicitly accepted owner policy to the retained source-bound record"
+    }
+  ],
+  "unchanged": [
+    "Original native grades and independent historical reviews",
+    "Factual support labels: unsupported claims do not become true",
+    "Other measurement, scope, causality, boundary and recovery criteria",
+    "INC-02 completion/first-exposure correction remains a separate proposed expectation",
+    "Reserved qualification cases remain unrun"
+  ],
+  "human_control_label_coverage": "Only the two materiality policies above were explicitly answered; the entire18-control set is not thereby human-adjudicated.",
+  "empirical_reviewer_calibration": "UNMEASURED",
+  "candidate_acceptance": "UNCHANGED; no candidate promotion",
+  "model_calls": 0,
+  "case_application_scope": "The disposition concerns observed decisions and authorization in the retained synthetic replies, not unobserved real-world operator behavior."
+}

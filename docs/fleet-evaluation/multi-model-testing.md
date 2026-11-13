@@ -107,6 +107,57 @@ not establish native skill routing, Claude hooks, permission enforcement, or age
 The report checks saved identity/accounting consistency, not every original artifact or the
 correctness of a recorded grader verdict. Retain original traces for independent review.
 
+## Separate WP04 subscription profile
+
+[sourced] `codex_probe.py --wp04-fixture` admits one previously prepared indexed-v6 or indexed-v7
+WP04 fixture at a time. This selector is separate from the fifteen-case testing block above;
+it neither expands that block's manifests nor schedules extra models. The fixture may be YAML
+or gzip-compressed YAML. Its ID and case digest must match the operator's existing binding file.
+Only the five WP04 case IDs, `sre-assistant`, files-only fixtures and the exact recorded checks
+are admitted. Historical v6 keeps its fence check; v7 keeps the strict submission check.
+
+```bash
+.venv/bin/python evals/codex_probe.py \
+  --wp04-fixture /absolute/path/wp04-itbench-7-indexed-v6.yaml.gz \
+  --candidate-root /absolute/path/to/candidate \
+  --expect-plugin-digest <frozen-plugin-sha256> \
+  --case-bindings /absolute/path/case-bindings.json \
+  --out .eval-runs/wp04-sol-case7-trial1 \
+  --model gpt-6.1-sol --timeout 900 --max-calls 64 --approve-fixture-tools
+```
+
+[sourced] A binding file is a JSON list of `id` and `case_sha256` objects. Reuse a verified
+historical native record's case binding for an unchanged fixture, or compute it offline using
+`codex_wp04.load_wp04_case` and `probe.fingerprints.case_digest`. Never load several expanded
+WP04 fixtures together: case 7 alone is about 942 MB of serialized YAML. Verify fixture provenance,
+the observation/answer boundary, and the source-bound selection before launching a model.
+
+[sourced] The `wp04-readonly-v1` profile requires ChatGPT subscription authentication and refuses
+API-key authentication. It supplies canonical role guidance in the prompt, stages skill references
+as read-only files, and exposes only an exact allowlist through the fixture MCP server:
+
+- `read_file` returns a complete small file, including skill guidance.
+- `list_files` lists scoped allowlist names with explicit pagination.
+- `search_files` performs case-sensitive literal searches, with bounded snippets and character
+  locators. Follow `next_cursor` until `complete`, including empty partial pages; keep the query
+  unchanged. It offers no regular-expression dialect or implicit current-state selection.
+- `read_slice` pages exact Unicode characters while preserving newlines. Follow `next_offset`
+  until `eof` when full content is required. Offsets are characters, not source line numbers.
+
+[sourced] The prompt names `observations/index.json` instead of dumping thousands of fixture paths.
+All admitted observations remain accessible. Every call/result is bound to a separate server
+receipt and corroborated against the Codex session inventory. Search snippets do not establish
+full record coverage. The file allowlist is an application boundary, not an OS sandbox. Native
+shell, web, edits and delegation are prohibited; native Claude hooks/routing are not measured.
+The WP04 process uses the shared runner's process-tree ownership for timeout/interruption cleanup.
+
+[sourced] The expected manual-review INCONCLUSIVE is complete instrument evidence, not a semantic
+pass. Other incomplete checks still stop scheduling. Native turn counts and Codex fixture-call
+limits are different quantities. Compare the saved sources and conclusions, disclose the transport
+difference, and retain all attempts. Keep subscription usage and dollar cost separate: a null dollar
+cost is unknown, not zero. Authorization must bound attempts and resource use; no API fallback,
+automatic retry, judge call or candidate promotion follows from preparing this profile.
+
 ## Budget and limits
 
 The manifest's positive dollar total (USD 40 by default) is recorded as a scheduling limit,

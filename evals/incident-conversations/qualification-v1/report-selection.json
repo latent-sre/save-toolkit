@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "profile": "native-selection-v1",
+  "trials": 1,
+  "tasks": [
+    {
+      "instance_id": "incident-qualification-v1-01",
+      "case_sha256": "f159adc5e350eadd87bdbaa4ef53e00d4f56f0ccd12caafba8e952060e2a8364"
+    },
+    {
+      "instance_id": "incident-qualification-v1-02",
+      "case_sha256": "c3b9e76709b0765fb30eb479e9ef7a6fcaf5f78a7ebc1b86f713359e95a96edf"
+    },
+    {
+      "instance_id": "incident-qualification-v1-03",
+      "case_sha256": "30a032cd0d8f22984c48d69698293abb57bc5e0e153459c28c36baea115e8d25"
+    },
+    {
+      "instance_id": "incident-qualification-v1-04",
+      "case_sha256": "c494c53cb03e1bcd11166f082c1ce3833a7eb2d4e9294d0860712d7ea854b203"
+    }
+  ],
+  "source": {
+    "git_revision": null,
+    "dirty": null,
+    "suites": []
+  }
+}

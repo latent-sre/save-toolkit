@@ -2,9 +2,11 @@
 
 ## Choose a comparison
 
-For known PCF apps, start with Apps Manager → app → Overview → app events unless supplied evidence makes a
-comparison below more useful or urgent; explain that choice. Use an accessible ticket, safe excerpt
-or console view without requiring the responder to know the telemetry stack.
+Choose a useful comparison within the responder's confirmed capabilities. For known PCF apps,
+consider app-event history when it distinguishes the candidates: use Apps Manager → app → Overview
+→ app events only with confirmed access to that view. Otherwise request the relevant records from
+its owner and choose an available check below. An accessible ticket, safe excerpt or confirmed
+console view can supply the comparison without requiring knowledge of the telemetry stack.
 
 | What the person sees | A useful first distinction | What the result would change |
 |---|---|---|

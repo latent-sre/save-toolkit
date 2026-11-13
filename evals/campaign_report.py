@@ -536,7 +536,8 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         "",
         f"Selected cases: {counts['selected_cases']}; expected slots: {counts['expected_slots']}; started: {counts['started_slots']}; completed: {counts['completed_slots']}.",
         f"Recorded verdicts: {counts['recorded_verdicts']}; measured PASS/FAIL: {counts['measured_slots']}/{counts['expected_slots']}; failures to measure: {counts['failures_to_measure_slots']}; missing: {counts['missing_slots']}; invalid: {counts['invalid_slots']}.",
-        f"Kept attempts: {counts['kept_attempts']}; incomplete attempts: {counts['incomplete_attempts']}.",
+        f"All saved attempts (including unselected cases): kept {counts['kept_attempts']}; incomplete {counts['incomplete_attempts']}.",
+        "These attempt and cost totals repeat across selections; do not add subsection totals.",
         "",
     ]
     for title, key in (("Provider-measured", "provider_measured_usd"), ("CLI-estimated", "cli_estimated_usd")):

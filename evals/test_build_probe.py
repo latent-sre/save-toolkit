@@ -110,7 +110,7 @@ class PackageStructureTests(unittest.TestCase):
         "text_regex", "text_not_regex", "text_contains_any", "text_not_contains", "no_new_commits", "no_agents_dir",
         "changes_within", "skill_not_loaded", "skill_loaded", "bash_ran", "bash_did_not_run", "verification_completed",
         "no_task_dispatch", "task_completed", "state_file_absent", "cf_log_has_no", "fleet_grader",
-        "no_workspace_changes", "dispatches_namespaced", "tool_call_count",
+        "no_workspace_changes", "dispatches_namespaced", "tool_call_count", "wp04_submission_v1",
     }
 
     def test_an_outcome_unpacks_like_a_check_result_and_states_what_it_measured(self) -> None:

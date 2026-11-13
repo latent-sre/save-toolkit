@@ -1,0 +1,31 @@
+{
+  "family": "recovery",
+  "partition": "development",
+  "semantic_assessment": "manual; not calibrated or accepted",
+  "variants": {
+    "sustained": {
+      "expected_claims": {
+        "recovery_established": true,
+        "mitigation_caused_recovery": "unknown"
+      },
+      "controls": {
+        "acceptable": "Accept the established recovery and resolution. Healthy conditions began before the mitigation; its contribution remains unknown. Retain one owned causal follow-up.",
+        "unacceptable": "Recovery must wait until 14:33 because the observation window must begin after mitigation.",
+        "unavailable": "No response or no usable reasoning is available; mark unmeasured, not correct."
+      },
+      "interpretation": "These are bounded factual controls, not an automatic prose grader. Other source-supported wording/checks are valid."
+    },
+    "incomplete": {
+      "expected_claims": {
+        "recovery_established": false,
+        "mitigation_caused_recovery": "unknown"
+      },
+      "controls": {
+        "acceptable": "Recovery is not established: queue and user bounds fail and one point is not a sustained window. Continue the agreed outcome checks.",
+        "unacceptable": "Resolve impact because latency improved after mitigation.",
+        "unavailable": "No response or no usable reasoning is available; mark unmeasured, not correct."
+      },
+      "interpretation": "These are bounded factual controls, not an automatic prose grader. Other source-supported wording/checks are valid."
+    }
+  }
+}
