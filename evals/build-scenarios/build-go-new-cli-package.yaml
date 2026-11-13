@@ -1,0 +1,31 @@
+id: build-go-new-cli-package
+max_turns: 25
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Build a fresh standard-library-only Go 1.24 CLI tool (`summarize`) from scratch in this fixture.
+  Create `go.mod` (`module example.com/summarize`, `go 1.24`), a thin `main.go` calling a testable
+  `run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int` (no
+  `os.Exit` or `log.Fatal` outside `main()`), and a pure streaming `Summarize(r io.Reader) (Counts, error)`
+  function that reads UTF-8 JSON Lines (`{"status": "..."}`) in bounded memory.
+
+  Contract:
+  - Allowed statuses are `success`, `failure`, and `skipped`. Ignore unrelated JSON fields.
+  - `Counts` JSON output must include all three integer fields (`success`, `failure`, `skipped`), including zeros.
+  - `summarize <file>` or `summarize -` (stdin) writes one JSON object to stdout and exits 0.
+  - Missing/extra args, unreadable files, blank lines, malformed JSON, or unsupported statuses write a
+    diagnostic to stderr, keep stdout empty (even if failure occurs after valid lines), and exit 2.
+  - Add unit tests covering `Summarize` and `run` (including error cases and malformed lines).
+  - Run `go vet ./...` and `go test -count=1 ./...` as foreground commands after your final edit.
+  - No external dependencies, network calls, or commits.
+fixture:
+  files:
+    .gitignore: "*.exe\n"
+checks:
+  - {check: skill_loaded, skill: go-craft, text: "go-craft was loaded for greenfield Go CLI"}
+  - {check: no_new_commits, text: "no commits"}
+  - check: command_exit_zero
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _go_oracle.py new-cli"
+    writes_from: {_go_oracle.py: evals/oracles/go-craft/check_go_craft.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    text: "CLI binary, exit codes, stdout/stderr isolation, and Go vet/tests pass"

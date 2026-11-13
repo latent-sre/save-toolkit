@@ -16,19 +16,16 @@
 - **No branching trees in table subtests:** Split happy-path and error/validation cases into
   separate tables when setup or assertions diverge. Match errors via `errors.Is` or
   `errors.AsType[T]` (Go 1.26+) / `errors.As`, never `err.Error()` substrings.
-- **Failure messages and `t.Error` vs. `t.Fatal`:** Format diagnostics as `f(%v) = %v, want %v`
-  (**`got` before `want`**) or `cmp.Diff(want, got)` (`-want +got`), without third-party `assert.*`
-  wrappers. Use `t.Errorf` to report all independent mismatches in a test; reserve `t.Fatalf` for
-  preconditions where continuing would panic or cascade.
+- **Failure messages and `t.Error` vs. `t.Fatal`:** Report `f(%v) = %v, want %v` or
+  `cmp.Diff(want, got)` (`-want +got`); no `assert.*` wrappers; `t.Errorf` for independent
+  mismatches, `t.Fatalf` only where continuing cascades.
 - **Never call `t.Fatal` / `t.FailNow` in a child goroutine:** `FailNow` calls `runtime.Goexit()` on
   the child goroutine only, hanging or corrupting the test. Use `t.Errorf(...)` and return, or
   propagate errors back via `errgroup` / channel.
 - **`t.Parallel()` teardown and fixture isolation:**
-  - When subtests call `t.Parallel()`, the outer `TestX` returns *before* subtests run—a plain
-    `defer teardown()` in `TestX` destroys shared state while subtests execute! Register shared
-    teardown with `t.Cleanup(teardown)`.
+  - Parallel subtests outlive `TestX`; register shared teardown with `t.Cleanup`, not `defer`.
   - Instantiate mutable fixtures (buffers, maps, structs, DB transactions) inside each `t.Run` body.
-  - `t.Setenv` and `t.Chdir` panic if called alongside `t.Parallel()`; inject config/paths instead.
+  - Inject config/paths rather than using `t.Setenv`/`t.Chdir` under `t.Parallel()`.
 - **Go 1.24–1.26+ `testing.T` helpers:**
   - **`t.Context()` (1.24+):** Cancels automatically *just before* `t.Cleanup` functions run, so
     workers stop before `t.Cleanup` tears down databases or temp dirs.
@@ -42,14 +39,13 @@ Never use wall-clock `time.Sleep` to coordinate goroutines or test timeouts.
 
 - **Go 1.25+ `synctest.Test(t, func(t *testing.T) { ... })`** (never use Go 1.24's experimental
   `synctest.Run(func())`):
-  - Runs an isolated bubble with a synthetic clock (`2000-01-01 00:00:00 UTC`) that advances
-    **instantly** whenever all bubble goroutines are durably blocked (on channels, `select`,
-    `sync.Mutex`, `sync.WaitGroup`, or `time.Sleep`).
+  - Runs an isolated bubble with a synthetic clock that advances **instantly** when all bubble
+    goroutines are durably blocked (bubble channels, `select` on bubble channels, `sync.Cond.Wait`,
+    `WaitGroup.Wait` when `Add` ran in the bubble, or `time.Sleep`—**not** `sync.Mutex`/`RWMutex`).
   - Call `synctest.Wait()` to pause until all other bubble goroutines are durably blocked, then
     assert intermediate state deterministically.
   - **Exit deadlock trap:** If any bubble goroutine remains durably blocked when the root function
-    returns, `synctest.Test` panics (`deadlock: main bubble goroutine has exited but blocked goroutines remain`).
-    Always cancel/stop workers and wait for exit before returning.
+    returns, `synctest.Test` panics. Always cancel/stop workers and wait for exit before returning.
   - **OS I/O boundary:** Real sockets (`net.Listen`), OS file locks, and subprocesses are *not*
     durably blocked in a bubble; use `net.Pipe()` or channels.
 - **Go <= 1.24:** Inject a clock/ticker function or synchronize with barrier channels and
@@ -57,10 +53,8 @@ Never use wall-clock `time.Sleep` to coordinate goroutines or test timeouts.
 
 ## Race Detector and Benchmarks (`b.Loop`)
 
-- **`-race` execution requirement:** `-race` detects races only on code paths executed concurrently
-  during that run, and requires `CGO_ENABLED=1` plus a C compiler. If a C toolchain is unavailable,
-  run `go test -count=1 ./...` and report `-race` as unverified due to missing C toolchain.
+- **`-race` execution requirement:** `-race` needs `CGO_ENABLED=1` and a C compiler and only sees
+  paths that ran concurrently; without a C compiler, report `-race` unverified.
 - **`for b.Loop()` (Go 1.24+):** Runs pre-loop setup once per invocation, resets the timer on entry,
-  and prevents dead-code elimination. **Trap:** Never call `b.StopTimer()`, `b.StartTimer()`, or
-  `b.ResetTimer()` before or inside `for b.Loop()`—stopping the timer fails fatally with
-  `B.Loop called with timer stopped`.
+  and prevents dead-code elimination. **Trap:** Never leave the timer stopped when `b.Loop()` is
+  next evaluated.

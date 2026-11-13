@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "go-craft",
+  "summary": "Go design, refactoring, modernization, concurrency, and routing controls",
+  "tests": [],
+  "native_scenarios": [
+    "build-go-new-cli-package",
+    "build-go-refactor-legacy-worker",
+    "build-go-synctest-debounce",
+    "discovery-go-craft-routing"
+  ],
+  "campaigns": [],
+  "guides": [
+    "evals/README.md"
+  ]
+}

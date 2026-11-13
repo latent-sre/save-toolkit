@@ -1,0 +1,31 @@
+id: build-go-synctest-debounce
+max_turns: 25
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Implement `package debounce` in this Go 1.25 module (`example.com/debounce`) and test it
+  deterministically with `testing/synctest` (`synctest.Test` and `synctest.Wait`), with zero
+  wall-clock `time.Sleep` calls in tests.
+
+  API contract:
+  - `New(delay time.Duration, fn func()) *Debouncer`
+  - `(*Debouncer).Trigger()` signals activity (non-blocking; coalesces bursts).
+  - `(*Debouncer).Run(ctx context.Context)` runs until `ctx` is canceled, invoking `fn()` once after
+    each quiet period of `delay` with no new `Trigger()`, and exiting cleanly when `ctx` cancels.
+  - Add `debounce_test.go` using `testing/synctest` (`synctest.Test(t, func(t *testing.T) { ... })`)
+    covering burst coalescing, firing after `delay`, and clean exit on `t.Context()` cancellation.
+  - Run `go vet ./...` and `go test -count=1 ./...` as foreground commands after your final edit.
+fixture:
+  files:
+    go.mod: |
+      module example.com/debounce
+
+      go 1.25
+checks:
+  - {check: skill_loaded, skill: go-craft, text: "go-craft was loaded for Go concurrency and synctest"}
+  - {check: no_new_commits, text: "no commits"}
+  - check: command_exit_zero
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _go_oracle.py synctest-debounce"
+    writes_from: {_go_oracle.py: evals/oracles/go-craft/check_go_craft.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    text: "debouncer uses testing/synctest (synctest.Test + synctest.Wait) and passes oracle concurrency contract"

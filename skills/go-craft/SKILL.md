@@ -36,7 +36,7 @@ Explanation, design, and review requests stop at those outputs unless implementa
 
 | Rationalization (Reject) | Required Action |
 |---|---|
-| *"Keep the diff minimal / only patch the broken line"* | Restructure the touched function and local helpers when they mix I/O and policy, nest deeply, or leak resources |
+| *"Keep the diff minimal / only patch the broken line"* | Apply Mandate 3 to the touched function and its local helpers |
 | *"Match the existing pattern in this file"* | Follow repo conventions (layout, naming, runner), never local defects (naked goroutines, ignored `Close`/`rows.Err`, `map[string]any`, `IFooService` bloat) |
 | *"Add a bool flag or drop `ctx` to avoid touching callers"* | Fix the internal signature (`ctx context.Context` first) and update all in-repo callers in one change |
 | *"Keep the old unexported helper/interface just in case"* | Migrate all in-repo callers and delete superseded unexported code; use `// Deprecated: use X.` only for exported symbols |
