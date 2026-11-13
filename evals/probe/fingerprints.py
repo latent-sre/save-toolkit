@@ -23,6 +23,7 @@ from typing import Any
 
 import clean_room
 import graders as fleet_graders
+import itbench_submission
 import judge as rubric_judge
 import yaml
 
@@ -41,6 +42,7 @@ HARNESS_FILES = tuple(
         rubric_judge.__file__,
         clean_room.__file__,
         fleet_graders.INCIDENT_BOARD_ORACLE,
+        itbench_submission.__file__,
     )
 )
 

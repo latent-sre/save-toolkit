@@ -8,6 +8,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Evaluations add versioned prompt/submission checks, consistent review controls and separate retrieval/interpretation
+  diagnostics; campaign summaries distinguish selected coverage from all-attempt totals.
 - Incident guidance preserves measurement units, source scope and time through updates, separates
   recovery from action attribution, and keeps bounded SRE investigations in their own method.
 - WP04 adds bounded, source-linked observation indexes and resource field histories with normalized

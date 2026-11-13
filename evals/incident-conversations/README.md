@@ -73,3 +73,7 @@ separate in the report.
 The separately versioned [evidence-preservation diagnostics](diagnostics-v2/README.md) retain
 the originals and document the INC-02 completion/start review correction. They include paired
 controls and role checks; their structural results do not establish semantic acceptance.
+
+The [review-v2 materiality contract](review-v2/README.md) applies one explicit standard to operative
+conditions and reported facts. It includes source-bound reassessments and single-error controls;
+historical verdicts remain intact and human reviewer calibration remains unmeasured.

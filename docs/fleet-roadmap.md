@@ -191,6 +191,11 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   to ITO. Actual-helper is unmeasured after expired OAuth, with zero reported cost and no retry.
   Final reported total is USD 76.6139074, leaving USD 23.3860926. Model testing is stopped; candidate
   qualification remains HOLD. No broader qualification or promotion is claimed.
+  The owner approved an [offline eval-validity repair](reviews/2026-11-12-wp0405-eval-validity-repair.md):
+  versioned prompt/submission checks, one materiality standard with separate proposed reassessments,
+  and isolated retrieval/interpretation diagnostics. Local repair is complete: 5,275 tests passed,
+  87 skipped and 5,010 subtests passed. Reviewer calibration and new live trials remain unmeasured
+  and unapproved; historical results and candidate instructions are preserved.
 - WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md), its
   [case acceptance](reviews/2026-10-10-wp10-case-acceptance.md), and its [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
   [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
@@ -250,8 +255,10 @@ acceptance tests, delivery phases and explicit open decisions.
   are retained. Actual-helper dispatch was repaired and measured in v15–v17; final v18 helper
   behavior is unmeasured after authentication failed. Specific human approvals must stay unknown
   unless evidenced; general role authority is insufficient. WP04 still needs complete evidence use,
-  correct metric meaning and old/current episode reconciliation. Retain the four independent
-  cases for a frozen candidate that clears development gates. No further broad campaign or
+  correct metric meaning and old/current episode reconciliation. The [eval-validity repair](reviews/2026-11-12-wp0405-eval-validity-repair.md)
+  is complete locally; adjudicate the proposed materiality controls and calibrate review before
+  a new bounded live comparison. Retain the four independent cases for a frozen candidate that
+  clears development gates. No further broad campaign or
   automatic retry belongs to this bounded pass; any new campaign needs its own round scope.
   Model runs
   require enough approved allowance for each complete conversation; offline passes are not semantic acceptance. No result

@@ -7,7 +7,8 @@
     "evals/test_incident_conversations.py",
     "evals/test_incident_evidence_v2.py",
     "evals/test_native_readiness_cases.py",
-    "evals/test_runbook_safeguards.py"
+    "evals/test_runbook_safeguards.py",
+    "evals/test_incident_review_v2.py"
   ],
   "native_scenarios": [
     "discovery-incident-investigation-defers-grafana-dashboard",
@@ -68,6 +69,7 @@
   ],
   "campaigns": [],
   "guides": [
-    "evals/docs/coverage.md"
+    "evals/docs/coverage.md",
+    "evals/incident-conversations/review-v2/README.md"
   ]
 }

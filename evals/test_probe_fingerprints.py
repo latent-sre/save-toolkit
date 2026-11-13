@@ -58,7 +58,8 @@ class RuntimeIdentityTests(unittest.TestCase):
 class EvaluatorImplementationIdentityTests(unittest.TestCase):
     FILES = ("build_probe.py",
              *sorted(p.relative_to(ROOT / "evals").as_posix() for p in (ROOT / "evals" / "probe").rglob("*.py")),
-             "graders.py", "judge.py", "clean_room.py", "oracles/incident-closing-fields/probe_closing_fields.py")
+             "graders.py", "judge.py", "clean_room.py", "itbench_submission.py",
+             "oracles/incident-closing-fields/probe_closing_fields.py")
 
     def test_new_process_identity_binds_every_local_evaluator_module(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -80,6 +81,7 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
                 "graders.py": ("return (not missing,", "return (False,"),
                 "judge.py": ("Distinguish the assistant's own voice", "Ignore the assistant's own voice"),
                 "clean_room.py": ("subscriber_only: bool = False", "subscriber_only: bool = True"),
+                "itbench_submission.py": ("len(blocks) != 1", "len(blocks) != 2"),
                 "oracles/incident-closing-fields/probe_closing_fields.py": (
                     '"board": {"impact"', '"board": {"changed"'),
             }

@@ -19,18 +19,21 @@ from itbench_adapter import native as native_module
 from itbench_adapter.core import _read_asset
 from itbench_adapter.observations import build_observation_index
 from itbench_testkit import diagnosis, manifest
+from probe import fingerprints, rescoring
 from probe.catalog import validate_scenario
 from probe.checking import check_command_exit_zero
+from probe.checks import registry
 from probe.outcomes import State
+from probe.tracing import TraceSummary
 from probe.workspaces import Workspace
-from probe_testkit import context
+from probe_testkit import context, latest_assessment, saved_grade, saved_summary, tiny_spec, write_saved_run
 
 
 def test_native_prep_is_bounded_observed_only_and_validates_existing_runner_contract(tmp_path: Path) -> None:
     source = tmp_path / "cache"
     m = manifest(source)
     destination = tmp_path / "runner-fixtures"
-    receipt = prepare_native(m, source, destination, max_prepared_bytes=1_000_000)
+    receipt = prepare_native(m, source, destination, max_prepared_bytes=1_000_000, evidence_profile="raw")
     assert len(receipt["scenarios"]) == 5
     assert receipt["live_execution"] is False
     assert hashlib.sha256(json.dumps(receipt, sort_keys=True).encode()).hexdigest() == (
@@ -69,7 +72,8 @@ def test_prep_refuses_before_output_when_raw_budget_too_small(tmp_path: Path) ->
 
 
 @pytest.mark.parametrize(
-    "profile", ["raw", "indexed-v1", "indexed-v2", "indexed-v3", "indexed-v4", "indexed-v5", "indexed-v6"]
+    "profile",
+    ["raw", "raw-v2", "indexed-v1", "indexed-v2", "indexed-v3", "indexed-v4", "indexed-v5", "indexed-v6", "indexed-v7"],
 )
 def test_native_serialization_accepts_exact_byte_budget_and_cleans_partial_output(tmp_path: Path, profile: str) -> None:
     source = tmp_path / "source"
@@ -181,14 +185,15 @@ def test_collect_preserves_claims_and_rejects_case_mismatch_or_ambiguity() -> No
         collect_submission(response + "\n```json\n" + json.dumps(d) + "\n```", "wp04-24")
 
 
+@pytest.mark.parametrize("profile", ["raw", "raw-v2", "indexed-v7"])
 def test_native_manual_check_is_unavailable_and_missing_interpreter_is_instrument_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, profile: str
 ) -> None:
     source = tmp_path / "cache"
-    m = manifest(source)
+    m = indexable_manifest(source)
     dest = tmp_path / "prepared"
-    prepare_native(m, source, dest, max_prepared_bytes=1_000_000)
-    spec = yaml.safe_load((dest / "wp04-itbench-24.yaml").read_text())
+    receipt = prepare_native(m, source, dest, max_prepared_bytes=1_000_000, evidence_profile=profile)
+    spec = yaml.safe_load((dest / receipt["scenarios"][0]["path"]).read_text())
     check = spec["checks"][-1]
     ws = Workspace(tmp_path, tmp_path, tmp_path / "bin", tmp_path / "state", 0, "main")
     ctx = context(spec, ws=ws)
@@ -253,8 +258,8 @@ def test_native_prompt_describes_actual_per_case_log_availability(tmp_path: Path
         }
     )
     prepare_native(m, source, tmp_path / "native", max_prepared_bytes=1_000_000)
-    with_logs = yaml.safe_load((tmp_path / "native/wp04-itbench-7.yaml").read_text())
-    without_logs = yaml.safe_load((tmp_path / "native/wp04-itbench-24.yaml").read_text())
+    with_logs = yaml.safe_load((tmp_path / "native/wp04-itbench-7-raw-v2.yaml").read_text())
+    without_logs = yaml.safe_load((tmp_path / "native/wp04-itbench-24-raw-v2.yaml").read_text())
     assert "Application logs are supplied" in with_logs["prompt"]
     assert "Application logs are unavailable" in without_logs["prompt"]
     assert "Traces and metrics are unavailable" in with_logs["prompt"]
@@ -285,12 +290,7 @@ def test_indexed_preparation_retains_raw_inputs_has_distinct_identity_and_never_
     m = indexable_manifest(source)
     for case in m["cases"]:
         (source / case["source_id"] / "ground_truth.yaml").unlink()
-    raw = prepare_native(m, source, tmp_path / "raw")
-    explicit_raw = prepare_native(m, source, tmp_path / "explicit-raw", evidence_profile="raw")
-    assert raw == explicit_raw
-    assert {p.name: p.read_bytes() for p in (tmp_path / "raw").iterdir()} == {
-        p.name: p.read_bytes() for p in (tmp_path / "explicit-raw").iterdir()
-    }
+    prepare_native(m, source, tmp_path / "raw", evidence_profile="raw")
     result = prepare_native(m, source, tmp_path / "indexed", evidence_profile="indexed-v1")
     assert result["evidence_profile"] == "indexed-v1"
     # Freeze the measured v1 condition, including prompt, serialized fixtures and receipt.
@@ -559,3 +559,200 @@ def test_indexed_v6_scopes_record_catalogs_without_changing_raw_sources_or_gradi
         assert json.loads(files[page["rows"]])["resource"] == group["resource"]
         assert not any(name.startswith("observations/lookup/event/") for name in files)
         assert "ANSWER_CANARY" not in json.dumps(spec)
+
+
+def test_corrected_raw_default_preserves_known_zones_and_all_released_records(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    m = manifest(source)
+    alert_path = "alerts/alerts_in_alerting_state_2025-12-15T175517.342102Z.json"
+    for case in m["cases"]:
+        alert = source / case["source_id"] / alert_path
+        alert.parent.mkdir()
+        alert.write_text("[]\n")
+        case["observables"].append(
+            {"path": alert_path, "sha256": hashlib.sha256(alert.read_bytes()).hexdigest(), "size": alert.stat().st_size}
+        )
+        (alert.parent.parent / "ground_truth.yaml").unlink()
+    result = prepare_native(m, source, tmp_path / "default")
+    assert result.get("evidence_profile") == "raw-v2"
+    explicit = prepare_native(m, source, tmp_path / "explicit", evidence_profile="raw-v2")
+    assert result == explicit
+    for item in result["scenarios"]:
+        spec = yaml.safe_load((tmp_path / "default" / item["path"]).read_text())
+        assert spec["id"].endswith("-raw-v2")
+        assert alert_path in spec["fixture"]["files"]
+        assert spec["fixture"]["files"] == {
+            asset["path"]: (source / item["source_id"] / asset["path"]).read_text() for asset in item["source_assets"]
+        }
+        assert "Alert filenames ending Z.json explicitly indicate UTC" in spec["prompt"]
+        assert "unzoned alert filenames have unknown zones" in spec["prompt"]
+        assert "You may order explicitly zoned, comparable timestamps" in spec["prompt"]
+        assert "later timestamps may occur within these released records" in spec["prompt"]
+        assert "No further conversational\nobservation release" in spec["prompt"]
+        assert "filenames omit a timezone" not in spec["prompt"]
+        assert "no later\nobservation" not in spec["prompt"]
+        assert "observations/index.json" not in spec["fixture"]["files"]
+        assert spec["checks"][2]["check"] == "wp04_submission_v1"
+        assert spec["checks"][2]["case_id"] == item["case_id"]
+        assert validate_scenario(spec, where=item["path"]) == []
+        assert "ANSWER_CANARY" not in json.dumps(spec)
+
+
+def test_indexed_v7_preserves_v6_evidence_and_limits_with_new_prompt_and_structure_check(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    m = indexable_manifest(source)
+    for case in m["cases"]:
+        (source / case["source_id"] / "ground_truth.yaml").unlink()
+    v6 = prepare_native(m, source, tmp_path / "v6", evidence_profile="indexed-v6")
+    v7 = prepare_native(m, source, tmp_path / "v7", evidence_profile="indexed-v7")
+    assert v7["evidence_profile"] == "indexed-v7"
+    assert v7["observation_index_profile"] == "indexed-v1"
+    assert v7["observation_index_extensions"] == ["lookup-catalog-v2", "resource-field-history-v2"]
+    for previous, current in zip(v6["scenarios"], v7["scenarios"], strict=True):
+        assert current["case_id"] == previous["case_id"]
+        assert current["source_assets"] == previous["source_assets"]
+        assert current["derived_evidence"] == previous["derived_evidence"]
+        old = yaml.safe_load((tmp_path / "v6" / previous["path"]).read_text())
+        spec = yaml.safe_load((tmp_path / "v7" / current["path"]).read_text())
+        assert spec["id"] == old["id"].replace("-indexed-v6", "-indexed-v7")
+        assert spec["fixture"] == old["fixture"]
+        assert spec["tools"] == old["tools"] == ["Read", "Grep", "Glob", "Skill"]
+        assert spec["max_turns"] == old["max_turns"] == 36
+        assert spec["checks"][:2] == old["checks"][:2]
+        assert spec["checks"][-1] == old["checks"][-1]
+        assert spec["checks"][2]["check"] == "wp04_submission_v1"
+        assert spec["checks"][2]["case_id"] == current["case_id"]
+        assert spec["prompt"] != old["prompt"]
+        assert validate_scenario(spec, where=current["path"]) == []
+        assert fingerprints.case_digest(spec) != fingerprints.case_digest(old)
+
+
+@pytest.mark.parametrize(
+    ("profile", "receipt_sha256"),
+    [
+        ("indexed-v4", "fe22893ff59ea3dcad4ddb907c562243b2fcdc03b39da11b9b1ed6b7b1b45cb3"),
+        ("indexed-v5", "e3642aaf67edee488e0214ba898eceeef17420d3ee246dcfca15b699b47e846a"),
+        ("indexed-v6", "f3669b3c68c82b385adf29ecbf4e34173a1759072af22d8e16344d543561a9a1"),
+    ],
+)
+def test_later_legacy_profiles_preserve_serialized_fixture_and_receipt_hashes(
+    tmp_path: Path, profile: str, receipt_sha256: str
+) -> None:
+    source = tmp_path / "source"
+    receipt = prepare_native(indexable_manifest(source), source, tmp_path / "output", evidence_profile=profile)
+    assert hashlib.sha256(json.dumps(receipt, sort_keys=True).encode()).hexdigest() == receipt_sha256
+    for item in receipt["scenarios"]:
+        assert hashlib.sha256((tmp_path / "output" / item["path"]).read_bytes()).hexdigest() == item["sha256"]
+
+
+def fenced_submission(body: str) -> str:
+    return "Returning to: human requester\n```json\n" + body + "\n```\nCaller next step: review."
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        (json.dumps(diagnosis()), State.PASS),
+        ('{"case_id":"wp04-24","status":"submitted","entities":[],"edges":[]}', State.PASS),
+        (json.dumps({**diagnosis(), "edges": []}), State.PASS),
+        ("{}", State.FAIL),
+        ("not JSON", State.FAIL),
+        ("", State.FAIL),
+        (json.dumps({**diagnosis(), "case_id": "wp04-7"}), State.FAIL),
+        (json.dumps({**diagnosis(), "status": "done"}), State.FAIL),
+        (json.dumps({**diagnosis(), "entities": {}}), State.FAIL),
+        (
+            json.dumps(
+                {**diagnosis(), "edges": [{"source": "a", "target": "absent", "condition": "x", "effect": "y"}]}
+            ),
+            State.FAIL,
+        ),
+        (
+            json.dumps({**diagnosis(), "edges": [{"source": [], "target": "b", "condition": "x", "effect": "y"}]}),
+            State.FAIL,
+        ),
+        (json.dumps(diagnosis()).replace('"case_id": "wp04-24"', '"case_id":"wp04-7","case_id":"wp04-24"'), State.FAIL),
+        (json.dumps(diagnosis()).replace('"rank": 1', '"rank":2,"rank":1'), State.FAIL),
+        (json.dumps(diagnosis())[:-1] + ',"extra":NaN}', State.FAIL),
+        (json.dumps(diagnosis())[:-1] + ',"extra":Infinity}', State.FAIL),
+        (json.dumps(diagnosis())[:-1] + ',"extra":-Infinity}', State.FAIL),
+        (json.dumps(diagnosis())[:-1] + ',"extra":1e400}', State.FAIL),
+    ],
+)
+def test_native_submission_check_validates_response_structure(tmp_path: Path, body: str, expected: State) -> None:
+    source = tmp_path / "source"
+    receipt = prepare_native(manifest(source), source, tmp_path / "output")
+    spec = yaml.safe_load((tmp_path / "output" / receipt["scenarios"][0]["path"]).read_text())
+    check = spec["checks"][2]
+    response = fenced_submission(body)
+    outcome = registry.run(context(spec, TraceSummary(result_text=response)), check)
+    assert outcome.state is expected, outcome.evidence
+    assert outcome.machinery is False
+    if expected is State.PASS:
+        assert collect_submission(response, "wp04-24") == json.loads(body)
+    else:
+        with pytest.raises(ValueError):
+            collect_submission(response, "wp04-24")
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        "No structured submission.",
+        "```json\n",
+        "```json\n" + json.dumps(diagnosis()),
+        fenced_submission(json.dumps(diagnosis())) * 2,
+        fenced_submission(json.dumps(diagnosis())) + "\n```json\n",
+    ],
+)
+def test_native_submission_check_rejects_missing_unclosed_or_multiple_blocks(tmp_path: Path, response: str) -> None:
+    source = tmp_path / "source"
+    receipt = prepare_native(manifest(source), source, tmp_path / "output")
+    spec = yaml.safe_load((tmp_path / "output" / receipt["scenarios"][0]["path"]).read_text())
+    outcome = registry.run(context(spec, TraceSummary(result_text=response)), spec["checks"][2])
+    assert outcome.state is State.FAIL
+    assert outcome.machinery is False
+    with pytest.raises(ValueError):
+        collect_submission(response, "wp04-24")
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        '{"case_id":"wrong","case_id":"wp04-24","status":"submitted","entities":[],"edges":[]}',
+        '{"case_id":"wp04-24","status":"submitted","entities":[],"edges":[],"extra":NaN}',
+    ],
+)
+def test_current_collector_rejects_ambiguous_or_nonfinite_json(body: str) -> None:
+    with pytest.raises(ValueError):
+        collect_submission(fenced_submission(body), "wp04-24")
+
+
+@pytest.mark.parametrize(("check_name", "malformed_passes"), [("wp04_submission_v1", False), ("text_regex", True)])
+@pytest.mark.parametrize("body", [json.dumps(diagnosis()), "not JSON"])
+def test_submission_check_regrades_from_saved_text_with_no_workspace(
+    tmp_path: Path, body: str, check_name: str, malformed_passes: bool
+) -> None:
+    params = {"case_id": "wp04-24"} if check_name == "wp04_submission_v1" else {"pattern": r"(?m)^```json\s*$"}
+    check = {"check": check_name, "text": "structured subcheck", **params}
+    assert registry.check_needs(check, {}) == frozenset({registry.Need.TEXT})
+    assert registry.is_regradable(check)
+    spec = tiny_spec(checks=[check])
+    response = fenced_submission(body)
+    expected = body != "not JSON" or malformed_passes
+    saved = write_saved_run(
+        tmp_path / "eval-tiny" / "new_skill" / "run-1",
+        response=response,
+        summary=saved_summary(),
+        grading=saved_grade(
+            spec, [{"text": "structured subcheck", "passed": not expected, "evidence": "stale"}], response=response
+        ),
+    )
+    rescoring.regrade(tmp_path, [spec])
+    result = latest_assessment(saved)["expectations"][0]
+    assert result["passed"] is expected
+    assert "kept" not in result["evidence"]
+
+
+def test_submission_parser_is_bound_into_harness_fingerprint() -> None:
+    assert Path(__file__).with_name("itbench_submission.py").resolve() in fingerprints.HARNESS_FILES

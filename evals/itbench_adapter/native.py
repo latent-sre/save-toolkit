@@ -6,7 +6,6 @@ import copy
 import hashlib
 import io
 import json
-import re
 import shutil
 import tempfile
 from collections.abc import Mapping
@@ -14,9 +13,10 @@ from pathlib import Path
 from typing import Any, BinaryIO
 
 import yaml
+from itbench_submission import collect_submission as collect_submission
 from probe.catalog import validate_scenario
 
-from .core import _read_asset, _submission, validate_manifest
+from .core import _read_asset, validate_manifest
 from .observations import (
     DEFAULT_PAGE_BYTES,
     FIELD_HISTORY_INLINE_PROFILE,
@@ -92,25 +92,13 @@ def prepare_ground_truth(manifest: Mapping[str, Any], source_root: Path) -> dict
     }
 
 
-def collect_submission(response: str, case_id: str) -> dict[str, Any]:
-    """Collect one explicit JSON block without inferring claims from report prose."""
-    blocks = re.findall(r"(?m)^```json\s*\n(.*?)\n```\s*$", response, flags=re.DOTALL)
-    if len(blocks) != 1:
-        raise ValueError("response must contain exactly one JSON submission block")
-    submission = json.loads(blocks[0])
-    if not isinstance(submission, dict) or submission.get("case_id") != case_id:
-        raise ValueError("submission case differs from selected case")
-    _submission(submission)
-    return submission
-
-
 def prepare_native(
     manifest: Mapping[str, Any],
     source_root: Path,
     destination: Path,
     *,
     max_prepared_bytes: int = 512 * 1024 * 1024,
-    evidence_profile: str = "raw",
+    evidence_profile: str = "raw-v2",
 ) -> dict[str, Any]:
     """Emit validated, byte-bounded fixture YAML into a new disposable directory.
 
@@ -121,12 +109,14 @@ def prepare_native(
     validate_manifest(manifest)
     if evidence_profile not in {
         "raw",
+        "raw-v2",
         INDEX_PROFILE,
         "indexed-v2",
         "indexed-v3",
         "indexed-v4",
         "indexed-v5",
         "indexed-v6",
+        "indexed-v7",
     }:
         raise ValueError("unsupported evidence profile")
     raw_bytes = sum(a["size"] for c in manifest["cases"] for a in c["observables"])
@@ -152,15 +142,16 @@ def prepare_native(
                 for a in case["observables"]
             }
             derived = None
-            if evidence_profile != "raw":
+            if evidence_profile not in {"raw", "raw-v2"}:
                 # Decode only bytes already admitted by the observable-only hash/path boundary.
                 indexed = build_observation_index(
                     files,
                     max_derived_bytes=max_prepared_bytes - total - sum(len(v.encode()) for v in files.values()),
-                    lookup_catalog=evidence_profile in {"indexed-v3", "indexed-v4", "indexed-v5", "indexed-v6"},
-                    field_history=evidence_profile in {"indexed-v4", "indexed-v5", "indexed-v6"},
-                    inline_field_values=evidence_profile in {"indexed-v5", "indexed-v6"},
-                    scoped_lookup=evidence_profile == "indexed-v6",
+                    lookup_catalog=evidence_profile
+                    in {"indexed-v3", "indexed-v4", "indexed-v5", "indexed-v6", "indexed-v7"},
+                    field_history=evidence_profile in {"indexed-v4", "indexed-v5", "indexed-v6", "indexed-v7"},
+                    inline_field_values=evidence_profile in {"indexed-v5", "indexed-v6", "indexed-v7"},
+                    scoped_lookup=evidence_profile in {"indexed-v6", "indexed-v7"},
                 )
                 derived_files = indexed["files"]
                 derived = {
@@ -209,7 +200,7 @@ def prepare_native(
                 "requires your reason. Every claimed causal edge requires source and target entity ids,\n"
                 "condition and effect. Do not invent an entity or propagation to complete the graph.\n"
             )
-            if derived is not None:
+            if derived is not None or evidence_profile == "raw-v2":
                 prompt = prompt.replace(
                     "Collector Timestamp columns/alert filenames omit a timezone. Preserve them as unknown-zone;\n"
                     "embedded RFC3339 timestamps ending Z are UTC. Do not infer an offset between them.\n"
@@ -221,12 +212,15 @@ def prepare_native(
                     "later timestamps may occur within these released records. No further conversational\n"
                     "observation release or human mitigation is provided in this single-response exercise.\n",
                 )
-                if evidence_profile in {"indexed-v2", "indexed-v3", "indexed-v4", "indexed-v5", "indexed-v6"}:
+                if evidence_profile != INDEX_PROFILE:
                     prompt = prompt.replace(
                         "Do not infer offsets or align these clocks. ",
                         "You may order explicitly zoned, comparable timestamps using their stated zones.\n"
                         "Do not infer offsets or relationships between these timestamps and unknown-zone clocks.\n",
                     )
+            if evidence_profile in {"raw-v2", "indexed-v7"}:
+                prompt += "The submission must be valid JSON with no duplicate object keys or nonfinite numbers.\n"
+            if derived is not None:
                 prompt += (
                     f"Evidence profile {evidence_profile}: begin with observations/index.json. The derived tables\n"
                     "index all released records, with actual resource identities, separate clocks, raw-source\n"
@@ -257,7 +251,7 @@ def prepare_native(
                         "alerts and logs. History order is source order, not event-time order. Bind each causal\n"
                         "comparison to its ledger records and their separate clocks.\n"
                     )
-                if evidence_profile == "indexed-v6":
+                if evidence_profile in {"indexed-v6", "indexed-v7"}:
                     prompt += (
                         "Lookup catalog extension lookup-catalog-v2: object/event files are grouped by exact\n"
                         "reported resource identity. Follow the category's resource_groups and search descriptors\n"
@@ -268,7 +262,7 @@ def prepare_native(
                         "Logs/alerts retain complete flat catalogs. Use named fields rather than positional raw\n"
                         "column patterns; a missing trace identifier must not silently exclude a service's logs.\n"
                     )
-                if evidence_profile in {"indexed-v5", "indexed-v6"}:
+                if evidence_profile in {"indexed-v5", "indexed-v6", "indexed-v7"}:
                     prompt += (
                         "Resource field histories: use the resource-field-history-v2 extension. Search its entire\n"
                         "resources_search.directory with the supplied glob and a bare resource name or resource_path\n"
@@ -289,7 +283,7 @@ def prepare_native(
             manual = 'python -c "raise SystemExit(2)"'
             spec: dict[str, Any] = {
                 "id": f"wp04-itbench-{case['source_id'].removeprefix('Scenario-')}"
-                + (f"-{evidence_profile}" if derived is not None else ""),
+                + (f"-{evidence_profile}" if evidence_profile != "raw" else ""),
                 "max_turns": 36,
                 "agent": "sre-assistant",
                 "tools": TOOLS.copy(),
@@ -299,6 +293,12 @@ def prepare_native(
                     {"check": "no_workspace_changes", "text": "recorded evidence was not changed"},
                     {"check": "no_new_commits", "text": "no commits were created"},
                     {
+                        "check": "wp04_submission_v1",
+                        "case_id": case["id"],
+                        "text": "one valid structured diagnosis for the selected case supplied",
+                    }
+                    if evidence_profile in {"raw-v2", "indexed-v7"}
+                    else {
                         "check": "text_regex",
                         "pattern": r"(?m)^```json\s*$",
                         "text": "explicit structured diagnosis block supplied",
@@ -359,7 +359,7 @@ def prepare_native(
         ),
         **(
             {"observation_index_profile": INDEX_PROFILE}
-            if evidence_profile in {"indexed-v2", "indexed-v3", "indexed-v4", "indexed-v5", "indexed-v6"}
+            if evidence_profile in {"indexed-v2", "indexed-v3", "indexed-v4", "indexed-v5", "indexed-v6", "indexed-v7"}
             else {}
         ),
         **({"observation_index_extensions": [LOOKUP_PROFILE]} if evidence_profile == "indexed-v3" else {}),
@@ -375,7 +375,7 @@ def prepare_native(
         ),
         **(
             {"observation_index_extensions": [SCOPED_LOOKUP_PROFILE, FIELD_HISTORY_INLINE_PROFILE]}
-            if evidence_profile == "indexed-v6"
+            if evidence_profile in {"indexed-v6", "indexed-v7"}
             else {}
         ),
     }

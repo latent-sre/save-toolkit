@@ -122,6 +122,7 @@ include = [
     "evals/wp04_linux_cli.py",
     "evals/itbench_adapter/**/*.py",
     "evals/itbench_pilot.py",
+    "evals/itbench_submission.py",
     "evals/itbench_testkit.py",
     "evals/swt_adapter/**/*.py",
     "evals/swt_pilot.py",
@@ -166,7 +167,7 @@ python_version = "3.14"
 files = [
     "evals/probe", "evals/build_probe.py", "evals/compare_runs.py", "evals/turn_counts.py", "evals/graders.py",
     "evals/inspect_pilot.py", "evals/inspect_fleet.py", "evals/catalog.py", "evals/campaign_report.py", "evals/testing_block.py", "evals/wp04_linux_cli.py",
-    "evals/itbench_adapter", "evals/itbench_pilot.py",
+    "evals/itbench_adapter", "evals/itbench_pilot.py", "evals/itbench_submission.py",
     "evals/swt_adapter", "evals/swt_pilot.py",
     "evals/harbor_adapter", "evals/harbor_pilot.py",
     "evals/swebench_adapter", "evals/swebench_repair.py",

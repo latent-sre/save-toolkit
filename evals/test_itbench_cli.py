@@ -169,3 +169,39 @@ def test_prepare_native_cli_refuses_unknown_profile_before_writing(tmp_path: Pat
     assert "invalid choice" in result.stderr
     assert not destination.exists()
     assert not receipt.exists()
+
+
+@pytest.mark.parametrize("profile", [None, "raw-v2", "indexed-v7"])
+def test_prepare_native_cli_uses_corrected_profiles_and_default(tmp_path: Path, profile: str | None) -> None:
+    source = tmp_path / "source"
+    data = manifest(source)
+    for case in data["cases"]:
+        path = source / case["source_id"] / "k8s_events_raw.tsv"
+        path.write_text(
+            'Timestamp\tBody\n2025-12-15 18:00:00\t{"kind":"Event","metadata":{"name":"notice"},'
+            '"regarding":{"kind":"Pod","namespace":"demo","name":"worker"}}\n'
+        )
+        case["observables"][0].update(sha256=hashlib.sha256(path.read_bytes()).hexdigest(), size=path.stat().st_size)
+        (path.parent / "ground_truth.yaml").unlink()
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps(data))
+    destination, receipt = tmp_path / "fixtures", tmp_path / "receipt.json"
+    result = run(
+        "prepare-native",
+        "--manifest",
+        str(path),
+        "--source",
+        str(source),
+        "--destination",
+        str(destination),
+        "--receipt",
+        str(receipt),
+        *(["--evidence-profile", profile] if profile is not None else []),
+    )
+    assert result.returncode == 0, result.stderr
+    selected = profile or "raw-v2"
+    metadata = json.loads(receipt.read_text())
+    assert metadata.get("evidence_profile") == selected
+    spec = yaml.safe_load((destination / f"wp04-itbench-24-{selected}.yaml").read_text())
+    assert spec["checks"][2]["check"] == "wp04_submission_v1"
+    assert ("observations/index.json" in spec["fixture"]["files"]) == (selected == "indexed-v7")

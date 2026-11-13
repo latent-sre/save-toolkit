@@ -196,6 +196,17 @@ def test_selection_duplicates_invalid_paths_and_extra_slots_remain_visible(tmp_p
     assert "unselected" in report["unselected_cases"]
 
 
+def test_unselected_incomplete_attempt_is_labeled_as_bundle_scope(tmp_path):
+    attempt(tmp_path, "other-case", state="incomplete")
+    report = campaign_report.build_report(tmp_path, selection("reserved-case"), "claude")
+    assert report["counts"]["started_slots"] == 0
+    assert report["counts"]["missing_slots"] == 1
+    assert report["counts"]["incomplete_attempts"] == 1
+    rendered = campaign_report.render_markdown(report)
+    assert "All saved attempts (including unselected cases): kept 1; incomplete 1." in rendered
+    assert "These attempt and cost totals repeat across selections; do not add subsection totals." in rendered
+
+
 def test_cli_json_and_markdown_are_stdout_only(tmp_path):
     attempt(tmp_path)
     manifest = tmp_path / "selection.json"

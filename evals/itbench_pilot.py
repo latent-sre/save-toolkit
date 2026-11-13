@@ -69,8 +69,18 @@ def main(argv: list[str] | None = None) -> int:
                 command.add_argument("--max-prepared-bytes", type=int, default=512 * 1024 * 1024)
                 command.add_argument(
                     "--evidence-profile",
-                    choices=("raw", "indexed-v1", "indexed-v2", "indexed-v3", "indexed-v4", "indexed-v5", "indexed-v6"),
-                    default="raw",
+                    choices=(
+                        "raw",
+                        "raw-v2",
+                        "indexed-v1",
+                        "indexed-v2",
+                        "indexed-v3",
+                        "indexed-v4",
+                        "indexed-v5",
+                        "indexed-v6",
+                        "indexed-v7",
+                    ),
+                    default="raw-v2",
                 )
             command.add_argument("--destination", type=Path, required=True)
             command.add_argument("--receipt", type=Path, required=True)

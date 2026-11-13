@@ -1,9 +1,10 @@
 # WP04 observable index profile
 
-[sourced] `prepare-native --evidence-profile indexed-v1` and `--evidence-profile indexed-v2` add
-the same deterministic, observable-only view to the unchanged released files. The default `raw`
-profile retains its existing scenario and receipt format. Indexed scenarios have their selected
-profile as a suffix, while their submitted benchmark case IDs remain unchanged. This is a different
+[sourced] `prepare-native` defaults to `raw-v2`: unchanged released files, corrected timestamp and
+release wording, and a schema-validating submission check. Explicit `--evidence-profile raw` retains
+the historical prompt, fence-marker check, scenario and receipt bytes. `indexed-v1` and `indexed-v2`
+add the same deterministic, observable-only view to the released files. New raw and all indexed
+scenarios have their selected profile as a suffix, while submitted benchmark case IDs remain unchanged. This is a different
 evidence representation and prompt condition, not a raw-profile result or an index-only causal
 experiment. The implementation is in [native.py](../itbench_adapter/native.py).
 
@@ -35,6 +36,11 @@ catalog pages are grouped by exact reported resource identity, preventing neighb
 from sharing a selected JSONL file. Logs and alerts retain their existing flat catalogs. Every
 record, duplicate, source link and clock remains available; this is a distinct execution profile.
 
+[sourced] `indexed-v7` retains every original and derived evidence file from v6 byte-for-byte. Its
+prompt requires strict JSON, and its structural check validates the submission for the selected case.
+It has distinct scenario, prompt and check identities. Explicit `raw` and `indexed-v1` through
+`indexed-v6` remain available with their historical fixture and receipt bytes.
+
 The indexed prompt explains pagination, explicit UTC versus unknown-zone clocks, and that all
 records are released together: later timestamps may exist in the bundle even though no additional
 conversation turn will be released. Tools remain Read, Grep, Glob and Skill. No executable parser,
@@ -60,6 +66,10 @@ Select `--evidence-profile indexed-v4` for resource field histories as well. All
 directories, values, observation ledgers and occurrence locators count toward that byte budget.
 Select `--evidence-profile indexed-v5` for the revised search scopes and inline histories.
 Select `--evidence-profile indexed-v6` to also use resource-scoped object/event record catalogs.
+Select `--evidence-profile indexed-v7` for those same files with validated structured submissions.
+Omit the profile or select `--evidence-profile raw-v2` for corrected raw preparation. Both new
+profiles preserve explicit `Z.json` UTC filenames and embedded zones, permit ordering comparable
+explicitly zoned timestamps, and distinguish records already released from further conversation turns.
 
 The explicit byte budget covers serialized fixture YAML, including original and derived evidence.
 The destination must be new and separate from the source cache. A failed preparation does not
@@ -195,6 +205,29 @@ named fields, including empty identifiers, remain part of each full row. Query f
 what a negative search establishes. V1 catalogs remain the default; `scoped_lookup` is opt-in and
 requires lookup catalogs to be enabled. There is no cause, entity-name or field-value selection.
 
+## V7 and corrected raw submission validation
+
+[sourced] `raw-v2` and `indexed-v7` use `wp04_submission_v1`, which collects exactly one complete
+fenced `json` block from the final response. The shared [submission module](../itbench_submission.py)
+rejects malformed JSON, duplicate keys at any nesting level, nonfinite numbers (including numeric
+overflow), a different case ID, and invalid entity/edge structure. Entity IDs and names must be
+unique, ranks must be contiguous from one or explicitly null, reasons are required, and causal
+edges must reference submitted entities with explicit condition/effect claims.
+
+[sourced] The checker reads only saved final text and is regradable without a workspace or model
+call. Its parser and schema file is bound into the [harness fingerprint](../probe/fingerprints.py).
+The schema is also used by export and collection. The public `collect_submission(response, case_id)`
+signature and return shape are unchanged, including imports through `itbench_adapter` and `native`.
+Current collection is stricter for all callers, including callers processing legacy responses:
+duplicate-key/nonfinite JSON and a trailing unclosed JSON fence now fail. This does not rewrite
+saved responses, legacy fixtures or their fence-marker verdicts. The changed runner source has a
+new harness/scenario digest; unchanged legacy case digests and fixture hashes remain comparable.
+
+[sourced] Empty entity/edge arrays remain schema-valid, as do supported alternative hypotheses;
+structural validity does not prove completeness, usefulness, source grounding or causality. The
+independent operational-semantics check remains `INCONCLUSIVE` pending human review. Tools and
+the 36-turn limit are unchanged. These profiles do not authorize execution or candidate acceptance.
+
 ## Evidence boundary and qualification
 
 Manifest/hash/path checks run before indexing. The decoder accepts already validated observable
@@ -234,6 +267,11 @@ distinct v2 scenario IDs and receipt profiles, explicit-zone ordering guidance, 
 between later records and further conversational releases, and invalid-profile refusal.
 [CLI tests](../test_itbench_cli.py) exercise opt-in profile selection and refusal before publication.
 These checks do not establish a diagnosis-quality improvement for v2.
+
+[verified] Native/CLI tests also cover the corrected raw default and v7, reject malformed,
+duplicate-key, nonfinite, wrong-case and dangling-edge submissions, retain valid alternatives,
+and replay the new check from saved text. Legacy raw/v1-v6 receipt and fixture hashes remain
+frozen, and v7's entire evidence map matches v6. The semantics gate remains unavailable.
 
 [verified] [Observation tests](../test_itbench_observations.py) cover v3 catalog provenance,
 duplicate retention, complete small payloads, literal search, reconstruction of oversized records,

@@ -4,7 +4,8 @@
   "summary": "Synthetic incident profiles and continuity controls; case acceptance remains separate",
   "tests": [
     "evals/test_incident_conversations.py",
-    "evals/test_native_readiness_cases.py"
+    "evals/test_native_readiness_cases.py",
+    "evals/test_incident_review_v2.py"
   ],
   "native_scenarios": [
     "incident-session-01-a",
@@ -28,6 +29,7 @@
   ],
   "campaigns": [],
   "guides": [
-    "evals/incident-conversations/README.md"
+    "evals/incident-conversations/README.md",
+    "evals/incident-conversations/review-v2/README.md"
   ]
 }
