@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; working update 2026-11-12, owner-accepted runner closure.** This is the only backlog.
+> **Status: live; working update 2026-11-13, bounded reliability comparison.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -413,48 +413,47 @@ the commit message of `5c5aa742` records the original scenarios as owed.
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.
 
-### RELIABILITY-001 — measure the timing repair on Claude, then decide on the reliability lane
+### RELIABILITY-001 — preserve retry-count uncertainty and qualify the native assessment
 
-**Status:** `ready` (2026-10-25); the source repair has landed, but the specified native
-helper-return comparison remains unrun. The separate
-[WP-10 assessment-document comparison](reviews/2026-10-25-wp10-handoff-repairs.md#reliability-proposals)
-measures newer retry guidance on Claude and Codex; it does not replace this profile's acceptance.
-- [verified] The 2026-10-08 comparison: candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt
-  byte-identically from its commit, ran one native trial each on `claude-sonnet-5-5` for USD 0.70 in
-  all. Both pass the three structural checks.
-- [sourced: independent blind trace review] Both arms pass four of the five manual criteria and fail
-  the timing criterion the same way: each fixes the retry count at three and treats the 36-second
-  sum of timeouts as a bound on elapsed time and slot use.
-- [verified] Since then `resilience-analysis` distinguishes retries from attempts and states that a
-  timeout sum alone bounds neither elapsed time nor slot occupancy, with a worked contrast between a
-  false return and an uncaught exception (`2d0292c1`, 2026-10-15); `f151c276` added overload and
-  startup comparison evidence, and the lane loads its method skills before writing (2026-10-10).
-- [sourced: independent semantic review] On Luna (Codex), three trials of
-  `build-reliability-engineer-proportionate-options` on `f151c276` rejected an unconditional timeout
-  or occupancy maximum but failed the rubric: none explained that a false return permits another
-  call while an uncaught exception exits immediately
-  ([closeout](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout)).
-**Owner:** The human owner approves the run and remains the only acceptor; a maintainer session runs and
-reads it.
-**Outcome:** One bounded Sonnet comparison shows whether the reliability engineer states timing
-without the 36-second bound and keeps the false-return versus exception distinction, against a
-control that differs from it only by the timing repair. The owner then accepts the lane, scopes a
-further repair, or keeps it shipped and unaccepted.
-**Next action:** A maintainer session freezes a main commit as the candidate and builds the control from
-it: the same bytes with only the retry-timing text restored to its pre-`2d0292c1` wording (the
-retry-timing sentences in `skills/resilience-analysis/SKILL.md` and the two retry passages in its
-`references/worked-contrasts.md`), keeping the overload and admission wording, with adapters
-regenerated. A `git revert` of `2d0292c1` no longer applies, because `f151c276` rewrote the same
-lines, so the control is a hand diff pushed to a ref and reviewed. With both commits and plugin
-digests recorded, the owner approves that bound pair (about USD 1; one native trial per arm on
-`claude-sonnet-5-5`, no retries). A maintainer session then runs both on
-[`native-reliability-helper-return-and-resume`](../evals/scenarios/native-reliability-helper-return-and-resume.yaml)
-and has the timing criterion graded blind. One sample per arm cannot establish a rate. The 2026-10-08
-arms, including the unpublished synthetic baseline `cecadc1b`, the impossible old native case and all
-failed observations stay historical evidence.
-**Evidence:** [Owner-approved comparison on rebuilt arms](reviews/2026-09-30-backlog-four/reliability.md#owner-approved-comparison-on-rebuilt-arms-2026-10-08),
-with the earlier comparison and instrument repair in the same record; the
-[lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
+**Status:** `active` (2026-11-13); the latest approved one-candidate repair/comparison is
+complete, with semantic failures remaining. [verified] The revised skill requires an explicit
+retry-count basis and demonstrates both count interpretations. A common prompt tells each
+helper its task permits only Read; that context change applies equally to both arms.
+All **ten trials**, five per arm, completed with 3/3 structural checks, twenty CLI invocations,
+complete costs and workspace cleanup. No native tool-boundary stop or retry occurred.
+[sourced: two independent blind reviews] Candidate `3c296315` passes **2/5 complete trials**;
+preceding-repair baseline `6db50f2e` passes **1/5**. These identify plugin SHA-256 prefixes,
+not commits; both sources are bound to base `ff651f94` with dirty plugin inputs. All ten
+samples preserve Read-only helper work, owner/caller, read provenance and conditional
+return/exception reasoning. Revised failures still promote conditional sums into bounds,
+infer a two-attempt ceiling from a maximum duration, or lose assumptions when reusing numbers.
+One revised sample also fails supplied-control coverage. The candidate remains unaccepted;
+five pairs on one regression case do not establish a reliability rate or causal benefit.
+[verified] This loop reports USD **3.131151**; combined spend under the newer USD 20 approval
+is **4.460681**, leaving **15.539319**. The earlier stopped loop and original comparison keep
+their raw failures and missing slots. Focused checks pass 92 tests and 328 subtests; independent
+source/operator review has no remaining material launch blocker. The exact-candidate heavy run
+remains FAIL: **11 failed, 5,289 passed, 295 skipped, 5,077 passing subtests**. Its ten known
+Windows fixture failures remain, plus an unresolved local proxy-test socket abort. That exact
+proxy parameter passed once in a focused check; independent review finds its proxy path outside
+the selected native profile. All 38 native-conversation tests pass. This does not establish
+general readiness or repair the separate full-suite failures.
+**Owner:** The human owner remains the only exact-candidate acceptor; a maintainer session owns
+the evidence and any separately scoped follow-up.
+**Outcome:** Preserve timing and retry-count assumptions plus conditional return/exception
+behavior through a real helper exchange, then let the human accept the exact candidate or
+retain the lane shipped and unaccepted.
+**Next action:** Review the [latest numerical-reasoning failures and exact candidate](reviews/2026-11-13-reliability-native-comparison.md#retry-count-repair-verification)
+and scope any further repair around justified bounds, attempt-duration assumptions and supplied
+control coverage. Preserve the current denied-tool policy and every historical grade. No extra
+candidate, trial or tuning is scheduled by the unused allowance. Separate Windows fixture and
+proxy-abort failures remain open for any conclusion requiring a green suite.
+**Evidence:** [Current matched comparison](reviews/2026-11-13-reliability-native-comparison.md);
+[historical native failures and instrument repair](reviews/2026-09-30-backlog-four/reliability.md),
+the [Luna closeout](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout),
+and the separate [WP-10 document comparison](reviews/2026-10-25-wp10-handoff-repairs.md#reliability-proposals)
+retain their original results. The [lane decision](decisions/2026-09-21-reliability-engineer.md)
+retains its acceptance scope; no result promotes the lane.
 **SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
 work with an owner and a meaningful proof-of-improvement check.
 
