@@ -1,66 +1,62 @@
 ---
 name: go-craft
 description: >-
-  Write, refactor, modernize, or test Go in services, CLIs, libraries, and workers.
-  Load before editing Go, including module upgrades and concurrent code. Triggers:
-  'build this in Go', 'refactor this Go package', 'modernize this Go module',
-  'test this Go worker'. Not for runtime-only operations; use incident-investigation for
-  incident troubleshooting. Compose with api-craft for HTTP and operator-cli for command contracts.
-argument-hint: "[Go code, package, or task]"
+  Design, write, refactor, fix, and modernize Go code across services, libraries, CLIs, workers,
+  and tests. Load before writing, editing, or reviewing any Go: build fresh packages right from the
+  start, upgrade touched legacy code to modern standards, fix defects, and verify concurrency.
+  Compose with api-craft for HTTP APIs/clients and operator-cli for CLI contracts. Triggers:
+  'write this in Go', 'refactor this Go code', 'modernize this Go module', 'fix this Go bug'.
+  Not for live incident response without code changes (incident-investigation) or non-Go language
+  work (python-craft, frontend-craft).
+argument-hint: "[Go package, feature, refactor, or defect]"
 ---
 
-# Go craft
+# Go Craft
 
-Load `stack-profile` for toolchain choices, `api-craft` for HTTP boundaries, and `operator-cli`
-for command contracts. Keep language changes within the requested task; preserve caller-visible
-behavior unless its change is intentional.
+The task and repository constraints set scope; this skill adds no tools or live authority.
+Explanation, design, and review requests stop at those outputs unless implementation is requested.
 
-## Establish the version boundary
+## Mandates and Leeway
 
-- Inspect `go.mod`, an active `go.work`, build tags, CI and deployment targets. The `go` directive
-  sets the module's minimum Go version and language semantics; `toolchain` suggests a preferred
-  toolchain, not a new compatibility floor. File build constraints can raise the language version for that file, or lower it to no less than go1.21.
-- For new modules and scoped upgrades, verify the latest compatible stable Go and dependency
-  releases against official docs and upstream evidence. Explain constraints that require older
-  versions. Review changes to `go` and dependencies after module commands; a dependency upgrade
-  can raise the minimum version. Preserve required `GOOS`, `GOARCH`, and cgo support.
-- For modernization on Go 1.26+, preview `go fix -diff` on the affected packages. Apply only the
-  intended transformations and inspect affected callers; do not combine an unrelated module-wide
-  rewrite with a defect fix. The modernizers respect effective file versions, but a successful
-  build with a newer compiler alone does not establish support for the oldest promised toolchain.
+1. **Bind the module floor first.** Read `go.mod` (`go`, `toolchain`, `tool`) and CI/lint config
+   before choosing features. `go.mod`'s `go` directive—not the host `go` binary—gates language and
+   stdlib semantics. Never raise the `go` floor without task authority.
+2. **Build fresh code right from the start.** Keep `main()` as a thin wiring wrapper around a
+   testable `run(ctx, ...)` function; separate pure domain decisions from I/O adapters; define narrow
+   consumer-owned interfaces; bound every goroutine and resource lifecycle.
+3. **Refactor touched code with active leeway.** When fixing a bug, adding a feature, or refactoring,
+   clean up structural flaws in the touched scope: flatten deep nesting, extract pure logic from I/O,
+   collapse single-implementation producer interfaces, unify duplicated policy, replace custom
+   plumbing with `go.mod`-supported stdlib, and fix adjacent resource/concurrency leaks.
+4. **Separate internal freedom from external contracts.** Reshape unexported types, helper
+   signatures, intra-package file splits, `internal/` packages, and their in-repo callers freely.
+   Preserve exported module APIs, wire schemas (JSON tags, `[]` vs `null` slices, SQL schemas, HTTP
+   contracts), CLI flags/exit codes, and documented sentinel errors unless authorized to change them.
+   Report out-of-scope contract defects separately.
 
-## Preserve Go contracts
+| Rationalization (Reject) | Required Action |
+|---|---|
+| *"Keep the diff minimal / only patch the broken line"* | Restructure the touched function and local helpers when they mix I/O and policy, nest deeply, or leak resources |
+| *"Match the existing pattern in this file"* | Follow repo conventions (layout, naming, runner), never local defects (naked goroutines, ignored `Close`/`rows.Err`, `map[string]any`, `IFooService` bloat) |
+| *"Add a bool flag or drop `ctx` to avoid touching callers"* | Fix the internal signature (`ctx context.Context` first) and update all in-repo callers in one change |
+| *"Keep the old unexported helper/interface just in case"* | Migrate all in-repo callers and delete superseded unexported code; use `// Deprecated: use X.` only for exported symbols |
+| *"Move shared structs to `common` or `types` to break a cycle"* | Put the type in the package that owns its invariants and define a narrow consumer interface at the lower-level call site |
 
-- Before refactoring, identify exported callers, error matching through `errors.Is`/`errors.As`,
-  ownership of shared slices/maps, and serialized or persisted data. Check nil versus empty values,
-  aliasing and ordering when replacing custom code with standard-library operations.
-- When choosing `encoding/json/v2` (Go 1.27+), test the actual wire or stored-data contract:
-  nil slices/maps encode as empty arrays/objects by default, field matching is case-sensitive,
-  `omitempty` uses JSON emptiness, and duplicate object names or invalid UTF-8 are rejected.
-  `encoding/json` remains supported; adopting the v2 API is a behavior change to assess, not an
-  automatic consequence of upgrading Go. From Go 1.27 `encoding/json` itself runs on the v2
-  implementation: behavior is preserved but error text may differ, so check code and tests that
-  match error strings. `GOEXPERIMENT=nojsonv2` at build time restores the old implementation while
-  that opt-out exists.
+## Composition and Reference Routing
 
-## Own concurrent work
+Compose `api-craft` (HTTP servers/clients/webhooks), `operator-cli` (CLI flags, exit codes, dry-run,
+signals), `database-reliability` (migrations/pools), `root-cause` (non-obvious bugs/flakiness), and
+`stack-profile` (unset repo tooling).
 
-- Give each goroutine an owner, a termination path and a completion signal. Cancellation requests
-  a stop; it does not join goroutines. Unblock canceled work, then join it before releasing resources
-  it still uses. Test cancellation while admission is full and while work is in flight.
-- Bound admission before spawning; a semaphore inside one goroutine per item still permits
-  unbounded waiting goroutines. If using `errgroup`, `SetLimit` makes `Go` block for capacity
-  without observing cancellation. Use cancellation-aware admission when the caller must stop
-  promptly. The `WithContext` context is canceled when `Wait` returns, even on success; use the
-  parent or a separately owned context for subsequent work.
+| Task or inspected code condition | Read |
+|---|---|
+| New Go binary, package, entrypoint, data model, concurrency/shutdown lifecycle, error/I/O boundary, or Go 1.22–1.26+ features | [design-and-new-code.md](./references/design-and-new-code.md) |
+| Refactoring, bug fix, extending legacy Go, replacing custom helpers with stdlib, or running `go fix` / `modernize` | [refactoring-and-modernization.md](./references/refactoring-and-modernization.md) |
+| Tests, deterministic concurrency/time (`synctest`), race/leak checks, benchmarks (`b.Loop`), or fuzzing | [testing-and-verification.md](./references/testing-and-verification.md) |
 
-## Verify the changed behavior
+## Guardrails
 
-- Run the project's format, vet and test checks on affected packages and callers. For a claimed
-  minimum Go version, test with that toolchain and automatic toolchain switching disabled;
-  check required build tags and platform variants. Use `go test -race` for changed shared state
-  on a supported target; it checks executed paths, not every possible schedule.
-- On Go 1.25+, use `testing/synctest.Test` for suitable time/concurrency tests instead of sleeps
-  that guess when a goroutine has progressed. `synctest.Wait` means other bubble goroutines are
-  durably blocked, not finished. Keep real network I/O out of fake-time assumptions; test that
-  integration separately. Verify the cancellation and completion conditions themselves.
+- Never add blanket `//nolint`, discard actionable write/close/commit/rollback errors with `_ =`,
+  weaken valid tests, or claim unexecuted checks passed.
+- Report structural changes, preserved contracts, exact commands run (`go test -count=1`, `-race`,
+  `go vet`, linters), and any unverified paths.

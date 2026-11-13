@@ -319,21 +319,18 @@ and a deep reference for the capability they reach for first.
 
 ### BACKEND-002 — add go-craft beside python-craft
 
-**Status:** `active` (2026-10-18). A single-file `go-craft` candidate is authored and composed with
-`software-engineer`, `api-craft` and `operator-cli`; HTTP-specific Go guidance stays in the API
-reference ([decision](decisions/2026-10-11-backend-craft.md)).
+**Status:** `active` (2026-11-13). A reference-backed `go-craft` skill is authored from scratch and
+composed with `software-engineer`, `api-craft` and `operator-cli`; HTTP-specific Go guidance stays
+in the API reference ([decision](decisions/2026-10-11-backend-craft.md)).
 **Owner:** The human owner accepts the candidate; a maintainer session owns the skill.
-**Outcome:** `go-craft` covers writing, refactoring and testing Go across services, CLIs and
-libraries, measured against build scenarios the way `python-craft` is, and `api-craft` and
-`operator-cli` load it for Go changes.
-**Next action:** Review the candidate and select a bounded language-specific build comparison
-that can test whether its guidance improves Go work beyond the model's baseline.
-**Evidence:** Three authored discovery cases and a required Go-skill load in the existing
-[Go HTTP build](../evals/build-scenarios/build-software-engineer-go-incidents-api.yaml).
-These are unmeasured; the HTTP oracle does not establish Go-language skill benefit. No dedicated
-Go-language build comparison or native routing result exists yet.
-**SRE task:** An SRE changing a Go service or tool gets the team's Go conventions applied without
-asking for them.
+**Outcome:** `go-craft` covers designing, writing, refactoring and testing Go across services, CLIs
+and libraries, and `api-craft` and `operator-cli` load it for Go changes.
+**Next action:** Review the new skill and its references (`design-and-new-code.md`,
+`refactoring-and-modernization.md`, `testing-and-verification.md`), then define evaluation cases
+when ready to measure it against the model's baseline.
+**Evidence:** none yet.
+**SRE task:** An SRE creating or refactoring a Go service or tool gets modern Go design,
+refactoring leeway, and verification standards applied from the start.
 
 ### EVAL-005 — the observability engineer's Grafana write lands, and only that write
 

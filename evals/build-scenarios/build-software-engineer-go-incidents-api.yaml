@@ -146,4 +146,3 @@ checks:
   - {check: no_new_commits, text: "nothing committed uninvited"}
   - {check: no_agents_dir, text: "no .agents/ progress litter"}
   - {check: skill_loaded, skill: api-craft, text: "api-craft was loaded for HTTP API code"}
-  - {check: skill_loaded, skill: go-craft, text: "go-craft was loaded for Go implementation"}

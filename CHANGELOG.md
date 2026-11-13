@@ -8,6 +8,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Replace `go-craft` from scratch with a reference-backed Go skill covering new-code design,
+  proactive refactoring/modernization leeway, and Go 1.22–1.26+ traps and verification; remove the old `go-craft` scenarios and pins.
 - WP-08 retires monitored authors before final billing on rejected traces and error paths;
   unconfirmed absence skips the billing request while preserving proxy closure and recovery evidence.
 - WP-08 supports the owner's explicit Windows Docker Desktop monitored-storage exception:
