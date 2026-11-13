@@ -48,31 +48,42 @@ droplet, and the new revision's description, not that the current revision numbe
 rollback is another rollback: redeploy the revision that was live before it, which stays in
 **Revisions** while its droplet is retained, or roll forward with a fix through the full gate.
 
-After every attempt, obtain timestamped effective-state and affected-user readback from the human
-or a bounded `sre-assistant` read. Readback does not replace execution evidence; a receipt alone
-does not establish user recovery. Reconcile uncertainty
+After an attempt, retain separate evidence for execution, timestamped effective state, and the
+affected-user outcome. Obtain missing readback from the human or a bounded `sre-assistant` read;
+reuse supplied receipts for the claims and windows they cover. An execution receipt alone does not
+establish user recovery, while measured recovery does not establish effective configuration or
+causal benefit. Reconcile uncertainty
 under [Read back an interrupted attempt](#read-back-an-interrupted-attempt).
 
 ## Decision rules
 
 1. **Reversible first.** Prefer route remap or flag flip over a change that cannot be undone quickly.
 2. **Disposition perishable evidence.** Restart/restage discard heap, thread and connection state;
-   scale-in removes the instance; rollback discards the running bad build. Capture affected evidence
-   or name the human deciding to forgo it. An instance-scoped restart can hold one instance back for
+   scale-in removes the instance; rollback discards the running bad build. Before a proposed action,
+   request capture or the human's decision to forgo it. For a reported action, record capture,
+   an explicitly supplied waiver, or unknown; missing capture is not evidence of a waiver.
+   An instance-scoped restart can hold one instance back for
    diagnosis; whole-app restart cannot. Confirm serving headroom; unknown headroom blocks restart.
-3. **One change at a time.** Have the responder or another authorized human watch the relevant
-   signals before the next action so its effect can be attributed. Recovery requires the agreed
-   user-outcome signal holding for its agreed window, not one green point or quiet minute.
+3. **One change at a time; separate its verification from recovery.** Compare signals between
+   human-owned actions for causal assessment. User recovery follows the quoted agreement: preserve each
+   comparison operator, tolerance, population and window, plus separate user confirmation.
+   Count a complete qualifying outcome window even if it begins before a change, unless the
+   agreement explicitly requires a post-change window. Use only the agreement's stated anchor;
+   otherwise operation/readback timing does not start the clock. An unobserved start stays unknown.
+   A single improved point
+   proves neither a sustained window nor compliance with its other bounds.
    `sre-assistant` may return permitted read-only instance state, events, recent logs, routes and
    revisions; it never executes the change.
-4. **Restart is not root-cause closure.** If restart restores service, preserve the leak, poison
-   input, or dependency hypothesis and continue investigation with the human on-call, advised by
-   `incident-investigation`.
-5. **Record every decision and result using the parent skill's time rule** in the investigation board; prepare the technical
-   update for the existing bridge/TLC.
+4. **Restart is not root-cause closure.** If restart restores service, preserve supported causal
+   hypotheses as owned follow-ups. The advisor continues with the human on-call; a bounded
+   `sre-assistant` assignment returns its findings under its own contract.
+5. **Record supplied decisions and results** with source, owner and time. An advisor uses its
+   active-board or closing format; a bounded SRE investigation uses its return packet. Requested
+   communications go through the caller to the existing bridge/TLC.
 6. **Bind the approval packet.** Name the exact target, artifact/configuration, change/command,
    blast radius, verification window and stop criteria, rollback, human executor, monitoring owner,
-   and approving decider. Record diagnostics captured or knowingly forgone; unavailable capture
+   and approving decider. Record supplied diagnostic-capture or waiver evidence; missing historical
+   disposition stays unknown. Unavailable capture
    does not delay approved covered mitigation. Required target, artifact, approval and safety
    evidence still gates it.
 
@@ -96,9 +107,11 @@ a new, higher revision described `Rolled back to revision <n>`, so a matching ta
 required and a description alone is insufficient. Recheck any environment-based mitigation the
 rollback could have undone, using sanitized results.
 
-Current state does not establish when the attempt landed or whether it caused recovery. Reconcile
-with the executor and receipts/events before retrying; missing evidence leaves the attempt UNKNOWN.
-Judge recovery over an established post-change interval.
+Current state does not establish when the attempt landed or whether it caused recovery. Before
+retrying, reconcile unknown execution or effects with the named owner and readback evidence;
+retain confirmed parts and name the specific missing evidence. Judge user recovery under decision
+rule 3 above. Missing action readback stays a history or causality gap; it does
+not erase a supplied recovery receipt or prove that readback never occurred.
 
 Navigation source: VMware's [TAS 2.12 guide, pp. 1145–1157](https://manuals.plus/m/f716ea2ede1f52c2fb9c9496bd199abbede3c0aa1727dab518af606551e1b71f)
 (2023 manual; target-foundation UI unverified). Command semantics: Cloud Foundry

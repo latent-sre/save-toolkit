@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "profile": "incident-qualification-pack-v1",
+  "id": "incident-qualification-v1",
+  "native_profile": "incident-v1",
+  "partition": "held-out",
+  "status": "reserved-after-candidate-freeze",
+  "profile_count": 4,
+  "messages_per_profile": 2,
+  "trials_per_profile": 1,
+  "semantic_assessment": "unverified",
+  "reserved_candidate_plugin_sha256": "c3d0bb8f22d29f7c46ea5d6fb2fd0f7c2291a417645a2f1d4c05acc487d35e5b",
+  "reserved_candidate_frozen_at": "2026-11-12T14:44:26Z",
+  "candidate_binding_source": "coordinator-supplied identity; author did not inspect candidate instructions",
+  "profiles": [
+    {
+      "id": "incident-qualification-v1-01",
+      "path": "evals/scenarios/incident-qualification-v1-01.yaml",
+      "sha256": "a64a41c72a35cbfd61dd16b84c45740177cab9907648d5c228345ded2d4726bf",
+      "case_sha256": "f159adc5e350eadd87bdbaa4ef53e00d4f56f0ccd12caafba8e952060e2a8364",
+      "review_path": "evals/incident-conversations/qualification-v1/review/incident-qualification-v1-01.json",
+      "review_sha256": "bbf393991748a053ea42ccfbe20a91ab48e09e3ee289be74ad593f109a831f3f"
+    },
+    {
+      "id": "incident-qualification-v1-02",
+      "path": "evals/scenarios/incident-qualification-v1-02.yaml",
+      "sha256": "5939f5511b6072b97dd5d20fc9e8d306bef64bc4f3252a9a4c8175d19252d4ab",
+      "case_sha256": "c3b9e76709b0765fb30eb479e9ef7a6fcaf5f78a7ebc1b86f713359e95a96edf",
+      "review_path": "evals/incident-conversations/qualification-v1/review/incident-qualification-v1-02.json",
+      "review_sha256": "a7e85d39a2cbf5770e8704438011f9dba2456f7829d5aecd77e53e8f5174ee60"
+    },
+    {
+      "id": "incident-qualification-v1-03",
+      "path": "evals/scenarios/incident-qualification-v1-03.yaml",
+      "sha256": "0bb97cb43a9799323df5872f024d2a02c9acf3c661b4f33efd44f70330daa811",
+      "case_sha256": "30a032cd0d8f22984c48d69698293abb57bc5e0e153459c28c36baea115e8d25",
+      "review_path": "evals/incident-conversations/qualification-v1/review/incident-qualification-v1-03.json",
+      "review_sha256": "a2a97b7c2e60e8b333f6ecab610ccb1ec875c6e5d1bbe1dabd1e332516f46859"
+    },
+    {
+      "id": "incident-qualification-v1-04",
+      "path": "evals/scenarios/incident-qualification-v1-04.yaml",
+      "sha256": "a752fd561809a8420a7ad9a5bbd45e75c5d82d85464047945b3af8431908dec3",
+      "case_sha256": "c494c53cb03e1bcd11166f082c1ce3833a7eb2d4e9294d0860712d7ea854b203",
+      "review_path": "evals/incident-conversations/qualification-v1/review/incident-qualification-v1-04.json",
+      "review_sha256": "13973fc6bf33f6c9a0068b3ef7d0249c07d17dc1eecd060d81a631b45cff7088"
+    }
+  ],
+  "selection": {
+    "path": "evals/incident-conversations/qualification-v1/report-selection.json",
+    "sha256": "9a1a44b0b73d944a47b481c850c67eaa068ef52df7368fefeabeb13e1440f22a"
+  },
+  "readme": {
+    "path": "evals/incident-conversations/qualification-v1/README.md",
+    "sha256": "707bef4bc46f651bb7ffa91912b76b979539f9e6342f6d7cdf0e883a6cc72e5f"
+  },
+  "author_blindness": {
+    "read_candidate_agents_or_skills": false,
+    "read_prior_model_outputs": false,
+    "read_repair_reports": false,
+    "read_diagnostics_v2_cases_or_reviews": false,
+    "read_prior_conversation": false,
+    "model_or_api_calls": 0,
+    "candidate_instruction_edits": 0,
+    "allowed_mechanics_read": [
+      "evals/docs/authoring.md",
+      "evals/probe/specs.py",
+      "evals/probe/catalog.py",
+      "evals/probe/conversations.py",
+      "evals/probe/selection.py",
+      "evals/probe/fingerprints.py"
+    ],
+    "definition_content_disclosed_to_coordinator_before_candidate_freeze": false
+  },
+  "offline_validation": {
+    "status": "pass",
+    "native_schema_profiles_validated": 4,
+    "review_files_validated": 4,
+    "structural_only_success_criteria": true,
+    "unhinted_target_prompts": true,
+    "fixture_contains_initial_release_only": true,
+    "review_criteria_and_examples_absent_from_candidate_material": true,
+    "native_case_digests_independently_recomputed": true,
+    "native_selection_load_validated": true,
+    "source_review_selection_readme_byte_hashes_verified": true,
+    "broad_tests_run": false,
+    "native_trials_run": 0,
+    "case03_clarification": {
+      "status": "pass",
+      "scope": "case03 release and harness-only review; timing inference bounded by completed-response coverage and sampled observations",
+      "other_three_scenario_and_review_files_byte_identical": true,
+      "initial_prompt_and_fixture_unchanged": true,
+      "candidate_binding_unchanged": true,
+      "model_or_api_calls": 0,
+      "broad_tests_run": false
+    }
+  },
+  "promotion_rule": "Only human acceptance of the exact candidate revision can promote it."
+}

@@ -20,7 +20,11 @@ or defaults.
   findings. Do not load the whole advisor into the helper.
 - State completion evidence and the caller's limits on sources, reads, time or helpers; for a narrow
   lookup, the named reads and completion condition are enough. Count discovery against the helper
-  limit. Pass supplied paths directly; an unresolved path returns as a gap, not a new discovery task.
+  limit. Dispatch a supplied file path directly: copy an absolute path, or pass the relative path
+  together with its supplied workspace root. Joining those strings needs no tool call. Do not
+  rediscover or preflight that file in the parent; the helper's permitted read establishes access
+  and returns a gap if it fails. Your own tool set may be narrower than the helper's: call only
+  tools exposed to you in this session, never a familiar but unavailable discovery tool.
 - Request protected evidence within the helper's grants, never raw authentication output or broader
   command authority. For CF, name the target to confirm; do not ask the helper to change it with
   `cf target -o`/`-s`. An unconfirmed target is a gap. Ask for actual time coverage and retrieval
@@ -32,7 +36,14 @@ partial return at a useful boundary, then dispatch within the remaining task/bud
 helper or acknowledgment is not a result; do not promise progress on an unverified channel.
 
 Reconcile each return against its assignment and source evidence; preserve unknown
-times/state. Use supported findings, reject unsupported conclusions, and continue the parent
+times/state. Before declaring that a source lacks a reported statement, inspect its relevant full
+record or complete tool result. An abbreviated quotation does not establish what the source omits.
+If the original is unavailable, keep the claim attributed and unverified rather than declaring it
+false. Separate a source's limits from the parent's accumulated evidence. If the human reported an
+event time but the inspected file gives only collection time, retain the reported event time as
+human-supplied; the file does not independently confirm it. That omission is not a correction of
+the human's report. Supersede prior evidence only with an explicit correction or a reconciled
+contradiction, retaining source and scope. Use supported findings, reject unsupported conclusions, and continue the parent
 task without making the human relay the packet or approve routine continuation. For a partial,
 blocked or unavailable helper, retain what was learned and use an accessible alternative or continue
 independent work; name the missing observation and owner when human access is needed. Helper
@@ -70,27 +81,26 @@ caused it; capacity clear” and proposes a fresh read to recover E1's capture t
 **To Riley:**
 
 ```text
-Times below: September 14, 2026, Eastern (EDT); E2's 09:45 UTC is 05:45 Eastern.
-E1: two crashes, aggregate CPU 25%, capture/crash times absent; E2: config 05:45
-[sourced]. Neither current state nor ordering/cause follows. Low CPU leaves waits/limits open;
-refreshing cannot recover E1's time. Open Apps Manager → Orders/prod → Events for 05:40–06:00
-Eastern (09:40–10:00 if the view uses UTC); confirm the view's timezone. Bring back the crash
-and update rows with times: a crash before 05:45 Eastern weakens the change as the
-trigger; crashes only after it are consistent with cause but do not prove it. Missing coverage
-leaves ordering unknown.
+The helper's claims about current state, cause and cleared capacity exceed its evidence.
+Establish crash ordering from timestamped history; a fresh snapshot cannot recover the old
+export's missing time. All times below are September 14, 2026, Eastern (EDT).
 
 Investigation board:
 
 Impact:     🟡 Orders/prod slow 05:40–06:00 [sourced: Riley]; affected share, trend and recovery
             criterion unknown.
-Open: config-change trigger — 05:45 update, crash ordering unknown; resource pressure — low CPU
-  does not exclude waits/limits. Both unowned; no supported ranking.
-Checked: E1 crash count/CPU and E2 update time [sourced]; capture/crash times absent.
+Open: config-change trigger — crash ordering unknown; resource pressure — aggregate CPU leaves
+  waits/limits open. Both unowned; no supported ranking.
+Checked: O1 [sourced: E1] | Orders/prod | two crashes, aggregate CPU 25% | capture/crash times unknown
+  | report window 05:40–06:00, CPU window unknown.
+  O2 [sourced: E2] | Orders/prod | config update 05:45 (09:45 UTC), effect time unknown.
 Ruled out: none.
 Actions: no mitigation reported.
-Next: timestamped Events rows for 05:40–06:00 Eastern to compare crashes with the update;
-  earlier weakens that trigger, later is consistent but not proof; missing coverage leaves
-  ordering unknown.
+Next: request the app-event owner's Orders/prod crash/update rows for 05:40–06:00 Eastern
+  (09:40–10:00 UTC), including coverage and timezone; with confirmed view access, use Apps Manager
+  → Orders/prod → Overview → app events. Crashes before confirmed change exposure exclude it as
+  their initiator; later crashes remain compatible, not proof. Then compare revisions and crash
+  details; missing coverage leaves ordering open with that owner.
 Follow-ups: Events access/owner unconfirmed; obtain missing timestamps and user-impact scope,
   agree recovery criterion; owners/due times unknown.
 ```

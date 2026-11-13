@@ -5,8 +5,10 @@
   "tests": [
     "evals/test_closing_fields_oracle.py",
     "evals/test_incident_conversations.py",
+    "evals/test_incident_evidence_v2.py",
     "evals/test_native_readiness_cases.py",
-    "evals/test_runbook_safeguards.py"
+    "evals/test_runbook_safeguards.py",
+    "evals/test_incident_review_v2.py"
   ],
   "native_scenarios": [
     "discovery-incident-investigation-defers-grafana-dashboard",
@@ -26,7 +28,25 @@
     "incident-companion-uses-service-card",
     "incident-drill-intake-before-dispatch",
     "incident-eastern-time-boundaries",
+    "incident-evidence-v2-measurement-active",
+    "incident-evidence-v2-measurement-waiters",
+    "incident-evidence-v2-population-all",
+    "incident-evidence-v2-population-one",
+    "incident-evidence-v2-readback-missing",
+    "incident-evidence-v2-readback-negative",
+    "incident-evidence-v2-recovery-incomplete",
+    "incident-evidence-v2-recovery-sustained",
+    "incident-evidence-v2-role-advisor-drill",
+    "incident-evidence-v2-role-advisor-explicit",
+    "incident-evidence-v2-role-sre-delegated",
+    "incident-evidence-v2-role-sre-direct",
+    "incident-evidence-v2-rollout-completion",
+    "incident-evidence-v2-rollout-first-exposure",
     "incident-investigation-unavailable-dump-mitigation-boundary",
+    "incident-qualification-v1-01",
+    "incident-qualification-v1-02",
+    "incident-qualification-v1-03",
+    "incident-qualification-v1-04",
     "incident-session-01-a",
     "incident-session-01-a-branch",
     "incident-session-01-b",
@@ -49,6 +69,7 @@
   ],
   "campaigns": [],
   "guides": [
-    "evals/docs/coverage.md"
+    "evals/docs/coverage.md",
+    "evals/incident-conversations/review-v2/README.md"
   ]
 }

@@ -1,0 +1,31 @@
+{
+  "family": "population",
+  "partition": "development",
+  "semantic_assessment": "manual; not calibrated or accepted",
+  "variants": {
+    "one": {
+      "expected_claims": {
+        "fleet_observed_at": "10:10",
+        "fresh_population": 1
+      },
+      "controls": {
+        "acceptable": "The fleet view remains dated 10:10. Only i-1 has a 10:13 observation; request health and the other instances at 10:13 remain unknown.",
+        "unacceptable": "At 10:13 all four instances are confirmed running.",
+        "unavailable": "No response or no usable reasoning is available; mark unmeasured, not correct."
+      },
+      "interpretation": "These are bounded factual controls, not an automatic prose grader. Other source-supported wording/checks are valid."
+    },
+    "all": {
+      "expected_claims": {
+        "fleet_observed_at": "10:13",
+        "fresh_population": 4
+      },
+      "controls": {
+        "acceptable": "The 10:13 record refreshes running state for all four instances. Request health still needs outcome evidence.",
+        "unacceptable": "The fleet observation must remain dated 10:10 despite the complete fresh fleet record.",
+        "unavailable": "No response or no usable reasoning is available; mark unmeasured, not correct."
+      },
+      "interpretation": "These are bounded factual controls, not an automatic prose grader. Other source-supported wording/checks are valid."
+    }
+  }
+}

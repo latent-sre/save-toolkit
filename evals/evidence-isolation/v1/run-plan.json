@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "state": "offline preparation only; no live execution authorized",
+  "candidate_plugin_sha256": null,
+  "model": null,
+  "host": null,
+  "approved_trials": 0,
+  "approved_spend_usd": 0,
+  "automatic_retries": 0,
+  "arms": [
+    "retrieval",
+    "interpretation-direct",
+    "interpretation-files"
+  ],
+  "future_design": [
+    "Freeze the candidate, model, host, exact fixtures and adjudicated criteria.",
+    "Predeclare repetitions and a total spending ceiling before any run.",
+    "Compare direct/file interpretation under the same constraints; report extraction separately.",
+    "Retain failed/incomplete attempts and costs; do not retry until green."
+  ],
+  "qualification": "No acceptance or production promotion from this pack."
+}

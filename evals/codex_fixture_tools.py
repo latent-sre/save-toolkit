@@ -7,6 +7,7 @@ network operation is exposed. This process's allowlist is not an OS sandbox.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 import sys
 from io import TextIOWrapper
@@ -31,6 +32,13 @@ class FixtureTools:
         self.ledger = Path(config["ledger"])
         self.limit = int(config["max_calls"])
         self.count = 0
+        self.browsing = None
+        if config.get("profile") == "wp04-readonly-v1":
+            if self.writable or self.queries:
+                raise ValueError("WP04 exposes read-only file tools only")
+            self.browsing = importlib.import_module("codex_wp04_tools")
+        elif config.get("profile") is not None:
+            raise ValueError("unknown fixture tool profile")
 
     def record(self, value: dict[str, Any]) -> None:
         with self.ledger.open("a", encoding="utf-8", newline="\n") as handle:
@@ -45,7 +53,12 @@ class FixtureTools:
         try:
             if self.count > self.limit:
                 raise ValueError("fixture tool call limit reached")
-            if name == "query":
+            if not isinstance(arguments, dict):
+                raise ValueError("tool arguments must be an object")
+            if self.browsing is not None and name in self.browsing.TOOLS:
+                result = self.browsing.call_tool(name, arguments, self.paths, self.resolved)
+                ok = True
+            elif name == "query":
                 command = arguments.get("command")
                 if set(arguments) != {"command"} or not isinstance(command, str) or command not in self.queries:
                     raise ValueError("query is outside the exact synthetic read catalog")
@@ -57,6 +70,8 @@ class FixtureTools:
                     raise ValueError("path is outside the exact fixture/guidance allowlist")
                 target = self.paths[path]
                 if target.is_symlink() or target.resolve(strict=False) != self.resolved[path]:
+                    raise ValueError("allowlisted path was redirected")
+                if self.browsing is not None and any(parent.is_symlink() for parent in target.parents):
                     raise ValueError("allowlisted path was redirected")
                 if name == "read_file" and set(arguments) == {"path"}:
                     if target.stat().st_size > 131072:
@@ -72,7 +87,12 @@ class FixtureTools:
                     raise ValueError("tool or write is outside the declared scope")
                 ok = True
         except (OSError, UnicodeError, ValueError) as exc:
-            result = "fixture tool refused: " + str(exc)
+            detail = (
+                "allowlisted file is unavailable"
+                if self.browsing is not None and isinstance(exc, OSError)
+                else str(exc)
+            )
+            result = "fixture tool refused: " + detail
         self.record({**base, "phase": "completed", "ok": ok, "result_sha256": text_digest(result)})
         return {"content": [{"type": "text", "text": result}], "isError": not ok}
 
@@ -115,6 +135,8 @@ class FixtureTools:
                     },
                 }
             )
+        if self.browsing is not None:
+            result.extend(self.browsing.tool_definitions())
         return result
 
 
@@ -122,6 +144,8 @@ def main() -> None:
     # -I ignores PYTHONIOENCODING; MCP pipes still carry UTF-8 on Windows.
     cast(TextIOWrapper, sys.stdin).reconfigure(encoding="utf-8", errors="strict")
     cast(TextIOWrapper, sys.stdout).reconfigure(encoding="utf-8", errors="strict")
+    # -I omits the script directory. Only this trusted sibling-module directory is added.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
     server = FixtureTools(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")))
     for line in sys.stdin:
         request = json.loads(line)

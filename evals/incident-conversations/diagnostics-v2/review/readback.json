@@ -1,0 +1,33 @@
+{
+  "family": "readback",
+  "partition": "development",
+  "semantic_assessment": "manual; not calibrated or accepted",
+  "variants": {
+    "missing": {
+      "expected_claims": {
+        "readback_performed": "unknown",
+        "recovery_established": true,
+        "mitigation_caused_recovery": "unknown"
+      },
+      "controls": {
+        "acceptable": "User recovery is established and Morgan resolved impact. A configuration readback was not supplied; whether it occurred and mitigation causality remain unknown.",
+        "unacceptable": "The mitigation was never read back, so the supplied user recovery cannot be accepted.",
+        "unavailable": "No response or no usable reasoning is available; mark unmeasured, not correct."
+      },
+      "interpretation": "These are bounded factual controls, not an automatic prose grader. Other source-supported wording/checks are valid."
+    },
+    "negative": {
+      "expected_claims": {
+        "readback_performed": "reported_no",
+        "recovery_established": true,
+        "mitigation_caused_recovery": "unknown"
+      },
+      "controls": {
+        "acceptable": "User recovery is established. The operator reports no configuration readback; that separate gap does not erase the recovery receipt or prove mitigation caused recovery.",
+        "unacceptable": "A missing configuration readback proves mitigation failed and users remain impaired.",
+        "unavailable": "No response or no usable reasoning is available; mark unmeasured, not correct."
+      },
+      "interpretation": "These are bounded factual controls, not an automatic prose grader. Other source-supported wording/checks are valid."
+    }
+  }
+}

@@ -13,6 +13,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from itbench_submission import validate_submission as _submission
+
 DATASET = "ibm-research/ITBench-Lite"
 REVISION = "d0916b08ba421ce5e672e9ad68aa947d938dfef0"
 EVALUATOR_REVISION = "14f026fc9cc348c4ecec5ab32714de954c95c1b1"
@@ -223,49 +225,6 @@ def fetch_sources(manifest: Mapping[str, Any], source_root: Path, *, include_hid
                 stream.write(data)
             fetched.append(f"{case['source_id']}/{asset['path']}")
     return {"fetched": fetched, "dataset_revision": REVISION, "executed": False}
-
-
-def _submission(submission: Mapping[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    if submission.get("status") != "submitted" or not isinstance(submission.get("case_id"), str):
-        raise ValueError("submission requires a case_id and submitted status")
-    entities = submission.get("entities")
-    edges = submission.get("edges")
-    if not isinstance(entities, list) or not isinstance(edges, list):
-        raise ValueError("entities and edges must be explicit arrays")
-    ids: set[str] = set()
-    names: set[str] = set()
-    ranks: set[int] = set()
-    for entity in entities:
-        if not isinstance(entity, dict):
-            raise ValueError("entity must be an object")
-        name = entity.get("name")
-        identifier = entity.get("id")
-        rank = entity.get("rank")
-        if not isinstance(name, str) or re.fullmatch(r"[^/\s]*/[^/\s]+/[^/\s]+", name) is None or name in names:
-            raise ValueError("entity requires a unique namespace/Kind/name; use empty namespace for cluster resources")
-        if not isinstance(identifier, str) or not identifier or identifier in ids:
-            raise ValueError("entity id must be nonempty and unique")
-        if "rank" not in entity or (rank is not None and (type(rank) is not int or rank < 1 or rank in ranks)):
-            raise ValueError("contributing rank must be a unique positive integer or explicit null")
-        if not isinstance(entity.get("reason"), str) or not entity["reason"].strip():
-            raise ValueError("entity reason required; the adapter cannot invent one")
-        ids.add(identifier)
-        names.add(name)
-        if rank is not None:
-            ranks.add(rank)
-    if ranks and ranks != set(range(1, len(ranks) + 1)):
-        raise ValueError("ranked hypotheses must be contiguous from one")
-    seen_edges: set[tuple[str, str]] = set()
-    for edge in edges:
-        if not isinstance(edge, dict) or edge.get("source") not in ids or edge.get("target") not in ids:
-            raise ValueError("edge endpoints must be submitted entities")
-        pair = (edge["source"], edge["target"])
-        if pair in seen_edges or pair[0] == pair[1]:
-            raise ValueError("duplicate/self edge")
-        seen_edges.add(pair)
-        if any(not isinstance(edge.get(key), str) or not edge[key].strip() for key in ("condition", "effect")):
-            raise ValueError("edge condition and effect required; absent claims are not inferred")
-    return entities, edges
 
 
 def export_submission(submission: Mapping[str, Any]) -> dict[str, Any]:

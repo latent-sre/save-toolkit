@@ -7,9 +7,16 @@
     "evals/test_itbench_bindings.py",
     "evals/test_itbench_cli.py",
     "evals/test_itbench_native.py",
-    "evals/test_wp04_linux_cli.py"
+    "evals/test_itbench_observations.py",
+    "evals/test_itbench_field_history.py",
+    "evals/test_wp04_linux_cli.py",
+    "evals/test_evidence_isolation.py"
   ],
-  "native_scenarios": [],
+  "native_scenarios": [
+    "evidence-isolation-v1-retrieval",
+    "evidence-isolation-v1-interpretation-direct",
+    "evidence-isolation-v1-interpretation-files"
+  ],
   "campaigns": [
     {
       "id": "itbench-five",
@@ -20,6 +27,8 @@
   ],
   "guides": [
     "docs/fleet-evaluation/wp04-operator-runplan.md",
-    "evals/docs/coverage.md"
+    "evals/docs/coverage.md",
+    "evals/docs/itbench-observation-index.md",
+    "evals/evidence-isolation/v1/README.md"
   ]
 }

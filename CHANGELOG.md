@@ -8,6 +8,14 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- The Codex subscription evaluator accepts individually bound WP04 fixtures with scoped, paged
+  read-only browsing; native results and independent semantic review remain separate.
+- Evaluations add versioned prompt/submission checks, consistent review controls and separate retrieval/interpretation
+  diagnostics; campaign summaries distinguish selected coverage from all-attempt totals.
+- Incident guidance preserves measurement units, source scope and time through updates, separates
+  recovery from action attribution, and keeps bounded SRE investigations in their own method.
+- WP04 adds bounded, source-linked observation indexes and resource field histories with normalized
+  JSON views; versioned incident diagnostics and reserved qualification cases preserve earlier evaluations.
 - EVAL-005 accepts ordinary prior-dashboard and exported-JSON recovery wording while retaining
   datasource-only and incomplete-recovery negative controls.
 - EVAL-005 recognizes two measured authority refusals and explicit version-history recovery;

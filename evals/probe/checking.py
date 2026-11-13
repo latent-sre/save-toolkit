@@ -77,6 +77,7 @@ from .checks.text import (
     check_text_not_contains,
     check_text_not_regex,
     check_text_regex,
+    check_wp04_submission_v1,
 )
 from .checks.trace import (
     _verification_command,
@@ -153,6 +154,7 @@ __all__ = [
     "check_text_regex",
     "check_tool_call_count",
     "check_verification_completed",
+    "check_wp04_submission_v1",
     "declare",
     "describe",
     "fleet_grader_spec",

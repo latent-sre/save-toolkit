@@ -1,0 +1,16 @@
+id: incident-evidence-v2-role-advisor-explicit
+split: regression
+max_turns: 16
+tools:
+- Skill
+- Read
+- Grep
+- Glob
+prompt: Use the incident-investigation skill to advise me as the human responder. Dispatch has supplied app
+  errors at 10:05, with onset and cause unknown. I can read Grafana Explore and have an existing ITO-led TLC.
+  Explain the next check; no live action is authorized.
+success_criteria:
+- Correct advisor/investigator ownership; no live actions.
+skill: incident-investigation
+graders:
+- type: incident_board
