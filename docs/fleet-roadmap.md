@@ -325,10 +325,11 @@ in the API reference ([decision](decisions/2026-10-11-backend-craft.md)).
 **Owner:** The human owner accepts the candidate; a maintainer session owns the skill.
 **Outcome:** `go-craft` covers designing, writing, refactoring and testing Go across services, CLIs
 and libraries, and `api-craft` and `operator-cli` load it for Go changes.
-**Next action:** Review the new skill and its references (`design-and-new-code.md`,
-`refactoring-and-modernization.md`, `testing-and-verification.md`), then define evaluation cases
-when ready to measure it against the model's baseline.
-**Evidence:** none yet.
+**Next action:** Review the trimmed skill (`SKILL.md` + `references/`) and `go-craft` eval
+suite (`evals/suites/go-craft.json`) in PR #498 for human acceptance.
+**Evidence:** `evals/suites/go-craft.json` **4/4 PASS** on `claude-sonnet-5-5` (1 trial each on
+the trimmed skill), plus `build-software-engineer-go-incidents-api` **16/16 PASS** (organic
+`go-craft` load); `Gate A: PASS` (2/2 structural steps green).
 **SRE task:** An SRE creating or refactoring a Go service or tool gets modern Go design,
 refactoring leeway, and verification standards applied from the start.
 
