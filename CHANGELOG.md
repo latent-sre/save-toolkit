@@ -6,8 +6,14 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- Make the native reliability comparison explicitly assess conditional retry return and exception
+  paths, with a matched timing control and bounded execution evidence.
+
 ### Changed
 
+- Resilience guidance makes retry paths and calculation assumptions explicit in assessments,
+  preserving deadline scope, unresolved retry counts and the distinction between helper-derived
+  arithmetic and source reports. The native helper fixture explicitly names its Read-only tool inventory.
 - WP-08 retires monitored authors before final billing on rejected traces and error paths;
   unconfirmed absence skips the billing request while preserving proxy closure and recovery evidence.
 - WP-08 supports the owner's explicit Windows Docker Desktop monitored-storage exception:
