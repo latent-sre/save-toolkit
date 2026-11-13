@@ -156,3 +156,9 @@ issues and approved its reviewed scope. It excluded reserved case contents and t
 policy overlay, and executed no tests itself. Existing integrated local checks and green GitHub CI
 remain the execution evidence. The owner overlay is documentation/data only and receives source/hash
 integrity checks and the matching review-packet checks; no paid model/judge call is made.
+
+[verified] The owner subsequently approved and completed the separate
+[six-attempt evidence comparison](2026-11-12-wp0405-isolation-comparison.md) for USD 0.370427.
+Its frozen candidate/runtime, native grades, semantic proposals, two factual cautions and updated
+USD 76.9843344 cumulative accounting are recorded there. Earlier no-live-trial statements describe
+the offline repair stage. Candidate qualification remains HOLD.
