@@ -130,7 +130,35 @@ unverified. No paid model or judge call occurred.
 summary are retained under `.eval-runs/wp08-desktop-exception-20261112/`. An earlier full-suite
 attempt was stopped after the late cleanup-review finding; its receipt is retained as aborted,
 not passed. The completed run above tests the corrected implementation. Only these evidence and
-plan-completion notes were updated afterward; executable source is unchanged.
+plan-completion notes were updated afterward; executable source was unchanged at that publication.
+The later PR review repair below has separate verification.
+
+## PR 496 finalization review repair, 2026-11-13
+
+[sourced] The [P2 review finding](https://github.com/latent-sre/save-toolkit/pull/496#discussion_r4560360039)
+identified an exit-path gap in `9e8b3163`: a rejected trace or screening/setup error skipped the
+happy-path author retirement, then final billing could block on network I/O before owned cleanup.
+A detached writer could remain active through that wait without storage samples or a hard quota.
+
+[verified] Finalization now attempts owned Docker cleanup before billing on every exit path.
+Monitored final usage collection additionally requires fresh exact-name inspection proving the
+author absent. Present or unknown inspection skips the request; the proxy still closes, final
+cleanup inspection and pending recovery remain in place, and missing billing remains unknown.
+Quota-mode final usage and the earlier pre-verifier author retirement retain their behavior.
+
+[verified] Seven regression cases cover identity rejection, incomplete trace counts, patch/stream
+screening, setup failure and present/unknown author cleanup. The completed focused runner suite
+passes **109 tests**. Ruff lint/production formatting and Linux-platform typing pass. Independent
+static review found no additional issue. Initial red and first-green receipts are retained,
+including correction of an incomplete-trace fixture that initially supplied valid trace input.
+The corrected full-suite result and exact repair commit are recorded in the PR follow-up,
+separately from the original implementation evidence above. Private repair receipts are retained
+under `.eval-runs/pr496-finalization-fix-20261113/`.
+
+[sourced] The separate automated security review did not complete because its paying account
+[reached its Codex usage limit](https://github.com/latent-sre/save-toolkit/pull/496#issuecomment-6845912473).
+That unavailable review is not a code finding or a passing security assessment. No paid model call
+or security-review retry is part of this repair.
 
 ## WP-04 runtime boundary
 

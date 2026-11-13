@@ -8,6 +8,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- WP-08 retires monitored authors before final billing on rejected traces and error paths;
+  unconfirmed absence skips the billing request while preserving proxy closure and recovery evidence.
 - WP-08 supports the owner's explicit Windows Docker Desktop monitored-storage exception:
   sampled 10 GiB target, fatal unknown measurements, retained storage/cleanup evidence and distinct
   smoke/result identities. Default hard-quota behavior remains available.

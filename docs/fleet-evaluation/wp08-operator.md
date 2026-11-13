@@ -106,6 +106,9 @@ unenforced storage option while preserving all other limits. Its writable-layer 
 An over-target observation or unavailable measurement stops execution and triggers owned cleanup.
 After patch capture, the monitored author container is removed and its absence confirmed before
 independent verification starts, so an orphaned background writer cannot continue unobserved.
+Every exit path also attempts owned cleanup before final billing. When fresh inspection cannot
+confirm the monitored author absent, the runner skips that network request, closes the proxy and
+retains incomplete billing and cleanup recovery evidence; the batch cannot continue.
 Writes can exceed the target between observations and affect shared Docker storage. Sampled peaks
 are observed maxima, not instantaneous high-water marks. This mode supplies no hard storage cap.
 

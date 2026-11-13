@@ -802,9 +802,14 @@ def run_trial(
         if not summary["identity_mismatch"]:
             summary.update(ending="cut_short", stop="cut_short")
     finally:
+        # Stop owned writers on every exit path before potentially slow billing I/O.
+        cleanup.extend(resources.cleanup())
         if proxy is not None:
             summary["auth_failed"] = proxy.auth_failed
-            if before is not None:
+            if before is not None and (
+                config.get("storage_mode", "quota") != "monitored"
+                or _present(docker, "container", f"{prefix}-agent") is False
+            ):
                 with contextlib.suppress(Exception):
                     after = proxy.usage()
             try:
@@ -812,7 +817,6 @@ def run_trial(
             except Exception:
                 _post_run_problem(summary, "model proxy cleanup failed")
                 cleanup.append({"kind": "proxy", "name": prefix, "present": None, "removed": False})
-        cleanup.extend(resources.cleanup())
         # Inspect even resources whose creation was attempted but failed before tracking returned.
         for item in pending:
             present = _present(docker, item["kind"], item["name"])

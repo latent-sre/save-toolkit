@@ -515,6 +515,68 @@ def test_monitored_author_final_cleanup_supersedes_failed_first_removal(setup, m
     assert not (setup.output / "pending-cleanup.json").exists()
 
 
+@pytest.mark.parametrize("failure", ["identity", "incomplete_trace", "patch_screening", "stream_screening", "setup"])
+def test_monitored_failure_retires_author_before_final_usage(setup, monkeypatch, failure):
+    monitored(setup, monkeypatch)
+    if failure == "identity":
+        setup.docker.trace = trace(model="wrong-model")
+    elif failure == "incomplete_trace":
+        setup.docker.trace = trace() + b"null\n"
+    elif failure == "patch_screening":
+        setup.docker.patch = KEY.encode()
+    elif failure == "stream_screening":
+        setup.docker.trace = KEY.encode()
+    else:
+        setup.docker.setup_error = True
+    usage = FakeProxy.usage
+    remaining_at_final_usage = []
+
+    def observe_usage(self):
+        if self.reads:
+            remaining_at_final_usage.append(set(setup.docker.resources))
+        return usage(self)
+
+    monkeypatch.setattr(FakeProxy, "usage", observe_usage)
+    result = trial(setup)
+    assert result["status"] == "INCONCLUSIVE"
+    assert result["cleanup_ok"] and result["billing_known"]
+    assert len(remaining_at_final_usage) == 1
+    assert not any(kind == "container" and name.endswith("-agent")
+                   for kind, name in remaining_at_final_usage[0])
+    assert FakeProxy.instances[0].closed
+    if failure == "identity":
+        assert result["identity_mismatch"]
+    elif failure == "incomplete_trace":
+        assert result["reason"] == "agent trace is incomplete or malformed"
+    elif failure == "patch_screening":
+        assert not (folder(setup) / "candidate.patch").exists()
+
+
+@pytest.mark.parametrize("absence", ["present", "unknown"])
+def test_monitored_unresolved_author_skips_final_usage_but_closes_proxy(setup, monkeypatch, absence):
+    monitored(setup, monkeypatch)
+    setup.docker.trace = trace(model="wrong-model")
+    if absence == "present":
+        setup.docker.cleanup_error = True
+    else:
+        execute = runner.DockerResources.execute
+
+        def late_unknown(self, *args, **kwargs):
+            result = execute(self, *args, **kwargs)
+            setup.docker.unknown_inspect = True
+            return result
+
+        monkeypatch.setattr(runner.DockerResources, "execute", late_unknown)
+    result = trial(setup)
+    assert result["status"] == "INCONCLUSIVE" and not result["cleanup_ok"]
+    assert not result["billing_known"] and result["measured_usd"] is None
+    assert FakeProxy.instances[0].reads == 1 and FakeProxy.instances[0].closed
+    billing = json.loads((folder(setup) / "billing.json").read_text())
+    assert billing["after"] is None and billing["complete"] is False
+    pending = json.loads((setup.output / "pending-cleanup.json").read_text())
+    assert any(row["name"].endswith("-agent") and row["present"] is not False for row in pending)
+
+
 @pytest.mark.parametrize("stop", ["storage_limit", "monitor_failure"])
 @pytest.mark.parametrize("baseline_observed", [True, False])
 def test_parent_preserves_verifier_storage_stop(setup, monkeypatch, stop, baseline_observed):

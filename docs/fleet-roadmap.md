@@ -122,7 +122,7 @@ part of the incident, without delegating deployment or remediation authority.
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-11-12). The owner accepted [specification](fleet-evaluation/README.md)
+**Status:** `active` (2026-11-13). The owner accepted [specification](fleet-evaluation/README.md)
 revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion boundary on
 2026-10-18. By work package:
 - WP-01 complete: `evals/compare_runs.py`, merged in
@@ -179,6 +179,11 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   WP-04's ordinary fixture path has no trace-level read-boundary check; a Linux namespace or
   equivalent Docker runtime must still demonstrate hidden-answer isolation before admission.
   No new model/judge call, campaign spend or exact case acceptance is inferred.
+- The [PR 496 finalization repair](reviews/2026-11-12-wp04-wp08-readiness.md#pr-496-finalization-review-repair-2026-11-13)
+  closes the monitored-author billing gap on rejected traces and error exits: owned cleanup precedes
+  final usage, and unconfirmed author absence suppresses that request while retaining proxy closure,
+  unknown billing and cleanup recovery. Its final qualification is recorded in the PR follow-up;
+  the earlier implementation's full-suite counts above remain historical.
 - WP-03 remains deferred under EVAL-015. WP-06/07's SREGym and recovery work, WP-11's later
   AIOpsLab expansion and WP-14's live GCP exercises retain their delivery/acceptance requirements.
 - WP-15's [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful comparison.
