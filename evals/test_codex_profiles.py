@@ -1,16 +1,20 @@
 """Controls for the bounded reliability and GCP artifact profiles; no models."""
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import tomllib
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import codex_fixture_tools as fixture_tools
 import codex_probe as probe
 from test_codex_probe import stream
+
+from scripts.testkit import require_shell
 
 ASSESSMENT = "docs/assessments/order-entry-ledger-options.md"
 
@@ -225,9 +229,11 @@ class ProfileControls(unittest.TestCase):
         self.assertNotIn("resilience-analysis", trace.summary.main_skills_before_effects)
 
     def test_gcp_uses_query_receipts_and_keeps_semantic_review_pending(self):
+        shell = require_shell()
+        path = os.pathsep.join((str(Path(shell).parent), os.environ.get("PATH", "")))
         for case in sorted(probe.GCP_CASES):
             for mode in ("useful", "wrong", "no_logs", "shell", "credential"):
-                with self.subTest(case=case, mode=mode), tempfile.TemporaryDirectory() as tmp:
+                with self.subTest(case=case, mode=mode), tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, PATH=path):
                     spec = probe.load_case(case)
                     ws = probe.workspaces.seed_workspace(spec, Path(tmp))
                     home = Path(tmp) / "codex-home"

@@ -3,6 +3,7 @@
 import ctypes
 import importlib
 import io
+import itertools
 import json
 import os
 import subprocess
@@ -385,6 +386,7 @@ class FakeWinKernel:
             "OpenThread",
             "ResumeThread",
             "TerminateJobObject",
+            "QueryInformationJobObject",
             "CloseHandle",
             "GetLastError",
         ):
@@ -422,6 +424,11 @@ class FakeWinKernel:
             assert args == (2, False, 43)
             return 104
         if name == "ResumeThread":
+            return 1
+        if name == "QueryInformationJobObject":
+            info = ctypes.cast(args[2], ctypes.POINTER(self.windows._BasicAccounting)).contents
+            assert args[1] == 1
+            info.ActiveProcesses = next(self.active_counts, 0) if hasattr(self, "active_counts") else 0
             return 1
         return 1
 
@@ -503,10 +510,31 @@ def test_windows_job_failed_termination_cannot_claim_clean_cleanup(tmp_path, mon
     assert ("CloseHandle", (101,)) in kernel.events
 
 
+def test_windows_job_cleanup_waits_for_empty_accounting():
+    windows = importlib.import_module("swebench_adapter.windows_job")
+    kernel = FakeWinKernel(windows)
+    kernel.active_counts = iter([2, 0])
+    assert windows.WindowsJob(kernel=kernel).close()
+    assert [name for name, _ in kernel.events].count("QueryInformationJobObject") == 2
+
+
+@pytest.mark.parametrize("failure", ["QueryInformationJobObject", "nonempty"])
+def test_windows_job_unknown_or_nonempty_accounting_cannot_claim_clean_cleanup(monkeypatch, failure):
+    windows = importlib.import_module("swebench_adapter.windows_job")
+    kernel = FakeWinKernel(windows, failure=failure)
+    kernel.active_counts = itertools.repeat(1)
+    ticks = itertools.count(step=6)
+    monkeypatch.setattr(time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+    assert not windows.WindowsJob(kernel=kernel).close()
+    assert ("CloseHandle", (101,)) in kernel.events
+
+
 def test_windows_native_layout_uses_fixed_width_fields_and_pointer_sized_handles():
     windows = importlib.import_module("swebench_adapter.windows_job")
     assert ctypes.sizeof(windows._ThreadEntry) == 28
     assert ctypes.sizeof(windows._IOCounters) == 48
+    assert ctypes.sizeof(windows._BasicAccounting) == 48
     if ctypes.sizeof(ctypes.c_void_p) == 8:
         assert ctypes.sizeof(windows._BasicLimits) == 64
         assert ctypes.sizeof(windows._ExtendedLimits) == 144

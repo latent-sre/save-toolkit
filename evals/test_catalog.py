@@ -16,6 +16,8 @@ import pytest
 from probe import catalog as native_catalog
 from probe import fingerprints
 
+from scripts.testkit import require_symlink
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -100,15 +102,17 @@ def test_invalid_suite_fails_without_broadening_selection(minimal, change):
     assert result.returncode == 3, result.stdout + result.stderr
 
 
-def test_duplicate_json_keys_and_linked_test_are_refused(minimal):
+def test_duplicate_json_keys_are_refused(minimal):
     path = minimal / "evals/suites/first.json"
     original = path.read_text()
     path.write_text(original.replace('"schema_version": 1', '"schema_version": 1, "schema_version": 1'))
     assert invoke("tests", "--suite", "first", root=minimal).returncode == 3
-    path.write_text(original)
+
+
+def test_linked_test_is_refused(minimal):
     target = minimal / "scripts/test_alpha.py"
     target.unlink()
-    target.symlink_to(minimal / "evals/test_beta.py")
+    require_symlink(target, minimal / "evals/test_beta.py")
     assert invoke("tests", "--suite", "first", root=minimal).returncode == 3
 
 

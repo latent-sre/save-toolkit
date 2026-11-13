@@ -35,7 +35,12 @@ def test_task_reuses_fixture_and_exposes_omissions():
     task = pilot.wordfreq()
     assert task.dataset[0].input == spec["prompt"]
     assert len(checks) == 7
-    assert len(omitted) == 6  # The retired eng-ladder skill check is no longer in the source fixture.
+    expected_omissions = {
+        "changed_files_not_containing", "verification_completed", "text_regex",
+        "changes_within", "no_new_commits", "no_agents_dir",
+    }
+    assert omitted == [check["text"] for check in spec["checks"] if check["check"] in expected_omissions]
+    assert len(checks) + len(omitted) == len(spec["checks"])
     assert task.metadata["omitted_checks"] == omitted
     assert task.metadata["native_fleet_parity"] is False
     assert task.token_limit == 20000

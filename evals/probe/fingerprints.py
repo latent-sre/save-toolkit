@@ -26,6 +26,7 @@ import graders as fleet_graders
 import itbench_submission
 import judge as rubric_judge
 import yaml
+from swebench_adapter import windows_job
 
 from . import constants
 from .constants import EVALS_DIR, PACKAGE_DIR, ROOT
@@ -41,6 +42,8 @@ HARNESS_FILES = tuple(
         fleet_graders.__file__,
         rubric_judge.__file__,
         clean_room.__file__,
+        windows_job.__file__,
+        EVALS_DIR / "swebench_adapter" / "__init__.py",
         fleet_graders.INCIDENT_BOARD_ORACLE,
         itbench_submission.__file__,
     )

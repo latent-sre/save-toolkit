@@ -111,3 +111,20 @@ acceptance or promotion follows. Private preparation, red/green checks, static r
 comparisons and final source snapshots are under `.eval-runs/wp0405-eval-repair-20261112/`; the audit
 is under `.eval-runs/wp0405-eval-audit-20261112/`. Changes remain local and uncommitted; no push or PR
 was created in this repair.
+
+## PR integration
+
+[verified] The owner subsequently authorized commit and PR creation. The offline repair was committed
+as `452bc2ab` after the earlier candidate/evidence checkpoint `e3846d92`. Integration of current
+`origin/main` at `d1a2383d` preserves both sets of changelog entries and evaluator fingerprint
+dependencies. Upstream's semantic omission-set assertion supersedes the local fixed-count repair.
+
+[verified] The integrated tree passed the full heavy suite: **5,295 passed, 90 skipped and 5,061
+passing subtests**, exit 0 in 82.974 seconds. Receipt:
+`.git/local-test-runs/20261113T023550Z-758e322e/run.json`. Focused merge checks passed 61 tests and
+11 subtests with three skips; configured mypy passed 91 source files, scoped lint/format passed,
+and Gate A passed 2/2. This report-only integration note was added after those checks.
+
+[unverified] Upstream integration changes the overall plugin/runtime identity. Historical native
+results remain bound to their recorded candidates; this merged branch is not newly qualified by
+those trials. No paid model/judge call, installation or candidate promotion accompanied integration.

@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; working update 2026-11-02, merged-item closure.** This is the only backlog.
+> **Status: live; working update 2026-11-12, owner-accepted runner closure.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -42,36 +42,6 @@ records the design and its rollback.
 **SRE task:** Read one `inspect view` log of a fleet regression instead of a directory of records,
 trusting it only once it is known to say what the native batch says.
 
-### RUNNER-001 — rewrite the eval runner's core around a persisted evidence artifact
-
-**Status:** `active` (2026-11-02); the owner accepted the
-[design record](decisions/2026-11-02-probe-runner-refactor.md) for implementation. Stage 0, the
-goldens, landed on PR #455 with a follow-up for native conversations and the batch view; the owner's
-decisions the plan left open are recorded in the design record's amendment of 2026-11-02. Stage 1,
-`evidence.json` written by every graded attempt and by a regrade of an older run through `legacy`,
-landed on PR #458 and stage 2, the check registry as a package with probes marked, the two import
-cycles removed and the identity widened, on PR #459. Stage 3, the evidence engine grading every
-attempt in shadow with the result rules named and the attempt's life recorded, landed on PR #460.
-The owner waived the shadow gate on 2026-11-03 (no private iteration ran under stage 3); stage 4,
-the cut-over to the evidence engine as the one grading path, landed on PR #461. Stage 5, the
-command-line split the owner brought into scope on 2026-11-03, is implemented and awaits the
-owner's acceptance.
-**Owner:** The human owner accepts each stage's exact candidate; a maintainer session implements the
-stages in order.
-**Outcome:** An attempt writes one versioned `evidence.json`; grading is a pure function of scenario
-and evidence shared by live grade and regrade; the eight threat-model rules are named units with a
-test each; the twelve live-only checks run as probes whose outcomes are evidence; old run directories
-stay readable through a quarantined legacy loader; every CLI subcommand, saved-run interface, v1
-record and result rule is unchanged.
-**Next action:** `rescore` one private iteration under the stage 4 runner and `diff` against a
-rescore under the stage 3 runner, and run `check-evidence` on the first iteration the stage 4
-runner writes: zero changed verdicts and zero differences prove the cut-over on real runs, which the
-goldens alone do not. Then accept stage 5's candidate, the last the record scopes.
-**Evidence:** [Design record](decisions/2026-11-02-probe-runner-refactor.md); per-stage evidence lands
-in each stage's pull request.
-**SRE task:** Trust that a regrade of a saved attempt reaches the same verdict as its live grade for a
-stated reason, and read which result rule produced it.
-
 ### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
 
 **Status:** `active` (2026-10-02); comprehensive product specification and delivery planning.
@@ -91,13 +61,19 @@ evidence, and extend the tool as new operational needs appear.
 
 ### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
 
-**Status:** `active` (2026-09-20).
+**Status:** `active` (2026-11-12). The owner requires verified native delegation on the default
+Copilot harness before release. A commit-pinned selector and checksummed candidate archive are
+prepared; installed acceptance and an accepted immutable rollback baseline remain outstanding.
+An isolated development-registration preflight is prepared, but Computer Use denied Visual Studio
+Code inspection; inventory and installed-format acceptance remain unverified.
 **Owner:** Maintainers accept the release; a maintainer session owns the plugin contract and
 `software-engineer` owns helper/adapter repairs.
 **Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
 to a previously accepted one. The acceptance cases pass on those
 exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
-**Next action:** Run the new Format acceptance case first: the plugin now declares Agent Plugins
+**Next action:** Resolve the missing native per-parent target restriction, then implement and verify
+the owner-selected Copilot delegation contract. Current converter/SDK research has not identified a supported mechanism;
+then run the new Format acceptance case first: the plugin now declares Agent Plugins
 1.0 because VS Code ranks `.claude-plugin/plugin.json` above a schema-less selector manifest, and no
 installed run has yet shown which layout loads. Retire the mutable `"source": "./"` selector in `.claude-plugin/marketplace.json`
 for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
@@ -110,7 +86,9 @@ browser grant now includes selected native/MCP viewing interactions. Structural 
 do not prove image delivery or helper invocation. The installed VS Code 1.138 source handles some
 hook failures as warnings; the launcher's 42/43/44 protocol is not authentication or proof of
 fail-closed host behavior. Keep those limits explicit until the host cases are observed.
-**Evidence:** The 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
+**Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
+[current preparation and selected harness](reviews/2026-11-12-release-001-preparation.md);
+the 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
 [`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
 **SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
 
@@ -321,23 +299,53 @@ asking for them.
 
 ### EVAL-005 — the observability engineer's Grafana write lands, and only that write
 
-**Status:** `active` (2026-10-25). Offline refusal grading is repaired and the candidate now
-makes its no-value display requirement explicit. Live fixture reproduction is unavailable on
-the current Linux host without Docker; original trial-3 traces remain on Windows.
-In the historical six trials, both arms, the panel was saved
-through a preflighted write and the datasource stayed unchanged, but every trial is FAIL under the
-all-checks threshold.
+**Status:** `active` (2026-11-12). The owner approved the Bash timeout and agent-behavior follow-up,
+commit and PR with USD 50 aggregate new testing budget. The timeout regression and agent checkpoint
+are committed at `097c2bbb`; its failed qualification is retained. The Windows ownership correction
+at `3b33c0fb` passed exact clean heavy qualification: 4,915 tests, 295 skips and 4,971 subtests.
+Its completed six-slot Sonnet comparison recorded **2 PASS, 1 FAIL in each arm**, at CLI-estimated
+USD 1.106043 including six Sonnet 5.5 judgments. No cleanup or identity failure recurred.
+The [owned Windows cleanup continuation](reviews/2026-11-12-eval-005-repair.md#owned-windows-cleanup-continuation)
+reproduces exited-parent cleanup failure and replaces PID-tree discovery with existing job ownership.
+The batch exposed two supporting-text matcher defects; offline corrections retain the incumbent's
+genuine missing-label FAIL and rescore the candidate 3/3 PASS. Original live grades remain sealed;
+this is not a live result on the corrected case or human acceptance. Final corrected source
+`783d82dd` passed exact clean heavy qualification: 4,918 tests, 295 skips and 4,997 subtests.
+PR #494's further ordinary recovery-wording finding is corrected at `1e2277c8`: eight positive
+controls failed before the fix, then the checker/service controls passed 47 tests and 222 subtests.
+Independent review approved that exact source, whose coordinated default suite passed 4,002 tests,
+253 skips and 4,242 subtests. No runner, agent, service-fixture or judge bytes changed in this follow-up;
+the earlier heavy receipt remains retained. Six fresh and three historical saved traces have zero
+check or verdict differences from the previous corrected matcher. No additional paid call was made.
+The earlier evaluator repair at exact
+`b43b7ab4` still awaits acceptance. Its completed three-trial batch is **1 PASS, 2 FAIL**: missing post-save query
+execution and missing evidence labels are actual agent failures. Refusal, panel, datasource and
+finite-query checks behave as intended in these observations. The prior candidate qualification
+passed its heavy run (4,900 tests, 295 skips, 4,966 passing subtests); earlier intermittent Windows cleanup failures
+remain unexplained and retained. Historical native FAILs are unchanged.
 **Owner:** The human owner approves each repair run; a maintainer session repairs the scenario and runs it.
 **Outcome:** [`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
-fails only on agent behavior: its refusal-wording check accepts the measured correct refusals, and
-its post-write query check fails only when the agent's query did not return the persisted panel's
-data. The owner has decided whether the missing panel no-data text needs an
-`observability-engineer` or `grafana` repair.
-**Next action:** The [offline refusal repair](reviews/2026-10-25-eval-005-repair.md) accepts both
-retained measured fragments and preserves rejection of an actual datasource edit. A maintainer session reproduces the
-empty post-write Grafana query on the fixture without a model; and reads historical trial 3's
-queries against the check. The owner then decides on the no-data text and approves a re-run.
-**Evidence:** [run record](reviews/2026-10-18-eval-005-run.md).
+fails only on agent behavior: its refusal-wording check accepts measured correct refusals, and
+its post-write query check fails only when the query did not return the persisted panel's data.
+Required panel presentation is explicit in the task rather than inferred from advisory guidance.
+**Next action:** The owner reviews the qualified source and retained evidence for exact-candidate
+acceptance. Independent static reviews have no open findings. All six new native slots are completed;
+no further paid call or prompt tuning is planned. USD 48.893957 of the testing authorization remains
+unspent, including USD 40 never scheduled. Preserve both arms' live FAILs and separate offline results.
+The historical three slots (CLI-estimated USD 0.593889, judge included) remain exhausted and sealed.
+The controlled grid reproduction does not recover the original native query's exact phase or
+promise data for arbitrarily coarser resolutions. RELEASE-001 has its separate native/installed gates.
+The historical [Windows cleanup follow-up](reviews/2026-11-12-eval-005-repair.md#windows-cleanup-diagnostic-follow-up)
+retains the earlier termination diagnostics and guard smoke-test timeout. The ownership correction
+supersedes its taskkill implementation; the original intermittent failures' exact sequence remains unknown. The
+[timeout and behavior follow-through](reviews/2026-11-12-eval-005-repair.md#guard-timeout-and-agent-behavior-follow-through)
+records the timeout correction, earlier failed qualification and captured taskkill output. That
+recurrence reports a terminated child and an already-gone parent; no exit-code suppression was added.
+**Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
+[repair and bounded follow-through](reviews/2026-11-12-eval-005-repair.md);
+[November 11 continuation](reviews/2026-11-11-eval-005-continuation.md);
+[offline refusal repair](reviews/2026-10-25-eval-005-repair.md);
+[historical run record](reviews/2026-10-18-eval-005-run.md).
 **SRE task:** Trust that the observability engineer changes the dashboard asked for and leaves
 datasources alone.
 
@@ -441,15 +449,18 @@ or an untimed aggregate for evidence of incident recovery or cause.
 
 ### COPILOT-HARNESS-001 — decide fleet delegation on the default Copilot harness
 
-**Status:** `decision-needed` (2026-11-08); VS Code now starts new sessions on the Copilot harness,
-where the fleet's `agents:` and `handoffs:` do not apply. The installed-host acceptance document was
-removed because it described the earlier harness.
+**Status:** `active` (2026-11-12). The owner selected verified native Copilot delegation before
+release. The existing `agents:` and `handoffs:` fields do not apply to the default harness;
+a native projection and installed acceptance remain to implement. Current converter/SDK research
+has not identified an enforceable per-parent delegation-target restriction.
 **Owner:** The human owner decides; a maintainer session owns the generator and lane text.
 **Outcome:** The fleet states how delegation works on the default Copilot harness, its lanes do not
 depend on a Local-only field there, and acceptance cases exist for the chosen harness.
-**Next action:** The owner chooses between keeping delegation Local-only, projecting to the harness's
-own mechanism, or no delegation on Copilot. Then write acceptance cases for that harness and confirm
-its browser tool names and `AGENTS.md` delivery on an installed host.
+**Next action:** Establish a host-enforced target restriction before changing the projection;
+ignored Local fields and timeout-sensitive hooks do not establish the selected contract. Then prove
+allowed/forbidden child invocation and parent continuation on an
+installed default-Copilot session. Confirm browser tool names and `AGENTS.md` delivery separately.
+[Selected scope and current conversion seam](reviews/2026-11-12-release-001-preparation.md).
 **Evidence:** [VS Code agent harnesses](https://code.visualstudio.com/docs/agents/run/agent-harnesses).
 **SRE task:** Use the fleet's delegating lanes from a default Copilot session, knowing which handoffs
 work there.

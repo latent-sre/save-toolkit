@@ -8,6 +8,8 @@ import pytest
 from probe.records import RecordV1
 from swebench_adapter.artifacts import make_record, runtime_problem, store_bytes
 
+from scripts.testkit import require_symlink
+
 
 def test_secret_is_rejected_before_any_file_is_created(tmp_path):
 
@@ -39,7 +41,7 @@ def test_artifact_symlink_is_never_followed(tmp_path):
 
     target = tmp_path / 'target'
     target.write_text('untouched')
-    (tmp_path / 'trace.jsonl').symlink_to(target)
+    require_symlink(tmp_path / 'trace.jsonl', target)
     with pytest.raises((ValueError, FileExistsError)):
         store_bytes(tmp_path, 'trace.jsonl', b'replacement')
     assert target.read_text() == 'untouched'

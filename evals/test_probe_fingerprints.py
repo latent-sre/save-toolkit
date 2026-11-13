@@ -59,7 +59,8 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
     FILES = ("build_probe.py",
              *sorted(p.relative_to(ROOT / "evals").as_posix() for p in (ROOT / "evals" / "probe").rglob("*.py")),
              "graders.py", "judge.py", "clean_room.py", "itbench_submission.py",
-             "oracles/incident-closing-fields/probe_closing_fields.py")
+             "oracles/incident-closing-fields/probe_closing_fields.py",
+             "swebench_adapter/__init__.py", "swebench_adapter/windows_job.py")
 
     def test_new_process_identity_binds_every_local_evaluator_module(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -82,6 +83,8 @@ class EvaluatorImplementationIdentityTests(unittest.TestCase):
                 "judge.py": ("Distinguish the assistant's own voice", "Ignore the assistant's own voice"),
                 "clean_room.py": ("subscriber_only: bool = False", "subscriber_only: bool = True"),
                 "itbench_submission.py": ("len(blocks) != 1", "len(blocks) != 2"),
+                "swebench_adapter/windows_job.py": ("deadline = time.monotonic() + 10", "deadline = time.monotonic() + 11"),
+                "swebench_adapter/__init__.py": ("WP-08", "WP-08 bound"),
                 "oracles/incident-closing-fields/probe_closing_fields.py": (
                     '"board": {"impact"', '"board": {"changed"'),
             }

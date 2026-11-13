@@ -14,6 +14,30 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   recovery from action attribution, and keeps bounded SRE investigations in their own method.
 - WP04 adds bounded, source-linked observation indexes and resource field histories with normalized
   JSON views; versioned incident diagnostics and reserved qualification cases preserve earlier evaluations.
+- EVAL-005 accepts ordinary prior-dashboard and exported-JSON recovery wording while retaining
+  datasource-only and incomplete-recovery negative controls.
+- EVAL-005 recognizes two measured authority refusals and explicit version-history recovery;
+  datasource-only rollback no longer satisfies dashboard recovery.
+- The guard smoke transport honors the caller's timeout, including shorter limits, instead of
+  imposing a separate ten-second limit.
+- Observability dashboard completion reports explicitly separate saved-panel readback from
+  post-save query verification and label the evidence for each.
+- Windows eval processes start under private job ownership and verify empty-job accounting on
+  cleanup, covering ordinary descendants even after the root process exits.
+- Recorded the owner's acceptance of the persisted-evidence runner and command-line split,
+  closing RUNNER-001 with its replay evidence and verification limits retained in the decision record.
+- The EVAL-005 fixture waits for a finite histogram result one minute in the past, preventing
+  the observed six-hour Grafana query's aligned endpoint from preceding the fixture's data.
+- The EVAL-005 supporting refusal check accepts two more measured authority refusals, with
+  negative controls; its audited datasource and post-write query requirements stay strict.
+- SessionStart tries the remaining Python interpreters after a failed guard preflight, matching
+  the guard launcher's fallback when an older Python comes first on PATH.
+- Windows evaluation checks use the existing capability skips and an explicit fixture shell;
+  the Inspect pilot test checks the actual omitted requirements instead of a stale count.
+- The observability dashboard write loop explicitly reruns changed queries after the save;
+  the EVAL-005 task explicitly requests the panel description its check requires.
+- The mitigation judge accepts an identified human executor by operational role or person,
+  while retaining the prohibition on assistant execution.
 - `eng-ladder` is retired: its design method and platform-selection analysis now live in
   `principal-engineer`, and other lanes return design decisions for it instead of loading a skill.
 - The principal design method adds domain-first framing, detection, concrete back-out mechanisms,
