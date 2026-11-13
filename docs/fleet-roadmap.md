@@ -174,6 +174,11 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   and isolated retrieval/interpretation diagnostics. Local repair is complete: 5,275 tests passed,
   87 skipped and 5,010 subtests passed. Reviewer calibration and new live trials remain unmeasured
   and unapproved; historical results and candidate instructions are preserved.
+  The owner subsequently made unsupported recovery prerequisites nonblocking in the stated
+  no-incorrect-action/no-delay situation, and unsupported specific approver attribution nonblocking
+  when it authorizes no new action. The [owner disposition](../evals/incident-conversations/review-v2/owner-disposition.json)
+  records the scoped reassessments; independent PR implementation review found no reportable issues.
+  Full reviewer calibration and candidate qualification remain separate.
 - WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md), its
   [case acceptance](reviews/2026-10-10-wp10-case-acceptance.md), and its [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
   [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with

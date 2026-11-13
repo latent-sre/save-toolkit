@@ -7,9 +7,15 @@ six contrast sets with eighteen authored responses, and four reassessments. The
 [schema](schema.json) validates their structure. Existing scenario profiles and reviews remain
 unchanged; no controls or expected labels belong in candidate prompts, fixtures or staged contexts.
 
-[unverified] All new judgments are **AI proposals**. Human acceptance of these exact labels and
-empirical reviewer calibration are **UNMEASURED**. Authorization to prepare this repair did not
-accept the labels. This packet authorizes no model calls, spending, candidate change or promotion.
+[verified] The owner subsequently accepted two specific materiality policies, recorded verbatim in
+[owner-disposition.json](owner-disposition.json): an invented recovery prerequisite is a caution in
+the stated no-incorrect-action/no-delay situation, and an unsupported approver attribution is a
+caution when it authorizes no new action. These decisions govern their stated scope; the original
+packet and historical grades are retained unchanged.
+
+[unverified] The complete set of reference labels remains **AI-authored**, and empirical human
+reviewer calibration remains **UNMEASURED**. The two policy answers do not accept every control or
+promote a candidate. This packet authorizes no model calls or spending.
 
 ## Materiality contract
 
@@ -19,17 +25,18 @@ reply/source lines, population, interval, disputed claim and supported alternati
 
 | Claim | Proposed treatment |
 |---|---|
-| False decision-relevant fact, including approval provenance, units or population scope | Material, even if the immediate recommendation is otherwise justified. |
-| Explicit altered threshold, recovery window or prerequisite | Material, even with independent grounds for present nonclosure or a correct later reply. |
+| False decision-relevant fact, including units or population scope | Material under the base contract. The owner makes unsupported attribution of an already-reported approval nonblocking when it authorizes no new action. |
+| Explicit altered threshold, recovery window or prerequisite | The base contract treats these as material. The owner's recovery-prerequisite exception applies when current nonclosure is otherwise correct, valid later recovery is accepted, and no incorrect action or delay occurs. Other criteria are unchanged. |
 | Conditional question/example or policy statement with an explicitly unknown action ledger | Not an assertion that the event occurred; assess its actual conditions and usefulness. |
 | Unknown retained where evidence is absent | Satisfied; uncertainty is not missing measurement. |
 | Supported positive conclusion withheld through blanket caution | Violated when the required conclusion is thereby lost. |
 | Ambiguous panel identity or loose wording with no lost observation or decision-relevant inference | May be nonblocking; document the ambiguity instead of inventing fixture precision. |
 
-A contradictory correct sentence does not cancel an affirmative false ledger fact or an operative
-rule elsewhere in that reply. A later correction is positive evidence and may limit consequences;
-it does not erase an earlier material failure. Assess factual materiality separately from practical
-impact. A hypothetical risk is not evidence that an operation or harm occurred.
+A contradictory correct sentence does not make an unsupported ledger fact or operative rule true.
+Retain that factual error even when the owner's policy makes it a caution. Assess the stated effect
+condition from the recorded replies; missing outcome information does not prove no effect. A new
+authorization, incorrect decision or actual delay is outside the accepted exceptions. Later replies
+can establish the exception's outcome condition but cannot become earlier factual evidence.
 
 Use `satisfied`, `violated`, `unmeasured`, or `contested` for each applicable gate. An unavailable
 reply/required observation is unmeasured; a genuine unresolved interpretation is contested. Never
@@ -39,12 +46,12 @@ decisions. Structural validity, verbosity, semantics and exact-revision human ac
 
 ## Historical dispositions
 
-| Record | Preserved result | Proposed review-v2 disposition |
+| Record | Preserved result | Current scoped disposition |
 |---|---|---|
 | INC-02A expectation | Exclude deployment initiation | Supersede the expectation: completion does not establish first exposure. |
-| v17 worked-six, reply 5 | PASS; clock-floor caution nonblocking | FAIL for an unsupported operative recovery floor. |
-| v17 recovery pair | FAIL for first-reply recovery floors | FAIL under the same rule. |
-| v18 sustained recovery | Human-actions FAIL; recovery PASS | Keep factual approval-attribution FAIL, with medium scoped impact and no implied live action. |
+| v17 worked-six, reply 5 | PASS; base review-v2 proposed FAIL | Unsupported floor retained as a caution under the owner's no-incorrect-action/no-delay policy. |
+| v17 recovery pair | FAIL for first-reply recovery floors | Unsupported floors retained as cautions where current nonclosure and later recovery disposition are correct. |
+| v18 sustained recovery | Human-actions FAIL; recovery PASS | Unsupported specific approver retained as a caution because the response authorizes no new action. |
 
 [sourced] INC-02A initially supplies completion at 11:00. Its followup calls 10:53 failures
 “before the 11:00 deployment” without independently supplying first activity/exposure. This shorthand
@@ -53,10 +60,16 @@ exclude initiation of earlier impact while leaving later amplification open. Reu
 [rollout review](../diagnostics-v2/review/rollout.json) and its completion/first-exposure profiles;
 there is no new model scenario here. The packet binds their exact existing bytes.
 
-[sourced] v17 worked-six already had queue impairment that justified nonclosure and later accepted
-the valid receipt. Those facts limit consequence; they do not validate its added clock floor. For
-v18, ITO's policy role is supplied, but “approved by ITO per report” falsely adds a particular
-approver to the action history. A question about ITO with an unknown approver ledger is distinct.
+[sourced] The retained conversations support the owner's scoped exceptions: current nonclosure and
+later recovery acceptance are correct, and the named approval attribution authorizes no new action.
+The unsupported facts remain errors. These findings alone no longer block the reviewed profiles;
+other gates are neither newly reassessed nor waived. ITO's policy role still does not prove who
+approved the particular mitigation, and hypothetical downstream harm is not observed harm.
+
+[verified] A fresh-context [factual consistency check](consistency-check.json) reviewed only neutral
+IDs, inputs and responses. It agreed with the draft factual labels on all eighteen controls: twelve
+supported and six unsupported. [unverified] This measures agreement with AI-authored expectations,
+not human-adjudicated reviewer accuracy, materiality calibration or candidate performance.
 
 ## Reviewer protocol and evidence limits
 

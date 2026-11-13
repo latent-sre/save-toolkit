@@ -128,3 +128,31 @@ and Gate A passed 2/2. This report-only integration note was added after those c
 [unverified] Upstream integration changes the overall plugin/runtime identity. Historical native
 results remain bound to their recorded candidates; this merged branch is not newly qualified by
 those trials. No paid model/judge call, installation or candidate promotion accompanied integration.
+
+## Owner materiality decisions and control review
+
+[verified] After PR #495, the owner answered the two borderline grading questions explicitly:
+“Record a caution if no incorrect action or delay occurred” for the stated recovery-prerequisite
+case, and “Record a caution if it authorizes no new action” for the specific-approver attribution.
+The [owner disposition](../../evals/incident-conversations/review-v2/owner-disposition.json) records
+the exact questions, answers, scope and source-bound applications. This changes materiality; it
+neither makes an unsupported claim true nor overwrites historical grades.
+
+[sourced] In the retained v17 worked/pair replies, current nonclosure and later recovery disposition
+are correct; the invented timing restrictions are cautions under the owner's policy. In v18, the
+unsupported ITO attribution authorizes no new action and is likewise a caution. These findings alone
+no longer block those reviewed profiles. Missing final helper measurement, WP04 evidence-use gaps
+and qualification of the integrated branch remain separate. Other criteria are not silently waived.
+
+[verified] A fresh-context assistant received eighteen randomly ordered neutral control IDs with
+only their inputs and responses. Its factual-support judgments matched the draft reference on all
+eighteen: twelve supported and six unsupported. The [consistency record](../../evals/incident-conversations/review-v2/consistency-check.json)
+retains the mapping and reasons. [unverified] Agreement with AI-authored controls does not establish
+human-adjudicated reviewer accuracy; the two owner policy decisions do not accept every control label.
+No empirical human-calibration or improved-candidate claim follows.
+
+[sourced] Independent static review of immutable PR head `7c8ccf8c` found no reportable implementation
+issues and approved its reviewed scope. It excluded reserved case contents and the later owner
+policy overlay, and executed no tests itself. Existing integrated local checks and green GitHub CI
+remain the execution evidence. The owner overlay is documentation/data only and receives source/hash
+integrity checks and the matching review-packet checks; no paid model/judge call is made.
