@@ -44,3 +44,4 @@ success_criteria:
   - Keep Morgan as human owner, the invoking caller as recipient, and untested redelivery and load as unknown.
   - Match any claimed post-helper reread to an actual completed parent Read after helper return; distinguish earlier reads and supplied records.
   - Preserve ambiguous retry count, backoff and slot-release assumptions in timing claims; a per-attempt maximum does not prove later attempts unreachable before the overall deadline.
+  - Explain retry paths conditionally when client behavior is unknown; a false return may permit another call, whereas an uncaught exception exits. Do not invent which behavior a timeout produces.

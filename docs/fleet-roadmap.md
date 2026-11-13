@@ -417,8 +417,10 @@ owns it, not a neighbour.
 
 ### RELIABILITY-001 — measure the timing repair on Claude, then decide on the reliability lane
 
-**Status:** `ready` (2026-10-25); the source repair has landed, but the specified native
-helper-return comparison remains unrun. The separate
+**Status:** `active` (2026-11-13); the owner approved the matched native comparison.
+The [execution and evidence packet](reviews/2026-11-13-reliability-native-comparison.md)
+freezes the two-arm limits and explicit conditional return/exception review criterion;
+preparation is in progress and no new trial has run. The separate
 [WP-10 assessment-document comparison](reviews/2026-10-25-wp10-handoff-repairs.md#reliability-proposals)
 measures newer retry guidance on Claude and Codex; it does not replace this profile's acceptance.
 - [verified] The 2026-10-08 comparison: candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt

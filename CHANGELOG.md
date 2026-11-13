@@ -6,6 +6,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- Make the native reliability comparison explicitly assess conditional retry return and exception
+  paths, with a matched timing control and bounded execution evidence.
+
 ### Changed
 
 - WP-08 retires monitored authors before final billing on rejected traces and error paths;
