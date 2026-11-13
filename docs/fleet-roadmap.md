@@ -185,6 +185,12 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   [verified] Cumulative reported spend is USD 76.9843344, leaving USD 23.0156656 of the USD 100 ceiling.
   No retries or further attempts are scheduled. [unverified] This tiny development comparison does
   not establish large-case reliability; qualification remains HOLD.
+  [verified] The owner subsequently approved the [Codex subscription comparison](reviews/2026-11-12-wp04-codex-subscription.md).
+  The adapter now supports singly bound WP04 fixtures and scoped read-only browsing. Four Sol 6.1
+  attempts completed on cases 7 and 24 with intact instrument evidence and valid structured outputs.
+  [sourced] The completed semantic reviews distinguish source-faithful partial handoffs from factual
+  failures; all four attempts reached the fixture-call cap. [unverified] Full investigation coverage
+  and qualification remain open. Subscription usage is recorded separately; its dollar cost is unmeasured.
 - WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md), its
   [case acceptance](reviews/2026-10-10-wp10-case-acceptance.md), and its [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
   [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
@@ -246,8 +252,11 @@ acceptance tests, delivery phases and explicit open decisions.
   unless evidenced; general role authority is insufficient. WP04 still needs complete evidence use,
   correct metric meaning and old/current episode reconciliation. The [eval-validity repair](reviews/2026-11-12-wp0405-eval-validity-repair.md)
   is complete. The owner-approved [six-test comparison](reviews/2026-11-12-wp0405-isolation-comparison.md)
-  is also concluded; review its narrow findings and use retained large-case traces to localize the
-  remaining evidence-use gaps before selecting another bounded test. Full human reviewer calibration
+  is also concluded. The retained large-case trace diagnosis and subsequent
+  [Sol subscription comparison](reviews/2026-11-12-wp04-codex-subscription.md) localize navigation cost,
+  remaining evidence coverage and historical identity/chronology mistakes. Improve bounded evidence
+  access before selecting further paid or subscription runs; none are scheduled automatically.
+  Full human reviewer calibration
   remains unmeasured. Retain the four independent cases for a frozen candidate that
   clears development gates. No further broad campaign or
   automatic retry belongs to this bounded pass; any new campaign needs its own round scope.

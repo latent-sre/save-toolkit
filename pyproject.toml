@@ -115,6 +115,8 @@ include = [
     "evals/codex_probe.py",
     "evals/codex_fixture_tools.py",
     "evals/codex_gcp_queries.py",
+    "evals/codex_wp04.py",
+    "evals/codex_wp04_tools.py",
     "evals/compare_runs.py",
     "evals/campaign_report.py",
     "evals/catalog.py",
@@ -173,6 +175,7 @@ files = [
     "evals/swebench_adapter", "evals/swebench_repair.py",
     # A file joins once it is clean.
     "evals/codex_probe.py", "evals/codex_fixture_tools.py", "evals/codex_gcp_queries.py",
+    "evals/codex_wp04.py", "evals/codex_wp04_tools.py",
     "scripts/readonly-guard.py", "scripts/guard-session-preflight.py", "scripts/gate_a.py", "scripts/check_links.py",
     "scripts/validate_fleet.py", "scripts/generate_platform_adapters.py", "scripts/fleet_frontmatter.py",
     "scripts/testkit.py", "scripts/local_tests.py",
