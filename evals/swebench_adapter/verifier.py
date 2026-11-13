@@ -27,7 +27,8 @@ from typing import Any
 if not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from swebench_adapter.limits import BoundedContainer, bounded_exec
+from swebench_adapter.limits import STORAGE_LIMIT, BoundedContainer, ExecutionLimit, bounded_exec
+from swebench_adapter.storage import validate_storage_mode
 
 VERSION = "5.0.2"
 MODEL_LABEL = "wp08"
@@ -45,12 +46,12 @@ def verifier_command(
     *,
     baseline: bool = False,
     storage_quota: bool = True,
+    storage_mode: str = "quota",
     engine_id: str | None = None,
     docker_host: str | None = None,
 ) -> list[str]:
     """Launch this file in the caller's project interpreter as an isolated process."""
-    if storage_quota is not True:
-        raise ValueError("a hard storage quota is required")
+    storage_mode = validate_storage_mode(quota=storage_quota, mode=storage_mode)
     return (
         [
             sys.executable,
@@ -68,7 +69,7 @@ def verifier_command(
         ]
         + (["--engine-id", engine_id] if engine_id is not None else [])
         + (["--docker-host", docker_host] if docker_host is not None else [])
-        + ["--storage-quota"]
+        + (["--storage-quota"] if storage_mode == "quota" else ["--monitored-storage"])
         + (["--baseline"] if baseline else [])
     )
 
@@ -191,9 +192,9 @@ def _container_factory(
     receipt: dict[str, Any],
     *,
     storage_quota: bool,
+    storage_mode: str = "quota",
 ) -> Callable[..., Any]:
-    if storage_quota is not True:
-        raise ValueError("a hard storage quota is required")
+    validate_storage_mode(quota=storage_quota, mode=storage_mode)
 
     def create(test_spec: Any, client: Any, run_id: str, logger: Any) -> Any:
         if test_spec.image != image_digest or client.images.get(image_digest).id != image_digest:
@@ -212,9 +213,11 @@ def _container_factory(
             pids_limit=256,
             network_disabled=True,
             privileged=False,
-            storage_opt={"size": "10G"},
+            **({"storage_opt": {"size": "10G"}} if storage_quota else {}),
         )
-        return _CheckedBaseline(BoundedContainer(raw, storage_quota=storage_quota), base, receipt)
+        return _CheckedBaseline(
+            BoundedContainer(raw, storage_quota=storage_quota, storage_observation=receipt["storage"]), base, receipt
+        )
 
     return create
 
@@ -286,6 +289,7 @@ def verify(
     *,
     baseline: bool = False,
     storage_quota: bool = True,
+    storage_mode: str = "quota",
     engine_id: str | None = None,
     docker_host: str | None = None,
 ) -> dict[str, Any]:
@@ -295,8 +299,7 @@ def verify(
     could not establish presence. ``removed`` means absence was established.
     Existing adapter evidence is refused without overwriting it.
     """
-    if storage_quota is not True:
-        raise ValueError("a hard storage quota is required")
+    storage_mode = validate_storage_mode(quota=storage_quota, mode=storage_mode)
     output.mkdir(parents=True, exist_ok=True)
     if any((output / name).exists() for name in ("verifier-receipt.json", "verifier-report.json")):
         raise ValueError("output already contains verifier evidence")
@@ -304,6 +307,17 @@ def verify(
         "instance_id": None,
         "baseline": baseline,
         "storage_quota": storage_quota,
+        "storage_mode": storage_mode,
+        "storage": {
+            "mode": storage_mode,
+            "target_bytes": STORAGE_LIMIT,
+            "hard_enforced": storage_quota,
+            "observed_peak_bytes": None,
+            "samples": 0,
+            "stop": None,
+        },
+        "stop": None,
+        "storage_bytes": None,
         "docker_endpoint": docker_host,
         "docker_engine_id": None,
         "observed_base_commit": None,
@@ -321,6 +335,7 @@ def verify(
             image_digest,
             baseline=baseline,
             storage_quota=storage_quota,
+            storage_mode=storage_mode,
             engine_id=engine_id,
             docker_host=docker_host,
         ),
@@ -391,7 +406,12 @@ def verify(
             original_factory, original_logs = harness.create_container, harness.RUN_EVALUATION_LOG_DIR
             original_exec = harness.exec_run_with_timeout
             harness.create_container = _container_factory(
-                image_digest, harness.CONTAINER_USER, task["base_commit"], receipt, storage_quota=storage_quota
+                image_digest,
+                harness.CONTAINER_USER,
+                task["base_commit"],
+                receipt,
+                storage_quota=storage_quota,
+                storage_mode=storage_mode,
             )
             harness.exec_run_with_timeout = bounded_exec
             harness.RUN_EVALUATION_LOG_DIR = log_root
@@ -409,6 +429,10 @@ def verify(
             finally:
                 harness.create_container, harness.RUN_EVALUATION_LOG_DIR = original_factory, original_logs
                 harness.exec_run_with_timeout = original_exec
+            # run_instance catches ordinary execution exceptions. Preserve the
+            # shared monitor stop before interpreting any upstream task result.
+            if receipt["storage"]["stop"] is not None:
+                raise ExecutionLimit(receipt["storage"]["stop"], receipt["storage"]["observed_peak_bytes"])
             artifact_files(output)
             initial = receipt["initial_state"]
             if (
@@ -442,17 +466,33 @@ def verify(
                 receipt.update(outcome=outcome, reason=reason)
     except KeyboardInterrupt:
         receipt.update(interrupted=True, outcome="INCONCLUSIVE", reason="verifier interrupted")
+    except ExecutionLimit as error:
+        receipt.update(
+            outcome="INCONCLUSIVE",
+            reason=f"verifier execution stopped: {error.kind}",
+            stop=error.kind,
+            storage_bytes=error.storage_bytes,
+        )
     except Exception:
         receipt.update(
             outcome="INCONCLUSIVE", reason="verifier setup, identity, execution or evidence validation failed"
         )
     finally:
+        # An upstream cleanup exception may follow its capture of the original
+        # limit. The shared observation still identifies that first stop.
+        if receipt["stop"] is None and receipt["storage"]["stop"] is not None:
+            receipt.update(
+                outcome="INCONCLUSIVE",
+                reason=f"verifier execution stopped: {receipt['storage']['stop']}",
+                stop=receipt["storage"]["stop"],
+                storage_bytes=receipt["storage"]["observed_peak_bytes"],
+            )
         if client is not None:
             if name is not None:
                 cleanup = _cleanup(client, name, harness.docker.errors.NotFound, owned)
                 receipt["cleanup"] = [cleanup]
                 if cleanup["present"] is not False or cleanup["removed"] is not True:
-                    if receipt["outcome"] in ("PASS", "FAIL"):
+                    if receipt["outcome"] in ("PASS", "FAIL") or receipt["stop"] is not None:
                         receipt["after_assessment"] = "verifier container cleanup is unresolved"
                     else:
                         receipt["reason"] = "verifier container cleanup is unresolved"
@@ -473,7 +513,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--image-digest", required=True)
     parser.add_argument("--baseline", action="store_true", help="run baseline tests with no candidate patch")
-    parser.add_argument("--storage-quota", action="store_true", required=True)
+    storage = parser.add_mutually_exclusive_group(required=True)
+    storage.add_argument("--storage-quota", action="store_true")
+    storage.add_argument("--monitored-storage", action="store_true")
     parser.add_argument("--engine-id")
     parser.add_argument("--docker-host")
     args = parser.parse_args(argv)
@@ -486,6 +528,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.image_digest,
             baseline=args.baseline,
             storage_quota=args.storage_quota,
+            storage_mode="monitored" if args.monitored_storage else "quota",
             engine_id=args.engine_id,
             docker_host=args.docker_host,
         )

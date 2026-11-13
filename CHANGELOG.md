@@ -8,6 +8,11 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- WP-08 supports the owner's explicit Windows Docker Desktop monitored-storage exception:
+  sampled 10 GiB target, fatal unknown measurements, retained storage/cleanup evidence and distinct
+  smoke/result identities. Default hard-quota behavior remains available.
+- WP-04 run instructions clarify that fixture-bearing trials need a proven filesystem boundary;
+  the ordinary runner's tool and identity records do not supply hidden-answer isolation.
 - EVAL-005 accepts ordinary prior-dashboard and exported-JSON recovery wording while retaining
   datasource-only and incomplete-recovery negative controls.
 - EVAL-005 recognizes two measured authority refusals and explicit version-history recovery;

@@ -63,7 +63,10 @@ record actual resolved model identity. No credentials are provisioned or printed
 [verified] The prepared profile pins `sre-assistant`, declares only Read/Grep/Glob/Skill, prohibits
 helper dispatch in the task, and validates each spec with the existing runner before publication.
 No Bash, Write, external MCP server or live platform interface is granted. The ordinary native
-runner records actual tools, identity and read-boundary evidence. [unverified] Staging and tool
+runner records actual tools and identity. [verified] These fixture-bearing build specs do not
+activate its trace-level read-boundary check: they have neither routing nor followups. The approved
+Linux wrapper's filesystem namespace supplies the hidden-answer boundary; the Windows execution
+template alone supplies no equivalent isolation. [unverified] Staging and tool
 selection are **not an OS sandbox**: host paths remain a load-bearing boundary. Human admission
 must verify that the candidate's effective host/tool configuration cannot expose the evaluator
 cache, GT/bindings, reviewer packet or unapproved source. Logical candidate-relative missing-file

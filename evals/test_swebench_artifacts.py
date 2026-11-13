@@ -6,6 +6,7 @@ import os
 
 import pytest
 from probe.records import RecordV1
+from swebench_adapter import artifacts
 from swebench_adapter.artifacts import make_record, runtime_problem, store_bytes
 
 from scripts.testkit import require_symlink
@@ -89,9 +90,16 @@ def test_assistant_model_cannot_substitute_for_missing_init_model(tmp_path):
     assert 'model' in runtime_problem(trace, plugin, '/opt/fleet', 'anthropic/claude-sonnet-5.5', ['Read'])
 
 
+@pytest.mark.parametrize('storage_mode, profile_name', [
+    (None, 'static-repair-independently-verified-dec13'),
+    ('quota', 'static-repair-independently-verified-dec13'),
+    ('monitored', 'static-repair-independently-verified-dec13-monitored-storage'),
+])
 @pytest.mark.parametrize('ending, stop, observed', [('completed', None, ['anthropic/claude-sonnet-5.5']),
                                                  ('cut_short', 'no_result', None)])
-def test_record_preserves_profile_verdict_and_separate_estimated_cost(tmp_path, ending, stop, observed):
+def test_record_preserves_profile_verdict_and_separate_estimated_cost(
+    tmp_path, ending, stop, observed, storage_mode, profile_name
+):
 
     case = {'instance_id': 'repo__case-1', 'base_commit': 'a' * 40}
     identity = {**case, 'dataset': 'SWE-bench/SWE-bench_Verified', 'revision': 'b' * 40}
@@ -103,9 +111,10 @@ def test_record_preserves_profile_verdict_and_separate_estimated_cost(tmp_path, 
         label='claude', started='2026-10-24T00:00:00+00:00', ended='2026-10-24T00:01:00+00:00',
         state='FAIL', reason='patch did not resolve', ending=ending, stop=stop,
         estimated_cost=0.25, evidence={'patch': 'patch.diff'},
+        **({'storage_mode': storage_mode} if storage_mode is not None else {}),
     )
     parsed = RecordV1.model_validate_json(json.dumps(record))
-    assert parsed.conditions.execution_profile.name == 'static-repair-independently-verified-dec13'
+    assert parsed.conditions.execution_profile.name == profile_name
     assert parsed.conditions.execution_profile.authentication == 'openrouter-host-proxy'
     assert parsed.conditions.turn_limit == 64
     assert parsed.conditions.wall_clock_seconds == 2700
@@ -115,3 +124,41 @@ def test_record_preserves_profile_verdict_and_separate_estimated_cost(tmp_path, 
     assert parsed.verdict.status == 'FAIL'
     assert parsed.cost.trial_usd == 0.25
     assert parsed.evidence['patch'] == 'patch.diff'
+
+
+def test_execution_profiles_keep_original_quota_identity_and_return_independent_copies():
+    hard = artifacts.execution_profile()
+    assert hard == {
+        'name': 'static-repair-independently-verified-dec13', 'authentication': 'openrouter-host-proxy'
+    }
+    hard['name'] = 'modified-copy'
+    assert artifacts.execution_profile('quota') == {
+        'name': 'static-repair-independently-verified-dec13', 'authentication': 'openrouter-host-proxy'
+    }
+    assert artifacts.PROFILE == {
+        'name': 'static-repair-independently-verified-dec13', 'authentication': 'openrouter-host-proxy'
+    }
+    assert artifacts.execution_profile('monitored') == {
+        'name': 'static-repair-independently-verified-dec13-monitored-storage',
+        'authentication': 'openrouter-host-proxy',
+    }
+
+
+@pytest.mark.parametrize('mode', ['unknown', '', None, False])
+def test_unknown_execution_profile_policy_is_rejected(mode):
+    with pytest.raises(ValueError, match='storage mode'):
+        artifacts.execution_profile(mode)
+
+
+def test_record_refuses_unknown_storage_mode():
+    with pytest.raises(ValueError, match='storage mode'):
+        make_record(
+            identity={'instance_id': 'repo__case-1', 'base_commit': 'a' * 40},
+            candidate={'plugin_root': '/snapshot', 'plugin_commit': 'a' * 40,
+                       'plugin_inputs_dirty': False, 'plugin_source_sha256': 'c' * 64},
+            runner={'runner_commit': 'd' * 40, 'runner_source_dirty': False, 'runner_source_sha256': 'e' * 64},
+            model='anthropic/claude-sonnet-5.5', runtime={'cli_version': '2.1.309'}, label='claude',
+            started='2026-10-24T00:00:00+00:00', ended='2026-10-24T00:01:00+00:00',
+            state='PASS', reason=None, ending='completed', stop=None,
+            estimated_cost=0.25, evidence={}, storage_mode='unknown',
+        )

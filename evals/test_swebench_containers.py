@@ -80,6 +80,7 @@ def agent(setup, **kwargs):
         {"ANTHROPIC_AUTH_TOKEN": "attempt-placeholder", "ANTHROPIC_API_KEY": ""},
         "172.30.0.2",
         storage_quota=kwargs.get("storage_quota", True),
+        **({"storage_mode": kwargs["storage_mode"]} if "storage_mode" in kwargs else {}),
     )
 
 
@@ -494,3 +495,116 @@ def test_agent_rejects_missing_hard_quota_before_docker(setup, quota):
     with pytest.raises(ValueError, match="hard storage quota"):
         resources.start_agent("network", DIGEST, cli, plugin, {}, "172.30.0.2", storage_quota=quota)
     assert docker.calls == []
+
+
+def test_explicit_monitored_agent_omits_only_storage_quota(setup):
+    docker, resources, _, _ = setup
+    name = agent(setup, storage_quota=False, storage_mode="monitored")
+    argv = next(args for args, *_ in docker.calls if args[0] == "run")
+    assert "--storage-opt" not in argv
+    for option, value in (("--memory", "2g"), ("--cpus", "2"), ("--pids-limit", "256")):
+        assert argv[argv.index(option) + 1] == value
+    assert argv[argv.index("--network") + 1] == "wp08-attempt-network"
+    assert argv.count("--mount") == 2
+    assert resources.storage_observations[name] == {
+        "mode": "monitored",
+        "target_bytes": 10_737_418_240,
+        "hard_enforced": False,
+        "observed_peak_bytes": None,
+        "samples": 0,
+        "stop": None,
+    }
+
+
+@pytest.mark.parametrize("quota,mode", [(True, "monitored"), (False, "quota"), (False, "other"), (0, "monitored")])
+def test_agent_rejects_mismatched_storage_mode_before_docker(setup, quota, mode):
+    docker, resources, cli, plugin = setup
+    with pytest.raises(ValueError):
+        resources.start_agent("network", DIGEST, cli, plugin, {}, "172.30.0.2", storage_quota=quota, storage_mode=mode)
+    assert docker.calls == []
+
+
+def test_monitored_final_sample_catches_writes_after_initial_check(setup, monkeypatch):
+    docker, resources, _, _ = setup
+    name = agent(setup)
+    process = FakeProcess()
+
+    def complete_after_write():
+        docker.size = 10_737_418_241
+        return 0
+
+    process.poll = complete_after_write
+    fake_process(monkeypatch, process)
+    result = resources.execute(name, ["command"], storage_quota=False)
+    assert result.stop == "storage_limit" and process.killed
+    assert resources.storage_observations[name] == {
+        "mode": "monitored",
+        "target_bytes": 10_737_418_240,
+        "hard_enforced": False,
+        "observed_peak_bytes": 10_737_418_241,
+        "samples": 2,
+        "stop": "storage_limit",
+    }
+    assert ["rm", "--force", name] in [args for args, *_ in docker.calls]
+
+
+def test_monitored_peak_and_samples_accumulate_across_commands_without_exposing_mutable_state(setup, monkeypatch):
+    docker, resources, _, _ = setup
+    name = agent(setup)
+    fake_process(monkeypatch, FakeProcess())
+    docker.size = 90
+    assert resources.execute(name, ["first"], storage_quota=False).stop is None
+    docker.size = 20
+    fake_process(monkeypatch, FakeProcess())
+    assert resources.execute(name, ["second"], storage_quota=False).stop is None
+    observation = resources.storage_observations
+    assert observation[name]["observed_peak_bytes"] == 90
+    assert observation[name]["samples"] == 4
+    observation[name]["observed_peak_bytes"] = 0
+    observation.clear()
+    assert resources.storage_observations[name]["observed_peak_bytes"] == 90
+
+
+def test_monitored_watchdog_samples_again_after_five_seconds(setup, monkeypatch):
+    docker, resources, _, _ = setup
+    name = agent(setup)
+    process = FakeProcess(running=True)
+    fake_process(monkeypatch, process)
+    clock = [0.0]
+    monkeypatch.setattr(containers.time, "monotonic", lambda: clock[0])
+
+    def advance(seconds):
+        clock[0] += seconds
+        if clock[0] >= 5:
+            docker.size = 10_737_418_241
+
+    monkeypatch.setattr(containers.time, "sleep", advance)
+    result = resources.execute(name, ["command"], wall_seconds=10, storage_quota=False)
+    assert result.stop == "storage_limit" and 5 <= result.seconds < 6
+    assert resources.storage_observations[name]["samples"] == 2
+
+
+@pytest.mark.parametrize("failure", ["invalid", "timeout", "interrupted"])
+def test_monitored_stop_receipt_preserves_last_valid_sample(setup, monkeypatch, failure):
+    docker, resources, _, _ = setup
+    name = agent(setup)
+    process = FakeProcess(running=True)
+    fake_process(monkeypatch, process)
+    docker.size = 17
+
+    def stop_after_sample():
+        if failure == "invalid":
+            docker.size = None
+            process.running = False
+            return 0
+        if failure == "interrupted":
+            raise KeyboardInterrupt
+        return None
+
+    process.poll = stop_after_sample
+    expected = {"invalid": "monitor_failure", "timeout": "wall_clock", "interrupted": "interrupted"}[failure]
+    result = resources.execute(name, ["command"], wall_seconds=0.01, storage_quota=False)
+    assert result.stop == expected and process.killed
+    observation = resources.storage_observations[name]
+    assert observation["observed_peak_bytes"] == 17 and observation["samples"] == 1
+    assert observation["stop"] == expected

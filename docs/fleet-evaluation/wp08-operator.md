@@ -96,13 +96,27 @@ On a Linux host, bind the proxy to the local Docker bridge address reachable thr
 must prove its host route in smoke. No host firewall rules are installed. The proxy requires a random
 attempt token and exposes only the Messages route, even on its configured interface.
 
-`storage_quota` must be true. Both author and verifier containers require the engine to enforce
-`--storage-opt size=10G` (10 GiB, or 10,737,418,240 bytes). Unsupported engines stop before candidate
-execution; the watchdog is supplemental detection and cannot replace a hard quota. Confirm support
-on the selected Docker Desktop Linux engine before starting smoke; an unsupported engine needs a
-quota-capable configuration before this adapter can run.
+Quota mode is the default (`storage_mode: "quota"`, or omit that field); it requires
+`storage_quota: true` and real `--storage-opt size=10G` enforcement in both author and verifier.
+For the [owner-approved Windows Docker Desktop exception](run-plan-wp08-swebench-repair.md#owner-amendment-docker-desktop-monitored-storage-2026-11-12),
+set both `"storage_mode": "monitored"` and `"storage_quota": false`. A false quota flag alone is
+rejected. The exception requires a local Linux Docker Desktop engine on Windows and omits the
+unenforced storage option while preserving all other limits. Its writable-layer target is
+10 GiB (10,737,418,240 bytes), sampled initially, every five seconds and after command completion.
+An over-target observation or unavailable measurement stops execution and triggers owned cleanup.
+After patch capture, the monitored author container is removed and its absence confirmed before
+independent verification starts, so an orphaned background writer cannot continue unobserved.
+Writes can exceed the target between observations and affect shared Docker storage. Sampled peaks
+are observed maxima, not instantaneous high-water marks. This mode supplies no hard storage cap.
+
+The smoke binding records storage mode, engine and backend identity. Monitored smoke requires
+`storage_monitor` evidence of a measured over-target stop and clean cleanup; quota mode requires
+actual quota rejection under `storage_cap`. Result profiles differ, so the two modes cannot be
+paired or pooled. Agent samples are retained in `storage.json`; the independent verifier retains
+its own samples and typed execution stop in its receipt. Changing modes requires fresh smoke.
 The exact byte count avoids parsing Docker's rounded human-readable size. The smoke's bounded fill
-probe attempts up to 10 GiB plus 100 MiB to demonstrate enforcement; reserve that space on the evaluation host.
+probe attempts up to 10 GiB plus 100 MiB to demonstrate the selected control; reserve that space on
+the evaluation host. A smaller diagnostic does not qualify the full benchmark smoke.
 CPU is capped at two cores, memory at 2 GiB and processes at 256. The verifier also drops capabilities
 and network access; the adapter replaces only SWE-bench's container factory, preserving its grading.
 

@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO
 
+from .storage import MONITORED_STORAGE_INTERVAL
 from .windows_job import JobError, WindowsJob
 
 _STDOUT_LIMIT = 64 * 1024 * 1024
@@ -198,10 +199,11 @@ def run_bounded(command: Sequence[str], *, cwd: Path, env: Mapping[str, str], ti
 class ExecutionLimit(RuntimeError):
     """A fixed, credential-free reason for refusing verifier execution."""
 
-    def __init__(self, kind: str):
+    def __init__(self, kind: str, storage_bytes: int | None = None):
         if kind not in {"storage_limit", "output_limit", "monitor_failure"}:
             kind = "monitor_failure"
         self.kind = kind
+        self.storage_bytes = storage_bytes
         super().__init__(f"verifier execution stopped: {kind}")
 
 
@@ -227,7 +229,12 @@ def _kill(container: Any) -> None:
     _api_call(container.kill, _MONITOR_TIMEOUT)
 
 
-def _storage(container: Any, timeout: float = _MONITOR_TIMEOUT) -> None:
+def _storage(
+    container: Any,
+    timeout: float = _MONITOR_TIMEOUT,
+    *,
+    storage_observation: dict[str, Any] | None = None,
+) -> None:
     try:
         identity = container.id
         if not isinstance(identity, str) or re.fullmatch(r"[0-9a-f]{64}", identity) is None:
@@ -246,11 +253,20 @@ def _storage(container: Any, timeout: float = _MONITOR_TIMEOUT) -> None:
         size = rows[0].get("SizeRw")
         if type(size) is not int or size < 0:
             raise ExecutionLimit("monitor_failure")
+        if storage_observation is not None:
+            peak = storage_observation["observed_peak_bytes"]
+            storage_observation["observed_peak_bytes"] = size if peak is None else max(peak, size)
+            storage_observation["samples"] += 1
         if size > STORAGE_LIMIT:
-            raise ExecutionLimit("storage_limit")
+            raise ExecutionLimit("storage_limit", storage_bytes=size)
     except Exception as error:
-        _kill(container)
-        raise ExecutionLimit(error.kind if isinstance(error, ExecutionLimit) else "monitor_failure") from None
+        kind = error.kind if isinstance(error, ExecutionLimit) else "monitor_failure"
+        storage_bytes = error.storage_bytes if isinstance(error, ExecutionLimit) else None
+        if storage_observation is not None:
+            storage_observation["stop"] = kind
+        with contextlib.suppress(ExecutionLimit):
+            _kill(container)
+        raise ExecutionLimit(kind, storage_bytes=storage_bytes) from None
 
 
 @dataclass(frozen=True)
@@ -261,14 +277,45 @@ class _Outcome:
     seconds: float
 
 
-def _execute(container: Any, cmd: Any, timeout: float | None, kwargs: Mapping[str, Any]) -> _Outcome:
+def _execute(
+    container: Any,
+    cmd: Any,
+    timeout: float | None,
+    kwargs: Mapping[str, Any],
+    *,
+    storage_quota: bool = True,
+    storage_observation: dict[str, Any] | None = None,
+) -> _Outcome:
     started = time.monotonic()
+    if storage_observation is not None:
+        storage_observation.update(
+            mode="quota" if storage_quota else "monitored",
+            target_bytes=STORAGE_LIMIT,
+            hard_enforced=storage_quota,
+        )
+        storage_observation.setdefault("observed_peak_bytes", None)
+        storage_observation.setdefault("samples", 0)
+        storage_observation.setdefault("stop", None)
+
+    def record_stop(kind: str) -> None:
+        if storage_observation is not None:
+            storage_observation["stop"] = kind
+
+    def measure(remaining: float | None) -> None:
+        limit = min(_MONITOR_TIMEOUT, remaining) if remaining is not None else _MONITOR_TIMEOUT
+        if storage_observation is None:
+            _storage(container, limit)
+        else:
+            _storage(container, limit, storage_observation=storage_observation)
+
     if timeout is not None and (not math.isfinite(timeout) or timeout <= 0):
+        record_stop("timeout")
         _kill(container)
         return _Outcome(b"", None, True, time.monotonic() - started)
     try:
-        _storage(container, min(_MONITOR_TIMEOUT, timeout) if timeout is not None else _MONITOR_TIMEOUT)
+        measure(timeout)
     except KeyboardInterrupt:
+        record_stop("interrupted")
         with contextlib.suppress(ExecutionLimit):
             _kill(container)
         raise
@@ -281,6 +328,7 @@ def _execute(container: Any, cmd: Any, timeout: float | None, kwargs: Mapping[st
     # The public wrapper owns capture and the deadline; an SDK socket would
     # bypass both. Detached control calls are handled by the wrapper separately.
     if options.pop("socket", False) or options.pop("demux", False):
+        record_stop("monitor_failure")
         _kill(container)
         raise ExecutionLimit("monitor_failure")
     options.pop("stream", None)
@@ -314,34 +362,34 @@ def _execute(container: Any, cmd: Any, timeout: float | None, kwargs: Mapping[st
 
     worker = threading.Thread(target=collect, daemon=True)
     worker.start()
-    next_storage = started + _STORAGE_INTERVAL
+    storage_interval = _STORAGE_INTERVAL if storage_quota else MONITORED_STORAGE_INTERVAL
+    next_storage = started + storage_interval
     timed_out = False
     try:
         while not done.wait(0.01):
             now = time.monotonic()
             if timeout is not None and now - started >= timeout:
                 timed_out = True
+                record_stop("timeout")
                 _kill(container)
                 break
             if now >= next_storage:
-                _storage(
-                    container,
-                    min(_MONITOR_TIMEOUT, timeout - (now - started)) if timeout is not None else _MONITOR_TIMEOUT,
-                )
-                next_storage = now + _STORAGE_INTERVAL
+                measure(timeout - (now - started) if timeout is not None else None)
+                next_storage = now + storage_interval
         if failure:
+            record_stop(failure[0])
             _kill(container)
             raise ExecutionLimit(failure[0])
         if not timed_out:
             elapsed = time.monotonic() - started
             if timeout is not None and elapsed >= timeout:
                 timed_out = True
+                record_stop("timeout")
                 _kill(container)
             else:
-                _storage(
-                    container, min(_MONITOR_TIMEOUT, timeout - elapsed) if timeout is not None else _MONITOR_TIMEOUT
-                )
+                measure(timeout - elapsed if timeout is not None else None)
     except KeyboardInterrupt:
+        record_stop("interrupted")
         with contextlib.suppress(ExecutionLimit):
             _kill(container)
         raise
@@ -351,9 +399,21 @@ def _execute(container: Any, cmd: Any, timeout: float | None, kwargs: Mapping[st
         return _Outcome(bytes(output), exit_codes[0] if exit_codes else None, timed_out, time.monotonic() - started)
 
 
-def bounded_exec(container: Any, cmd: Any, timeout: int | float | None = 60, **kwargs: Any) -> tuple[str, bool, float]:
+def bounded_exec(
+    container: Any,
+    cmd: Any,
+    timeout: int | float | None = 60,
+    *,
+    storage_observation: dict[str, Any] | None = None,
+    **kwargs: Any,
+) -> tuple[str, bool, float]:
     """Pinned harness exec_run_with_timeout shape, with bounded capture and storage."""
-    result = _execute(container, cmd, timeout, kwargs)
+    if storage_observation is None:
+        storage_observation = getattr(container, "storage_observation", None)
+    quota = getattr(container, "storage_quota", None)
+    if quota is None:
+        quota = storage_observation is None or storage_observation.get("mode") != "monitored"
+    result = _execute(container, cmd, timeout, kwargs, storage_quota=quota, storage_observation=storage_observation)
     return result.output.decode("utf-8", errors="replace"), result.timed_out, result.seconds
 
 
@@ -366,9 +426,16 @@ class _ExecResult:
 class BoundedContainer:
     """Delegate the SDK surface while bounding ordinary exec_run collection."""
 
-    def __init__(self, raw: Any, *, storage_quota: bool = False):
+    def __init__(
+        self,
+        raw: Any,
+        *,
+        storage_quota: bool = False,
+        storage_observation: dict[str, Any] | None = None,
+    ):
         self._raw = raw
         self.storage_quota = storage_quota
+        self.storage_observation = storage_observation
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._raw, name)
@@ -378,7 +445,14 @@ class BoundedContainer:
             return self._raw.exec_run(cmd, **kwargs)
         options = dict(kwargs)
         timeout = options.pop("timeout", _EXEC_TIMEOUT)
-        result = _execute(self._raw, cmd, timeout, options)
+        result = _execute(
+            self._raw,
+            cmd,
+            timeout,
+            options,
+            storage_quota=self.storage_quota,
+            storage_observation=self.storage_observation,
+        )
         if result.timed_out:
             raise ExecutionLimit("monitor_failure")
         output: bytes | Iterator[bytes] = result.output

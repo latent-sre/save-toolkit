@@ -23,8 +23,9 @@ from probe.records import RecordV1
 
 from . import artifacts, configuration, selection, verifier
 from .containers import Docker, DockerResources
-from .limits import run_bounded
+from .limits import STORAGE_LIMIT, run_bounded
 from .proxy import ModelProxy, read_key
+from .storage import validate_storage_mode
 
 _NAME = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,250}")
 
@@ -137,6 +138,12 @@ def runtime_binding(config: Mapping[str, Any], manifest: Mapping[str, Any], dock
             or any(not isinstance(info.get(field), str) or not info[field] for field in fields)
         ):
             raise ValueError
+        driver_status = info.get("DriverStatus", [])
+        if not isinstance(driver_status, list) or any(
+            not isinstance(pair, list) or len(pair) != 2 or any(not isinstance(value, str) for value in pair)
+            for pair in driver_status
+        ):
+            raise ValueError
         relay = json.loads(docker.call(["image", "inspect", SERVICE_RELAY_IMAGE]).stdout)
         if (
             not isinstance(relay, list)
@@ -149,6 +156,10 @@ def runtime_binding(config: Mapping[str, Any], manifest: Mapping[str, Any], dock
             raise ValueError
     except RuntimeError, OSError, ValueError, TypeError, KeyError:
         raise ValueError("Docker runtime must identify the same local Linux engine and pinned relay image") from None
+    if bound["storage_mode"] == "monitored" and (
+        platform.system() != "Windows" or info["OperatingSystem"] != "Docker Desktop"
+    ):
+        raise ValueError("monitored storage exception requires Windows and a local Linux Docker Desktop engine")
     return {
         **bound,
         "host_runtime": {
@@ -157,6 +168,7 @@ def runtime_binding(config: Mapping[str, Any], manifest: Mapping[str, Any], dock
         },
         "docker_runtime": {
             **{field: info[field] for field in fields},
+            "DriverStatus": driver_status,
             "context": context["Name"],
             "endpoint": endpoint,
         },
@@ -229,10 +241,10 @@ def verify_patch(
     *,
     baseline: bool = False,
     storage_quota: bool = True,
+    storage_mode: str = "quota",
 ) -> dict[str, Any]:
     """Run a fresh verifier process with private host-only inputs and no model environment."""
-    if storage_quota is not True:
-        raise ValueError("a hard storage quota is required")
+    mode = validate_storage_mode(quota=storage_quota, mode=storage_mode)
     output.mkdir(mode=0o700, parents=True, exist_ok=True)
     if any(
         (output / name).exists()
@@ -248,6 +260,7 @@ def verify_patch(
         "base_commit": task["base_commit"],
         "baseline": baseline,
         "storage_quota": storage_quota,
+        "storage_mode": mode,
         "docker_engine_id": engine_id,
         "docker_endpoint": endpoint,
         "interrupted": False,
@@ -297,6 +310,7 @@ def verify_patch(
                 image_digest,
                 baseline=baseline,
                 storage_quota=storage_quota,
+                storage_mode=mode,
                 engine_id=engine_id,
                 docker_host=endpoint,
             )
@@ -335,6 +349,7 @@ def verify_patch(
                     "docker_engine_id",
                     "docker_endpoint",
                     "storage_quota",
+                    "storage_mode",
                 )
             }
             if (
@@ -352,7 +367,30 @@ def verify_patch(
                 or verifier.EXIT_STATUS[observed["outcome"]] != process.returncode
             ):
                 raise ValueError("verifier identity or process status disagrees")
-            if patch.strip() or baseline:
+            storage = observed.get("storage")
+            if mode == "monitored" and (
+                not isinstance(storage, dict)
+                or storage.get("mode") != mode
+                or storage.get("target_bytes") != STORAGE_LIMIT
+                or storage.get("hard_enforced") is not False
+                or type(storage.get("samples")) is not int
+                or storage["samples"] < 0
+                or (
+                    storage.get("observed_peak_bytes") is not None
+                    and (type(storage["observed_peak_bytes"]) is not int or storage["observed_peak_bytes"] < 0)
+                )
+                or (
+                    observed["outcome"] in ("PASS", "FAIL")
+                    and (
+                        storage["samples"] == 0
+                        or storage.get("observed_peak_bytes") is None
+                        or storage.get("stop") is not None
+                        or observed.get("stop") is not None
+                    )
+                )
+            ):
+                raise ValueError("verifier lacks monitored storage evidence")
+            if observed["outcome"] in ("PASS", "FAIL") and (patch.strip() or baseline):
                 state = observed.get("initial_state")
                 if (
                     observed.get("observed_base_commit") != task["base_commit"]
@@ -413,7 +451,9 @@ def verify_patch(
     finally:
         if host_cleanup_complete:
             host_process.update(present=False, removed=True)
-        receipt.update(host_cleanup_complete=host_cleanup_complete, stop=host_stop, host_process=host_process)
+        receipt.update(host_cleanup_complete=host_cleanup_complete, host_stop=host_stop, host_process=host_process)
+        if host_stop is not None:
+            receipt["stop"] = host_stop
         cleanup = _clean_named(docker, name, owned)
         receipt["verifier_cleanup"] = receipt.get("cleanup", [])
         receipt["cleanup"] = [cleanup]
@@ -616,6 +656,7 @@ def run_trial(
                 agent_environment(config, token),
                 proxy_ip,
                 storage_quota=config["storage_quota"],
+                storage_mode=config.get("storage_mode", "quota"),
             )
             resources.setup_repository(container, task["base_commit"])
             version = docker.call(["exec", container, "/opt/claude", "--version"]).stdout.decode("utf-8").strip()
@@ -709,6 +750,11 @@ def run_trial(
                     patch = captured.stdout.decode("utf-8")
                     artifacts.store_bytes(run, "candidate.patch", captured.stdout, secrets=(key,))
                     evidence["patch"] = "candidate.patch"
+                    if config.get("storage_mode", "quota") == "monitored":
+                        retired = resources.remove_container(container)
+                        if retired["present"] is not False:
+                            raise ValueError("monitored author cleanup is unresolved before verification")
+                        cleanup.append(retired)
                     if not patch.strip():
                         summary.update(status="FAIL", reason="candidate patch is empty")
                     else:
@@ -724,6 +770,7 @@ def run_trial(
                             image,
                             docker,
                             storage_quota=config["storage_quota"],
+                            storage_mode=config.get("storage_mode", "quota"),
                         )
                         cleanup.extend(verified["cleanup"])
                         summary.update(
@@ -799,6 +846,7 @@ def run_trial(
         artifacts.store_json(run, "identity.json", identity, secrets=(key,))
         artifacts.store_json(run, "binding.json", bound, secrets=(key,))
         artifacts.store_json(run, "timing.json", {"seconds": seconds}, secrets=(key,))
+        artifacts.store_json(run, "storage.json", resources.storage_observations, secrets=(key,))
         artifacts.store_json(
             run,
             "policy-review.json",
@@ -814,6 +862,7 @@ def run_trial(
             identity="identity.json",
             binding="binding.json",
             timing="timing.json",
+            storage="storage.json",
             policy_review="policy-review.json",
         )
         provenance = fingerprints.runner_provenance()
@@ -837,6 +886,7 @@ def run_trial(
             estimated_cost=estimate,
             evidence=evidence,
             after_assessment=summary["after_assessment"],
+            storage_mode=config.get("storage_mode", "quota"),
         )
         artifacts.store_json(run, "record.json", record, secrets=(key,))
         artifacts.store_json(run, "summary.json", summary, secrets=(key,))
@@ -894,7 +944,8 @@ def run_batch(
             or record.runner.runner_source_sha256 != bound["adapter_sha256"]
             or record.conditions.requested_model != config["model"]
             or record.conditions.execution_profile is None
-            or record.conditions.execution_profile.model_dump() != artifacts.PROFILE
+            or record.conditions.execution_profile.model_dump()
+            != artifacts.execution_profile(config.get("storage_mode", "quota"))
             or not summary.get("cleanup_ok")
             or summary.get("auth_failed")
             or summary.get("identity_mismatch")
