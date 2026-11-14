@@ -1,0 +1,11 @@
+id: discovery-go-craft-routing
+max_turns: 3
+split: regression
+prompt: |
+  Refactor a Go worker package: extract its pure scheduling decision from SQL/HTTP I/O, collapse a
+  single-implementation interface, replace unbounded goroutines, and verify concurrency with
+  testing/synctest while keeping exported signatures and JSON contracts intact.
+target: {kind: skill, name: go-craft}
+routing: {expect: fire}
+success_criteria:
+  - Invokes Go implementation and refactoring guidance (go-craft)

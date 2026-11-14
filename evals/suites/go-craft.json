@@ -1,19 +1,16 @@
 {
   "schema_version": 1,
   "id": "go-craft",
-  "summary": "Go guidance routing and the existing Go API fixture; no general Go benchmark",
-  "tests": [
-    "evals/test_incidents_api_oracle.py",
-    "scripts/test_skill_assets.py"
-  ],
+  "summary": "Go design, refactoring, modernization, concurrency, and routing controls",
+  "tests": [],
   "native_scenarios": [
-    "build-software-engineer-go-incidents-api",
-    "discovery-go-craft-defers-live-incident",
-    "discovery-go-craft-library",
-    "discovery-go-craft-modernize"
+    "build-go-new-cli-package",
+    "build-go-refactor-legacy-worker",
+    "build-go-synctest-debounce",
+    "discovery-go-craft-routing"
   ],
   "campaigns": [],
   "guides": [
-    "evals/docs/coverage.md"
+    "evals/README.md"
   ]
 }

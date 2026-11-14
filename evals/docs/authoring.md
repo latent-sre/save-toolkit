@@ -353,15 +353,6 @@ limits follow the existing short discovery cases and are offline budget choices,
 completion limits. Historical build results measure the earlier `backend-craft` revision; the
 renamed skill and these new routing cases have not been measured in a native campaign.
 
-The separate `go-craft` candidate adds discovery cases for
-[`library refactoring`](../scenarios/discovery-go-craft-library.yaml),
-[`module modernization`](../scenarios/discovery-go-craft-modernize.yaml), and
-[`deferral during a live incident`](../scenarios/discovery-go-craft-defers-live-incident.yaml).
-Their four-turn limits are offline choices following the existing discovery cases, not measured
-completion limits. The Go HTTP build also requires the language skill to load alongside `api-craft`.
-These cases have not run natively; the existing HTTP oracle does not measure language-specific
-benefit. BACKEND-002 still needs a bounded Go build comparison against the model without this skill.
-
 None of the oracle tests makes a model call.
 
 - [`incident-writes`](../test_incident_writes_oracle.py) and [`pager-webhook`](../test_pager_webhook_oracle.py)

@@ -1,0 +1,129 @@
+id: build-go-refactor-legacy-worker
+max_turns: 30
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Refactor `worker.go` in this Go 1.25 package with active leeway to bring it up to modern Go
+  standards while preserving all exported contracts.
+
+  Preserve exported symbols and contracts:
+  - `Job`, `Result`, `Response` (`Results []Result \`json:"results"\``), and
+    `ProcessBatch(ctx context.Context, jobs []Job, exec func(context.Context, Job) (string, error), now time.Time) (Response, error)`.
+  - Empty input must return `Response{Results: []Result{}}` (marshaling as `{"results":[]}`, not `null`).
+  - Results must be sorted by `Priority` ascending (tie-breaking by `ID` ascending).
+  - Errors from `exec` must remain inspectable with `errors.Is` / `errors.As`.
+
+  Clean up the structural flaws in `worker.go`:
+  - Collapse the pointless single-implementation `JobStore` / `jobStoreImpl` wrapper.
+  - Replace the manual sort loop with stdlib `slices.SortFunc` / `cmp.Compare`.
+  - Replace the unbounded `go func()` fan-out with bounded concurrency that respects `ctx` and
+    collects errors cleanly.
+  - Add unit tests in `worker_test.go` covering ordering, empty-slice JSON `[]`, error wrapping, and
+    context cancellation.
+  - Run `go vet ./...` and `go test -count=1 ./...` as foreground commands after your final edit.
+fixture:
+  files:
+    go.mod: |
+      module example.com/worker
+
+      go 1.25
+    worker.go: |
+      package worker
+
+      import (
+      	"context"
+      	"sync"
+      	"time"
+      )
+
+      type Job struct {
+      	ID       string
+      	Priority int
+      }
+
+      type Result struct {
+      	ID     string `json:"id"`
+      	Output string `json:"output"`
+      	At     string `json:"at"`
+      }
+
+      type Response struct {
+      	Results []Result `json:"results"`
+      }
+
+      type JobStore interface {
+      	Build(jobs []Job) []Job
+      }
+
+      type jobStoreImpl struct{}
+
+      func (s *jobStoreImpl) Build(jobs []Job) []Job {
+      	out := make([]Job, len(jobs))
+      	copy(out, jobs)
+      	return out
+      }
+
+      func ProcessBatch(
+      	ctx context.Context,
+      	jobs []Job,
+      	exec func(context.Context, Job) (string, error),
+      	now time.Time,
+      ) (Response, error) {
+      	var store JobStore = &jobStoreImpl{}
+      	ordered := store.Build(jobs)
+      	for i := 0; i < len(ordered); i++ {
+      		for j := i + 1; j < len(ordered); j++ {
+      			if ordered[j].Priority < ordered[i].Priority ||
+      				(ordered[j].Priority == ordered[i].Priority && ordered[j].ID < ordered[i].ID) {
+      				ordered[i], ordered[j] = ordered[j], ordered[i]
+      			}
+      		}
+      	}
+
+      	results := make([]Result, len(ordered))
+      	var firstErr error
+      	var mu sync.Mutex
+      	var wg sync.WaitGroup
+
+      	for i, job := range ordered {
+      		wg.Add(1)
+      		go func(idx int, jb Job) {
+      			defer wg.Done()
+      			if ctx.Err() != nil {
+      				mu.Lock()
+      				if firstErr == nil {
+      					firstErr = ctx.Err()
+      				}
+      				mu.Unlock()
+      				return
+      			}
+      			out, err := exec(ctx, jb)
+      			if err != nil {
+      				mu.Lock()
+      				if firstErr == nil {
+      					firstErr = err
+      				}
+      				mu.Unlock()
+      				return
+      			}
+      			results[idx] = Result{
+      				ID:     jb.ID,
+      				Output: out,
+      				At:     now.UTC().Format(time.RFC3339),
+      			}
+      		}(i, job)
+      	}
+      	wg.Wait()
+      	if firstErr != nil {
+      		return Response{}, firstErr
+      	}
+      	return Response{Results: results}, nil
+      }
+checks:
+  - {check: skill_loaded, skill: go-craft, text: "go-craft was loaded for Go refactoring"}
+  - {check: no_new_commits, text: "no commits"}
+  - check: command_exit_zero
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _go_oracle.py refactor-worker"
+    writes_from: {_go_oracle.py: evals/oracles/go-craft/check_go_craft.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    text: "refactored worker preserves JSON [] contract, order, error wrapping, and drops jobStoreImpl bloat"
