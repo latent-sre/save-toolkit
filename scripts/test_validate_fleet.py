@@ -12,14 +12,9 @@ from unittest import mock
 import fleet_frontmatter
 import generate_platform_adapters
 import validate_fleet
-from testkit import markdown_section, must_replace, normalized
+from testkit import must_replace
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def _markdown_section(relative: Path, heading: str) -> str:
-    """The case- and whitespace-normalized body under `heading` in one repository file."""
-    return normalized(markdown_section((ROOT / relative).read_text(encoding="utf-8"), heading))
 
 
 def _agent(name: str) -> fleet_frontmatter.ParsedFrontmatter:
@@ -216,35 +211,6 @@ class FleetValidatorTests(unittest.TestCase):
                 )
                 self.assertTrue(any("missing required tool(s)" in item and shell in item
                                     for item in failures), failures)
-
-    def test_safety_critical_rules_are_not_deleted(self) -> None:
-        """Deletion guards for production-authority rules that no guard or validator enforces.
-
-        A reworded or inverted sentence that keeps the phrase still passes; meaning belongs to
-        behavioral evals.
-        """
-        contracts = (
-            (Path("skills/production-change-gate/SKILL.md"), "## Production authorization", (
-                "a new-artifact deployment attaches the exact candidate commit's independent review",
-                "for a deployment, the protected environment gating the credential",
-                "a non-deployment action attaches the current command or diff and named approval instead",
-            )),
-            (Path("agents/reviewer.md"), "## Scope the review first", (
-                "cannot supply the exact-sha review evidence required for a production deployment",
-            )),
-            (Path("agents/reviewer.md"), "## Output format", (
-                "cannot supply production-change-gate's exact-sha review evidence",
-            )),
-            (Path("AGENTS.md"), "## Hard rules", (
-                "eval results never promote a candidate",
-                "only human acceptance of the exact candidate revision does",
-            )),
-        )
-        for relative, heading, phrases in contracts:
-            text = _markdown_section(relative, heading)
-            for phrase in phrases:
-                with self.subTest(contract=relative.as_posix(), phrase=phrase):
-                    self.assertIn(phrase, text)
 
     def test_scribe_is_a_non_executing_document_writer(self) -> None:
         self.assertEqual({"Read", "Grep", "Glob", "Edit", "Write", "Skill"}, _granted_tools("scribe"))

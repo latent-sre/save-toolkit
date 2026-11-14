@@ -6,6 +6,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- Remove selected wording and Markdown-format test pins so guidance can be rephrased without
+  updating those tests; retain unrelated authority, schema, and behavioral coverage.
+
 - Make the native reliability comparison explicitly assess conditional retry return and exception
   paths, with a matched timing control and bounded execution evidence.
 

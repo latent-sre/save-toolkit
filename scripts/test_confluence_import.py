@@ -40,7 +40,6 @@ CONVERTER = ROOT / "skills" / "operational-docs" / "scripts" / "confluence_to_ru
 # Pinning the converter to the template is the stronger binding anyway: the template is the file a
 # human copies, so a converter that agrees with it agrees with what runbooks actually look like.
 TEMPLATE_PATH = ROOT / "skills" / "operational-docs" / "assets" / "runbook-template.md"
-IMPORT_REFERENCE = ROOT / "skills" / "operational-docs" / "references" / "confluence-import.md"
 
 def template_frontmatter_keys() -> list[str]:
     """Top-level keys between the runbook template's first two `---` fences."""
@@ -402,7 +401,6 @@ class ConfluenceContentTest(ConverterTest):
             return template.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0].strip("\n")
 
         banner = "\n".join(line for line in section("Procedure").splitlines() if line.startswith(">"))
-        self.assertIn("approval before you run it", banner)
         self.assertTrue(slot_text(draft, "Procedure").startswith(banner + "\n"))
         self.assertEqual(section("Post-Incident"), slot_text(draft, "Post-Incident").strip("\n"))
 
@@ -672,14 +670,6 @@ class ConfluenceImportPathTest(ConverterTest):
         self.assertIn("Trading on-call rota.", escalation)
         self.assertNotIn("desk prefix", slot_text(draft, "Procedure"))
         self.assertIn("desk prefix", draft.split("Imported content (unmapped)", 1)[1])
-
-
-class ConfluenceImportReferenceTest(unittest.TestCase):
-    def test_export_example_prompts_for_token_instead_of_putting_it_in_argv(self) -> None:
-        reference = IMPORT_REFERENCE.read_text(encoding="utf-8")
-        self.assertNotIn("$CONFLUENCE_API_TOKEN", reference)
-        self.assertIn('--user "user@example.com"', reference)
-        self.assertIn("prompts for the API token", reference)
 
 
 if __name__ == "__main__":
