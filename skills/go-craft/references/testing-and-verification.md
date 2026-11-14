@@ -27,8 +27,9 @@
   - Instantiate mutable fixtures (buffers, maps, structs, DB transactions) inside each `t.Run` body.
   - Inject config/paths rather than using `t.Setenv`/`t.Chdir` under `t.Parallel()`.
 - **Go 1.24–1.26+ `testing.T` helpers:**
-  - **`t.Context()` (1.24+):** Cancels automatically *just before* `t.Cleanup` functions run, so
-    workers stop before `t.Cleanup` tears down databases or temp dirs.
+  - **`t.Context()` (1.24+):** Canceled *just before* `t.Cleanup` functions run. That only signals
+    workers: register the `t.Cleanup` that waits for them to exit *last* (cleanups run last-in,
+    first-out) so it finishes before databases or temp dirs are torn down.
   - **`t.TempDir()` on Windows:** Fails cleanup if any `*os.File` inside the dir remains open—treat
     this as a leaked file handle in the code under test.
   - **`t.ArtifactDir()` (1.26+):** Persists failure dumps when `go test -artifacts` is passed.

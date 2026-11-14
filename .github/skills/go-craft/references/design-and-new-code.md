@@ -21,8 +21,9 @@
   concrete structs from `NewX(...)`. Prefer a plain `Options`/`Config` struct over `WithX` functional
   option closures unless most callers pass zero options or options require validation/closures. Use
   10-line fakes or `func` adapters in tests instead of mock frameworks.
-- **Separate wire DTOs from domain types:** Use `*T` or `omitzero` in JSON/patch DTOs where omitted
-  vs. zero matters; convert at the edge into validated value-field domain structs.
+- **Separate wire DTOs from domain types:** Use `*T` in input/patch DTOs where omitted vs. zero
+  matters (`omitzero` only affects marshaling); convert at the edge into validated value-field
+  domain structs.
 - **Zero-value safety:** Never export a struct whose zero value panics on nil-map writes or
   nil-channel sends; initialize maps in `NewX` or lazy-init on write.
 - **Typed-nil trap:** Never declare a concrete error pointer (`var err *MyError`) and return it as
@@ -65,12 +66,11 @@
   `http.MaxBytesReader`. Check `err != nil` on `db.BeginTx(ctx, opts)`, then immediately
   `defer tx.Rollback()`. Always `defer rows.Close()` outside loops and check `rows.Err()`.
 
-## Go 1.22–1.26+ Capabilities and Traps
+## Go 1.23–1.26+ Capabilities and Traps
 
 | Floor | Use | Trap / Rule |
 |---|---|---|
-| 1.22+ | Per-iteration loop vars; `http.ServeMux` `"GET /items/{id}"`; `slices.Concat`, `slices.DeleteFunc` | `ServeMux` `"/"` matches every unmatched subtree; use `"/{$}"` for exact `"/"`. `"GET "` also matches `HEAD`. Always reassign `s = slices.DeleteFunc(s, fn)` |
-| 1.23+ | `iter.Seq`/`Seq2`; `slices.Collect`/`SortedFunc`/`Chunk`; `maps.Keys`/`Values`/`Collect`; timer fixes | Stdlib `maps.Keys(m)` returns `iter.Seq[K]`, **not** `[]K` (materialize with `slices.Collect` or `slices.Sorted`). `Timer.Stop()`/`Reset()` clears stale channel entries—never run legacy `if !t.Stop() { <-t.C }` drains (deadlocks) |
+| 1.23 (skill floor) | Per-iteration loop vars; `http.ServeMux` `"GET /items/{id}"`; `slices.Concat`, `slices.DeleteFunc`; `iter.Seq`/`Seq2`; `slices.Collect`/`SortedFunc`/`Chunk`; `maps.Keys`/`Values`/`Collect`; timer fixes | `ServeMux` `"/"` matches every unmatched subtree; use `"/{$}"` for exact `"/"`. `"GET "` also matches `HEAD`. Always reassign `s = slices.DeleteFunc(s, fn)`. Stdlib `maps.Keys(m)` returns `iter.Seq[K]`, **not** `[]K` (materialize with `slices.Collect` or `slices.Sorted`). `Timer.Stop()`/`Reset()` leave no stale value in `t.C`—delete legacy `if !t.Stop() { <-t.C }` drains, which can now only block |
 | 1.24+ | `os.OpenRoot`; `json` `omitzero`; `strings.SplitSeq`/`Lines`; `crypto/rand.Text()`, `crypto/hkdf`, `crypto/pbkdf2`, `crypto/sha3`; `runtime.AddCleanup`; `go.mod` `tool` | Prefer `omitzero` over `omitempty` to omit zero `time.Time{}` and `IsZero() bool` structs. In `runtime.AddCleanup(ptr, fn, arg)`, `fn` must **never** capture `ptr` or it leaks. Use `strings.SplitSeq` in `for range` to avoid `[]string` allocation |
 | 1.25+ | `wg.Go(fn)`; expanded `os.Root`; `http.NewCrossOriginProtection()`; `go vet` `waitgroup` & `hostport` | `wg.Go(fn)` handles `Add(1)` and `defer Done()`. Format dial addresses with `net.JoinHostPort(host, port)`, never `fmt.Sprintf("%s:%d", ...)` (`hostport`) |
 | 1.26+ | `new(expr)` pointer init; `errors.AsType[E]`; `slog.NewMultiHandler`; `signal.NotifyContext` cause; `go fix` modernizer & `//go:fix inline` | Use `new(30)` / `new(true)` instead of `ptr[T]` helpers. Prefer `errors.AsType[*MyErr]` over `errors.As`. Do not import `encoding/json/v2` unless `GOEXPERIMENT=jsonv2` is enabled |

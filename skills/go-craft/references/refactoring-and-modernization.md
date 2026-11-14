@@ -36,7 +36,7 @@
    (which returns `nil` when `seq` is empty) changes `[]` to `null`. Conversely,
    `s = slices.DeleteFunc(s, fn)` on a non-nil slice returns `s[:0]` (keeping `[]`), mutates the
    backing array in place, and zeroes tail elements—clone first if another variable aliases `s`.
-2. **`iter.Seq` contract (Go 1.23+):** Push iterators (`func(yield func(V) bool)`) **must** return as
+2. **`iter.Seq` contract:** Push iterators (`func(yield func(V) bool)`) **must** return as
    soon as `yield(v)` returns `false` or caller `break` panics. Pull iterators (`iter.Pull`) must
    always `defer stop()`.
 3. **Error unwrapping (`%w` vs. `%v`):** Upgrading `err == ErrX` to `errors.Is` / `errors.As`
@@ -50,7 +50,7 @@
 | Unchecked iterator error | `for rows.Next()` / `scanner.Scan()` returning `nil` after loop | Check `rows.Err()` / `scanner.Err()` after loop |
 | HTTP body leak / unbounded read | `defer resp.Body.Close()` before `err != nil`, missing on non-2xx, or raw `io.ReadAll` | `Close` after `err != nil` on every status code; bound with `io.LimitReader(resp.Body, max+1)` |
 | Zero-timeout client / leaked `sql.Tx` | `http.Get`, `&http.Client{}` without `Timeout`, or `BeginTx` without `defer tx.Rollback()` | Set `http.Client{Timeout: ...}` + `ctx`; `defer tx.Rollback()` after `err != nil` check |
-| `defer` in loop / pre-1.23 `time.After` | `defer Close()`/`Unlock()` in `for`; `<-time.After(d)` in hot `select` loop (`<1.23` leaks; `1.23+` churns) | Extract loop body to helper; hoist `time.NewTimer(d)` and `Reset(d)` |
+| `defer` in loop / `time.After` in loop | `defer Close()`/`Unlock()` in `for`; `<-time.After(d)` in hot `select` loop (allocates a timer per iteration) | Extract loop body to helper; hoist `time.NewTimer(d)` and `Reset(d)` |
 | Integer narrowing (`gosec` G115) | Casting `int`/`int64`/`uint64` to `int32`/`uint16`/`uint` unchecked | Check bounds against `math.Max*` and `>= 0` first |
 | Leaked internal collection | Returning struct field `s.items` (`[]T` or `map[K]V`) directly | Return `slices.Clone(s.items)` / `maps.Clone(s.m)` |
 
@@ -58,7 +58,7 @@
 
 - **`go fix` (Go 1.26+) and `modernize`:**
   - Go 1.26+ toolchain: `go fix -diff ./...` (preview) and `go fix ./...` (apply; `-<name>=false` skips a pass).
-  - Go <= 1.25 toolchain: `go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -diff ./...` (`-fix` to apply; never use the retired `gopls/internal/...` path).
+  - Go <= 1.25 toolchain: `go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix -diff ./...` (preview; drop `-diff` to apply; never use the retired `gopls/internal/...` path).
 - **`golangci-lint` (v1 vs. v2) and `govulncheck`:** Use repo config. Note `golangci-lint` v2 requires
   `version: "2"`, moves `gofmt`/`goimports` to top-level `formatters:` (`golangci-lint fmt`), uses
   `linters.default`, and removes `--out-format` and `--print-issued-lines`. Run `govulncheck ./...`
