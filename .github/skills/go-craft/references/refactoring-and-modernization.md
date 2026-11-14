@@ -53,8 +53,7 @@
 - **`go fix` (Go 1.26+) and `modernize`:**
   - Go 1.26+ toolchain: `go fix -diff ./...` (preview) and `go fix ./...` (apply; `-<name>=false` skips a pass).
     It offers only rewrites the module's `go` line allows (a `go 1.24` module gets no `wg.Go` or
-    `new(expr)`). Pass names change between releases (1.27 renamed `waitgroup` to `waitgroupgo`
-    and removed `fmtappendf`); list them with `go tool fix help`.
+    `new(expr)`).
   - Go <= 1.25 toolchain: `go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix -diff ./...` (preview; drop `-diff` to apply; never use the retired `gopls/internal/...` path).
 - **`golangci-lint` and `govulncheck`:** Use repo config. Run `govulncheck ./...` after dependency
   changes.
