@@ -87,8 +87,7 @@ reference ([decision](decisions/2026-10-11-backend-craft.md)).
 **Outcome:** `go-craft` covers writing, refactoring and testing Go across services, CLIs and
 libraries, measured against build scenarios the way `python-craft` is, and `api-craft` and
 `operator-cli` load it for Go changes.
-**Next action:** Review the candidate and select a bounded language-specific build comparison
-that can test whether its guidance improves Go work beyond the model's baseline.
+**Next action:** Resolve the [PR #498 review findings](https://github.com/latent-sre/save-toolkit/pull/498#issuecomment-6879589379) before candidate acceptance: two P1 oracle false passes (unbounded worker and incorrect debounce timing) and one P2 timer-drain compatibility issue. [verified] The oracle counterexamples were reproduced at `8a0dd5d2`; the candidate was not changed. Then select a bounded comparison that measures Go guidance benefit beyond the model baseline; reference-content and negative-routing coverage remain open.
 **Evidence:** Three authored discovery cases and a required Go-skill load in the existing
 [Go HTTP build](../evals/build-scenarios/build-software-engineer-go-incidents-api.yaml).
 These are unmeasured; the HTTP oracle does not establish Go-language skill benefit. No dedicated
