@@ -5,6 +5,10 @@ the existing encrypted Ansible credential. This record does not establish protec
 execution, Windows/macOS installed-client acceptance or browser access. The live
 backlog remains [SRE-CF-001](../fleet-roadmap.md#sre-cf-001--complete-protected-sre-investigation-access).
 
+**Review disposition:** This is a partial implementation for review. SRE-CF-001 remains open:
+redirect rejection, protected execution, supported-client investigation acceptance and
+main-branch integration are outstanding. CF work has been removed from its scope.
+
 ## Candidate and scope
 
 [verified] Toolkit base: `13301b621f06496b4e8dbeed61d5848587ae0a73`, task branch
@@ -40,6 +44,11 @@ annotations, alert instances, errors and continuation tokens. `DiskFilling` and
 `configs/dradis/grafana/provisioning/alerting/fleet-rules.yaml` defines the heartbeat as
 intentionally always firing; its receiver checks absence. DiskFilling warrants separate
 operational triage. Neither rule was changed or silenced during this work.
+
+[verified] A later rule-specific read at `2026-11-14T07:20:40Z`, through Ansible URI with
+redirects disabled, identified two alerting instances: Cylon `/srv/cylon/active` on `/dev/sdb`,
+and Tyrol `/` on `/dev/sda1`. Grafana's instance state was `Alerting`, while the aggregate
+rule state was `firing`. This read changed nothing and does not diagnose the storage cause.
 
 ## Checks
 
