@@ -78,203 +78,6 @@ Source and offline checks do not establish native acceptance of the access polic
 **SRE task:** Delegate a scoped Grafana dashboard or alert-state check while investigating another
 part of the incident, without delegating deployment or remediation authority.
 
-### EVAL-012 — plan incident and coding evaluations for the fleet
-
-**Status:** `active` (2026-11-13). The owner accepted [specification](fleet-evaluation/README.md)
-revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion boundary on
-2026-10-18. By work package:
-- WP-01 complete: `evals/compare_runs.py`, merged in
-  [PR #333](https://github.com/latent-sre/save-toolkit/pull/333) at `52352543`.
-- WP-02 complete on 2026-10-09: [run record](reviews/2026-10-08-wp02-native-readiness.md); the
-  [EVAL-011 closeout](reviews/2026-10-10-eval-011-closeout.md) binds the repaired native
-  measurement contract.
-- WP-08 implementation candidate prepared: adapter, host credential proxy, independent verifier,
-  smoke gates and offline tests; [implementation and verification evidence](reviews/2026-10-25-wp08-adapter.md).
-  Live smoke and paid trials have not run; exact-candidate acceptance remains with the owner.
-- Complex-campaign preparation is in progress under the [implementation plan](fleet-evaluation/implementation-complex-campaigns.md):
-  WP-08 has a separate [ten-case hard-task proposal](fleet-evaluation/wp08-complex-proposal.md);
-  WP-04 has a pinned [source/admission packet](fleet-evaluation/wp04-case-review.md);
-  WP-05 has [18 authored execution profiles over six incident families](../evals/incident-conversations/README.md),
-  with native ordered-session support and offline controls. WP-09 has separate
-  [five-case SWT](fleet-evaluation/wp09-swt-run-plan.md) and
-  [five-case Harbor/Terminal-Bench](fleet-evaluation/wp09-terminal-runplan.md) proposals,
-  native author/independent verifier adapters and executable model-free smoke commands. The standalone
-  [campaign report](fleet-evaluation/campaign-report.md) preserves measurement, billing and review gaps.
-  [Integrated preparation evidence](reviews/2026-10-25-complex-campaign-preparation.md) records the
-  offline controls and repaired review findings. These are preparation milestones, not accepted
-  benchmark outcomes; exact-case acceptance and live gates remain open.
-- WP-04/05 Linux execution and assessment packet completed on 2026-11-12:
-  [five ITBench cases and all 18 incident-conversation profiles](reviews/2026-11-12-wp0405-linux.md),
-  with original upstream scores, separate exact local metrics, independent AI operational proposals,
-  and 23 matching evidence replays. The owner authorized repairs within the USD 40 total ceiling:
-  v5 repairs all five original routing failures, but semantic failures and alternative-routing
-  control gaps remain. Final v6 WP-04 scoring has root-at-1 matching in four of five cases, while
-  operational review still finds two FAILs and three PARTIALs. The owner authorized a USD 50
-  total ceiling for the earlier repairs. The owner subsequently approved up to three repair and
-  qualification rounds with a USD 100 total ceiling. The [three-round campaign](reviews/2026-11-12-wp0405-three-rounds.md)
-  concluded all three rounds (v12–v14), retaining 23 native attempts and five final original
-  assessments. Final supplied worked-six passes; actual-helper is void after a blocked ungranted
-  `Glob` attempt. Final indexed WP04 review has one PASS and four PARTIALs; original rank-one
-  root matching is four of five. Source merging, measurement meaning and selected retrieval paths
-  improve, but complete evidence coverage is inconsistent. Reported total is USD 60.1722994,
-  leaving USD 39.8277006. Broader original, repeated-trial, reserved-case and other-model
-  qualification remains open; the three-round authorization is exhausted. Windows is owner-deferred.
-  The owner subsequently requested a [field-history and helper-dispatch repair](reviews/2026-11-12-wp0405-field-history-repair.md)
-  within the same ceiling. V15–v17 complete the field-history and scoped-catalog implementation;
-  latest WP04 review retains four PARTIALs and one turn-limited incomplete result. Final parent-only
-  v18 concluded its four bounded attempts: supplied worked-six and recovery-incomplete pass all-reply
-  review; sustained recovery meets the recovery gate but fails unsupported attribution of approval
-  to ITO. Actual-helper is unmeasured after expired OAuth, with zero reported cost and no retry.
-  Reported total through v18 is USD 76.6139074, leaving USD 23.3860926. That campaign is stopped; candidate
-  qualification remains HOLD. No broader qualification or promotion is claimed.
-  The owner approved an [offline eval-validity repair](reviews/2026-11-12-wp0405-eval-validity-repair.md):
-  versioned prompt/submission checks, one materiality standard with separate proposed reassessments,
-  and isolated retrieval/interpretation diagnostics. Local repair is complete: 5,275 tests passed,
-  87 skipped and 5,010 subtests passed. Reviewer calibration remained unmeasured at repair closeout;
-  historical results and candidate instructions are preserved.
-  The owner subsequently made unsupported recovery prerequisites nonblocking in the stated
-  no-incorrect-action/no-delay situation, and unsupported specific approver attribution nonblocking
-  when it authorizes no new action. The [owner disposition](../evals/incident-conversations/review-v2/owner-disposition.json)
-  records the scoped reassessments; independent PR implementation review found no reportable issues.
-  Full reviewer calibration and candidate qualification remain separate.
-  [verified] The owner-approved [six-test comparison](reviews/2026-11-12-wp0405-isolation-comparison.md)
-  completed all six attempts for USD 0.370427: both retrieval tests pass; [sourced] independent
-  review finds all four interpretation replies satisfy the frozen criteria, with two factual cautions.
-  [verified] Cumulative reported spend is USD 76.9843344, leaving USD 23.0156656 of the USD 100 ceiling.
-  No retries or further attempts are scheduled. [unverified] This tiny development comparison does
-  not establish large-case reliability; qualification remains HOLD.
-  [verified] The owner subsequently approved the [Codex subscription comparison](reviews/2026-11-12-wp04-codex-subscription.md).
-  The adapter now supports singly bound WP04 fixtures and scoped read-only browsing. Four Sol 6.1
-  attempts completed on cases 7 and 24 with intact instrument evidence and valid structured outputs.
-  [sourced] The completed semantic reviews distinguish source-faithful partial handoffs from factual
-  failures; all four attempts reached the fixture-call cap. [unverified] Full investigation coverage
-  and qualification remain open. Subscription usage is recorded separately; its dollar cost is unmeasured.
-- WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md), its
-  [case acceptance](reviews/2026-10-10-wp10-case-acceptance.md), and its [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
-  [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
-  exact quotation, the reliability exception-path explanation and GCP-01 B's factual findings open.
-  The [current four-model continuation](reviews/2026-10-25-wp10-continuation.md) completed
-  all 44 planned attempts, retaining four instrument gaps and separate semantic proposals.
-  Mechanical passes do not close the observed reasoning failures or human acceptance.
-  The [88-attempt repair comparison](reviews/2026-10-25-wp10-handoff-repairs.md) is complete
-  at run and AI-review level. Retry reasoning improved on Sonnet/Luna in the sample;
-  Terra remains unresolved, and the unsupported GCP rewrite was withdrawn. Keep its
-  incumbent/candidate evidence separate from the earlier baseline and human acceptance.
-- WP-12 complete on 2026-10-17: all 64 GCP cases accepted at `9147ff91`
-  ([pilot and template](../evals/oracles/gcp/README.md), [catalog](../evals/oracles/gcp/CATALOG.md)).
-- WP-13 complete on 2026-10-18 under its [run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md):
-  the [pilot](reviews/2026-10-17-wp13-gcp-pilot-review.md), the
-  [stress test](reviews/2026-10-17-wp13-stress-test.md), the
-  [hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md) and the
-  [catalog baseline](reviews/2026-10-18-wp13-catalog-baseline.md); branching moved to BRANCH-001.
-- The [Windows preparation and completion audit](reviews/2026-10-27-eval012-windows-preparation.md)
-  binds fresh WP-04/08/09 source packets and retains failed Windows checks. Docker accepts
-  a size option but did not enforce it in the bounded write probe; the host is not qualified.
-  Windows fixture repairs have focused passing evidence; symlink privilege, native signal
-  qualification and the intermittent publication-lock diagnosis remain open in that audit.
-- The [fresh-main WP-04/08 continuation](reviews/2026-11-12-wp04-wp08-readiness.md) regenerates
-  and rehashes all five WP-04 fixtures, reproduces the pending ten-case WP-08 complex proposal,
-  and passes 590 focused checks with eight explicit host skips on `d1a2383d`. Docker 29.9.3 again
-  writes 64 MiB despite a 32 MiB quota. The owner clarified approval of WP-08's Windows Docker
-  Desktop exception: explicit monitored storage retains a 10 GiB target, accepts possible
-  overshoot/shared-storage effects and uses separate smoke/result identities. Its scaled real
-  monitor control detects the overrun and proves cleanup. The reviewed implementation passes
-  5,064 full-suite tests and 5,019 subtests, with 295 skips; full benchmark smoke remains open.
-  WP-04's ordinary fixture path has no trace-level read-boundary check; a Linux namespace or
-  equivalent Docker runtime must still demonstrate hidden-answer isolation before admission.
-  No new model/judge call, campaign spend or exact case acceptance is inferred.
-- The [PR 496 finalization repair](reviews/2026-11-12-wp04-wp08-readiness.md#pr-496-finalization-review-repair-2026-11-13)
-  closes the monitored-author billing gap on rejected traces and error exits: owned cleanup precedes
-  final usage, and unconfirmed author absence suppresses that request while retaining proxy closure,
-  unknown billing and cleanup recovery. Its final qualification is recorded in the PR follow-up;
-  the earlier implementation's full-suite counts above remain historical.
-- WP-03 remains deferred under EVAL-015. WP-06/07's SREGym and recovery work, WP-11's later
-  AIOpsLab expansion and WP-14's live GCP exercises retain their delivery/acceptance requirements.
-- WP-15's [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful comparison.
-
-**Owner:** The human owner accepts scope, run conditions and exact candidates; a maintainer session owns
-scenario and measurement design; implementation and lab owners are assigned per delivery package.
-**Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
-test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
-fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
-acceptance tests, delivery phases and explicit open decisions.
-**Next action:**
-- Execute the owner's [follow-through plan](fleet-evaluation/run-plan-followthrough.md): shared
-  Sonnet/Sol/Luna/Terra testing support first, then WP-04 on Linux and Windows, EVAL-005,
-  ROUTE-007, HANDOVER-001, WP-09 and WP-10. The owner approved USD 40 aggregate testing
-  spend; exact runtime evidence, human tabletops and candidate acceptance remain distinct.
-  The owner previously deferred Windows WP-04 and Docker-based WP-09 execution and now
-  requests their preparation. WP-08's approved Desktop storage exception supersedes its hard-quota
-  requirement only in explicit monitored mode; other Windows verification gaps remain. Bounded Codex subscription
-  runs are explicitly approved, with dollar costs remaining unknown.
-  [Follow-through evidence](reviews/2026-10-25-followthrough.md) records the four-model
-  smoke and five-case Linux WP-04 pilot, preserving technical failures, mapping gaps
-  and unmeasured upstream/human assessments.
-- WP-08: review the complex-case selection and freeze
-  the accepted dataset/selection, licences, CLI, plugin and image identities using the
-  [operator commands](fleet-evaluation/wp08-operator.md), including the pinned verifier environment.
-  Qualify the approved Desktop monitored mode with the full smoke. Then start the approved
-  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md)'s first paid trial
-  and remaining nine Claude tasks as separate owner-started steps. Smoke is also owner-started.
-  Other models retain their own
-  approvals; WP-09 follows WP-08 and retains its own runtime/storage qualification.
-- WP-04/05: the bounded pass is concluded; review the
-  [final repair packet](reviews/2026-11-12-wp0405-field-history-repair.md) and retain candidate HOLD. The original
-  [three rounds](reviews/2026-11-12-wp0405-three-rounds.md) remain concluded and historical judgments
-  are retained. Actual-helper dispatch was repaired and measured in v15–v17; final v18 helper
-  behavior is unmeasured after authentication failed. Specific human approvals must stay unknown
-  unless evidenced; general role authority is insufficient. WP04 still needs complete evidence use,
-  correct metric meaning and old/current episode reconciliation. The [eval-validity repair](reviews/2026-11-12-wp0405-eval-validity-repair.md)
-  is complete. The owner-approved [six-test comparison](reviews/2026-11-12-wp0405-isolation-comparison.md)
-  is also concluded. The retained large-case trace diagnosis and subsequent
-  [Sol subscription comparison](reviews/2026-11-12-wp04-codex-subscription.md) localize navigation cost,
-  remaining evidence coverage and historical identity/chronology mistakes. Improve bounded evidence
-  access before selecting further paid or subscription runs; none are scheduled automatically.
-  Full human reviewer calibration
-  remains unmeasured. Retain the four independent cases for a frozen candidate that
-  clears development gates. No further broad campaign or
-  automatic retry belongs to this bounded pass; any new campaign needs its own round scope.
-  Model runs
-  require enough approved allowance for each complete conversation; offline passes are not semantic acceptance. No result
-  promotes the candidate. Resume the separate Windows arm on a Windows machine. WP-09 requires pinned
-  compatible images and per-case model-free smoke before
-  exact-candidate/model/spend acceptance; Harbor is already the selected Terminal-Bench runner.
-- WP-13: none; complete. Use its cases as a regression check when a skill or agent changes.
-  Haiku's inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
-- WP-10: review the retained repair candidate and bound 88-attempt comparison. Resolve the
-  remaining Terra, GCP B and quotation/instrument gaps or select broader qualification;
-  human acceptance names the exact candidate. No further campaign is scheduled automatically.
-- Before any rubric-graded campaign: one owner-approved judge recalibration, because the clean-room
-  auth-failure fix (`1d92654f`) changed the judge identity.
-- Runner follow-ups, not blocking: unittest `--option=value` spellings and SHA-spelled Git ranges
-  fail their detectors (0/303 and 0/909 in saved traces).
-
-The follow-through request authorizes its bounded testing within USD 40 total. It does not
-authorize lab provisioning or production change.
-**Evidence:** [Specification](fleet-evaluation/README.md); per-package records are linked under Status.
-Integration and behavioral results remain unverified.
-**SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
-improved or regressed, and distinguish failed behavior from an instrument that could not measure.
-
-### FRONTEND-003 — define the team's GUI mix after the first runs of the rewritten skill
-
-**Status:** `active` (2026-10-11). The owner said on 2026-10-11 that the team's GUI work is a mix
-of the skill's five archetypes and that the mix is defined after a few runs, not up front; the
-rewritten `frontend-craft` therefore weights the archetypes evenly and defers the deep capability
-references ([decision](decisions/2026-10-11-frontend-craft-generalized.md)).
-**Owner:** The human owner decides the weighting and the first add-on; a maintainer session owns the
-skill's archetype table and build scenarios.
-**Outcome:** After the first few real GUI tasks, the archetype table reflects the kinds of GUI the
-team builds most, the greenfield recommendations follow that weighting, and the first deep
-capability reference (charts and grids, live data, forms, or editors) is chosen and scheduled.
-**Next action:** Whoever runs `frontend-craft` on a real task records the archetype, the kit set and
-the deploy target the caller chose, in the packet; after the first three to five, the owner reviews
-them beside the proof packet and picks the weighting and the add-on.
-**Evidence:** [Rendered proof of the skill's defaults](reviews/2026-10-11-frontend-craft-proof/README.md);
-no real-task runs yet.
-**SRE task:** An SRE building a GUI gets defaults tuned to the kind of GUI the team builds most,
-and a deep reference for the capability they reach for first.
-
 ### BACKEND-002 — add go-craft beside python-craft
 
 **Status:** `active` (2026-10-18). A single-file `go-craft` candidate is authored and composed with
@@ -284,8 +87,7 @@ reference ([decision](decisions/2026-10-11-backend-craft.md)).
 **Outcome:** `go-craft` covers writing, refactoring and testing Go across services, CLIs and
 libraries, measured against build scenarios the way `python-craft` is, and `api-craft` and
 `operator-cli` load it for Go changes.
-**Next action:** Review the candidate and select a bounded language-specific build comparison
-that can test whether its guidance improves Go work beyond the model's baseline.
+**Next action:** Resolve the [PR #498 review findings](https://github.com/latent-sre/save-toolkit/pull/498#issuecomment-6879589379) before candidate acceptance: two P1 oracle false passes (unbounded worker and incorrect debounce timing) and one P2 timer-drain compatibility issue. [verified] The oracle counterexamples were reproduced at `8a0dd5d2`; the candidate was not changed. Then select a bounded comparison that measures Go guidance benefit beyond the model baseline; reference-content and negative-routing coverage remain open.
 **Evidence:** Three authored discovery cases and a required Go-skill load in the existing
 [Go HTTP build](../evals/build-scenarios/build-software-engineer-go-incidents-api.yaml).
 These are unmeasured; the HTTP oracle does not establish Go-language skill benefit. No dedicated
@@ -418,6 +220,204 @@ retains its acceptance scope; no result promotes the lane.
 work with an owner and a meaningful proof-of-improvement check.
 
 ## Deferred
+
+### FRONTEND-003 — define the team's GUI mix after the first runs of the rewritten skill
+
+**Status:** `deferred` (2026-11-14); the owner deferred tuning until evidence from three to five real GUI projects is available. The owner said on 2026-10-11 that the team's GUI work is a mix
+of the skill's five archetypes and that the mix is defined after a few runs, not up front; the
+rewritten `frontend-craft` therefore weights the archetypes evenly and defers the deep capability
+references ([decision](decisions/2026-10-11-frontend-craft-generalized.md)).
+**Owner:** The human owner decides the weighting and the first add-on; a maintainer session owns the
+skill's archetype table and build scenarios.
+**Outcome:** After the first few real GUI tasks, the archetype table reflects the kinds of GUI the
+team builds most, the greenfield recommendations follow that weighting, and the first deep
+capability reference (charts and grids, live data, forms, or editors) is chosen and scheduled.
+**Next action:** No dedicated tuning work until three to five real GUI projects provide evidence. During normal frontend work, record the archetype, chosen kit set and deployment target in the project packet. Once that evidence exists, the owner reviews it beside the proof packet and reopens the weighting and first-add-on decision.
+**Evidence:** [Rendered proof of the skill's defaults](reviews/2026-10-11-frontend-craft-proof/README.md);
+no real-task runs yet.
+**SRE task:** An SRE building a GUI gets defaults tuned to the kind of GUI the team builds most,
+and a deep reference for the capability they reach for first.
+
+### EVAL-012 — plan incident and coding evaluations for the fleet
+
+**Status:** `deferred` (2026-11-14); the owner deferred the umbrella evaluation programme during backlog triage. Completed work and retained evidence remain below; earlier execution approvals do not resume work under this item. The owner accepted [specification](fleet-evaluation/README.md)
+revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion boundary on
+2026-10-18. By work package:
+- WP-01 complete: `evals/compare_runs.py`, merged in
+  [PR #333](https://github.com/latent-sre/save-toolkit/pull/333) at `52352543`.
+- WP-02 complete on 2026-10-09: [run record](reviews/2026-10-08-wp02-native-readiness.md); the
+  [EVAL-011 closeout](reviews/2026-10-10-eval-011-closeout.md) binds the repaired native
+  measurement contract.
+- WP-08 implementation candidate prepared: adapter, host credential proxy, independent verifier,
+  smoke gates and offline tests; [implementation and verification evidence](reviews/2026-10-25-wp08-adapter.md).
+  Live smoke and paid trials have not run; exact-candidate acceptance remains with the owner.
+- Complex-campaign preparation is in progress under the [implementation plan](fleet-evaluation/implementation-complex-campaigns.md):
+  WP-08 has a separate [ten-case hard-task proposal](fleet-evaluation/wp08-complex-proposal.md);
+  WP-04 has a pinned [source/admission packet](fleet-evaluation/wp04-case-review.md);
+  WP-05 has [18 authored execution profiles over six incident families](../evals/incident-conversations/README.md),
+  with native ordered-session support and offline controls. WP-09 has separate
+  [five-case SWT](fleet-evaluation/wp09-swt-run-plan.md) and
+  [five-case Harbor/Terminal-Bench](fleet-evaluation/wp09-terminal-runplan.md) proposals,
+  native author/independent verifier adapters and executable model-free smoke commands. The standalone
+  [campaign report](fleet-evaluation/campaign-report.md) preserves measurement, billing and review gaps.
+  [Integrated preparation evidence](reviews/2026-10-25-complex-campaign-preparation.md) records the
+  offline controls and repaired review findings. These are preparation milestones, not accepted
+  benchmark outcomes; exact-case acceptance and live gates remain open.
+- WP-04/05 Linux execution and assessment packet completed on 2026-11-12:
+  [five ITBench cases and all 18 incident-conversation profiles](reviews/2026-11-12-wp0405-linux.md),
+  with original upstream scores, separate exact local metrics, independent AI operational proposals,
+  and 23 matching evidence replays. The owner authorized repairs within the USD 40 total ceiling:
+  v5 repairs all five original routing failures, but semantic failures and alternative-routing
+  control gaps remain. Final v6 WP-04 scoring has root-at-1 matching in four of five cases, while
+  operational review still finds two FAILs and three PARTIALs. The owner authorized a USD 50
+  total ceiling for the earlier repairs. The owner subsequently approved up to three repair and
+  qualification rounds with a USD 100 total ceiling. The [three-round campaign](reviews/2026-11-12-wp0405-three-rounds.md)
+  concluded all three rounds (v12–v14), retaining 23 native attempts and five final original
+  assessments. Final supplied worked-six passes; actual-helper is void after a blocked ungranted
+  `Glob` attempt. Final indexed WP04 review has one PASS and four PARTIALs; original rank-one
+  root matching is four of five. Source merging, measurement meaning and selected retrieval paths
+  improve, but complete evidence coverage is inconsistent. Reported total is USD 60.1722994,
+  leaving USD 39.8277006. Broader original, repeated-trial, reserved-case and other-model
+  qualification remains open; the three-round authorization is exhausted. Windows is owner-deferred.
+  The owner subsequently requested a [field-history and helper-dispatch repair](reviews/2026-11-12-wp0405-field-history-repair.md)
+  within the same ceiling. V15–v17 complete the field-history and scoped-catalog implementation;
+  latest WP04 review retains four PARTIALs and one turn-limited incomplete result. Final parent-only
+  v18 concluded its four bounded attempts: supplied worked-six and recovery-incomplete pass all-reply
+  review; sustained recovery meets the recovery gate but fails unsupported attribution of approval
+  to ITO. Actual-helper is unmeasured after expired OAuth, with zero reported cost and no retry.
+  Reported total through v18 is USD 76.6139074, leaving USD 23.3860926. That campaign is stopped; candidate
+  qualification remains HOLD. No broader qualification or promotion is claimed.
+  The owner approved an [offline eval-validity repair](reviews/2026-11-12-wp0405-eval-validity-repair.md):
+  versioned prompt/submission checks, one materiality standard with separate proposed reassessments,
+  and isolated retrieval/interpretation diagnostics. Local repair is complete: 5,275 tests passed,
+  87 skipped and 5,010 subtests passed. Reviewer calibration remained unmeasured at repair closeout;
+  historical results and candidate instructions are preserved.
+  The owner subsequently made unsupported recovery prerequisites nonblocking in the stated
+  no-incorrect-action/no-delay situation, and unsupported specific approver attribution nonblocking
+  when it authorizes no new action. The [owner disposition](../evals/incident-conversations/review-v2/owner-disposition.json)
+  records the scoped reassessments; independent PR implementation review found no reportable issues.
+  Full reviewer calibration and candidate qualification remain separate.
+  [verified] The owner-approved [six-test comparison](reviews/2026-11-12-wp0405-isolation-comparison.md)
+  completed all six attempts for USD 0.370427: both retrieval tests pass; [sourced] independent
+  review finds all four interpretation replies satisfy the frozen criteria, with two factual cautions.
+  [verified] Cumulative reported spend is USD 76.9843344, leaving USD 23.0156656 of the USD 100 ceiling.
+  No retries or further attempts are scheduled. [unverified] This tiny development comparison does
+  not establish large-case reliability; qualification remains HOLD.
+  [verified] The owner subsequently approved the [Codex subscription comparison](reviews/2026-11-12-wp04-codex-subscription.md).
+  The adapter now supports singly bound WP04 fixtures and scoped read-only browsing. Four Sol 6.1
+  attempts completed on cases 7 and 24 with intact instrument evidence and valid structured outputs.
+  [sourced] The completed semantic reviews distinguish source-faithful partial handoffs from factual
+  failures; all four attempts reached the fixture-call cap. [unverified] Full investigation coverage
+  and qualification remain open. Subscription usage is recorded separately; its dollar cost is unmeasured.
+- WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md), its
+  [case acceptance](reviews/2026-10-10-wp10-case-acceptance.md), and its [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
+  [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
+  exact quotation, the reliability exception-path explanation and GCP-01 B's factual findings open.
+  The [current four-model continuation](reviews/2026-10-25-wp10-continuation.md) completed
+  all 44 planned attempts, retaining four instrument gaps and separate semantic proposals.
+  Mechanical passes do not close the observed reasoning failures or human acceptance.
+  The [88-attempt repair comparison](reviews/2026-10-25-wp10-handoff-repairs.md) is complete
+  at run and AI-review level. Retry reasoning improved on Sonnet/Luna in the sample;
+  Terra remains unresolved, and the unsupported GCP rewrite was withdrawn. Keep its
+  incumbent/candidate evidence separate from the earlier baseline and human acceptance.
+- WP-12 complete on 2026-10-17: all 64 GCP cases accepted at `9147ff91`
+  ([pilot and template](../evals/oracles/gcp/README.md), [catalog](../evals/oracles/gcp/CATALOG.md)).
+- WP-13 complete on 2026-10-18 under its [run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md):
+  the [pilot](reviews/2026-10-17-wp13-gcp-pilot-review.md), the
+  [stress test](reviews/2026-10-17-wp13-stress-test.md), the
+  [hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md) and the
+  [catalog baseline](reviews/2026-10-18-wp13-catalog-baseline.md); branching moved to BRANCH-001.
+- The [Windows preparation and completion audit](reviews/2026-10-27-eval012-windows-preparation.md)
+  binds fresh WP-04/08/09 source packets and retains failed Windows checks. Docker accepts
+  a size option but did not enforce it in the bounded write probe; the host is not qualified.
+  Windows fixture repairs have focused passing evidence; symlink privilege, native signal
+  qualification and the intermittent publication-lock diagnosis remain open in that audit.
+- The [fresh-main WP-04/08 continuation](reviews/2026-11-12-wp04-wp08-readiness.md) regenerates
+  and rehashes all five WP-04 fixtures, reproduces the pending ten-case WP-08 complex proposal,
+  and passes 590 focused checks with eight explicit host skips on `d1a2383d`. Docker 29.9.3 again
+  writes 64 MiB despite a 32 MiB quota. The owner clarified approval of WP-08's Windows Docker
+  Desktop exception: explicit monitored storage retains a 10 GiB target, accepts possible
+  overshoot/shared-storage effects and uses separate smoke/result identities. Its scaled real
+  monitor control detects the overrun and proves cleanup. The reviewed implementation passes
+  5,064 full-suite tests and 5,019 subtests, with 295 skips; full benchmark smoke remains open.
+  WP-04's ordinary fixture path has no trace-level read-boundary check; a Linux namespace or
+  equivalent Docker runtime must still demonstrate hidden-answer isolation before admission.
+  No new model/judge call, campaign spend or exact case acceptance is inferred.
+- The [PR 496 finalization repair](reviews/2026-11-12-wp04-wp08-readiness.md#pr-496-finalization-review-repair-2026-11-13)
+  closes the monitored-author billing gap on rejected traces and error exits: owned cleanup precedes
+  final usage, and unconfirmed author absence suppresses that request while retaining proxy closure,
+  unknown billing and cleanup recovery. Its final qualification is recorded in the PR follow-up;
+  the earlier implementation's full-suite counts above remain historical.
+- WP-03 remains deferred under EVAL-015. WP-06/07's SREGym and recovery work, WP-11's later
+  AIOpsLab expansion and WP-14's live GCP exercises retain their delivery/acceptance requirements.
+- WP-15's [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful comparison.
+
+**Owner:** The human owner accepts scope, run conditions and exact candidates; a maintainer session owns
+scenario and measurement design; implementation and lab owners are assigned per delivery package.
+**Outcome:** A reviewable evaluation specification covers ITBench-Lite, SREGym, repository repair,
+test generation, selected terminal tasks, GCP managed-service/migration and GKE evaluations, actual
+fleet integration, Coder Eval runner assessment and later Microsoft AIOpsLab, with traceable evidence,
+acceptance tests, delivery phases and explicit open decisions.
+**Next action:** None until the owner reopens a named work package for a concrete candidate or evaluation decision. On reopening, select its bounded scope, runtime and applicable budget, and reuse the retained evidence. Independently tracked tickets retain their own dispositions.
+
+**Retained preparation for reopening (inactive):**
+- Execute the owner's [follow-through plan](fleet-evaluation/run-plan-followthrough.md): shared
+  Sonnet/Sol/Luna/Terra testing support first, then WP-04 on Linux and Windows, EVAL-005,
+  ROUTE-007, HANDOVER-001, WP-09 and WP-10. The owner approved USD 40 aggregate testing
+  spend; exact runtime evidence, human tabletops and candidate acceptance remain distinct.
+  The owner previously deferred Windows WP-04 and Docker-based WP-09 execution and now
+  requests their preparation. WP-08's approved Desktop storage exception supersedes its hard-quota
+  requirement only in explicit monitored mode; other Windows verification gaps remain. Bounded Codex subscription
+  runs are explicitly approved, with dollar costs remaining unknown.
+  [Follow-through evidence](reviews/2026-10-25-followthrough.md) records the four-model
+  smoke and five-case Linux WP-04 pilot, preserving technical failures, mapping gaps
+  and unmeasured upstream/human assessments.
+- WP-08: review the complex-case selection and freeze
+  the accepted dataset/selection, licences, CLI, plugin and image identities using the
+  [operator commands](fleet-evaluation/wp08-operator.md), including the pinned verifier environment.
+  Qualify the approved Desktop monitored mode with the full smoke. Then start the approved
+  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md)'s first paid trial
+  and remaining nine Claude tasks as separate owner-started steps. Smoke is also owner-started.
+  Other models retain their own
+  approvals; WP-09 follows WP-08 and retains its own runtime/storage qualification.
+- WP-04/05: the bounded pass is concluded; review the
+  [final repair packet](reviews/2026-11-12-wp0405-field-history-repair.md) and retain candidate HOLD. The original
+  [three rounds](reviews/2026-11-12-wp0405-three-rounds.md) remain concluded and historical judgments
+  are retained. Actual-helper dispatch was repaired and measured in v15–v17; final v18 helper
+  behavior is unmeasured after authentication failed. Specific human approvals must stay unknown
+  unless evidenced; general role authority is insufficient. WP04 still needs complete evidence use,
+  correct metric meaning and old/current episode reconciliation. The [eval-validity repair](reviews/2026-11-12-wp0405-eval-validity-repair.md)
+  is complete. The owner-approved [six-test comparison](reviews/2026-11-12-wp0405-isolation-comparison.md)
+  is also concluded. The retained large-case trace diagnosis and subsequent
+  [Sol subscription comparison](reviews/2026-11-12-wp04-codex-subscription.md) localize navigation cost,
+  remaining evidence coverage and historical identity/chronology mistakes. Improve bounded evidence
+  access before selecting further paid or subscription runs; none are scheduled automatically.
+  Full human reviewer calibration
+  remains unmeasured. Retain the four independent cases for a frozen candidate that
+  clears development gates. No further broad campaign or
+  automatic retry belongs to this bounded pass; any new campaign needs its own round scope.
+  Model runs
+  require enough approved allowance for each complete conversation; offline passes are not semantic acceptance. No result
+  promotes the candidate. Resume the separate Windows arm on a Windows machine. WP-09 requires pinned
+  compatible images and per-case model-free smoke before
+  exact-candidate/model/spend acceptance; Harbor is already the selected Terminal-Bench runner.
+- WP-13: none; complete. Use its cases as a regression check when a skill or agent changes.
+  Haiku's inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
+- WP-10: review the retained repair candidate and bound 88-attempt comparison. Resolve the
+  remaining Terra, GCP B and quotation/instrument gaps or select broader qualification;
+  human acceptance names the exact candidate. No further campaign is scheduled automatically.
+- Before any rubric-graded campaign: one owner-approved judge recalibration, because the clean-room
+  auth-failure fix (`1d92654f`) changed the judge identity.
+- Runner follow-ups, not blocking: unittest `--option=value` spellings and SHA-spelled Git ranges
+  fail their detectors (0/303 and 0/909 in saved traces).
+
+The earlier follow-through request carried a USD 40 total ceiling and did not authorize lab
+provisioning or production change. This owner deferral supersedes that request for further
+execution under EVAL-012; the amounts and results above remain historical evidence.
+**Evidence:** [Specification](fleet-evaluation/README.md); per-package records are linked under Status.
+Integration and behavioral results remain unverified.
+**SRE task:** Compare exact agent candidates on realistic incidents and engineering tasks, see what
+improved or regressed, and distinguish failed behavior from an instrument that could not measure.
 
 ### EVAL-016 — prove the Inspect orchestration matches the native batch, then decide what it replaces
 
