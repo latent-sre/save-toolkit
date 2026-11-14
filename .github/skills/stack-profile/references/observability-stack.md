@@ -19,6 +19,15 @@ Grafana recovery copies are saved in the team's repositories. That does not esta
 provisioning ownership, backup freshness, or a tested restore; confirm those separately for the
 target. A saved copy does not authorize a live write.
 
+The owner selected Grafana `gcx` for the SRE assistant's read-only Grafana access migration.
+Credentials use the operations repository's existing Ansible-managed custody and private runtime
+delivery; no persisted `gcx login` or local keyring is required for that path. Adama has a working
+controller-user Ansible reader for fixed dashboard, metric and alert reads. Protected agent
+execution, exact command admission and installed-client acceptance remain pending.
+The current gcx release also needs protected redirect/destination enforcement before agent admission.
+The bundled Python helper is the existing admitted path during migration. The choice adds no
+terminal grant, live-write authority, vendor skill bundle or Grafana MCP server.
+
 DX OpenExplore entitlement remains unrecorded. Cloud Logging/Monitoring/Trace join additively as
 GCP workloads land. For PCF, incumbent tools come first; new backends are usable for a service only
 after instrumentation, not an assumed replacement.

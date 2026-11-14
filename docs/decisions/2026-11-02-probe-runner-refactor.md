@@ -12,6 +12,9 @@
 - **Amended:** 2026-11-03, by the decision owner, after three bug passes over the rewrite: rule 5's
   record of a backing service that never starts, how earlier runs compare across a runner change,
   and the rule 7 name; recorded under "Decisions made"
+- **Amended:** 2026-11-12, by the decision owner: accept the current implementation, including stage 5,
+  at `4847b4bacebb12e92759a314b99d08c5f336783b` with the bounded replay evidence and retained limits
+  below; this owner disposition closes RUNNER-001
 - **Decision owner:** the human owner; a maintainer session implements each accepted stage
 - **Roadmap item:** `RUNNER-001` in [the fleet roadmap](../fleet-roadmap.md)
 - **Keeps:** [2026-09-03-one-eval-runner](2026-09-03-one-eval-runner.md),
@@ -255,6 +258,41 @@ Made by the decision owner on 2026-11-03, after three bug passes over the rewrit
   and marks those runs `identity_relaxed`; `regrade` has no `--relax-identity` flag, and a strict
   regrade of an earlier run voids it, as the decision above intends.
 - Rule 7's function is `rule_7_attempt_kept`.
+
+Made by the decision owner on 2026-11-12, after reviewing the saved-evidence comparison:
+
+- [sourced] The owner approved recording the evidence against current main and resolving stage-5
+  acceptance. The accepted implementation, including the command-line split, is
+  `4847b4bacebb12e92759a314b99d08c5f336783b` (PR #492's merge). This closes RUNNER-001 by owner
+  disposition. It accepts the current implementation with the limits below; it does not retroactively
+  qualify the original stage-4 or stage-5 snapshots.
+- [verified] The pre-cut-over stage-3 grading API at `e396a9b98524cbb64eb9a17eb81b2feb1214b464`
+  and current main agreed on all three saved EVAL-005 run verdicts and all 45 check identities/states:
+  43 PASS and two FAIL. Current main's `check-evidence` also reproduced the three grades with zero
+  differences. All three attempts completed; this is one fixture-backed scenario.
+- [verified] The identical frozen scenario was validated by current main and passed directly to
+  each grading API. Historical scenario validators reject its newer service-image pins, so this
+  comparison does not establish historical fixture admission. The original stage-4 snapshot
+  `0a021cd87baa0902696b2211adf638d83b343e97` and stage-5 candidate
+  `b8462b98c89e1a91bba45c43387d65ab49b4421e` could not read the later `conversation` evidence field;
+  all three rows were unread in each. Those comparisons remain INCONCLUSIVE.
+- [unverified] This replay provides no coverage of native conversations, interrupted attempts,
+  machinery failures or live scheduling behavior. The earlier shadow-gate waiver remains in effect;
+  acceptance does not claim those paths passed or turn the partial verification verdict into a full
+  qualification. The two EVAL-005 agent failures, its separate evaluator acceptance, Windows cleanup
+  intermittency and RELEASE-001 gates are unaffected.
+- [verified] The current runner digest is
+  `d8e93d96cbf4dbae27d236fc94251b202bf2be760b7baac0b7829faa26a2ee71`; the frozen case digest is
+  `86b890c0942a4dd0422e23dc64efa2edd707f9588b4ef2e36d8ec8367088148b`. The comparison used Python
+  3.14.10 and PyYAML 6.0.3 throughout. No models or services were started, and all 58 original
+  archived files and their copies retained their hashes. Historical dependency environments were
+  not reconstructed.
+- [verified] Private evidence is retained in `.eval-runs/runner001-review-20261112/` in the managed
+  worktree `C:/Users/hawkins/.codex/worktrees/30af/sre-agents`. `review-report.md` explains the replay
+  method and instrumentation limits; `review-summary.json` records the comparisons and preservation
+  checks. Their SHA-256 hashes are respectively
+  `8d4566021d4604a08995e3dcc3721896dfd6cbaccbe7ae5a1a39d4c165806093` and
+  `3d2eb8e6bd451c6ad39fe620f74d9cfd9d59a5553f9005d5c9e9e94e43c16ca2`.
 
 ### Decision needed
 

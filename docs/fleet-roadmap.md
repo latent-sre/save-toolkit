@@ -1,6 +1,6 @@
 # Fleet roadmap
 
-> **Status: live; working update 2026-11-02, merged-item closure.** This is the only backlog.
+> **Status: live; working update 2026-11-13, bounded reliability comparison.** This is the only backlog.
 > Historical records supply evidence, not new work or authorization. Cleanup does not close an
 > unresolved item, approve a model budget, or establish behavioral acceptance.
 
@@ -23,128 +23,64 @@ records do not re-queue work.
 
 ## Repository work
 
-### EVAL-016 — prove the Inspect orchestration matches the native batch, then decide what it replaces
+<a id="sre-cf-001--complete-protected-sre-investigation-access"></a>
 
-**Status:** `active` (2026-11-02). `evals/inspect_fleet.py` runs the native routing and contract
-trials as an Inspect task with grading unchanged; its offline tests pass, and no paid run has
-compared it with `build_probe.py run`.
-**Owner:** Maintainers run the paid parity comparison and approve its budget; the repository owner
-decides the replacement inventory afterwards.
-**Outcome:** One frozen selection run through both paths on the same model, CLI and host shows the
-same per-scenario verdicts under `build_probe.py regrade`, with timing, cost and any INCONCLUSIVE
-reasons recorded; a follow-up decision then names which native batch code Inspect replaces, or the
-track is relabelled as scheduling only.
-**Next action:** A maintainer follows the [parity run plan](fleet-evaluation/run-plan-inspect-native-parity.md)
-on a host with Claude credentials and a current judge calibration, and files the comparison under
-`docs/reviews/`.
-**Evidence:** none yet; the [decision](decisions/2026-11-02-inspect-orchestrates-native-runner.md)
-records the design and its rollback.
-**SRE task:** Read one `inspect view` log of a fleet regression instead of a directory of records,
-trusting it only once it is known to say what the native batch says.
+### SRE-CF-001 — complete protected Grafana investigation access
 
-### RUNNER-001 — rewrite the eval runner's core around a persisted evidence artifact
-
-**Status:** `active` (2026-11-02); the owner accepted the
-[design record](decisions/2026-11-02-probe-runner-refactor.md) for implementation. Stage 0, the
-goldens, landed on PR #455 with a follow-up for native conversations and the batch view; the owner's
-decisions the plan left open are recorded in the design record's amendment of 2026-11-02. Stage 1,
-`evidence.json` written by every graded attempt and by a regrade of an older run through `legacy`,
-landed on PR #458 and stage 2, the check registry as a package with probes marked, the two import
-cycles removed and the identity widened, on PR #459. Stage 3, the evidence engine grading every
-attempt in shadow with the result rules named and the attempt's life recorded, landed on PR #460.
-The owner waived the shadow gate on 2026-11-03 (no private iteration ran under stage 3); stage 4,
-the cut-over to the evidence engine as the one grading path, landed on PR #461. Stage 5, the
-command-line split the owner brought into scope on 2026-11-03, is implemented and awaits the
-owner's acceptance.
-**Owner:** The human owner accepts each stage's exact candidate; a maintainer session implements the
-stages in order.
-**Outcome:** An attempt writes one versioned `evidence.json`; grading is a pure function of scenario
-and evidence shared by live grade and regrade; the eight threat-model rules are named units with a
-test each; the twelve live-only checks run as probes whose outcomes are evidence; old run directories
-stay readable through a quarantined legacy loader; every CLI subcommand, saved-run interface, v1
-record and result rule is unchanged.
-**Next action:** `rescore` one private iteration under the stage 4 runner and `diff` against a
-rescore under the stage 3 runner, and run `check-evidence` on the first iteration the stage 4
-runner writes: zero changed verdicts and zero differences prove the cut-over on real runs, which the
-goldens alone do not. Then accept stage 5's candidate, the last the record scopes.
-**Evidence:** [Design record](decisions/2026-11-02-probe-runner-refactor.md); per-stage evidence lands
-in each stage's pull request.
-**SRE task:** Trust that a regrade of a saved attempt reaches the same verdict as its live grade for a
-stated reason, and read which result rule produced it.
-
-### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
-
-**Status:** `active` (2026-10-02); comprehensive product specification and delivery planning.
-**Owner:** Human product owner accepts scope and release decisions; implementation and
-verification owners are assigned before each delivery phase.
-**Outcome:** A reviewable specification covers common commands, Grafana, scripts, investigation
-workflows, extensibility, and the full future product, with traceable acceptance criteria and
-explicit permission, evidence, compatibility, and recovery contracts.
-**Next action:** Review the [SRE Workbench planning package](sre-workbench/README.md), resolve its
-phase-zero decisions, and select the first implementation slice. Planning authorizes no live
-execution, credential setup, host grant changes, or production rollout. Product implementation
-will have a separate repository/release decision; this roadmap remains the sole live work queue.
-**Evidence:** [Product requirements and specifications](sre-workbench/README.md); requirements
-come from the owner discussion on 2026-10-02. All product runtime behavior remains unverified.
-**SRE task:** Run the same useful operational checks from a terminal or an agent, preserve their
-evidence, and extend the tool as new operational needs appear.
-
-### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
-
-**Status:** `active` (2026-09-20).
-**Owner:** Maintainers accept the release; a maintainer session owns the plugin contract and
-`software-engineer` owns helper/adapter repairs.
-**Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
-to a previously accepted one. The acceptance cases pass on those
-exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
-**Next action:** Run the new Format acceptance case first: the plugin now declares Agent Plugins
-1.0 because VS Code ranks `.claude-plugin/plugin.json` above a schema-less selector manifest, and no
-installed run has yet shown which layout loads. Retire the mutable `"source": "./"` selector in `.claude-plugin/marketplace.json`
-for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
-2026-09-10 pass was against a local `./` install, and a passing run does not carry to bytes it did
-not exercise. The enforcement results that were open on VS Code 1.135.0 are superseded by that run.
-Still unrun: the agent-scoped terminal-hook canary and the SRE visual-read acceptance cases, with
-`hooks/copilot-hooks.json` shipping empty. Maintainers must run the exact candidate in an isolated
-profile on each supported host, including a dedicated Grafana Viewer browser session. The SRE
-browser grant now includes selected native/MCP viewing interactions. Structural tool checks
-do not prove image delivery or helper invocation. The installed VS Code 1.138 source handles some
-hook failures as warnings; the launcher's 42/43/44 protocol is not authentication or proof of
-fail-closed host behavior. Keep those limits explicit until the host cases are observed.
-**Evidence:** The 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
-[`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
-**SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
-
-### SRE-CF-001 — complete protected SRE investigation access
-
-**Status:** `active` (2026-09-21); selected CF reads and authentication without exposing
-credentials are wanted. The caller/coverage fixes, selected browser tools and bounded Grafana
-read/query helper, with its per-user credential file, are implemented; live session binding and
-native acceptance remain open, and the credential file is still readable through unhooked Read tools.
+**Status:** `active` (2026-11-13); the owner selected Grafana `gcx` for the read-only Grafana
+access migration. The owner removed CF work from this ticket on 2026-11-14;
+the identifier is retained for tracking, and existing CF command policy is unchanged.
+[verified] A checksum-verified `gcx` 1.7.1 is installed on the local Linux host;
+the direct-login path is blocked by an absent Secret Service. The owner instead selected existing
+Ansible-managed credential custody and private runtime delivery. [verified] The attended encrypted
+import, organization check and authenticated `gcx` check/ten-dashboard inventory passed on Adama
+on 2026-11-13; the inventory run reported `changed=0`. Organization 1 passed the import binding check.
+[verified] Fixed BSG / Overview inspection passed on Adama on 2026-11-14 with `changed=0`:
+13 panels, 15 saved queries and one host variable use a single Prometheus datasource;
+the bounded output was not truncated. [verified] A fixed instant Prometheus host-reporting query
+passed at `2026-11-14T06:26:56.667Z`: 19 reporting hosts, zero exporter failures and zero
+expected hosts missing telemetry, with no truncation and `changed=0`. This covers host telemetry
+at one evaluation time. [verified] Alert-state collection returned 138 visible rules on November 14:
+two firing, 136 inactive and no non-OK evaluation health. Its 100-rule detail cap was reported.
+The local guard rejects direct gcx and editable Ansible reader execution; protected agent
+execution and full investigation acceptance remain pending.
+[verified] A loopback-only qualification probe showed gcx 1.7.1 following a cross-host redirect
+and forwarding a synthetic bearer token. No production credential was used. The latest upstream
+release remains 1.7.1; protected destination/redirect enforcement is a blocking acceptance gap.
+Guarded/native acceptance and setup on other supported hosts remain pending.
+The caller/coverage fixes, selected browser tools and bundled Grafana helper are implemented;
+the helper remains the existing admitted path during migration. Its credential file is still
+readable through unhooked Read tools, and changing CLI does not establish credential isolation.
 **Owner:** Save Toolkit maintainers.
-**Outcome:** Grafana investigation and selected CF application observations work on
+**Outcome:** Grafana investigation works on
 Claude Code and VS Code/Copilot under an agreed, verified access policy, reusing existing SSO/session
 access first and supporting personal-account authentication when needed without exposing credentials
 to the LLM. Deployment actions, other production mutations, and credential-bearing diagnostic reads
 remain excluded.
-**Next action:** Run the bundled Grafana helper with a human-written `~/.config/save-toolkit/grafana.env`,
-bind the operations-repository path, and verify one complete dashboard investigation with its controls.
-Identify the existing SSO/browser/CLI session and credential mechanism, including protected personal
-credentials where needed. Complete CF target/output/time bounds, browser runtime verification and an
-isolated analysis path only with their matching controls. Use the
-expanded host acceptance cases
-for both hosts. The source update adds selected browser interactions and one installed helper grant,
-not general HTTP, script, page-code or standard Copilot terminal access;
+**Next action:** Reuse the verified Adama Ansible connection, bounded inventory, Overview inspection and fixed host-status query. A maintainer
+maps the remaining required Grafana reads and queries to exact
+CLI operations, repeats pinned installation checks on other supported hosts, and establishes target/org binding,
+output/time bounds, redirect rejection and a protected authentication path before changing the guard. The human
+configures a read-only identity through the selected authentication path. Verify one complete dashboard
+investigation, including credential/output and denied-effect controls, before retiring helper paths.
+Bind the operations-repository path. Complete browser runtime
+verification and an isolated analysis path only with their matching controls; retain both-host
+acceptance. This selection adds no general CLI/HTTP/script grant or standard Copilot terminal access.
 Helix/BigQuery remains an unconnected placeholder. INCIDENT-QUALITY-001 retains behavioral acceptance.
 **Evidence:** [Planning context beside the agent](../agents/README.txt);
+[Adama gcx acceptance and remaining native gates](reviews/2026-11-14-sre-cf-001-gcx-acceptance.md);
 [current canonical profile](../agents/sre-assistant.md), [caller](../skills/incident-investigation/SKILL.md),
 [guard source](../scripts/readonly-guard.py), and supplied-state regression fixtures under `evals/scenarios/`.
+[Official gcx installation](https://grafana.com/docs/grafana/latest/ai-tools/grafana-cli/gcx/installation/)
+and [authentication](https://grafana.com/docs/grafana/latest/ai-tools/grafana-cli/gcx/authentication/)
+document the selected setup path.
 Source and offline checks do not establish native acceptance of the access policy.
-**SRE task:** Delegate a scoped application-state or event-history check while investigating another
+**SRE task:** Delegate a scoped Grafana dashboard or alert-state check while investigating another
 part of the incident, without delegating deployment or remediation authority.
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
-**Status:** `active` (2026-10-27). The owner accepted [specification](fleet-evaluation/README.md)
+**Status:** `active` (2026-11-13). The owner accepted [specification](fleet-evaluation/README.md)
 revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion boundary on
 2026-10-18. By work package:
 - WP-01 complete: `evals/compare_runs.py`, merged in
@@ -167,6 +103,52 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   [Integrated preparation evidence](reviews/2026-10-25-complex-campaign-preparation.md) records the
   offline controls and repaired review findings. These are preparation milestones, not accepted
   benchmark outcomes; exact-case acceptance and live gates remain open.
+- WP-04/05 Linux execution and assessment packet completed on 2026-11-12:
+  [five ITBench cases and all 18 incident-conversation profiles](reviews/2026-11-12-wp0405-linux.md),
+  with original upstream scores, separate exact local metrics, independent AI operational proposals,
+  and 23 matching evidence replays. The owner authorized repairs within the USD 40 total ceiling:
+  v5 repairs all five original routing failures, but semantic failures and alternative-routing
+  control gaps remain. Final v6 WP-04 scoring has root-at-1 matching in four of five cases, while
+  operational review still finds two FAILs and three PARTIALs. The owner authorized a USD 50
+  total ceiling for the earlier repairs. The owner subsequently approved up to three repair and
+  qualification rounds with a USD 100 total ceiling. The [three-round campaign](reviews/2026-11-12-wp0405-three-rounds.md)
+  concluded all three rounds (v12–v14), retaining 23 native attempts and five final original
+  assessments. Final supplied worked-six passes; actual-helper is void after a blocked ungranted
+  `Glob` attempt. Final indexed WP04 review has one PASS and four PARTIALs; original rank-one
+  root matching is four of five. Source merging, measurement meaning and selected retrieval paths
+  improve, but complete evidence coverage is inconsistent. Reported total is USD 60.1722994,
+  leaving USD 39.8277006. Broader original, repeated-trial, reserved-case and other-model
+  qualification remains open; the three-round authorization is exhausted. Windows is owner-deferred.
+  The owner subsequently requested a [field-history and helper-dispatch repair](reviews/2026-11-12-wp0405-field-history-repair.md)
+  within the same ceiling. V15–v17 complete the field-history and scoped-catalog implementation;
+  latest WP04 review retains four PARTIALs and one turn-limited incomplete result. Final parent-only
+  v18 concluded its four bounded attempts: supplied worked-six and recovery-incomplete pass all-reply
+  review; sustained recovery meets the recovery gate but fails unsupported attribution of approval
+  to ITO. Actual-helper is unmeasured after expired OAuth, with zero reported cost and no retry.
+  Reported total through v18 is USD 76.6139074, leaving USD 23.3860926. That campaign is stopped; candidate
+  qualification remains HOLD. No broader qualification or promotion is claimed.
+  The owner approved an [offline eval-validity repair](reviews/2026-11-12-wp0405-eval-validity-repair.md):
+  versioned prompt/submission checks, one materiality standard with separate proposed reassessments,
+  and isolated retrieval/interpretation diagnostics. Local repair is complete: 5,275 tests passed,
+  87 skipped and 5,010 subtests passed. Reviewer calibration remained unmeasured at repair closeout;
+  historical results and candidate instructions are preserved.
+  The owner subsequently made unsupported recovery prerequisites nonblocking in the stated
+  no-incorrect-action/no-delay situation, and unsupported specific approver attribution nonblocking
+  when it authorizes no new action. The [owner disposition](../evals/incident-conversations/review-v2/owner-disposition.json)
+  records the scoped reassessments; independent PR implementation review found no reportable issues.
+  Full reviewer calibration and candidate qualification remain separate.
+  [verified] The owner-approved [six-test comparison](reviews/2026-11-12-wp0405-isolation-comparison.md)
+  completed all six attempts for USD 0.370427: both retrieval tests pass; [sourced] independent
+  review finds all four interpretation replies satisfy the frozen criteria, with two factual cautions.
+  [verified] Cumulative reported spend is USD 76.9843344, leaving USD 23.0156656 of the USD 100 ceiling.
+  No retries or further attempts are scheduled. [unverified] This tiny development comparison does
+  not establish large-case reliability; qualification remains HOLD.
+  [verified] The owner subsequently approved the [Codex subscription comparison](reviews/2026-11-12-wp04-codex-subscription.md).
+  The adapter now supports singly bound WP04 fixtures and scoped read-only browsing. Four Sol 6.1
+  attempts completed on cases 7 and 24 with intact instrument evidence and valid structured outputs.
+  [sourced] The completed semantic reviews distinguish source-faithful partial handoffs from factual
+  failures; all four attempts reached the fixture-call cap. [unverified] Full investigation coverage
+  and qualification remain open. Subscription usage is recorded separately; its dollar cost is unmeasured.
 - WP-10 in progress: the [first step](reviews/2026-10-10-wp10-first-step.md), its
   [case acceptance](reviews/2026-10-10-wp10-case-acceptance.md), and its [saved-trace review](reviews/2026-10-15-wp10-saved-trace-review.md) are approved; the
   [Luna continuation](reviews/2026-10-15-luna-reliability-gcp01.md) is complete at run level, with
@@ -190,6 +172,22 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   a size option but did not enforce it in the bounded write probe; the host is not qualified.
   Windows fixture repairs have focused passing evidence; symlink privilege, native signal
   qualification and the intermittent publication-lock diagnosis remain open in that audit.
+- The [fresh-main WP-04/08 continuation](reviews/2026-11-12-wp04-wp08-readiness.md) regenerates
+  and rehashes all five WP-04 fixtures, reproduces the pending ten-case WP-08 complex proposal,
+  and passes 590 focused checks with eight explicit host skips on `d1a2383d`. Docker 29.9.3 again
+  writes 64 MiB despite a 32 MiB quota. The owner clarified approval of WP-08's Windows Docker
+  Desktop exception: explicit monitored storage retains a 10 GiB target, accepts possible
+  overshoot/shared-storage effects and uses separate smoke/result identities. Its scaled real
+  monitor control detects the overrun and proves cleanup. The reviewed implementation passes
+  5,064 full-suite tests and 5,019 subtests, with 295 skips; full benchmark smoke remains open.
+  WP-04's ordinary fixture path has no trace-level read-boundary check; a Linux namespace or
+  equivalent Docker runtime must still demonstrate hidden-answer isolation before admission.
+  No new model/judge call, campaign spend or exact case acceptance is inferred.
+- The [PR 496 finalization repair](reviews/2026-11-12-wp04-wp08-readiness.md#pr-496-finalization-review-repair-2026-11-13)
+  closes the monitored-author billing gap on rejected traces and error exits: owned cleanup precedes
+  final usage, and unconfirmed author absence suppresses that request while retaining proxy closure,
+  unknown billing and cleanup recovery. Its final qualification is recorded in the PR follow-up;
+  the earlier implementation's full-suite counts above remain historical.
 - WP-03 remains deferred under EVAL-015. WP-06/07's SREGym and recovery work, WP-11's later
   AIOpsLab expansion and WP-14's live GCP exercises retain their delivery/acceptance requirements.
 - WP-15's [Coder Eval experiment](fleet-evaluation/coder-eval.md) waits for the first useful comparison.
@@ -206,22 +204,40 @@ acceptance tests, delivery phases and explicit open decisions.
   ROUTE-007, HANDOVER-001, WP-09 and WP-10. The owner approved USD 40 aggregate testing
   spend; exact runtime evidence, human tabletops and candidate acceptance remain distinct.
   The owner previously deferred Windows WP-04 and Docker-based WP-09 execution and now
-  requests their preparation. The measured quota failure and Windows verification gaps must
-  be resolved before execution; preparation does not accept a new host or candidate. Bounded Codex subscription
+  requests their preparation. WP-08's approved Desktop storage exception supersedes its hard-quota
+  requirement only in explicit monitored mode; other Windows verification gaps remain. Bounded Codex subscription
   runs are explicitly approved, with dollar costs remaining unknown.
   [Follow-through evidence](reviews/2026-10-25-followthrough.md) records the four-model
   smoke and five-case Linux WP-04 pilot, preserving technical failures, mapping gaps
   and unmeasured upstream/human assessments.
-- WP-08/09: resolve the observed hard-quota failure on the selected Windows Docker Desktop
-  engine, with an owner-approved host amendment if needed. Repair/qualify Windows checks and
-  review the exact implementation and complex-case/run-plan amendment. Freeze
+- WP-08: review the complex-case selection and freeze
   the accepted dataset/selection, licences, CLI, plugin and image identities using the
-  [operator commands](fleet-evaluation/wp08-operator.md). Then start the approved
-  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md)'s model-free smoke, first paid trial
-  and remaining nine Claude tasks as separate owner-started steps. Other models retain their own
-  approvals; WP-09 follows WP-08.
-- WP-04/05: complete exact case/review admission and bounded native run conditions after integrated
-  offline verification. WP-09 requires pinned compatible images and per-case model-free smoke before
+  [operator commands](fleet-evaluation/wp08-operator.md), including the pinned verifier environment.
+  Qualify the approved Desktop monitored mode with the full smoke. Then start the approved
+  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md)'s first paid trial
+  and remaining nine Claude tasks as separate owner-started steps. Smoke is also owner-started.
+  Other models retain their own
+  approvals; WP-09 follows WP-08 and retains its own runtime/storage qualification.
+- WP-04/05: the bounded pass is concluded; review the
+  [final repair packet](reviews/2026-11-12-wp0405-field-history-repair.md) and retain candidate HOLD. The original
+  [three rounds](reviews/2026-11-12-wp0405-three-rounds.md) remain concluded and historical judgments
+  are retained. Actual-helper dispatch was repaired and measured in v15–v17; final v18 helper
+  behavior is unmeasured after authentication failed. Specific human approvals must stay unknown
+  unless evidenced; general role authority is insufficient. WP04 still needs complete evidence use,
+  correct metric meaning and old/current episode reconciliation. The [eval-validity repair](reviews/2026-11-12-wp0405-eval-validity-repair.md)
+  is complete. The owner-approved [six-test comparison](reviews/2026-11-12-wp0405-isolation-comparison.md)
+  is also concluded. The retained large-case trace diagnosis and subsequent
+  [Sol subscription comparison](reviews/2026-11-12-wp04-codex-subscription.md) localize navigation cost,
+  remaining evidence coverage and historical identity/chronology mistakes. Improve bounded evidence
+  access before selecting further paid or subscription runs; none are scheduled automatically.
+  Full human reviewer calibration
+  remains unmeasured. Retain the four independent cases for a frozen candidate that
+  clears development gates. No further broad campaign or
+  automatic retry belongs to this bounded pass; any new campaign needs its own round scope.
+  Model runs
+  require enough approved allowance for each complete conversation; offline passes are not semantic acceptance. No result
+  promotes the candidate. Resume the separate Windows arm on a Windows machine. WP-09 requires pinned
+  compatible images and per-case model-free smoke before
   exact-candidate/model/spend acceptance; Harbor is already the selected Terminal-Bench runner.
 - WP-13: none; complete. Use its cases as a regression check when a skill or agent changes.
   Haiku's inconsistent `gcp-ops` loading limits any skill fix measured on Haiku.
@@ -279,23 +295,53 @@ asking for them.
 
 ### EVAL-005 — the observability engineer's Grafana write lands, and only that write
 
-**Status:** `active` (2026-10-25). Offline refusal grading is repaired and the candidate now
-makes its no-value display requirement explicit. Live fixture reproduction is unavailable on
-the current Linux host without Docker; original trial-3 traces remain on Windows.
-In the historical six trials, both arms, the panel was saved
-through a preflighted write and the datasource stayed unchanged, but every trial is FAIL under the
-all-checks threshold.
+**Status:** `active` (2026-11-12). The owner approved the Bash timeout and agent-behavior follow-up,
+commit and PR with USD 50 aggregate new testing budget. The timeout regression and agent checkpoint
+are committed at `097c2bbb`; its failed qualification is retained. The Windows ownership correction
+at `3b33c0fb` passed exact clean heavy qualification: 4,915 tests, 295 skips and 4,971 subtests.
+Its completed six-slot Sonnet comparison recorded **2 PASS, 1 FAIL in each arm**, at CLI-estimated
+USD 1.106043 including six Sonnet 5.5 judgments. No cleanup or identity failure recurred.
+The [owned Windows cleanup continuation](reviews/2026-11-12-eval-005-repair.md#owned-windows-cleanup-continuation)
+reproduces exited-parent cleanup failure and replaces PID-tree discovery with existing job ownership.
+The batch exposed two supporting-text matcher defects; offline corrections retain the incumbent's
+genuine missing-label FAIL and rescore the candidate 3/3 PASS. Original live grades remain sealed;
+this is not a live result on the corrected case or human acceptance. Final corrected source
+`783d82dd` passed exact clean heavy qualification: 4,918 tests, 295 skips and 4,997 subtests.
+PR #494's further ordinary recovery-wording finding is corrected at `1e2277c8`: eight positive
+controls failed before the fix, then the checker/service controls passed 47 tests and 222 subtests.
+Independent review approved that exact source, whose coordinated default suite passed 4,002 tests,
+253 skips and 4,242 subtests. No runner, agent, service-fixture or judge bytes changed in this follow-up;
+the earlier heavy receipt remains retained. Six fresh and three historical saved traces have zero
+check or verdict differences from the previous corrected matcher. No additional paid call was made.
+The earlier evaluator repair at exact
+`b43b7ab4` still awaits acceptance. Its completed three-trial batch is **1 PASS, 2 FAIL**: missing post-save query
+execution and missing evidence labels are actual agent failures. Refusal, panel, datasource and
+finite-query checks behave as intended in these observations. The prior candidate qualification
+passed its heavy run (4,900 tests, 295 skips, 4,966 passing subtests); earlier intermittent Windows cleanup failures
+remain unexplained and retained. Historical native FAILs are unchanged.
 **Owner:** The human owner approves each repair run; a maintainer session repairs the scenario and runs it.
 **Outcome:** [`build-obs-dashboard-write-honours-the-carve-out`](../evals/build-scenarios/build-obs-dashboard-write-honours-the-carve-out.yaml)
-fails only on agent behavior: its refusal-wording check accepts the measured correct refusals, and
-its post-write query check fails only when the agent's query did not return the persisted panel's
-data. The owner has decided whether the missing panel no-data text needs an
-`observability-engineer` or `grafana` repair.
-**Next action:** The [offline refusal repair](reviews/2026-10-25-eval-005-repair.md) accepts both
-retained measured fragments and preserves rejection of an actual datasource edit. A maintainer session reproduces the
-empty post-write Grafana query on the fixture without a model; and reads historical trial 3's
-queries against the check. The owner then decides on the no-data text and approves a re-run.
-**Evidence:** [run record](reviews/2026-10-18-eval-005-run.md).
+fails only on agent behavior: its refusal-wording check accepts measured correct refusals, and
+its post-write query check fails only when the query did not return the persisted panel's data.
+Required panel presentation is explicit in the task rather than inferred from advisory guidance.
+**Next action:** The owner reviews the qualified source and retained evidence for exact-candidate
+acceptance. Independent static reviews have no open findings. All six new native slots are completed;
+no further paid call or prompt tuning is planned. USD 48.893957 of the testing authorization remains
+unspent, including USD 40 never scheduled. Preserve both arms' live FAILs and separate offline results.
+The historical three slots (CLI-estimated USD 0.593889, judge included) remain exhausted and sealed.
+The controlled grid reproduction does not recover the original native query's exact phase or
+promise data for arbitrarily coarser resolutions. RELEASE-001 has its separate native/installed gates.
+The historical [Windows cleanup follow-up](reviews/2026-11-12-eval-005-repair.md#windows-cleanup-diagnostic-follow-up)
+retains the earlier termination diagnostics and guard smoke-test timeout. The ownership correction
+supersedes its taskkill implementation; the original intermittent failures' exact sequence remains unknown. The
+[timeout and behavior follow-through](reviews/2026-11-12-eval-005-repair.md#guard-timeout-and-agent-behavior-follow-through)
+records the timeout correction, earlier failed qualification and captured taskkill output. That
+recurrence reports a terminated child and an already-gone parent; no exit-code suppression was added.
+**Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
+[repair and bounded follow-through](reviews/2026-11-12-eval-005-repair.md);
+[November 11 continuation](reviews/2026-11-11-eval-005-continuation.md);
+[offline refusal repair](reviews/2026-10-25-eval-005-repair.md);
+[historical run record](reviews/2026-10-18-eval-005-run.md).
 **SRE task:** Trust that the observability engineer changes the dashboard asked for and leaves
 datasources alone.
 
@@ -327,52 +373,126 @@ the commit message of `5c5aa742` records the original scenarios as owed.
 **SRE task:** An SRE asking for help with Akamai, a database, PCF or observability gets the skill that
 owns it, not a neighbour.
 
-### RELIABILITY-001 — measure the timing repair on Claude, then decide on the reliability lane
+### RELIABILITY-001 — preserve retry-count uncertainty and qualify the native assessment
 
-**Status:** `ready` (2026-10-25); the source repair has landed, but the specified native
-helper-return comparison remains unrun. The separate
-[WP-10 assessment-document comparison](reviews/2026-10-25-wp10-handoff-repairs.md#reliability-proposals)
-measures newer retry guidance on Claude and Codex; it does not replace this profile's acceptance.
-- [verified] The 2026-10-08 comparison: candidate `37bf6a6d` and baseline `cecadc1b`, each rebuilt
-  byte-identically from its commit, ran one native trial each on `claude-sonnet-5-5` for USD 0.70 in
-  all. Both pass the three structural checks.
-- [sourced: independent blind trace review] Both arms pass four of the five manual criteria and fail
-  the timing criterion the same way: each fixes the retry count at three and treats the 36-second
-  sum of timeouts as a bound on elapsed time and slot use.
-- [verified] Since then `resilience-analysis` distinguishes retries from attempts and states that a
-  timeout sum alone bounds neither elapsed time nor slot occupancy, with a worked contrast between a
-  false return and an uncaught exception (`2d0292c1`, 2026-10-15); `f151c276` added overload and
-  startup comparison evidence, and the lane loads its method skills before writing (2026-10-10).
-- [sourced: independent semantic review] On Luna (Codex), three trials of
-  `build-reliability-engineer-proportionate-options` on `f151c276` rejected an unconditional timeout
-  or occupancy maximum but failed the rubric: none explained that a false return permits another
-  call while an uncaught exception exits immediately
-  ([closeout](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout)).
-**Owner:** The human owner approves the run and remains the only acceptor; a maintainer session runs and
-reads it.
-**Outcome:** One bounded Sonnet comparison shows whether the reliability engineer states timing
-without the 36-second bound and keeps the false-return versus exception distinction, against a
-control that differs from it only by the timing repair. The owner then accepts the lane, scopes a
-further repair, or keeps it shipped and unaccepted.
-**Next action:** A maintainer session freezes a main commit as the candidate and builds the control from
-it: the same bytes with only the retry-timing text restored to its pre-`2d0292c1` wording (the
-retry-timing sentences in `skills/resilience-analysis/SKILL.md` and the two retry passages in its
-`references/worked-contrasts.md`), keeping the overload and admission wording, with adapters
-regenerated. A `git revert` of `2d0292c1` no longer applies, because `f151c276` rewrote the same
-lines, so the control is a hand diff pushed to a ref and reviewed. With both commits and plugin
-digests recorded, the owner approves that bound pair (about USD 1; one native trial per arm on
-`claude-sonnet-5-5`, no retries). A maintainer session then runs both on
-[`native-reliability-helper-return-and-resume`](../evals/scenarios/native-reliability-helper-return-and-resume.yaml)
-and has the timing criterion graded blind. One sample per arm cannot establish a rate. The 2026-10-08
-arms, including the unpublished synthetic baseline `cecadc1b`, the impossible old native case and all
-failed observations stay historical evidence.
-**Evidence:** [Owner-approved comparison on rebuilt arms](reviews/2026-09-30-backlog-four/reliability.md#owner-approved-comparison-on-rebuilt-arms-2026-10-08),
-with the earlier comparison and instrument repair in the same record; the
-[lane decision](decisions/2026-09-21-reliability-engineer.md) retains its acceptance scope.
+**Status:** `active` (2026-11-13); the latest approved one-candidate repair/comparison is
+complete, with semantic failures remaining. [verified] The revised skill requires an explicit
+retry-count basis and demonstrates both count interpretations. A common prompt tells each
+helper its task permits only Read; that context change applies equally to both arms.
+All **ten trials**, five per arm, completed with 3/3 structural checks, twenty CLI invocations,
+complete costs and workspace cleanup. No native tool-boundary stop or retry occurred.
+[sourced: two independent blind reviews] Candidate `3c296315` passes **2/5 complete trials**;
+preceding-repair baseline `6db50f2e` passes **1/5**. These identify plugin SHA-256 prefixes,
+not commits; both sources are bound to base `ff651f94` with dirty plugin inputs. All ten
+samples preserve Read-only helper work, owner/caller, read provenance and conditional
+return/exception reasoning. Revised failures still promote conditional sums into bounds,
+infer a two-attempt ceiling from a maximum duration, or lose assumptions when reusing numbers.
+One revised sample also fails supplied-control coverage. The candidate remains unaccepted;
+five pairs on one regression case do not establish a reliability rate or causal benefit.
+[verified] This loop reports USD **3.131151**; combined spend under the newer USD 20 approval
+is **4.460681**, leaving **15.539319**. The earlier stopped loop and original comparison keep
+their raw failures and missing slots. Focused checks pass 92 tests and 328 subtests; independent
+source/operator review has no remaining material launch blocker. The exact-candidate heavy run
+remains FAIL: **11 failed, 5,289 passed, 295 skipped, 5,077 passing subtests**. Its ten known
+Windows fixture failures remain, plus an unresolved local proxy-test socket abort. That exact
+proxy parameter passed once in a focused check; independent review finds its proxy path outside
+the selected native profile. All 38 native-conversation tests pass. This does not establish
+general readiness or repair the separate full-suite failures.
+**Owner:** The human owner remains the only exact-candidate acceptor; a maintainer session owns
+the evidence and any separately scoped follow-up.
+**Outcome:** Preserve timing and retry-count assumptions plus conditional return/exception
+behavior through a real helper exchange, then let the human accept the exact candidate or
+retain the lane shipped and unaccepted.
+**Next action:** Review the [latest numerical-reasoning failures and exact candidate](reviews/2026-11-13-reliability-native-comparison.md#retry-count-repair-verification)
+and scope any further repair around justified bounds, attempt-duration assumptions and supplied
+control coverage. Preserve the current denied-tool policy and every historical grade. No extra
+candidate, trial or tuning is scheduled by the unused allowance. Separate Windows fixture and
+proxy-abort failures remain open for any conclusion requiring a green suite.
+**Evidence:** [Current matched comparison](reviews/2026-11-13-reliability-native-comparison.md);
+[historical native failures and instrument repair](reviews/2026-09-30-backlog-four/reliability.md),
+the [Luna closeout](reviews/2026-10-15-luna-reliability-gcp01.md#final-five-attempt-closeout),
+and the separate [WP-10 document comparison](reviews/2026-10-25-wp10-handoff-repairs.md#reliability-proposals)
+retain their original results. The [lane decision](decisions/2026-09-21-reliability-engineer.md)
+retains its acceptance scope; no result promotes the lane.
 **SRE task:** Turn a service weakness or repeated manual intervention into supported engineering
 work with an owner and a meaningful proof-of-improvement check.
 
 ## Deferred
+
+### EVAL-016 — prove the Inspect orchestration matches the native batch, then decide what it replaces
+
+**Status:** `deferred` (2026-11-13); the owner deferred the Inspect AI parity comparison during
+backlog review. `evals/inspect_fleet.py` runs the native routing and contract trials as an Inspect
+task with grading unchanged; its offline tests passed, but no paid run has compared it with
+`build_probe.py run`. The native runner remains the acceptance reference.
+**Owner:** Maintainers run the paid parity comparison and approve its budget; the repository owner
+decides the replacement inventory afterwards.
+**Outcome:** One frozen selection run through both paths on the same model, CLI and host shows the
+same per-scenario verdicts under `build_probe.py regrade`, with timing, cost and any INCONCLUSIVE
+reasons recorded; a follow-up decision then names which native batch code Inspect replaces, or the
+track is relabelled as scheduling only.
+**Next action:** None until the owner chooses to resume Inspect adoption and approves a bounded
+parity comparison. Then a maintainer follows the
+[parity run plan](fleet-evaluation/run-plan-inspect-native-parity.md) on a host with Claude
+credentials and a current judge calibration, and files the comparison under `docs/reviews/`.
+**Evidence:** none yet; the [decision](decisions/2026-11-02-inspect-orchestrates-native-runner.md)
+records the design and its rollback.
+**SRE task:** Read one `inspect view` log of a fleet regression instead of a directory of records,
+trusting it only once it is known to say what the native batch says.
+
+### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
+
+**Status:** `deferred` (2026-11-13); the owner deferred the tool during backlog review and
+identified its planning package as needing revision before work resumes.
+**Owner:** Human product owner accepts scope and release decisions; implementation and
+verification owners are assigned before each delivery phase.
+**Outcome:** A reviewable specification covers common commands, Grafana, scripts, investigation
+workflows, extensibility, and the full future product, with traceable acceptance criteria and
+explicit permission, evidence, compatibility, and recovery contracts.
+**Next action:** None until the owner reopens planning. First revise the
+[SRE Workbench planning package](sre-workbench/README.md) with the owner, resolve its phase-zero
+decisions, and select the first implementation slice. Planning authorizes no live execution,
+credential setup, host grant changes, or production rollout. Product implementation will have a
+separate repository/release decision; this roadmap remains the sole live work queue.
+**Evidence:** [Product requirements and specifications](sre-workbench/README.md); requirements
+come from the owner discussion on 2026-10-02. All product runtime behavior remains unverified.
+**SRE task:** Run the same useful operational checks from a terminal or an agent, preserve their
+evidence, and extend the tool as new operational needs appear.
+
+### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
+
+**Status:** `deferred` (2026-11-13); the owner deferred immutable-release work during backlog
+review. The owner requires verified native delegation on the default
+Copilot harness before release. A commit-pinned selector and checksummed candidate archive are
+prepared; installed acceptance and an accepted immutable rollback baseline remain outstanding.
+An isolated development-registration preflight is prepared, but Computer Use denied Visual Studio
+Code inspection; inventory and installed-format acceptance remain unverified.
+**Owner:** Maintainers accept the release; a maintainer session owns the plugin contract and
+`software-engineer` owns helper/adapter repairs.
+**Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
+to a previously accepted one. The acceptance cases pass on those
+exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
+**Next action:** None until the owner reopens release work. Then resolve the missing native
+per-parent target restriction, and implement and verify
+the owner-selected Copilot delegation contract. Current converter/SDK research has not identified a supported mechanism;
+then run the new Format acceptance case first: the plugin now declares Agent Plugins
+1.0 because VS Code ranks `.claude-plugin/plugin.json` above a schema-less selector manifest, and no
+installed run has yet shown which layout loads. Retire the mutable `"source": "./"` selector in `.claude-plugin/marketplace.json`
+for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
+2026-09-10 pass was against a local `./` install, and a passing run does not carry to bytes it did
+not exercise. The enforcement results that were open on VS Code 1.135.0 are superseded by that run.
+Still unrun: the agent-scoped terminal-hook canary and the SRE visual-read acceptance cases, with
+`hooks/copilot-hooks.json` shipping empty. Maintainers must run the exact candidate in an isolated
+profile on each supported host, including a dedicated Grafana Viewer browser session. The SRE
+browser grant now includes selected native/MCP viewing interactions. Structural tool checks
+do not prove image delivery or helper invocation. The installed VS Code 1.138 source handles some
+hook failures as warnings; the launcher's 42/43/44 protocol is not authentication or proof of
+fail-closed host behavior. Keep those limits explicit until the host cases are observed.
+**Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
+[current preparation and selected harness](reviews/2026-11-12-release-001-preparation.md);
+the 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
+[`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
+**SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
 
 ### INCIDENT-QUALITY-001 — verify decision quality after the SRE contract repairs
 
@@ -399,15 +519,18 @@ or an untimed aggregate for evidence of incident recovery or cause.
 
 ### COPILOT-HARNESS-001 — decide fleet delegation on the default Copilot harness
 
-**Status:** `decision-needed` (2026-11-08); VS Code now starts new sessions on the Copilot harness,
-where the fleet's `agents:` and `handoffs:` do not apply. The installed-host acceptance document was
-removed because it described the earlier harness.
+**Status:** `active` (2026-11-12). The owner selected verified native Copilot delegation before
+release. The existing `agents:` and `handoffs:` fields do not apply to the default harness;
+a native projection and installed acceptance remain to implement. Current converter/SDK research
+has not identified an enforceable per-parent delegation-target restriction.
 **Owner:** The human owner decides; a maintainer session owns the generator and lane text.
 **Outcome:** The fleet states how delegation works on the default Copilot harness, its lanes do not
 depend on a Local-only field there, and acceptance cases exist for the chosen harness.
-**Next action:** The owner chooses between keeping delegation Local-only, projecting to the harness's
-own mechanism, or no delegation on Copilot. Then write acceptance cases for that harness and confirm
-its browser tool names and `AGENTS.md` delivery on an installed host.
+**Next action:** Establish a host-enforced target restriction before changing the projection;
+ignored Local fields and timeout-sensitive hooks do not establish the selected contract. Then prove
+allowed/forbidden child invocation and parent continuation on an
+installed default-Copilot session. Confirm browser tool names and `AGENTS.md` delivery separately.
+[Selected scope and current conversion seam](reviews/2026-11-12-release-001-preparation.md).
 **Evidence:** [VS Code agent harnesses](https://code.visualstudio.com/docs/agents/run/agent-harnesses).
 **SRE task:** Use the fleet's delegating lanes from a default Copilot session, knowing which handoffs
 work there.

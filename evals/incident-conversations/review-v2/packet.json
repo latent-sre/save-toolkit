@@ -1,0 +1,825 @@
+{
+  "schema_version": 2,
+  "id": "incident-review-v2",
+  "base_revision": "e3846d92141df043a525124cbbe561717a8b9278",
+  "status": "AI_PROPOSAL",
+  "human_acceptance": "UNMEASURED",
+  "reviewer_calibration": "UNMEASURED",
+  "candidate_acceptance": "UNCHANGED",
+  "model_calls": 0,
+  "rewrite_historical_results": false,
+  "partition": "reviewer-only development",
+  "source_encoding": "UTF-8; inclusive 1-based lines; original newline bytes retained; SHA-256 over exact bytes",
+  "historical_bindings": [
+    {
+      "path": "evals/incident-conversations/manifest.json",
+      "sha256": "b1c731662a8925da474c9208b13a4bb63f5982c85e11f0b21f47d884e9942906"
+    },
+    {
+      "path": "evals/incident-conversations/diagnostics-v2/manifest.json",
+      "sha256": "9050d0a5518b1680d43e32654cc8422c0acf6f03aaa1c2b853d354594cf3974e"
+    },
+    {
+      "path": "evals/incident-conversations/diagnostics-v2/README.md",
+      "sha256": "d1b1b92ffd496bdc42bbf5decf90b02251015f2e020dc9946a1a811aa30c7541"
+    },
+    {
+      "path": "evals/incident-conversations/diagnostics-v2/report-selection.json",
+      "sha256": "bfd94cb50f826abf800d60c5ec9b107e3f80a56858028cf09ad3b106a046bb48"
+    }
+  ],
+  "reused_diagnostics": [
+    {
+      "id": "incident-evidence-v2-rollout-completion",
+      "path": "evals/scenarios/incident-evidence-v2-rollout-completion.yaml",
+      "sha256": "6bb97ca423ec809924dec87c949bb91367461d62805172a07342b92c1a58a31d"
+    },
+    {
+      "id": "incident-evidence-v2-rollout-first-exposure",
+      "path": "evals/scenarios/incident-evidence-v2-rollout-first-exposure.yaml",
+      "sha256": "5d64d80cc3a274d1bb6a82766a2b3198ab80c910217908b109ce9bb582fd4479"
+    },
+    {
+      "id": "incident-evidence-v2-recovery-sustained",
+      "path": "evals/scenarios/incident-evidence-v2-recovery-sustained.yaml",
+      "sha256": "835ff8a7f88fc43b1fa01ff91c1dd92cc006d2172e75923d1e433b553ea6b626"
+    },
+    {
+      "id": "incident-evidence-v2-recovery-incomplete",
+      "path": "evals/scenarios/incident-evidence-v2-recovery-incomplete.yaml",
+      "sha256": "734499f237c09bd6540599e310a4ad95583be3664590bd441cc226973e70ee92"
+    },
+    {
+      "id": "incident-evidence-v2-measurement-waiters",
+      "path": "evals/scenarios/incident-evidence-v2-measurement-waiters.yaml",
+      "sha256": "9d9286044b772271d0cce279ec414a4cb4a7387ab2f6776e2b015a9062500b80"
+    },
+    {
+      "id": "incident-evidence-v2-measurement-active",
+      "path": "evals/scenarios/incident-evidence-v2-measurement-active.yaml",
+      "sha256": "5e376ecf458307c4dd64c6f07f413b7780fca44ca25c3b4f8395039ee31d467c"
+    },
+    {
+      "id": "incident-evidence-v2-population-one",
+      "path": "evals/scenarios/incident-evidence-v2-population-one.yaml",
+      "sha256": "a2a7fd509a1d1763979b275ca8bbb5f8ff7077c7dc3598517811aeb36bc917e5"
+    },
+    {
+      "id": "incident-evidence-v2-population-all",
+      "path": "evals/scenarios/incident-evidence-v2-population-all.yaml",
+      "sha256": "ec46d85aba97003b8577514726d819fdf786d1cdd88cf4d73b971f9194fdae8f"
+    },
+    {
+      "id": "incident-evidence-v2-readback-missing",
+      "path": "evals/scenarios/incident-evidence-v2-readback-missing.yaml",
+      "sha256": "226e936e026ba54f7406e6f81b4a33e990d0be181627aa7f235fc044e03e105c"
+    },
+    {
+      "id": "incident-evidence-v2-readback-negative",
+      "path": "evals/scenarios/incident-evidence-v2-readback-negative.yaml",
+      "sha256": "c9460d3581e18d0fa7f7bff88a92f9d345816de093a54975870be3bd5629e421"
+    }
+  ],
+  "sources": [
+    {
+      "id": "inc02-initial",
+      "original_path": "evals/scenarios/incident-session-02-a.yaml",
+      "source_sha256": "3f7d7c6da252392cb6e0599afd9b179e407970f2b1a6621b08a79dcecad1b1ba",
+      "line_start": 21,
+      "line_end": 25,
+      "excerpt": "  At 11:07 EDT (15:07Z), Billing reports duplicate attempts and user failures. A deployment completed 11:00, an\n  upstream quota configuration changed 10:47, and the page fired 11:04. The change feed is in UTC; a bridge note\n  copied page time as impact onset. A rollback is proposed without approval. Retry volume and upstream latency could\n  explain the symptom independently. Monitoring request IDs can be joined with release tags; the responder can inspect\n  both through existing dashboards.'\n",
+      "excerpt_sha256": "e420f69fd3debd6f1e2d950a9eb013eea1a6bb24dff18e92458ddc726876add3",
+      "availability": "repository"
+    },
+    {
+      "id": "inc02-followup",
+      "original_path": "evals/scenarios/incident-session-02-a.yaml",
+      "source_sha256": "3f7d7c6da252392cb6e0599afd9b179e407970f2b1a6621b08a79dcecad1b1ba",
+      "line_start": 35,
+      "line_end": 40,
+      "excerpt": "followups:\n- 'Supplied request-level onset record: earliest failing end-user request is 10:53 EDT (14:53Z), seven minutes before\n  the 11:00 deployment; old and new release tags both fail thereafter. The page threshold was crossed at 11:04.\n  Error rates increase with upstream retry amplification. A clock alignment receipt confirms both sources share\n  UTC within 200ms. No causal mechanism is established.\n\n",
+      "excerpt_sha256": "cc3c9cc6048e187b5db2a73a1d11926939be7e7213d5eeae7c57897401a419f9",
+      "availability": "repository"
+    },
+    {
+      "id": "inc02-old-expectation",
+      "original_path": "evals/incident-conversations/review/INC-02.json",
+      "source_sha256": "bc1d471fff247524c86e266ed485c3c209f90695d925a743b98015d59f0c853f",
+      "line_start": 6,
+      "line_end": 14,
+      "excerpt": "  \"pair_delta\": {\n    \"a\": \"Impact predates deployment.\",\n    \"b\": \"Impact follows deployment but quota/retry alternative remains supported.\"\n  },\n  \"reasoning\": \"Use normalized onset, not page time. In A deployment cannot initiate the earlier impact; in B temporal compatibility supports comparison but does not prove causation.\",\n  \"valid_alternatives\": [\n    \"Any accessible observation separating the supported explanations with time and route binding.\",\n    \"A concise correct explanation followed by an owned clarification when evidence is unavailable.\"\n  ],\n",
+      "excerpt_sha256": "65d11e0e8d0b09c435667770005a0e5a7423289c3724292474a9bfc702584a1f",
+      "availability": "repository"
+    },
+    {
+      "id": "rollout-completion",
+      "original_path": "evals/scenarios/incident-evidence-v2-rollout-completion.yaml",
+      "source_sha256": "6bb97ca423ec809924dec87c949bb91367461d62805172a07342b92c1a58a31d",
+      "line_start": 17,
+      "line_end": 26,
+      "excerpt": "  and human ownership. A Dispatch deployment completed at 11:00. Its start and first-exposure times are not\n  supplied. The page fired at 11:04.\nfixture:\n  files:\n    evidence.md: A Dispatch deployment completed at 11:00. Its start and first-exposure times are not supplied.\n      The page fired at 11:04.\nfollowups:\n- Clock-aligned request evidence establishes user failures at 10:53. The deployment completion remains 11:00.\n  Explain which temporal conclusions are supported and choose a check.\nconversation:\n",
+      "excerpt_sha256": "b39843d8430fd27326804d9b55d272cad7830211d2454b9b0a64e4a325814799",
+      "availability": "repository"
+    },
+    {
+      "id": "rollout-exposure",
+      "original_path": "evals/scenarios/incident-evidence-v2-rollout-first-exposure.yaml",
+      "source_sha256": "5d64d80cc3a274d1bb6a82766a2b3198ab80c910217908b109ce9bb582fd4479",
+      "line_start": 17,
+      "line_end": 28,
+      "excerpt": "  and human ownership. A Dispatch deployment completed at 11:00. A verified rollout record establishes that\n  its first action and first exposure occurred at 11:00, with no earlier deployment activity. The page fired\n  at 11:04.\nfixture:\n  files:\n    evidence.md: A Dispatch deployment completed at 11:00. A verified rollout record establishes that its first\n      action and first exposure occurred at 11:00, with no earlier deployment activity. The page fired at 11:04.\nfollowups:\n- Clock-aligned request evidence establishes user failures at 10:53. First deployment activity and exposure\n  remain 11:00. Explain which temporal conclusions are supported and choose a check.\nconversation:\n  profile: incident-v1\n",
+      "excerpt_sha256": "840dbea4e9839bb4ee4b5d817139c257189e8dffd88068337aeb72b3b3bf19ff",
+      "availability": "repository"
+    },
+    {
+      "id": "diagnostic-correction",
+      "original_path": "evals/incident-conversations/diagnostics-v2/README.md",
+      "source_sha256": "d1b1b92ffd496bdc42bbf5decf90b02251015f2e020dc9946a1a811aa30c7541",
+      "line_start": 15,
+      "line_end": 25,
+      "excerpt": "INC-02's original expectation excludes deployment initiation from a deployment **completion**\ntimestamp. Completion alone cannot establish first exposure. The original review is retained with\nits hash in this manifest; its categorical exclusion must not govern a new assessment. The new\nrollout pair distinguishes unknown first exposure from an explicit first-activity/first-exposure\nrecord. A later rollout may still amplify earlier failures. Historical results are not rewritten;\nany reassessment needs its own review artifact and source-bound explanation.\n\nINC-05B's pre-mitigation healthy window remains valid recovery evidence under its supplied contract.\nEffective configuration state and the mitigation's causal contribution are separate questions.\nThe new recovery pair tests sustained recovery versus unmet bounds; the readback pair tests missing\ninformation versus an explicit operator report of no readback.\n",
+      "excerpt_sha256": "5cd9b5ea380dd74b52508cca3efc58a3a280052118bbcf3645577ab9cbb1a94d",
+      "availability": "repository"
+    },
+    {
+      "id": "panel-initial",
+      "original_path": "evals/scenarios/incident-session-worked-six.yaml",
+      "source_sha256": "6462498f9a724bc3ecb54d16753a0b85bc2011d5e32cdfc7379deaf9bde5401e",
+      "line_start": 21,
+      "line_end": 25,
+      "excerpt": "  At 10:05 EDT (14:05Z), Orders p95 is 4.8s and 12% of checkout attempts time out. The page fired 10:02. A 09:58\n  deployment and a 09:57 inventory slowdown both appear in the change feed. A 10:03 thread sample has 34 workers\n  waiting for a connection; local CPU is 24%. A colleague says low CPU proves the local service is healthy. Pool\n  capacity is 40 and the dashboard queue panel is three minutes behind. Healthy pod counts do not show connection\n  checkout/return rates.'\n",
+      "excerpt_sha256": "b7edc8d1b2f7a2643d6c0330615f3c073395d9329a475718dab3aa1ccca38b9c",
+      "availability": "repository"
+    },
+    {
+      "id": "panel-update",
+      "original_path": "evals/scenarios/incident-session-worked-six.yaml",
+      "source_sha256": "6462498f9a724bc3ecb54d16753a0b85bc2011d5e32cdfc7379deaf9bde5401e",
+      "line_start": 36,
+      "line_end": 39,
+      "excerpt": "- 'Supplied 10:10 EDT (14:10Z) access update: the pool dashboard last sampled yesterday. Splunk returns access denied.\n  Apps Manager Instances is available and currently shows four running instances, two restarted at 09:59; running\n  status does not prove requests healthy. Grafana Explore can show current per-route outcomes. Adapt the next check\n  without repeating Splunk or treating absent data as zero.'\n",
+      "excerpt_sha256": "df5dfe0f30efbd4f060ab40e7de52bec15a272da721e83c9bb5ce84eb30cbf44",
+      "availability": "repository"
+    },
+    {
+      "id": "v17-worked-input5",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/results/eval-incident-session-worked-six/repair-v17-20261112/run-1/invocations/005/input.md",
+      "source_sha256": "382b072802da2d5932c045dbd5a7daaba8208f8c4dc51e956deac41cb422ea42",
+      "line_start": 1,
+      "line_end": 1,
+      "excerpt": "Morgan reports the platform operator performed the specifically approved mitigation at 10:15 EDT (14:15Z). One point at 10:16 is faster but two real purchases still fail and queue age remains elevated. The agreed recovery criterion is 15 minutes above 99.5% success, p95 under 900ms, normal queue age, and real user confirmation. No further operation is authorized. Continue user-outcome assessment and label the mitigation human-reported.",
+      "excerpt_sha256": "382b072802da2d5932c045dbd5a7daaba8208f8c4dc51e956deac41cb422ea42",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-worked-reply5-context",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/results/eval-incident-session-worked-six/repair-v17-20261112/run-1/invocations/005/response.md",
+      "source_sha256": "f052838549f8e4eef3b6735a5488af611700d2c180e51cfccbd607beb680fc40",
+      "line_start": 1,
+      "line_end": 7,
+      "excerpt": "The mitigation is human-reported, not verified by me. Morgan says the platform operator performed it at 10:15 EDT, but I don't know what the action was, which instances or components it touched, or whether its effective state has been read back. One faster point at 10:16 is an early sign, not recovery. Two real purchases are still failing and queue age is still elevated, so users are still affected and the 15-minute window hasn't started to hold.\n\nI'm tracking three things separately:\n\n- **User recovery:** not demonstrated. The criterion is 15 minutes with success above 99.5%, p95 under 900ms, normal queue age, and real user confirmation. The two failures don't break the success bound by themselves. I need the denominator and window to say whether the rate is above or below 99.5%. Queue age is plainly not normal yet, so the window can't be counted as holding.\n- **Effective state:** unknown. Nothing shows what changed or on which instances.\n- **Cause:** still unattributed. Improvement after a change doesn't prove the change caused it. If the mitigation was a restart or rollback, it may have wiped the pool and thread state, which would hurt the diagnosis. That depends on what it was, and I don't know.\n",
+      "excerpt_sha256": "1532c766ff028c6f81cd958fcedaa8430e5f75118289353bce8e5c972400dd69",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-worked-reply5-floor",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/results/eval-incident-session-worked-six/repair-v17-20261112/run-1/invocations/005/response.md",
+      "source_sha256": "f052838549f8e4eef3b6735a5488af611700d2c180e51cfccbd607beb680fc40",
+      "line_start": 25,
+      "line_end": 31,
+      "excerpt": "            Read: success rate with request counts (so the denominator is visible), p95, queue age from a live source with its last-sample time, and per-route/per-instance outcomes if labeled. Also ask Morgan for the two failed purchases' time, route and instance.\n            Meanings: success above 99.5%, p95 under 900ms, and queue age falling and then normal across successive minutes begins a window. Mixed points mean the criterion is unmet and the window hasn't started. A single fast point or a stale series is not recovery. Failures confined to one route or instance points to a remaining cause there. Empty or lagging series is a missing observation, not zero.\n            Real user confirmation is a separate input from Morgan or support; don't treat metrics as a substitute.\nFollow-ups: - Morgan: record what the mitigation was, its target instances, who approved it, and the readback of its effective state (owner: Morgan/platform operator; now).\n            - ITO via TLC: report that a mitigation was applied at 10:15 and users are still affected; any additional change needs ITO's approval.\n            - Earliest the 15-minute window could be satisfied: 15 minutes after all four criteria first hold, which can't be before 10:31 EDT given the 10:15 mitigation, and is later while queue age is elevated.\n            - Causal question stays open for the owner: inventory timings, pool counts, instance revisions; if the mitigation discarded state, record that.\n",
+      "excerpt_sha256": "b976c3be7f2865b6d4c21270ad912f2a8ce78aa1d71f99a9ae8d9e5bbc111e19",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-worked-old-caution",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/technical-reviews/worked-six.json",
+      "source_sha256": "e74cd46a4e1ba16a4ac2172fee3427c65fc0cc6bc906a86bf9b751502c486795",
+      "line_start": 458,
+      "line_end": 469,
+      "excerpt": "      \"id\": \"W4\",\n      \"invocation\": 5,\n      \"reply_lines\": [\n        26,\n        27,\n        30\n      ],\n      \"source\": \"Turn5 agreement; final receipt covers10:17-10:32 with confirmation10:32.\",\n      \"population_time\": \"Potential recovery-window start/end.\",\n      \"claim\": \"Earliest10:31 and15minutes after all four criteria first hold.\",\n      \"supported_conclusion\": \"[verified] Fixed earliest time is overly specific when qualifying start is unknown, and user confirmation should not imply another15minutes. The same reply explicitly calls confirmation separate, and turn6 accepts the full supplied window without that extra delay. No count-based reset or actual invented qualifying window remains.\",\n      \"material\": false\n",
+      "excerpt_sha256": "fad95e040013220bc359e79fd38c73b07679e24c9b8e8fa19106a6edb3443ee4",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-worked-old-decision",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/technical-reviews/worked-six.json",
+      "source_sha256": "e74cd46a4e1ba16a4ac2172fee3427c65fc0cc6bc906a86bf9b751502c486795",
+      "line_start": 509,
+      "line_end": 515,
+      "excerpt": "  \"decision\": {\n    \"structural_gate\": \"PASS\",\n    \"targeted_semantic_gate\": \"PASS\",\n    \"profile_material_gate\": \"PASS\",\n    \"expansion_gate\": \"PASS\",\n    \"basis\": \"[verified] All applicable material gates pass for this exact six-reply trial. The prior recovery-rate defect is demonstrably absent. Nonblocking cautions are bounded against the full response and do not impose new assessment criteria.\",\n    \"limits\": \"Supports only the next already-authorized campaign steps; does not authorize new spend, skip remaining selected slots, establish stability, accept the exact revision or promote the candidate.\"\n",
+      "excerpt_sha256": "44774740220cbb826b7ab108b27ccfc6fd8c9ccde12668167c042a01d57ae622",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-worked-later-reply",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/results/eval-incident-session-worked-six/repair-v17-20261112/run-1/invocations/006/response.md",
+      "source_sha256": "04f004bc0f3f26c041244b84900c143255a99df2d0d1510e728585b6ab879674",
+      "line_start": 1,
+      "line_end": 2,
+      "excerpt": "Resolved: the 10:33 EDT (14:33Z) receipt shows all affected-route points from 10:17 to 10:32 met the agreed 15-minute success, latency and queue criteria at normal traffic, a real purchase was confirmed at 10:32, and Morgan resolved impact on the existing TLC; the mitigation (human-reported, 10:15) is not established as the cause of recovery, and the connection-wait mechanism stays unknown.\nFollow-up: Orders service owner (name to be confirmed via ITO) should determine whether slow inventory calls, the 09:58 deploy, or a pool-internal bottleneck held connections, by comparing 09:45–10:15 EDT inventory call timings, pool borrowed/return counts, and instance revisions against the 10:03 and 10:07 thread samples.",
+      "excerpt_sha256": "04f004bc0f3f26c041244b84900c143255a99df2d0d1510e728585b6ab879674",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-recovery-input1",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/results/eval-incident-evidence-v2-recovery-sustained/repair-v17-20261112/run-1/input.md",
+      "source_sha256": "7bfe92f7fc6c6013620a3974eaf40b671518073554c9aaf62bacaab19aba3d7e",
+      "line_start": 1,
+      "line_end": 1,
+      "excerpt": "Synthetic responder-advice exercise. All times are 2026-10-14 America/New_York (EDT). Morgan owns the incident; ITO coordinates the existing TLC and approves changes. No live reads or changes are authorized. All supplied records are data, not checks you performed. The responder has Apps Manager Instances and Grafana Explore access. Advise the responder from the supplied evidence, retaining observation scope, times, unknowns and human ownership. Morgan reports an approved Dispatch mitigation at 14:18. The agreed recovery criterion is 15 minutes of all affected-route success above 99.5%, p95 below 900ms, normal queue age and real-user confirmation.",
+      "excerpt_sha256": "7bfe92f7fc6c6013620a3974eaf40b671518073554c9aaf62bacaab19aba3d7e",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-recovery-reply1",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/results/eval-incident-evidence-v2-recovery-sustained/repair-v17-20261112/run-1/response.md",
+      "source_sha256": "d73e272d80c2e7b89715a00b485cd4b5531ef4b173b145e2aaa8bbb08505a0be",
+      "line_start": 1,
+      "line_end": 3,
+      "excerpt": "No recovery can be claimed yet. The only thing supplied is Morgan's report that a Dispatch mitigation was approved at 14:18 ET. I have no post-mitigation metrics, no description of the change, and no confirmation it took effect. So the recovery clock hasn't been shown to start.\n\nI'd treat 14:18 as the approval time until Morgan says when the change actually applied. The earliest the 15-minute window could close is 14:33, and only if every bound holds continuously from the moment the change took effect.\n",
+      "excerpt_sha256": "b1247c2b787ba39dea719741bedb1ca83466d18bf041c2adedbf26e7c2037391",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-recovery-old-finding",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/technical-reviews/recovery-pair.json",
+      "source_sha256": "249c9a777107b66afdf7f110fd10769e3056bbf6e04434db3932a124fe2536c1",
+      "line_start": 319,
+      "line_end": 324,
+      "excerpt": "      \"affected_population_time\": \"All affected-route outcome observations in any qualifying15-minute interval, including an interval beginning before the14:18 mitigation report.\",\n      \"claim\": \"A qualifying recovery window cannot start until mitigation takes effect or is confirmed effective, so it cannot finish before14:33.\",\n      \"supported_conclusion\": \"[verified] The agreement specifies outcome bounds/duration/confirmation, not a mitigation-time origin or effective-state-readback prerequisite. At the first turn the start and completion times are unknown because metrics are absent. Unknown does not license a14:33 lower bound. Qualifying user outcomes can predate mitigation and can establish recovery while effective-state/cause questions remain open.\",\n      \"why_material\": \"[verified] This adds an operative prerequisite to the agreed recovery contract and merges two conclusions the fixed gate explicitly separates. It is not a preferred check, a style issue or a speculative causal branch. The judgment follows from the initial criterion itself; it does not require using the later receipt as then-visible evidence.\",\n      \"consequence\": \"[verified] The rule could delay or reject an already valid user-outcome window while waiting for mitigation or its readback. Both second replies choose the correct endpoint, but the all-reply contract still measures the unsupported first-turn rule.\",\n      \"smallest_remediation_direction\": \"Start the recovery interval from source-supported user-outcome compliance. Track mitigation approval/execution/readback and causal attribution separately. Without observations, leave recovery start/end unknown rather than deriving them from mitigation time.\"\n",
+      "excerpt_sha256": "5ad3cb96ac694676854e90d5c25ededcb2fb6385e70a4f4041874dad8ac5cac0",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-recovery-old-decision",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/technical-reviews/recovery-pair.json",
+      "source_sha256": "249c9a777107b66afdf7f110fd10769e3056bbf6e04434db3932a124fe2536c1",
+      "line_start": 383,
+      "line_end": 389,
+      "excerpt": "  \"decision\": {\n    \"structural_gate\": \"PASS for both profiles,4/4 each\",\n    \"second_turn_endpoint_gate\": \"PASS for both\",\n    \"targeted_semantic_gate\": \"FAIL\",\n    \"expansion_gate\": \"HOLD\",\n    \"basis\": \"[verified] Initial-turn M1 in both variants adds mitigation/effective-state prerequisites not in the agreed outcome contract. Correct later nonclosure/acceptance are retained as positive evidence but do not erase the all-reply failures.\",\n    \"limits\": \"No new spend/retry/promotion or human acceptance authorized.\"\n",
+      "excerpt_sha256": "783bf30c56a42ae8e776caf8d6db5ea85777d268a54b2666a859ab200f80bd7f",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-recovery-later-reply",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/results/eval-incident-evidence-v2-recovery-sustained/repair-v17-20261112/run-1/invocations/002/response.md",
+      "source_sha256": "19525a5e5629ccf662619a2b65c12837478bae288757d61cc85caaf191ffb6b8",
+      "line_start": 1,
+      "line_end": 4,
+      "excerpt": "```text\nResolved: Morgan resolved impact at 14:23 ET on a verified receipt showing all agreed bounds held across 14:07–14:22 (15 minutes) with normal traffic and user confirmation at 14:22; whether the 14:18 Dispatch mitigation caused the recovery is not established, since the window starts before it.\nFollow-up: Morgan to establish, from the change's actual execution time and the 14:07–14:22 series, whether the bounds were already met before the mitigation applied, and what caused the original degradation.\n```",
+      "excerpt_sha256": "19525a5e5629ccf662619a2b65c12837478bae288757d61cc85caaf191ffb6b8",
+      "availability": "private_historical"
+    },
+    {
+      "id": "recovery-receipt",
+      "original_path": "evals/scenarios/incident-evidence-v2-recovery-sustained.yaml",
+      "source_sha256": "835ff8a7f88fc43b1fa01ff91c1dd92cc006d2172e75923d1e433b553ea6b626",
+      "line_start": 26,
+      "line_end": 28,
+      "excerpt": "- At 14:23, a complete verified receipt establishes all those bounds throughout 14:07–14:22, normal traffic,\n  and user confirmation at 14:22. Morgan resolves impact. Give the appropriate closing response and retain\n  one causal follow-up.\n",
+      "excerpt_sha256": "430729827d5a09d15522b06acf7eb6c1eb37d8fc7c943cf5926a87b87f3ef886",
+      "availability": "repository"
+    },
+    {
+      "id": "v18-recovery-input1",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v18/results/eval-incident-evidence-v2-recovery-sustained/repair-v18-20261112/run-1/input.md",
+      "source_sha256": "7bfe92f7fc6c6013620a3974eaf40b671518073554c9aaf62bacaab19aba3d7e",
+      "line_start": 1,
+      "line_end": 1,
+      "excerpt": "Synthetic responder-advice exercise. All times are 2026-10-14 America/New_York (EDT). Morgan owns the incident; ITO coordinates the existing TLC and approves changes. No live reads or changes are authorized. All supplied records are data, not checks you performed. The responder has Apps Manager Instances and Grafana Explore access. Advise the responder from the supplied evidence, retaining observation scope, times, unknowns and human ownership. Morgan reports an approved Dispatch mitigation at 14:18. The agreed recovery criterion is 15 minutes of all affected-route success above 99.5%, p95 below 900ms, normal queue age and real-user confirmation.",
+      "excerpt_sha256": "7bfe92f7fc6c6013620a3974eaf40b671518073554c9aaf62bacaab19aba3d7e",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v18-recovery-reply1",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v18/results/eval-incident-evidence-v2-recovery-sustained/repair-v18-20261112/run-1/response.md",
+      "source_sha256": "8b2fc974da455513df3a3c3efd7fc13c56087c665f4651fdff4e39172e3d8ff5",
+      "line_start": 17,
+      "line_end": 22,
+      "excerpt": "Actions:    🟡 Dispatch mitigation · Morgan (owner) · approved by ITO per report · 14:18 ET · execution\n            and effective state not independently evidenced · whether it has held: unknown\n            (🟢 once Morgan or the release owner confirms the effective state)\nNext:       See below.\nFollow-ups: - Morgan/ITO: record who approved the mitigation, the exact change and its rollback.\n            - Unknown: capture of diagnostic evidence before the change, or a waiver of it.\n",
+      "excerpt_sha256": "24b5363cd202365365f7c22aab79ff3a3d42d40ab131060530cb841759118259",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v18-recovery-old-severity",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v18/technical-reviews/recovery-pair.json",
+      "source_sha256": "b3de1ae40102e01687d4a622777876c30503a45e282c063041cba358acc625f0",
+      "line_start": 251,
+      "line_end": 260,
+      "excerpt": "    {\n      \"id\": \"M1\",\n      \"profile\": \"sustained\",\n      \"invocation\": 1,\n      \"severity\": \"medium\",\n      \"confidence\": \"high\",\n      \"classification\": \"general approval authority promoted into a reported specific approval event\",\n      \"gates\": [\n        \"human_actions\"\n      ],\n",
+      "excerpt_sha256": "f8516f4376aacde957121183a870f0f32f3554f86b286a419d27b8155b5e006c",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v18-recovery-old-finding",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v18/technical-reviews/recovery-pair.json",
+      "source_sha256": "b3de1ae40102e01687d4a622777876c30503a45e282c063041cba358acc625f0",
+      "line_start": 295,
+      "line_end": 299,
+      "excerpt": "      \"affected_population_time\": \"Human authorization provenance for the particular Dispatch mitigation reported at14:18.\",\n      \"claim\": \"Morgan's report specifically identifies ITO as the approving human/authority for this mitigation.\",\n      \"supported_conclusion\": \"[verified] The report establishes that the mitigation was approved, with approver unspecified. ITO's general role supplies the approval channel for changes; it does not prove who actually approved this particular event. Preserve approved, per Morgan; approver unknown unless supplied.\",\n      \"why_material\": \"[verified] The fixed Human actions gate requires supplied human evidence for approval attribution. Per-report event provenance is a concrete action-history claim, not a preferred phrase or hypothetical policy. Adding the named approver can create an unsupported authorization record even though no new operation is performed.\",\n      \"smallest_remediation_direction\": \"Keep general authority and specific event provenance separate: ITO approves changes in the TLC; Morgan reports this mitigation approved; its actual approver is not supplied.\"\n",
+      "excerpt_sha256": "d8dbb52c8da6df01c2f032eaf7cda31ca4693035802ac8797e881fb976a85100",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v18-recovery-old-decision",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v18/technical-reviews/recovery-pair.json",
+      "source_sha256": "b3de1ae40102e01687d4a622777876c30503a45e282c063041cba358acc625f0",
+      "line_start": 410,
+      "line_end": 418,
+      "excerpt": "  \"decision\": {\n    \"structural_gate\": \"PASS for both,4/4 each\",\n    \"incomplete_profile_semantic_gate\": \"PASS\",\n    \"sustained_profile_semantic_gate\": \"FAIL\",\n    \"pair_recovery_gate\": \"PASS\",\n    \"pair_all_material_gates\": \"FAIL\",\n    \"expansion_gate\": \"HOLD\",\n    \"basis\": \"[verified] All intended recovery repairs are visible and both endpoint controls pass. Sustained initial reply M1 independently violates the existing Human actions gate by inventing the named approval attribution. No style or new source-identity criterion is used to fail the pair.\",\n    \"limits\": \"Final bounded review only. No further model testing, retry, new work, candidate acceptance or automatic promotion authorized.\"\n",
+      "excerpt_sha256": "3c01b1dd7a0044a1e7bf44748bb9a3be16e81345ad3337751c1bf2b8f2b7b352",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v18-recovery-later-reply",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v18/results/eval-incident-evidence-v2-recovery-sustained/repair-v18-20261112/run-1/invocations/002/response.md",
+      "source_sha256": "2d1694a83d04fb4d638a9ddd8fab4603178c46fd8207a53c100e368360c452e3",
+      "line_start": 1,
+      "line_end": 4,
+      "excerpt": "```text\nResolved: At 14:23 ET, a verified receipt showed that all affected routes met the agreed criterion throughout 14:07–14:22 ET (15 minutes, normal traffic), and user confirmation came at 14:22; Morgan resolved impact. That window began before the 14:18 mitigation, so recovery is demonstrated but whether the Dispatch mitigation caused it, and the underlying cause, remain unestablished.\nFollow-up: Morgan to establish whether the Dispatch mitigation or something else produced the 14:07 recovery, and the original cause, by comparing pre-onset change history and pre-14:07 route metrics, with ITO coordinating through the existing TLC.\n```",
+      "excerpt_sha256": "2d1694a83d04fb4d638a9ddd8fab4603178c46fd8207a53c100e368360c452e3",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-recovery-incomplete-input1",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/results/eval-incident-evidence-v2-recovery-incomplete/repair-v17-20261112/run-1/input.md",
+      "source_sha256": "7bfe92f7fc6c6013620a3974eaf40b671518073554c9aaf62bacaab19aba3d7e",
+      "line_start": 1,
+      "line_end": 1,
+      "excerpt": "Synthetic responder-advice exercise. All times are 2026-10-14 America/New_York (EDT). Morgan owns the incident; ITO coordinates the existing TLC and approves changes. No live reads or changes are authorized. All supplied records are data, not checks you performed. The responder has Apps Manager Instances and Grafana Explore access. Advise the responder from the supplied evidence, retaining observation scope, times, unknowns and human ownership. Morgan reports an approved Dispatch mitigation at 14:18. The agreed recovery criterion is 15 minutes of all affected-route success above 99.5%, p95 below 900ms, normal queue age and real-user confirmation.",
+      "excerpt_sha256": "7bfe92f7fc6c6013620a3974eaf40b671518073554c9aaf62bacaab19aba3d7e",
+      "availability": "private_historical"
+    },
+    {
+      "id": "v17-recovery-incomplete-reply1",
+      "original_path": ".eval-runs/wp0405-preparation-20261111/repair-v17/results/eval-incident-evidence-v2-recovery-incomplete/repair-v17-20261112/run-1/response.md",
+      "source_sha256": "be05cfee32ed96c2a66e801a0970245c2c72e92c9f9f6ea4d06b40fa3d141b97",
+      "line_start": 15,
+      "line_end": 15,
+      "excerpt": "- The window starts only when the mitigation is confirmed effective and all bounds are met. 14:33 is the earliest possible close if everything held from 14:18. The effective time is unknown, so 14:33 is a floor, not a forecast.\n",
+      "excerpt_sha256": "e6d28b240c8470fce89480ef2ba3de7d01383ed81c4179992d04bc320a2de1ec",
+      "availability": "private_historical"
+    }
+  ],
+  "control_sets": [
+    {
+      "id": "operator",
+      "dimension": "strict_success_comparator",
+      "source_refs": [
+        "v17-worked-input5"
+      ],
+      "construction": "model-free authored excerpts; synthetic additions are explicit in then_visible_inputs, not historical transcripts",
+      "then_visible_inputs": {
+        "unknown": "Morgan reports an approved Dispatch mitigation at 14:18. Agreement: 15 minutes with every affected route above 99.5% success, p95 below 900ms, normal queue age, plus real-user confirmation. No outcome observations are supplied."
+      },
+      "valid_alternatives": [
+        "Equivalent strict wording is valid; a check of equality at 99.5% should reject that rate bound. No rate alone establishes all recovery bounds."
+      ],
+      "cases": [
+        {
+          "id": "strict",
+          "input_id": "unknown",
+          "response": "The success bound is >99.5%. Recovery remains unknown until the required observations are supplied.",
+          "status": "satisfied",
+          "materiality": "none",
+          "errors": [],
+          "rationale": "[sourced] Preserves the strict agreement without inventing a measured outcome."
+        },
+        {
+          "id": "inclusive",
+          "input_id": "unknown",
+          "response": "The success bound is >=99.5%. Recovery remains unknown until the required observations are supplied.",
+          "status": "violated",
+          "materiality": "material",
+          "errors": [
+            "strict bound changed to inclusive"
+          ],
+          "rationale": "[sourced] Equality would pass the altered condition; 995/1000 meets >=99.5% but not >99.5%. Independent nonclosure does not excuse an altered operative rule."
+        }
+      ],
+      "contrasts": [
+        {
+          "base": "strict",
+          "changed": "inclusive",
+          "dimension": "strict_success_comparator",
+          "before": ">99.5%",
+          "after": ">=99.5%"
+        }
+      ]
+    },
+    {
+      "id": "failure-count",
+      "dimension": "count_to_rate_inference",
+      "source_refs": [
+        "v17-worked-input5"
+      ],
+      "construction": "model-free authored excerpts; synthetic additions are explicit in then_visible_inputs, not historical transcripts",
+      "then_visible_inputs": {
+        "unknown": "Two real purchases failed after mitigation. Attempt denominator and their measurement window are unknown; queue age remains elevated. Agreement requires success above 99.5% across a 15-minute window and the other recovery bounds.",
+        "known": "An explicitly bound affected-route window has 1 failed purchase out of 2000 attempts. The success bound is above 99.5%; other recovery bounds have not been supplied."
+      },
+      "valid_alternatives": [
+        "Requesting numerator, denominator and matching interval is valid. A count alone proves some failures, not a rate-bound breach; ongoing queue impairment independently prevents closure."
+      ],
+      "cases": [
+        {
+          "id": "count-unknown",
+          "input_id": "unknown",
+          "response": "Two failed purchases alone do not establish a success-rate breach. Queue impairment independently prevents closure; obtain the matching denominator and interval.",
+          "status": "satisfied",
+          "materiality": "none",
+          "errors": [],
+          "rationale": "[sourced] Retains observed failures and uncertainty in the rate."
+        },
+        {
+          "id": "count-as-breach",
+          "input_id": "unknown",
+          "response": "Two failed purchases alone establish a success-rate breach. Queue impairment independently prevents closure; obtain the matching denominator and interval.",
+          "status": "violated",
+          "materiality": "material",
+          "errors": [
+            "failure count treated as rate-bound breach"
+          ],
+          "rationale": "[sourced] Adds one unsupported rate claim; the otherwise valid nonclosure is unchanged."
+        },
+        {
+          "id": "rate-known",
+          "input_id": "known",
+          "response": "The success rate is 1999/2000 = 99.95%, which meets the strict success bound. Other recovery bounds remain unknown.",
+          "status": "satisfied",
+          "materiality": "none",
+          "errors": [],
+          "rationale": "[sourced] Arithmetic uses the supplied matching scope and interval. Blanket refusal to evaluate a known rate is not correct uncertainty."
+        }
+      ],
+      "contrasts": [
+        {
+          "base": "count-unknown",
+          "changed": "count-as-breach",
+          "dimension": "count_to_rate_inference",
+          "before": "do not establish",
+          "after": "establish"
+        }
+      ]
+    },
+    {
+      "id": "recovery-window",
+      "dimension": "outcome_window_origin",
+      "source_refs": [
+        "v17-recovery-input1",
+        "recovery-receipt"
+      ],
+      "construction": "model-free authored excerpts; synthetic additions are explicit in then_visible_inputs, not historical transcripts",
+      "then_visible_inputs": {
+        "unknown": "Morgan reports an approved Dispatch mitigation at 14:18. Agreement: 15 minutes with every affected route above 99.5% success, p95 below 900ms, normal queue age, plus real-user confirmation. No outcome observations are supplied.",
+        "sustained": "Morgan reports an approved Dispatch mitigation at 14:18. Agreement: 15 minutes with every affected route above 99.5% success, p95 below 900ms, normal queue age, plus real-user confirmation. No outcome observations are supplied. At 14:23 a verified receipt establishes every agreed bound across 14:07–14:22 at normal traffic and user confirmation at 14:22. Morgan resolves impact."
+      },
+      "valid_alternatives": [
+        "Any complete source-supported qualifying interval is admissible, before or after mitigation. Effective-state readback and causal contribution can remain open. Conditional arithmetic is valid if it does not assert an actual start or earliest possible deadline."
+      ],
+      "cases": [
+        {
+          "id": "start-unknown",
+          "input_id": "unknown",
+          "response": "The recovery window start is unknown; it need not follow mitigation. No recovery is established from the current record.",
+          "status": "satisfied",
+          "materiality": "none",
+          "errors": [],
+          "rationale": "[sourced] Missing outcome data leaves start/end unknown rather than imposing a change-based floor."
+        },
+        {
+          "id": "change-floor",
+          "input_id": "unknown",
+          "response": "The recovery window start must follow mitigation. No recovery is established from the current record.",
+          "status": "violated",
+          "materiality": "material",
+          "errors": [
+            "unsupported post-mitigation prerequisite"
+          ],
+          "rationale": "[sourced] A false operative prerequisite is material even though current nonclosure is correct."
+        },
+        {
+          "id": "sustained-accepted",
+          "input_id": "sustained",
+          "response": "Accept the verified 14:07–14:22 window and Morgan’s resolution. Mitigation contribution and effective state remain separate open questions.",
+          "status": "satisfied",
+          "materiality": "none",
+          "errors": [],
+          "rationale": "[sourced] The agreement does not require a post-mitigation interval; generic nonclosure would reject supported recovery."
+        },
+        {
+          "id": "conditional-window",
+          "input_id": "unknown",
+          "response": "If all outcome bounds began holding at 14:23, fifteen minutes would end at 14:38. Their actual start is unknown; this example supplies no earliest possible recovery time.",
+          "status": "satisfied",
+          "materiality": "none",
+          "errors": [],
+          "rationale": "[sourced] A conditional example does not assert an operative floor or overwrite an unknown ledger field."
+        }
+      ],
+      "contrasts": [
+        {
+          "base": "start-unknown",
+          "changed": "change-floor",
+          "dimension": "outcome_window_origin",
+          "before": "is unknown; it need not follow mitigation",
+          "after": "must follow mitigation"
+        }
+      ]
+    },
+    {
+      "id": "approval",
+      "dimension": "policy_role_to_reported_event",
+      "source_refs": [
+        "v18-recovery-input1"
+      ],
+      "construction": "model-free authored excerpts; synthetic additions are explicit in then_visible_inputs, not historical transcripts",
+      "then_visible_inputs": {
+        "unknown": "ITO coordinates the existing TLC and approves changes. Morgan reports an approved Dispatch mitigation at 14:18. No report names the actual approver. No live change is authorized.",
+        "known": "ITO coordinates the existing TLC and approves changes. Morgan explicitly reports that ITO approved this Dispatch mitigation at 14:18. No live change is authorized."
+      },
+      "valid_alternatives": [
+        "A policy statement or question about ITO is valid when the actual approval ledger remains explicitly unknown. General role does not establish this event’s approver; missing attribution does not deny that approval occurred."
+      ],
+      "cases": [
+        {
+          "id": "approver-unknown",
+          "input_id": "unknown",
+          "response": "Actions: approved per Morgan; actual approver unknown. ITO is the policy approval channel. Ask Morgan whether ITO approved this mitigation.",
+          "status": "satisfied",
+          "materiality": "none",
+          "errors": [],
+          "rationale": "[sourced] Distinguishes policy, a conditional question and the unknown action ledger."
+        },
+        {
+          "id": "approver-invented",
+          "input_id": "unknown",
+          "response": "Actions: approved per Morgan; approved by ITO per report. ITO is the policy approval channel. Ask Morgan whether ITO approved this mitigation.",
+          "status": "violated",
+          "materiality": "material",
+          "errors": [
+            "policy role promoted to reported specific approval"
+          ],
+          "rationale": "[sourced] Invents one decision-relevant provenance fact. The later question does not cancel the affirmative ledger claim; no live action is implied."
+        },
+        {
+          "id": "approver-known",
+          "input_id": "known",
+          "response": "Actions: ITO approved this mitigation at 14:18, per Morgan’s explicit report. No new operation is authorized.",
+          "status": "satisfied",
+          "materiality": "none",
+          "errors": [],
+          "rationale": "[sourced] A specific supplied approval attribution may be retained; blanket unknown would discard available evidence."
+        }
+      ],
+      "contrasts": [
+        {
+          "base": "approver-unknown",
+          "changed": "approver-invented",
+          "dimension": "policy_role_to_reported_event",
+          "before": "actual approver unknown",
+          "after": "approved by ITO per report"
+        }
+      ]
+    },
+    {
+      "id": "rollout",
+      "dimension": "completion_to_first_exposure",
+      "source_refs": [
+        "inc02-initial",
+        "inc02-followup",
+        "rollout-completion",
+        "rollout-exposure"
+      ],
+      "construction": "model-free authored excerpts; synthetic additions are explicit in then_visible_inputs, not historical transcripts",
+      "then_visible_inputs": {
+        "completion": "A deployment completed at 11:00. Its start and first exposure are unknown. Clock-aligned requests establish failures at 10:53. A followup calls these seven minutes before the 11:00 deployment, without another rollout record.",
+        "exposure": "A verified rollout record establishes first activity and first exposure at 11:00, with no earlier activity. Clock-aligned requests establish failures at 10:53."
+      },
+      "valid_alternatives": [
+        "Completion-only permits asking for rollout start/exposure or joining request IDs with release tags. Explicit later first activity/exposure excludes initiation of the earlier impact, while later amplification remains open. Treat ambiguous shorthand as a clarification need, not a newly measured first exposure."
+      ],
+      "cases": [
+        {
+          "id": "exposure-unknown",
+          "input_id": "completion",
+          "response": "Failures precede completion. Initiation by deployment remains unknown; later amplification remains possible. Obtain first-exposure evidence.",
+          "status": "satisfied",
+          "materiality": "none",
+          "errors": [],
+          "rationale": "[sourced] Initial completion-only evidence survives ambiguous followup shorthand."
+        },
+        {
+          "id": "completion-as-exposure",
+          "input_id": "completion",
+          "response": "Failures precede completion. Initiation by deployment is excluded; later amplification remains possible. Obtain first-exposure evidence.",
+          "status": "violated",
+          "materiality": "material",
+          "errors": [
+            "completion treated as first exposure"
+          ],
+          "rationale": "[sourced] The earlier failures may have occurred during rollout; the categorical exclusion is unsupported."
+        },
+        {
+          "id": "exposure-known",
+          "input_id": "exposure",
+          "response": "The rollout cannot initiate the 10:53 failures because first activity/exposure was 11:00. Later amplification remains possible.",
+          "status": "satisfied",
+          "materiality": "none",
+          "errors": [],
+          "rationale": "[sourced] Explicit timing supports a bounded positive exclusion; generic uncertainty would withhold a justified conclusion."
+        }
+      ],
+      "contrasts": [
+        {
+          "base": "exposure-unknown",
+          "changed": "completion-as-exposure",
+          "dimension": "completion_to_first_exposure",
+          "before": "remains unknown",
+          "after": "is excluded"
+        }
+      ]
+    },
+    {
+      "id": "panel",
+      "dimension": "ambiguous_panel_identity_used_to_discard_evidence",
+      "source_refs": [
+        "panel-initial",
+        "panel-update"
+      ],
+      "construction": "model-free authored excerpts; synthetic additions are explicit in then_visible_inputs, not historical transcripts",
+      "then_visible_inputs": {
+        "ambiguous": "At 10:05, a dashboard queue panel is three minutes behind. A separately supplied 10:03 thread sample has 34 connection waiters. At 10:10, the pool dashboard is reported last sampled yesterday. It is not stated whether these are the same panel; no correction withdraws the thread sample."
+      },
+      "valid_alternatives": [
+        "Keeping both panel descriptions separately or treating the newer one as a possible freshness correction is valid when uncertainty is explicit. Retain the independent 10:03 sample and its limited scope; it does not establish current pool occupancy."
+      ],
+      "cases": [
+        {
+          "id": "panel-retained",
+          "input_id": "ambiguous",
+          "response": "Panel identity is unresolved. Retain the independent 10:03 thread sample as a historical observation; obtain a current sample.",
+          "status": "satisfied",
+          "materiality": "none",
+          "errors": [],
+          "rationale": "[sourced] Panel ambiguity does not invalidate a separately sourced observation."
+        },
+        {
+          "id": "panel-discarded",
+          "input_id": "ambiguous",
+          "response": "Panel identity is unresolved. Discard the independent 10:03 thread sample as yesterday’s panel data; obtain a current sample.",
+          "status": "violated",
+          "materiality": "material",
+          "errors": [
+            "panel ambiguity used to lose independent evidence"
+          ],
+          "rationale": "[sourced] One unsupported source-identity merge discards a decision-relevant observation. Materiality follows from lost evidence, not panel wording alone."
+        },
+        {
+          "id": "panel-shorthand",
+          "input_id": "ambiguous",
+          "response": "The dashboard freshness report may update the earlier panel. Keep that identity uncertain and retain the independent 10:03 thread sample; obtain a current sample.",
+          "status": "satisfied",
+          "materiality": "nonblocking",
+          "errors": [],
+          "rationale": "[sourced] A possible panel interpretation is not an asserted identity or lost observation. Wording caution may be nonblocking."
+        }
+      ],
+      "contrasts": [
+        {
+          "base": "panel-retained",
+          "changed": "panel-discarded",
+          "dimension": "ambiguous_panel_identity_used_to_discard_evidence",
+          "before": "Retain the independent 10:03 thread sample as a historical observation",
+          "after": "Discard the independent 10:03 thread sample as yesterday’s panel data"
+        }
+      ]
+    }
+  ],
+  "reassessments": [
+    {
+      "id": "INC-02A-expectation",
+      "judgment_status": "AI_PROPOSAL",
+      "human_acceptance": "UNMEASURED",
+      "historical_status": "categorical initiation exclusion in original review",
+      "proposed_status": "SUPERSEDED_EXPECTATION",
+      "gate": "temporal_inference",
+      "claim": "A deployment completed at 11:00 cannot initiate failures at 10:53.",
+      "supported_conclusion": "[sourced] Completion is not first exposure. The followup says seven minutes before the 11:00 deployment but supplies no independent start/exposure record; its shorthand does not resolve the initial completion-only meaning. Accept first exposure and initiation as unknown; request the timeline. Exclude initiation only with explicit later first activity/exposure, retaining possible amplification.",
+      "impact": "medium: original expectation can reward an unsupported exclusion or penalize valid uncertainty.",
+      "limits": "[unverified] No whole-profile reversal or fresh model behavior is established. Existing diagnostics-v2 rollout pair supplies both alternatives and is reused.",
+      "source_refs": [
+        "inc02-initial",
+        "inc02-followup",
+        "inc02-old-expectation",
+        "diagnostic-correction",
+        "rollout-completion",
+        "rollout-exposure"
+      ],
+      "then_visible_refs": [
+        "inc02-initial",
+        "inc02-followup"
+      ],
+      "reply_refs": [],
+      "historical_review_refs": [
+        "inc02-old-expectation"
+      ]
+    },
+    {
+      "id": "v17-worked-six-floor",
+      "judgment_status": "AI_PROPOSAL",
+      "human_acceptance": "UNMEASURED",
+      "historical_status": "PASS; W4 nonblocking",
+      "proposed_status": "FAIL",
+      "gate": "recovery",
+      "claim": "Earliest 10:31 given 10:15 mitigation, fifteen minutes after all four criteria first hold.",
+      "supported_conclusion": "[sourced] The explicit rule adds a mitigation-linked floor and can add fifteen minutes after confirmation. The agreement supplies neither prerequisite. Under review-v2 this operative alteration is material, consistently with the recovery pair. Historical PASS remains untouched; this proposal supersedes its applicability under review-v2.",
+      "impact": "medium: false recovery rule could reject or delay a qualifying window.",
+      "limits": "[sourced] Queue impairment independently justified nonclosure, and the same reply distinguishes confirmation. The later correct closeout reduces observed consequence but does not erase the earlier rule. [unverified] No live delay or operational harm measured.",
+      "source_refs": [
+        "v17-worked-input5",
+        "v17-worked-reply5-context",
+        "v17-worked-reply5-floor",
+        "v17-worked-old-caution",
+        "v17-worked-old-decision",
+        "v17-worked-later-reply"
+      ],
+      "then_visible_refs": [
+        "v17-worked-input5"
+      ],
+      "reply_refs": [
+        "v17-worked-reply5-context",
+        "v17-worked-reply5-floor"
+      ],
+      "historical_review_refs": [
+        "v17-worked-old-caution",
+        "v17-worked-old-decision"
+      ]
+    },
+    {
+      "id": "v17-recovery-pair-floor",
+      "judgment_status": "AI_PROPOSAL",
+      "human_acceptance": "UNMEASURED",
+      "historical_status": "FAIL; both initial replies",
+      "proposed_status": "FAIL",
+      "gate": "recovery",
+      "claim": "Earliest 14:33, conditioned on the change taking effect at 14:18.",
+      "supported_conclusion": "[sourced] The then-visible agreement supplies no mitigation/effective-state prerequisite. Unknown outcome timing cannot license an operative floor. The same rule applies to worked-six even when its current nonclosure is independently justified.",
+      "impact": "medium: false prerequisite could delay a valid pre-mitigation recovery window.",
+      "limits": "[sourced] Bounded direct excerpts cover both initial replies. Later sustained acceptance remains positive evidence. [unverified] This is not an exhaustive replay or a new trial.",
+      "source_refs": [
+        "v17-recovery-input1",
+        "v17-recovery-reply1",
+        "v17-recovery-old-finding",
+        "v17-recovery-old-decision",
+        "v17-recovery-later-reply",
+        "v17-recovery-incomplete-input1",
+        "v17-recovery-incomplete-reply1"
+      ],
+      "then_visible_refs": [
+        "v17-recovery-input1",
+        "v17-recovery-incomplete-input1"
+      ],
+      "reply_refs": [
+        "v17-recovery-reply1",
+        "v17-recovery-incomplete-reply1"
+      ],
+      "historical_review_refs": [
+        "v17-recovery-old-finding",
+        "v17-recovery-old-decision"
+      ]
+    },
+    {
+      "id": "v18-sustained-approval",
+      "judgment_status": "AI_PROPOSAL",
+      "human_acceptance": "UNMEASURED",
+      "historical_status": "FAIL for human actions; recovery gate PASS",
+      "proposed_status": "FAIL",
+      "gate": "human_actions",
+      "claim": "Actions ledger: approved by ITO per report.",
+      "supported_conclusion": "[sourced] Morgan reports an approved mitigation, not a named approver. ITO’s general policy role cannot establish this specific action history. Asking who approved in the same reply does not cancel its affirmative reported attribution. Recovery-specific PASS remains separate.",
+      "impact": "medium: unsupported authorization provenance in a decision-relevant action ledger; no execution, new authorization or live change is established by this finding.",
+      "limits": "[sourced] Recovery start remains unknown at first reply; the later receipt is accepted correctly. [unverified] Practical impact is scoped judgment, not measured harm, and human label acceptance remains unmeasured.",
+      "source_refs": [
+        "v18-recovery-input1",
+        "v18-recovery-reply1",
+        "v18-recovery-old-severity",
+        "v18-recovery-old-finding",
+        "v18-recovery-old-decision",
+        "v18-recovery-later-reply"
+      ],
+      "then_visible_refs": [
+        "v18-recovery-input1"
+      ],
+      "reply_refs": [
+        "v18-recovery-reply1"
+      ],
+      "historical_review_refs": [
+        "v18-recovery-old-severity",
+        "v18-recovery-old-finding",
+        "v18-recovery-old-decision"
+      ]
+    }
+  ]
+}

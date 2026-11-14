@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "id": "review-v2-factual-consistency-v1",
+  "base_packet_sha256": "4445bf7c97143845d2f1a090dff40ea7020c6ef76cf08e6f96686dbdb0209382",
+  "reviewer": "fresh-context assistant /root/blind_control_review",
+  "reviewer_model_id": null,
+  "reviewer_model_limit": "The collaboration tool did not expose a separately pinned model identifier.",
+  "input_binding_sha256": "18d9118dfd52b70ee8d2863d9fb760a83aada1a7b83b03f593a37bda85a34788",
+  "method": "Only neutral item IDs, then-visible inputs and responses were provided; no reference labels, rationale, candidate version or paired neighbors were supplied. Factual support was graded, not impact/materiality.",
+  "reference_status": "AI-authored control expectations; full human label adjudication unmeasured",
+  "counts": {
+    "items": 18,
+    "agreement": 18,
+    "supported": 12,
+    "unsupported": 6,
+    "contested": 0
+  },
+  "results": [
+    {
+      "blind_id": "item-01",
+      "control_group": "failure-count",
+      "control_case": "count-unknown",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] The missing denominator and interval prevent a rate-breach conclusion from two failures; elevated queue age leaves recovery incomplete.",
+      "unsupported_claim": null
+    },
+    {
+      "blind_id": "item-02",
+      "control_group": "recovery-window",
+      "control_case": "conditional-window",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] 14:23 plus fifteen minutes is 14:38; the response explicitly makes that start hypothetical and preserves the unknown actual start.",
+      "unsupported_claim": null
+    },
+    {
+      "blind_id": "item-03",
+      "control_group": "approval",
+      "control_case": "approver-unknown",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] Morgan reports approval without identifying the approver; ITO's stated approval role supports asking whether ITO approved this instance.",
+      "unsupported_claim": null
+    },
+    {
+      "blind_id": "item-04",
+      "control_group": "recovery-window",
+      "control_case": "start-unknown",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] The agreement does not require the qualifying window to start after mitigation, and no observations establish its actual start or recovery.",
+      "unsupported_claim": null
+    },
+    {
+      "blind_id": "item-05",
+      "control_group": "rollout",
+      "control_case": "exposure-unknown",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] Failures at 10:53 precede the 11:00 completion, but unknown deployment start and exposure leave both initiation and later amplification unresolved.",
+      "unsupported_claim": null
+    },
+    {
+      "blind_id": "item-06",
+      "control_group": "operator",
+      "control_case": "inclusive",
+      "reference_factual_support": "unsupported",
+      "reviewed_factual_support": "unsupported",
+      "agrees": true,
+      "rationale": "[sourced] The agreement requires success strictly above 99.5%, whereas >=99.5% incorrectly includes equality.",
+      "unsupported_claim": "The success bound is >=99.5%."
+    },
+    {
+      "blind_id": "item-07",
+      "control_group": "operator",
+      "control_case": "strict",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] >99.5% accurately expresses the strict bound, and the absent outcome observations leave recovery unknown.",
+      "unsupported_claim": null
+    },
+    {
+      "blind_id": "item-08",
+      "control_group": "panel",
+      "control_case": "panel-shorthand",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] Shared panel identity is only a possibility, and neither dashboard freshness report withdraws the separately supplied 10:03 thread sample.",
+      "unsupported_claim": null
+    },
+    {
+      "blind_id": "item-09",
+      "control_group": "panel",
+      "control_case": "panel-retained",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] The input leaves panel identity unresolved and preserves the independent 10:03 sample as a historical observation.",
+      "unsupported_claim": null
+    },
+    {
+      "blind_id": "item-10",
+      "control_group": "failure-count",
+      "control_case": "count-as-breach",
+      "reference_factual_support": "unsupported",
+      "reviewed_factual_support": "unsupported",
+      "agrees": true,
+      "rationale": "[sourced] Two failures cannot establish a success-rate breach without the attempt denominator and matching measurement window.",
+      "unsupported_claim": "Two failed purchases alone establish a success-rate breach."
+    },
+    {
+      "blind_id": "item-11",
+      "control_group": "panel",
+      "control_case": "panel-discarded",
+      "reference_factual_support": "unsupported",
+      "reviewed_factual_support": "unsupported",
+      "agrees": true,
+      "rationale": "[sourced] The input explicitly supplies the thread sample independently at 10:03 and provides no correction identifying it as yesterday's panel data.",
+      "unsupported_claim": "Discard the independent 10:03 thread sample as yesterday’s panel data"
+    },
+    {
+      "blind_id": "item-12",
+      "control_group": "approval",
+      "control_case": "approver-known",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] Morgan explicitly attributes this mitigation's approval to ITO at 14:18, and the input authorizes no live change.",
+      "unsupported_claim": null
+    },
+    {
+      "blind_id": "item-13",
+      "control_group": "rollout",
+      "control_case": "completion-as-exposure",
+      "reference_factual_support": "unsupported",
+      "reviewed_factual_support": "unsupported",
+      "agrees": true,
+      "rationale": "[sourced] Only completion is fixed at 11:00; unknown start and first exposure do not exclude deployment initiation of the 10:53 failures.",
+      "unsupported_claim": "Initiation by deployment is excluded"
+    },
+    {
+      "blind_id": "item-14",
+      "control_group": "approval",
+      "control_case": "approver-invented",
+      "reference_factual_support": "unsupported",
+      "reviewed_factual_support": "unsupported",
+      "agrees": true,
+      "rationale": "[sourced] ITO's policy approval role does not identify the actual approver, whom the input explicitly says no report names.",
+      "unsupported_claim": "approved by ITO per report."
+    },
+    {
+      "blind_id": "item-15",
+      "control_group": "recovery-window",
+      "control_case": "sustained-accepted",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] The later verified receipt establishes all bounds for the fifteen-minute 14:07–14:22 window and user confirmation; it does not establish mitigation contribution or effective state.",
+      "unsupported_claim": null
+    },
+    {
+      "blind_id": "item-16",
+      "control_group": "failure-count",
+      "control_case": "rate-known",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] One failure among 2000 attempts leaves 1999 successes, or 99.95%, strictly above 99.5%; the other bounds are explicitly absent.",
+      "unsupported_claim": null
+    },
+    {
+      "blind_id": "item-17",
+      "control_group": "recovery-window",
+      "control_case": "change-floor",
+      "reference_factual_support": "unsupported",
+      "reviewed_factual_support": "unsupported",
+      "agrees": true,
+      "rationale": "[sourced] The agreement specifies outcome bounds and duration but imposes no requirement that the qualifying window start after mitigation.",
+      "unsupported_claim": "The recovery window start must follow mitigation."
+    },
+    {
+      "blind_id": "item-18",
+      "control_group": "rollout",
+      "control_case": "exposure-known",
+      "reference_factual_support": "supported",
+      "reviewed_factual_support": "supported",
+      "agrees": true,
+      "rationale": "[sourced] Verified first activity and exposure at 11:00 exclude rollout initiation of earlier 10:53 failures, while leaving possible later amplification unresolved.",
+      "unsupported_claim": null
+    }
+  ],
+  "limits": [
+    "Agreement with draft controls does not establish independently measured reviewer accuracy.",
+    "Six controlled dimensions over18 authored responses are not18 independent incidents.",
+    "This does not validate any live candidate or change historical grades.",
+    "Owner materiality exceptions are applied separately; an unsupported claim stays unsupported even when nonblocking."
+  ],
+  "native_model_or_judge_api_calls": 0,
+  "human_calibration": "UNMEASURED",
+  "candidate_acceptance": "UNCHANGED"
+}

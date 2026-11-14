@@ -15,12 +15,13 @@ import re
 import signal
 import subprocess
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path, PurePosixPath
 from typing import Any, TextIO
 
 import clean_room
 import yaml
+from swebench_adapter.windows_job import WindowsJob
 
 from . import catalog, constants, conversations, fingerprints, records, tracing
 from .constants import BUILD_TOOLS, READ_TOOLS, SHELL_TOOLS, WRITING_TOOLS
@@ -40,65 +41,82 @@ def run_cli(
 ) -> int:
     """Wait for one CLI, stopping its process tree before returning an interrupted attempt.
 
-    POSIX descendants inherit a private session; Windows taskkill walks the still-live parent's
-    tree. This owns ordinary child processes, not children that deliberately detach themselves.
+    POSIX descendants inherit a private session; Windows descendants inherit a private job whose
+    ownership survives root exit. This owns ordinary children, not processes launched outside it.
     Output stays in the caller's files so partial traces survive a timeout or Ctrl-C.
     """
-    process = subprocess.Popen(
-        command, cwd=cwd, env=env, stdout=stdout, stderr=stderr, start_new_session=sys.platform != "win32"
-    )
-    try:
+    with _owned_process(command, kind="CLI", cwd=cwd, env=env, stdout=stdout, stderr=stderr) as process:
         return process.wait(timeout=timeout)
-    except BaseException:
-        try:
-            _stop_cli(process)
-        except Exception as exc:
-            raise RuntimeError(f"CLI process-tree cleanup failed for PID {process.pid}") from exc
-        raise
 
 
 def run_command(command: str, *, cwd: str, env: dict[str, str], timeout: float) -> subprocess.CompletedProcess[str]:
     """Capture a grading command while owning its ordinary children through timeout or interruption."""
-    process = subprocess.Popen(
-        command,
-        cwd=cwd,
-        env=env,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        start_new_session=sys.platform != "win32",
-    )
+    process = None
     try:
-        stdout, stderr = process.communicate(timeout=timeout)
-    except BaseException:
-        try:
-            _stop_cli(process)
-        except Exception as exc:
-            raise RuntimeError(f"grading process-tree cleanup failed for PID {process.pid}") from exc
-        raise
+        with _owned_process(
+            command,
+            kind="grading",
+            cwd=cwd,
+            env=env,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        ) as process:
+            stdout, stderr = process.communicate(timeout=timeout)
+            return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
     finally:
-        # communicate closes pipes on success; close them explicitly on an interrupted read too.
-        if process.stdout is not None:
-            process.stdout.close()
-        if process.stderr is not None:
-            process.stderr.close()
-    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+        if process is not None:
+            for name in ("stdout", "stderr"):
+                reader = getattr(process, f"{name}_thread", None) if sys.platform == "win32" else None
+                if reader is not None:
+                    reader.join(timeout=1)
+                    if reader.is_alive():
+                        # A failed cleanup can leave a writer alive. Closing its pipe here would
+                        # block on the reader's lock; CPython's reader closes it when EOF arrives.
+                        continue
+                stream = getattr(process, name)
+                if stream is not None:
+                    stream.close()
 
 
-def _stop_cli(process: subprocess.Popen[bytes] | subprocess.Popen[str]) -> None:
+@contextlib.contextmanager
+def _owned_process(command: list[str] | str, *, kind: str, **options: Any) -> Iterator[subprocess.Popen[Any]]:
+    job = WindowsJob() if sys.platform == "win32" else None
+    try:
+        process = subprocess.Popen(
+            command, start_new_session=job is None, creationflags=0x204 if job is not None else 0, **options
+        )  # CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP on Windows
+    except BaseException as exc:
+        if job is not None and not job.close():
+            raise RuntimeError(f"{kind} process-tree cleanup failed before spawn") from exc
+        raise
+    try:
+        if job is not None:
+            job.assign_and_resume(process.pid)
+        yield process
+    except BaseException:
+        _cleanup_process(process, job, kind)
+        raise
+    else:
+        if job is not None:  # an exited Windows root can still leave owned descendants
+            _cleanup_process(process, job, kind)
+
+
+def _cleanup_process(process: subprocess.Popen[Any], job: WindowsJob | None, kind: str) -> None:
+    try:
+        _stop_cli(process, job)
+    except Exception as exc:
+        raise RuntimeError(f"{kind} process-tree cleanup failed for PID {process.pid}") from exc
+
+
+def _stop_cli(process: subprocess.Popen[Any], job: WindowsJob | None = None) -> None:
     try:
         if sys.platform == "win32":
-            # Do this before killing/reaping the parent: taskkill needs it to find children.
-            subprocess.run(
-                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                timeout=10,
-            )
+            if job is None or not job.close():
+                raise RuntimeError("Windows job cleanup incomplete")
         else:
             with contextlib.suppress(ProcessLookupError):  # the entire group may already have exited
                 os.killpg(process.pid, signal.SIGKILL)

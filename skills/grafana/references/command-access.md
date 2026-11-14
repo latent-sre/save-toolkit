@@ -2,6 +2,32 @@
 
 For an SRE agent with terminal tools; no write authority is granted.
 
+## Selected gcx migration
+
+The owner selected `gcx` for read-only Grafana investigation access. A maintainer must install and
+verify a pinned release, configure the intended instance/org and a read-only identity, and prove
+the required operations, output/time bounds and protected authentication on the supported host.
+Use the operations repository's existing Ansible-managed credential custody and private command
+environment path. The human imports a read-only service-account token through its protected prompt;
+the command receives it only at runtime, without `gcx login` or a local keyring. Never read decrypted
+vault values or print registered private results. This choice does not itself isolate credentials
+from other programs running as the controller user.
+
+The Adama operations-repository reader provides fixed connection, dashboard inventory,
+Overview configuration, host-reporting query and alert-summary operations. It runs as the
+controller user outside the SRE agent grant. A same-user Ansible playbook and its encrypted
+vault do not establish agent credential isolation: the execution identity, credential source
+and installed command must be protected from agent reads and tampering before admission.
+The installed gcx HTTP client also follows authenticated redirects across destinations.
+Protected use needs verified redirect/destination enforcement; organization checks at import
+do not establish that transport boundary. No redirect-control flag is verified for this release.
+
+The existing guard does not admit `gcx`. Keep using its currently admitted paths until fixed CLI
+commands and their execution boundary are verified and granted. Do not install the CLI, change
+contexts, expose credentials, enable HTTP payload logging or install vendor skills as an incident
+workaround. Record any required helper operation without a verified CLI equivalent before retiring
+the helper. The tooling choice is described under [HTTP API scope](./http-api.md#credentials-and-effective-scope).
+
 ## Bundled read helper
 
 The installed `grafana` skill includes [grafana_read.py](../scripts/grafana_read.py), a stdlib-only Python 3.14+

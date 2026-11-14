@@ -1,0 +1,56 @@
+{
+  "synthetic": true,
+  "clock_basis": "All supplied event and observation clocks are UTC and explicitly aligned.",
+  "observations": [
+    {
+      "id": "before",
+      "resource": "demo/Deployment/parcel",
+      "uid": "deployment-1",
+      "revision": "r1",
+      "observed_at": "2026-10-14T14:00:00Z",
+      "endpoint": "broker:9092"
+    },
+    {
+      "id": "after",
+      "resource": "demo/Deployment/parcel",
+      "uid": "deployment-1",
+      "revision": "r2",
+      "observed_at": "2026-10-14T14:05:00Z",
+      "endpoint": "broker:9999"
+    },
+    {
+      "id": "exposure",
+      "resource": "demo/Deployment/parcel",
+      "uid": "deployment-1",
+      "revision": "r2",
+      "first_exposure_at": "2026-10-14T14:04:00Z",
+      "source": "explicit release-controller first-exposure record"
+    },
+    {
+      "id": "listener",
+      "resource": "demo/Service/broker",
+      "uid": "service-1",
+      "observed_at": "2026-10-14T14:05:00Z",
+      "host": "broker",
+      "port": 9092,
+      "protocol": "TCP"
+    },
+    {
+      "id": "alert",
+      "resource": "demo/Service/parcel",
+      "onset_at": "2026-10-14T14:02:00Z",
+      "source": "request-level first failure record",
+      "observation_limit": "No failure mechanism is recorded."
+    },
+    {
+      "id": "workload",
+      "resource": "demo/Pod/parcel-r2-a",
+      "uid": "pod-2",
+      "revision": "r2",
+      "observed_at": "2026-10-14T14:06:00Z",
+      "ready": false,
+      "exit_code": 2,
+      "observation_limit": "No stderr, connection attempt, network observation or user recovery window is supplied."
+    }
+  ]
+}

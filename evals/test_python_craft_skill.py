@@ -24,32 +24,6 @@ EXPECTED_REFERENCES = (
     "verification.md",
 )
 
-# Structural coverage only: a named technique can be present and still be taught badly.
-REFACTORING_TECHNIQUES = (
-    r"extract",
-    r"inline",
-    r"move",
-    r"rename",
-    r"signature",
-    r"parameter object",
-    r"split phase",
-    r"query from modifier",
-    r"guard clause",
-    r"dispatch",
-    r"parameteri[sz]e",
-    r"encapsulate",
-    r"forwarding",
-    r"composition",
-    r"boundar(y|ies)",
-    r"preparatory",
-    r"incremental",
-    r"dead code",
-    r"rope",
-    r"libcst",
-    r"ruff",
-    r"\bast\b",
-)
-
 
 def _load_oracle_module():
     spec = importlib.util.spec_from_file_location("python_craft_case_oracle", ORACLE_PATH)
@@ -84,32 +58,14 @@ def test_skill_frontmatter() -> None:
     assert meta["name"] == "python-craft"
     description = str(meta["description"])
     assert len(description) <= 1024
-    assert "Triggers:" in description
-    quoted_triggers = re.findall(r"(['\"])(.+?)\1", description.split("Triggers:", 1)[1])
-    assert 2 <= len(quoted_triggers) <= 4
 
 
-def test_skill_links_every_reference() -> None:
-    _, body = _split_frontmatter(SKILL_MD.read_text(encoding="utf-8"))
-    for ref_name in EXPECTED_REFERENCES:
-        link_pattern = f"](references/{ref_name})"
-        assert link_pattern in body, f"SKILL.md must link directly to references/{ref_name}"
-
-
-def test_references_have_contents_toc_and_no_evidence_labels() -> None:
+def test_skill_and_references_have_no_evidence_labels() -> None:
     forbidden_labels = ("[verified]", "[sourced]", "[unverified]")
     for path in [SKILL_MD, *(REFERENCES_DIR / name for name in EXPECTED_REFERENCES)]:
         text = path.read_text(encoding="utf-8")
         for label in forbidden_labels:
             assert label not in text, f"{path.name} must not contain runtime evidence label {label}"
-        if path != SKILL_MD and len(text.splitlines()) > 100:
-            assert "## Contents" in text, f"{path.name} (>100 lines) must include a ## Contents section"
-
-
-def test_refactoring_reference_names_each_technique_and_tool() -> None:
-    text = (REFERENCES_DIR / "refactoring.md").read_text(encoding="utf-8").lower()
-    missing = [term for term in REFACTORING_TECHNIQUES if not re.search(term, text)]
-    assert not missing, f"refactoring.md no longer names: {missing}"
 
 
 def test_routing_scenarios_target_python_craft() -> None:

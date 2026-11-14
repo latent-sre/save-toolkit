@@ -1,0 +1,58 @@
+id: incident-qualification-v1-04
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 24
+tools:
+- Skill
+- Read
+- Task
+prompt: |
+  I am the support duty engineer on an incident bridge for Harbor Archive. Customers are waiting for archive restores. Please give me the current assessment and the next practical action using the records below. I can export the read-only restore outcome view and the queue dashboard. The archive operator owns worker and retrieval-cap changes; the human incident lead authorizes those changes and decides recovery. I cannot access storage control APIs or worker shells. No production change is authorized for the assistant.
+
+  All times are UTC on 2026-11-10; the copied initial records are in evidence.md.
+
+  A1 — restore-outcomes export, generated 15:08. Population: all production standard-tier restore jobs in zones cedar, elm, and fir, deduplicated by restore job ID; excludes premium-tier restores. Acceptance window 15:00:00–15:05:00. Success means every requested object in the job is readable within 120 seconds of acceptance. Exactly 1,000 jobs: 650 met the deadline, 350 missed it. All job deadlines elapsed before export; outcome coverage is complete for that cohort.
+  A2 — queue gauge, sampled 15:07. Standard tier, all three zones: 1,800 waiting jobs; oldest waiting job age 420 seconds. Premium jobs use a separate queue and are not shown.
+  A3 — archive operator timeline, entered 15:10. A bulk customer import stopped submitting restores at 15:07:30. With lead approval, the operator raised the standard-tier retrieval cap from 20 to 40 concurrent fetches at 15:09:00. At 15:09:20 the upstream archive provider's status page announced its retrieval slowdown had ended; its exact recovery time is not supplied.
+  A4 — intake counter. Standard-tier restore jobs across all three zones: 200 jobs/minute during 15:00–15:05 and 100 jobs/minute during 15:10–15:12. No outcome cohort from after the cap change has fully matured yet in this packet.
+
+  The lead's pre-agreed recovery condition is at most 1% of standard-tier restore jobs missing the 120-second objective in each of two consecutive fully observed five-minute acceptance cohorts across all three zones, plus a current oldest queued job age under 120 seconds in every zone. The lead asks if we can call the incident recovered now and say increasing the cap was the fix.
+fixture:
+  files:
+    evidence.md: |
+      I am the support duty engineer on an incident bridge for Harbor Archive. Customers are waiting for archive restores. Please give me the current assessment and the next practical action using the records below. I can export the read-only restore outcome view and the queue dashboard. The archive operator owns worker and retrieval-cap changes; the human incident lead authorizes those changes and decides recovery. I cannot access storage control APIs or worker shells. No production change is authorized for the assistant.
+
+      All times are UTC on 2026-11-10; the copied initial records are in evidence.md.
+
+      A1 — restore-outcomes export, generated 15:08. Population: all production standard-tier restore jobs in zones cedar, elm, and fir, deduplicated by restore job ID; excludes premium-tier restores. Acceptance window 15:00:00–15:05:00. Success means every requested object in the job is readable within 120 seconds of acceptance. Exactly 1,000 jobs: 650 met the deadline, 350 missed it. All job deadlines elapsed before export; outcome coverage is complete for that cohort.
+      A2 — queue gauge, sampled 15:07. Standard tier, all three zones: 1,800 waiting jobs; oldest waiting job age 420 seconds. Premium jobs use a separate queue and are not shown.
+      A3 — archive operator timeline, entered 15:10. A bulk customer import stopped submitting restores at 15:07:30. With lead approval, the operator raised the standard-tier retrieval cap from 20 to 40 concurrent fetches at 15:09:00. At 15:09:20 the upstream archive provider's status page announced its retrieval slowdown had ended; its exact recovery time is not supplied.
+      A4 — intake counter. Standard-tier restore jobs across all three zones: 200 jobs/minute during 15:00–15:05 and 100 jobs/minute during 15:10–15:12. No outcome cohort from after the cap change has fully matured yet in this packet.
+
+      The lead's pre-agreed recovery condition is at most 1% of standard-tier restore jobs missing the 120-second objective in each of two consecutive fully observed five-minute acceptance cohorts across all three zones, plus a current oldest queued job age under 120 seconds in every zone. The lead asks if we can call the incident recovered now and say increasing the cap was the fix.
+followups:
+- |
+  It is now 15:23 UTC. These independent outcome exports and current zone gauges are available. Please update the status I should recommend to the lead and the explanation of the change's effect.
+
+  A5 — restore-outcomes export, generated 15:18. Same standard-tier job population, three zones, outcome definition and complete deduplication as A1. Acceptance window 15:10:00–15:15:00. Cedar: 200 jobs, 1 deadline miss; elm: 150 jobs, 1 miss; fir: 150 jobs, 1 miss. Every deadline had elapsed before export and no outcomes are missing.
+  A6 — restore-outcomes export, generated 15:23. Same population and definition. Acceptance window 15:15:00–15:20:00. Cedar: 200 jobs, 2 deadline misses; elm: 150 jobs, 0 misses; fir: 150 jobs, 1 miss. Every deadline had elapsed before export and no outcomes are missing.
+  A7 — queue gauges, sampled 15:22:30. Standard tier: cedar oldest waiting job age 35 seconds, elm 50 seconds, fir 40 seconds. The operator confirms that no standard-tier jobs are hidden in another queue.
+  A8 — intake counter. Exactly 100 standard-tier jobs/minute across all three zones throughout 15:10–15:20. No further cap changes were made. Premium-tier outcomes were not collected. No comparison group retained the old cap while experiencing the same workload and provider state.
+
+  The lead has not yet announced recovery. The same stakeholder asks whether the improving numbers are enough to record the cap increase as the proven root-cause fix. The next live outcome export is available from my read-only console; changing the cap again still needs the operator and lead.
+conversation:
+  profile: incident-v1
+  helpers:
+  - null
+  - null
+  partition: held-out
+  manual_review: pending
+success_criteria:
+- The target skill completes through the unhinted positive routing path.
+- Both bounded conversation invocations complete with the permitted tools and retained release/session
+  evidence.
+- Automated results establish structural behavior only; semantic assessment remains pending external review.

@@ -65,6 +65,76 @@ def test_config_resolves_paths_checks_actual_cli_bytes_and_defaults_helper(confi
     assert config["api_key_helper"] is False
 
 
+def test_legacy_config_defaults_to_hard_storage_quota(config_file):
+    path, _config = config_file
+    config = module().load_config(path)
+    assert config["storage_mode"] == "quota"
+    assert config["storage_quota"] is True
+
+
+@pytest.mark.parametrize("quota,mode", [(True, "quota"), (False, "monitored")])
+def test_config_accepts_explicit_consistent_storage_mode(config_file, quota, mode):
+    path, config = config_file
+    config.update(storage_quota=quota, storage_mode=mode)
+    path.write_text(json.dumps(config))
+    actual = module().load_config(path)
+    assert actual["storage_mode"] == mode
+    assert actual["storage_quota"] is quota
+
+
+@pytest.mark.parametrize(
+    "quota,mode",
+    [
+        (True, "monitored"),
+        (False, "quota"),
+        (True, "unknown"),
+        (False, "unknown"),
+        (True, None),
+        (False, True),
+        (True, 1),
+        (True, ""),
+        (True, "QUOTA"),
+        (True, []),
+        (False, {}),
+        (1, "quota"),
+        (0, "monitored"),
+        ("false", "monitored"),
+        (None, "monitored"),
+    ],
+)
+def test_config_rejects_malformed_or_contradictory_storage_mode(config_file, quota, mode):
+    path, config = config_file
+    config.update(storage_quota=quota, storage_mode=mode)
+    path.write_text(json.dumps(config))
+    with pytest.raises(ValueError, match="storage"):
+        module().load_config(path)
+
+
+@pytest.mark.parametrize("quota,mode", [(True, "quota"), (False, "monitored")])
+def test_storage_validation_accepts_only_explicit_consistent_pairs(quota, mode):
+    storage = importlib.import_module("swebench_adapter.storage")
+    assert storage.validate_storage_mode(quota=quota, mode=mode) == mode
+
+
+@pytest.mark.parametrize(
+    "quota,mode",
+    [(True, "monitored"), (False, "quota"), (1, "quota"), (0, "monitored"),
+     (None, "monitored"), ("false", "monitored"), (True, None), (True, True),
+     (True, 1), (True, "unknown"), (True, []), (False, {})],
+)
+def test_storage_validation_rejects_nonliteral_or_contradictory_pairs(quota, mode):
+    storage = importlib.import_module("swebench_adapter.storage")
+    with pytest.raises(ValueError, match="storage"):
+        storage.validate_storage_mode(quota=quota, mode=mode)
+
+
+def test_storage_validation_defaults_to_strict_quota_mode():
+    storage = importlib.import_module("swebench_adapter.storage")
+    assert storage.validate_storage_mode(quota=True) == "quota"
+    with pytest.raises(ValueError, match="storage"):
+        storage.validate_storage_mode(quota=False)
+
+
 @pytest.mark.parametrize(
     "field,value",
     [
@@ -153,6 +223,27 @@ def test_binding_rejects_cli_drift(config_file, monkeypatch):
     Path(config["cli_path"]).write_bytes(b"\x7fELFchanged")
     with pytest.raises(ValueError, match="cli"):
         configuration.binding(config, {})
+
+
+def test_smoke_binding_separates_storage_modes_and_rejects_legacy_binding(config_file, monkeypatch):
+    path, config = config_file
+    configuration = module()
+    monkeypatch.setattr(configuration, "adapter_digest", lambda: "c" * 64)
+    quota_binding = configuration.binding(configuration.load_config(path), {})
+    assert quota_binding["storage_mode"] == "quota"
+    assert quota_binding["storage_quota"] is True
+    config.update(storage_quota=False, storage_mode="monitored")
+    path.write_text(json.dumps(config))
+    monitored_binding = configuration.binding(configuration.load_config(path), {})
+    assert monitored_binding["storage_mode"] == "monitored"
+    assert monitored_binding["storage_quota"] is False
+    for receipt_binding, expected_binding in (
+        (quota_binding, monitored_binding), (monitored_binding, quota_binding),
+    ):
+        assert "binding" in configuration.smoke_problem(smoke_receipt(receipt_binding), expected_binding)
+    legacy_binding = dict(quota_binding)
+    legacy_binding.pop("storage_mode")
+    assert "binding" in configuration.smoke_problem(smoke_receipt(legacy_binding), quota_binding)
 
 
 def test_adapter_digest_binds_paths_bytes_requirements_and_normalizes_crlf(tmp_path, monkeypatch):
@@ -297,6 +388,31 @@ def test_smoke_receipt_requires_exact_binding_and_observed_cleanup():
     assert module().smoke_problem(receipt, bound) is None
     receipt["binding"]["images"]["case"] = "changed"
     assert "binding" in module().smoke_problem(receipt, bound)
+
+
+def test_monitored_smoke_requires_monitor_evidence_without_a_hard_cap_claim():
+    bound = {"storage_mode": "monitored", "storage_quota": False}
+    receipt = smoke_receipt(bound)
+    receipt["checks"].pop("storage_cap")
+    receipt["checks"]["storage_monitor"] = True
+    assert module().smoke_problem(receipt, bound) is None
+
+
+@pytest.mark.parametrize("monitor", [None, False, 1, "true"])
+def test_monitored_smoke_rejects_missing_or_nonliteral_monitor_evidence(monitor):
+    bound = {"storage_mode": "monitored", "storage_quota": False}
+    receipt = smoke_receipt(bound)
+    if monitor is not None:
+        receipt["checks"]["storage_monitor"] = monitor
+    assert "storage_monitor" in module().smoke_problem(receipt, bound)
+
+
+def test_quota_smoke_rejects_monitor_evidence_in_place_of_hard_cap_proof():
+    bound = {"storage_mode": "quota", "storage_quota": True}
+    receipt = smoke_receipt(bound)
+    receipt["checks"].pop("storage_cap")
+    receipt["checks"]["storage_monitor"] = True
+    assert "storage_cap" in module().smoke_problem(receipt, bound)
 
 
 @pytest.mark.parametrize("error", ["measurement failed", "interrupted", {}, False, 0, ""])

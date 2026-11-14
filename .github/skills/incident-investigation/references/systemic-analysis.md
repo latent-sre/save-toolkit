@@ -1,7 +1,8 @@
-# Systemic analysis with the human responder
+# Systemic analysis
 
 Use for shared impact, cascades, feedback, stalled partitions or harm persisting after trigger removal.
-This is incident advice, not a separate command channel or authority to run experiments.
+Use under the caller's lane: the advisor recommends checks to the responder; a bounded SRE
+investigation performs permitted reads and returns findings. Neither gains new authority here.
 
 ## Find the boundary that failed to contain harm
 
@@ -36,6 +37,7 @@ Distinguish observed change, current state, and sustained recovery. A rollback a
 establish that the trigger disappeared, and a lower aggregate error rate may hide a still-stuck
 partition. Verify the affected population and the agreed recovery window before human resolution.
 
-Keep findings and owners in the existing board. Prevention proposals need supporting evidence and
-an earlier-warning signal (for example retry amplification or oldest-item age). Return code/design
+Keep findings and owners in the advisor's existing board or the SRE return packet. Prevention
+proposals need supporting evidence and an earlier-warning signal (for example retry amplification
+or oldest-item age). Return code/design
 and observability work to the caller; closeout follows human recovery.

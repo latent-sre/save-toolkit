@@ -3,6 +3,7 @@
 import ctypes
 import importlib
 import io
+import itertools
 import json
 import os
 import subprocess
@@ -322,6 +323,113 @@ def test_storage_requires_one_exact_full_id_row(rows):
     assert api.killed.is_set()
 
 
+def test_monitored_sdk_observation_accumulates_across_wrapper_and_harness_calls():
+    module = limits()
+    observation = {}
+    api = DockerAPI(sizes=(3, 50, 8, 4))
+    wrapped = module.BoundedContainer(Container(api), storage_quota=False, storage_observation=observation)
+    assert wrapped.exec_run("first").output == b"hello\n"
+    assert module.bounded_exec(wrapped, "second")[0] == "hello\n"
+    assert observation == {
+        "mode": "monitored",
+        "target_bytes": 10_737_418_240,
+        "hard_enforced": False,
+        "observed_peak_bytes": 50,
+        "samples": 4,
+        "stop": None,
+    }
+    assert all("storage_observation" not in options for _, _, options in api.created)
+
+
+def test_sdk_storage_limit_carries_sampled_size_and_shared_stop_receipt():
+    module = limits()
+    observation = {"mode": "monitored"}
+    api = DockerAPI(sizes=(2, 10_737_418_241))
+    with pytest.raises(module.ExecutionLimit) as error:
+        module.bounded_exec(Container(api), "test", storage_observation=observation)
+    assert error.value.kind == "storage_limit"
+    assert error.value.storage_bytes == 10_737_418_241
+    assert observation["observed_peak_bytes"] == 10_737_418_241
+    assert observation["samples"] == 2 and observation["stop"] == "storage_limit"
+    assert api.killed.is_set()
+
+
+@pytest.mark.parametrize("size", [None, True, -1])
+def test_invalid_sdk_storage_preserves_previous_valid_sample(size):
+    module = limits()
+    observation = {"mode": "monitored"}
+    api = DockerAPI(sizes=(23, size))
+    with pytest.raises(module.ExecutionLimit) as error:
+        module.bounded_exec(Container(api), "test", storage_observation=observation)
+    assert error.value.kind == "monitor_failure" and error.value.storage_bytes is None
+    assert observation["observed_peak_bytes"] == 23
+    assert observation["samples"] == 1 and observation["stop"] == "monitor_failure"
+    assert api.killed.is_set()
+
+
+def test_monitored_sdk_polling_uses_five_second_interval(monkeypatch):
+    module = limits()
+    observation = {}
+    api = DockerAPI(sizes=(0, 10_737_418_241), blocked=True)
+    wrapped = module.BoundedContainer(Container(api), storage_quota=False, storage_observation=observation)
+    clock = [0]
+    sampled_at = []
+    real_measure = api.containers
+
+    def tick():
+        clock[0] += 1
+        return clock[0]
+
+    def measure(**kwargs):
+        sampled_at.append(clock[0])
+        return real_measure(**kwargs)
+
+    api.containers = measure
+    monkeypatch.setattr(module.time, "monotonic", tick)
+    with pytest.raises(module.ExecutionLimit) as error:
+        module.bounded_exec(wrapped, "test", 20)
+    assert error.value.kind == "storage_limit"
+    assert observation["samples"] == 2 and observation["stop"] == "storage_limit"
+    assert sampled_at[1] - sampled_at[0] == 5
+    assert api.killed.is_set()
+
+
+def test_monitored_sdk_timeout_records_stop_and_preserves_sample():
+    module = limits()
+    observation = {}
+    api = DockerAPI(sizes=(31,), blocked=True)
+    wrapped = module.BoundedContainer(Container(api), storage_quota=False, storage_observation=observation)
+    assert module.bounded_exec(wrapped, "test", 0.03)[1] is True
+    assert observation["observed_peak_bytes"] == 31
+    assert observation["samples"] == 1 and observation["stop"] == "timeout"
+    assert api.killed.is_set()
+
+
+def test_monitored_sdk_interruption_records_stop_and_kills_container(monkeypatch):
+    module = limits()
+    observation = {}
+    api = DockerAPI(sizes=(41,), blocked=True)
+    wrapped = module.BoundedContainer(Container(api), storage_quota=False, storage_observation=observation)
+    real_storage = module._storage
+    calls = 0
+
+    def interrupt_after_sample(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            raise KeyboardInterrupt
+        return real_storage(*args, **kwargs)
+
+    monkeypatch.setattr(module, "_storage", interrupt_after_sample)
+    clock = itertools.count(step=1)
+    monkeypatch.setattr(module.time, "monotonic", lambda: next(clock))
+    with pytest.raises(KeyboardInterrupt):
+        module.bounded_exec(wrapped, "test", 20)
+    assert observation["observed_peak_bytes"] == 41
+    assert observation["samples"] == 1 and observation["stop"] == "interrupted"
+    assert api.killed.is_set()
+
+
 @pytest.mark.skipif(os.name != "posix", reason="POSIX process-group regression")
 def test_exited_parent_cannot_leave_descendant_holding_pipes(tmp_path):
     sentinel = tmp_path / "descendant-survived"
@@ -385,6 +493,7 @@ class FakeWinKernel:
             "OpenThread",
             "ResumeThread",
             "TerminateJobObject",
+            "QueryInformationJobObject",
             "CloseHandle",
             "GetLastError",
         ):
@@ -422,6 +531,11 @@ class FakeWinKernel:
             assert args == (2, False, 43)
             return 104
         if name == "ResumeThread":
+            return 1
+        if name == "QueryInformationJobObject":
+            info = ctypes.cast(args[2], ctypes.POINTER(self.windows._BasicAccounting)).contents
+            assert args[1] == 1
+            info.ActiveProcesses = next(self.active_counts, 0) if hasattr(self, "active_counts") else 0
             return 1
         return 1
 
@@ -503,10 +617,31 @@ def test_windows_job_failed_termination_cannot_claim_clean_cleanup(tmp_path, mon
     assert ("CloseHandle", (101,)) in kernel.events
 
 
+def test_windows_job_cleanup_waits_for_empty_accounting():
+    windows = importlib.import_module("swebench_adapter.windows_job")
+    kernel = FakeWinKernel(windows)
+    kernel.active_counts = iter([2, 0])
+    assert windows.WindowsJob(kernel=kernel).close()
+    assert [name for name, _ in kernel.events].count("QueryInformationJobObject") == 2
+
+
+@pytest.mark.parametrize("failure", ["QueryInformationJobObject", "nonempty"])
+def test_windows_job_unknown_or_nonempty_accounting_cannot_claim_clean_cleanup(monkeypatch, failure):
+    windows = importlib.import_module("swebench_adapter.windows_job")
+    kernel = FakeWinKernel(windows, failure=failure)
+    kernel.active_counts = itertools.repeat(1)
+    ticks = itertools.count(step=6)
+    monkeypatch.setattr(time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(time, "sleep", lambda _seconds: None)
+    assert not windows.WindowsJob(kernel=kernel).close()
+    assert ("CloseHandle", (101,)) in kernel.events
+
+
 def test_windows_native_layout_uses_fixed_width_fields_and_pointer_sized_handles():
     windows = importlib.import_module("swebench_adapter.windows_job")
     assert ctypes.sizeof(windows._ThreadEntry) == 28
     assert ctypes.sizeof(windows._IOCounters) == 48
+    assert ctypes.sizeof(windows._BasicAccounting) == 48
     if ctypes.sizeof(ctypes.c_void_p) == 8:
         assert ctypes.sizeof(windows._BasicLimits) == 64
         assert ctypes.sizeof(windows._ExtendedLimits) == 144

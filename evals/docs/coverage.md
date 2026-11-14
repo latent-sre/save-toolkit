@@ -13,7 +13,7 @@ python evals/catalog.py show --suite gcp-investigation
 python evals/catalog.py campaigns
 ```
 
-[verified] The inventory contains 396 native scenarios, 147 root-suite Python test
+[verified] The inventory contains 417 native scenarios, 154 root-suite Python test
 files, 34 suites, and 24 track records. Every current native scenario and root test file belongs to
 at least one named suite. Suites overlap intentionally; their counts must not be added to estimate
 independent coverage. The live `coverage` output derives counts and lists unassigned IDs/files if

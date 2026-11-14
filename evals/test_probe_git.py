@@ -36,6 +36,7 @@ class GitEvidenceTests(TempRootTestCase):
         layout.write_json(self.root / "grading.json", grading)
         layout.write_json(self.root / "git.json", {"changed_files": ctx.git.changed, "git_problem": ctx.git.problem})
 
+    @unittest.skipIf(os.name == "nt", "Windows filenames cannot contain arbitrary undecodable bytes")
     def test_a_non_utf8_name_cannot_hide_behind_a_name_that_spells_its_escape(self) -> None:
         """`\\xff` is how a byte that is not UTF-8 is written as text, and also a name a file can carry
         literally: a forbidden needle in the first must not pass because the second, benign, shares

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "id": "evidence-isolation-v1",
+  "partition": "development",
+  "human_calibration": "unmeasured",
+  "purpose": "Separate exact retrieval from interpretation and directly supplied versus file-retrieved evidence.",
+  "profiles": [
+    {
+      "arm": "retrieval",
+      "path": "evals/scenarios/evidence-isolation-v1-retrieval.yaml",
+      "id": "evidence-isolation-v1-retrieval",
+      "sha256": "78acde6b34da6133783e8ba5daa47715bc3cbb094e484a5ce90eaee99de92024",
+      "case_sha256": "70cc3f3c5c7dc5f772b1fd788570748d7702f8f5eb349dfbea41d8dbb4509a1e"
+    },
+    {
+      "arm": "interpretation-direct",
+      "path": "evals/scenarios/evidence-isolation-v1-interpretation-direct.yaml",
+      "id": "evidence-isolation-v1-interpretation-direct",
+      "sha256": "c32c7c62a52c86ee05d50463997bb8ed76e3449ea2727b29973a2b723cca27fd",
+      "case_sha256": "57d1a5e5cfd555e27a990fc998cc962bf6753c92c9d412a3f2766f3a6861bd17"
+    },
+    {
+      "arm": "interpretation-files",
+      "path": "evals/scenarios/evidence-isolation-v1-interpretation-files.yaml",
+      "id": "evidence-isolation-v1-interpretation-files",
+      "sha256": "c65535867b31d5d3dced62b0d862bae44da5214a06d18c89b806e49f622f9849",
+      "case_sha256": "86d580350e4ccdd2d72149299751df6884840dc589013691dc9bea1ca253c25f"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "records.json",
+      "sha256": "7b33c520cf618055955bc45221a9c350a9b7a6635eada043de33ac6050abb61c"
+    },
+    {
+      "path": "review.json",
+      "sha256": "2881abde0bf805043414fdce990763c2732ee8fa25995ea5d45391fd131f4b69"
+    },
+    {
+      "path": "run-plan.json",
+      "sha256": "b43c2a62dd860479a9bc28aac82eb9346dc590e9337ee1e8c681c2202868b7c8"
+    },
+    {
+      "path": "README.md",
+      "sha256": "e8226fde34a88d923b4ae2bf5ec6e081aac6a2659bce9c556e46b4d89119a80a"
+    },
+    {
+      "path": "report-selection.json",
+      "sha256": "4b8782695def51af3dbca675c92093eee1d8511c3d15c191151422651c859e93"
+    }
+  ]
+}

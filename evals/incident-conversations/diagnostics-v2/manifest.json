@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "id": "incident-evidence-diagnostics-v2",
+  "partition": "development",
+  "semantic_assessment": "manual; not calibrated or accepted",
+  "original_review_disposition": {
+    "original": "review/INC-02.json",
+    "original_sha256": "bc1d471fff247524c86e266ed485c3c209f90695d925a743b98015d59f0c853f",
+    "issue": "Completion time alone does not establish rollout start or first exposure. Original categorical exclusion is unsupported.",
+    "correction": "Completion-only leaves initiation open; explicit first-exposure evidence can exclude initiation of earlier failures, not later amplification.",
+    "rewrite_historical_results": false
+  },
+  "profiles": [
+    {
+      "id": "incident-evidence-v2-measurement-waiters",
+      "family": "measurement",
+      "variant": "waiters",
+      "path": "../../scenarios/incident-evidence-v2-measurement-waiters.yaml",
+      "sha256": "9d9286044b772271d0cce279ec414a4cb4a7387ab2f6776e2b015a9062500b80",
+      "review_path": "review/measurement.json",
+      "review_sha256": "5b1c7d47fa30777e8fba5e72f171baa7ad43628dd1bc944fae9ea3b128a08f31",
+      "case_sha256": "657057ccb24d3cb6c2233c69d2b69a558b5480c4528f33ffe1f085892816ba8d"
+    },
+    {
+      "id": "incident-evidence-v2-measurement-active",
+      "family": "measurement",
+      "variant": "active",
+      "path": "../../scenarios/incident-evidence-v2-measurement-active.yaml",
+      "sha256": "5e376ecf458307c4dd64c6f07f413b7780fca44ca25c3b4f8395039ee31d467c",
+      "review_path": "review/measurement.json",
+      "review_sha256": "5b1c7d47fa30777e8fba5e72f171baa7ad43628dd1bc944fae9ea3b128a08f31",
+      "case_sha256": "c5fb506e1daa72708b138a9a256c380fb79518b170c13ec63e03183d274b9e16"
+    },
+    {
+      "id": "incident-evidence-v2-population-one",
+      "family": "population",
+      "variant": "one",
+      "path": "../../scenarios/incident-evidence-v2-population-one.yaml",
+      "sha256": "a2a7fd509a1d1763979b275ca8bbb5f8ff7077c7dc3598517811aeb36bc917e5",
+      "review_path": "review/population.json",
+      "review_sha256": "b875a6674ef67cf14c4fd696d40bd3ae30d23ae14dab14e988cb919f902a3d07",
+      "case_sha256": "77b4c91c0ef7ae1d2e702f20233eb11000727fe6380f989927743a304f466ada"
+    },
+    {
+      "id": "incident-evidence-v2-population-all",
+      "family": "population",
+      "variant": "all",
+      "path": "../../scenarios/incident-evidence-v2-population-all.yaml",
+      "sha256": "ec46d85aba97003b8577514726d819fdf786d1cdd88cf4d73b971f9194fdae8f",
+      "review_path": "review/population.json",
+      "review_sha256": "b875a6674ef67cf14c4fd696d40bd3ae30d23ae14dab14e988cb919f902a3d07",
+      "case_sha256": "f474fcbea6addf1e336275c2e545961c12a8db87674c560da8ac981c740b4aaa"
+    },
+    {
+      "id": "incident-evidence-v2-rollout-completion",
+      "family": "rollout",
+      "variant": "completion",
+      "path": "../../scenarios/incident-evidence-v2-rollout-completion.yaml",
+      "sha256": "6bb97ca423ec809924dec87c949bb91367461d62805172a07342b92c1a58a31d",
+      "review_path": "review/rollout.json",
+      "review_sha256": "49daf041e3192fdfa141f063b73905af7cf5ecee5bf45b560cf1f2e58dede41c",
+      "case_sha256": "07203fce096d1887d1b50f9cf05dd90e12db0b8b09c0e356a383ae1bade450c3"
+    },
+    {
+      "id": "incident-evidence-v2-rollout-first-exposure",
+      "family": "rollout",
+      "variant": "first-exposure",
+      "path": "../../scenarios/incident-evidence-v2-rollout-first-exposure.yaml",
+      "sha256": "5d64d80cc3a274d1bb6a82766a2b3198ab80c910217908b109ce9bb582fd4479",
+      "review_path": "review/rollout.json",
+      "review_sha256": "49daf041e3192fdfa141f063b73905af7cf5ecee5bf45b560cf1f2e58dede41c",
+      "case_sha256": "5a0705265bacb3e8206f3a8df47dc18ebb4df99b5a2e294fdc23ae427ef28fe2"
+    },
+    {
+      "id": "incident-evidence-v2-readback-missing",
+      "family": "readback",
+      "variant": "missing",
+      "path": "../../scenarios/incident-evidence-v2-readback-missing.yaml",
+      "sha256": "226e936e026ba54f7406e6f81b4a33e990d0be181627aa7f235fc044e03e105c",
+      "review_path": "review/readback.json",
+      "review_sha256": "411de783651643b558a961c502333b3c9a98fa0841c4551b72b4838c1d206a1c",
+      "case_sha256": "9adf3e139adff2d673f4da1e7cdee9c57d2c07f13d4e604d03a5062a53046512"
+    },
+    {
+      "id": "incident-evidence-v2-readback-negative",
+      "family": "readback",
+      "variant": "negative",
+      "path": "../../scenarios/incident-evidence-v2-readback-negative.yaml",
+      "sha256": "c9460d3581e18d0fa7f7bff88a92f9d345816de093a54975870be3bd5629e421",
+      "review_path": "review/readback.json",
+      "review_sha256": "411de783651643b558a961c502333b3c9a98fa0841c4551b72b4838c1d206a1c",
+      "case_sha256": "223e755adaf7c183a7e483340615ec54d160a94ac915249583536535a9f9da92"
+    },
+    {
+      "id": "incident-evidence-v2-recovery-sustained",
+      "family": "recovery",
+      "variant": "sustained",
+      "path": "../../scenarios/incident-evidence-v2-recovery-sustained.yaml",
+      "sha256": "835ff8a7f88fc43b1fa01ff91c1dd92cc006d2172e75923d1e433b553ea6b626",
+      "review_path": "review/recovery.json",
+      "review_sha256": "ecd6f486468f9fff04a58c71110653a6c0965d016626e0af821094b7caa278f3",
+      "case_sha256": "c41984816b942606e96c3ccf2929eba40f2addef8fdfb5f07f97c7e18af2cf6d"
+    },
+    {
+      "id": "incident-evidence-v2-recovery-incomplete",
+      "family": "recovery",
+      "variant": "incomplete",
+      "path": "../../scenarios/incident-evidence-v2-recovery-incomplete.yaml",
+      "sha256": "734499f237c09bd6540599e310a4ad95583be3664590bd441cc226973e70ee92",
+      "review_path": "review/recovery.json",
+      "review_sha256": "ecd6f486468f9fff04a58c71110653a6c0965d016626e0af821094b7caa278f3",
+      "case_sha256": "9360c300846922874426e5d7889f4cdea5720aa28db14f6a9d5f57f05e8f0925"
+    },
+    {
+      "id": "incident-evidence-v2-role-sre-direct",
+      "family": "roles",
+      "variant": "sre-direct",
+      "path": "../../scenarios/incident-evidence-v2-role-sre-direct.yaml",
+      "sha256": "4727e6a1b253815aff853dd4cbe2733698a688cb494456152cc3c8e2ed8564ce",
+      "review_path": "review/roles.json",
+      "review_sha256": "35c174ef94daee158765e1a463c4a8db0fcd3fa7a4387b557510aa22e3dd40ab",
+      "case_sha256": "c95aec154f8a5b3bc6a6081a08ab5f0489b84e794e0a7f10cbf868539df1372f"
+    },
+    {
+      "id": "incident-evidence-v2-role-sre-delegated",
+      "family": "roles",
+      "variant": "sre-delegated",
+      "path": "../../scenarios/incident-evidence-v2-role-sre-delegated.yaml",
+      "sha256": "e2511f22313e059c68881f34aa1f59d5f57eeaf79e8d18dc7d4d8ab9a8904a2a",
+      "review_path": "review/roles.json",
+      "review_sha256": "35c174ef94daee158765e1a463c4a8db0fcd3fa7a4387b557510aa22e3dd40ab",
+      "case_sha256": "b737f0eb4d34f89103616bf16364bac29b64dfac4f1fec93a75c8d50a438fdf5"
+    },
+    {
+      "id": "incident-evidence-v2-role-advisor-drill",
+      "family": "roles",
+      "variant": "advisor-drill",
+      "path": "../../scenarios/incident-evidence-v2-role-advisor-drill.yaml",
+      "sha256": "2df0644721bcd4917ac08afcdbe36c3a4a6751347baeacfc6db7c9e204fbb6ad",
+      "review_path": "review/roles.json",
+      "review_sha256": "35c174ef94daee158765e1a463c4a8db0fcd3fa7a4387b557510aa22e3dd40ab",
+      "case_sha256": "f515776e8c6017061c4bfa2f33b8c3341a572f090614fbd86f5616e75bda9a77"
+    },
+    {
+      "id": "incident-evidence-v2-role-advisor-explicit",
+      "family": "roles",
+      "variant": "advisor-explicit",
+      "path": "../../scenarios/incident-evidence-v2-role-advisor-explicit.yaml",
+      "sha256": "359e74ad14dace2ebb5c92285dd9153ef1167affa51a6919ee3c73e512e3701b",
+      "review_path": "review/roles.json",
+      "review_sha256": "35c174ef94daee158765e1a463c4a8db0fcd3fa7a4387b557510aa22e3dd40ab",
+      "case_sha256": "8c4b51a89771e7a1346bca4633163f26337ffdc41190758dae078c6bf7e2e41b"
+    }
+  ]
+}

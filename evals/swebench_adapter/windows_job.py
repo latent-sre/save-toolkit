@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ctypes
+import time
 from typing import Any, ClassVar
 
 
@@ -62,6 +63,16 @@ class _ThreadEntry(ctypes.Structure):
     ]
 
 
+class _BasicAccounting(ctypes.Structure):
+    _fields_: ClassVar[list[tuple[str, Any]]] = [
+        (name, ctypes.c_int64)
+        for name in ("TotalUserTime", "TotalKernelTime", "ThisPeriodTotalUserTime", "ThisPeriodTotalKernelTime")
+    ] + [
+        (name, ctypes.c_uint32)
+        for name in ("TotalPageFaultCount", "TotalProcesses", "ActiveProcesses", "TotalTerminatedProcesses")
+    ]
+
+
 def _signatures(kernel: Any) -> None:
     handle, dword, boolean = ctypes.c_void_p, ctypes.c_uint32, ctypes.c_int32
     signatures = {
@@ -75,6 +86,7 @@ def _signatures(kernel: Any) -> None:
         "OpenThread": (handle, [dword, boolean, dword]),
         "ResumeThread": (dword, [handle]),
         "TerminateJobObject": (boolean, [handle, dword]),
+        "QueryInformationJobObject": (boolean, [handle, ctypes.c_int32, handle, dword, handle]),
         "CloseHandle": (boolean, [handle]),
         "GetLastError": (dword, []),
     }
@@ -158,14 +170,31 @@ class WindowsJob:
             if not self._kernel.CloseHandle(thread):
                 raise JobError
 
+    def _wait_empty(self) -> bool:
+        deadline = time.monotonic() + 10
+        while True:
+            accounting = _BasicAccounting()
+            if not self._kernel.QueryInformationJobObject(
+                self._handle, 1, ctypes.byref(accounting), ctypes.sizeof(accounting), None
+            ):
+                return False
+            if accounting.ActiveProcesses == 0:
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(0.01)
+
     def close(self) -> bool:
         if self._handle is None:
             return self._clean
         # Keep job ownership after the root process exits. Closing its last
         # private handle is a second termination boundary for all descendants.
-        terminated = bool(self._kernel.TerminateJobObject(self._handle, 1))
-        closed = bool(self._kernel.CloseHandle(self._handle))
-        self._clean = terminated and closed
-        if closed:
-            self._handle = None
+        clean = False
+        try:
+            clean = bool(self._kernel.TerminateJobObject(self._handle, 1)) and self._wait_empty()
+        finally:
+            closed = bool(self._kernel.CloseHandle(self._handle))
+            self._clean = clean and closed
+            if closed:
+                self._handle = None
         return self._clean

@@ -31,7 +31,7 @@ supported tool/API calls to an authorized agent. Missing access leaves an unappl
 | Review or upgrade assessment; check exported Classic, V1 or V2 JSON | [Read-only review](./references/read-only-review.md), [dashboard_hygiene.py](./scripts/dashboard_hygiene.py) |
 | API versions, concurrency, history, recovery; model/variable details | [HTTP API](./references/http-api.md), [Dashboard JSON](./references/json-model.md) |
 | Grafana provisioning, evaluation settings, rule groups, contact points, or policies | [Alerting configuration](./references/grafana-alerting.md) |
-| A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [HTTP API tooling and scope](./references/http-api.md#credentials-and-effective-scope); none is adopted |
+| A Grafana CLI, MCP server, vendor skill, or SDK is installed or proposed | [HTTP API tooling and scope](./references/http-api.md#credentials-and-effective-scope); gcx is selected for the read-only access migration |
 | Wavefront/Splunk plugins or entitlement | [Dashboard design data sources](./references/dashboard-design.md#new-dashboard-conventions) |
 | Repair or interpret a query | `obs-analysis` and its matching signal/backend references |
 

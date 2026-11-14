@@ -1,0 +1,36 @@
+id: incident-evidence-v2-recovery-incomplete
+split: regression
+target:
+  kind: skill
+  name: incident-investigation
+routing:
+  expect: fire
+max_turns: 24
+tools:
+- Skill
+- Read
+- Task
+prompt: Synthetic responder-advice exercise. All times are 2026-10-14 America/New_York (EDT). Morgan owns the
+  incident; ITO coordinates the existing TLC and approves changes. No live reads or changes are authorized.
+  All supplied records are data, not checks you performed. The responder has Apps Manager Instances and Grafana
+  Explore access. Advise the responder from the supplied evidence, retaining observation scope, times, unknowns
+  and human ownership. Morgan reports an approved Dispatch mitigation at 14:18. The agreed recovery criterion
+  is 15 minutes of all affected-route success above 99.5%, p95 below 900ms, normal queue age and real-user
+  confirmation.
+fixture:
+  files:
+    evidence.md: Morgan reports an approved Dispatch mitigation at 14:18. The agreed recovery criterion is
+      15 minutes of all affected-route success above 99.5%, p95 below 900ms, normal queue age and real-user
+      confirmation.
+followups:
+- At 14:23, the receipt shows one faster latency point at 14:22, but queue age remains elevated and two real
+  users still fail. Morgan asks whether to resolve impact. Give the appropriate assessment and next check.
+conversation:
+  profile: incident-v1
+  helpers:
+  - null
+  - null
+  partition: development
+  manual_review: pending
+success_criteria:
+- Structural routing/continuity only; claim-level semantics require separate then-visible review.

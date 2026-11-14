@@ -37,7 +37,11 @@ def _clean(value: object) -> bool:
     )
 
 
-def assess_smoke(observed: Mapping[str, Any], cleanup: list[dict[str, Any]]) -> dict[str, bool]:
+def assess_smoke(
+    observed: Mapping[str, Any], cleanup: list[dict[str, Any]], *, storage_mode: str = "quota"
+) -> dict[str, bool]:
+    if type(storage_mode) is not str or storage_mode not in {"quota", "monitored"}:
+        raise ValueError("invalid storage mode")
     reference, empty = _object(observed.get("reference")), _object(observed.get("empty"))
     allow, deny = _object(observed.get("guard_allow")), _object(observed.get("guard_deny"))
     try:
@@ -84,7 +88,7 @@ def assess_smoke(observed: Mapping[str, Any], cleanup: list[dict[str, Any]]) -> 
         and _object(network.get("Options")).get("com.docker.network.bridge.gateway_mode_ipv4") == "isolated"
     )
     storage = _object(observed.get("storage"))
-    return {
+    checks = {
         "reference_resolves": reference.get("outcome") == "PASS" and _clean(reference.get("cleanup")),
         "empty_rejected": empty.get("outcome") == "FAIL"
         and empty.get("baseline") is True
@@ -106,6 +110,22 @@ def assess_smoke(observed: Mapping[str, Any], cleanup: list[dict[str, Any]]) -> 
         "storage_cap": storage.get("quota_rejected") is True,
         "cleanup": _clean(cleanup),
     }
+    if storage_mode == "monitored":
+        checks.pop("storage_cap")
+        samples, peak = storage.get("samples"), storage.get("observed_peak_bytes")
+        checks["storage_monitor"] = (
+            storage.get("mode") == "monitored"
+            and storage.get("target_bytes") == STORAGE_LIMIT
+            and storage.get("hard_enforced") is False
+            and storage.get("quota_rejected") is False
+            and type(samples) is int
+            and samples > 0
+            and type(peak) is int
+            and peak > STORAGE_LIMIT
+            and storage.get("stop") == "storage_limit"
+            and _clean(cleanup)
+        )
+    return checks
 
 
 def cpu_probe(seconds: float = 5.0) -> str:
@@ -224,6 +244,7 @@ def run_smoke(
     task = resolve_task(manifest, rows, manifest["tasks"][0]["instance_id"])
     docker = Docker()
     bound = runtime_binding(config, manifest, docker)
+    storage_mode = config.get("storage_mode", "quota")
     output.mkdir(mode=0o700, parents=True, exist_ok=False)
     resources = DockerResources(docker, "wp08-" + uuid.uuid4().hex)
     observed: dict[str, Any] = {}
@@ -242,6 +263,7 @@ def run_smoke(
             image,
             docker,
             storage_quota=config["storage_quota"],
+            storage_mode=storage_mode,
         )
         if not _clean(observed["reference"].get("cleanup")):
             raise RuntimeError("reference verifier cleanup unresolved")
@@ -254,6 +276,7 @@ def run_smoke(
             docker,
             baseline=True,
             storage_quota=config["storage_quota"],
+            storage_mode=storage_mode,
         )
         if not _clean(observed["reference"].get("cleanup")) or not _clean(observed["empty"].get("cleanup")):
             raise RuntimeError("verifier cleanup unresolved")
@@ -285,6 +308,7 @@ def run_smoke(
                 agent_environment(config, token),
                 relay,
                 storage_quota=config["storage_quota"],
+                storage_mode=storage_mode,
             )
             resources.setup_repository(container, task["base_commit"])
             version = docker.call(["exec", container, "/opt/claude", "--version"]).stdout.decode().strip()
@@ -333,7 +357,9 @@ def run_smoke(
             except ValueError:
                 filled = {}
             storage_opt = _object(_object(observed["container"].get("HostConfig")).get("StorageOpt"))
+            monitored = resources.storage_observations.get(container, {}) if storage_mode == "monitored" else {}
             observed["storage"] = {
+                **monitored,
                 "stop": fill.stop,
                 "quota_rejected": bool(
                     config["storage_quota"]
@@ -372,7 +398,7 @@ def run_smoke(
             cleanup.append(
                 {"kind": "proxy", "name": "model-free-upstream", "present": present, "removed": present is False}
             )
-    checks = assess_smoke(observed, cleanup)
+    checks = assess_smoke(observed, cleanup, storage_mode=storage_mode)
     receipt = {
         "format": "wp08-smoke",
         "schema_version": 1,

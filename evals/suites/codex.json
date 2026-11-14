@@ -5,7 +5,9 @@
   "tests": [
     "evals/test_codex_gcp_queries.py",
     "evals/test_codex_probe.py",
-    "evals/test_codex_profiles.py"
+    "evals/test_codex_profiles.py",
+    "evals/test_codex_wp04.py",
+    "evals/test_codex_wp04_tools.py"
   ],
   "native_scenarios": [],
   "campaigns": [],
