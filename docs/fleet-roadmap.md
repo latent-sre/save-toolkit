@@ -23,101 +23,59 @@ records do not re-queue work.
 
 ## Repository work
 
-### EVAL-016 — prove the Inspect orchestration matches the native batch, then decide what it replaces
+<a id="sre-cf-001--complete-protected-sre-investigation-access"></a>
 
-**Status:** `active` (2026-11-02). `evals/inspect_fleet.py` runs the native routing and contract
-trials as an Inspect task with grading unchanged; its offline tests pass, and no paid run has
-compared it with `build_probe.py run`.
-**Owner:** Maintainers run the paid parity comparison and approve its budget; the repository owner
-decides the replacement inventory afterwards.
-**Outcome:** One frozen selection run through both paths on the same model, CLI and host shows the
-same per-scenario verdicts under `build_probe.py regrade`, with timing, cost and any INCONCLUSIVE
-reasons recorded; a follow-up decision then names which native batch code Inspect replaces, or the
-track is relabelled as scheduling only.
-**Next action:** A maintainer follows the [parity run plan](fleet-evaluation/run-plan-inspect-native-parity.md)
-on a host with Claude credentials and a current judge calibration, and files the comparison under
-`docs/reviews/`.
-**Evidence:** none yet; the [decision](decisions/2026-11-02-inspect-orchestrates-native-runner.md)
-records the design and its rollback.
-**SRE task:** Read one `inspect view` log of a fleet regression instead of a directory of records,
-trusting it only once it is known to say what the native batch says.
+### SRE-CF-001 — complete protected Grafana investigation access
 
-### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
-
-**Status:** `active` (2026-10-02); comprehensive product specification and delivery planning.
-**Owner:** Human product owner accepts scope and release decisions; implementation and
-verification owners are assigned before each delivery phase.
-**Outcome:** A reviewable specification covers common commands, Grafana, scripts, investigation
-workflows, extensibility, and the full future product, with traceable acceptance criteria and
-explicit permission, evidence, compatibility, and recovery contracts.
-**Next action:** Review the [SRE Workbench planning package](sre-workbench/README.md), resolve its
-phase-zero decisions, and select the first implementation slice. Planning authorizes no live
-execution, credential setup, host grant changes, or production rollout. Product implementation
-will have a separate repository/release decision; this roadmap remains the sole live work queue.
-**Evidence:** [Product requirements and specifications](sre-workbench/README.md); requirements
-come from the owner discussion on 2026-10-02. All product runtime behavior remains unverified.
-**SRE task:** Run the same useful operational checks from a terminal or an agent, preserve their
-evidence, and extend the tool as new operational needs appear.
-
-### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
-
-**Status:** `active` (2026-11-12). The owner requires verified native delegation on the default
-Copilot harness before release. A commit-pinned selector and checksummed candidate archive are
-prepared; installed acceptance and an accepted immutable rollback baseline remain outstanding.
-An isolated development-registration preflight is prepared, but Computer Use denied Visual Studio
-Code inspection; inventory and installed-format acceptance remain unverified.
-**Owner:** Maintainers accept the release; a maintainer session owns the plugin contract and
-`software-engineer` owns helper/adapter repairs.
-**Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
-to a previously accepted one. The acceptance cases pass on those
-exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
-**Next action:** Resolve the missing native per-parent target restriction, then implement and verify
-the owner-selected Copilot delegation contract. Current converter/SDK research has not identified a supported mechanism;
-then run the new Format acceptance case first: the plugin now declares Agent Plugins
-1.0 because VS Code ranks `.claude-plugin/plugin.json` above a schema-less selector manifest, and no
-installed run has yet shown which layout loads. Retire the mutable `"source": "./"` selector in `.claude-plugin/marketplace.json`
-for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
-2026-09-10 pass was against a local `./` install, and a passing run does not carry to bytes it did
-not exercise. The enforcement results that were open on VS Code 1.135.0 are superseded by that run.
-Still unrun: the agent-scoped terminal-hook canary and the SRE visual-read acceptance cases, with
-`hooks/copilot-hooks.json` shipping empty. Maintainers must run the exact candidate in an isolated
-profile on each supported host, including a dedicated Grafana Viewer browser session. The SRE
-browser grant now includes selected native/MCP viewing interactions. Structural tool checks
-do not prove image delivery or helper invocation. The installed VS Code 1.138 source handles some
-hook failures as warnings; the launcher's 42/43/44 protocol is not authentication or proof of
-fail-closed host behavior. Keep those limits explicit until the host cases are observed.
-**Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
-[current preparation and selected harness](reviews/2026-11-12-release-001-preparation.md);
-the 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
-[`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
-**SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
-
-### SRE-CF-001 — complete protected SRE investigation access
-
-**Status:** `active` (2026-09-21); selected CF reads and authentication without exposing
-credentials are wanted. The caller/coverage fixes, selected browser tools and bounded Grafana
-read/query helper, with its per-user credential file, are implemented; live session binding and
-native acceptance remain open, and the credential file is still readable through unhooked Read tools.
+**Status:** `active` (2026-11-13); the owner selected Grafana `gcx` for the read-only Grafana
+access migration. The owner removed CF work from this ticket on 2026-11-14;
+the identifier is retained for tracking, and existing CF command policy is unchanged.
+[verified] A checksum-verified `gcx` 1.7.1 is installed on the local Linux host;
+the direct-login path is blocked by an absent Secret Service. The owner instead selected existing
+Ansible-managed credential custody and private runtime delivery. [verified] The attended encrypted
+import, organization check and authenticated `gcx` check/ten-dashboard inventory passed on Adama
+on 2026-11-13; the inventory run reported `changed=0`. Organization 1 passed the import binding check.
+[verified] Fixed BSG / Overview inspection passed on Adama on 2026-11-14 with `changed=0`:
+13 panels, 15 saved queries and one host variable use a single Prometheus datasource;
+the bounded output was not truncated. [verified] A fixed instant Prometheus host-reporting query
+passed at `2026-11-14T06:26:56.667Z`: 19 reporting hosts, zero exporter failures and zero
+expected hosts missing telemetry, with no truncation and `changed=0`. This covers host telemetry
+at one evaluation time. [verified] Alert-state collection returned 138 visible rules on November 14:
+two firing, 136 inactive and no non-OK evaluation health. Its 100-rule detail cap was reported.
+The local guard rejects direct gcx and editable Ansible reader execution; protected agent
+execution and full investigation acceptance remain pending.
+[verified] A loopback-only qualification probe showed gcx 1.7.1 following a cross-host redirect
+and forwarding a synthetic bearer token. No production credential was used. The latest upstream
+release remains 1.7.1; protected destination/redirect enforcement is a blocking acceptance gap.
+Guarded/native acceptance and setup on other supported hosts remain pending.
+The caller/coverage fixes, selected browser tools and bundled Grafana helper are implemented;
+the helper remains the existing admitted path during migration. Its credential file is still
+readable through unhooked Read tools, and changing CLI does not establish credential isolation.
 **Owner:** Save Toolkit maintainers.
-**Outcome:** Grafana investigation and selected CF application observations work on
+**Outcome:** Grafana investigation works on
 Claude Code and VS Code/Copilot under an agreed, verified access policy, reusing existing SSO/session
 access first and supporting personal-account authentication when needed without exposing credentials
 to the LLM. Deployment actions, other production mutations, and credential-bearing diagnostic reads
 remain excluded.
-**Next action:** Run the bundled Grafana helper with a human-written `~/.config/save-toolkit/grafana.env`,
-bind the operations-repository path, and verify one complete dashboard investigation with its controls.
-Identify the existing SSO/browser/CLI session and credential mechanism, including protected personal
-credentials where needed. Complete CF target/output/time bounds, browser runtime verification and an
-isolated analysis path only with their matching controls. Use the
-expanded host acceptance cases
-for both hosts. The source update adds selected browser interactions and one installed helper grant,
-not general HTTP, script, page-code or standard Copilot terminal access;
+**Next action:** Reuse the verified Adama Ansible connection, bounded inventory, Overview inspection and fixed host-status query. A maintainer
+maps the remaining required Grafana reads and queries to exact
+CLI operations, repeats pinned installation checks on other supported hosts, and establishes target/org binding,
+output/time bounds, redirect rejection and a protected authentication path before changing the guard. The human
+configures a read-only identity through the selected authentication path. Verify one complete dashboard
+investigation, including credential/output and denied-effect controls, before retiring helper paths.
+Bind the operations-repository path. Complete browser runtime
+verification and an isolated analysis path only with their matching controls; retain both-host
+acceptance. This selection adds no general CLI/HTTP/script grant or standard Copilot terminal access.
 Helix/BigQuery remains an unconnected placeholder. INCIDENT-QUALITY-001 retains behavioral acceptance.
 **Evidence:** [Planning context beside the agent](../agents/README.txt);
+[Adama gcx acceptance and remaining native gates](reviews/2026-11-14-sre-cf-001-gcx-acceptance.md);
 [current canonical profile](../agents/sre-assistant.md), [caller](../skills/incident-investigation/SKILL.md),
 [guard source](../scripts/readonly-guard.py), and supplied-state regression fixtures under `evals/scenarios/`.
+[Official gcx installation](https://grafana.com/docs/grafana/latest/ai-tools/grafana-cli/gcx/installation/)
+and [authentication](https://grafana.com/docs/grafana/latest/ai-tools/grafana-cli/gcx/authentication/)
+document the selected setup path.
 Source and offline checks do not establish native acceptance of the access policy.
-**SRE task:** Delegate a scoped application-state or event-history check while investigating another
+**SRE task:** Delegate a scoped Grafana dashboard or alert-state check while investigating another
 part of the incident, without delegating deployment or remediation authority.
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
@@ -461,6 +419,81 @@ with the earlier comparison and instrument repair in the same record; the
 work with an owner and a meaningful proof-of-improvement check.
 
 ## Deferred
+
+### EVAL-016 — prove the Inspect orchestration matches the native batch, then decide what it replaces
+
+**Status:** `deferred` (2026-11-13); the owner deferred the Inspect AI parity comparison during
+backlog review. `evals/inspect_fleet.py` runs the native routing and contract trials as an Inspect
+task with grading unchanged; its offline tests passed, but no paid run has compared it with
+`build_probe.py run`. The native runner remains the acceptance reference.
+**Owner:** Maintainers run the paid parity comparison and approve its budget; the repository owner
+decides the replacement inventory afterwards.
+**Outcome:** One frozen selection run through both paths on the same model, CLI and host shows the
+same per-scenario verdicts under `build_probe.py regrade`, with timing, cost and any INCONCLUSIVE
+reasons recorded; a follow-up decision then names which native batch code Inspect replaces, or the
+track is relabelled as scheduling only.
+**Next action:** None until the owner chooses to resume Inspect adoption and approves a bounded
+parity comparison. Then a maintainer follows the
+[parity run plan](fleet-evaluation/run-plan-inspect-native-parity.md) on a host with Claude
+credentials and a current judge calibration, and files the comparison under `docs/reviews/`.
+**Evidence:** none yet; the [decision](decisions/2026-11-02-inspect-orchestrates-native-runner.md)
+records the design and its rollback.
+**SRE task:** Read one `inspect view` log of a fleet regression instead of a directory of records,
+trusting it only once it is known to say what the native batch says.
+
+### WORKBENCH-001 — plan a shared SRE operations product for humans and agents
+
+**Status:** `deferred` (2026-11-13); the owner deferred the tool during backlog review and
+identified its planning package as needing revision before work resumes.
+**Owner:** Human product owner accepts scope and release decisions; implementation and
+verification owners are assigned before each delivery phase.
+**Outcome:** A reviewable specification covers common commands, Grafana, scripts, investigation
+workflows, extensibility, and the full future product, with traceable acceptance criteria and
+explicit permission, evidence, compatibility, and recovery contracts.
+**Next action:** None until the owner reopens planning. First revise the
+[SRE Workbench planning package](sre-workbench/README.md) with the owner, resolve its phase-zero
+decisions, and select the first implementation slice. Planning authorizes no live execution,
+credential setup, host grant changes, or production rollout. Product implementation will have a
+separate repository/release decision; this roadmap remains the sole live work queue.
+**Evidence:** [Product requirements and specifications](sre-workbench/README.md); requirements
+come from the owner discussion on 2026-10-02. All product runtime behavior remains unverified.
+**SRE task:** Run the same useful operational checks from a terminal or an agent, preserve their
+evidence, and extend the tool as new operational needs appear.
+
+### RELEASE-001 — make the toolkit installable as an immutable, rollback-tested release
+
+**Status:** `deferred` (2026-11-13); the owner deferred immutable-release work during backlog
+review. The owner requires verified native delegation on the default
+Copilot harness before release. A commit-pinned selector and checksummed candidate archive are
+prepared; installed acceptance and an accepted immutable rollback baseline remain outstanding.
+An isolated development-registration preflight is prepared, but Computer Use denied Visual Studio
+Code inspection; inventory and installed-format acceptance remain unverified.
+**Owner:** Maintainers accept the release; a maintainer session owns the plugin contract and
+`software-engineer` owns helper/adapter repairs.
+**Outcome:** An SRE installs a pinned artifact rather than whatever `main` holds, and can roll back
+to a previously accepted one. The acceptance cases pass on those
+exact shipping bytes, which the 2026-09-10 local-install run did not exercise.
+**Next action:** None until the owner reopens release work. Then resolve the missing native
+per-parent target restriction, and implement and verify
+the owner-selected Copilot delegation contract. Current converter/SDK research has not identified a supported mechanism;
+then run the new Format acceptance case first: the plugin now declares Agent Plugins
+1.0 because VS Code ranks `.claude-plugin/plugin.json` above a schema-less selector manifest, and no
+installed run has yet shown which layout loads. Retire the mutable `"source": "./"` selector in `.claude-plugin/marketplace.json`
+for an immutable selector or checksum, then re-run the acceptance cases on those shipping bytes: the
+2026-09-10 pass was against a local `./` install, and a passing run does not carry to bytes it did
+not exercise. The enforcement results that were open on VS Code 1.135.0 are superseded by that run.
+Still unrun: the agent-scoped terminal-hook canary and the SRE visual-read acceptance cases, with
+`hooks/copilot-hooks.json` shipping empty. Maintainers must run the exact candidate in an isolated
+profile on each supported host, including a dedicated Grafana Viewer browser session. The SRE
+browser grant now includes selected native/MCP viewing interactions. Structural tool checks
+do not prove image delivery or helper invocation. The installed VS Code 1.138 source handles some
+hook failures as warnings; the launcher's 42/43/44 protocol is not authentication or proof of
+fail-closed host behavior. Keep those limits explicit until the host cases are observed.
+**Evidence:** [Current handoff and resume boundaries](reviews/2026-11-12-release-001-eval-005-handoff.md);
+[current preparation and selected harness](reviews/2026-11-12-release-001-preparation.md);
+the 2026-09-10 VS Code 1.137.0 acceptance row in the host-support table of
+[`README.md`](../README.md); HOST-002's closure commit records the owner disposition.
+**SRE task:** Install a named version of the toolkit, and go back to the previous one if it regresses.
 
 ### INCIDENT-QUALITY-001 — verify decision quality after the SRE contract repairs
 

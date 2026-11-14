@@ -35,6 +35,19 @@ def decision(command, tool, *, copilot=False, agent=SRE_ASSISTANT):
     return guard_decision(run_guard(payload, copilot=copilot))
 
 
+@pytest.mark.parametrize('tool', ['Bash', 'PowerShell', 'execute/runInTerminal'])
+@pytest.mark.parametrize('command', [
+    'gcx config check',
+    'gcx metrics query --datasource metrics --expr up',
+    'gcx api /api/user',
+    'gcx resources push -p dashboards',
+    'tools/estate-deploy maintenance-gcx-read.yml -e gcx_read_operation=hosts',
+    'ansible-playbook maintenance-gcx-read.yml -e gcx_read_operation=alerts',
+])
+def test_gcx_migration_does_not_admit_raw_cli_or_editable_ansible_readers(tool, command):
+    assert decision(command, tool, copilot=tool == 'execute/runInTerminal') == 'deny'
+
+
 def test_documented_copilot_query_passes_shell_independent_guard():
     reference = (ROOT / "skills/grafana/references/command-access.md").read_text(encoding="utf-8")
     assert "### Copilot command-preview queries\n" in reference, "Missing shell-independent Copilot query guidance"

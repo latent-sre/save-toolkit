@@ -8,6 +8,15 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- EVAL-016's Inspect AI parity comparison is owner-deferred until a bounded comparison is approved.
+- SRE Workbench is owner-deferred pending revision of the tool's planning package.
+- Immutable-release work is owner-deferred; native delegation, installed acceptance and rollback remain open.
+- Grafana `gcx` is selected for SRE read-only access; installation and protected command acceptance
+  precede migration from the bundled helper.
+- The gcx migration uses existing Ansible-managed credential custody and private runtime delivery,
+  with no local keyring or persisted CLI login required.
+- Adama's fixed Grafana reads have local/live acceptance evidence; protected agent admission remains
+  blocked on credential isolation and native gcx redirect enforcement. CF work is removed from this ticket.
 - WP-08 retires monitored authors before final billing on rejected traces and error paths;
   unconfirmed absence skips the billing request while preserving proxy closure and recovery evidence.
 - WP-08 supports the owner's explicit Windows Docker Desktop monitored-storage exception:
