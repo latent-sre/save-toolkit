@@ -12,7 +12,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 ### Changed
 
 - Replace `go-craft` from scratch with a reference-backed Go skill covering new-code design,
-  proactive refactoring/modernization leeway, and Go 1.23–1.26+ traps and verification; remove the old
+  proactive refactoring/modernization leeway, and Go 1.24–1.27+ traps and verification; remove the old
   `go-craft` pins and add a 4-scenario `go-craft` eval suite.
 - Resilience guidance makes retry paths and calculation assumptions explicit in assessments,
   preserving deadline scope, unresolved retry counts and the distinction between helper-derived

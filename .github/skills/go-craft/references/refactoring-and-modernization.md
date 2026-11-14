@@ -24,24 +24,18 @@
 |---|---|---|
 | Handler/CLI/worker mixes SQL/HTTP/OS I/O, clock reads, and domain rules | **Extract pure core:** `func evaluate(in Input, now time.Time) (Decision, error)`; keep outer method as thin I/O shell | Preserve validation-before-I/O order and error wrapping |
 | Internal `type FooService interface` + `fooServiceImpl` with 1 implementation | **Collapse interface:** Delete producer interface, export `*FooService`, put 1–3 method interfaces at consumer sites | Keep only if exported to external repos or multi-implementation |
-| Bare `go func()` without lifecycle, error path, or concurrency cap | **Structured concurrency:** `errgroup.WithContext(ctx)` + `SetLimit(n)`, or `wg.Go(fn)` (1.25+); wait on shutdown | Never pass `errgroup`'s `gctx` to post-`Wait()` calls |
+| Bare `go func()` without lifecycle, error path, or concurrency cap | **Structured concurrency:** `errgroup.WithContext(ctx)` + `SetLimit(n)`, or `wg.Go(fn)` (1.25+); wait on shutdown | Never pass `errgroup`'s `gctx` to post-`Wait()` calls; `g.Go` under `SetLimit` blocks without observing `ctx` |
 | Racy `if s.c == nil` init or verbose `sync.Once` + fields | **`sync.OnceValue` / `OnceValues`:** Store `OnceValues` func on the struct | `OnceValues` caches errors permanently; use mutex/`singleflight` if transient failures must retry |
 | `map[string]any` bags or 5+ coupled parameters | **Domain struct:** Replace with typed struct (and constructor check if invariants exist) | Preserve wire `json`/`db` tags at serialization boundaries |
 | Manual slice/map/sort/min-max/split loops | **Stdlib replacement:** Run `go fix` / `modernize` (`slices`, `maps`, `cmp`, `min`/`max`, `clear`) | Check `null` vs `[]` JSON marshaling on empty slices |
 
 ## Equivalence Traps
 
-1. **JSON `null` vs. `[]` on empty slices:** `[]T(nil)` marshals as `"null"`; `[]T{}` / `make([]T, 0)`
-   marshals as `"[]"`. Replacing `out := []Item{}` with `var out []Item` or `slices.Collect(seq)`
-   (which returns `nil` when `seq` is empty) changes `[]` to `null`. Conversely,
-   `s = slices.DeleteFunc(s, fn)` on a non-nil slice returns `s[:0]` (keeping `[]`), mutates the
-   backing array in place, and zeroes tail elements—clone first if another variable aliases `s`.
-2. **`iter.Seq` contract:** Push iterators (`func(yield func(V) bool)`) **must** return as
-   soon as `yield(v)` returns `false` or caller `break` panics. Pull iterators (`iter.Pull`) must
-   always `defer stop()`.
-3. **Error unwrapping (`%w` vs. `%v`):** Upgrading `err == ErrX` to `errors.Is` / `errors.As`
-   requires `%w` (or `errors.Join`) on every intermediate wrapper; hiding an internal driver error
-   requires switching `%w` to `%v` and updating tests coupled to the private type.
+1. **JSON `null` vs. `[]`:** A nil slice marshals as `null`, an empty one as `[]`. `var out []T` and
+   `slices.Collect` of an empty sequence give `null`; `slices.DeleteFunc` keeps `[]` but zeroes the
+   tail in place—clone first if the slice is aliased.
+2. **`iter.Seq` contract:** Return as soon as `yield` returns `false` (continuing panics); always
+   `defer stop()` after `iter.Pull`.
 
 ## High-Signal Defect Checklist
 
@@ -58,8 +52,9 @@
 
 - **`go fix` (Go 1.26+) and `modernize`:**
   - Go 1.26+ toolchain: `go fix -diff ./...` (preview) and `go fix ./...` (apply; `-<name>=false` skips a pass).
+    It offers only rewrites the module's `go` line allows (a `go 1.24` module gets no `wg.Go` or
+    `new(expr)`). Pass names change between releases (1.27 renamed `waitgroup` to `waitgroupgo`
+    and removed `fmtappendf`); list them with `go tool fix help`.
   - Go <= 1.25 toolchain: `go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix -diff ./...` (preview; drop `-diff` to apply; never use the retired `gopls/internal/...` path).
-- **`golangci-lint` (v1 vs. v2) and `govulncheck`:** Use repo config. Note `golangci-lint` v2 requires
-  `version: "2"`, moves `gofmt`/`goimports` to top-level `formatters:` (`golangci-lint fmt`), uses
-  `linters.default`, and removes `--out-format` and `--print-issued-lines`. Run `govulncheck ./...`
-  after dependency changes.
+- **`golangci-lint` and `govulncheck`:** Use repo config. Run `govulncheck ./...` after dependency
+  changes.

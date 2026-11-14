@@ -18,10 +18,13 @@ Explanation, design, and review requests stop at those outputs unless implementa
 
 ## Mandates and Leeway
 
-1. **Bind the module floor first.** Read `go.mod` (`go`, `toolchain`, `tool`) and CI/lint config
-   before choosing features. `go.mod`'s `go` directive—not the host `go` binary—gates language and
-   stdlib semantics. Never raise the `go` floor without task authority. This skill assumes
-   `go 1.23` or later; on an older module, report that and stay within its floor.
+1. **Bind the module floor first.** Read `go.mod` (`go`, `toolchain`, `tool`), any `go.work`, build
+   tags, and CI/lint config before choosing features. The `go` directive—not the host `go` binary
+   or the `toolchain` line—sets the language version and stdlib behavior defaults. A newer
+   toolchain still compiles stdlib symbols above that line; only `go vet` (`stdversion`, part of
+   `go test` from Go 1.27) reports them. Never raise the `go` floor without task authority, and
+   recheck it after module commands (a dependency upgrade can raise it). This skill assumes
+   `go 1.24` or later; on an older module, report that and stay within its floor.
 2. **Build fresh code right from the start.** Keep `main()` as a thin wiring wrapper around a
    testable `run(ctx, ...)` function; separate pure domain decisions from I/O adapters; define narrow
    consumer-owned interfaces; bound every goroutine and resource lifecycle.
@@ -51,7 +54,7 @@ signals), `database-reliability` (migrations/pools), `root-cause` (non-obvious b
 
 | Task or inspected code condition | Read |
 |---|---|
-| New Go binary, package, entrypoint, data model, concurrency/shutdown lifecycle, error/I/O boundary, or Go 1.23–1.26+ features | [design-and-new-code.md](./references/design-and-new-code.md) |
+| New Go binary, package, entrypoint, data model, concurrency/shutdown lifecycle, error/I/O boundary, or Go 1.24–1.27+ features | [design-and-new-code.md](./references/design-and-new-code.md) |
 | Refactoring, bug fix, extending legacy Go, replacing custom helpers with stdlib, or running `go fix` / `modernize` | [refactoring-and-modernization.md](./references/refactoring-and-modernization.md) |
 | Tests, deterministic concurrency/time (`synctest`), race/leak checks, benchmarks (`b.Loop`), or fuzzing | [testing-and-verification.md](./references/testing-and-verification.md) |
 
