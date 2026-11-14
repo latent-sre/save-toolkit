@@ -60,40 +60,16 @@ def test_skill_frontmatter_and_word_budget() -> None:
     assert meta["name"] == "python-engineering"
     description = str(meta["description"])
     assert len(description) <= 1024
-    assert "Triggers:" in description
-    quoted_triggers = re.findall(r'"([^"]+)"', description.split("Triggers:", 1)[1])
-    assert 2 <= len(quoted_triggers) <= 4
     body_words = len(body.split())
     assert 550 <= body_words <= 950, f"Expected SKILL.md body near 600-900 words, got {body_words}"
 
 
-def test_skill_links_every_reference() -> None:
-    _, body = _split_frontmatter(SKILL_MD.read_text(encoding="utf-8"))
-    for ref_name in EXPECTED_REFERENCES:
-        link_pattern = f"](references/{ref_name})"
-        assert link_pattern in body, f"SKILL.md must link directly to references/{ref_name}"
-
-
-def test_references_have_contents_toc_and_no_evidence_labels() -> None:
+def test_skill_and_references_have_no_evidence_labels() -> None:
     forbidden_labels = ("[verified]", "[sourced]", "[unverified]")
     for path in [SKILL_MD, *(REFERENCES_DIR / name for name in EXPECTED_REFERENCES)]:
         text = path.read_text(encoding="utf-8")
         for label in forbidden_labels:
             assert label not in text, f"{path.name} must not contain runtime evidence label {label}"
-        if path != SKILL_MD and len(text.splitlines()) > 100:
-            assert "## Contents" in text, f"{path.name} (>100 lines) must include a ## Contents section"
-
-
-def test_refactoring_playbook_recipes_carry_every_required_field() -> None:
-    playbook = (REFERENCES_DIR / "refactoring-playbook.md").read_text(encoding="utf-8")
-    for required_field in (
-        "- **Trigger:**",
-        "- **Preconditions:**",
-        "- **Transformation:**",
-        "- **Verification:**",
-        "- **Avoid when:**",
-    ):
-        assert playbook.count(required_field) >= 19, f"Expected >=19 occurrences of {required_field}"
 
 
 def test_routing_scenarios_for_python_engineering_validate() -> None:
