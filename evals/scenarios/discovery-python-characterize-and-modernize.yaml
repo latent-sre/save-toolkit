@@ -1,4 +1,4 @@
-id: discovery-python-engineering-modernize
+id: discovery-python-characterize-and-modernize
 max_turns: 14
 split: regression
 prompt: |
@@ -6,9 +6,9 @@ prompt: |
   the existing tariff calculator, decompose the nested conditionals, replace the ad-hoc regex CSV
   parser with a maintained library where justified, and verify with pytest, ruff, and mypy.
 success_criteria:
-  - Activates Python engineering workflow for multi-step Python refactoring, modernization, and verification.
+  - Loads Python guidance for multi-step Python refactoring, modernization, and verification.
 target:
   kind: skill
-  name: python-engineering
+  name: python-craft
 routing:
   expect: fire

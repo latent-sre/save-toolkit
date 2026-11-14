@@ -5,7 +5,7 @@ skill: python-craft
 tools: [Skill, Read]
 references:
   - skills/python-craft/references/refactoring.md
-  - skills/python-craft/references/writing-python.md
+  - skills/python-craft/references/design-and-dependencies.md
 prompt: |-
   Assess these independent Python improvement cases; do not edit code. The supplied consumer
   inventory is complete for these cases; in a real checkout you would need to establish it.
@@ -53,7 +53,16 @@ prompt: |-
   Q. CLI and HTTP entrypoints duplicate one required policy. Their input/output contracts differ,
      but the decision needs only normalized values. Both entrypoints and all internal callers can
      change together. Choose a module boundary that shares the decision without coupling transports.
-  Return only a JSON object with case_a through case_q string values, choosing independently from:
+  R. Cleanup of forwarding layers is requested. Each function in a repository module only calls the
+     ORM, but it also opens a transaction, commits on success, and rolls back and re-raises on any
+     exception; without it, every caller would repeat that sequence. All callers are controlled.
+  S. Cleanup of exception handling is requested. An importer catches Exception around each row, logs
+     a warning, skips the row, and reports success at the end. The specification says any malformed
+     row must fail the import without publishing results.
+  T. Cleanup of exception handling is requested. A CLI's main() catches the domain's InvalidInput
+     error, writes one line to stderr, and returns exit status 2, as its documented contract requires;
+     every other exception propagates.
+  Return only a JSON object with case_a through case_t string values, choosing independently from:
   share_policy, keep_separate, change_internal_and_callers, preserve_compatibility, no_change,
   coherent_stages, replace_custom_with_library, fix_established_defect, explain_without_changes,
   clarify_behavior, stop_because_large, require_one_function_per_step, request_redundant_approval,
@@ -62,7 +71,8 @@ prompt: |-
   name_independent_options, hide_options_in_context_object, remove_empty_layers,
   retain_factory_for_hypothetical_formats, keep_ordered_records, key_records_by_item_id,
   index_membership_stream_rows, deduplicate_output_rows, separate_policy_from_transport,
-  put_transport_parsing_in_shared_policy.
+  put_transport_parsing_in_shared_policy, keep_transaction_owner, propagate_failure,
+  log_and_continue, keep_boundary_translation.
 success_criteria:
   - Selects coherent improvements without an occurrence-count ban or speculative abstraction.
   - Distinguishes controlled internal changes from independently supported consumers.
@@ -73,6 +83,8 @@ success_criteria:
   - Simplifies calls and removes unhelpful layers without inventing configuration objects or future needs.
   - Improves representation and repeated lookup while preserving order, duplicates, and streaming.
   - Chooses a shared policy boundary independent of transport-specific behavior.
+  - Separates empty forwarding layers and failure-hiding handlers from look-alike structure that owns
+    a transaction or a documented boundary translation.
 graders:
   - type: exact_json
     fields:
@@ -93,3 +105,6 @@ graders:
       case_o: keep_ordered_records
       case_p: index_membership_stream_rows
       case_q: separate_policy_from_transport
+      case_r: keep_transaction_owner
+      case_s: propagate_failure
+      case_t: keep_boundary_translation

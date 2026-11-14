@@ -71,6 +71,14 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   and a rollback-story check.
 - `software-engineer`'s description no longer routes runbooks and postmortems to `scribe` or states
   deploy ownership; its body still holds the deploy rule.
+- `python-engineering` is retired into `python-craft`, which is rewritten around three equal
+  objectives (new code, deliberate improvement, the refactoring process) with three references:
+  design and dependencies, refactoring, and verification. Its case oracle, skill test, and three
+  routing scenarios move to the `python-craft` suite; its live-incident scenario duplicated
+  `discovery-python-defers-live-incident` and is removed. `python-refactoring-judgment` adds three
+  cases pairing failure-hiding handlers and empty layers with justified look-alikes. Explaining
+  Python leaves the skill's scope: its description drops the explain verb and trigger, and
+  `discovery-python-explanation` is removed.
 - `software-engineer` no longer dispatches `reviewer` by file count, carries finding labels, or
   loads `obs-pipeline` or `ci-actions`; its review-findings rule is reduced to the stale check.
 - `software-engineer` names a review it skipped under **Check first** and drops repeated deploy and

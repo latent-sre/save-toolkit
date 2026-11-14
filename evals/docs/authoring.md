@@ -205,8 +205,10 @@ internal callers, supported plugin imports, no-change restraint, coherent stages
 authorized library adoption, established versus uncertain defects, explanation-only scope, and
 justified whole-codebase rewrites in scope that preserve required contracts. It also checks effect-aware
 control flow, simpler calls, layer removal, ordered records, indexed membership with streaming, and
-transport-independent policy boundaries. It loads the Python refactoring and writing references so their
-design guidance is assessed together. `python-new-code-judgment` checks a
+transport-independent policy boundaries, and pairs empty forwarding layers and failure-hiding handlers
+with look-alikes that own a transaction or a documented boundary translation. It loads the Python
+refactoring and design references so their design guidance is assessed together.
+`python-new-code-judgment` checks a
 direct implementation for a bounded task, an importable core serving CLI and notebook consumers,
 bounded streaming with publication after validation, and an unresolved partial-failure contract.
 These supplied-state decisions do not prove execution or consumer discovery. `discovery-python-improvement` checks routing

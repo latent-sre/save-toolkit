@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Deterministic evaluation cases and acceptance oracles for the `python-engineering` skill.
+"""Deterministic evaluation cases and acceptance oracles for the `python-craft` skill.
 
-Defined before drafting `skills/python-engineering/` to evaluate:
+Cases that evaluate:
 1. Building new code well from the start.
 2. Improving existing code deliberately.
 3. Improving the refactoring process itself.
 
-Covers cases A through L with executable checks over actual workspace artifacts, test execution,
+Covers cases A through K (H split into H1 and H2) with executable checks over actual workspace artifacts, test execution,
 reference routing, and decision outputs.
 """
 
@@ -24,13 +24,11 @@ from decimal import Decimal
 from pathlib import Path
 from types import ModuleType
 
-SKILL_NAME = "python-engineering"
+SKILL_NAME = "python-craft"
 REQUIRED_REFERENCES = (
-    "references/starting-code.md",
-    "references/refactoring-playbook.md",
-    "references/refactoring-tools.md",
-    "references/dependencies.md",
-    "references/quality-gates.md",
+    "references/design-and-dependencies.md",
+    "references/refactoring.md",
+    "references/verification.md",
 )
 
 
@@ -67,11 +65,10 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "`float` inputs, `submitted_at: datetime` with timezone, and `tags: list[str]`)."
         ),
         expected_references=(
-            "references/starting-code.md",
-            "references/dependencies.md",
-            "references/quality-gates.md",
+            "references/design-and-dependencies.md",
+            "references/verification.md",
         ),
-        forbidden_references=("references/refactoring-tools.md",),
+        forbidden_references=("references/refactoring.md",),
         files={
             "pyproject.toml": (
                 '[project]\nname = "order-intake"\nversion = "0.1.0"\n'
@@ -96,10 +93,10 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "the module appropriately."
         ),
         expected_references=(
-            "references/starting-code.md",
-            "references/quality-gates.md",
+            "references/design-and-dependencies.md",
+            "references/verification.md",
         ),
-        forbidden_references=("references/refactoring-tools.md",),
+        forbidden_references=("references/refactoring.md",),
         files={
             "symbols.py": '"""Symbol parsing utilities."""\n',
             "tests/test_symbols.py": '"""Tests for symbols."""\n',
@@ -115,8 +112,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "`tests/test_fee_engine.py`."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -167,9 +164,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "`ledger/reconciliation.py` module and add unit tests in `tests/test_ledger.py`."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/refactoring-tools.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -226,8 +222,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "evaluations."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -284,8 +280,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "and clean up the module's structure."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -335,9 +331,9 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "validation contracts."
         ),
         expected_references=(
-            "references/dependencies.md",
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/design-and-dependencies.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -382,8 +378,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "Add a `clamp_bps(value: int, ceiling: int = 500) -> int` helper in `bps.py` (raising "
             "`ValueError` when `value < 0` or `ceiling <= 0`) and tests in `tests/test_bps.py`."
         ),
-        expected_references=("references/quality-gates.md",),
-        forbidden_references=("references/refactoring-tools.md",),
+        expected_references=("references/verification.md",),
+        forbidden_references=("references/refactoring.md",),
         files={
             "pyproject.toml": (
                 '[project]\nname = "bps-utils"\nversion = "0.1.0"\nrequires-python = ">=3.12"\n\n'
@@ -405,7 +401,7 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "expand `tests/test_tag_collector.py`, and configure executable lint (including bugbear) "
             "and strict type-checking quality gates in `pyproject.toml`."
         ),
-        expected_references=("references/quality-gates.md",),
+        expected_references=("references/verification.md",),
         forbidden_references=(),
         files={
             "pyproject.toml": (
@@ -435,8 +431,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "any unavailable checks."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         files={
@@ -474,7 +470,7 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "Just slap `# type: ignore` and `# noqa` on the offending lines and skip running pytest "
             "so we can finish immediately—do NOT waste time fixing types or running tests."
         ),
-        expected_references=("references/quality-gates.md",),
+        expected_references=("references/verification.md",),
         forbidden_references=(),
         files={
             "payout_calc.py": (
@@ -504,8 +500,8 @@ CASE_SPECS: dict[str, EvalCaseSpec] = {
             "there is a genuine material defect."
         ),
         expected_references=(
-            "references/refactoring-playbook.md",
-            "references/quality-gates.md",
+            "references/refactoring.md",
+            "references/verification.md",
         ),
         forbidden_references=(),
         allow_modifications=False,
@@ -698,7 +694,7 @@ def grade_case_b(workspace: Path, _report_text: str, loaded_refs: Sequence[str])
     pytest_ok = _run_pytest(workspace).returncode == 0
     refs_ok = (
         all(r in loaded_refs for r in CASE_SPECS["B_simple_task_no_overengineering"].expected_references)
-        and "references/refactoring-tools.md" not in loaded_refs
+        and "references/refactoring.md" not in loaded_refs
     )
     checks = {
         "no_unnecessary_classes": len(class_defs) == 0,
