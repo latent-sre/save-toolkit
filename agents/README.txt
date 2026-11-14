@@ -17,8 +17,7 @@ working budget, enforced in ../scripts/generate_platform_adapters.py.
 
 Decisions to preserve
 ---------------------
-- The owner now wants selected read-only CF observations (2026-09-21).
-  The broader tool configuration remains open.
+- CF access is outside this Grafana migration. The existing CF read grammar is unchanged.
 - Credential helpers are for authentication without displaying credentials.
   Reuse an existing authenticated SSO/session first when available to the task.
   Personal user credentials may be needed, including credentials configured in
@@ -30,9 +29,9 @@ Decisions to preserve
 - A command that does not mutate state may still reveal credentials. Sensitive
   environment/service-key output is outside the proposed capability.
 
-Initial diagnostic scope
-------------------------
-Start with these existing forms against the caller's named target:
+Existing CF policy outside this migration
+----------------------------------------
+These existing forms remain unchanged; CF expansion and qualification are outside this work:
 - cf target: display the current foundation/org/space; no target-changing flags.
 - cf app <app>: app and instance status.
 - cf events <app>: recorded app events.
@@ -87,14 +86,23 @@ Current source and remaining work
 - Canonical agent and incident caller: bounded investigation, scoped follow-up,
   early findings/partial-return fallback, source selection and preserved safeguards.
   Regression fixtures cover supplied-state decisions; native behavior is unverified.
-- CF: selected grammar and pure-filter checks in the command guard. Output masking,
-  target binding inside a protected helper, timeout/output bounds and both-host
-  acceptance remain open. A permitted command may still print a username.
+- CF: no migration or qualification work is included here. Existing command
+  grammar remains unchanged; it does not establish protected output or host acceptance.
 - Browser: exact native VS Code/Playwright viewing grants now include navigation,
   unsaved variables/time, scrolling keys and panel inspection. Read-only session
   permissions, protected results and installed-host acceptance remain required.
   Existing SSO comes first; an unshared or separately opened tab is not access.
-- APIs/helpers: skills/grafana/scripts/grafana_read.py now provides dashboard search
+- APIs/helpers: the owner selected gcx for the read-only Grafana access migration.
+  The selected credential path uses the operations repository's existing Ansible
+  custody and private runtime injection, without a local keyring or gcx login.
+  Adama has a working controller-user Ansible reader with fixed connection,
+  inventory, Overview configuration, host metric and alert-summary reads.
+  Its bounded output and private environment do not isolate credentials from
+  the same OS user. Protected agent execution, exact guard admission and
+  installed-client acceptance remain pending.
+  The current guard does not admit gcx. Map required operations and verify their
+  controls before replacing the existing helper or changing tool grants.
+  skills/grafana/scripts/grafana_read.py currently provides dashboard search
   and model reads, alert-rule state, annotation and silence reads, panel image
   renders and bounded Prometheus/Loki queries, with internal token/basic
   authentication and masked results/errors. The guard binds its installed path and

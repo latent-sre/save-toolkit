@@ -29,8 +29,13 @@ not apply.
 
 ## Credentials and effective scope
 
-This fleet adopts no Grafana MCP server, `gcx`, vendor skill package, or Foundation SDK; adoption
-is a `stack-profile` decision, never a task side effect. If `grafana/mcp-grafana` is present, never
+The owner selected `gcx` for the SRE assistant's read-only access migration; `stack-profile`
+records that choice. The selected authentication path uses existing Ansible-managed custody and
+private runtime delivery, without a persisted CLI login. Host acceptance is pending;
+the [command-access reference](./command-access.md) retains the existing admitted helper path.
+CLI selection grants no new commands or write authority. No Grafana MCP server, vendor skill
+package or Foundation SDK is adopted; adopting one remains a separate `stack-profile` decision.
+If `grafana/mcp-grafana` is present, never
 use its patch-mode `update_dashboard` for a live write: for Classic/v1 dashboards it saves with
 `overwrite: true`, defeating the concurrency rule (its V2 writes carry `resourceVersion`). For
 renderer/browser capability use [visual verification](./visual-verification.md).
