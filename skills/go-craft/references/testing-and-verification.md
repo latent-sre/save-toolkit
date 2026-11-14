@@ -20,6 +20,14 @@
 - **`t.TempDir()` on Windows:** Fails cleanup if any `*os.File` inside the dir remains open—treat
   this as a leaked file handle in the code under test.
 - **`t.ArtifactDir()` (1.26+):** Persists failure dumps when `go test -artifacts` is passed.
+- **`stdversion` in `go test` (1.27+):** A stdlib symbol newer than the module's `go` line, or the
+  file's `//go:build go1.N`, fails `go test` as `[build failed]` with no tests run, though
+  `go build` passes. Replace the call; `-vet=off` only hides it. It skips generated files, ignores
+  a too-new field or method of a too-new type, and checks symbol references, not behavior changes.
+  A 1.26 toolchain's `go test` skips it, so run `go vet`.
+- **`tls.Config.Rand` (deprecated in 1.27):** Not every TLS configuration uses it, so it does not
+  make a handshake deterministic. In tests call `cryptotest.SetGlobalRandom(t, seed)`; it is
+  process-wide, so it cannot be used in parallel tests or under a parallel parent.
 
 ## Deterministic Concurrency (`testing/synctest`)
 
@@ -33,8 +41,10 @@ Never use wall-clock `time.Sleep` to coordinate goroutines or test timeouts.
   - **Exit deadlock trap:** If any bubble goroutine remains durably blocked when the root function
     returns, `synctest.Test` panics. Always cancel/stop workers and wait for exit before returning.
   - **OS I/O boundary:** Real sockets (`net.Listen`), OS file locks, and subprocesses are *not*
-    durably blocked in a bubble; use `net.Pipe()` or channels. On Go 1.27+,
-    `httptest.NewTestServer(t, h)` serves over an in-memory network that works inside a bubble.
+    durably blocked in a bubble; use `net.Pipe()` or channels. On Go 1.27+, use
+    `httptest.NewTestServer(t, h)` and inject `srv.Client()`: it sends every request, to any host,
+    over an in-memory network that works inside a bubble. `http.DefaultClient` cannot reach it,
+    `srv.Listener` is nil, and `Start`/`StartTLS` switch it to a real loopback socket.
   - **`synctest.Sleep(d)` (1.27+):** `time.Sleep(d)` followed by `synctest.Wait()`. Use it when the
     test and the code under test sleep for the same duration; with plain `time.Sleep` either may
     run first.
@@ -47,9 +57,11 @@ Never use wall-clock `time.Sleep` to coordinate goroutines or test timeouts.
   neither) and only sees paths that ran concurrently; where it cannot run, report `-race`
   unverified.
 - **Goroutine leak profile (Go 1.27+):** `pprof.Lookup("goroutineleak")` (also
-  `/debug/pprof/goroutineleak`) lists goroutines blocked on primitives nothing can reach. It misses
-  goroutines whose channel or lock is reachable from a global or a runnable goroutine, so an empty
-  profile is not proof of no leaks.
+  `/debug/pprof/goroutineleak`) lists goroutines blocked on channels, `select`, or `sync` primitives
+  nothing can reach. It never lists goroutines blocked on I/O or syscalls and misses ones whose
+  primitive is reachable from a global or a runnable goroutine, so an empty profile is not proof of
+  no leaks. Every `WriteTo` runs a leak-detection GC cycle, so fetch on demand, not in a loop.
+  `debug=2` dumps every goroutine, leaked or not; read leaks with `debug=1`.
 - **`for b.Loop()`:** Runs pre-loop setup once per invocation, resets the timer on entry,
   and prevents dead-code elimination. **Trap:** Never leave the timer stopped when `b.Loop()` is
   next evaluated.
