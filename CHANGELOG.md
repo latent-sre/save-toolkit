@@ -11,6 +11,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- FRONTEND-003 is owner-deferred until three to five real GUI projects supply evidence for tuning
+  frontend recommendations and choosing the first deeper capability reference.
 - EVAL-012 is owner-deferred; completed evaluation evidence is retained, with further work waiting
   for a named package to be reopened.
 - EVAL-016's Inspect AI parity comparison is owner-deferred until a bounded comparison is approved.

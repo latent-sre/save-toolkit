@@ -78,25 +78,6 @@ Source and offline checks do not establish native acceptance of the access polic
 **SRE task:** Delegate a scoped Grafana dashboard or alert-state check while investigating another
 part of the incident, without delegating deployment or remediation authority.
 
-### FRONTEND-003 — define the team's GUI mix after the first runs of the rewritten skill
-
-**Status:** `active` (2026-10-11). The owner said on 2026-10-11 that the team's GUI work is a mix
-of the skill's five archetypes and that the mix is defined after a few runs, not up front; the
-rewritten `frontend-craft` therefore weights the archetypes evenly and defers the deep capability
-references ([decision](decisions/2026-10-11-frontend-craft-generalized.md)).
-**Owner:** The human owner decides the weighting and the first add-on; a maintainer session owns the
-skill's archetype table and build scenarios.
-**Outcome:** After the first few real GUI tasks, the archetype table reflects the kinds of GUI the
-team builds most, the greenfield recommendations follow that weighting, and the first deep
-capability reference (charts and grids, live data, forms, or editors) is chosen and scheduled.
-**Next action:** Whoever runs `frontend-craft` on a real task records the archetype, the kit set and
-the deploy target the caller chose, in the packet; after the first three to five, the owner reviews
-them beside the proof packet and picks the weighting and the add-on.
-**Evidence:** [Rendered proof of the skill's defaults](reviews/2026-10-11-frontend-craft-proof/README.md);
-no real-task runs yet.
-**SRE task:** An SRE building a GUI gets defaults tuned to the kind of GUI the team builds most,
-and a deep reference for the capability they reach for first.
-
 ### BACKEND-002 — add go-craft beside python-craft
 
 **Status:** `active` (2026-10-18). A single-file `go-craft` candidate is authored and composed with
@@ -240,6 +221,23 @@ retains its acceptance scope; no result promotes the lane.
 work with an owner and a meaningful proof-of-improvement check.
 
 ## Deferred
+
+### FRONTEND-003 — define the team's GUI mix after the first runs of the rewritten skill
+
+**Status:** `deferred` (2026-11-14); the owner deferred tuning until evidence from three to five real GUI projects is available. The owner said on 2026-10-11 that the team's GUI work is a mix
+of the skill's five archetypes and that the mix is defined after a few runs, not up front; the
+rewritten `frontend-craft` therefore weights the archetypes evenly and defers the deep capability
+references ([decision](decisions/2026-10-11-frontend-craft-generalized.md)).
+**Owner:** The human owner decides the weighting and the first add-on; a maintainer session owns the
+skill's archetype table and build scenarios.
+**Outcome:** After the first few real GUI tasks, the archetype table reflects the kinds of GUI the
+team builds most, the greenfield recommendations follow that weighting, and the first deep
+capability reference (charts and grids, live data, forms, or editors) is chosen and scheduled.
+**Next action:** No dedicated tuning work until three to five real GUI projects provide evidence. During normal frontend work, record the archetype, chosen kit set and deployment target in the project packet. Once that evidence exists, the owner reviews it beside the proof packet and reopens the weighting and first-add-on decision.
+**Evidence:** [Rendered proof of the skill's defaults](reviews/2026-10-11-frontend-craft-proof/README.md);
+no real-task runs yet.
+**SRE task:** An SRE building a GUI gets defaults tuned to the kind of GUI the team builds most,
+and a deep reference for the capability they reach for first.
 
 ### EVAL-012 — plan incident and coding evaluations for the fleet
 
