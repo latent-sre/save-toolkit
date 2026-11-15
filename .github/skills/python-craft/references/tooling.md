@@ -12,8 +12,9 @@ Check a flag that matters against the [uv documentation](https://docs.astral.sh/
   [published metadata](https://packaging.python.org/en/latest/specifications/dependency-groups/);
   extras do.
 - Applications deploy from the lock (`uv sync --locked --no-dev`, or `uv export` for another
-  installer). Libraries declare the lowest versions they actually support, and upper bounds only
-  for known incompatibilities.
+  installer) and raise bounds freely. Libraries upgrade the lock but raise a published lower bound
+  only when the code needs the newer API; test those bounds in CI with
+  `--resolution lowest-direct`. Upper bounds only for known incompatibilities.
 
 ## Tool configuration
 
@@ -42,7 +43,6 @@ upgraded API.
 | Purpose | Command |
 |---|---|
 | Floor or another version | `uv run --locked --isolated --python 3.14 pytest` |
-| A library's declared lower bounds | `uv run --isolated --resolution lowest-direct pytest`; `uv.lock` must be unchanged afterwards |
 | Built artifact | `uv build`, then from outside the source tree `uv run --isolated --no-project --with <wheel> python -c "import <pkg>"`, and run its entry point; checkout tests hide missing files |
 
 ## Risk to check
