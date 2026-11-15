@@ -7,7 +7,7 @@ CLI parsing, serialization, and data processing. Assess in proportion to the com
 maintenance, support for the Python floor and deployment platforms, typing, license.
 
 - One library per role: use the project's existing HTTP client, validator, or CLI framework or
-  replace it everywhere; never run two.
+  replace it; two coexist only mid-migration.
 - Wrap a library only where the wrapper owns domain vocabulary, a policy, or a substitution seam.
 - A one-line rationale covers an ordinary choice.
 

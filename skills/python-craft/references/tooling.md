@@ -10,8 +10,9 @@
 - Dependency groups never reach
   [published metadata](https://packaging.python.org/en/latest/specifications/dependency-groups/);
   extras do.
-- Applications deploy from the lock: `uv sync --locked --no-default-groups`, or `uv export` for
-  another installer. `--no-dev` drops only the `dev` group.
+- Applications deploy from the lock: `uv sync --locked --no-default-groups`, or
+  `uv export --locked --no-default-groups` for another installer. `--no-dev` drops only the `dev`
+  group.
 - Libraries test declared lower bounds in CI with
   `uv run --isolated --resolution lowest-direct pytest`. It can rewrite `uv.lock`, even with
   `--isolated` on older uv: restore the lock afterwards and never commit the rewritten one.
@@ -44,7 +45,7 @@ upgraded API.
 
 | Risk | Check |
 |---|---|
-| Floor or another version | `uv run --locked --isolated --python 3.14 pytest` |
+| Floor or another version | `uv run --locked --isolated --python <floor> pytest` |
 | Layout, entry point, or package-data change | `uv build` (`--no-sources` before publishing), then from outside the source tree `uv run --isolated --no-project --with <wheel> python -c "import <pkg>"`, and run its entry point; checkout tests hide missing files |
 | Concurrency | One task forced to fail, cancellation mid-operation, deadline expiry, the bound holding |
 | Streaming or bounded memory | Output observed before input is exhausted; cleanup after a consumed prefix |
