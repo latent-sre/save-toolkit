@@ -6,6 +6,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- Replace `python-craft` and `python-engineering` with a rebuilt `python-craft` skill covering
+  senior-level Python design, active refactoring and library adoption, Python 3.12–3.15 traps, and verification.
+
 - Remove selected wording and Markdown-format test pins so guidance can be rephrased without
   updating those tests; retain unrelated authority, schema, and behavioral coverage.
 

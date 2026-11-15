@@ -4,8 +4,8 @@ split: regression
 skill: python-craft
 tools: [Skill, Read]
 references:
-  - skills/python-craft/references/refactoring.md
-  - skills/python-craft/references/writing-python.md
+  - skills/python-craft/references/refactoring-and-libraries.md
+  - skills/python-craft/references/design-and-new-code.md
 prompt: |-
   Assess these independent Python improvement cases; do not edit code. The supplied consumer
   inventory is complete for these cases; in a real checkout you would need to establish it.

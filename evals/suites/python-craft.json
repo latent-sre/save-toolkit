@@ -23,10 +23,12 @@
     "build-python-refactor-effects",
     "build-python-separate-calculation",
     "build-python-unify-policy",
+    "discovery-python-defers-go-service",
     "discovery-python-defers-live-incident",
     "discovery-python-explanation",
     "discovery-python-improvement",
     "discovery-python-modernization",
+    "discovery-python-new-component",
     "discovery-python-refactoring",
     "python-new-code-judgment",
     "python-refactoring-judgment"
