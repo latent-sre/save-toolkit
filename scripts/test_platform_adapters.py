@@ -186,16 +186,16 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIn("edit", tools)
         self.assertIn("execute", tools)
 
-    def test_reviewer_has_verification_tools_and_only_evidence_helpers(self) -> None:
+    def test_reviewer_has_verification_tools_and_delegation(self) -> None:
         self.assertEqual(["read", "search", "edit", "execute", "agent", "todo"],
                          self._copilot("reviewer", "tools"))
-        self.assertEqual(["repository-investigator"], self._copilot("reviewer", "agents"))
+        self.assertIsNone(self._copilot("reviewer", "agents"))
         self.assertNotIn("web", self._copilot("reviewer", "tools"))
 
     def test_scribe_copilot_agent_can_edit_but_cannot_execute_or_delegate(self) -> None:
         self.assertEqual(["read", "search", "edit"], self._copilot("scribe", "tools"))
 
-    def test_copilot_agents_preserve_every_canonical_delegation_allowlist(self) -> None:
+    def test_copilot_agents_preserve_delegation_tool_presence_without_local_allowlists(self) -> None:
         expected = {
             "observability-engineer": ["scribe", "researcher"],
             "principal-engineer": ["repository-investigator", "sre-assistant", "researcher"],
@@ -214,7 +214,7 @@ class PlatformAdapterTests(unittest.TestCase):
         )
         for name, allowed_agents in expected.items():
             with self.subTest(agent=name):
-                self.assertEqual(allowed_agents, self._copilot(name, "agents"))
+                self.assertIsNone(self._copilot(name, "agents"))
                 self.assertEqual(allowed_agents is not None, "agent" in self._copilot(name, "tools"))
 
     def test_copilot_agent_rejects_an_unscoped_agent_tool(self) -> None:
@@ -229,6 +229,41 @@ class PlatformAdapterTests(unittest.TestCase):
         source.write_text(agent, encoding="utf-8", newline="\n")
         with self.assertRaisesRegex(ValueError, "explicit target allowlist"):
             adapters.render_copilot_agent(source)
+
+    def test_copilot_agent_rejects_empty_effective_tool_lists(self) -> None:
+        source = self._temporary_root() / "probe-agent.md"
+        for name, field in (
+            ("probe-agent", ""),
+            ("probe-agent", "tools: []\n"),
+            ("probe-agent", "tools: Skill\n"),
+            ("probe-agent", "tools: UnknownTool\n"),
+            ("probe-agent", "tools: mcp__claude_ai_Context7__query-docs\n"),
+            ("sre-assistant", "tools: Bash, PowerShell\n"),
+        ):
+            with self.subTest(name=name, field=field):
+                source.write_text(
+                    f"---\nname: {name}\ndescription: Empty mapping probe.\n{field}---\nProbe.\n",
+                    encoding="utf-8",
+                )
+                with self.assertRaisesRegex(ValueError, "empty Copilot tool list"):
+                    adapters.render_copilot_agent(source)
+
+    def test_empty_tool_mapping_cannot_replace_existing_generated_outputs(self) -> None:
+        root = self._canonical_root()
+        adapters.write_generated_outputs(root)
+        before = {path: path.read_bytes() for relative in adapters.GENERATED_ROOTS
+                  for path in (root / relative).rglob("*") if path.is_file()}
+        source = root / "agents/researcher.md"
+        source.write_text(
+            "---\nname: researcher\ndescription: Empty mapping probe.\n"
+            "tools: mcp__claude_ai_Context7__query-docs\n---\nProbe.\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(ValueError, "empty Copilot tool list"):
+            adapters.write_generated_outputs(root)
+        after = {path: path.read_bytes() for relative in adapters.GENERATED_ROOTS
+                 for path in (root / relative).rglob("*") if path.is_file()}
+        self.assertEqual(before, after)
 
     def test_copilot_agent_rejects_the_retired_plugin_addressing_banner(self) -> None:
         # The wrapped two-line form is the variant an exact-bytes match once missed.
@@ -247,39 +282,46 @@ class PlatformAdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Plugin addressing banner is retired"):
             adapters.render_copilot_agent(source)
 
-    def test_copilot_agents_offer_the_current_roster_handoff_graph(self) -> None:
-        expected_targets = {
-            "observability-engineer": ["sre-assistant", "scribe"],
-            "principal-engineer": ["software-engineer"],
-            "reliability-engineer": [],
-            "repository-investigator": [],
-            "researcher": [],
-            "reviewer": ["software-engineer"],
-            "scribe": ["software-engineer"],
-            "software-engineer": ["reviewer", "scribe", "principal-engineer"],
-            "sre-assistant": ["scribe", "software-engineer"],
-        }
-        for name, targets in expected_targets.items():
-            with self.subTest(agent=name):
-                handoffs = self._copilot(name, "handoffs") or []
-                self.assertEqual(targets, [item.get("agent") for item in handoffs])
-                self.assertEqual(len(targets), len({item.get("agent") for item in handoffs}))
-                for handoff in handoffs:
-                    self.assertIs(handoff.get("send"), True)
-                    self.assertTrue(str(handoff.get("label", "")).strip())
-                    self.assertTrue(str(handoff.get("prompt", "")).strip())
-                    self.assertNotEqual("researcher", handoff["agent"])
+    def test_copilot_agent_outputs_omit_local_only_frontmatter(self) -> None:
+        forbidden = {"agents", "handoffs", "argument-hint", "advancedOptions"}
+        root = self._canonical_root()
+        # Source metadata must not leak through either agent layout or the command preview.
+        for source in (root / "agents").glob("*.md"):
+            text = source.read_text(encoding="utf-8")
+            source.write_text(text.replace("---\n", (
+                "---\nagents: [unexpected-worker]\n"
+                "handoffs: [{label: Run, agent: unexpected-worker, prompt: Run, send: true}]\n"
+                "argument-hint: '[task]'\nadvancedOptions: {}\n"
+            ), 1), encoding="utf-8")
+        outputs = adapters.expected_outputs(root)
+        agents = {path: data.decode("utf-8") for path, data in outputs.items()
+                  if path.parent in (adapters.COPILOT_AGENTS, adapters.COPILOT_PLUGIN_AGENTS)}
+        self.assertEqual(2 * len(list((root / "agents").glob("*.md"))), len(agents))
+        agents[Path("command-preview.agent.md")] = adapters.render_copilot_agent(
+            root / "agents/sre-assistant.md", command_preview=True
+        )
+        for path, rendered in agents.items():
+            with self.subTest(path=str(path)):
+                fields = fleet_frontmatter.parse(rendered, path).fields
+                self.assertFalse(forbidden.intersection(fields), fields)
+                self.assertTrue(fields["name"])
+                self.assertTrue(fields["description"])
+                self.assertTrue(fields["tools"])
 
-    def test_copilot_handoffs_are_independent_of_model_called_subagents(self) -> None:
-        self.assertNotIn("sre-assistant", self._copilot("observability-engineer", "agents") or [])
-        self.assertEqual(["software-engineer"], [
-            handoff["agent"] for handoff in self._copilot("reviewer", "handoffs") or []
-        ])
-        self.assertNotIn("software-engineer", self._copilot("reviewer", "agents"))
-        self.assertEqual(["software-engineer"], [
-            handoff["agent"] for handoff in self._copilot("scribe", "handoffs") or []
-        ])
-        self.assertNotIn("agent", self._copilot("scribe", "tools"))
+    def test_agent_field_removal_preserves_skill_and_command_argument_hints(self) -> None:
+        outputs = adapters.expected_outputs(ROOT)
+        for source in sorted((ROOT / "skills").glob("*/SKILL.md")):
+            projected = adapters.COPILOT_SKILLS / source.parent.name / source.name
+            fields = fleet_frontmatter.parse(outputs[projected].decode("utf-8"), projected).fields
+            expected = fleet_frontmatter.parse_file(source).fields["argument-hint"]
+            with self.subTest(skill=source.parent.name):
+                self.assertTrue(expected)
+                self.assertEqual(expected, fields["argument-hint"])
+        command = Path("commands/adr.md")
+        projected = adapters.COPILOT_PLUGIN_COMMANDS / command.name
+        fields = fleet_frontmatter.parse(outputs[projected].decode("utf-8"), projected).fields
+        self.assertEqual(fleet_frontmatter.parse_file(ROOT / command).fields["argument-hint"],
+                         fields["argument-hint"])
 
     def test_copilot_research_boundaries_are_mutually_exclusive(self) -> None:
         self.assertEqual(["read", "search"], self._copilot("repository-investigator", "tools"))

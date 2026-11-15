@@ -520,8 +520,11 @@ or an untimed aggregate for evidence of incident recovery or cause.
 ### COPILOT-HARNESS-001 — decide fleet delegation on the default Copilot harness
 
 **Status:** `active` (2026-11-12). The owner selected verified native Copilot delegation before
-release. The existing `agents:` and `handoffs:` fields do not apply to the default harness;
-a native projection and installed acceptance remain to implement. Current converter/SDK research
+release. [verified] The projection now omits Local-only `agents`, `handoffs`, `argument-hint`,
+and `advancedOptions` agent fields; the handoff map is retired and skill/command hints remain.
+[verified] Agent-authoring now covers the default-harness field contract, tool mapping and preload
+checks; the renderer rejects empty mapped tool lists before replacing generated files.
+Native delegation enforcement and installed acceptance remain to implement. Current converter/SDK research
 has not identified an enforceable per-parent delegation-target restriction.
 **Owner:** The human owner decides; a maintainer session owns the generator and lane text.
 **Research scope:** Copilot, Claude Code, and Codex; OpenCode excluded for now. This comparison

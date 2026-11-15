@@ -31,18 +31,20 @@ Host-supplied MCP dependencies: `researcher` uses the host's GitHits and Context
 `sre-assistant` the Playwright server; this plugin declares none of them. Grants name exact tools,
 so a server-side rename silently drops the tool — re-verify those grants after MCP upgrades.
 
-### Changing a delegation or handoff edge
+### Changing a delegation edge
 
 A model-call edge `A → B` is the `Agent(save-toolkit:B)` grant in `agents/A.md`. Its one source is
 that grant, pinned by `EXPECTED_DELEGATION` in `scripts/validate_fleet.py` and rendered as the
 "Delegates to" column of the `README.md` roster; never re-tabulate edges elsewhere. Change all
 three in one commit, regenerate, then run Gate A: the source check, the roster render check, and
-the byte-for-byte adapter gate (Copilot `agents:`) must all pass.
+the byte-for-byte adapter gate must all pass. Copilot receives the `agent` tool alias, not a
+per-parent target allowlist; preserve that limitation in the projection documentation.
 
-A VS Code handoff edge is separate and never alters an `Agent(...)` grant. Edit
-`COPILOT_HANDOFFS_BY_SOURCE` in `scripts/generate_platform_adapters.py`, update the exact
-source-target and authority assertions in `scripts/test_platform_adapters.py`, regenerate, and run
-those tests and Gate A. Keep `researcher` call-only and every handoff `send: true`.
+The default Copilot projection omits Local-only `agents`, `handoffs`, `argument-hint`, and
+`advancedOptions` agent fields. Do not restore the retired handoff map or infer enforcement from
+canonical Claude grants. A replacement delegation boundary requires an explicit design and
+installed-host evidence under COPILOT-HARNESS-001. Skill and command `argument-hint` metadata is
+separate and remains supported.
 
 Agent bodies are the runtime copy of the `AGENTS.md` handoff contract; `AGENTS.md` reaches only
 sessions in this repository. Each delegating agent keeps a short handoff core. Add a generic handoff

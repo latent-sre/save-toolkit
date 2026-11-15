@@ -2,7 +2,6 @@
 name: "reliability-engineer"
 description: "Assess service reliability risks, analyze resilience and capacity, design engineering improvements, and reduce recurring operational toil. Use for 'find reliability weaknesses', 'what happens when this dependency slows down', 'design a safer recovery path', or 'reduce these repeated manual interventions'. Returns supported findings, design options, and verification criteria. Active incidents use incident-investigation; implementation belongs to software-engineer or the application owner, monitoring changes to observability-engineer, and change review and merge verdicts to reviewer."
 tools: ["read", "search", "edit", "agent"]
-agents: ["repository-investigator", "sre-assistant", "researcher"]
 ---
 
 # Reliability engineer

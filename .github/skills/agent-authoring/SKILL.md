@@ -27,6 +27,12 @@ observed failure, and success criteria.
 ## Method
 
 1. **Success criteria first** — measurable, before touching the prompt.
+   For frontmatter or tool changes, bind the executing harness and client surface first: VS Code's
+   default Copilot harness, standalone Copilot CLI, and Claude have different contracts.
+   Use the [Copilot reference](./references/copilot-frontmatter.md) for a Copilot agent or projection.
+   Separate fields the editor recognizes, configuration the converter forwards, and behavior the
+   installed host actually demonstrates. Keep target enforcement and instruction delivery explicit
+   when translating delegation; shared YAML names do not establish equivalent permissions.
 2. **Match evidence to every changed surface.** Combine applicable rows; routing checks do not
    replace checks of changed behavior.
 
@@ -35,6 +41,7 @@ observed failure, and success criteria.
    | Routing failure (never, too often, wrong lane) or a description edit | The fleet's overlapping routing scenarios (Save Toolkit `CONTRIBUTING.md`) after the edit; pure wording changes need no live eval; run the incumbent only to attribute a red |
    | Accepted non-routing behavioral failure | Reproduce on the incumbent before editing; paired incumbent/candidate runs after |
    | Explicit new behavior | Define and check the cases; never invent a failing baseline |
+   | Host projection, tool mapping, or skill preload | Check rendered fields and mapping failure paths offline; verify effective tools, selected/delegated use, instruction delivery and installed resource resolution on the named host before claiming runtime compatibility |
    | Pure rewording without a routing or behavior change | No live eval |
 
 3. **Retest only when step 2 calls for it.** Fresh context and multiple reps only when live behavioral
@@ -113,7 +120,7 @@ authorizes a self-modifying loop.
 | A prompt, agent body, skill body, description, or grader | [artifact guidance](./references/artifact.md) |
 | A tool contract, or promoting a shell prototype to a tool | [tool contracts](./references/artifact.md#tool-contracts) |
 | Agent or skill frontmatter, delegation/handoff edges, or their projections | [Claude Code frontmatter](./references/claude-code-frontmatter.md), the canonical source contract, including `Agent(...)` grants and their spawn-depth limit (three layers by default; `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`); follow this fleet's edge-change procedure in the Save Toolkit repository's `CONTRIBUTING.md` |
-| VS Code/Copilot projection or handoff work | Also read [Copilot & VS Code frontmatter](./references/copilot-frontmatter.md) for `agents:`, `handoffs:`, and tool aliases |
+| Copilot frontmatter, tool mapping, skill preloads, or projections | Also read [Copilot frontmatter](./references/copilot-frontmatter.md) for current fields, tool resolution, preload checks, and host acceptance |
 | Prompt injection, least privilege, egress, unsafe delegation, or blast radius of an agent, skill, tool, or flow | [agent security](./references/agent-security.md) — the lethal trifecta, cross-agent trust, the five-question review |
 | A cold-start packet, bounded evidence, receiving a helper's return, or replaying context | [context and handoffs](./references/artifact.md#context-and-handoffs) |
 | Relying on a frontmatter field to enforce anything, or publishing a skill beyond this plugin | [portable frontmatter](./references/copilot-frontmatter.md#portable-frontmatter) — the portable set can grant, never restrict |

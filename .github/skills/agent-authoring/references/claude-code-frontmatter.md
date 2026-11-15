@@ -45,8 +45,8 @@ how that guard scopes itself is maintainer detail in the Save Toolkit repository
 
 Canonical plugin delegation grants use full names: `Agent(save-toolkit:reviewer, save-toolkit:scribe)`.
 Bare targets did not match plugin agent identities on the hosts tested; the
-generator projects the same targets to bare Copilot names. The validator rejects unqualified or
-foreign-plugin grants.
+generator validates those targets but emits only the Copilot delegation tool alias, without an
+equivalent per-parent allowlist. The validator rejects unqualified or foreign-plugin grants.
 
 On native Windows, `PowerShell` is a separate shell tool and needs its own grant; `Bash` does not
 grant it. With Git Bash installed, any Bash deny rule, even a scoped one, silently disables the

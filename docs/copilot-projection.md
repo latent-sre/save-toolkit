@@ -4,7 +4,7 @@ How `scripts/generate_platform_adapters.py` projects this fleet's canonical agen
 VS Code and GitHub Copilot, and why each lane receives the tools it does. The generator and
 `scripts/test_platform_adapters.py` are the source of truth; this file records the decisions they
 encode. Field-level host facts live in the
-[Copilot & VS Code frontmatter reference](../skills/agent-authoring/references/copilot-frontmatter.md).
+[Copilot frontmatter reference](../skills/agent-authoring/references/copilot-frontmatter.md).
 
 ## Adapter behavior
 
@@ -21,9 +21,15 @@ encode. Field-level host facts live in the
   `.claude-plugin/plugin.json` first and loads the Claude agents instead.
 - Agent resource links resolve from their generated location: workspace agents use
   `.github/skills/`, while installed agents use root `skills/`.
-- The `agents` and `handoffs` projection works only on VS Code's Local harness, so a valid shared
-  header does not establish the same delegation controls on every host. The field reference above
-  has the per-host detail.
+- Agent headers omit Local-only `agents`, `handoffs`, `argument-hint`, and `advancedOptions`.
+  The retired Local handoff map is removed. Skill and command argument hints remain intact.
+- Canonical Claude delegation grants are still validated, and their `agent` tool alias is retained.
+  It enables delegation without enforcing the canonical child list. COPILOT-HARNESS-001 remains
+  open until the chosen boundary is proven on the installed default harness; field removal does
+  not establish equivalent permissions or release readiness.
+- Empty mapped agent tool lists fail generation before existing output is replaced. VS Code's
+  converter interprets empty or missing lists as all session-configured tools. This guard catches
+  complete mapping loss; nonempty lists still need checks for missing integrations and host defaults.
 
 ## Body budgets
 
@@ -49,13 +55,16 @@ The preview's explicit `--copilot` guard mode uses agent-hook scoping, not Claud
 
 | Lane | Current Copilot capability and reason |
 |---|---|
-| `software-engineer` | Read/search/edit/execute, scoped delegation, and todo; already able to build and test with the host's shell |
+| `software-engineer` | Read/search/edit/execute, delegation, and todo; already able to build and test with the host's shell |
 | `observability-engineer` | The same capability groups; already able to query Grafana through commands without a Grafana MCP, under its existing change authority |
-| `reviewer` | Read/search/edit/execute, one local evidence helper, and todo; runs checks only in a scratch copy, and outside contributions only in isolated CI |
-| `sre-assistant` | Read/search, researcher delegation, and selected native/MCP browser viewing interactions under read-only session controls; the command preview adds only terminal execution/output for reviewed reads |
+| `reviewer` | Read/search/edit/execute, delegation intended for the local evidence helper, and todo; runs checks only in a scratch copy, and outside contributions only in isolated CI |
+| `sre-assistant` | Read/search, delegation intended for researcher, and selected native/MCP browser viewing interactions under read-only session controls; the command preview adds only terminal execution/output for reviewed reads |
 | `repository-investigator`, `scribe` | File investigation or document edits; shell execution is outside their assignments |
-| `reliability-engineer`, `principal-engineer` | Read/search/edit and three scoped evidence helpers; no execute, because design documents are their only writes and live evidence comes through `sre-assistant` |
+| `reliability-engineer`, `principal-engineer` | Read/search/edit and delegation intended for the canonical evidence helpers; no execute, because design documents are their only writes and live evidence comes through `sre-assistant` |
 | `researcher` | Public web access; no local files or shell. Adding exact Context7/GitHits tools needs the target host's registered tool IDs, not wildcard MCP grants. On Copilot cloud agent `web` does not apply, so researcher has no working tool there; route cited research through VS Code or Claude |
+
+The helper assignments above describe intended routing. Copilot does not enforce those target
+sets through the generated frontmatter.
 
 Do not broaden `execute` or use `tools: ["*"]` merely to fix a missing interpreter, credential,
 or hook path. A separate Claude PowerShell

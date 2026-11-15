@@ -173,3 +173,75 @@ source inspection and repository structural checks cannot substitute for them.
 Disposition: keep COPILOT-HARNESS-001 active. The immediate priority is proving the delegation
 boundary while preparing the bounded adapter corrections; a wholesale rewrite of skill content
 is not supported by the findings.
+
+
+## Agent-authoring update and offline generation guard
+
+[sourced] The owner requested a Copilot agent-authoring repair after the tool-mapping investigation.
+This amendment changes the authoring method and reference, and rejects empty mapped tool lists;
+it does not enable skill preloads, provision MCP, change browser mappings, install a client,
+or establish a new delegation boundary. The earlier Local-field cleanup remains part of the
+same uncommitted candidate on `work/copilot-harness-frontmatter`.
+
+[verified] The authoring entry point now binds the executing harness/client before frontmatter
+changes. Its Copilot reference covers all documented default-harness fields, distinguishes editor
+recognition from runtime forwarding, and corrects the earlier inference about VS Code child
+instruction delivery. Tool guidance separates documented qualified references from proven call
+success, records researcher integration gaps, and keeps intentional mapping omissions explicit.
+The preload procedure checks workspace and installed-plugin resolution, direct and delegated use,
+required references, context cost, and trusted review guidance. No fleet preload is enabled.
+
+[verified] A single fresh-context reference application per variant used the same four-part task:
+scribe preload design; classification of eight Copilot fields; empty/browser/MCP tool mapping;
+and researcher discovery. The incumbent could not classify six fields or supply preload syntax
+from the reference. The candidate classified all eight and supplied the bounded preload and host
+verification procedure without inventing MCP identifiers. Both preserved the installed-host gap.
+These are reference-retrieval samples, not a reliability estimate or native Copilot acceptance.
+The candidate sample still echoed a blanket tool-list claim from the old portable footer; the
+footer was narrowed to require selected-host evidence, without claiming a repeated behavioral run.
+
+[verified] Before the generator guard, six empty-list render cases and one output-preservation
+case failed. Cases cover missing tools, an empty array, only Skill, an unknown grant, only an
+unmapped MCP tool, and SRE shell grants removed by the standard profile. After the change, both
+tests pass with six subtests. Generation fails before replacing existing output; the preservation
+check compares all generated file paths and bytes. Nonempty profiles still need mapping and
+runtime verification: this guard does not resolve partial mapping loss or default-tool additions.
+
+[verified] Relative to repository baseline `5bdbb980`, the authoring entry point grows from
+9,512 to 10,393 bytes (+881); its Copilot reference grows from 9,291 to 13,365 (+4,074).
+The extra reference content supplies previously missing field distinctions, a preload application
+example, mapping failure behavior, and installed acceptance criteria. It loads for Copilot
+composition work rather than expanding every fleet agent body. Canonical agent grants are unchanged.
+
+[sourced] Upstream refresh found VS Code main at `776b518e720e780fb590f29872473f90bda9e079`,
+two commits beyond the prior pin; the compared changes do not alter the inspected converter,
+client-tool mapping, or launcher files. Copilot SDK main remained
+`cf045793958ce674259c557f7769788f94ee20c9`.
+[Comparison](https://github.com/microsoft/vscode/compare/a389cd7c5195662c3e3998d4ba10604ff5cdaa70...776b518e720e780fb590f29872473f90bda9e079).
+The earlier pinned links therefore still describe the inspected mapping path, not an installed
+host. No native Copilot model call or reliability-campaign spend occurred in this amendment.
+
+[verified] Final offline verification: affected suites **105 passed / 548 subtests**; Ruff and
+mypy pass. The coordinated default suite passes **4,580 tests, 85 skips, 4,406 subtests**, exit 0
+in 28.627 runner seconds. Receipt:
+`.git/local-test-runs/20261115T060813Z-1234ca8d/run.json`.
+Source endpoints were identical, with tracked diff SHA-256 `d49f66bbdc785d3631efcd3c7526c4e30e397534bfdc5b481ae4c9638194ffbd`.
+This verification paragraph is a subsequent evidence-only documentation update; no executable,
+canonical skill or generated adapter bytes changed after that suite. Native Copilot acceptance
+and per-parent target enforcement remain unverified.
+
+
+### Active-guide cleanup
+
+[sourced] The owner requested removal of old material from the authoring guide. [verified]
+The active Copilot reference now omits the legacy Local field catalog, deprecated `infer`,
+Local target/preview instructions, and compatibility-history discussion. The entry point routes
+Copilot authors to current fields, mapping, preload and host checks. Supported skill hints,
+canonical Claude guidance, current unforwarded-field limitations, and unresolved enforcement
+requirements remain. Historical findings stay in the research records.
+
+[verified] This follow-up changes prose and regenerated reference copies only. The Copilot
+reference is now 12,251 bytes, down 1,114 from the preceding authoring candidate. The full-suite
+receipt above belongs to that preceding candidate; its executable files are unchanged.
+Fresh adapter checks pass **56 tests / 282 subtests**, and Gate A passes both structural steps.
+No installed-host or live behavioral result is claimed for this cleanup.
