@@ -54,7 +54,7 @@ when the task calls for it. Explanation, design, and review requests end at that
   `uv add` and `uv remove`. Commit `uv.lock`; uv generates it.
 - **Current dependencies:** add packages at their current stable release. Modernization upgrades
   existing dependencies to current major versions, migrates off deprecated APIs, and replaces
-  unmaintained packages; an old pin needs a stated reason.
+  unmaintained packages; an upper bound or exact pin needs a stated reason.
 - **Locked verification:** `uv sync --locked` and `uv run --locked …` in CI and reproducible
   checks. `--frozen` skips the check that metadata and lockfile agree; never substitute it.
 - **Distributable packages** declare a build backend; verify the built artifact when packaging
@@ -64,13 +64,13 @@ when the task calls for it. Explanation, design, and review requests end at that
   targeting the floor. Strict typing for new or substantially rewritten code; a deliberate,
   recorded boundary around existing untyped code.
 - **When a project conflicts with this baseline** (older runtime, stale dependencies, another
-  package manager, legacy build), name the conflict and a concrete migration path. Neither keep an obsolete foundation
-  silently nor force a repository-wide migration into a narrow task.
+  package manager, legacy build), name the conflict and a concrete migration path. Neither keep an
+  obsolete foundation silently nor force a repository-wide migration into a narrow task.
 
 ## Workflow
 
-1. **Establish the objective and constraints.** Size the response: a narrow repair gets a focused
-   change, a regression test, and focused verification; a design problem gets a design answer.
+1. **Establish the objective and size the response.** A narrow repair gets a focused change, a
+   regression test, and focused verification; a design problem gets a design answer.
 2. **Design before editing.** Name the problem and the intended improvement. Evaluate suitable
    libraries now, not after a bespoke version becomes difficult. For existing code choose focused
    refactoring, staged replacement, or a rewrite on the merits; a rewrite does not require

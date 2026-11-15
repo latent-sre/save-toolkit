@@ -1,7 +1,6 @@
 # Tooling and verification
 
-uv changes quickly; check a flag that matters against the
-[uv documentation](https://docs.astral.sh/uv/).
+Check a flag that matters against the [uv documentation](https://docs.astral.sh/uv/).
 
 ## Project setup
 
@@ -32,9 +31,11 @@ uv changes quickly; check a flag that matters against the
 ## Upgrading dependencies
 
 `uv tree --outdated` shows what is behind. `uv lock --upgrade-package <pkg>` moves one package and
-`uv lock --upgrade` all, both capped by the constraints in `pyproject.toml`; raise a constraint
-with `uv add '<pkg>>=<new>'`. Cross a major version one package at a time: read its migration
-guide, clear deprecation warnings, then test through the upgraded API.
+`uv lock --upgrade` all, both capped by the constraints in `pyproject.toml`. Raise a constraint
+with `uv add '<pkg>>=<new>'`, repeating its `--dev`, `--group`, or `--optional` flag; without it
+the package lands in runtime dependencies. Cross a major version one package at a time: read its
+migration guide, clear deprecation warnings on the current version, upgrade, then test through the
+upgraded API.
 
 ## Commands
 
@@ -42,12 +43,11 @@ guide, clear deprecation warnings, then test through the upgraded API.
 |---|---|
 | Floor or another version | `uv run --locked --isolated --python 3.14 pytest` |
 | A library's declared lower bounds | `uv run --isolated --resolution lowest-direct pytest`; `uv.lock` must be unchanged afterwards |
-| Built artifact | `uv build`, then from outside the source tree `uv run --isolated --no-project --with <wheel> python -c "import <pkg>"`, and run its entry point |
+| Built artifact | `uv build`, then from outside the source tree `uv run --isolated --no-project --with <wheel> python -c "import <pkg>"`, and run its entry point; checkout tests hide missing files |
 
 ## Risk to check
 
 | Risk | Check |
 |---|---|
-| Concurrency | One task forced to fail, cancellation mid-operation, deadline expiry, the bound holding under load |
-| Layout, entry point, or package-data change | The built-artifact check; checkout tests hide missing files |
+| Concurrency | One task forced to fail, cancellation mid-operation, deadline expiry, the bound holding |
 | Streaming or bounded memory | Output observed before input is exhausted; cleanup after a consumed prefix |

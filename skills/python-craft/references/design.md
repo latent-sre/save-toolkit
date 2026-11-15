@@ -7,12 +7,12 @@ parsing, serialization, and data processing. Assess in proportion to the commitm
 actual problem, API quality, maintenance, support for the Python floor and deployment platforms,
 typing, license, and dependency or runtime cost.
 
-- One library per role: beside an adequate HTTP client, validator, or CLI framework, use it or
-  migrate off it. No framework for needs nobody has.
+- One library per role: where the project already has an adequate HTTP client, validator, or CLI
+  framework, use it or migrate off it. No framework for needs nobody has.
 - Wrap a library only where the wrapper owns domain vocabulary, a policy (timeouts, retries,
   auth), or a substitution seam.
 - Check uncertain or version-sensitive APIs against the library's current official documentation
-  for the version being locked, not memory.
+  for the locked version, not memory.
 - A one-line rationale covers an ordinary choice.
 
 ## Technique selection
@@ -23,7 +23,7 @@ typing, license, and dependency or runtime cost.
 | Invalid states are representable | Enums, tagged unions matched exhaustively (`assert_never`), `NewType` identifiers, frozen dataclasses. `frozen=True` does not freeze contained collections |
 | A caller needs substitution | A `Protocol` owned by the consumer, the dependency passed in. No substitution need, no interface |
 | Function or class | Functions for stateless behavior; a class when it owns state with invariants or a lifecycle |
-| Decisions tangled with I/O | A core returning decisions as values; I/O and orchestration at the edge, depending on the core and never the reverse. Skip for trivial glue |
+| Decisions tangled with I/O | A core returning decisions as values; I/O and orchestration at the edge, depending on the core and never the reverse |
 | Something acquired must be released | Context managers, `ExitStack` for dynamic sets; owners close, borrowers do not. A generator returned from inside `with` outlives the resource |
 | Shared clients, pools, settings | Construct in the entrypoint and pass down. Module-level singletons and import-time I/O hide ownership |
 | The workload outgrows the simple version | Stream and batch unbounded input, index repeated lookups, vectorize numeric volume, cache repeated pure computation. Fix the algorithm first |
@@ -31,8 +31,7 @@ typing, license, and dependency or runtime cost.
 ## Concurrency
 
 Add it for a measured need: threads for blocking libraries, `asyncio` with `TaskGroup` for I/O
-fan-out, processes, `InterpreterPoolExecutor`, or a native library for CPU-bound work. Make
-explicit:
+fan-out, processes or a native library for CPU-bound work. Make explicit:
 
 - **Bound:** a semaphore, pool size, or bounded queue. `TaskGroup` and `gather` limit nothing.
 - **Deadline:** one for the whole operation (`asyncio.timeout`), a timeout on every network call.
