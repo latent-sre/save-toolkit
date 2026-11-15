@@ -6,6 +6,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- Remove the `python-engineering` skill and its eval suite; `python-craft` is now the one Python
+  skill, with six of its hazard rules folded in.
+
 - Rewrite `python-craft` as one portable skill with three references: engineering authority, a
   Python 3.14 and uv baseline, current dependencies, justified rewrites, proportionate checks.
 

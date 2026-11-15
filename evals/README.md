@@ -20,7 +20,6 @@ Use the verified project interpreter (`python` below), from the repository root.
 ```bash
 python evals/catalog.py suites
 python evals/catalog.py show --suite python-craft
-python evals/catalog.py show --suite python-engineering
 python evals/catalog.py list --component skill:python-craft
 python evals/catalog.py list --profile incident-v1
 python evals/catalog.py tests --suite python-craft --json
