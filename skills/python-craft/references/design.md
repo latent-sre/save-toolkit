@@ -9,7 +9,6 @@ maintenance, support for the Python floor and deployment platforms, typing, lice
 - One library per role: use the project's existing HTTP client, validator, or CLI framework or
   replace it; two coexist only mid-migration.
 - Wrap a library only where the wrapper owns domain vocabulary, a policy, or a substitution seam.
-- A one-line rationale covers an ordinary choice.
 
 ## Technique selection
 
@@ -19,9 +18,10 @@ maintenance, support for the Python floor and deployment platforms, typing, lice
 | Invalid states are representable | Enums, tagged unions matched exhaustively (`assert_never`), `NewType` identifiers, generics instead of `Any`, frozen dataclasses. `frozen=True` does not freeze contained collections |
 | A caller needs substitution | A `Protocol` owned by the consumer, the dependency passed in. No substitution need, no interface |
 | Function, class, or composition | Functions for stateless behavior; a class when it owns state with invariants or a lifecycle; compose collaborators rather than inherit |
-| Decisions tangled with I/O | A core returning decisions as values; I/O and orchestration at the edge, depending on the core and never the reverse; one responsibility per module |
+| Decisions tangled with I/O | A core returning decisions as values; I/O and orchestration at the edge, depending on the core; one responsibility per module |
 | Something acquired must be released | Context managers, `ExitStack` for dynamic sets; owners close, borrowers do not. A generator returned from inside `with` outlives the resource |
 | Shared clients, pools, settings | Construct in the entrypoint and pass down. Module-level singletons and import-time I/O hide ownership |
+| Text from files or stdin | Decode explicitly at the edge, never by ambient encoding; detach any wrapper around a borrowed stream. Test real bytes |
 | The workload outgrows the simple version | Stream and batch unbounded input, index repeated lookups, vectorize numeric volume, cache repeated pure computation. Fix the algorithm first |
 
 ## Concurrency

@@ -15,20 +15,19 @@
   group.
 - Libraries test declared lower bounds in CI with
   `uv run --isolated --resolution lowest-direct pytest`. It can rewrite `uv.lock`, even with
-  `--isolated` on older uv: restore the lock afterwards and never commit the rewritten one.
+  `--isolated` on older uv: restore the lock afterwards.
 
 ## Tool configuration
 
 - **Ruff** [infers its target](https://docs.astral.sh/ruff/settings/) from `requires-python`; an
   explicit `target-version` overrides it, so delete stale ones. Keep the `UP` rules on so syntax
-  tracks the floor; add rules with `extend-select`, because a bare `select` replaces the defaults.
+  tracks the floor; add rules with `extend-select`; a bare `select` replaces the defaults.
 - **Annotations** [evaluate lazily](https://docs.python.org/3.14/whatsnew/3.14.html) on a 3.14+
   floor: add no `from __future__ import annotations` and no quotes around forward references in
   annotations.
 - **Type checker:** mypy and pyright infer the Python version from an interpreter, not from
-  `requires-python`; set `python_version` or `pythonVersion` to the floor. ty reads the
-  `requires-python` minimum. Run the checker in the project environment (`uv run`), where it sees
-  installed dependencies.
+  `requires-python`; set `python_version` or `pythonVersion` to the floor. Run the checker in the
+  project environment (`uv run`), where it sees installed dependencies.
 - **Strictness:** list unmigrated modules as explicit exemptions so the list only shrinks.
   Suppress with a specific error code and a reason, never a blanket ignore.
 
@@ -38,8 +37,8 @@
 `uv lock --upgrade` all, both capped by the constraints in `pyproject.toml`. Raise a constraint
 with `uv add '<pkg>>=<new>'`, repeating its `--dev`, `--group`, or `--optional` flag; without it
 the package lands in runtime dependencies. Cross a major version one package at a time: read its
-migration guide, clear deprecation warnings on the current version, upgrade, then test through the
-upgraded API.
+migration guide, clear deprecation warnings on the current version, upgrade, then test the upgraded
+API.
 
 ## Checks
 

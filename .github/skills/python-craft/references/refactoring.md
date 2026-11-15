@@ -33,7 +33,7 @@ demonstrated problem stays.
 | Swap an implementation behind stable callers | Dependency inversion: introduce the seam, move callers, replace; inline the seam if nothing else needs it |
 | Old and new must coexist | Branch by abstraction; mark the old public path with `warnings.deprecated` (3.13+) |
 | One edit at many sites | A syntax-aware codemod (LibCST, ast-grep, Ruff fixes), tested on matches, near-misses, and migrated code; a second run changes nothing |
-| A broad equivalence claim | Differential tests of old against new over generated inputs, on isolated fixtures so effects never run twice, plus independent expectations so an old bug cannot pass as correct |
+| A broad equivalence claim | Differential tests of old against new over generated inputs, on isolated fixtures so effects never run twice, with independent expectations so an old bug cannot pass |
 | Persisted data or format change | A versioned migration, old data readable during rollout, tested on realistic old data |
 
 ## Equivalence traps
@@ -49,5 +49,5 @@ demonstrated problem stays.
 ## Finish
 
 Confirm superseded code and unused dependencies are gone by type checker and text search; static
-dead-code tools miss dynamic lookups. After moving a module, import it first in a fresh process;
-import order hides cycles.
+dead-code tools miss dynamic lookups. After moving a module, import each affected module first in
+its own fresh process; import order hides cycles.

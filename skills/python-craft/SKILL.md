@@ -25,8 +25,7 @@ Explanation, design, and review requests end at that output.
   standard-library-first, dependency-minimizing, minimal-diff, or preserve-existing-design default.
   The standard library, existing dependencies, and new packages compete on merit.
 - **Complexity must buy concrete value.** Never reject a stronger design only because it adds
-  techniques, modules, or dependencies, and never add them for show. The result must stay
-  understandable and supportable.
+  techniques, modules, or dependencies, and never add them for show.
 - **The objective sets scope; the existing design does not.** Improve whatever architecture the
   objective needs and leave unrelated code alone. Existing code is evidence about requirements and
   behavior, not a boundary on its replacement. Respect explicit project constraints (runtime,
@@ -42,8 +41,8 @@ Explanation, design, and review requests end at that output.
   modernization target for existing ones. Go higher only for a project requirement. Never silently
   raise a floor or add support for older Python; confirm before dropping versions a published
   package supports.
-- **Write for the declared floor**, using the modern syntax and APIs it supports; running a newer
-  interpreter does not authorize features the floor lacks.
+- **Write for the declared floor** and its modern syntax and APIs; a newer interpreter does not
+  authorize features the floor lacks.
 - **uv and `pyproject.toml`** for maintained projects: environments, dependencies, locking, and
   project commands go through uv. Metadata and tool settings live in TOML where supported. A
   standalone script carries inline metadata (`uv init --script`, `uv add --script`), not a project.
