@@ -84,6 +84,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     return 0
 """
+# The built-artifact check runs outside the project, so it carries no --locked.
+WHEEL_CHECK = """\
+uv build --wheel
+wheel=$(ls "$PWD"/dist/quota-*.whl)
+cd "$(mktemp -d)"
+[ "$(uv run --isolated --no-project --with "$wheel" quota-check 10 3)" = "7" ]
+"""
 TESTS = """\
 from quota import remaining
 
@@ -133,8 +140,9 @@ def assert_rejected(root: Path, files: dict[str, str], mode: str, diagnostic: st
         GOOD_NEW | {"pyproject.toml": TY_PROJECT, "ci.sh": CI.replace("mypy src tests", "ty check")},
         GOOD_NEW | {"ci.sh": CI.replace("uv sync --locked", "uv sync --locked  # never --frozen")},
         GOOD_NEW | {"pyproject.toml": PYPROJECT.replace(">=3.14", ">=3.15")},
+        GOOD_NEW | {"ci.sh": CI + WHEEL_CHECK},
     ],
-    ids=["mypy", "pyright", "ty", "comment-names-frozen", "higher-floor"],
+    ids=["mypy", "pyright", "ty", "comment-names-frozen", "higher-floor", "built-wheel-check"],
 )
 def test_correct_new_project_passes(tmp_path: Path, files: dict[str, str]) -> None:
     result = run_oracle(tmp_path, files, "new")
@@ -175,6 +183,11 @@ NEW_DEFECTS = [
     ("unlocked sync", {"ci.sh": CI.replace("uv sync --locked", "uv sync")}, "ci.sh command is not locked"),
     ("unlocked run", {"ci.sh": CI.replace("uv run --locked pytest", "uv run pytest")}, "ci.sh command is not locked"),
     ("no sync", {"ci.sh": CI.replace("uv sync --locked\n", "")}, "ci.sh never runs uv sync"),
+    (
+        "wheel check does not excuse an unlocked project run",
+        {"ci.sh": CI.replace("uv run --locked pytest", "uv run pytest") + WHEEL_CHECK},
+        "ci.sh command is not locked",
+    ),
     ("stale environment", {"ci.sh": CI.replace("uv run --locked pytest", "uv run --locked --no-sync pytest")}, "ci.sh uses --no-sync"),
     ("pip install", {"ci.sh": CI.replace("uv sync --locked", "uv sync --locked\npip install -e .")}, "ci.sh installs with pip"),
     ("bare pytest", {"ci.sh": CI.replace("uv run --locked pytest", "pytest")}, "ci.sh runs a check outside uv run"),

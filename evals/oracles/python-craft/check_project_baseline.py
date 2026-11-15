@@ -118,6 +118,8 @@ def check_ci(checker):
     uv_commands = [line for line in commands if re.search(r"\buv\s+(sync|run)\b", line)]
     CHECK.assertTrue(any(re.search(r"\buv\s+sync\b", line) for line in uv_commands), "ci.sh never runs uv sync")
     for line in uv_commands:
+        if "--no-project" in line:
+            continue  # the built-artifact check runs outside the project and its lock
         CHECK.assertIn("--locked", line, f"ci.sh command is not locked: {line}")
     for line in commands:
         CHECK.assertIsNone(re.match(rf"(exec\s+)?(pytest|ruff|python3?|{re.escape(checker)})\b", line),
