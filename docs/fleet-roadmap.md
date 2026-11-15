@@ -524,14 +524,24 @@ release. The existing `agents:` and `handoffs:` fields do not apply to the defau
 a native projection and installed acceptance remain to implement. Current converter/SDK research
 has not identified an enforceable per-parent delegation-target restriction.
 **Owner:** The human owner decides; a maintainer session owns the generator and lane text.
+**Research scope:** Copilot, Claude Code, and Codex; OpenCode excluded for now. This comparison
+does not change the selected release targets.
 **Outcome:** The fleet states how delegation works on the default Copilot harness, its lanes do not
 depend on a Local-only field there, and acceptance cases exist for the chosen harness.
-**Next action:** Establish a host-enforced target restriction before changing the projection;
-ignored Local fields and timeout-sensitive hooks do not establish the selected contract. Then prove
-allowed/forbidden child invocation and parent continuation on an
-installed default-Copilot session. Confirm browser tool names and `AGENTS.md` delivery separately.
-[Selected scope and current conversion seam](reviews/2026-11-12-release-001-preparation.md).
-**Evidence:** [VS Code agent harnesses](https://code.visualstudio.com/docs/agents/run/agent-harnesses).
+**Next action:** Establish a host-enforced target restriction before shipping the delegating
+projection; ignored Local fields and timeout-sensitive hooks do not establish the selected
+contract. Prepare bounded generator corrections for qualified browser tools, discovery
+instructions, and the hook payload contract. Then prove allowed/forbidden child invocation,
+parent continuation, effective tool grants, and instruction delivery in an installed
+default-Copilot session. Follow the acceptance matrix in the
+[migration research](reviews/2026-11-14-copilot-harness-migration-research.md).
+**Evidence:** [verified] Nine agents, 24 skills, and one command inspected; offline hook probe
+found a camelCase-payload migration trap. [sourced] Current converter/SDK inspection still found
+no per-parent target allowlist; VS Code now schedules Local removal by February 2027.
+[Research and pinned sources](reviews/2026-11-14-copilot-harness-migration-research.md),
+[three-Terra harness comparison](reviews/2026-11-14-three-harness-comparison.md),
+[selected scope](reviews/2026-11-12-release-001-preparation.md).
+[unverified] Current installed-harness behavior remains to test.
 **SRE task:** Use the fleet's delegating lanes from a default Copilot session, knowing which handoffs
 work there.
 
