@@ -13,8 +13,8 @@
 - Applications deploy from the lock: `uv sync --locked --no-default-groups`, or `uv export` for
   another installer. `--no-dev` drops only the `dev` group.
 - Libraries test declared lower bounds in CI with
-  `uv run --isolated --resolution lowest-direct pytest`. Without `--isolated` it rewrites
-  `uv.lock`; never commit a lock it produced.
+  `uv run --isolated --resolution lowest-direct pytest`. It can rewrite `uv.lock`, even with
+  `--isolated` on older uv: restore the lock afterwards and never commit the rewritten one.
 
 ## Tool configuration
 
