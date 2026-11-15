@@ -14,6 +14,12 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ### Changed
 
+- Refresh Copilot agent-authoring guidance for runtime fields, tool mapping and skill preloads;
+  reject empty projected tool lists before replacing generated adapters.
+
+- Copilot agent generation omits unsupported Local frontmatter and retires its handoff map;
+  skill and command argument hints remain, while native delegation enforcement is still unverified.
+
 - FRONTEND-003 is owner-deferred until three to five real GUI projects supply evidence for tuning
   frontend recommendations and choosing the first deeper capability reference.
 - EVAL-012 is owner-deferred; completed evaluation evidence is retained, with further work waiting

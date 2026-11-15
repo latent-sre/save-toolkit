@@ -7,7 +7,7 @@ consequences.
 
 | Change or question | Source |
 |---|---|
-| Agents, tools, delegation, or agent and skill frontmatter | [`agents/`](agents), the [roster](README.md#tools-and-delegation), the [edge-change procedure](CONTRIBUTING.md#changing-a-delegation-or-handoff-edge), and [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md); for the VS Code/Copilot projection, [`copilot-frontmatter.md`](skills/agent-authoring/references/copilot-frontmatter.md) |
+| Agents, tools, delegation, or agent and skill frontmatter | [`agents/`](agents), the [roster](README.md#tools-and-delegation), the [edge-change procedure](CONTRIBUTING.md#changing-a-delegation-edge), and [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md); for the VS Code/Copilot projection, [`copilot-frontmatter.md`](skills/agent-authoring/references/copilot-frontmatter.md) |
 | Skills or the ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
 | A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder and can dispatch a bounded lookup or investigation to `sre-assistant` |
 | Proactive service reliability, failure behavior, engineering improvements, or recurring toil | [`reliability-engineer`](agents/reliability-engineer.md), with [`resilience-analysis`](skills/resilience-analysis/SKILL.md) and [`toil-reduction`](skills/toil-reduction/SKILL.md) |

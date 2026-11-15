@@ -48,8 +48,9 @@ def _agent_failures_after_edit(filename: str, edit: Callable[[str], str]) -> lis
 class DesignLaneAuthorityContract:
     """The authority the two design lanes share; their suites mix this into a TestCase and set NAME.
 
-    Both read, write design documents, and delegate to the same three evidence helpers. Neither may
-    execute, reach the web directly, open worktrees, or hand work to the implementer.
+    Both read, write design documents, and have the same three canonical evidence helpers. Neither
+    may execute, reach the web directly, open worktrees, or hand work to the implementer. Copilot
+    preserves the delegation tool, but its frontmatter cannot enforce the canonical target set.
     """
 
     NAME = ""
@@ -67,9 +68,7 @@ class DesignLaneAuthorityContract:
         projected = fleet_frontmatter.parse_file(ROOT / ".github/agents" / f"{self.NAME}.agent.md").fields
         # Projected frontmatter is YAML flow syntax, which the shared parser reads as real lists.
         self.assertEqual(["read", "search", "edit", "agent"], projected["tools"])
-        self.assertEqual(
-            ["repository-investigator", "sre-assistant", "researcher"],
-            projected["agents"])
+        self.assertNotIn("agents", projected)
 
     def test_validator_rejects_execution_egress_and_implementation_delegation(self) -> None:
         filename = f"{self.NAME}.md"

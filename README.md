@@ -123,10 +123,12 @@ agents/ + skills/ (canonical)
 - **Model delegation** uses the host's subagent tool to give a bounded task to a named child, which
   returns its result to the caller. The calling agent checks that result against the assignment,
   combines the evidence, and continues the original task within its authority; the human need not
-  relay reports between helpers. Canonical Claude `Agent(save-toolkit:target, ...)` grants become VS Code's
-  `agent` tool plus the parent's `agents:` allowlist.
-- A VS Code **handoff** is a separate human-selected ownership transition from `handoffs:`. It keeps
-  relevant conversation context but does not grant approval or model-delegation authority.
+  relay reports between helpers. Canonical Claude `Agent(save-toolkit:target, ...)` grants map to
+  Copilot's `agent` tool alias, without an equivalent per-parent target restriction.
+  [COPILOT-HARNESS-001](docs/fleet-roadmap.md#copilot-harness-001--decide-fleet-delegation-on-the-default-copilot-harness)
+  retains that unresolved installed-host requirement.
+- Local-only `agents`, `handoffs`, `argument-hint`, and `advancedOptions` are omitted from generated
+  agent headers. Human ownership transfers still require a bounded assignment and appropriate approval.
 - Production-facing or materially irreversible effects remain human decisions. An invoked
   [`observability-engineer`](agents/observability-engineer.md#change-authority) may apply requested
   Grafana dashboard/folder changes, individual Grafana-managed alert-rule create/update or
@@ -148,8 +150,11 @@ Treat these as build-bound evidence, and rerun the linked probe after host upgra
 | Host surface | Contract shipped | Current evidence boundary |
 |---|---|---|
 | Claude Code | Canonical agents and skills load directly; tool absence is the primary role boundary, with the plugin-level read-only Bash guard for `sre-assistant` | Claude has the richest enforceable contract, but `Agent(target)` is enforced only on the main thread; subagent-depth restrictions remain documentary. See [`AGENTS.md`](AGENTS.md#enforcement-boundaries) |
-| VS Code 1.137.0 | Generated agents, skills, model-call `agents:`, and human-selected `handoffs:` | `[verified]` On 2026-09-10 the maintainer ran the acceptance cases against an installed 0.40.0 candidate and reported all passing, including the forbidden-child case that ran anyway on 1.135.0. Owner-reported from a live session; no transcript was filed, so this row is the record. The separate agent-scoped hook canary remains unrun and `hooks/copilot-hooks.json` still ships empty |
-| First installed VS Code build proven to contain `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the `RELEASE-001` acceptance run passes on that exact build |
+| Historical VS Code Local 1.137.0 | Earlier generated agents, skills, model-call `agents:`, and human-selected `handoffs:`; these agent fields are no longer emitted | `[verified]` On 2026-09-10 the maintainer ran the acceptance cases against an installed 0.40.0 candidate and reported all passing, including the forbidden-child case that ran anyway on 1.135.0. Owner-reported from a live session; no transcript was filed, so this row is the record. The separate agent-scoped hook canary remains unrun and `hooks/copilot-hooks.json` still ships empty |
+| Historical Local enforcement change `d679b159` | Upstream adds prepare/invoke rejection outside `agents:` and forwards each child's own list | `[sourced]` The [upstream change](https://github.com/microsoft/vscode/commit/d679b159e16d15d24e364b627ab85e144899ead0) is merged; `[unverified]` the installed plugin path until the `RELEASE-001` acceptance run passes on that exact build |
+
+[unverified] The current default Copilot projection has no equivalent per-parent child restriction.
+The historical Local results above do not qualify the current projection or default harness.
 
 ### Other hosts
 
