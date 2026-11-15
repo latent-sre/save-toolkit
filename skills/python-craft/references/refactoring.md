@@ -2,9 +2,9 @@
 
 ## 1. Diagnose and choose
 
-State the design problem before editing (one policy with several owners, decisions tangled with
-I/O, representable invalid states, bespoke machinery a library does better, the wrong algorithm,
-layers that only forward) and the improvement that fixes it.
+State the design problem before editing (a policy with several owners, decisions tangled with
+I/O, representable invalid states, bespoke machinery, the wrong algorithm, forwarding-only layers)
+and the improvement that fixes it.
 
 | Approach | Choose when |
 |---|---|
@@ -32,7 +32,7 @@ with no demonstrated problem stays.
 | Need | Technique |
 |---|---|
 | Swap an implementation behind stable callers | Dependency inversion: introduce the seam, move callers, replace; inline the seam if nothing else needs it |
-| Old and new must coexist | Branch by abstraction; mark the old public path with `warnings.deprecated` (3.13+, `typing_extensions` before) |
+| Old and new must coexist | Branch by abstraction; mark the old public path with `warnings.deprecated` |
 | One edit at many sites | A syntax-aware codemod (LibCST, ast-grep, Ruff fixes), tested on matches, near-misses, and migrated code; a second run changes nothing |
 | A broad equivalence claim | Differential tests of old against new over generated inputs, plus independent expectations so an old bug cannot pass as correct |
 | Persisted data or format change | A versioned migration, old data readable during rollout, tested on realistic old data |
@@ -46,5 +46,5 @@ with no demonstrated problem stays.
 
 ## 5. Finish
 
-Confirm superseded code and unused dependencies are gone with the type checker and a text search;
-static dead-code tools miss dynamic lookups.
+Confirm superseded code and unused dependencies are gone by type checker and text search; static
+dead-code tools miss dynamic lookups.

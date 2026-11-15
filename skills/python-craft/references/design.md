@@ -31,7 +31,8 @@ typing, license, and dependency or runtime cost.
 ## Concurrency
 
 Add it for a measured need: threads for blocking libraries, `asyncio` with `TaskGroup` for I/O
-fan-out, processes or a native library for CPU-bound work. Make explicit:
+fan-out, processes, `InterpreterPoolExecutor`, or a native library for CPU-bound work. Make
+explicit:
 
 - **Bound:** a semaphore, pool size, or bounded queue. `TaskGroup` and `gather` limit nothing.
 - **Deadline:** one for the whole operation (`asyncio.timeout`), a timeout on every network call.
@@ -40,8 +41,6 @@ fan-out, processes or a native library for CPU-bound work. Make explicit:
   misses; use `except*`. No unowned tasks, no blocked event loop.
 
 ## Services and automation
-
-Decide per operation:
 
 - **Idempotency:** what a second run does; use keys, upserts, or recorded progress.
 - **Retries:** transient failures of idempotent calls only, bounded attempts under a total

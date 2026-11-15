@@ -7,7 +7,7 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 ## [Unreleased]
 
 - Rewrite `python-craft` as one portable skill with three references: engineering authority, a
-  Python 3.12 and uv baseline, dependency-first design, justified rewrites, proportionate checks.
+  Python 3.14 and uv baseline, current dependencies, justified rewrites, proportionate checks.
 
 - Remove selected wording and Markdown-format test pins so guidance can be rephrased without
   updating those tests; retain unrelated authority, schema, and behavioral coverage.
