@@ -13,8 +13,7 @@ argument-hint: "[Python code, file, or task]"
 
 # Python craft
 
-Build production-quality Python from the first commit, and substantially improve existing Python
-when the task calls for it. Explanation, design, and review requests end at that output.
+Explanation, design, and review requests end at that output.
 
 ## Authority and priorities
 
@@ -40,12 +39,11 @@ when the task calls for it. Explanation, design, and review requests end at that
 ## Baseline
 
 - **Python 3.14 is the floor** for new projects (`requires-python = ">=3.14"`) and the
-  modernization target for existing ones. Choose a higher floor when project requirements justify
-  it and the authorized compatibility scope allows. Never silently raise the floor or add support
-  for older Python.
-- **Write for the declared floor**, using the modern syntax and APIs it supports. The development
-  interpreter is a separate choice: running a newer Python does not authorize features the floor
-  lacks.
+  modernization target for existing ones. Go higher only for a project requirement. Never silently
+  raise a floor or add support for older Python; confirm before dropping versions a published
+  package supports.
+- **Write for the declared floor**, using the modern syntax and APIs it supports; running a newer
+  interpreter does not authorize features the floor lacks.
 - **uv and `pyproject.toml`** for maintained projects: environments, dependencies, locking, and
   project commands go through uv. Metadata and tool settings live in TOML where the tool supports
   it; keep a tool's native file when it requires one.
@@ -53,28 +51,31 @@ when the task calls for it. Explanation, design, and review requests end at that
   `project.optional-dependencies`, development tools in `[dependency-groups]`. Change them with
   `uv add` and `uv remove`. Commit `uv.lock`; uv generates it.
 - **Current dependencies:** add packages at their current stable release. Modernization upgrades
-  existing dependencies to current major versions, migrates off deprecated APIs, and replaces
-  unmaintained packages; an upper bound or exact pin needs a stated reason.
+  the dependencies in its scope to current releases, migrates off deprecated APIs, and replaces
+  unmaintained packages. Applications raise bounds freely; a library raises a published lower
+  bound only when its code needs the newer API. An upper bound or exact pin needs a stated reason.
+- **Current documentation:** check version-sensitive library APIs and tool flags against official
+  documentation for the locked version, not memory.
 - **Locked verification:** `uv sync --locked` and `uv run --locked …` in CI and reproducible
   checks. `--frozen` skips the check that metadata and lockfile agree; never substitute it.
 - **Distributable packages** declare a build backend; verify the built artifact when packaging
-  changes. A library's lockfile governs its own development; its published metadata carries
-  supported ranges, never the lock's exact transitive pins.
+  changes. A library's published metadata carries supported ranges, never the lock's pins.
 - **Quality tools:** Ruff for linting and formatting, pytest, and one maintained type checker, all
-  targeting the floor. Strict typing for new or substantially rewritten code; a deliberate,
-  recorded boundary around existing untyped code.
+  targeting the floor. Strict typing for new or substantially rewritten code; existing untyped
+  modules listed as explicit exemptions.
 - **When a project conflicts with this baseline** (older runtime, stale dependencies, another
-  package manager, legacy build), name the conflict and a concrete migration path. Neither keep an
-  obsolete foundation silently nor force a repository-wide migration into a narrow task.
+  package manager or quality tools, legacy build), name the conflict and a concrete migration
+  path. A narrow task works in the existing toolchain; never keep an obsolete foundation silently
+  or force a repository-wide migration into a narrow task.
 
 ## Workflow
 
 1. **Establish the objective and size the response.** A narrow repair gets a focused change, a
-   regression test, and focused verification; a design problem gets a design answer.
+   regression test, and focused verification.
 2. **Design before editing.** Name the problem and the intended improvement. Evaluate suitable
-   libraries now, not after a bespoke version becomes difficult. For existing code choose focused
-   refactoring, staged replacement, or a rewrite on the merits; a rewrite does not require
-   exhausting small patches first.
+   libraries at design time, not after a bespoke version becomes difficult. For existing code
+   choose focused refactoring, staged replacement, or a rewrite on the merits; a rewrite does not
+   require exhausting small patches first.
 3. **Establish what must hold.** Externally relied-upon contracts and important invariants come
    from documentation, callers, tests, and observed behavior. Separate required behavior from
    implementation accident and confirmed defects. Before substantial replacement, cover
@@ -98,7 +99,7 @@ when the task calls for it. Explanation, design, and review requests end at that
 - When compatibility is affected, test the minimum supported Python, and newer versions or
   deployment targets when the change warrants. A passing development environment does not
   establish the declared range.
-- Run broader suites when a required gate or the affected dependency surface calls for them. Reuse
+- Run broader suites when a required gate or the change's dependents call for them. Reuse
   still-valid evidence; repeat a check only when later edits invalidated it or a concrete risk
   remains unresolved. Stop when required gates and material risks are covered.
 - Back performance claims with representative measurements.
@@ -108,10 +109,10 @@ when the task calls for it. Explanation, design, and review requests end at that
 
 ## References
 
-Load only what the task triggers; the policies above hold without them.
+Load only what the task triggers.
 
 | When | Read |
 |---|---|
-| Choosing structure, data models, a library, a concurrency model, or failure behavior | [Design and dependencies](references/design.md) |
-| Restructuring, replacing, or rewriting existing code; migrating callers, data, or dependencies | [Refactoring and migration](references/refactoring.md) |
-| Changing project setup, packaging, CI, or tool configuration; adding or upgrading dependencies; choosing checks for a named risk | [Tooling and verification](references/tooling.md) |
+| Choosing structure, data models, libraries, concurrency, or failure behavior; any service or operator automation | [Design and dependencies](references/design.md) |
+| Restructuring, replacing, or rewriting existing code; migrating callers or persisted data | [Refactoring and migration](references/refactoring.md) |
+| Changing project setup, packaging, CI, or tool configuration; upgrading dependencies; checking compatibility, packaging, concurrency, or streaming risks | [Tooling and verification](references/tooling.md) |
