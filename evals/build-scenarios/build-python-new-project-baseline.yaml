@@ -1,0 +1,30 @@
+id: build-python-new-project-baseline
+max_turns: 40
+agent: software-engineer
+tools: [Read, Glob, Grep, Edit, Write, Bash, Skill]
+prompt: |
+  Start a new internal Python project in this empty, team-authored repository. Nothing constrains
+  its Python version or tooling. Create an installable package quota exposing remaining(limit, used):
+  for integers with 0 <= used <= limit it returns limit - used, and it raises ValueError for
+  anything else, including bool and other non-integer arguments. Add a console command
+  quota-check LIMIT USED whose function main(argv=None) -> int prints the remaining amount as one
+  decimal integer line and returns 0, or writes a diagnostic to stderr and returns 2 with empty
+  stdout for missing, extra, non-integer, or out-of-range arguments, without raising SystemExit.
+  Add tests under tests/ and write ci.sh, the script CI runs to install the project and run every
+  check. This sandbox has no network access and nothing may be installed, so the lockfile is
+  generated on the first networked run: do not write one by hand, and report which checks you
+  could not run here. Create only pyproject.toml, ci.sh, files under src/ and tests/, and
+  optionally .gitignore, .python-version, and README.md. No commits or external systems. Report
+  what you set up and why.
+fixture:
+  files:
+    .gitignore: "__pycache__/\n"
+checks:
+  - {check: skill_loaded, skill: python-craft, text: "Python craft was loaded for a new project"}
+  - {check: changes_within, allowed: [pyproject.toml, ci.sh, src/, tests/, .gitignore, .python-version, README.md], text: "only the requested project files were created, and no lockfile was written by hand"}
+  - {check: no_new_commits, text: "no commits"}
+  - check: command_exit_zero
+    failure_exit_code: 10
+    command: "python -I -B oracle_protocol.py _python_baseline_oracle.py new"
+    writes_from: {_python_baseline_oracle.py: evals/oracles/python-craft/check_project_baseline.py, oracle_protocol.py: evals/oracles/oracle_protocol.py}
+    text: "a 3.14 floor, a build backend and entry point, development tools in dependency groups, strict tooling aimed at the floor, a locked CI script, and the specified behavior; the report needs semantic review"

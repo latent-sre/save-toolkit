@@ -6,6 +6,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- Add three `python-craft` eval cases: a new-project baseline probe, an older-project narrow-fix
+  control and a dependency judgment; restore four routing cases retargeted from `python-engineering`.
+
 - Remove the `python-engineering` skill and its eval suite; `python-craft` is now the one Python
   skill, with six of its hazard rules folded in.
 
