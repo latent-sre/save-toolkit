@@ -45,15 +45,16 @@ Explanation, design, and review requests end at that output.
 - **Write for the declared floor**, using the modern syntax and APIs it supports; running a newer
   interpreter does not authorize features the floor lacks.
 - **uv and `pyproject.toml`** for maintained projects: environments, dependencies, locking, and
-  project commands go through uv. Metadata and tool settings live in TOML where the tool supports
-  it.
+  project commands go through uv. Metadata and tool settings live in TOML where supported. A
+  standalone script carries inline metadata (`uv init --script`, `uv add --script`), not a project.
 - **Dependencies in their own fields:** runtime in `project.dependencies`, user-facing extras in
   `project.optional-dependencies`, development tools in `[dependency-groups]`. Change them with
   `uv add` and `uv remove`. Commit `uv.lock`; uv generates it.
-- **Current dependencies:** add packages at their current stable release. Modernization upgrades
-  the dependencies in its scope to current releases, migrates off deprecated APIs, and replaces
-  unmaintained packages. Applications raise bounds freely; a library raises a published lower
-  bound only when its code needs the newer API. An upper bound or exact pin needs a stated reason.
+- **Current dependencies:** add packages at their current stable release and check them for known
+  advisories (`uv audit` or `pip-audit`). Modernization upgrades the dependencies in its scope to
+  current releases, migrates off deprecated APIs, and replaces unmaintained packages. Applications
+  raise bounds freely; a library raises a published lower bound only when its code needs the newer
+  API. An upper bound or exact pin needs a stated reason.
 - **Current documentation:** check version-sensitive library APIs and tool flags against official
   documentation for the locked version, not memory.
 - **Locked verification:** `uv sync --locked` and `uv run --locked …` in CI and reproducible
@@ -65,8 +66,8 @@ Explanation, design, and review requests end at that output.
   modules listed as explicit exemptions.
 - **When a project conflicts with this baseline** (older runtime, stale dependencies, another
   package manager or quality tools, legacy build), name the conflict and a concrete migration
-  path. A narrow task works in the existing toolchain; never keep an obsolete foundation silently
-  or force a repository-wide migration into a narrow task.
+  path; never keep an obsolete foundation silently. A narrow task works in the existing toolchain
+  and forces no repository-wide migration.
 
 ## Workflow
 
@@ -84,8 +85,8 @@ Explanation, design, and review requests end at that output.
    custom machinery it supersedes. Update callers, imports, configuration, dependencies,
    documentation, and tests; delete dead paths. Keep a transitional adapter only for a real
    compatibility need, with a stated removal condition. Preserve required behavior unless changing
-   it is authorized; make intentional changes to interfaces, data formats, errors, or operational
-   behavior explicit and supply the migration.
+   it is authorized; state intentional changes to interfaces, data formats, errors, or operational
+   behavior and supply the migration.
 5. **Verify in proportion to risk, then report.**
 
 ## Verification and completion

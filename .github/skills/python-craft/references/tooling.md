@@ -2,12 +2,11 @@
 
 ## Project setup
 
-- Start with [`uv init --python <floor>`](https://docs.astral.sh/uv/), adding `--lib` for a
-  library; without `--python`, uv writes the discovered interpreter's version as the floor.
-  Confirm `[build-system]` in the result: uv 0.12+ packages by default, earlier versions need
-  `--package`.
-- `[project.scripts]` and installing the project itself need a build backend. `uv_build` covers
-  pure Python; extension modules or build scripts need another backend.
+- Start with [`uv init --python <floor>`](https://docs.astral.sh/uv/) (`--lib` for a library);
+  without `--python` the floor becomes whatever interpreter uv finds. Confirm `[build-system]` in
+  the result; uv before 0.12 needs `--package`.
+- `[project.scripts]` and installing the project need a build backend: `uv_build` for pure Python,
+  another for extension modules or build scripts.
 - Dependency groups never reach
   [published metadata](https://packaging.python.org/en/latest/specifications/dependency-groups/);
   extras do.
@@ -29,9 +28,8 @@
   `requires-python`; set `python_version` or `pythonVersion` to the floor. ty reads the
   `requires-python` minimum. Run the checker in the project environment (`uv run`), where it sees
   installed dependencies.
-- **Strictness:** a new project is strict throughout. In an existing project, check new and
-  rewritten modules strictly and list unmigrated modules as explicit exemptions so the list only
-  shrinks. Suppress with a specific error code and a reason, never a blanket ignore.
+- **Strictness:** list unmigrated modules as explicit exemptions so the list only shrinks.
+  Suppress with a specific error code and a reason, never a blanket ignore.
 
 ## Upgrading dependencies
 
