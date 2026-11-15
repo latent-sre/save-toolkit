@@ -46,7 +46,7 @@ Explanation, design, and review requests end at that output.
   interpreter does not authorize features the floor lacks.
 - **uv and `pyproject.toml`** for maintained projects: environments, dependencies, locking, and
   project commands go through uv. Metadata and tool settings live in TOML where the tool supports
-  it; keep a tool's native file when it requires one.
+  it.
 - **Dependencies in their own fields:** runtime in `project.dependencies`, user-facing extras in
   `project.optional-dependencies`, development tools in `[dependency-groups]`. Change them with
   `uv add` and `uv remove`. Commit `uv.lock`; uv generates it.
@@ -97,8 +97,7 @@ Explanation, design, and review requests end at that output.
   they still protect the behavior. Never weaken an assertion or delete a failing test to make a
   change pass.
 - When compatibility is affected, test the minimum supported Python, and newer versions or
-  deployment targets when the change warrants. A passing development environment does not
-  establish the declared range.
+  deployment targets when the change warrants.
 - Run broader suites when a required gate or the change's dependents call for them. Reuse
   still-valid evidence; repeat a check only when later edits invalidated it or a concrete risk
   remains unresolved. Stop when required gates and material risks are covered.

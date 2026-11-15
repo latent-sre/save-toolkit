@@ -3,9 +3,8 @@
 ## Choosing a library
 
 Prefer a maintained library to homegrown validation, configuration, HTTP, retries, persistence,
-CLI parsing, serialization, and data processing. Assess in proportion to the commitment: fit to the
-actual problem, API quality, maintenance, support for the Python floor and deployment platforms,
-typing, license, and dependency or runtime cost.
+CLI parsing, serialization, and data processing. Assess in proportion to the commitment: fit,
+maintenance, support for the Python floor and deployment platforms, typing, license.
 
 - One library per role: use the project's existing HTTP client, validator, or CLI framework or
   replace it everywhere; never run two.

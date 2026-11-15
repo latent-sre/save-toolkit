@@ -11,9 +11,8 @@ invalid states, bespoke machinery, the wrong algorithm, forwarding-only layers.
 | Staged replacement | Consumers cannot move together, behavior is uncertain, or the system must keep shipping mid-change |
 | Rewrite | The structure is the problem and required behavior is established or can be; hold the public contract or migrate its callers |
 
-Weigh coupling, recoverability, behavioral uncertainty, and expected benefit. Most refactors are
-one coherent change, not a migration program. Clear, tested code with no demonstrated problem
-stays.
+Most refactors are one coherent change, not a migration program. Clear, tested code with no
+demonstrated problem stays.
 
 ## Establish contracts
 
