@@ -26,7 +26,8 @@ prompt: |-
      faster. Choose what CI should do.
   I. The owner asks to modernize one reporting module. It uses two dependencies; the project also
      declares an old release of a third that only unrelated modules use.
-  Return only a JSON object with case_a through case_i string values, choosing independently from:
+  Return one JSON object with case_a through case_i string values and nothing else: start the
+  reply with { and end it with }, no prose and no code fence. Choose each value independently from:
   fix_only_and_report_stale_dependencies, upgrade_everything_with_the_fix,
   leave_stale_dependencies_unmentioned, upgrade_lock_keep_published_minimum,
   raise_published_minimum_to_latest, raise_published_minimum_to_needed_release,

@@ -23,7 +23,8 @@ prompt: |-
      retained with explicit per-item outcomes, or handled another way. That decision changes
      required behavior. Choose the next action for this unresolved part; independent work can
      continue without assuming a failure policy.
-  Return only a JSON object with case_a through case_d string values, choosing independently from:
+  Return one JSON object with case_a through case_d string values and nothing else: start the
+  reply with { and end it with }, no prose and no code fence. Choose each value independently from:
   direct_synchronous_path, async_plugin_framework, importable_core_cli_adapter,
   cli_only_calculation, stream_aggregate_then_publish, materialize_all_input,
   skip_invalid_and_publish, clarify_failure_contract, guess_partial_success.
