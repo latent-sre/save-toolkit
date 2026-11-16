@@ -13,10 +13,8 @@ authorize writes.
    `provisioned: true` (even with `canSave: true`) or `canSave: false` permits review, not an API
    edit. A recovery copy does not
    prove ownership; a converted read does not prove stored-schema migration.
-4. **Check offline.** Run the bundled hygiene helper on a local export when the lane permits it.
-   For `sre-assistant`, use the installed [workflow](./investigation-workflows.md#agent-collection-and-follow-up)
-   analysis on an eligible named capture; otherwise report it not run. Direct standalone execution
-   stays denied. Fixed UIDs are portability advice; `_total` is a name heuristic, not type evidence
+4. **Check offline.** Run the bundled hygiene helper on a local export when the lane permits it;
+   otherwise report it not run. `sre-assistant` has no grant for it. Fixed UIDs are portability advice; `_total` is a name heuristic, not type evidence
    (presence, counts, resets and lifetime totals may be intentional). For V2, use a V2-capable validator
    on the actual model or record the gap.
 5. **Exercise a bounded query sample.** Use the matching signal skill and the real panel query,
@@ -34,15 +32,7 @@ authorize writes.
 Classify findings as confirmed defects, advisory improvements or unverified heuristics before repair;
 query/missing-target findings are not automatic rewrites. Report counts by category.
 
-For guarded named-capture analysis, use the managed workflow in the project environment:
-
-```text
-python -I "<absolute-installed-path>/grafana_workflow.py" analyze --source-id capture-one --analysis hygiene --agent-json
-```
-
-Replace `capture-one` with the eligible capture ID; unavailable/unsupported input is a gap, not clean.
-
-For unguarded automation on a local export, invoke the installed checker with `--format json`.
+For automation on a local export, invoke the installed checker with `--format json`.
 Keep its bundled Python helpers beside it when installing or relocating the skill.
 
 ```text

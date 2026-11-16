@@ -1,4 +1,4 @@
-"""The review's managed hygiene command stays within the existing narrow guard."""
+"""The review's offline hygiene check grants no guarded execution path."""
 
 from pathlib import Path
 
@@ -10,11 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.mark.parametrize("tool", ["Bash", "PowerShell"])
-def test_review_documents_guarded_named_capture_hygiene(tool: str) -> None:
+def test_review_hygiene_check_stays_outside_the_guard(tool: str) -> None:
     reference = (ROOT / "skills/grafana/references/read-only-review.md").read_text(encoding="utf-8")
-    command = 'python -I "<absolute-installed-path>/grafana_workflow.py" analyze --source-id capture-one --analysis hygiene --agent-json'
-    assert command in reference
-    installed = command.replace("<absolute-installed-path>", (ROOT / "skills/grafana/scripts").as_posix())
-    assert guard_decision(run_guard(guard_payload(installed, tool_name=tool))) == "allow"
+    assert "grafana_workflow.py" not in reference
     arbitrary = f'python -I "{ROOT.as_posix()}/skills/grafana/scripts/dashboard_hygiene.py" dashboard.json --format json'
     assert guard_decision(run_guard(guard_payload(arbitrary, tool_name=tool))) == "deny"

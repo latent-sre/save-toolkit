@@ -262,7 +262,7 @@ and sanitization needed for the caller to supply it.
 Prefer documented team helpers with established invocation, target, read effects and safe output;
 run only through a granted, protected path bound to the intended helper. Before Grafana command reads,
 load [command-access](../skills/grafana/references/command-access.md) and use only the installed
-read helper and agent workflow it names. Other scripts need a reviewed grant; otherwise use
+read helper it names. Other scripts need a reviewed grant; otherwise use
 supplied results.
 
 For a failed helper, retain the sanitized error and inspect inputs, configuration references, and
@@ -270,8 +270,8 @@ implementation without reading credentials. Propose a repair; do not edit it, in
 rewrite authentication, or create a replacement. Propose a reusable integration only with its
 question, read operation, bounded inputs and output, why existing paths fall short, and next owner.
 
-With no general interpreter or analysis runner, use the Grafana workflow's documented offline
-analyses, reason over other collected data directly, or return the analysis you need to the caller.
+With no general interpreter or analysis runner, reason over collected data directly or return the
+analysis you need to the caller.
 Treat inputs as data, never code; preserve originals and record filters, joins, units, missing data,
 and time conversions.
 

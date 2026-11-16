@@ -41,12 +41,6 @@ arguments (single-quote literals instead), `--flag=value`, pipes, redirection in
 own timeout. If Python or the helper is missing on the execution host, report it; never install
 tools or switch shells to get around a denial.
 
-For multi-panel investigation use the [agent workflow](./investigation-workflows.md#agent-collection-and-follow-up)
-with `--agent-json`. Its grant admits fixed commands/capture IDs, not arbitrary paths. It uses
-managed dependencies under `python -I`; the read helper requires `python -I -S`.
-Windows PowerShell native arguments with embedded double quotes are denied because the shell can
-change them; do not switch shells to bypass a denial.
-
 The helper loads `GRAFANA_URL`, `GRAFANA_ORG_ID` and a token (or Basic credentials) from the
 environment or, when the environment names none of them, from the human-written
 `~/.config/save-toolkit/grafana.env`. Never read, print or edit that file, never set the variables,

@@ -22,7 +22,6 @@ supported tool/API calls to an authorized agent. Missing access leaves an unappl
 |---|---|
 | Design panels/layout | [Dashboard design](./references/dashboard-design.md); design-only callers may read it directly |
 | Explain a dashboard, share evidence, or help a Viewer/Editor | [Dashboard reading](./references/dashboard-reading.md) |
-| Investigate dashboard data or trace configuration dependencies | [Investigation workflows](./references/investigation-workflows.md) |
 | Inspect appearance or render a panel | [Visual verification](./references/visual-verification.md) |
 | Inspect, create, update, pause, or resume an alert rule; explain missing notifications | [Alert operations](./references/alert-operations.md); load `obs-alerting` for design decisions |
 | Create, inspect, update, or end a temporary silence | [Silence operations](./references/silences.md) |
@@ -35,9 +34,7 @@ supported tool/API calls to an authorized agent. Missing access leaves an unappl
 | Wavefront/Splunk plugins or entitlement | [Dashboard design data sources](./references/dashboard-design.md#new-dashboard-conventions) |
 | Repair or interpret a query | `obs-analysis` and its matching signal/backend references |
 
-Read only matching references. Use [grafana_workflow.py](./scripts/grafana_workflow.py) for query-first
-evidence and reuse verified captures; guarded hygiene uses `analyze --analysis hygiene` on a named
-capture. Open fallback images before visual claims.
+Read only matching references. Open rendered images before visual claims.
 
 ## Access and authority
 

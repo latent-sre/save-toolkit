@@ -17,17 +17,13 @@ PS_QUERY = "-Datasource logs -Kind loki -From 1758400000000 -To 1758403600000 -E
 
 
 @pytest.mark.parametrize('tool', ['Bash', 'PowerShell', 'execute/runInTerminal'])
-def test_dependency_enabled_launch_is_only_for_installed_workflow(tool):
-    command = WORKFLOW.replace(' -I -S ', ' -I ') + ' doctor --agent-json'
-    assert decision(command, tool, copilot=tool == 'execute/runInTerminal') == 'allow'
-    command = PREFIX.replace(' -I -S ', ' -I ') + ' dashboard --uid edge'
+@pytest.mark.parametrize('command', [
+    WORKFLOW + ' doctor --agent-json',
+    WORKFLOW.replace(' -I ', ' -I -S ') + ' doctor --agent-json',
+    PREFIX.replace(' -I -S ', ' -I ') + ' dashboard --uid edge',
+])
+def test_only_the_stdlib_read_helper_is_admitted(tool, command):
     assert decision(command, tool, copilot=tool == 'execute/runInTerminal') == 'deny'
-
-
-@pytest.mark.parametrize('flags', ['', '-S', '-I -s', '-I -S -S', '-I -c'])
-def test_workflow_still_requires_exact_isolated_launch(flags):
-    command = WORKFLOW.replace(' -I ', f' {flags} ') + ' doctor --agent-json'
-    assert decision(command, 'Bash') == 'deny'
 
 
 def decision(command, tool, *, copilot=False, agent=SRE_ASSISTANT):
@@ -115,81 +111,8 @@ def test_only_fixed_powershell_wrapper_preserves_readable_expressions():
     assert decision(f"{WRAPPER} {PS_QUERY}", "Bash") == "deny"
 
 
-@pytest.mark.parametrize('tool', ['Bash', 'PowerShell'])
-@pytest.mark.parametrize('arguments', [
-    'plan --uid board --from 1000 --to 61000 --agent-json',
-    'investigate --uid board --from 1000 --to 61000 --capture-id capture-one --agent-json',
-    'dependencies --folder-uid ops --capture-id folder-one --agent-json',
-    'doctor --agent-json', 'doctor --probe --agent-json',
-    'verify-package --source-id capture-one --agent-json',
-    'analyze --source-id capture-one --analysis summary --agent-json',
-    'inspect --source-id capture-one --panel 1 --ref-id A --mode range --agent-json',
-    'inspect --source-id capture-one --agent-json',
-    'inspect --source-id capture-one --pointer /values/0 --offset 0 --limit 25 --agent-json',
-])
-def test_agent_workflow_installed_fixed_commands(tool, arguments):
-    assert decision(f'{WORKFLOW} {arguments}', tool) == 'allow'
-
-
-@pytest.mark.parametrize('tool', ['Bash', 'PowerShell'])
-@pytest.mark.parametrize('arguments', [
-    'investigate --uid board --from 1000 --to 61000 --output-dir output --agent-json',
-    'investigate --uid board --from 1000 --to 61000 --capture-id capture --agent-json --open-vscode',
-    'investigate --uid board --from 1000 --to 61000 --capture-id capture',
-    'analyze --package-dir /etc --agent-json',
-    'analyze --source-id ../outside --agent-json',
-    'analyze --source-id capture --agent-json > output.json',
-    'doctor --agent-json; echo unsafe',
-    'doctor --agent-json --agent-json',
-    # Removed commands and flags stay denied even in otherwise fixed forms.
-    'open-report --source-id capture --agent-json',
-    'compare --before one --after two --agent-json',
-    'compare --before-id first --after-id second --agent-json',
-    'impact --source-id folder-one --kind datasource --key metrics --agent-json',
-    'alert-preview --source-id capture-one --panel 1 --ref-id A --operator gt --threshold 1 --pending-ms 30000 --step-ms 30000 --agent-json',
-    'alert-preview --query-file private.json --operator gt --threshold 1 --pending-ms 0 --step-ms 1000 --agent-json',
-])
-def test_agent_workflow_does_not_grant_arbitrary_paths_or_effects(tool, arguments):
-    assert decision(f'{WORKFLOW} {arguments}', tool) == 'deny'
-
-
-def test_workflow_powershell_does_not_silently_strip_variable_quotes():
-    command = WORKFLOW + ' plan --uid board --from 1000 --to 61000 --var \'host=a"b\' --agent-json'
-    assert decision(command, 'PowerShell') == 'deny'
-    assert decision(command, 'Bash') == 'allow'
-
-
-@pytest.mark.parametrize('tool', ['run_in_terminal', 'runTerminalCommand', 'runInTerminal', 'execute/runInTerminal'])
-@pytest.mark.parametrize('arguments', [
-    "plan --uid board --from 1000 --to 61000 --var 'host=foo& whoami & rem ' --agent-json",
-    "plan --uid board --from 1000 --to 61000 --var 'host=foo|whoami' --agent-json",
-    "plan --uid board --from 1000 --to 61000 --var 'host=%COMSPEC%' --agent-json",
-    "plan --uid board --from 1000 --to 61000 --var 'host=!COMSPEC!' --agent-json",
-    "plan --uid board --from 1000 --to 61000 --var 'host=foo^&whoami' --agent-json",
-    "inspect --source-id saved --pointer '/up& whoami & rem ' --agent-json",
-    "inspect --source-id saved --pointer '/metric:up>marker' --agent-json",
-    "inspect --source-id saved --panel 1 --ref-id 'A&(whoami)' --agent-json",
-    "plan --uid board --from 1000 --to 61000 --var 'host=two words' --agent-json",
-    'plan --uid board --from 1000 --to 61000 --var host=~ --agent-json',
-    'plan --uid board --from 1000 --to 61000 --var host=a:~ --agent-json',
-])
-def test_copilot_workflow_rejects_shell_dependent_literals(tool, arguments):
-    assert decision(f'{WORKFLOW} {arguments}', tool, copilot=True) == 'deny'
-
-
-def test_copilot_requires_unambiguous_path_and_argument_transport():
-    assert decision(WORKFLOW.replace('"', "'") + ' doctor --agent-json',
-                    'execute/runInTerminal', copilot=True) == 'deny'
+def test_copilot_requires_unambiguous_wrapper_transport():
     assert decision(f'{WRAPPER} {PS_QUERY}', 'execute/runInTerminal', copilot=True) == 'deny'
-    assert decision(WORKFLOW + ' plan --uid board --from 1000 --to 61000 --var host=node.example/path --agent-json',
-                    'execute/runInTerminal', copilot=True) == 'allow'
-    assert decision(WORKFLOW + ' inspect --source-id saved --pointer /host=~0 --agent-json',
-                    'execute/runInTerminal', copilot=True) == 'allow'
-
-
-@pytest.mark.parametrize('tool', ['Bash', 'PowerShell'])
-def test_known_shell_workflow_keeps_literal_metacharacters(tool):
-    assert decision(WORKFLOW + " plan --uid board --from 1000 --to 61000 --var 'host=a&b' --agent-json", tool) == 'allow'
 
 
 @pytest.mark.parametrize("options", [

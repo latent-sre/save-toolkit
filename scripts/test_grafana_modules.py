@@ -43,22 +43,22 @@ def test_repeated_bootstrap_reuses_modules_without_public_name_or_path_changes(m
 def test_different_bundles_never_reuse_each_others_modules(tmp_path):
     first, second = (bundle(tmp_path, name) for name in ('canonical', 'projection'))
     for directory in (first, second):
-        (directory / 'grafana_plan.py').write_text(f'IDENTITY = {directory.name!r}\n', encoding='utf-8')
-    assert loader(first)('grafana_plan').IDENTITY == 'canonical'
-    assert loader(second)('grafana_plan').IDENTITY == 'projection'
-    assert loader(first)('grafana_plan') is not loader(second)('grafana_plan')
+        (directory / 'grafana_promql.py').write_text(f'IDENTITY = {directory.name!r}\n', encoding='utf-8')
+    assert loader(first)('grafana_promql').IDENTITY == 'canonical'
+    assert loader(second)('grafana_promql').IDENTITY == 'projection'
+    assert loader(first)('grafana_promql') is not loader(second)('grafana_promql')
 
 
 @pytest.mark.parametrize('failure', ['RuntimeError', 'SystemExit'])
 def test_failed_import_does_not_leave_a_partially_initialized_module(tmp_path, failure):
     directory = bundle(tmp_path, 'failed')
-    path = directory / 'grafana_plan.py'
+    path = directory / 'grafana_promql.py'
     path.write_text(f'PARTIAL = True\nraise {failure}("failure")\n', encoding='utf-8')
     load = loader(directory)
     with pytest.raises((RuntimeError, SystemExit), match='failure'):
-        load('grafana_plan')
+        load('grafana_promql')
     path.write_text('READY = True\n', encoding='utf-8')
-    module = load('grafana_plan')
+    module = load('grafana_promql')
     assert module.READY is True
     assert not hasattr(module, 'PARTIAL')
 
@@ -71,10 +71,10 @@ def test_a_foreign_cached_module_is_refused(monkeypatch):
         load('grafana_read')
 
 
-@pytest.mark.parametrize('first', ['grafana_analyze', 'grafana_frames', 'grafana_capture'])
-def test_fresh_process_import_orders_share_reader_and_keep_optional_libraries_lazy(tmp_path, first):
+@pytest.mark.parametrize('first', ['dashboard_hygiene', 'grafana_promql', 'grafana_read'])
+def test_fresh_process_import_orders_share_reader_and_keep_the_parser_lazy(tmp_path, first):
     # A working-directory sibling must never win even if its name matches the bundle.
-    for name in ('grafana_modules', 'grafana_read', 'grafana_frames', 'promql_parser'):
+    for name in ('grafana_modules', 'grafana_read', 'grafana_promql', 'promql_parser'):
         (tmp_path / (name + '.py')).write_text('raise AssertionError("cwd code executed")\n', encoding='utf-8')
     code = """
 import runpy, sys
@@ -83,15 +83,13 @@ root = Path(sys.argv[1])
 load = runpy.run_path(str(root / 'grafana_modules.py'))['load_module']
 search_path = list(sys.path)
 load(sys.argv[2])
-workflow = runpy.run_path(str(root / 'grafana_workflow.py'))
-reader = workflow['reader']
-assert load('grafana_frames').reader is reader
-assert load('grafana_analyze').frames is load('grafana_frames')
-assert load('grafana_capture')._module('grafana_evidence') is load('grafana_evidence')
-assert workflow['parse_args'](['doctor', '--agent-json']).command == 'doctor'
+hygiene = load('dashboard_hygiene')
+reader = load('grafana_read')
+assert hygiene.reader is reader
+assert hygiene.promql is load('grafana_promql')
 assert reader.parse_args(['dashboard', '--uid', 'board']).uid == 'board'
 assert sys.path == search_path
-assert not {'polars', 'promql_parser', 'PIL'} & sys.modules.keys()
+assert 'promql_parser' not in sys.modules
 """
     result = subprocess.run([sys.executable, '-I', '-S', '-c', code, str(SCRIPTS), first],
                             cwd=tmp_path, capture_output=True, text=True, timeout=30)

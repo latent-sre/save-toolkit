@@ -6,6 +6,10 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- Remove the Grafana investigation workflow (`grafana_workflow.py` and its plan, evidence, capture,
+  analyze, frames and dependencies modules), its reference, tests and guard grant, and the Pillow
+  and Polars dependencies. The read helper and the dashboard hygiene checker remain.
+
 - `python-craft` no longer claims explanation requests: the explanation routing case is retired and
   the description drops that clause.
 
