@@ -6,6 +6,18 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- `python-craft` no longer claims explanation requests: the explanation routing case is retired and
+  the description drops that clause.
+
+- Add three `python-craft` eval cases: a new-project baseline probe, an older-project narrow-fix
+  control and a dependency judgment; restore four routing cases retargeted from `python-engineering`.
+
+- Remove the `python-engineering` skill and its eval suite; `python-craft` is now the one Python
+  skill, with six of its hazard rules folded in.
+
+- Rewrite `python-craft` as one portable skill with three references: engineering authority, a
+  Python 3.14 and uv baseline, current dependencies, justified rewrites, proportionate checks.
+
 - Remove selected wording and Markdown-format test pins so guidance can be rephrased without
   updating those tests; retain unrelated authority, schema, and behavioral coverage.
 

@@ -5,7 +5,7 @@ skill: python-craft
 tools: [Skill, Read]
 references:
   - skills/python-craft/references/refactoring.md
-  - skills/python-craft/references/writing-python.md
+  - skills/python-craft/references/design.md
 prompt: |-
   Assess these independent Python improvement cases; do not edit code. The supplied consumer
   inventory is complete for these cases; in a real checkout you would need to establish it.
@@ -53,7 +53,8 @@ prompt: |-
   Q. CLI and HTTP entrypoints duplicate one required policy. Their input/output contracts differ,
      but the decision needs only normalized values. Both entrypoints and all internal callers can
      change together. Choose a module boundary that shares the decision without coupling transports.
-  Return only a JSON object with case_a through case_q string values, choosing independently from:
+  Return one JSON object with case_a through case_q string values and nothing else: start the
+  reply with { and end it with }, no prose and no code fence. Choose each value independently from:
   share_policy, keep_separate, change_internal_and_callers, preserve_compatibility, no_change,
   coherent_stages, replace_custom_with_library, fix_established_defect, explain_without_changes,
   clarify_behavior, stop_because_large, require_one_function_per_step, request_redundant_approval,

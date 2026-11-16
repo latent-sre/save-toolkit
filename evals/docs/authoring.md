@@ -221,10 +221,28 @@ Two additional build evaluations exercise implementation outcomes:
 
 Their [new-code calibration](../test_python_new_code_probe.py) and
 [index calibration](../test_python_index_probe.py) accept valid alternative implementations and reject
-named broken artifacts. They reuse the native runner and standard-library checks. Run them offline:
+named broken artifacts. They reuse the native runner and standard-library checks.
+
+The project-baseline probes cover two decisions the other Python cases leave open.
+`build-python-new-project-baseline` starts an unconstrained project and its
+[oracle](../oracles/python-craft/check_project_baseline.py) reads the artifacts statically: a 3.14
+floor, a declared build backend and entry point, development tools in dependency groups and never
+published, one type checker that is strict and aimed at the floor, and a `ci.sh` whose every `uv`
+command is `--locked`, with no `--frozen`, `--no-sync` or `pip install`. It also runs the small
+specified behavior. `build-python-narrow-fix-keeps-toolchain` is the control: a one-defect repair in
+a Poetry project on Python 3.10, where the oracle requires the fix, the unchanged rejections, source
+that still parses on the 3.10 floor, and toolchain files identical to the fixture. Its prompt names
+no file to leave alone, so staying out of the toolchain is the candidate's own decision. Neither
+oracle runs uv or reads a lockfile, and neither grades the final report; whether the report names
+the checks that could not run, or the baseline conflict, needs semantic review.
+[`python-dependency-judgment`](../scenarios/python-dependency-judgment.yaml) is a closed-JSON
+contract case for the dependency rules: out-of-scope upgrades, a library's published minimum, an
+unexplained upper bound, grouped dependencies and the locked workflow. Their
+[calibration](../test_python_project_baseline_oracle.py) passes three checker choices and rejects
+each named defect as a contract failure through the staged supervised command. Run them offline:
 
 ```bash
-python -m pytest evals/test_python_craft_oracle.py evals/test_python_new_code_probe.py evals/test_python_index_probe.py -q
+python -m pytest evals/test_python_craft_oracle.py evals/test_python_new_code_probe.py evals/test_python_index_probe.py evals/test_python_project_baseline_oracle.py -q
 python evals/build_probe.py validate
 ```
 

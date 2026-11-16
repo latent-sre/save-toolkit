@@ -1,0 +1,61 @@
+id: python-dependency-judgment
+max_turns: 17
+split: regression
+skill: python-craft
+tools: [Skill, Read]
+references:
+  - skills/python-craft/references/tooling.md
+prompt: |-
+  Assess these independent Python dependency cases; do not edit code or run commands.
+  A. An application needs a one-line bug fix. Its lockfile is a year old and several packages the
+     fix does not touch are behind by major versions. Nobody asked for modernization.
+  B. A published library is being modernized. Its lockfile is upgraded to current releases and the
+     tests pass. The code uses nothing newer than the minimum it already declares for one
+     dependency. Choose what happens to that published minimum.
+  C. A published library change must call an API that its dependency added in a later release than
+     the declared minimum. Choose what happens to that published minimum.
+  D. The owner asks to modernize an application. Upgrading replaces deprecated calls with APIs that
+     exist only in the new major versions of its dependencies.
+  E. An application caps one dependency below its current major version. No reason is recorded,
+     the requested modernization covers it, and the tests pass on the current release.
+  F. In a uv project, pytest is declared in the dev dependency group and its minimum must rise.
+     Choose how to change it.
+  G. The task needs a package the project does not use yet; a suitable maintained one exists.
+     Choose how to add it.
+  H. CI installs with uv sync --frozen and runs checks with uv run --frozen because it is slightly
+     faster. Choose what CI should do.
+  I. The owner asks to modernize one reporting module. It uses two dependencies; the project also
+     declares an old release of a third that only unrelated modules use.
+  Return one JSON object with case_a through case_i string values and nothing else: start the
+  reply with { and end it with }, no prose and no code fence. Choose each value independently from:
+  fix_only_and_report_stale_dependencies, upgrade_everything_with_the_fix,
+  leave_stale_dependencies_unmentioned, upgrade_lock_keep_published_minimum,
+  raise_published_minimum_to_latest, raise_published_minimum_to_needed_release,
+  call_new_api_keep_published_minimum, upgrade_and_raise_application_bounds,
+  keep_versions_to_avoid_risk, remove_unexplained_cap_and_upgrade, keep_unexplained_cap,
+  readd_with_its_group_flag, readd_without_a_flag, edit_the_lockfile_by_hand,
+  add_current_release_and_check_advisories, add_oldest_compatible_release,
+  verify_with_locked_not_frozen, keep_frozen_for_speed,
+  upgrade_the_modules_dependencies_and_report_the_rest, upgrade_every_project_dependency.
+success_criteria:
+  - Keeps a narrow fix free of unrequested upgrades while naming the stale dependencies.
+  - Upgrades a library's lock without raising a published minimum the code does not need.
+  - Raises a library's published minimum when the code needs the newer release.
+  - Upgrades an application and raises its bounds when modernization is the task.
+  - Treats an upper bound without a stated reason as removable under a modernization task.
+  - Raises a grouped dependency's minimum with its group flag, never by editing the lockfile.
+  - Adds a new package at its current release with an advisory check.
+  - Verifies with the locked workflow and rejects the frozen substitute.
+  - Limits a module-scoped modernization to that module's dependencies and reports the rest.
+graders:
+  - type: exact_json
+    fields:
+      case_a: fix_only_and_report_stale_dependencies
+      case_b: upgrade_lock_keep_published_minimum
+      case_c: raise_published_minimum_to_needed_release
+      case_d: upgrade_and_raise_application_bounds
+      case_e: remove_unexplained_cap_and_upgrade
+      case_f: readd_with_its_group_flag
+      case_g: add_current_release_and_check_advisories
+      case_h: verify_with_locked_not_frozen
+      case_i: upgrade_the_modules_dependencies_and_report_the_rest

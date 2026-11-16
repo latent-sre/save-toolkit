@@ -1,4 +1,4 @@
-id: discovery-python-engineering-defers-live-incident
+id: discovery-python-defers-incident-bridge
 max_turns: 15
 split: regression
 prompt: |
@@ -7,11 +7,11 @@ prompt: |
   what to check next in logs and metrics without editing source code.
 target:
   kind: skill
-  name: python-engineering
+  name: python-craft
 routing:
   expect: not_fire
   expected_alternative:
     kind: skill
     name: incident-investigation
 success_criteria:
-  - Selects incident investigation for live production triage without invoking Python code engineering.
+  - Selects incident investigation for live production triage without invoking Python craft.

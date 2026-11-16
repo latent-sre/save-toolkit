@@ -7,7 +7,8 @@
     "evals/test_python_index_probe.py",
     "evals/test_python_library_selection_oracle.py",
     "evals/test_python_new_code_probe.py",
-    "evals/test_python_package_refactor.py"
+    "evals/test_python_package_refactor.py",
+    "evals/test_python_project_baseline_oracle.py"
   ],
   "native_scenarios": [
     "build-python-fix-stays-scoped",
@@ -18,16 +19,22 @@
     "build-python-library-selection-csv",
     "build-python-library-selection-schema",
     "build-python-module-move",
+    "build-python-narrow-fix-keeps-toolchain",
+    "build-python-new-project-baseline",
     "build-python-new-streaming-cli",
     "build-python-package-refactor",
     "build-python-refactor-effects",
     "build-python-separate-calculation",
     "build-python-unify-policy",
+    "discovery-python-defers-go-service",
+    "discovery-python-defers-incident-bridge",
     "discovery-python-defers-live-incident",
-    "discovery-python-explanation",
     "discovery-python-improvement",
+    "discovery-python-ledger-modernize",
     "discovery-python-modernization",
+    "discovery-python-new-component",
     "discovery-python-refactoring",
+    "python-dependency-judgment",
     "python-new-code-judgment",
     "python-refactoring-judgment"
   ],
