@@ -4,10 +4,9 @@ description: >-
   Build, implement, refactor, rewrite, and modernize production-quality Python: services, CLIs,
   libraries, scripts, tests, packaging, and tooling. Use before writing or changing Python,
   choosing, upgrading, or replacing Python dependencies, restructuring or modernizing a legacy
-  module, or setting up uv, pyproject.toml, Ruff, pytest, and type checking; also for explaining
-  or designing Python. Triggers: 'write this in Python', 'refactor this Python', 'modernize this
-  module', 'replace this custom code with a library'. Not for operating a running service or
-  changing another language.
+  module, or setting up uv, pyproject.toml, Ruff, pytest, and type checking. Triggers: 'write
+  this in Python', 'refactor this Python', 'modernize this module', 'replace this custom code with
+  a library'. Not for operating a running service or changing another language.
 argument-hint: "[Python code, file, or task]"
 ---
 

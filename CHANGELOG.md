@@ -6,6 +6,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- `python-craft` no longer claims explanation requests: the explanation routing case is retired and
+  the description drops that clause.
+
 - Add three `python-craft` eval cases: a new-project baseline probe, an older-project narrow-fix
   control and a dependency judgment; restore four routing cases retargeted from `python-engineering`.
 

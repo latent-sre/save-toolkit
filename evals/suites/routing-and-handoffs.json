@@ -86,7 +86,6 @@
     "discovery-python-defers-go-service",
     "discovery-python-defers-incident-bridge",
     "discovery-python-defers-live-incident",
-    "discovery-python-explanation",
     "discovery-python-improvement",
     "discovery-python-ledger-modernize",
     "discovery-python-modernization",
