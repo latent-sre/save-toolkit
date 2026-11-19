@@ -6,6 +6,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- `reviewer` snapshots uncommitted work with one batched `tar` copy and comparison in place of a
+  per-file copy; a new eval case grades `Verdict: WITHHELD`, and a test runs the snapshot command.
+
 - Trim and consolidate the `grafana` skill references (merge `dashboard-reading.md` +
   `read-only-review.md` and `alert-operations.md` + `grafana-alerting.md` into `alerting.md`;
   deduplicate `command-access.md`, `http-api.md`, `visual-verification.md`, and `silences.md`),

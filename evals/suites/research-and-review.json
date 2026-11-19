@@ -5,7 +5,8 @@
   "tests": [
     "evals/test_researcher_scribe_cases.py",
     "evals/test_reviewer_cases.py",
-    "evals/test_wider_fleet_cases.py"
+    "evals/test_wider_fleet_cases.py",
+    "scripts/test_reviewer_snapshot_recipe.py"
   ],
   "native_scenarios": [
     "agent-direct-researcher-source-authenticity",
@@ -27,6 +28,7 @@
     "build-reviewer-reproduces-in-scratch",
     "build-reviewer-reviews-uncommitted-after-terse-handoff",
     "build-reviewer-reviews-uncommitted-work",
+    "build-reviewer-withholds-verdict-on-changed-instructions",
     "discovery-researcher-extended-public-comparison",
     "discovery-researcher-quick-public-lookup"
   ],
