@@ -6,8 +6,12 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
-- Reviewer verifies the contents of uncommitted scratch copies before running checks.
-- Blocked reviews return `Verdict: WITHHELD`; source-only findings identify the outstanding runtime check.
+- Reviewer eval checks: a `cat` copy into a scratch directory now counts as copying the candidate,
+  and the Git-prefix check sees a `git` that follows `do`, `then` or another shell keyword.
+
+- `reviewer` verifies that its scratch copy matches the uncommitted files under review before running checks.
+- Blocked reviews return `Verdict: WITHHELD` and name what would let the review resume.
+  Findings established from source identify any runtime behavior that still needs verification.
 
 - `python-craft` no longer claims explanation requests: the explanation routing case is retired and
   the description drops that clause.
