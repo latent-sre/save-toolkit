@@ -61,20 +61,30 @@ Before execution, identify provenance, candidate identity, the check, and where 
   their agents: run checks by default without asking for new permission, unless the request limits
   execution, and only in a scratch copy, never the source checkout; a one-line `python -c` that
   imports candidate code is a run too. Reproduce a finding from the files it needs:
-  `$G show <sha>:<path> > "$S/<path>"`. For the full suite, export through a scratch index, never
-  `git archive` (export attributes drop and rewrite files):
+  `mkdir -p "$S/<dir>" && $G show <sha>:<path> > "$S/<path>"`. For the full suite, export through a
+  scratch index, never `git archive` (export attributes drop and rewrite files):
   `GIT_INDEX_FILE="$S.idx" $G read-tree <sha> && GIT_INDEX_FILE="$S.idx" $G checkout-index -a --prefix="$S/"`,
   then confirm `GIT_INDEX_FILE="$S.idx" $G --work-tree="$S" diff --quiet <sha>`.
-  For uncommitted work, start with an empty scratch copy. From the repository root, enumerate
-  `$G ls-files -z --cached --others --exclude-standard --deduplicate`. Save only current regular
-  files and symlinks to a NUL-delimited list outside the copy. Omit deleted paths and directory
-  entries, including a tracked file replaced by a directory. Its eligible children are listed
-  separately. Never follow symlinks during collection. For each selected path, create its parent
-  in scratch and copy the entry with `cp -pP -- "$path" "$S/$path"`. Stop on any copy error.
-  Before running checks, compare a fresh source manifest with the actual scratch tree by relative
-  path, type, executable bit, file digest and symlink target. Record the matching manifest's digest
-  as the snapshot identity. A read error, mismatch, or check that needs candidate files outside
-  the snapshot leaves that verification pending.
+  For uncommitted work, start with an empty `$S`, then run this from the repository root:
+
+  ```bash
+  set -o pipefail
+  mkdir -p "$S" &&
+  $G ls-files -z --cached --others --exclude-standard --deduplicate > "$S.all" &&
+  while IFS= read -r -d '' p; do
+    if [ -L "$p" ] || [ -f "$p" ]; then printf '%s\0' "$p"; fi
+  done < "$S.all" > "$S.list" &&
+  [ -s "$S.list" ] &&
+  tar --null --no-recursion -T "$S.list" -cf - | tar -xpf - -C "$S" &&
+  tar --null --no-recursion -T "$S.list" -cf - | tar -df - -C "$S" &&
+  (cd "$S" && tar --null --no-recursion -T "$S.list" --mtime=@0 --owner=0 --group=0 \
+    --numeric-owner -cf - | sha256sum | cut -d' ' -f1)
+  ```
+
+  Record the printed digest as the snapshot identity. A non-zero status, or a check that needs
+  candidate files outside the snapshot, leaves that verification pending. A check that needs only
+  a few files may copy just those (`mkdir -p` the parent, then `cp -pP -- "$path" "$S/$path"`);
+  the full snapshot is for the suite.
   Chain setup with `&&`; set `PYTHONDONTWRITEBYTECODE=1`. Never checkout, switch, stash, reset, or
   add a worktree in the source checkout, keeping its files, index, refs, and branches unchanged. No
   installs, network fetches, credentials, or production endpoints; a check that needs one is missing
@@ -87,14 +97,14 @@ Before execution, identify provenance, candidate identity, the check, and where 
 
 When a check cannot run, continue source review and name the smallest check that would settle it.
 
-When execution is permitted, reproduce each P0/P1 finding in scratch even when it follows from the
-code, against the candidate and against the base when you claim a regression. If execution is
-prohibited or unavailable, a source trace that establishes the trigger and consequence can support
-a finding at its warranted priority. State which runtime behavior remains unverified. The
-candidate's own suite comes second; passing it does not close an untested path. Record commands,
-exit status, decisive output, environment, and revision. Before returning, verify that source state is unchanged and
-identify scratch artifacts; if it changed, report the discrepancy without resetting or overwriting
-someone else's work.
+Reproduce each P0/P1 finding in scratch even when it follows from the code, against the candidate
+and against the base when you claim a regression. If execution is prohibited or unavailable, a
+source trace that establishes the trigger and consequence can support a finding at its warranted
+priority. State which runtime behavior remains unverified. The candidate's own suite comes second;
+passing it does not close an untested path. Record commands, exit status, decisive output,
+environment, and revision. Before returning, verify that source state is unchanged and identify
+scratch artifacts; if it changed, report the discrepancy without resetting or overwriting someone
+else's work.
 
 ## Evidence gate
 

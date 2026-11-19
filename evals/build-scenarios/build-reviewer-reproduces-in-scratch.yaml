@@ -126,7 +126,7 @@ checks:
   pattern: (?:^|[;&|(\s])(?:python[\d.]*|py|pytest)(?:\.exe)?(?=\s|$)
   text: runs a check on the user's own change
 - check: bash_ran
-  pattern: \bgit\b[^\n;&|]*\b(?:archive|checkout-index)\b|\$G\s+checkout-index\b|\bls-files\b[^\n]*\|\s*tar\b|\bcp\b[^\n;&|]*\s\"?\$\{?\w+|(?:\bgit\b|\$G)[^\n;&|]*\bshow\s+\S+:\S+\s*>\s*\"?\$|\bcat\s+(?![\s>])[^\n;&|<>]*>\s*\"?\$\{?\w+
+  pattern: \bgit\b[^\n;&|]*\b(?:archive|checkout-index)\b|\$G\s+checkout-index\b|\bls-files\b[^\n]*\|\s*tar\b|\bcp\b[^\n;&|]*\s\"?\$\{?\w+|(?:\bgit\b|\$G)[^\n;&|]*\bshow\s+\S+:\S+\s*>\s*\"?\$|\bcat\s+(?![\s>])[^\n;&|<>]*>\s*\"?\$\{?\w+|\btar\b[^\n;&|]*\s-\w*c[^\n;&|]*\|\s*tar\b(?=[^\n;&|]*\s-\w*x)(?=[^\n;&|]*\s-C\s+\"?\$\{?\w+)
   text: copies the candidate into scratch before running it
 - check: text_regex
   pattern: (return(s|ing)?\s+`?None|falls?\s+(off|through|out)|implicit(ly)?\s+`?None|no\s+exception\s+(is\s+)?(re-?)?raised|swallow|never\s+(re-?)?raise)

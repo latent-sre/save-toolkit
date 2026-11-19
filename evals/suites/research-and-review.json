@@ -27,6 +27,7 @@
     "build-reviewer-reproduces-in-scratch",
     "build-reviewer-reviews-uncommitted-after-terse-handoff",
     "build-reviewer-reviews-uncommitted-work",
+    "build-reviewer-withholds-verdict-on-changed-instructions",
     "discovery-researcher-extended-public-comparison",
     "discovery-researcher-quick-public-lookup"
   ],

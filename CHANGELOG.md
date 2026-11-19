@@ -6,6 +6,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- `reviewer` snapshots uncommitted work with one batched `tar` copy and comparison in place of a
+  per-file copy; a new eval case grades `Verdict: WITHHELD`, and a test runs the snapshot command.
+
 - Fold the Grafana `json-model.md` reference into `http-api.md` so the dashboard model and
   pre-write rules sit in the write procedure, and drop the gcx migration status from the `grafana`
   skill; the roadmap and `stack-profile` keep it.
