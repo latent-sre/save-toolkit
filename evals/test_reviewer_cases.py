@@ -323,8 +323,12 @@ class ReviewerCaseTests(unittest.TestCase):
                  "git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf - | tar -xf - -C $S",
                  "cp *.py README.md $S && cd $S",
                  'GIT_INDEX_FILE="$S.idx" $G checkout-index -a --prefix="$S/"',
-                 '$G show feature/retry-backoff:client.py > "$S/client.py"'],
-                ["git diff main...x", "cp a.py b.py", "git show feature/retry-backoff:client.py"]),
+                 '$G show feature/retry-backoff:client.py > "$S/client.py"',
+                 'S=$(mktemp -d); G="git --no-pager"; for f in export.py report.py; do cat $f > $S/$f; done; cd $S && python -c "1"',
+                 'cat export.py > "$S/export.py"', "cat a.py b.py >$S/both.py"],
+                ["git diff main...x", "cp a.py b.py", "git show feature/retry-backoff:client.py",
+                 "S=$(mktemp -d); cat > $S/repro.py <<'E'\nprint(1)\nE", "cat  > $S/repro.py", "cat export.py",
+                 "cat <<'E' > $S/repro.py\nprint(1)\nE"]),
             "runs a check on the user's own change": (
                 ["python -m pytest -q", "PYTHONDONTWRITEBYTECODE=1 python -c 'import client'", 'cd "$S" && python probe.py'],
                 ["python3-config --includes", 'rg "python" README.md']),
@@ -335,10 +339,17 @@ class ReviewerCaseTests(unittest.TestCase):
         every_call = checks["contract: every Git call carries the side-effect-free prefix"]
         compliant = ['G="git --no-pager --no-optional-locks -c core.fsmonitor=false" && $G status && $G diff main...x',
                      'GIT_INDEX_FILE="$S.idx" git --no-pager --no-optional-locks -c core.fsmonitor=false read-tree abc1234',
-                     "git -c core.fsmonitor=false --no-optional-locks --no-pager log --oneline main..x"]
+                     "git -c core.fsmonitor=false --no-optional-locks --no-pager log --oneline main..x",
+                     'G="git --no-pager --no-optional-locks -c core.fsmonitor=false"; for f in a b; do $G show x:$f > $S/$f; done',
+                     'echo "do git status"', 'echo "then git log" && printf "if git diff"']
         violating = ["git --no-pager diff main...x",
                      'G="git --no-pager --no-optional-locks -c core.fsmonitor=false" && $G status; git ls-files | tar -cf - -T -',
-                     "echo ok && git status --short", "SHA=$(git rev-parse HEAD)"]
+                     "echo ok && git status --short", "SHA=$(git rev-parse HEAD)",
+                     'cd /w && S=$(mktemp -d) && G="git --no-pager -C repo"; for f in client.py; do $G show x:$f > $S/$f; done',
+                     *(f"{lead} git --no-pager status{tail}" for lead, tail in [
+                         ("for f in a; do", "; done"), ("if true; then", "; fi"), ("if true; then :; else", "; fi"),
+                         ("if false; then :; elif", "; then :; fi"), ("if", "; then :; fi"), ("while", "; do :; done"),
+                         ("until", "; do :; done"), ("!", ""), ("time", ""), ("{", "; }"), ("echo `", "`")])]
         self.assert_commands(probe_checking.check_bash_did_not_run, every_call, violating, compliant,
                              check="every Git call prefixed")
 
@@ -362,6 +373,9 @@ class HandoffScenarioTests(unittest.TestCase):
             (["git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf - | tar -xf - -C $S",
               'cd "$S"', "python -m pytest -q"], True, True),
             ([f'cd "$S" && cd "{repo.as_posix()}" && python -m pytest -q'], False, False),
+            (['S=$(mktemp -d); G="git --no-pager -c core.fsmonitor=false"; for f in export.py report.py; do cat $f > $S/$f; done;'
+              ' cd $S && PYTHONDONTWRITEBYTECODE=1 python -c "from export import to_csv"'], True, True),
+            (["S=$(mktemp -d); cat > $S/repro.py <<'E'\nprint(1)\nE\ncd $S && python repro.py"], True, False),
         ]
         for commands, ran_outside, copy in cases:
             with self.subTest(commands=commands):
