@@ -1,54 +1,40 @@
 # Temporary silences
 
-Recurring mute timings are a different operation.
-Ending a silence can notify still-firing alerts again.
-
-Console: Alerts & IRM → Alerting → Silences. Preview shows only current firing instances, not every
-future alert the matchers will suppress.
-
-The helper's `silences` and `silences --id <uuid>` read only the built-in Grafana Alertmanager.
-Retain Alertmanager identity, matchers/window/status.
+Recurring mute timings are a different operation. Ending a silence can notify still-firing alerts
+again. Console: Alerts & IRM → Alerting → Silences (preview shows only *currently firing* instances,
+not future matches). The helper's `silences` / `silences --id <uuid>` reads only the built-in
+Grafana Alertmanager.
 
 ## Prepare, apply, verify
 
-1. Bind the instance/org, Alertmanager, service/environment or rule UID, exact matchers, start/end
-   in UTC, human owner, and reason/change reference. Never infer the creator identity from the
-   service-account name. If the requester supplies a duration, resolve and show the absolute times
-   immediately before writing. No expiry or ambiguous environment means ask for the missing scope.
-2. Inspect the rule/alert labels and existing silences. Show currently affected instances and the
-   matcher's potential wider scope. Prefer exact service/environment or rule-specific matches when
-   they express the request. Explain regex, negative, or missing-label matches before using them;
-   a preview with no firing instances does not prove the matcher is harmless. Include enough scope
-   to avoid silencing a different environment. Do not broaden a failed match to make it work.
-3. For an update/early expiry, read the exact silence ID and preserve its prior body. Confirm the
-   request covers that silence; do not modify another owner's silence merely because it overlaps.
-   Check that an identical active/pending silence does not already satisfy a create request.
-4. Show the exact target, matchers, UTC window, affected scope, and recovery action. Who may
-   execute is set in the parent skill's [Access and authority](../SKILL.md#access-and-authority).
-   Re-read an existing silence immediately before mutation and stop on drift. These endpoints do
-   not promise compare-and-swap: coordinate a single-writer window for changes to a shared silence
-   or return the prepared change to its owner. A re-read alone is not mutual exclusion.
-5. Write once, retain the returned silence ID, then fetch that ID from the same Alertmanager.
-   An update keeps its ID only when the silence is unexpired with unchanged matchers and is either
-   active with an unchanged start time and a future `endsAt`, or pending with a future `startsAt`.
-   Otherwise Alertmanager
-   expires the original and returns a new ID, so also read the original ID's state. An unknown `id`
-   returns NotFound. Verify matchers, timestamps, owner/comment, and active/pending/expired state.
-   For suppression, check matching instances' silence association when available; for early expiry,
-   verify expired state and inspect overlapping silences before claiming notifications can resume.
-   Neither result proves delivery or service recovery.
-6. Return ID/link, intended effect, observed state, expiry and recovery owner. Preserve verified
-   operation-written state from step 5; before recovery, compare fresh state with it under step 4's
-   single-writer checks and stop for the named owner on intervening edits or missing comparison
-   evidence. To undo a create, expire the returned ID. To undo an edit that returned a new ID, expire that ID, verify
-   the original ID's state, and recreate the prior scope as a new silence only while its window is
-   still valid and authorized. To undo an in-place edit, re-apply the captured body under the same
-   ID within its still-valid window. An expired silence cannot be unexpired. Lost notifications
-   cannot be recovered by rollback.
+1. **Bind scope:** instance/org, Alertmanager, service/environment or rule UID, exact matchers,
+   explicit UTC `startsAt`/`endsAt` (resolve durations to absolute UTC right before writing), human
+   owner, and reason/change reference. Never infer creator from the service-account name. Missing
+   expiry or ambiguous environment → ask first.
+2. **Check blast radius:** inspect rule/alert labels and existing silences; show currently affected
+   instances and wider matcher scope. Prefer exact service/environment or rule-specific matchers.
+   Explain regex, negative, or missing-label matchers before use; an empty preview does not prove a
+   matcher is harmless. Never broaden a failed matcher to make it match.
+3. **Update / early expiry:** read the exact silence ID and preserve its prior body; never modify
+   another owner's silence merely because it overlaps. For create, verify no identical active/pending
+   silence already covers it.
+4. **Coordinate and write once:** show target, matchers, UTC window, affected scope, and recovery.
+   These endpoints have no compare-and-swap — coordinate a single-writer window for shared silences,
+   re-read immediately before writing, and stop on drift.
+5. **Read back and verify:** fetch the returned ID from the same Alertmanager and verify matchers,
+   timestamps, owner/comment, and active/pending/expired state.
+   - **ID replacement rule:** an update keeps its ID *only* when unexpired with unchanged matchers
+     and either active (unchanged `startsAt`, future `endsAt`) or pending (future `startsAt`).
+     Otherwise Alertmanager expires the original and returns a **new** ID — read both IDs.
+   - For early expiry, also check overlapping silences before claiming notifications can resume.
+     Neither create nor expiry proves delivery or service recovery.
+6. **Rollback:** verify fresh state matches operation-written state before undoing (stop on
+   intervening edits). Undo create by expiring the returned ID; undo an ID-replacing edit by
+   expiring the new ID and recreating the prior scope within its still-valid window (an expired
+   silence cannot be unexpired); undo an in-place edit by re-applying the captured body. Lost
+   notifications cannot be recovered.
 
-## Agent API mapping
-
-Use the actual target's supported route and permissions. The Grafana 13.3 client uses:
+## Agent API mapping (Grafana 13.3)
 
 | Operation | Path under the trusted Grafana origin |
 |---|---|
@@ -57,17 +43,12 @@ Use the actual target's supported route and permissions. The Grafana 13.3 client
 | Create or update | `POST /api/alertmanager/<am>/api/v2/silences` |
 | End early | `DELETE /api/alertmanager/<am>/api/v2/silence/<id>` |
 
-`<am>` is `grafana` for the built-in Alertmanager or the discovered datasource UID for the external
-one; never substitute its display name. Create omits
-`id`; an update sends the existing `id` and can return a different one (step 5). A rule-specific
-silence can use `__alert_rule_uid__=<uid>`; verify the label applies to this Alertmanager's alerts
-rather than assuming external alerts carry it. Grafana rejects an update that changes the
-`__alert_rule_uid__` matcher with 400: create a new silence instead. POST returns `silenceID`; reads use `id`.
+`<am>` is `grafana` for the built-in Alertmanager or the discovered datasource UID for an external
+one (never its display name). Create omits `id`; update sends existing `id` and can return a new
+`silenceID` (reads use `id`; unknown `id` returns NotFound). Rule-specific silences can use
+`__alert_rule_uid__=<uid>` where the Alertmanager carries that label; Grafana rejects updating that
+matcher with `400` (create a new silence instead).
 
-A timeout after POST is UNKNOWN under the parent's [result rule](../SKILL.md#return-the-result).
-Do not create another silence. Read the returned ID if known; otherwise list the same
-Alertmanager's silences and reconcile the full matcher/time/owner/comment payload and available
-audit evidence, checking for duplicates and late arrival. For uncertain expiry, read the exact ID
-and its status.
-
-Target writes and HA reconciliation are unconfirmed until exercised.
+On timeout after POST, follow the parent's [UNKNOWN rule](../SKILL.md#return-the-result): do not
+create a duplicate; read the returned ID if known or list silences on the same Alertmanager and
+reconcile matchers/window/owner/comment.

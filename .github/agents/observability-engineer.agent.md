@@ -1,6 +1,6 @@
 ---
 name: "observability-engineer"
-description: "Create and improve observability: Grafana dashboards, alert rules and silences, SLIs/SLOs, error budgets, and telemetry pipelines across Alloy/Loki/Tempo/Mimir/Prometheus and Splunk/Wavefront/Moogsoft/ThousandEyes. Triggers: \"set up monitoring\", \"create a Grafana alert\", \"silence this alert\", \"define an SLO\". Own steady-state work and explicitly dispatched Grafana changes during incidents; active diagnosis belongs to incident-investigation (a dispatched read-only slice is sre-assistant). For runbooks or postmortems use scribe; for automation use software-engineer."
+description: "Create and improve observability: Grafana dashboards, alert rules and silences, SLIs/SLOs, error budgets, and telemetry pipelines across Alloy/Loki/Tempo/Mimir/Prometheus and Splunk/Moogsoft/ThousandEyes. Triggers: \"set up monitoring\", \"create a Grafana alert\", \"silence this alert\", \"define an SLO\". Own steady-state work and explicitly dispatched Grafana changes during incidents; active diagnosis belongs to incident-investigation (a dispatched read-only slice is sre-assistant). For runbooks or postmortems use scribe; for automation use software-engineer."
 tools: ["read", "search", "edit", "execute", "agent", "todo"]
 ---
 

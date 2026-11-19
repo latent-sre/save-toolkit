@@ -93,13 +93,8 @@ Current source and remaining work
   permissions, protected results and installed-host acceptance remain required.
   Existing SSO comes first; an unshared or separately opened tab is not access.
 - APIs/helpers: the owner selected gcx for the read-only Grafana access migration.
-  The selected credential path uses the operations repository's existing Ansible
-  custody and private runtime injection, without a local keyring or gcx login.
-  Adama has a working controller-user Ansible reader with fixed connection,
-  inventory, Overview configuration, host metric and alert-summary reads.
-  Its bounded output and private environment do not isolate credentials from
-  the same OS user. Protected agent execution, exact guard admission and
-  installed-client acceptance remain pending.
+  Protected agent execution, exact guard admission, redirect/destination
+  enforcement and installed-client acceptance remain pending.
   The current guard does not admit gcx. Map required operations and verify their
   controls before replacing the existing helper or changing tool grants.
   skills/grafana/scripts/grafana_read.py currently provides dashboard search

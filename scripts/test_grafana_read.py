@@ -31,7 +31,7 @@ PNG = bytes((137, 80, 78, 71, 13, 10, 26, 10)) + (13).to_bytes(4, "big") + b"IHD
 PLACEHOLDER = PNG[:16] + (526).to_bytes(4, "big") + (202).to_bytes(4, "big") + bytes(5)
 BOARD = {"dashboard": {"uid": "board", "version": 3, "panels": [
     {"id": 1, "type": "row", "collapsed": True, "panels": [{"id": 7, "type": "timeseries", "title": "B70 temperatures"}]}]},
-    "meta": {"slug": "cylon-ai"}}
+    "meta": {"slug": "order-health"}}
 
 SILENCE_ID = "12345678-1234-1234-1234-123456789abc"
 
@@ -1050,7 +1050,7 @@ def test_render_checks_the_panel_then_saves_one_bounded_png(capture_dir):
     assert code == 0 and result["operation"] == "render" and result["coverage"] == "image_uninspected"
     assert [r.full_url for r in transport.requests[1:]] == [
         ENV["GRAFANA_URL"] + "/api/dashboards/uid/board",
-        ENV["GRAFANA_URL"] + "/render/d-solo/board/cylon-ai?orgId=7&panelId=7&from=1000&to=61000&width=1200"
+        ENV["GRAFANA_URL"] + "/render/d-solo/board/order-health?orgId=7&panelId=7&from=1000&to=61000&width=1200"
         "&height=600&scale=1&tz=UTC&timeout=40&var-host=host-a&var-host=host-b"]
     assert transport.requests[2].method == "GET" and transport.bounds[2] == {"limit": 8 * 1024 * 1024, "timeout": 45}
     saved = Path(result["image_path"])

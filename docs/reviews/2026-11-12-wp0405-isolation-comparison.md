@@ -22,7 +22,7 @@ was included in candidate inputs. The four reserved qualification cases were not
 | Runner SHA-256 | `763b4bc011f23fb4e10ddffc9d8bf2b17f6f46643c39c32eee59f68c212f34d6` |
 | Model | `claude-sonnet-5-5` |
 | CLI | Claude Code 2.1.323 |
-| Host | Linux `adama`, uid 1000, Python 3.14.10 |
+| Host | Linux host, uid 1000, Python 3.14.10 |
 | Method | Native clean-room single-message development cases, 16-turn limit |
 
 [verified] Identities and source hashes were checked before each invocation. The CLI version was

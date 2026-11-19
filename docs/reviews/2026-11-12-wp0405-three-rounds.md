@@ -229,7 +229,7 @@ Human acceptance of an exact candidate revision remains the sole promotion decis
 rounds are not replications of one revision, and different evidence profiles are not pooled into a
 benchmark pass rate. Source guidance and evidence presentation changed together, so their individual
 effects are not isolated. The final native model is `claude-sonnet-5-5` on Claude Code 2.1.322,
-Linux `adama`, unelevated `uid:1000`. Other required model profiles and Windows are unmeasured here.
+Linux host, unelevated `uid:1000`. Other required model profiles and Windows are unmeasured here.
 
 [verified] All 26 original conversation case/review/selection files retain their earlier hashes.
 The four independently authored qualification cases remain unrun and their contents were not used

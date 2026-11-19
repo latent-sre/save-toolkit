@@ -17,7 +17,7 @@ for datasource, variable, query-window, and presentation checks before changing 
 An SDK that exports OTLP straight to Loki, Mimir, or Tempo has no collector boundary; skip step 3
 below.
 
-Identify the affected Splunk or Wavefront/PCF App Metrics feed and its owner before changing it.
+Identify the affected Splunk or PCF App Metrics feed and its owner before changing it.
 Confirmed PCF-platform-owned feeds stay with that owner: hand their gaps to it rather than wiring
 replacement exporters, and use `pcf-ops` and `obs-analysis` for platform-side and query evidence.
 The backend name alone does not establish the ingestion route.
@@ -58,10 +58,6 @@ Never put secrets, personal data, or user or request identifiers in metric label
   or the dimensionless unit `1` (`system.cpu.utilization`), stays singular; a count of discrete
   things with an annotation unit such as `{fault}` is pluralized (`system.paging.faults`);
   UpDownCounter names are never pluralized.
-- Wavefront takes dot-delimited names + point tags
-  (`app.http.request.duration`) — the OTel shape, near-unchanged. Resource attributes become point
-  tags only when the proxy sets `otlpResourceAttrsOnMetricsIncluded=true`, and a metric over the
-  point-tag limit is dropped.
 - A Prometheus-style exporter translates dotted names for you by default; do not pre-bake exporter
   suffixes into the OTel name. The stored name depends on the route: Mimir's OTLP endpoint adds no
   unit or type suffixes by default (`distributor.otel-metric-suffixes-enabled = false`), while the
