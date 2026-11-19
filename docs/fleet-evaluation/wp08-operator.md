@@ -1,7 +1,7 @@
 # WP-08 operator commands
 
-The [approved run plan](run-plan-wp08-swebench-repair.md) owns task selection, model, budget,
-execution profile and stop rules. The [implementation plan](implementation-wp08-swebench-repair.md)
+The approved run plan (in Git history) owns task selection, model, budget,
+execution profile and stop rules. The implementation plan (in Git history)
 maps those requirements to the adapter. The owner starts smoke, the first paid trial, and the
 remaining batch separately. Offline tests are not installed-host acceptance.
 
@@ -98,7 +98,7 @@ attempt token and exposes only the Messages route, even on its configured interf
 
 Quota mode is the default (`storage_mode: "quota"`, or omit that field); it requires
 `storage_quota: true` and real `--storage-opt size=10G` enforcement in both author and verifier.
-For the [owner-approved Windows Docker Desktop exception](run-plan-wp08-swebench-repair.md#owner-amendment-docker-desktop-monitored-storage-2026-11-12),
+For the owner-approved Windows Docker Desktop exception (in Git history),
 set both `"storage_mode": "monitored"` and `"storage_quota": false`. A false quota flag alone is
 rejected. The exception requires a local Linux Docker Desktop engine on Windows and omits the
 unenforced storage option while preserving all other limits. Its writable-layer target is

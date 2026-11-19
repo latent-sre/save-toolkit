@@ -1,7 +1,7 @@
 # WP-10 first-step case acceptance
 
 Prepared 2026-10-10 for the owner's human case acceptance, precondition 2 of the
-[WP-10 run plan](../fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md). It covers the first
+WP-10 run plan (in Git history). It covers the first
 step only: the six natural-pair cases and the nine lane cases (45 trials, USD 20 cap). The twelve
 structured-pair cases follow with their own approval.
 

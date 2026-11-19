@@ -6,6 +6,10 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- Remove 14 completed, orphaned, or deferred run-plan and proposal documents from
+  `docs/fleet-evaluation/` (retaining `product.md`, schemas, contracts, and suite guides; Git history
+  preserves removed files).
+
 - `reviewer` snapshots uncommitted work with one batched `tar` copy and comparison in place of a
   per-file copy; a new eval case grades `Verdict: WITHHELD`, and a test runs the snapshot command.
 

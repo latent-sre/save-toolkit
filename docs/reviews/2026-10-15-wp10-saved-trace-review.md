@@ -139,7 +139,7 @@ the fixture never names.
    Any repair or additional measurement must identify its candidate, cases and bounded scope.
    RELIABILITY-001 remains deferred; this record does not reopen that campaign.
 3. The twelve structured cases (36 planned trials) retain their separate case/candidate and
-   spend-cap decision under the [WP-10 run plan](../fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md).
+   spend-cap decision under the WP-10 run plan (in Git history).
    This review grants no new model spend. WP-12's pilot case review remains a separate EVAL-012 step.
 
 [verified] Work performed here was saved-file/source inspection, JSON parsing, digest comparison

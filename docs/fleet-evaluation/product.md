@@ -90,7 +90,7 @@ assessed. Supplied receipts never establish the agent's own execution of tests.
 ## Requirements and traceability
 
 Acceptance cases are defined in [measurement](measurement.md). Delivery packages are in
-[delivery](delivery.md). Requirement IDs are stable cross-references, not runtime API fields.
+delivery (in Git history). Requirement IDs are stable cross-references, not runtime API fields.
 
 | ID | Required outcome | Acceptance | Delivery |
 |---|---|---|---|

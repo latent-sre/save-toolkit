@@ -76,7 +76,7 @@ permits a separately identified monitored mode; it does not alter this failed ha
 
 [sourced] The owner clarified, "i thought i approved that exception", after discussion of the
 monitored target, overshoot and shared-storage implications. The
-[run-plan amendment](../fleet-evaluation/run-plan-wp08-swebench-repair.md#owner-amendment-docker-desktop-monitored-storage-2026-11-12)
+run-plan amendment (in Git history)
 records that authorization. WP-08 can proceed on current Windows Docker Desktop in explicit
 monitored mode; no further Linux-host choice is required for this storage exception.
 

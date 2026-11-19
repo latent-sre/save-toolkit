@@ -2,7 +2,7 @@
 
 **Status:** complete; the result is for the owner's decision on the catalog run. It covers the
 stress step the [pilot review](2026-10-17-wp13-gcp-pilot-review.md) added to the
-[WP-13 run plan](../fleet-evaluation/run-plan-wp13-gcp-native-pilot.md). It records observations of
+WP-13 run plan (in Git history). It records observations of
 one candidate on two models. It does not accept or reject either model.
 
 ## Conclusion

@@ -16,7 +16,7 @@ does not represent an executed or accepted Windows campaign.
 stages observed-only workspaces, prepares native fixtures, collects explicit submissions, exports
 upstream input and performs separately labelled local assessment. It never invokes a candidate,
 model, judge, container or service. Outputs are new files/directories; existing evidence is refused.
-The [case review](wp04-case-review.md) and [proposed run plan](../../evals/manifests/wp04-run-plan.json)
+The case review (in Git history) and [proposed run plan](../../evals/manifests/wp04-run-plan.json)
 are the admission packet. Selection revision 2 proposes cases 7/21/24/80/102; human admission remains pending.
 
 [verified] Offline preparation produced five observed-only directories and validated native specs.

@@ -342,4 +342,4 @@ Completed evidence permits proposing a further campaign; it does not itself appr
 These authored cases do not establish held-out resistance, actual helper continuation or production
 behavior. The separate reliability reasoning repair, current-main qualification and WP-12 remain open.
 The approved helper race stays INCONCLUSIVE. No result promotes a candidate; exact human acceptance
-remains separate under [DEC-04 and the delivery decisions](../fleet-evaluation/delivery.md).
+remains separate under DEC-04 and the delivery decisions (in Git history).

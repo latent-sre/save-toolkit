@@ -1,7 +1,7 @@
 # WP-09 Terminal-Bench operator run plan
 
 [verified] Preparation is implemented by [harbor_pilot.py](../../evals/harbor_pilot.py) and the
-[Harbor adapter](../../evals/harbor_adapter/). The [case review](wp09-terminal-cases.md) and
+[Harbor adapter](../../evals/harbor_adapter/). The case review (in Git history) and
 [frozen manifest](../../evals/manifests/wp09-terminal-complex5.json) define the proposed five-case
 selection. This plan does not grant live execution, spending or exact-candidate acceptance.
 

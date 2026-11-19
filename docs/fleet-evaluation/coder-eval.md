@@ -171,7 +171,7 @@ AC-36/37 and DEC-16 record one of these dispositions, with evidence rather than 
 A supported early rejection can complete the adoption assessment without completing 24 trials; name
 the failed gate and unmeasured cases. An unfinished assessment cannot be called rejection merely to
 close WP-02. Its other native acceptance checks remain required under every disposition.
-Native-backed work can proceed once the separate readiness checks in [delivery](delivery.md#work-packages)
+Native-backed work can proceed once the separate readiness checks in delivery (in Git history)
 pass, even while this assessment remains open. That does not admit the alternative runner.
 
 Select reporting after this evidence: promptfoo remains a presentation/adversarial-authoring

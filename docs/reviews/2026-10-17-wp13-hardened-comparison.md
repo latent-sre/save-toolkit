@@ -1,7 +1,7 @@
 # WP-13 hardened GCP cases: Haiku, Sonnet and Opus (2026-10-17)
 
 **Status:** complete; the result is for the owner's decision on the hardening. It runs the comparison
-pre-registered in the [hardening design](../fleet-evaluation/gcp-hardening.md) on the nine accepted
+pre-registered in the hardening design (in Git history) on the nine accepted
 hardened cases. It records observations of one candidate on three models. It does not accept or
 reject any model.
 

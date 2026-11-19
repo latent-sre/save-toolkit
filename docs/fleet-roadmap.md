@@ -238,8 +238,8 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   smoke gates and offline tests; [implementation and verification evidence](reviews/2026-10-25-wp08-adapter.md).
   Live smoke and paid trials have not run; exact-candidate acceptance remains with the owner.
 - Complex-campaign preparation is in progress under the [implementation plan](fleet-evaluation/implementation-complex-campaigns.md):
-  WP-08 has a separate [ten-case hard-task proposal](fleet-evaluation/wp08-complex-proposal.md);
-  WP-04 has a pinned [source/admission packet](fleet-evaluation/wp04-case-review.md);
+  WP-08 has a separate ten-case hard-task proposal (in Git history);
+  WP-04 has a pinned source/admission packet (in Git history);
   WP-05 has [18 authored execution profiles over six incident families](../evals/incident-conversations/README.md),
   with native ordered-session support and offline controls. WP-09 has separate
   [five-case SWT](fleet-evaluation/wp09-swt-run-plan.md) and
@@ -308,7 +308,7 @@ revision 0.6 on 2026-10-06 as the scope freeze, amended for WP-13's completion b
   incumbent/candidate evidence separate from the earlier baseline and human acceptance.
 - WP-12 complete on 2026-10-17: all 64 GCP cases accepted at `9147ff91`
   ([pilot and template](../evals/oracles/gcp/README.md), [catalog](../evals/oracles/gcp/CATALOG.md)).
-- WP-13 complete on 2026-10-18 under its [run plan](fleet-evaluation/run-plan-wp13-gcp-native-pilot.md):
+- WP-13 complete on 2026-10-18 under its run plan (in Git history):
   the [pilot](reviews/2026-10-17-wp13-gcp-pilot-review.md), the
   [stress test](reviews/2026-10-17-wp13-stress-test.md), the
   [hardened comparison](reviews/2026-10-17-wp13-hardened-comparison.md) and the
@@ -362,7 +362,7 @@ acceptance tests, delivery phases and explicit open decisions.
   the accepted dataset/selection, licences, CLI, plugin and image identities using the
   [operator commands](fleet-evaluation/wp08-operator.md), including the pinned verifier environment.
   Qualify the approved Desktop monitored mode with the full smoke. Then start the approved
-  [run plan](fleet-evaluation/run-plan-wp08-swebench-repair.md)'s first paid trial
+  run plan (in Git history)'s first paid trial
   and remaining nine Claude tasks as separate owner-started steps. Smoke is also owner-started.
   Other models retain their own
   approvals; WP-09 follows WP-08 and retains its own runtime/storage qualification.
@@ -622,10 +622,10 @@ open items and whether work could continue, as the
 AC-35's human-handover half.
 **Next action:** None until scheduled. The owner names the responders and dates; the facilitator picks
 the two cases from the accepted catalog.
-The [prepared tabletop packet](fleet-evaluation/handover-tabletops.md) now selects accepted
+The prepared tabletop packet (in Git history) now selects accepted
 migration/hybrid and GKE reachability cases, with separate responder handouts and worksheets.
 Human execution and usefulness results remain unmeasured.
-**Evidence:** [Offline preparation and exact case identities](fleet-evaluation/handover-tabletops.md).
+**Evidence:** Offline preparation and exact case identities (in Git history).
 **SRE task:** A responder taking over a board mid-incident continues from the handed-over record
 without repeating intake.
 

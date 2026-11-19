@@ -14,7 +14,7 @@ actual observations outside comparison identity.
 **Tech Stack:** Python 3.14, pinned Docker SDK/SWE-bench, Docker Desktop Linux containers.
 
 **Spec:** The owner amendment in
-[`run-plan-wp08-swebench-repair.md`](../../fleet-evaluation/run-plan-wp08-swebench-repair.md).
+`run-plan-wp08-swebench-repair.md` (in Git history).
 The owner clarified the Desktop exception in this session; implementation proceeds inline with
 bounded source ownership and an independent final review.
 

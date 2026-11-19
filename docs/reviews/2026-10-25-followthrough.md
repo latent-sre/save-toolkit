@@ -264,7 +264,7 @@ metered-testing allowance has not been reset between these stages.
 [scenario preparation](2026-10-25-route-007-preparation.md) are retained separately.
 The no-data field is now an explicit proposed task requirement; native Grafana query
 reproduction still requires the unavailable Docker fixture and original Windows traces.
-The [human tabletop packets](../fleet-evaluation/handover-tabletops.md) are prepared,
+The human tabletop packets (in Git history) are prepared,
 but responders, facilitator and dates are not selected and no human exercise has run.
 Docker-based WP-09 is deferred by the owner. WP-10's log-role, reliability and GCP-01
 semantic findings are not resolved by the four-model ordinary-log smoke.

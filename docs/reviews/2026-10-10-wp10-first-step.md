@@ -1,6 +1,6 @@
 # WP-10 first step: run record (2026-10-10)
 
-The owner approved the first step of the [WP-10 run plan](../fleet-evaluation/run-plan-wp10-wider-fleet-adversarial.md)
+The owner approved the first step of the WP-10 run plan (in Git history)
 on 2026-10-10 and accepted its 15 cases at the digests on the
 [acceptance sheet](2026-10-10-wp10-case-acceptance.md). The four lane-admission smoke trials and all
 45 planned trials ran the same day. Mechanical results are complete. On the owner's instruction

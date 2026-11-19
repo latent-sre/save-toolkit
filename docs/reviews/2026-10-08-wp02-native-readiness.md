@@ -1,6 +1,6 @@
 # WP-02 native readiness: run record (2026-10-08)
 
-The owner approved starting WP-02 on 2026-10-08 under its [run plan](../fleet-evaluation/run-plan-wp02-native-readiness.md).
+The owner approved starting WP-02 on 2026-10-08 under its run plan (in Git history).
 All 18 planned trials ran, and an independent `reviewer` checked every trace. The run checks the
 frozen runner, not a candidate; case outcomes are observations, not acceptance evidence.
 
