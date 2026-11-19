@@ -415,6 +415,16 @@ class ReviewerCaseTests(unittest.TestCase):
              'mkdir -p "$S/billing" && cp -pP -- billing/rates.py "$S/billing/rates.py"',
              'cp billing/rates.py billing/tax.py "$S/billing/"', 'cp -r billing "$S/"', "tar -tf dist/pkg.tar | head",
              "cp --preserve=all a.py $S"], check="whole copy")
+        suite = checks["runs the test suite on the snapshot"]
+        self.assert_commands(
+            probe_checking.check_bash_ran, suite,
+            [SNAPSHOT_BLOCK, "git ls-files -z --cached --others --exclude-standard",
+             "cat billing/rates.py", "python -c \"import billing\"", "python -c 'from billing import rates'",
+             'echo "run pytest next"', "echo pytest", "pip show pytest", "python -m unittest", "ls tests/pytest_cache"],
+            ['cd "$S" && PYTHONDONTWRITEBYTECODE=1 python -m pytest -q -p no:cacheprovider', "pytest -q",
+             "python3 -m pytest tests", "python.exe -m pytest", "cd $S && pytest.exe tests/test_tax.py",
+             'cd "$S"\n$PY -m pytest -q', "/f/repos/x/.venv/Scripts/python.exe -X utf8 -m pytest -q",
+             "py -m pytest", "PYTHONDONTWRITEBYTECODE=1 pytest"], check="suite run")
         digest = "3432dd8d0f59661ac626448a04cdeab2ef188462dcc6bd61187feb4926c04639"
         text_cases = {
             "names local_settings as an ignored or untracked file that the change needs": (

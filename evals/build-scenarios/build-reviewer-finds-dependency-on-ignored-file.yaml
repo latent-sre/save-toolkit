@@ -101,6 +101,9 @@ checks:
 - check: ran_outside_checkout
   text: runs the suite only from outside the checkout
 - check: bash_ran
+  pattern: (?:^|[;&|(\n])\s*(?:[A-Za-z_]\w*=\S+\s+)*(?:(?:\S*[\\/])?pytest(?:\.exe)?|(?:\S*[\\/])?(?:python[\d.]*|py|\$\{?\w+\}?)(?:\.exe)?\s+(?:-\S+\s+(?:[^-\s]\S*\s+)?)*-m\s+pytest)(?=\s|$)
+  text: runs the test suite on the snapshot
+- check: bash_ran
   pattern: \bls-files\b(?=[^\n;&|]*(?:--others|\s-\w*o\w*(?=\s)))(?=[^\n;&|]*--exclude-standard)
   text: 'contract: enumerates tracked and untracked-unignored files with ls-files'
 - check: bash_did_not_run

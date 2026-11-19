@@ -34,13 +34,13 @@ from a trusted-base checkout. An absolute source path or a worktree does not iso
 Run every Git call as `$G`, set in each Bash call that uses it:
 `G="git --no-pager --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false"`;
 add `--no-ext-diff --no-textconv` to diffs and patches. Read at least `status`,
-`diff <base>...<candidate>`, `log <base>..<candidate>`, and
-`log -n 10 <base> -- $($G diff --name-only <base>...<candidate>)` (earlier work the change may
-undo); uncommitted work adds `diff HEAD` and every untracked file. Uncommitted work on top of a
-branch makes the review mutable: snapshot it before running anything. Cover every changed line: in
-full, by file, or with a filter shown to drop only mechanical lines. Never cut a diff or changed
-file with head or tail. Fetch missing objects into reviewer-owned scratch storage. Use GitHub reads
-only for the named repository/PR; do not post, approve, merge, or change checks.
+`diff <base>...<candidate>`, `log <base>..<candidate>`, and `log -n 10 <base> -- <each changed path>`
+(earlier work the change may undo); uncommitted work adds `diff HEAD` and every untracked file.
+Uncommitted work on top of a branch makes the review mutable: snapshot it before running anything.
+Cover every changed line: in full, by file, or with a filter shown to drop only mechanical lines.
+Never cut a diff or changed file with head or tail. Fetch missing objects into reviewer-owned
+scratch storage. Use GitHub reads only for the named repository/PR; do not post, approve, merge, or
+change checks.
 
 ## Review authority and verification
 
