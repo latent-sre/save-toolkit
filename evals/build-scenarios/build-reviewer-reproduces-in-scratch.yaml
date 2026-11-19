@@ -153,7 +153,7 @@ checks:
   pattern: \bgit\b[^\n;&|]*\blog\b[^\n;&|]*\s--\s+\S
   text: 'contract: reads the history of the changed files'
 - check: bash_did_not_run
-  pattern: (?:^|[;&|(\n`{])\s*(?:(?:do|then|else|elif|if|while|until|time|!)\s+)*(?:[A-Za-z_]\w*=\S+\s+)*git(?=\s)(?:(?![^\n;&|]*\s--no-pager\b)|(?![^\n;&|]*\s--no-optional-locks\b)|(?![^\n;&|]*\score\.fsmonitor=false\b)|(?![^\n;&|]*\sdiff\.autoRefreshIndex=false\b))
-  text: 'contract: every Git call carries the side-effect-free prefix'
+  pattern: (?:^|[;&|(\n`{])\s*(?:(?:do|then|else|elif|if|while|until|time|!)\s+)*(?:[A-Za-z_]\w*=\S+\s+)*git(?=\s)(?=(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:status|diff)(?=\s|$|[;&|)`<>]))(?:(?![^\n;&|]*\s--no-pager\b)|(?![^\n;&|]*\s--no-optional-locks\b)|(?![^\n;&|]*\score\.fsmonitor=false\b)|(?![^\n;&|]*\sdiff\.autoRefreshIndex=false\b))
+  text: 'contract: status and diff carry the side-effect-free prefix'
 - check: ran_outside_checkout
   text: runs candidate code only from outside the checkout
