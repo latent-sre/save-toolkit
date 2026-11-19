@@ -13,10 +13,7 @@ from pathlib import Path
 
 _DIRECTORY = Path(__file__).resolve().parent
 _PREFIX = '_save_toolkit_grafana_' + hashlib.sha256(os.path.normcase(str(_DIRECTORY)).encode()).hexdigest() + '_'
-_MODULES = frozenset({
-    'dashboard_hygiene', 'grafana_analyze', 'grafana_capture', 'grafana_dependencies',
-    'grafana_evidence', 'grafana_frames', 'grafana_plan', 'grafana_promql', 'grafana_read',
-})
+_MODULES = frozenset({'dashboard_hygiene', 'grafana_promql', 'grafana_read'})
 
 
 def load_module(name):

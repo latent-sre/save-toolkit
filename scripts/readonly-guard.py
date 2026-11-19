@@ -326,37 +326,8 @@ def grafana_helper_allowed(command: str, powershell: bool = False, *, shell_inde
     paths.update({p.as_posix(): p for p in installed})
     selected = paths.get(supplied)
     if selected is None:
-        if wrapper:
-            return False
-        workflow = canonical.with_name('grafana_workflow.py')
-        candidates = (workflow, projected.with_name('grafana_workflow.py'))
-        paths = {str(path): path for path in candidates} | {path.as_posix(): path for path in candidates}
-        selected_workflow = paths.get(supplied)
-        if selected_workflow is None:
-            return False
-        try:
-            # All imported siblings are part of the reviewed installed helper, not caller modules.
-            for source in canonical.parent.glob('*.py'):
-                candidate = selected_workflow.parent / source.name
-                if candidate.read_bytes().replace(b'\r\n', b'\n') != source.read_bytes().replace(b'\r\n', b'\n'):
-                    return False
-            arguments = shlex.split(match['args'], posix=True)
-            if powershell and any('"' in value for value in arguments):
-                # Windows PowerShell 5.1 can strip embedded native-argv quotes.
-                return False
-            if not arguments or arguments[0] not in {
-                    'plan', 'investigate', 'dependencies', 'doctor', 'verify-package', 'analyze', 'inspect'}:
-                return False
-            # Agent execution never chooses a file path; captures are named by fixed IDs.
-            if '--agent-json' not in arguments or any(flag in arguments for flag in ('--output-dir', '--package-dir')):
-                return False
-            helper = runpy.run_path(str(workflow), run_name='_grafana_workflow_guard')
-            helper['parse_args'](arguments)
-        except (Exception, SystemExit):
-            return False
-        return True
-    # Only the workflow may load packages from the operator-managed interpreter. The read helper
-    # and this guard remain stdlib-only; no general Python/path grant is added.
+        return False
+    # The read helper and this guard remain stdlib-only; no general Python/path grant is added.
     if not wrapper and not match['no_site']:
         return False
     try:

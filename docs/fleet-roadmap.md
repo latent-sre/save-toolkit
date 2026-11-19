@@ -47,6 +47,7 @@ execution and full investigation acceptance remain pending.
 [verified] A loopback-only qualification probe showed gcx 1.7.1 following a cross-host redirect
 and forwarding a synthetic bearer token. No production credential was used. The latest upstream
 release remains 1.7.1; protected destination/redirect enforcement is a blocking acceptance gap.
+No redirect-control flag is verified for this release.
 Guarded/native acceptance and setup on other supported hosts remain pending.
 The caller/coverage fixes, selected browser tools and bundled Grafana helper are implemented;
 the helper remains the existing admitted path during migration. Its credential file is still

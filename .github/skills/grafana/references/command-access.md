@@ -2,31 +2,9 @@
 
 For an SRE agent with terminal tools; no write authority is granted.
 
-## Selected gcx migration
-
-The owner selected `gcx` for read-only Grafana investigation access. A maintainer must install and
-verify a pinned release, configure the intended instance/org and a read-only identity, and prove
-the required operations, output/time bounds and protected authentication on the supported host.
-Use the operations repository's existing Ansible-managed credential custody and private command
-environment path. The human imports a read-only service-account token through its protected prompt;
-the command receives it only at runtime, without `gcx login` or a local keyring. Never read decrypted
-vault values or print registered private results. This choice does not itself isolate credentials
-from other programs running as the controller user.
-
-The Adama operations-repository reader provides fixed connection, dashboard inventory,
-Overview configuration, host-reporting query and alert-summary operations. It runs as the
-controller user outside the SRE agent grant. A same-user Ansible playbook and its encrypted
-vault do not establish agent credential isolation: the execution identity, credential source
-and installed command must be protected from agent reads and tampering before admission.
-The installed gcx HTTP client also follows authenticated redirects across destinations.
-Protected use needs verified redirect/destination enforcement; organization checks at import
-do not establish that transport boundary. No redirect-control flag is verified for this release.
-
-The existing guard does not admit `gcx`. Keep using its currently admitted paths until fixed CLI
-commands and their execution boundary are verified and granted. Do not install the CLI, change
-contexts, expose credentials, enable HTTP payload logging or install vendor skills as an incident
-workaround. Record any required helper operation without a verified CLI equivalent before retiring
-the helper. The tooling choice is described under [HTTP API scope](./http-api.md#credentials-and-effective-scope).
+The guard admits only the paths below. It does not admit `gcx` or any other Grafana CLI: never
+install one, change its contexts, enable HTTP payload logging or install vendor skills as a
+workaround. Never read decrypted vault values or print private results.
 
 ## Bundled read helper
 
@@ -40,12 +18,6 @@ arguments (single-quote literals instead), `--flag=value`, pipes, redirection in
 `timeout` and other wrappers, and custom URL, method or credential flags; rely on the host tool's
 own timeout. If Python or the helper is missing on the execution host, report it; never install
 tools or switch shells to get around a denial.
-
-For multi-panel investigation use the [agent workflow](./investigation-workflows.md#agent-collection-and-follow-up)
-with `--agent-json`. Its grant admits fixed commands/capture IDs, not arbitrary paths. It uses
-managed dependencies under `python -I`; the read helper requires `python -I -S`.
-Windows PowerShell native arguments with embedded double quotes are denied because the shell can
-change them; do not switch shells to bypass a denial.
 
 The helper loads `GRAFANA_URL`, `GRAFANA_ORG_ID` and a token (or Basic credentials) from the
 environment or, when the environment names none of them, from the human-written

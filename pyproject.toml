@@ -43,10 +43,8 @@ test = [
     "pyyaml>=6.0.3",
     { include-group = "grafana" },
 ]
-# Grafana analysis workflows (skills/grafana/scripts); run with `python -I` in the project environment.
+# Optional PromQL parser for the Grafana hygiene checker (skills/grafana/scripts).
 grafana = [
-    "pillow>=13.0.0",
-    "polars>=2.0.0",
     "promql-parser>=0.12.0",
 ]
 # Optional WP-08 SWE-bench evaluation environment, approved by its run plan.

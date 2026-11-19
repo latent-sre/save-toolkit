@@ -6,6 +6,14 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- Fold the Grafana `json-model.md` reference into `http-api.md` so the dashboard model and
+  pre-write rules sit in the write procedure, and drop the gcx migration status from the `grafana`
+  skill; the roadmap and `stack-profile` keep it.
+
+- Remove the Grafana investigation workflow (`grafana_workflow.py` and its plan, evidence, capture,
+  analyze, frames and dependencies modules), its reference, tests and guard grant, and the Pillow
+  and Polars dependencies. The read helper and the dashboard hygiene checker remain.
+
 - Reviewer eval checks: a `cat` copy into a scratch directory now counts as copying the candidate,
   and the Git-prefix check sees a `git` that follows `do`, `then` or another shell keyword.
 

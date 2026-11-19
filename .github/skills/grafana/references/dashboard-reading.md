@@ -1,7 +1,7 @@
 # Read and explain a dashboard
 
 Resolve the UID through bounded search; read the model and relevant panel queries/data. Summaries
-select panels, not health verdicts. Use [JSON model](./json-model.md) for schemas,
+select panels, not health verdicts. Use [JSON model](./http-api.md#dashboard-model-and-edit-rules) for schemas,
 [read-only review](./read-only-review.md) for structural checks and [dashboard design](./dashboard-design.md)
 for design changes.
 

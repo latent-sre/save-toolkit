@@ -85,10 +85,9 @@ of the project environment (`uv sync --locked --group swebench`); `harbor` and `
 conflicting with it and install only into a separate environment, for example
 `UV_PROJECT_ENVIRONMENT=.eval-runs/harbor-sdk uv sync --locked --only-group harbor`.
 
-The Grafana analysis libraries are part of the `test` group. The Grafana workflow runs with
-`python -I` in the project environment for data analysis, query parsing, capture comparisons and
-image validation. Its low-level read helper and the hook guard remain standard-library-only under
-`python -I -S`. Plugins do not install these dependencies.
+The Grafana hygiene checker's optional PromQL parser is part of the `test` group; without it the
+checker falls back to text heuristics. The Grafana read helper and the hook guard remain
+standard-library-only under `python -I -S`. Plugins do not install these dependencies.
 
 ## 3. Verify in proportion to the change
 
