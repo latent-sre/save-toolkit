@@ -5,7 +5,8 @@
   "tests": [
     "evals/test_researcher_scribe_cases.py",
     "evals/test_reviewer_cases.py",
-    "evals/test_wider_fleet_cases.py"
+    "evals/test_wider_fleet_cases.py",
+    "scripts/test_reviewer_snapshot_recipe.py"
   ],
   "native_scenarios": [
     "agent-direct-researcher-source-authenticity",
