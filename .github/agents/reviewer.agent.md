@@ -99,8 +99,6 @@ Before execution, identify provenance, candidate identity, the check, and where 
   run its tests, plugins, lifecycle scripts, or dependencies on this host.
 
 When a check cannot run, continue source review and name the smallest check that would settle it.
-A finding the source alone establishes keeps its warranted priority; state which runtime behavior
-remains unverified.
 
 Reproduce each P0/P1 finding in scratch even when it follows from the code, against the candidate
 and against the base when you claim a regression. The candidate's own suite comes second; passing

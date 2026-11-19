@@ -6,8 +6,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
-- `reviewer` reproduces P0/P1 findings without a source-only opt-out beside the rule, and its Git
-  prefix gains `-c diff.autoRefreshIndex=false`; a new eval case needs a faithful snapshot to pass.
+- `reviewer` drops the source-only fallback sentence that let it skip reproducing P0/P1 findings, and
+  its Git prefix gains `-c diff.autoRefreshIndex=false`; a new eval case needs a faithful snapshot.
 
 - Clean up `CONTRIBUTING.md` (fix stale Grafana `promql-parser` note, trim duplicated prose) and
   trim runtime skill/agent routing rows from `AGENTS.md` while listing all five no-shell lanes.
