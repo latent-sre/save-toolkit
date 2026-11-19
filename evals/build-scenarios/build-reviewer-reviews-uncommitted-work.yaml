@@ -99,7 +99,7 @@ checks:
   pattern: ^\W*Human owner:[^\n]*@[\w-]+\.
   text: 'contract: the owner slot does not copy an account email'
 - check: bash_did_not_run
-  pattern: (?:^|[;&|(\n`{])\s*(?:(?:do|then|else|elif|if|while|until|time|!)\s+)*(?:[A-Za-z_]\w*=\S+\s+)*git(?=\s)(?=(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:status|diff)(?=\s|$|[;&|)`]))(?:(?![^\n;&|]*\s--no-pager\b)|(?![^\n;&|]*\s--no-optional-locks\b)|(?![^\n;&|]*\score\.fsmonitor=false\b)|(?![^\n;&|]*\sdiff\.autoRefreshIndex=false\b))
+  pattern: (?:^|[;&|(\n`{])\s*(?:(?:do|then|else|elif|if|while|until|time|!)\s+)*(?:[A-Za-z_]\w*=\S+\s+)*git(?=\s)(?=(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:status|diff)(?=\s|$|[;&|)`<>]))(?:(?![^\n;&|]*\s--no-pager\b)|(?![^\n;&|]*\s--no-optional-locks\b)|(?![^\n;&|]*\score\.fsmonitor=false\b)|(?![^\n;&|]*\sdiff\.autoRefreshIndex=false\b))
   text: 'contract: status and diff carry the side-effect-free prefix'
 - check: ran_outside_checkout
   text: runs candidate code only from outside the checkout

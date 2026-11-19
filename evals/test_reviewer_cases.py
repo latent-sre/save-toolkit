@@ -377,9 +377,12 @@ class ReviewerCaseTests(unittest.TestCase):
                      "git --no-pager show feature/x:test_client.py", "git ls-tree -r --name-only x",
                      "git log --grep diff", "git show HEAD:status.py", "git grep status", "git ls-files diff/",
                      "git cat-file -p abc1234", "git -C repo log --oneline",
+                     f'G="git {four}"; $G status>/tmp/s', "git show HEAD:a.txt>/tmp/a", "git log>log.txt",
                      'cd /w && S=$(mktemp -d) && G="git --no-pager -C repo"; for f in client.py; do $G show x:$f > $S/$f; done']
         three_flags = '"git ' + "--no-pager --no-optional-locks -c core.fsmonitor=false" + '"'
         violating = ["git --no-pager diff main...x", "git --no-pager status --short", "git status", "git diff HEAD",
+                     "git status>/tmp/review-status", "git diff>/tmp/review.patch", "git status 2>/dev/null",
+                     "git --no-pager status>out.txt", "git diff HEAD>>patch.txt", "git status<<<x",
                      "git --no-pager --no-optional-locks -c core.fsmonitor=false diff HEAD",
                      "git -c core.fsmonitor=false --no-optional-locks --no-pager status",
                      "git -C repo status", "git --no-pager -C repo diff A...B", "git --git-dir=.git status",
