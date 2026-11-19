@@ -5,10 +5,12 @@ assert a published release or acceptance of an evaluated candidate. Releases bef
 Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 
 ## [Unreleased]
+<!-- Entries for the next release -->
 
 - Remove 14 completed, orphaned, or deferred run-plan and proposal documents from
   `docs/fleet-evaluation/` (retaining `product.md`, schemas, contracts, and suite guides; Git history
   preserves removed files).
+
 - Clean up `CONTRIBUTING.md` (fix stale Grafana `promql-parser` note, trim duplicated prose) and
   trim runtime skill/agent routing rows from `AGENTS.md` while listing all five no-shell lanes.
 - `reviewer` snapshots uncommitted work with one batched `tar` copy and comparison in place of a
