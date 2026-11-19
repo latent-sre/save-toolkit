@@ -6,8 +6,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
-- Fix stale Grafana `promql-parser` reference and trim duplicated prose in `CONTRIBUTING.md`; list
-  all five no-shell lanes in `AGENTS.md`.
+- Clean up `CONTRIBUTING.md` (fix stale Grafana `promql-parser` note, trim duplicated prose),
+  trim runtime skill/agent routing rows from `AGENTS.md` and list all five no-shell lanes, and
+  reconcile `CLAUDE.md` conflicts/duplicates with `AGENTS.md` and `CONTRIBUTING.md`.
 
 - Trim and consolidate the `grafana` skill references (merge `dashboard-reading.md` +
   `read-only-review.md` and `alert-operations.md` + `grafana-alerting.md` into `alerting.md`;
