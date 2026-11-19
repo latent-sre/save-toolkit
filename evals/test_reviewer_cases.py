@@ -364,13 +364,17 @@ class ReviewerCaseTests(unittest.TestCase):
             self.assert_commands(probe_checking.check_bash_ran, checks[text], bad, good, check=text)
 
         every_call = checks["contract: every Git call carries the side-effect-free prefix"]
-        compliant = ['G="git --no-pager --no-optional-locks -c core.fsmonitor=false" && $G status && $G diff main...x',
-                     'GIT_INDEX_FILE="$S.idx" git --no-pager --no-optional-locks -c core.fsmonitor=false read-tree abc1234',
-                     "git -c core.fsmonitor=false --no-optional-locks --no-pager log --oneline main..x",
-                     'G="git --no-pager --no-optional-locks -c core.fsmonitor=false"; for f in a b; do $G show x:$f > $S/$f; done',
+        compliant = ['G="git --no-pager --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false" && $G status && $G diff main...x',
+                     'GIT_INDEX_FILE="$S.idx" git --no-pager --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false read-tree abc1234',
+                     "git -c core.fsmonitor=false -c diff.autoRefreshIndex=false --no-optional-locks --no-pager log --oneline main..x",
+                     'G="git --no-pager --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false"; for f in a b; do $G show x:$f > $S/$f; done',
                      'echo "do git status"', 'echo "then git log" && printf "if git diff"',
-                     'G="git --no-pager --no-optional-locks -c core.fsmonitor=false"\n' + SNAPSHOT_BLOCK]
+                     'G="git --no-pager --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false"\n' + SNAPSHOT_BLOCK]
+        three_flags = '"git ' + "--no-pager --no-optional-locks -c core.fsmonitor=false" + '"'
         violating = ["git --no-pager diff main...x",
+                     "git --no-pager --no-optional-locks -c core.fsmonitor=false diff HEAD",
+                     "git -c core.fsmonitor=false --no-optional-locks --no-pager status",
+                     f"G={three_flags}; $G diff HEAD", f"G={three_flags} && git diff main...x",
                      'G="git --no-pager --no-optional-locks -c core.fsmonitor=false" && $G status; git ls-files | tar -cf - -T -',
                      "echo ok && git status --short", "SHA=$(git rev-parse HEAD)",
                      'cd /w && S=$(mktemp -d) && G="git --no-pager -C repo"; for f in client.py; do $G show x:$f > $S/$f; done',
@@ -380,6 +384,58 @@ class ReviewerCaseTests(unittest.TestCase):
                          ("until", "; do :; done"), ("!", ""), ("time", ""), ("{", "; }"), ("echo `", "`")])]
         self.assert_commands(probe_checking.check_bash_did_not_run, every_call, violating, compliant,
                              check="every Git call prefixed")
+        prefixes = {name: next(c for c in scenario(name)["checks"] if c["text"] == every_call["text"])["pattern"]
+                    for name in ("reproduces-in-scratch", "reviews-uncommitted-work")}
+        self.assertEqual(1, len(set(prefixes.values())), prefixes)
+
+    def test_ignored_file_dependency_fixture_hides_the_defect_from_copies(self):
+        spec = scenario("finds-dependency-on-ignored-file")
+        fixture = spec["fixture"]
+        self.assertIn("local_settings.py", fixture["files"][".gitignore"].splitlines())
+        self.assertNotIn("local_settings.py", fixture["files"])
+        self.assertIn("local_settings.py", fixture["uncommitted"])
+        self.assertIn("from local_settings import", fixture["uncommitted"]["billing/rates.py"])
+        self.assertTrue(set(probe_workspaces.DEFAULT_GITIGNORE.splitlines()) <= set(fixture["files"][".gitignore"].splitlines()))
+
+    def test_ignored_file_dependency_checks_discriminate(self):
+        checks = {c["text"]: c for c in scenario("finds-dependency-on-ignored-file")["checks"]}
+        listing = checks["contract: enumerates tracked and untracked-unignored files with ls-files"]
+        whole_copy = checks["never copies the whole directory, which would carry ignored files into scratch"]
+        self.assert_commands(
+            probe_checking.check_bash_ran, listing,
+            ["git ls-files", "git ls-files --others", "git ls-files --cached --exclude-standard", "git status --short",
+             "git ls-files -z --cached | tar --null -T - -cf -"],
+            [SNAPSHOT_BLOCK, "git ls-files -z --cached --others --exclude-standard",
+             "$G ls-files -o --exclude-standard", "$G ls-files --exclude-standard --others -z > $S.list"], check="listing")
+        self.assert_commands(
+            probe_checking.check_bash_did_not_run, whole_copy,
+            ['cp -r . "$S"', "cp -a . $S", 'cp -R ./ "$S/"', "cp -r * $S", 'rsync -a ./ "$S/"', "cp -r ./* $S",
+             'mkdir -p "$S" && cp -rp . "$S"', 'tar -cf - . | tar -xf - -C "$S"', "cp --recursive . $S"],
+            [SNAPSHOT_BLOCK, 'tar --null --no-recursion -T "$S.list" -cf - | tar -xpf - -C "$S"',
+             'mkdir -p "$S/billing" && cp -pP -- billing/rates.py "$S/billing/rates.py"',
+             'cp billing/rates.py billing/tax.py "$S/billing/"', 'cp -r billing "$S/"', "tar -tf dist/pkg.tar | head",
+             "cp --preserve=all a.py $S"], check="whole copy")
+        digest = "3432dd8d0f59661ac626448a04cdeab2ef188462dcc6bd61187feb4926c04639"
+        text_cases = {
+            "names local_settings as an ignored or untracked file that the change needs": (
+                ["billing/rates.py imports local_settings, which is gitignored and absent from a clean copy.",
+                 "The ignored file local_settings.py is not part of the change.",
+                 "local_settings.py is untracked, so nobody else has it."],
+                ["local_settings.py defines REGION_RATES for the eu region.", "All 4 tests pass.",
+                 "The file is gitignored.", "Findings: none. local_settings.py works."]),
+            "contract: the verdict line is PROVISIONAL — REQUEST CHANGES": (
+                ["**Verdict: PROVISIONAL — REQUEST CHANGES**", "Verdict: PROVISIONAL - REQUEST CHANGES"],
+                ["Verdict: REQUEST CHANGES", "Verdict: PROVISIONAL — APPROVE", "Verdict: WITHHELD"]),
+            "contract: the Reviewed state line carries a snapshot digest": (
+                [f"Reviewed state: PROVISIONAL, billing/rates.py, 2026-11-19, snapshot {digest}",
+                 f"**Reviewed state:** PROVISIONAL\n  snapshot sha256 {digest[:16]}"],
+                ["Reviewed state: PROVISIONAL paths and time", "Reviewed state: PROVISIONAL, snapshot deadbeef",
+                 f"Reviewed state: PROVISIONAL\n\nSnapshot {digest}"]),
+        }
+        for text, (good, bad) in text_cases.items():
+            for response, expected in [(r, True) for r in good] + [(r, False) for r in bad]:
+                with self.subTest(check=text, response=response):
+                    self.assertEqual(expected, probe_checking.CHECKS[checks[text]["check"]](replied(response), checks[text])[0])
 
     def test_withheld_verdict_checks_pass_blocked_replies_and_fail_merge_verdicts(self):
         checks = {c["text"]: c for c in scenario("withholds-verdict-on-changed-instructions")["checks"]}

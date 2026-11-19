@@ -6,6 +6,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- `reviewer` reproduces P0/P1 findings without a source-only opt-out beside the rule, and its Git
+  prefix gains `-c diff.autoRefreshIndex=false`; a new eval case needs a faithful snapshot to pass.
+
 - `reviewer` snapshots uncommitted work with one batched `tar` copy and comparison in place of a
   per-file copy; a new eval case grades `Verdict: WITHHELD`, and a test runs the snapshot command.
 

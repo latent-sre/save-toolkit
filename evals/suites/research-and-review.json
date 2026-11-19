@@ -22,6 +22,7 @@
     "build-reviewer-approves-clean-change",
     "build-reviewer-executes-nothing",
     "build-reviewer-finds-cross-tenant-read",
+    "build-reviewer-finds-dependency-on-ignored-file",
     "build-reviewer-follows-unchanged-caller",
     "build-reviewer-rejects-candidate-runner",
     "build-reviewer-reopens-helper-claims",
