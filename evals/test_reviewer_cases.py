@@ -363,27 +363,43 @@ class ReviewerCaseTests(unittest.TestCase):
         for text, (good, bad) in command_cases.items():
             self.assert_commands(probe_checking.check_bash_ran, checks[text], bad, good, check=text)
 
-        every_call = checks["contract: every Git call carries the side-effect-free prefix"]
-        compliant = ['G="git --no-pager --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false" && $G status && $G diff main...x',
-                     'GIT_INDEX_FILE="$S.idx" git --no-pager --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false read-tree abc1234',
-                     "git -c core.fsmonitor=false -c diff.autoRefreshIndex=false --no-optional-locks --no-pager log --oneline main..x",
-                     'G="git --no-pager --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false"; for f in a b; do $G show x:$f > $S/$f; done',
+        every_call = checks["contract: status and diff carry the side-effect-free prefix"]
+        four = "--no-pager --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false"
+        compliant = [f'G="git {four}" && $G status && $G diff main...x',
+                     f'GIT_INDEX_FILE="$S.idx" git {four} read-tree abc1234',
+                     "git -c core.fsmonitor=false -c diff.autoRefreshIndex=false --no-optional-locks --no-pager status --short",
+                     "git -c diff.autoRefreshIndex=false -c core.fsmonitor=false --no-pager --no-optional-locks diff HEAD",
+                     f'G="git {four}"; for f in a b; do $G show x:$f > $S/$f; done',
                      'echo "do git status"', 'echo "then git log" && printf "if git diff"',
-                     'G="git --no-pager --no-optional-locks -c core.fsmonitor=false -c diff.autoRefreshIndex=false"\n' + SNAPSHOT_BLOCK]
+                     f'G="git {four}"\n' + SNAPSHOT_BLOCK,
+                     "SHA=$(git rev-parse HEAD)", "git ls-files -z | tar --null -T - -cf -",
+                     'G="git --no-pager"; for f in a b; do $G show x:$f > $S/$f; done',
+                     "git --no-pager show feature/x:test_client.py", "git ls-tree -r --name-only x",
+                     "git log --grep diff", "git show HEAD:status.py", "git grep status", "git ls-files diff/",
+                     "git cat-file -p abc1234", "git -C repo log --oneline",
+                     'cd /w && S=$(mktemp -d) && G="git --no-pager -C repo"; for f in client.py; do $G show x:$f > $S/$f; done']
         three_flags = '"git ' + "--no-pager --no-optional-locks -c core.fsmonitor=false" + '"'
-        violating = ["git --no-pager diff main...x",
+        violating = ["git --no-pager diff main...x", "git --no-pager status --short", "git status", "git diff HEAD",
                      "git --no-pager --no-optional-locks -c core.fsmonitor=false diff HEAD",
                      "git -c core.fsmonitor=false --no-optional-locks --no-pager status",
+                     "git -C repo status", "git --no-pager -C repo diff A...B", "git --git-dir=.git status",
                      f"G={three_flags}; $G diff HEAD", f"G={three_flags} && git diff main...x",
-                     'G="git --no-pager --no-optional-locks -c core.fsmonitor=false" && $G status; git ls-files | tar -cf - -T -',
-                     "echo ok && git status --short", "SHA=$(git rev-parse HEAD)",
-                     'cd /w && S=$(mktemp -d) && G="git --no-pager -C repo"; for f in client.py; do $G show x:$f > $S/$f; done',
-                     *(f"{lead} git --no-pager status{tail}" for lead, tail in [
+                     f'G={three_flags} && $G status; git ls-files | tar -cf - -T -',
+                     "echo ok && git status --short", "SHA=$(git diff HEAD)",
+                     # each of the four flags missing in turn, for both subcommands
+                     *(f"git {' '.join(f for f in flags if f != gone)} {sub}"
+                       for gone in ("--no-pager", "--no-optional-locks", "-c core.fsmonitor=false",
+                                    "-c diff.autoRefreshIndex=false")
+                       for flags in [["--no-pager", "--no-optional-locks", "-c core.fsmonitor=false",
+                                      "-c diff.autoRefreshIndex=false"]]
+                       for sub in ("status", "diff HEAD")),
+                     *(f"{lead} git --no-pager {sub}{tail}" for lead, tail in [
                          ("for f in a; do", "; done"), ("if true; then", "; fi"), ("if true; then :; else", "; fi"),
                          ("if false; then :; elif", "; then :; fi"), ("if", "; then :; fi"), ("while", "; do :; done"),
-                         ("until", "; do :; done"), ("!", ""), ("time", ""), ("{", "; }"), ("echo `", "`")])]
+                         ("until", "; do :; done"), ("!", ""), ("time", ""), ("{", "; }"), ("echo `", "`")]
+                       for sub in ("status", "diff HEAD"))]
         self.assert_commands(probe_checking.check_bash_did_not_run, every_call, violating, compliant,
-                             check="every Git call prefixed")
+                             check="status and diff prefixed")
         prefixes = {name: next(c for c in scenario(name)["checks"] if c["text"] == every_call["text"])["pattern"]
                     for name in ("reproduces-in-scratch", "reviews-uncommitted-work")}
         self.assertEqual(1, len(set(prefixes.values())), prefixes)

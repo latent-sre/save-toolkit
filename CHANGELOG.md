@@ -15,6 +15,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
 
 - **Reviewer:** Drop the source-only fallback sentence that let it skip reproducing P0/P1 findings,
   and add `-c diff.autoRefreshIndex=false` to its Git prefix so a working-tree diff leaves the index alone.
+- **Reviewer evals:** The Git-prefix check grades only `status` and `diff`, the calls that can rewrite
+  the source index; object reads such as `show` and `log` pass with any prefix.
 
 ## [0.52.10] - 2026-11-19
 
