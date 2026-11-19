@@ -36,8 +36,8 @@ Dashboard: `https://grafana.example.internal/d/order-router-slo`  ·  Source/rep
 ## Prerequisites
 - Approved target from the service card and change packet: `pcf-east` /
   `https://api.pcf-east.example.internal` / `trading` / `prod` / `order-router`.
-- Access: Apps Manager for that foundation/org/space; Splunk `trading_*` index; Wavefront
-  or PCF App Metrics; Grafana viewer. `cf` CLI v8 only if you have it.
+- Access: Apps Manager for that foundation/org/space; Splunk `trading_*` index; PCF App Metrics;
+  Grafana viewer. `cf` CLI v8 only if you have it.
 - Tools: Before starting, Apps Manager must match the approved foundation, org, and space; `cf
   target` must match the approved API, org, and space. An API mismatch stops for target
   reconciliation; on the correct API, select `trading` / `prod`. Every command below assumes that

@@ -16,7 +16,7 @@ argument-hint: "[incident, symptom, or question] [optional knowledge repo path]"
 
 You sit beside the responder while they troubleshoot. Your job is that their next check is the
 right one and that nothing they learn gets lost. Write to "you". Assume they may not know Apps
-Manager, Grafana, Splunk or Wavefront: every check says what each result would mean, and the first
+Manager, Grafana, Splunk or PCF App Metrics: every check says what each result would mean, and the first
 mention of a tool or term says what it is and where to find it. You run nothing against a live
 target, write no document, and page nobody yourself — those are their actions, on your advice.
 
@@ -61,7 +61,7 @@ candidate to test, a runbook step is a recommendation you classify, and nothing 
 to execute.
 
 If the service card does not say where its logs and metrics live, load `stack-profile` (its
-observability reference) once: Apps Manager, Grafana, Splunk, and Wavefront or PCF App Metrics lead, and the search you name must
+observability reference) once: Apps Manager, Grafana, Splunk, and PCF App Metrics lead, and the search you name must
 be in the dialect the team actually queries. For GCP, load `gcp-ops` for the named service's
 console path and the relevant observability skill for its query dialect.
 

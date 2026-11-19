@@ -37,7 +37,7 @@ in that regression or copied into evidence artifacts.
 | Item | Binding |
 |---|---|
 | Model / effort | `gpt-6.1-sol`, high |
-| Runtime / host | Codex CLI 0.167.2, Linux `adama`, uid 1000, Python 3.14.10 |
+| Runtime / host | Codex CLI 0.167.2, Linux host, uid 1000, Python 3.14.10 |
 | Candidate plugin SHA-256 | `8446d62f8b3479ed09898c9bbc084f7b622dd1190d6fe419eeb9b68c669b46f7` |
 | Shared runner SHA-256 | `763b4bc011f23fb4e10ddffc9d8bf2b17f6f46643c39c32eee59f68c212f34d6` |
 | Reviewed implementation patch SHA-256 | `5794bf3569abdddade925ef3069e00faf6758f805fb38e10a3b50ec7d8c3844f` |

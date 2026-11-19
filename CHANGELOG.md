@@ -6,6 +6,17 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- Trim and consolidate the `grafana` skill references (merge `dashboard-reading.md` +
+  `read-only-review.md` and `alert-operations.md` + `grafana-alerting.md` into `alerting.md`;
+  deduplicate `command-access.md`, `http-api.md`, `visual-verification.md`, and `silences.md`),
+  and make `dashboard_hygiene.py` standalone stdlib-only (removing `grafana_modules.py`,
+  `grafana_promql.py`, and the `promql-parser` dependency).
+- Remove Wavefront / WQL from `stack-profile` (incumbent PCF metrics are PCF App Metrics),
+  `grafana`, `obs-analysis`, `obs-pipeline`, `pcf-ops`, `incident-investigation`,
+  `operational-docs`, `observability-engineer`, `README.md`, and the 3 WQL contract scenarios.
+- Scrub private host and Ansible operational details from skills, agents, docs, reviews,
+  changelog, and test fixtures.
+
 - Fold the Grafana `json-model.md` reference into `http-api.md` so the dashboard model and
   pre-write rules sit in the write procedure, and drop the gcx migration status from the `grafana`
   skill; the roadmap and `stack-profile` keep it.
@@ -55,11 +66,8 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 - SRE Workbench is owner-deferred pending revision of the tool's planning package.
 - Immutable-release work is owner-deferred; native delegation, installed acceptance and rollback remain open.
 - Grafana `gcx` is selected for SRE read-only access; installation and protected command acceptance
-  precede migration from the bundled helper.
-- The gcx migration uses existing Ansible-managed credential custody and private runtime delivery,
-  with no local keyring or persisted CLI login required.
-- Adama's fixed Grafana reads have local/live acceptance evidence; protected agent admission remains
-  blocked on credential isolation and native gcx redirect enforcement. CF work is removed from this ticket.
+  precede migration from the bundled helper. Protected agent admission remains blocked on credential
+  isolation and native `gcx` redirect enforcement. CF work is removed from this ticket.
 - Resilience guidance makes retry paths and calculation assumptions explicit in assessments,
   preserving deadline scope, unresolved retry counts and the distinction between helper-derived
   arithmetic and source reports. The native helper fixture explicitly names its Read-only tool inventory.

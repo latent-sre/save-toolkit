@@ -41,11 +41,6 @@ test = [
     "ruff>=0.17.4",
     "mypy>=2.4.0",
     "pyyaml>=6.0.3",
-    { include-group = "grafana" },
-]
-# Optional PromQL parser for the Grafana hygiene checker (skills/grafana/scripts).
-grafana = [
-    "promql-parser>=0.12.0",
 ]
 # Optional WP-08 SWE-bench evaluation environment, approved by its run plan.
 swebench = [
@@ -93,11 +88,9 @@ override-dependencies = ["filelock>=4.2.7"]
 # on top of test.
 conflicts = [
     [{ group = "harbor" }, { group = "test" }],
-    [{ group = "harbor" }, { group = "grafana" }],
     [{ group = "harbor" }, { group = "swebench" }],
     [{ group = "harbor" }, { group = "swt" }],
     [{ group = "swt" }, { group = "test" }],
-    [{ group = "swt" }, { group = "grafana" }],
     [{ group = "swt" }, { group = "swebench" }],
 ]
 

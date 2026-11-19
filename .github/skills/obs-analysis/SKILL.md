@@ -17,7 +17,7 @@ Supplied-evidence explanations need no new retrieval, baseline, or full investig
 | Need | References |
 |---|---|
 | Logs / correlation IDs | [Method](./references/signal-methods.md#logs); [SPL](./references/spl.md), [LogQL](./references/logql.md), [Cloud Logging](./references/gcp-logging.md) |
-| Metrics | [Method](./references/signal-methods.md#metrics); [WQL](./references/wql.md), [PromQL](./references/promql.md), [Cloud Monitoring](./references/promql.md#cloud-monitoring) |
+| Metrics | [Method](./references/signal-methods.md#metrics); [PromQL](./references/promql.md), [Cloud Monitoring](./references/promql.md#cloud-monitoring) |
 | Traces | [Method](./references/signal-methods.md#traces); [TraceQL](./references/traceql.md), [Cloud Trace](./references/gcp-trace.md); [OTel](./references/otel-semantics.md) for status, attributes, propagation or sampling |
 | Recurring log queries | [Catalog](./references/query-catalog.md) |
 

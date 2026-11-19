@@ -36,7 +36,7 @@ anywhere; on-prem stays Kubernetes-free.
 The incumbent and additive observability stacks coexist as first-class; no listed backend is retired
 by team decision. During an incident the responder opens, in order: Apps Manager for what changed
 and instance state, **Grafana** for dashboards and alert state, Splunk for logs beyond the last
-minutes, and **Wavefront and PCF App Metrics** for application metrics. The observability-stack
+minutes, and **PCF App Metrics** for application metrics. The observability-stack
 reference holds the signal inventory, query languages, and the additive and GCP backends.
 
 ## Read only the conditional stack facts the request needs

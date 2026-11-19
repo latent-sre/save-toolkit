@@ -21,16 +21,15 @@ or refresh policy is established here. Follow target conventions and keep publis
 On a new Classic/V1 dashboard leave `timezone` unset to inherit organization/viewer behavior; a V2
 dashboard's `timeSettings.timezone` defaults to `"browser"`, so choose it with the owner.
 
-A datasource variable switches only interchangeable sources of one type. Wavefront (WQL,
-`grafana-wavefront-datasource`) and Splunk (SPL, `grafana-splunk-datasource`) need separate typed
-references resolved to installed plugins; both are Enterprise plugins, and catalogue listing is not
-entitlement, so confirm the edition, installed plugins (`GET /api/plugins`), and the administrator's
-licence record before proposing either. Tanzu Observability (Wavefront) service has ended; its
-backend continues as Broadcom DX OpenExplore. Discover the installed plugins and actual telemetry
-route before querying, and never invent a plugin type or uid.
+A datasource variable switches only interchangeable sources of one type. Splunk (SPL,
+`grafana-splunk-datasource`) needs a separate typed reference resolved to an installed plugin; it is
+an Enterprise plugin, and catalogue listing is not entitlement, so confirm the edition, installed
+plugins (`GET /api/plugins`), and the administrator's licence record before proposing it. Discover
+the installed plugins and actual telemetry route before querying, and never invent a plugin type or
+uid.
 
-Alert intent belongs to `obs-alerting`; [alerting configuration](./grafana-alerting.md) covers
-Grafana routing.
+Alert intent belongs to `obs-alerting`; [alerting](./alerting.md) covers Grafana routing and
+provisioning.
 
 Design does not verify queries, health, access or save success. Implementation uses the
 [HTTP API change loop](./http-api.md#dashboard-change-loop).

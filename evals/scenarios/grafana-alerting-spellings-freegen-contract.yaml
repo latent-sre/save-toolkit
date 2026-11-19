@@ -4,7 +4,7 @@ split: regression
 skill: grafana
 tools: [Skill, Read]
 references:
-  - skills/grafana/references/grafana-alerting.md
+  - skills/grafana/references/alerting.md
 prompt: |
   Read the Grafana alerting reference. Write the file-provisioning YAML fragment and
   the short answers labelled A and B, with no other explanation; do not edit files. A

@@ -27,11 +27,11 @@ Dashboard: <link>  ·  Source/repo: <link>
 - Target: <service/environment and foundation, project, or account from the service card/change packet>
   Confirm with: <console view or read-only context check>; stop on mismatch.
 - Access: <roles, Apps Manager org/space, VPN, tools>
-- Tools: <Apps Manager or Cloud Console, Grafana, Splunk, Wavefront or PCF App Metrics; cf CLI v8 or gcloud only if installed>
+- Tools: <Apps Manager or Cloud Console, Grafana, Splunk, PCF App Metrics; cf CLI v8 or gcloud only if installed>
 - Useful links: <dashboard, saved search, prior postmortem>
 
 ## Triage / first checks
-1. Confirm impact (golden signals): <Apps Manager view, Grafana panel, Splunk search, or Wavefront chart>
+1. Confirm impact (golden signals): <Apps Manager view, Grafana panel, Splunk search, or PCF App Metrics chart>
 2. Decision tree:
    - If <condition A> → go to Procedure step <n>.
    - If <condition B> → this isn't the right runbook; see <other runbook> / escalate.
