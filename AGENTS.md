@@ -9,18 +9,11 @@ consequences.
 |---|---|
 | Agents, tools, delegation, or agent and skill frontmatter | [`agents/`](agents), the [roster](README.md#tools-and-delegation), the [edge-change procedure](CONTRIBUTING.md#changing-a-delegation-edge), and [`claude-code-frontmatter.md`](skills/agent-authoring/references/claude-code-frontmatter.md); for the VS Code/Copilot projection, [`copilot-frontmatter.md`](skills/agent-authoring/references/copilot-frontmatter.md) |
 | Skills or the ADR command | [`skills/`](skills) and [`commands/adr.md`](commands/adr.md); link bundled references from `SKILL.md` |
-| A live incident, a firing alert, or "what should I check next" | [`incident-investigation`](skills/incident-investigation/SKILL.md) advises the human responder and can dispatch a bounded lookup or investigation to `sre-assistant` |
-| Proactive service reliability, failure behavior, engineering improvements, or recurring toil | [`reliability-engineer`](agents/reliability-engineer.md), with [`resilience-analysis`](skills/resilience-analysis/SKILL.md) and [`toil-reduction`](skills/toil-reduction/SKILL.md) |
-| Writing a system design, architecture, design doc or ADR, or resolving a design fork a builder returned; a review of one stays with the main session or goes to `reviewer`, never to this lane | [`principal-engineer`](agents/principal-engineer.md) |
-| Grafana dashboard interpretation, alert-rule operations, or temporary silences | [`grafana`](skills/grafana/SKILL.md); live writes belong to the invoked `observability-engineer` under its [complete rule](agents/observability-engineer.md#change-authority) |
 | Guard behavior or wiring | [`readonly-guard.py`](scripts/readonly-guard.py) and [`hooks.json`](hooks/hooks.json) |
 | Repository changes, dependencies, or verification | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Generated adapters | [`generate_platform_adapters.py`](scripts/generate_platform_adapters.py); per-lane Copilot choices are in [`docs/copilot-projection.md`](docs/copilot-projection.md) |
 | Unfinished work | [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md), the only live backlog |
 | Evals and eval evidence | [`evals/README.md`](evals/README.md) |
-| Production change, deployment, or release | [`production-change-gate`](skills/production-change-gate/SKILL.md) |
-| Runbooks, postmortems, service cards, or knowledge disposition | [`operational-docs`](skills/operational-docs/SKILL.md), with the method for the requested document or lookup |
-| The team's stack, roles, and pending migration decisions | [`stack-profile`](skills/stack-profile/SKILL.md) |
 | Decisions, reviews, and historical evidence | [`docs/decisions/`](docs/decisions) and [`docs/reviews/`](docs/reviews) |
 
 ## Enforcement boundaries
