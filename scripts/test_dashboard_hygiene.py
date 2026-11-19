@@ -17,9 +17,6 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
-
-import promql_parser
 
 from testkit import load_path
 
@@ -171,13 +168,13 @@ class RuleMutationTest(unittest.TestCase):
     def test_mixed_backends_use_independent_typed_variables(self) -> None:
         model = clean_model()
         model["templating"]["list"] = [
-            {"name": "metrics_source", "type": "datasource", "query": "wavefront"},
+            {"name": "metrics_source", "type": "datasource", "query": "prometheus"},
             {"name": "logs_source", "type": "datasource", "query": "splunk"},
         ]
         logs = copy.deepcopy(model["panels"][0])
         model["panels"].append(logs)
         for panel, plugin, variable, query in (
-            (model["panels"][0], "wavefront", "metrics_source", "ts(app.requests)"),
+            (model["panels"][0], "prometheus", "metrics_source", "rate(app_requests_total[$__rate_interval])"),
             (logs, "splunk", "logs_source", "index=app | stats count"),
         ):
             source = {"type": plugin, "uid": "${" + variable + "}"}
@@ -308,78 +305,40 @@ class PromqlAnalysisTest(unittest.TestCase):
         findings = hygiene.check(model, query_analysis=analysis)
         return findings, analysis[0]
 
-    def test_ast_does_not_confuse_label_names_or_comments_with_counter_selectors(self):
+    def test_text_heuristic_ignores_quoted_strings_and_comments(self):
         for expression in (
-            'up{requests_total="active"}',
-            'sum by (requests_total) (up)',
-            'up + on (requests_total) down',
+            'up{note="requests_total"}',
             'up # rate(fake_total[5m]) + other_total',
         ):
             with self.subTest(expression=expression):
                 findings, analysis = self._inspect(expression)
                 self.assertEqual([], findings)
-                self.assertEqual("promql_ast", analysis["mode"])
+                self.assertEqual("text_heuristic", analysis["mode"])
                 self.assertEqual([], analysis["gaps"])
 
-    def test_ast_recognizes_literal_name_matchers_and_rate_ancestry(self):
-        findings, analysis = self._inspect('{__name__="requests_total"}')
-        self.assertEqual(["target-counter-agg"], [finding.rule for finding in findings])
-        self.assertIn("'requests_total'", findings[0].detail)
-        self.assertEqual("promql_ast", analysis["mode"])
-        findings, _ = self._inspect('rate({__name__="requests_total"}[5m])')
-        self.assertEqual(["target-rate-interval"], [finding.rule for finding in findings])
-        findings, _ = self._inspect('rate(a_total[5m]) + b_total')
+    def test_text_heuristic_checks_rate_and_counter_calls(self):
+        findings, analysis = self._inspect('rate(a_total[5m]) + b_total')
         self.assertEqual(["target-rate-interval", "target-counter-agg"],
                          [finding.rule for finding in findings])
         self.assertIn("'b_total'", findings[-1].detail)
+        self.assertEqual("text_heuristic", analysis["mode"])
+        self.assertEqual([], analysis["gaps"])
 
-    def test_ast_checks_each_rate_call_in_nested_subqueries(self):
-        findings, analysis = self._inspect('max_over_time((rate(a_total[5m]) + rate(b_total[10m]))[1h:1m])')
-        self.assertEqual(["target-rate-interval", "target-rate-interval"],
-                         [finding.rule for finding in findings])
-        self.assertEqual("promql_ast", analysis["mode"])
-
-    def test_unresolved_templates_use_explicit_fallback_without_guessing_values(self):
+    def test_unresolved_templates_are_reported_without_guessing_values(self):
         for expression, rules in (
             ('increase(requests_total[$__range])', []),
             ('rate(a_total[$__rate_interval]) + rate(b_total[5m])', ["target-rate-interval"]),
             ('rate(a_total[${window:raw}])', ["target-rate-interval"]),
             ('up{host="[[host]]"}', []),
         ):
-            with self.subTest(expression=expression), patch.object(
-                promql_parser, "parse", side_effect=AssertionError("template reached native parser")
-            ):
+            with self.subTest(expression=expression):
                 findings, analysis = self._inspect(expression)
                 self.assertEqual(rules, [finding.rule for finding in findings])
                 self.assertEqual("text_heuristic", analysis["mode"])
                 self.assertEqual(["promql_template_unresolved"], analysis["gaps"])
 
-    def test_missing_parser_keeps_text_checks_and_a_machine_readable_gap(self):
-        with patch.dict(sys.modules, {"promql_parser": None}):
-            findings, analysis = self._inspect('rate(requests_total[5m])')
-        self.assertEqual(["target-rate-interval"], [finding.rule for finding in findings])
-        self.assertEqual("text_heuristic", analysis["mode"])
-        self.assertEqual(["dependency_unavailable_promql_parser"], analysis["gaps"])
-
-    def test_native_parser_load_failure_keeps_fallback_without_error_details(self):
-        with patch.object(hygiene.promql, "analyze", side_effect=OSError("PRIVATE_NATIVE_PATH")):
-            findings, analysis = self._inspect('rate(requests_total[5m])')
-        self.assertEqual(["target-rate-interval"], [finding.rule for finding in findings])
-        self.assertEqual("text_heuristic", analysis["mode"])
-        self.assertEqual(["dependency_unavailable_promql_parser"], analysis["gaps"])
-        self.assertNotIn("PRIVATE_NATIVE_PATH", repr((findings, analysis)))
-
-    def test_unsupported_syntax_retains_checks_without_echoing_parser_diagnostics(self):
-        with patch.object(promql_parser, "parse", side_effect=ValueError("PRIVATE_DIAGNOSTIC")):
-            findings, analysis = self._inspect('rate(requests_total[5m])')
-        self.assertEqual(["target-rate-interval"], [finding.rule for finding in findings])
-        self.assertEqual("text_heuristic", analysis["mode"])
-        self.assertEqual(["promql_parse_error"], analysis["gaps"])
-        self.assertNotIn("PRIVATE_DIAGNOSTIC", repr((findings, analysis)))
-
-    def test_over_limit_queries_are_explicitly_skipped_before_native_parsing(self):
-        with patch.object(promql_parser, "parse", side_effect=AssertionError("oversized query reached parser")):
-            findings, analysis = self._inspect('up' + ' ' * hygiene.promql.MAX_TEXT + ' + requests_total')
+    def test_over_limit_queries_are_explicitly_skipped(self):
+        findings, analysis = self._inspect('up' + ' ' * hygiene.MAX_TEXT + ' + requests_total')
         self.assertEqual([], findings)
         self.assertEqual("not_checked", analysis["mode"])
         self.assertEqual(["expression_truncated"], analysis["gaps"])
@@ -448,12 +407,12 @@ class JsonReportTest(unittest.TestCase):
                 self.assertEqual("review", finding["severity"])
                 self.assertTrue(report["ok"])
 
-    def test_stdlib_only_cli_reports_the_unavailable_parser_without_failing(self) -> None:
+    def test_stdlib_only_cli_reports_clean_text_heuristic_without_gaps(self) -> None:
         model = clean_model_with(("panels", 0, "targets", 0, "expr"), "up")
         report = self._report(json.dumps(model), 0)
         self.assertEqual([], report["findings"])
         self.assertEqual([{"location": "Is checkout error ratio breaching target? [A]",
-                           "mode": "text_heuristic", "gaps": ["dependency_unavailable_promql_parser"]}],
+                           "mode": "text_heuristic", "gaps": []}],
                          report["query_analysis"])
 
     def test_advisories_are_structured_and_quiet_keeps_the_complete_report(self) -> None:

@@ -30,25 +30,12 @@ records do not re-queue work.
 **Status:** `active` (2026-11-13); the owner selected Grafana `gcx` for the read-only Grafana
 access migration. The owner removed CF work from this ticket on 2026-11-14;
 the identifier is retained for tracking, and existing CF command policy is unchanged.
-[verified] A checksum-verified `gcx` 1.7.1 is installed on the local Linux host;
-the direct-login path is blocked by an absent Secret Service. The owner instead selected existing
-Ansible-managed credential custody and private runtime delivery. [verified] The attended encrypted
-import, organization check and authenticated `gcx` check/ten-dashboard inventory passed on Adama
-on 2026-11-13; the inventory run reported `changed=0`. Organization 1 passed the import binding check.
-[verified] Fixed BSG / Overview inspection passed on Adama on 2026-11-14 with `changed=0`:
-13 panels, 15 saved queries and one host variable use a single Prometheus datasource;
-the bounded output was not truncated. [verified] A fixed instant Prometheus host-reporting query
-passed at `2026-11-14T06:26:56.667Z`: 19 reporting hosts, zero exporter failures and zero
-expected hosts missing telemetry, with no truncation and `changed=0`. This covers host telemetry
-at one evaluation time. [verified] Alert-state collection returned 138 visible rules on November 14:
-two firing, 136 inactive and no non-OK evaluation health. Its 100-rule detail cap was reported.
-The local guard rejects direct gcx and editable Ansible reader execution; protected agent
-execution and full investigation acceptance remain pending.
-[verified] A loopback-only qualification probe showed gcx 1.7.1 following a cross-host redirect
+[verified] A loopback-only qualification probe showed `gcx` 1.7.1 following a cross-host redirect
 and forwarding a synthetic bearer token. No production credential was used. The latest upstream
 release remains 1.7.1; protected destination/redirect enforcement is a blocking acceptance gap.
 No redirect-control flag is verified for this release.
-Guarded/native acceptance and setup on other supported hosts remain pending.
+The local guard rejects direct `gcx` execution; protected agent execution, guarded/native
+acceptance, and setup on supported hosts remain pending.
 The caller/coverage fixes, selected browser tools and bundled Grafana helper are implemented;
 the helper remains the existing admitted path during migration. Its credential file is still
 readable through unhooked Read tools, and changing CLI does not establish credential isolation.
@@ -58,9 +45,8 @@ Claude Code and VS Code/Copilot under an agreed, verified access policy, reusing
 access first and supporting personal-account authentication when needed without exposing credentials
 to the LLM. Deployment actions, other production mutations, and credential-bearing diagnostic reads
 remain excluded.
-**Next action:** Reuse the verified Adama Ansible connection, bounded inventory, Overview inspection and fixed host-status query. A maintainer
-maps the remaining required Grafana reads and queries to exact
-CLI operations, repeats pinned installation checks on other supported hosts, and establishes target/org binding,
+**Next action:** A maintainer maps the required Grafana reads and queries to exact
+CLI operations, repeats pinned installation checks on supported hosts, and establishes target/org binding,
 output/time bounds, redirect rejection and a protected authentication path before changing the guard. The human
 configures a read-only identity through the selected authentication path. Verify one complete dashboard
 investigation, including credential/output and denied-effect controls, before retiring helper paths.
@@ -69,7 +55,6 @@ verification and an isolated analysis path only with their matching controls; re
 acceptance. This selection adds no general CLI/HTTP/script grant or standard Copilot terminal access.
 Helix/BigQuery remains an unconnected placeholder. INCIDENT-QUALITY-001 retains behavioral acceptance.
 **Evidence:** [Planning context beside the agent](../agents/README.txt);
-[Adama gcx acceptance and remaining native gates](reviews/2026-11-14-sre-cf-001-gcx-acceptance.md);
 [current canonical profile](../agents/sre-assistant.md), [caller](../skills/incident-investigation/SKILL.md),
 [guard source](../scripts/readonly-guard.py), and supplied-state regression fixtures under `evals/scenarios/`.
 [Official gcx installation](https://grafana.com/docs/grafana/latest/ai-tools/grafana-cli/gcx/installation/)

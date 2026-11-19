@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """Dashboard hygiene checker — the mechanically checkable subset of this skill's panel rules.
 
-Offline, with a stdlib-only fallback. Uses bounded PromQL AST inspection when promql-parser is
-installed and the expression contains no unresolved Grafana variables. Otherwise textual checks
-retain explicit query_analysis gaps; values are never guessed or substituted. No findings means
-no implemented rule fired, not that the dashboard is correct. PromQL checks run only for a model
-reference whose type is `prometheus`; other or untyped references need their dialect's query
-validation. Findings need human review:
-fixed UIDs can be intentional in provisioned dashboards, and a `_total` suffix is not type evidence.
-Prefer dashboard-linter (v0.5.2+ reads V2) where installed for real query/schema validation; this
-helper is the portable fallback.
+Offline and standard-library-only. Inspects PromQL text with bounded tokenization and heuristics
+without substituting Grafana variables; values are never guessed. No findings means no implemented
+rule fired, not that the dashboard is correct. PromQL checks run only for a model reference whose
+type is `prometheus`; other or untyped references need their dialect's query validation. Findings
+need human review: fixed UIDs can be intentional in provisioned dashboards, and a `_total` suffix
+is not type evidence. Prefer dashboard-linter (v0.5.2+ reads V2) where installed for real
+query/schema validation; this helper is the portable fallback.
 
 Which model shapes it accepts:
   * Classic / V1 `spec`  — the `panels[]` + `templating.list[]` shape
@@ -27,16 +25,35 @@ The report's ok means checked, not finding-free; coverage is static_hygiene_only
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import sys
 from pathlib import Path
-from runpy import run_path
 from typing import NamedTuple
 
-_module = run_path(str(Path(__file__).with_name("grafana_modules.py")))["load_module"]
-promql = _module("grafana_promql")
-reader = _module("grafana_read")
+
+def _load_reader():
+    path = Path(__file__).resolve().with_name("grafana_read.py")
+    spec = importlib.util.spec_from_file_location("_dashboard_hygiene_grafana_read", path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+reader = _load_reader()
+
+MAX_TEXT = 16000
+MAX_DEPTH, MAX_TOKENS = 64, 256
+VARIABLE = re.compile(
+    r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::[^}]*)?\}|\$([A-Za-z_][A-Za-z0-9_]*)|\[\[([A-Za-z_][A-Za-z0-9_]*)(?::[^]]*)?\]\]"
+)
+TOKEN = re.compile(
+    r'''(?P<string>"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`[^`]*`)|(?P<comment>\#[^\n]*)|[A-Za-z0-9_:]+|[^\s]''',
+    re.DOTALL,
+)
 
 # Panel types for which a unit is meaningful. A `text` or `row` panel has no unit, and flagging one
 # would train people to ignore the checker.
@@ -229,9 +246,39 @@ def _rate_finding(call, location):
                    f"horizon and scrape cadence before choosing $__rate_interval")
 
 
+def _input_limit(expression: str) -> str | None:
+    if len(expression) > MAX_TEXT:
+        return "expression_truncated"
+    depth = tokens = 0
+    for match in TOKEN.finditer(expression):
+        if match.lastgroup == "comment":
+            continue
+        tokens += 1
+        if tokens > MAX_TOKENS:
+            return "promql_token_limit"
+        if match.lastgroup == "string":
+            continue
+        token = match[0]
+        if token in ("(", "[", "{"):
+            depth += 1
+            if depth > MAX_DEPTH:
+                return "promql_depth_limit"
+        elif token in (")", "]", "}"):
+            depth -= 1
+    return None
+
+
+def _code_only(expression: str) -> str:
+    """Mask quoted values and comments without changing source offsets."""
+    return TOKEN.sub(
+        lambda match: " " * len(match[0]) if match.lastgroup in ("string", "comment") else match[0],
+        expression,
+    )
+
+
 def _text_query_findings(expr, location):
-    """Portable checks for templates, unavailable parsing, or unsupported syntax."""
-    query_code = promql.code_only(expr)
+    """Portable checks for PromQL text without resolving variables."""
+    query_code = _code_only(expr)
     spans = rate_call_spans(query_code)
     for function, start, end in spans:
         windows = RANGE_SELECTOR.findall(query_code[start:end])
@@ -246,18 +293,11 @@ def _text_query_findings(expr, location):
 
 
 def _query_analysis(expr):
-    """Choose AST inspection or an explicit fallback without resolving variables."""
-    if limit := promql.input_limit(expr):
-        return None, "not_checked", [limit]
-    if promql.VARIABLE.search(expr):
-        return None, "text_heuristic", ["promql_template_unresolved"]
-    try:
-        analysis = promql.analyze(expr)
-    except (ImportError, OSError):
-        return None, "text_heuristic", ["dependency_unavailable_promql_parser"]
-    if analysis.ast_complete:
-        return analysis, "promql_ast", list(analysis.gaps)
-    return None, "not_checked" if analysis.truncated else "text_heuristic", list(analysis.gaps)
+    """Check input limits and report unresolved templates without guessing values."""
+    if limit := _input_limit(expr):
+        return "not_checked", [limit]
+    gaps = ["promql_template_unresolved"] if VARIABLE.search(expr) else []
+    return "text_heuristic", gaps
 
 
 def query_findings(panel: dict, where: str, *, query_analysis=None):
@@ -270,15 +310,10 @@ def query_findings(panel: dict, where: str, *, query_analysis=None):
         if not isinstance(expr, str) or not expr:
             continue
         location = f"{where} [{target.get('refId', '?')}]"
-        analysis, mode, gaps = _query_analysis(expr)
+        mode, gaps = _query_analysis(expr)
         if query_analysis is not None:
             query_analysis.append({"location": location, "mode": mode, "gaps": gaps})
-        if analysis is not None:
-            for call in analysis.rate_calls:
-                yield _rate_finding(call, location)
-            if analysis.unrated_counters:
-                yield _counter_finding(analysis.unrated_counters[0], location)
-        elif mode == "text_heuristic":
+        if mode == "text_heuristic":
             yield from _text_query_findings(expr, location)
 
 

@@ -15,7 +15,7 @@ access or change authority. Foundation-specific behavior remains unconfirmed unt
 
   Check Apps Manager Events (`cf events <app>`, `app.crash` → `exit_description`), recent logs,
   and Overview memory/quota (`cf app`; human-only `/v3/apps/<guid>/processes/web/stats`, `usage.mem`
-  versus `mem_quota`). These are current snapshots; use PCF App Metrics/Wavefront for trends.
+  versus `mem_quota`). These are current snapshots; use PCF App Metrics or Grafana for trends.
   A missing suffix does not disprove OOM.
 - The app must listen on the platform-assigned **`$PORT`**, or health checks fail and it crash-loops.
   A starting/down/failing pattern after a push is a hypothesis, not proof of memory or port failure.

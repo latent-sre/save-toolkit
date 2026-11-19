@@ -132,12 +132,12 @@ class CrossPlatformReads(unittest.TestCase):
                   '--proto =https --header "Authorization: Bearer $GRAFANA_SA_TOKEN" "$GRAFANA_URL')
         kept = ("/api/health", "/api/plugins", "/api/access-control/user/permissions",
                 "/api/datasources/uid/metrics-1/health", "/api/folders?limit=100&page=2",
-                "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards/bsg-backup")
+                "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards/order-backup")
         # frontend/settings returns decrypted basic auth for direct-access datasources; datasources
         # returns connection users; both rule paths cannot be bounded; the rest the helper covers.
         removed = ("/api/frontend/settings", "/api/datasources", "/api/org",
-                   "/api/search?type=dash-db&limit=100&page=1", "/api/dashboards/uid/bsg-backup",
-                   "/api/dashboards/uid/bsg-backup/versions", "/api/v1/provisioning/alert-rules",
+                   "/api/search?type=dash-db&limit=100&page=1", "/api/dashboards/uid/order-backup",
+                   "/api/dashboards/uid/order-backup/versions", "/api/v1/provisioning/alert-rules",
                    "/api/prometheus/grafana/api/v1/rules", "/apis/dashboard.grafana.app/",
                    "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards",
                    "/apis/dashboard.grafana.app/v1/namespaces/default/dashboards/x?fieldSelector=a")

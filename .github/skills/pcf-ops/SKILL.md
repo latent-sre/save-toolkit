@@ -113,7 +113,7 @@ authorize a state-changing command.
 | Services and plan | **Application > Services** | *human* `cf services`; *human* `cf service <name>` |
 
 *human* = human-run; the guard denies that form to `sre-assistant`. `cf curl` is the current instant; for
-CPU or memory **over time**, use App Metrics or Wavefront.
+CPU or memory **over time**, use PCF App Metrics or Grafana.
 
 ### Secrets: credential-bearing reads are human-only
 

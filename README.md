@@ -1,7 +1,7 @@
 # Save Toolkit
 
 A Claude Code plugin that helps a human SRE do their job on this team's stack: PCF (through Apps
-Manager), Splunk, Wavefront and PCF App Metrics, Grafana, Akamai, with Cloud Run migration guidance.
+Manager), Splunk, PCF App Metrics, Grafana, Akamai, with Cloud Run migration guidance.
 The GCP landing runtime remains undecided in `stack-profile`. It fits together in
 three layers. **You own the work**: the incident, the change, the runbook. **An advisor thinks with
 you**: `incident-investigation` asks what to check next, says what each result means, and tells you
@@ -29,7 +29,7 @@ claude plugin install save-toolkit@latent-sre
 Routing is by description; there are no commands to memorize.
 
 - *"walk me through INC-4132, checkout is 502-ing since 14:02 UTC"* → `incident-investigation`
-  sits beside you: what to check next in Apps Manager, Splunk, or Wavefront, what each result would
+  sits beside you: what to check next in Apps Manager, Splunk, Grafana, or PCF App Metrics, what each result would
   mean, when to mitigate, who to page, and a board so nothing learned is lost.
 - *"why is orders 502-ing in prod?"* → `incident-investigation` again; you own it, it advises.
 - *"check cf events and recent logs for orders since 14:00 UTC"* → the `sre-assistant` agent gathers

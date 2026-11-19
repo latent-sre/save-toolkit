@@ -200,7 +200,7 @@ zero-error agreement is not loosened.
 [verified] Final candidate `716a45265779ad159b99ebf5a42ecc4c415bf7dafbac5d81a213aff5ae14d839`
 is frozen for exactly four original unchanged profiles: supplied worked-six, actual-helper,
 recovery-incomplete and recovery-sustained. Each receives one attempt, serial, with no retry or
-judge calls. Model remains native `claude-sonnet-5-5`, Claude Code 2.1.322, on Linux adama as uid 1000.
+judge calls. Model remains native `claude-sonnet-5-5`, Claude Code 2.1.322, on Linux host as uid 1000.
 Exact-candidate heavy preflight completed in 94.244 seconds: 5,215 passed, 87 skipped, 5,002 passing
 subtests, with the unchanged Inspect test expecting seven omitted checks while receiving six.
 Receipt: `.git/local-test-runs/20261112T203954Z-21f09803/run.json`. All 73 captured source/dependency

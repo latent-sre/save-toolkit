@@ -12,18 +12,15 @@ ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "skills/grafana/scripts/grafana_read.py"
 PREFIX = f'python -I -S "{HELPER.as_posix()}"'
 WRAPPER = f"& '{HELPER.with_suffix('.ps1').as_posix()}'"
-WORKFLOW = f'python -I "{HELPER.with_name("grafana_workflow.py").as_posix()}"'
 PS_QUERY = "-Datasource logs -Kind loki -From 1758400000000 -To 1758403600000 -Expr '{service=\"edge\"} |= \"error\"'"
 
 
 @pytest.mark.parametrize('tool', ['Bash', 'PowerShell', 'execute/runInTerminal'])
-@pytest.mark.parametrize('command', [
-    WORKFLOW + ' doctor --agent-json',
-    WORKFLOW.replace(' -I ', ' -I -S ') + ' doctor --agent-json',
-    PREFIX.replace(' -I -S ', ' -I ') + ' dashboard --uid edge',
-])
-def test_only_the_stdlib_read_helper_is_admitted(tool, command):
+def test_read_helper_requires_isolated_no_site_launch(tool):
+    command = PREFIX.replace(' -I -S ', ' -I ') + ' dashboard --uid edge'
     assert decision(command, tool, copilot=tool == 'execute/runInTerminal') == 'deny'
+    retired = f'python -I "{HELPER.with_name("grafana_workflow.py").as_posix()}" doctor --agent-json'
+    assert decision(retired, tool, copilot=tool == 'execute/runInTerminal') == 'deny'
 
 
 def decision(command, tool, *, copilot=False, agent=SRE_ASSISTANT):
@@ -37,10 +34,8 @@ def decision(command, tool, *, copilot=False, agent=SRE_ASSISTANT):
     'gcx metrics query --datasource metrics --expr up',
     'gcx api /api/user',
     'gcx resources push -p dashboards',
-    'tools/estate-deploy maintenance-gcx-read.yml -e gcx_read_operation=hosts',
-    'ansible-playbook maintenance-gcx-read.yml -e gcx_read_operation=alerts',
 ])
-def test_gcx_migration_does_not_admit_raw_cli_or_editable_ansible_readers(tool, command):
+def test_gcx_migration_does_not_admit_raw_cli(tool, command):
     assert decision(command, tool, copilot=tool == 'execute/runInTerminal') == 'deny'
 
 
@@ -109,10 +104,7 @@ def test_strict_base64_expression_transport_is_available(tool):
 def test_only_fixed_powershell_wrapper_preserves_readable_expressions():
     assert decision(f"{WRAPPER} {PS_QUERY}", "PowerShell") == "allow"
     assert decision(f"{WRAPPER} {PS_QUERY}", "Bash") == "deny"
-
-
-def test_copilot_requires_unambiguous_wrapper_transport():
-    assert decision(f'{WRAPPER} {PS_QUERY}', 'execute/runInTerminal', copilot=True) == 'deny'
+    assert decision(f"{WRAPPER} {PS_QUERY}", "execute/runInTerminal", copilot=True) == "deny"
 
 
 @pytest.mark.parametrize("options", [

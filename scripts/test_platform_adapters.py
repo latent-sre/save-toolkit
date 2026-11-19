@@ -929,7 +929,7 @@ class PlatformAdapterTests(unittest.TestCase):
         self.assertIsNotNone(link, "the installed skill must link its bundled validator")
         helper = (skill.parent / link[1]).resolve()
         self.assertTrue(helper.is_relative_to(skill.parent))
-        for name in ("dashboard_hygiene", "grafana_modules", "grafana_promql"):
+        for name in ("dashboard_hygiene", "grafana_read"):
             for directory in (workspace, workspace / "skills/grafana/scripts"):
                 shadow = directory / (name + ".py")
                 shadow.parent.mkdir(parents=True, exist_ok=True)

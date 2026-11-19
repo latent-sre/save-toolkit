@@ -2,36 +2,29 @@
 
 For an SRE agent with terminal tools; no write authority is granted.
 
-The guard admits only the paths below. It does not admit `gcx` or any other Grafana CLI: never
-install one, change its contexts, enable HTTP payload logging or install vendor skills as a
-workaround. Never read decrypted vault values or print private results.
+## Selected gcx migration
+
+The owner selected `gcx` for read-only Grafana investigation access, but the existing guard does not
+admit `gcx` yet (protected execution, redirect/destination enforcement, and installed-client
+acceptance remain pending). Keep using the bundled read helper below until fixed CLI commands and
+their execution boundary are verified and granted. Do not install `gcx`, change contexts, expose
+credentials, enable HTTP payload logging, or install vendor skills as an incident workaround.
 
 ## Bundled read helper
 
-The installed `grafana` skill includes [grafana_read.py](../scripts/grafana_read.py), a stdlib-only Python 3.14+
-client. Run it as `python -I -S` (or `python3`, `python.exe`) with its **absolute installed path** in
-drive-letter form, such as `"C:/Users/<you>/.claude/plugins/cache/.../grafana_read.py"` (on
-Copilot, the generated `.github` copy), never another file, or call its installed
-[PowerShell wrapper](../scripts/grafana_read.ps1). The SRE guard admits only the helper's own
-argument grammar. It denies the Git Bash `/c/...` path form, the `py` launcher, double-quoted
-arguments (single-quote literals instead), `--flag=value`, pipes, redirection including `2>&1`,
-`timeout` and other wrappers, and custom URL, method or credential flags; rely on the host tool's
-own timeout. If Python or the helper is missing on the execution host, report it; never install
-tools or switch shells to get around a denial.
+Run the stdlib-only [grafana_read.py](../scripts/grafana_read.py) as `python -I -S` (or `python3`,
+`python.exe`) with its **absolute installed path** in drive-letter form (on Copilot, the generated
+`.github` copy), or call its installed [PowerShell wrapper](../scripts/grafana_read.ps1). The SRE
+guard denies Git Bash `/c/...` paths, `py`, double-quoted arguments (single-quote literals instead),
+`--flag=value`, pipes, redirection (including `2>&1`), `timeout`, and custom URL/method/credential
+flags. If Python 3.14+ or the helper is missing, report the gap; never install tools or switch
+shells to bypass a denial.
 
-The helper loads `GRAFANA_URL`, `GRAFANA_ORG_ID` and a token (or Basic credentials) from the
-environment or, when the environment names none of them, from the human-written
-`~/.config/save-toolkit/grafana.env`. Never read, print or edit that file, never set the variables,
-and never ask for credentials. A missing or unusable setup is a gap to report:
-`authentication_unavailable`, `invalid_authentication`, `invalid_settings_file`,
-`insecure_settings_file`, an `invalid_*configuration` error, or the wrapper's `helper_launch_failed`
-(also returned when `python` is missing, older than 3.14, or the Windows Store alias stub). `render` also fails as `capture_directory_unavailable`, or as
-`image_path_masked` when a Basic-auth username or password appears in the capture path; use a
-service-account token. Every request carries `X-Grafana-Org-Id`, and the helper checks
-`/api/org` first, failing closed on a mismatch. It masks the configured credentials in its JSON and
-returns static errors. Masking covers its own output only; returned telemetry remains private.
-
-Every form except a raw `--expr` query works in both shells:
+Credentials load from `GRAFANA_URL`, `GRAFANA_ORG_ID`, and a token (or Basic credentials) in the
+environment, or from `~/.config/save-toolkit/grafana.env` when no `GRAFANA_*` env var is set.
+Never read, print, or edit that file, set those variables, or ask for credentials. Every request
+sends `X-Grafana-Org-Id`, verifies `/api/org` first (failing closed on mismatch), disables
+redirects/proxies/TLS bypass, and masks configured credentials in its own JSON output.
 
 ```text
 python -I -S "<absolute-installed-path>/grafana_read.py" dashboard --uid dashboard-uid
@@ -40,129 +33,67 @@ python -I -S "<absolute-installed-path>/grafana_read.py" search --query 'checkou
 python -I -S "<absolute-installed-path>/grafana_read.py" render --uid dashboard-uid --panel 5 --from 1758400000000 --to 1758403600000 --var host=example
 ```
 
-On **Windows PowerShell 5.1 or PowerShell 7**, run queries through the installed wrapper, which
-takes the expression intact and encodes it before invoking Python; the guard denies a raw `--expr`
-on PowerShell and accepts the wrapper or `--expr-base64`:
+On **Windows PowerShell 5.1/7**, raw `--expr` is denied; use the wrapper or `--expr-base64`:
 
 ```powershell
 & '<absolute-installed-path>/grafana_read.ps1' -Datasource logs-uid -Kind loki -From 1758400000000 -To 1758403600000 -Expr '{service="example"} |= "error"'
 & '<absolute-installed-path>/grafana_read.ps1' -Datasource metrics-uid -Kind prometheus -From 1758400000000 -To 1758403600000 -Expr 'up' -Mode instant -Output summary
 ```
 
-Use single-quoted literal expressions with observed values, never shell expansion. Grafana's
-built-in macros follow the rules below; dashboard variables are rejected.
-`--expr-base64` is for an exact encoding from trusted tooling; it carries query
-bytes, including a multi-line expression, and is not encryption. The guard also rejects general
-script paths and `powershell -Command`.
-
-| Operation | Reads | Limits | Specific errors |
-|---|---|---|---|
-| `dashboard --uid [--panel]` | One stored model with its `model` (format, stored version, storage check), or one panel with dashboard context (`coverage: configuration_only`). A V2-stored dashboard returns its App Platform object plus a `panel_view` mapped to the Classic panel shape | 2 MiB per response; up to three GETs (legacy, `v0alpha1` stored-version check, native V2) | `invalid_dashboard_response`, `unsupported_dashboard_model`, `invalid_panel_tree`, `panel_not_found`, `ambiguous_panel_id`, `v2_dashboard_unavailable`, `dashboard_conversion_failed` |
-| `query --datasource --kind --from --to --expr [--mode range\|instant] [--output full\|summary]` | One Prometheus or Loki `/api/ds/query` POST after checking the datasource UID and type | 24 h input window; requests 1,000 points and 500 Loki lines; enforced 2 MiB response cap and 20 s timeout | `datasource_mismatch`, `query_failed`, `unresolved_or_invalid_expression` |
-| `search [--query] [--page] [--folder-uid] [--tag]` | Dashboards by title text, one folder, or both, optionally by tag; needs `--query` or `--folder-uid`; query/tag accept letters, digits, spaces and `_.:-` | 100 results per call, pages 1–100 | `invalid_search_response`, `folder_mismatch` if a scoped response contains another folder |
-| `alerts [--folder-uid] [--group-next-token]` | Grafana-managed rule groups with state, health and last error; `group_next_token` continues past 100 groups | 100 groups, 20 instances per rule; `instances_truncated_rules` names rules whose `totals` exceed the returned instances (an errored instance can count twice) | `query_failed` when the rules API reports an error; `folder_mismatch`: Grafana answers a folder this identity cannot see with every folder |
-| `alerts --uid` | One Grafana-managed rule definition, including returned provenance and pause settings | 2 MiB; cannot combine with `--folder-uid` | `alert_rule_mismatch`, `organization_mismatch` |
-| `annotations --from --to [--dashboard-uid]` | Annotations in the window | 24 h, 100 items | — |
-| `silences [--id]` | Built-in Grafana Alertmanager silences, or one exact silence by UUID | 2 MiB | `silence_mismatch` for a mismatched ID |
-| `render --uid --panel --from --to [--var name=value] [--width] [--height]` | One panel as a PNG in `~/.cache/save-toolkit/grafana-renders/`; prints its path, size, SHA-256 and verified dimensions. PNGs persist until a later render deletes those older than 24 hours; POSIX files are owner-only, Windows files inherit the profile folder's ACL | Default 1200×600; width 400–2400, height 200–1600; 7 days, five `--var` (repeat a name for multi-value), 8 MiB, 45 s | See the [visual verification](./visual-verification.md) error table |
-
-Every operation can also fail with `invalid_arguments`, `organization_mismatch`, `http_error`,
-`redirect_rejected`, `request_failed`, `response_too_large` or `invalid_response`; a rejected
-response adds its numeric `http_status`. Redirects, ambient
-proxies and TLS bypass are disabled; there are no write, arbitrary proxy or SQL operations.
+| Operation | Reads | Limits |
+|---|---|---|
+| `dashboard --uid [--panel]` | Stored model (Classic or native V2 with Classic `panel_view`), or one panel (`coverage: configuration_only`) | 2 MiB; up to 3 GETs |
+| `query --datasource --kind --from --to --expr [--mode range\|instant] [--output full\|summary]` | Prometheus or Loki `/api/ds/query` POST after verifying datasource UID and type | 24 h window; 1,000 points / 500 Loki lines; 2 MiB, 20 s |
+| `search [--query] [--page] [--folder-uid] [--tag]` | Dashboards by title and/or folder (requires `--query` or `--folder-uid`) | 100/page, pages 1–100 |
+| `alerts [--folder-uid] [--group-next-token]` | Grafana-managed rule groups with evaluation state and health | 100 groups, 20 instances/rule |
+| `alerts --uid` | One Grafana-managed rule definition with provenance and pause state (cannot combine with `--folder-uid`) | 2 MiB |
+| `annotations --from --to [--dashboard-uid]` | Annotations in window | 24 h, 100 items |
+| `silences [--id]` | Built-in Grafana Alertmanager silences, or one exact UUID | 2 MiB |
+| `render --uid --panel --from --to [--var k=v] [--width] [--height]` | Panel PNG saved to `~/.cache/save-toolkit/grafana-renders/` (`coverage: image_uninspected`) | 400–2400 × 200–1600 (default 1200×600); 7 d, 5 `--var`, 8 MiB, 45 s |
 
 Reading results:
-
-- Exit 0 means the read succeeded, not that the investigation is complete; exit 2 returns a static
-  error code. Query errors under HTTP 200 count as failures.
-- Keep `coverage`, `truncated` and `limits` with the evidence. `permission_scoped` means an absent
-  result is what this identity saw within the limits, not proof that none exists.
-- Search fetches one page per invocation. Keep the query, folder and tag fixed when following
-  `next_page`; a full page means more results may exist, not that they do. Stop at the task's cap
-  and retain `truncated` even when page 100 has no permitted next page.
-- Selected panels retain stored targets, transformations, field configuration and dashboard context,
-  not necessarily the viewer's current selections. References/macros remain unresolved; no query or
-  transformation runs.
-- `alerts --uid` reads configuration, not evaluation health or notification delivery. Pair it with
-  the folder's state read. `silences --id` verifies only the built-in Grafana Alertmanager's object;
-  it does not inspect an external Alertmanager or prove an alert is suppressed.
-- Resolve variables from actual selections; only the built-ins below expand. Grafana expressions
-  and transformations do not run; missing points cannot rule out failures beyond sampled coverage.
-- Without `--var`, `render` uses the dashboard's saved variable defaults. Open and inspect the PNG
-  before describing it (`coverage: image_uninspected`), and bind it to a query over the same window.
-- Missing authentication or an unsupported datasource is a gap: continue with browser or supplied
-  evidence rather than rewriting the helper during an incident.
+- Exit 0 means the read succeeded, not that the investigation is complete; exit 2 returns a static error code. Query errors under HTTP 200 count as failures.
+- Keep `coverage`, `truncated`, and `limits` with the evidence. `permission_scoped` means absent results reflect this identity's visibility, not proof of absence.
+- Pair `alerts --uid` (config only) with `alerts --folder-uid` (evaluation state). `silences` inspects only the built-in Grafana Alertmanager. Open rendered PNGs before describing them.
 
 ### Copilot command-preview queries
 
-In the Copilot command preview the hook cannot tell which shell runs, so it denies raw `--expr` on
-**every terminal shell**, including Bash on macOS. Use `--expr-base64` with an exact encoding from
-trusted tooling. The command-preview grant requires a double-quoted installed script path and
-unquoted arguments containing only letters, digits and safe literal punctuation. It rejects
-single-quoted values, spaces in argument values, shell operators and expansion syntax because
-their interpretation depends on the terminal shell. The PowerShell wrapper belongs to the
-confirmed PowerShell tool grant and is denied by this preview. For example, `dXA=` encodes `up`:
+In Copilot command preview the shell is unknown, so raw `--expr` is denied on every shell. Use
+`--expr-base64` with a double-quoted installed path and unquoted literal arguments (no single
+quotes, spaces, or shell operators). The PowerShell wrapper is denied here. Example (`dXA=` = `up`):
 
 ```text
 python -I -S "<absolute-installed-path>/grafana_read.py" query --datasource metrics-uid --kind prometheus --from 1758400000000 --to 1758403600000 --expr-base64 dXA=
 ```
 
-Do not invent or alter an encoded query. If neither path is available, report the missing query
-path. This adds no terminal grant to the standard Copilot profile and does not authorize an encoder.
+## Query modes, macros, and summaries
 
-## Query modes, macros and result summaries
-
-`--mode range` and `--output full` remain the defaults. `--mode instant` evaluates at `--to`;
-both absolute timestamps remain required because the window supplies range macros. Prometheus
-and Loki metric instant queries are supported; a backend may reject an instant log-stream query.
-The PowerShell equivalents are `-Mode`, `-Output`, `-IntervalMs` and `-RateIntervalMs`.
-
-Only these built-ins are accepted, including their exact `${__name}` forms:
+`--mode range` and `--output full` are defaults; `--mode instant` evaluates at `--to` (both
+timestamps remain required for range macros). `--output summary` omits raw `results`, reporting
+min/max/last/null counts (numeric) or counts/timestamps (logs) capped at 100 series; keep empty,
+all-null, zero, and unsupported distinct. Only these built-in macros are accepted (including
+`${__name}`):
 
 | Macro | Prometheus | Loki |
 |---|---|---|
-| `$__range`, `$__range_s`, `$__range_ms` | Sent unsubstituted; Grafana's backend expands them from the window | Substituted from `--to` minus `--from` |
-| `$__interval`, `$__interval_ms` | `--interval-ms` when supplied, else sent for the backend | Requires `--interval-ms` |
-| `$__rate_interval`, `$__rate_interval_ms` | `--rate-interval-ms` when supplied, else sent for the backend | Rejected |
+| `$__range`, `$__range_s`, `$__range_ms` | Backend-expanded from window | Substituted from `--to` minus `--from` |
+| `$__interval`, `$__interval_ms` | `--interval-ms` if given, else backend-expanded | Requires `--interval-ms` |
+| `$__rate_interval`, `$__rate_interval_ms` | `--rate-interval-ms` if given, else backend-expanded | Rejected |
 
-Every request carries `intervalMs` (the explicit `--interval-ms`, else the larger of 1,000 ms and
-the window divided by 1,000, rounded up) and `maxDataPoints` 1,000. The Prometheus backend expands
-the unsubstituted macros from those hints, the window and the datasource's scrape interval, so the
-value can differ from the panel's, whose interval follows its width and minimum step. The result
-lists these macros in `expression.backend_expanded` with `panel_equivalence: not_established`; when
-equivalence matters, supply the panel's own intervals. Explicit intervals are capped at 86,400,000
-ms, the regular one is at least the default above, and the rate interval is at least 1,000 ms and
-Prometheus-only. Dashboard variables, macro format modifiers, other `$__` names and control
-characters other than tab, newline and carriage return fail before authentication. The result records
-original/resolved expressions and substitutions; inspect them before claiming equivalence.
+Backend-expanded macros report `panel_equivalence: not_established`; pass `--interval-ms` /
+`--rate-interval-ms` when panel equivalence matters. Dashboard variables and other `$__` macros fail
+before authentication.
 
-Queries include a `summary`; `--output summary` omits raw `results`, retaining provenance, settings
-and expressions. Numeric summaries report finite minima/maxima, last returned/finite values and null
-counts, without Grafana reductions or metric interpretation. Logs report counts/timestamps, not lines.
-Detailed series cap at 100 with explicit truncation. Empty, all-null, zero and unsupported remain
-distinct; complete means parsed, not healthy. Encoded frames and numeric tables with row-label series
-identities are unsupported: retain full output for a capable reader rather than interpreting
-placeholders or merging different series.
+## Grafana resource reads (`curl` fallback)
 
-Compare actual timestamp bounds/counts with requested `from`/`to` and `limits`. `maxDataPoints` is a
-hint: alignment may return extra/out-of-window points, reported without clipping. The 2 MiB cap is
-enforced. Retain `coverage: not_established` until results/gaps are assessed; compact output proves
-neither complete history nor notification delivery.
+Use the bundled helper first. This one-line `curl` fallback covers only reads the helper lacks:
+`/api/health`, `/api/access-control/user/permissions`, `/api/folders` (bounded to 100 items, 100
+pages), `/api/plugins`, `/api/datasources/uid/<uid>/health`, and a single `/apis/` dashboard object.
+Every other path — including `/api/frontend/settings` and `/api/datasources` (which can expose
+datasource credentials) — is denied.
 
-## Grafana resource reads
-
-Use the [bundled helper](#bundled-read-helper) first. This `curl` form is a fallback for reads the
-helper lacks: health, your token's permissions, folders, plugin inventory, datasource health, and a
-single `/apis/` dashboard object. The guard denies every other path, including
-`/api/frontend/settings` and `/api/datasources`, whose unmasked output can carry datasource
-connection users or decrypted credentials.
-
-It works only when the human has put `GRAFANA_URL` and `GRAFANA_SA_TOKEN` in the process
-environment. Setting either one makes the helper ignore its settings file, so the two setups do not
-run together; the helper then also needs `GRAFANA_ORG_ID` in the environment. If the variables are
-absent, report the read as unavailable; never set them, read the settings file, or ask for a token
-to make this form work. Never print a credential value or change the destination. Use these exact
-shapes, replacing only the resource path:
+Requires `GRAFANA_URL` and `GRAFANA_SA_TOKEN` already set in the environment (note: setting either
+makes the helper ignore `grafana.env`, so `GRAFANA_ORG_ID` must also be set). Replace only the path:
 
 ```bash
 curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =https --header "Authorization: Bearer $GRAFANA_SA_TOKEN" "$GRAFANA_URL/api/health"
@@ -171,9 +102,3 @@ curl -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =https
 ```powershell
 curl.exe -q --silent --show-error --fail --max-time 20 --max-redirs 0 --proto =https --header "Authorization: Bearer $env:GRAFANA_SA_TOKEN" "$env:GRAFANA_URL/api/health"
 ```
-
-The form is one line, GET only, with no redirects, TLS bypass, file output, upload or extra headers.
-Folder pages are bounded to 100 items and 100 pages. It never permits datasource proxy URLs, query
-POSTs, render URLs or `Invoke-RestMethod`; use the helper's `query` and `render`. A 200 response or
-a healthy datasource does not prove panel data or delivery. Outside these grants, prepare the read
-for the human rather than widening the allowlist.

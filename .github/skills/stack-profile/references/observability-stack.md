@@ -8,7 +8,7 @@ signal/product inventory, not a platform-selection decision.
 | Signal | Incumbent | Additive, first-class |
 |---|---|---|
 | Logs | Splunk (SPL) | Loki (LogQL) |
-| Metrics | Wavefront / Aria Ops for Applications — now Broadcom DX OpenExplore (WQL); **the live metrics UI for PCF applications today, with PCF App Metrics** | Mimir / Prometheus (PromQL) |
+| Metrics | **PCF App Metrics** (the live metrics UI for PCF applications today) | Mimir / Prometheus (PromQL) |
 | Traces | — (new capability) | Tempo (TraceQL) |
 | Dashboards | Grafana 13.2.x self-managed | same instance |
 | Alerting / correlation | Moogsoft Onprem v9.x (Dell; 9.2 is the supported line, confirm the target's minor); ThousandEyes synthetics | Grafana unified alerting |
@@ -20,14 +20,11 @@ provisioning ownership, backup freshness, or a tested restore; confirm those sep
 target. A saved copy does not authorize a live write.
 
 The owner selected Grafana `gcx` for the SRE assistant's read-only Grafana access migration.
-Credentials use the operations repository's existing Ansible-managed custody and private runtime
-delivery; no persisted `gcx login` or local keyring is required for that path. Adama has a working
-controller-user Ansible reader for fixed dashboard, metric and alert reads. Protected agent
-execution, exact command admission and installed-client acceptance remain pending.
-The current gcx release also needs protected redirect/destination enforcement before agent admission.
-The bundled Python helper is the existing admitted path during migration. The choice adds no
-terminal grant, live-write authority, vendor skill bundle or Grafana MCP server.
+Protected agent execution, exact command admission, redirect/destination enforcement, and
+installed-client acceptance remain pending. The bundled Python helper is the existing admitted path
+during migration. The choice adds no terminal grant, live-write authority, vendor skill bundle or
+Grafana MCP server.
 
-DX OpenExplore entitlement remains unrecorded. Cloud Logging/Monitoring/Trace join additively as
+Cloud Logging/Monitoring/Trace join additively as
 GCP workloads land. For PCF, incumbent tools come first; new backends are usable for a service only
 after instrumentation, not an assumed replacement.
