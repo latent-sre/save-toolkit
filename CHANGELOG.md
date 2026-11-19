@@ -1,158 +1,46 @@
 # Changelog
 
 Recent changes to the current Save Toolkit. This is a pre-release repository; entries do not
-assert a published release or acceptance of an evaluated candidate. Releases before 0.51.4 are in
-Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
+assert a published release or acceptance of an evaluated candidate. Releases before 0.52.0 are in
+Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 
 ## [Unreleased]
 
-- Clean up `CONTRIBUTING.md` (fix stale Grafana `promql-parser` note, trim duplicated prose) and
-  trim runtime skill/agent routing rows from `AGENTS.md` while listing all five no-shell lanes.
-- `reviewer` snapshots uncommitted work with one batched `tar` copy and comparison in place of a
-  per-file copy; a new eval case grades `Verdict: WITHHELD`, and a test runs the snapshot command.
-
-- Trim and consolidate the `grafana` skill references (merge `dashboard-reading.md` +
-  `read-only-review.md` and `alert-operations.md` + `grafana-alerting.md` into `alerting.md`;
-  deduplicate `command-access.md`, `http-api.md`, `visual-verification.md`, and `silences.md`),
-  and make `dashboard_hygiene.py` standalone stdlib-only (removing `grafana_modules.py`,
-  `grafana_promql.py`, and the `promql-parser` dependency).
-- Remove Wavefront / WQL from `stack-profile` (incumbent PCF metrics are PCF App Metrics),
-  `grafana`, `obs-analysis`, `obs-pipeline`, `pcf-ops`, `incident-investigation`,
-  `operational-docs`, `observability-engineer`, `README.md`, and the 3 WQL contract scenarios.
-- Scrub private host and Ansible operational details from skills, agents, docs, reviews,
-  changelog, and test fixtures.
-
-- Fold the Grafana `json-model.md` reference into `http-api.md` so the dashboard model and
-  pre-write rules sit in the write procedure, and drop the gcx migration status from the `grafana`
-  skill; the roadmap and `stack-profile` keep it.
-
-- Remove the Grafana investigation workflow (`grafana_workflow.py` and its plan, evidence, capture,
-  analyze, frames and dependencies modules), its reference, tests and guard grant, and the Pillow
-  and Polars dependencies. The read helper and the dashboard hygiene checker remain.
-
-- Reviewer eval checks: a `cat` copy into a scratch directory now counts as copying the candidate,
-  and the Git-prefix check sees a `git` that follows `do`, `then` or another shell keyword.
-
-- `reviewer` verifies that its scratch copy matches the uncommitted files under review before running checks.
-- Blocked reviews return `Verdict: WITHHELD` and name what would let the review resume.
-  Findings established from source identify any runtime behavior that still needs verification.
-
-- `python-craft` no longer claims explanation requests: the explanation routing case is retired and
-  the description drops that clause.
-
-- Add three `python-craft` eval cases: a new-project baseline probe, an older-project narrow-fix
-  control and a dependency judgment; restore four routing cases retargeted from `python-engineering`.
-
-- Remove the `python-engineering` skill and its eval suite; `python-craft` is now the one Python
-  skill, with six of its hazard rules folded in.
-
-- Rewrite `python-craft` as one portable skill with three references: engineering authority, a
-  Python 3.14 and uv baseline, current dependencies, justified rewrites, proportionate checks.
-
-- Remove selected wording and Markdown-format test pins so guidance can be rephrased without
-  updating those tests; retain unrelated authority, schema, and behavioral coverage.
-
-- Make the native reliability comparison explicitly assess conditional retry return and exception
-  paths, with a matched timing control and bounded execution evidence.
+## [0.52.10] - 2026-11-19
 
 ### Changed
 
-- Refresh Copilot agent-authoring guidance for runtime fields, tool mapping and skill preloads;
-  reject empty projected tool lists before replacing generated adapters.
+- **Grafana skill:** Consolidate `json-model.md` into `http-api.md`, `read-only-review.md` into
+  `dashboard-reading.md`, and `alert-operations.md` + `grafana-alerting.md` into `alerting.md`;
+  tighten `command-access.md`, `http-api.md`, `visual-verification.md`, and `silences.md`. Make
+  `dashboard_hygiene.py` standalone stdlib-only. Select Grafana `gcx` for future SRE read-only
+  access (pending credential isolation and redirect enforcement).
+- **Stack profile & observability:** Update `stack-profile` so incumbent PCF metrics are PCF App
+  Metrics only; refresh vendor details across `obs-analysis`, `obs-alerting`, `obs-pipeline`,
+  `pcf-ops`, `pcf-deploy`, `gcp-ops`, `akamai-edge`, `frontend-craft`, `api-craft`, `go-craft`,
+  `database-reliability`, `operator-cli`, `production-change-gate`, `operational-docs`,
+  `incident-investigation`, `resilience-analysis`, and `toil-reduction`.
+- **Python skill:** Rewrite `python-craft` on a Python 3.14 and `uv` baseline with three focused
+  references, folding in key hazard rules from `python-engineering`.
+- **Reviewer & software engineer:** `reviewer` now snapshots uncommitted work with a single batched
+  `tar` copy and verification, and returns `Verdict: WITHHELD` on blocked reviews. `software-engineer`
+  streamlines review dispatch, standing check reuse, and scope boundaries.
+- **Copilot adapters & governance:** Refresh Copilot agent-authoring guidance, reject empty
+  projected tool lists, and omit unsupported Local frontmatter (`agents`, `handoffs`,
+  `argument-hint`, `advancedOptions`). Clean up `CONTRIBUTING.md`, trim runtime skill/agent routing
+  rows from `AGENTS.md`, and scrub private host and operational details across docs and tests.
+- **Roadmap triage:** Owner-defer `FRONTEND-003`, `EVAL-012`, `EVAL-016`, `WORKBENCH-001`, and
+  `RELEASE-001`; remove CF scope from `SRE-CF-001`.
 
-- Copilot agent generation omits unsupported Local frontmatter and retires its handoff map;
-  skill and command argument hints remain, while native delegation enforcement is still unverified.
+### Removed
 
-- FRONTEND-003 is owner-deferred until three to five real GUI projects supply evidence for tuning
-  frontend recommendations and choosing the first deeper capability reference.
-- EVAL-012 is owner-deferred; completed evaluation evidence is retained, with further work waiting
-  for a named package to be reopened.
-- EVAL-016's Inspect AI parity comparison is owner-deferred until a bounded comparison is approved.
-- SRE Workbench is owner-deferred pending revision of the tool's planning package.
-- Immutable-release work is owner-deferred; native delegation, installed acceptance and rollback remain open.
-- Grafana `gcx` is selected for SRE read-only access; installation and protected command acceptance
-  precede migration from the bundled helper. Protected agent admission remains blocked on credential
-  isolation and native `gcx` redirect enforcement. CF work is removed from this ticket.
-- Resilience guidance makes retry paths and calculation assumptions explicit in assessments,
-  preserving deadline scope, unresolved retry counts and the distinction between helper-derived
-  arithmetic and source reports. The native helper fixture explicitly names its Read-only tool inventory.
-- WP-08 retires monitored authors before final billing on rejected traces and error paths;
-  unconfirmed absence skips the billing request while preserving proxy closure and recovery evidence.
-- WP-08 supports the owner's explicit Windows Docker Desktop monitored-storage exception:
-  sampled 10 GiB target, fatal unknown measurements, retained storage/cleanup evidence and distinct
-  smoke/result identities. Default hard-quota behavior remains available.
-- WP-04 run instructions clarify that fixture-bearing trials need a proven filesystem boundary;
-  the ordinary runner's tool and identity records do not supply hidden-answer isolation.
-- The Codex subscription evaluator accepts individually bound WP04 fixtures with scoped, paged
-  read-only browsing; native results and independent semantic review remain separate.
-- Evaluations add versioned prompt/submission checks, consistent review controls and separate retrieval/interpretation
-  diagnostics; campaign summaries distinguish selected coverage from all-attempt totals.
-- Incident guidance preserves measurement units, source scope and time through updates, separates
-  recovery from action attribution, and keeps bounded SRE investigations in their own method.
-- WP04 adds bounded, source-linked observation indexes and resource field histories with normalized
-  JSON views; versioned incident diagnostics and reserved qualification cases preserve earlier evaluations.
-- EVAL-005 accepts ordinary prior-dashboard and exported-JSON recovery wording while retaining
-  datasource-only and incomplete-recovery negative controls.
-- EVAL-005 recognizes two measured authority refusals and explicit version-history recovery;
-  datasource-only rollback no longer satisfies dashboard recovery.
-- The guard smoke transport honors the caller's timeout, including shorter limits, instead of
-  imposing a separate ten-second limit.
-- Observability dashboard completion reports explicitly separate saved-panel readback from
-  post-save query verification and label the evidence for each.
-- Windows eval processes start under private job ownership and verify empty-job accounting on
-  cleanup, covering ordinary descendants even after the root process exits.
-- Recorded the owner's acceptance of the persisted-evidence runner and command-line split,
-  closing RUNNER-001 with its replay evidence and verification limits retained in the decision record.
-- The EVAL-005 fixture waits for a finite histogram result one minute in the past, preventing
-  the observed six-hour Grafana query's aligned endpoint from preceding the fixture's data.
-- The EVAL-005 supporting refusal check accepts two more measured authority refusals, with
-  negative controls; its audited datasource and post-write query requirements stay strict.
-- SessionStart tries the remaining Python interpreters after a failed guard preflight, matching
-  the guard launcher's fallback when an older Python comes first on PATH.
-- Windows evaluation checks use the existing capability skips and an explicit fixture shell;
-  the Inspect pilot test checks the actual omitted requirements instead of a stale count.
-- The observability dashboard write loop explicitly reruns changed queries after the save;
-  the EVAL-005 task explicitly requests the panel description its check requires.
-- The mitigation judge accepts an identified human executor by operational role or person,
-  while retaining the prohibition on assistant execution.
-- `eng-ladder` is retired: its design method and platform-selection analysis now live in
-  `principal-engineer`, and other lanes return design decisions for it instead of loading a skill.
-- The principal design method adds domain-first framing, detection, concrete back-out mechanisms,
-  and a rollback-story check.
-- `software-engineer`'s description no longer routes runbooks and postmortems to `scribe` or states
-  deploy ownership; its body still holds the deploy rule.
-- `software-engineer` no longer dispatches `reviewer` by file count, carries finding labels, or
-  loads `obs-pipeline` or `ci-actions`; its review-findings rule is reduced to the stale check.
-- `software-engineer` names a review it skipped under **Check first** and drops repeated deploy and
-  workflow pointers.
-- `software-engineer` modernizes the code it changes without altering observed behavior, reuses
-  standing check evidence, stays out of support-only stacks, and asks sessions to delegate builds.
-- Four `software-engineer` eval scenarios grade repeated or unneeded test runs from a pytest session
-  ledger in their fixture.
-- `service-lifecycle` is retired: readiness audits load `resilience-analysis`, and decommissioning a
-  live service goes through `production-change-gate`.
-- The observability references correct Splunk per-field throttling, Tempo 3.x oversized-trace drops,
-  the tail-sampling decision cache default, and other vendor details; four skills shed repeated text.
-- `operator-cli` corrects its signal, PowerShell and broken-pipe rules and adds environment binding, crash-safe receipts and locks, and match-all refusal.
-- `production-change-gate` tightens environment, immutable-release and rollback evidence, completes its worked example, and folds artifact evidence into release readiness.
-- `obs-analysis` merges its method and Cloud Monitoring references, drops the inventory templates, fixes redaction and Log Cache wording, and moves to Splunk 10.6 and semconv 1.45.
-- `obs-alerting` and `obs-pipeline` correct promtool, freshness, Mimir suffix and collector-counter guidance; `error_budget.py` flags pairs an SLO cannot fire.
-- The bundle-link check exempts scripts that a linked script loads and now scans `docs/fleet-evaluation` and `docs/sre-workbench`.
-- `grafana` reads V2 dashboards natively, lets Grafana expand its built-in macros (live coverage 16 to 41 of 47 targets), fixes alert truncation and error reporting, and drops compare, impact, alert-preview and the VS Code opener.
-- The Grafana workflow accepts `${var:regex}` and queries starting with `-`; `resilience-analysis` covers readiness audits, `gcp-ops` counts rejected requests, and the Confluence importer keeps inline text intact.
-- `incident-investigation` drops its leftover carried-label clauses and corrects verified mitigation and symptom facts.
-- `gcp-ops` and `akamai-edge` correct verified facts and trim repeats; the placeholder GCP project inventory is removed.
-- `agent-authoring` corrects verified host facts, marks the Copilot `agents:`/`handoffs:` projection as legacy-only, and merges `context.md` and `skill-portability.md` into their siblings.
-- `api-craft`, `go-craft` and `database-reliability` correct verified facts and trim repeats; Huma is removed.
-- `ci-actions` and `stack-profile` correct verified facts; `ci-actions` drops generic rules and `stack-profile` records oxlint as the frontend default.
-- `pcf-ops` and `pcf-deploy` correct verified platform facts, add the App Autoscaler unbind effect and Apps Manager Revisions, and drop `foundations.md`.
-- `frontend-craft` moves the React lint default to oxlint, sets the Node floor to Active LTS from the lockfile, and corrects verified toolchain, serving and licence facts.
-- `operational-docs` merges its disposition policy into knowledge closeout and drops carried labels; the Confluence converter reads the template for its banner and checks, suppresses script and style content, and keeps table structure; `resilience-analysis` and `toil-reduction` trim repeats.
-- Generated handoff prompts no longer ask receivers to preserve evidence labels.
-- Agents no longer carry input evidence labels or `[UNTRUSTED]` taint through their reports, and the evals no longer require it; agents still label their own claims.
-- `grafana` drops common knowledge and Grafana Cloud references, and corrects stale traps, including that the rule API does not enforce compare-and-swap on 13.3.0.
-- `obs-alerting`, `obs-analysis` and `obs-pipeline` drop common knowledge and doc-link headers, and correct stale claims, including Grafana's No Data behaviour for a vanished series.
-- `agent-authoring` corrects its Claude Code and Copilot host facts for current versions and drops about 4.9 KB of detail the fleet does not use. The VS Code plugin acceptance document is removed; `COPILOT-HARNESS-001` tracks delegation on the default Copilot harness.
+- Remove the `grafana_workflow.py` investigation pipeline (and its 8 helper modules, reference,
+  tests, guard grant, and `pillow`/`polars`/`promql-parser` dependencies).
+- Remove Wavefront / WQL across `stack-profile`, `grafana`, `obs-analysis` (`wql.md` and 3 WQL
+  contract scenarios), `obs-pipeline`, `pcf-ops`, `incident-investigation`, `operational-docs`,
+  `observability-engineer`, and `README.md`.
+- Retire the `python-engineering` and `service-lifecycle` skills (coverage folded into
+  `python-craft`, `resilience-analysis`, and `production-change-gate`).
 
 ## [0.52.0] - 2026-11-04
 
@@ -485,27 +373,3 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
   longer rejects them on Windows hosts.
 - The model-free smoke tests fake only the `docker` binary lookup, so the guard step finds `bash` on
   Linux again instead of the fake Docker path.
-
-## [0.51.4] - 2026-10-23
-
-### Changed
-
-- `software-engineer`: compress the handoff rows and remove `## Rules`; its one unique rule, hand to
-  one agent at a time, moves into Handoffs.
-- `sre-assistant`: remove text its skills or the guard already cover; it states that its developer
-  access to team apps is read-only use.
-- `observability-engineer`: principles and method steps defer to `obs-alerting` and
-  `obs-dashboards`, and a caller's requested output format wins.
-- Trim the `stack-profile`, `agent-authoring`, `toil-reduction`, and `pcf-ops` cores to what their
-  readers lack; the MCP output-cap rule moves to the frontmatter reference.
-
-### Removed
-
-- Fleet-wide agent body-shape checks and the tests that pinned `sre-assistant` wording; the
-  tool-authority checks remain.
-
-### Fixed
-
-- `software-engineer` treats a push or tag push as a CI submission and again keeps embedded
-  remote-URL credentials out of its context.
-- The routine-completion grader matches the current return-header fields.
