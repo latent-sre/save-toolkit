@@ -197,6 +197,14 @@ class SnapshotRecipe(unittest.TestCase):
         self.assertNotEqual(0, done.returncode)
         self.assertIsNone(DIGEST.search(done.stdout))
 
+    def test_a_path_added_after_enumeration_fails_closed(self) -> None:
+        shim = 'case "$*" in *-cf*) n=$(($(cat "$COUNT" 2>/dev/null || echo 0)+1))\n' \
+               'echo $n > "$COUNT"; [ "$n" = 1 ] && echo late > added_later.txt;; esac'
+        done = self.run_recipe(self.repo, self.tmp / "snap", shim)
+        self.assertTrue((self.repo / "added_later.txt").exists(), "shim never fired")
+        self.assertNotEqual(0, done.returncode)
+        self.assertIsNone(DIGEST.search(done.stdout))
+
     def test_a_copy_that_differs_from_the_source_fails_closed(self) -> None:
         scratch = self.tmp / "snap"
         shim = f'case "$*" in *-xpf*) "$REAL_TAR" "$@" || exit; ' \

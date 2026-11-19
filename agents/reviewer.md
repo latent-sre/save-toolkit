@@ -68,14 +68,16 @@ Before execution, identify provenance, candidate identity, the check, and where 
 
   ```bash
   set -o pipefail
-  mkdir -p "$S" &&
-  $G ls-files -z --cached --others --exclude-standard --deduplicate > "$S.all" &&
-  while IFS= read -r -d '' p; do
-    if [ -L "$p" ] || [ -f "$p" ]; then printf '%s\0' "$p"; fi
-  done < "$S.all" > "$S.list" &&
-  [ -s "$S.list" ] &&
+  eligible() {
+    $G ls-files -z --cached --others --exclude-standard --deduplicate |
+      while IFS= read -r -d '' p; do
+        if [ -L "$p" ] || [ -f "$p" ]; then printf '%s\0' "$p"; fi
+      done
+  }
+  mkdir -p "$S" && eligible > "$S.list" && [ -s "$S.list" ] &&
   tar --null --no-recursion -T "$S.list" -cf - | tar -xpf - -C "$S" &&
   tar --null --no-recursion -T "$S.list" -cf - | tar -df - -C "$S" &&
+  eligible | cmp -s - "$S.list" &&
   (cd "$S" && tar --null --no-recursion -T "$S.list" --mtime=@0 --owner=0 --group=0 \
     --numeric-owner -cf - | sha256sum | cut -d' ' -f1)
   ```
