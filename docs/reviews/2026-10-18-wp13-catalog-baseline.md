@@ -1,7 +1,7 @@
 # WP-13 catalog regression baseline (2026-10-18)
 
 **Status:** complete; the owner ruled on the one borderline disposition on 2026-10-18. It runs step 3 of the
-[WP-13 run plan](../fleet-evaluation/run-plan-wp13-gcp-native-pilot.md#pilot-outcome-and-revised-direction):
+WP-13 run plan (in Git history):
 the 40 catalog cases once each on one candidate, as a reference point for later regressions. It
 records observations of one candidate. It does not accept or reject a model or the candidate.
 

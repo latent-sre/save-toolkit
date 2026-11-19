@@ -97,7 +97,7 @@ Use regression tests for the refusal grader, six routing cases, testing-block
 identity/accounting, invocation limits and actual Linux namespace behavior. Run
 focused checks first and the coordinated heavy suite once at the integration
 boundary. The [multi-model testing guide](multi-model-testing.md) describes the
-reusable commands. The [tabletop packet](handover-tabletops.md) supplies the human
+reusable commands. The tabletop packet (in Git history) supplies the human
 exercise. Passing offline tests does not complete any unrun campaign or human task.
 
 ## WP-10 current-candidate continuation

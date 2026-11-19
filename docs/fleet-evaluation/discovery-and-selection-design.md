@@ -8,7 +8,7 @@ The owner selected **discovery and selection first**, with fingerprints establis
 organization and definitions are finalized. Preserving today's hashes is not a design requirement.
 The owner subsequently authorized implementation from refreshed main. Initial design evidence was
 gathered at `253152cce96fdd3d8c9c059d1ad2eec9ed7586f0` on 2026-10-25; implementation used the newer
-`4d9d368d` base. The [implementation record](discovery-and-selection-implementation.md) records the
+`4d9d368d` base. The implementation record (in Git history) records the
 completed work and checks. This design does not authorize live execution. Delivery status continues
 to belong to [the fleet roadmap](../fleet-roadmap.md).
 

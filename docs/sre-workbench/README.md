@@ -24,7 +24,7 @@ with delivery sequenced by dependencies rather than deleting later features from
 | [Capability specifications](capabilities.md) | All 25 capabilities, inputs, behavior, failures and acceptance |
 | [Security and authority](security.md) | Threat model, permissions, credentials, extensions and live effects |
 | [Jobs remote execution and changes](advanced-execution.md) | Durable jobs, remote leases, schedules, fan-out and change recovery |
-| [Delivery plan](delivery.md) | Phases, dependencies, work packages, ownership and completion gates |
+| Delivery plan (in Git history) | Phases, dependencies, work packages, ownership and completion gates |
 | [Verification plan](verification.md) | Acceptance cases, traceability, host matrix and failure testing |
 | [Operating and developer guide](operations.md) | Proposed installation, configuration, troubleshooting and contribution |
 | [Decisions and risks](decisions-and-risks.md) | Recommendations, alternatives, unresolved choices and risks |

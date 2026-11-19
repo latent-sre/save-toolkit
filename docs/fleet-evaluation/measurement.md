@@ -133,7 +133,7 @@ WP-15 holds the postponed Coder Eval experiment under AC-36/37. A documented inc
 rejection can complete its assessment when the evidence and disposition are recorded; it cannot
 satisfy WP-02's native checks or remove their requirement. Use the accepted native path for the first
 useful candidate comparison once native/report readiness passes. The first live compatibility set
-is the [WP-02 run plan](run-plan-wp02-native-readiness.md).
+is the WP-02 run plan (in Git history).
 
 Ordinary PR CI runs offline validation and adapter/fixture tests. Native paid runs remain manual in
 the clean room. External coding tasks require DEC-13 and AC-25 as well as the reviewed isolation

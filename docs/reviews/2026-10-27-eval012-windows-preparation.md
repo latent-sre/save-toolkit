@@ -63,7 +63,7 @@ The two receipts confirm the exact probe containers absent after cleanup.
 
 This falsifies the assumption that successful creation or a retained StorageOpt proves enforcement
 on this engine. It is a bounded diagnostic, not a successful 10 GiB smoke. WP-08/SWT/Harbor must not
-proceed under this host configuration: the [accepted profile](../fleet-evaluation/run-plan-wp08-swebench-repair.md)
+proceed under this host configuration: the accepted profile (in Git history)
 requires an actual hard quota for author and verifier containers. The existing
 [smoke](../../evals/swebench_adapter/smoke.py) still requires observed quota rejection; its checks
 were not relaxed.
@@ -186,7 +186,7 @@ The Docker hard-quota failure remains independent. No model trials or candidate 
 ## Completion audit
 
 [sourced: accepted specification and current roadmap] The original EVAL-012 program includes the
-following obligations. This table is a dated audit of the [delivery contract](../fleet-evaluation/delivery.md),
+following obligations. This table is a dated audit of the delivery contract (in Git history),
 not a replacement backlog or a new scope amendment.
 
 | Packages | Evidence/disposition still required |

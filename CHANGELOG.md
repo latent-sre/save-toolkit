@@ -5,6 +5,11 @@ assert a published release or acceptance of an evaluated candidate. Releases bef
 Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roadmap.md).
 
 ## [Unreleased]
+<!-- Entries for the next release -->
+
+- Remove 14 completed, orphaned, or deferred run-plan and proposal documents from
+  `docs/fleet-evaluation/` (retaining `product.md`, schemas, contracts, and suite guides; Git history
+  preserves removed files).
 
 ## [0.52.10] - 2026-11-19
 

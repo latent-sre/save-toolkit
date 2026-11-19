@@ -5,7 +5,7 @@ verifiable work. Record each live execution, paid-run or exact-candidate accepta
 continue the other packages when one reaches a gate. Execution status stays in EVAL-012.
 
 **Basis:** The accepted [specification](README.md), [contracts](contracts.md),
-[scenario requirements](scenarios.md), [delivery decisions](delivery.md), and the owner's direction
+[scenario requirements](scenarios.md), delivery decisions (in Git history), and the owner's direction
 to use complex cases and complete preparation before asking for gated execution.
 
 ## Scope and complexity

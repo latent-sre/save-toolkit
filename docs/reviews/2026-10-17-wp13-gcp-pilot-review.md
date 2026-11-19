@@ -2,7 +2,7 @@
 
 **Status:** the owner approved the semantic dispositions and the revised direction on 2026-10-17.
 This record covers the pilot run under the
-[WP-13 run plan](../fleet-evaluation/run-plan-wp13-gcp-native-pilot.md). Its observations come from
+WP-13 run plan (in Git history). Its observations come from
 one candidate, one model and three trials per case. They do not accept or reject a candidate.
 
 ## Conclusion

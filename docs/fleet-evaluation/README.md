@@ -12,7 +12,7 @@ for custom agent/skill/tool regression execution; adoption depends on the specif
 integration or benchmark result is established by this planning package. On 2026-10-18 the owner
 amended WP-13's completion boundary: the six branching investigations and the two handover tabletops
 move to their own roadmap items, BRANCH-001 and HANDOVER-001, and WP-13 is complete; see
-[delivery](delivery.md) and [measurement](measurement.md).
+delivery (in Git history) and [measurement](measurement.md).
 
 The project helps an SRE or maintainer decide whether a specific Save Toolkit candidate improves
 useful work. It measures incident diagnosis, investigation with a human, live lab investigation,
@@ -37,16 +37,10 @@ results remain separate.
 | [Contracts](contracts.md) | Cases, runs, assessments, errors, provenance, cache and comparison rules |
 | [Integrations](integrations.md) | Each benchmark and framework, its adapter work and adoption criteria |
 | [Coder Eval adoption experiment](coder-eval.md) | Postponement and prerequisites, product boundaries, six-task pilot, evidence mapping and retain/replace/reject criteria |
-| [WP-02 run plan](run-plan-wp02-native-readiness.md) | The first live run: cases, conditions, budget and stop rules for native readiness |
-| [WP-10 run plan](run-plan-wp10-wider-fleet-adversarial.md) | Draft, not approved: the AC-20 lane cases and AC-27 pairs, conditions, budget estimate and how to read the pairs |
-| [WP-13 run plan](run-plan-wp13-gcp-native-pilot.md) | Approved 2026-10-17: the native GCP pilot's smoke step and 24-case pilot, decisions, budget, review mode and stop rules |
-| [WP-08 run plan](run-plan-wp08-swebench-repair.md) | Approved 2026-10-18: 10 SWE-bench Verified tasks on the fleet's software-engineer in the static-repair profile, host-proxy credential, model-endpoint-only egress, Claude first then other models |
 | [WP-08 operator commands](wp08-operator.md) | Adapter setup, pinned selection/configuration, separate smoke/trial/batch commands, and evidence limits |
-| [GCP case hardening](gcp-hardening.md) | Approved 2026-10-17: why the pilot cases do not separate models, five hardening mechanisms, a three-family pilot and a pre-registered success criterion |
 | [Scenario specifications](scenarios.md) | Incident pairs, coding tasks, wider-fleet cases and examples |
 | [GCP evaluation track](gcp.md) | 32 paired scenario families, migration and managed services, GKE, reusable foundations and cloud lab profiles |
 | [Measurement and verification](measurement.md) | Judge calibration, experiment design and acceptance tests |
-| [Delivery and decisions](delivery.md) | Ordered work packages, owners, dependencies, decisions and risks |
 | [Operations](operations.md) | Proposed operator workflow, lab lifecycle, costs, data and recovery |
 | [Sources and baseline](sources.md) | Checked repository evidence, upstream provenance and limits |
 
