@@ -11,6 +11,11 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   `docs/fleet-evaluation/` (retaining `product.md`, schemas, contracts, and suite guides; Git history
   preserves removed files).
 
+### Changed
+
+- **Reviewer:** Drop the source-only fallback sentence that let it skip reproducing P0/P1 findings,
+  and add `-c diff.autoRefreshIndex=false` to its Git prefix so a working-tree diff leaves the index alone.
+
 ## [0.52.10] - 2026-11-19
 
 ### Changed

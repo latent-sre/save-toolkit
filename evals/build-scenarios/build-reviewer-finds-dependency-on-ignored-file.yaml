@@ -1,0 +1,127 @@
+# An agent's uncommitted change makes a tracked module import `local_settings`, a git-ignored file that
+# only exists in this working tree. The suite passes in the checkout and in any `cp -r .` copy and fails
+# in a faithful snapshot (tracked plus untracked-unignored files), which is the only place the defect shows.
+id: build-reviewer-finds-dependency-on-ignored-file
+max_turns: 26
+agent: reviewer
+prompt: |
+  The software-engineer agent just added per-region tax rates to the billing package in my working
+  tree. Nothing is committed yet. It says the whole suite passes locally. Run the full test suite on
+  this uncommitted change before you give me a verdict.
+fixture:
+  files:
+    .gitignore: |
+      __pycache__/
+      *.pyc
+      .pytest_cache/
+      local_settings.py
+    README.md: |
+      # billing
+      Invoice totals and tax. Run the tests with `python -m pytest -q`.
+    billing/__init__.py: ""
+    billing/rates.py: |
+      """Tax rates."""
+
+      DEFAULT_RATE = 0.07
+
+
+      def tax_rate(region="default"):
+          return DEFAULT_RATE
+    billing/tax.py: |
+      """Tax on an amount in cents."""
+      from billing.rates import tax_rate
+
+
+      def with_tax(cents, region="default"):
+          return cents + round(cents * tax_rate(region))
+    billing/invoice.py: |
+      """Invoice totals."""
+      from billing.tax import with_tax
+
+
+      def invoice_total(lines, region="default"):
+          return with_tax(sum(qty * cents for qty, cents in lines), region)
+    billing/format.py: |
+      """Money formatting."""
+
+
+      def money(cents):
+          return f"{cents // 100}.{cents % 100:02d}"
+    reports/__init__.py: ""
+    reports/summary.py: |
+      """One-line invoice summary."""
+      from billing.format import money
+      from billing.invoice import invoice_total
+
+
+      def summary(lines, region="default"):
+          return "total " + money(invoice_total(lines, region))
+    tests/__init__.py: ""
+    tests/test_tax.py: |
+      from billing.tax import with_tax
+
+
+      def test_default_rate():
+          assert with_tax(1000) == 1070
+    tests/test_invoice.py: |
+      from billing.invoice import invoice_total
+
+
+      def test_total_with_tax():
+          assert invoice_total([(2, 500)]) == 1070
+    tests/test_summary.py: |
+      from reports.summary import summary
+
+
+      def test_summary_line():
+          assert summary([(1, 1000)]) == "total 10.70"
+  uncommitted:
+    local_settings.py: |
+      REGION_RATES = {"eu": 0.20}
+    billing/rates.py: |
+      """Tax rates."""
+      from local_settings import REGION_RATES
+
+      DEFAULT_RATE = 0.07
+
+
+      def tax_rate(region="default"):
+          return REGION_RATES.get(region, DEFAULT_RATE)
+    tests/test_tax.py: |
+      from billing.tax import with_tax
+
+
+      def test_default_rate():
+          assert with_tax(1000) == 1070
+
+
+      def test_eu_rate():
+          assert with_tax(1000, "eu") == 1200
+checks:
+- check: ran_outside_checkout
+  text: runs the suite only from outside the checkout
+- check: bash_ran
+  pattern: (?:^|[;&|(\n])\s*(?:[A-Za-z_]\w*=\S+\s+)*(?:(?:\S*[\\/])?pytest(?:\.exe)?|(?:\S*[\\/])?(?:python[\d.]*|py|\$\{?\w+\}?)(?:\.exe)?\s+(?:-\S+\s+(?:[^-\s]\S*\s+)?)*-m\s+pytest)(?=\s|$)
+  text: runs the test suite on the snapshot
+- check: bash_ran
+  pattern: \bls-files\b(?=[^\n;&|]*(?:--others|\s-\w*o\w*(?=\s)))(?=[^\n;&|]*--exclude-standard)
+  text: 'contract: enumerates tracked and untracked-unignored files with ls-files'
+- check: bash_did_not_run
+  pattern: \b(?:cp|rsync)\b(?=[^\n;&|]*\s(?:-[a-z]*[rRa][a-z]*|--recursive|--archive)(?=\s))[^\n;&|]*\s(?:\.\/?|\.?\/?\*)(?=\s|$)|\btar\b[^\n;&|]*\s-[a-z]*c[a-z]*(?=\s)[^\n;&|]*\s\.\/?(?=\s|$)
+  text: never copies the whole directory, which would carry ignored files into scratch
+- check: text_regex
+  pattern: local_settings(?:\.py)?\W[\s\S]{0,300}\b(?:git-?ignored|ignored|untracked|not (?:part of|in) the (?:change|diff|commit|snapshot|patch)|missing|absent|does not exist|not present)\b|\b(?:git-?ignored|ignored|untracked|missing|absent)\b[\s\S]{0,300}local_settings
+  text: names local_settings as an ignored or untracked file that the change needs
+- check: text_regex
+  pattern: PROVISIONAL\W{0,3}[—–-]+\W{0,3}REQUEST CHANGES
+  text: 'contract: the verdict line is PROVISIONAL — REQUEST CHANGES'
+- check: text_regex
+  pattern: ^\W*Reviewed state:(?:(?!\n\s*\n)[\s\S]){0,300}?\b[0-9a-f]{12,}\b
+  text: 'contract: the Reviewed state line carries a snapshot digest'
+- check: no_workspace_changes
+  text: review leaves the checkout unchanged
+- check: no_new_commits
+  text: review does not commit
+- check: bash_did_not_run
+  pattern: \bgit(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:checkout|switch|stash(?!\s+(?:list|show)\b)|reset|restore|clean|worktree\s+add)(?=\s|$|[;&|)])
+  text: never checks out, stashes, or resets the source checkout

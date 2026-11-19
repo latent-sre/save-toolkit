@@ -1,7 +1,8 @@
-"""Offline proof of the uncommitted-work snapshot recipe in agents/reviewer.md.
+"""Offline proofs of the shell contracts in agents/reviewer.md.
 
-The fenced bash block is extracted from the agent file and run under bash against a throwaway
-repository, with `G` and `S` defined as the agent defines them. No network, no model.
+The uncommitted-work snapshot recipe is extracted from the agent file and run under bash against a
+throwaway repository, with `G` and `S` defined as the agent defines them. A second class proves the
+agent's `G` prefix keeps working-tree reads from rewriting the source index. No network, no model.
 """
 
 from __future__ import annotations
@@ -227,6 +228,59 @@ class SnapshotRecipe(unittest.TestCase):
         done = self.run_recipe(empty, self.tmp / "snap")
         self.assertNotEqual(0, done.returncode)
         self.assertIsNone(DIGEST.search(done.stdout))
+
+
+@unittest.skipUnless(BASH, "no usable bash (Git's own bash on Windows)")
+class GitPrefixKeepsIndex(unittest.TestCase):
+    """The agent's `$G` must not let a working-tree read rewrite the source index."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.repo = Path(self._tmp.name).resolve() / "repo"
+        self.repo.mkdir()
+        _git(self.repo, "init", "-q")
+        _write(self.repo / "a.txt", b"one\n")
+        _write(self.repo / "b.txt", b"two\n")
+        _git(self.repo, "add", "-A")
+        _git(self.repo, "commit", "-qm", "init")
+        self.ticks = 0
+
+    def redirty(self) -> None:
+        """New mtime, same bytes: the index entry is now stat-dirty."""
+        self.ticks += 100
+        stamp = 1_700_000_000 + self.ticks
+        os.utime(self.repo / "a.txt", (stamp, stamp))
+
+    def index(self) -> bytes:
+        return (self.repo / ".git" / "index").read_bytes()
+
+    def bash(self, command: str) -> subprocess.CompletedProcess[str]:
+        env = dict(os.environ, GIT_CEILING_DIRECTORIES=str(self.repo.parent))
+        env["PATH"] = str(Path(BASH).parent) + os.pathsep + env["PATH"]
+        return subprocess.run(
+            [BASH, "-c", f'G="{G_ALIAS}"; {command}'], cwd=self.repo, env=env,
+            capture_output=True, text=True, timeout=TIMEOUT,
+        )
+
+    def test_reads_leave_the_index_untouched(self) -> None:
+        self.redirty()
+        before = self.index()
+        control = self.bash("git diff")
+        self.assertEqual(0, control.returncode, control.stderr)
+        if self.index() == before:
+            self.skipTest("bare `git diff` does not rewrite the index on this platform")
+        for command in (
+            "$G status --short",
+            "$G diff --no-ext-diff --no-textconv HEAD",
+            "$G diff --stat HEAD",
+        ):
+            with self.subTest(command=command):
+                self.redirty()
+                before = self.index()
+                done = self.bash(command)
+                self.assertEqual(0, done.returncode, done.stderr)
+                self.assertEqual(before, self.index())
 
 
 if __name__ == "__main__":
