@@ -22,7 +22,7 @@ python scripts/generate_platform_adapters.py --write
 Before changing frontmatter, tool authority, delegation, or guard wiring, read the
 [frontmatter reference](skills/agent-authoring/references/claude-code-frontmatter.md). Declare
 third-party dependencies in `pyproject.toml` and lock them with `uv lock`; `uv.lock` is the only
-exact pin set. `scripts/readonly-guard.py` stays standard-library-only under `python -I -S`. Commands using `python` here mean the verified project
+exact pin set. Commands using `python` here mean the verified project
 interpreter; activate that environment or use its full executable path. A bare `python` or `py -3`
 can select a different version on Windows; avoid the Store stub.
 `rg` hides generated projections through [`.ignore`](.ignore); pass `--no-ignore` to inspect them.
@@ -40,11 +40,10 @@ three in one commit, regenerate, then run Gate A: the source check, the roster r
 the byte-for-byte adapter gate must all pass. Copilot receives the `agent` tool alias, not a
 per-parent target allowlist; preserve that limitation in the projection documentation.
 
-The default Copilot projection omits Local-only `agents`, `handoffs`, `argument-hint`, and
-`advancedOptions` agent fields. Do not restore the retired handoff map or infer enforcement from
-canonical Claude grants. A replacement delegation boundary requires an explicit design and
-installed-host evidence under COPILOT-HARNESS-001. Skill and command `argument-hint` metadata is
-separate and remains supported.
+The default Copilot projection omits Local-only agent fields (`agents`, `handoffs`, `argument-hint`,
+`advancedOptions`); see [copilot-projection.md](docs/copilot-projection.md) for the projection
+contract and `COPILOT-HARNESS-001` delegation limits. Skill and command `argument-hint` metadata
+remains supported.
 
 Agent bodies are the runtime copy of the `AGENTS.md` handoff contract; `AGENTS.md` reaches only
 sessions in this repository. Each delegating agent keeps a short handoff core. Add a generic handoff
@@ -85,9 +84,8 @@ of the project environment (`uv sync --locked --group swebench`); `harbor` and `
 conflicting with it and install only into a separate environment, for example
 `UV_PROJECT_ENVIRONMENT=.eval-runs/harbor-sdk uv sync --locked --only-group harbor`.
 
-The Grafana hygiene checker's optional PromQL parser is part of the `test` group; without it the
-checker falls back to text heuristics. The Grafana read helper and the hook guard remain
-standard-library-only under `python -I -S`. Plugins do not install these dependencies.
+The Grafana read helper, dashboard hygiene checker, and read-only hook guard remain
+standard-library-only under `python -I -S`. Plugins do not install third-party dependencies.
 
 ## 3. Verify in proportion to the change
 
@@ -131,11 +129,10 @@ paths, then name the exact models, cases and limits for the campaign. Record uns
 coverage explicitly; a structured Codex artifact result does not establish native routing,
 hooks or helper continuation. Keep model and host results separate. This coverage requirement
 does not authorize automatic model calls, extra trials or spend beyond the owner's campaign budget.
-Every active scenario declares `max_turns`; missing or invalid limits are refused before calls.
-Use saved counts and timing evidence to size a change, retain its rationale, and distinguish an
-offline budget choice from measured live completion. Runner edits retain the saved-run rescore/diff
-comparison and an explanation of every changed verdict. Oracle changes also exercise the supervised
-completion path, including candidate failure and early exit, unavailable measurement and oracle crash.
+Every active scenario declares `max_turns` and runner edits retain a saved-run `rescore`/`diff`
+comparison explaining every changed verdict (see [running](evals/docs/running.md) and
+[internals](evals/docs/internals.md)). Oracle changes also exercise the supervised completion path,
+including candidate failure and early exit, unavailable measurement, and oracle crash.
 
 Before pushing, run the structural gate once:
 
@@ -168,36 +165,18 @@ uv sync --locked
 .venv\Scripts\python.exe scripts/local_tests.py
 ```
 
-One caller owns that run; helpers return their focused evidence instead of starting duplicate full suites. The runner
-refuses a second coordinated run across linked worktrees while the first owns its OS-held lease.
-The lease releases on process exit; do not delete its file or terminate another owner's job.
-Direct `pytest` commands and separate clones do not participate, so coordinate those explicitly.
+On POSIX, substitute `.venv/bin/python`. One caller owns that run; helpers return focused evidence instead of starting duplicate full suites.
+The runner coordinates linked worktrees via an OS-held lease (`scripts/local_tests.py`) and writes a
+receipt directory (`pytest.log`, `junit.xml`, `run.json`) under the common Git directory's
+`local-test-runs/`; a dirty receipt does not prove an exact committed candidate.
 
-The runner prints a directory under the common Git directory's `local-test-runs/` containing
-`pytest.log`, `junit.xml`, and `run.json`: start/end time, elapsed seconds, command, effective worker
-and selection settings, interpreter/dependency versions, and Git revision/dirty state before and
-after. A dirty receipt is not proof of an exact committed candidate; untracked contents are not
-hashed. An interrupted run may have incomplete artifacts. Keep comparable receipts when assessing
-speed: same candidate and selection, known competing workloads, and the same interpreter.
-
-`pytest.ini` defaults to **10 local workers** with `--dist worksteal`; CI passes its explicit
-four-worker override on the command line. Do not export worker options through `PYTEST_ADDOPTS`:
-fixture suites inherit that variable and start additional worker pools. CI disables automatic
-plugin loading and explicitly loads xdist, Hypothesis, pytest-timeout and pytest-socket. Every test
-has a 300-second ceiling, and the test process may open sockets only to loopback or a Unix socket;
-a test that needs more declares it with those plugins' markers. Subprocesses a test starts are
-outside both rules.
-Work stealing balances individual cases across workers; module and class
-fixtures can run once on each worker that receives their tests. Pass `-n 0` for a debugger or
-`--pdb`, or a smaller count on a constrained host. More workers are not a speed guarantee.
-For the opt-in incidents-page and incidents-console UI calibrations, pass `--dist loadfile`
-to run each module's full Vitest matrix once instead of repeating it on several workers.
-The default skips heavy files listed in `conftest.py`
-(`HEAVY`): `--heavy` includes them, `-m heavy` selects only them, and naming a file runs it directly.
-The default run and exact `-m heavy`/`-m "not heavy"` selections exclude the other files before
-importing them. Mixed marker expressions keep pytest's normal marker evaluation.
-Use `python -m pytest <affected files>` for focused work; use the coordinated runner once for the
-final suite and retain its timing evidence.
+`pytest.ini` configures the default local worker pool, work stealing, and loopback-only socket and
+timeout guards; CI passes its explicit four-worker override. Do not export worker options through
+`PYTEST_ADDOPTS` (fixture suites inherit it and spawn extra worker pools). Pass `-n 0` for a
+debugger or `--pdb`, and `--dist loadfile` for opt-in Vitest UI calibrations so each module's matrix
+runs once. The default skips `HEAVY` files in `conftest.py` (`--heavy` includes them, `-m heavy`
+selects only them, naming a file runs it directly). Use `python -m pytest <affected files>` for
+focused work and `scripts/local_tests.py` once at the final boundary.
 
 For recurring focused checks, `python scripts/local_tests.py --list-suites` lists named groups and
 `python scripts/local_tests.py --suite python-craft` resolves their explicit test paths. Repeat
@@ -210,7 +189,7 @@ test files. Add new root tests and native scenarios to explicit capability suite
 Finalize definitions before exporting fingerprints for a new
 campaign; keep historical result identities intact.
 
-On POSIX, substitute `.venv/bin/python`. `uv sync --locked` removes packages the lock does not
+`uv sync --locked` removes packages the lock does not
 name, so a package installed by hand for an experiment disappears at the next sync; add it to a
 group instead. CI installs the same lock with `setup-uv` and `uv sync --locked`, bound to the
 `setup-python` interpreter, and caches uv downloads keyed on `uv.lock`.
@@ -221,11 +200,9 @@ Gate A, the `scripts/` suite (the guard, hooks and bundled skill scripts) on the
 npm's latest Claude Code release, with its resolved version recorded in the job log, validating
 `.claude-plugin/marketplace.json` with `--strict` and `.claude-plugin/plugin.json` without it:
 plugin errors fail the job; warnings remain visible.
-GitHub's Dependabot alerts report published advisories against the repository's dependencies;
-CI runs no advisory scan. Action references are a floating major
-tag where the action publishes one (`actions/checkout@v7`), otherwise the exact release tag
-(`astral-sh/setup-uv@v10.3.3`); Dependabot's actions updater moves both. A tag can move upstream, and
-the repository accepts that for readable references.
+GitHub's Dependabot alerts report published advisories against dependencies; CI runs no advisory
+scan. Action references use a floating major tag where published (`actions/checkout@v7`), otherwise
+an exact release tag; Dependabot's actions updater moves both.
 The root `CLAUDE.md` intentionally provides repository authoring context and produces a warning
 because installed plugins do not load it. Report what ran and what remains unverified.
 
