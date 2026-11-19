@@ -6,6 +6,9 @@ Git history at `1f25a268`. Unfinished work belongs in [`docs/fleet-roadmap.md`](
 
 ## [Unreleased]
 
+- Reviewer verifies the contents of uncommitted scratch copies before running checks.
+- Blocked reviews return `Verdict: WITHHELD`; source-only findings identify the outstanding runtime check.
+
 - `python-craft` no longer claims explanation requests: the explanation routing case is retired and
   the description drops that clause.
 
