@@ -25,9 +25,10 @@ consequences.
 
 ## Enforcement boundaries
 
-- Tool absence is the primary boundary: `repository-investigator`, `scribe`, and `researcher` carry
-  lane-minimum tools, and the [roster](README.md#tools-and-delegation) is the one statement of each
-  lane's tool posture and delegation edges.
+- Tool absence is the primary boundary: `repository-investigator`, `scribe`, `researcher`,
+  `principal-engineer`, and `reliability-engineer` carry no shell tools, and the
+  [roster](README.md#tools-and-delegation) is the one statement of each lane's tool posture and
+  delegation edges.
 - The fail-closed Bash/PowerShell allowlist applies only to `sre-assistant`: the hook runs on every
   call and [`readonly-guard.py`](scripts/readonly-guard.py) scopes itself on `agent_type`.
   `reviewer`'s no-candidate-edit and scratch-copy rules are cooperative unless the outer host

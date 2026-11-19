@@ -22,7 +22,7 @@ python scripts/generate_platform_adapters.py --write
 Before changing frontmatter, tool authority, delegation, or guard wiring, read the
 [frontmatter reference](skills/agent-authoring/references/claude-code-frontmatter.md). Declare
 third-party dependencies in `pyproject.toml` and lock them with `uv lock`; `uv.lock` is the only
-exact pin set. `scripts/readonly-guard.py` stays standard-library-only under `python -I -S`. Commands using `python` here mean the verified project
+exact pin set. Commands using `python` here mean the verified project
 interpreter; activate that environment or use its full executable path. A bare `python` or `py -3`
 can select a different version on Windows; avoid the Store stub.
 `rg` hides generated projections through [`.ignore`](.ignore); pass `--no-ignore` to inspect them.
@@ -165,7 +165,7 @@ uv sync --locked
 .venv\Scripts\python.exe scripts/local_tests.py
 ```
 
-One caller owns that run; helpers return focused evidence instead of starting duplicate full suites.
+On POSIX, substitute `.venv/bin/python`. One caller owns that run; helpers return focused evidence instead of starting duplicate full suites.
 The runner coordinates linked worktrees via an OS-held lease (`scripts/local_tests.py`) and writes a
 receipt directory (`pytest.log`, `junit.xml`, `run.json`) under the common Git directory's
 `local-test-runs/`; a dirty receipt does not prove an exact committed candidate.
@@ -189,7 +189,7 @@ test files. Add new root tests and native scenarios to explicit capability suite
 Finalize definitions before exporting fingerprints for a new
 campaign; keep historical result identities intact.
 
-On POSIX, substitute `.venv/bin/python`. `uv sync --locked` removes packages the lock does not
+`uv sync --locked` removes packages the lock does not
 name, so a package installed by hand for an experiment disappears at the next sync; add it to a
 group instead. CI installs the same lock with `setup-uv` and `uv sync --locked`, bound to the
 `setup-python` interpreter, and caches uv downloads keyed on `uv.lock`.
