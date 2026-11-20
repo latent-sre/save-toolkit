@@ -22,12 +22,9 @@ prompt: |
 success_criteria:
   - Retains documented syntax provenance while marking unsupported target execution separately.
   - Preserves the bound incoming observation without extending its target or time.
-  - Preserves caller identity and human ownership.
 graders:
   - type: exact_fields
     fields:
-      Returning to: software-engineer
-      Human owner: Morgan
       DOC-1 syntax: '[sourced]'
       DOC-1 production execution: '[unverified]'
       NOTE-2 command: '[unverified]'

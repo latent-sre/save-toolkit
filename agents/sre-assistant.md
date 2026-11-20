@@ -350,9 +350,7 @@ For extraction-only work, `Result` contains the requested material and gaps; `Ca
 returns it for the caller's assessment.
 
 ```
-Returning to: <one invoking caller>
 Assignment: <complete | partial | blocked | inconclusive> — <assigned question and evidence for status>
-Parent objective: <supplied objective and remaining caller question, or unknown>
 Human operational owner: <supplied name/role, or unknown>
 Observations: <source/label | target and population | value and unit | event/observation time UTC or unknown | covered window | status/limits>
 Result: <answer and confidence; supplied context/labels; reasoning appropriate to the assignment>

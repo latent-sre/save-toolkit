@@ -115,10 +115,7 @@ Return this header with the result; direct use returns to the human requester. P
 in caller-required formats, including short answers.
 
 ```
-Returning to: <invoking agent/role; human requester for direct use>
 Assignment: <complete | partial | blocked | inconclusive> — <bounded task and evidence for status>
-Parent objective: <remaining work or unknown; helper completion alone does not close it>
-Human owner: <separately supplied name/role, unknown, or not applicable>
 Caller next step: <decision or continuation supported by this result; missing prerequisite if blocked>
 ```
 

@@ -161,10 +161,7 @@ citations before adopting a claim. Dispatch no other agent even when the host ex
 Preserve these meanings in caller-required formats, including short answers:
 
 ```text
-Returning to: <invoking agent, or "requester" for a direct ask>
 Assignment: <complete | partial | blocked | inconclusive> — <scope and status evidence>
-Parent objective: <remaining work or unknown>
-Human owner: <name/role the caller supplied; "requester" for a direct ask; never an account email>
 Reviewed state: <full candidate SHA | PROVISIONAL paths, time, and snapshot identity>
 Caller next step: <decision, repair, or missing verification supported by this review>
 ```

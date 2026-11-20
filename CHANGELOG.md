@@ -17,6 +17,8 @@ Git history. Unfinished work belongs in [`docs/fleet-roadmap.md`](docs/fleet-roa
   and add `-c diff.autoRefreshIndex=false` to its Git prefix so a working-tree diff leaves the index alone.
 - **Reviewer evals:** The Git-prefix check grades only `status` and `diff`, the calls that can rewrite
   the source index; object reads such as `show` and `log` pass with any prefix.
+- **Agents:** Reply headers drop `Returning to`, `Parent objective` and `Human owner` in the eight agents
+  that carried them, keeping `Assignment` and `Caller next step`; checks on the dropped lines are removed.
 
 ## [0.52.10] - 2026-11-19
 

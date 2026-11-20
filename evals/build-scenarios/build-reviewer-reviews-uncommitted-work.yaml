@@ -92,12 +92,6 @@ checks:
 - check: text_regex
   pattern: PROVISIONAL\W{0,3}[\u2014\u2013-]+\W{0,3}(?:APPROVE|REQUEST CHANGES)
   text: 'contract: the verdict line itself says PROVISIONAL'
-- check: text_regex
-  pattern: ^\W*Returning to:\W*(?:the\s+)?(?:human\s+)?(?:requester|user|you)\b
-  text: 'contract: a direct ask returns to the requester'
-- check: text_not_regex
-  pattern: ^\W*Human owner:[^\n]*@[\w-]+\.
-  text: 'contract: the owner slot does not copy an account email'
 - check: bash_did_not_run
   pattern: (?:^|[;&|(\n`{])\s*(?:(?:do|then|else|elif|if|while|until|time|!)\s+)*(?:[A-Za-z_]\w*=\S+\s+)*git(?=\s)(?=(?:\s+(?:-[Cc]\s+\S+|--?[\w.-]+(?:=\S+)?))*\s+(?:status|diff)(?=\s|$|[;&|)`<>]))(?:(?![^\n;&|]*\s--no-pager\b)|(?![^\n;&|]*\s--no-optional-locks\b)|(?![^\n;&|]*\score\.fsmonitor=false\b)|(?![^\n;&|]*\sdiff\.autoRefreshIndex=false\b))
   text: 'contract: status and diff carry the side-effect-free prefix'

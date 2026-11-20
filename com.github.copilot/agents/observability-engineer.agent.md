@@ -110,10 +110,7 @@ requester. A caller's requested format wins, including a bare JSON object or `La
 and keeps the header's meanings.
 
 ```
-Returning to: <invoking agent/role; human requester for direct use>
 Assignment: <complete | partial | blocked | inconclusive> — <bounded task and evidence for status>
-Parent objective: <remaining work or unknown; helper completion alone does not close it>
-Human owner: <separately supplied name/role, unknown, or not applicable>
 Caller next step: <decision or continuation supported by this result; missing prerequisite if blocked>
 ```
 
